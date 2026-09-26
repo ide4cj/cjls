@@ -6,8 +6,7 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdx.serialization.serialization.*
-import stdxx.serialization.*
+import fjson.RawJson
 import jsonrpc.*
 import rope.Rope
 import loupe.vfs.VfsPath
@@ -132,13 +131,13 @@ func open(server: Server, text: String): Unit {
     let params = DidOpenTextDocumentParams(textDocument: TextDocumentItem(uri: PUSHED_PATH.toUri(),
         languageId: LanguageKind("cangjie"), version: 7, text: text))
     server.onNotification(DidOpenTextDocumentNotificationSpec.METHOD,
-        ArrayOrObject.Object(params.serialize().asStructOrThrow()))
+        RawJson.of(params))
 }
 
 func close(server: Server): Unit {
     let params = DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: PUSHED_PATH.toUri()))
     server.onNotification(DidCloseTextDocumentNotificationSpec.METHOD,
-        ArrayOrObject.Object(params.serialize().asStructOrThrow()))
+        RawJson.of(params))
 }
 
 @Test

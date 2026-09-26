@@ -1,62 +1,88 @@
 package jsonrpc
 
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable, UnexpectedVariantException}
-import stdxx.serialization.*
+import stdxx.deriving.*
 
 public type RequestId = IntegerOrString
 
-public enum Body <: Serializable<Body> {
+private let JSONRPC = FjName("jsonrpc")
+private let ID = FjName("id")
+private let RESULT = FjName("result")
+private let ERROR = FjName("error")
+
+/**
+ * One message. JSON-RPC has no discriminator field, so the shape is the discriminator: `id`,
+ * `method`, `result` and `error` present or not decide the variant. It is read in one pass, whatever
+ * the order of the keys; the params, a result and an error's data stay unread - `RawJson`, slices of
+ * the frame - until whoever knows the method reads them as its types.
+ */
+public enum Body <: ToJson & FromJson<Body> {
     | Request(RequestBody)
     | Notification(NotificationBody)
     | Response(ResponseBody)
 
     /**
-     * @throws DataModelException - if DataModel has unexpected type
      * @throws RpcException - if the protocol invariants are not met
+     * @throws FjException - if the JSON is not a message's
      */
-    public static func deserialize(dm: DataModel): Body {
-        let dms = dm.asStructOrThrow()
+    public static func fromJson(r: FjReader): Body {
+        var version: ?String = None
+        var id: ?Nullable<RequestId> = None
+        var method: ?String = None
+        var params: ?RawJson = None
+        var result: ?RawJson = None
+        var error: ?ResponseError = None
 
-        match (dms.get("jsonrpc")) {
-            case jsonRpcVersion: DataModelString where jsonRpcVersion.getValue() == "2.0" => ()
-            case _ => throw RpcException(ErrorCode.INVALID_REQUEST, "invalid \"jsonrpc\" field value")
-        }
-
-        if (let Some(id) <- dms.getOrNone("id")) {
-            let result = dms.getOrNone("result")
-            let error = dms.getOrNone("error")
-
-            match ((result, error)) {
-                case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST, "a response carries both \"result\" and \"error\"")
-                case (Some(result), None) => return ResponseBody(Nullable.deserialize(id), Result(result)).enveloped()
-                case (None, Some(error)) => return ResponseBody(Nullable.deserialize(id),
-                    ResultOrError.Error(ResponseError.deserialize(error))).enveloped()
-                case _ => return RequestBody(IntegerOrString.deserialize(id), dms.getDeserializedOrThrow("method"),
-                    params: dms.getDeserializedOrNone("params")).enveloped()
+        r.beginObject()
+        while (r.nextKey()) {
+            if (r.keyIs("jsonrpc")) {
+                version = match (r.peekKind()) {
+                    case FjKind.JsonString => r.readString()
+                    case _ =>
+                        r.skipValue()
+                        ""
+                }
+            } else if (r.keyIs("id")) {
+                id = Nullable<RequestId>.fromJson(r)
+            } else if (r.keyIs("method")) {
+                method = r.readString()
+            } else if (r.keyIs("params")) {
+                params = paramsOf(r)
+            } else if (r.keyIs("result")) {
+                result = RawJson.fromJson(r)
+            } else if (r.keyIs("error")) {
+                error = ResponseError.fromJson(r)
+            } else {
+                r.skipValue()
             }
         }
 
-        NotificationBody(dms.getDeserializedOrThrow("method"), params: dms.getDeserializedOrNone("params")).enveloped()
+        if (version != Some("2.0")) {
+            throw RpcException(ErrorCode.INVALID_REQUEST, "invalid \"jsonrpc\" field value")
+        }
+        let someId = id ?? return Notification(
+            NotificationBody(method ?? throw missingField("Notification", "method"), params: params))
+        match ((result, error)) {
+            case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST,
+                "a response carries both \"result\" and \"error\"")
+            case (Some(value), None) => Response(ResponseBody(someId, Result(value)))
+            case (None, Some(err)) => Response(ResponseBody(someId, ResultOrError.Error(err)))
+            case _ =>
+                let requestId = match (someId) {
+                    case Value(value) => value
+                    case Null => throw RpcException(ErrorCode.INVALID_REQUEST, "a request's \"id\" is null")
+                }
+                Request(RequestBody(requestId, method ?? throw missingField("Request", "method"), params: params))
+        }
     }
 
-    public func serialize(): DataModel {
-        let dms = DataModelStruct()
-        dms.add(field("jsonrpc", "2.0"))
+    public func toJson(w: FjWriter): Unit {
         match (this) {
-            case Request(req) => dms
-                .add(field("id", req.id))
-                .add(field("method", req.method))
-                .addFieldIfSome("params", req.params)
-            case Notification(note) => dms.add(field("method", note.method)).addFieldIfSome("params", note.params)
-            case Response(resp) =>
-                dms.add(field("id", resp.id))
-                match (resp.resultOrError) {
-                    case Result(dm) => dms.add(Field("result", dm))
-                    case Error(err) => dms.add(field("error", err))
-                }
+            case Request(request) => request.toJson(w)
+            case Notification(notification) => notification.toJson(w)
+            case Response(response) => response.toJson(w)
         }
-        dms
     }
 
     /**
@@ -101,11 +127,26 @@ public enum Body <: Serializable<Body> {
     }
 }
 
+/**
+ * JSON-RPC allows only a structured value as the params; `null` reads as none at all.
+ */
+private func paramsOf(r: FjReader): ?RawJson {
+    match (r.peekKind()) {
+        case FjKind.JsonObject | FjKind.JsonArray => RawJson.fromJson(r)
+        case FjKind.JsonNull =>
+            r.readNull()
+            None
+        case _ => throw RpcException(ErrorCode.INVALID_REQUEST, "\"params\" has to be an array or an object")
+    }
+}
+
+@DeriveExt[ToJson]
+@Serde[tag: "jsonrpc", value: "2.0", skipNone]
 public struct RequestBody {
     public RequestBody(
         public let id: RequestId,
         public let method: String,
-        public let params!: ?ArrayOrObject = None
+        public let params!: ?RawJson = None
     ) {}
 
     public func enveloped(): Body {
@@ -113,15 +154,17 @@ public struct RequestBody {
     }
 }
 
+@DeriveExt[ToJson]
+@Serde[tag: "jsonrpc", value: "2.0", skipNone]
 public struct NotificationBody {
-    public NotificationBody(public let method: String, public let params!: ?ArrayOrObject = None) {}
+    public NotificationBody(public let method: String, public let params!: ?RawJson = None) {}
 
     public func enveloped(): Body {
         Notification(this)
     }
 }
 
-public struct ResponseBody {
+public struct ResponseBody <: ToJson {
     /**
      * @param id - `Null` when the request it answers could not be read far enough to have one
      */
@@ -130,10 +173,27 @@ public struct ResponseBody {
     public func enveloped(): Body {
         Response(this)
     }
+
+    public func toJson(w: FjWriter): Unit {
+        w.beginObject()
+        w.name(JSONRPC)
+        w.string("2.0")
+        w.name(ID)
+        id.toJson(w)
+        match (resultOrError) {
+            case Result(value) =>
+                w.name(RESULT)
+                value.toJson(w)
+            case Error(err) =>
+                w.name(ERROR)
+                err.toJson(w)
+        }
+        w.endObject()
+    }
 }
 
 public enum ResultOrError {
-    | Result(DataModel)
+    | Result(RawJson)
     | Error(ResponseError)
 
     public func isResult(): Bool {
@@ -147,7 +207,7 @@ public enum ResultOrError {
     /**
      * @throws UnexpectedVariantException - if it holds an `Error`
      */
-    public func getResultOrThrow(): DataModel {
+    public func getResultOrThrow(): RawJson {
         match (this) {
             case Result(data) => data
             case Error(_) => throw UnexpectedVariantException("Result", "Error")

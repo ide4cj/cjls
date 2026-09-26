@@ -3,12 +3,13 @@ macro package stdxx.deriving
 import std.ast.*
 import std.collection.*
 
-const MARKER_MACRO = "DeriveExtSerializable"
+const MARKER_MACRO = "Serde"
 const ITEM_IDENT = "ident"
 const ITEM_ON_TYPE = "onType"
 const ITEM_RENAME = "rename"
 const ITEM_SKIP_NONE = "skipNone"
 const ITEM_TRANSPARENT = "transparent"
+const ITEM_UNTAGGED = "untagged"
 const ITEM_TAG = "tag"
 const ITEM_VALUE = "value"
 const ITEM_VALUE_IS_INTEGER = "valueIsInteger"
@@ -16,29 +17,32 @@ const ITEM_PAYLOAD = "payload"
 const ITEM_OTHER = "other"
 
 /**
- * Configures what `@DeriveExt[Serializable]` generates for the declaration it sits on - one marker
- * for every position.
+ * Configures what `@DeriveExt` generates for the declaration it sits on - serde's `#[serde(...)]`:
+ * one marker for every position, read alike by every derivation (`ToJson`, `FromJson`,
+ * `Serializable`).
  *
  * Which options are legal follows from where it sits:
  *
- * | on          | option                    | meaning                                             |
- * |-------------|---------------------------|-----------------------------------------------------|
- * | type        | `skipNone`                | every optional field omits its key when `None`      |
- * | type        | `tag: "kind"`             | the type is internally tagged by that field         |
- * | struct      | `value: "delete"`         | the tag's value - required with `tag` on a struct   |
- * | type        | `transparent`             | the struct is its only field on the wire            |
- * | field       | `rename: "textDocument"`  | the name the field carries on the wire              |
- * | field       | `skipNone`                | this field omits its key when `None`                |
- * | enum variant| `value: "URI"`, `value: -1`| what the variant is on the wire, or its tag        |
- * | enum variant| `payload: ["key"]`        | the names of the variant's positional payload       |
- * | enum variant| `other`                   | any value no other variant claims, kept as payload  |
+ * | on           | option                    | meaning                                                  |
+ * |--------------|---------------------------|----------------------------------------------------------|
+ * | type         | `skipNone`                | every optional field omits its key when `None`           |
+ * | type         | `tag: "kind"`             | the type is internally tagged by that field              |
+ * | enum         | `untagged`                | the variant is whichever one the value reads as          |
+ * | struct       | `value: "delete"`         | the tag's value - required with `tag` on a struct        |
+ * | struct       | `transparent`             | the struct is its only field on the wire                 |
+ * | field        | `rename: "textDocument"`  | the name the field carries on the wire                   |
+ * | field        | `skipNone`                | this field omits its key when `None`                     |
+ * | enum variant | `rename: "URI"`           | the string the variant is on the wire, or its tag        |
+ * | enum variant | `value: -1`               | the integer the variant is on the wire                   |
+ * | enum variant | `payload: ["key"]`        | the names of a tagged variant's positional payload       |
+ * | enum variant | `other`                   | any value no other variant claims, kept as payload       |
  *
  * ```
- * @DeriveExt[Serializable]
- * @DeriveExtSerializable[skipNone]
+ * @DeriveExt[ToJson, FromJson]
+ * @Serde[skipNone]
  * public struct Edit {
  *     public Edit(
- *         @DeriveExtSerializable[rename: "textDocument"] let document!: String,
+ *         @Serde[rename: "textDocument"] let document!: String,
  *         let edits!: ?Array<String> = None
  *     ) {}
  * }
@@ -50,7 +54,7 @@ const ITEM_OTHER = "other"
  * @note it is only legal inside `@DeriveExt` - it carries its options to the enclosing macro and
  *       expands to nothing of its own.
  */
-public macro DeriveExtSerializable(attrs: Tokens, input: Tokens): Tokens {
+public macro Serde(attrs: Tokens, input: Tokens): Tokens {
     assertParentContext(DERIVE_EXT_MACRO)
 
     let position = positionOf(input)
@@ -65,8 +69,8 @@ public macro DeriveExtSerializable(attrs: Tokens, input: Tokens): Tokens {
         case _ => diagReport(
             DiagReportLevel.ERROR,
             attrs,
-            "`@DeriveExtSerializable` takes named options",
-            "e.g. `@DeriveExtSerializable[rename: \"textDocument\", skipNone]`"
+            "`@Serde` takes named options",
+            "e.g. `@Serde[rename: \"textDocument\", skipNone]`"
         )
     }
 
@@ -121,7 +125,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
 
     match (name) {
         case "rename" =>
-            if (expected(argument, position, [OnField], isFlag, false)) {
+            if (expected(argument, position, [OnField, OnVariant], isFlag, false)) {
                 setStringOption(argument, ITEM_RENAME, value)
             }
         case "tag" =>
@@ -131,6 +135,10 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
         case "transparent" =>
             if (expected(argument, position, [OnType], isFlag, true)) {
                 setItem(ITEM_TRANSPARENT, "true")
+            }
+        case "untagged" =>
+            if (expected(argument, position, [OnType], isFlag, true)) {
+                setItem(ITEM_UNTAGGED, "true")
             }
         case "skipNone" =>
             if (expected(argument, position, [OnType, OnField], isFlag, true)) {
@@ -151,8 +159,8 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
         case _ => diagReport(
             DiagReportLevel.ERROR,
             tokens,
-            "`@DeriveExtSerializable` has no option `${name}`",
-            "it takes: rename, skipNone, tag, transparent, value, payload, other"
+            "`@Serde` has no option `${name}`",
+            "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other"
         )
     }
 }
@@ -301,6 +309,7 @@ struct MarkerOptions {
         let skipNone!: Bool = false,
         let tag!: ?String = None,
         let transparent!: Bool = false,
+        let untagged!: Bool = false,
         let value!: ?WireValue = None,
         let payload!: Array<String> = [],
         let other!: Bool = false
@@ -308,7 +317,7 @@ struct MarkerOptions {
 }
 
 /**
- * What the `@DeriveExtSerializable` children of the current `@DeriveExt` asked for: the options of
+ * What the `@Serde` children of the current `@DeriveExt` asked for: the options of
  * the type itself, and those of each of its fields or variants by identifier.
  */
 func collectMarkers(): (MarkerOptions, HashMap<String, MarkerOptions>) {
@@ -333,6 +342,7 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
         skipNone: message.hasItem(ITEM_SKIP_NONE),
         tag: stringItemOf(message, ITEM_TAG),
         transparent: message.hasItem(ITEM_TRANSPARENT),
+        untagged: message.hasItem(ITEM_UNTAGGED),
         value: stringItemOf(message, ITEM_VALUE).map {
             value => WireValue.of(value, message.getString(ITEM_VALUE_IS_INTEGER) == "true")
         },

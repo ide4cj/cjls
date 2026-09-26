@@ -1,5 +1,6 @@
 package jsonrpc
 
+import fjson.RawJson
 
 /**
  * Both callbacks run on the read loop, one at a time, in arrival order, and nothing further
@@ -16,5 +17,8 @@ public interface Handler {
      */
     func onRequest(request: InboundRequest): Unit
 
-    func onNotification(method: String, params: ?ArrayOrObject): Unit
+    /**
+     * @param params - unread: the method says their type
+     */
+    func onNotification(method: String, params: ?RawJson): Unit
 }

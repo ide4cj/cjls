@@ -15,7 +15,7 @@ struct EnumIr {
  * it one of them fails the whole message.
  */
 struct EnumCatchAllIr {
-    EnumCatchAllIr(let doc: DocIr, let ident!: String, let serializable!: SerializableMemberOptions) {}
+    EnumCatchAllIr(let doc: DocIr, let ident!: String, let serde!: SerdeMemberOptions) {}
 }
 
 const CATCH_ALL_IDENT = "Unknown"
@@ -37,7 +37,7 @@ struct EnumVariantIr {
         // unescaped: the resolver compares it with the wire value, the emitter escapes it
         let ident!: String,
         let value!: IntegerOrString,
-        let serializable!: ?SerializableMemberOptions = None
+        let serde!: ?SerdeMemberOptions = None
     ) {}
 }
 
@@ -67,7 +67,7 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
     // only a closed enumeration we declare becomes an `enum`: an open one is a struct around its
     // value, and both it and an adopted one carry their constants as `static` members
     let (derives, asConstructors): (Array<DeriveIr>, Bool) = match (shape) {
-        case Declared => ([Serializable(SerializableTypeOptions(transparent: isOpen)), DeriveIr.Equatable,
+        case Declared => ([Json(SerdeTypeOptions(transparent: isOpen)), DeriveIr.Equatable,
             DeriveIr.Hashable], !isOpen)
         case Adopted(_) => ([], false)
     }
@@ -83,7 +83,7 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
         catchAll = EnumCatchAllIr(
             DocIr(documentation: "A value this version of the protocol does not define."),
             ident: CATCH_ALL_IDENT,
-            serializable: SerializableMemberOptions(other: true)
+            serde: SerdeMemberOptions(other: true)
         )
     }
 
@@ -106,16 +106,16 @@ private func resolveEnumVariant(entry: EnumerationEntry, asConstructor!: Bool): 
         entry.name.toAsciiUpperSnakeCase()
     }
 
-    let serializable: ?SerializableMemberOptions = if (!asConstructor) {
+    let serde: ?SerdeMemberOptions = if (!asConstructor) {
         None
     } else if (entry.value == ident) {
         // the macro already puts a variant on the wire under its identifier
-        SerializableMemberOptions()
+        SerdeMemberOptions()
     } else {
-        SerializableMemberOptions(value: entry.value)
+        SerdeMemberOptions(value: entry.value)
     }
 
-    EnumVariantIr(resolveDoc(entry), ident: ident, value: entry.value, serializable: serializable)
+    EnumVariantIr(resolveDoc(entry), ident: ident, value: entry.value, serde: serde)
 }
 
 extend CjEmitter {
@@ -198,7 +198,7 @@ extend CjEmitter {
 
     private func emitCatchAllVariant(catchAll: EnumCatchAllIr, base: EnumBase): Unit {
         let ident = escapedIdent(catchAll.ident)
-        let marker = catchAll.serializable
+        let marker = catchAll.serde
 
         emitDoc(catchAll.doc)
         emitln(quote(| $marker $ident($base)))
@@ -206,7 +206,7 @@ extend CjEmitter {
 
     private func emitClosedEnumVariant(closedEnumVariant: EnumVariantIr): Unit {
         let enumVariantIdent = escapedIdent(closedEnumVariant.ident)
-        let marker = serializableMarkerOf(closedEnumVariant.serializable)
+        let marker = serdeMarkerOf(closedEnumVariant.serde)
 
         emitDoc(closedEnumVariant.doc)
         emitln(quote(| $marker $enumVariantIdent))

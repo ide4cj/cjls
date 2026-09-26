@@ -1,6 +1,6 @@
 package jsonrpc
 
-import stdx.serialization.serialization.*
+import fjson.RawJson
 
 /**
  * The framing itself is lost: there is no next message to find.
@@ -24,7 +24,7 @@ public class RpcException <: Exception {
         super(responseError.message)
     }
 
-    public init(code: ErrorCode, message: String, data!: ?DataModel = None) {
+    public init(code: ErrorCode, message: String, data!: ?RawJson = None) {
         this(ResponseError(code, message, data: data))
     }
 
@@ -34,7 +34,7 @@ public class RpcException <: Exception {
         }
     }
 
-    public prop data: ?DataModel {
+    public prop data: ?RawJson {
         get() {
             responseError.data
         }

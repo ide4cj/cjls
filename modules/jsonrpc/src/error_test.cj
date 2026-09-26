@@ -3,14 +3,12 @@ package jsonrpc
 import std.unittest.*
 import std.unittest.testmacro.*
 import std.unittest.prop_test.*
-import stdx.encoding.json.*
-import stdx.serialization.serialization.*
-import stdxx.serialization.*
+import fjson.*
 
 @Test
 class ResponseErrorTest {
     func errorOf(json: String): ResponseError {
-        ResponseError.deserialize(DataModel.fromJson(JsonValue.fromStr(json)))
+        fromJsonBytes<ResponseError>(json.toArray())
     }
 
     @TestCase[json in [
@@ -20,7 +18,7 @@ class ResponseErrorTest {
     ]]
     func anErrorReadsBackAsItWasWritten(json: String) {
         // act
-        let written = errorOf(json).serialize().toJson().toString()
+        let written = String.fromUtf8(toJsonBytes(errorOf(json)))
 
         // assert
         @Expect(json, written)
@@ -29,7 +27,7 @@ class ResponseErrorTest {
     @TestCase[json in [ "42", "\"boom\"", "[-32700]", "null", ##"{"message":"m"}"##, ##"{"code":-32700}"## ]]
     func anErrorWithoutCodeAndMessageDoesNotRead(json: String) {
         // act & assert
-        @AssertThrows[DataModelException](errorOf(json))
+        @AssertThrows[FjException](errorOf(json))
     }
 }
 
@@ -42,18 +40,18 @@ class ErrorCodeTest {
         let code = ErrorCode(value)
 
         // act
-        let written = code.serialize()
+        let written = String.fromUtf8(toJsonBytes(code))
 
         // assert
-        @Expect(code, ErrorCode.deserialize(written))
-        @Expect(Int64(value), written.asIntOrThrow())
+        @Expect(code, fromJsonBytes<ErrorCode>(written.toArray()))
+        @Expect(value.toString(), written)
         @Expect(value.toString(), code.toString())
     }
 
     @TestCase
     func aCodeThatIsNoInt32DoesNotRead() {
         // act & assert
-        @AssertThrows[DataModelException](ErrorCode.deserialize(DataModelString("-32700")))
-        @AssertThrows[DataModelException](ErrorCode.deserialize(DataModelInt(9999999999)))
+        @AssertThrows[FjException](fromJsonBytes<ErrorCode>(#""-32700""#.toArray()))
+        @AssertThrows[FjException](fromJsonBytes<ErrorCode>("9999999999".toArray()))
     }
 }

@@ -5,15 +5,16 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
+import fjson.*
 import stdx.serialization.serialization.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 
-func emptyParams(): ArrayOrObject {
-    ArrayOrObject.Object(DataModelStruct())
+func emptyParams(): RawJson {
+    rawJson("{}")
 }
 
-func answer(id: RequestId, result: DataModel): Body {
+func answer(id: RequestId, result: RawJson): Body {
     ResponseBody(Value(id), Result(result)).enveloped()
 }
 
@@ -98,10 +99,10 @@ class FakeTransport <: JsonRpcTransport {
  * with it. Notification methods are recorded so a test can wait for one to land.
  */
 class FakeHandler <: Handler {
-    var onRequestFn: (String, ?ArrayOrObject, CancellationToken) -> ResultOrError = {
-        _, _, _ => Result(DataModelNull())
+    var onRequestFn: (String, ?RawJson, CancellationToken) -> ResultOrError = {
+        _, _, _ => Result(rawJson("null"))
     }
-    var onNotificationFn: (String, ?ArrayOrObject) -> Unit = {_, _ => ()}
+    var onNotificationFn: (String, ?RawJson) -> Unit = {_, _ => ()}
     var inPlace = false
 
     let notified = LinkedBlockingQueue<String>()
@@ -116,7 +117,7 @@ class FakeHandler <: Handler {
         }
     }
 
-    public func onNotification(method: String, params: ?ArrayOrObject): Unit {
+    public func onNotification(method: String, params: ?RawJson): Unit {
         // recorded first, so a throwing handler is still observable
         notified.add(method)
         onNotificationFn(method, params)
@@ -133,16 +134,16 @@ class KeepingHandler <: Handler {
         received.add(request)
     }
 
-    public func onNotification(method: String, params: ?ArrayOrObject): Unit {}
+    public func onNotification(method: String, params: ?RawJson): Unit {}
 }
 
 class AnswerThenThrowHandler <: Handler {
     public func onRequest(request: InboundRequest): Unit {
-        request.respond(Result(DataModelInt(42)))
+        request.respond(Result(RawJson.of(42)))
         throw IllegalStateException("too late to matter")
     }
 
-    public func onNotification(method: String, params: ?ArrayOrObject): Unit {}
+    public func onNotification(method: String, params: ?RawJson): Unit {}
 }
 
 func unserved(handler: Handler): (Connection, FakeTransport) {
@@ -163,10 +164,10 @@ class ConnectionServeRequestTest {
         // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {
-            method, params, _ => Result(DataModelString("${method}:${fieldOf(params, "a").asIntOrThrow()}"))
+            method, params, _ => Result(RawJson.of("${method}:${fieldOf(params, "a").asIntOrThrow()}"))
         }
         let (_, transport) = serving(handler)
-        let params = ArrayOrObject.Object(DataModelStruct().add(field("a", 42)))
+        let params = rawJson(#"{"a":42}"#)
 
         // act
         transport.feed(RequestBody(Integer(1), "m", params: params).enveloped())
@@ -174,7 +175,7 @@ class ConnectionServeRequestTest {
 
         // assert
         @Expect(Integer(1), resp.id.getOrThrow())
-        @Expect("m:42", resp.resultOrError.getResultOrThrow().asStringOrThrow())
+        @Expect("m:42", resp.resultOrError.getResultOrThrow().read<String>())
     }
 
     @TestCase[inPlace in [ false, true ]]
@@ -216,7 +217,7 @@ class ConnectionServeRequestTest {
             _, _, _ =>
                 started.add(true)
                 release.remove()
-                Result(DataModelInt(42))
+                Result(RawJson.of(42))
         }
         let (_, transport) = serving(handler)
 
@@ -230,14 +231,14 @@ class ConnectionServeRequestTest {
 
         // assert - rather than the two sharing one cancellation token
         @Expect(ErrorCode.INVALID_REQUEST, rejected.resultOrError.getErrorOrThrow().code)
-        @Expect(42, completed.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(42, completed.resultOrError.getResultOrThrow().read<Int64>())
     }
 
     @TestCase
     func anIdCanBeReusedOnceItsRequestIsAnswered() {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
+        handler.onRequestFn = {_, _, _ => Result(RawJson.of(42))}
         let (_, transport) = serving(handler)
 
         // act
@@ -247,8 +248,8 @@ class ConnectionServeRequestTest {
         let second = transport.nextResponse()
 
         // assert
-        @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
-        @Expect(42, second.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(42, first.resultOrError.getResultOrThrow().read<Int64>())
+        @Expect(42, second.resultOrError.getResultOrThrow().read<Int64>())
     }
 }
 
@@ -258,7 +259,7 @@ class ConnectionServeNotificationTest {
     func aNotificationReachesTheHandlerAndIsNeverAnsweredEvenIfItFails(failing: Bool) {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(DataModelInt(42))}
+        handler.onRequestFn = {_, _, _ => Result(RawJson.of(42))}
         if (failing) {
             handler.onNotificationFn = {_, _ => throw IllegalStateException("handler blew up")}
         }
@@ -272,7 +273,7 @@ class ConnectionServeNotificationTest {
 
         // assert - and the loop is still reading
         @Expect(Integer(1), written.id.getOrThrow())
-        @Expect(42, written.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(42, written.resultOrError.getResultOrThrow().read<Int64>())
     }
 }
 
@@ -287,7 +288,7 @@ class ConnectionDeliveryOrderTest {
         handler.onRequestFn = {
             method, _, _ =>
                 handler.notified.add(method)
-                Result(DataModelNull())
+                Result(rawJson("null"))
         }
         let (_, transport) = serving(handler)
         let methods = ["note1", "request1", "note2", "note3", "request2", "note4"]
@@ -317,17 +318,17 @@ class ConnectionDeliveryOrderTest {
         @Assert(!request.isAnswered)
 
         // act
-        let first = request.respond(Result(DataModelInt(1)))
-        let second = request.respond(Result(DataModelInt(2)))
+        let first = request.respond(Result(RawJson.of(1)))
+        let second = request.respond(Result(RawJson.of(2)))
         transport.feed(RequestBody(Integer(2), "next").enveloped())
-        handler.received.remove().respond(Result(DataModelInt(3)))
+        handler.received.remove().respond(Result(RawJson.of(3)))
 
         // assert - the frame after the first answer is the next request's
         @Assert(first)
         @Assert(!second)
         let answered = transport.nextResponse()
         @Expect(Integer(1), answered.id.getOrThrow())
-        @Expect(1, answered.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(1, answered.resultOrError.getResultOrThrow().read<Int64>())
         @Expect(Integer(2), transport.nextResponse().id.getOrThrow())
     }
 
@@ -343,7 +344,7 @@ class ConnectionDeliveryOrderTest {
         let second = transport.nextResponse()
 
         // assert - no fallback error followed the first answer out
-        @Expect(42, first.resultOrError.getResultOrThrow().asIntOrThrow())
+        @Expect(42, first.resultOrError.getResultOrThrow().read<Int64>())
         @Expect(Integer(2), second.id.getOrThrow())
     }
 
@@ -357,7 +358,7 @@ class ConnectionDeliveryOrderTest {
 
         // act
         connection.close()
-        request.respond(Result(DataModelInt(42)))
+        request.respond(Result(RawJson.of(42)))
 
         // assert
         @Assert(request.cancellation.isCancelled)
@@ -420,7 +421,7 @@ class ConnectionCancelTest {
             _, _, cancel =>
                 started.add(true)
                 release.remove()
-                Result(DataModelBool(cancel.isCancelled))
+                Result(RawJson.of(cancel.isCancelled))
         }
         let (connection, transport) = serving(handler)
 
@@ -432,14 +433,14 @@ class ConnectionCancelTest {
         let resp = transport.nextResponse()
 
         // assert
-        @Assert(resp.resultOrError.getResultOrThrow().asBoolOrThrow())
+        @Assert(resp.resultOrError.getResultOrThrow().read<Bool>())
     }
 
     @TestCase
     func cancelOfAnIdNotInFlightDoesNotPoisonIt() {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, cancel => Result(DataModelBool(cancel.isCancelled))}
+        handler.onRequestFn = {_, _, cancel => Result(RawJson.of(cancel.isCancelled))}
         let (connection, transport) = serving(handler)
 
         // act
@@ -448,7 +449,7 @@ class ConnectionCancelTest {
         let resp = transport.nextResponse()
 
         // assert
-        @Assert(!resp.resultOrError.getResultOrThrow().asBoolOrThrow())
+        @Assert(!resp.resultOrError.getResultOrThrow().read<Bool>())
     }
 }
 
@@ -460,8 +461,8 @@ class ConnectionOutboundTest {
         let (connection, transport) = unserved(FakeHandler())
 
         // act
-        let first = connection.request<ArrayOrObject, ArrayOrObject>("ask", emptyParams())
-        let second = connection.request<ArrayOrObject, ArrayOrObject>("ask", emptyParams())
+        let first = connection.request<RawJson, RawJson>("ask", emptyParams())
+        let second = connection.request<RawJson, RawJson>("ask", emptyParams())
 
         // assert
         @Expect(Integer(0), first.id)
@@ -475,12 +476,12 @@ class ConnectionOutboundTest {
         let (connection, transport) = serving(FakeHandler())
 
         // act
-        let first = connection.request<ArrayOrObject, Int64>("first", emptyParams())
-        let second = connection.request<ArrayOrObject, Int64>("second", emptyParams())
+        let first = connection.request<RawJson, Int64>("first", emptyParams())
+        let second = connection.request<RawJson, Int64>("second", emptyParams())
         transport.nextWritten()
         transport.nextWritten()
-        transport.feed(answer(second.id, DataModelInt(2)))
-        transport.feed(answer(first.id, DataModelInt(1)))
+        transport.feed(answer(second.id, RawJson.of(2)))
+        transport.feed(answer(first.id, RawJson.of(1)))
 
         // assert
         @Expect(2, second.await())
@@ -493,7 +494,7 @@ class ConnectionOutboundTest {
         let (connection, transport) = serving(FakeHandler())
 
         // act
-        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
+        let pending = connection.request<RawJson, Int64>("ask", emptyParams())
         transport.nextWritten()
         transport.feed(
             ResponseBody(Value(pending.id), ResultOrError.Error(ResponseError(ErrorCode.INVALID_PARAMS, "bad params")))
@@ -511,9 +512,9 @@ class ConnectionOutboundTest {
         let (connection, transport) = serving(FakeHandler())
 
         // act
-        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
+        let pending = connection.request<RawJson, Int64>("ask", emptyParams())
         transport.nextWritten()
-        transport.feed(answer(pending.id, DataModelInt(7)))
+        transport.feed(answer(pending.id, RawJson.of(7)))
 
         // assert
         @Expect(7, pending.await(timeout: Duration.second).getOrThrow())
@@ -526,10 +527,10 @@ class ConnectionOutboundTest {
         let (connection, transport) = serving(handler)
 
         // act
-        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
+        let pending = connection.request<RawJson, Int64>("ask", emptyParams())
         transport.nextWritten()
         let timedOut = pending.await(timeout: Duration.millisecond * 50)
-        transport.feed(answer(pending.id, DataModelInt(7)))
+        transport.feed(answer(pending.id, RawJson.of(7)))
         transport.feed(NotificationBody("next").enveloped())
 
         // assert - dropped as any uncorrelated response is, and the loop is still alive
@@ -541,7 +542,7 @@ class ConnectionOutboundTest {
     func notifyWritesTheFrameWithItsParams() {
         // arrange
         let (connection, transport) = unserved(FakeHandler())
-        let params = ArrayOrObject.Object(DataModelStruct().add(field("message", "hi")))
+        let params = rawJson(#"{"message":"hi"}"#)
 
         // act
         connection.notify("tell", params)
@@ -603,7 +604,7 @@ class ConnectionCloseTest {
     func closeOrAPeerHangUpWakesACallerWaitingForAnAnswer(byPeer: Bool) {
         // arrange
         let (connection, transport) = serving(FakeHandler())
-        let pending = connection.request<ArrayOrObject, Int64>("ask", emptyParams())
+        let pending = connection.request<RawJson, Int64>("ask", emptyParams())
         transport.nextWritten()
 
         // act
@@ -628,7 +629,7 @@ class ConnectionCloseTest {
             _, _, cancel =>
                 started.add(cancel)
                 release.remove()
-                Result(DataModelNull())
+                Result(rawJson("null"))
         }
         let (connection, transport) = serving(handler)
         transport.feed(RequestBody(Integer(7), "slow").enveloped())

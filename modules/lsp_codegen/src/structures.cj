@@ -8,7 +8,7 @@ import std.collection.{ArrayList, enumerate}
  * its fields on the wire.
  */
 struct StructIr {
-    StructIr(let doc: DocIr, let ident!: String, let fields!: Array<FieldIr>, let tag!: ?SerializableTag = None) {}
+    StructIr(let doc: DocIr, let ident!: String, let fields!: Array<FieldIr>, let tag!: ?SerdeTag = None) {}
 }
 
 struct FieldIr {
@@ -45,7 +45,7 @@ func resolveLiteral(resolver: TypeResolver, literal: LiteralIr): StructIr {
  */
 private func resolveFields(doc: DocIr, ident: String, properties: Array<DeclaredProperty>, resolver: TypeResolver): StructIr {
     let fields = ArrayList<FieldIr>()
-    var tag: ?SerializableTag = None
+    var tag: ?SerdeTag = None
     for (declared in properties) {
         let property = declared.property
         if (let StringLiteral(value) <- property.propertyType) {
@@ -55,7 +55,7 @@ private func resolveFields(doc: DocIr, ident: String, properties: Array<Declared
             if (property.optional ?? false) {
                 throw IllegalStateException("`${ident}.${property.name}` is an optional string literal, which is no tag")
             }
-            tag = SerializableTag(field: property.name, value: value)
+            tag = SerdeTag(field: property.name, value: value)
             continue
         }
 
@@ -84,7 +84,7 @@ extend CjEmitter {
 
         emitDoc(structIr.doc)
         // absent and `None` are different messages in LSP - an optional field is left out, never `null`
-        emitDerives([Serializable(SerializableTypeOptions(skipNone: true, tag: structIr.tag))])
+        emitDerives([Json(SerdeTypeOptions(skipNone: true, tag: structIr.tag))])
         emit(quote(public struct $structIdent))
         blockln {
             =>
