@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -36,11 +36,11 @@ public struct DocumentDiagnosticRequestSpec <: LspInboundRequest<DocumentDiagnos
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): DocumentDiagnosticParams {
+    public func decodeParams(params: ?RawJson): DocumentDiagnosticParams {
         decodeMessageParams<DocumentDiagnosticParams>(params)
     }
 
-    public func encodeResult(result: DocumentDiagnosticReport): DataModel {
-        result.serialize()
+    public func encodeResult(result: DocumentDiagnosticReport): RawJson {
+        RawJson.of(result)
     }
 }

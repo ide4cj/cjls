@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -17,8 +17,8 @@ import jsonrpc.*
  * So the creator of a TextDocumentEdit doesn't need to sort the array of edits or do any
  * kind of ordering. However the edits must be non overlapping.
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
 public struct TextDocumentEdit {
     public TextDocumentEdit(
         /**

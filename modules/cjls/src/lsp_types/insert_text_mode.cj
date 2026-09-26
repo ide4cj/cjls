@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -17,7 +17,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum InsertTextMode {
     /**
@@ -27,7 +27,7 @@ public enum InsertTextMode {
      * The client will not apply any kind of adjustments to the
      * string.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     AsIs
 
     /**
@@ -39,12 +39,12 @@ public enum InsertTextMode {
      * multi line completion item is indented using 2 tabs and all
      * following lines inserted will be indented using 2 tabs as well.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     AdjustIndentation
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

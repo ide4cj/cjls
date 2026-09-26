@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -15,8 +15,8 @@ import jsonrpc.*
  * Represents a folding range. To be valid, start and end line must be bigger than zero and smaller
  * than the number of lines in the document. Clients are free to ignore invalid ranges.
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
 public struct FoldingRange {
     public FoldingRange(
         /**

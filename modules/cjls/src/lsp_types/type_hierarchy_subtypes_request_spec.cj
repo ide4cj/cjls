@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -35,11 +35,11 @@ public struct TypeHierarchySubtypesRequestSpec <: LspInboundRequest<TypeHierarch
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): TypeHierarchySubtypesParams {
+    public func decodeParams(params: ?RawJson): TypeHierarchySubtypesParams {
         decodeMessageParams<TypeHierarchySubtypesParams>(params)
     }
 
-    public func encodeResult(result: Nullable<Array<TypeHierarchyItem>>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<Array<TypeHierarchyItem>>): RawJson {
+        RawJson.of(result)
     }
 }

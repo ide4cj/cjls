@@ -5,45 +5,45 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * The diagnostic's severity.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum DiagnosticSeverity {
     /**
      * Reports an error.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Error
 
     /**
      * Reports a warning.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Warning
 
     /**
      * Reports an information.
      */
-    | @DeriveExtSerializable[value: 3]
+    | @Serde[value: 3]
     Information
 
     /**
      * Reports a hint.
      */
-    | @DeriveExtSerializable[value: 4]
+    | @Serde[value: 4]
     Hint
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -36,11 +36,11 @@ public struct FoldingRangeRequestSpec <: LspInboundRequest<FoldingRangeParams, N
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): FoldingRangeParams {
+    public func decodeParams(params: ?RawJson): FoldingRangeParams {
         decodeMessageParams<FoldingRangeParams>(params)
     }
 
-    public func encodeResult(result: Nullable<Array<FoldingRange>>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<Array<FoldingRange>>): RawJson {
+        RawJson.of(result)
     }
 }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -15,7 +15,8 @@ import jsonrpc.*
  * An event describing a change to a text document. If only a text is provided
  * it is considered to be the full content of the document.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
+@Serde[untagged]
 public enum TextDocumentContentChangeEvent {
     | AsTextDocumentContentChangePartial(TextDocumentContentChangePartial)
     | AsTextDocumentContentChangeWholeDocument(TextDocumentContentChangeWholeDocument)

@@ -5,21 +5,21 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum TokenFormat {
-    | @DeriveExtSerializable[value: "relative"]
+    | @Serde[rename: "relative"]
     Relative
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }

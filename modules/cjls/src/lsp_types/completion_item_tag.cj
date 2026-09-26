@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -17,18 +17,18 @@ import jsonrpc.*
  *
  * @since 3.15.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum CompletionItemTag {
     /**
      * Render a completion as obsolete, usually using a strike-out.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Deprecated
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

@@ -5,41 +5,41 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * How a completion was triggered
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum CompletionTriggerKind {
     /**
      * Completion was triggered by typing an identifier (24x7 code
      * complete), manual invocation (e.g Ctrl+Space) or via API.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Invoked
 
     /**
      * Completion was triggered by a trigger character specified by
      * the `triggerCharacters` properties of the `CompletionRegistrationOptions`.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     TriggerCharacter
 
     /**
      * Completion was re-triggered as current completion list is incomplete
      */
-    | @DeriveExtSerializable[value: 3]
+    | @Serde[value: 3]
     TriggerForIncompleteCompletions
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -15,8 +15,8 @@ import jsonrpc.*
  * A document link is a range in a text document that links to an internal or external resource, like another
  * text document or a web site.
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
 public struct DocumentLink {
     public DocumentLink(
         /**

@@ -5,39 +5,39 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * A document highlight kind.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum DocumentHighlightKind {
     /**
      * A textual occurrence.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Text
 
     /**
      * Read-access of a symbol, like reading a variable.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Read
 
     /**
      * Write-access of a symbol, like writing to a variable.
      */
-    | @DeriveExtSerializable[value: 3]
+    | @Serde[value: 3]
     Write
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

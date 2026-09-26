@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -35,11 +35,11 @@ public struct MonikerRequestSpec <: LspInboundRequest<MonikerParams, Nullable<Ar
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): MonikerParams {
+    public func decodeParams(params: ?RawJson): MonikerParams {
         decodeMessageParams<MonikerParams>(params)
     }
 
-    public func encodeResult(result: Nullable<Array<Moniker>>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<Array<Moniker>>): RawJson {
+        RawJson.of(result)
     }
 }

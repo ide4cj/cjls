@@ -5,14 +5,14 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone, tag: "kind", value: "end"]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone, tag: "kind", value: "end"]
 public struct WorkDoneProgressEnd {
     public WorkDoneProgressEnd(
         /**

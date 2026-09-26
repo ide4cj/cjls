@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,26 +16,26 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum DocumentDiagnosticReportKind {
     /**
      * A diagnostic report with a full
      * set of problems.
      */
-    | @DeriveExtSerializable[value: "full"]
+    | @Serde[rename: "full"]
     Full
 
     /**
      * A report indicating that the last
      * returned report is still accurate.
      */
-    | @DeriveExtSerializable[value: "unchanged"]
+    | @Serde[rename: "unchanged"]
     Unchanged
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -18,8 +18,8 @@ import jsonrpc.*
  * A code lens is _unresolved_ when no command is associated to it. For performance
  * reasons the creation of a code lens and resolving should be done in two stages.
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
 public struct CodeLens {
     public CodeLens(
         /**

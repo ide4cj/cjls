@@ -5,17 +5,17 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * General diagnostics capabilities for pull and push model.
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
 public struct DiagnosticsCapabilities {
     public DiagnosticsCapabilities(
         /**

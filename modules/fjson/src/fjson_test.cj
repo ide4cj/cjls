@@ -118,7 +118,7 @@ class FjReaderTest {
         @Expect(String.fromUtf8(raw), #"{"a": [1, "}", {"b": null}]}"#)
         @Expect(method, "m")
         let isObject = match (FjReader(raw).peekKind()) {
-            case FjKind.Object => true
+            case FjKind.JsonObject => true
             case _ => false
         }
         @Expect(isObject)

@@ -9,7 +9,7 @@ public class FjException <: Exception {
 }
 
 public enum FjKind {
-    | Object | Array | Str | Number | Boolean | Null
+    | JsonObject | JsonArray | JsonString | JsonNumber | JsonBool | JsonNull
 }
 
 const MAX_DEPTH = 512
@@ -100,12 +100,12 @@ public class FjReader {
     @Frozen
     public func peekKind(): FjKind {
         match (peekByte()) {
-            case 0x7B => FjKind.Object
-            case 0x5B => FjKind.Array
-            case 0x22 => FjKind.Str
-            case 0x74 | 0x66 => FjKind.Boolean
-            case 0x6E => FjKind.Null
-            case b where b == 0x2D || (b >= 0x30 && b <= 0x39) => FjKind.Number
+            case 0x7B => FjKind.JsonObject
+            case 0x5B => FjKind.JsonArray
+            case 0x22 => FjKind.JsonString
+            case 0x74 | 0x66 => FjKind.JsonBool
+            case 0x6E => FjKind.JsonNull
+            case b where b == 0x2D || (b >= 0x30 && b <= 0x39) => FjKind.JsonNumber
             case _ => throw fail("expected a value")
         }
     }
@@ -518,20 +518,20 @@ public class FjReader {
             throw fail("nested too deep")
         }
         match (peekKind()) {
-            case FjKind.Object =>
+            case FjKind.JsonObject =>
                 beginObject()
                 while (nextKey()) {
                     skipValue(depth + 1)
                 }
-            case FjKind.Array =>
+            case FjKind.JsonArray =>
                 beginArray()
                 while (nextItem()) {
                     skipValue(depth + 1)
                 }
-            case FjKind.Str => skipString()
-            case FjKind.Number => skipNumber()
-            case FjKind.Boolean => readBool()
-            case FjKind.Null => readNull()
+            case FjKind.JsonString => skipString()
+            case FjKind.JsonNumber => skipNumber()
+            case FjKind.JsonBool => readBool()
+            case FjKind.JsonNull => readNull()
         }
         // a value was read: whatever container holds it has a member now
         first = false
