@@ -5,7 +5,9 @@ import std.fs.*
 import std.random.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import std.io.*
 import stdx.encoding.json.*
+import stdx.encoding.json.stream.*
 
 /*
  * fjson against JSONTestSuite (`testdata/JSONTestSuite`, vendored as it is upstream: its README
@@ -116,8 +118,10 @@ func near(a: Float64, b: Float64, ulps: Int64): Bool {
     if (a.isNaN() || b.isNaN() || (a < 0.0) != (b < 0.0)) {
         return false
     }
-    let distance = Int64(a.toBits()) - Int64(b.toBits())
-    distance <= ulps && -distance <= ulps
+    // of one sign, the bits of floats are in their order
+    let (x, y) = (a.toBits(), b.toBits())
+    let distance = if (x > y) { x - y } else { y - x }
+    distance <= UInt64(ulps)
 }
 
 func sameTree(a: Tree, b: Tree, ulps!: Int64 = 0): Bool {
@@ -190,6 +194,64 @@ func stdxTree(bytes: Array<Byte>): ?Tree {
         fromStdx(JsonValue.fromStr(String.fromUtf8(bytes)))
     } catch (_: Exception) {
         None
+    }
+}
+
+/**
+ * The tree `stdx.encoding.json.stream`'s pull reader reads, or `None` if it refuses the bytes: the
+ * reader like fjson's, over bytes, keys kept in order and repeated.
+ */
+func stdxStreamTree(bytes: Array<Byte>): ?Tree {
+    try {
+        let buffer = ByteBuffer()
+        buffer.write(bytes)
+        let r = JsonReader(buffer)
+        let tree = fromStream(r)
+        if (r.peek().isSome()) {
+            return None
+        }
+        tree
+    } catch (_: Exception) {
+        None
+    }
+}
+
+func fromStream(r: JsonReader): Tree {
+    match (r.peek()) {
+        case Some(JsonToken.BeginObject) =>
+            let members = ArrayList<(String, Tree)>()
+            r.startObject()
+            while (r.peek() != Some(JsonToken.EndObject)) {
+                let key = r.readName()
+                members.add((key, fromStream(r)))
+            }
+            r.endObject()
+            TObject(members.toArray())
+        case Some(JsonToken.BeginArray) =>
+            let items = ArrayList<Tree>()
+            r.startArray()
+            while (r.peek() != Some(JsonToken.EndArray)) {
+                items.add(fromStream(r))
+            }
+            r.endArray()
+            TArray(items.toArray())
+        case Some(JsonToken.JsonString) => TString(r.readValue<String>())
+        case Some(JsonToken.JsonNumber) => TFloat(r.readValue<Float64>())
+        case Some(JsonToken.JsonBool) => TBool(r.readValue<Bool>())
+        case Some(JsonToken.JsonNull) =>
+            r.readValue<Option<String>>()
+            TNull
+        case _ => throw Exception("expected a value")
+    }
+}
+
+/** The tree with every number `0`: what the stream reader is compared on. */
+func withoutNumbers(tree: Tree): Tree {
+    match (tree) {
+        case TObject(members) => TObject(members.map {m => (m[0], withoutNumbers(m[1]))})
+        case TArray(items) => TArray(items.map {item => withoutNumbers(item)})
+        case TInt(_) | TFloat(_) => TInt(0)
+        case _ => tree
     }
 }
 
@@ -341,6 +403,41 @@ class JsonTestSuiteTest {
             }
         }
         @Expect(compared >= 95, true)
+        @Expect(report(problems), "")
+    }
+
+    /**
+     * A document both read is the same tree to `stdx.encoding.json.stream`'s pull reader, numbers
+     * aside: it reads them several ulps off (`1.23e47` as `1.2300000000000002e47`), where fjson
+     * reads what a correctly rounding parser does. Where the two disagree on reading at all, fjson
+     * holds to the suite's verdict and the stream reader does not: it takes trailing commas,
+     * leading zeros and raw control characters, and refuses `1E+2` and 500 nested arrays.
+     */
+    @TestCase
+    func readsWhatTheStdxStreamReaderReadsAsItReadsIt() {
+        // arrange
+        let problems = ArrayList<String>()
+        var compared = 0
+
+        for ((name, bytes) in corpus("test_parsing").concat(corpus("test_transform"))) {
+            let theirs = stdxStreamTree(bytes) ?? continue
+            let ours = try {
+                treeOf(bytes)
+            } catch (_: FjException) {
+                continue
+            }
+            compared++
+
+            // act
+            let expected = withoutNumbers(theirs)
+            let actual = withoutNumbers(ours)
+
+            // assert
+            if (!sameTree(actual, expected)) {
+                problems.add("${name}: ${showTree(ours)}, stdx stream ${showTree(theirs)}")
+            }
+        }
+        @Expect(compared >= 80, true)
         @Expect(report(problems), "")
     }
 

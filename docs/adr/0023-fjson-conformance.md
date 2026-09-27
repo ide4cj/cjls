@@ -18,6 +18,6 @@ Status: accepted, 2026-09-27
 
 ## Consequences
 
-- stdx's parser accepts hex numbers and raw control characters in strings, and refuses numbers past `Int64` it could read as a `Float64`; the differential compares only what both read.
+- The differential compares only what both read. stdx's `JsonValue` accepts hex numbers and raw control characters in strings, and refuses integers past `Int64`. Its stream reader, the pull reader like fjson, strays further: it accepts trailing commas, leading zeros, `2.` and raw control characters, refuses an exponent with a `+` (`1E+2`, as `JSON.stringify` writes `1e+30`) and 500 nested arrays, and reads numbers several ulps off; it is compared on everything but the numbers.
 - `readFloat64` stays one ulp off on ~0.5% of shortest decimals (Q20): a round trip is checked to one ulp.
 - A decoder of a recursive type other than `AnyValue` has no depth cap of its own; no LSP type a client sends is one.
