@@ -134,7 +134,10 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
 
     @Frozen
     func sibling(direction: Direction): ?SyntaxNode<K> {
-        parent.flatMap {p => p.nodeFrom(indexInParent + direction.step(), direction)}
+        match (parent) {
+            case Some(p) => p.nodeFrom(indexInParent + direction.step(), direction)
+            case None => None
+        }
     }
 
     @Frozen
