@@ -2,5 +2,6 @@
 # what their generators make, and a test's expected text with what the code builds
 * text=auto eol=lf
 
-# JSONTestSuite is vendored byte for byte: its CRs and invalid bytes are the point
+# the test suites are vendored byte for byte: their CRs and invalid bytes are the point
 modules/fjson/testdata/JSONTestSuite/test_*/** -text
+modules/ftoml/testdata/toml-test/** -text

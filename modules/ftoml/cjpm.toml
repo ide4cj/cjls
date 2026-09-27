@@ -1,0 +1,18 @@
+[package]
+cjc-version = "1.3.0"
+name = "ftoml"
+organization = ""
+description = "TOML 1.1 read into a document with spans, and written without one"
+version = "1.0.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = "-Woff unused -O2"
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]
+fjson = { path = "../fjson" }
+fnum = { path = "../fnum" }
+index_map = { path = "../index_map" }
