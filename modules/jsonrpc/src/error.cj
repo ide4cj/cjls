@@ -1,32 +1,25 @@
 package jsonrpc
 
 import std.deriving.*
-import stdx.serialization.serialization.*
-import stdxx.serialization.*
+import fjson.*
+import stdxx.deriving.*
 
-public struct ResponseError <: Serializable<ResponseError> {
-    public ResponseError(public let code: ErrorCode, public let message: String, public let data!: ?DataModel = None) {}
-
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
+public struct ResponseError {
     /**
-     * @throws DataModelException - if not a `DataModelStruct` provided
+     * @param data - as it came, unread: only whoever knows the method knows its type
      */
-    public static func deserialize(dm: DataModel): ResponseError {
-        let dms = dm.asStructOrThrow()
-
-        ResponseError(dms.getDeserializedOrThrow("code"), dms.getDeserializedOrThrow("message"),
-            data: dms.getOrNone("data"))
-    }
-
-    public func serialize(): DataModel {
-        DataModelStruct().add(field("code", code)).add(field("message", message)).addFieldIfSome("data", data)
-    }
+    public ResponseError(public let code: ErrorCode, public let message: String, public let data!: ?RawJson = None) {}
 }
 
 /**
  * Open rather than an enum, so a code this side does not know survives a round trip.
  */
+@DeriveExt[ToJson, FromJson]
+@Serde[transparent]
 @Derive[Equatable]
-public struct ErrorCode <: ToString & Serializable<ErrorCode> {
+public struct ErrorCode <: ToString {
     public const ErrorCode(public let value: Int32) {}
 
     public static const PARSE_ERROR: ErrorCode = ErrorCode(-32700)
@@ -37,23 +30,5 @@ public struct ErrorCode <: ToString & Serializable<ErrorCode> {
 
     public func toString(): String {
         value.toString()
-    }
-
-    /**
-     * @throws DataModelException - if not a `DataModelInt` provided
-     */
-    public static func deserialize(dm: DataModel): ErrorCode {
-        let raw = dm.asIntOrThrow()
-        let value = try {
-            Int32(raw)
-        } catch (e: OverflowException) {
-            throw DataModelException("invalid error code\nCause: ${e}")
-        }
-
-        ErrorCode(value)
-    }
-
-    public func serialize(): DataModel {
-        DataModelInt(Int64(value))
     }
 }

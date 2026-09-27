@@ -2,6 +2,7 @@ package stdxx
 
 import std.deriving.*
 import stdx.serialization.serialization.*
+import fjson.*
 
 @Derive[Equatable, Hashable]
 public enum IntegerOrString <: Serializable<IntegerOrString> & ToString {
@@ -67,6 +68,26 @@ public enum IntegerOrString <: Serializable<IntegerOrString> & ToString {
         match (this) {
             case String(str) => str
             case Integer(_) => throw UnexpectedVariantException("String", "Integer")
+        }
+    }
+}
+
+extend IntegerOrString <: ToJson & FromJson<IntegerOrString> {
+    public func toJson(w: FjWriter): Unit {
+        match (this) {
+            case Integer(i) => w.int32(i)
+            case String(s) => w.string(s)
+        }
+    }
+
+    /**
+     * @throws FjException - if not an integer that fits an `Int32`, nor a string
+     */
+    public static func fromJson(r: FjReader): IntegerOrString {
+        match (r.peekKind()) {
+            case FjKind.JsonNumber => Integer(r.readInt32())
+            case FjKind.JsonString => String(r.readString())
+            case _ => throw FjException("expected integer or string at byte ${r.position}")
         }
     }
 }

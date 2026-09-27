@@ -9,6 +9,7 @@ import stdxx.serialization.*
 import stdxx.deriving.*
 
 @DeriveExt[Serializable]
+@Serde[untagged]
 enum DerivedLabel {
     | Text(String)
     | Offsets(UInt32, UInt32)

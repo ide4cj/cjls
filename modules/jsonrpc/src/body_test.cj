@@ -2,17 +2,24 @@ package jsonrpc
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.*
 import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, UnexpectedVariantException}
 import stdxx.serialization.*
 
-func fieldOf(params: ?ArrayOrObject, name: String): DataModel {
-    params.getOrThrow().getObjectOrThrow().get(name)
+func rawJson(json: String): RawJson {
+    RawJson(json.toArray())
+}
+
+/**
+ * The params read into a tree, for a test to look into.
+ */
+func fieldOf(params: ?RawJson, name: String): DataModel {
+    params.getOrThrow().read<AnyValue>().data.asStructOrThrow().getOrThrow(name)
 }
 
 func bodyOf(json: String): Body {
-    Body.deserialize(DataModel.fromJson(JsonValue.fromStr(json)))
+    fromJsonBytes<Body>(json.toArray())
 }
 
 @Test
@@ -34,7 +41,7 @@ class BodyCodecTest {
     ]]
     func aMessageReadsBackAsItWasWritten(json: String) {
         // act
-        let written = bodyOf(json).serialize().toJson().toString()
+        let written = String.fromUtf8(toJsonBytes(bodyOf(json)))
 
         // assert
         @Expect(json, written)
@@ -64,6 +71,39 @@ class BodyCodecTest {
         @Expect(ErrorCode.INVALID_REQUEST, e.code)
     }
 
+    @TestCase[json in [
+        ##"{"jsonrpc":"2.0","id":1,"method":"m","params":42}"##,
+        ##"{"jsonrpc":"2.0","method":"m","params":"x"}"##,
+        ##"{"jsonrpc":"2.0","id":null,"method":"m"}"##
+    ]]
+    func paramsThatAreNotStructuredOrANullRequestIdAreAnInvalidRequest(json: String) {
+        // act
+        let e = @AssertThrows[RpcException](bodyOf(json))
+
+        // assert
+        @Expect(ErrorCode.INVALID_REQUEST, e.code)
+    }
+
+    @TestCase
+    func nullParamsReadAsNone() {
+        // act
+        let body = bodyOf(##"{"jsonrpc":"2.0","method":"m","params":null}"##)
+
+        // assert
+        @Expect(body.getNotificationBodyOrThrow().params.isNone())
+    }
+
+    @TestCase
+    func paramsBeforeTheMethodAreKeptAsTheyCame() {
+        // act
+        let body = bodyOf(##"{"params": {"a" : [1, 2]}, "method":"m", "id": 3, "jsonrpc":"2.0"}"##)
+
+        // assert
+        let request = body.getRequestBodyOrThrow()
+        @Expect("m", request.method)
+        @Expect(##"{"a" : [1, 2]}"##, request.params.getOrThrow().toString())
+    }
+
     @TestCase
     func aResponseWithBothResultAndErrorIsAnInvalidRequest() {
         // arrange
@@ -81,7 +121,7 @@ class BodyCodecTest {
         // arrange
         let request = RequestBody(Integer(1), "m").enveloped()
         let notification = NotificationBody("m").enveloped()
-        let response = ResponseBody(Value(Integer(1)), Result(DataModelNull())).enveloped()
+        let response = ResponseBody(Value(Integer(1)), Result(rawJson("null"))).enveloped()
 
         // act
         let onRequest = @AssertThrows[UnexpectedVariantException](request.getResponseBodyOrThrow())
@@ -100,7 +140,7 @@ class ResultOrErrorTest {
     @TestCase
     func aGetterOfTheWrongVariantNamesBoth() {
         // arrange
-        let result = ResultOrError.Result(DataModelNull())
+        let result = ResultOrError.Result(rawJson("null"))
         let error = ResultOrError.Error(ResponseError(ErrorCode.PARSE_ERROR, "parse error"))
 
         // act

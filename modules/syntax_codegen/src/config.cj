@@ -28,14 +28,14 @@ struct KindEntry {
 struct KindsFile {
     KindsFile(
         let grammar!: String,
-        @DeriveExtSerializable[rename: "kinds-output"] let kindsOutput!: String,
-        @DeriveExtSerializable[rename: "kinds-package"] let kindsPackage!: String,
-        @DeriveExtSerializable[rename: "ast-output"] let astOutput!: String,
-        @DeriveExtSerializable[rename: "ast-package"] let astPackage!: String,
+        @Serde[rename: "kinds-output"] let kindsOutput!: String,
+        @Serde[rename: "kinds-package"] let kindsPackage!: String,
+        @Serde[rename: "ast-output"] let astOutput!: String,
+        @Serde[rename: "ast-package"] let astPackage!: String,
         let trivia!: ?Array<KindEntry> = None,
         let special!: ?Array<KindEntry> = None,
         let punctuation!: ?Array<KindEntry> = None,
-        @DeriveExtSerializable[rename: "glued-punctuation"] let gluedPunctuation!: ?Array<KindEntry> = None,
+        @Serde[rename: "glued-punctuation"] let gluedPunctuation!: ?Array<KindEntry> = None,
         let tokens!: ?Array<KindEntry> = None,
         let keywords!: ?Array<KindEntry> = None,
         let nodes!: ?Array<KindEntry> = None

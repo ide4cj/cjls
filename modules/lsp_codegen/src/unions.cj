@@ -10,7 +10,7 @@ extend CjEmitter {
         let unionIdent = escapedIdent(unionIr.ident)
 
         emitDoc(unionIr.doc)
-        emitDerives([Serializable(SerializableTypeOptions())])
+        emitDerives([Json(SerdeTypeOptions(untagged: true))])
         emit(quote(public enum $unionIdent))
         blockln {
             => for (variant in unionIr.variants) {

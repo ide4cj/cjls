@@ -243,6 +243,13 @@ class FjsonBench {
         benchSink += treeText(DID_OPEN).size
     }
 
+    // what the envelope does with the params before their method says their type
+    @Bench
+    func skipDidOpen64KbFjson(): Unit {
+        READER.reset(DID_OPEN)
+        benchSink += READER.rawValue().size
+    }
+
     @Bench
     func write550SymbolsFjson(): Unit {
         WRITER.clear()

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -33,11 +33,11 @@ public struct CodeActionRequestSpec <: LspInboundRequest<CodeActionParams, Nulla
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): CodeActionParams {
+    public func decodeParams(params: ?RawJson): CodeActionParams {
         decodeMessageParams<CodeActionParams>(params)
     }
 
-    public func encodeResult(result: Nullable<Array<CommandOrCodeAction>>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<Array<CommandOrCodeAction>>): RawJson {
+        RawJson.of(result)
     }
 }

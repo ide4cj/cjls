@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -36,11 +36,11 @@ public struct ColorPresentationRequestSpec <: LspInboundRequest<ColorPresentatio
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): ColorPresentationParams {
+    public func decodeParams(params: ?RawJson): ColorPresentationParams {
         decodeMessageParams<ColorPresentationParams>(params)
     }
 
-    public func encodeResult(result: Array<ColorPresentation>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Array<ColorPresentation>): RawJson {
+        RawJson.of(result)
     }
 }

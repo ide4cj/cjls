@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -40,7 +40,7 @@ public struct DidOpenTextDocumentNotificationSpec <: LspInboundNotification<DidO
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): DidOpenTextDocumentParams {
+    public func decodeParams(params: ?RawJson): DidOpenTextDocumentParams {
         decodeMessageParams<DidOpenTextDocumentParams>(params)
     }
 }

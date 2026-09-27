@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.15.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum DiagnosticTag {
     /**
@@ -25,7 +25,7 @@ public enum DiagnosticTag {
      * Clients are allowed to render diagnostics with this tag faded out instead of having
      * an error squiggle.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Unnecessary
 
     /**
@@ -33,12 +33,12 @@ public enum DiagnosticTag {
      *
      * Clients are allowed to rendered diagnostics with this tag strike through.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Deprecated
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

@@ -57,7 +57,7 @@ func clientOn(transport: WrittenTransport): Client {
 }
 
 func publishedOf(notification: NotificationBody): PublishDiagnosticsParams {
-    PublishDiagnosticsParams.deserialize(notification.params.getOrThrow().serialize())
+    notification.params.getOrThrow().read<PublishDiagnosticsParams>()
 }
 
 @Test

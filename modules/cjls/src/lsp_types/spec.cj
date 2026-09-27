@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -41,9 +41,9 @@ public interface LspInboundRequest<P, R> <: LspMessageSpec {
      *
      * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
      */
-    func decodeParams(params: ?ArrayOrObject): P
+    func decodeParams(params: ?RawJson): P
 
-    func encodeResult(result: R): DataModel
+    func encodeResult(result: R): RawJson
 }
 
 /**
@@ -60,7 +60,7 @@ public interface LspInboundNotification<P> <: LspMessageSpec {
      *
      * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
      */
-    func decodeParams(params: ?ArrayOrObject): P
+    func decodeParams(params: ?RawJson): P
 }
 
 /**
@@ -74,13 +74,9 @@ public interface LspOutboundNotification<P> <: LspMessageSpec {}
  *
  * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
  */
-func decodeMessageParams<P>(params: ?ArrayOrObject): P where P <: Serializable<P> {
-    let dm = match (params) {
-        case Some(given) => given.serialize()
-        case None => DataModelNull()
-    }
+func decodeMessageParams<P>(params: ?RawJson): P where P <: FromJson<P> {
     try {
-        P.deserialize(dm)
+        (params ?? RawJson.NULL).read<P>()
     } catch (e: Exception) {
         throw RpcException(ErrorCode.INVALID_PARAMS, e.message)
     }

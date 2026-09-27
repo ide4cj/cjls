@@ -5,74 +5,74 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * A symbol kind.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum SymbolKind {
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     File
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Module
-    | @DeriveExtSerializable[value: 3]
+    | @Serde[value: 3]
     Namespace
-    | @DeriveExtSerializable[value: 4]
+    | @Serde[value: 4]
     Package
-    | @DeriveExtSerializable[value: 5]
+    | @Serde[value: 5]
     Class
-    | @DeriveExtSerializable[value: 6]
+    | @Serde[value: 6]
     Method
-    | @DeriveExtSerializable[value: 7]
+    | @Serde[value: 7]
     Property
-    | @DeriveExtSerializable[value: 8]
+    | @Serde[value: 8]
     Field
-    | @DeriveExtSerializable[value: 9]
+    | @Serde[value: 9]
     Constructor
-    | @DeriveExtSerializable[value: 10]
+    | @Serde[value: 10]
     Enum
-    | @DeriveExtSerializable[value: 11]
+    | @Serde[value: 11]
     Interface
-    | @DeriveExtSerializable[value: 12]
+    | @Serde[value: 12]
     Function
-    | @DeriveExtSerializable[value: 13]
+    | @Serde[value: 13]
     Variable
-    | @DeriveExtSerializable[value: 14]
+    | @Serde[value: 14]
     Constant
-    | @DeriveExtSerializable[value: 15]
+    | @Serde[value: 15]
     String
-    | @DeriveExtSerializable[value: 16]
+    | @Serde[value: 16]
     Number
-    | @DeriveExtSerializable[value: 17]
+    | @Serde[value: 17]
     Boolean
-    | @DeriveExtSerializable[value: 18]
+    | @Serde[value: 18]
     Array
-    | @DeriveExtSerializable[value: 19]
+    | @Serde[value: 19]
     Object
-    | @DeriveExtSerializable[value: 20]
+    | @Serde[value: 20]
     Key
-    | @DeriveExtSerializable[value: 21]
+    | @Serde[value: 21]
     Null
-    | @DeriveExtSerializable[value: 22]
+    | @Serde[value: 22]
     EnumMember
-    | @DeriveExtSerializable[value: 23]
+    | @Serde[value: 23]
     Struct
-    | @DeriveExtSerializable[value: 24]
+    | @Serde[value: 24]
     Event
-    | @DeriveExtSerializable[value: 25]
+    | @Serde[value: 25]
     Operator
-    | @DeriveExtSerializable[value: 26]
+    | @Serde[value: 26]
     TypeParameter
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

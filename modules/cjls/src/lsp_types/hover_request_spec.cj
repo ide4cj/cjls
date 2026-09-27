@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -35,11 +35,11 @@ public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): HoverParams {
+    public func decodeParams(params: ?RawJson): HoverParams {
         decodeMessageParams<HoverParams>(params)
     }
 
-    public func encodeResult(result: Nullable<Hover>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<Hover>): RawJson {
+        RawJson.of(result)
     }
 }

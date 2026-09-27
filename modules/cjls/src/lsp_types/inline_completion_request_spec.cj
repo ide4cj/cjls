@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -37,11 +37,11 @@ public struct InlineCompletionRequestSpec <: LspInboundRequest<InlineCompletionP
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): InlineCompletionParams {
+    public func decodeParams(params: ?RawJson): InlineCompletionParams {
         decodeMessageParams<InlineCompletionParams>(params)
     }
 
-    public func encodeResult(result: Nullable<InlineCompletionListOrInlineCompletionItems>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<InlineCompletionListOrInlineCompletionItems>): RawJson {
+        RawJson.of(result)
     }
 }

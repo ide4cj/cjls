@@ -9,10 +9,13 @@ public class FjException <: Exception {
 }
 
 public enum FjKind {
-    | Object | Array | Str | Number | Boolean | Null
+    | JsonObject | JsonArray | JsonString | JsonNumber | JsonBool | JsonNull
 }
 
 const MAX_DEPTH = 512
+const SCRATCH_INITIAL = 256
+// what a reader keeps from message to message: `FramedJsonRpcTransport`'s writer keeps as much
+const SCRATCH_KEPT_MAX = 1024 * 1024
 
 /**
  * A pull reader over the bytes of one JSON text, no tree and no copy of it: keys are compared
@@ -35,7 +38,7 @@ public class FjReader {
     private var keyLength = 0
     private var keyInScratch = false
     // unescaped strings are built here and copied out, one buffer for the reader's lifetime
-    private var scratch = Array<Byte>(256, repeat: 0)
+    private var scratch = Array<Byte>(SCRATCH_INITIAL, repeat: 0)
 
     public FjReader(private var bytes: Array<Byte>) {}
 
@@ -45,6 +48,10 @@ public class FjReader {
         bytes = next
         pos = 0
         first = false
+        // one outsized string must not keep its buffer for the lifetime of the connection
+        if (scratch.size > SCRATCH_KEPT_MAX) {
+            scratch = Array<Byte>(SCRATCH_INITIAL, repeat: 0)
+        }
     }
 
     public prop position: Int64 {
@@ -100,12 +107,12 @@ public class FjReader {
     @Frozen
     public func peekKind(): FjKind {
         match (peekByte()) {
-            case 0x7B => FjKind.Object
-            case 0x5B => FjKind.Array
-            case 0x22 => FjKind.Str
-            case 0x74 | 0x66 => FjKind.Boolean
-            case 0x6E => FjKind.Null
-            case b where b == 0x2D || (b >= 0x30 && b <= 0x39) => FjKind.Number
+            case 0x7B => FjKind.JsonObject
+            case 0x5B => FjKind.JsonArray
+            case 0x22 => FjKind.JsonString
+            case 0x74 | 0x66 => FjKind.JsonBool
+            case 0x6E => FjKind.JsonNull
+            case b where b == 0x2D || (b >= 0x30 && b <= 0x39) => FjKind.JsonNumber
             case _ => throw fail("expected a value")
         }
     }
@@ -405,6 +412,10 @@ public class FjReader {
         UInt32(v)
     }
 
+    /**
+     * A number, through `std.convert`'s `Float64.parse`, which is not correctly rounded: it reads
+     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off (`RyuTest`, Q20).
+     */
     @Frozen
     public func readFloat64(): Float64 {
         let start = pos
@@ -500,11 +511,31 @@ public class FjReader {
                 case 0x22 =>
                     pos = i + 1
                     return
-                case 0x5C => i += 2
+                case 0x5C => i = skipEscape(i)
                 case _ =>
                     pos = i
                     throw fail("control character in a string")
             }
+        }
+    }
+
+    /**
+     * Past the escape at `i`, checked as `unescape` checks it but for surrogates: a lone one is
+     * left to whoever reads the string, as JSON itself leaves it (RFC 8259, 8.2).
+     */
+    private func skipEscape(i: Int64): Int64 {
+        if (i + 1 >= bytes.size) {
+            pos = i
+            throw fail("unterminated string")
+        }
+        match (bytes[i + 1]) {
+            case 0x22 | 0x5C | 0x2F | 0x62 | 0x66 | 0x6E | 0x72 | 0x74 => i + 2
+            case 0x75 =>
+                hex4(i + 2)
+                i + 6
+            case _ =>
+                pos = i
+                throw fail("invalid escape")
         }
     }
 
@@ -518,20 +549,20 @@ public class FjReader {
             throw fail("nested too deep")
         }
         match (peekKind()) {
-            case FjKind.Object =>
+            case FjKind.JsonObject =>
                 beginObject()
                 while (nextKey()) {
                     skipValue(depth + 1)
                 }
-            case FjKind.Array =>
+            case FjKind.JsonArray =>
                 beginArray()
                 while (nextItem()) {
                     skipValue(depth + 1)
                 }
-            case FjKind.Str => skipString()
-            case FjKind.Number => skipNumber()
-            case FjKind.Boolean => readBool()
-            case FjKind.Null => readNull()
+            case FjKind.JsonString => skipString()
+            case FjKind.JsonNumber => skipNumber()
+            case FjKind.JsonBool => readBool()
+            case FjKind.JsonNull => readNull()
         }
         // a value was read: whatever container holds it has a member now
         first = false

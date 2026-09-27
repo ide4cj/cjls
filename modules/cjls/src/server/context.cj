@@ -1,7 +1,7 @@
 package cjls.server
 
 import stdx.log.Logger
-import stdx.serialization.serialization.*
+import fjson.{FromJson, ToJson}
 import jsonrpc.*
 import cjls.lsp_types.LspOutboundNotification
 
@@ -126,7 +126,7 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func notify<P>(spec: LspOutboundNotification<P>, params: P): Unit where P <: Serializable<P> {
+    public func notify<P>(spec: LspOutboundNotification<P>, params: P): Unit where P <: ToJson {
         connected().notify(spec.method, params)
     }
 
@@ -138,8 +138,8 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func request<P, R>(method: String, params: P): PendingRequest<R> where P <: Serializable<P>,
-        R <: Serializable<R> {
+    public func request<P, R>(method: String, params: P): PendingRequest<R> where P <: ToJson,
+        R <: FromJson<R> {
         connected().request<P, R>(method, params)
     }
 

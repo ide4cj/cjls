@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -30,11 +30,11 @@ public struct SignatureHelpRequestSpec <: LspInboundRequest<SignatureHelpParams,
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): SignatureHelpParams {
+    public func decodeParams(params: ?RawJson): SignatureHelpParams {
         decodeMessageParams<SignatureHelpParams>(params)
     }
 
-    public func encodeResult(result: Nullable<SignatureHelp>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<SignatureHelp>): RawJson {
+        RawJson.of(result)
     }
 }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,31 +16,31 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum MonikerKind {
     /**
      * The moniker represent a symbol that is imported into a project
      */
-    | @DeriveExtSerializable[value: "import"]
+    | @Serde[rename: "import"]
     Import
 
     /**
      * The moniker represents a symbol that is exported from a project
      */
-    | @DeriveExtSerializable[value: "export"]
+    | @Serde[rename: "export"]
     Export
 
     /**
      * The moniker represents a symbol that is local to a project (e.g. a local
      * variable of a function, a class not visible outside the project, ...)
      */
-    | @DeriveExtSerializable[value: "local"]
+    | @Serde[rename: "local"]
     Local
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }

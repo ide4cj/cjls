@@ -1,6 +1,7 @@
 package stdxx
 
 import stdx.serialization.serialization.*
+import fjson.*
 
 public enum Nullable<T> {
     | Value(T)
@@ -41,5 +42,24 @@ extend<T> Nullable<T> <: Serializable<Nullable<T>> where T <: Serializable<T> {
             case Value(s) => s.serialize()
             case Null => DataModelNull()
         }
+    }
+}
+
+extend<T> Nullable<T> <: ToJson where T <: ToJson {
+    public func toJson(w: FjWriter): Unit {
+        match (this) {
+            case Value(value) => value.toJson(w)
+            case Null => w.null()
+        }
+    }
+}
+
+extend<T> Nullable<T> <: FromJson<Nullable<T>> where T <: FromJson<T> {
+    public static func fromJson(r: FjReader): Nullable<T> {
+        if (r.peekNull()) {
+            r.readNull()
+            return Null
+        }
+        Value(T.fromJson(r))
     }
 }

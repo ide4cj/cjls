@@ -5,27 +5,27 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum FailureHandlingKind {
     /**
      * Applying the workspace change is simply aborted if one of the changes provided
      * fails. All operations executed before the failing operation stay executed.
      */
-    | @DeriveExtSerializable[value: "abort"]
+    | @Serde[rename: "abort"]
     Abort
 
     /**
      * All operations are executed transactional. That means they either all
      * succeed or no changes at all are applied to the workspace.
      */
-    | @DeriveExtSerializable[value: "transactional"]
+    | @Serde[rename: "transactional"]
     Transactional
 
     /**
@@ -33,19 +33,19 @@ public enum FailureHandlingKind {
      * If resource changes (create, rename or delete file) are part of the change the failure
      * handling strategy is abort.
      */
-    | @DeriveExtSerializable[value: "textOnlyTransactional"]
+    | @Serde[rename: "textOnlyTransactional"]
     TextOnlyTransactional
 
     /**
      * The client tries to undo the operations already executed. But there is no
      * guarantee that this is succeeding.
      */
-    | @DeriveExtSerializable[value: "undo"]
+    | @Serde[rename: "undo"]
     Undo
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }

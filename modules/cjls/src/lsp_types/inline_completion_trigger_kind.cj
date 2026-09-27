@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,24 +16,24 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum InlineCompletionTriggerKind {
     /**
      * Completion was triggered explicitly by a user gesture.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Invoked
 
     /**
      * Completion was triggered automatically while editing.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Automatic
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

@@ -1,10 +1,9 @@
 package jsonrpc
 
 import std.io.*
-import std.sync.AtomicBool
+import std.sync.{AtomicBool, Mutex}
 import stdx.log.*
-import stdx.serialization.serialization.*
-import stdx.encoding.json.*
+import fjson.*
 
 public interface JsonRpcReader <: Resource {
     /**
@@ -21,10 +20,15 @@ public interface JsonRpcTransport <: JsonRpcReader & JsonRpcWriter {}
 
 public class FramedJsonRpcTransport <: JsonRpcTransport {
     public static const BODY_BYTES_MAX: Int64 = 32 * 1024 * 1024
+    private static const WRITER_KEPT_MAX: Int64 = 1024 * 1024
 
     private let input: BufferedInputStream<InputStream>
     private let output: BufferedOutputStream<OutputStream>
     private let closed = AtomicBool(false)
+    // one each, kept from message to message: only the read loop reads, and writes take `writing`
+    private let reader = FjReader(Array<Byte>())
+    private var writer = FjWriter()
+    private let writing = Mutex()
 
     public FramedJsonRpcTransport(private let source: InputStream, private let sink: OutputStream,
         private let logger: Logger) {
@@ -74,15 +78,16 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
             throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC frame declares an empty content")
         }
         let payload = readExactly(Int64(header.contentLength))
-        let jv = try {
-            JsonValue.fromStr(String.fromUtf8(payload))
-        } catch (e: Exception) {
-            throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC content is not valid JSON\nCause: ${e.message}")
-        }
-
+        reader.reset(payload)
         try {
-            Body.deserialize(DataModel.fromJson(jv))
-        } catch (e: DataModelException) {
+            let body = Body.fromJson(reader)
+            reader.end()
+            body
+        } catch (e: FjException) {
+            // read in one pass, a message does not say which it failed at: the JSON or the message
+            if (!isJson(payload)) {
+                throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC content is not valid JSON\nCause: ${e.message}")
+            }
             throw RpcException(ErrorCode.INVALID_REQUEST, "JSON-RPC content is not a valid message\nCause: ${e.message}")
         }
     }
@@ -94,10 +99,29 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         if (isClosed()) {
             throw TransportException("JSON-RPC transport is closed")
         }
-        let payload = msg.serialize().toJson().toString().toArray()
-        output.write("Content-Length: ${payload.size}\r\n\r\n".toArray())
-        output.write(payload)
-        output.flush()
+        synchronized(writing) {
+            writer.clear()
+            msg.toJson(writer)
+            let payload = writer.bytes()
+            output.write("Content-Length: ${payload.size}\r\n\r\n".toArray())
+            output.write(payload)
+            output.flush()
+            // one outsized answer must not keep its buffer for the lifetime of the connection
+            if (payload.size > WRITER_KEPT_MAX) {
+                writer = FjWriter()
+            }
+        }
+    }
+
+    private static func isJson(payload: Array<Byte>): Bool {
+        try {
+            let r = FjReader(payload)
+            r.skipValue()
+            r.end()
+            true
+        } catch (_: FjException) {
+            false
+        }
     }
 
     /**

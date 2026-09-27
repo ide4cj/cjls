@@ -6,6 +6,7 @@ import stdx.serialization.serialization.*
 import stdx.log.NoopLogger
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
+import fjson.RawJson
 import rope.Encoding
 import jsonrpc.*
 import cjls.lsp_types.*
@@ -51,10 +52,10 @@ class LifecycleTest {
         // assert
         @Expect(0, exitCode)
         @Expect(2, responses.size)
-        let serverInfo = responses[0].resultOrError.getResultOrThrow().asStructOrThrow().getOrThrow("serverInfo")
+        let serverInfo = responses[0].resultOrError.getResultOrThrow().read<AnyValue>().data.asStructOrThrow().getOrThrow("serverInfo")
         @Expect("cjls", serverInfo.asStructOrThrow().getOrThrow("name").asStringOrThrow())
         @Expect(Integer(2), responses[1].id.getOrThrow())
-        @Expect(responses[1].resultOrError.getResultOrThrow() is DataModelNull)
+        @Expect(responses[1].resultOrError.getResultOrThrow().toString() == "null")
     }
 
     @TestCase

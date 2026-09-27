@@ -4,8 +4,8 @@ import std.collection.*
 import std.deriving.*
 import std.time.MonoTime
 import stdx.log.*
-import stdx.serialization.serialization.*
 import calca.Cancelled
+import fjson.RawJson
 import jsonrpc.*
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
@@ -83,7 +83,7 @@ class Server <: Handler {
         }
     }
 
-    public func onNotification(method: String, params: ?ArrayOrObject): Unit {
+    public func onNotification(method: String, params: ?RawJson): Unit {
         let logger = logger.withAttrs([("method", method)])
         if (method == ExitNotificationSpec.METHOD) {
             dispatch(method, params, logger)
@@ -96,7 +96,7 @@ class Server <: Handler {
         }
     }
 
-    private func dispatch(method: String, params: ?ArrayOrObject, logger: Logger): Unit {
+    private func dispatch(method: String, params: ?RawJson, logger: Logger): Unit {
         let cancellation = CancellationToken()
         match (router.notifications.get(method)) {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
@@ -177,7 +177,7 @@ private func cancelledError(request: InboundRequest, logger: Logger): ResponseEr
     } else if (request.method == DocumentDiagnosticRequestSpec.METHOD) {
         logger.debug("cancelled", [("reason", "the content was modified")])
         ResponseError(ErrorCode.SERVER_CANCELLED, "the content was modified",
-            data: DiagnosticServerCancellationData(retriggerRequest: true).serialize())
+            data: RawJson.of(DiagnosticServerCancellationData(retriggerRequest: true)))
     } else {
         logger.debug("cancelled", [("reason", "the content was modified")])
         ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified")
@@ -191,7 +191,7 @@ private func cancelledError(request: InboundRequest, logger: Logger): ResponseEr
  *
  * @return whether the handler succeeded
  */
-private func answer(request: InboundRequest, logger: Logger, handler: () -> DataModel): Bool {
+private func answer(request: InboundRequest, logger: Logger, handler: () -> RawJson): Bool {
     let start = MonoTime.now()
     let answer = try {
         ResultOrError.Result(handler())

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -33,11 +33,11 @@ public struct RenameRequestSpec <: LspInboundRequest<RenameParams, Nullable<Work
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): RenameParams {
+    public func decodeParams(params: ?RawJson): RenameParams {
         decodeMessageParams<RenameParams>(params)
     }
 
-    public func encodeResult(result: Nullable<WorkspaceEdit>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<WorkspaceEdit>): RawJson {
+        RawJson.of(result)
     }
 }
