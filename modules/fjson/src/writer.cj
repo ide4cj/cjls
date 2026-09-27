@@ -149,10 +149,15 @@ public class FjWriter {
         needComma = true
     }
 
+    /** The shortest decimal that reads back as `value` (Ryu); `null` for NaN and the infinities, which JSON has no word for. */
     @Frozen
     public func float64(value: Float64): Unit {
-        separate()
-        literal(value.toString())
+        if (value.isNaN() || value.isInf()) {
+            null()
+            return
+        }
+        separate(FLOAT64_CHARS_MAX)
+        length = writeShortest(buf, length, value)
         needComma = true
     }
 
