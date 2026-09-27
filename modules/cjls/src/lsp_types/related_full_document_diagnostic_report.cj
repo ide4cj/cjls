@@ -17,7 +17,7 @@ import jsonrpc.*
  * @since 3.17.0
  */
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "full"]
+@Serde[skipNone, tag: "kind", rename: "full"]
 public struct RelatedFullDocumentDiagnosticReport {
     public RelatedFullDocumentDiagnosticReport(
         /**

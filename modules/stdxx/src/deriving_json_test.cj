@@ -359,6 +359,12 @@ class DeriveJsonTaggedStructTest {
     }
 
     @TestCase
+    func aStructNotRenamedIsTaggedWithItsIdentifier() {
+        // act & assert
+        @Expect(#"{"kind":"DerivedRenameFile","uri":"file:///a"}"#, json(DerivedRenameFile(uri: "file:///a")))
+    }
+
+    @TestCase
     func aTaggedStructRoundTrips() {
         // act
         let restored = read<DerivedDeleteFile>(json(DerivedDeleteFile(uri: "file:///a", recursive: true)))

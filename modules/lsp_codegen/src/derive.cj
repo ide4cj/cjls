@@ -33,7 +33,7 @@ struct SerdeTypeOptions <: ToTokens {
             options.add(quote(skipNone))
         }
         if (let Some(t) <- tag) {
-            options.add(quote(tag: $(t.field), value: $(t.value)))
+            options.add(quote(tag: $(t.field), rename: $(t.value)))
         }
 
         markerOf(options)

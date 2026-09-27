@@ -28,7 +28,7 @@ const ITEM_OTHER = "other"
  * | type         | `skipNone`                | every optional field omits its key when `None`           |
  * | type         | `tag: "kind"`             | the type is internally tagged by that field              |
  * | enum         | `untagged`                | the variant is whichever one the value reads as          |
- * | struct       | `value: "delete"`         | the tag's value - required with `tag` on a struct        |
+ * | struct       | `rename: "delete"`        | the tag's value, with `tag`                              |
  * | struct       | `transparent`             | the struct is its only field on the wire                 |
  * | field        | `rename: "textDocument"`  | the name the field carries on the wire                   |
  * | field        | `skipNone`                | this field omits its key when `None`                     |
@@ -125,7 +125,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
 
     match (name) {
         case "rename" =>
-            if (expected(argument, position, [OnField, OnVariant], isFlag, false)) {
+            if (expected(argument, position, [OnType, OnField, OnVariant], isFlag, false)) {
                 setStringOption(argument, ITEM_RENAME, value)
             }
         case "tag" =>
@@ -145,7 +145,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
                 setItem(ITEM_SKIP_NONE, "true")
             }
         case "value" =>
-            if (expected(argument, position, [OnVariant, OnType], isFlag, false)) {
+            if (expected(argument, position, [OnVariant], isFlag, false)) {
                 setWireValueOption(argument, value)
             }
         case "other" =>

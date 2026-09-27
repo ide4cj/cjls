@@ -93,15 +93,21 @@ public struct DerivedOpenCode {
 }
 
 @DeriveExt[Serializable, ToJson, FromJson]
-@Serde[tag: "kind", value: "create", skipNone]
+@Serde[tag: "kind", rename: "create", skipNone]
 struct DerivedCreateFile {
     DerivedCreateFile(let uri!: String, let overwrite!: ?Bool = None) {}
 }
 
 @DeriveExt[Serializable, ToJson, FromJson]
-@Serde[tag: "kind", value: "delete", skipNone]
+@Serde[tag: "kind", rename: "delete", skipNone]
 struct DerivedDeleteFile {
     DerivedDeleteFile(let uri!: String, let recursive!: ?Bool = None) {}
+}
+
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[tag: "kind"]
+struct DerivedRenameFile {
+    DerivedRenameFile(let uri!: String) {}
 }
 
 @DeriveExt[Serializable, ToJson, FromJson]

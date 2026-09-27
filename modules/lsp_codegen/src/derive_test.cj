@@ -12,7 +12,7 @@ class EmitDerivesTest {
         let options = SerdeTypeOptions(tag: SerdeTag(field: "kind", value: "create"))
         let expected = """
 @DeriveExt[ToJson, FromJson]
-@Serde[tag: "kind", value: "create"]
+@Serde[tag: "kind", rename: "create"]
 """
 
         // act

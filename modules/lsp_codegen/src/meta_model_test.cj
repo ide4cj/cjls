@@ -4,10 +4,10 @@ import std.collection.HashMap
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.*
+import stdx.encoding.json.{JsonValue, ToJson as StdxToJson}
 import stdx.serialization.serialization.*
 import stdxx.IntegerOrString
-import stdxx.serialization.*
+import fjson.{FromJson, ToJson, fromJsonBytes, toJsonBytes}
 
 /**
  * A meta model of these declarations alone.
@@ -27,6 +27,13 @@ private func dmOf(json: String): DataModel {
     DataModel.fromJson(JsonValue.fromStr(json))
 }
 
+/**
+ * The text read as `T` and written back, as stdx reads it: an oracle `fjson` has no part in.
+ */
+private func rewrittenAs<T>(json: String): DataModel where T <: ToJson & FromJson<T> {
+    dmOf(String.fromUtf8(toJsonBytes(fromJsonBytes<T>(json.toArray()))))
+}
+
 private func fieldsOf(dms: DataModelStruct): HashMap<String, DataModel> {
     let byName = HashMap<String, DataModel>()
     for (f in dms.getFields()) {
@@ -38,8 +45,8 @@ private func fieldsOf(dms: DataModelStruct): HashMap<String, DataModel> {
 
 /**
  * The path of the first difference, or `None` when the two are equal by JSON rules - object
- * members unordered, arrays in order. `serialize()` writes required fields first, so comparing the
- * rendered strings would fail on a key order that means nothing.
+ * members unordered, arrays in order. `toJson` writes the fields in declaration order, so comparing
+ * the texts would fail on a key order that means nothing.
  */
 private func firstDifference(expected: DataModel, actual: DataModel, path!: String = "$"): ?String {
     match ((expected, actual)) {
@@ -83,7 +90,7 @@ private func firstDifference(expected: DataModel, actual: DataModel, path!: Stri
 }
 
 /**
- * The declarations are plain `@DeriveExt[Serializable]`, whose behaviour `stdxx` tests; what is
+ * The declarations are plain `@DeriveExt[ToJson, FromJson]`, whose behaviour `stdxx` tests; what is
  * checked here is that they match the document: the real one read and written back loses nothing,
  * and the shapes it happens not to use read too.
  */
@@ -92,13 +99,13 @@ class MetaModelTest {
     @TestCase
     func theShippedMetaModelIsReadAndWrittenLosslessly() {
         // arrange
-        let source = dmOf(String.fromUtf8(File.readFrom("modules/lsp_codegen/metaModel.json")))
+        let json = String.fromUtf8(File.readFrom("modules/lsp_codegen/metaModel.json"))
 
         // act
-        let rewritten = MetaModel.deserialize(source).serialize()
+        let rewritten = rewrittenAs<MetaModel>(json)
 
         // assert
-        @Expect("none", firstDifference(source, rewritten) ?? "none")
+        @Expect("none", firstDifference(dmOf(json), rewritten) ?? "none")
     }
 
     @TestCase[json in [
@@ -111,7 +118,7 @@ class MetaModelTest {
     ]]
     func aTypeTheShippedMetaModelDoesNotUseRoundTrips(json: String) {
         // act
-        let rewritten = Type.deserialize(dmOf(json)).serialize()
+        let rewritten = rewrittenAs<Type>(json)
 
         // assert
         @Expect("none", firstDifference(dmOf(json), rewritten) ?? "none")
@@ -125,7 +132,7 @@ class MetaModelTest {
             "proposed": true, "sinceTags": ["3.18.0"], "deprecated": "use something else"}"##
 
         // act
-        let rewritten = Request.deserialize(dmOf(json)).serialize()
+        let rewritten = rewrittenAs<Request>(json)
 
         // assert
         @Expect("none", firstDifference(dmOf(json), rewritten) ?? "none")

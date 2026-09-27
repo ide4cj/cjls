@@ -12,7 +12,7 @@ import stdxx.deriving.*
 import jsonrpc.*
 
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "report"]
+@Serde[skipNone, tag: "kind", rename: "report"]
 public struct WorkDoneProgressReport {
     public WorkDoneProgressReport(
         /**

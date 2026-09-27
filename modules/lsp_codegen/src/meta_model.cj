@@ -1,15 +1,14 @@
 package lsp_codegen
 
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.IntegerOrString
-import stdxx.serialization.*
 import stdxx.deriving.*
 
 /**
  * Mirrors https://microsoft.github.io/language-server-protocol/specifications/lsp/3.18/metaModel/metaModel.ts
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 struct MetaModel {
     MetaModel(
         let metaData!: MetaData,
@@ -21,12 +20,12 @@ struct MetaModel {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 struct MetaData {
     MetaData(let version!: String) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct Request {
     Request(
@@ -53,7 +52,7 @@ struct Request {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct Notification {
     Notification(
@@ -77,7 +76,7 @@ struct Notification {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct Structure {
     Structure(
@@ -93,7 +92,7 @@ struct Structure {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct Enumeration {
     Enumeration(
@@ -113,7 +112,7 @@ struct Enumeration {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct TypeAlias {
     TypeAlias(
@@ -127,7 +126,8 @@ struct TypeAlias {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
+@Derive[ToString]
 enum BaseTypes {
     | @Serde[rename: "URI"]
     Uri
@@ -150,7 +150,7 @@ enum BaseTypes {
 /**
  * Its `toString`, `MessageDirection.Both`, is how the generated code names the variant too.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[ToString]
 enum MessageDirection {
     | @Serde[rename: "clientToServer"]
@@ -161,7 +161,8 @@ enum MessageDirection {
     Both
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
+@Derive[ToString]
 enum MapKeyName {
     | @Serde[rename: "URI"]
     Uri
@@ -175,7 +176,7 @@ enum MapKeyName {
 /**
  * A reference here resolves to a `string` or an `integer`: `ChangeAnnotationIdentifier`.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[tag: "kind"]
 enum MapKeyType {
     | @Serde[rename: "base", payload: ["name"]]
@@ -184,7 +185,7 @@ enum MapKeyType {
     Reference(String)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[tag: "kind"]
 enum Type {
     | @Serde[rename: "base", payload: ["name"]]
@@ -227,7 +228,7 @@ enum Type {
     BooleanLiteral(Bool)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct StructureLiteral {
     StructureLiteral(
@@ -240,7 +241,7 @@ struct StructureLiteral {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct Property {
     Property(
@@ -255,14 +256,14 @@ struct Property {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[untagged]
 enum OneOrMany<T> {
     | One(T)
     | Many(Array<T>)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Serde[skipNone]
 struct EnumerationEntry {
     EnumerationEntry(
@@ -276,13 +277,13 @@ struct EnumerationEntry {
     ) {}
 }
 
-@DeriveExt[Serializable]
-@Serde[tag: "kind", value: "base"]
+@DeriveExt[ToJson, FromJson]
+@Serde[tag: "kind", rename: "base"]
 struct EnumerationType {
     EnumerationType(let name!: EnumerationBaseType) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 enum EnumerationBaseType {
     | @Serde[rename: "string"]
     String

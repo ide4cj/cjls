@@ -18,7 +18,7 @@ import jsonrpc.*
  * @since 3.17.0
  */
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "unchanged"]
+@Serde[skipNone, tag: "kind", rename: "unchanged"]
 public struct UnchangedDocumentDiagnosticReport {
     public UnchangedDocumentDiagnosticReport(
         /**

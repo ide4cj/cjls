@@ -15,7 +15,7 @@ import jsonrpc.*
  * Delete file operation
  */
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "delete"]
+@Serde[skipNone, tag: "kind", rename: "delete"]
 public struct DeleteFile {
     public DeleteFile(
         /**

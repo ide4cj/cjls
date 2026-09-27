@@ -3,8 +3,7 @@ package lsp_codegen
 import std.argopt.*
 import std.fs.*
 import std.process.*
-import stdx.serialization.serialization.*
-import stdx.encoding.json.*
+import fjson.fromJsonBytes
 
 main(args: Array<String>): Int64 {
     try {
@@ -18,8 +17,7 @@ main(args: Array<String>): Int64 {
 private func mainImpl(args: Array<String>): Int64 {
     let cliArgs = parseArgs(args)
     let cfg = Config.load(cliArgs.configPath)
-    let metaModel = MetaModel.deserialize(
-        DataModel.fromJson(JsonValue.fromStr(String.fromUtf8(File.readFrom(cliArgs.metaModelPath)))))
+    let metaModel = fromJsonBytes<MetaModel>(File.readFrom(cliArgs.metaModelPath))
 
     let cjFiles = generateCjFiles(cfg, metaModel)
     if (!exists(cfg.outputDir)) {

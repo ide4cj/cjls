@@ -23,7 +23,7 @@ import jsonrpc.*
  * @since 3.18.0
  */
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "snippet"]
+@Serde[skipNone, tag: "kind", rename: "snippet"]
 public struct StringValue {
     public StringValue(
         /**

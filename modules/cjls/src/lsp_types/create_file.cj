@@ -15,7 +15,7 @@ import jsonrpc.*
  * Create file operation.
  */
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "create"]
+@Serde[skipNone, tag: "kind", rename: "create"]
 public struct CreateFile {
     public CreateFile(
         /**

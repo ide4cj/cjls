@@ -15,7 +15,7 @@ import jsonrpc.*
  * Rename file operation
  */
 @DeriveExt[ToJson, FromJson]
-@Serde[skipNone, tag: "kind", value: "rename"]
+@Serde[skipNone, tag: "kind", rename: "rename"]
 public struct RenameFile {
     public RenameFile(
         /**

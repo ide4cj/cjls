@@ -194,20 +194,17 @@ private func structModelOf(
         return transparentModelOf(decl, typeOptions, fields, memberOptions)
     }
 
-    let tag: ?(String, String) = match ((typeOptions.tag, typeOptions.value)) {
+    // serde's: the tag holds the struct's name - its `rename`, or its identifier as a variant's would
+    let tag: ?(String, String) = match ((typeOptions.tag, typeOptions.rename)) {
         case (None, None) => None
-        case (Some(_), None) => return reportNone(typeIdent, "`tag` on a struct needs a `value`",
-            "give the tag's value for this struct, e.g. `value: \"delete\"`")
-        case (None, Some(_)) => return reportNone(typeIdent, "`value` on a struct needs a `tag`",
-            "name the field it goes into, e.g. `tag: \"kind\"`")
-        case (Some(_), Some(value)) where value.isInteger => return reportNone(typeIdent,
-            "a struct's `value` has to be a string", "the tag field holds a string")
-        case (Some(tag), Some(value)) =>
+        case (None, Some(_)) => return reportNone(typeIdent, "`rename` on a struct needs a `tag`",
+            "name the field its name goes into, e.g. `tag: \"kind\"`")
+        case (Some(tag), rename) =>
             for (field in fields where field.wireName == tag) {
                 return reportNone(field.ident, "the tag \"${tag}\" is also the wire name of a field",
                     "drop the field - the tag is written in its place")
             }
-            (tag, value.text)
+            (tag, rename ?? stripBackquotes(typeIdent.value))
     }
 
     StructModel(decl: decl, fields: fields.toArray(), tag: tag, transparent: false)
@@ -227,7 +224,7 @@ private func transparentModelOf(
     if (fields.size != 1) {
         return reportNone(typeIdent, "`transparent` needs exactly one field", "`${typeIdent.value}` declares ${fields.size}")
     }
-    if (typeOptions.skipNone || typeOptions.tag.isSome() || typeOptions.value.isSome()) {
+    if (typeOptions.skipNone || typeOptions.tag.isSome() || typeOptions.rename.isSome()) {
         return reportNone(typeIdent, "`transparent` takes no other option on the type",
             "the struct has no object of its own to tag or to omit keys from")
     }
@@ -334,8 +331,8 @@ private func enumModelOf(
     if (typeOptions.transparent) {
         return reportNone(decl, "`transparent` does not apply to an enum", "it belongs on a struct or a class with one field")
     }
-    if (typeOptions.value.isSome()) {
-        return reportNone(decl, "`value` on an enum belongs on its variants", "move it onto the variant it names")
+    if (typeOptions.rename.isSome()) {
+        return reportNone(decl, "`rename` on an enum belongs on its variants", "move it onto the variant it names")
     }
     if (typeOptions.untagged && typeOptions.tag.isSome()) {
         return reportNone(decl, "an enum is either `untagged` or has a `tag`", "drop one of them")

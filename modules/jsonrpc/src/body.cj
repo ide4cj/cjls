@@ -141,7 +141,7 @@ private func paramsOf(r: FjReader): ?RawJson {
 }
 
 @DeriveExt[ToJson]
-@Serde[tag: "jsonrpc", value: "2.0", skipNone]
+@Serde[tag: "jsonrpc", rename: "2.0", skipNone]
 public struct RequestBody {
     public RequestBody(
         public let id: RequestId,
@@ -155,7 +155,7 @@ public struct RequestBody {
 }
 
 @DeriveExt[ToJson]
-@Serde[tag: "jsonrpc", value: "2.0", skipNone]
+@Serde[tag: "jsonrpc", rename: "2.0", skipNone]
 public struct NotificationBody {
     public NotificationBody(public let method: String, public let params!: ?RawJson = None) {}
 
