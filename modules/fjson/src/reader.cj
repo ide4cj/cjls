@@ -417,7 +417,8 @@ public class FjReader {
 
     /**
      * A number, through `std.convert`'s `Float64.parse`, which is not correctly rounded: it reads
-     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off (`RyuTest`, Q20).
+     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off, ~1 in 20 000 two
+     * (`RyuTest`, `TreePropertyTest`, #31).
      */
     @Frozen
     public func readFloat64(): Float64 {

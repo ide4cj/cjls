@@ -108,7 +108,7 @@ func bytesOf(tree: Tree): Array<Byte> {
 
 /**
  * Whether two floats are at most `ulps` apart: `readFloat64` reads ~0.5% of shortest decimals one
- * ulp off and ~1 in 20 000 two (`-1.9767441860465116`, Q20), so a round trip holds to two.
+ * ulp off and ~1 in 20 000 two (`-1.9767441860465116`, #31), so a round trip holds to two.
  */
 func near(a: Float64, b: Float64, ulps: Int64): Bool {
     if (a == b) {
