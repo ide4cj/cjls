@@ -185,7 +185,12 @@ public struct Rope <: Equatable<Rope> & ToString {
      * @throws IllegalArgumentException - if it falls inside a character
      */
     public func positionOf(offset: Int64, encoding: Encoding): LineColumn {
-        let before = summaryBefore(offset)
+        checkOffset(offset)
+        if (let Some(position) <- positionInLeaf(root, offset, encoding)) {
+            return position
+        }
+        // the line starts in a leaf before the offset's own
+        let before = prefixSummary(root, offset)
         let line = before.lineBreaks
         let start = lineStart(line)
         LineColumn(line, before.measure(encoding) - prefixSummary(root, start).measure(encoding))

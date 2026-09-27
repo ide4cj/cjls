@@ -145,6 +145,25 @@ class RopeTest {
     }
 
     @TestCase
+    func positionsOnLinesLongerThanALeafAgreeWithCountingThemTheSlowWay() {
+        // arrange
+        let random = Random(12)
+        let line = String.join(Array(MAX_CHUNK) {_ => PIECES[random.nextInt64(PIECES.size)]}.filter {p => !p.contains("\n")})
+        let text = "${line}\n${line}\r\n${line}"
+        let rope = Rope(text)
+
+        for (offset in boundaries(text)) {
+            for (encoding in [Utf8, Utf16, Utf32]) {
+                // act
+                let position = rope.positionOf(offset, encoding)
+
+                // assert
+                @Assert(position, naivePosition(text, offset, encoding))
+            }
+        }
+    }
+
+    @TestCase
     func aColumnCountsWhatItsEncodingSays() {
         // arrange
         let rope = Rope("й😀x\n")

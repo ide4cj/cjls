@@ -215,6 +215,65 @@ func prefixSummary(node: Node, offset: Int64): TextSummary {
 }
 
 /**
+ * The line and column of `offset` under `node`, in one descent, if the line starts in the leaf
+ * `offset` is in: the column is measured back to the line break before it, and the line breaks of
+ * the leaf are counted on whichever side of it is shorter. `None` when the line starts in a leaf
+ * before.
+ */
+func positionInLeaf(node: Node, offset: Int64, encoding: Encoding): ?LineColumn {
+    var current = node
+    var remaining = offset
+    var lineBreaks = 0
+    while (true) {
+        match (current) {
+            case leaf: Leaf =>
+                let text = leaf.text
+                var lineStart = remaining
+                while (lineStart > 0 && text[lineStart - 1] != b'\n') {
+                    lineStart--
+                }
+                if (lineStart == 0) {
+                    // no line break before the offset in this leaf: the line starts here only in the first
+                    return if (remaining == offset) {
+                        LineColumn(0, summarize(text, 0, remaining).measure(encoding))
+                    } else {
+                        None
+                    }
+                }
+                let breaksBefore = if (lineStart <= text.size / 2) {
+                    countLineBreaks(text, 0, lineStart)
+                } else {
+                    leaf.summary.lineBreaks - countLineBreaks(text, lineStart, text.size)
+                }
+                let column = match (encoding) {
+                    case Utf8 => remaining - lineStart
+                    case _ => summarize(text, lineStart, remaining).measure(encoding)
+                }
+                return LineColumn(lineBreaks + breaksBefore, column)
+            case branch: Branch =>
+                let children = branch.children
+                var i = 0
+                // the last child takes the end of the text
+                while (i < children.size - 1 && remaining >= children[i].summary.bytes) {
+                    remaining -= children[i].summary.bytes
+                    lineBreaks += children[i].summary.lineBreaks
+                    i++
+                }
+                current = children[i]
+        }
+    }
+    None
+}
+
+func countLineBreaks(text: String, from: Int64, to: Int64): Int64 {
+    var count = 0
+    for (i in from..to where text[i] == b'\n') {
+        count++
+    }
+    count
+}
+
+/**
  * The offset right after the `n`th line break under `node`, from 1.
  */
 func offsetAfterBreak(node: Node, n: Int64): Int64 {
