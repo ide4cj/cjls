@@ -1,15 +1,13 @@
 package syntax_codegen
 
 import std.fs.*
-import stdx.serialization.serialization.*
-import stdxx.serialization.*
+import ftoml.*
 import stdxx.deriving.*
-import cjtoml.*
 
 /**
  * One kind in the kinds file. Which fields it may have depends on its section: see `KindsFile`.
  */
-@DeriveExt[Serializable]
+@DeriveExt[FromToml]
 struct KindEntry {
     KindEntry(
         let name!: String,
@@ -24,7 +22,7 @@ struct KindEntry {
  * The kinds file: where the grammar is, where the output goes, and the kinds of tokens and of the nodes the
  * grammar has no rule for, by section. Paths are relative to the file.
  */
-@DeriveExt[Serializable]
+@DeriveExt[FromToml]
 struct KindsFile {
     KindsFile(
         let grammar!: String,
@@ -59,7 +57,7 @@ struct Inputs {
     Inputs(let dir!: Path, let kinds!: KindsFile, let grammar!: Grammar) {}
 
     static func load(path: Path): Inputs {
-        let kinds = unmarshal<KindsFile>(path.toString())
+        let kinds = fromTomlBytes<KindsFile>(File.readFrom(path))
         let dir = if (path.parent.isEmpty()) {
             Path(".")
         } else {

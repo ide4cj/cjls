@@ -6,7 +6,6 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
 import fjson.*
-import stdx.serialization.serialization.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 
@@ -164,7 +163,7 @@ class ConnectionServeRequestTest {
         // arrange
         let handler = FakeHandler()
         handler.onRequestFn = {
-            method, params, _ => Result(RawJson.of("${method}:${fieldOf(params, "a").asIntOrThrow()}"))
+            method, params, _ => Result(RawJson.of("${method}:${fieldOf(params, "a").asInteger()}"))
         }
         let (_, transport) = serving(handler)
         let params = rawJson(#"{"a":42}"#)
@@ -550,7 +549,7 @@ class ConnectionOutboundTest {
 
         // assert
         @Expect("tell", note.method)
-        @Expect("hi", fieldOf(note.params, "message").asStringOrThrow())
+        @Expect("hi", fieldOf(note.params, "message").asString())
     }
 
     @TestCase

@@ -1,11 +1,9 @@
 package lsp_codegen
 
-import std.collection.HashMap
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.{JsonValue, ToJson as StdxToJson}
-import stdx.serialization.serialization.*
+import stdx.encoding.json.{JsonArray, JsonBool, JsonFloat, JsonInt, JsonNull, JsonObject, JsonString, JsonValue}
 import stdxx.IntegerOrString
 import fjson.{FromJson, ToJson, fromJsonBytes, toJsonBytes}
 
@@ -23,24 +21,15 @@ func metaModelOf(
         structures: structures, enumerations: enumerations, typeAliases: typeAliases)
 }
 
-private func dmOf(json: String): DataModel {
-    DataModel.fromJson(JsonValue.fromStr(json))
+private func treeOf(json: String): JsonValue {
+    JsonValue.fromStr(json)
 }
 
 /**
  * The text read as `T` and written back, as stdx reads it: an oracle `fjson` has no part in.
  */
-private func rewrittenAs<T>(json: String): DataModel where T <: ToJson & FromJson<T> {
-    dmOf(String.fromUtf8(toJsonBytes(fromJsonBytes<T>(json.toArray()))))
-}
-
-private func fieldsOf(dms: DataModelStruct): HashMap<String, DataModel> {
-    let byName = HashMap<String, DataModel>()
-    for (f in dms.getFields()) {
-        byName[f.getName()] = f.getData()
-    }
-
-    byName
+private func rewrittenAs<T>(json: String): JsonValue where T <: ToJson & FromJson<T> {
+    treeOf(String.fromUtf8(toJsonBytes(fromJsonBytes<T>(json.toArray()))))
 }
 
 /**
@@ -48,11 +37,11 @@ private func fieldsOf(dms: DataModelStruct): HashMap<String, DataModel> {
  * members unordered, arrays in order. `toJson` writes the fields in declaration order, so comparing
  * the texts would fail on a key order that means nothing.
  */
-private func firstDifference(expected: DataModel, actual: DataModel, path!: String = "$"): ?String {
+private func firstDifference(expected: JsonValue, actual: JsonValue, path!: String = "$"): ?String {
     match ((expected, actual)) {
-        case (e: DataModelStruct, a: DataModelStruct) =>
-            let expectedFields = fieldsOf(e)
-            let actualFields = fieldsOf(a)
+        case (e: JsonObject, a: JsonObject) =>
+            let expectedFields = e.getFields()
+            let actualFields = a.getFields()
             for ((name, expectedValue) in expectedFields) {
                 match (actualFields.get(name)) {
                     case None => return "${path}.${name} (dropped on the way out)"
@@ -68,7 +57,7 @@ private func firstDifference(expected: DataModel, actual: DataModel, path!: Stri
                 }
             }
             None
-        case (e: DataModelSeq, a: DataModelSeq) =>
+        case (e: JsonArray, a: JsonArray) =>
             let expectedItems = e.getItems()
             let actualItems = a.getItems()
             if (expectedItems.size != actualItems.size) {
@@ -80,11 +69,11 @@ private func firstDifference(expected: DataModel, actual: DataModel, path!: Stri
                 }
             }
             None
-        case (e: DataModelString, a: DataModelString) where e.getValue() == a.getValue() => None
-        case (e: DataModelInt, a: DataModelInt) where e.getValue() == a.getValue() => None
-        case (e: DataModelFloat, a: DataModelFloat) where e.getValue() == a.getValue() => None
-        case (e: DataModelBool, a: DataModelBool) where e.getValue() == a.getValue() => None
-        case (_: DataModelNull, _: DataModelNull) => None
+        case (e: JsonString, a: JsonString) where e.getValue() == a.getValue() => None
+        case (e: JsonInt, a: JsonInt) where e.getValue() == a.getValue() => None
+        case (e: JsonFloat, a: JsonFloat) where e.getValue() == a.getValue() => None
+        case (e: JsonBool, a: JsonBool) where e.getValue() == a.getValue() => None
+        case (_: JsonNull, _: JsonNull) => None
         case _ => "${path} (value differs)"
     }
 }
@@ -105,7 +94,7 @@ class MetaModelTest {
         let rewritten = rewrittenAs<MetaModel>(json)
 
         // assert
-        @Expect("none", firstDifference(dmOf(json), rewritten) ?? "none")
+        @Expect("none", firstDifference(treeOf(json), rewritten) ?? "none")
     }
 
     @TestCase[json in [
@@ -121,7 +110,7 @@ class MetaModelTest {
         let rewritten = rewrittenAs<Type>(json)
 
         // assert
-        @Expect("none", firstDifference(dmOf(json), rewritten) ?? "none")
+        @Expect("none", firstDifference(treeOf(json), rewritten) ?? "none")
     }
 
     @TestCase
@@ -135,6 +124,6 @@ class MetaModelTest {
         let rewritten = rewrittenAs<Request>(json)
 
         // assert
-        @Expect("none", firstDifference(dmOf(json), rewritten) ?? "none")
+        @Expect("none", firstDifference(treeOf(json), rewritten) ?? "none")
     }
 }

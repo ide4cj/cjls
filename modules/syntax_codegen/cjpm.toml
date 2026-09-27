@@ -13,7 +13,7 @@ link-option = "-lc++"
 package-configuration = {}
 
 [dependencies]
-cjtoml = { path = "../cjtoml" }
+ftoml = { path = "../ftoml" }
 stdxx = { path = "../stdxx" }
 
 # The tests check what the generator made against the parser it made it for; the generator itself must not need

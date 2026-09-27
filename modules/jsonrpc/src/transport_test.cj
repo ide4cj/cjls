@@ -6,7 +6,6 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import std.unittest.prop_test.*
 import stdx.log.*
-import stdx.serialization.serialization.*
 import fjson.*
 import stdxx.IntegerOrString
 import stdxx.serialization.*
@@ -91,7 +90,7 @@ class JsonRpcTransportReadTest {
         let note = reading(framed(payload)).read().getOrThrow().getNotificationBodyOrThrow()
 
         // assert
-        @Expect("привет", fieldOf(note.params, "text").asStringOrThrow())
+        @Expect("привет", fieldOf(note.params, "text").asString())
     }
 
     @TestCase
@@ -104,7 +103,7 @@ class JsonRpcTransportReadTest {
         let note = reading(ChunkedInputStream(bytes, 4096)).read().getOrThrow().getNotificationBodyOrThrow()
 
         // assert
-        @Expect(100000, fieldOf(note.params, "pad").asStringOrThrow().size)
+        @Expect(100000, fieldOf(note.params, "pad").asString().size)
     }
 
     @TestCase[pair in [

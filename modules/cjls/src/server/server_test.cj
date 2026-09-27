@@ -6,7 +6,6 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdx.serialization.serialization.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
 import fjson.*
@@ -41,8 +40,8 @@ func paramsOf(json: String): RawJson {
 /**
  * What was written, read into a tree for a test to look into.
  */
-func treeOf(written: RawJson): DataModel {
-    written.read<AnyValue>().data
+func treeOf(written: RawJson): AnyValue {
+    written.read<AnyValue>()
 }
 
 func hoverParams(): RawJson {
@@ -328,8 +327,8 @@ class ServerDispatchTest {
         server.onRequest(asked.request)
 
         // assert
-        let contents = treeOf(asked.answer().getResultOrThrow()).asStructOrThrow().getOrThrow("contents").asStructOrThrow()
-        @Expect("3:true", contents.getOrThrow("value").asStringOrThrow())
+        let contents = treeOf(asked.answer().getResultOrThrow())["contents"]
+        @Expect("3:true", contents["value"].asString())
         @Expect(refEq(client, describedClients.remove()))
     }
 

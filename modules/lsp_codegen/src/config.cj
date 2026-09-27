@@ -2,9 +2,8 @@ package lsp_codegen
 
 import std.collection.fold
 import std.fs.*
-import stdx.serialization.serialization.*
-import stdxx.serialization.*
-import cjtoml.*
+import ftoml.*
+import stdxx.deriving.*
 
 struct Config {
     let outputDir: Path
@@ -21,24 +20,26 @@ struct Config {
 
     static func load(cfgPath: Path): Config {
         let cfgDir = parentDirOf(cfgPath)
-        let cfgFile = unmarshal<ConfigFile>(cfgPath.toString())
+        let cfgFile = fromTomlBytes<ConfigFile>(File.readFrom(cfgPath))
+        let general = cfgFile.general
         let manifest = CjpmManifest.load(cfgDir)
 
-        let subPackage = cfgFile.outputSubpackage.trimAscii()
+        let subPackage = general.outputSubpackage.trimAscii()
         if (subPackage.isEmpty()) {
             throw ConfigException("`output-subpackage` must not be empty")
         }
 
-        let srcDir = cfgFile.srcDir ?? manifest.flatMap {it: CjpmManifest => it.srcDir} ?? Path("src")
-        let rootPackage = manifest.flatMap {it: CjpmManifest => it.name}.getOrThrow {
+        let srcDir = nonBlankPath(general.srcDir) ?? manifest.flatMap {it: CjpmManifest => nonBlankPath(it.`package`.srcDir)} ??
+            Path("src")
+        let rootPackage = manifest.map {it: CjpmManifest => it.`package`.name}.getOrThrow {
             => ConfigException("cannot tell the root package of `${subPackage}`")
         }
 
         Config(
-            imports: cfgFile.imports,
+            imports: general.imports ?? [],
             srcDir: srcDir.resolveAgainst(cfgDir),
             outputPackage: "${rootPackage}.${subPackage}",
-            typeMap: cfgFile.typeMap,
+            typeMap: cfgFile.types ?? TypeMap(),
         )
     }
 }
@@ -46,13 +47,7 @@ struct Config {
 /**
  * cjpm writes `""` for an unset `src-dir`, so a blank one falls through to the next source.
  */
-private func optionalPathField(dms: DataModelStruct, key: String): ?Path {
-    let raw: ?String = match (dms.get(key)) {
-        case s: DataModelString => s.getValue()
-        case _: DataModelNull => None
-        case _ => throw DataModelException("Invalid `${key}` field type")
-    }
-
+private func nonBlankPath(raw: ?String): ?Path {
     let value = raw.map {it: String => it.trimAscii()} ?? ""
     if (value.isEmpty()) {
         None
@@ -84,54 +79,24 @@ class ConfigException <: Exception {
     }
 }
 
-private struct ConfigFile <: Serializable<ConfigFile> {
-    ConfigFile(let srcDir!: ?Path, let outputSubpackage!: String, let imports!: Array<String>, let typeMap!: TypeMap) {}
-
-    public static func deserialize(dm: DataModel): ConfigFile {
-        let dms = dm.asStructOrThrow()
-        let general = dms.get("general").asStructOrThrow()
-
-        ConfigFile(
-            srcDir: optionalPathField(general, "src-dir"),
-            outputSubpackage: general.get("output-subpackage").asStringOrThrow(),
-            imports: stringListField(general, "imports"),
-            typeMap: TypeMap.deserialize(dms.get("types"))
-        )
-    }
-
-    public func serialize(): DataModel {
-        throw UnsupportedException()
-    }
+@DeriveExt[FromToml]
+struct ConfigFile {
+    ConfigFile(let general!: GeneralSection, let types!: ?TypeMap = None) {}
 }
 
-private func stringListField(dms: DataModelStruct, key: String): Array<String> {
-    let items = match (dms.get(key)) {
-        case seq: DataModelSeq => seq.getItems()
-        case _: DataModelNull => return []
-        case _ => throw ConfigException("`${key}` must be an array of strings")
-    }
-
-    items.map {
-        it: DataModel => match (it) {
-            case s: DataModelString => s.getValue()
-            case _ => throw ConfigException("`${key}` must be an array of strings")
-        }
-    }.toArray()
+@DeriveExt[FromToml]
+struct GeneralSection {
+    GeneralSection(
+        @Serde[rename: "src-dir"] let srcDir!: ?String = None,
+        @Serde[rename: "output-subpackage"] let outputSubpackage!: String,
+        let imports!: ?Array<String> = None
+    ) {}
 }
 
-private struct CjpmManifest <: Serializable<CjpmManifest> {
-    CjpmManifest(let name!: String, let srcDir!: ?Path) {}
-
-    public static func deserialize(dm: DataModel): CjpmManifest {
-        let dms = dm.asStructOrThrow()
-        let pkg = dms.get("package").asStructOrThrow()
-
-        CjpmManifest(name: pkg.get("name").asStringOrThrow(), srcDir: optionalPathField(pkg, "src-dir"))
-    }
-
-    public func serialize(): DataModel {
-        throw UnsupportedException()
-    }
+/** What the generator needs of the `cjpm.toml` beside its config; the rest is skipped. */
+@DeriveExt[FromToml]
+struct CjpmManifest {
+    CjpmManifest(let `package`!: CjpmPackage) {}
 
     static func load(cfgDir: Path): ?CjpmManifest {
         let manifestPath = cfgDir.join("cjpm.toml")
@@ -139,8 +104,13 @@ private struct CjpmManifest <: Serializable<CjpmManifest> {
             return None
         }
 
-        unmarshal<CjpmManifest>(manifestPath.toString())
+        fromTomlBytes<CjpmManifest>(File.readFrom(manifestPath))
     }
+}
+
+@DeriveExt[FromToml]
+struct CjpmPackage {
+    CjpmPackage(let name!: String, @Serde[rename: "src-dir"] let srcDir!: ?String = None) {}
 }
 
 extend Path {

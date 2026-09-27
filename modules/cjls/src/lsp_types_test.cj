@@ -1,6 +1,5 @@
 package cjls
 
-import stdx.serialization.serialization.*
 import stdxx.serialization.*
 import fjson.*
 import jsonrpc.*
@@ -13,8 +12,8 @@ private func read<T>(json: String): T where T <: FromJson<T> {
 /**
  * What `value` writes, read into a tree for a test to look into.
  */
-private func treeOf<T>(value: T): DataModelStruct where T <: ToJson {
-    RawJson.of(value).read<AnyValue>().data.asStructOrThrow()
+private func treeOf<T>(value: T): AnyValue where T <: ToJson {
+    RawJson.of(value).read<AnyValue>()
 }
 
 /**
@@ -60,11 +59,11 @@ class LspTypesTest {
             MarkupContent(kind: MarkupKind.Markdown, value: "**x**")))
 
         // act
-        let dms = treeOf(hover)
+        let tree = treeOf(hover)
 
         // assert
-        @Expect(dms.getOrNone("range").isNone())
-        @Expect("markdown", dms.getOrThrow("contents").asStructOrThrow().getOrThrow("kind").asStringOrThrow())
+        @Expect(tree.get("range").isNone())
+        @Expect("markdown", tree["contents"]["kind"].asString())
     }
 
     @TestCase
@@ -97,7 +96,7 @@ class LspTypesTest {
             case AsDeleteFile(d) => d.uri == "file:///a"
             case _ => false
         })
-        @Expect("delete", treeOf(change).getOrThrow("kind").asStringOrThrow())
+        @Expect("delete", treeOf(change)["kind"].asString())
     }
 
     @TestCase
@@ -149,8 +148,8 @@ class LspTypesTest {
         // assert
         @Expect("initialize", spec.method)
         @Expect(42, decoded.processId.getOrThrow())
-        let serverInfo = encoded.read<AnyValue>().data.asStructOrThrow().getOrThrow("serverInfo").asStructOrThrow()
-        @Expect("cjls", serverInfo.getOrThrow("name").asStringOrThrow())
+        let serverInfo = encoded.read<AnyValue>()["serverInfo"]
+        @Expect("cjls", serverInfo["name"].asString())
     }
 
     @TestCase

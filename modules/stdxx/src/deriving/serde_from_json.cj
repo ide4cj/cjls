@@ -206,7 +206,7 @@ private func scalarEnumFromJson(model: EnumModel, isInteger: Bool, other: ?Deriv
 /**
  * Each variant tried in declaration order on the value's own bytes - a slice of the input, so
  * nothing is copied - and the first that reads, to its end, is the one. Any exception means "not
- * this variant", as it does for `Serializable`.
+ * this variant".
  */
 private func untaggedEnumFromJson(model: EnumModel): Tokens {
     let typeName = typeNameOf(model.decl)

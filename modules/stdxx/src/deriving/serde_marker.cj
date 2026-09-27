@@ -17,7 +17,7 @@ const ITEM_OTHER = "other"
 /**
  * Configures what `@DeriveExt` generates for the declaration it sits on - serde's `#[serde(...)]`:
  * one marker for every position, read alike by every serde derivation (`ToJson`, `FromJson`,
- * `Serializable`).
+ * `ToToml`, `FromToml`).
  *
  * Which options are legal follows from where it sits:
  *

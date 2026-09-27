@@ -2,7 +2,6 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import std.io.ByteBuffer
-import stdx.serialization.serialization.*
 import stdx.log.NoopLogger
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
@@ -52,8 +51,8 @@ class LifecycleTest {
         // assert
         @Expect(0, exitCode)
         @Expect(2, responses.size)
-        let serverInfo = responses[0].resultOrError.getResultOrThrow().read<AnyValue>().data.asStructOrThrow().getOrThrow("serverInfo")
-        @Expect("cjls", serverInfo.asStructOrThrow().getOrThrow("name").asStringOrThrow())
+        let serverInfo = responses[0].resultOrError.getResultOrThrow().read<AnyValue>()["serverInfo"]
+        @Expect("cjls", serverInfo["name"].asString())
         @Expect(Integer(2), responses[1].id.getOrThrow())
         @Expect(responses[1].resultOrError.getResultOrThrow().toString() == "null")
     }
