@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -45,11 +45,11 @@ public struct WorkspaceSymbolRequestSpec <: LspInboundRequest<WorkspaceSymbolPar
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): WorkspaceSymbolParams {
+    public func decodeParams(params: ?RawJson): WorkspaceSymbolParams {
         decodeMessageParams<WorkspaceSymbolParams>(params)
     }
 
-    public func encodeResult(result: Nullable<SymbolInformationsOrWorkspaceSymbols>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<SymbolInformationsOrWorkspaceSymbols>): RawJson {
+        RawJson.of(result)
     }
 }

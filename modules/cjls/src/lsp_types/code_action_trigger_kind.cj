@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,13 +16,13 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum CodeActionTriggerKind {
     /**
      * Code actions were explicitly requested by the user or by an extension.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Invoked
 
     /**
@@ -31,12 +31,12 @@ public enum CodeActionTriggerKind {
      * This typically happens when current selection in a file changes, but can
      * also be triggered when file content changes.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Automatic
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

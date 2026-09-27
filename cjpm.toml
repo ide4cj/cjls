@@ -4,6 +4,7 @@ members = [
     "modules/cjls",
     "modules/cjsyntax",
     "modules/cjtoml",
+    "modules/fjson",
     "modules/ginkgo",
     "modules/index_map",
     "modules/jsonrpc",
@@ -15,7 +16,7 @@ members = [
 ]
 build-members = []
 test-members = []
-compile-option = "-Woff unused -O2 --static-std"
+compile-option = "-Woff unused -O2"
 override-compile-option = ""
 link-option = ""
 target-dir = ""

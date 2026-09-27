@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -17,14 +17,14 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum ApplyKind {
     /**
      * The value from the individual item (if provided and not `null`) will be
      * used instead of the default.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Replace
 
     /**
@@ -33,12 +33,12 @@ public enum ApplyKind {
      * The specific rules for mergeing values are defined against each field
      * that supports merging.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Merge
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

@@ -3,9 +3,9 @@ output-subpackage = "lsp_types"
 imports = [
     "std.collection.*",
     "std.deriving.*",
-    "stdx.serialization.serialization.*",
+    "fjson.*",
     "stdxx.{IntegerOrString, Nullable}",
-    "stdxx.serialization.*",
+    "stdxx.serialization.AnyValue",
     "stdxx.deriving.*",
     "jsonrpc.*",
 ]

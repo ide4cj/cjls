@@ -7,13 +7,14 @@ version = "0.1.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
-compile-option = ""
+compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = ""
 package-configuration = { cjls = { compile-option = "--static" } }
 
 [dependencies]
 calca = { path = "../calca" }
+fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
 loupe = { path = "../loupe" }
 rope = { path = "../rope" }

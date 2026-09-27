@@ -84,7 +84,7 @@ class EmitMessageTest {
         @Expect(emitted.contains("\"textDocument/hover\""))
         @Expect(emitted.contains("MessageDirection.ClientToServer"))
         @Expect(emitted.contains("decodeMessageParams<HoverParams>(params)"))
-        @Expect(emitted.contains("public func encodeResult(result: Nullable<Hover>): DataModel {"))
+        @Expect(emitted.contains("public func encodeResult(result: Nullable<Hover>): RawJson {"))
     }
 
     @TestCase
@@ -98,8 +98,8 @@ class EmitMessageTest {
 
         // assert
         @Expect(emitted.contains("LspInboundRequest<Unit, Unit>"))
-        @Expect(emitted.contains("public func decodeParams(params: ?ArrayOrObject): Unit {"))
-        @Expect(emitted.contains("DataModelNull()"))
+        @Expect(emitted.contains("public func decodeParams(params: ?RawJson): Unit {"))
+        @Expect(emitted.contains("RawJson.NULL"))
     }
 
     @TestCase

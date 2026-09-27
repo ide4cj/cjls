@@ -5,17 +5,17 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * Delete file operation
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone, tag: "kind", value: "delete"]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone, tag: "kind", rename: "delete"]
 public struct DeleteFile {
     public DeleteFile(
         /**

@@ -1,8 +1,8 @@
 package cjls.server
 
 import std.collection.HashMap
-import stdx.serialization.serialization.*
-import jsonrpc.ArrayOrObject
+import fjson.RawJson
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 
 /**
@@ -30,12 +30,23 @@ public class Router {
     var state = ServerState()
     let requests = HashMap<String, RequestRoute>()
     let notifications = HashMap<String, NotificationRoute>()
+    var diagnostics: ?(ServerSnapshot, VfsPath) -> Array<Diagnostic> = None
 
     /**
      * The state the handlers share; a fresh one unless given.
      */
     public func withState(state: ServerState): Router {
         this.state = state
+        this
+    }
+
+    /**
+     * A document's diagnostics, in the client's terms, for the server to push to a client that
+     * cannot pull them: after every change of the files, for every open document, from a snapshot
+     * (D14). When and on which thread is the server's (S7).
+     */
+    public func publishDiagnostics(diagnostics: (ServerSnapshot, VfsPath) -> Array<Diagnostic>): Router {
+        this.diagnostics = diagnostics
         this
     }
 
@@ -89,13 +100,13 @@ public class Router {
 }
 
 enum RequestRoute {
-    | Exclusive((Parts, ?ArrayOrObject) -> DataModel)
-    | ReadOnly((ReadOnlyParts, ?ArrayOrObject) -> DataModel)
+    | Exclusive((Parts, ?RawJson) -> RawJson)
+    | ReadOnly((ReadOnlyParts, ?RawJson) -> RawJson)
 }
 
 enum NotificationRoute {
-    | Exclusive((Parts, ?ArrayOrObject) -> Unit)
-    | ReadOnly((ReadOnlyParts, ?ArrayOrObject) -> Unit)
+    | Exclusive((Parts, ?RawJson) -> Unit)
+    | ReadOnly((ReadOnlyParts, ?RawJson) -> Unit)
 }
 
 private func refuseLifecycle(method: String): Unit {

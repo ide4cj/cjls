@@ -1,6 +1,7 @@
 package jsonrpc
 
 import std.sync.AtomicBool
+import fjson.RawJson
 
 /**
  * A peer request with the one right to answer it, from whichever thread. Only the first answer
@@ -17,7 +18,7 @@ public class InboundRequest {
     public InboundRequest(
         public let id: RequestId,
         public let method: String,
-        public let params: ?ArrayOrObject,
+        public let params: ?RawJson,
         public let cancellation: CancellationToken,
         private let deliver: (ResultOrError) -> Unit
     ) {}

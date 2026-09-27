@@ -6,6 +6,7 @@ import stdx.serialization.serialization.*
 import stdx.log.NoopLogger
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
+import fjson.RawJson
 import rope.Encoding
 import jsonrpc.*
 import cjls.lsp_types.*
@@ -51,10 +52,10 @@ class LifecycleTest {
         // assert
         @Expect(0, exitCode)
         @Expect(2, responses.size)
-        let serverInfo = responses[0].resultOrError.getResultOrThrow().asStructOrThrow().getOrThrow("serverInfo")
+        let serverInfo = responses[0].resultOrError.getResultOrThrow().read<AnyValue>().data.asStructOrThrow().getOrThrow("serverInfo")
         @Expect("cjls", serverInfo.asStructOrThrow().getOrThrow("name").asStringOrThrow())
         @Expect(Integer(2), responses[1].id.getOrThrow())
-        @Expect(responses[1].resultOrError.getResultOrThrow() is DataModelNull)
+        @Expect(responses[1].resultOrError.getResultOrThrow().toString() == "null")
     }
 
     @TestCase
@@ -94,5 +95,24 @@ class InitializeTest {
         // assert
         @Expect(state.encoding, expected)
         @Expect(result.capabilities.positionEncoding?.value, Some(advertised))
+    }
+
+    @TestCase[row in [
+        (ClientCapabilities(textDocument: TextDocumentClientCapabilities(
+            diagnostic: DiagnosticClientCapabilities())), false),
+        (ClientCapabilities(textDocument: TextDocumentClientCapabilities()), true),
+        (ClientCapabilities(), true)
+    ]]
+    func diagnosticsArePushedOnlyToAClientThatCannotPullThem(row: (ClientCapabilities, Bool)) {
+        // arrange
+        let (capabilities, pushed) = row
+        let state = ServerState()
+
+        // act
+        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+            capabilities: capabilities))
+
+        // assert
+        @Expect(state.pushesDiagnostics, pushed)
     }
 }

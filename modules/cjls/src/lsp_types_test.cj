@@ -1,13 +1,20 @@
 package cjls
 
-import stdx.encoding.json.*
 import stdx.serialization.serialization.*
 import stdxx.serialization.*
+import fjson.*
 import jsonrpc.*
 import cjls.lsp_types.*
 
-private func dataOf(json: String): DataModel {
-    DataModel.fromJson(JsonValue.fromStr(json))
+private func read<T>(json: String): T where T <: FromJson<T> {
+    fromJsonBytes<T>(json.toArray())
+}
+
+/**
+ * What `value` writes, read into a tree for a test to look into.
+ */
+private func treeOf<T>(value: T): DataModelStruct where T <: ToJson {
+    RawJson.of(value).read<AnyValue>().data.asStructOrThrow()
 }
 
 /**
@@ -35,7 +42,7 @@ class LspTypesTest {
         }"##
 
         // act
-        let params = InitializeParams.deserialize(dataOf(json))
+        let params = read<InitializeParams>(json)
 
         // assert
         @Expect(4242, params.processId.getOrThrow())
@@ -53,7 +60,7 @@ class LspTypesTest {
             MarkupContent(kind: MarkupKind.Markdown, value: "**x**")))
 
         // act
-        let dms = hover.serialize().asStructOrThrow()
+        let dms = treeOf(hover)
 
         // assert
         @Expect(dms.getOrNone("range").isNone())
@@ -63,15 +70,15 @@ class LspTypesTest {
     @TestCase
     func aUnionTriesTheMemberRequiringMoreKeysFirst() {
         // arrange
-        let command = dataOf(##"{"title": "Run", "command": "run"}"##)
-        let codeAction = dataOf(##"{"title": "Fix", "command": {"title": "Run", "command": "run"}}"##)
+        let command = ##"{"title": "Run", "command": "run"}"##
+        let codeAction = ##"{"title": "Fix", "command": {"title": "Run", "command": "run"}}"##
 
         // act & assert
-        @Expect(match (CommandOrCodeAction.deserialize(command)) {
+        @Expect(match (read<CommandOrCodeAction>(command)) {
             case AsCommand(c) => c.command == "run"
             case _ => false
         })
-        @Expect(match (CommandOrCodeAction.deserialize(codeAction)) {
+        @Expect(match (read<CommandOrCodeAction>(codeAction)) {
             case AsCodeAction(a) => a.title == "Fix"
             case _ => false
         })
@@ -80,33 +87,33 @@ class LspTypesTest {
     @TestCase
     func theKindTagPicksTheFileOperation() {
         // arrange
-        let delete = dataOf(##"{"kind": "delete", "uri": "file:///a"}"##)
+        let delete = ##"{"uri": "file:///a", "kind": "delete"}"##
 
         // act
-        let change = TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.deserialize(delete)
+        let change = read<TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile>(delete)
 
         // assert
         @Expect(match (change) {
             case AsDeleteFile(d) => d.uri == "file:///a"
             case _ => false
         })
-        @Expect("delete", change.serialize().asStructOrThrow().getOrThrow("kind").asStringOrThrow())
+        @Expect("delete", treeOf(change).getOrThrow("kind").asStringOrThrow())
     }
 
     @TestCase
     func aParameterLabelIsEitherAStringOrAnOffsetPair() {
         // arrange
-        let byOffsets = dataOf(##"{"label": [4, 9]}"##)
+        let byOffsets = ##"{"label": [4, 9]}"##
 
         // act
-        let info = ParameterInformation.deserialize(byOffsets)
+        let info = read<ParameterInformation>(byOffsets)
 
         // assert
         @Expect(match (info.label) {
             case AsUIntegerPair(start, end) => start == 4 && end == 9
             case _ => false
         })
-        @Expect(match (ParameterInformation.deserialize(dataOf(##"{"label": "x"}"##)).label) {
+        @Expect(match (read<ParameterInformation>(##"{"label": "x"}"##).label) {
             case AsString(s) => s == "x"
             case _ => false
         })
@@ -119,7 +126,7 @@ class LspTypesTest {
             "message": "m", "severity": 1, "tags": [1, 99]}"##
 
         // act
-        let diagnostic = Diagnostic.deserialize(dataOf(json))
+        let diagnostic = read<Diagnostic>(json)
 
         // assert
         @Expect(match (diagnostic.tags.getOrThrow()[1]) {
@@ -132,8 +139,7 @@ class LspTypesTest {
     func aSpecDecodesItsParamsAndEncodesItsResult() {
         // arrange
         let spec = InitializeRequestSpec()
-        let params = ArrayOrObject.Object(dataOf(##"{"processId": 42, "rootUri": null, "capabilities": {}}"##)
-            .asStructOrThrow())
+        let params = RawJson(##"{"processId": 42, "rootUri": null, "capabilities": {}}"##.toArray())
 
         // act
         let decoded = spec.decodeParams(params)
@@ -143,14 +149,14 @@ class LspTypesTest {
         // assert
         @Expect("initialize", spec.method)
         @Expect(42, decoded.processId.getOrThrow())
-        let serverInfo = encoded.asStructOrThrow().getOrThrow("serverInfo").asStructOrThrow()
+        let serverInfo = encoded.read<AnyValue>().data.asStructOrThrow().getOrThrow("serverInfo").asStructOrThrow()
         @Expect("cjls", serverInfo.getOrThrow("name").asStringOrThrow())
     }
 
     @TestCase
     func paramsThatDoNotReadAreInvalidParams() {
         // arrange - `capabilities` is required
-        let params = ArrayOrObject.Object(dataOf(##"{"processId": 1, "rootUri": null}"##).asStructOrThrow())
+        let params = RawJson(##"{"processId": 1, "rootUri": null}"##.toArray())
 
         // act
         let e = @AssertThrows[RpcException](InitializeRequestSpec().decodeParams(params))
@@ -162,11 +168,11 @@ class LspTypesTest {
     @TestCase
     func aMessageWithoutParamsOrResultTakesAbsentParamsAndAnswersNull() {
         // act - its params and result are `Unit`, nothing to read or write
-        ExitNotificationSpec().decodeParams(Option<ArrayOrObject>.None)
-        ShutdownRequestSpec().decodeParams(Option<ArrayOrObject>.None)
+        ExitNotificationSpec().decodeParams(Option<RawJson>.None)
+        ShutdownRequestSpec().decodeParams(Option<RawJson>.None)
         let result = ShutdownRequestSpec().encodeResult(())
 
         // assert
-        @Expect(result is DataModelNull)
+        @Expect("null", result.toString())
     }
 }

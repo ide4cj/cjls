@@ -7,40 +7,57 @@ import stdxx.IntegerOrString
 enum DeriveIr {
     | Equatable
     | Hashable
-    | Serializable(SerializableTypeOptions)
+    /**
+     * `ToJson` and `FromJson`, configured by one `@Serde` marker.
+     */
+    | Json(SerdeTypeOptions)
 }
 
-struct SerializableTypeOptions <: ToTokens {
-    SerializableTypeOptions(let transparent!: Bool = false, let skipNone!: Bool = false, let tag!: ?SerializableTag = None) {}
+struct SerdeTypeOptions <: ToTokens {
+    SerdeTypeOptions(
+        let transparent!: Bool = false,
+        let untagged!: Bool = false,
+        let skipNone!: Bool = false,
+        let tag!: ?SerdeTag = None
+    ) {}
 
     public func toTokens(): Tokens {
         let options = ArrayList<Tokens>()
         if (transparent) {
             options.add(quote(transparent))
         }
+        if (untagged) {
+            options.add(quote(untagged))
+        }
         if (skipNone) {
             options.add(quote(skipNone))
         }
         if (let Some(t) <- tag) {
-            options.add(quote(tag: $(t.field), value: $(t.value)))
+            options.add(quote(tag: $(t.field), rename: $(t.value)))
         }
 
         markerOf(options)
     }
 }
 
-struct SerializableTag {
-    SerializableTag(let field!: String, let value!: String) {}
+struct SerdeTag {
+    SerdeTag(let field!: String, let value!: String) {}
 }
 
-struct SerializableMemberOptions <: ToTokens {
-    SerializableMemberOptions(let value!: ?IntegerOrString = None, let other!: Bool = false) {}
+struct SerdeMemberOptions <: ToTokens {
+    SerdeMemberOptions(let value!: ?IntegerOrString = None, let other!: Bool = false) {}
 
     public func toTokens(): Tokens {
         let options = ArrayList<Tokens>()
-        if (let Some(v) <- value) {
-            let literal = literalOf(v)
-            options.add(quote(value: $literal))
+        // serde's: a variant's string is its `rename`; an integer, which serde has no word for, its `value`
+        match (value) {
+            case Some(Integer(int)) =>
+                let literal = int.toTokens()
+                options.add(quote(value: $literal))
+            case Some(String(str)) =>
+                let literal = str.toTokens()
+                options.add(quote(rename: $literal))
+            case None => ()
         }
         if (other) {
             options.add(quote(other))
@@ -52,7 +69,7 @@ struct SerializableMemberOptions <: ToTokens {
 
 private func markerOf(options: Iterable<Tokens>): Tokens {
     match (joined(options)) {
-        case Some(joinedOptions) => quote(@DeriveExtSerializable[$joinedOptions])
+        case Some(joinedOptions) => quote(@Serde[$joinedOptions])
         case None => Tokens()
     }
 }
@@ -69,8 +86,8 @@ func literalOf(value: IntegerOrString): Tokens {
     }
 }
 
-func serializableMarkerOf(options: ?SerializableMemberOptions): Tokens {
-    options.map {it: SerializableMemberOptions => it.toTokens()} ?? Tokens()
+func serdeMarkerOf(options: ?SerdeMemberOptions): Tokens {
+    options.map {it: SerdeMemberOptions => it.toTokens()} ?? Tokens()
 }
 
 extend CjEmitter {
@@ -86,8 +103,9 @@ extend CjEmitter {
             match (derive) {
                 case DeriveIr.Equatable => std.add(quote(Equatable))
                 case DeriveIr.Hashable => std.add(quote(Hashable))
-                case Serializable(options) =>
-                    ext.add(quote(Serializable))
+                case Json(options) =>
+                    ext.add(quote(ToJson))
+                    ext.add(quote(FromJson))
                     typeMarker = options.toTokens()
             }
         }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -15,13 +15,13 @@ import jsonrpc.*
  * Defines whether the insert text in a completion item should be interpreted as
  * plain text or a snippet.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum InsertTextFormat {
     /**
      * The primary text to be inserted is treated as a plain string.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     PlainText
 
     /**
@@ -34,12 +34,12 @@ public enum InsertTextFormat {
      *
      * See also: https://microsoft.github.io/language-server-protocol/specifications/specification-current/#snippet_syntax
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Snippet
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

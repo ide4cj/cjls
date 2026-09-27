@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -25,7 +25,8 @@ import jsonrpc.*
  * Note that markdown strings will be sanitized - that means html will be escaped.
  * @deprecated use MarkupContent instead.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
+@Serde[untagged]
 public enum MarkedString {
     | AsMarkedStringWithLanguage(MarkedStringWithLanguage)
     | AsString(String)

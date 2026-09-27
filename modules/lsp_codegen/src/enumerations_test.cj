@@ -22,7 +22,7 @@ private func resolved(enumeration: Enumeration, typeMap!: TypeMap = TypeMap()): 
 private func isTransparent(ir: EnumIr): Bool {
     ir.derives.any {
         derive => match (derive) {
-            case Serializable(options) => options.transparent
+            case Json(options) => options.transparent
             case _ => false
         }
     }
@@ -42,11 +42,11 @@ class ResolveEnumTest {
         // assert
         @Expect("MarkupKind", ir.ident)
         @Expect(!isTransparent(ir))
-        @Expect(Some(IntegerOrString.String("plaintext")), ir.variants[0].serializable.getOrThrow().value)
-        @Expect(ir.variants[1].serializable.getOrThrow().value.isNone())
+        @Expect(Some(IntegerOrString.String("plaintext")), ir.variants[0].serde.getOrThrow().value)
+        @Expect(ir.variants[1].serde.getOrThrow().value.isNone())
         let catchAll = ir.catchAll.getOrThrow()
         @Expect("Unknown", catchAll.ident)
-        @Expect(catchAll.serializable.other)
+        @Expect(catchAll.serde.other)
     }
 
     /**
@@ -63,7 +63,7 @@ class ResolveEnumTest {
 
         // assert
         @Expect("Markdown", ir.variants[0].ident)
-        @Expect(Some(IntegerOrString.String("markdown")), ir.variants[0].serializable.getOrThrow().value)
+        @Expect(Some(IntegerOrString.String("markdown")), ir.variants[0].serde.getOrThrow().value)
     }
 
     @TestCase
@@ -75,7 +75,7 @@ class ResolveEnumTest {
         let ir = resolved(sut).getOrThrow()
 
         // assert
-        @Expect(Some(IntegerOrString.Integer(1)), ir.variants[0].serializable.getOrThrow().value)
+        @Expect(Some(IntegerOrString.Integer(1)), ir.variants[0].serde.getOrThrow().value)
     }
 
     @TestCase
@@ -90,7 +90,7 @@ class ResolveEnumTest {
         // assert
         @Expect(isTransparent(ir))
         @Expect("PARSE_ERROR", ir.variants[0].ident)
-        @Expect(ir.variants[0].serializable.isNone())
+        @Expect(ir.variants[0].serde.isNone())
         @Expect(ir.catchAll.isNone())
     }
 
@@ -139,7 +139,7 @@ class ResolveEnumTest {
         })
         @Expect(ir.derives.isEmpty())
         @Expect("REQUEST_FAILED", ir.variants[0].ident)
-        @Expect(ir.variants[0].serializable.isNone())
+        @Expect(ir.variants[0].serde.isNone())
         @Expect(ir.catchAll.isNone())
     }
 
@@ -186,26 +186,26 @@ class EmitEnumTest {
             ident: "MarkupKind",
             variants: [
                 EnumVariantIr(DocIr(), ident: "PlainText", value: IntegerOrString.String("plaintext"),
-                    serializable: SerializableMemberOptions(value: IntegerOrString.String("plaintext"))),
+                    serde: SerdeMemberOptions(value: IntegerOrString.String("plaintext"))),
                 EnumVariantIr(DocIr(), ident: "Markdown", value: IntegerOrString.String("Markdown"),
-                    serializable: SerializableMemberOptions())
+                    serde: SerdeMemberOptions())
             ],
-            derives: [DeriveIr.Serializable(SerializableTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable],
+            derives: [DeriveIr.Json(SerdeTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable],
             catchAll: EnumCatchAllIr(DocIr(documentation: "Anything else."), ident: "Unknown",
-                serializable: SerializableMemberOptions(other: true))
+                serde: SerdeMemberOptions(other: true))
         )
         let expected = """
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum MarkupKind{
-    | @DeriveExtSerializable[value: "plaintext"] PlainText
+    | @Serde[rename: "plaintext"] PlainText
 
     | Markdown
 
     /**
      * Anything else.
      */
-    | @DeriveExtSerializable[other] Unknown(String)
+    | @Serde[other] Unknown(String)
 
 }
 """
@@ -226,11 +226,11 @@ public enum MarkupKind{
             isOpen: true,
             ident: "ErrorCodes",
             variants: [EnumVariantIr(DocIr(), ident: "PARSE_ERROR", value: IntegerOrString.Integer(-32700))],
-            derives: [DeriveIr.Serializable(SerializableTypeOptions(transparent: true)), DeriveIr.Equatable]
+            derives: [DeriveIr.Json(SerdeTypeOptions(transparent: true)), DeriveIr.Equatable]
         )
         let expected = """
-@DeriveExt[Serializable]
-@DeriveExtSerializable[transparent]
+@DeriveExt[ToJson, FromJson]
+@Serde[transparent]
 @Derive[Equatable]
 public struct ErrorCodes{
     public const ErrorCodes(public let value: Int32) { }

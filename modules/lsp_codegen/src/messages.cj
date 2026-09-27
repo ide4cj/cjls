@@ -156,10 +156,10 @@ extend CjEmitter {
     /**
      * Written out per message rather than inherited: only here is it known whether there are params
      * to decode and a result to encode, and `Unit` - which stands for neither - can never be
-     * `Serializable`, being a type of `std`.
+     * `ToJson`, being a type of `std`.
      */
     private func emitCodec(messageIr: MessageIr): Unit {
-        emitln("public func decodeParams(params: ?ArrayOrObject): ${messageIr.paramsType} {")
+        emitln("public func decodeParams(params: ?RawJson): ${messageIr.paramsType} {")
         indented {
             => match (messageIr.params) {
                 case Some(params) => emitln("decodeMessageParams<${params}>(params)")
@@ -172,11 +172,11 @@ extend CjEmitter {
         }
 
         nl()
-        emitln("public func encodeResult(result: ${messageIr.resultType}): DataModel {")
+        emitln("public func encodeResult(result: ${messageIr.resultType}): RawJson {")
         indented {
             => match (messageIr.result) {
-                case Some(_) => emitln("result.serialize()")
-                case None => emitln("DataModelNull()")
+                case Some(_) => emitln("RawJson.of(result)")
+                case None => emitln("RawJson.NULL")
             }
         }
         emitln("}")

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -37,11 +37,11 @@ public struct InlayHintResolveRequestSpec <: LspInboundRequest<InlayHint, InlayH
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): InlayHint {
+    public func decodeParams(params: ?RawJson): InlayHint {
         decodeMessageParams<InlayHint>(params)
     }
 
-    public func encodeResult(result: InlayHint): DataModel {
-        result.serialize()
+    public func encodeResult(result: InlayHint): RawJson {
+        RawJson.of(result)
     }
 }

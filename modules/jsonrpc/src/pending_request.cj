@@ -1,9 +1,9 @@
 package jsonrpc
 
 import std.collection.concurrent.LinkedBlockingQueue
-import stdx.serialization.serialization.*
+import fjson.*
 
-public struct PendingRequest<R> where R <: Serializable<R> {
+public struct PendingRequest<R> where R <: FromJson<R> {
     /**
      * @param abandon - stops the connection correlating `id`
      */
@@ -18,7 +18,7 @@ public struct PendingRequest<R> where R <: Serializable<R> {
      * throw rather than a worker's stack dumped to stderr.
      *
      * @throws RpcException - if the peer answered with an error
-     * @throws DataModelException - if the result does not decode to an `R`
+     * @throws FjException - if the result does not read as an `R`
      */
     public func await(): R {
         decode(slot.remove())
@@ -29,7 +29,7 @@ public struct PendingRequest<R> where R <: Serializable<R> {
      * answer is dropped rather than parked for the lifetime of the connection.
      *
      * @throws RpcException - if the peer answered with an error
-     * @throws DataModelException - if the result does not decode to an `R`
+     * @throws FjException - if the result does not read as an `R`
      */
     public func await(timeout!: Duration): ?R {
         if (let Some(resultOrError) <- slot.remove(timeout)) {
@@ -43,11 +43,11 @@ public struct PendingRequest<R> where R <: Serializable<R> {
 
     /**
      * @throws RpcException - if the peer answered with an error
-     * @throws DataModelException - if the result does not decode to an `R`
+     * @throws FjException - if the result does not read as an `R`
      */
     private func decode(resultOrError: ResultOrError): R {
         match (resultOrError) {
-            case Result(dm) => R.deserialize(dm)
+            case Result(result) => result.read<R>()
             case Error(err) => throw RpcException(err)
         }
     }

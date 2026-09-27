@@ -7,13 +7,14 @@ import std.collection.*
 import stdx.serialization.serialization.*
 import stdxx.serialization.*
 import stdxx.deriving.*
+import fjson.*
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedPosition {
     DerivedPosition(let line!: Int64, let character!: Int64) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedShapes {
     DerivedShapes(
         let required!: String,
@@ -23,8 +24,8 @@ struct DerivedShapes {
     ) {}
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[skipNone]
 struct DerivedSkipped {
     DerivedSkipped(
         let required!: String,
@@ -33,21 +34,21 @@ struct DerivedSkipped {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedRenamedAndSkipped {
-    DerivedRenamedAndSkipped(@DeriveExtSerializable[rename: "textDocument", skipNone] let document!: ?String = None) {}
+    DerivedRenamedAndSkipped(@Serde[rename: "textDocument", skipNone] let document!: ?String = None) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedPartlySkipped {
     DerivedPartlySkipped(
-        @DeriveExtSerializable[skipNone] let skipped!: ?String = None,
+        @Serde[skipNone] let skipped!: ?String = None,
         let kept!: ?String = None
     ) {}
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[skipNone]
 public struct DerivedPublicSkipped {
     public DerivedPublicSkipped(
         public let required!: String,
@@ -55,25 +56,25 @@ public struct DerivedPublicSkipped {
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedNames {
     DerivedNames(
-        @DeriveExtSerializable[rename: "textDocument"] let document!: String,
+        @Serde[rename: "textDocument"] let document!: String,
         let `type`!: String
     ) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedBox<T> {
     DerivedBox(let value!: T) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 struct DerivedPositional {
     DerivedPositional(let x: Int64, let y: Int64) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 @Derive[ToString]
 struct DerivedAndDescribed {
     DerivedAndDescribed(let name!: String) {}
@@ -82,8 +83,8 @@ struct DerivedAndDescribed {
 /**
  * An open enumeration: a newtype with constants, the marker between the two derives.
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[transparent]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[transparent]
 @Derive[Equatable, Hashable]
 public struct DerivedOpenCode {
     public const DerivedOpenCode(public let value: Int32) {}
@@ -91,32 +92,39 @@ public struct DerivedOpenCode {
     public static const PARSE_ERROR: DerivedOpenCode = DerivedOpenCode(-32700)
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[tag: "kind", value: "create", skipNone]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[tag: "kind", rename: "create", skipNone]
 struct DerivedCreateFile {
     DerivedCreateFile(let uri!: String, let overwrite!: ?Bool = None) {}
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[tag: "kind", value: "delete", skipNone]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[tag: "kind", rename: "delete", skipNone]
 struct DerivedDeleteFile {
     DerivedDeleteFile(let uri!: String, let recursive!: ?Bool = None) {}
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[tag: "kind"]
+struct DerivedRenameFile {
+    DerivedRenameFile(let uri!: String) {}
+}
+
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[untagged]
 enum DerivedFileOperation {
     | Create(DerivedCreateFile)
     | Delete(DerivedDeleteFile)
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[transparent]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[transparent]
 struct DerivedOpenUnsigned {
     DerivedOpenUnsigned(let value: UInt32) {}
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[transparent]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[transparent]
 struct DerivedOpenKind {
     DerivedOpenKind(let `value`!: String) {}
 }
@@ -307,97 +315,100 @@ class DeriveSkipNoneTest {
     }
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 @Derive[Equatable]
 enum DerivedBaseTypes {
-    | @DeriveExtSerializable[value: "URI"]
+    | @Serde[rename: "URI"]
     Uri
-    | @DeriveExtSerializable[value: "integer"]
+    | @Serde[rename: "integer"]
     Numeric
     | Boolean
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 @Derive[Equatable]
 enum DerivedSeverity {
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Fatal
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Warn
 }
 
 /**
  * A closed enumeration open to values it does not know; `Equatable` compares the payload too.
  */
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 @Derive[Equatable]
 enum DerivedSymbolKind {
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     File
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Module
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 @Derive[Equatable]
 enum DerivedMarkupKind {
-    | @DeriveExtSerializable[value: "plaintext"]
+    | @Serde[rename: "plaintext"]
     PlainText
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
 @Derive[Equatable]
 enum DerivedErrorCode {
-    | @DeriveExtSerializable[value: -32700]
+    | @Serde[value: -32700]
     ParseError
-    | @DeriveExtSerializable[value: -32601]
+    | @Serde[value: -32601]
     MethodNotFound
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Custom
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[untagged]
 @Derive[Equatable]
 enum DerivedNarrowOrWide {
     | Narrow(Int32)
     | Wide(Int64)
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[tag: "kind", skipNone]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[tag: "kind", skipNone]
 @Derive[Equatable]
 enum DerivedTaggedPayload {
-    | @DeriveExtSerializable[value: "note", payload: ["text", "detail"]]
+    | @Serde[rename: "note", payload: ["text", "detail"]]
     Note(String, ?String)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[untagged]
 @Derive[Equatable]
 enum DerivedScalarOrList {
     | Single(String)
     | Many(Array<String>)
 }
 
-@DeriveExt[Serializable]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[untagged]
 @Derive[Equatable]
 enum DerivedOneOrMany<T> {
     | One(T)
     | Several(Array<T>)
 }
 
-@DeriveExt[Serializable]
-@DeriveExtSerializable[tag: "kind"]
+@DeriveExt[Serializable, ToJson, FromJson]
+@Serde[tag: "kind"]
 @Derive[Equatable]
 enum DerivedShape {
-    | @DeriveExtSerializable[value: "circle", payload: ["radius"]]
+    | @Serde[rename: "circle", payload: ["radius"]]
     Circle(Int64)
-    | @DeriveExtSerializable[value: "rect", payload: ["width", "height"]]
+    | @Serde[rename: "rect", payload: ["width", "height"]]
     Rect(Int64, Int64)
-    | @DeriveExtSerializable[value: "point"]
+    | @Serde[rename: "point"]
     Point
 }
 

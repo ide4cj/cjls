@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -35,7 +35,7 @@ public struct DidChangeConfigurationNotificationSpec <: LspInboundNotification<D
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): DidChangeConfigurationParams {
+    public func decodeParams(params: ?RawJson): DidChangeConfigurationParams {
         decodeMessageParams<DidChangeConfigurationParams>(params)
     }
 }

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -15,20 +15,20 @@ import jsonrpc.*
  * Defines how the host (editor) should sync
  * document changes to the language server.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum TextDocumentSyncKind {
     /**
      * Documents should not be synced at all.
      */
-    | @DeriveExtSerializable[value: 0]
+    | @Serde[value: 0]
     None
 
     /**
      * Documents are synced by always sending the full content
      * of the document.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Full
 
     /**
@@ -36,12 +36,12 @@ public enum TextDocumentSyncKind {
      * After that only incremental updates to the document are
      * send.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Incremental
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

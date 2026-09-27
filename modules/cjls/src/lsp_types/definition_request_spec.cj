@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -36,11 +36,11 @@ public struct DefinitionRequestSpec <: LspInboundRequest<DefinitionParams, Nulla
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): DefinitionParams {
+    public func decodeParams(params: ?RawJson): DefinitionParams {
         decodeMessageParams<DefinitionParams>(params)
     }
 
-    public func encodeResult(result: Nullable<DefinitionOrDefinitionLinks>): DataModel {
-        result.serialize()
+    public func encodeResult(result: Nullable<DefinitionOrDefinitionLinks>): RawJson {
+        RawJson.of(result)
     }
 }

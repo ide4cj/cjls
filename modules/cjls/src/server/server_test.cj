@@ -5,11 +5,11 @@ import std.env.getTempDirectory
 import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.*
 import stdx.log.NoopLogger
 import stdx.serialization.serialization.*
 import stdxx.{IntegerOrString, Nullable}
 import stdxx.serialization.*
+import fjson.*
 import jsonrpc.*
 import rope.Rope
 import loupe.vfs.VfsPath
@@ -24,7 +24,7 @@ class Asked {
     let answers = LinkedBlockingQueue<ResultOrError>()
     let request: InboundRequest
 
-    Asked(method: String, params!: ?ArrayOrObject = Option<ArrayOrObject>.None) {
+    Asked(method: String, params!: ?RawJson = Option<RawJson>.None) {
         let answers = this.answers
         request = InboundRequest(Integer(1), method, params, CancellationToken(), {answer => answers.add(answer)})
     }
@@ -34,15 +34,22 @@ class Asked {
     }
 }
 
-func paramsOf(json: String): ArrayOrObject {
-    ArrayOrObject.Object(DataModel.fromJson(JsonValue.fromStr(json)).asStructOrThrow())
+func paramsOf(json: String): RawJson {
+    RawJson(json.toArray())
 }
 
-func hoverParams(): ArrayOrObject {
+/**
+ * What was written, read into a tree for a test to look into.
+ */
+func treeOf(written: RawJson): DataModel {
+    written.read<AnyValue>().data
+}
+
+func hoverParams(): RawJson {
     paramsOf(##"{"textDocument": {"uri": "file:///a.cj"}, "position": {"line": 3, "character": 1}}"##)
 }
 
-func initializeParams(): ArrayOrObject {
+func initializeParams(): RawJson {
     paramsOf(##"{"processId": null, "rootUri": null, "capabilities": {}}"##)
 }
 
@@ -74,16 +81,34 @@ let PARKED_PATH = VfsPath.file(getTempDirectory().join("a.cj"))
  * queries it.
  */
 func answerOfAQueryParkedUntil(interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
+    answerOfAQueryParkedUntil(HoverRequestSpec.METHOD, interrupt)
+}
+
+/**
+ * The same for a request of `method`, a hover or a diagnostic pull.
+ */
+func answerOfAQueryParkedUntil(method: String, interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
     let release = LinkedBlockingQueue<Bool>()
     let state = ServerState()
     state.setFileContents(PARKED_PATH, Rope("a"))
-    let server = initialized(lifecycleRouter().withState(state).route(HoverRequestSpec()) {
-        ctx: ReadOnlyContext<HoverParams> =>
-            release.remove()
-            ctx.snapshot.sourceFile(PARKED_PATH).getOrThrow().text(ctx.snapshot.analysis)
-            Nullable<Hover>.Null
-    })
-    let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+    let parked = {snapshot: ServerSnapshot =>
+        release.remove()
+        snapshot.sourceFile(PARKED_PATH).getOrThrow().text(snapshot.analysis)
+    }
+    let server = initialized(lifecycleRouter()
+        .withState(state)
+        .route(HoverRequestSpec()) {
+            ctx: ReadOnlyContext<HoverParams> =>
+                parked(ctx.snapshot)
+                Nullable<Hover>.Null
+        }
+        .route(DocumentDiagnosticRequestSpec()) {
+            ctx: ReadOnlyContext<DocumentDiagnosticParams> =>
+                parked(ctx.snapshot)
+                DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
+                    RelatedFullDocumentDiagnosticReport(items: []))
+        })
+    let asked = Asked(method, params: hoverParams())
     server.onRequest(asked.request)
 
     interrupt(state, asked.request)
@@ -126,7 +151,7 @@ class ServerLifecycleTest {
         let server = serverOf(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context<InitializedParams> => ran.store(true)})
 
         // act
-        server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
+        server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))
 
         // assert
         @Expect(!ran.load())
@@ -145,7 +170,7 @@ class ServerLifecycleTest {
     func aFailedInitializeLeavesTheServerUninitialized() {
         // arrange - `capabilities` is required, so these params do not decode
         let server = serverOf(lifecycleRouter())
-        let asked = Asked(InitializeRequestSpec.METHOD, params: ArrayOrObject.Object(DataModelStruct()))
+        let asked = Asked(InitializeRequestSpec.METHOD, params: paramsOf("{}"))
 
         // act
         server.onRequest(asked.request)
@@ -180,7 +205,7 @@ class ServerLifecycleTest {
         server.onRequest(again.request)
 
         // assert
-        @Expect(shutdown.answer().getResultOrThrow() is DataModelNull)
+        @Expect(shutdown.answer().getResultOrThrow().toString() == "null")
         @Expect(ErrorCode.INVALID_REQUEST, again.answer().getErrorOrThrow().code)
     }
 
@@ -193,7 +218,7 @@ class ServerLifecycleTest {
         shutdown.answer()
 
         // act
-        server.onNotification(ExitNotificationSpec.METHOD, Option<ArrayOrObject>.None)
+        server.onNotification(ExitNotificationSpec.METHOD, Option<RawJson>.None)
 
         // assert
         @Expect(0, server.exitCode)
@@ -206,7 +231,7 @@ class ServerLifecycleTest {
         let server = serverOf(lifecycleRouter())
 
         // act
-        server.onNotification(ExitNotificationSpec.METHOD, Option<ArrayOrObject>.None)
+        server.onNotification(ExitNotificationSpec.METHOD, Option<RawJson>.None)
 
         // assert
         @Expect(1, server.exitCode)
@@ -246,7 +271,7 @@ class ServerDispatchTest {
         release.add(true)
 
         // assert
-        @Expect(asked.answer().getResultOrThrow() is DataModelNull)
+        @Expect(asked.answer().getResultOrThrow().toString() == "null")
     }
 
     @TestCase
@@ -256,6 +281,30 @@ class ServerDispatchTest {
 
         // assert
         @Expect(ErrorCode.CONTENT_MODIFIED, answer.getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func aPullTheFilesChangedUnderIsAnsweredServerCancelledToBeAskedAgain() {
+        // act
+        let answer = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
+            state, _ => state.setFileContents(PARKED_PATH, Rope("b"))
+        }
+
+        // assert
+        let error = answer.getErrorOrThrow()
+        @Expect(ErrorCode.SERVER_CANCELLED, error.code)
+        @Expect(error.data.getOrThrow().read<DiagnosticServerCancellationData>().retriggerRequest)
+    }
+
+    @TestCase
+    func aPullTheClientCancelledIsAnsweredRequestCancelled() {
+        // act
+        let answer = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
+            _, request => request.cancellation.cancel()
+        }
+
+        // assert
+        @Expect(ErrorCode.REQUEST_CANCELLED, answer.getErrorOrThrow().code)
     }
 
     @TestCase
@@ -279,7 +328,7 @@ class ServerDispatchTest {
         server.onRequest(asked.request)
 
         // assert
-        let contents = asked.answer().getResultOrThrow().asStructOrThrow().getOrThrow("contents").asStructOrThrow()
+        let contents = treeOf(asked.answer().getResultOrThrow()).asStructOrThrow().getOrThrow("contents").asStructOrThrow()
         @Expect("3:true", contents.getOrThrow("value").asStringOrThrow())
         @Expect(refEq(client, describedClients.remove()))
     }
@@ -305,7 +354,7 @@ class ServerDispatchTest {
         let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {_: Context<InitializedParams> => throw Exception("no")})
 
         // act
-        server.onNotification(InitializedNotificationSpec.METHOD, ArrayOrObject.Object(DataModelStruct()))
+        server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))
 
         // assert
         @Expect(Lifecycle.Initialized, server.state)

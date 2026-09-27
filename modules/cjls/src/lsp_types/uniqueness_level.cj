@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,42 +16,42 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum UniquenessLevel {
     /**
      * The moniker is only unique inside a document
      */
-    | @DeriveExtSerializable[value: "document"]
+    | @Serde[rename: "document"]
     Document
 
     /**
      * The moniker is unique inside a project for which a dump got created
      */
-    | @DeriveExtSerializable[value: "project"]
+    | @Serde[rename: "project"]
     Project
 
     /**
      * The moniker is unique inside the group to which a project belongs
      */
-    | @DeriveExtSerializable[value: "group"]
+    | @Serde[rename: "group"]
     Group
 
     /**
      * The moniker is unique inside the moniker scheme.
      */
-    | @DeriveExtSerializable[value: "scheme"]
+    | @Serde[rename: "scheme"]
     Scheme
 
     /**
      * The moniker is globally unique
      */
-    | @DeriveExtSerializable[value: "global"]
+    | @Serde[rename: "global"]
     Global
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }

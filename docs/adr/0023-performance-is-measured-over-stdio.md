@@ -1,4 +1,4 @@
-# ADR-0016: Speed and memory are measured over stdio, by one driver for every server
+# ADR-0023: Speed and memory are measured over stdio, by one driver for every server
 
 Status: accepted, 2026-09-26
 

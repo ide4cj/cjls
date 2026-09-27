@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -16,24 +16,24 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum NotebookCellKind {
     /**
      * A markup-cell is formatted source that is used for display.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Markup
 
     /**
      * A code-cell is source code.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Code
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

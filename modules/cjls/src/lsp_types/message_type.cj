@@ -5,40 +5,40 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * The message type
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum MessageType {
     /**
      * An error message.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Error
 
     /**
      * A warning message.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     Warning
 
     /**
      * An information message.
      */
-    | @DeriveExtSerializable[value: 3]
+    | @Serde[value: 3]
     Info
 
     /**
      * A log message.
      */
-    | @DeriveExtSerializable[value: 4]
+    | @Serde[value: 4]
     Log
 
     /**
@@ -46,12 +46,12 @@ public enum MessageType {
      *
      * @since 3.18.0
      */
-    | @DeriveExtSerializable[value: 5]
+    | @Serde[value: 5]
     Debug
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

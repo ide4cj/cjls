@@ -18,6 +18,10 @@ public func router(): Router {
         .route(DidChangeTextDocumentNotificationSpec(), handleDidChange)
         .route(DidCloseTextDocumentNotificationSpec(), handleDidClose)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
+        .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
+        .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
+        .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
+        .publishDiagnostics(documentDiagnostics)
 }
 
 /**
@@ -28,6 +32,14 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         positionEncoding: positionEncodingKind(encoding),
         textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind.AsTextDocumentSyncOptions(
             TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
-        documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true)
+        documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
+        // a file's diagnostics are its own, and nothing is reported for files not open (D14)
+        diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
+            DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false)),
+        // no `full/delta` until the server keeps what it sent (D19)
+        semanticTokensProvider: SemanticTokensOptionsOrSemanticTokensRegistrationOptions.AsSemanticTokensOptions(
+            SemanticTokensOptions(legend: semanticTokensLegend(),
+                range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
+                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true)))
     )
 }

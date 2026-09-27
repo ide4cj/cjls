@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -25,8 +25,8 @@ import jsonrpc.*
  * cause failure of the operation. How the client recovers from the failure is described by
  * the client capability: `workspace.workspaceEdit.failureHandling`
  */
-@DeriveExt[Serializable]
-@DeriveExtSerializable[skipNone]
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
 public struct WorkspaceEdit {
     public WorkspaceEdit(
         /**

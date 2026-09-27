@@ -5,40 +5,40 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
 /**
  * Represents reasons why a text document is saved.
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum TextDocumentSaveReason {
     /**
      * Manually triggered, e.g. by the user pressing save, by starting debugging,
      * or by an API call.
      */
-    | @DeriveExtSerializable[value: 1]
+    | @Serde[value: 1]
     Manual
 
     /**
      * Automatic after a delay.
      */
-    | @DeriveExtSerializable[value: 2]
+    | @Serde[value: 2]
     AfterDelay
 
     /**
      * When the editor lost focus.
      */
-    | @DeriveExtSerializable[value: 3]
+    | @Serde[value: 3]
     FocusOut
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(UInt32)
 }

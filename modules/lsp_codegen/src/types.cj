@@ -3,9 +3,7 @@ package lsp_codegen
 import std.ast.*
 import std.collection.*
 import std.sort.*
-import stdx.serialization.serialization.*
 import stdxx.Nullable
-import stdxx.serialization.*
 
 enum TypeIr <: ToString {
     /**
@@ -417,12 +415,12 @@ private func unionKeyOf(members: Array<Type>): String {
 
 private func canonicalOf(t: Type): String {
     match (t) {
-        case Base(base) => base.serialize().asStringOrThrow()
+        case Base(base) => base.toString()
         case Reference(name) => name
         case Array(element) => "${canonicalOf(element)}[]"
         case Map(key, value) =>
             let keyName = match (key) {
-                case Base(name) => name.serialize().asStringOrThrow()
+                case Base(name) => name.toString()
                 case Reference(name) => name
             }
             "{${keyName}: ${canonicalOf(value)}}"

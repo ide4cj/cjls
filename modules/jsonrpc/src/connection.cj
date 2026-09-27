@@ -4,7 +4,7 @@ import std.collection.ArrayList
 import std.collection.concurrent.*
 import std.sync.*
 import stdx.log.*
-import stdx.serialization.serialization.*
+import fjson.*
 
 public class Connection <: Resource {
     private let locker = Mutex()
@@ -18,7 +18,7 @@ public class Connection <: Resource {
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func notify<P>(method: String, params: P): Unit where P <: Serializable<P> {
+    public func notify<P>(method: String, params: P): Unit where P <: ToJson {
         send(NotificationBody(method, params: serializeParams(params)).enveloped())
     }
 
@@ -26,8 +26,8 @@ public class Connection <: Resource {
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func request<P, R>(method: String, params: P): PendingRequest<R> where P <: Serializable<P>,
-        R <: Serializable<R> {
+    public func request<P, R>(method: String, params: P): PendingRequest<R> where P <: ToJson,
+        R <: FromJson<R> {
         let id = Integer(nextId.fetchAdd(1))
         let slot = LinkedBlockingQueue<ResultOrError>(1)
         pending.add(id, slot)
@@ -196,12 +196,14 @@ public class Connection <: Resource {
     /**
      * @throws RpcException - if params are not serialized to array|object|null
      */
-    private func serializeParams<P>(params: P): ?ArrayOrObject where P <: Serializable<P> {
-        match (params.serialize()) {
-            case _: DataModelNull => None
-            case dmSeq: DataModelSeq => ArrayOrObject.Array(dmSeq)
-            case dmStruct: DataModelStruct => ArrayOrObject.Object(dmStruct)
-            case dm => throw RpcException(ErrorCode.INVALID_PARAMS, "invalid params type", data: dm)
+    private func serializeParams<P>(params: P): ?RawJson where P <: ToJson {
+        let written = RawJson.of(params)
+        match (written.bytes[0]) {
+            // `{` or `[`
+            case 0x7B | 0x5B => written
+            // `null`
+            case 0x6E => None
+            case _ => throw RpcException(ErrorCode.INVALID_PARAMS, "invalid params type", data: written)
         }
     }
 

@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -17,24 +17,24 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-@DeriveExt[Serializable]
+@DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 public enum FileOperationPatternKind {
     /**
      * The pattern matches a file only.
      */
-    | @DeriveExtSerializable[value: "file"]
+    | @Serde[rename: "file"]
     File
 
     /**
      * The pattern matches a folder only.
      */
-    | @DeriveExtSerializable[value: "folder"]
+    | @Serde[rename: "folder"]
     Folder
 
     /**
      * A value this version of the protocol does not define.
      */
-    | @DeriveExtSerializable[other]
+    | @Serde[other]
     Unknown(String)
 }

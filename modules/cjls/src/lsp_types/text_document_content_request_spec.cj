@@ -5,9 +5,9 @@ package cjls.lsp_types
 
 import std.collection.*
 import std.deriving.*
-import stdx.serialization.serialization.*
+import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
+import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -36,11 +36,11 @@ public struct TextDocumentContentRequestSpec <: LspInboundRequest<TextDocumentCo
         }
     }
 
-    public func decodeParams(params: ?ArrayOrObject): TextDocumentContentParams {
+    public func decodeParams(params: ?RawJson): TextDocumentContentParams {
         decodeMessageParams<TextDocumentContentParams>(params)
     }
 
-    public func encodeResult(result: TextDocumentContentResult): DataModel {
-        result.serialize()
+    public func encodeResult(result: TextDocumentContentResult): RawJson {
+        RawJson.of(result)
     }
 }
