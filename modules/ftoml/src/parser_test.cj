@@ -258,20 +258,6 @@ class FtDateTimeTest {
     }
 
     @TestCase
-    func eachIsAStringInJson() {
-        // arrange
-        let date = LocalDate(2024, 2, 29)
-
-        // act
-        let written = String.fromUtf8(toJsonBytes(date))
-
-        // assert
-        @Expect(written, "\"2024-02-29\"")
-        @Expect(fromJsonBytes<LocalDate>(written.toArray()), date)
-        @AssertThrows[FjException](fromJsonBytes<LocalDate>("\"2023-02-29\"".toArray()))
-    }
-
-    @TestCase
     func whatIsNoDayOrTimeCannotBeMade() {
         // act, assert
         @AssertThrows[IllegalArgumentException](LocalDate(2023, 2, 29))

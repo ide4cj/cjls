@@ -1,12 +1,9 @@
 package ftoml
 
-import fjson.*
-
 /*
  * TOML's four kinds of time, which `std.time` does not have - its `DateTime` is always an instant
  * in a zone. Seconds may be left out (TOML 1.1), and read as `:00`; a fraction keeps its first
- * nine digits, the rest truncated, as the spec asks. Each is written as RFC 3339 has it, and as
- * such a string in JSON.
+ * nine digits, the rest truncated, as the spec asks. Each is written as RFC 3339 has it.
  */
 
 /** A day, without any relation to a zone: `1979-05-27`. */
@@ -298,54 +295,4 @@ private func scanTime(bytes: Array<Byte>, at: Int64, end: Int64): (LocalTime, In
         throw FtException("no such time", at)
     }
     (LocalTime(hour, minute, second: second, nanosecond: nanosecond), i)
-}
-
-extend LocalDate <: ToJson & FromJson<LocalDate> {
-    public func toJson(w: FjWriter): Unit {
-        w.string(toString())
-    }
-
-    public static func fromJson(r: FjReader): LocalDate {
-        fromJsonString(r) {text => LocalDate.parse(text)}
-    }
-}
-
-extend LocalTime <: ToJson & FromJson<LocalTime> {
-    public func toJson(w: FjWriter): Unit {
-        w.string(toString())
-    }
-
-    public static func fromJson(r: FjReader): LocalTime {
-        fromJsonString(r) {text => LocalTime.parse(text)}
-    }
-}
-
-extend LocalDateTime <: ToJson & FromJson<LocalDateTime> {
-    public func toJson(w: FjWriter): Unit {
-        w.string(toString())
-    }
-
-    public static func fromJson(r: FjReader): LocalDateTime {
-        fromJsonString(r) {text => LocalDateTime.parse(text)}
-    }
-}
-
-extend OffsetDateTime <: ToJson & FromJson<OffsetDateTime> {
-    public func toJson(w: FjWriter): Unit {
-        w.string(toString())
-    }
-
-    public static func fromJson(r: FjReader): OffsetDateTime {
-        fromJsonString(r) {text => OffsetDateTime.parse(text)}
-    }
-}
-
-private func fromJsonString<T>(r: FjReader, parse: (String) -> T): T {
-    let at = r.position
-    let text = r.readString()
-    try {
-        parse(text)
-    } catch (e: IllegalArgumentException) {
-        throw FjException("${e.message} at byte ${at}")
-    }
 }
