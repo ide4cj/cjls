@@ -25,6 +25,10 @@ script-dir = ""
 
 [dependencies]
 
+# `-i` on every build and test; cjpm's cache knows nothing of the SDK, hence build.cj (D27)
+[profile.build]
+incremental = true
+
 # stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
 [target.aarch64-apple-darwin.bin-dependencies]
 path-option = [

@@ -2,4 +2,5 @@
 set -e
 
 python3 tests/corpora/fetch.py
-cjpm test
+# a directory of its own: tests and builds sharing one undo each other's incremental cache (D27)
+cjpm test --target-dir target/test

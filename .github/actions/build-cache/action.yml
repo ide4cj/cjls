@@ -1,0 +1,27 @@
+name: Restore the build cache
+description: >-
+  Restores `target` as the last master build on this platform and toolchain left it, its sources
+  stamped with mtimes cjpm's incremental cache can match (D27). Saving is the workflow's call.
+
+outputs:
+  key:
+    description: The key to save the cache under once the build is green.
+    value: ${{ steps.key.outputs.key }}
+
+runs:
+  using: composite
+  steps:
+    - id: key
+      shell: bash
+      run: echo "key=cjpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.cangjie-version') }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+
+    - shell: bash
+      run: python "$GITHUB_ACTION_PATH/stamp.py"
+
+    - uses: actions/cache/restore@v4
+      with:
+        path: |
+          target
+          build-script-cache
+        key: ${{ steps.key.outputs.key }}
+        restore-keys: cjpm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.cangjie-version') }}-

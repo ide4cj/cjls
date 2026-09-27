@@ -43,12 +43,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-cangjie
+      # incremental from what master last built; a release, on a tag, is built clean (D27)
+      - id: cache
+        if: github.ref_type != 'tag'
+        uses: ./.github/actions/build-cache
       - run: cjpm build
         shell: bash
       - run: python tests/corpora/fetch.py
         shell: bash
-      - run: cjpm test --no-progress
+      # beside the build's, not over it: each would undo the other's incremental cache
+      - run: cjpm test --no-progress --target-dir target/test
         shell: bash
+      # master's alone, so a PR never starts from another PR's build
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            target
+            build-script-cache
+          key: ${{ steps.cache.outputs.key }}
       - uses: actions/upload-artifact@v4
         with:
           name: cjls-${{ runner.os }}
