@@ -71,15 +71,13 @@ class FjReaderTest {
     }
 
     @TestCase
-    func refusesInvalidUtf8AndLoneSurrogatesAndControlCharacters() {
+    func refusesInvalidUtf8AndControlCharacters() {
         // arrange
         let cases: Array<Array<Byte>> = [
             [0x22, 0x61, 0xC0, 0x80, 0x22], // overlong
             [0x22, 0xED, 0xA0, 0x80, 0x22], // an encoded surrogate
             [0x22, 0xF4, 0x90, 0x80, 0x80, 0x22], // past U+10FFFF
             [0x22, 0x61, 0x0A, 0x22], // a raw newline
-            "\"\\ud800\"".toArray(),
-            "\"\\udc00\"".toArray(),
             "\"abc".toArray()
         ]
 
@@ -87,6 +85,16 @@ class FjReaderTest {
             // act, assert
             @AssertThrows[FjException](FjReader(bytes).readString())
         }
+    }
+
+    @TestCase
+    func readsALoneSurrogateAsTheReplacementCharacter() {
+        // act, assert
+        @Expect(reader(#""\ud800""#).readString(), "\u{FFFD}")
+        @Expect(reader(#""\udc00a""#).readString(), "\u{FFFD}a")
+        @Expect(reader(#""\ud800\ud800\ude00""#).readString(), "\u{FFFD}\u{10200}")
+        @Expect(reader(#""\ude00\ud800""#).readString(), "\u{FFFD}\u{FFFD}")
+        @Expect(reader(#""\ud800\n""#).readString(), "\u{FFFD}\n")
     }
 
     @TestCase

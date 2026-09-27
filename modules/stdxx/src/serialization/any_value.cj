@@ -45,11 +45,11 @@ extend AnyValue <: ToJson & FromJson<AnyValue> {
  */
 public const ANY_VALUE_DEPTH_MAX = 512
 
+/** The value inside `depth` containers; a container deeper than `ANY_VALUE_DEPTH_MAX` is refused, as `FjReader.skipValue` refuses it. */
 private func readDataModel(r: FjReader, depth: Int64): DataModel {
-    if (depth > ANY_VALUE_DEPTH_MAX) {
-        throw FjException("nested too deep at byte ${r.position}")
-    }
     match (r.peekKind()) {
+        case FjKind.JsonObject | FjKind.JsonArray where depth >= ANY_VALUE_DEPTH_MAX =>
+            throw FjException("nested deeper than ${ANY_VALUE_DEPTH_MAX} at byte ${r.position}")
         case FjKind.JsonObject =>
             let dms = DataModelStruct()
             r.beginObject()
