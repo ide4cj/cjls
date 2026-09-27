@@ -8,12 +8,14 @@ import ginkgo.*
  * What the tree builder needs to know about trivia, which the parser never sees.
  */
 public interface TriviaRules<K> where K <: Kind<K> {
+    @Frozen
     func isTrivia(kind: K): Bool
 
     /**
      * How many of `trivia`, the trivia right before a node of `kind`, belong inside it rather than to its parent,
      * counted from the end: a doc comment with the declaration after it, say. By default none.
      */
+    @Frozen
     func attachedTrivia(_: K, _: Array<(K, String)>): Int64 {
         0
     }
@@ -28,6 +30,7 @@ public enum ParseError<K> <: Equatable<ParseError<K>> & ToString where K <: Kind
     | Expected(K)
     | Message(String)
 
+    @Frozen
     public operator func ==(other: ParseError<K>): Bool {
         match ((this, other)) {
             case (Expected(a), Expected(b)) => a == b
@@ -36,6 +39,7 @@ public enum ParseError<K> <: Equatable<ParseError<K>> & ToString where K <: Kind
         }
     }
 
+    @Frozen
     public operator func !=(other: ParseError<K>): Bool {
         !(this == other)
     }
@@ -43,6 +47,7 @@ public enum ParseError<K> <: Equatable<ParseError<K>> & ToString where K <: Kind
     /**
      * A message naming kinds as `toString` does: for tests and logs, not for users.
      */
+    @Frozen
     public func toString(): String {
         match (this) {
             case Expected(kind) => "expected ${kind}"
@@ -54,14 +59,17 @@ public enum ParseError<K> <: Equatable<ParseError<K>> & ToString where K <: Kind
 public struct SyntaxError<K> <: Equatable<SyntaxError<K>> & ToString where K <: Kind<K> {
     public SyntaxError(public let error: ParseError<K>, public let range: TextRange) {}
 
+    @Frozen
     public operator func ==(other: SyntaxError<K>): Bool {
         range == other.range && error == other.error
     }
 
+    @Frozen
     public operator func !=(other: SyntaxError<K>): Bool {
         !(this == other)
     }
 
+    @Frozen
     public func toString(): String {
         "${range}: ${error}"
     }
@@ -75,14 +83,17 @@ public struct SyntaxError<K> <: Equatable<SyntaxError<K>> & ToString where K <: 
 public class Parse<K> <: Equatable<Parse<K>> where K <: Kind<K> {
     public Parse(public let green: GreenNode<K>, public let errors: Array<SyntaxError<K>>) {}
 
+    @Frozen
     public func syntaxNode(): SyntaxNode<K> {
         SyntaxNode.newRoot(green)
     }
 
+    @Frozen
     public operator func ==(other: Parse<K>): Bool {
         green == other.green && errors == other.errors
     }
 
+    @Frozen
     public operator func !=(other: Parse<K>): Bool {
         !(this == other)
     }
@@ -94,6 +105,7 @@ public class Parse<K> <: Equatable<Parse<K>> where K <: Kind<K> {
  * left unconsumed goes at the end of the root, in an error node, so the tree covers the text whatever the
  * grammar did.
  */
+@Frozen
 public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<K>): Parse<K> where K <: Kind<K> {
     let sink = TreeSink(lexed, rules, parser.errorKind)
     let events = parser.events.toArray()
@@ -134,18 +146,21 @@ class TreeSink<K> where K <: Kind<K> {
 
     TreeSink(let lexed: Lexed<K>, let rules: TriviaRules<K>, let errorKind: K) {}
 
+    @Frozen
     func emit(i: Int64): Unit {
         builder.token(lexed.kind(i), lexed.tokenText(i))
         textPos = lexed.range(i).end
         pos = i + 1
     }
 
+    @Frozen
     func eatTrivia(): Unit {
         while (pos < lexed.size && rules.isTrivia(lexed.kind(pos))) {
             emit(pos)
         }
     }
 
+    @Frozen
     func enter(kind: K): Unit {
         if (rootFinished) {
             return
@@ -166,6 +181,7 @@ class TreeSink<K> where K <: Kind<K> {
         depth++
     }
 
+    @Frozen
     func exit(): Unit {
         if (depth == 0) {
             return
@@ -186,6 +202,7 @@ class TreeSink<K> where K <: Kind<K> {
         depth--
     }
 
+    @Frozen
     func token(kind: K, n: Int64): Unit {
         eatTrivia()
         if (pos >= lexed.size) {
@@ -199,10 +216,12 @@ class TreeSink<K> where K <: Kind<K> {
         pos = last + 1
     }
 
+    @Frozen
     func error(error: ParseError<K>): Unit {
         errors.add(SyntaxError(error, TextRange.empty(textPos)))
     }
 
+    @Frozen
     func finish(): Parse<K> {
         if (!rootFinished && depth == 0) {
             enter(errorKind)

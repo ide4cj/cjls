@@ -9,8 +9,10 @@ public interface AstNode<K, T> where K <: Kind<K> {
     /**
      * Whether a node of `kind` can be viewed as `T`.
      */
+    @Frozen
     static func canCast(kind: K): Bool
 
+    @Frozen
     static func cast(node: SyntaxNode<K>): ?T
 
     prop syntax: SyntaxNode<K>
@@ -19,6 +21,7 @@ public interface AstNode<K, T> where K <: Kind<K> {
 /**
  * The first child of `parent` that is a `T`. What generated accessors are made of, like rowan's `support`.
  */
+@Frozen
 public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: AstNode<K, T> {
     astChildren<K, T>(parent).next()
 }
@@ -26,6 +29,7 @@ public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: A
 /**
  * The children of `parent` that are `T`s, in order.
  */
+@Frozen
 public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
     parent.children().filterMap {c => T.cast(c)}
 }
@@ -35,6 +39,7 @@ public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kin
  * a binary expression, its right side. `counted` holds the kinds of every child that can come before it in the
  * grammar and be taken for it.
  */
+@Frozen
 public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): ?T where K <: Kind<K>,
     T <: AstNode<K, T> {
     parent.children().filter {c => counted.contains(c.kind)}.skip(n).next().flatMap {c => T.cast(c)}
@@ -44,6 +49,7 @@ public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet
  * The children of `parent` that are `T`s, but for the first `n` of those whose kind is in `counted`: the
  * indices of an index expression, after the expression indexed.
  */
+@Frozen
 public func astChildrenFrom<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): Iterator<T> where K <: Kind<K>,
     T <: AstNode<K, T> {
     SkipCounted<K>(parent.children(), n, counted).filterMap {c => T.cast(c)}
@@ -52,6 +58,7 @@ public func astChildrenFrom<K, T>(parent: SyntaxNode<K>, n: Int64, counted: Toke
 class SkipCounted<K> <: Iterator<SyntaxNode<K>> where K <: Kind<K> {
     SkipCounted(let inner: Iterator<SyntaxNode<K>>, var toSkip: Int64, let counted: TokenSet<K>) {}
 
+    @Frozen
     public func next(): ?SyntaxNode<K> {
         while (let Some(c) <- inner.next()) {
             if (toSkip > 0 && counted.contains(c.kind)) {
@@ -67,6 +74,7 @@ class SkipCounted<K> <: Iterator<SyntaxNode<K>> where K <: Kind<K> {
 /**
  * The first token of `parent`, not counting those inside its children, whose kind is `kind`.
  */
+@Frozen
 public func astToken<K>(parent: SyntaxNode<K>, kind: K): ?SyntaxToken<K> where K <: Kind<K> {
     ownTokens(parent).filter {t => t.kind == kind}.next()
 }
@@ -75,10 +83,12 @@ public func astToken<K>(parent: SyntaxNode<K>, kind: K): ?SyntaxToken<K> where K
  * The first token of `parent`, not counting those inside its children, whose kind is in `kinds`: the operator
  * of a binary expression.
  */
+@Frozen
 public func astToken<K>(parent: SyntaxNode<K>, kinds: TokenSet<K>): ?SyntaxToken<K> where K <: Kind<K> {
     ownTokens(parent).filter {t => kinds.contains(t.kind)}.next()
 }
 
+@Frozen
 func ownTokens<K>(parent: SyntaxNode<K>): Iterator<SyntaxToken<K>> where K <: Kind<K> {
     parent.childrenWithTokens().filterMap {el => el.asToken()}
 }

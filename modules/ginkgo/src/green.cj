@@ -19,24 +19,29 @@ public class GreenToken<K> <: Equatable<GreenToken<K>> & Hashable & ToString whe
     /**
      * In UTF-8 bytes.
      */
+    @Frozen
     public prop textLen: Int64 {
         get() {
             text.size
         }
     }
 
+    @Frozen
     public operator func ==(other: GreenToken<K>): Bool {
         refEq(this, other) || (structuralHash == other.structuralHash && kind == other.kind && text == other.text)
     }
 
+    @Frozen
     public operator func !=(other: GreenToken<K>): Bool {
         !(this == other)
     }
 
+    @Frozen
     public func hashCode(): Int64 {
         structuralHash
     }
 
+    @Frozen
     public func toString(): String {
         text
     }
@@ -57,9 +62,36 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
      */
     public let textLen: Int64
 
-    public GreenNode(children: Array<GreenElement<K>>, public let kind: K) {
-        elements = children.clone()
-        offsets = Array<Int64>(children.size, repeat: 0)
+    public let kind: K
+
+    public init(children: Array<GreenElement<K>>, kind: K) {
+        this(GreenNode<K>.measure(children.clone(), kind))
+    }
+
+    private init(node: GreenNode<K>) {
+        elements = node.elements
+        offsets = node.offsets
+        structuralHash = node.structuralHash
+        textLen = node.textLen
+        kind = node.kind
+    }
+
+    private init(elements: Array<GreenElement<K>>, offsets: Array<Int64>, textLen: Int64, structuralHash: Int64, kind: K) {
+        this.elements = elements
+        this.offsets = offsets
+        this.textLen = textLen
+        this.structuralHash = structuralHash
+        this.kind = kind
+    }
+
+    /**
+     * A node of `children`, which it keeps rather than copies. The work is here rather than in a
+     * constructor: a generic class's constructor is never inlined, `@Frozen` or not, so its body
+     * looks the type of every `GreenElement<K>` up at run time (C11).
+     */
+    @Frozen
+    static func measure(children: Array<GreenElement<K>>, kind: K): GreenNode<K> {
+        let offsets = Array<Int64>(children.size, repeat: 0)
         var hasher = DefaultHasher()
         hasher.write(kind.hashCode())
         var len = 0
@@ -68,10 +100,10 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
             len += children[i].textLen
             hasher.write(children[i].hashCode())
         }
-        textLen = len
-        structuralHash = hasher.finish()
+        GreenNode<K>(children, offsets, len, hasher.finish(), kind)
     }
 
+    @Frozen
     public prop childCount: Int64 {
         get() {
             elements.size
@@ -81,6 +113,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     /**
      * @throws IndexOutOfBoundsException - if there is no child `index`
      */
+    @Frozen
     public func child(index: Int64): GreenElement<K> {
         elements[index]
     }
@@ -90,10 +123,12 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
      *
      * @throws IndexOutOfBoundsException - if there is no child `index`
      */
+    @Frozen
     public func childOffset(index: Int64): Int64 {
         offsets[index]
     }
 
+    @Frozen
     public func children(): Iterator<GreenElement<K>> {
         elements.iterator()
     }
@@ -101,6 +136,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     /**
      * A copy with child `index` replaced.
      */
+    @Frozen
     public func replaceChild(index: Int64, element: GreenElement<K>): GreenNode<K> {
         spliceChildren(index, index + 1, [element])
     }
@@ -108,6 +144,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     /**
      * A copy with `element` inserted before child `index`; `index` may be `childCount`.
      */
+    @Frozen
     public func insertChild(index: Int64, element: GreenElement<K>): GreenNode<K> {
         spliceChildren(index, index, [element])
     }
@@ -115,6 +152,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     /**
      * A copy without child `index`.
      */
+    @Frozen
     public func removeChild(index: Int64): GreenNode<K> {
         spliceChildren(index, index + 1, [])
     }
@@ -122,13 +160,15 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     /**
      * A copy with children `start` up to, not including, `end` replaced by `replacement`.
      */
+    @Frozen
     public func spliceChildren(start: Int64, end: Int64, replacement: Array<GreenElement<K>>): GreenNode<K> {
         if (start < 0 || end < start || end > elements.size) {
             throw IndexOutOfBoundsException("Invalid child range ${start}..${end} of ${elements.size} children")
         }
-        GreenNode(elements[..start].concat(replacement).concat(elements[end..]), kind)
+        GreenNode<K>.measure(elements[..start].concat(replacement).concat(elements[end..]), kind)
     }
 
+    @Frozen
     func writeTo(sb: StringBuilder): Unit {
         for (element in elements) {
             match (element) {
@@ -138,6 +178,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
         }
     }
 
+    @Frozen
     public operator func ==(other: GreenNode<K>): Bool {
         if (refEq(this, other)) {
             return true
@@ -153,10 +194,12 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
         true
     }
 
+    @Frozen
     public operator func !=(other: GreenNode<K>): Bool {
         !(this == other)
     }
 
+    @Frozen
     public func hashCode(): Int64 {
         structuralHash
     }
@@ -164,6 +207,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
     /**
      * The text this node covers.
      */
+    @Frozen
     public func toString(): String {
         let sb = StringBuilder()
         writeTo(sb)
@@ -175,6 +219,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
     | Node(GreenNode<K>)
     | Token(GreenToken<K>)
 
+    @Frozen
     public prop kind: K {
         get() {
             match (this) {
@@ -184,6 +229,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public prop textLen: Int64 {
         get() {
             match (this) {
@@ -193,6 +239,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public func asNode(): ?GreenNode<K> {
         match (this) {
             case Node(node) => node
@@ -200,6 +247,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public func asToken(): ?GreenToken<K> {
         match (this) {
             case Node(_) => None
@@ -207,6 +255,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public operator func ==(other: GreenElement<K>): Bool {
         match ((this, other)) {
             case (Node(a), Node(b)) => a == b
@@ -215,10 +264,12 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public operator func !=(other: GreenElement<K>): Bool {
         !(this == other)
     }
 
+    @Frozen
     public func hashCode(): Int64 {
         match (this) {
             case Node(node) => node.hashCode()
@@ -226,6 +277,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public func toString(): String {
         match (this) {
             case Node(node) => node.toString()

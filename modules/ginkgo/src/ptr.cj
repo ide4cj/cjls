@@ -20,6 +20,7 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
      *
      * @throws IllegalArgumentException - if there is none: the pointer was made from another tree
      */
+    @Frozen
     public func toNode(root: SyntaxNode<K>): SyntaxNode<K> {
         tryToNode(root) ?? throw IllegalArgumentException("no ${kind} at ${range} in ${root}")
     }
@@ -27,6 +28,7 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
     /**
      * As `toNode`, `None` for a tree that has no such node.
      */
+    @Frozen
     public func tryToNode(root: SyntaxNode<K>): ?SyntaxNode<K> {
         if (!root.textRange.containsRange(range)) {
             return None
@@ -45,6 +47,7 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
         found
     }
 
+    @Frozen
     public func toString(): String {
         "${kind}@${range}"
     }
@@ -70,23 +73,28 @@ public struct AstPtr<K, N> <: Equatable<AstPtr<K, N>> & Hashable & ToString wher
      * @throws IllegalArgumentException - if there is none, or it is no `N`: the pointer was made from another
      * tree
      */
+    @Frozen
     public func toNode(root: SyntaxNode<K>): N {
         let node = syntax.toNode(root)
         N.cast(node) ?? throw IllegalArgumentException("${node} is no node of its pointer's type")
     }
 
+    @Frozen
     public operator func ==(other: AstPtr<K, N>): Bool {
         syntax == other.syntax
     }
 
+    @Frozen
     public operator func !=(other: AstPtr<K, N>): Bool {
         syntax != other.syntax
     }
 
+    @Frozen
     public func hashCode(): Int64 {
         syntax.hashCode()
     }
 
+    @Frozen
     public func toString(): String {
         syntax.toString()
     }

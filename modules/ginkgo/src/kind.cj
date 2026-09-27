@@ -8,5 +8,6 @@ public interface Kind<K> <: Hashable & Equatable<K> & ToString {
     /**
      * The kind's position among all of its type's, from 0 and with no gaps: what a `TokenSet` is indexed by.
      */
+    @Frozen
     func ordinal(): Int64
 }

@@ -15,12 +15,14 @@ public class NodeCache<K> where K <: Kind<K> {
     let tokens = HashMap<GreenToken<K>, GreenToken<K>>()
     let nodes = HashMap<GreenNode<K>, GreenNode<K>>()
 
+    @Frozen
     public func token(kind: K, text: String): GreenToken<K> {
         intern(tokens, GreenToken(kind, text))
     }
 
+    @Frozen
     public func node(kind: K, children: Array<GreenElement<K>>): GreenNode<K> {
-        let candidate = GreenNode(children, kind)
+        let candidate = GreenNode<K>.measure(children, kind)
         if (children.size > MAX_CACHED_CHILDREN) {
             candidate
         } else {
@@ -32,6 +34,7 @@ public class NodeCache<K> where K <: Kind<K> {
 /**
  * The element of `table` equal to `candidate`, added first if there is none.
  */
+@Frozen
 func intern<T>(table: HashMap<T, T>, candidate: T): T where T <: Hashable & Equatable<T> {
     if (let Some(cached) <- table.get(candidate)) {
         return cached
