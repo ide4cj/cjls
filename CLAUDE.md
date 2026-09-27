@@ -20,7 +20,7 @@ Then, from the repo root:
 
 - `cjpm build` — build the workspace
 - `cjpm run` — build and run the `cjls` server executable
-- `cjpm test` — run all tests (this is what the `pre-push` git hook runs)
+- `cjpm test` — run all tests (this is what the `pre-push` git hook runs); CI runs it `--no-progress`: now and then the progress report stalls partway (on nightly 20260918), and `cjpm test` then fails with every test passed
 - `cjpm clean` — clean build outputs
 - Run a subset of tests: `cjpm test '--filter=ConnectionCloseTest.*'` — filter is `<TestClass>.<testCase>`, `*` wildcards allowed. Quote it: the user's shell is fish, which glob-expands an unquoted `*`.
 
