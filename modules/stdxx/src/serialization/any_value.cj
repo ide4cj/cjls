@@ -75,7 +75,12 @@ private func readDataModel(r: FjReader, depth: Int64): DataModel {
             if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {
                 DataModelFloat(FjReader(number).readFloat64())
             } else {
-                DataModelInt(FjReader(number).readInt64())
+                // past Int64, an integer is kept as JavaScript keeps it: the nearest Float64
+                try {
+                    DataModelInt(FjReader(number).readInt64())
+                } catch (_: FjException) {
+                    DataModelFloat(FjReader(number).readFloat64())
+                }
             }
     }
 }

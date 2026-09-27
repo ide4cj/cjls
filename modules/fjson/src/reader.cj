@@ -13,6 +13,9 @@ public enum FjKind {
 }
 
 const MAX_DEPTH = 512
+const SCRATCH_INITIAL = 256
+// what a reader keeps from message to message: `FramedJsonRpcTransport`'s writer keeps as much
+const SCRATCH_KEPT_MAX = 1024 * 1024
 
 /**
  * A pull reader over the bytes of one JSON text, no tree and no copy of it: keys are compared
@@ -35,7 +38,7 @@ public class FjReader {
     private var keyLength = 0
     private var keyInScratch = false
     // unescaped strings are built here and copied out, one buffer for the reader's lifetime
-    private var scratch = Array<Byte>(256, repeat: 0)
+    private var scratch = Array<Byte>(SCRATCH_INITIAL, repeat: 0)
 
     public FjReader(private var bytes: Array<Byte>) {}
 
@@ -45,6 +48,10 @@ public class FjReader {
         bytes = next
         pos = 0
         first = false
+        // one outsized string must not keep its buffer for the lifetime of the connection
+        if (scratch.size > SCRATCH_KEPT_MAX) {
+            scratch = Array<Byte>(SCRATCH_INITIAL, repeat: 0)
+        }
     }
 
     public prop position: Int64 {
@@ -500,11 +507,31 @@ public class FjReader {
                 case 0x22 =>
                     pos = i + 1
                     return
-                case 0x5C => i += 2
+                case 0x5C => i = skipEscape(i)
                 case _ =>
                     pos = i
                     throw fail("control character in a string")
             }
+        }
+    }
+
+    /**
+     * Past the escape at `i`, checked as `unescape` checks it but for surrogates: a lone one is
+     * left to whoever reads the string, as JSON itself leaves it (RFC 8259, 8.2).
+     */
+    private func skipEscape(i: Int64): Int64 {
+        if (i + 1 >= bytes.size) {
+            pos = i
+            throw fail("unterminated string")
+        }
+        match (bytes[i + 1]) {
+            case 0x22 | 0x5C | 0x2F | 0x62 | 0x66 | 0x6E | 0x72 | 0x74 => i + 2
+            case 0x75 =>
+                hex4(i + 2)
+                i + 6
+            case _ =>
+                pos = i
+                throw fail("invalid escape")
         }
     }
 

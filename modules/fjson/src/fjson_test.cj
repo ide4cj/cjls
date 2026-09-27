@@ -130,6 +130,40 @@ class FjReaderTest {
         @AssertThrows[FjException](skipObject(#"{"a": 1 "b": 2}"#))
         @AssertThrows[FjException](readIntegers(#"[1,]"#))
     }
+
+    @TestCase
+    func skipsEveryValidEscapeAndRefusesTheRest() {
+        // act, assert
+        skipValue(#"["\" \\ \/ \b \f \n \r \t é 😀 \ud800"]"#)
+        for (text in [#"["\x"]"#, #"["\a"]"#, #"["\u12"]"#, #"["\uqqqq"]"#, "[\"\\\n\"]", #"["\"#]) {
+            @AssertThrows[FjException](skipValue(text))
+        }
+    }
+
+    @TestCase
+    func readsTheNextMessageAfterAnOutsizedString() {
+        // arrange
+        let long = "\\n" + "x" * (2 * 1024 * 1024)
+        let r = reader("\"${long}\"")
+        r.readString()
+
+        // act
+        r.reset(#"{"key": "value"}"#.toArray())
+        r.beginObject()
+        r.nextKey()
+        let key = r.key()
+        let value = r.readString()
+
+        // assert
+        @Expect(key, "key")
+        @Expect(value, "value")
+    }
+}
+
+func skipValue(text: String): Unit {
+    let r = reader(text)
+    r.skipValue()
+    r.end()
 }
 
 func skipObject(text: String): Unit {

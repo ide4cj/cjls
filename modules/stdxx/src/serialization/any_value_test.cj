@@ -4,6 +4,7 @@ import std.collection.ArrayList
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.serialization.serialization.*
+import fjson.fromJsonBytes
 
 @Test
 class AnyValueTest {
@@ -18,5 +19,16 @@ class AnyValueTest {
 
         // assert
         @Expect(refEq(dm, written))
+    }
+
+    @TestCase
+    func anIntegerPastInt64ReadsAsTheNearestFloat() {
+        // act
+        let value = fromJsonBytes<AnyValue>("[9223372036854775807, 100000000000000000000]".toArray())
+
+        // assert
+        let items = (value.data as DataModelSeq).getOrThrow().getItems()
+        @Expect((items[0] as DataModelInt).getOrThrow().getValue(), Int64.Max)
+        @Expect((items[1] as DataModelFloat).getOrThrow().getValue(), 1e20)
     }
 }
