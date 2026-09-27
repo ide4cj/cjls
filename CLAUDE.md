@@ -20,7 +20,7 @@ Then, from the repo root:
 
 - `cjpm build` — build the workspace
 - `cjpm run` — build and run the `cjls` server executable
-- `cjpm test` — run all tests; the `pre-push` hook and CI run it `--no-progress`: now and then the progress report stalls partway (on nightly 20260918), and `cjpm test` then fails with every test passed
+- `cjpm test` — run all tests (this is what the `pre-push` git hook runs); CI runs it `--no-progress`: now and then the progress report stalls partway (on nightly 20260918), and `cjpm test` then fails with every test passed
 - `cjpm clean` — clean build outputs
 - Run a subset of tests: `cjpm test '--filter=ConnectionCloseTest.*'` — filter is `<TestClass>.<testCase>`, `*` wildcards allowed. Quote it: the user's shell is fish, which glob-expands an unquoted `*`.
 
@@ -57,7 +57,7 @@ On Linux x64 (measured in CI, same nightly): `--static` gives the same kind of b
 
 Conventional Commits are enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`, one binary: `brew install cocogitto`) on the `commit-msg` hook. Use `type(scope): subject` (e.g. `feat(jsonrpc): ...`); `cog commit feat jsonrpc "subject"` writes one for you. `cog.toml` lets merge and `fixup!`/`squash!`/`amend!` commits through, as commitlint did; a `git revert` message has to be reworded to `revert: ...`.
 
-The hooks are plain scripts in `.githooks/`, no hook framework and no Node: `commit-msg` runs `cog verify`, `pre-push` runs `cjpm test --no-progress`. Git won't version where hooks live, so every clone activates them once:
+The hooks are plain scripts in `.githooks/`, no hook framework and no Node: `commit-msg` runs `cog verify`, `pre-push` runs `cjpm test`. Git won't version where hooks live, so every clone activates them once:
 
 ```
 git config core.hooksPath .githooks
