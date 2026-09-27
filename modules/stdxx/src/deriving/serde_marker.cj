@@ -3,9 +3,7 @@ macro package stdxx.deriving
 import std.ast.*
 import std.collection.*
 
-const MARKER_MACRO = "Serde"
-const ITEM_IDENT = "ident"
-const ITEM_ON_TYPE = "onType"
+const SERDE_MARKER = "Serde"
 const ITEM_RENAME = "rename"
 const ITEM_SKIP_NONE = "skipNone"
 const ITEM_TRANSPARENT = "transparent"
@@ -18,7 +16,7 @@ const ITEM_OTHER = "other"
 
 /**
  * Configures what `@DeriveExt` generates for the declaration it sits on - serde's `#[serde(...)]`:
- * one marker for every position, read alike by every derivation (`ToJson`, `FromJson`,
+ * one marker for every position, read alike by every serde derivation (`ToJson`, `FromJson`,
  * `Serializable`).
  *
  * Which options are legal follows from where it sits:
@@ -55,12 +53,7 @@ const ITEM_OTHER = "other"
  *       expands to nothing of its own.
  */
 public macro Serde(attrs: Tokens, input: Tokens): Tokens {
-    assertParentContext(DERIVE_EXT_MACRO)
-
-    let position = positionOf(input)
-    let ident = identOf(input) ?? Token(TokenKind.IDENTIFIER, "")
-    setItem(ITEM_IDENT, ident.value)
-    setItem(ITEM_ON_TYPE, "${position.isType}")
+    let position = beginMarker(SERDE_MARKER, attrs, input)
 
     match (parseExpr(quote(dummy($attrs)))) {
         case call: CallExpr => for (argument in call.arguments) {
@@ -75,46 +68,6 @@ public macro Serde(attrs: Tokens, input: Tokens): Tokens {
     }
 
     input
-}
-
-/**
- * Where a marker sits, which is what decides the options it may carry. Read off the declaration it
- * was given: a type opens with its keyword, a field with `let` or `var`, and what is left in an
- * enum body is a constructor.
- */
-enum MarkerPosition {
-    | OnType
-    | OnField
-    | OnVariant
-
-    prop isType: Bool {
-        get() {
-            match (this) {
-                case OnType => true
-                case _ => false
-            }
-        }
-    }
-
-    prop name: String {
-        get() {
-            match (this) {
-                case OnType => "a type"
-                case OnField => "a field"
-                case OnVariant => "an enum variant"
-            }
-        }
-    }
-}
-
-private func positionOf(input: Tokens): MarkerPosition {
-    let head = headTokenOf(input) ?? return OnVariant
-
-    match (head.kind) {
-        case TokenKind.STRUCT | TokenKind.CLASS | TokenKind.ENUM => OnType
-        case TokenKind.LET | TokenKind.VAR => OnField
-        case _ => OnVariant
-    }
 }
 
 private func applyOption(argument: Argument, position: MarkerPosition): Unit {
@@ -317,23 +270,13 @@ struct MarkerOptions {
 }
 
 /**
- * What the `@Serde` children of the current `@DeriveExt` asked for: the options of
- * the type itself, and those of each of its fields or variants by identifier.
+ * The options of the `@Serde` on the type, and those of each of its fields or variants by
+ * identifier.
  */
-func collectMarkers(): (MarkerOptions, HashMap<String, MarkerOptions>) {
-    var typeOptions = MarkerOptions()
-    let memberOptions = HashMap<String, MarkerOptions>()
+func serdeOptionsOf(markers: Markers): (MarkerOptions, (String) -> MarkerOptions) {
+    let typeOptions = markers.ofType(SERDE_MARKER).map {message => optionsOf(message)} ?? MarkerOptions()
 
-    for (message in getChildMessages(MARKER_MACRO)) {
-        let options = optionsOf(message)
-        if (message.getString(ITEM_ON_TYPE) == "true") {
-            typeOptions = options
-        } else {
-            memberOptions[message.getString(ITEM_IDENT)] = options
-        }
-    }
-
-    (typeOptions, memberOptions)
+    (typeOptions, {ident => markers.ofMember(SERDE_MARKER, ident).map {message => optionsOf(message)} ?? MarkerOptions()})
 }
 
 private func optionsOf(message: MacroMessage): MarkerOptions {

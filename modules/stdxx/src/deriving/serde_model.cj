@@ -4,10 +4,22 @@ import std.ast.*
 import std.collection.*
 
 /*
- * What a declaration is on the wire, worked out once from it and its `@Serde` markers, whatever
- * `@DeriveExt` derives from it: every derivation is a function of the model, so the rules - and the
- * diagnostics - are the same for all of them, and reported once.
+ * What a declaration is on the wire, worked out once from its shape and its `@Serde` markers,
+ * whatever serde derivations `@DeriveExt` is asked for: every one is a function of the model, so
+ * the rules - and the diagnostics - are the same for all of them, and reported once.
  */
+
+/**
+ * A serde derivation of the context's declaration: `derive` of its model, nothing when the model
+ * reported a mistake.
+ */
+func serde(context: DeriveContext, derive: (DeclModel) -> Tokens): Tokens {
+    let model = context.memo<?DeclModel>(SERDE_MARKER) {=> modelOf(context.shape, context.markers, context.names)}
+    match (model) {
+        case Some(m) => derive(m)
+        case None => Tokens()
+    }
+}
 
 enum DeclModel {
     | OfStruct(StructModel)
@@ -138,21 +150,16 @@ struct DerivedVariant {
 /**
  * @return `None` when a diagnostic was reported
  */
-func modelOf(decl: Decl, derive: String): ?DeclModel {
-    let (typeOptions, memberOptions) = collectMarkers()
-    if (let enumDecl: EnumDecl <- decl) {
-        return enumModelOf(enumDecl, typeOptions, memberOptions).map {model => OfEnum(model)}
+func modelOf(shape: DeclShape, markers: Markers, derive: String): ?DeclModel {
+    let (typeOptions, memberOptions) = serdeOptionsOf(markers)
+    if (let enumDecl: EnumDecl <- shape.decl) {
+        return enumModelOf(enumDecl, shape.variants, typeOptions, memberOptions).map {model => OfEnum(model)}
     }
-    if (bodyDeclsOf(decl).isNone()) {
-        report(decl, "`@DeriveExt[${derive}]` only derives for a `struct`, a `class` or an `enum`",
-            "hand-write it for anything else")
-        return None
-    }
-    let primaryCtor = primaryCtorOf(decl) ?? return reportNone(decl,
+    let fields = shape.fields ?? return reportNone(shape.decl,
         "`@DeriveExt[${derive}]` needs a primary constructor to read the fields from",
         "declare the fields as primary constructor parameters, or hand-write it")
 
-    structModelOf(decl, primaryCtor, typeOptions, memberOptions).map {model => OfStruct(model)}
+    structModelOf(shape.decl, fields, typeOptions, memberOptions).map {model => OfStruct(model)}
 }
 
 private func reportNone<T>(decl: Decl, message: String, hint: String): ?T {
@@ -167,9 +174,9 @@ private func reportNone<T>(ident: Token, message: String, hint: String): ?T {
 
 private func structModelOf(
     decl: Decl,
-    primaryCtor: PrimaryCtorDecl,
+    declFields: Array<DeclField>,
     typeOptions: MarkerOptions,
-    memberOptions: HashMap<String, MarkerOptions>
+    memberOptions: (String) -> MarkerOptions
 ): ?StructModel {
     let typeIdent = decl.identifier
     if (typeOptions.untagged) {
@@ -177,12 +184,12 @@ private func structModelOf(
     }
 
     let fields = ArrayList<DerivedField>()
-    for (param in primaryCtor.funcParams) {
-        let options = memberOptions.get(param.identifier.value) ?? MarkerOptions()
+    for (declField in declFields) {
+        let options = memberOptions(declField.ident.value)
         if (options.value.isSome()) {
-            return reportNone(param.identifier, "`value` does not apply to a field", "name it on the wire with `rename`")
+            return reportNone(declField.ident, "`value` does not apply to a field", "name it on the wire with `rename`")
         }
-        fields.add(fieldOf(param, options, typeOptions.skipNone) ?? return None)
+        fields.add(fieldOf(declField, options, typeOptions.skipNone) ?? return None)
     }
 
     // two fields of one wire name would write the same key, and both read whichever value came last
@@ -218,7 +225,7 @@ private func transparentModelOf(
     decl: Decl,
     typeOptions: MarkerOptions,
     fields: ArrayList<DerivedField>,
-    memberOptions: HashMap<String, MarkerOptions>
+    memberOptions: (String) -> MarkerOptions
 ): ?StructModel {
     let typeIdent = decl.identifier
     if (fields.size != 1) {
@@ -230,11 +237,10 @@ private func transparentModelOf(
     }
 
     let field = fields[0]
-    if (let Some(options) <- memberOptions.get(field.ident.value)) {
-        if (options.rename.isSome() || options.skipNone) {
-            return reportNone(field.ident, "the field of a `transparent` struct takes no options",
-                "its name never reaches the wire")
-        }
+    let options = memberOptions(field.ident.value)
+    if (options.rename.isSome() || options.skipNone) {
+        return reportNone(field.ident, "the field of a `transparent` struct takes no options",
+            "its name never reaches the wire")
     }
     if (field.shape.isOptional) {
         return reportNone(field.ident, "the field of a `transparent` struct has to be required",
@@ -244,54 +250,28 @@ private func transparentModelOf(
     StructModel(decl: decl, fields: fields.toArray(), tag: None, transparent: true)
 }
 
-private func fieldOf(param: FuncParam, options: MarkerOptions, skipNoneOnType: Bool): ?DerivedField {
-    let tokens = param.toTokens()
-    if (!isMemberParam(tokens)) {
+private func fieldOf(declField: DeclField, options: MarkerOptions, skipNoneOnType: Bool): ?DerivedField {
+    if (!declField.isMember) {
         diagReport(
             DiagReportLevel.ERROR,
-            tokens,
+            declField.tokens,
             "`@DeriveExt` needs every primary constructor parameter to declare a field",
             "prefix it with `let`, or hand-write the derivation"
         )
         return None
     }
 
-    let ident = param.identifier
-    let fieldType = param.paramType.toTokens()
-    let (shape, innerType) = shapeOf(fieldType)
+    let (shape, innerType) = shapeOf(declField.fieldType)
 
     DerivedField(
-        ident: ident,
-        wireName: options.rename ?? stripBackquotes(ident.value),
-        isNamed: isNamedParam(tokens),
-        fieldType: fieldType,
+        ident: declField.ident,
+        wireName: options.rename ?? stripBackquotes(declField.ident.value),
+        isNamed: declField.isNamed,
+        fieldType: declField.fieldType,
         innerType: innerType,
         shape: shape,
         skipNone: skipNoneOnType || options.skipNone
     )
-}
-
-/**
- * `let x: T` / `var x: T` declares a field, a bare `x: T` is a constructor argument that is gone
- * once the constructor returns - nothing to serialize, and nothing to reconstruct it from.
- */
-private func isMemberParam(tokens: Tokens): Bool {
-    let head = headTokenOf(tokens) ?? return false
-
-    head.kind == TokenKind.LET || head.kind == TokenKind.VAR
-}
-
-private func isNamedParam(tokens: Tokens): Bool {
-    for (token in tokens) {
-        if (token.kind == TokenKind.NOT) {
-            return true
-        }
-        if (token.kind == TokenKind.COLON) {
-            return false
-        }
-    }
-
-    false
 }
 
 /**
@@ -325,8 +305,9 @@ func shapeOf(tokens: Tokens): (FieldShape, Tokens) {
 
 private func enumModelOf(
     decl: EnumDecl,
+    declVariants: Array<DeclVariant>,
     typeOptions: MarkerOptions,
-    variantOptions: HashMap<String, MarkerOptions>
+    variantOptions: (String) -> MarkerOptions
 ): ?EnumModel {
     if (typeOptions.transparent) {
         return reportNone(decl, "`transparent` does not apply to an enum", "it belongs on a struct or a class with one field")
@@ -340,10 +321,10 @@ private func enumModelOf(
 
     let variants = ArrayList<DerivedVariant>()
     var other: ?DerivedVariant = None
-    for (ctor in decl.constructors) {
-        let ident = ctor.identifier
-        let options = variantOptions.get(ident.value) ?? MarkerOptions()
-        let payloadTypes = ctor.typeArguments.toArray().map {payloadType => payloadType.toTokens()}
+    for (declVariant in declVariants) {
+        let ident = declVariant.ident
+        let options = variantOptions(ident.value)
+        let payloadTypes = declVariant.payloadTypes
 
         if (let Some(value) <- options.value) {
             if (!value.isInteger) {
@@ -474,56 +455,4 @@ func isIntegerType(tokens: Tokens): Bool {
             | TokenKind.UINT8 | TokenKind.UINT16 | TokenKind.UINT32 | TokenKind.UINT64 | TokenKind.UINTNATIVE => true
         case _ => false
     }
-}
-
-/**
- * The `where` clause asking every type parameter for `bound`, appended to its own bounds -
- * `Serializable<T>`, `ToJson`, `FromJson<T>`.
- */
-func whereClauseOf(decl: Decl, bound: (String) -> String): Tokens {
-    if (!decl.isGenericDecl) {
-        return Tokens()
-    }
-
-    let clauses = ArrayList<String>()
-    for (typeParam in decl.genericParam.parameters) {
-        let bounds = ArrayList<String>()
-        for (constraint in decl.genericConstraint) {
-            if (constraint.typeArgument.toTokens().toString() != typeParam.value) {
-                continue
-            }
-            for (upperBound in constraint.upperBounds) {
-                bounds.add(upperBound.toTokens().toString())
-            }
-        }
-        bounds.add(bound(typeParam.value))
-
-        clauses.add("${typeParam.value} <: ${String.join(bounds.toArray(), delimiter: " & ")}")
-    }
-
-    cangjieLex("where ${String.join(clauses.toArray(), delimiter: ", ")}")
-}
-
-/**
- * `extend<T> Name<T> <: Interface where ... { body }` - every derivation ends in one.
- */
-func extensionOf(decl: Decl, interfaceType: Tokens, bound: (String) -> String, body: Tokens): Tokens {
-    let typeIdent = decl.identifier
-    let typeArgs = typeArgsOf(decl)
-    let whereClause = whereClauseOf(decl, bound)
-
-    quote(
-        extend $typeArgs $typeIdent$typeArgs <: $interfaceType $whereClause {
-            $body
-        }
-    )
-}
-
-/**
- * The type as its own declaration names it, type parameters included - `Box<T>`.
- */
-func selfTypeOf(decl: Decl): Tokens {
-    let typeIdent = decl.identifier
-    let typeArgs = typeArgsOf(decl)
-    quote($typeIdent$typeArgs)
 }
