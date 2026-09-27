@@ -283,7 +283,7 @@ class FtParser {
                     parent.add(part.name, FtValue(AsTable(created), part.start, part.end), part.start, part.end)
                     parent = created
                 case Some(existing) => match (existing.data) {
-                    case AsTable(sub) where sub.origin == Inline =>
+                    case AsTable(sub) where sub.origin == Braced =>
                         throw fail("`${joined(parts, i + 1)}` is an inline table, complete as written", part.start)
                     case AsTable(sub) => parent = sub
                     // the element last defined
@@ -408,7 +408,7 @@ class FtParser {
             throw fail("nested too deep")
         }
         pos++
-        let table = FtTable(Inline)
+        let table = FtTable(Braced)
         while (true) {
             skipBlank()
             if (pos < bytes.size && bytes[pos] == 0x7D) {

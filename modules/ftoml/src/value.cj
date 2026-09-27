@@ -138,7 +138,7 @@ enum TableOrigin {
     /** `a` of `a.b = 1`. Only more dotted keys under the same header add to it. */
     | Dotted
     /** `{ ... }`: nothing adds to it. */
-    | Inline
+    | Braced
     /** An element of `[[a]]`: a table its header defined. */
     | ArrayElement
 }

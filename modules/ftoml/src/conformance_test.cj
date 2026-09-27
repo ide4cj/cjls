@@ -136,6 +136,25 @@ func validFailure(tests: Path, name: String): ?String {
     }
 }
 
+/**
+ * What is wrong with the `valid/` file `name` written back: the value its JSON describes, through
+ * `FtWriter`, has to read as that JSON again - toml-test's encoder cases, with our reader as theirs.
+ */
+func writtenFailure(tests: Path, name: String): ?String {
+    let bytes = File.readFrom(tests.join(name))
+    let expected = Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
+    try {
+        let written = toTomlBytes(parseToml(bytes).root)
+        try {
+            differenceOf(parseToml(written).root, expected, name).map {d => "${d}, written as:\n${String.fromUtf8(written)}"}
+        } catch (e: Exception) {
+            "${name}: ${e}, written as:\n${String.fromUtf8(written)}"
+        }
+    } catch (e: Exception) {
+        "${name}: ${e}"
+    }
+}
+
 /** What is wrong with the `invalid/` file `name`, `None` when it is refused as it should be. */
 func invalidFailure(tests: Path, name: String): ?String {
     let bytes = File.readFrom(tests.join(name))
@@ -175,6 +194,19 @@ class TomlTestCorpusTest {
 
         // act
         let failures = failuresOf(tests, listed(tests, "1.1.0"), false)
+
+        // assert
+        @Expect(failures, Array<String>())
+    }
+
+    @TestCase
+    func everyValidFileWrittenBackReadsAsTheSuiteSays() {
+        // arrange
+        let tests = TOML_TEST
+        let names = listed(tests, "1.1.0").filter {name => name.startsWith("valid/") && name.endsWith(".toml")}
+
+        // act
+        let failures = names |> filterMap {name: String => writtenFailure(tests, name)} |> collectArray
 
         // assert
         @Expect(failures, Array<String>())
