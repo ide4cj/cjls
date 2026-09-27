@@ -11,6 +11,7 @@ public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
         this(words: wordsOf(kinds))
     }
 
+    @Frozen
     static func wordsOf(kinds: Array<K>): Array<UInt64> {
         let size = kinds.iterator().fold(0) {size, k => max(size, k.ordinal() / 64 + 1)}
         let words = Array<UInt64>(size, repeat: 0)
@@ -20,20 +21,24 @@ public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
         words
     }
 
+    @Frozen
     public static func empty(): TokenSet<K> {
         TokenSet<K>(words: [])
     }
 
+    @Frozen
     public func contains(kind: K): Bool {
         let i = kind.ordinal() / 64
         i < words.size && (words[i] & (1 << UInt64(kind.ordinal() % 64))) != 0
     }
 
+    @Frozen
     public func union(other: TokenSet<K>): TokenSet<K> {
         let size = max(words.size, other.words.size)
         TokenSet<K>(words: Array<UInt64>(size) {i => wordAt(i) | other.wordAt(i)})
     }
 
+    @Frozen
     func wordAt(i: Int64): UInt64 {
         if (i < words.size) {
             words[i]
@@ -42,6 +47,7 @@ public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
         }
     }
 
+    @Frozen
     public operator func ==(other: TokenSet<K>): Bool {
         for (i in 0..max(words.size, other.words.size)) {
             if (wordAt(i) != other.wordAt(i)) {
@@ -51,6 +57,7 @@ public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
         true
     }
 
+    @Frozen
     public operator func !=(other: TokenSet<K>): Bool {
         !(this == other)
     }

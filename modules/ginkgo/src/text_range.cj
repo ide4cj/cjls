@@ -13,10 +13,12 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
         }
     }
 
+    @Frozen
     public static func at(offset: Int64, len: Int64): TextRange {
         TextRange(offset, offset + len)
     }
 
+    @Frozen
     public static func empty(offset: Int64): TextRange {
         TextRange(offset, offset)
     }
@@ -27,6 +29,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
         }
     }
 
+    @Frozen
     public func isEmpty(): Bool {
         start == end
     }
@@ -34,6 +37,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * Whether `offset` is inside, `end` excluded.
      */
+    @Frozen
     public func contains(offset: Int64): Bool {
         start <= offset && offset < end
     }
@@ -41,10 +45,12 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * Whether `offset` is inside, `end` included.
      */
+    @Frozen
     public func containsInclusive(offset: Int64): Bool {
         start <= offset && offset <= end
     }
 
+    @Frozen
     public func containsRange(other: TextRange): Bool {
         start <= other.start && other.end <= end
     }
@@ -52,6 +58,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * The common part: empty when the two only touch, `None` when they are apart.
      */
+    @Frozen
     public func intersect(other: TextRange): ?TextRange {
         let s = max(start, other.start)
         let e = min(end, other.end)
@@ -65,22 +72,27 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * The smallest range containing both.
      */
+    @Frozen
     public func cover(other: TextRange): TextRange {
         TextRange(min(start, other.start), max(end, other.end))
     }
 
+    @Frozen
     public func shift(by: Int64): TextRange {
         TextRange(start + by, end + by)
     }
 
+    @Frozen
     public operator func ==(other: TextRange): Bool {
         start == other.start && end == other.end
     }
 
+    @Frozen
     public operator func !=(other: TextRange): Bool {
         !(this == other)
     }
 
+    @Frozen
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
         hasher.write(start)
@@ -88,6 +100,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
         hasher.finish()
     }
 
+    @Frozen
     public func toString(): String {
         "${start}..${end}"
     }

@@ -24,10 +24,12 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
         this(NodeCache<K>())
     }
 
+    @Frozen
     public func token(kind: K, text: String): Unit {
         children.add(GreenElement.Token(cache.token(kind, text)))
     }
 
+    @Frozen
     public func startNode(kind: K): Unit {
         parentKinds.add(kind)
         parentStarts.add(children.size)
@@ -36,6 +38,7 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
     /**
      * @throws IllegalStateException - if no node is open
      */
+    @Frozen
     public func finishNode(): Unit {
         if (parentKinds.isEmpty()) {
             throw IllegalStateException("finishNode without an open node")
@@ -50,6 +53,7 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
         children.add(GreenElement.Node(cache.node(kind, nodeChildren)))
     }
 
+    @Frozen
     public func checkpoint(): Checkpoint {
         Checkpoint(children.size, parentKinds.size)
     }
@@ -60,6 +64,7 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
      * @throws IllegalStateException - if a node opened after `checkpoint` is still open, or one open at it was
      *     finished since
      */
+    @Frozen
     public func startNodeAt(checkpoint: Checkpoint, kind: K): Unit {
         if (checkpoint.depth != parentKinds.size) {
             throw IllegalStateException("startNodeAt a checkpoint taken at another depth")
@@ -77,6 +82,7 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
      *
      * @throws IllegalStateException - otherwise
      */
+    @Frozen
     public func finish(): GreenNode<K> {
         if (!parentKinds.isEmpty()) {
             throw IllegalStateException("finish with ${parentKinds.size} node(s) still open")

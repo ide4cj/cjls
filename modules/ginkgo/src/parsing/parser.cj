@@ -51,6 +51,7 @@ public class Parser<K> where K <: Kind<K> {
      *
      * @throws IllegalStateException - if the parser reads this position too often, stuck in a loop
      */
+    @Frozen
     public func nth(n: Int64): K {
         steps++
         if (steps > STEP_LIMIT) {
@@ -64,30 +65,37 @@ public class Parser<K> where K <: Kind<K> {
         }
     }
 
+    @Frozen
     public func current(): K {
         nth(0)
     }
 
+    @Frozen
     public func at(kind: K): Bool {
         nthAt(0, kind)
     }
 
+    @Frozen
     public func nthAt(n: Int64, kind: K): Bool {
         nth(n) == kind
     }
 
+    @Frozen
     public func atAny(kinds: Array<K>): Bool {
         nthAtAny(0, kinds)
     }
 
+    @Frozen
     public func nthAtAny(n: Int64, kinds: Array<K>): Bool {
         kinds.contains(nth(n))
     }
 
+    @Frozen
     public func atAny(kinds: TokenSet<K>): Bool {
         nthAtAny(0, kinds)
     }
 
+    @Frozen
     public func nthAtAny(n: Int64, kinds: TokenSet<K>): Bool {
         kinds.contains(nth(n))
     }
@@ -95,10 +103,12 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * The contextual kind of the token `n` ahead, if its text gives it one (see `Lexed.toInput`).
      */
+    @Frozen
     public func nthContextual(n: Int64): ?K {
         input.contextualKind(pos + n)
     }
 
+    @Frozen
     public func atEof(): Bool {
         pos >= input.size
     }
@@ -106,6 +116,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Whether trivia counting as a newline comes before the token `n` ahead.
      */
+    @Frozen
     public func nthNewlineBefore(n: Int64): Bool {
         input.isNewlineBefore(pos + n)
     }
@@ -113,6 +124,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Whether trivia counting as a newline comes before the current token.
      */
+    @Frozen
     public func newlineBefore(): Bool {
         nthNewlineBefore(0)
     }
@@ -120,6 +132,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Whether the token `n` ahead and the one after it have nothing between them.
      */
+    @Frozen
     public func isJoint(n: Int64): Bool {
         input.isJointWithNext(pos + n)
     }
@@ -127,6 +140,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Whether the next tokens are `kinds`, with nothing between them: a composite token cut into pieces.
      */
+    @Frozen
     public func atComposite(kinds: Array<K>): Bool {
         for (i in 0..kinds.size) {
             if (nth(i) != kinds[i] || (i + 1 < kinds.size && !isJoint(i))) {
@@ -141,6 +155,7 @@ public class Parser<K> where K <: Kind<K> {
      *
      * @throws IllegalStateException - if it is not: a bug in the grammar
      */
+    @Frozen
     public func bump(kind: K): Unit {
         if (!at(kind)) {
             throw IllegalStateException("bump(${kind}) at ${current()}")
@@ -151,6 +166,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Consumes the current token, whatever it is; nothing at the end.
      */
+    @Frozen
     public func bumpAny(): Unit {
         if (!atEof()) {
             doBump(current(), 1)
@@ -160,6 +176,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Consumes the current token as a token of `kind`: a contextual keyword used as a name, for one.
      */
+    @Frozen
     public func bumpRemap(kind: K): Unit {
         if (!atEof()) {
             doBump(kind, 1)
@@ -169,10 +186,12 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Consumes the next `n` tokens as one token of `kind`: `>` `>` as `>>`. Check `atComposite` first.
      */
+    @Frozen
     public func bumpComposite(kind: K, n: Int64): Unit {
         doBump(kind, n)
     }
 
+    @Frozen
     func doBump(kind: K, n: Int64): Unit {
         events.add(AddToken(kind, n))
         pos += n
@@ -182,6 +201,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Consumes the current token if it is `kind`.
      */
+    @Frozen
     public func eat(kind: K): Bool {
         if (at(kind)) {
             doBump(kind, 1)
@@ -195,6 +215,7 @@ public class Parser<K> where K <: Kind<K> {
      * Consumes the current token if it is `kind`, and reports it missing otherwise, as `ParseError.Expected`: the
      * language words the message.
      */
+    @Frozen
     public func expect(kind: K): Bool {
         if (eat(kind)) {
             return true
@@ -206,6 +227,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Reports an error at the current position, consuming nothing.
      */
+    @Frozen
     public func error(message: String): Unit {
         events.add(AddError(ParseError.Message(message)))
     }
@@ -213,6 +235,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Reports an error and consumes the current token, wrapped in an error node.
      */
+    @Frozen
     public func errAndBump(message: String): Unit {
         let m = start()
         error(message)
@@ -224,10 +247,12 @@ public class Parser<K> where K <: Kind<K> {
      * Reports an error, consuming the current token only if it is not one of `recovery`, which the grammar above
      * knows how to go on from.
      */
+    @Frozen
     public func errRecover(message: String, recovery: Array<K>): Unit {
         errRecover(message, TokenSet(recovery))
     }
 
+    @Frozen
     public func errRecover(message: String, recovery: TokenSet<K>): Unit {
         if (atAny(recovery) || atEof()) {
             error(message)
@@ -239,6 +264,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Starts a node here: complete the marker to make it one, or abandon it.
      */
+    @Frozen
     public func start(): Marker {
         let at = events.size
         events.add(Tombstone)
@@ -248,6 +274,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * The position to `rewind` to, to try parsing a way and take it back.
      */
+    @Frozen
     public func snapshot(): ParserSnapshot {
         ParserSnapshot(pos, events.size)
     }
@@ -256,6 +283,7 @@ public class Parser<K> where K <: Kind<K> {
      * Forgets everything recorded since `snapshot`. Only markers started since may have been completed,
      * abandoned or preceded, or their events are left changed.
      */
+    @Frozen
     public func rewind(snapshot: ParserSnapshot): Unit {
         pos = snapshot.pos
         events.remove(snapshot.eventCount..events.size)
@@ -265,6 +293,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * Whether an error was reported since `snapshot`.
      */
+    @Frozen
     public func hasErrorSince(snapshot: ParserSnapshot): Bool {
         for (i in snapshot.eventCount..events.size) {
             if (let AddError(_) <- events[i]) {
@@ -298,6 +327,7 @@ public struct Marker {
     /**
      * Makes everything consumed since the marker a node of `kind`.
      */
+    @Frozen
     public func complete<K>(p: Parser<K>, kind: K): CompletedMarker<K> where K <: Kind<K> {
         p.events[eventIndex] = StartNode(kind, 0)
         p.events.add(FinishNode)
@@ -307,6 +337,7 @@ public struct Marker {
     /**
      * Makes no node: what was consumed since goes to the enclosing node.
      */
+    @Frozen
     public func abandon<K>(p: Parser<K>): Unit where K <: Kind<K> {
         if (eventIndex == p.events.size - 1) {
             p.events.remove(at: eventIndex)
@@ -320,6 +351,7 @@ public struct CompletedMarker<K> where K <: Kind<K> {
     /**
      * Starts a node that begins where this one does and will contain it: `a` becomes the left side of `a + b`.
      */
+    @Frozen
     public func precede(p: Parser<K>): Marker {
         let m = p.start()
         if (let StartNode(k, _) <- p.events[eventIndex]) {
@@ -331,6 +363,7 @@ public struct CompletedMarker<K> where K <: Kind<K> {
     /**
      * Makes this node another kind.
      */
+    @Frozen
     public func changeKind(p: Parser<K>, kind: K): CompletedMarker<K> {
         if (let StartNode(_, forward) <- p.events[eventIndex]) {
             p.events[eventIndex] = StartNode(kind, forward)

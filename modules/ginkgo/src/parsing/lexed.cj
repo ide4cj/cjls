@@ -19,6 +19,7 @@ public class Lexed<K> where K <: Kind<K> {
      *
      * @throws IllegalArgumentException - if it would run past the end of the text, or is empty
      */
+    @Frozen
     public func push(kind: K, len: Int64): Unit {
         if (len <= 0 || end + len > text.size) {
             throw IllegalArgumentException("A token of ${len} bytes at ${end} does not fit a text of ${text.size}")
@@ -31,6 +32,7 @@ public class Lexed<K> where K <: Kind<K> {
     /**
      * Reports something wrong with the token pushed last.
      */
+    @Frozen
     public func error(message: String): Unit {
         errors.add(LexError(kinds.size - 1, message))
     }
@@ -53,20 +55,24 @@ public class Lexed<K> where K <: Kind<K> {
         }
     }
 
+    @Frozen
     public func kind(i: Int64): K {
         kinds[i]
     }
 
+    @Frozen
     public func range(i: Int64): TextRange {
         let tokenEnd = if (i + 1 < starts.size) { starts[i + 1] } else { end }
         TextRange(starts[i], tokenEnd)
     }
 
+    @Frozen
     public func tokenText(i: Int64): String {
         let r = range(i)
         text[r.start..r.end]
     }
 
+    @Frozen
     public func lexErrors(): Array<LexError> {
         errors.toArray()
     }
@@ -76,6 +82,7 @@ public class Lexed<K> where K <: Kind<K> {
      * trivia counting as a newline does. `contextual` gives a token a second kind by its text, for the grammar
      * to ask about: a name that is a keyword in some places only.
      */
+    @Frozen
     public func toInput(isTrivia: (K) -> Bool, isNewline: (K) -> Bool,
         contextual!: (K, String) -> ?K = {_, _ => None}): Input<K> {
         let input = Input<K>()
@@ -117,6 +124,7 @@ public class Input<K> where K <: Kind<K> {
     let jointWithNext = ArrayList<Bool>()
     let contextualKinds = ArrayList<?K>()
 
+    @Frozen
     public func push(kind: K, afterNewline: Bool): Unit {
         kinds.add(kind)
         newlineBefore.add(afterNewline)
@@ -127,10 +135,12 @@ public class Input<K> where K <: Kind<K> {
     /**
      * Gives the token pushed last a contextual kind.
      */
+    @Frozen
     public func setContextual(kind: K): Unit {
         contextualKinds[contextualKinds.size - 1] = kind
     }
 
+    @Frozen
     public func contextualKind(i: Int64): ?K {
         if (i < contextualKinds.size) {
             contextualKinds[i]
@@ -142,6 +152,7 @@ public class Input<K> where K <: Kind<K> {
     /**
      * Marks the token pushed last as joint with the one pushed next.
      */
+    @Frozen
     public func markJointWithNext(): Unit {
         jointWithNext[jointWithNext.size - 1] = true
     }
@@ -152,14 +163,17 @@ public class Input<K> where K <: Kind<K> {
         }
     }
 
+    @Frozen
     public func kind(i: Int64): K {
         kinds[i]
     }
 
+    @Frozen
     public func isNewlineBefore(i: Int64): Bool {
         i < newlineBefore.size && newlineBefore[i]
     }
 
+    @Frozen
     public func isJointWithNext(i: Int64): Bool {
         i < jointWithNext.size && jointWithNext[i]
     }

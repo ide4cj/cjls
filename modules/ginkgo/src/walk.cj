@@ -4,6 +4,7 @@ public enum Direction {
     | Next
     | Prev
 
+    @Frozen
     func step(): Int64 {
         match (this) {
             case Next => 1
@@ -19,6 +20,7 @@ public enum WalkEvent<T> {
     | Enter(T)
     | Leave(T)
 
+    @Frozen
     public func value(): T {
         match (this) {
             case Enter(v) => v
@@ -38,6 +40,7 @@ public enum TokenAtOffset<T> {
     /**
      * Of two tokens, the one ending at the offset.
      */
+    @Frozen
     public func leftBiased(): ?T {
         match (this) {
             case NoToken => None
@@ -49,6 +52,7 @@ public enum TokenAtOffset<T> {
     /**
      * Of two tokens, the one starting at the offset.
      */
+    @Frozen
     public func rightBiased(): ?T {
         match (this) {
             case NoToken => None
@@ -68,6 +72,7 @@ class Successors<T> <: Iterator<T> {
         upcoming = first
     }
 
+    @Frozen
     public func next(): ?T {
         match (upcoming) {
             case Some(current) =>
