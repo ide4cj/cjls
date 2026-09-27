@@ -1,6 +1,6 @@
 package fjson
 
-import std.convert.*
+import fnum.parseFloat64
 
 public class FjException <: Exception {
     public init(message: String) {
@@ -415,16 +415,13 @@ public class FjReader {
         UInt32(v)
     }
 
-    /**
-     * A number, through `std.convert`'s `Float64.parse`, which is not correctly rounded: it reads
-     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off, ~1 in 20 000 two
-     * (`RyuTest`, `TreePropertyTest`, #31).
-     */
+    /** A number, as the nearest `Float64`: what `FjWriter.float64` writes reads back as it was. */
     @Frozen
     public func readFloat64(): Float64 {
+        ws()
         let start = pos
         skipNumber()
-        Float64.parse(unsafe { String.fromUtf8Unchecked(bytes[start..pos]) })
+        parseFloat64(bytes, start, pos)
     }
 
     @Frozen

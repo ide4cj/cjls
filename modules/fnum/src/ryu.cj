@@ -1,11 +1,11 @@
-package fjson
+package fnum
 
 /*
  * The shortest decimal that reads back as the same `Float64`: Ryu (Ulf Adams, PLDI 2018), its
  * `ryu/d2s.c` ported, laid out as the Rust `ryu` crate lays it out for serde_json - `0.1`,
- * `100.0`, `1e21`, `1.2345e-7`. An integral value keeps its `.0`, so what reads it back as any
- * JSON (`AnyValue`) still has a float. `std.convert`'s `.17g` round-trips too, but writes
- * `0.10000000000000001`, and slower (`FjsonFloatBench`).
+ * `100.0`, `1e21`, `1.2345e-7`. An integral value keeps its `.0`, so what reads it back still has
+ * a float - in JSON as in TOML, where `100` is an integer. `std.convert`'s `.17g` round-trips too,
+ * but writes `0.10000000000000001`, and slower (`RyuBench`).
  *
  * The arithmetic is C's: unsigned and wrapping, hence `@OverflowWrapping` on every function that
  * computes.
@@ -16,7 +16,7 @@ const DOUBLE_EXPONENT_MASK: UInt64 = 0x7FF
 const DOUBLE_BIAS: Int64 = 1023
 
 /** The most `writeShortest` writes: a sign, 17 digits, a point, `e-` and three exponent digits. */
-const FLOAT64_CHARS_MAX: Int64 = 25
+public const FLOAT64_CHARS_MAX: Int64 = 25
 
 // floor(log10(2^e)) for 0 <= e <= 1650
 func log10Pow2(e: Int64): Int64 {
@@ -272,11 +272,25 @@ func writeExponent(buf: Array<Byte>, at: Int64, e: Int64): Int64 {
 }
 
 /**
+ * The shortest decimal of the finite `value`, as `writeShortest` writes it.
+ *
+ * @throws IllegalArgumentException - if `value` is NaN or infinite, which have no decimal
+ */
+public func formatShortest(value: Float64): String {
+    if (value.isNaN() || value.isInf()) {
+        throw IllegalArgumentException("no decimal is ${value}")
+    }
+    let buf = Array<Byte>(FLOAT64_CHARS_MAX, repeat: 0)
+    let end = writeShortest(buf, 0, value)
+    unsafe { String.fromUtf8Unchecked(buf[0..end]) }
+}
+
+/**
  * The shortest decimal of the finite `value` at `buf[at..]`, which has room for
  * `FLOAT64_CHARS_MAX` bytes; the index past it.
  */
 @OverflowWrapping
-func writeShortest(buf: Array<Byte>, at: Int64, value: Float64): Int64 {
+public func writeShortest(buf: Array<Byte>, at: Int64, value: Float64): Int64 {
     let bits = value.toBits()
     var i = at
     if ((bits >> 63) != 0) {

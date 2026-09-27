@@ -1,4 +1,4 @@
-package fjson
+package fnum
 
 /*
  * Ryu's full tables for `Float64`, from ulfjack/ryu (`ryu/d2s_full_table.h`), Copyright 2018 Ulf

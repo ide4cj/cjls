@@ -1,4 +1,4 @@
-package fjson
+package fnum
 
 import std.convert.*
 import std.math.numeric.BigInt
@@ -7,7 +7,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 
 func shortest(value: Float64): String {
-    String.fromUtf8(toJsonBytes(value))
+    formatShortest(value)
 }
 
 /** `text`, a decimal, as `digits * 10^exponent`, sign dropped. */
@@ -95,11 +95,10 @@ class RyuTest {
     }
 
     @TestCase
-    func writesNullForWhatJsonCannotHold() {
+    func refusesWhatHasNoDecimal() {
         // act, assert
-        @Expect(shortest(Float64.NaN), "null")
-        @Expect(shortest(Float64.Inf), "null")
-        @Expect(shortest(-Float64.Inf), "null")
+        @AssertThrows[IllegalArgumentException](formatShortest(Float64.NaN))
+        @AssertThrows[IllegalArgumentException](formatShortest(-Float64.Inf))
     }
 
     @TestCase
