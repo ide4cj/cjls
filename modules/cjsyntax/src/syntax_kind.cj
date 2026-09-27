@@ -2,14 +2,98 @@
 
 package cjsyntax
 
-import std.deriving.*
+import std.collection.HashMap
 import ginkgo.Kind
+
+let KEYWORDS: HashMap<String, SyntaxKind> = HashMap<String, SyntaxKind>(
+    [
+        ("_", Underscore),
+        ("Int8", Int8Kw),
+        ("Int16", Int16Kw),
+        ("Int32", Int32Kw),
+        ("Int64", Int64Kw),
+        ("IntNative", IntNativeKw),
+        ("UInt8", UInt8Kw),
+        ("UInt16", UInt16Kw),
+        ("UInt32", UInt32Kw),
+        ("UInt64", UInt64Kw),
+        ("UIntNative", UIntNativeKw),
+        ("Float16", Float16Kw),
+        ("Float32", Float32Kw),
+        ("Float64", Float64Kw),
+        ("Rune", RuneKw),
+        ("Bool", BoolKw),
+        ("Nothing", NothingKw),
+        ("Unit", UnitKw),
+        ("struct", StructKw),
+        ("enum", EnumKw),
+        ("VArray", VArrayKw),
+        ("This", ThisTypeKw),
+        ("package", PackageKw),
+        ("import", ImportKw),
+        ("class", ClassKw),
+        ("interface", InterfaceKw),
+        ("func", FuncKw),
+        ("macro", MacroKw),
+        ("quote", QuoteKw),
+        ("let", LetKw),
+        ("var", VarKw),
+        ("const", ConstKw),
+        ("type", TypeKw),
+        ("init", InitKw),
+        ("this", ThisKw),
+        ("super", SuperKw),
+        ("if", IfKw),
+        ("else", ElseKw),
+        ("case", CaseKw),
+        ("try", TryKw),
+        ("catch", CatchKw),
+        ("finally", FinallyKw),
+        ("for", ForKw),
+        ("do", DoKw),
+        ("while", WhileKw),
+        ("throw", ThrowKw),
+        ("return", ReturnKw),
+        ("continue", ContinueKw),
+        ("break", BreakKw),
+        ("in", InKw),
+        ("match", MatchKw),
+        ("where", WhereKw),
+        ("extend", ExtendKw),
+        ("with", WithKw),
+        ("prop", PropKw),
+        ("static", StaticKw),
+        ("public", PublicKw),
+        ("private", PrivateKw),
+        ("internal", InternalKw),
+        ("protected", ProtectedKw),
+        ("override", OverrideKw),
+        ("redef", RedefKw),
+        ("abstract", AbstractKw),
+        ("sealed", SealedKw),
+        ("open", OpenKw),
+        ("foreign", ForeignKw),
+        ("inout", InoutKw),
+        ("mut", MutKw),
+        ("unsafe", UnsafeKw),
+        ("operator", OperatorKw),
+        ("spawn", SpawnKw),
+        ("synchronized", SynchronizedKw),
+        ("main", MainKw),
+        ("is", IsKw),
+        ("as", AsKw),
+        ("true", TrueKw),
+        ("false", FalseKw),
+        ("common", CommonKw),
+        ("specific", SpecificKw),
+        ("features", FeaturesKw)
+    ]
+)
 
 /**
  * Every kind of token and node in a syntax tree.
  */
-@Derive[Equatable, Hashable]
-public enum SyntaxKind {
+public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
     // Trivia
     /** spaces, tabs and form feeds */
     | Whitespace
@@ -629,6 +713,18 @@ public enum SyntaxKind {
         }
     }
 
+    public operator func ==(that: SyntaxKind): Bool {
+        ordinal() == that.ordinal()
+    }
+
+    public operator func !=(that: SyntaxKind): Bool {
+        ordinal() != that.ordinal()
+    }
+
+    public func hashCode(): Int64 {
+        ordinal()
+    }
+
     public func toString(): String {
         match (this) {
             case Whitespace => "Whitespace"
@@ -1128,89 +1224,7 @@ public enum SyntaxKind {
      * The keyword, or other word, spelled `text`.
      */
     public static func keyword(text: String): ?SyntaxKind {
-        match (text) {
-            case "_" => Underscore
-            case "Int8" => Int8Kw
-            case "Int16" => Int16Kw
-            case "Int32" => Int32Kw
-            case "Int64" => Int64Kw
-            case "IntNative" => IntNativeKw
-            case "UInt8" => UInt8Kw
-            case "UInt16" => UInt16Kw
-            case "UInt32" => UInt32Kw
-            case "UInt64" => UInt64Kw
-            case "UIntNative" => UIntNativeKw
-            case "Float16" => Float16Kw
-            case "Float32" => Float32Kw
-            case "Float64" => Float64Kw
-            case "Rune" => RuneKw
-            case "Bool" => BoolKw
-            case "Nothing" => NothingKw
-            case "Unit" => UnitKw
-            case "struct" => StructKw
-            case "enum" => EnumKw
-            case "VArray" => VArrayKw
-            case "This" => ThisTypeKw
-            case "package" => PackageKw
-            case "import" => ImportKw
-            case "class" => ClassKw
-            case "interface" => InterfaceKw
-            case "func" => FuncKw
-            case "macro" => MacroKw
-            case "quote" => QuoteKw
-            case "let" => LetKw
-            case "var" => VarKw
-            case "const" => ConstKw
-            case "type" => TypeKw
-            case "init" => InitKw
-            case "this" => ThisKw
-            case "super" => SuperKw
-            case "if" => IfKw
-            case "else" => ElseKw
-            case "case" => CaseKw
-            case "try" => TryKw
-            case "catch" => CatchKw
-            case "finally" => FinallyKw
-            case "for" => ForKw
-            case "do" => DoKw
-            case "while" => WhileKw
-            case "throw" => ThrowKw
-            case "return" => ReturnKw
-            case "continue" => ContinueKw
-            case "break" => BreakKw
-            case "in" => InKw
-            case "match" => MatchKw
-            case "where" => WhereKw
-            case "extend" => ExtendKw
-            case "with" => WithKw
-            case "prop" => PropKw
-            case "static" => StaticKw
-            case "public" => PublicKw
-            case "private" => PrivateKw
-            case "internal" => InternalKw
-            case "protected" => ProtectedKw
-            case "override" => OverrideKw
-            case "redef" => RedefKw
-            case "abstract" => AbstractKw
-            case "sealed" => SealedKw
-            case "open" => OpenKw
-            case "foreign" => ForeignKw
-            case "inout" => InoutKw
-            case "mut" => MutKw
-            case "unsafe" => UnsafeKw
-            case "operator" => OperatorKw
-            case "spawn" => SpawnKw
-            case "synchronized" => SynchronizedKw
-            case "main" => MainKw
-            case "is" => IsKw
-            case "as" => AsKw
-            case "true" => TrueKw
-            case "false" => FalseKw
-            case "common" => CommonKw
-            case "specific" => SpecificKw
-            case "features" => FeaturesKw
-            case _ => None
-        }
+        KEYWORDS.get(text)
     }
 }
 

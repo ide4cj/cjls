@@ -25,12 +25,23 @@ func emitKinds(model: Model, header: String, packageName: String): String {
     w.blank()
     w.line("package ${packageName}")
     w.blank()
-    w.line("import std.deriving.*")
+    w.line("import std.collection.HashMap")
     w.line("import ginkgo.Kind")
     w.blank()
+    // for `keyword`, before it as a global has to be: a map, where a `match` compares the text with every word
+    w.line("let KEYWORDS: HashMap<String, SyntaxKind> = HashMap<String, SyntaxKind>([")
+    w.indented {
+        =>
+        let words = kinds.filter {k => k.category == Keyword || k.word}
+        for (i in 0..words.size) {
+            let comma = if (i + 1 < words.size) { "," } else { "" }
+            w.line("(${quoted(words[i].text.getOrThrow())}, ${words[i].name})${comma}")
+        }
+    }
+    w.line("])")
+    w.blank()
     w.doc(["Every kind of token and node in a syntax tree."])
-    w.line("@Derive[Equatable, Hashable]")
-    w.block("public enum SyntaxKind") {
+    w.block("public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable") {
         =>
         for (i in 0..kinds.size) {
             let k = kinds[i]
@@ -50,6 +61,19 @@ func emitKinds(model: Model, header: String, packageName: String): String {
                     w.line("case ${kinds[i].name} => ${i}")
                 }
             }
+        }
+        w.blank()
+        // By the ordinal, not `@Derive`: the derived `==` costs ~50 ns, the ordinal's ~1 ns.
+        w.block("public operator func ==(that: SyntaxKind): Bool") {
+            => w.line("ordinal() == that.ordinal()")
+        }
+        w.blank()
+        w.block("public operator func !=(that: SyntaxKind): Bool") {
+            => w.line("ordinal() != that.ordinal()")
+        }
+        w.blank()
+        w.block("public func hashCode(): Int64") {
+            => w.line("ordinal()")
         }
         w.blank()
         w.block("public func toString(): String") {
@@ -85,13 +109,7 @@ func emitKinds(model: Model, header: String, packageName: String): String {
         w.blank()
         w.doc(["The keyword, or other word, spelled `text`."])
         w.block("public static func keyword(text: String): ?SyntaxKind") {
-            => w.block("match (text)") {
-                =>
-                for (k in kinds where k.category == Keyword || k.word) {
-                    w.line("case ${quoted(k.text.getOrThrow())} => ${k.name}")
-                }
-                w.line("case _ => None")
-            }
+            => w.line("KEYWORDS.get(text)")
         }
     }
     w.blank()

@@ -19,6 +19,19 @@ public func tokenize(text: String): Lexed<SyntaxKind> {
 }
 
 /**
+ * `LEXED_PUNCTUATION` by its first byte, each still longest first: a token is looked for among the few
+ * starting as it does.
+ */
+let PUNCTUATION_BY_FIRST_BYTE: Array<Array<(Array<Byte>, SyntaxKind)>> = {
+    =>
+    let buckets = Array<ArrayList<(Array<Byte>, SyntaxKind)>>(256) {_ => ArrayList<(Array<Byte>, SyntaxKind)>()}
+    for ((text, kind) in LEXED_PUNCTUATION) {
+        buckets[Int64(text[0])].add((text, kind))
+    }
+    buckets.map {bucket => bucket.toArray()}
+}()
+
+/**
  * The lexer's context: code, whose `{`s it counts to find the `}` ending an interpolation, or a string.
  */
 class Frame {
@@ -225,7 +238,7 @@ class Lexer {
     }
 
     func punctuationOrError(start: Int64): Unit {
-        for ((text, kind) in LEXED_PUNCTUATION) {
+        for ((text, kind) in PUNCTUATION_BY_FIRST_BYTE[Int64(bytes[pos])]) {
             if (matches(text)) {
                 pos += text.size
                 emit(kind, start)
@@ -237,7 +250,13 @@ class Lexer {
     }
 
     func matches(text: Array<Byte>): Bool {
-        pos + text.size <= bytes.size && bytes[pos..pos + text.size] == text
+        if (pos + text.size > bytes.size) {
+            return false
+        }
+        for (i in 0..text.size where bytes[pos + i] != text[i]) {
+            return false
+        }
+        true
     }
 
     func blockComment(start: Int64): Unit {
