@@ -148,9 +148,12 @@ public class FtTable <: Iterable<(String, FtValue)> {
     // where each key was written, by the index of its entry
     let keySpans = ArrayList<(Int64, Int64)>()
     var origin: TableOrigin
+    // how many tables and arrays it is in: the root is at 0, and none deeper than `NESTING_MAX`
+    var level: Int64
 
-    init(origin: TableOrigin) {
+    init(origin: TableOrigin, level!: Int64 = 0) {
         this.origin = origin
+        this.level = level
     }
 
     public prop size: Int64 {

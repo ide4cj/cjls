@@ -62,7 +62,7 @@ class FtParser {
                     header()
                     lineEnd()
                 case _ =>
-                    keyValue(current, 0)
+                    keyValue(current)
                     lineEnd()
             }
         }
@@ -220,8 +220,20 @@ class FtParser {
 
     // --- tables
 
+    /**
+     * A table in `parent`, nested one level deeper: nothing is deeper than `NESTING_MAX`, so that
+     * whatever walks a document - a writer, a decoder - never runs out of stack.
+     */
+    private func nested(parent: FtTable, origin: TableOrigin, at: Int64, levels!: Int64 = 1): FtTable {
+        let level = parent.level + levels
+        if (level > NESTING_MAX) {
+            throw fail("nested too deep", at)
+        }
+        FtTable(origin, level: level)
+    }
+
     /** A key/value pair into `table`, the tables of a dotted key created on the way. */
-    private func keyValue(table: FtTable, depth: Int64): Unit {
+    private func keyValue(table: FtTable): Unit {
         let parts = key()
         skipWhitespace()
         if (pos >= bytes.size || bytes[pos] != 0x3D) {
@@ -235,7 +247,7 @@ class FtParser {
             let part = parts[i]
             match (target.get(part.name)) {
                 case None =>
-                    let created = FtTable(Dotted)
+                    let created = nested(target, Dotted, part.start)
                     target.add(part.name, FtValue(AsTable(created), part.start, part.end), part.start, part.end)
                     target = created
                 case Some(existing) => match (existing.data) {
@@ -250,7 +262,7 @@ class FtParser {
         if (target.contains(last.name)) {
             throw fail("`${joined(parts, parts.size)}` is defined twice", last.start)
         }
-        let value = value(depth)
+        let value = value(target.level + 1)
         target.add(last.name, value, last.start, last.end)
     }
 
@@ -279,7 +291,7 @@ class FtParser {
             let part = parts[i]
             match (parent.get(part.name)) {
                 case None =>
-                    let created = FtTable(Implicit)
+                    let created = nested(parent, Implicit, part.start)
                     parent.add(part.name, FtValue(AsTable(created), part.start, part.end), part.start, part.end)
                     parent = created
                 case Some(existing) => match (existing.data) {
@@ -307,13 +319,14 @@ class FtParser {
                     case other => throw fail("`${name}` is already ${other.kindName}", last.start)
                 }
             }
-            let element = FtTable(ArrayElement)
+            // the array one level down, its tables two
+            let element = nested(parent, ArrayElement, last.start, levels: 2)
             array.items.add(FtValue(AsTable(element), start, end))
             element
         } else {
             match (parent.get(last.name)) {
                 case None =>
-                    let created = FtTable(Header)
+                    let created = nested(parent, Header, last.start)
                     parent.add(last.name, FtValue(AsTable(created), start, end), last.start, last.end)
                     created
                 case Some(existing) => match (existing.data) {
@@ -331,7 +344,8 @@ class FtParser {
 
     // --- values
 
-    private func value(depth: Int64): FtValue {
+    /** A value `level` tables and arrays deep. */
+    private func value(level: Int64): FtValue {
         if (pos >= bytes.size) {
             throw fail("expected a value")
         }
@@ -349,8 +363,8 @@ class FtParser {
                 } else {
                     AsString(literalString())
                 }
-            case 0x5B => AsArray(array(depth + 1))
-            case 0x7B => AsTable(inlineTable(depth + 1))
+            case 0x5B => AsArray(array(level))
+            case 0x7B => AsTable(inlineTable(level))
             case 0x74 =>
                 keyword("true")
                 AsBool(true)
@@ -374,8 +388,8 @@ class FtParser {
         pos += text.size
     }
 
-    private func array(depth: Int64): FtArray {
-        if (depth > NESTING_MAX) {
+    private func array(level: Int64): FtArray {
+        if (level > NESTING_MAX) {
             throw fail("nested too deep")
         }
         pos++
@@ -386,7 +400,7 @@ class FtParser {
                 pos++
                 return array
             }
-            array.items.add(value(depth))
+            array.items.add(value(level + 1))
             skipBlank()
             if (pos >= bytes.size) {
                 throw fail("expected `,` or `]`")
@@ -403,19 +417,19 @@ class FtParser {
     }
 
     /** `{ ... }`, over several lines and with a trailing comma if need be (TOML 1.1). */
-    private func inlineTable(depth: Int64): FtTable {
-        if (depth > NESTING_MAX) {
+    private func inlineTable(level: Int64): FtTable {
+        if (level > NESTING_MAX) {
             throw fail("nested too deep")
         }
         pos++
-        let table = FtTable(Braced)
+        let table = FtTable(Braced, level: level)
         while (true) {
             skipBlank()
             if (pos < bytes.size && bytes[pos] == 0x7D) {
                 pos++
                 return table
             }
-            keyValue(table, depth)
+            keyValue(table)
             skipBlank()
             if (pos >= bytes.size) {
                 throw fail("expected `,` or `}`")
