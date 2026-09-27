@@ -23,7 +23,7 @@ Looked at, not references:
 | [Pyright](https://github.com/microsoft/pyright) | lazy checker with hand-made caches, emptied by heap size; R2 covers Python with salsa |
 | [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) | Swift is as near to Cangjie as Kotlin, but the server is a wrapper over the compiler (`sourcekitd`) and a build's index store, as R4 is over cjc |
 | [HLS / ghcide](https://github.com/haskell/haskell-language-server) | incrementality from a build system (Shake), not from queries |
-| [cjlsp](https://github.com/XYZboom/cjlsp) | Cangjie in Rust, own lexer/parser/sema, written in three days (2026-08-28..30) to pass `cangjie_test`'s LSP cases, then paused: a test of a hypothesis, not a product. Worth reading for the macro ABI (`docs/windows-macros.md`, Q9) and the std sources it downloads (Q11) |
+| [cjlsp](https://github.com/XYZboom/cjlsp) | Cangjie in Rust, own lexer/parser/sema, written in three days (2026-08-28..30) to pass `cangjie_test`'s LSP cases, then paused: a test of a hypothesis, not a product. Worth reading for the macro ABI (`docs/windows-macros.md`, #47) and the std sources it downloads (#49) |
 
 ## Comparison
 
@@ -35,8 +35,8 @@ Looked at, not references:
 | Concurrency | read loop writes; a `spawn` per `readonly` request on a snapshot | main loop writes; a pool reads snapshots | same as R1 | a worker per file (`ArkASTWorker`) | a snapshot per change | snapshots, async | read/write actions | a worker per file (`ASTWorker`) | one worker thread, every request in turn |
 | Cancellation | a write cancels in-flight queries (D8) | same (salsa) | same (salsa) | not checked | context per snapshot | cancellation tokens | read action restarted | per request | none: a queued request runs |
 | Project model | none yet (#12) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` | a module per workspace folder; `cjpm.toml` not read |
-| Macros | none yet (Q9) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
-| Cache between sessions | none (Q12) | none: every start analyzes again ([#4712](https://github.com/rust-lang/rust-analyzer/issues/4712), open since 2020) | none ([ty#471](https://github.com/astral-sh/ty/issues/471)) | its index | export data and xrefs per package | its index | IntelliJ's indexes | its background index | not checked |
+| Macros | none yet (#47) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
+| Cache between sessions | none (#50) | none: every start analyzes again ([#4712](https://github.com/rust-lang/rust-analyzer/issues/4712), open since 2020) | none ([ty#471](https://github.com/astral-sh/ty/issues/471)) | its index | export data and xrefs per package | its index | IntelliJ's indexes | its background index | not checked |
 | Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk | IntelliJ stubs |
 | Diagnostics | none yet (#17) | pull for its own, push for `cargo check`'s on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
 
@@ -55,10 +55,10 @@ Looked at, not references:
 | Semantic tokens | R1 | `syntax_highlighting` over the tree, refined by `hir` | #16 |
 | Workspace, watched files | R1, R5 | `project_model`, `load-cargo`; `go/packages`, file watching | #12 |
 | Project model | R4, R5 | cjpm has no `cargo metadata` / `go list`: read `cjpm.toml` ourselves, as R4 does | #12, #14 §3 |
-| Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap` | Q10 |
-| Types, overloads, class hierarchies, `extend` | R3, R6, R7 | R1 has no overloading and no subclassing: Roslyn's and K2's overload resolution, cjc's Sema as the specification | Q10 |
-| Macros | R1, R4 | expand out of process, by running the compiled macro package | Q9 |
-| Workspace symbols, references | R6, R7, R8 | R1 searches the text, then resolves; the others keep an index. In memory first; on disk only when measured to be needed | #12, Q12 |
+| Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap` | #48 |
+| Types, overloads, class hierarchies, `extend` | R3, R6, R7 | R1 has no overloading and no subclassing: Roslyn's and K2's overload resolution, cjc's Sema as the specification | #48 |
+| Macros | R1, R4 | expand out of process, by running the compiled macro package | #47 |
+| Workspace symbols, references | R6, R7, R8 | R1 searches the text, then resolves; the others keep an index. In memory first; on disk only when measured to be needed | #12, #50 |
 | LSP extensions | R1 | `lsp-extensions.md`: methods of its own where LSP has none, under a prefix, in `experimental` | D15 |
 | Test fixtures | R1 | `$0` cursors, `//- /path` multi-file fixtures | not yet |
 
@@ -79,18 +79,18 @@ Features:
 
 | Feature | R4 | R9 | cjls |
 |---|---|---|---|
-| Diagnostics | the compiler's, all of them; push | its checkers; push | none; syntax in #17, semantic after Q10 |
+| Diagnostics | the compiler's, all of them; push | its checkers; push | none; syntax in #17, semantic after #48 |
 | Semantic tokens | `full` | `full`, `range` | #16 (syntactic; `full` and `range`) |
 | Document symbols | yes | yes | yes |
 | Workspace symbols | yes | yes | #12 |
-| Hover, definition, references, document highlight, rename | yes | yes | after Q10 |
-| Completion, signature help | yes | yes | after Q10 |
-| Type definition, implementation | — | yes | after Q10 |
-| Call and type hierarchy | yes | — | after Q10 |
+| Hover, definition, references, document highlight, rename | yes | yes | after #48 |
+| Completion, signature help | yes | yes | after #48 |
+| Type definition, implementation | — | yes | after #48 |
+| Call and type hierarchy | yes | — | after #48 |
 | Folding, selection range, formatting | — | yes | — |
 | Code actions, code lens, document links | yes | code actions | — |
-| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | Q9 |
-| `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | Q11 |
+| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | #47 |
+| `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | #49 |
 | Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio, in place of standard ones | — | only where LSP has nothing, under `cjls/` (D15) |
 
 R4's column is the methods its binary answers (its strings, SDK of 2025-07); R9's is what its `AnalysisApiCangjieAnalysisFacade` declares, not what worked when tried (above).
