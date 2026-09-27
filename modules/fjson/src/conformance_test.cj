@@ -9,8 +9,7 @@ import stdx.encoding.json.*
 import stdx.encoding.json.stream.*
 
 /*
- * fjson against JSONTestSuite (`testdata/JSONTestSuite`, vendored as it is upstream: its README
- * names the commit), stdx's parser, and bytes a fuzzer would throw at it. Whatever the input, the
+ * fjson against JSONTestSuite (in `.corpora/`, at the commit `tests/corpora/fetch.py` names), stdx's parser, and bytes a fuzzer would throw at it. Whatever the input, the
  * reader either reads it or throws `FjException`: any other exception, or an error, is a bug.
  */
 
@@ -173,11 +172,13 @@ func readBothWays(name: String, bytes: Array<Byte>, problems: ArrayList<String>)
     }
 }
 
-let SUITE = "modules/fjson/testdata/JSONTestSuite"
-
 /** The files of one of the suite's directories whose name starts with `prefix`, and their bytes. */
 func corpus(dir: String, prefix!: String = ""): Array<(String, Array<Byte>)> {
-    let path = Path(SUITE).join(dir)
+    let suite = Path(".corpora/JSONTestSuite")
+    if (!exists(suite)) {
+        throw IllegalStateException("JSONTestSuite is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+    }
+    let path = suite.join(dir)
     Directory.readFrom(path)
         .filter {info => info.name.startsWith(prefix)}
         .map {info => (info.name, File.readFrom(path.join(info.name)))}

@@ -13,15 +13,23 @@ import std.unittest.prop_test.*
  * random documents written and read back, shrunk to the smallest that fails.
  */
 
-/** The valid documents of the suite. */
-let VALID_DOCUMENTS: Array<Array<Byte>> = {
-    =>
-    // not `TOML_TEST`: a global of another file may not be initialized yet
-    let tests = Path("modules/ftoml/testdata/toml-test")
-    listed(tests, "1.1.0").filter {name => name.startsWith("valid/") && name.endsWith(".toml")}.map {
+var validDocumentsRead: ?Array<Array<Byte>> = None
+
+/**
+ * The valid documents of the suite. Read on first use, not by a global's initializer: without the
+ * suite, only the cases using it fail.
+ */
+func validDocuments(): Array<Array<Byte>> {
+    if (let Some(documents) <- validDocumentsRead) {
+        return documents
+    }
+    let tests = tomlTest()
+    let documents = listed(tests, "1.1.0").filter {name => name.startsWith("valid/") && name.endsWith(".toml")}.map {
         name => File.readFrom(tests.join(name))
     }
-}()
+    validDocumentsRead = documents
+    documents
+}
 
 /** Whether two values are the same TOML: tables as maps, floats by their bits, NaNs alike. */
 func sameValue(a: FtValue, b: FtValue): Bool {
@@ -80,7 +88,7 @@ class FtFuzzTest {
         // arrange
         let failures = ArrayList<String>()
 
-        for (document in VALID_DOCUMENTS) {
+        for (document in validDocuments()) {
             for (end in 0..document.size) {
                 // act
                 let cut = document[0..end]
@@ -99,7 +107,7 @@ class FtFuzzTest {
         // arrange
         let failures = ArrayList<String>()
 
-        for (document in VALID_DOCUMENTS) {
+        for (document in validDocuments()) {
             for (at in 0..document.size) {
                 // act
                 let dropped = document[0..at].concat(document[at + 1..document.size])
@@ -142,7 +150,7 @@ struct Mutation <: Arbitrary<Mutation> & Shrink<Mutation> & ToString {
     public static func arbitrary(random: RandomSource): Generator<Mutation> {
         Generators.generate {
             =>
-            let document = Int64(random.nextUInt64() % UInt64(VALID_DOCUMENTS.size))
+            let document = Int64(random.nextUInt64() % UInt64(validDocuments().size))
             let count = 1 + Int64(random.nextUInt8() % 6)
             let edits = Array(count) {
                 _ =>
@@ -167,7 +175,7 @@ struct Mutation <: Arbitrary<Mutation> & Shrink<Mutation> & ToString {
 
     /** The document, edited: `at` wraps around its size; a kind of 0 drops, 1 replaces, 2 inserts. */
     func apply(): Array<Byte> {
-        var bytes = VALID_DOCUMENTS[document]
+        var bytes = validDocuments()[document]
         for ((at, kind, b) in edits) {
             if (bytes.isEmpty()) {
                 return [b]

@@ -8,12 +8,19 @@ import fjson.*
 import fnum.parseFloat64
 
 /*
- * toml-test (`testdata/toml-test`, vendored as it is upstream: its README names the release):
+ * toml-test (in `.corpora/`, at the release `tests/corpora/fetch.py` names):
  * every `valid/` file of a version's list decodes to the tagged JSON beside it, every `invalid/`
  * one is refused with an `FtException` - never another exception.
  */
 
-let TOML_TEST = Path("modules/ftoml/testdata/toml-test")
+/** toml-test's `tests/`, where its lists and files are. */
+func tomlTest(): Path {
+    let suite = Path(".corpora/toml-test")
+    if (!exists(suite)) {
+        throw IllegalStateException("toml-test is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+    }
+    suite.join("tests")
+}
 
 /** JSON as toml-test writes its expectations, read with `fjson`. */
 enum Json {
@@ -190,7 +197,7 @@ class TomlTestCorpusTest {
     @TestCase
     func everyFileOfTomlOneOneReadsAsTheSuiteSays() {
         // arrange
-        let tests = TOML_TEST
+        let tests = tomlTest()
 
         // act
         let failures = failuresOf(tests, listed(tests, "1.1.0"), false)
@@ -202,7 +209,7 @@ class TomlTestCorpusTest {
     @TestCase
     func everyValidFileWrittenBackReadsAsTheSuiteSays() {
         // arrange
-        let tests = TOML_TEST
+        let tests = tomlTest()
         let names = listed(tests, "1.1.0").filter {name => name.startsWith("valid/") && name.endsWith(".toml")}
 
         // act
@@ -216,7 +223,7 @@ class TomlTestCorpusTest {
     @TestCase
     func everyValidFileOfTomlOneZeroReadsAsTheSuiteSays() {
         // arrange
-        let tests = TOML_TEST
+        let tests = tomlTest()
 
         // act
         let failures = failuresOf(tests, listed(tests, "1.0.0"), true)

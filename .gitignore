@@ -14,6 +14,9 @@ target
 .claude/*
 !.claude/settings.json
 
+# the third-party test suites, as tests/corpora/fetch.py puts them
+.corpora
+
 # end-to-end tests
 .venv
 __pycache__
