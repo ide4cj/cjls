@@ -1,4 +1,4 @@
 #!/bin/sh
 set -e
 
-cjpm test
+cjpm test --no-progress
