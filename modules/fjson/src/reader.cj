@@ -12,6 +12,7 @@ public enum FjKind {
     | JsonObject | JsonArray | JsonString | JsonNumber | JsonBool | JsonNull
 }
 
+/** How many containers deep `skipValue` and `rawValue` go: a value nested deeper is refused. */
 const MAX_DEPTH = 512
 const SCRATCH_INITIAL = 256
 // what a reader keeps from message to message: `FramedJsonRpcTransport`'s writer keeps as much
@@ -269,21 +270,23 @@ public class FjReader {
                 case 0x75 =>
                     var cp = hex4(i)
                     i += 4
-                    if (cp >= 0xD800 && cp <= 0xDBFF) {
-                        if (i + 6 > bytes.size || bytes[i] != BACKSLASH || bytes[i + 1] != 0x75) {
-                            pos = i
-                            throw fail("a lone surrogate")
+                    if (cp >= 0xD800 && cp <= 0xDFFF) {
+                        // a lone surrogate, which a JavaScript string may hold and UTF-8 cannot, is
+                        // U+FFFD, as `TextEncoder` makes it: one UTF-16 unit for one, so the
+                        // client's positions still hold; the escape after a lone high one is read
+                        // on its own
+                        let low: UInt32 = if (cp <= 0xDBFF && i + 6 <= bytes.size && bytes[i] == BACKSLASH &&
+                            bytes[i + 1] == 0x75) {
+                            hex4(i + 2)
+                        } else {
+                            0
                         }
-                        let low = hex4(i + 2)
-                        if (low < 0xDC00 || low > 0xDFFF) {
-                            pos = i
-                            throw fail("a lone surrogate")
+                        if (low >= 0xDC00 && low <= 0xDFFF) {
+                            cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00)
+                            i += 6
+                        } else {
+                            cp = 0xFFFD
                         }
-                        cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00)
-                        i += 6
-                    } else if (cp >= 0xDC00 && cp <= 0xDFFF) {
-                        pos = i
-                        throw fail("a lone surrogate")
                     }
                     length = pushUtf8(length, cp)
                 case _ =>
@@ -414,7 +417,8 @@ public class FjReader {
 
     /**
      * A number, through `std.convert`'s `Float64.parse`, which is not correctly rounded: it reads
-     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off (`RyuTest`, #31).
+     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off, ~1 in 20 000 two
+     * (`RyuTest`, `TreePropertyTest`, #31).
      */
     @Frozen
     public func readFloat64(): Float64 {
@@ -520,8 +524,8 @@ public class FjReader {
     }
 
     /**
-     * Past the escape at `i`, checked as `unescape` checks it but for surrogates: a lone one is
-     * left to whoever reads the string, as JSON itself leaves it (RFC 8259, 8.2).
+     * Past the escape at `i`, checked as `unescape` checks it: a lone surrogate is JSON (RFC 8259,
+     * 8.2), and `readString` reads it as U+FFFD.
      */
     private func skipEscape(i: Int64): Int64 {
         if (i + 1 >= bytes.size) {
@@ -544,17 +548,17 @@ public class FjReader {
         skipValue(0)
     }
 
+    /** The value inside `depth` containers: one more than `MAX_DEPTH` is refused, before the stack runs out. */
     private func skipValue(depth: Int64): Unit {
-        if (depth > MAX_DEPTH) {
-            throw fail("nested too deep")
-        }
         match (peekKind()) {
             case FjKind.JsonObject =>
+                enter(depth)
                 beginObject()
                 while (nextKey()) {
                     skipValue(depth + 1)
                 }
             case FjKind.JsonArray =>
+                enter(depth)
                 beginArray()
                 while (nextItem()) {
                     skipValue(depth + 1)
@@ -566,6 +570,12 @@ public class FjReader {
         }
         // a value was read: whatever container holds it has a member now
         first = false
+    }
+
+    private func enter(depth: Int64): Unit {
+        if (depth >= MAX_DEPTH) {
+            throw fail("nested deeper than ${MAX_DEPTH}")
+        }
     }
 
     /** The next value's own bytes, a slice of the input: `params` read before `method` is known. */
