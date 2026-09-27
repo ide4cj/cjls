@@ -18,12 +18,14 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
         SyntaxNode(green, None, 0, 0)
     }
 
+    @Frozen
     public prop kind: K {
         get() {
             green.kind
         }
     }
 
+    @Frozen
     public prop textRange: TextRange {
         get() {
             TextRange(offset, offset + green.textLen)
@@ -357,12 +359,14 @@ public class SyntaxToken<K> <: Equatable<SyntaxToken<K>> & Hashable & ToString w
     SyntaxToken(public let green: GreenToken<K>, public let parent: SyntaxNode<K>, public let indexInParent: Int64,
         let offset: Int64) {}
 
+    @Frozen
     public prop kind: K {
         get() {
             green.kind
         }
     }
 
+    @Frozen
     public prop textRange: TextRange {
         get() {
             TextRange(offset, offset + green.textLen)
@@ -473,6 +477,7 @@ public enum SyntaxElement<K> <: Equatable<SyntaxElement<K>> & Hashable & ToStrin
     | Node(SyntaxNode<K>)
     | Token(SyntaxToken<K>)
 
+    @Frozen
     public prop kind: K {
         get() {
             match (this) {
@@ -482,6 +487,7 @@ public enum SyntaxElement<K> <: Equatable<SyntaxElement<K>> & Hashable & ToStrin
         }
     }
 
+    @Frozen
     public prop textRange: TextRange {
         get() {
             match (this) {
@@ -494,6 +500,7 @@ public enum SyntaxElement<K> <: Equatable<SyntaxElement<K>> & Hashable & ToStrin
     /**
      * `None` only for the root.
      */
+    @Frozen
     public prop parent: ?SyntaxNode<K> {
         get() {
             match (this) {

@@ -306,6 +306,7 @@ public class Parser<K> where K <: Kind<K> {
     /**
      * How many input tokens were consumed.
      */
+    @Frozen
     public prop position: Int64 {
         get() {
             pos

@@ -23,6 +23,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
         TextRange(offset, offset)
     }
 
+    @Frozen
     public prop len: Int64 {
         get() {
             end - start

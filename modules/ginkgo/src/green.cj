@@ -19,6 +19,7 @@ public class GreenToken<K> <: Equatable<GreenToken<K>> & Hashable & ToString whe
     /**
      * In UTF-8 bytes.
      */
+    @Frozen
     public prop textLen: Int64 {
         get() {
             text.size
@@ -61,9 +62,36 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
      */
     public let textLen: Int64
 
-    public GreenNode(children: Array<GreenElement<K>>, public let kind: K) {
-        elements = children.clone()
-        offsets = Array<Int64>(children.size, repeat: 0)
+    public let kind: K
+
+    public init(children: Array<GreenElement<K>>, kind: K) {
+        this(GreenNode<K>.measure(children.clone(), kind))
+    }
+
+    private init(node: GreenNode<K>) {
+        elements = node.elements
+        offsets = node.offsets
+        structuralHash = node.structuralHash
+        textLen = node.textLen
+        kind = node.kind
+    }
+
+    private init(elements: Array<GreenElement<K>>, offsets: Array<Int64>, textLen: Int64, structuralHash: Int64, kind: K) {
+        this.elements = elements
+        this.offsets = offsets
+        this.textLen = textLen
+        this.structuralHash = structuralHash
+        this.kind = kind
+    }
+
+    /**
+     * A node of `children`, which it keeps rather than copies. The work is here rather than in a
+     * constructor: a generic class's constructor is never inlined, `@Frozen` or not, so its body
+     * looks the type of every `GreenElement<K>` up at run time (C11).
+     */
+    @Frozen
+    static func measure(children: Array<GreenElement<K>>, kind: K): GreenNode<K> {
+        let offsets = Array<Int64>(children.size, repeat: 0)
         var hasher = DefaultHasher()
         hasher.write(kind.hashCode())
         var len = 0
@@ -72,10 +100,10 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
             len += children[i].textLen
             hasher.write(children[i].hashCode())
         }
-        textLen = len
-        structuralHash = hasher.finish()
+        GreenNode<K>(children, offsets, len, hasher.finish(), kind)
     }
 
+    @Frozen
     public prop childCount: Int64 {
         get() {
             elements.size
@@ -137,7 +165,7 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
         if (start < 0 || end < start || end > elements.size) {
             throw IndexOutOfBoundsException("Invalid child range ${start}..${end} of ${elements.size} children")
         }
-        GreenNode(elements[..start].concat(replacement).concat(elements[end..]), kind)
+        GreenNode<K>.measure(elements[..start].concat(replacement).concat(elements[end..]), kind)
     }
 
     @Frozen
@@ -191,6 +219,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
     | Node(GreenNode<K>)
     | Token(GreenToken<K>)
 
+    @Frozen
     public prop kind: K {
         get() {
             match (this) {
@@ -200,6 +229,7 @@ public enum GreenElement<K> <: Equatable<GreenElement<K>> & Hashable & ToString 
         }
     }
 
+    @Frozen
     public prop textLen: Int64 {
         get() {
             match (this) {

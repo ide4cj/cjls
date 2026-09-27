@@ -40,6 +40,7 @@ public class Lexed<K> where K <: Kind<K> {
     /**
      * How many tokens there are.
      */
+    @Frozen
     public prop size: Int64 {
         get() {
             kinds.size
@@ -49,6 +50,7 @@ public class Lexed<K> where K <: Kind<K> {
     /**
      * Where the tokens pushed so far end.
      */
+    @Frozen
     public prop covered: Int64 {
         get() {
             end
@@ -157,6 +159,7 @@ public class Input<K> where K <: Kind<K> {
         jointWithNext[jointWithNext.size - 1] = true
     }
 
+    @Frozen
     public prop size: Int64 {
         get() {
             kinds.size
