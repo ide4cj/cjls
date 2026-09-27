@@ -1,7 +1,10 @@
 package cjls.handlers
 
+import stdx.serialization.serialization.*
+import stdxx.serialization.AnyValue
 import rope.Encoding
 import cjls.lsp_types.*
+import cjls.lsp_ext.MemoryUsageRequestSpec
 import cjls.server.*
 
 /**
@@ -21,6 +24,7 @@ public func router(): Router {
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
+        .route(MemoryUsageRequestSpec(), handleMemoryUsage)
         .publishDiagnostics(documentDiagnostics)
 }
 
@@ -40,6 +44,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         semanticTokensProvider: SemanticTokensOptionsOrSemanticTokensRegistrationOptions.AsSemanticTokensOptions(
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
-                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true)))
+                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
+        // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
+        experimental: AnyValue(DataModelStruct().add(Field("memoryUsage", DataModelBool(true))))
     )
 }
