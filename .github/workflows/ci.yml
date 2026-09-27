@@ -53,6 +53,19 @@ jobs:
           path: target/release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
           if-no-files-found: error
 
+  # the coverage-guided fuzzers with the comparisons fjson and jsonrpc make fed back to them, in a
+  # target dir of their own; the heap is for cjc's instrumentation, which leaks on every match of
+  # an enum (D24)
+  fuzz:
+    name: Fuzz (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ./.github/actions/setup-cangjie
+      - run: cjpm test --fuzz --target-dir target/fuzz '--filter=*CoverageGuided*.*'
+        env:
+          cjHeapSize: 2GB
+
   e2e:
     name: End-to-end (${{ matrix.os }})
     needs: build

@@ -15,3 +15,7 @@ package-configuration = {}
 [dependencies]
 fjson = { path = "../fjson" }
 stdxx = { path = "../stdxx" }
+
+# `cjpm test --fuzz`: the comparisons made fed to the coverage-guided fuzzers, in tests alone (D24)
+[profile.customized-option]
+fuzz = "--sanitizer-coverage-trace-compares"
