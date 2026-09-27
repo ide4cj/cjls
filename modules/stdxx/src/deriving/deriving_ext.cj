@@ -16,6 +16,8 @@ struct Derivation {
 let DERIVATIONS: Array<Derivation> = [
     Derivation(name: "ToJson", markers: [SERDE_MARKER], derive: {context => serde(context, deriveToJson)}),
     Derivation(name: "FromJson", markers: [SERDE_MARKER], derive: {context => serde(context, deriveFromJson)}),
+    Derivation(name: "ToToml", markers: [SERDE_MARKER], derive: {context => serdeToml(context, deriveToToml)}),
+    Derivation(name: "FromToml", markers: [SERDE_MARKER], derive: {context => serdeToml(context, deriveFromToml)}),
     Derivation(name: "Serializable", markers: [SERDE_MARKER], derive: {context => serde(context, deriveSerializable)})
 ]
 
