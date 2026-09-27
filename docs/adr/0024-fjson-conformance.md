@@ -1,4 +1,4 @@
-# ADR-0023: fjson is held to JSONTestSuite, and reads a lone surrogate as U+FFFD
+# ADR-0024: fjson is held to JSONTestSuite, and reads a lone surrogate as U+FFFD
 
 Status: accepted, 2026-09-27
 
