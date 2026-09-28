@@ -2,6 +2,7 @@ package cjls.handlers
 
 import std.fs.{exists, remove, Path}
 import std.env.getTempDirectory
+import std.runtime.getGCCount
 import fjson.RawJson
 import rope.Encoding
 import jsonrpc.*
@@ -12,13 +13,16 @@ import cjls.lsp_ext.*
 class MemoryUsageTest {
     @TestCase
     func afterACollectionTheHeapInUseAndTheCollectionsAreReported() {
+        // arrange
+        let before = getGCCount()
+
         // act
         let usage = handleMemoryUsage(MemoryUsageParams(collect: true))
 
         // assert
         @Expect(usage.usedHeap > 0)
         @Expect(usage.usedHeap <= usage.maxHeap)
-        @Expect(usage.gcCount >= 1)
+        @Expect(usage.gcCount > before)
         @Expect(usage.threads >= 1)
     }
 

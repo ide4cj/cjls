@@ -15,12 +15,13 @@ import cjls.macros.LspHandler
 let COLLECT_TIMEOUT = Duration.second * 5
 
 /**
- * @throws RpcException - `REQUEST_FAILED`, if the heap dump cannot be written where asked
+ * @throws RpcException - `REQUEST_FAILED`, if the collection asked for has not run in
+ * `COLLECT_TIMEOUT`, or the heap dump cannot be written where asked
  */
 @LspHandler[readonly]
 func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
-    if (params.collect ?? false) {
-        collect()
+    if ((params.collect ?? false) && !collect()) {
+        throw RpcException(ErrorCode.REQUEST_FAILED, "no collection ran in ${COLLECT_TIMEOUT}")
     }
     if (let Some(path) <- params.heapDump) {
         try {
@@ -41,13 +42,15 @@ func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
 }
 
 /**
- * A full collection, waited for: `gc(heavy: true)` returns before the collector has run.
+ * A full collection, waited for: `gc(heavy: true)` returns before the collector has run. False if
+ * none ran in `COLLECT_TIMEOUT`.
  */
-func collect(): Unit {
+func collect(): Bool {
     let before = getGCCount()
     let started = MonoTime.now()
     gc(heavy: true)
     while (getGCCount() == before && MonoTime.now() - started < COLLECT_TIMEOUT) {
         sleep(Duration.millisecond)
     }
+    getGCCount() != before
 }

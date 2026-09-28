@@ -8,7 +8,7 @@ What the Cangjie runtime says of the server's heap, as numbers a driver can read
 
 | Params (all optional) | |
 |---|---|
-| `collect: boolean` | a full collection first, waited for: `allocatedHeap` is then what is held |
+| `collect: boolean` | a full collection first, waited for: `allocatedHeap` is then what is held; `RequestFailed` if none has run in 5 s |
 | `heapDump: string` | a heap dump written to that path first (after the collection), for `cjprof heap -i <path>`; `RequestFailed` if it cannot be |
 
 | Result | `std.runtime` | |
