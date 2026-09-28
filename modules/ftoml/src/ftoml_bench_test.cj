@@ -4,8 +4,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 
 /*
- * A document read and written back: one the size of a `cjpm.toml`, what the generators and the
- * workspace loader read, and one of about 1 MB of every kind of value, tables spread over the file
+ * A document read and written back: one the size of a `cjpm.toml`, and one of about 1 MB of every kind of value, tables spread over the file
  * included.
  *
  * `cjpm bench '--filter=FtomlBench*'`
@@ -14,8 +13,8 @@ import std.unittest.testmacro.*
 let MANIFEST: Array<Byte> = #"
 [package]
 cjc-version = "1.3.0"
-name = "cjls"
-description = "A language server for Cangjie"
+name = "demo"
+description = "A demo for Cangjie"
 version = "0.1.0"
 target-dir = ""
 src-dir = ""
@@ -23,17 +22,17 @@ output-type = "executable"
 compile-option = "-Woff unused -O2 --static-std"
 override-compile-option = ""
 link-option = "-lc++"
-package-configuration = { "cjls" = { compile-option = "--static" } }
+package-configuration = { "demo" = { compile-option = "--static" } }
 
 [dependencies]
-calca = { path = "../calca" }
-jsonrpc = { path = "../jsonrpc" }
-loupe = { path = "../loupe" }
-rope = { path = "../rope" }
-stdxx = { path = "../stdxx" }
+core = { path = "../core" }
+net = { path = "../net" }
+json = { path = "../json" }
+text = { path = "../text" }
+log = { path = "../log" }
 
 [test-dependencies]
-cjsyntax = { path = "../cjsyntax" }
+fixtures = { path = "../fixtures" }
 
 # stdx is the static one, unpacked per platform as the nightly zips lay it out
 [target.aarch64-apple-darwin.bin-dependencies]

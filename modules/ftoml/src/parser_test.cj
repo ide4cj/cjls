@@ -48,7 +48,7 @@ class FtParserTest {
     @TestCase
     func aValueKnowsTheBytesItWasReadFrom() {
         // arrange
-        let text = "name = \"cjls\" # the server\n[deps]\nfjson = { path = \"../fjson\" }\n"
+        let text = "name = \"demo\" # the package\n[deps]\nfjson = { path = \"../fjson\" }\n"
 
         // act
         let root = parseToml(text).table
@@ -57,7 +57,7 @@ class FtParserTest {
         let fjson = deps.asTable().get("fjson").getOrThrow()
 
         // assert
-        @Expect(textAt(text, name.start, name.end), "\"cjls\"")
+        @Expect(textAt(text, name.start, name.end), "\"demo\"")
         @Expect(textAt(text, deps.start, deps.end), "[deps]")
         @Expect(textAt(text, fjson.start, fjson.end), "{ path = \"../fjson\" }")
         let (keyStart, keyEnd) = deps.asTable().keySpan("fjson").getOrThrow()

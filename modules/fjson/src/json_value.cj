@@ -3,9 +3,9 @@ package fjson
 import std.collection.ArrayList
 
 /**
- * Any JSON value at all, `null` included: what a field of any value holds (`LSPAny`), kept as a
- * tree. An object keeps its keys in the order they came, so a value round-trips as it came: an
- * integer stays one, a number with a fraction or an exponent is a `Float64`.
+ * Any JSON value at all, `null` included, kept as a tree. An object keeps its keys in the order
+ * they came, so a value round-trips as it came: an integer stays one, a number with a fraction or
+ * an exponent is a `Float64`.
  *
  * The variants are `Json`-prefixed, as `Null`, `Bool`, `String`, `Array` would shadow `std`'s types
  * wherever `fjson.*` is.
@@ -158,8 +158,7 @@ extend JsonValue <: ToJson & FromJson<JsonValue> & ToString {
 }
 
 /**
- * How deep an `JsonValue` may nest: it is read recursively, and a client's `initializationOptions`
- * must not be able to run the stack out.
+ * How deep a `JsonValue` may nest: it is read recursively, and no text may run the stack out.
  */
 public const JSON_VALUE_DEPTH_MAX = 512
 

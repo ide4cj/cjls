@@ -7,7 +7,7 @@ import std.unittest.testmacro.*
 import ftoml.*
 import stdxx.deriving.*
 
-// A manifest in the manner of `cjpm.toml`: what the generators' configurations will be read as.
+// A manifest in the manner of `cjpm.toml`, as read into types of its own.
 
 @DeriveExt[ToToml, FromToml]
 struct TomlManifest {
@@ -128,14 +128,14 @@ private func read<T>(text: String): T where T <: FromToml<T> {
     fromTomlString<T>(text)
 }
 
-private let PACKAGE = TomlPackage(name: "cjls", cjcVersion: "1.3.0", outputType: TomlOutputType.Executable)
+private let PACKAGE = TomlPackage(name: "demo", cjcVersion: "1.3.0", outputType: TomlOutputType.Executable)
 
 @Test
 class DeriveTomlStructTest {
     @TestCase
     func plainKeysAreWrittenInDeclarationOrderAndNoneNotAtAll() {
         // act & assert
-        @Expect(toml(PACKAGE), "name = \"cjls\"\ncjc-version = \"1.3.0\"\noutput-type = \"Executable\"\n")
+        @Expect(toml(PACKAGE), "name = \"demo\"\ncjc-version = \"1.3.0\"\noutput-type = \"Executable\"\n")
     }
 
     @TestCase
@@ -152,7 +152,7 @@ class DeriveTomlStructTest {
 
         // act & assert
         @Expect(toml(manifest),
-            "[package]\nname = \"cjls\"\ncjc-version = \"1.3.0\"\noutput-type = \"Executable\"\n" +
+            "[package]\nname = \"demo\"\ncjc-version = \"1.3.0\"\noutput-type = \"Executable\"\n" +
             "\n[dependencies]\n\n[dependencies.fjson]\nkind = \"path\"\npath = \"../fjson\"\n" +
             "\n[[bin]]\nname = \"a\"\nlevel = 0\n" + "\n[profile]\nlto = false\njobs = 4\n")
     }
@@ -166,7 +166,7 @@ class DeriveTomlStructTest {
     @TestCase
     func aManifestRoundTrips() {
         // arrange
-        let text = "[package]\nname = \"cjls\"\ncjc-version = \"1.3.0\"\noutput-type = \"static\"\n" +
+        let text = "[package]\nname = \"demo\"\ncjc-version = \"1.3.0\"\noutput-type = \"static\"\n" +
             "members = [\"a\", \"b\"]\n\n[dependencies]\nfjson = { kind = \"path\", path = \"../fjson\" }\n" +
             "rope = \"1.0\"\n\n[[bin]]\nname = \"x\"\nlevel = 7\n"
 

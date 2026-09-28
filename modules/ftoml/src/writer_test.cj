@@ -19,7 +19,7 @@ class FtWriterTest {
             w =>
             w.beginTable()
             w.key("name")
-            w.string("cjls")
+            w.string("demo")
             w.key("dependencies")
             w.beginTable()
             w.key("fjson")
@@ -32,7 +32,7 @@ class FtWriterTest {
         }
 
         // assert
-        @Expect(text, "name = \"cjls\"\n\n[dependencies]\n\n[dependencies.fjson]\npath = \"../fjson\"\n")
+        @Expect(text, "name = \"demo\"\n\n[dependencies]\n\n[dependencies.fjson]\npath = \"../fjson\"\n")
     }
 
     @TestCase

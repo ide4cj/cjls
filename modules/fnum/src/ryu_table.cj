@@ -6,7 +6,7 @@ package fnum
  * entry is two `UInt64`s, low then high, of a 125-bit fixed-point power of five.
  *
  * Generated from that header; not edited by hand. `Array`s, not `VArray`s: a global `VArray` is
- * copied whole at every index, which made Ryu five times slower (`FjsonFloatBench`).
+ * copied whole at every index, which made Ryu five times slower (`RyuBench`).
  */
 
 const RYU_POW5_INV_BITCOUNT: Int64 = 125

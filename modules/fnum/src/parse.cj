@@ -24,8 +24,8 @@ let POW10_EXACT: Array<Float64> = [1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 
 
 /**
  * `bytes[from..to]` as the nearest `Float64`, ties to even: `[+-]? digits ('.' digits)? ([eE]
- * [+-]? digits)?`, a `_` anywhere among the digits skipped - where TOML lets one stand is its
- * reader's to check. Too large a value is an infinity, too small a zero, of its sign.
+ * [+-]? digits)?`, a `_` anywhere among the digits skipped - where one may stand is the
+ * caller's to check. Too large a value is an infinity, too small a zero, of its sign.
  *
  * @throws IllegalArgumentException - if the bytes are not of that form
  */

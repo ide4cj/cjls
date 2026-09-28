@@ -37,8 +37,7 @@ public enum FtShape {
 }
 
 /**
- * A value that writes itself as TOML: serde's `Serialize`, for one format. `@DeriveExt[ToToml]`
- * generates it.
+ * A value that writes itself as TOML: serde's `Serialize`, for one format.
  */
 public interface ToToml {
     func toToml(w: FtWriter): Unit
@@ -55,8 +54,8 @@ public interface ToToml {
 }
 
 /**
- * A value read from a document: serde's `Deserialize`. `@DeriveExt[FromToml]` generates it. A value
- * that is not a `T` throws `FtException`, placed at it.
+ * A value read from a document: serde's `Deserialize`. A value that is not a `T` throws
+ * `FtException`, placed at it.
  */
 public interface FromToml<T> {
     static func fromToml(v: FtValue): T
