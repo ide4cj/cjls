@@ -11,7 +11,7 @@ public struct RootsRead {
     public RootsRead(
         public let files: Array<(VfsPath, Rope)>,
         /**
-         * Whether the walk stopped at its budget, leaving files unread.
+         * Whether files were left out for the budget.
          */
         public let truncated: Bool
     ) {}
@@ -22,8 +22,9 @@ public struct RootsRead {
  * `target` directory (cjpm's output) or a hidden one (named with a leading `.`). Symbolic links are
  * not followed, so the walk cannot cycle; a file that cannot be read, or is not UTF-8, is left out,
  * and so is a directory that cannot be listed. A root inside another is read once, and a virtual
- * one not at all. The walk stops once it read `budget` bytes, as a root far wider than a project
- * (a home directory) would take all the memory there is.
+ * one not at all. At most `budget` bytes are kept, as a root far wider than a project (a home
+ * directory) would take all the memory there is: a file that does not fit in what is left is left
+ * out, and the walk goes on for those that do.
  *
  * Touches nothing but the disk, so any thread may call it.
  */
@@ -78,7 +79,7 @@ func isCangjieFile(name: String): Bool {
 }
 
 /**
- * The files read so far, and the bytes left to read.
+ * The files read so far, and the bytes left to keep.
  */
 private class Walk {
     let files = ArrayList<(VfsPath, Rope)>()
@@ -93,15 +94,17 @@ private class Walk {
             return
         }
         for (entry in entries where !entry.isSymbolicLink()) {
-            if (truncated) {
-                return
-            }
             if (entry.isDirectory()) {
                 if (isScanned(entry.name)) {
                     readDirectory(entry.path)
                 }
             } else if (entry.isRegular() && isCangjieFile(entry.name)) {
-                readSourceFile(VfsPath.file(entry.path))
+                // told by its size, so a file that cannot fit is not even read
+                if (entry.size > budget) {
+                    truncated = true
+                } else {
+                    readSourceFile(VfsPath.file(entry.path))
+                }
             }
         }
     }

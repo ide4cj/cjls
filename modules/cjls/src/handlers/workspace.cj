@@ -22,7 +22,7 @@ const WORKSPACE_SYMBOL_LIMIT = 128
  * says otherwise, which an editor starting the server does not, and a root far wider than a project
  * (a home directory, a test suite of a hundred thousand files) would fill it with text alone.
  */
-const LOAD_BUDGET = 32 * 1024 * 1024
+const LOAD_BUDGET = 16 * 1024 * 1024
 
 /**
  * The files of every root are watched, then loaded: a change on disk between the two is reported,

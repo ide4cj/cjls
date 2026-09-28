@@ -11,6 +11,7 @@
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |
 | `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
+| loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFile`, `isWorkspaceFile`: the disk, nothing else (D30) |
 | API | `loupe` | a file per feature (`fileStructure`, …): plain functions over queries, speaking `FileId`, `TextRange` and loupe's own types (A3, A8) |
 
 ## Rules
@@ -30,4 +31,6 @@
 | A11 | Diagnostics are part of the results of the queries that find them (`Parse.errors`), never accumulated on the side (D14). |
 | A12 | A diagnostic's range is what its source gives, an empty one included ("expected `}`" at the end of a file); widening it for a client is translation. |
 | A13 | A tracked result holds no `SyntaxNode`, `SyntaxToken`, typed view, `GreenNode` or `Parse` (`parse` itself excepted), only `SyntaxNodePtr`/`AstPtr`: a node keeps its whole tree alive, and `lru` on `parse` frees nothing (D17). A handler holds nodes for the length of a request. |
+| A14 | A question over every file (`workspaceSymbols`) goes through a per-file query of its own that parses without `parse` and keeps no tree (`fileSymbols`): `parse` keeps what it made until the next revision, and all the trees of a workspace do not fit in the heap (D30). |
+| A15 | What the server reads from disk is bounded: a load keeps at most its budget of text (D30). |
 | A14 | A query has a fallback on a cycle (`@CalcaTracked[cycle: f]`) only where the language gives a cycle a meaning of its own (glob imports reaching each other, a recursive type alias), and the fallback is what the compiler reports there (an unresolved name, an error type); anywhere else a cycle is a bug, and `CycleException` says so. |

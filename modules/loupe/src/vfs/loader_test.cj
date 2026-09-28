@@ -78,17 +78,18 @@ class LoaderTest {
     }
 
     @TestCase
-    func theWalkStopsAtItsBudget() {
-        // arrange - four files of four bytes each
-        let dir = tree([("a.cj", "aaaa"), ("b.cj", "bbbb"), ("c.cj", "cccc"), ("d.cj", "dddd")])
+    func aFileThatDoesNotFitTheBudgetIsLeftOutAndTheRestRead() {
+        // arrange - three files of four bytes, one of twenty
+        let dir = tree([("a.cj", "aaaa"), ("big.cj", "bbbbbbbbbbbbbbbbbbbb"), ("c.cj", "cccc"), ("d.cj", "dddd")])
 
         // act
         let read = readRoots([VfsPath.file(dir)], budget: 10)
-        let all = readRoots([VfsPath.file(dir)], budget: 16)
+        let all = readRoots([VfsPath.file(dir)], budget: 32)
         remove(dir, recursive: true)
 
-        // assert
+        // assert - whichever order the disk lists them in, two small ones fit and the big one never
         @Expect(read.files.size, 2)
+        @Expect(read.files.iterator().all {file => file[1].size == 4})
         @Expect(read.truncated)
         @Expect(all.files.size, 4)
         @Expect(!all.truncated)
