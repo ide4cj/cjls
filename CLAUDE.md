@@ -21,23 +21,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **Toolchain, CI, releases** ([D11](docs/adr/0011-ci-and-releases.md), [D21](docs/adr/0021-weekly-releases.md)). One nightly, the tag in `.cangjie-version`; `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs it with stdx, as CI does. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, named per target in the root `cjpm.toml`. CI (macOS arm64, Linux x64, Windows x64) builds, tests, runs the lone binary through `tests/e2e` and the Neovim smoke test, and checks commits and the PR **title** with `cog` (PRs are squash-merged). A release is `cog bump --auto` on master (version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, `CHANGELOG.md`, tag); `bump.yml` runs it on Mondays, `release.yml` attaches the binaries.
 
-### Everything is statically linked (load-bearing)
+### Linking and compiler flags
 
-Every workspace library is `output-type = "static"` and links the **static** stdx. Across a shared-library boundary cjc drops the funcTable for stdx's `extend<T> Array<T> <: Serializable<Array<T>>` at a user `T`, and generic dispatch on `Array<SomeType>` aborts the process (SIGABRT, uncatchable, compiles cleanly, names stdx not the call site):
-
-```
-F funcTable is nullptr, ti: std.core:Array<pkg:T>, itf: ...Serializable<...>
-```
-
-Only static×static survives. **Check `grep output-type modules/*/cjpm.toml` and which stdx is linked before suspecting serialization code.** Escape hatch if a package must be dynamic: deserialize arrays element-wise.
-
-The `cjls` executable is linked `--static` (in its `package-configuration`, so the flag reaches it alone): std and the runtime go in, and it runs without the SDK env, as an editor launches it. Without it it aborts in `dyld` (`@rpath/libcangjie-std-*.dylib`). Linux needs LLVM's `libc++-dev`/`libc++abi-dev` to build it. The generators are not `--static`: they run where the SDK is (they call `cjfmt`).
-
-- cjpm passes no `-O` and cjc defaults to `-O0`, hence `-O2` in the workspace `compile-option` — **repeated in every module** (`-Woff unused -O2`, `--static-std` for executables), because `cjpm build -m` reads the module's manifest alone. Don't dedupe.
-- `-O2` miscompiles a tuple or struct taken apart straight from `ArrayList.remove`'s result (`list.remove(at: i)[1]`, `let (_, v) = list.remove(at: i)`): another element comes back. Read `list[i]` first, then remove.
-- **No LTO** ([D20](docs/adr/0020-no-lto.md)): refused on Darwin; on Linux it links but miscompiles the GC's stack maps (`SIGSEGV` in `MapleRuntime::CheckAndPush` now and then).
-- **No `-dead_strip`**: the runtime aborts on the first message (`Check failed: objectTi != nullptr`).
-- **Keep `std.ast` out of runtime packages**: anything reachable from `cjls` implementing `ToTokens` links the compiler's C++ parser, two thirds of `__text`.
+- **Every library is `output-type = "static"`, on the static stdx.** Across a shared-library boundary cjc drops stdx extensions' funcTables at a user type, and the process aborts at run time (`F funcTable is nullptr, ti: …`, SIGABRT, compiles cleanly). An abort naming stdx is linkage: check `grep output-type modules/*/cjpm.toml` first.
+- **`cjls` is linked `--static`** (its `package-configuration`): std and the runtime go in, so it runs without the SDK env, as an editor launches it. The generators are not: they call `cjfmt`, so the SDK is there. Linux needs LLVM's `libc++-dev`/`libc++abi-dev` to build it.
+- **`-O2` is in every module's `compile-option`**, not only the root's: cjc defaults to `-O0`, and `cjpm build -m` reads the module's manifest alone. Don't dedupe.
+- **`-O2` miscompiles `list.remove(at: i)[1]`** (a tuple or struct taken apart straight from `ArrayList.remove`): read `list[i]` first, then remove.
+- **No LTO** ([D20](docs/adr/0020-no-lto.md)), **no `-dead_strip`** (the runtime aborts on the first message), **no `std.ast` in runtime packages** (a `ToTokens` reachable from `cjls` links the compiler's parser, two thirds of the binary).
 
 ### Commits
 
@@ -45,7 +35,7 @@ Conventional Commits, enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`
 
 ## Workspace layout
 
-Members of the root `cjpm.toml`. A module is a library that knows nothing of the server; what only the server has is a package of `cjls` ([D3](docs/adr/0003-modules-and-packages.md)). All libraries are `static` (above).
+Members of the root `cjpm.toml`. A module is a library that knows nothing of the server; what only the server has is a package of `cjls` ([D3](docs/adr/0003-modules-and-packages.md)). All libraries are `static` (see *Linking*).
 
 | module | what |
 |---|---|
