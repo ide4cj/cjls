@@ -4,6 +4,15 @@ import std.fs.Path
 import stdx.encoding.url.{URL, UrlSyntaxException}
 
 /**
+ * What separates the names of a path as `VfsPath` keeps it.
+ */
+@When[os == "Windows"]
+const SEPARATOR = "\\"
+
+@When[os != "Windows"]
+const SEPARATOR = "/"
+
+/**
  * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
  * editor's `untitled:` buffer), the URI it was given, as is. Two URIs spelling one path apart (a
  * `%`-escape the other does not use, a `/./`) give the one `VfsPath`.
@@ -90,6 +99,33 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
         } else {
             text
         }
+    }
+
+    /**
+     * Whether this is `dir`, or a path inside it; a virtual path is under nothing, and nothing is
+     * under it.
+     */
+    public func isUnder(dir: VfsPath): Bool {
+        segmentsUnder(dir).isSome()
+    }
+
+    /**
+     * The names that lead from `dir` down to this path, this path's own last; empty for `dir`
+     * itself, `None` if it is not under `dir`.
+     */
+    func segmentsUnder(dir: VfsPath): ?Array<String> {
+        if (!onDisk || !dir.onDisk || !text.startsWith(dir.text)) {
+            return None
+        }
+        let rest = text[dir.text.size..]
+        if (rest.isEmpty()) {
+            return Array<String>()
+        }
+        // a root (`/`, a drive's `c:\`) ends with its separator; no other directory does
+        if (!dir.text.endsWith(SEPARATOR) && !rest.startsWith(SEPARATOR)) {
+            return None
+        }
+        rest.split(SEPARATOR, removeEmpty: true)
     }
 
     public func hashCode(): Int64 {
