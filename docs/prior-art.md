@@ -64,7 +64,11 @@ Looked at, not references:
 
 ## Competitors
 
-What a user can run instead of cjls, as of 2026-09.
+What a user can run instead of cjls, as of 2026-09: R4, and one that is a competitor only.
+
+| # | Server | Serves | Written in | For cjls |
+|---|---|---|---|---|
+| R9 | [lin-qingying/cangjie](https://github.com/lin-qingying/cangjie) | Cangjie | Kotlin | **a competitor**, not a model: R7's architecture carried to Cangjie; read for how it maps Cangjie onto K2's resolve phases, as R7 is |
 
 | | R4 LSPServer | R9 lin-qingying/cangjie | cjls |
 |---|---|---|---|
