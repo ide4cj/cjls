@@ -152,13 +152,11 @@ func nameLiteral(name: Token): Token {
  * A struct of `fields`, `Hashable` and `Equatable` by all of them: several values as one key, which
  * a tuple cannot be.
  */
-func fieldsStruct(name: Token, fields: ArrayList<VarDecl>): Tokens {
+func fieldsStruct(name: Token, fields: Array<(Token, Tokens)>): Tokens {
     var params = Tokens()
     var hashes = Tokens()
     var equal = quote(true)
-    for (field in fields) {
-        let ident = field.identifier
-        let fieldType = field.declType.toTokens()
+    for ((ident, fieldType) in fields) {
         params += quote(let $ident: $fieldType, )
         hashes += quote(hasher.write($ident.hashCode())
         )
