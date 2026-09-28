@@ -1,7 +1,6 @@
 package cjls.handlers
 
-import stdx.serialization.serialization.*
-import stdxx.serialization.AnyValue
+import fjson.JsonValue
 import rope.Encoding
 import cjls.lsp_types.*
 import cjls.lsp_ext.MemoryUsageRequestSpec
@@ -46,6 +45,6 @@ func capabilities(encoding: Encoding): ServerCapabilities {
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
                 full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
         // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
-        experimental: AnyValue(DataModelStruct().add(Field("memoryUsage", DataModelBool(true))))
+        experimental: JsonValue.JsonObject([("memoryUsage", JsonValue.JsonBool(true))])
     )
 }

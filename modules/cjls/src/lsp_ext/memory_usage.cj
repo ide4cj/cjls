@@ -6,9 +6,8 @@ import jsonrpc.*
 import cjls.lsp_types.{LspInboundRequest, MessageDirection}
 
 /**
- * `cjls/memoryUsage`, rust-analyzer's `rust-analyzer/memoryUsage`: what the Cangjie runtime says of
- * its heap and its collections, as numbers rather than a report, so a driver can read them
- * (`docs/lsp-extensions.md`).
+ * `cjls/memoryUsage`: what the Cangjie runtime says of its heap and its collections, as numbers a
+ * driver can read (`docs/lsp-extensions.md`).
  */
 public struct MemoryUsageRequestSpec <: LspInboundRequest<MemoryUsageParams, MemoryUsage> {
     public static prop METHOD: String {

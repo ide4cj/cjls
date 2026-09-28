@@ -1,8 +1,10 @@
 package cjls.handlers
 
-import std.fs.Path
+import std.fs.{FSException, Path}
 import std.runtime.*
 import std.time.MonoTime
+import jsonrpc.{ErrorCode, RpcException}
+import cjls.lsp_types.*
 import cjls.lsp_ext.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -12,13 +14,20 @@ import cjls.macros.LspHandler
  */
 let COLLECT_TIMEOUT = Duration.second * 5
 
+/**
+ * @throws RpcException - `REQUEST_FAILED`, if the heap dump cannot be written where asked
+ */
 @LspHandler[readonly]
 func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
     if (params.collect ?? false) {
         collect()
     }
     if (let Some(path) <- params.heapDump) {
-        dumpHeapData(Path(path))
+        try {
+            dumpHeapData(Path(path))
+        } catch (e: FSException) {
+            throw RpcException(ErrorCode.REQUEST_FAILED, e.message)
+        }
     }
     MemoryUsage(
         usedHeap: getUsedHeapSize(),

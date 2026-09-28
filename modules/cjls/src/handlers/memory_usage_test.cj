@@ -5,6 +5,7 @@ import std.env.getTempDirectory
 import fjson.RawJson
 import rope.Encoding
 import jsonrpc.*
+import cjls.lsp_types.*
 import cjls.lsp_ext.*
 
 @Test
@@ -35,6 +36,18 @@ class MemoryUsageTest {
         // assert
         @Expect(exists(path))
         remove(path)
+    }
+
+    @TestCase
+    func aHeapDumpThatCannotBeWrittenFailsTheRequest() {
+        // arrange
+        let path = getTempDirectory().join("cjls-memory-usage-test-missing").join("heap.data")
+
+        // act
+        let e = @AssertThrows[RpcException](handleMemoryUsage(MemoryUsageParams(heapDump: path.toString())))
+
+        // assert
+        @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
     }
 
     @TestCase
