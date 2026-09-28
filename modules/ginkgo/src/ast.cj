@@ -23,7 +23,19 @@ public interface AstNode<K, T> where K <: Kind<K> {
  */
 @Frozen
 public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: AstNode<K, T> {
-    astChildren<K, T>(parent).next()
+    // a loop over the green children, not `astChildren(parent).next()`: a red node is made only for a child
+    // of the right kind, and no iterator is (#22)
+    let green = parent.green
+    for (i in 0..green.childCount) {
+        if (let GreenElement.Node(n) <- green.child(i)) {
+            if (T.canCast(n.kind)) {
+                if (let Some(it) <- T.cast(SyntaxNode(n, parent, i, parent.offset + green.childOffset(i)))) {
+                    return it
+                }
+            }
+        }
+    }
+    None
 }
 
 /**
@@ -31,7 +43,7 @@ public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: A
  */
 @Frozen
 public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
-    parent.children().filterMap {c => T.cast(c)}
+    AstChildren<K, T>(parent, 0, None)
 }
 
 /**
@@ -42,7 +54,23 @@ public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kin
 @Frozen
 public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): ?T where K <: Kind<K>,
     T <: AstNode<K, T> {
-    parent.children().filter {c => counted.contains(c.kind)}.skip(n).next().flatMap {c => T.cast(c)}
+    let green = parent.green
+    var seen = 0
+    for (i in 0..green.childCount) {
+        if (let GreenElement.Node(node) <- green.child(i)) {
+            if (counted.contains(node.kind)) {
+                if (seen == n) {
+                    return if (T.canCast(node.kind)) {
+                        T.cast(SyntaxNode(node, parent, i, parent.offset + green.childOffset(i)))
+                    } else {
+                        None
+                    }
+                }
+                seen++
+            }
+        }
+    }
+    None
 }
 
 /**
@@ -52,19 +80,32 @@ public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet
 @Frozen
 public func astChildrenFrom<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): Iterator<T> where K <: Kind<K>,
     T <: AstNode<K, T> {
-    SkipCounted<K>(parent.children(), n, counted).filterMap {c => T.cast(c)}
+    AstChildren<K, T>(parent, n, counted)
 }
 
-class SkipCounted<K> <: Iterator<SyntaxNode<K>> where K <: Kind<K> {
-    SkipCounted(let inner: Iterator<SyntaxNode<K>>, var toSkip: Int64, let counted: TokenSet<K>) {}
+/**
+ * The children of `parent` that are `T`s, but for the first `toSkip` of those whose kind is in `counted`: a red
+ * node is made only for a child of the right kind.
+ */
+class AstChildren<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
+    var i = 0
+
+    AstChildren(let parent: SyntaxNode<K>, var toSkip: Int64, let counted: ?TokenSet<K>) {}
 
     @Frozen
-    public func next(): ?SyntaxNode<K> {
-        while (let Some(c) <- inner.next()) {
-            if (toSkip > 0 && counted.contains(c.kind)) {
-                toSkip--
-            } else {
-                return c
+    public func next(): ?T {
+        let green = parent.green
+        while (i < green.childCount) {
+            let at = i
+            i++
+            if (let GreenElement.Node(n) <- green.child(at)) {
+                if (toSkip > 0 && (counted?.contains(n.kind) ?? false)) {
+                    toSkip--
+                } else if (T.canCast(n.kind)) {
+                    if (let Some(it) <- T.cast(SyntaxNode(n, parent, at, parent.offset + green.childOffset(at)))) {
+                        return it
+                    }
+                }
             }
         }
         None
@@ -76,7 +117,16 @@ class SkipCounted<K> <: Iterator<SyntaxNode<K>> where K <: Kind<K> {
  */
 @Frozen
 public func astToken<K>(parent: SyntaxNode<K>, kind: K): ?SyntaxToken<K> where K <: Kind<K> {
-    ownTokens(parent).filter {t => t.kind == kind}.next()
+    // as `astChild`, a loop that makes the token only once found
+    let green = parent.green
+    for (i in 0..green.childCount) {
+        if (let GreenElement.Token(t) <- green.child(i)) {
+            if (t.kind == kind) {
+                return SyntaxToken(t, parent, i, parent.offset + green.childOffset(i))
+            }
+        }
+    }
+    None
 }
 
 /**
