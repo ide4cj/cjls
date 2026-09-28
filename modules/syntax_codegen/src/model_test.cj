@@ -1,6 +1,5 @@
 package syntax_codegen
 
-import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 

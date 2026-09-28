@@ -49,12 +49,6 @@ class DeclShape {
         let variants!: Array<DeclVariant>
     ) {}
 
-    prop ident: Token {
-        get() {
-            decl.identifier
-        }
-    }
-
     /**
      * @return `None`, reported, for anything but a `struct`, a `class` or an `enum`
      */
