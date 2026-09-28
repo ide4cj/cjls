@@ -1,4 +1,4 @@
-# ADR-0028: One handle computes a memo, the others wait; a wait that closes a loop is a cycle
+# ADR-0029: One handle computes a memo, the others wait; a wait that closes a loop is a cycle
 
 Status: accepted, 2026-09-29
 
