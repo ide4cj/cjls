@@ -18,6 +18,13 @@ import cjls.macros.LspHandler
 const WORKSPACE_SYMBOL_LIMIT = 128
 
 /**
+ * How much text a load reads at most, in bytes: the runtime's heap is 256 MiB unless `cjHeapSize`
+ * says otherwise, which an editor starting the server does not, and a root far wider than a project
+ * (a home directory, a test suite of a hundred thousand files) would fill it with text alone.
+ */
+const LOAD_BUDGET = 32 * 1024 * 1024
+
+/**
  * The files of every root are watched, then loaded: a change on disk between the two is reported,
  * rather than lost.
  */
@@ -84,9 +91,9 @@ func handleDidChangeWorkspaceFolders(state: ServerState, client: Client, logger:
 func handleWorkspaceSymbol(snap: ServerSnapshot, params: WorkspaceSymbolParams): Nullable<SymbolInformationsOrWorkspaceSymbols> {
     let found = workspaceSymbols(snap.analysis, snap.files, params.query, WORKSPACE_SYMBOL_LIMIT)
     let symbols = found.map {
-        symbol =>
-        let text = snap.analysis.sourceFile(symbol.fileId).getOrThrow().text(snap.analysis)
-        workspaceSymbol(text, snap.path(symbol.fileId).toUri(), symbol, snap.encoding)
+        found =>
+        let text = snap.analysis.sourceFile(found.fileId).getOrThrow().text(snap.analysis)
+        workspaceSymbol(text, snap.path(found.fileId).toUri(), found.symbol, snap.encoding)
     }
     Nullable.Value(SymbolInformationsOrWorkspaceSymbols.AsWorkspaceSymbols(symbols))
 }
@@ -100,9 +107,14 @@ func load(state: ServerState, logger: Logger, roots: Array<VfsPath>): Unit {
         return
     }
     let start = MonoTime.now()
-    let files = readRoots(roots).filter {file => !state.openDocuments.contains(file[0])}
+    let read = readRoots(roots, budget: LOAD_BUDGET)
+    let files = read.files.filter {file => !state.openDocuments.contains(file[0])}
     state.setFilesContents(files.map {file => (file[0], Some(file[1]))})
     logger.info("loaded the workspace", [("roots", roots.size), ("files", files.size), ("took", MonoTime.now() - start)])
+    if (read.truncated) {
+        logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
+            [("budget", LOAD_BUDGET), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
+    }
 }
 
 /**

@@ -3,7 +3,7 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
-import cjsyntax.CjSyntaxToken
+import cjsyntax.{CjParse, CjSyntaxToken}
 import cjsyntax.ast.{Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl}
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
@@ -71,8 +71,14 @@ public class StructureNode {
  * function body declares is not in the outline. Empty for a file the database does not know.
  */
 public func fileStructure(db: AnalysisDatabase, fileId: FileId): Array<StructureNode> {
-    let file = db.sourceFile(fileId) ?? return []
-    let root = SourceFile.cast(parse(db, file).syntaxNode()) ?? return []
+    structureOfTree(parse(db, db.sourceFile(fileId) ?? return []))
+}
+
+/**
+ * The outline of a file's tree.
+ */
+func structureOfTree(tree: CjParse): Array<StructureNode> {
+    let root = SourceFile.cast(tree.syntaxNode()) ?? return []
     structureOf(root.decls(), false)
 }
 

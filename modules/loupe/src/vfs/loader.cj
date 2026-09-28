@@ -5,22 +5,36 @@ import std.fs.*
 import rope.Rope
 
 /**
+ * What `readRoots` read: the files, and whether that is all of them.
+ */
+public struct RootsRead {
+    public RootsRead(
+        public let files: Array<(VfsPath, Rope)>,
+        /**
+         * Whether the walk stopped at its budget, leaving files unread.
+         */
+        public let truncated: Bool
+    ) {}
+}
+
+/**
  * The Cangjie files under `roots`, as the disk holds them: every `*.cj`, but for those in a
  * `target` directory (cjpm's output) or a hidden one (named with a leading `.`). Symbolic links are
  * not followed, so the walk cannot cycle; a file that cannot be read, or is not UTF-8, is left out,
  * and so is a directory that cannot be listed. A root inside another is read once, and a virtual
- * one not at all.
+ * one not at all. The walk stops once it read `budget` bytes, as a root far wider than a project
+ * (a home directory) would take all the memory there is.
  *
  * Touches nothing but the disk, so any thread may call it.
  */
-public func readRoots(roots: Array<VfsPath>): Array<(VfsPath, Rope)> {
-    let files = ArrayList<(VfsPath, Rope)>()
+public func readRoots(roots: Array<VfsPath>, budget!: Int64 = Int64.Max): RootsRead {
+    let walk = Walk(budget)
     for (root in outermost(roots)) {
         if (let Some(dir) <- root.filePath) {
-            readDirectory(dir, files)
+            walk.readDirectory(dir)
         }
     }
-    files.toArray()
+    RootsRead(walk.files.toArray(), walk.truncated)
 }
 
 /**
@@ -63,23 +77,43 @@ func isCangjieFile(name: String): Bool {
     name.endsWith(".cj")
 }
 
-private func readDirectory(dir: Path, files: ArrayList<(VfsPath, Rope)>): Unit {
-    let entries = try {
-        Directory.readFrom(dir)
-    } catch (_: FSException) {
-        return
-    }
-    for (entry in entries where !entry.isSymbolicLink()) {
-        if (entry.isDirectory()) {
-            if (isScanned(entry.name)) {
-                readDirectory(entry.path, files)
+/**
+ * The files read so far, and the bytes left to read.
+ */
+private class Walk {
+    let files = ArrayList<(VfsPath, Rope)>()
+    var truncated = false
+
+    Walk(private var budget: Int64) {}
+
+    func readDirectory(dir: Path): Unit {
+        let entries = try {
+            Directory.readFrom(dir)
+        } catch (_: FSException) {
+            return
+        }
+        for (entry in entries where !entry.isSymbolicLink()) {
+            if (truncated) {
+                return
             }
-        } else if (entry.isRegular() && isCangjieFile(entry.name)) {
-            let path = VfsPath.file(entry.path)
-            if (let Some(text) <- readFile(path)) {
-                files.add((path, text))
+            if (entry.isDirectory()) {
+                if (isScanned(entry.name)) {
+                    readDirectory(entry.path)
+                }
+            } else if (entry.isRegular() && isCangjieFile(entry.name)) {
+                readSourceFile(VfsPath.file(entry.path))
             }
         }
+    }
+
+    private func readSourceFile(path: VfsPath): Unit {
+        let text = readFile(path) ?? return ()
+        if (text.size > budget) {
+            truncated = true
+            return
+        }
+        budget -= text.size
+        files.add((path, text))
     }
 }
 
