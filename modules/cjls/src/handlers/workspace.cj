@@ -1,6 +1,7 @@
 package cjls.handlers
 
 import std.collection.ArrayList
+import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
 import stdxx.Nullable
@@ -18,11 +19,14 @@ import cjls.macros.LspHandler
 const WORKSPACE_SYMBOL_LIMIT = 128
 
 /**
- * How much text a load reads at most, in bytes: the runtime's heap is 256 MiB unless `cjHeapSize`
- * says otherwise, which an editor starting the server does not, and a root far wider than a project
- * (a home directory, a test suite of a hundred thousand files) would fill it with text alone.
+ * How much text a load reads at most, in bytes: a sixteenth of the heap. On the runtime's default
+ * of 256 MiB, 16 MiB of text was loaded and searched and 32 MiB ran out of memory (D30); a root far
+ * wider than a project (a home directory, a test suite of a hundred thousand files) would fill any
+ * heap with text alone.
  */
-const LOAD_BUDGET = 16 * 1024 * 1024
+func loadBudget(): Int64 {
+    getMaxHeapSize() / 16
+}
 
 /**
  * The files of every root are watched, then loaded: a change on disk between the two is reported,
@@ -107,13 +111,14 @@ func load(state: ServerState, logger: Logger, roots: Array<VfsPath>): Unit {
         return
     }
     let start = MonoTime.now()
-    let read = readRoots(roots, budget: LOAD_BUDGET)
+    let budget = loadBudget()
+    let read = readRoots(roots, budget: budget)
     let files = read.files.filter {file => !state.openDocuments.contains(file[0])}
     state.setFilesContents(files.map {file => (file[0], Some(file[1]))})
     logger.info("loaded the workspace", [("roots", roots.size), ("files", files.size), ("took", MonoTime.now() - start)])
     if (read.truncated) {
         logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
-            [("budget", LOAD_BUDGET), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
+            [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
     }
 }
 
