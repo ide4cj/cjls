@@ -23,7 +23,7 @@ func databaseOf(texts: Array<String>): AnalysisDatabase {
 func search(texts: Array<String>, query: String, limit!: Int64 = 128): Array<String> {
     let files = Array<FileId>(texts.size) {i => FileId(i)}
     workspaceSymbols(databaseOf(texts), files, query, limit).map {
-        symbol => "${symbol.name} in ${symbol.containerName ?? "-"} @ ${symbol.fileId.index}"
+        found => "${found.symbol.name} in ${found.symbol.containerName ?? "-"} @ ${found.fileId.index}"
     }
 }
 
@@ -63,6 +63,20 @@ class WorkspaceSymbolsTest {
 
         // assert
         @Expect(found, ["a1 in - @ 0", "a2 in - @ 0"])
+    }
+
+    @TestCase
+    func aFileChangedIsSearchedAsItIsNow() {
+        // arrange
+        let db = databaseOf(["func before() {}\n"])
+        @Expect(workspaceSymbols(db, [FileId(0)], "", 128).size, 1)
+
+        // act
+        db.setFileText(FileId(0), Rope("func after() {}\nfunc more() {}\n"))
+        let found = workspaceSymbols(db, [FileId(0)], "", 128).map {found => found.symbol.name}
+
+        // assert
+        @Expect(found, ["after", "more"])
     }
 
     @TestCase

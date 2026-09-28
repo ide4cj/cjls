@@ -28,7 +28,7 @@ func tree(files: Array<(String, String)>): Path {
  */
 func readUnder(dir: Path, roots!: Array<VfsPath> = [VfsPath.file(dir)]): Array<String> {
     let root = VfsPath.file(dir)
-    let read = readRoots(roots).map {
+    let read = readRoots(roots).files.map {
         file => String.join(file[0].segmentsUnder(root).getOrThrow(), delimiter: "/") + "=" + file[1].toString()
     }
     sort(read)
@@ -78,6 +78,23 @@ class LoaderTest {
     }
 
     @TestCase
+    func theWalkStopsAtItsBudget() {
+        // arrange - four files of four bytes each
+        let dir = tree([("a.cj", "aaaa"), ("b.cj", "bbbb"), ("c.cj", "cccc"), ("d.cj", "dddd")])
+
+        // act
+        let read = readRoots([VfsPath.file(dir)], budget: 10)
+        let all = readRoots([VfsPath.file(dir)], budget: 16)
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(read.files.size, 2)
+        @Expect(read.truncated)
+        @Expect(all.files.size, 4)
+        @Expect(!all.truncated)
+    }
+
+    @TestCase
     func aRootInsideAnotherIsReadOnce() {
         // arrange
         let dir = tree([("a.cj", "a"), ("sub/b.cj", "b")])
@@ -94,7 +111,7 @@ class LoaderTest {
     @TestCase
     func aRootNotThereOrVirtualGivesNothing() {
         // act
-        let read = readRoots([inTemp("cjls-no-such-directory"), VfsPath.virtual("untitled:Untitled-1")])
+        let read = readRoots([inTemp("cjls-no-such-directory"), VfsPath.virtual("untitled:Untitled-1")]).files
 
         // assert
         @Expect(read.size, 0)
