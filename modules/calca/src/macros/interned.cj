@@ -85,5 +85,5 @@ private func interned(input: Tokens, revisions: Tokens): Tokens {
     let ingredient = quote(InternedIngredient<$key>($(nameLiteral(name)) $revisions))
     let create = quote(CALCA_INGREDIENT.intern(db, $key($args)))
     identityStruct(decl, ingredient, params, create, accessors, kept, identity: quote(& InternedValue)) +
-        fieldsStruct(key, fields)
+        fieldsStruct(key, fields.toArray().map {field => (field.identifier, field.declType.toTokens())})
 }
