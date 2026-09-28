@@ -34,12 +34,26 @@ SUITES = {
 }
 
 
+# what git exports to a hook names cjls's own repository, and every command below would act on it:
+# run by the pre-push hook in a worktree, this fetched a suite into cjls and sparse-checked it out
+REPOSITORY = [
+    "GIT_DIR",
+    "GIT_WORK_TREE",
+    "GIT_INDEX_FILE",
+    "GIT_COMMON_DIR",
+    "GIT_OBJECT_DIRECTORY",
+    "GIT_ALTERNATE_OBJECT_DIRECTORIES",
+    "GIT_PREFIX",
+]
+ENV = {key: value for key, value in os.environ.items() if key not in REPOSITORY}
+
+
 def git(cwd, *args):
-    subprocess.run(["git", "-c", "core.autocrlf=false", *args], cwd=cwd, check=True)
+    subprocess.run(["git", "-c", "core.autocrlf=false", *args], cwd=cwd, env=ENV, check=True)
 
 
 def head(dest):
-    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=dest, capture_output=True, text=True)
+    result = subprocess.run(["git", "rev-parse", "HEAD"], cwd=dest, env=ENV, capture_output=True, text=True)
     return result.stdout.strip() if result.returncode == 0 else None
 
 
