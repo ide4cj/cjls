@@ -24,6 +24,22 @@ class FjCodecTest {
         @Expect("-7", written(Int32(-7)))
         @Expect(UInt32(4000000000), read<UInt32>("4000000000"))
         @Expect(1.5, read<Float64>("1.5"))
+        @Expect("0.1", written(0.1))
+    }
+
+    @TestCase
+    func aFloatJsonCannotHoldIsNull() {
+        // act & assert
+        @Expect("null", written(Float64.NaN))
+        @Expect("null", written(Float64.Inf))
+        @Expect("null", written(-Float64.Inf))
+    }
+
+    @TestCase
+    func aFloatIsReadCorrectlyRounded() {
+        // act & assert: 2^53 + 1 is halfway, and goes to the even 2^53
+        @Expect(Float64.fromBits(4807521475180250475), read<Float64>("26110439075397.418"))
+        @Expect(9007199254740992.0, read<Float64>("9007199254740993"))
     }
 
     @TestCase

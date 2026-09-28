@@ -1,8 +1,7 @@
 package lsp_codegen
 
-import std.collection.{HashMap, collectArray, filterMap}
-import stdx.serialization.serialization.*
-import stdxx.serialization.*
+import std.collection.{HashMap, collectArray, filter, filterMap}
+import ftoml.*
 
 enum TypeBinding {
     /**
@@ -40,7 +39,7 @@ enum TypeBinding {
     }
 }
 
-struct TypeMap <: Serializable<TypeMap> {
+struct TypeMap <: FromToml<TypeMap> {
     TypeMap(let entries!: HashMap<String, TypeBinding> = HashMap<String, TypeBinding>()) {}
 
     func bind(lspName: String): TypeBinding {
@@ -60,69 +59,57 @@ struct TypeMap <: Serializable<TypeMap> {
     }
 
     /**
-     * @throws DataModelException - if an entry is not a table, or sets other than exactly one of the
-     * mutually exclusive keys.
+     * @throws FtException - if an entry is not a table, or sets other than exactly one of the
+     * mutually exclusive keys, placed at it.
      */
-    public static func deserialize(dm: DataModel): TypeMap {
-        let dms = match (dm) {
-            case dms: DataModelStruct => dms
-            case _: DataModelNull => return TypeMap()
-            case _ => throw DataModelException("Unexpected `DataModel`, expected `DataModelStruct` or `DataModelNull`")
-        }
-
+    public static func fromToml(v: FtValue): TypeMap {
         let entries = HashMap<String, TypeBinding>()
-        for (field in dms.getFields()) {
-            entries.add(field.getName(), bindingOf(field.getName(), field.getData()))
+        for ((lspName, entry) in v.asTable()) {
+            entries.add(lspName, bindingOf(lspName, entry))
         }
 
         TypeMap(entries: entries)
     }
-
-    public func serialize(): DataModel {
-        throw UnsupportedException()
-    }
 }
 
-private func bindingOf(lspName: String, dm: DataModel): TypeBinding {
-    let entry = dm.asStructOrThrow()
+private func bindingOf(lspName: String, v: FtValue): TypeBinding {
+    let entry = v.asTable()
 
-    let declared = entry.getOrNone("declared").map {it => declaredOf(it)}
-    let fields = entry.getFields().filter {it => it.getName() != "declared"}
+    let declared = entry.get("declared").map {it => declaredOf(it)}
+    let fields = entry.iterator() |> filter {it: (String, FtValue) => it[0] != "declared"} |> collectArray
     if (fields.isEmpty()) {
-        throw DataModelException("`types.${lspName}` sets none of `rename`, `alias`, `extern`, `skip`")
+        throw v.error("`types.${lspName}` sets none of `rename`, `alias`, `extern`, `skip`")
     }
 
     if (fields.size > 1) {
-        throw DataModelException("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
+        throw v.error("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
     }
 
-    let given = fields[0]
-    let key = given.getName()
-    let data = given.getData()
+    let (key, data) = fields[0]
     if (key != "extern" && declared.isSome()) {
-        throw DataModelException("`types.${lspName}.declared` goes only with `extern`")
+        throw v.error("`types.${lspName}.declared` goes only with `extern`")
     }
     match (key) {
         case "rename" => Owned(targetOf(lspName, key, data))
         case "alias" => Aliased(targetOf(lspName, key, data))
         case "extern" => Extern(targetOf(lspName, key, data), declared ?? [])
-        case "skip" where data.asBoolOrThrow() => Skipped
-        case _ => throw DataModelException("unknown field \"${key}\"")
+        case "skip" where data.asBool() => Skipped
+        case _ => throw v.error("unknown field \"${key}\"")
     }
 }
 
-private func declaredOf(dm: DataModel): Array<String> {
-    dm.asSeqOrThrow().getItems().map {it => it.asStringOrThrow()}.toArray()
+private func declaredOf(v: FtValue): Array<String> {
+    Array<String>.fromToml(v)
 }
 
 /**
  * The Cangjie identifier a binding points at. A blank one would emit `public type LSPAny = ` and
  * only surface as a syntax error in the generated file, far from the config line that caused it.
  */
-private func targetOf(lspName: String, key: String, dm: DataModel): String {
-    let target = dm.asStringOrThrow().trimAscii()
+private func targetOf(lspName: String, key: String, v: FtValue): String {
+    let target = v.asString().trimAscii()
     if (target.isEmpty()) {
-        throw DataModelException("`types.${lspName}.${key}` must not be empty")
+        throw v.error("`types.${lspName}.${key}` must not be empty")
     }
 
     target

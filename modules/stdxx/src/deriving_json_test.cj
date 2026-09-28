@@ -75,6 +75,16 @@ class DeriveJsonStructTest {
     }
 
     @TestCase
+    func derivingLeavesRoomForDerive() {
+        // arrange
+        let described = DerivedAndDescribed(name: "x")
+
+        // act & assert
+        @Expect(#"{"name":"x"}"#, json(described))
+        @Expect("DerivedAndDescribed(name: x)", described.toString())
+    }
+
+    @TestCase
     func renameAndBackquotesDecideTheWireName() {
         // arrange
         let names = DerivedNames(document: "file:///a.cj", `type`: "cangjie")

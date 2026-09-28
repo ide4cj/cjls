@@ -4,7 +4,7 @@ import std.env.getTempDirectory
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.serialization.serialization.*
+import ftoml.FtException
 
 /**
  * The root of an absolute path: `/` is not one on Windows.
@@ -173,10 +173,10 @@ class ConfigLoadTest {
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
                 // act
-                let e = @AssertThrows[DataModelException](Config.load(cfgPath))
+                let e = @AssertThrows[FtException](Config.load(cfgPath))
 
                 // assert
-                @Expect("Invalid `src-dir` field type", e.message)
+                @Expect("expected a string, found an integer at line 2, column 11", e.message)
         }
     }
 }

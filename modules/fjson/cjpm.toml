@@ -13,6 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
+fnum = { path = "../fnum" }
 
 # `cjpm test --fuzz`: the comparisons made fed to the coverage-guided fuzzers, in tests alone (D24)
 [profile.customized-option]

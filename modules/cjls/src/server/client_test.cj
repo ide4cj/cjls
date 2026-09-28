@@ -5,7 +5,6 @@ import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdx.serialization.serialization.*
 import jsonrpc.*
 import cjls.lsp_types.*
 

@@ -14,6 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `cjpm build` · `cjpm run` (the server) · `cjpm clean`
 - `cjpm test` — all tests (the `pre-push` hook runs it). CI adds `--no-progress`: the progress report stalls now and then and fails a run whose tests all passed.
+- `python3 tests/corpora/fetch.py` — the third-party suites `cjpm test` holds fjson and ftoml to (JSONTestSuite, toml-test), fetched into `.corpora/` at the commits it pins ([D26](docs/adr/0026-test-suites-are-fetched.md)); once per clone, and again when a pin moves. Without them those tests fail, naming it. The `pre-push` hook and CI run it first.
 - A subset: `cjpm test '--filter=ConnectionCloseTest.*'` (`<TestClass>.<testCase>`, `*` wildcards). Quote it: the user's shell is fish.
 
 `cjpm` leaves `*.cj.macrocall` and `lib-macro_*.dylib` next to the sources: untracked build output, never edit it.
@@ -50,8 +51,10 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 |---|---|
 | `calca` | incremental computation, salsa's model; `calca` runtime + `calca.macros` |
 | `rope` | `Rope`, immutable UTF-8 text as a B-tree, and LSP's line/column arithmetic ([D1](docs/adr/0001-files-are-ropes.md)) |
-| `fjson` | JSON over bytes, no tree: `FjReader`, `FjWriter`, `ToJson`/`FromJson`, `RawJson` (D22, D24). `testdata/` is JSONTestSuite, byte for byte: never edit it |
-| `stdxx` | sum types (`Nullable`, `IntegerOrString`), `DataModel` helpers, and the `@DeriveExt`/`@Serde` derive macros |
+| `fnum` | numbers as text, for `fjson` and `ftoml`: Ryu (`formatShortest`) and a correctly rounded `parseFloat64` (`Float64.parse` is not) |
+| `fjson` | JSON over bytes, no tree: `FjReader`, `FjWriter`, `ToJson`/`FromJson`, `RawJson`; `JsonValue`, any JSON as a tree, which `LSPAny` aliases (D22, D24) |
+| `ftoml` | TOML 1.1.0 (D25): `parseToml` into an `FtDocument` with spans, `FtWriter`, `ToToml`/`FromToml`, TOML's date-times of its own |
+| `stdxx` | sum types (`Nullable`, `IntegerOrString`) and the `@DeriveExt`/`@Serde` derive macros |
 | `jsonrpc` | the JSON-RPC peer; knows **zero method names** |
 | `index_map` | `IndexMap`/`IndexSet` (insertion order) and their append-only concurrent versions; anything that interns uses them |
 | `ginkgo` | rowan for Cangjie: lossless green/red trees, and rust-analyzer's grammar-agnostic parser machinery |
@@ -60,9 +63,8 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types` |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
-| `cjtoml` | vendored TOML (Huawei): keep byte-identical to upstream, never `cjfmt` it; `unmarshal<T>` takes a **file path** |
 
-Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson`; `cjls → loupe → {calca, cjsyntax → ginkgo, index_map, rope}`. The generators sit outside, on `cjtoml` and `stdxx` (`lsp_codegen` also `fjson`).
+Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjsyntax → ginkgo, index_map, rope}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
 
 Editor integrations are repositories in the `ide4cj` organization ([D16](docs/adr/0016-editor-integrations-are-repositories.md)): Neovim ([`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim)), VS Code, Zed. The server's root is the nearest `cjpm.toml`.
 
@@ -77,7 +79,7 @@ Editor integrations are repositories in the `ide4cj` organization ([D16](docs/ad
 
 ### Macro packages
 
-`stdxx.deriving`, `cjls.macros` and `calca.macros`, on `std.ast.*`. Generated code is `quote(...)` templates naming things unqualified, so the using package imports what it refers to: `@DeriveExt[ToJson, FromJson]` needs `fjson.*` and `stdxx.deriving.*`; `@DeriveExt[Serializable]` `stdx.serialization.serialization.*`, `stdxx.serialization.*` and `stdxx.deriving.*` (`deriving_ext_imports_test.cj`), plus `stdxx.Nullable` when used. A green build of a macro package is no evidence its output compiles — a build of a package *using* it is. A macro may emit a static or global only if its initializer reaches nothing the user wrote (cjc follows calls for use-before-initialization: two `@CalcaTracked` functions calling each other would fail), and no package's initialization may rely on another's: the order is undefined.
+`stdxx.deriving`, `cjls.macros` and `calca.macros`, on `std.ast.*`. Generated code is `quote(...)` templates naming things unqualified, so the using package imports what it refers to: `@DeriveExt[ToJson, FromJson]` needs `fjson.*` and `stdxx.deriving.*`; `@DeriveExt[ToToml, FromToml]` `ftoml.*` and `stdxx.deriving.*`, plus `stdxx.Nullable` when used. A green build of a macro package is no evidence its output compiles — a build of a package *using* it is. A macro may emit a static or global only if its initializer reaches nothing the user wrote (cjc follows calls for use-before-initialization: two `@CalcaTracked` functions calling each other would fail), and no package's initialization may rely on another's: the order is undefined.
 
 ## Testing
 

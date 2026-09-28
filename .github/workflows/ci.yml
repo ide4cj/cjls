@@ -45,6 +45,8 @@ jobs:
       - uses: ./.github/actions/setup-cangjie
       - run: cjpm build
         shell: bash
+      - run: python tests/corpora/fetch.py
+        shell: bash
       - run: cjpm test --no-progress
         shell: bash
       - uses: actions/upload-artifact@v4
@@ -62,6 +64,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-cangjie
+      - run: python tests/corpora/fetch.py
+        shell: bash
       - run: cjpm test --fuzz --target-dir target/fuzz '--filter=*CoverageGuided*.*'
         env:
           cjHeapSize: 2GB

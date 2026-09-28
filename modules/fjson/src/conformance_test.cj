@@ -5,12 +5,12 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import std.io.*
-import stdx.encoding.json.*
+import stdx.encoding.json.{JsonArray, JsonBool, JsonFloat, JsonInt, JsonNull, JsonObject, JsonString}
+import stdx.encoding.json.JsonValue as StdxJsonValue
 import stdx.encoding.json.stream.*
 
 /*
- * fjson against JSONTestSuite (`testdata/JSONTestSuite`, vendored as it is upstream: its README
- * names the commit), stdx's parser, and bytes a fuzzer would throw at it. Whatever the input, the
+ * fjson against JSONTestSuite (in `.corpora/`, at the commit `tests/corpora/fetch.py` names), stdx's parser, and bytes a fuzzer would throw at it. Whatever the input, the
  * reader either reads it or throws `FjException`: any other exception, or an error, is a bug.
  */
 
@@ -28,8 +28,8 @@ enum Tree {
 /** The value at the reader, containers past `MAX_DEPTH` refused as `skipValue` refuses them. */
 func readTree(r: FjReader, depth: Int64): Tree {
     match (r.peekKind()) {
-        case FjKind.JsonObject | FjKind.JsonArray where depth >= MAX_DEPTH => throw FjException("nested too deep")
-        case FjKind.JsonObject =>
+        case FjKind.FjObject | FjKind.FjArray where depth >= MAX_DEPTH => throw FjException("nested too deep")
+        case FjKind.FjObject =>
             let members = ArrayList<(String, Tree)>()
             r.beginObject()
             while (r.nextKey()) {
@@ -37,20 +37,20 @@ func readTree(r: FjReader, depth: Int64): Tree {
                 members.add((key, readTree(r, depth + 1)))
             }
             TObject(members.toArray())
-        case FjKind.JsonArray =>
+        case FjKind.FjArray =>
             let items = ArrayList<Tree>()
             r.beginArray()
             while (r.nextItem()) {
                 items.add(readTree(r, depth + 1))
             }
             TArray(items.toArray())
-        case FjKind.JsonString => TString(r.readString())
-        case FjKind.JsonBool => TBool(r.readBool())
-        case FjKind.JsonNull =>
+        case FjKind.FjString => TString(r.readString())
+        case FjKind.FjBool => TBool(r.readBool())
+        case FjKind.FjNull =>
             r.readNull()
             TNull
-        case FjKind.JsonNumber =>
-            // as `AnyValue` reads one: an integer while it fits an Int64
+        case FjKind.FjNumber =>
+            // as `JsonValue` reads one: an integer while it fits an Int64
             let number = r.rawValue()
             if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {
                 TFloat(FjReader(number).readFloat64())
@@ -173,11 +173,13 @@ func readBothWays(name: String, bytes: Array<Byte>, problems: ArrayList<String>)
     }
 }
 
-let SUITE = "modules/fjson/testdata/JSONTestSuite"
-
 /** The files of one of the suite's directories whose name starts with `prefix`, and their bytes. */
 func corpus(dir: String, prefix!: String = ""): Array<(String, Array<Byte>)> {
-    let path = Path(SUITE).join(dir)
+    let suite = Path(".corpora/JSONTestSuite")
+    if (!exists(suite)) {
+        throw IllegalStateException("JSONTestSuite is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+    }
+    let path = suite.join(dir)
     Directory.readFrom(path)
         .filter {info => info.name.startsWith(prefix)}
         .map {info => (info.name, File.readFrom(path.join(info.name)))}
@@ -190,7 +192,7 @@ func report(problems: ArrayList<String>): String {
 /** The tree stdx's parser reads, in `Tree`'s terms, or `None` if it refuses the bytes. */
 func stdxTree(bytes: Array<Byte>): ?Tree {
     try {
-        fromStdx(JsonValue.fromStr(String.fromUtf8(bytes)))
+        fromStdx(StdxJsonValue.fromStr(String.fromUtf8(bytes)))
     } catch (_: Exception) {
         None
     }
@@ -254,7 +256,7 @@ func withoutNumbers(tree: Tree): Tree {
     }
 }
 
-func fromStdx(value: JsonValue): Tree {
+func fromStdx(value: StdxJsonValue): Tree {
     match (value) {
         case o: JsonObject =>
             let members = ArrayList<(String, Tree)>()

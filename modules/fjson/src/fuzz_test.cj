@@ -163,11 +163,23 @@ class TreePropertyTest {
     }
 }
 
-/** The documents a mutant starts from: the suite's `y_` and `i_` ones, those under 4 KB. */
-let FUZZ_SEEDS: Array<Array<Byte>> = corpus("test_parsing", prefix: "y_")
-    .concat(corpus("test_parsing", prefix: "i_"))
-    .map {file => file[1]}
-    .filter {bytes => bytes.size <= 4096}
+var fuzzSeedsRead: ?Array<Array<Byte>> = None
+
+/**
+ * The documents a mutant starts from: the suite's `y_` and `i_` ones, those under 4 KB. Read on
+ * first use, not by a global's initializer: without the suite, only the cases using it fail.
+ */
+func fuzzSeeds(): Array<Array<Byte>> {
+    if (let Some(seeds) <- fuzzSeedsRead) {
+        return seeds
+    }
+    let seeds = corpus("test_parsing", prefix: "y_")
+        .concat(corpus("test_parsing", prefix: "i_"))
+        .map {file => file[1]}
+        .filter {bytes => bytes.size <= 4096}
+    fuzzSeedsRead = seeds
+    seeds
+}
 
 /**
  * A document of the suite with a few edits: bytes dropped, inserted, replaced, a run of them
@@ -192,7 +204,8 @@ struct Mutant <: ToString {
 
 extend Mutant <: Arbitrary<Mutant> {
     public static func arbitrary(random: RandomSource): Generator<Mutant> {
-        Generators.generate {mutate(FUZZ_SEEDS[random.nextInt64(FUZZ_SEEDS.size)], random)}
+        let seeds = fuzzSeeds()
+        Generators.generate {mutate(seeds[random.nextInt64(seeds.size)], random)}
     }
 }
 

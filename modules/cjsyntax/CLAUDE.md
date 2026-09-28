@@ -2,7 +2,7 @@
 
 The Cangjie lexer and parser, on `ginkgo`: `tokenize(text)`, `parse(text)`, and `SyntaxKind`; `cjsyntax.ast`, the typed views of the tree. `SyntaxKind` and the views are generated from `syntax_kinds.toml` and `cangjie.ungram` beside the manifest.
 
-The generator, `modules/syntax_codegen` (`executable`): rust-analyzer's `sourcegen` for `cjsyntax`: `syntax_codegen modules/cjsyntax/syntax_kinds.toml` writes `src/syntax_kind.cj` and `src/ast/nodes.cj` there, through `cjfmt`. On `cjtoml` and `stdxx` only, so a broken output never stops it being rebuilt; its tests take `cjsyntax` as a `[test-dependencies]` entry, and fail when what is checked in is not what it makes.
+The generator, `modules/syntax_codegen` (`executable`): rust-analyzer's `sourcegen` for `cjsyntax`: `syntax_codegen modules/cjsyntax/syntax_kinds.toml` writes `src/syntax_kind.cj` and `src/ast/nodes.cj` there, through `cjfmt`. On `ftoml` and `stdxx` only, so a broken output never stops it being rebuilt; its tests take `cjsyntax` as a `[test-dependencies]` entry, and fail when what is checked in is not what it makes.
 
 The design is rust-analyzer's, piece for piece: rowan's trees in `ginkgo`, its `parser` crate's machinery in `ginkgo.parsing`, and the grammar in `cjsyntax`. The trees and the parser machinery are in `modules/ginkgo/CLAUDE.md`.
 
