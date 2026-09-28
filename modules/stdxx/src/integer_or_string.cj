@@ -60,8 +60,8 @@ extend IntegerOrString <: ToJson & FromJson<IntegerOrString> {
      */
     public static func fromJson(r: FjReader): IntegerOrString {
         match (r.peekKind()) {
-            case FjKind.JsonNumber => Integer(r.readInt32())
-            case FjKind.JsonString => String(r.readString())
+            case FjKind.FjNumber => Integer(r.readInt32())
+            case FjKind.FjString => String(r.readString())
             case _ => throw FjException("expected integer or string at byte ${r.position}")
         }
     }

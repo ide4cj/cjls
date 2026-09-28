@@ -28,8 +28,8 @@ enum Tree {
 /** The value at the reader, containers past `MAX_DEPTH` refused as `skipValue` refuses them. */
 func readTree(r: FjReader, depth: Int64): Tree {
     match (r.peekKind()) {
-        case FjKind.JsonObject | FjKind.JsonArray where depth >= MAX_DEPTH => throw FjException("nested too deep")
-        case FjKind.JsonObject =>
+        case FjKind.FjObject | FjKind.FjArray where depth >= MAX_DEPTH => throw FjException("nested too deep")
+        case FjKind.FjObject =>
             let members = ArrayList<(String, Tree)>()
             r.beginObject()
             while (r.nextKey()) {
@@ -37,19 +37,19 @@ func readTree(r: FjReader, depth: Int64): Tree {
                 members.add((key, readTree(r, depth + 1)))
             }
             TObject(members.toArray())
-        case FjKind.JsonArray =>
+        case FjKind.FjArray =>
             let items = ArrayList<Tree>()
             r.beginArray()
             while (r.nextItem()) {
                 items.add(readTree(r, depth + 1))
             }
             TArray(items.toArray())
-        case FjKind.JsonString => TString(r.readString())
-        case FjKind.JsonBool => TBool(r.readBool())
-        case FjKind.JsonNull =>
+        case FjKind.FjString => TString(r.readString())
+        case FjKind.FjBool => TBool(r.readBool())
+        case FjKind.FjNull =>
             r.readNull()
             TNull
-        case FjKind.JsonNumber =>
+        case FjKind.FjNumber =>
             // as `JsonValue` reads one: an integer while it fits an Int64
             let number = r.rawValue()
             if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {

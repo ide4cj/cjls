@@ -31,7 +31,7 @@ enum Json {
 
     static func read(r: FjReader): Json {
         match (r.peekKind()) {
-            case FjKind.JsonObject =>
+            case FjKind.FjObject =>
                 let members = HashMap<String, Json>()
                 r.beginObject()
                 while (r.nextKey()) {
@@ -39,14 +39,14 @@ enum Json {
                     members[key] = read(r)
                 }
                 JObject(members)
-            case FjKind.JsonArray =>
+            case FjKind.FjArray =>
                 let items = ArrayList<Json>()
                 r.beginArray()
                 while (r.nextItem()) {
                     items.add(read(r))
                 }
                 JArray(items.toArray())
-            case FjKind.JsonString => JString(r.readString())
+            case FjKind.FjString => JString(r.readString())
             case _ =>
                 r.skipValue()
                 JOther

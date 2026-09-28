@@ -38,7 +38,7 @@ public enum Body <: ToJson & FromJson<Body> {
         while (r.nextKey()) {
             if (r.keyIs("jsonrpc")) {
                 version = match (r.peekKind()) {
-                    case FjKind.JsonString => r.readString()
+                    case FjKind.FjString => r.readString()
                     case _ =>
                         r.skipValue()
                         ""
@@ -132,8 +132,8 @@ public enum Body <: ToJson & FromJson<Body> {
  */
 private func paramsOf(r: FjReader): ?RawJson {
     match (r.peekKind()) {
-        case FjKind.JsonObject | FjKind.JsonArray => RawJson.fromJson(r)
-        case FjKind.JsonNull =>
+        case FjKind.FjObject | FjKind.FjArray => RawJson.fromJson(r)
+        case FjKind.FjNull =>
             r.readNull()
             None
         case _ => throw RpcException(ErrorCode.INVALID_REQUEST, "\"params\" has to be an array or an object")

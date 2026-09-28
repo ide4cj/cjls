@@ -7,22 +7,22 @@ import std.collection.ArrayList
  * tree. An object keeps its keys in the order they came, so a value round-trips as it came: an
  * integer stays one, a number with a fraction or an exponent is a `Float64`.
  *
- * The variants are `Any`-prefixed: `FjKind`'s `JsonNull`, `JsonArray`... are in scope unqualified
+ * The variants are `Json`-prefixed, as `Null`, `Bool`, `String`, `Array` would shadow `std`'s types
  * wherever `fjson.*` is.
  */
 public enum JsonValue <: Equatable<JsonValue> {
-    | AnyNull
-    | AnyBool(Bool)
-    | AnyInteger(Int64)
-    | AnyFloat(Float64)
-    | AnyString(String)
-    | AnyArray(Array<JsonValue>)
-    | AnyObject(Array<(String, JsonValue)>)
+    | JsonNull
+    | JsonBool(Bool)
+    | JsonInteger(Int64)
+    | JsonFloat(Float64)
+    | JsonString(String)
+    | JsonArray(Array<JsonValue>)
+    | JsonObject(Array<(String, JsonValue)>)
 
     /** The value under `key` of an object; `None` if there is none, or this is no object. */
     public func get(key: String): ?JsonValue {
         match (this) {
-            case AnyObject(members) =>
+            case JsonObject(members) =>
                 for ((name, value) in members where name == key) {
                     return value
                 }
@@ -51,49 +51,49 @@ public enum JsonValue <: Equatable<JsonValue> {
 
     public func isNull(): Bool {
         match (this) {
-            case AnyNull => true
+            case JsonNull => true
             case _ => false
         }
     }
 
     public func asBool(): Bool {
         match (this) {
-            case AnyBool(b) => b
+            case JsonBool(b) => b
             case _ => throw notA("a boolean")
         }
     }
 
     public func asInteger(): Int64 {
         match (this) {
-            case AnyInteger(i) => i
+            case JsonInteger(i) => i
             case _ => throw notA("an integer")
         }
     }
 
     public func asFloat(): Float64 {
         match (this) {
-            case AnyFloat(f) => f
+            case JsonFloat(f) => f
             case _ => throw notA("a float")
         }
     }
 
     public func asString(): String {
         match (this) {
-            case AnyString(s) => s
+            case JsonString(s) => s
             case _ => throw notA("a string")
         }
     }
 
     public func asArray(): Array<JsonValue> {
         match (this) {
-            case AnyArray(items) => items
+            case JsonArray(items) => items
             case _ => throw notA("an array")
         }
     }
 
     public func asObject(): Array<(String, JsonValue)> {
         match (this) {
-            case AnyObject(members) => members
+            case JsonObject(members) => members
             case _ => throw notA("an object")
         }
     }
@@ -105,13 +105,13 @@ public enum JsonValue <: Equatable<JsonValue> {
     /** Equal as JSON is, the order of an object's keys included; `NaN` is never read. */
     public operator func ==(other: JsonValue): Bool {
         match ((this, other)) {
-            case (AnyNull, AnyNull) => true
-            case (AnyBool(a), AnyBool(b)) => a == b
-            case (AnyInteger(a), AnyInteger(b)) => a == b
-            case (AnyFloat(a), AnyFloat(b)) => a == b
-            case (AnyString(a), AnyString(b)) => a == b
-            case (AnyArray(a), AnyArray(b)) => a == b
-            case (AnyObject(a), AnyObject(b)) =>
+            case (JsonNull, JsonNull) => true
+            case (JsonBool(a), JsonBool(b)) => a == b
+            case (JsonInteger(a), JsonInteger(b)) => a == b
+            case (JsonFloat(a), JsonFloat(b)) => a == b
+            case (JsonString(a), JsonString(b)) => a == b
+            case (JsonArray(a), JsonArray(b)) => a == b
+            case (JsonObject(a), JsonObject(b)) =>
                 a.size == b.size && (0..a.size).iterator().all {i => a[i][0] == b[i][0] && a[i][1] == b[i][1]}
             case _ => false
         }
@@ -128,18 +128,18 @@ extend JsonValue <: ToJson & FromJson<JsonValue> & ToString {
 
     public func toJson(w: FjWriter): Unit {
         match (this) {
-            case AnyNull => w.null()
-            case AnyBool(b) => w.bool(b)
-            case AnyInteger(i) => w.int64(i)
-            case AnyFloat(f) => w.float64(f)
-            case AnyString(s) => w.string(s)
-            case AnyArray(items) =>
+            case JsonNull => w.null()
+            case JsonBool(b) => w.bool(b)
+            case JsonInteger(i) => w.int64(i)
+            case JsonFloat(f) => w.float64(f)
+            case JsonString(s) => w.string(s)
+            case JsonArray(items) =>
                 w.beginArray()
                 for (item in items) {
                     item.toJson(w)
                 }
                 w.endArray()
-            case AnyObject(members) =>
+            case JsonObject(members) =>
                 w.beginObject()
                 for ((name, value) in members) {
                     w.name(name)
@@ -166,38 +166,38 @@ public const JSON_VALUE_DEPTH_MAX = 512
 /** The value inside `depth` containers; a container deeper than `JSON_VALUE_DEPTH_MAX` is refused, as `FjReader.skipValue` refuses it. */
 private func readJsonValue(r: FjReader, depth: Int64): JsonValue {
     match (r.peekKind()) {
-        case FjKind.JsonObject | FjKind.JsonArray where depth >= JSON_VALUE_DEPTH_MAX =>
+        case FjKind.FjObject | FjKind.FjArray where depth >= JSON_VALUE_DEPTH_MAX =>
             throw FjException("nested deeper than ${JSON_VALUE_DEPTH_MAX} at byte ${r.position}")
-        case FjKind.JsonObject =>
+        case FjKind.FjObject =>
             let members = ArrayList<(String, JsonValue)>()
             r.beginObject()
             while (r.nextKey()) {
                 let key = r.key()
                 members.add((key, readJsonValue(r, depth + 1)))
             }
-            AnyObject(members.toArray())
-        case FjKind.JsonArray =>
+            JsonObject(members.toArray())
+        case FjKind.FjArray =>
             let items = ArrayList<JsonValue>()
             r.beginArray()
             while (r.nextItem()) {
                 items.add(readJsonValue(r, depth + 1))
             }
-            AnyArray(items.toArray())
-        case FjKind.JsonString => AnyString(r.readString())
-        case FjKind.JsonBool => AnyBool(r.readBool())
-        case FjKind.JsonNull =>
+            JsonArray(items.toArray())
+        case FjKind.FjString => JsonString(r.readString())
+        case FjKind.FjBool => JsonBool(r.readBool())
+        case FjKind.FjNull =>
             r.readNull()
-            AnyNull
-        case FjKind.JsonNumber =>
+            JsonNull
+        case FjKind.FjNumber =>
             let number = r.rawValue()
             if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {
-                AnyFloat(FjReader(number).readFloat64())
+                JsonFloat(FjReader(number).readFloat64())
             } else {
                 // past Int64, an integer is kept as JavaScript keeps it: the nearest Float64
                 try {
-                    AnyInteger(FjReader(number).readInt64())
+                    JsonInteger(FjReader(number).readInt64())
                 } catch (_: FjException) {
-                    AnyFloat(FjReader(number).readFloat64())
+                    JsonFloat(FjReader(number).readFloat64())
                 }
             }
     }
