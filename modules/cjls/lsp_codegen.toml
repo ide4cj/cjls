@@ -5,7 +5,6 @@ imports = [
     "std.deriving.*",
     "fjson.*",
     "stdxx.{IntegerOrString, Nullable}",
-    "stdxx.serialization.AnyValue",
     "stdxx.deriving.*",
     "jsonrpc.*",
 ]
@@ -17,7 +16,7 @@ alias = "String"
 alias = "String"
 
 [types.LSPAny]
-alias = "AnyValue"
+alias = "JsonValue"
 
 [types.ProgressToken]
 alias = "IntegerOrString"

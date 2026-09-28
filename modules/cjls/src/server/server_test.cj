@@ -7,7 +7,6 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
 import fjson.*
 import jsonrpc.*
 import rope.Rope
@@ -40,8 +39,8 @@ func paramsOf(json: String): RawJson {
 /**
  * What was written, read into a tree for a test to look into.
  */
-func treeOf(written: RawJson): AnyValue {
-    written.read<AnyValue>()
+func treeOf(written: RawJson): JsonValue {
+    written.read<JsonValue>()
 }
 
 func hoverParams(): RawJson {

@@ -7,7 +7,6 @@ import std.unittest.testmacro.*
 import stdx.log.*
 import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
 
 func emptyParams(): RawJson {
     rawJson("{}")

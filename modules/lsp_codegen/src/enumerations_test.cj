@@ -146,7 +146,7 @@ class ResolveEnumTest {
     /**
      * An aliased name is somebody else's type in full, constants included.
      */
-    @TestCase[binding in [TypeBinding.Skipped, TypeBinding.Aliased("AnyValue")]]
+    @TestCase[binding in [TypeBinding.Skipped, TypeBinding.Aliased("JsonValue")]]
     func aSkippedOrAliasedEnumerationYieldsNothingToEmit(binding: TypeBinding) {
         // arrange
         let sut = enumerationOf("ErrorCodes", EnumerationBaseType.Integer, [("ParseError", IntegerOrString.Integer(-32700))])

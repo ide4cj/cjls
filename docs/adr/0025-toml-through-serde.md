@@ -16,7 +16,7 @@ Status: accepted, 2026-09-27. Closes #43 (Q21), and #31's correctly rounded `rea
 - **`@DeriveExt[ToToml, FromToml]` over the `@Serde` model** that `ToJson`/`FromJson` use, not serde's `Serializer`/`Deserializer`: the formats disagree on what is valid, and a derivation per format reports it at compile time — a `Nullable` is a diagnostic, and `None` is left out whatever `skipNone` says. `@DeriveExt` derives any interface: the declaration is read once into a `DeclShape`, a derivation is a row of `DERIVATIONS`, and a marker no requested derivation reads is a diagnostic.
 - **Where a value goes is the value's `tomlShape`** (`Omitted`, `Inline`, `Table`, `TableArray`), not a static property of its type as #43 proposed: an empty array of tables is `x = []` among the plain keys, `None` is nothing, and an untagged enum's shape is its variant's.
 - **`FromToml` reads the document**, so an untagged enum tries its variants on the value at no cost, and a missing key is placed at its table.
-- `cjtoml`, the `Serializable` derivation, `stdxx`'s `DataModel` helpers and `stdx.serialization` go; `AnyValue` is a JSON tree of its own. D21's note on `cjtoml`'s license no longer applies.
+- `cjtoml`, the `Serializable` derivation, `stdxx`'s `DataModel` helpers and `stdx.serialization` go; `AnyValue` is a JSON tree of its own, `fjson`'s `JsonValue`, and `stdxx.serialization` goes with it. D21's note on `cjtoml`'s license no longer applies.
 
 ## Alternatives
 

@@ -4,7 +4,6 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import fjson.*
 import stdxx.{IntegerOrString, UnexpectedVariantException}
-import stdxx.serialization.*
 
 func rawJson(json: String): RawJson {
     RawJson(json.toArray())
@@ -13,8 +12,8 @@ func rawJson(json: String): RawJson {
 /**
  * The params read into a tree, for a test to look into.
  */
-func fieldOf(params: ?RawJson, name: String): AnyValue {
-    params.getOrThrow().read<AnyValue>()[name]
+func fieldOf(params: ?RawJson, name: String): JsonValue {
+    params.getOrThrow().read<JsonValue>()[name]
 }
 
 func bodyOf(json: String): Body {

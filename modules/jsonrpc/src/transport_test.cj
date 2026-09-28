@@ -8,7 +8,6 @@ import std.unittest.prop_test.*
 import stdx.log.*
 import fjson.*
 import stdxx.IntegerOrString
-import stdxx.serialization.*
 
 func framed(payload: Array<Byte>): ByteBuffer {
     let bytes = ByteBuffer()

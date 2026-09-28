@@ -1,15 +1,14 @@
-package stdxx.serialization
+package fjson
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import fjson.*
 
-private func read(text: String): AnyValue {
-    fromJsonBytes<AnyValue>(text.toArray())
+private func read(text: String): JsonValue {
+    fromJsonBytes<JsonValue>(text.toArray())
 }
 
 @Test
-class AnyValueTest {
+class JsonValueTest {
     @TestCase[text in ["null", "[1,null,2.5,true]", #"{"k":"v","a":{"b":[]}}"#]]
     func whateverIsReadIsWrittenBackAsIs(text: String) {
         // act & assert

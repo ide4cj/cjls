@@ -31,7 +31,7 @@ class TypeMapTest {
     @TestCase
     func anAliasedNameKeepsItsMetaModelSpelling() {
         // arrange
-        let sut = typeMapOf("[types.LSPAny]\nalias = \"AnyValue\"\n")
+        let sut = typeMapOf("[types.LSPAny]\nalias = \"JsonValue\"\n")
 
         // act
         let binding = sut.bind("LSPAny")
@@ -39,7 +39,7 @@ class TypeMapTest {
         // assert
         @Expect("LSPAny", binding.typeNameOf("LSPAny") ?? "")
         @PowerAssert(["LSPAny"], sut.aliases().map {it: (String, String) => it[0]})
-        @PowerAssert(["AnyValue"], sut.aliases().map {it: (String, String) => it[1]})
+        @PowerAssert(["JsonValue"], sut.aliases().map {it: (String, String) => it[1]})
     }
 
     @TestCase
@@ -101,13 +101,13 @@ class TypeMapTest {
      * `public type LSPAny = `.
      */
     @TestCase[row in [
-        ("[types.LSPAny]\nalias = \"AnyValue\"\nskip = true\n",
+        ("[types.LSPAny]\nalias = \"JsonValue\"\nskip = true\n",
             "`types.LSPAny` sets more than one of `rename`, `alias`, `extern`, `skip`"),
         ("[types.LSPAny]\n[types.ErrorCodes]\nskip = true\n",
             "`types.LSPAny` sets none of `rename`, `alias`, `extern`, `skip`"),
-        ("[types.LSPAny]\naliaz = \"AnyValue\"\n", "unknown field \"aliaz\""),
+        ("[types.LSPAny]\naliaz = \"JsonValue\"\n", "unknown field \"aliaz\""),
         ("[types.LSPAny]\nalias = \"   \"\n", "`types.LSPAny.alias` must not be empty"),
-        ("[types.LSPAny]\nalias = \"AnyValue\"\ndeclared = [\"X\"]\n", "`types.LSPAny.declared` goes only with `extern`")
+        ("[types.LSPAny]\nalias = \"JsonValue\"\ndeclared = [\"X\"]\n", "`types.LSPAny.declared` goes only with `extern`")
     ]]
     func anEntryThatIsNotExactlyOneBindingIsRefused(row: (String, String)) {
         // arrange

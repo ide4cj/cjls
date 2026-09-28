@@ -4,8 +4,7 @@ import std.collection.ArrayList
 import std.io.ByteBuffer
 import stdx.log.NoopLogger
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.*
-import fjson.RawJson
+import fjson.{JsonValue, RawJson}
 import rope.Encoding
 import jsonrpc.*
 import cjls.lsp_types.*
@@ -51,7 +50,7 @@ class LifecycleTest {
         // assert
         @Expect(0, exitCode)
         @Expect(2, responses.size)
-        let serverInfo = responses[0].resultOrError.getResultOrThrow().read<AnyValue>()["serverInfo"]
+        let serverInfo = responses[0].resultOrError.getResultOrThrow().read<JsonValue>()["serverInfo"]
         @Expect("cjls", serverInfo["name"].asString())
         @Expect(Integer(2), responses[1].id.getOrThrow())
         @Expect(responses[1].resultOrError.getResultOrThrow().toString() == "null")

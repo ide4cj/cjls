@@ -1,6 +1,5 @@
 package cjls
 
-import stdxx.serialization.*
 import fjson.*
 import jsonrpc.*
 import cjls.lsp_types.*
@@ -12,8 +11,8 @@ private func read<T>(json: String): T where T <: FromJson<T> {
 /**
  * What `value` writes, read into a tree for a test to look into.
  */
-private func treeOf<T>(value: T): AnyValue where T <: ToJson {
-    RawJson.of(value).read<AnyValue>()
+private func treeOf<T>(value: T): JsonValue where T <: ToJson {
+    RawJson.of(value).read<JsonValue>()
 }
 
 /**
@@ -148,7 +147,7 @@ class LspTypesTest {
         // assert
         @Expect("initialize", spec.method)
         @Expect(42, decoded.processId.getOrThrow())
-        let serverInfo = encoded.read<AnyValue>()["serverInfo"]
+        let serverInfo = encoded.read<JsonValue>()["serverInfo"]
         @Expect("cjls", serverInfo["name"].asString())
     }
 

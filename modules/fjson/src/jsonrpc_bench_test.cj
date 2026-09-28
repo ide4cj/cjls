@@ -3,7 +3,7 @@ package fjson
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.*
+import stdx.encoding.json.JsonValue as StdxJsonValue
 
 /*
  * fjson on what a JSON-RPC connection of the server reads and writes, the envelope included and
@@ -273,7 +273,7 @@ class FjRpcBenchFixtureTest {
         // act
         let (_, change) = rpcRead(FjReader(KEYSTROKE), rpcDidChange)
         let (id, uri) = rpcRead(FjReader(SYMBOL_REQUEST), rpcSymbolParams)
-        let written = JsonValue.fromStr(String.fromUtf8(rpcWriteResponse(FjWriter(), 7, RPC_SYMBOLS))).asObject()
+        let written = StdxJsonValue.fromStr(String.fromUtf8(rpcWriteResponse(FjWriter(), 7, RPC_SYMBOLS))).asObject()
 
         // assert
         @Expect(change.version, 42)

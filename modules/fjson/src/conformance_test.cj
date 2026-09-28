@@ -5,7 +5,8 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import std.io.*
-import stdx.encoding.json.*
+import stdx.encoding.json.{JsonArray, JsonBool, JsonFloat, JsonInt, JsonNull, JsonObject, JsonString}
+import stdx.encoding.json.JsonValue as StdxJsonValue
 import stdx.encoding.json.stream.*
 
 /*
@@ -49,7 +50,7 @@ func readTree(r: FjReader, depth: Int64): Tree {
             r.readNull()
             TNull
         case FjKind.JsonNumber =>
-            // as `AnyValue` reads one: an integer while it fits an Int64
+            // as `JsonValue` reads one: an integer while it fits an Int64
             let number = r.rawValue()
             if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {
                 TFloat(FjReader(number).readFloat64())
@@ -191,7 +192,7 @@ func report(problems: ArrayList<String>): String {
 /** The tree stdx's parser reads, in `Tree`'s terms, or `None` if it refuses the bytes. */
 func stdxTree(bytes: Array<Byte>): ?Tree {
     try {
-        fromStdx(JsonValue.fromStr(String.fromUtf8(bytes)))
+        fromStdx(StdxJsonValue.fromStr(String.fromUtf8(bytes)))
     } catch (_: Exception) {
         None
     }
@@ -255,7 +256,7 @@ func withoutNumbers(tree: Tree): Tree {
     }
 }
 
-func fromStdx(value: JsonValue): Tree {
+func fromStdx(value: StdxJsonValue): Tree {
     match (value) {
         case o: JsonObject =>
             let members = ArrayList<(String, Tree)>()

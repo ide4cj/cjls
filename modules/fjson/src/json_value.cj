@@ -1,27 +1,26 @@
-package stdxx.serialization
+package fjson
 
 import std.collection.ArrayList
-import fjson.*
 
 /**
  * Any JSON value at all, `null` included: what a field of any value holds (`LSPAny`), kept as a
  * tree. An object keeps its keys in the order they came, so a value round-trips as it came: an
  * integer stays one, a number with a fraction or an exponent is a `Float64`.
  *
- * The variants are `Any`-prefixed: `fjson.*` brings `FjKind`'s `JsonNull`, `JsonArray`... into
- * scope unqualified.
+ * The variants are `Any`-prefixed: `FjKind`'s `JsonNull`, `JsonArray`... are in scope unqualified
+ * wherever `fjson.*` is.
  */
-public enum AnyValue <: Equatable<AnyValue> {
+public enum JsonValue <: Equatable<JsonValue> {
     | AnyNull
     | AnyBool(Bool)
     | AnyInteger(Int64)
     | AnyFloat(Float64)
     | AnyString(String)
-    | AnyArray(Array<AnyValue>)
-    | AnyObject(Array<(String, AnyValue)>)
+    | AnyArray(Array<JsonValue>)
+    | AnyObject(Array<(String, JsonValue)>)
 
     /** The value under `key` of an object; `None` if there is none, or this is no object. */
-    public func get(key: String): ?AnyValue {
+    public func get(key: String): ?JsonValue {
         match (this) {
             case AnyObject(members) =>
                 for ((name, value) in members where name == key) {
@@ -37,7 +36,7 @@ public enum AnyValue <: Equatable<AnyValue> {
      *
      * @throws IllegalArgumentException - if there is none, or this is no object
      */
-    public operator func [](key: String): AnyValue {
+    public operator func [](key: String): JsonValue {
         get(key) ?? throw IllegalArgumentException("no key \"${key}\" in ${this}")
     }
 
@@ -46,7 +45,7 @@ public enum AnyValue <: Equatable<AnyValue> {
      *
      * @throws IllegalArgumentException - if this is no array
      */
-    public operator func [](index: Int64): AnyValue {
+    public operator func [](index: Int64): JsonValue {
         asArray()[index]
     }
 
@@ -85,14 +84,14 @@ public enum AnyValue <: Equatable<AnyValue> {
         }
     }
 
-    public func asArray(): Array<AnyValue> {
+    public func asArray(): Array<JsonValue> {
         match (this) {
             case AnyArray(items) => items
             case _ => throw notA("an array")
         }
     }
 
-    public func asObject(): Array<(String, AnyValue)> {
+    public func asObject(): Array<(String, JsonValue)> {
         match (this) {
             case AnyObject(members) => members
             case _ => throw notA("an object")
@@ -104,7 +103,7 @@ public enum AnyValue <: Equatable<AnyValue> {
     }
 
     /** Equal as JSON is, the order of an object's keys included; `NaN` is never read. */
-    public operator func ==(other: AnyValue): Bool {
+    public operator func ==(other: JsonValue): Bool {
         match ((this, other)) {
             case (AnyNull, AnyNull) => true
             case (AnyBool(a), AnyBool(b)) => a == b
@@ -119,7 +118,7 @@ public enum AnyValue <: Equatable<AnyValue> {
     }
 }
 
-extend AnyValue <: ToJson & FromJson<AnyValue> & ToString {
+extend JsonValue <: ToJson & FromJson<JsonValue> & ToString {
     /** The value as JSON. */
     public func toString(): String {
         let w = FjWriter()
@@ -151,37 +150,37 @@ extend AnyValue <: ToJson & FromJson<AnyValue> & ToString {
     }
 
     /**
-     * @throws FjException - if the value is not JSON, or nested deeper than `ANY_VALUE_DEPTH_MAX`
+     * @throws FjException - if the value is not JSON, or nested deeper than `JSON_VALUE_DEPTH_MAX`
      */
-    public static func fromJson(r: FjReader): AnyValue {
-        readAnyValue(r, 0)
+    public static func fromJson(r: FjReader): JsonValue {
+        readJsonValue(r, 0)
     }
 }
 
 /**
- * How deep an `AnyValue` may nest: it is read recursively, and a client's `initializationOptions`
+ * How deep an `JsonValue` may nest: it is read recursively, and a client's `initializationOptions`
  * must not be able to run the stack out.
  */
-public const ANY_VALUE_DEPTH_MAX = 512
+public const JSON_VALUE_DEPTH_MAX = 512
 
-/** The value inside `depth` containers; a container deeper than `ANY_VALUE_DEPTH_MAX` is refused, as `FjReader.skipValue` refuses it. */
-private func readAnyValue(r: FjReader, depth: Int64): AnyValue {
+/** The value inside `depth` containers; a container deeper than `JSON_VALUE_DEPTH_MAX` is refused, as `FjReader.skipValue` refuses it. */
+private func readJsonValue(r: FjReader, depth: Int64): JsonValue {
     match (r.peekKind()) {
-        case FjKind.JsonObject | FjKind.JsonArray where depth >= ANY_VALUE_DEPTH_MAX =>
-            throw FjException("nested deeper than ${ANY_VALUE_DEPTH_MAX} at byte ${r.position}")
+        case FjKind.JsonObject | FjKind.JsonArray where depth >= JSON_VALUE_DEPTH_MAX =>
+            throw FjException("nested deeper than ${JSON_VALUE_DEPTH_MAX} at byte ${r.position}")
         case FjKind.JsonObject =>
-            let members = ArrayList<(String, AnyValue)>()
+            let members = ArrayList<(String, JsonValue)>()
             r.beginObject()
             while (r.nextKey()) {
                 let key = r.key()
-                members.add((key, readAnyValue(r, depth + 1)))
+                members.add((key, readJsonValue(r, depth + 1)))
             }
             AnyObject(members.toArray())
         case FjKind.JsonArray =>
-            let items = ArrayList<AnyValue>()
+            let items = ArrayList<JsonValue>()
             r.beginArray()
             while (r.nextItem()) {
-                items.add(readAnyValue(r, depth + 1))
+                items.add(readJsonValue(r, depth + 1))
             }
             AnyArray(items.toArray())
         case FjKind.JsonString => AnyString(r.readString())
