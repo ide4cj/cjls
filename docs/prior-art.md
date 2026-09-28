@@ -1,6 +1,6 @@
 # Prior art
 
-The language servers cjls is measured against, in two roles ([D15](adr/0015-reference-implementations.md)): **references**, which cjls learns from, and **competitors**, which a user picks cjls over or not. R4 is both. Where each part of cjls comes from, and where it stands against the competitors. Cite them by id: "as R1 does". Facts as of 2026-09; a row that goes stale is updated, not kept.
+The language servers cjls is measured against, in two roles ([D15](adr/0015-reference-implementations.md)): **references**, which cjls learns from, and **competitors**, which a user picks cjls over or not. R4 and R9 are both. Where each part of cjls comes from, and where it stands against the competitors. Cite them by id: "as R1 does". Facts as of 2026-09; a row that goes stale is updated, not kept.
 
 ## References
 
@@ -14,6 +14,7 @@ The language servers cjls is measured against, in two roles ([D15](adr/0015-refe
 | R6 | [Roslyn](https://github.com/dotnet/roslyn) | C#, VB | C# | red-green trees (where rowan comes from); overload resolution; immutable workspace snapshots |
 | R7 | [Kotlin Analysis API](https://github.com/JetBrains/kotlin/tree/master/analysis) ([kotlin-lsp](https://github.com/Kotlin/kotlin-lsp)) | Kotlin | Kotlin | the nearest language: classes and interfaces, extensions, overloading, named arguments, properties; resolve on demand |
 | R8 | [clangd](https://github.com/llvm/llvm-project/tree/main/clang-tools-extra/clangd) | C, C++ | C++ | the shape R4 has: a compiler in-process, a worker per file, a background index |
+| R9 | [lin-qingying/cangjie](https://github.com/lin-qingying/cangjie) | Cangjie | Kotlin | **a competitor**, not a model: R7's architecture carried to Cangjie; how it maps Cangjie onto K2's resolve phases (a phase for `extend`) |
 
 Looked at, not references:
 
