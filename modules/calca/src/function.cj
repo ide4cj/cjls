@@ -1,6 +1,7 @@
 package calca
 
 import std.collection.*
+import std.collection.concurrent.*
 import std.sync.*
 
 /**
@@ -78,10 +79,18 @@ class Memo<V> {
 }
 
 /**
- * The key of a memo table and the memo at it, `None` until it is first computed.
+ * The key of a memo table, its `Id`, and the memo at it, `None` until it is first computed. The memo
+ * is replaced under the table's lock and read without it.
  */
 class MemoEntry<K, V> {
-    MemoEntry(let key: K, var memo: ?Memo<V>) {}
+    let memo = AtomicOptionReference<Memo<V>>()
+
+    /**
+     * Its slot, given as it goes into the table, before any other handle can find it.
+     */
+    var id = Id(0)
+
+    MemoEntry(let key: K) {}
 }
 
 /**
@@ -94,12 +103,13 @@ class MemoEntry<K, V> {
  *
  * One handle at a time verifies or computes a memo: it claims the key, and another handle needing
  * it waits for the claim to go, then takes what the owner left, verified or computed. A memo already
- * verified in the current revision is read without a claim.
+ * verified in the current revision is read without a claim, and without the lock (C9): the entries
+ * are found by key in a `ConcurrentHashMap`, and the lock goes only around what changes them.
  */
 class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K <: Hashable & Equatable<K> {
     private let lock = Mutex()
     let entries = Slab<MemoEntry<K, V>>()
-    private let ids = HashMap<K, Id>()
+    private let byKey = ConcurrentHashMap<K, MemoEntry<K, V>>()
 
     /**
      * The handle verifying or computing the memo at each key claimed.
@@ -134,20 +144,20 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     }
 
     /**
-     * The `Id` of `key`, a new one the first time it is seen. Called with the lock held.
+     * The entry of `key`, a new one the first time it is seen. Called with the lock held.
      */
     @Frozen
-    private func internLocked(runtime: Runtime, key: K): Id {
-        match (ids.get(key)) {
-            case Some(id) => id
-            case None =>
-                let id = entries.insert(MemoEntry<K, V>(key, None))
-                ids.add(key, id)
-                if (let Some(map) <- internedKeys(runtime, key)) {
-                    map.add((key as InternedValue).getOrThrow().calcaKey().id, id)
-                }
-                id
+    private func internLocked(runtime: Runtime, key: K): MemoEntry<K, V> {
+        if (let Some(entry) <- byKey.get(key)) {
+            return entry
         }
+        let entry = MemoEntry<K, V>(key)
+        entry.id = entries.insert(entry)
+        byKey.add(key, entry)
+        if (let Some(map) <- internedKeys(runtime, key)) {
+            map.add((key as InternedValue).getOrThrow().calcaKey().id, entry.id)
+        }
+        entry
     }
 
     /**
@@ -186,7 +196,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             for (value in collected) {
                 let id = map.remove(value) ?? continue
                 if (let Some(entry) <- entries.remove(id)) {
-                    ids.remove(entry.key)
+                    byKey.remove(entry.key)
                 }
                 used?.remove(Id(id.index))
             }
@@ -197,26 +207,42 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * The value at `id` and the memo holding it: remembered if the memo is verified, else computed
      * again. A use of the key, as far as `lru` goes; its `Id`, a new one the first time.
      *
-     * A hit is one turn of the lock, the key interned and its memo read together, and marks
-     * nothing as being worked on: a memo verified in this revision is neither verified nor
-     * computed on any handle.
+     * A hit takes no lock, unless the function keeps only some values and the use has to be
+     * recorded, and marks nothing as being worked on: a memo verified in this revision is neither
+     * verified nor computed on any handle.
      */
     @Frozen
     func fetchValue(db: D, storage: Storage, key: K): (V, Memo<V>, Id) {
-        let (id, current) = synchronized(lock) {
-            let id = internLocked(storage.runtime, key)
-            used?.touch(id)
-            (id, entry(id).memo)
-        }
-        if (let Some(memo) <- current) {
-            if (let Some(value) <- memo.value) {
-                if (memo.verifiedAt.load() == storage.runtime.revision) {
-                    return (value, memo, id)
+        if (used.isNone()) {
+            if (let Some(entry) <- byKey.get(key)) {
+                if (let Some(hit) <- current(entry, storage.runtime)) {
+                    return hit
                 }
             }
         }
-        let (value, memo) = fetchCold(db, storage, id, key)
-        (value, memo, id)
+        let entry = synchronized(lock) {
+            let entry = internLocked(storage.runtime, key)
+            used?.touch(entry.id)
+            entry
+        }
+        if (let Some(hit) <- current(entry, storage.runtime)) {
+            return hit
+        }
+        let (value, memo) = fetchCold(db, storage, entry.id, key)
+        (value, memo, entry.id)
+    }
+
+    /**
+     * The value at `entry`, if its memo has one and is verified in this revision.
+     */
+    @Frozen
+    private func current(entry: MemoEntry<K, V>, runtime: Runtime): ?(V, Memo<V>, Id) {
+        let memo = entry.memo.load() ?? return None
+        let value = memo.value ?? return None
+        if (memo.verifiedAt.load() != runtime.revision) {
+            return None
+        }
+        (value, memo, entry.id)
     }
 
     /**
@@ -229,7 +255,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             let old = synchronized(lock) {
                 claim(storage, databaseKey)
                 // the owner waited for may have left it verified or computed
-                entry(id).memo
+                entry(id).memo.load()
             }
             try {
                 match (old) {
@@ -340,7 +366,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         }
         let memo = Memo(storage.runtime.revision, value, changedAt, frame.durability, frame.dependencies.toArray())
         synchronized(lock) {
-            entry(databaseKey.id).memo = memo
+            entry(databaseKey.id).memo.store(memo)
             used?.touch(databaseKey.id)
         }
         (value, memo)
@@ -381,12 +407,12 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             let now = storage.runtime.revision
             let found: ?(K, ?Memo<V>, Bool) = synchronized(lock) {
                 match (entries.get(id)) {
-                    case Some(entry) => match (entry.memo) {
-                        case Some(memo) where memo.verifiedAt.load() == now => Some((entry.key, entry.memo, false))
+                    case Some(entry) => match (entry.memo.load()) {
+                        case Some(memo) where memo.verifiedAt.load() == now => Some((entry.key, Some(memo), false))
                         case _ =>
                             claim(storage, databaseKey)
                             // the owner waited for may have left it verified or computed
-                            Some((entry.key, entry.memo, true))
+                            Some((entry.key, entry.memo.load(), true))
                     }
                     case None => None
                 }
@@ -417,7 +443,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             used?.trim {
                 id =>
                 if (let Some((_, entry)) <- entries.getAt(id.index)) {
-                    entry.memo = entry.memo?.evicted()
+                    entry.memo.store(entry.memo.load()?.evicted())
                 }
             }
         }
