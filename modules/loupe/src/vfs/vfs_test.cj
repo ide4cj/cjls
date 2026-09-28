@@ -135,6 +135,21 @@ class VfsTest {
     }
 
     @TestCase
+    func theFilesAreThoseWithContents() {
+        // arrange
+        let vfs = Vfs()
+        vfs.setFileContents(inTemp("a.cj"), Rope("a"))
+        vfs.setFileContents(inTemp("b.cj"), Rope("b"))
+        vfs.setFileContents(inTemp("c.cj"), Rope("c"))
+
+        // act
+        vfs.setFileContents(inTemp("b.cj"), None)
+
+        // assert
+        @Expect(vfs.files(), [FileId(0), FileId(2)])
+    }
+
+    @TestCase
     func settingWhatAFileHoldsAlreadyChangesNothing() {
         // arrange
         let vfs = Vfs()
