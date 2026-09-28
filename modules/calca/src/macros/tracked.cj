@@ -24,15 +24,23 @@ import std.collection.*
  * `@CalcaTracked[lru: 128]` keeps the values of the 128 keys fetched last from one revision to the
  * next, and lets go of the others; what they read is kept, so they are verified without being
  * computed, and computed again only when fetched. For values that are large and cheap to compute
- * again (a file's tree). Options go together: `@CalcaTracked[noEq, lru: 128]`.
+ * again (a file's tree).
+ *
+ * `@CalcaTracked[cycle: fallback]` recovers from a cycle: `fallback` takes what the function takes
+ * and returns what it returns. When a cycle is found and every query on it has one, each of them
+ * returns its fallback, and is computed again once anything the cycle read changes; when one has
+ * none, the cycle is a `CycleException`.
+ *
+ * Options go together: `@CalcaTracked[noEq, lru: 128, cycle: fallback]`.
  */
 public macro CalcaTracked(input: Tokens): Tokens {
-    tracked(input, quote({old, new => old == new}), quote())
+    tracked(input, quote({old, new => old == new}), quote(), None)
 }
 
 public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
     var equal = quote({old, new => old == new})
     var lru = quote()
+    var cycle: ?Token = None
     var i = 0
     while (i < attrs.size) {
         let option = attrs[i]
@@ -49,8 +57,16 @@ public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
             case "lru" =>
                 diagReport(DiagReportLevel.ERROR, attrs, "`lru` takes how many values to keep: `lru: 128`", "")
                 return input
+            case "cycle" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON && attrs[i + 2].kind ==
+                TokenKind.IDENTIFIER =>
+                cycle = attrs[i + 2]
+                i += 3
+            case "cycle" =>
+                diagReport(DiagReportLevel.ERROR, attrs, "`cycle` takes the function giving the fallback: `cycle: f`", "")
+                return input
             case _ =>
-                diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaTracked` takes no option but `noEq` and `lru: N`", "")
+                diagReport(DiagReportLevel.ERROR, attrs,
+                    "`@CalcaTracked` takes no option but `noEq`, `lru: N` and `cycle: f`", "")
                 return input
         }
         if (i < attrs.size) {
@@ -61,10 +77,10 @@ public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
             i++
         }
     }
-    tracked(input, equal, lru)
+    tracked(input, equal, lru, cycle)
 }
 
-private func tracked(input: Tokens, equal: Tokens, lru: Tokens): Tokens {
+private func tracked(input: Tokens, equal: Tokens, lru: Tokens, cycle: ?Token): Tokens {
     let decl = match (parseDecl(input)) {
         case fd: FuncDecl => fd
         case _ =>
@@ -112,32 +128,45 @@ private func tracked(input: Tokens, equal: Tokens, lru: Tokens): Tokens {
     let body = decl.block.toTokens()
 
     // no argument is a key of `Unit`, one its own key, several a struct of them all
-    let (keyType, keyArg, execute, keyStruct) = match (args.size) {
-        case 0 => (quote(Unit), quote(()), quote(static func execute($db: $dbType, _: Unit): $returnType $body), quote())
+    let (keyType, keyArg, keyParam, keyValues, execute, keyStruct) = match (args.size) {
+        case 0 => (quote(Unit), quote(()), quote(_: Unit), quote(),
+            quote(static func calcaExecute($db: $dbType, _: Unit): $returnType $body), quote())
         case 1 =>
             let (ident, argType) = args[0]
-            (argType, values, quote(static func execute($db: $dbType, $ident: $argType): $returnType $body), quote())
+            (argType, values, quote($ident: $argType), quote(, $ident),
+                quote(static func calcaExecute($db: $dbType, $ident: $argType): $returnType $body), quote())
         case _ =>
             let keyName = Token(TokenKind.IDENTIFIER, "CalcaFields_" + stripBackquotes(name.value))
             let execute = quote(
-                static func execute($db: $dbType, calcaKey: $keyName): $returnType {
-                    run($db $fields)
+                static func calcaExecute($db: $dbType, calcaKey: $keyName): $returnType {
+                    calcaRun($db $fields)
                 }
 
-                static func run($signature): $returnType $body
+                static func calcaRun($signature): $returnType $body
             )
-            (quote($keyName), quote($keyName($values)), execute, fieldsStruct(keyName, args))
+            (quote($keyName), quote($keyName($values)), quote(calcaKey: $keyName), fields, execute,
+                fieldsStruct(keyName, args))
+    }
+    let (recoverArg, fallback) = match (cycle) {
+        case Some(recover) => (quote(, recover: $holder.calcaFallback), quote(
+            static func calcaFallback($db: $dbType, $keyParam): $returnType {
+                $recover($db $keyValues)
+            }
+        ))
+        case None => (quote(), quote())
     }
 
     quote(
         $modifiers func $name($signature): $returnType {
-            $holder.FUNCTION.fetch($db, $keyArg, $holder.execute)
+            $holder.FUNCTION.fetch($db, $keyArg, $holder.calcaExecute $recoverArg)
         }
 
         private struct $holder {
             static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($(nameLiteral(name)), $equal $lru)
 
             $execute
+
+            $fallback
         }
 
         $keyStruct
