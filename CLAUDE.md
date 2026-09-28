@@ -13,9 +13,11 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 `cjpm` is on `PATH` in Claude Code sessions (a `SessionStart` hook in `.claude/settings.json` loads `envsetup.sh` for every Bash command — don't `source` it). In a shell of your own: `source ~/.cangjie/envsetup.sh` once. From the repo root:
 
 - `cjpm build` · `cjpm run` (the server) · `cjpm clean`
-- `cjpm test` — all tests (the `pre-push` hook runs it). CI adds `--no-progress`: the progress report stalls now and then and fails a run whose tests all passed.
+- `cjpm test --target-dir target/test` — all tests (the `pre-push` hook runs it). CI adds `--no-progress`: the progress report stalls now and then and fails a run whose tests all passed.
 - `python3 tests/corpora/fetch.py` — the third-party suites `cjpm test` holds fjson and ftoml to (JSONTestSuite, toml-test), fetched into `.corpora/` at the commits it pins ([D26](docs/adr/0026-test-suites-are-fetched.md)); once per clone, and again when a pin moves. Without them those tests fail, naming it. The `pre-push` hook and CI run it first.
-- A subset: `cjpm test '--filter=ConnectionCloseTest.*'` (`<TestClass>.<testCase>`, `*` wildcards). Quote it: the user's shell is fish.
+- A subset: `cjpm test --target-dir target/test '--filter=ConnectionCloseTest.*'` (`<TestClass>.<testCase>`, `*` wildcards). Quote it: the user's shell is fish.
+
+**Builds are incremental** ([D27](docs/adr/0027-incremental-builds.md)): cjpm knows a source by its mtime alone and the compiler not at all, so `build.cj` starts from scratch under another `cjc --version`, and `cjpm clean` is for a file put back with its old mtime (`cp -p`, an archive). Tests go to `target/test`: `cjpm test` and `cjpm build` in one directory undo each other's cache. CI restores `target` from master's last build, the sources stamped with mtimes made of their content; a tag builds clean.
 
 `cjpm` leaves `*.cj.macrocall` and `lib-macro_*.dylib` next to the sources: untracked build output, never edit it.
 
@@ -31,7 +33,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Commits
 
-Conventional Commits, enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`) on `commit-msg`: `type(scope): subject` (`feat(jsonrpc): ...`; `cog commit feat jsonrpc "subject"` writes one). Merge and `fixup!`/`squash!`/`amend!` pass; a `git revert` message must be reworded to `revert: ...`. Hooks are plain scripts in `.githooks/` (`commit-msg`: `cog verify`; `pre-push`: `cjpm test`), activated per clone with `git config core.hooksPath .githooks`.
+Conventional Commits, enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`) on `commit-msg`: `type(scope): subject` (`feat(jsonrpc): ...`; `cog commit feat jsonrpc "subject"` writes one). Merge and `fixup!`/`squash!`/`amend!` pass; a `git revert` message must be reworded to `revert: ...`. Hooks are plain scripts in `.githooks/` (`commit-msg`: `cog verify`; `pre-push`: the fetch and the tests), activated per clone with `git config core.hooksPath .githooks`.
 
 ## Workspace layout
 
