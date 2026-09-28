@@ -314,8 +314,7 @@ public class FtWriter {
     }
 
     /**
-     * A basic string: `"` and `\` escaped, and every control character - as TOML 1.0 has them, so
-     * that a reader of 1.0 (cjpm's) reads it too.
+     * A basic string: `"` and `\` escaped, and every control character, in TOML 1.1's shortest escape.
      */
     private func quoted(value: String): Unit {
         let source = unsafe { value.rawData() }
@@ -341,7 +340,8 @@ public class FtWriter {
                 case 0x0A => put("\\n")
                 case 0x0C => put("\\f")
                 case 0x0D => put("\\r")
-                case _ => put("\\u00${HEX_DIGITS[Int64(b >> 4)]}${HEX_DIGITS[Int64(b & 0x0F)]}")
+                case 0x1B => put("\\e")
+                case _ => put("\\x${HEX_DIGITS[Int64(b >> 4)]}${HEX_DIGITS[Int64(b & 0x0F)]}")
             }
         }
         if (source.size > runStart) {

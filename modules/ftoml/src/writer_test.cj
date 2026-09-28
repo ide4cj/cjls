@@ -106,7 +106,7 @@ class FtWriterTest {
     }
 
     @TestCase
-    func stringsEscapeWhatTomlOneZeroEscapes() {
+    func stringsEscapeControlCharactersAsTomlOneOneDoes() {
         // act
         let text = writtenBy {
             w =>
@@ -117,7 +117,7 @@ class FtWriterTest {
         }
 
         // assert
-        @Expect(text, #"s = "q\" b\\ \t\n\u001B\u007F é""# + "\n")
+        @Expect(text, #"s = "q\" b\\ \t\n\e\x7F é""# + "\n")
     }
 
     @TestCase
