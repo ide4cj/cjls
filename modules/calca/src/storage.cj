@@ -103,6 +103,20 @@ public class Storage {
      */
     @Frozen
     func read<T>(operation: () -> T): T {
+        let outermost = beginOperation()
+        try {
+            operation()
+        } finally {
+            endOperation(outermost)
+        }
+    }
+
+    /**
+     * `read` without a closure, for what a hit goes through: whether the operation is the
+     * outermost one goes to `endOperation`, in a `finally`.
+     */
+    @Frozen
+    func beginOperation(): Bool {
         if (batching.isSome()) {
             // a memo computed now would be current in a revision the rest of the batch changes
             throw IllegalStateException("nothing is read inside a batch, which only changes inputs")
@@ -115,13 +129,14 @@ public class Storage {
             runtime.unwindIfCancelled(pinned)
         }
         depth++
-        try {
-            operation()
-        } finally {
-            depth--
-            if (outermost) {
-                runtime.endRead()
-            }
+        outermost
+    }
+
+    @Frozen
+    func endOperation(outermost: Bool): Unit {
+        depth--
+        if (outermost) {
+            runtime.endRead()
         }
     }
 

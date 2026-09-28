@@ -13,9 +13,10 @@ let CLAIM_WAIT = Duration.millisecond * 10
  * A `@CalcaTracked` function, process-wide: where its memos are in any database. Held by the static
  * `@CalcaTracked` generates; not for use by hand.
  *
- * The body comes with every `fetch` rather than here: a static whose initializer reaches the body
- * does not compile once tracked functions call each other, since cjc then sees the static used
- * before it is initialized.
+ * The body comes with every `fetch`, as the type `B` it is a static function of, rather than here:
+ * a static whose initializer reaches the body does not compile once tracked functions call each
+ * other, since cjc then sees the static used before it is initialized. A type, not a closure: a
+ * closure would be allocated by every call.
  *
  * `equal` tells whether a value computed again is the one remembered, in which case the memo keeps
  * the revision it last changed in and what read it need not run again ("backdating").
@@ -39,14 +40,47 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
      * @throws CycleException - if the value is already being computed on this handle
      */
     @Frozen
-    public func fetch(db: D, key: K, execute: (D, K) -> V, recover!: ?(D, K) -> V = None): V {
+    public func fetch<B>(db: D, key: K): V where B <: TrackedBody<D, K, V> {
         let storage = db.storage
-        storage.read {
-            let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute, recover)}
+        let outermost = storage.beginOperation()
+        try {
+            let memos = storage.runtime.existing<MemoTable<D, K, V>>(index) ?? storage.runtime.ingredient(index) {
+                => memoTable<B>()
+            }
             let (value, memo, id) = memos.fetchValue(db, storage, key)
             storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
             value
+        } finally {
+            storage.endOperation(outermost)
         }
+    }
+
+    private func memoTable<B>(): MemoTable<D, K, V> where B <: TrackedBody<D, K, V> {
+        let recover: ?(D, K) -> V = if (B.calcaHasFallback()) {
+            {db: D, key: K => B.calcaFallback(db, key)}
+        } else {
+            None
+        }
+        MemoTable(this, {db: D, key: K => B.calcaExecute(db, key)}, recover)
+    }
+}
+
+/**
+ * The body of a `@CalcaTracked` function, and its fallback on a cycle if it has one: what the type
+ * `@CalcaTracked` generates beside the function implements, for `TrackedFunction.fetch` to call.
+ */
+public interface TrackedBody<D, K, V> {
+    static func calcaExecute(db: D, key: K): V
+
+    /**
+     * Whether it has a fallback, `@CalcaTracked[cycleResult: …]`.
+     */
+    static func calcaHasFallback(): Bool {
+        false
+    }
+
+    static func calcaFallback(_: D, _: K): V {
+        throw IllegalStateException("no fallback")
     }
 }
 

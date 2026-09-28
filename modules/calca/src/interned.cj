@@ -52,7 +52,8 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
     @Frozen
     public func intern(db: Database, fields: K): Id {
         let storage = db.storage
-        storage.read {
+        let outermost = storage.beginOperation()
+        try {
             let now = storage.runtime.revision
             let durability = storage.queryDurability
             let id = table(storage.runtime).intern(fields, durability, now)
@@ -61,6 +62,8 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
                 storage.reportRead(DatabaseKey(index, id), current, now)
             }
             id
+        } finally {
+            storage.endOperation(outermost)
         }
     }
 
@@ -72,8 +75,11 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
     @Frozen
     public func lookup(db: Database, id: Id): K {
         let storage = db.storage
-        storage.read {
+        let outermost = storage.beginOperation()
+        try {
             table(storage.runtime).lookup(id, storage.runtime.revision)
+        } finally {
+            storage.endOperation(outermost)
         }
     }
 
@@ -93,7 +99,7 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
 
     @Frozen
     func table(runtime: Runtime): InternTable<K> {
-        runtime.ingredient(index) {=> InternTable<K>(this)}
+        runtime.existing<InternTable<K>>(index) ?? runtime.ingredient(index) {=> InternTable<K>(this)}
     }
 }
 

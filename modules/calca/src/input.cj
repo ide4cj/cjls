@@ -69,7 +69,8 @@ public class InputIngredient {
      */
     public func single(db: Database): ?Id {
         let storage = db.storage
-        storage.read {
+        let outermost = storage.beginOperation()
+        try {
             let table = table(storage.runtime)
             let (created, createdAt) = synchronized(table.lock) {
                 (table.rows > 0, table.createdAt)
@@ -80,6 +81,8 @@ public class InputIngredient {
             } else {
                 None
             }
+        } finally {
+            storage.endOperation(outermost)
         }
     }
 
@@ -89,8 +92,11 @@ public class InputIngredient {
     @Frozen
     public func get<T>(db: Database, field: Int64, id: Id): T {
         let storage = db.storage
-        storage.read {
+        let outermost = storage.beginOperation()
+        try {
             column<T>(storage.runtime, field).get(storage, id)
+        } finally {
+            storage.endOperation(outermost)
         }
     }
 
@@ -108,13 +114,13 @@ public class InputIngredient {
 
     @Frozen
     func table(runtime: Runtime): InputTable {
-        runtime.ingredient(base) {=> InputTable(this)}
+        runtime.existing<InputTable>(base) ?? runtime.ingredient(base) {=> InputTable(this)}
     }
 
     @Frozen
     func column<T>(runtime: Runtime, field: Int64): InputColumn<T> {
-        let table = table(runtime)
-        runtime.ingredient(base + 1 + field) {=> InputColumn<T>(table, base + 1 + field, fields[field])}
+        let index = base + 1 + field
+        runtime.existing<InputColumn<T>>(index) ?? runtime.ingredient(index) {=> InputColumn<T>(table(runtime), index, fields[field])}
     }
 }
 

@@ -125,6 +125,17 @@ class Runtime {
         (found as I).getOrThrow {=> IllegalStateException("ingredient ${index} is ${found.describe(Id(0))}'s, of another type")}
     }
 
+    /**
+     * The ingredient at `index` if it was created, without a closure to create it.
+     */
+    @Frozen
+    func existing<I>(index: Int64): ?I where I <: Ingredient {
+        match (lookup(index)) {
+            case Some(ingredient) => ingredient as I
+            case None => None
+        }
+    }
+
     func ingredientAt(index: Int64): Ingredient {
         lookup(index).getOrThrow {=> IllegalStateException("no ingredient ${index} in this database")}
     }

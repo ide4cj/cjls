@@ -287,25 +287,29 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
                 (quote($(taken[0]).$bodyName($db $rest)), quote())
             }
             (quote(
-                static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
+                public static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
                     $call
                 }
             ), quote($staticMark func $bodyName($signature): $returnType $body))
         case None => (quote(
-            static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
+            public static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
                 calcaRun($db $unpacked)
             }
 
             static func calcaRun($signature): $returnType $body
         ), quote())
     }
-    let (recoverArg, fallback) = match (options.cycleResult) {
-        case Some(recover) => (quote(, recover: $holder.calcaFallback), quote(
-            static func calcaFallback($db: $dbType, calcaKey: $keyType): $returnType {
+    let fallback = match (options.cycleResult) {
+        case Some(recover) => quote(
+            public static func calcaHasFallback(): Bool {
+                true
+            }
+
+            public static func calcaFallback($db: $dbType, calcaKey: $keyType): $returnType {
                 $recover($db $unpacked)
             }
-        ))
-        case None => (quote(), quote())
+        )
+        case None => quote()
     }
     let equal = options.equal
     let lru = options.lru
@@ -313,13 +317,13 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
 
     let declaration = quote(
         $modifiers func $name($signature): $returnType {
-            $holder.FUNCTION.fetch($db, $keyArg, $holder.calcaExecute $recoverArg)
+            $holder.FUNCTION.fetch<$holder>($db, $keyArg)
         }
 
         $method
     )
     let topLevel = quote(
-        private struct $holder {
+        private struct $holder <: TrackedBody<$dbType, $keyType, $returnType> {
             static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($describedName, $equal $lru)
 
             $execute
