@@ -201,19 +201,21 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         let databaseKey = DatabaseKey(function.index, id)
         storage.enter(databaseKey)
         try {
-            let now = storage.runtime.revision
-            let (hit, old) = synchronized(lock) {
+            let current = synchronized(lock) {
                 used?.touch(id)
-                match (entry(id).memo) {
-                    case Some(memo) where memo.verifiedAt.load() == now && memo.value.isSome() =>
-                        (Some((memo.value.getOrThrow(), memo)), None<Memo<V>>)
-                    case _ =>
-                        claim(storage, databaseKey)
-                        (None<(V, Memo<V>)>, entry(id).memo)
+                entry(id).memo
+            }
+            if (let Some(memo) <- current) {
+                if (let Some(value) <- memo.value) {
+                    if (memo.verifiedAt.load() == storage.runtime.revision) {
+                        return (value, memo)
+                    }
                 }
             }
-            if (let Some(found) <- hit) {
-                return found
+            let old = synchronized(lock) {
+                claim(storage, databaseKey)
+                // the owner waited for may have left it verified or computed
+                entry(id).memo
             }
             try {
                 match (old) {

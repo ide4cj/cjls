@@ -43,3 +43,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0025](0025-toml-through-serde.md) | TOML is read and written by ftoml, TOML 1.1 of our own, through `ToToml`/`FromToml` derived from the same `@Serde` model | accepted |
 | [0026](0026-test-suites-are-fetched.md) | Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored | accepted |
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted |
+| [0028](0028-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | accepted |
