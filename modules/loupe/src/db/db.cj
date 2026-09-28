@@ -74,9 +74,22 @@ public class AnalysisDatabase <: Database {
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
     public func applyChanges(vfs: Vfs, changes: Array<ChangedFile>): Unit {
-        for (change in changes) {
-            setFileText(change.fileId, vfs.fileContents(change.fileId) ?? Rope())
+        batch {
+            for (change in changes) {
+                setFileText(change.fileId, vfs.fileContents(change.fileId) ?? Rope())
+            }
         }
+    }
+
+    /**
+     * Makes every change `change` makes to the files one revision: the snapshots are cancelled
+     * once, and what is in flight waited for once. Nothing is read inside it.
+     *
+     * @throws IllegalStateException - if this is a snapshot, or a query is running on it, or
+     * `change` reads
+     */
+    public func batch<T>(change: () -> T): T {
+        storage_.batch(change)
     }
 }
 
