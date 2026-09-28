@@ -89,6 +89,7 @@ public class Storage {
      * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
      * was asked to stop
      */
+    @Frozen
     public func unwindIfCancelled(): Unit {
         checkAskedToStop()
         runtime.unwindIfCancelled(pinned)
@@ -100,6 +101,7 @@ public class Storage {
      * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
      * was asked to stop
      */
+    @Frozen
     func read<T>(operation: () -> T): T {
         if (batching.isSome()) {
             // a memo computed now would be current in a revision the rest of the batch changes
@@ -123,6 +125,7 @@ public class Storage {
         }
     }
 
+    @Frozen
     private func checkAskedToStop(): Unit {
         if (cancelledBy()) {
             throw Cancelled()
@@ -241,6 +244,7 @@ public class Storage {
     /**
      * Records a read on the query running, if any.
      */
+    @Frozen
     func reportRead(key: DatabaseKey, durability: Durability, changedAt: Int64): Unit {
         if (let Some(frame) <- stack.last) {
             frame.read(key, durability, changedAt)

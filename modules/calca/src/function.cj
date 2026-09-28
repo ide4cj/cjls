@@ -37,6 +37,7 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
      * @throws Cancelled - if a write is pending, or `db` is a snapshot of a revision gone by
      * @throws CycleException - if the value is already being computed on this handle
      */
+    @Frozen
     public func fetch(db: D, key: K, execute: (D, K) -> V, recover!: ?(D, K) -> V = None): V {
         let storage = db.storage
         storage.read {
@@ -135,6 +136,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     /**
      * The `Id` of `key`, a new one the first time it is seen. Called with the lock held.
      */
+    @Frozen
     private func internLocked(runtime: Runtime, key: K): Id {
         match (ids.get(key)) {
             case Some(id) => id
@@ -153,6 +155,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * decides, and registers the table with theirs, to be told what is collected: a macro sees only
      * tokens, so which type a key is is found out here. Called with the lock held.
      */
+    @Frozen
     private func internedKeys(runtime: Runtime, key: K): ?HashMap<Id, Id> {
         if (let Some(known) <- byInterned) {
             return known
@@ -198,6 +201,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * nothing as being worked on: a memo verified in this revision is neither verified nor
      * computed on any handle.
      */
+    @Frozen
     func fetchValue(db: D, storage: Storage, key: K): (V, Memo<V>, Id) {
         let (id, current) = synchronized(lock) {
             let id = internLocked(storage.runtime, key)
@@ -426,6 +430,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     /**
      * Called with the lock held.
      */
+    @Frozen
     private func entry(id: Id): MemoEntry<K, V> {
         entries.get(id).getOrThrow {=> IllegalStateException("${function.name} has no key ${id}")}
     }

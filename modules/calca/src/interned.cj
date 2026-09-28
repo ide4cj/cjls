@@ -49,6 +49,7 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
     /**
      * The `Id` of `fields`: the one they already have in this database, else a new one.
      */
+    @Frozen
     public func intern(db: Database, fields: K): Id {
         let storage = db.storage
         storage.read {
@@ -68,6 +69,7 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
      *
      * @throws IllegalStateException - if `id` was collected
      */
+    @Frozen
     public func lookup(db: Database, id: Id): K {
         let storage = db.storage
         storage.read {
@@ -89,6 +91,7 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
         "${name}(${id})"
     }
 
+    @Frozen
     func table(runtime: Runtime): InternTable<K> {
         runtime.ingredient(index) {=> InternTable<K>(this)}
     }
@@ -148,6 +151,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
     /**
      * The `Id` of `fields`, interned by a query of `durability` so far, `None` outside any query.
      */
+    @Frozen
     func intern(fields: K, durability: ?Durability, now: Int64): Id {
         // outside a query, no memo depends on the value, and nothing would learn it is gone
         let atLeast = durability ?? Durability.High
@@ -171,6 +175,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
     /**
      * @throws IllegalStateException - if `id` was collected
      */
+    @Frozen
     func lookup(id: Id, now: Int64): K {
         let slot = synchronized(lock) {
             let found = values.get(id)
@@ -188,6 +193,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
     /**
      * Called with the lock held.
      */
+    @Frozen
     private func use(id: Id, slot: InternSlot<K>, now: Int64): Unit {
         let revisions = match (ingredient.revisions) {
             case Some(count) => count

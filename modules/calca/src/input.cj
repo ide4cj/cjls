@@ -86,6 +86,7 @@ public class InputIngredient {
     /**
      * The value of `field` at `id`, recorded as read by the query running.
      */
+    @Frozen
     public func get<T>(db: Database, field: Int64, id: Id): T {
         let storage = db.storage
         storage.read {
@@ -105,10 +106,12 @@ public class InputIngredient {
         "${name}(${id})"
     }
 
+    @Frozen
     func table(runtime: Runtime): InputTable {
         runtime.ingredient(base) {=> InputTable(this)}
     }
 
+    @Frozen
     func column<T>(runtime: Runtime, field: Int64): InputColumn<T> {
         let table = table(runtime)
         runtime.ingredient(base + 1 + field) {=> InputColumn<T>(table, base + 1 + field, fields[field])}
@@ -204,6 +207,7 @@ class InputColumn<T> <: Ingredient {
 
     InputColumn(let table: InputTable, let index: Int64, let field: String) {}
 
+    @Frozen
     func get(storage: Storage, id: Id): T {
         let stamp = synchronized(table.lock) {
             stamps[id.index]

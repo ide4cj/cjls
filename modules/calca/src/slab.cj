@@ -77,6 +77,7 @@ class Slab<T> {
     /**
      * The value at `id`, `None` once it was removed.
      */
+    @Frozen
     func get(id: Id): ?T {
         match (slots.get(id.index)) {
             case Some(SlabOccupied(generation, value)) where generation == id.generation => value

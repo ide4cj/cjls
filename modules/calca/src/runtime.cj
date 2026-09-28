@@ -96,16 +96,19 @@ class Runtime {
         drainLock.unlock()
     }
 
+    @Frozen
     prop revision: Int64 {
         get() {
             revision_.load()
         }
     }
 
+    @Frozen
     func lastChangedAt(durability: Durability): Int64 {
         lastChanged[durability.rank].load()
     }
 
+    @Frozen
     func ingredient<I>(index: Int64, create: () -> I): I where I <: Ingredient {
         let found = match (lookup(index)) {
             case Some(ingredient) => ingredient
@@ -126,6 +129,7 @@ class Runtime {
         lookup(index).getOrThrow {=> IllegalStateException("no ingredient ${index} in this database")}
     }
 
+    @Frozen
     private func lookup(index: Int64): ?Ingredient {
         table.load().entries.get(index) ?? None
     }
@@ -142,6 +146,7 @@ class Runtime {
      *
      * @throws Cancelled - if a write is pending, or the handle is pinned to a revision gone by
      */
+    @Frozen
     func beginRead(pinned: ?Int64): Unit {
         while (true) {
             // counted in before looking for a write: a write marks itself pending before it counts,
@@ -165,6 +170,7 @@ class Runtime {
         }
     }
 
+    @Frozen
     func endRead(): Unit {
         if (inFlight.fetchSub(1) == 1 && writePending.load()) {
             // the write looks at the count under the same lock, so it cannot miss this
@@ -272,6 +278,7 @@ class Runtime {
     /**
      * @throws Cancelled - if a write is pending, or `pinned` is a revision gone by
      */
+    @Frozen
     func unwindIfCancelled(pinned: ?Int64): Unit {
         if (writePending.load()) {
             throw Cancelled()
