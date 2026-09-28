@@ -1,6 +1,6 @@
 package fjson
 
-import std.convert.*
+import fnum.parseFloat64
 
 public class FjException <: Exception {
     public init(message: String) {
@@ -9,7 +9,7 @@ public class FjException <: Exception {
 }
 
 public enum FjKind {
-    | JsonObject | JsonArray | JsonString | JsonNumber | JsonBool | JsonNull
+    | FjObject | FjArray | FjString | FjNumber | FjBool | FjNull
 }
 
 /** How many containers deep `skipValue` and `rawValue` go: a value nested deeper is refused. */
@@ -108,12 +108,12 @@ public class FjReader {
     @Frozen
     public func peekKind(): FjKind {
         match (peekByte()) {
-            case 0x7B => FjKind.JsonObject
-            case 0x5B => FjKind.JsonArray
-            case 0x22 => FjKind.JsonString
-            case 0x74 | 0x66 => FjKind.JsonBool
-            case 0x6E => FjKind.JsonNull
-            case b where b == 0x2D || (b >= 0x30 && b <= 0x39) => FjKind.JsonNumber
+            case 0x7B => FjKind.FjObject
+            case 0x5B => FjKind.FjArray
+            case 0x22 => FjKind.FjString
+            case 0x74 | 0x66 => FjKind.FjBool
+            case 0x6E => FjKind.FjNull
+            case b where b == 0x2D || (b >= 0x30 && b <= 0x39) => FjKind.FjNumber
             case _ => throw fail("expected a value")
         }
     }
@@ -415,16 +415,13 @@ public class FjReader {
         UInt32(v)
     }
 
-    /**
-     * A number, through `std.convert`'s `Float64.parse`, which is not correctly rounded: it reads
-     * ~0.5% of shortest decimals - what `FjWriter.float64` writes - one ulp off, ~1 in 20 000 two
-     * (`RyuTest`, `TreePropertyTest`, #31).
-     */
+    /** A number, as the nearest `Float64`: what `FjWriter.float64` writes reads back as it was. */
     @Frozen
     public func readFloat64(): Float64 {
+        ws()
         let start = pos
         skipNumber()
-        Float64.parse(unsafe { String.fromUtf8Unchecked(bytes[start..pos]) })
+        parseFloat64(bytes, start, pos)
     }
 
     @Frozen
@@ -551,22 +548,22 @@ public class FjReader {
     /** The value inside `depth` containers: one more than `MAX_DEPTH` is refused, before the stack runs out. */
     private func skipValue(depth: Int64): Unit {
         match (peekKind()) {
-            case FjKind.JsonObject =>
+            case FjKind.FjObject =>
                 enter(depth)
                 beginObject()
                 while (nextKey()) {
                     skipValue(depth + 1)
                 }
-            case FjKind.JsonArray =>
+            case FjKind.FjArray =>
                 enter(depth)
                 beginArray()
                 while (nextItem()) {
                     skipValue(depth + 1)
                 }
-            case FjKind.JsonString => skipString()
-            case FjKind.JsonNumber => skipNumber()
-            case FjKind.JsonBool => readBool()
-            case FjKind.JsonNull => readNull()
+            case FjKind.FjString => skipString()
+            case FjKind.FjNumber => skipNumber()
+            case FjKind.FjBool => readBool()
+            case FjKind.FjNull => readNull()
         }
         // a value was read: whatever container holds it has a member now
         first = false

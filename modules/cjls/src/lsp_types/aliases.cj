@@ -7,7 +7,6 @@ import std.collection.*
 import std.deriving.*
 import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 
@@ -15,7 +14,7 @@ public type URI = String
 
 public type DocumentUri = String
 
-public type LSPAny = AnyValue
+public type LSPAny = JsonValue
 
 public type ProgressToken = IntegerOrString
 

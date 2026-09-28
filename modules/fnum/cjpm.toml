@@ -1,0 +1,15 @@
+[package]
+cjc-version = "1.3.0"
+name = "fnum"
+organization = ""
+description = "Numbers read and written as text: correctly rounded, and shortest"
+version = "1.0.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = "-Woff unused -O2"
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]

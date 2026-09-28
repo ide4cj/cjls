@@ -3,7 +3,7 @@ package stdxx
 import std.collection.HashMap
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.serialization.serialization.*
+import fjson.*
 
 @Test
 @Configure[randomSeed: 42]
@@ -11,7 +11,7 @@ class IntegerOrStringTest {
     @TestCase[value in random()]
     func anIntegerRoundTrips(value: Int32) {
         // act
-        let restored = IntegerOrString.deserialize(Integer(value).serialize())
+        let restored = fromJsonBytes<IntegerOrString>(toJsonBytes(Integer(value)))
 
         // assert
         @Expect(Integer(value), restored)
@@ -20,16 +20,16 @@ class IntegerOrStringTest {
     @TestCase[value in random()]
     func aStringRoundTrips(value: String) {
         // act
-        let restored = IntegerOrString.deserialize(IntegerOrString.String(value).serialize())
+        let restored = fromJsonBytes<IntegerOrString>(toJsonBytes(IntegerOrString.String(value)))
 
         // assert
         @Expect(IntegerOrString.String(value), restored)
     }
 
-    @TestCase[dm in [DataModelBool(true), DataModelNull(), DataModelInt(Int64(Int32.Max) + 1)]]
-    func anythingElseIsRefused(dm: DataModel) {
+    @TestCase[json in ["true", "null", "2147483648", "1.5"]]
+    func anythingElseIsRefused(json: String) {
         // act & assert
-        @AssertThrows[DataModelException](IntegerOrString.deserialize(dm))
+        @AssertThrows[FjException](fromJsonBytes<IntegerOrString>(json.toArray()))
     }
 
     @TestCase

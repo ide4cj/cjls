@@ -3,7 +3,8 @@ package fjson
 import std.io.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.*
+import stdx.encoding.json.{JsonArray, JsonInt, JsonObject, JsonString}
+import stdx.encoding.json.JsonValue as StdxJsonValue
 import stdx.encoding.json.stream.*
 
 /*
@@ -115,7 +116,7 @@ func streamText(bytes: Array<Byte>): String {
 }
 
 func treeText(bytes: Array<Byte>): String {
-    let message = JsonValue.fromStr(String.fromUtf8(bytes)).asObject()
+    let message = StdxJsonValue.fromStr(String.fromUtf8(bytes)).asObject()
     let document = message.get("params").getOrThrow().asObject().get("textDocument").getOrThrow().asObject()
     document.get("text").getOrThrow().asString().getValue()
 }
@@ -183,7 +184,7 @@ func streamSymbols(): Array<Byte> {
     readToEnd(buffer)
 }
 
-func treeSymbol(symbol: BenchSymbol): JsonValue {
+func treeSymbol(symbol: BenchSymbol): StdxJsonValue {
     let o = JsonObject()
     o.put("name", JsonString(symbol.name))
     if (!symbol.detail.isEmpty()) {
@@ -213,8 +214,8 @@ class FjsonBenchFixtureTest {
         @Expect(fjsonRead, BENCH_TEXT)
         @Expect(streamText(DID_OPEN), BENCH_TEXT)
         @Expect(treeText(DID_OPEN), BENCH_TEXT)
-        @Expect(JsonValue.fromStr(written).toString(), JsonValue.fromStr(String.fromUtf8(treeSymbols())).toString())
-        @Expect(JsonValue.fromStr(written).toString(), JsonValue.fromStr(String.fromUtf8(streamSymbols())).toString())
+        @Expect(StdxJsonValue.fromStr(written).toString(), StdxJsonValue.fromStr(String.fromUtf8(treeSymbols())).toString())
+        @Expect(StdxJsonValue.fromStr(written).toString(), StdxJsonValue.fromStr(String.fromUtf8(streamSymbols())).toString())
     }
 }
 

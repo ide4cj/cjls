@@ -13,6 +13,6 @@ link-option = "-lc++"
 package-configuration = {}
 
 [dependencies]
-cjtoml = { path = "../cjtoml" }
+ftoml = { path = "../ftoml" }
 fjson = { path = "../fjson" }
 stdxx = { path = "../stdxx" }

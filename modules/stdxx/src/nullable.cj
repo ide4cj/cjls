@@ -1,6 +1,5 @@
 package stdxx
 
-import stdx.serialization.serialization.*
 import fjson.*
 
 public enum Nullable<T> {
@@ -25,22 +24,6 @@ public enum Nullable<T> {
         match (this) {
             case Value(v) => v
             case Null => throw NullValueException()
-        }
-    }
-}
-
-extend<T> Nullable<T> <: Serializable<Nullable<T>> where T <: Serializable<T> {
-    public static func deserialize(dm: DataModel): Nullable<T> {
-        match (dm) {
-            case _: DataModelNull => Null
-            case _ => Value(T.deserialize(dm))
-        }
-    }
-
-    public func serialize(): DataModel {
-        match (this) {
-            case Value(s) => s.serialize()
-            case Null => DataModelNull()
         }
     }
 }

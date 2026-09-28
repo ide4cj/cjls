@@ -7,7 +7,6 @@ import std.collection.*
 import std.deriving.*
 import fjson.*
 import stdxx.{IntegerOrString, Nullable}
-import stdxx.serialization.AnyValue
 import stdxx.deriving.*
 import jsonrpc.*
 

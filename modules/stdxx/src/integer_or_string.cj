@@ -1,37 +1,12 @@
 package stdxx
 
 import std.deriving.*
-import stdx.serialization.serialization.*
 import fjson.*
 
 @Derive[Equatable, Hashable]
-public enum IntegerOrString <: Serializable<IntegerOrString> & ToString {
+public enum IntegerOrString <: ToString {
     | Integer(Int32)
     | String(String)
-
-    /**
-     * @throws DataModelException - if not a DataModelInt or DataModelString
-     */
-    public static func deserialize(dm: DataModel): IntegerOrString {
-        match (dm) {
-            case i: DataModelInt =>
-                let value = try {
-                    Int32(i.getValue())
-                } catch (e: OverflowException) {
-                    throw DataModelException("invalid integer\nCause: ${e}")
-                }
-                Integer(value)
-            case s: DataModelString => String(s.getValue())
-            case _ => throw DataModelException("expected integer or string")
-        }
-    }
-
-    public func serialize(): DataModel {
-        match (this) {
-            case Integer(i) => DataModelInt(Int64(i))
-            case String(s) => DataModelString(s)
-        }
-    }
 
     public func toString(): String {
         match (this) {
@@ -85,8 +60,8 @@ extend IntegerOrString <: ToJson & FromJson<IntegerOrString> {
      */
     public static func fromJson(r: FjReader): IntegerOrString {
         match (r.peekKind()) {
-            case FjKind.JsonNumber => Integer(r.readInt32())
-            case FjKind.JsonString => String(r.readString())
+            case FjKind.FjNumber => Integer(r.readInt32())
+            case FjKind.FjString => String(r.readString())
             case _ => throw FjException("expected integer or string at byte ${r.position}")
         }
     }
