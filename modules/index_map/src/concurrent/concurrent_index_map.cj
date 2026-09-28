@@ -1,6 +1,5 @@
 package index_map.concurrent
 
-import std.collection.*
 import std.collection.concurrent.ConcurrentHashMap
 import std.math.leadingZeros
 import std.sync.*

@@ -7,7 +7,8 @@ version = "1.0.0"
 target-dir = ""
 script-dir = ""
 output-type = "static"
-compile-option = "-Woff unused -O2"
+# vendored, byte-identical to upstream: its warnings are not ours to fix
+compile-option = "-O2 -Woff unused"
 override-compile-option = ""
 link-option = ""
 package-configuration = {}

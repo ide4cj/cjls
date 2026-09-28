@@ -200,7 +200,7 @@ func second(db: TestDb, mode: Mode): Int64 {
 
 @CalcaTracked
 func createsAnInput(db: TestDb, file: SourceFile): Int64 {
-    SourceFile(db, "b.cj", file.text(db))
+    let _ = SourceFile(db, "b.cj", file.text(db))
     0
 }
 
@@ -532,7 +532,7 @@ class CalcaTest {
         let file = SourceFile(db, "a.cj", "hello")
 
         // act, assert
-        @AssertThrows[IllegalStateException](SourceFile(db.snapshot(), "b.cj", "hello"))
+        @AssertThrows[IllegalStateException]({ let _ = SourceFile(db.snapshot(), "b.cj", "hello") })
         @AssertThrows[IllegalStateException](createsAnInput(db, file))
     }
 

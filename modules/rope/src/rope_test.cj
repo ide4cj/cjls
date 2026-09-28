@@ -267,3 +267,36 @@ class RopeTest {
         slice.checkInvariants()
     }
 }
+
+extend Rope {
+    /**
+     * The tree's invariants: every leaf at height 0, and every node but the root holding enough.
+     */
+    func checkInvariants(): Unit {
+        checkNode(root, true)
+    }
+}
+
+func checkNode(node: Node, isRoot: Bool): Unit {
+    match (node) {
+        case leaf: Leaf =>
+            if (leaf.height != 0) {
+                throw IllegalStateException("a leaf at height ${leaf.height}")
+            }
+            if (leaf.text.size > MAX_CHUNK || !isRoot && leaf.text.size < MIN_CHUNK) {
+                throw IllegalStateException("a leaf of ${leaf.text.size} bytes")
+            }
+        case branch: Branch =>
+            let count = branch.children.size
+            if (count > MAX_CHILDREN || !isRoot && count < MIN_CHILDREN || isRoot && count < 2) {
+                throw IllegalStateException("a branch of ${count} children")
+            }
+            for (child in branch.children) {
+                if (child.height != branch.height - 1) {
+                    throw IllegalStateException("a child at height ${child.height} of a branch at ${branch.height}")
+                }
+                checkNode(child, false)
+            }
+        case _ => throw IllegalStateException("a node neither a leaf nor a branch")
+    }
+}

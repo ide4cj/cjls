@@ -7,7 +7,6 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import fjson.RawJson
-import jsonrpc.*
 import rope.Rope
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*

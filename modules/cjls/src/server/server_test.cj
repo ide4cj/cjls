@@ -163,7 +163,7 @@ class ServerLifecycleTest {
         let server = initialized(lifecycleRouter())
 
         // assert
-        @Expect(Lifecycle.Initialized, server.state)
+        @Expect(Lifecycle.Initialized, server.lifecycle)
     }
 
     @TestCase
@@ -177,7 +177,7 @@ class ServerLifecycleTest {
 
         // assert
         @Expect(ErrorCode.INVALID_PARAMS, asked.answer().getErrorOrThrow().code)
-        @Expect(Lifecycle.Uninitialized, server.state)
+        @Expect(Lifecycle.Uninitialized, server.lifecycle)
     }
 
     @TestCase
@@ -222,7 +222,7 @@ class ServerLifecycleTest {
 
         // assert
         @Expect(0, server.exitCode)
-        @Expect(Lifecycle.Exited, server.state)
+        @Expect(Lifecycle.Exited, server.lifecycle)
     }
 
     @TestCase
@@ -357,7 +357,7 @@ class ServerDispatchTest {
         server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))
 
         // assert
-        @Expect(Lifecycle.Initialized, server.state)
+        @Expect(Lifecycle.Initialized, server.lifecycle)
     }
 }
 

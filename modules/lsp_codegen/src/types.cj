@@ -3,7 +3,6 @@ package lsp_codegen
 import std.ast.*
 import std.collection.*
 import std.sort.*
-import stdxx.Nullable
 
 enum TypeIr <: ToString {
     /**

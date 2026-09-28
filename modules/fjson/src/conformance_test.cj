@@ -4,6 +4,7 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import std.sort.sort
 import std.io.*
 import stdx.encoding.json.*
 import stdx.encoding.json.stream.*
@@ -289,7 +290,7 @@ func sortedMembers(tree: Tree): Tree {
     match (tree) {
         case TObject(members) =>
             let sorted = ArrayList(members.map {m => (m[0], sortedMembers(m[1]))})
-            sorted.sortBy(stable: true) {a, b => a[0].compare(b[0])}
+            sort(sorted, by: {a, b => a[0].compare(b[0])}, stable: true)
             TObject(sorted.toArray())
         case TArray(items) => TArray(items.map {item => sortedMembers(item)})
         case _ => tree

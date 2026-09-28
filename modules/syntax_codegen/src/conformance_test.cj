@@ -7,7 +7,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.*
 import cjsyntax.*
-import cjsyntax.ast.{RangeExpr, Stmt, Expr}
+import cjsyntax.ast.{RangeExpr, Expr}
 
 /**
  * A child as a rule sees it: a node or a token, and its kind's name.

@@ -24,7 +24,7 @@ func decimalOf(text: String): (BigInt, Int64) {
     } else {
         ""
     }
-    (BigInt(pointed[0] + fraction), exponent - fraction.size)
+    (BigInt.parse(pointed[0] + fraction, radix: 10), exponent - fraction.size)
 }
 
 func pow(base: Int64, exponent: Int64): BigInt {

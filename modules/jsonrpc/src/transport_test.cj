@@ -7,7 +7,6 @@ import std.unittest.testmacro.*
 import std.unittest.prop_test.*
 import stdx.log.*
 import stdx.serialization.serialization.*
-import fjson.*
 import stdxx.IntegerOrString
 import stdxx.serialization.*
 

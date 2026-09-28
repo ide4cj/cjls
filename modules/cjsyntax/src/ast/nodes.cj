@@ -2398,7 +2398,7 @@ public enum Stmt <: AstNode<SyntaxKind, Stmt> & Equatable<Stmt> & Hashable & ToS
                 | SyntaxKind.ReturnExpr | SyntaxKind.BreakExpr | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr
                 | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr
                 | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr
-                | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr | SyntaxKind.MacroExpandExpr | SyntaxKind.MacroExpandDecl => true
+                | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr | SyntaxKind.MacroExpandExpr => true
             case _ => false
         }
     }

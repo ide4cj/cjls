@@ -44,7 +44,7 @@ It is a SIGABRT from the runtime, not a catchable exception, it compiles perfect
 
 The `cjls` executable goes one step further: it is linked with `--static` (its `package-configuration` in `modules/cjls/cjpm.toml`, so the flag reaches the executable alone — on the libraries it is only a warning), which takes std and the Cangjie runtime in too. The binary depends on nothing but the system's `libc++`/`libSystem` and runs without the SDK env — which an editor launching it never has. Without it the binary aborts in `dyld` (`@rpath/libcangjie-std-*.dylib`, no `LC_RPATH`). Measured on cjc 1.3.0-alpha, darwin:
 
-- cjpm passes **no `-O`** to cjc, and cjc's default is `-O0` — hence `-O2` in the workspace `compile-option`. Every module repeats it (`-Woff unused -O2`, plus `--static-std` for executables): `cjpm build -m` reads the module's manifest alone. The duplicate on a workspace build is harmless; don't remove it.
+- cjpm passes **no `-O`** to cjc, and cjc's default is `-O0` — hence `-O2` in the workspace `compile-option`. Every module repeats it (`-O2`, plus `--static-std` for executables): `cjpm build -m` reads the module's manifest alone. The duplicate on a workspace build is harmless; don't remove it.
 - `-O2` miscompiles a tuple or struct taken apart straight from `ArrayList.remove`'s result (`list.remove(at: i)[1]`, `let (_, v) = list.remove(at: i)`): it yields another element — the one that moved into the gap, or even the first when the last is removed. `-O0`/`-O1` get it right. Read `list[i]` first, then remove.
 - LTO, and so bitcode (`.bc`) static libraries, are refused on Darwin (`Darwin does not support LTO`), `--experimental` or not; it is a Linux-only option.
 
@@ -57,7 +57,7 @@ On Linux x64 (measured in CI, same nightly): `--static` gives the same kind of b
 
 Conventional Commits are enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`, one binary: `brew install cocogitto`) on the `commit-msg` hook. Use `type(scope): subject` (e.g. `feat(jsonrpc): ...`); `cog commit feat jsonrpc "subject"` writes one for you. `cog.toml` lets merge and `fixup!`/`squash!`/`amend!` commits through, as commitlint did; a `git revert` message has to be reworded to `revert: ...`.
 
-The hooks are plain scripts in `.githooks/`, no hook framework and no Node: `commit-msg` runs `cog verify`, `pre-push` runs `cjpm test`. Git won't version where hooks live, so every clone activates them once:
+The hooks are plain scripts in `.githooks/`, no hook framework and no Node: `commit-msg` runs `cog verify`, `pre-push` runs `cjpm test` with warnings as errors ([C13](docs/design/03-conventions.md)). Git won't version where hooks live, so every clone activates them once:
 
 ```
 git config core.hooksPath .githooks

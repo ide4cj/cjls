@@ -1,4 +1,4 @@
 #!/bin/sh
 set -e
 
-cjpm test
+python3 .github/scripts/deny_warnings.py cjpm test

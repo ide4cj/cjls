@@ -1,6 +1,5 @@
 package calca
 
-import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -75,6 +74,6 @@ class SlabTest {
         @Expect(Id(3, generation: UInt32.Max).index, 3)
         @Expect(Id(3, generation: UInt32.Max).generation, UInt32.Max)
         @Expect(Id(3) != Id(3, generation: 1))
-        @AssertThrows[IllegalArgumentException](Id(1 << 32))
+        @AssertThrows[IllegalArgumentException]({ let _ = Id(1 << 32) })
     }
 }

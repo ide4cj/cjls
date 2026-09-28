@@ -30,7 +30,7 @@ class TextRangeTest {
     @TestCase
     func aBackwardRangeIsRefused() {
         // act & assert
-        @AssertThrows[IllegalArgumentException](TextRange(3, 2))
-        @AssertThrows[IllegalArgumentException](TextRange(-1, 2))
+        @AssertThrows[IllegalArgumentException]({ let _ = TextRange(3, 2) })
+        @AssertThrows[IllegalArgumentException]({ let _ = TextRange(-1, 2) })
     }
 }

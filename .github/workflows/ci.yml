@@ -43,9 +43,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: ./.github/actions/setup-cangjie
-      - run: cjpm build
+      # warnings are errors: cjc has no flag for it, so the script reads what it prints
+      - run: python .github/scripts/deny_warnings.py cjpm build
         shell: bash
-      - run: cjpm test --no-progress
+      - run: python .github/scripts/deny_warnings.py cjpm test --no-progress
         shell: bash
       - uses: actions/upload-artifact@v4
         with:

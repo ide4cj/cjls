@@ -109,8 +109,9 @@ class Model {
         match (enumOf(name)) {
             case Some(e) =>
                 let result = ArrayList<String>()
+                // once each: a kind may come through two variants (`MacroExpandDecl`, a `Decl` and an `Expr`)
                 for (v in e.variants) {
-                    result.add(all: kindsOf(v.typeName))
+                    result.add(all: kindsOf(v.typeName).filter {k => !result.contains(k)})
                 }
                 result.toArray()
             case None => [name]

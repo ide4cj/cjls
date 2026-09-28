@@ -7,10 +7,12 @@ version = "0.1.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
-compile-option = "-Woff unused -O2 --static-std"
+compile-option = "-O2 --static-std"
 override-compile-option = ""
 link-option = ""
-package-configuration = { cjls = { compile-option = "--static" } }
+# `cjpm test` compiles `cjls` into a test, where `--static` is a warning (driver-arg); `lsp_types`
+# is generated, and imports and names what it may not use
+package-configuration = { cjls = { compile-option = "--static -Woff driver-arg" }, "cjls.lsp_types" = { compile-option = "-Woff unused" } }
 
 [dependencies]
 calca = { path = "../calca" }

@@ -6,7 +6,6 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.encoding.json.{JsonValue, ToJson as StdxToJson}
 import stdx.serialization.serialization.*
-import stdxx.IntegerOrString
 import fjson.{FromJson, ToJson, fromJsonBytes, toJsonBytes}
 
 /**
@@ -24,7 +23,12 @@ func metaModelOf(
 }
 
 private func dmOf(json: String): DataModel {
-    DataModel.fromJson(JsonValue.fromStr(json))
+    fromStdxJson<DataModel>(JsonValue.fromStr(json))
+}
+
+// `DataModel.fromJson` comes with stdx's `ToJson`, which cjc then takes for an unused import
+private func fromStdxJson<T>(json: JsonValue): DataModel where T <: StdxToJson {
+    T.fromJson(json)
 }
 
 /**
