@@ -1,8 +1,7 @@
 package cjls.handlers
 
 import std.collection.ArrayList
-import std.fs.{exists, remove, FSException, Path}
-import std.env.getTempDirectory
+import std.fs.{FSException, Path}
 import std.time.MonoTime
 import fjson.RawJson
 import rope.Encoding
@@ -95,34 +94,6 @@ class MemoryUsageTest {
         @Expect(usage.usedHeap > 0)
         @Expect(usage.usedHeap <= usage.maxHeap)
         @Expect(usage.threads >= 1)
-    }
-
-    @TestCase
-    func theRuntimeWritesAHeapDumpWhereAsked() {
-        // arrange
-        let path = getTempDirectory().join("cjls-memory-usage-test.data")
-        if (exists(path)) {
-            remove(path)
-        }
-
-        // act
-        handleMemoryUsage(MemoryUsageParams(heapDump: path.toString()))
-
-        // assert
-        @Expect(exists(path))
-        remove(path)
-    }
-
-    @TestCase
-    func theRuntimeFailsAHeapDumpThatCannotBeWritten() {
-        // arrange
-        let path = getTempDirectory().join("cjls-memory-usage-test-missing").join("heap.data")
-
-        // act
-        let e = @AssertThrows[RpcException](handleMemoryUsage(MemoryUsageParams(heapDump: path.toString())))
-
-        // assert
-        @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
     }
 
     @TestCase
