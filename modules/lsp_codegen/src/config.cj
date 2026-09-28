@@ -29,9 +29,9 @@ struct Config {
             throw ConfigException("`output-subpackage` must not be empty")
         }
 
-        let srcDir = nonBlankPath(general.srcDir) ?? manifest.flatMap {it: CjpmManifest => nonBlankPath(it.`package`.srcDir)} ??
+        let srcDir = nonBlankPath(general.srcDir) ?? manifest.flatMap {it: CjpmManifest => nonBlankPath(it.pkg.srcDir)} ??
             Path("src")
-        let rootPackage = manifest.map {it: CjpmManifest => it.`package`.name}.getOrThrow {
+        let rootPackage = manifest.map {it: CjpmManifest => it.pkg.name}.getOrThrow {
             => ConfigException("cannot tell the root package of `${subPackage}`")
         }
 
@@ -96,7 +96,7 @@ struct GeneralSection {
 /** What the generator needs of the `cjpm.toml` beside its config; the rest is skipped. */
 @DeriveExt[FromToml]
 struct CjpmManifest {
-    CjpmManifest(let `package`!: CjpmPackage) {}
+    CjpmManifest(@Serde[rename: "package"] let pkg!: CjpmPackage) {}
 
     static func load(cfgDir: Path): ?CjpmManifest {
         let manifestPath = cfgDir.join("cjpm.toml")
