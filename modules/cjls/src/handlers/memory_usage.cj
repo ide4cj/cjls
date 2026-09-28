@@ -14,43 +14,105 @@ import cjls.macros.LspHandler
  */
 let COLLECT_TIMEOUT = Duration.second * 5
 
+@LspHandler[readonly]
+func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
+    memoryUsage(StdHeapRuntime(), params)
+}
+
 /**
  * @throws RpcException - `REQUEST_FAILED`, if the collection asked for has not run in
  * `COLLECT_TIMEOUT`, or the heap dump cannot be written where asked
  */
-@LspHandler[readonly]
-func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
-    if ((params.collect ?? false) && !collect()) {
+func memoryUsage(runtime: HeapRuntime, params: MemoryUsageParams): MemoryUsage {
+    if ((params.collect ?? false) && !collect(runtime)) {
         throw RpcException(ErrorCode.REQUEST_FAILED, "no collection ran in ${COLLECT_TIMEOUT}")
     }
     if (let Some(path) <- params.heapDump) {
         try {
-            dumpHeapData(Path(path))
+            runtime.dumpHeap(Path(path))
         } catch (e: FSException) {
             throw RpcException(ErrorCode.REQUEST_FAILED, e.message)
         }
     }
-    MemoryUsage(
-        usedHeap: getUsedHeapSize(),
-        allocatedHeap: getAllocatedHeapSize(),
-        maxHeap: getMaxHeapSize(),
-        gcCount: getGCCount(),
-        gcTime: getGCTime(),
-        gcFreed: getGCFreedSize(),
-        threads: getThreadCount()
-    )
+    runtime.usage()
 }
 
 /**
  * A full collection, waited for: `gc(heavy: true)` returns before the collector has run. False if
  * none ran in `COLLECT_TIMEOUT`.
  */
-func collect(): Bool {
-    let before = getGCCount()
-    let started = MonoTime.now()
-    gc(heavy: true)
-    while (getGCCount() == before && MonoTime.now() - started < COLLECT_TIMEOUT) {
+func collect(runtime: HeapRuntime): Bool {
+    let before = runtime.gcCount
+    let started = runtime.now()
+    runtime.requestGc()
+    while (runtime.gcCount == before && runtime.now() - started < COLLECT_TIMEOUT) {
+        runtime.pause()
+    }
+    runtime.gcCount != before
+}
+
+/**
+ * What `cjls/memoryUsage` asks of the runtime, the collector's timing and the clock with it: its
+ * tests decide when a collection runs rather than wait for one.
+ */
+interface HeapRuntime {
+    /**
+     * Asks for a full collection; it may run after this returns, or not at all.
+     */
+    func requestGc(): Unit
+
+    /**
+     * Collections run since the start.
+     */
+    prop gcCount: Int64
+
+    func now(): MonoTime
+
+    /**
+     * A moment's wait while a collection is awaited.
+     */
+    func pause(): Unit
+
+    /**
+     * @throws FSException - if the dump cannot be written at `path`
+     */
+    func dumpHeap(path: Path): Unit
+
+    func usage(): MemoryUsage
+}
+
+class StdHeapRuntime <: HeapRuntime {
+    public func requestGc(): Unit {
+        gc(heavy: true)
+    }
+
+    public prop gcCount: Int64 {
+        get() {
+            getGCCount()
+        }
+    }
+
+    public func now(): MonoTime {
+        MonoTime.now()
+    }
+
+    public func pause(): Unit {
         sleep(Duration.millisecond)
     }
-    getGCCount() != before
+
+    public func dumpHeap(path: Path): Unit {
+        dumpHeapData(path)
+    }
+
+    public func usage(): MemoryUsage {
+        MemoryUsage(
+            usedHeap: getUsedHeapSize(),
+            allocatedHeap: getAllocatedHeapSize(),
+            maxHeap: getMaxHeapSize(),
+            gcCount: getGCCount(),
+            gcTime: getGCTime(),
+            gcFreed: getGCFreedSize(),
+            threads: getThreadCount()
+        )
+    }
 }

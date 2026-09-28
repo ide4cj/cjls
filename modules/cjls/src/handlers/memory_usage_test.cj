@@ -1,8 +1,9 @@
 package cjls.handlers
 
-import std.fs.{exists, remove, Path}
+import std.collection.ArrayList
+import std.fs.{exists, remove, FSException, Path}
 import std.env.getTempDirectory
-import std.runtime.getGCCount
+import std.time.MonoTime
 import fjson.RawJson
 import rope.Encoding
 import jsonrpc.*
@@ -12,22 +13,92 @@ import cjls.lsp_ext.*
 @Test
 class MemoryUsageTest {
     @TestCase
-    func afterACollectionTheHeapInUseAndTheCollectionsAreReported() {
+    func aCollectionAskedForIsWaitedForBeforeTheNumbersAreRead() {
         // arrange
-        let before = getGCCount()
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 3)
 
         // act
-        let usage = handleMemoryUsage(MemoryUsageParams(collect: true))
+        let usage = memoryUsage(runtime, MemoryUsageParams(collect: true))
+
+        // assert
+        @Expect(usage.gcCount, 1)
+        @Expect(runtime.calls.toArray(), ["gc", "pause", "pause", "pause", "usage"])
+    }
+
+    @TestCase
+    func aCollectionRunBeforeTheRequestReturnsIsNotWaitedFor() {
+        // arrange
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 0)
+
+        // act
+        memoryUsage(runtime, MemoryUsageParams(collect: true))
+
+        // assert
+        @Expect(runtime.calls.toArray(), ["gc", "usage"])
+    }
+
+    @TestCase
+    func aCollectionThatNeverRunsFailsTheRequestOnceTheTimeoutHasPassed() {
+        // arrange
+        let runtime = FakeHeapRuntime()
+
+        // act
+        let e = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(collect: true)))
+
+        // assert
+        @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
+        @Expect(runtime.elapsed, COLLECT_TIMEOUT)
+    }
+
+    @TestCase
+    func withoutCollectNoCollectionIsAskedFor() {
+        // arrange
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 0)
+
+        // act
+        memoryUsage(runtime, MemoryUsageParams())
+
+        // assert
+        @Expect(runtime.calls.toArray(), ["usage"])
+    }
+
+    @TestCase
+    func theHeapIsDumpedAfterTheCollection() {
+        // arrange
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 0)
+
+        // act
+        memoryUsage(runtime, MemoryUsageParams(collect: true, heapDump: "heap.data"))
+
+        // assert
+        @Expect(runtime.calls.toArray(), ["gc", "dumpHeap heap.data", "usage"])
+    }
+
+    @TestCase
+    func aHeapDumpThatCannotBeWrittenFailsTheRequest() {
+        // arrange
+        let runtime = FakeHeapRuntime(dumpFails: true)
+
+        // act
+        let e = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(heapDump: "heap.data")))
+
+        // assert
+        @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
+    }
+
+    @TestCase
+    func theRuntimesOwnNumbersAreReported() {
+        // act
+        let usage = handleMemoryUsage(MemoryUsageParams())
 
         // assert
         @Expect(usage.usedHeap > 0)
         @Expect(usage.usedHeap <= usage.maxHeap)
-        @Expect(usage.gcCount > before)
         @Expect(usage.threads >= 1)
     }
 
     @TestCase
-    func aHeapDumpIsWrittenWhereAsked() {
+    func theRuntimeWritesAHeapDumpWhereAsked() {
         // arrange
         let path = getTempDirectory().join("cjls-memory-usage-test.data")
         if (exists(path)) {
@@ -43,7 +114,7 @@ class MemoryUsageTest {
     }
 
     @TestCase
-    func aHeapDumpThatCannotBeWrittenFailsTheRequest() {
+    func theRuntimeFailsAHeapDumpThatCannotBeWritten() {
         // arrange
         let path = getTempDirectory().join("cjls-memory-usage-test-missing").join("heap.data")
 
@@ -80,5 +151,67 @@ class MemoryUsageTest {
 
         // assert
         @Expect(json.contains(##""experimental":{"memoryUsage":true}"##))
+    }
+}
+
+/**
+ * A runtime whose collection asked for runs after `collectsAfterPauses` pauses (at once for 0,
+ * never for `None`), and whose clock moves a millisecond a pause and not otherwise.
+ */
+class FakeHeapRuntime <: HeapRuntime {
+    let calls = ArrayList<String>()
+    var elapsed = Duration.Zero
+    private let started = MonoTime.now()
+    private var count = 0
+    private var pausesToCollection: ?Int64 = None
+
+    FakeHeapRuntime(
+        private let collectsAfterPauses!: ?Int64 = None,
+        private let dumpFails!: Bool = false
+    ) {}
+
+    public func requestGc(): Unit {
+        calls.add("gc")
+        pausesToCollection = collectsAfterPauses
+        collectIfDue()
+    }
+
+    public prop gcCount: Int64 {
+        get() {
+            count
+        }
+    }
+
+    public func now(): MonoTime {
+        started + elapsed
+    }
+
+    public func pause(): Unit {
+        calls.add("pause")
+        elapsed += Duration.millisecond
+        if (let Some(n) <- pausesToCollection) {
+            pausesToCollection = n - 1
+        }
+        collectIfDue()
+    }
+
+    public func dumpHeap(path: Path): Unit {
+        calls.add("dumpHeap ${path}")
+        if (dumpFails) {
+            throw FSException("cannot write ${path}")
+        }
+    }
+
+    public func usage(): MemoryUsage {
+        calls.add("usage")
+        MemoryUsage(usedHeap: 1, allocatedHeap: 1, maxHeap: 1, gcCount: count, gcTime: 0, gcFreed: 0,
+            threads: 1)
+    }
+
+    private func collectIfDue(): Unit {
+        if (pausesToCollection == Some(0)) {
+            count++
+            pausesToCollection = None
+        }
     }
 }
