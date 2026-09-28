@@ -52,7 +52,14 @@ public class Storage {
          * Whoever uses a snapshot asking it to stop: checked with every operation, as a write is.
          */
         private let cancelledBy: () -> Bool
-    ) {}
+    ) {
+        handle = runtime.newHandle()
+    }
+
+    /**
+     * This handle among the others of the database, as the claims on memos name it.
+     */
+    let handle: Int64
 
     private let stack = ArrayList<ActiveQuery>()
     private let active = HashSet<DatabaseKey>()

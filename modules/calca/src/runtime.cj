@@ -67,6 +67,15 @@ class Runtime {
     private var inFlight: Int64 = 0
     private let writePending = AtomicBool(false)
 
+    /**
+     * Which handle waits for which, and for what, while one waits for a memo another computes: a
+     * wait that would close a loop is a cycle across threads rather than a deadlock.
+     */
+    private let waitLock = Mutex()
+    private let waitsFor = HashMap<Int64, (Int64, DatabaseKey)>()
+
+    private let nextHandle = AtomicInt64(0)
+
     Runtime() {
         gate.lock()
         drained = gate.condition()
@@ -164,6 +173,67 @@ class Runtime {
     func changed(durability: Durability, revision: Int64): Unit {
         for (rank in 0..=durability.rank) {
             lastChanged[rank].store(revision)
+        }
+    }
+
+    /**
+     * A number for a new handle, distinct from every other one's in this database.
+     */
+    func newHandle(): Int64 {
+        nextHandle.fetchAdd(1)
+    }
+
+    /**
+     * Records that handle `waiter` waits for `key`, which handle `owner` computes, until
+     * `stopWaiting` or until the owner lets go of it.
+     *
+     * @throws CycleException - if `owner` waits, through others or not, for `waiter`
+     */
+    func startWaiting(waiter: Int64, owner: Int64, key: DatabaseKey): Unit {
+        synchronized(waitLock) {
+            var current = owner
+            while (true) {
+                if (current == waiter) {
+                    throw CycleException(
+                        "cycle: ${ingredientAt(key.ingredient).describe(key.id)} is computed by a handle waiting for this one")
+                }
+                current = (waitsFor.get(current) ?? break)[0]
+            }
+            waitsFor.add(waiter, (owner, key))
+        }
+    }
+
+    func stopWaiting(waiter: Int64): Unit {
+        synchronized(waitLock) {
+            waitsFor.remove(waiter)
+        }
+    }
+
+    /**
+     * Whoever waited for `key` waits for its owner no more: it is free, whether or not the waiter
+     * has woken to see it.
+     */
+    func released(key: DatabaseKey): Unit {
+        synchronized(waitLock) {
+            if (waitsFor.isEmpty()) {
+                return
+            }
+            let freed = ArrayList<Int64>()
+            for ((waiter, (_, awaited)) in waitsFor where awaited == key) {
+                freed.add(waiter)
+            }
+            for (waiter in freed) {
+                waitsFor.remove(waiter)
+            }
+        }
+    }
+
+    /**
+     * How many handles wait for another's memo: for tests, to know one got there.
+     */
+    func waiting(): Int64 {
+        synchronized(waitLock) {
+            waitsFor.size
         }
     }
 
