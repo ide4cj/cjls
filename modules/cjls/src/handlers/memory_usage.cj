@@ -15,14 +15,14 @@ import cjls.macros.LspHandler
 let COLLECT_TIMEOUT = Duration.second * 5
 
 /**
- * Whether the runtime here collects and dumps its heap on request: on Windows a test of `dumpHeapData`,
- * or of it after `gc(heavy: true)`, never returned on CI's runner (#64).
+ * Whether the runtime here dumps its heap: on Windows `dumpHeapData` never returns, with the
+ * nightlies of 2026-09-18 and 09-29 alike, while `gc(heavy: true)` does (#64).
  */
 @When[os == "Windows"]
-let CONTROLS_HEAP = false
+let DUMPS_HEAP = false
 
 @When[os != "Windows"]
-let CONTROLS_HEAP = true
+let DUMPS_HEAP = true
 
 @LspHandler[readonly]
 func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
@@ -30,13 +30,13 @@ func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
 }
 
 /**
- * @throws RpcException - `REQUEST_FAILED`, if a collection or a heap dump is asked of a runtime
- * that does not control its heap, the collection asked for has not run in `COLLECT_TIMEOUT`, or
- * the heap dump cannot be written where asked
+ * @throws RpcException - `REQUEST_FAILED`, if a heap dump is asked of a runtime that cannot dump
+ * its heap (before anything else is done), the collection asked for has not run in
+ * `COLLECT_TIMEOUT`, or the heap dump cannot be written where asked
  */
 func memoryUsage(runtime: HeapRuntime, params: MemoryUsageParams): MemoryUsage {
-    if (((params.collect ?? false) || params.heapDump.isSome()) && !runtime.controlsHeap) {
-        throw RpcException(ErrorCode.REQUEST_FAILED, "no collection or heap dump on this platform")
+    if (params.heapDump.isSome() && !runtime.dumpsHeap) {
+        throw RpcException(ErrorCode.REQUEST_FAILED, "no heap dump on this platform")
     }
     if ((params.collect ?? false) && !collect(runtime)) {
         throw RpcException(ErrorCode.REQUEST_FAILED, "no collection ran in ${COLLECT_TIMEOUT}")
@@ -71,9 +71,9 @@ func collect(runtime: HeapRuntime): Bool {
  */
 interface HeapRuntime {
     /**
-     * Whether `requestGc` and `dumpHeap` may be called: false where they never return.
+     * Whether `dumpHeap` may be called: false where it never returns.
      */
-    prop controlsHeap: Bool
+    prop dumpsHeap: Bool
 
     /**
      * Asks for a full collection; it may run after this returns, or not at all.
@@ -101,9 +101,9 @@ interface HeapRuntime {
 }
 
 class StdHeapRuntime <: HeapRuntime {
-    public prop controlsHeap: Bool {
+    public prop dumpsHeap: Bool {
         get() {
-            CONTROLS_HEAP
+            DUMPS_HEAP
         }
     }
 

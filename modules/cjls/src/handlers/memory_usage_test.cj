@@ -86,30 +86,28 @@ class MemoryUsageTest {
     }
 
     @TestCase
-    func aRuntimeThatDoesNotControlItsHeapIsAskedForNeitherACollectionNorADump() {
+    func aHeapDumpAskedOfARuntimeThatCannotDumpFailsTheRequestBeforeAnythingIsDone() {
         // arrange
-        let runtime = FakeHeapRuntime(collectsAfterPauses: 0, heapControlled: false)
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 0, heapDumped: false)
 
         // act
-        let collect = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(collect: true)))
-        let dump = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(heapDump: "heap.data")))
+        let e = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(collect: true, heapDump: "heap.data")))
 
         // assert
-        @Expect(collect.responseError.code, ErrorCode.REQUEST_FAILED)
-        @Expect(dump.responseError.code, ErrorCode.REQUEST_FAILED)
+        @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
         @Expect(runtime.calls.isEmpty())
     }
 
     @TestCase
-    func aRuntimeThatDoesNotControlItsHeapStillReportsTheNumbers() {
+    func aRuntimeThatCannotDumpItsHeapStillCollects() {
         // arrange
-        let runtime = FakeHeapRuntime(heapControlled: false)
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 0, heapDumped: false)
 
         // act
-        memoryUsage(runtime, MemoryUsageParams())
+        memoryUsage(runtime, MemoryUsageParams(collect: true))
 
         // assert
-        @Expect(runtime.calls.toArray(), ["usage"])
+        @Expect(runtime.calls.toArray(), ["gc", "usage"])
     }
 
     @TestCase
@@ -166,12 +164,12 @@ class FakeHeapRuntime <: HeapRuntime {
     FakeHeapRuntime(
         private let collectsAfterPauses!: ?Int64 = None,
         private let dumpFails!: Bool = false,
-        private let heapControlled!: Bool = true
+        private let heapDumped!: Bool = true
     ) {}
 
-    public prop controlsHeap: Bool {
+    public prop dumpsHeap: Bool {
         get() {
-            heapControlled
+            heapDumped
         }
     }
 
