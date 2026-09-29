@@ -46,9 +46,9 @@ class Parking {
     let released = LinkedBlockingQueue<Unit>(1)
 
     /**
-     * Once set, `park` goes on at once.
+     * Once set, `park` does not stop.
      */
-    let open = AtomicBool(false)
+    let disabled = AtomicBool(false)
 }
 
 class TestDatabase <: TestDb {
@@ -69,7 +69,7 @@ class TestDatabase <: TestDb {
     }
 
     public func park(): Unit {
-        if (parking.open.load()) {
+        if (parking.disabled.load()) {
             return
         }
         parking.parked.add(())
