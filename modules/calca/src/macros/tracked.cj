@@ -4,9 +4,9 @@ import std.ast.*
 import std.collection.*
 
 /**
- * Makes a function of the database and at most one more argument a query, as salsa's
- * `#[salsa::tracked]` is: its value is remembered per argument, along with everything it read, and
- * computed again only once something it read has changed.
+ * Makes a function of the database and its arguments a query, as salsa's `#[salsa::tracked]` is: its
+ * value is remembered per argument, along with everything it read, and computed again only once
+ * something it read has changed.
  *
  * ```cangjie
  * @CalcaTracked
@@ -15,8 +15,9 @@ import std.collection.*
  * }
  * ```
  *
- * The database comes first, typed as the database interface the body needs; the argument is
- * `Hashable` and `Equatable`, an `@CalcaInput` for one. A value computed again that equals the one
+ * The database comes first, typed as the database interface the body needs; the arguments are
+ * positional, `Hashable` and `Equatable`, an `@CalcaInput` for one. Several are remembered together,
+ * as one generated `CalcaFields_<function>` struct; one is its own key. A value computed again that equals the one
  * remembered does not make what read it run again, so the result is `Equatable` too, unless
  * `@CalcaTracked[noEq]` says to count every computation as a change.
  *
@@ -75,8 +76,8 @@ private func tracked(input: Tokens, equal: Tokens, lru: Tokens): Tokens {
         diagReport(DiagReportLevel.ERROR, input, "a tracked function is not generic", "")
         return input
     }
-    if (params.isEmpty() || params.size > 2) {
-        diagReport(DiagReportLevel.ERROR, input, "a tracked function takes the database, and at most one argument more", "")
+    if (params.isEmpty()) {
+        diagReport(DiagReportLevel.ERROR, input, "a tracked function takes the database first", "")
         return input
     }
     for (param in params where param.not.kind == TokenKind.NOT) {
@@ -94,15 +95,39 @@ private func tracked(input: Tokens, equal: Tokens, lru: Tokens): Tokens {
     let holder = Token(TokenKind.IDENTIFIER, "CalcaTracked_" + stripBackquotes(name.value))
     let db = params[0].identifier
     let dbType = params[0].paramType.toTokens()
-    let (keyType, keyParam, keyArg, signature) = if (params.size == 2) {
-        let key = params[1].identifier
-        let keyType = params[1].paramType.toTokens()
-        (keyType, quote($key: $keyType), quote($key), quote($db: $dbType, $key: $keyType))
-    } else {
-        (quote(Unit), quote(_: Unit), quote(()), quote($db: $dbType))
+    let args = params.toArray()[1..].map {param => (param.identifier, param.paramType.toTokens())}
+    var signature = quote($db: $dbType)
+    var values = Tokens()
+    var fields = Tokens()
+    for (i in 0..args.size) {
+        let (ident, argType) = args[i]
+        signature += quote(, $ident: $argType)
+        if (i > 0) {
+            values += Token(TokenKind.COMMA)
+        }
+        values += ident
+        fields += quote(, calcaKey.$ident)
     }
     let modifiers = modifiersOf(decl.modifiers)
     let body = decl.block.toTokens()
+
+    // no argument is a key of `Unit`, one its own key, several a struct of them all
+    let (keyType, keyArg, execute, keyStruct) = match (args.size) {
+        case 0 => (quote(Unit), quote(()), quote(static func execute($db: $dbType, _: Unit): $returnType $body), quote())
+        case 1 =>
+            let (ident, argType) = args[0]
+            (argType, values, quote(static func execute($db: $dbType, $ident: $argType): $returnType $body), quote())
+        case _ =>
+            let keyName = Token(TokenKind.IDENTIFIER, "CalcaFields_" + stripBackquotes(name.value))
+            let execute = quote(
+                static func execute($db: $dbType, calcaKey: $keyName): $returnType {
+                    run($db $fields)
+                }
+
+                static func run($signature): $returnType $body
+            )
+            (quote($keyName), quote($keyName($values)), execute, fieldsStruct(keyName, args))
+    }
 
     quote(
         $modifiers func $name($signature): $returnType {
@@ -112,7 +137,9 @@ private func tracked(input: Tokens, equal: Tokens, lru: Tokens): Tokens {
         private struct $holder {
             static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($(nameLiteral(name)), $equal $lru)
 
-            static func execute($db: $dbType, $keyParam): $returnType $body
+            $execute
         }
+
+        $keyStruct
     )
 }
