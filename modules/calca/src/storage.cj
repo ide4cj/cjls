@@ -102,6 +102,10 @@ public class Storage {
      * was asked to stop
      */
     func read<T>(operation: () -> T): T {
+        if (batching.isSome()) {
+            // a memo computed now would be current in a revision the rest of the batch changes
+            throw IllegalStateException("nothing is read inside a batch, which only changes inputs")
+        }
         checkAskedToStop()
         let outermost = depth == 0
         if (outermost) {
@@ -132,8 +136,40 @@ public class Storage {
      * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation
      */
     func write<T>(change: (Int64) -> T): T {
+        if (let Some(revision) <- batching) {
+            return change(revision)
+        }
         checkWritable("change")
         runtime.write(change)
+    }
+
+    /**
+     * The revision of the batch this handle is inside, `None` outside any.
+     */
+    var batching: ?Int64 = None
+
+    /**
+     * Makes every input `change` sets or creates in one revision: waits for what is in flight once,
+     * and cancels the snapshots once. Inside it, nothing is read. A batch inside a batch is part of
+     * it. If `change` throws, what it changed until then stays changed, in that revision.
+     *
+     * @throws IllegalStateException - if this is a snapshot, or the handle is inside an operation,
+     * or `change` reads
+     */
+    public func batch<T>(change: () -> T): T {
+        if (batching.isSome()) {
+            return change()
+        }
+        checkWritable("change")
+        runtime.write {
+            revision =>
+            batching = revision
+            try {
+                change()
+            } finally {
+                batching = None
+            }
+        }
     }
 
     /**

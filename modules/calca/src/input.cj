@@ -29,6 +29,10 @@ public class InputIngredient {
         let storage = db.storage
         storage.checkWritable("create")
         if (!singleton) {
+            if (storage.batching.isSome()) {
+                // the batch holds the gate
+                return add(storage.runtime, durability, fill)
+            }
             return storage.read {
                 add(storage.runtime, durability, fill)
             }
