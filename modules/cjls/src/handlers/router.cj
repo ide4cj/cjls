@@ -1,7 +1,9 @@
 package cjls.handlers
 
+import fjson.JsonValue
 import rope.Encoding
 import cjls.lsp_types.*
+import cjls.lsp_ext.MemoryUsageRequestSpec
 import cjls.server.*
 
 /**
@@ -21,6 +23,7 @@ public func router(): Router {
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
+        .route(MemoryUsageRequestSpec(), handleMemoryUsage)
         .publishDiagnostics(documentDiagnostics)
 }
 
@@ -40,6 +43,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         semanticTokensProvider: SemanticTokensOptionsOrSemanticTokensRegistrationOptions.AsSemanticTokensOptions(
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
-                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true)))
+                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
+        // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
+        experimental: JsonValue.JsonObject([("memoryUsage", JsonValue.JsonBool(true))])
     )
 }
