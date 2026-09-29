@@ -49,4 +49,8 @@ public class FtException <: Exception {
         }
         FtException(reason, offset, line, column)
     }
+
+    protected func getClassName(): String {
+        "FtException"
+    }
 }

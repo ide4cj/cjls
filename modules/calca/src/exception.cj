@@ -39,9 +39,13 @@ public class CycleException <: Exception {
 /**
  * Unwinds a query on a cycle whose queries all have a fallback, to where it takes its own.
  */
-class CycleUnwind <: Exception {
-    CycleUnwind() {
+class CycleUnwindException <: Exception {
+    CycleUnwindException() {
         super("a query on a cycle unwinds to its fallback")
+    }
+
+    protected func getClassName(): String {
+        "CycleUnwindException"
     }
 }
 
@@ -49,8 +53,12 @@ class CycleUnwind <: Exception {
  * Unwinds to whoever verifies `key`, which a query executing meanwhile needed: a cycle, found by
  * executing the key rather than verifying it.
  */
-class VerifyingCycle <: Exception {
-    VerifyingCycle(let key: DatabaseKey) {
+class VerifyingCycleException <: Exception {
+    VerifyingCycleException(let key: DatabaseKey) {
         super("a query being verified is needed again")
+    }
+
+    protected func getClassName(): String {
+        "VerifyingCycleException"
     }
 }

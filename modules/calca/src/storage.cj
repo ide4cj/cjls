@@ -169,7 +169,7 @@ public class Storage {
                 return
         }
         if (entered >= stack.size || stack[entered].key != key) {
-            throw VerifyingCycle(key)
+            throw VerifyingCycleException(key)
         }
         let participants = stack.toArray()[entered..]
         if (!participants.iterator().all {frame => runtime.ingredientAt(frame.key.ingredient).hasFallback()}) {
@@ -186,7 +186,7 @@ public class Storage {
         for (frame in participants) {
             frame.enterCycle(union, cycle)
         }
-        throw CycleUnwind()
+        throw CycleUnwindException()
     }
 
     func exit(key: DatabaseKey): Unit {
@@ -211,7 +211,7 @@ public class Storage {
             frame.read(key, durability, changedAt)
             if (frame.unwinding) {
                 // a query on a recovered cycle: it takes its fallback, whatever it would compute
-                throw CycleUnwind()
+                throw CycleUnwindException()
             }
         }
     }
