@@ -280,7 +280,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
                 dependency => runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)
             }
-        } catch (e: VerifyingCycle) {
+        } catch (e: VerifyingCycleException) {
             if (e.key != key) {
                 throw e
             }
@@ -311,7 +311,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             } else {
                 computed
             }
-        } catch (e: CycleUnwind) {
+        } catch (e: CycleUnwindException) {
             if (!frame.inCycle) {
                 throw e
             }

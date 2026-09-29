@@ -26,12 +26,12 @@ import std.collection.*
  * computed, and computed again only when fetched. For values that are large and cheap to compute
  * again (a file's tree).
  *
- * `@CalcaTracked[cycle: fallback]` recovers from a cycle: `fallback` takes what the function takes
- * and returns what it returns. When a cycle is found and every query on it has one, each of them
- * returns its fallback, and is computed again once anything the cycle read changes; when one has
- * none, the cycle is a `CycleException`.
+ * `@CalcaTracked[cycleResult: fallback]` recovers from a cycle: `fallback` takes what the function
+ * takes and returns what it returns. When a cycle is found and every query on it has one, each of
+ * them returns its fallback, and is computed again once anything the cycle read changes; when one
+ * has none, the cycle is a `CycleException`.
  *
- * Options go together: `@CalcaTracked[noEq, lru: 128, cycle: fallback]`.
+ * Options go together: `@CalcaTracked[noEq, lru: 128, cycleResult: fallback]`.
  */
 public macro CalcaTracked(input: Tokens): Tokens {
     tracked(input, quote({old, new => old == new}), quote(), None)
@@ -40,7 +40,7 @@ public macro CalcaTracked(input: Tokens): Tokens {
 public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
     var equal = quote({old, new => old == new})
     var lru = quote()
-    var cycle: ?Token = None
+    var cycleResult: ?Token = None
     var i = 0
     while (i < attrs.size) {
         let option = attrs[i]
@@ -57,16 +57,17 @@ public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
             case "lru" =>
                 diagReport(DiagReportLevel.ERROR, attrs, "`lru` takes how many values to keep: `lru: 128`", "")
                 return input
-            case "cycle" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON && attrs[i + 2].kind ==
-                TokenKind.IDENTIFIER =>
-                cycle = attrs[i + 2]
+            case "cycleResult" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON &&
+                attrs[i + 2].kind == TokenKind.IDENTIFIER =>
+                cycleResult = attrs[i + 2]
                 i += 3
-            case "cycle" =>
-                diagReport(DiagReportLevel.ERROR, attrs, "`cycle` takes the function giving the fallback: `cycle: f`", "")
+            case "cycleResult" =>
+                diagReport(DiagReportLevel.ERROR, attrs,
+                    "`cycleResult` takes the function giving the fallback: `cycleResult: f`", "")
                 return input
             case _ =>
                 diagReport(DiagReportLevel.ERROR, attrs,
-                    "`@CalcaTracked` takes no option but `noEq`, `lru: N` and `cycle: f`", "")
+                    "`@CalcaTracked` takes no option but `noEq`, `lru: N` and `cycleResult: f`", "")
                 return input
         }
         if (i < attrs.size) {
@@ -77,10 +78,10 @@ public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens {
             i++
         }
     }
-    tracked(input, equal, lru, cycle)
+    tracked(input, equal, lru, cycleResult)
 }
 
-private func tracked(input: Tokens, equal: Tokens, lru: Tokens, cycle: ?Token): Tokens {
+private func tracked(input: Tokens, equal: Tokens, lru: Tokens, cycleResult: ?Token): Tokens {
     let decl = match (parseDecl(input)) {
         case fd: FuncDecl => fd
         case _ =>
@@ -147,7 +148,7 @@ private func tracked(input: Tokens, equal: Tokens, lru: Tokens, cycle: ?Token): 
             (quote($keyName), quote($keyName($values)), quote(calcaKey: $keyName), fields, execute,
                 fieldsStruct(keyName, args))
     }
-    let (recoverArg, fallback) = match (cycle) {
+    let (recoverArg, fallback) = match (cycleResult) {
         case Some(recover) => (quote(, recover: $holder.calcaFallback), quote(
             static func calcaFallback($db: $dbType, $keyParam): $returnType {
                 $recover($db $keyValues)
