@@ -24,8 +24,28 @@ import std.collection.*
  * setter, which starts a new revision. Fields take the visibility they are declared with, and have
  * no initializer. Member functions are kept as they are. The type is `Hashable` and `Equatable` by
  * its `Id`.
+ *
+ * `@CalcaInput[singleton]` has at most one value per database, created as any other (a second one
+ * throws), and found with `get` and `tryGet`, which a query records as read:
+ *
+ * ```cangjie
+ * public static func get(db: Database): Config      // throws if there is none
+ * public static func tryGet(db: Database): ?Config
+ * ```
  */
 public macro CalcaInput(input: Tokens): Tokens {
+    calcaInput(input, false)
+}
+
+public macro CalcaInput(attrs: Tokens, input: Tokens): Tokens {
+    if (attrs.size != 1 || attrs[0].value != "singleton") {
+        diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaInput` takes no option but `singleton`", "")
+        return input
+    }
+    calcaInput(input, true)
+}
+
+private func calcaInput(input: Tokens, singleton: Bool): Tokens {
     let decl = plainStruct(input, "CalcaInput") ?? return input
     let (fields, kept) = storedFields(decl, "CalcaInput") ?? return input
 
@@ -60,7 +80,25 @@ public macro CalcaInput(input: Tokens): Tokens {
         }
     }
 
-    let ingredient = quote(InputIngredient($(nameLiteral(name)), [$fieldNames]))
+    var ingredient = quote(InputIngredient($(nameLiteral(name)), [$fieldNames]))
+    if (singleton) {
+        ingredient = quote(InputIngredient($(nameLiteral(name)), [$fieldNames], singleton: true))
+        let visibility = modifiersOf(decl.modifiers)
+        let message = Token(TokenKind.STRING_LITERAL, "no ${stripBackquotes(name.value)} in this database")
+        accessors += quote(
+            private init(calcaSingleton: Id) {
+                calcaId = calcaSingleton
+            }
+
+            $visibility static func get(db: Database): $name {
+                tryGet(db).getOrThrow {=> IllegalStateException($message)}
+            }
+
+            $visibility static func tryGet(db: Database): ?$name {
+                CALCA_INGREDIENT.single(db).map {id => $name(id)}
+            }
+        )
+    }
     params += quote(durability!: Durability = Durability.Low)
     let create = quote(CALCA_INGREDIENT.create(db, durability) {
         row => $puts
