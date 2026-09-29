@@ -86,6 +86,33 @@ class MemoryUsageTest {
     }
 
     @TestCase
+    func aRuntimeThatDoesNotControlItsHeapIsAskedForNeitherACollectionNorADump() {
+        // arrange
+        let runtime = FakeHeapRuntime(collectsAfterPauses: 0, heapControlled: false)
+
+        // act
+        let collect = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(collect: true)))
+        let dump = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(heapDump: "heap.data")))
+
+        // assert
+        @Expect(collect.responseError.code, ErrorCode.REQUEST_FAILED)
+        @Expect(dump.responseError.code, ErrorCode.REQUEST_FAILED)
+        @Expect(runtime.calls.isEmpty())
+    }
+
+    @TestCase
+    func aRuntimeThatDoesNotControlItsHeapStillReportsTheNumbers() {
+        // arrange
+        let runtime = FakeHeapRuntime(heapControlled: false)
+
+        // act
+        memoryUsage(runtime, MemoryUsageParams())
+
+        // assert
+        @Expect(runtime.calls.toArray(), ["usage"])
+    }
+
+    @TestCase
     func theRuntimesOwnNumbersAreReported() {
         // act
         let usage = handleMemoryUsage(MemoryUsageParams())
@@ -138,8 +165,15 @@ class FakeHeapRuntime <: HeapRuntime {
 
     FakeHeapRuntime(
         private let collectsAfterPauses!: ?Int64 = None,
-        private let dumpFails!: Bool = false
+        private let dumpFails!: Bool = false,
+        private let heapControlled!: Bool = true
     ) {}
+
+    public prop controlsHeap: Bool {
+        get() {
+            heapControlled
+        }
+    }
 
     public func requestGc(): Unit {
         calls.add("gc")

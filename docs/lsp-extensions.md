@@ -11,6 +11,8 @@ What the Cangjie runtime says of the server's heap, as numbers a driver can read
 | `collect: boolean` | a full collection first, waited for: `allocatedHeap` is then what is held; `RequestFailed` if none has run in 5 s |
 | `heapDump: string` | a heap dump written to that path first (after the collection), for `cjprof heap -i <path>`; `RequestFailed` if it cannot be |
 
+Neither on Windows: `RequestFailed` for either, the numbers without them as elsewhere. There a test of `dumpHeapData`, or of it after `gc(heavy: true)`, never returned on CI's runner (#64); which of the two hangs is not known yet.
+
 | Result | `std.runtime` | |
 |---|---|---|
 | `usedHeap` | `getUsedHeapSize` | bytes of the heap's regions in use: what the heap takes of the process |
