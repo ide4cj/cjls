@@ -31,12 +31,12 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0013](0013-stdin-is-read-with-readv.md) | Stdin is read with `readv`, not `read`: cjc treats `read` as `@FastNative` | accepted |
 | [0014](0014-diagnostics-pull-first.md) | Diagnostics are pulled; pushed, by the server after a write, only to clients that cannot pull | accepted |
 | [0015](0015-reference-implementations.md) | rust-analyzer is the model, salsa the model for calca, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
-| [0016](0016-editor-integrations-are-repositories.md) | Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim | accepted |
+| [0016](0016-editor-integrations-are-repositories.md) | Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim | accepted; how server and clients change together by D32 |
 | [0017](0017-lru-of-memo-values.md) | calca evicts memo values by LRU; a query result keeps pointers, never nodes | accepted; interned values by D18 |
 | [0018](0018-gc-of-interned-values.md) | calca collects unused interned values, and the memos keyed by them | accepted |
 | [0019](0019-syntactic-highlighting.md) | Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types | accepted |
 | [0020](0020-no-lto.md) | The Linux binary is not linked with LTO: cjc miscompiles the stack maps under it | accepted |
-| [0021](0021-weekly-releases.md) | A release every week from a green master; the first one by hand, its changelog written; versions of cjls's own | accepted |
+| [0021](0021-weekly-releases.md) | A release every week from a green master; the first one by hand, its changelog written; versions of cjls's own | accepted; a nightly by D32 |
 | [0022](0022-json-codec.md) | The wire is read and written with fjson, through serde's derives `ToJson`/`FromJson` and one `@Serde` marker | accepted |
 | [0023](0023-performance-is-measured-over-stdio.md) | Speed and memory are measured over stdio, by one driver for every server | accepted |
 | [0024](0024-fjson-conformance.md) | fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep | accepted; the suite fetched by D26 |
@@ -45,3 +45,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28 |
 | [0028](0028-ci-stamps-a-package.md) | CI stamps a package's files with one mtime, made of the whole directory | accepted |
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | accepted |
+| [0032](0032-one-process-for-server-and-clients.md) | The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot | accepted |

@@ -14,12 +14,20 @@ jobs:
     name: cog bump
     runs-on: ubuntu-latest
     steps:
-      # GITHUB_TOKEN cannot push to master past the ruleset, and a tag it pushed would start no release.yml
+      # GITHUB_TOKEN cannot push to master past the ruleset, and a tag it pushed would start no
+      # release.yml: the organization's app, in the ruleset's bypass list (D32), or until it is
+      # installed a person's RELEASE_TOKEN (D21)
+      - id: app
+        if: vars.RELEASE_APP_ID != ''
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_KEY }}
       - uses: actions/checkout@v4
         with:
           ref: master
           fetch-depth: 0
-          token: ${{ secrets.RELEASE_TOKEN }}
+          token: ${{ steps.app.outputs.token || secrets.RELEASE_TOKEN }}
       - name: Released before, green now
         id: gate
         env:
