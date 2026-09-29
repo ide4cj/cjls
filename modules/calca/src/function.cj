@@ -37,10 +37,10 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
      * @throws Cancelled - if a write is pending, or `db` is a snapshot of a revision gone by
      * @throws CycleException - if the value is already being computed on this handle
      */
-    public func fetch(db: D, key: K, execute: (D, K) -> V): V {
+    public func fetch(db: D, key: K, execute: (D, K) -> V, recover!: ?(D, K) -> V = None): V {
         let storage = db.storage
         storage.read {
-            let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute)}
+            let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute, recover)}
             let id = memos.intern(storage.runtime, key)
             let (value, memo) = memos.fetchValue(db, storage, id, key)
             storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
@@ -126,7 +126,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     /**
      * The function itself, the same whichever `fetch` gave it.
      */
-    MemoTable(let function: TrackedFunction<D, K, V>, let body: (D, K) -> V) {
+    MemoTable(let function: TrackedFunction<D, K, V>, let body: (D, K) -> V, let recover: ?(D, K) -> V) {
         used = function.lru.map {capacity => IdLru(capacity)}
         lock.lock()
         released = lock.condition()
@@ -220,8 +220,8 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             try {
                 match (old) {
                     case Some(memo) => match (memo.value) {
-                        case Some(value) where verify(db, storage.runtime, memo) => (value, memo)
-                        case None where verify(db, storage.runtime, memo) =>
+                        case Some(value) where verify(db, storage.runtime, memo, databaseKey) => (value, memo)
+                        case None where verify(db, storage.runtime, memo, databaseKey) =>
                             execute(db, storage, databaseKey, key, old, unchanged: true)
                         case _ => execute(db, storage, databaseKey, key, old, unchanged: false)
                     }
@@ -267,16 +267,24 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     /**
      * Whether `memo` is current, marking it so if it is. Cheap when no input it could have read
      * changed since it was last verified; otherwise asks each of its dependencies in turn, which
-     * may verify or execute those.
+     * may verify or execute those. A memo needed again while its dependencies are asked is not
+     * current: executing it finds the cycle, and recovers from it if it can.
      */
-    private func verify(db: D, runtime: Runtime, memo: Memo<V>): Bool {
+    private func verify(db: D, runtime: Runtime, memo: Memo<V>, key: DatabaseKey): Bool {
         let now = runtime.revision
         let verifiedAt = memo.verifiedAt.load()
         if (verifiedAt == now) {
             return true
         }
-        let changed = runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
-            dependency => runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)
+        let changed = try {
+            runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
+                dependency => runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)
+            }
+        } catch (e: VerifyingCycleException) {
+            if (e.key != key) {
+                throw e
+            }
+            true
         }
         if (changed) {
             return false
@@ -289,12 +297,25 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * Runs the body and remembers the value. The memo keeps the revision `old` last changed in when
      * the value is the one `old` held, or when `old` was evicted but is `unchanged`: verified, so
      * computed again from what it was computed from before.
+     *
+     * On a cycle whose queries all have a fallback, the value is the fallback, and the memo depends
+     * on what the whole cycle read.
      */
     private func execute(db: D, storage: Storage, databaseKey: DatabaseKey, key: K, old: ?Memo<V>,
         unchanged!: Bool): (V, Memo<V>) {
         let frame = storage.push(databaseKey)
         let value = try {
-            body(db, key)
+            let computed = body(db, key)
+            if (frame.inCycle) {
+                fallback(db, key, frame)
+            } else {
+                computed
+            }
+        } catch (e: CycleUnwindException) {
+            if (!frame.inCycle) {
+                throw e
+            }
+            fallback(db, key, frame)
         } finally {
             storage.pop()
         }
@@ -309,6 +330,19 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             used?.touch(databaseKey.id)
         }
         (value, memo)
+    }
+
+    /**
+     * The fallback of a query on a cycle; what it reads is recorded, and unwinds nothing.
+     */
+    private func fallback(db: D, key: K, frame: ActiveQuery): V {
+        frame.unwinding = false
+        let recovered = recover.getOrThrow {=> IllegalStateException("${function.name} has no fallback")}
+        recovered(db, key)
+    }
+
+    public func hasFallback(): Bool {
+        recover.isSome()
     }
 
     private func isEqual(old: ?V, new: V): Bool {
@@ -346,9 +380,9 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             let (key, old, claimed) = found ?? return true
             try {
                 match (old) {
-                    case Some(memo) where memo.value.isNone() => !verify(typed, storage.runtime, memo) ||
+                    case Some(memo) where memo.value.isNone() => !verify(typed, storage.runtime, memo, databaseKey) ||
                         memo.changedAt > revision
-                    case Some(memo) where verify(typed, storage.runtime, memo) => memo.changedAt > revision
+                    case Some(memo) where verify(typed, storage.runtime, memo, databaseKey) => memo.changedAt > revision
                     case _ => execute(typed, storage, databaseKey, key, old, unchanged: false)[1].changedAt > revision
                 }
             } finally {

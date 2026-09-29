@@ -30,6 +30,13 @@ interface Ingredient {
     func describe(id: Id): String
 
     /**
+     * Whether a value on a cycle can be replaced by a fallback: a tracked function's `cycle` option.
+     */
+    func hasFallback(): Bool {
+        false
+    }
+
+    /**
      * Called as a write opens a new revision, while nothing reads: when an ingredient lets go of
      * what it no longer needs.
      */
@@ -194,8 +201,8 @@ class Runtime {
             var current = owner
             while (true) {
                 if (current == waiter) {
-                    throw CycleException(
-                        "cycle: ${ingredientAt(key.ingredient).describe(key.id)} is computed by a handle waiting for this one")
+                    let described = ingredientAt(key.ingredient).describe(key.id)
+                    throw CycleException("cycle: ${described} is computed by a handle waiting for this one", [described])
                 }
                 current = (waitsFor.get(current) ?? break)[0]
             }

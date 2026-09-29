@@ -62,7 +62,10 @@ public class Storage {
     let handle: Int64
 
     private let stack = ArrayList<ActiveQuery>()
-    private let active = HashSet<DatabaseKey>()
+    /**
+     * The keys this handle works on, each with how many queries were executing as it began.
+     */
+    private let active = HashMap<DatabaseKey, Int64>()
 
     /**
      * How many operations of this handle are nested in one another: only the outermost one goes
@@ -151,14 +154,39 @@ public class Storage {
     /**
      * Marks `key` as being worked on by this handle until `exit`, verified or executed alike.
      *
-     * @throws CycleException - if it already is
+     * If it already is, and is executing, the queries executing since are a cycle. When every one of
+     * them has a fallback, each is marked to take it, and depends on everything any of them read:
+     * the one asking unwinds at once, the others at their next read. When `key` is only being
+     * verified, whoever verifies it is told to execute it instead, which finds the cycle as above.
+     *
+     * @throws CycleException - if it already is, and a query on the cycle has no fallback
      */
     func enter(key: DatabaseKey): Unit {
-        if (!active.add(key)) {
-            let path = stack.map {frame => describe(frame.key)}
-            path.add(describe(key))
-            throw CycleException("cycle: ${String.join(path.toArray(), delimiter: " -> ")}")
+        let entered = match (active.get(key)) {
+            case Some(depth) => depth
+            case None =>
+                active.add(key, stack.size)
+                return
         }
+        if (entered >= stack.size || stack[entered].key != key) {
+            throw VerifyingCycleException(key)
+        }
+        let participants = stack.toArray()[entered..]
+        if (!participants.iterator().all {frame => runtime.ingredientAt(frame.key.ingredient).hasFallback()}) {
+            let path = participants.map {frame => describe(frame.key)}
+            let closed = ArrayList<String>(path)
+            closed.add(describe(key))
+            throw CycleException("cycle: ${String.join(closed.toArray(), delimiter: " -> ")}", path)
+        }
+        let cycle = HashSet<DatabaseKey>(participants.map {frame => frame.key})
+        let union = ActiveQuery(key)
+        for (frame in participants) {
+            union.absorb(frame, cycle)
+        }
+        for (frame in participants) {
+            frame.enterCycle(union, cycle)
+        }
+        throw CycleUnwindException()
     }
 
     func exit(key: DatabaseKey): Unit {
@@ -179,7 +207,13 @@ public class Storage {
      * Records a read on the query running, if any.
      */
     func reportRead(key: DatabaseKey, durability: Durability, changedAt: Int64): Unit {
-        stack.last?.read(key, durability, changedAt)
+        if (let Some(frame) <- stack.last) {
+            frame.read(key, durability, changedAt)
+            if (frame.unwinding) {
+                // a query on a recovered cycle: it takes its fallback, whatever it would compute
+                throw CycleUnwindException()
+            }
+        }
     }
 
     /**
@@ -208,11 +242,52 @@ class ActiveQuery {
     var durability = Durability.High
     var changedAt = FIRST_REVISION
 
+    /**
+     * On a cycle whose queries all take their fallback: until the fallback is computed, every read
+     * unwinds.
+     */
+    var unwinding = false
+
+    /**
+     * On a cycle whose queries all take their fallback, the value is the fallback.
+     */
+    var inCycle = false
+
     func read(key: DatabaseKey, durability: Durability, changedAt: Int64): Unit {
         if (seen.add(key)) {
             dependencies.add(key)
         }
         this.durability = min(this.durability, durability)
         this.changedAt = max(this.changedAt, changedAt)
+    }
+
+    /**
+     * Adds what `other` read, but the queries on `cycle`.
+     */
+    func absorb(other: ActiveQuery, cycle: HashSet<DatabaseKey>): Unit {
+        for (key in other.dependencies where !cycle.contains(key)) {
+            if (seen.add(key)) {
+                dependencies.add(key)
+            }
+        }
+        durability = min(durability, other.durability)
+        changedAt = max(changedAt, other.changedAt)
+    }
+
+    /**
+     * Makes this query one of a cycle recovered: it depends on what the whole cycle read, `union`,
+     * and on none of the queries on it, whose values are all fallbacks.
+     */
+    func enterCycle(union: ActiveQuery, cycle: HashSet<DatabaseKey>): Unit {
+        let kept = dependencies.toArray().filter {key => !cycle.contains(key)}
+        dependencies.clear()
+        seen.clear()
+        for (key in kept) {
+            seen.add(key)
+            dependencies.add(key)
+        }
+        absorb(union, cycle)
+        inCycle = true
+        unwinding = true
     }
 }
