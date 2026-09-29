@@ -44,6 +44,11 @@ class Events {
 class Parking {
     let parked = LinkedBlockingQueue<Unit>(1)
     let released = LinkedBlockingQueue<Unit>(1)
+
+    /**
+     * Once set, `park` does not stop.
+     */
+    let disabled = AtomicBool(false)
 }
 
 class TestDatabase <: TestDb {
@@ -64,6 +69,9 @@ class TestDatabase <: TestDb {
     }
 
     public func park(): Unit {
+        if (parking.disabled.load()) {
+            return
+        }
         parking.parked.add(())
         parking.released.remove()
     }
