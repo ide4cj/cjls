@@ -17,7 +17,7 @@ public class Cancelled <: Exception {
 
 /**
  * Thrown when a tracked function ends up needing its own result, directly or through others, and
- * not every query on the cycle has a fallback (`@CalcaTracked[cycle: f]`).
+ * not every query on the cycle has a fallback (`@CalcaTracked[cycleResult: f]`).
  */
 public class CycleException <: Exception {
     /**
