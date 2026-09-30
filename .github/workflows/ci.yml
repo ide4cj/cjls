@@ -112,64 +112,6 @@ jobs:
         run: uv run --project tests/e2e --locked pytest tests/e2e
         shell: bash
 
-  # the editor clients' own tests against the binary built here (D16): each client at the branch of
-  # this one's name when it has one, a change made in both (D32), else at its default branch
-  clients:
-    name: Editor clients (${{ matrix.os }})
-    needs: build
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 20
-    # no SDK here either; without it, the tests of cjfmt are skipped
-    env:
-      CJLS_BIN: ${{ github.workspace }}/bin/cjls${{ matrix.os == 'windows-latest' && '.exe' || '' }}
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: cjls-${{ runner.os }}
-          path: bin
-      - run: chmod +x "$CJLS_BIN"
-        shell: bash
-      - id: nvim
-        uses: ide4cj/.github/actions/paired-branch@main
-        with:
-          repository: ide4cj/cangjie.nvim
-      - uses: actions/checkout@v4
-        with:
-          repository: ide4cj/cangjie.nvim
-          ref: ${{ steps.nvim.outputs.ref }}
-          path: cangjie.nvim
-      - uses: rhysd/action-setup-vim@v1
-        with:
-          neovim: true
-          version: stable
-      - name: Neovim plugin tests
-        run: nvim --clean --headless -u cangjie.nvim/test/run.lua
-        shell: bash
-      - id: vscode
-        uses: ide4cj/.github/actions/paired-branch@main
-        with:
-          repository: ide4cj/cangjie-vscode
-      - uses: actions/checkout@v4
-        with:
-          repository: ide4cj/cangjie-vscode
-          ref: ${{ steps.vscode.outputs.ref }}
-          path: cangjie-vscode
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: cangjie-vscode/package-lock.json
-      - name: VS Code extension tests
-        working-directory: cangjie-vscode
-        run: |
-          npm ci
-          if [ "$RUNNER_OS" = Linux ]; then xvfb-run -a npm test; else npm test; fi
-        shell: bash
-
   # a report per commit, kept as an artifact; shared runners are too noisy for a threshold (D23)
   perf:
     name: Performance (ubuntu-latest)
