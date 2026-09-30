@@ -1,7 +1,7 @@
 # cjls
 
-A language server for [Cangjie](https://cangjie-lang.cn), written in Cangjie, after
-[rust-analyzer](https://rust-analyzer.github.io): incremental, answering from a snapshot while you type,
+A language server for [Cangjie](https://cangjie-lang.cn), written in Cangjie:
+incremental, answering from a snapshot while you type,
 reporting no error in code the compiler accepts.
 
 It is early: each file is read on its own, from its syntax. What it does today is in the

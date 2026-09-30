@@ -3,7 +3,7 @@ package fjson
 import std.collection.*
 
 /**
- * A value that writes itself as JSON: serde's `Serialize`, for one format. `@DeriveExt[ToJson]`
+ * A value that writes itself as JSON. `@DeriveExt[ToJson]`
  * generates it.
  */
 public interface ToJson {
@@ -11,7 +11,7 @@ public interface ToJson {
 }
 
 /**
- * A value read from the JSON at the reader: serde's `Deserialize`. `@DeriveExt[FromJson]` generates
+ * A value read from the JSON at the reader. `@DeriveExt[FromJson]` generates
  * it. A value that does not read throws, `FjException` for what the JSON says and `OverflowException`
  * never: numbers are range-checked by the reader.
  */
@@ -39,7 +39,7 @@ public func fromJsonBytes<T>(bytes: Array<Byte>): T where T <: FromJson<T> {
 }
 
 /**
- * A JSON value kept as its own bytes, unread: serde_json's `RawValue`. Read, it is a slice of the
+ * A JSON value kept as its own bytes, unread. Read, it is a slice of the
  * input, no copy; written, it is copied as it is. What a message's `params` are until its method
  * says their type.
  */

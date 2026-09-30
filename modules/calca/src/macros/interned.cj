@@ -4,7 +4,7 @@ import std.ast.*
 import std.collection.*
 
 /**
- * Makes a struct interned in the database, as salsa's `#[salsa::interned]` is: equal fields give
+ * Makes a struct interned in the database: equal fields give
  * the one value, which is only an `Id`, so comparing and hashing it costs no more than an integer's.
  *
  * ```cangjie

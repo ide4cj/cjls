@@ -9,7 +9,7 @@ import std.unittest.testmacro.*
 let KINDS_FILE = "modules/cjsyntax/syntax_kinds.toml"
 
 /**
- * rust-analyzer's `sourcegen` check: a change to the kinds file or the grammar that was not generated fails here,
+ * A change to the kinds file or the grammar that was not generated fails here,
  * and with it `pre-push`.
  */
 @Test

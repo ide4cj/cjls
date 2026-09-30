@@ -3,8 +3,7 @@ package index_map
 import std.collection.*
 
 /**
- * A hash map that keeps its entries in the order they were first added, the way Rust's `indexmap`
- * does, and so gives each one an index: its position in that order.
+ * A hash map that keeps its entries in the order they were first added, and so gives each one an index: its position in that order.
  *
  * Replacing the value of a key keeps its entry where it is. Removing one either shifts every later
  * entry down a place (`shiftRemove`, and `remove`: O(n), the order of the rest kept) or moves the

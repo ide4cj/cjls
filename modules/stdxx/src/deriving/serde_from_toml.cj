@@ -4,7 +4,7 @@ import std.ast.*
 import std.collection.*
 
 /*
- * `FromToml`: serde's `Deserialize`, from a document read by `ftoml`. A table is looked up key by
+ * `FromToml`: a value read from a document read by `ftoml`. A table is looked up key by
  * key, so their order does not matter and one no field names is skipped; a required key missing is
  * an error naming it, at its table. An untagged enum tries each variant on the value, which a
  * document makes cheap: nothing is read twice.

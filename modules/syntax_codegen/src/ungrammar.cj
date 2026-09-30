@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 
 /**
- * A rule of an ungrammar: rust-analyzer's format for the shape of a syntax tree.
+ * A rule of an ungrammar, a grammar of the shape of a syntax tree (`cangjie.ungram` spells out the format).
  */
 enum Rule {
     | NodeRef(String)

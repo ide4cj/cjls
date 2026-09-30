@@ -4,7 +4,7 @@ import std.ast.*
 import std.collection.*
 
 /*
- * `ToJson`: serde's `Serialize`, straight into an `FjWriter` - no tree on the way.
+ * `ToJson`: a value written straight into an `FjWriter` - no tree on the way.
  */
 
 func deriveToJson(model: DeclModel): Tokens {

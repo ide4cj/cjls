@@ -4,7 +4,7 @@ import std.ast.*
 import std.collection.*
 
 /**
- * Makes a function of the database and its arguments a query, as salsa's `#[salsa::tracked]` is: its
+ * Makes a function of the database and its arguments a query: its
  * value is remembered per argument, along with everything it read, and computed again only once
  * something it read has changed.
  *
@@ -35,7 +35,7 @@ import std.collection.*
  *
  * On an `extend` of a type of the database (`@CalcaInput`, `@CalcaInterned`), it makes queries of
  * the methods marked `@CalcaTracked` in it, keyed by the value they are called on and their
- * arguments, as salsa's tracked methods are; the other members stay as they are. A method's options
+ * arguments; the other members stay as they are. A method's options
  * go on its own mark, and its fallback takes the value first:
  *
  * ```cangjie

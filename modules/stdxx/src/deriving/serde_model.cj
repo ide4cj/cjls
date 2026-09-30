@@ -70,7 +70,7 @@ enum FieldShape {
     | Required
 
     /**
-     * `?T`: absent and `null` both read as `None`, the way serde reads an `Option<T>`.
+     * `?T`: absent and `null` both read as `None`.
      */
     | Optional
 
@@ -201,7 +201,7 @@ private func structModelOf(
         return transparentModelOf(decl, typeOptions, fields, memberOptions)
     }
 
-    // serde's: the tag holds the struct's name - its `rename`, or its identifier as a variant's would
+    // the tag holds the struct's name - its `rename`, or its identifier as a variant's would
     let tag: ?(String, String) = match ((typeOptions.tag, typeOptions.rename)) {
         case (None, None) => None
         case (None, Some(_)) => return reportNone(typeIdent, "`rename` on a struct needs a `tag`",

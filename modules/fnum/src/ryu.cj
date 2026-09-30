@@ -2,7 +2,7 @@ package fnum
 
 /*
  * The shortest decimal that reads back as the same `Float64`: Ryu (Ulf Adams, PLDI 2018), its
- * `ryu/d2s.c` ported, laid out as the Rust `ryu` crate lays it out for serde_json - `0.1`,
+ * `ryu/d2s.c` ported, laid out as `0.1`,
  * `100.0`, `1e21`, `1.2345e-7`. An integral value keeps its `.0`, so what reads it back still has
  * a float where `100` is an integer. `std.convert`'s `.17g` round-trips too,
  * but writes `0.10000000000000001`, and slower (`RyuBench`).

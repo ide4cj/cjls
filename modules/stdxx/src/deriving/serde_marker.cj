@@ -15,7 +15,7 @@ const ITEM_PAYLOAD = "payload"
 const ITEM_OTHER = "other"
 
 /**
- * Configures what `@DeriveExt` generates for the declaration it sits on - serde's `#[serde(...)]`:
+ * Configures what `@DeriveExt` generates for the declaration it sits on:
  * one marker for every position, read alike by every serde derivation (`ToJson`, `FromJson`,
  * `ToToml`, `FromToml`).
  *

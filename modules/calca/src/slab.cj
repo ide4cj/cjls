@@ -17,8 +17,7 @@ enum SlabSlot<T> {
 
 /**
  * Values under `Id`s that are reused once the value is removed, each time with one more generation,
- * so an `Id` of a removed value never finds the one that took its slot. As `slotmap` and salsa's
- * interned tables do.
+ * so an `Id` of a removed value never finds the one that took its slot.
  *
  * The free list is implicit, the vacant slots themselves (it costs nothing beyond them), and LIFO:
  * the slot vacated last is the next one taken. A slot whose generation has reached

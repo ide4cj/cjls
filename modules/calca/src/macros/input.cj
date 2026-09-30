@@ -5,7 +5,7 @@ import std.collection.*
 
 /**
  * Makes a struct an input of the database: what it declares as fields lives in the database, and a
- * value of it is only the row's `Id`, as salsa's `#[salsa::input]` is.
+ * value of it is only the row's `Id`.
  *
  * ```cangjie
  * @CalcaInput

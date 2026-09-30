@@ -31,8 +31,8 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): Docume
 }
 
 /**
- * LSP has no kind for an extension, a macro or `main`: they go as rust-analyzer sends an `impl`,
- * a macro and a function.
+ * LSP has no kind for an extension, a macro or `main`: an extension goes as an `Object`, a macro
+ * and `main` as a function.
  */
 func symbolKind(kind: StructureKind): SymbolKind {
     match (kind) {

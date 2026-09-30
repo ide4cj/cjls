@@ -4,7 +4,7 @@ import ginkgo.*
 import cjsyntax.SyntaxKind
 
 // The accessors `syntax_codegen` leaves out, of children the grammar cannot tell by position alone: each is found
-// by the tokens around it instead, as rust-analyzer's `node_ext.rs` does.
+// by the tokens around it instead.
 
 let COLON = TokenSet<SyntaxKind>([SyntaxKind.Colon])
 let L_PAREN = TokenSet<SyntaxKind>([SyntaxKind.LParen])

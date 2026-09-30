@@ -1,7 +1,7 @@
 package ginkgo
 
 /**
- * A typed view of a syntax node, rowan's `AstNode`: a struct wrapping a node of one kind, or an enum of such
+ * A typed view of a syntax node: a struct wrapping a node of one kind, or an enum of such
  * views for a node that may be one of several. Views are generated from the language's grammar; they only read
  * the tree, and a child missing from a tree with errors is `None`, never a failure.
  */
@@ -19,7 +19,7 @@ public interface AstNode<K, T> where K <: Kind<K> {
 }
 
 /**
- * The first child of `parent` that is a `T`. What generated accessors are made of, like rowan's `support`.
+ * The first child of `parent` that is a `T`. What generated accessors are made of.
  */
 @Frozen
 public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: AstNode<K, T> {
