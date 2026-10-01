@@ -4,7 +4,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import calca.macros.*
 
-@CalcaTracked[cycle: headFallback]
+@CalcaTracked[cycleResult: headFallback]
 func head(db: TestDb, mode: Mode): Int64 {
     db.log("head")
     if (mode.cyclic(db)) {
@@ -18,7 +18,7 @@ func headFallback(_: TestDb, _: Mode): Int64 {
     -1
 }
 
-@CalcaTracked[cycle: tailFallback]
+@CalcaTracked[cycleResult: tailFallback]
 func tail(db: TestDb, mode: Mode): Int64 {
     db.log("tail")
     head(db, mode) + 1
@@ -28,7 +28,7 @@ func tailFallback(_: TestDb, _: Mode): Int64 {
     -2
 }
 
-@CalcaTracked[cycle: recoveredFallback]
+@CalcaTracked[cycleResult: recoveredFallback]
 func recovered(db: TestDb, mode: Mode): Int64 {
     unrecovered(db, mode)
 }
@@ -45,7 +45,7 @@ func unrecovered(db: TestDb, mode: Mode): Int64 {
 /**
  * A fallback of several arguments.
  */
-@CalcaTracked[cycle: pairFallback]
+@CalcaTracked[cycleResult: pairFallback]
 func pair(db: TestDb, mode: Mode, depth: Int64): Int64 {
     pair(db, mode, depth) + depth
 }

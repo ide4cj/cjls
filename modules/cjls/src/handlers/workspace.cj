@@ -71,8 +71,9 @@ func handleDidChangeWatchedFiles(state: ServerState, params: DidChangeWatchedFil
 func handleDidChangeWorkspaceFolders(state: ServerState, client: Client, logger: Logger,
     params: DidChangeWorkspaceFoldersParams): Unit {
     let removed = rootsOf(params.event.removed)
-    let added = rootsOf(params.event.added).filter {root => !state.roots.contains(root)}
+    // after the removal, so a folder both removed and added stays a root
     state.roots.removeIf {root => removed.contains(root)}
+    let added = rootsOf(params.event.added).filter {root => !state.roots.contains(root)}
     state.roots.add(all: added)
     unwatch(state, client, logger, removed)
     watch(state, client, logger, added)

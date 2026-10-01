@@ -112,7 +112,7 @@ class ClaimTest {
         @Expect(owner.get().isCancelled())
         @Expect(waiter.get().isCancelled())
         @Expect(write.get(), "hello")
-        db.parking.open.store(true)
+        db.parking.disabled.store(true)
         @Expect(parkedSize(db, file), 3)
     }
 
@@ -148,7 +148,7 @@ class ClaimTest {
         db.parking.parked.remove()
 
         // act
-        db.parking.open.store(true)
+        db.parking.disabled.store(true)
         db.parking.released.add(())
         db.parking.released.add(())
 

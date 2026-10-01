@@ -18,8 +18,9 @@ jobs:
     name: Conventional commits
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
@@ -40,8 +41,10 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    # a hang fails the job in minutes, not GitHub's six hours; the longest case takes seconds
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-cangjie
       # incremental from what master last built; a release, on a tag, is built clean (D27)
       - id: cache
@@ -52,17 +55,17 @@ jobs:
       - run: python tests/corpora/fetch.py
         shell: bash
       # beside the build's, not over it: each would undo the other's incremental cache
-      - run: cjpm test --no-progress --target-dir target/test
+      - run: cjpm test --no-progress --timeout-each=2m --target-dir target/test
         shell: bash
       # master's alone, so a PR never starts from another PR's build
       - if: github.event_name == 'push' && github.ref == 'refs/heads/master'
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v6
         with:
           path: |
             target
             build-script-cache
           key: ${{ steps.cache.outputs.key }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: cjls-${{ runner.os }}
           path: target/release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
@@ -74,8 +77,9 @@ jobs:
   fuzz:
     name: Fuzz (ubuntu-latest)
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-cangjie
       - run: python tests/corpora/fetch.py
         shell: bash
@@ -91,18 +95,19 @@ jobs:
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
     # no SDK here: the binary has to run the way an editor starts it
     env:
       CJLS_BIN: ${{ github.workspace }}/bin/cjls${{ matrix.os == 'windows-latest' && '.exe' || '' }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: cjls-${{ runner.os }}
           path: bin
       - run: chmod +x "$CJLS_BIN"
         shell: bash
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - name: pytest-lsp
         run: uv run --project tests/e2e --locked pytest tests/e2e
         shell: bash
@@ -112,7 +117,7 @@ jobs:
           version: stable
       # the plugin's own tests, against the binary built here (D16); without the SDK, those of cjfmt
       # are skipped
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           repository: ide4cj/cangjie.nvim
           path: cangjie.nvim
@@ -125,21 +130,22 @@ jobs:
     name: Performance (ubuntu-latest)
     needs: build
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     env:
       CJLS_BIN: ${{ github.workspace }}/bin/cjls
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: cjls-Linux
           path: bin
       - run: chmod +x "$CJLS_BIN"
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@v7
       - name: cjls-perf
         run: |
           uv run --project tests/perf --locked cjls-perf run --server cjls -o perf.json
           uv run --project tests/perf --locked cjls-perf compare perf.json >> "$GITHUB_STEP_SUMMARY"
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: perf-${{ github.sha }}

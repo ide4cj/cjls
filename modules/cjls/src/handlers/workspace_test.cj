@@ -406,6 +406,24 @@ class DidChangeWorkspaceFoldersTest {
         @Expect(textAt(state, outer.join("a.cj")), None<String>)
         @Expect(textAt(state, inner.join("b.cj")), Some("b"))
     }
+
+    @TestCase
+    func aFolderRemovedAndAddedAtOnceStaysARoot() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let state = initializedWith([dir], watches: false)
+        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let folder = WorkspaceFolder(uri: uriOf(dir), name: "ws")
+
+        // act
+        handleDidChangeWorkspaceFolders(state, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+            event: WorkspaceFoldersChangeEvent(added: [folder], removed: [folder])))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(state.roots.toArray(), [VfsPath.file(dir)])
+        @Expect(textAt(state, dir.join("a.cj")), Some("a"))
+    }
 }
 
 @Test

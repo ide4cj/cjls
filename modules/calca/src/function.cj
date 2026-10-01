@@ -41,8 +41,7 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
         let storage = db.storage
         storage.read {
             let memos = storage.runtime.ingredient(index) {=> MemoTable(this, execute, recover)}
-            let id = memos.intern(storage.runtime, key)
-            let (value, memo) = memos.fetchValue(db, storage, id, key)
+            let (value, memo, id) = memos.fetchValue(db, storage, key)
             storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
             value
         }
@@ -134,20 +133,18 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     }
 
     /**
-     * The `Id` of `key`, a new one the first time it is seen.
+     * The `Id` of `key`, a new one the first time it is seen. Called with the lock held.
      */
-    func intern(runtime: Runtime, key: K): Id {
-        synchronized(lock) {
-            match (ids.get(key)) {
-                case Some(id) => id
-                case None =>
-                    let id = entries.insert(MemoEntry<K, V>(key, None))
-                    ids.add(key, id)
-                    if (let Some(map) <- internedKeys(runtime, key)) {
-                        map.add((key as InternedValue).getOrThrow().calcaKey().id, id)
-                    }
-                    id
-            }
+    private func internLocked(runtime: Runtime, key: K): Id {
+        match (ids.get(key)) {
+            case Some(id) => id
+            case None =>
+                let id = entries.insert(MemoEntry<K, V>(key, None))
+                ids.add(key, id)
+                if (let Some(map) <- internedKeys(runtime, key)) {
+                    map.add((key as InternedValue).getOrThrow().calcaKey().id, id)
+                }
+                id
         }
     }
 
@@ -195,23 +192,36 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
 
     /**
      * The value at `id` and the memo holding it: remembered if the memo is verified, else computed
-     * again. A use of the key, as far as `lru` goes.
+     * again. A use of the key, as far as `lru` goes; its `Id`, a new one the first time.
+     *
+     * A hit is one turn of the lock, the key interned and its memo read together, and marks
+     * nothing as being worked on: a memo verified in this revision is neither verified nor
+     * computed on any handle.
      */
-    func fetchValue(db: D, storage: Storage, id: Id, key: K): (V, Memo<V>) {
+    func fetchValue(db: D, storage: Storage, key: K): (V, Memo<V>, Id) {
+        let (id, current) = synchronized(lock) {
+            let id = internLocked(storage.runtime, key)
+            used?.touch(id)
+            (id, entry(id).memo)
+        }
+        if (let Some(memo) <- current) {
+            if (let Some(value) <- memo.value) {
+                if (memo.verifiedAt.load() == storage.runtime.revision) {
+                    return (value, memo, id)
+                }
+            }
+        }
+        let (value, memo) = fetchCold(db, storage, id, key)
+        (value, memo, id)
+    }
+
+    /**
+     * `fetchValue` of a memo not verified in this revision, or without a value.
+     */
+    private func fetchCold(db: D, storage: Storage, id: Id, key: K): (V, Memo<V>) {
         let databaseKey = DatabaseKey(function.index, id)
         storage.enter(databaseKey)
         try {
-            let current = synchronized(lock) {
-                used?.touch(id)
-                entry(id).memo
-            }
-            if (let Some(memo) <- current) {
-                if (let Some(value) <- memo.value) {
-                    if (memo.verifiedAt.load() == storage.runtime.revision) {
-                        return (value, memo)
-                    }
-                }
-            }
             let old = synchronized(lock) {
                 claim(storage, databaseKey)
                 // the owner waited for may have left it verified or computed
@@ -280,7 +290,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
                 dependency => runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)
             }
-        } catch (e: VerifyingCycle) {
+        } catch (e: VerifyingCycleException) {
             if (e.key != key) {
                 throw e
             }
@@ -311,7 +321,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             } else {
                 computed
             }
-        } catch (e: CycleUnwind) {
+        } catch (e: CycleUnwindException) {
             if (!frame.inCycle) {
                 throw e
             }

@@ -1,7 +1,7 @@
 name: Restore the build cache
 description: >-
   Restores `target` as the last master build on this platform and toolchain left it, its sources
-  stamped with mtimes cjpm's incremental cache can match (D27). Saving is the workflow's call.
+  stamped with mtimes cjpm's incremental cache can match (D27, D28). Saving is the workflow's call.
 
 outputs:
   key:
