@@ -17,9 +17,10 @@ import std.collection.*
  *
  * The database comes first, typed as the database interface the body needs; the arguments are
  * positional, `Hashable` and `Equatable`, an `@CalcaInput` for one. Several are remembered together,
- * as one generated `CalcaFields_<function>` struct; one is its own key. A value computed again that
- * equals the one remembered does not make what read it run again, so the result is `Equatable` too,
- * unless `@CalcaTracked[noEq]` says to count every computation as a change.
+ * as one generated `CalcaFields_<function>_S<types>` struct; one is its own key. Overloads are
+ * queries of their own: what is generated is named after the types too. A value computed again
+ * that equals the one remembered does not make what read it run again, so the result is
+ * `Equatable` too, unless `@CalcaTracked[noEq]` says to count every computation as a change.
  *
  * `@CalcaTracked[lru: 128]` keeps the values of the 128 keys fetched last from one revision to the
  * next, and lets go of the others; what they read is kept, so they are verified without being
@@ -225,10 +226,13 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
 
     let name = decl.identifier
     let plain = stripBackquotes(name.value)
-    let (prefix, described) = match (receiver) {
-        case Some((_, typeName)) => ("${typeName}_${plain}", "${typeName}.${plain}")
-        case None => (plain, plain)
+    let described = match (receiver) {
+        case Some((_, typeName)) => "${typeName}.${plain}"
+        case None => plain
     }
+    // the types too, or two overloads would declare one holder; a method's `.` keeps it from a
+    // function named `Type_method`
+    let prefix = mangled(described, params.toArray().map {param => param.paramType.toTokens()})
     let holder = Token(TokenKind.IDENTIFIER, "CalcaTracked_" + prefix)
     let db = params[0].identifier
     let dbType = params[0].paramType.toTokens()
