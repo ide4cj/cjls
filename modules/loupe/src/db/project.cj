@@ -174,15 +174,20 @@ public struct ProjectModel {
     }
 
     /**
-     * The projects as one, with the cfg of the first: a module or a binary named as one before it
-     * is left out.
+     * The projects as one, with the cfg of the first (`cfg` if there are none). A module named as
+     * one before it adds its packages to that one, a package named as one before it its files: two
+     * roots of loose files both have a `default`, and a project opened from two roots has its
+     * modules twice. A binary named as one before it is left out.
      */
     public static func merge(projects: Array<ProjectModel>, cfg: Cfg): ProjectModel {
         let modules = ArrayList<ModuleModel>()
         let binaries = ArrayList<BinaryModel>()
         for (project in projects) {
-            for (module in project.modules where !modules.iterator().any {kept => kept.name == module.name}) {
-                modules.add(module)
+            for (module in project.modules) {
+                match (modules.iterator().enumerate().filter {kept => kept[1].name == module.name}.next()) {
+                    case Some((index, kept)) => modules[index] = kept.including(module.packages)
+                    case None => modules.add(module)
+                }
             }
             for (binary in project.binaries where !binaries.iterator().any {kept => kept.name == binary.name}) {
                 binaries.add(binary)
@@ -190,6 +195,26 @@ public struct ProjectModel {
         }
         let first = projects.iterator().next().map {project => project.cfg} ?? cfg
         ProjectModel(first, modules.toArray(), binaries: binaries.toArray())
+    }
+}
+
+extend ModuleModel {
+    /**
+     * This module with `packages` too: the files of one of a name it has already are added to it.
+     */
+    func including(packages: Array<PackageModel>): ModuleModel {
+        let merged = ArrayList<PackageModel>(this.packages)
+        for (pkg in packages) {
+            match (merged.iterator().enumerate().filter {kept => kept[1].name == pkg.name}.next()) {
+                case Some((index, kept)) =>
+                    let files = ArrayList<VfsPath>(kept.files)
+                    files.add(all: pkg.files.filter {file => !kept.files.contains(file)})
+                    merged[index] = PackageModel(kept.name, kept.dir, files.toArray(), noPrelude: kept.noPrelude,
+                        isMacro: kept.isMacro)
+                case None => merged.add(pkg)
+            }
+        }
+        ModuleModel(name, root, merged.toArray(), deps: deps, member: member, cfg: cfg)
     }
 }
 

@@ -1,6 +1,7 @@
 package cjls.handlers
 
 import std.collection.ArrayList
+import std.env.getVariable
 import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
@@ -8,7 +9,9 @@ import stdxx.Nullable
 import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
-import loupe.vfs.{isWorkspaceFile, readFile, readRoots, VfsPath}
+import loupe.db.ProjectModel
+import loupe.vfs.{isWorkspaceFile, readFile, readFiles, VfsPath}
+import project_model.{findProjects, hostCfg, PROJECT_JSON}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -39,21 +42,26 @@ func handleInitialized(state: ServerState, client: Client, logger: Logger, _: In
         logger.info("the client cannot watch files: changes on disk are not seen")
     }
     watch(state, client, logger, state.roots.toArray())
-    load(state, logger, state.roots.toArray())
+    load(state, logger)
 }
 
 /**
  * A file created or changed is read from disk, one deleted is gone, and a directory deleted takes
- * every file under it; a document open in the editor keeps its buffer, whatever the disk says.
+ * every file under it; a document open in the editor keeps its buffer, whatever the disk says. A
+ * file come or gone, or a manifest changed, finds the project again first.
  */
 @LspHandler
-func handleDidChangeWatchedFiles(state: ServerState, params: DidChangeWatchedFilesParams): Unit {
+func handleDidChangeWatchedFiles(state: ServerState, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
+    if (params.changes.iterator().any {event => changesProject(event)}) {
+        load(state, logger)
+    }
     let roots = state.roots.toArray()
     let files = ArrayList<(VfsPath, ?Rope)>()
     for (event in params.changes) {
         let path = VfsPath.fromUri(event.uri)
         match (event.`type`) {
-            case FileChangeType.Created | FileChangeType.Changed where isWorkspaceFile(path, roots) =>
+            case FileChangeType.Created | FileChangeType.Changed where isWorkspaceFile(path, roots) ||
+                state.inProject(path) =>
                 files.add((path, readFile(path)))
             case FileChangeType.Deleted => for (gone in state.filesUnder(path)) {
                 files.add((gone, None))
@@ -87,7 +95,7 @@ func handleDidChangeWorkspaceFolders(state: ServerState, client: Client, logger:
         }
     }
     state.setFilesContents(gone.toArray())
-    load(state, logger, added)
+    load(state, logger)
 }
 
 /**
@@ -105,19 +113,38 @@ func handleWorkspaceSymbol(snap: ServerSnapshot, params: WorkspaceSymbolParams):
 }
 
 /**
- * Reads the files under `roots` and sets them all in one revision; an open document keeps what the
+ * Whether `event` may change the project: a manifest changed, or a file or a directory come or gone.
+ */
+func changesProject(event: FileEvent): Bool {
+    let name = VfsPath.fromUri(event.uri).name
+    name == "cjpm.toml" || name == PROJECT_JSON || event.`type` != FileChangeType.Changed
+}
+
+/**
+ * Finds the project of every root again and sets it, then reads the files of its packages the
+ * server does not know yet, and sets them all in one revision; an open document keeps what the
  * editor sent. On the read loop, so what arrives meanwhile waits and applies after it.
  */
-func load(state: ServerState, logger: Logger, roots: Array<VfsPath>): Unit {
-    if (roots.isEmpty()) {
+func load(state: ServerState, logger: Logger): Unit {
+    let roots = state.roots.toArray()
+    if (roots.isEmpty() && state.linkedProjects.isEmpty()) {
         return
     }
     let start = MonoTime.now()
     let budget = loadBudget()
-    let read = readRoots(roots, budget: budget)
-    let files = read.files.filter {file => !state.openDocuments.contains(file[0])}
-    state.setFilesContents(files.map {file => (file[0], Some(file[1]))})
-    logger.info("loaded the workspace", [("roots", roots.size), ("files", files.size), ("took", MonoTime.now() - start)])
+    let loads = findProjects(roots, state.linkedProjects, env: {name => getVariable(name)}, budget: budget)
+    for (load in loads) {
+        logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
+        for (problem in load.problems) {
+            logger.warn(problem)
+        }
+    }
+    let model = ProjectModel.merge(loads.map {load => load.model}, hostCfg())
+    state.setProject(model)
+    let wanted = model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)}
+    let read = readFiles(wanted, budget: budget)
+    state.setFilesContents(read.files.map {file => (file[0], Some(file[1]))})
+    logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size), ("took", MonoTime.now() - start)])
     if (read.truncated) {
         logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
             [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
@@ -158,16 +185,20 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
 }
 
 /**
- * A watcher of every Cangjie file under `root`: a pattern relative to it if the client takes one,
- * a glob of its path otherwise.
+ * Watchers of every Cangjie file under `root`, and of the manifests that say how they are built:
+ * patterns relative to it if the client takes them, globs of its path otherwise.
  */
 func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registration {
-    let pattern = if (relative) {
-        GlobPattern.AsRelativePattern(RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(root.toUri()), pattern: "**/*.cj"))
-    } else {
-        GlobPattern.AsPattern(root.toString().replace("\\", "/").removeSuffix("/") + "/**/*.cj")
+    let watchers = ["**/*.cj", "**/cjpm.toml", "**/${PROJECT_JSON}"].map {
+        glob =>
+        let pattern = if (relative) {
+            GlobPattern.AsRelativePattern(RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(root.toUri()), pattern: glob))
+        } else {
+            GlobPattern.AsPattern(root.toString().replace("\\", "/").removeSuffix("/") + "/" + glob)
+        }
+        FileSystemWatcher(globPattern: pattern)
     }
-    let options = DidChangeWatchedFilesRegistrationOptions(watchers: [FileSystemWatcher(globPattern: pattern)])
+    let options = DidChangeWatchedFilesRegistrationOptions(watchers: watchers)
     Registration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD,
         registerOptions: RawJson.of(options).read<JsonValue>())
 }

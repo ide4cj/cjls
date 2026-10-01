@@ -39,6 +39,18 @@ public func readRoots(roots: Array<VfsPath>, budget!: Int64 = Int64.Max): RootsR
 }
 
 /**
+ * The files at `paths`, as `readRoots` reads them: one that is not there, cannot be read, or is
+ * not UTF-8 is left out, and so is one that does not fit in what is left of `budget`.
+ */
+public func readFiles(paths: Array<VfsPath>, budget!: Int64 = Int64.Max): RootsRead {
+    let walk = Walk(budget)
+    for (path in paths) {
+        walk.readSourceFile(path)
+    }
+    RootsRead(walk.files.toArray(), walk.truncated)
+}
+
+/**
  * What the file at `path` holds on disk, `None` if it is not there, cannot be read, or is not
  * UTF-8, and for a virtual path.
  */
@@ -109,7 +121,7 @@ private class Walk {
         }
     }
 
-    private func readSourceFile(path: VfsPath): Unit {
+    func readSourceFile(path: VfsPath): Unit {
         let text = readFile(path) ?? return ()
         if (text.size > budget) {
             truncated = true

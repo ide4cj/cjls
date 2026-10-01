@@ -323,3 +323,44 @@ private func entriesOf(dir: VfsPath): Array<FileInfo> {
         []
     }
 }
+
+/**
+ * The projects of `roots`, each the first there is: the `cj-project.json` in it, the projects of
+ * `linked` under it, its `cjpm.toml`, its loose files. A project of `linked` (a `cj-project.json`,
+ * or a directory to find one in) under no root is there too.
+ */
+public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg(), budget!: Int64 = Int64.Max): Array<ProjectLoad> {
+    let loads = ArrayList<ProjectLoad>()
+    for (root in roots) {
+        let under = linked.filter {path => path.isUnder(root)}
+        if (under.isEmpty() || (root.join(PROJECT_JSON).filePath.map {path => isFile(path)} ?? false)) {
+            loads.add(findProject(root, env: env, cfg: cfg, budget: budget))
+        } else {
+            loads.add(all: under.map {path => linkedProject(path, env, cfg, budget)})
+        }
+    }
+    for (path in linked where !roots.iterator().any {root => path.isUnder(root)}) {
+        loads.add(linkedProject(path, env, cfg, budget))
+    }
+    loads.toArray()
+}
+
+/**
+ * The project `path` names: a `cj-project.json`, or a directory to find one in. One that cannot be
+ * read is no project, and says why.
+ */
+func linkedProject(path: VfsPath, env: (String) -> ?String, cfg: Cfg, budget: Int64): ProjectLoad {
+    let isProjectFile = path.filePath.map {file => isFile(file)} ?? false
+    if (!isProjectFile) {
+        return findProject(path, env: env, cfg: cfg, budget: budget)
+    }
+    try {
+        if (let Some(load) <- loadProjectJson(path, env: env, cfg: cfg)) {
+            return load
+        }
+    } catch (e: ProjectException) {
+        return ProjectLoad(ProjectModel(cfg, []), ProjectFile(path), [e.message])
+    }
+    ProjectLoad(ProjectModel(cfg, []), ProjectFile(path), ["${path} is not there"])
+}

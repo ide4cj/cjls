@@ -135,12 +135,14 @@ class ProjectTest {
     }
 
     @TestCase
-    func projectsMergedKeepTheFirstOfEachName() {
+    func projectsMergedAreOneModuleAndOnePackagePerName() {
         // arrange
-        let first = ProjectModel(Cfg([("os", "Linux")]), [ModuleModel("a", at("one"), [])],
+        let first = ProjectModel(Cfg([("os", "Linux")]), [ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/x.cj")])])],
             binaries: [BinaryModel("stdx", [at("stdx1")])])
-        let second = ProjectModel(Cfg([("os", "Windows")]), [ModuleModel("a", at("two"), []), ModuleModel("b", at("b"), [])],
-            binaries: [BinaryModel("stdx", [at("stdx2")])])
+        let second = ProjectModel(Cfg([("os", "Windows")]), [
+            ModuleModel("a", at("two"), [PackageModel("a", at("two"), [at("two/y.cj")]), PackageModel("a.b", at("two/b"), [])]),
+            ModuleModel("b", at("b"), [])
+        ], binaries: [BinaryModel("stdx", [at("stdx2")])])
 
         // act
         let merged = ProjectModel.merge([first, second], Cfg([]))
@@ -148,6 +150,8 @@ class ProjectTest {
         // assert
         @Expect(merged.cfg.get("os"), Some("Linux"))
         @Expect(merged.modules.map {module => module.root}, [at("one"), at("b")])
+        @Expect(merged.modules[0].packages.map {pkg => pkg.name}, ["a", "a.b"])
+        @Expect(merged.modules[0].packages[0].files, [at("one/x.cj"), at("two/y.cj")])
         @Expect(merged.binaries.map {binary => binary.paths}, [[at("stdx1")]])
     }
 }
