@@ -8,10 +8,13 @@
 | `Vfs` | `loupe.vfs` | `FileId → ?Rope` + changes folded until `takeChanges` (D2) |
 | `PathInterner` | `loupe.vfs` | `FileId` = the path's index in the order seen, for good; a `ConcurrentIndexSet`, a lock only to give an id (C9); the only thread-safe part |
 | `SourceFile` | `loupe.db` | `@CalcaInput { fileId, text: Rope }`, one per `FileId`, never dropped |
+| `ProjectModel` | `loupe.db` | modules (named after their root package), packages and their files, binaries, `Cfg`: plain values, every way of finding a project comes down to it (D33) |
+| `Project`, `Module`, `Package` | `loupe.db` | the model as inputs: `Project` a singleton, a `Module` and a `Package` per name, never dropped; a package's files a field of its own |
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |
 | `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
-| loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFile`, `isWorkspaceFile`: the disk, nothing else (D30) |
+| loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFiles`, `readFile`, `isWorkspaceFile`: the disk, nothing else (D30) |
+| project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33) |
 | API | `loupe` | a file per feature (`fileStructure`, …): plain functions over queries, speaking `FileId`, `TextRange` and loupe's own types (A3, A8) |
 
 ## Rules
@@ -34,3 +37,5 @@
 | A14 | A query has a fallback on a cycle (`@CalcaTracked[cycleResult: f]`) only where the language gives a cycle a meaning of its own (glob imports reaching each other, a recursive type alias), and the fallback is what the compiler reports there (an unresolved name, an error type); anywhere else a cycle is a bug, and `CycleException` says so. |
 | A15 | A question over every file (`workspaceSymbols`) goes through a per-file query of its own that parses without `parse` and keeps no tree (`fileSymbols`): `parse` keeps what it made until the next revision, and all the trees of a workspace do not fit in the heap (D30). |
 | A16 | What the server reads from disk is bounded: a load keeps at most its budget of text (D30), a sixteenth of the heap (D31). |
+| A17 | A file's input has its module's durability: `Low` for the user's, `Medium` for a dependency's, `High` for `std`; a file of no module `Low`. The project is set before the files it names, so they are created with it (D33). |
+| A18 | Which files a package has is `Package.files`, never found from the texts: a file deleted is an empty text (A5). Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module is a unit of the build, cjc's is the first segment of a name (D33). |

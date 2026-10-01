@@ -16,6 +16,8 @@
 ```
 cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
   │
+  ├────> project_model ──> stdxx, ftoml, loupe
+  │
   └────> loupe ──> calca
            ├─────> cjsyntax ──> ginkgo
            ├─────> index_map

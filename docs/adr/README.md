@@ -45,6 +45,7 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28 |
 | [0028](0028-ci-stamps-a-package.md) | CI stamps a package's files with one mtime, made of the whole directory | accepted |
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | accepted |
-| [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted |
+| [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33 |
 | [0031](0031-the-server-sets-its-heap.md) | Without `cjHeapSize` the server starts over with a heap of 2 GB; a load keeps a sixteenth of the heap | accepted |
 | [0032](0032-one-process-for-server-and-clients.md) | The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot | accepted |
+| [0033](0033-project-model.md) | A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files | accepted |
