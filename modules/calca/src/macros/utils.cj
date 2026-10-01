@@ -22,6 +22,45 @@ func stripBackquotes(ident: String): String {
     }
 }
 
+/**
+ * `name` and the types of a signature as one identifier, a different one for every signature, so
+ * overloads generate names of their own: `f(db: Db, x: ?Int64)` is `f_SDb_SQInt64`. Each type
+ * follows `_S`; in a name or a type, `_` is `__`, a sign `_` and a letter, anything else `_X`, its
+ * code and `_`.
+ */
+func mangled(name: String, types: Array<Tokens>): String {
+    let out = StringBuilder()
+    escapeInto(out, stripBackquotes(name))
+    for (tokens in types) {
+        out.append("_S")
+        for (token in tokens where token.kind != TokenKind.NL) {
+            escapeInto(out, stripBackquotes(token.value))
+        }
+    }
+    out.toString()
+}
+
+private func escapeInto(out: StringBuilder, text: String): Unit {
+    for (rune in text.runes()) {
+        let code = UInt32(rune)
+        let sign = match (rune) {
+            case '_' => "__"
+            case '<' => "_L"
+            case '>' => "_G"
+            case ',' => "_C"
+            case '?' => "_Q"
+            case '.' => "_D"
+            case '(' => "_P"
+            case ')' => "_R"
+            case '-' => "_M"
+            // letters and digits, and whatever is past ASCII, which only an identifier holds
+            case _ where code > 0x7F || rune.isAsciiLetter() || rune.isAsciiNumber() => rune.toString()
+            case _ => "_X${code}_"
+        }
+        out.append(sign)
+    }
+}
+
 func capitalized(name: String): String {
     if (name.isEmpty()) {
         name
