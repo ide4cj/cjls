@@ -1,0 +1,287 @@
+package project_model
+
+import std.collection.*
+import std.env.getTempDirectory
+import std.fs.*
+import std.unittest.*
+import std.unittest.testmacro.*
+import fjson.*
+import loupe.db.*
+import loupe.vfs.VfsPath
+
+/**
+ * A directory of its own under the temporary one, holding `files` (paths relative to it, with `/`
+ * between names, and their text).
+ */
+func tree(files: Array<(String, String)>): VfsPath {
+    let dir = Directory.createTemp(getTempDirectory())
+    for ((relative, text) in files) {
+        let path = relative.split("/").fold(dir) {parent, name => parent.join(name)}
+        if (!exists(path.parent)) {
+            Directory.create(path.parent, recursive: true)
+        }
+        File.writeTo(path, text.toArray())
+    }
+    VfsPath.file(dir)
+}
+
+func removeTree(dir: VfsPath): Unit {
+    remove(dir.filePath.getOrThrow(), recursive: true)
+}
+
+/**
+ * An environment with `CANGJIE_HOME` at `/sdk` and nothing else.
+ */
+func sdkEnv(name: String): ?String {
+    if (name == "CANGJIE_HOME") {
+        getTempDirectory().join("sdk").toString()
+    } else {
+        None
+    }
+}
+
+func noEnv(_: String): ?String {
+    None
+}
+
+let LINUX = Cfg([("os", "Linux"), ("arch", "x86_64"), ("backend", "cjnative")])
+
+/**
+ * Every package of `model` as `module: package=file,file`, its files relative to `dir`.
+ */
+func packagesOf(model: ProjectModel, dir: VfsPath): Array<String> {
+    let out = ArrayList<String>()
+    for (module in model.modules) {
+        for (pkg in module.packages) {
+            out.add("${module.name}: ${pkg.name}=${String.join(pkg.files.map {file => relative(file, dir)}, delimiter: ",")}")
+        }
+    }
+    out.toArray()
+}
+
+@Test
+class PackageHeaderTest {
+    @TestCase[sample in [
+        ("package a.b\n", Some("a.b")),
+        ("// a comment\n/* a /* nested */ one */\nmacro package m.macros\nimport x", Some("m.macros")),
+        ("protected package org::a . b", Some("org::a.b")),
+        ("package `type`.ä", Some("type.ä")),
+        ("import std.collection.*\n", None),
+        ("", None),
+        ("package", None)
+    ]]
+    func theNameIsWhatThePackageLineSays(sample: (String, ?String)) {
+        // act
+        let name = packageHeader(sample[0].toArray())
+
+        // assert
+        @Expect(name, sample[1])
+    }
+}
+
+@Test
+class ProjectJsonTest {
+    @TestCase
+    func aModuleWithoutPackagesHasOnePerDirectoryNamedAsCjpmNamesThem() {
+        // arrange
+        let dir = tree([("libs/std/std.cj", ""), ("libs/std/collection/list.cj", ""),
+            ("libs/std/collection/map.cj", ""), ("libs/std/empty/README.md", ""), ("libs/std/target/x.cj", "")])
+        let json = ProjectJson(modules: [ModuleJson(name: "std", root: "libs/std")])
+
+        // act
+        let model = lowerProjectJson(json, dir, env: sdkEnv, cfg: LINUX)
+        removeTree(dir)
+
+        // assert - a module named `std` is std: none from the SDK
+        @Expect(packagesOf(model, dir), [
+            "std: std=libs/std/std.cj",
+            "std: std.collection=libs/std/collection/list.cj,libs/std/collection/map.cj"
+        ])
+        @Expect(model.binaries.size, 0)
+        @Expect(model.modules[0].member)
+    }
+
+    @TestCase
+    func packagesListedAreAllThereIsWithTheirFilesAndHowTheyAreBuilt() {
+        // arrange
+        let dir = tree([("std/core/a.cj", ""), ("std/core/b.cj", ""), ("std/collection/list.cj", "")])
+        let json = ProjectJson(
+            cfg: HashMap<String, String>([("env", "ohos")]),
+            modules: [ModuleJson(name: "std", root: "std", packages: [
+                PackageJson(name: "std.core", files: ["a.cj"], noPrelude: true),
+                PackageJson(name: "std.extra", dir: "std/collection")
+            ], cfg: HashMap<String, String>([("os", "Windows")]))]
+        )
+
+        // act
+        let model = lowerProjectJson(json, dir, env: noEnv, cfg: LINUX)
+        removeTree(dir)
+
+        // assert
+        @Expect(packagesOf(model, dir), ["std: std.core=std/core/a.cj", "std: std.extra=std/collection/list.cj"])
+        @Expect(model.modules[0].packages[0].noPrelude)
+        @Expect(model.cfg.get("env"), Some("ohos"))
+        @Expect(model.cfg.get("os"), Some("Linux"))
+        @Expect(model.modules[0].cfg.flatMap {cfg => cfg.get("os")}, Some("Windows"))
+        @Expect(model.modules[0].cfg.flatMap {cfg => cfg.get("env")}, Some("ohos"))
+    }
+
+    @TestCase
+    func stdComesFromTheSdkAndVariablesFromTheEnvironment() {
+        // arrange
+        let dir = tree([("app/main.cj", "")])
+        let json = ProjectJson(modules: [ModuleJson(name: "app", root: "app", deps: ["stdx"], member: false)],
+            binaries: [BinaryJson(name: "stdx", paths: ["\${CANGJIE_HOME}/stdx", "\${NOWHERE}/x"])])
+
+        // act
+        let loading = Loading(sdkEnv, LINUX)
+        let model = lowerProjectJson(json, dir, loading)
+        removeTree(dir)
+
+        // assert
+        let sdk = VfsPath.file(getTempDirectory().join("sdk"))
+        @Expect(model.binaries.map {binary => binary.name}, ["std", "stdx"])
+        @Expect(model.binaries[0].paths, [sdk.join("modules/linux_x86_64_cjnative/std")])
+        @Expect(model.binaries[1].paths, [sdk.join("stdx"), dir.join("\${NOWHERE}/x")])
+        @Expect(loading.problems.size, 1)
+        @Expect(model.modules[0].deps, ["stdx"])
+        @Expect(!model.modules[0].member)
+    }
+
+    @TestCase
+    func aModelWrittenOutReadsBackTheSame() {
+        // arrange
+        let dir = tree([("src/a.cj", ""), ("src/sub/b.cj", "")])
+        let model = lowerProjectJson(ProjectJson(modules: [ModuleJson(name: "app", root: "src", deps: ["stdx"])],
+            binaries: [BinaryJson(name: "stdx", paths: ["/opt/stdx"], packages: HashMap<String, String>([("stdx.a", "a.cjo")]))]),
+            dir, env: sdkEnv, cfg: LINUX)
+
+        // act
+        let text = prettyProjectJson(toProjectJson(model, dir))
+        let again = lowerProjectJson(fromJsonBytes<ProjectJson>(text.toArray()), dir, env: sdkEnv, cfg: hostCfg())
+        removeTree(dir)
+
+        // assert - the cfg written out wins over the host's
+        @Expect(again, model)
+        @Expect(text.contains("\n  \"modules\": [\n"))
+        @Expect(text.contains("\"root\": \"src\""))
+    }
+}
+
+@Test
+class CjpmProjectTest {
+    @TestCase
+    func aWorkspaceIsItsMembersAndThePathDependenciesTheyReach() {
+        // arrange
+        let dir = tree([
+            ("ws/cjpm.toml", "[workspace]\nmembers = [\"a\", \"b\"]\n" +
+                "[target.x86_64-unknown-linux-gnu.bin-dependencies]\npath-option = [\"\${CANGJIE_HOME}/stdx\"]\n" +
+                "[target.aarch64-apple-darwin.bin-dependencies]\npath-option = [\"/mac/stdx\"]\n"),
+            ("ws/a/cjpm.toml", "[package]\nname = \"a\"\n[dependencies]\nb = { path = \"../b\" }\n" +
+                "dep = { path = \"../../dep\" }\nremote = { git = \"https://example.com/r.git\" }\n"),
+            ("ws/a/src/main.cj", ""),
+            ("ws/a/build.cj", ""),
+            ("ws/b/cjpm.toml", "[package]\nname = \"b\"\norganization = \"org\"\nsrc-dir = \"lib\"\n"),
+            ("ws/b/lib/b.cj", ""),
+            ("ws/b/lib/x/y/c.cj", ""),
+            ("dep/cjpm.toml", "[package]\nname = \"dep\"\n"),
+            ("dep/src/d.cj", "")
+        ])
+
+        // act
+        let load = loadCjpmProject(dir.join("ws/cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
+        removeTree(dir)
+
+        // assert
+        let model = load.model
+        @Expect(packagesOf(model, dir), [
+            "org::b: org::b=ws/b/lib/b.cj",
+            "org::b: org::b.x.y=ws/b/lib/x/y/c.cj",
+            "dep: dep=dep/src/d.cj",
+            "a: a=ws/a/src/main.cj"
+        ])
+        @Expect(model.modules.map {module => module.member}, [true, false, true])
+        @Expect(model.modules[2].deps, ["org::b", "dep", "stdx"])
+        @Expect(model.modules[1].deps, Array<String>())
+        @Expect(model.binaries.map {binary => binary.name}, ["std", "stdx"])
+        @Expect(load.problems.size, 1)
+        @Expect(load.problems[0].contains("`remote`"))
+    }
+
+    @TestCase
+    func noManifestIsNoProjectAndABrokenOneThrows() {
+        // arrange
+        let dir = tree([("cjpm.toml", "[package\n")])
+
+        // act, assert
+        @Expect(loadCjpmProject(dir.join("none/cjpm.toml"), env: noEnv).isNone())
+        @AssertThrows[ProjectException](loadCjpmProject(dir.join("cjpm.toml"), env: noEnv))
+        removeTree(dir)
+    }
+}
+
+@Test
+class FindProjectTest {
+    @TestCase
+    func aProjectFileComesBeforeTheManifest() {
+        // arrange
+        let dir = tree([(PROJECT_JSON, "{\"modules\": [{\"name\": \"p\", \"root\": \"src\"}]}"),
+            ("cjpm.toml", "[package]\nname = \"m\"\n"), ("src/a.cj", "")])
+
+        // act
+        let load = findProject(dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(load.source.toString(), "${PROJECT_JSON} at ${dir.join(PROJECT_JSON)}")
+        @Expect(load.model.modules.map {module => module.name}, ["p"])
+    }
+
+    @TestCase
+    func aBrokenProjectFileIsToldAndTheManifestTaken() {
+        // arrange
+        let dir = tree([(PROJECT_JSON, "{\"modules\": 1}"), ("cjpm.toml", "[package]\nname = \"m\"\n"), ("src/a.cj", "")])
+
+        // act
+        let load = findProject(dir, env: sdkEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(load.model.modules.map {module => module.name}, ["m"])
+        @Expect(load.problems.size, 1)
+        @Expect(load.problems[0].contains(PROJECT_JSON))
+    }
+
+    @TestCase
+    func looseFilesMakeAPackagePerPackageLineAndAModulePerRootPackage() {
+        // arrange
+        let dir = tree([("a.cj", "package app\n"), ("x/b.cj", "// b\npackage app.util"), ("x/c.cj", "package app.util\n"),
+            ("y/d.cj", "main() {}"), ("z/e.cj", "macro package other.m")])
+
+        // act
+        let load = findProject(dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(load.source.toString(), "loose files under ${dir}")
+        @Expect(packagesOf(load.model, dir), [
+            "app: app=a.cj", "app: app.util=x/b.cj,x/c.cj", "default: default=y/d.cj", "other: other.m=z/e.cj"
+        ])
+        @Expect(load.model.modules.iterator().all {module => module.root == dir})
+        @Expect(load.problems.size, 1) // no CANGJIE_HOME
+    }
+
+    @TestCase
+    func looseFilesStopAtTheBudget() {
+        // arrange
+        let dir = tree([("a.cj", "package a"), ("b.cj", "package bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")])
+
+        // act
+        let load = looseProject(dir, env: sdkEnv, budget: 20)
+        removeTree(dir)
+
+        // assert
+        @Expect(packagesOf(load.model, dir), ["a: a=a.cj"])
+        @Expect(load.problems.size, 1)
+    }
+}

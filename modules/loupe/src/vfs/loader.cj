@@ -70,11 +70,11 @@ public func isWorkspaceFile(path: VfsPath, roots: Array<VfsPath>): Bool {
 /**
  * Whether the walk goes into the directory `name`: neither cjpm's output nor a hidden one.
  */
-func isScanned(name: String): Bool {
+public func isScanned(name: String): Bool {
     name != "target" && !name.startsWith(".")
 }
 
-func isCangjieFile(name: String): Bool {
+public func isCangjieFile(name: String): Bool {
     name.endsWith(".cj")
 }
 
