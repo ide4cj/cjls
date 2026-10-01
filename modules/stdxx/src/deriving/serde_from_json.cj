@@ -1,7 +1,6 @@
 macro package stdxx.deriving
 
 import std.ast.*
-import std.collection.*
 
 /*
  * `FromJson`: a value read straight from an `FjReader` - keys compared where they lie,

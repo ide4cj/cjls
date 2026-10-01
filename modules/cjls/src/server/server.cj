@@ -27,19 +27,13 @@ enum Lifecycle {
  * `exit` ends the connection. What each of them does besides is its handler's.
  */
 class Server <: Handler {
-    private var lifecycle = Lifecycle.Uninitialized
+    var lifecycle = Lifecycle.Uninitialized
     private var shutDownCleanly = false
 
     private let push: ?DiagnosticsPush
 
     Server(private let router: Router, private let client: Client, private let logger: Logger) {
         push = router.diagnostics.map {diagnostics => DiagnosticsPush(diagnostics, client, logger)}
-    }
-
-    prop state: Lifecycle {
-        get() {
-            lifecycle
-        }
     }
 
     /**

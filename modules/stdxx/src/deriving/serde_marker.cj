@@ -53,7 +53,7 @@ const ITEM_OTHER = "other"
  *       expands to nothing of its own.
  */
 public macro Serde(attrs: Tokens, input: Tokens): Tokens {
-    let position = beginMarker(SERDE_MARKER, attrs, input)
+    let position = beginMarker(attrs, input)
 
     match (parseExpr(quote(dummy($attrs)))) {
         case call: CallExpr => for (argument in call.arguments) {

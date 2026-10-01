@@ -17,9 +17,10 @@ import std.collection.*
  *
  * The database comes first, typed as the database interface the body needs; the arguments are
  * positional, `Hashable` and `Equatable`, an `@CalcaInput` for one. Several are remembered together,
- * as one generated `CalcaFields_<function>` struct; one is its own key. A value computed again that
- * equals the one remembered does not make what read it run again, so the result is `Equatable` too,
- * unless `@CalcaTracked[noEq]` says to count every computation as a change.
+ * as one generated `CalcaFields_<function>_S<types>` struct; one is its own key. Overloads are
+ * queries of their own: what is generated is named after the types too. A value computed again
+ * that equals the one remembered does not make what read it run again, so the result is
+ * `Equatable` too, unless `@CalcaTracked[noEq]` says to count every computation as a change.
  *
  * `@CalcaTracked[lru: 128]` keeps the values of the 128 keys fetched last from one revision to the
  * next, and lets go of the others; what they read is kept, so they are verified without being
@@ -225,10 +226,13 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
 
     let name = decl.identifier
     let plain = stripBackquotes(name.value)
-    let (prefix, described) = match (receiver) {
-        case Some((_, typeName)) => ("${typeName}_${plain}", "${typeName}.${plain}")
-        case None => (plain, plain)
+    let described = match (receiver) {
+        case Some((_, typeName)) => "${typeName}.${plain}"
+        case None => plain
     }
+    // the types too, or two overloads would declare one holder; a method's `.` keeps it from a
+    // function named `Type_method`
+    let prefix = mangled(described, params.toArray().map {param => param.paramType.toTokens()})
     let holder = Token(TokenKind.IDENTIFIER, "CalcaTracked_" + prefix)
     let db = params[0].identifier
     let dbType = params[0].paramType.toTokens()
@@ -287,25 +291,29 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
                 (quote($(taken[0]).$bodyName($db $rest)), quote())
             }
             (quote(
-                static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
+                public static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
                     $call
                 }
             ), quote($staticMark func $bodyName($signature): $returnType $body))
         case None => (quote(
-            static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
+            public static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
                 calcaRun($db $unpacked)
             }
 
             static func calcaRun($signature): $returnType $body
         ), quote())
     }
-    let (recoverArg, fallback) = match (options.cycleResult) {
-        case Some(recover) => (quote(, recover: $holder.calcaFallback), quote(
-            static func calcaFallback($db: $dbType, calcaKey: $keyType): $returnType {
+    let fallback = match (options.cycleResult) {
+        case Some(recover) => quote(
+            public static func calcaHasFallback(): Bool {
+                true
+            }
+
+            public static func calcaFallback($db: $dbType, calcaKey: $keyType): $returnType {
                 $recover($db $unpacked)
             }
-        ))
-        case None => (quote(), quote())
+        )
+        case None => quote()
     }
     let equal = options.equal
     let lru = options.lru
@@ -313,13 +321,13 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
 
     let declaration = quote(
         $modifiers func $name($signature): $returnType {
-            $holder.FUNCTION.fetch($db, $keyArg, $holder.calcaExecute $recoverArg)
+            $holder.FUNCTION.fetch<$holder>($db, $keyArg)
         }
 
         $method
     )
     let topLevel = quote(
-        private struct $holder {
+        private struct $holder <: TrackedBody<$dbType, $keyType, $returnType> {
             static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($describedName, $equal $lru)
 
             $execute

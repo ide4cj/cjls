@@ -17,7 +17,7 @@ members = [
 ]
 build-members = []
 test-members = []
-compile-option = "-Woff unused -O2"
+compile-option = "-O2"
 override-compile-option = ""
 link-option = ""
 target-dir = ""
@@ -28,6 +28,11 @@ script-dir = ""
 # `-i` on every build and test; cjpm's cache knows nothing of the SDK, hence build.cj (D27)
 [profile.build]
 incremental = true
+
+# on the tests alone (`--test-only`, not the code under test): std.unittest's `@AssertThrows[E]` checks `e is AssertException`
+# in its `catch (e: E)`, unreachable for any `E` not `open`, three warnings a case
+[profile.test.build]
+compile-option = "-Woff unused"
 
 # stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
 [target.aarch64-apple-darwin.bin-dependencies]

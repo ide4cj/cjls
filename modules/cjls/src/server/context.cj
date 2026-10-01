@@ -1,9 +1,9 @@
 package cjls.server
 
 import stdx.log.Logger
-import fjson.{FromJson, ToJson}
+import fjson.{FromJson, RawJson, ToJson}
 import jsonrpc.*
-import cjls.lsp_types.LspOutboundNotification
+import cjls.lsp_types.{LspOutboundNotification, LspOutboundRequest}
 
 /**
  * What a handler that runs on the read loop gets: its params, and the `ServerState` itself, since
@@ -111,7 +111,7 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     /**
      * @throws IllegalStateException - if the client is already connected
      */
-    func connect(connection: Connection): Unit {
+    protected func connect(connection: Connection): Unit {
         if (this.connection.isSome()) {
             throw IllegalStateException("the client is already connected")
         }
@@ -141,6 +141,36 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     public func request<P, R>(method: String, params: P): PendingRequest<R> where P <: ToJson,
         R <: FromJson<R> {
         connected().request<P, R>(method, params)
+    }
+
+    /**
+     * Sends the request `spec` names, one whose answer is only a success, and waits for that on a
+     * thread of its own, so any handler may call it: a failure is a `WARN` of `logger`, and a
+     * `DEBUG` once the connection is closed, as nothing sent then reaches the client.
+     */
+    public func request<P>(spec: LspOutboundRequest<P, Unit>, params: P, logger: Logger): Unit where P <: ToJson {
+        let method = spec.method
+        let pending = try {
+            connected().request<P, RawJson>(method, params)
+        } catch (e: Exception) {
+            requestFailed(method, e, logger)
+            return
+        }
+        spawn {
+            try {
+                pending.await()
+            } catch (e: Exception) {
+                requestFailed(method, e, logger)
+            }
+        }
+    }
+
+    private func requestFailed(method: String, e: Exception, logger: Logger): Unit {
+        if (isClosed()) {
+            logger.debug("request dropped", [("request", method), ("reason", "the connection is closed")])
+        } else {
+            logger.warn("request failed", [("request", method), ("error", e.message)])
+        }
     }
 
     /**

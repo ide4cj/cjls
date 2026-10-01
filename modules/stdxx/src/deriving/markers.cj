@@ -51,7 +51,7 @@ enum MarkerPosition {
  *
  * @return where it sits
  */
-func beginMarker(marker: String, attrs: Tokens, input: Tokens): MarkerPosition {
+func beginMarker(attrs: Tokens, input: Tokens): MarkerPosition {
     assertParentContext(DERIVE_EXT_MACRO)
 
     let position = markerPositionOf(input)

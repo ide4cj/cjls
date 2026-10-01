@@ -315,7 +315,7 @@ class InternedGcTest {
     }
 
     private func wordLengthMemos(db: TestDatabase): MemoTable<TestDb, Word, Int64> {
-        let ingredient = db.storage.runtime.ingredientAt(CalcaTracked_wordLength.FUNCTION.index)
+        let ingredient = db.storage.runtime.ingredientAt(CalcaTracked_wordLength_STestDb_SWord.FUNCTION.index)
         (ingredient as MemoTable<TestDb, Word, Int64>).getOrThrow()
     }
 }

@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # GITHUB_TOKEN cannot push to master past the ruleset, and a tag it pushed would start no release.yml
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: master
           fetch-depth: 0

@@ -1,7 +1,6 @@
 macro package calca.macros
 
 import std.ast.*
-import std.collection.*
 
 /**
  * Makes a struct interned in the database: equal fields give
@@ -60,7 +59,7 @@ private func interned(input: Tokens, revisions: Tokens): Tokens {
     }
 
     let name = decl.identifier
-    let key = Token(TokenKind.IDENTIFIER, "CalcaFields_" + stripBackquotes(name.value))
+    let key = Token(TokenKind.IDENTIFIER, "CalcaFields_" + mangled(name.value, []))
     var params = Tokens()
     var args = Tokens()
     var accessors = Tokens()

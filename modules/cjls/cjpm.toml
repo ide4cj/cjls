@@ -7,10 +7,13 @@ version = "0.2.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
-compile-option = "-Woff unused -O2 --static-std"
+compile-option = "-O2 --static-std"
 override-compile-option = ""
 link-option = ""
-package-configuration = { cjls = { compile-option = "--static" } }
+# `--static` links the runtime into the binary, but `cjpm test` builds this package as a staticlib, where cjc
+# warns that the option does nothing: no manifest key reaches the executable's build alone.
+# lsp_types is generated: every file imports what any of them may need
+package-configuration = { cjls = { compile-option = "--static -Woff driver-arg" }, "cjls.lsp_types" = { compile-option = "-Woff unused" } }
 
 [dependencies]
 calca = { path = "../calca" }

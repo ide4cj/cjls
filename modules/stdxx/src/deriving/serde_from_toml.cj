@@ -1,7 +1,6 @@
 macro package stdxx.deriving
 
 import std.ast.*
-import std.collection.*
 
 /*
  * `FromToml`: a value read from a document read by `ftoml`. A table is looked up key by

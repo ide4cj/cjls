@@ -15,8 +15,8 @@ import loupe.syntax.parse
  * What a token is, as far as the tree tells: a name at its declaration, or inside a type, taken
  * for one until names resolve. A name at its use is not told yet.
  */
-@Derive[Equatable]
-public enum HighlightTag <: ToString {
+// `==` by hand: `@Derive` leaves a `check_` function per constructor parameter unused
+public enum HighlightTag <: Equatable<HighlightTag> & ToString {
     | Keyword
     | Comment
     | StringLiteral
@@ -34,6 +34,21 @@ public enum HighlightTag <: ToString {
     | Parameter
     // the name of a declaration, which declares what the outline calls it
     | Declared(StructureKind)
+
+    public operator func ==(other: HighlightTag): Bool {
+        match ((this, other)) {
+            case (Keyword, Keyword) | (Comment, Comment) | (StringLiteral, StringLiteral)
+                | (NumberLiteral, NumberLiteral) | (Operator, Operator) | (BuiltinAnnotation, BuiltinAnnotation)
+                | (MacroCall, MacroCall) | (BuiltinType, BuiltinType) | (TypeName, TypeName)
+                | (TypeParameter, TypeParameter) | (Parameter, Parameter) => true
+            case (Declared(a), Declared(b)) => a == b
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: HighlightTag): Bool {
+        !(this == other)
+    }
 
     public func toString(): String {
         match (this) {
