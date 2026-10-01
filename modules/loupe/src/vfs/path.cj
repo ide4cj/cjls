@@ -110,10 +110,59 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     }
 
     /**
+     * The directory holding this path, `None` for the root of the file system (`/`, a drive's
+     * `c:\`) and a virtual path.
+     */
+    public prop parent: ?VfsPath {
+        get() {
+            if (!onDisk) {
+                return None
+            }
+            let parent = Path(text).parent
+            if (parent.isEmpty() || parent.toString() == text) {
+                None
+            } else {
+                VfsPath(true, canonical(parent).toString())
+            }
+        }
+    }
+
+    /**
+     * The last name of the path, empty for the root of the file system; a virtual path's URI.
+     */
+    public prop name: String {
+        get() {
+            if (!onDisk) {
+                return text
+            }
+            if (parent.isNone()) {
+                ""
+            } else {
+                Path(text).fileName
+            }
+        }
+    }
+
+    /**
+     * The path `relative` leads to from this one, normalized: `..` goes up.
+     *
+     * @throws IllegalArgumentException - if this path is virtual, or `relative` is absolute
+     */
+    public func join(relative: String): VfsPath {
+        if (!onDisk) {
+            throw IllegalArgumentException("a virtual path holds nothing: ${text}")
+        }
+        if (Path(relative).isAbsolute()) {
+            throw IllegalArgumentException("not a relative path: ${relative}")
+        }
+        file(Path(text).join(relative))
+    }
+
+    /**
      * The names that lead from `dir` down to this path, this path's own last; empty for `dir`
      * itself, `None` if it is not under `dir`.
      */
-    func segmentsUnder(dir: VfsPath): ?Array<String> {
+    public func segmentsUnder(dir: VfsPath): ?Array<String> {
         if (!onDisk || !dir.onDisk || !text.startsWith(dir.text)) {
             return None
         }
