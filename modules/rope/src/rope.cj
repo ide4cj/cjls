@@ -12,7 +12,7 @@ import std.collection.*
  * for.
  */
 public struct Rope <: Equatable<Rope> & ToString {
-    private Rope(private let root: Node) {}
+    private Rope(let root: Node) {}
 
     public init() {
         this(Leaf(""))
@@ -241,14 +241,6 @@ public struct Rope <: Equatable<Rope> & ToString {
         !(this == other)
     }
 
-    /**
-     * The tree's invariants, for the tests: every leaf at height 0, and every node but the root
-     * holding enough.
-     */
-    func checkInvariants(): Unit {
-        checkNode(root, true)
-    }
-
     private func bounds(range: Range<Int64>): (Int64, Int64) {
         if (range.step != 1) {
             throw IllegalArgumentException("a range of a text has a step of 1")
@@ -280,28 +272,5 @@ public struct Rope <: Equatable<Rope> & ToString {
         if (!isCharBoundary(root, offset)) {
             throw IllegalArgumentException("offset ${offset} is inside a character")
         }
-    }
-}
-
-private func checkNode(node: Node, isRoot: Bool): Unit {
-    match (node) {
-        case leaf: Leaf =>
-            if (leaf.height != 0) {
-                throw IllegalStateException("a leaf at height ${leaf.height}")
-            }
-            if (leaf.text.size > MAX_CHUNK || !isRoot && leaf.text.size < MIN_CHUNK) {
-                throw IllegalStateException("a leaf of ${leaf.text.size} bytes")
-            }
-        case branch: Branch =>
-            let count = branch.children.size
-            if (count > MAX_CHILDREN || !isRoot && count < MIN_CHILDREN || isRoot && count < 2) {
-                throw IllegalStateException("a branch of ${count} children")
-            }
-            for (child in branch.children) {
-                if (child.height != branch.height - 1) {
-                    throw IllegalStateException("a child at height ${child.height} of a branch at ${branch.height}")
-                }
-                checkNode(child, false)
-            }
     }
 }

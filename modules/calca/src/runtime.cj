@@ -30,6 +30,13 @@ interface Ingredient {
     func describe(id: Id): String
 
     /**
+     * Whether a value on a cycle can be replaced by a fallback: a tracked function's `cycle` option.
+     */
+    func hasFallback(): Bool {
+        false
+    }
+
+    /**
      * Called as a write opens a new revision, while nothing reads: when an ingredient lets go of
      * what it no longer needs.
      */
@@ -59,12 +66,19 @@ class Runtime {
     private let tableLock = Mutex()
 
     /**
-     * What a write goes through: it waits here for every operation in flight to end, and one that
-     * begins meanwhile is cancelled.
+     * What a write holds throughout, so writes go one at a time and the root handle waits for one
+     * to end; an operation that begins meanwhile is cancelled. Readers count themselves in and out
+     * without it.
      */
     private let gate = Mutex()
+
+    /**
+     * What a write waits for the count under, held only while it looks at the count: the last
+     * reader out takes it to wake the write, never waiting for the change the write makes after.
+     */
+    private let drainLock = Mutex()
     private let drained: Condition
-    private var inFlight: Int64 = 0
+    private let inFlight = AtomicInt64(0)
     private let writePending = AtomicBool(false)
 
     /**
@@ -77,21 +91,24 @@ class Runtime {
     private let nextHandle = AtomicInt64(0)
 
     Runtime() {
-        gate.lock()
-        drained = gate.condition()
-        gate.unlock()
+        drainLock.lock()
+        drained = drainLock.condition()
+        drainLock.unlock()
     }
 
+    @Frozen
     prop revision: Int64 {
         get() {
             revision_.load()
         }
     }
 
+    @Frozen
     func lastChangedAt(durability: Durability): Int64 {
         lastChanged[durability.rank].load()
     }
 
+    @Frozen
     func ingredient<I>(index: Int64, create: () -> I): I where I <: Ingredient {
         let found = match (lookup(index)) {
             case Some(ingredient) => ingredient
@@ -108,10 +125,22 @@ class Runtime {
         (found as I).getOrThrow {=> IllegalStateException("ingredient ${index} is ${found.describe(Id(0))}'s, of another type")}
     }
 
+    /**
+     * The ingredient at `index` if it was created, without a closure to create it.
+     */
+    @Frozen
+    func existing<I>(index: Int64): ?I where I <: Ingredient {
+        match (lookup(index)) {
+            case Some(ingredient) => ingredient as I
+            case None => None
+        }
+    }
+
     func ingredientAt(index: Int64): Ingredient {
         lookup(index).getOrThrow {=> IllegalStateException("no ingredient ${index} in this database")}
     }
 
+    @Frozen
     private func lookup(index: Int64): ?Ingredient {
         table.load().entries.get(index) ?? None
     }
@@ -128,17 +157,35 @@ class Runtime {
      *
      * @throws Cancelled - if a write is pending, or the handle is pinned to a revision gone by
      */
+    @Frozen
     func beginRead(pinned: ?Int64): Unit {
-        synchronized(gate) {
-            unwindIfCancelled(pinned)
-            inFlight++
+        while (true) {
+            // counted in before looking for a write: a write marks itself pending before it counts,
+            // so one of the two sees the other
+            inFlight.fetchAdd(1)
+            if (!writePending.load()) {
+                try {
+                    unwindIfCancelled(pinned)
+                } catch (e: Cancelled) {
+                    endRead()
+                    throw e
+                }
+                return
+            }
+            endRead()
+            if (pinned.isSome()) {
+                throw Cancelled()
+            }
+            // the root handle waits for the write to end, and reads the revision it opens
+            synchronized(gate) {}
         }
     }
 
+    @Frozen
     func endRead(): Unit {
-        synchronized(gate) {
-            inFlight--
-            if (inFlight == 0) {
+        if (inFlight.fetchSub(1) == 1 && writePending.load()) {
+            // the write looks at the count under the same lock, so it cannot miss this
+            synchronized(drainLock) {
                 drained.notifyAll()
             }
         }
@@ -153,8 +200,10 @@ class Runtime {
         synchronized(gate) {
             writePending.store(true)
             try {
-                while (inFlight > 0) {
-                    drained.wait()
+                synchronized(drainLock) {
+                    while (inFlight.load() > 0) {
+                        drained.wait()
+                    }
                 }
                 for (ingredient in table.load().entries) {
                     ingredient?.newRevision()
@@ -194,8 +243,8 @@ class Runtime {
             var current = owner
             while (true) {
                 if (current == waiter) {
-                    throw CycleException(
-                        "cycle: ${ingredientAt(key.ingredient).describe(key.id)} is computed by a handle waiting for this one")
+                    let described = ingredientAt(key.ingredient).describe(key.id)
+                    throw CycleException("cycle: ${described} is computed by a handle waiting for this one", [described])
                 }
                 current = (waitsFor.get(current) ?? break)[0]
             }
@@ -240,6 +289,7 @@ class Runtime {
     /**
      * @throws Cancelled - if a write is pending, or `pinned` is a revision gone by
      */
+    @Frozen
     func unwindIfCancelled(pinned: ?Int64): Unit {
         if (writePending.load()) {
             throw Cancelled()

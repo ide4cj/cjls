@@ -2,9 +2,17 @@ package fjson
 
 import fnum.parseFloat64
 
+/**
+ * The bytes are not the JSON asked for: not JSON at all, or a value of another shape than the
+ * decoder expects.
+ */
 public class FjException <: Exception {
     public init(message: String) {
         super(message)
+    }
+
+    protected func getClassName(): String {
+        "FjException"
     }
 }
 

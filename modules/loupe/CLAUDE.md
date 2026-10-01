@@ -1,6 +1,6 @@
 # `loupe` — the analysis, and the request slice through it
 
-The analysis, knowing no LSP ([D5](../../docs/adr/0005-loupe-knows-no-lsp.md)): `loupe.vfs` (`FileId`, `VfsPath`, `PathInterner`, `Vfs`), `loupe.db` (`@CalcaInput SourceFile`, `AnalysisDatabase`), `loupe.syntax` (the `parse` query), and the API in `loupe` (`fileStructure`, `diagnostics`, `highlight`; `TextRange`, the API's ranges, is re-exported from `ginkgo`). Depends on `calca`, `cjsyntax`, `ginkgo`, `index_map`, `rope`. See [02-analysis.md](../../docs/design/02-analysis.md).
+The analysis, knowing no LSP ([D5](../../docs/adr/0005-loupe-knows-no-lsp.md)): `loupe.vfs` (`FileId`, `VfsPath`, `PathInterner`, `Vfs`, and the disk: `readRoots`, `readFile`), `loupe.db` (`@CalcaInput SourceFile`, `AnalysisDatabase`), `loupe.syntax` (the `parse` query), and the API in `loupe` (`fileStructure`, `diagnostics`, `highlight`, `workspaceSymbols` through the `fileSymbols` index; `TextRange`, the API's ranges, is re-exported from `ginkgo`). Depends on `calca`, `cjsyntax`, `ginkgo`, `index_map`, `rope`. See [02-analysis.md](../../docs/design/02-analysis.md).
 
 The rules are in `docs/design/`, not here: the layers and what each knows ([00-layers.md](../../docs/design/00-layers.md)), one request from the wire to the inputs and back, cancellation included ([01-request-slice.md](../../docs/design/01-request-slice.md)), the database, queries, files and positions ([02-analysis.md](../../docs/design/02-analysis.md)). What is easy to get wrong:
 

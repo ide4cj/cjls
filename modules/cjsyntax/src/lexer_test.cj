@@ -1,6 +1,5 @@
 package cjsyntax
 
-import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 

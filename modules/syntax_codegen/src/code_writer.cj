@@ -1,6 +1,5 @@
 package syntax_codegen
 
-import std.collection.*
 
 let LINE_WIDTH = 120
 

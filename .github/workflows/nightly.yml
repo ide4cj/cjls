@@ -43,7 +43,7 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
       - if: steps.green.outputs.sha
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           ref: ${{ steps.green.outputs.sha }}
           fetch-depth: 0

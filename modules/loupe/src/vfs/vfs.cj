@@ -119,6 +119,17 @@ public class Vfs {
     }
 
     /**
+     * Every file that has contents, in the order of their ids.
+     */
+    public func files(): Array<FileId> {
+        let ids = ArrayList<FileId>()
+        for (index in 0..contents.size where contents[index].isSome()) {
+            ids.add(FileId(index))
+        }
+        ids.toArray()
+    }
+
+    /**
      * Sets what the file at `path` holds, `None` for no file.
      *
      * @return whether that changed anything

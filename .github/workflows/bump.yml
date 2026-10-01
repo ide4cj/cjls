@@ -19,11 +19,11 @@ jobs:
       # installed a person's RELEASE_TOKEN (D21)
       - id: app
         if: vars.RELEASE_APP_ID != ''
-        uses: actions/create-github-app-token@v2
+        uses: actions/create-github-app-token@v3
         with:
           app-id: ${{ vars.RELEASE_APP_ID }}
           private-key: ${{ secrets.RELEASE_APP_KEY }}
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           ref: master
           fetch-depth: 0

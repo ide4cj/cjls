@@ -1,7 +1,6 @@
 macro package stdxx.deriving
 
 import std.ast.*
-import std.collection.*
 
 /*
  * `FromToml`: serde's `Deserialize`, from a document read by `ftoml`. A table is looked up key by

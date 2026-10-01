@@ -103,14 +103,17 @@ class Model {
     }
 
     /**
-     * The node kinds a view of `name` can be: its own, or its variants', all the way down.
+     * The node kinds a view of `name` can be: its own, or its variants', all the way down, each once
+     * though two variants share it (`MacroExpandDecl` is a `Decl` and an `Expr`).
      */
     func kindsOf(name: String): Array<String> {
         match (enumOf(name)) {
             case Some(e) =>
                 let result = ArrayList<String>()
                 for (v in e.variants) {
-                    result.add(all: kindsOf(v.typeName))
+                    for (k in kindsOf(v.typeName) where !result.contains(k)) {
+                        result.add(k)
+                    }
                 }
                 result.toArray()
             case None => [name]

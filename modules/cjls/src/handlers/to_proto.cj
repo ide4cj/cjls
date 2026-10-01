@@ -2,7 +2,7 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
-import loupe.{HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
+import loupe.{FileSymbol, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
 import loupe.Diagnostic as LoupeDiagnostic
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
@@ -27,6 +27,20 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): Docume
         range: lspRange(text, node.range.start, node.range.end, encoding),
         selectionRange: lspRange(text, node.selectionRange.start, node.selectionRange.end, encoding),
         children: node.children.map {child => documentSymbol(text, child, encoding)}
+    )
+}
+
+/**
+ * A declaration found in the file at `uri`, whose text is `text`: located at its name, where an
+ * editor jumps to, as rust-analyzer does.
+ */
+func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding: Encoding): WorkspaceSymbol {
+    WorkspaceSymbol(
+        name: symbol.name,
+        kind: symbolKind(symbol.kind),
+        containerName: symbol.containerName,
+        location: LocationOrLocationUriOnly.AsLocation(Location(uri: uri,
+            range: lspRange(text, symbol.selectionRange.start, symbol.selectionRange.end, encoding)))
     )
 }
 
