@@ -4,7 +4,6 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.encoding.json.{JsonArray, JsonBool, JsonFloat, JsonInt, JsonNull, JsonObject, JsonString, JsonValue}
-import stdxx.IntegerOrString
 import fjson.{FromJson, ToJson, fromJsonBytes, toJsonBytes}
 
 /**

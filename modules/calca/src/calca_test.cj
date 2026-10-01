@@ -208,7 +208,7 @@ func second(db: TestDb, mode: Mode): Int64 {
 
 @CalcaTracked
 func createsAnInput(db: TestDb, file: SourceFile): Int64 {
-    SourceFile(db, "b.cj", file.text(db))
+    let _ = SourceFile(db, "b.cj", file.text(db))
     0
 }
 

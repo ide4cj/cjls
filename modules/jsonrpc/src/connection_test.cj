@@ -132,7 +132,7 @@ class KeepingHandler <: Handler {
         received.add(request)
     }
 
-    public func onNotification(method: String, params: ?RawJson): Unit {}
+    public func onNotification(_: String, _: ?RawJson): Unit {}
 }
 
 class AnswerThenThrowHandler <: Handler {
@@ -141,7 +141,7 @@ class AnswerThenThrowHandler <: Handler {
         throw IllegalStateException("too late to matter")
     }
 
-    public func onNotification(method: String, params: ?RawJson): Unit {}
+    public func onNotification(_: String, _: ?RawJson): Unit {}
 }
 
 func unserved(handler: Handler): (Connection, FakeTransport) {
@@ -567,7 +567,7 @@ class ConnectionOutboundTest {
     @TestCase
     func paramsThatAreNeitherArrayNorObjectAreRefused() {
         // arrange
-        let (connection, transport) = unserved(FakeHandler())
+        let (connection, _) = unserved(FakeHandler())
 
         // act
         let e = @AssertThrows[RpcException](connection.notify("tell", 42i32))
@@ -582,7 +582,7 @@ class ConnectionCloseTest {
     @TestCase
     func closeEndsAServeLoopBlockedOnARead() {
         // arrange
-        let (connection, transport) = unserved(FakeHandler())
+        let (connection, _) = unserved(FakeHandler())
         let returned = LinkedBlockingQueue<Bool>()
         spawn {
             =>
@@ -644,7 +644,7 @@ class ConnectionCloseTest {
     @TestCase
     func aClosedConnectionIsClosedForGoodAndWritesNothing() {
         // arrange - `serve` unwinding and an explicit close can both land
-        let (connection, transport) = unserved(FakeHandler())
+        let (connection, _) = unserved(FakeHandler())
 
         // act
         connection.close()

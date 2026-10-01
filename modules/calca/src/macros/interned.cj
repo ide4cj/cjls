@@ -1,7 +1,6 @@
 macro package calca.macros
 
 import std.ast.*
-import std.collection.*
 
 /**
  * Makes a struct interned in the database, as salsa's `#[salsa::interned]` is: equal fields give

@@ -1,7 +1,6 @@
 package calca
 
 import std.collection.*
-import std.sync.*
 
 /**
  * What a database is to the code `@CalcaInput`, `@CalcaInterned` and `@CalcaTracked` generate:
