@@ -66,12 +66,19 @@ class Runtime {
     private let tableLock = Mutex()
 
     /**
-     * What a write goes through: it waits here for every operation in flight to end, and one that
-     * begins meanwhile is cancelled.
+     * What a write holds throughout, so writes go one at a time and the root handle waits for one
+     * to end; an operation that begins meanwhile is cancelled. Readers count themselves in and out
+     * without it.
      */
     private let gate = Mutex()
+
+    /**
+     * What a write waits for the count under, held only while it looks at the count: the last
+     * reader out takes it to wake the write, never waiting for the change the write makes after.
+     */
+    private let drainLock = Mutex()
     private let drained: Condition
-    private var inFlight: Int64 = 0
+    private let inFlight = AtomicInt64(0)
     private let writePending = AtomicBool(false)
 
     /**
@@ -84,9 +91,9 @@ class Runtime {
     private let nextHandle = AtomicInt64(0)
 
     Runtime() {
-        gate.lock()
-        drained = gate.condition()
-        gate.unlock()
+        drainLock.lock()
+        drained = drainLock.condition()
+        drainLock.unlock()
     }
 
     prop revision: Int64 {
@@ -136,16 +143,32 @@ class Runtime {
      * @throws Cancelled - if a write is pending, or the handle is pinned to a revision gone by
      */
     func beginRead(pinned: ?Int64): Unit {
-        synchronized(gate) {
-            unwindIfCancelled(pinned)
-            inFlight++
+        while (true) {
+            // counted in before looking for a write: a write marks itself pending before it counts,
+            // so one of the two sees the other
+            inFlight.fetchAdd(1)
+            if (!writePending.load()) {
+                try {
+                    unwindIfCancelled(pinned)
+                } catch (e: Cancelled) {
+                    endRead()
+                    throw e
+                }
+                return
+            }
+            endRead()
+            if (pinned.isSome()) {
+                throw Cancelled()
+            }
+            // the root handle waits for the write to end, and reads the revision it opens
+            synchronized(gate) {}
         }
     }
 
     func endRead(): Unit {
-        synchronized(gate) {
-            inFlight--
-            if (inFlight == 0) {
+        if (inFlight.fetchSub(1) == 1 && writePending.load()) {
+            // the write looks at the count under the same lock, so it cannot miss this
+            synchronized(drainLock) {
                 drained.notifyAll()
             }
         }
@@ -160,8 +183,10 @@ class Runtime {
         synchronized(gate) {
             writePending.store(true)
             try {
-                while (inFlight > 0) {
-                    drained.wait()
+                synchronized(drainLock) {
+                    while (inFlight.load() > 0) {
+                        drained.wait()
+                    }
                 }
                 for (ingredient in table.load().entries) {
                     ingredient?.newRevision()
