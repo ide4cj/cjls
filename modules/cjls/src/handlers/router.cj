@@ -19,6 +19,10 @@ public func router(): Router {
         .route(DidOpenTextDocumentNotificationSpec(), handleDidOpen)
         .route(DidChangeTextDocumentNotificationSpec(), handleDidChange)
         .route(DidCloseTextDocumentNotificationSpec(), handleDidClose)
+        .route(InitializedNotificationSpec(), handleInitialized)
+        .route(DidChangeWatchedFilesNotificationSpec(), handleDidChangeWatchedFiles)
+        .route(DidChangeWorkspaceFoldersNotificationSpec(), handleDidChangeWorkspaceFolders)
+        .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
@@ -44,6 +48,9 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
                 full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
+        workspaceSymbolProvider: BooleanOrWorkspaceSymbolOptions.AsBoolean(true),
+        workspace: WorkspaceOptions(workspaceFolders: WorkspaceFoldersServerCapabilities(supported: true,
+            changeNotifications: StringOrBoolean.AsBoolean(true))),
         // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
         experimental: JsonValue.JsonObject([("memoryUsage", JsonValue.JsonBool(true))])
     )

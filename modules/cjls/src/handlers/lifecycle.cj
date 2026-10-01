@@ -1,6 +1,8 @@
 package cjls.handlers
 
+import stdxx.Nullable
 import rope.Encoding
+import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -15,7 +17,22 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
+    state.roots.add(all: workspaceRoots(params))
+    let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
+    state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
+    state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
     InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
+}
+
+/**
+ * The folders of the workspace, or its root if it names none; only those on disk.
+ */
+func workspaceRoots(params: InitializeParams): Array<VfsPath> {
+    match ((params.workspaceFolders, params.rootUri)) {
+        case (Some(Nullable.Value(folders)), _) where !folders.isEmpty() => rootsOf(folders)
+        case (_, Nullable.Value(uri)) => rootsOf([WorkspaceFolder(uri: uri, name: "")])
+        case _ => Array<VfsPath>()
+    }
 }
 
 /**
