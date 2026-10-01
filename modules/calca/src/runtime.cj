@@ -30,6 +30,13 @@ interface Ingredient {
     func describe(id: Id): String
 
     /**
+     * Whether a value on a cycle can be replaced by a fallback: a tracked function's `cycle` option.
+     */
+    func hasFallback(): Bool {
+        false
+    }
+
+    /**
      * Called as a write opens a new revision, while nothing reads: when an ingredient lets go of
      * what it no longer needs.
      */
@@ -59,18 +66,34 @@ class Runtime {
     private let tableLock = Mutex()
 
     /**
-     * What a write goes through: it waits here for every operation in flight to end, and one that
-     * begins meanwhile is cancelled.
+     * What a write holds throughout, so writes go one at a time and the root handle waits for one
+     * to end; an operation that begins meanwhile is cancelled. Readers count themselves in and out
+     * without it.
      */
     private let gate = Mutex()
+
+    /**
+     * What a write waits for the count under, held only while it looks at the count: the last
+     * reader out takes it to wake the write, never waiting for the change the write makes after.
+     */
+    private let drainLock = Mutex()
     private let drained: Condition
-    private var inFlight: Int64 = 0
+    private let inFlight = AtomicInt64(0)
     private let writePending = AtomicBool(false)
 
+    /**
+     * Which handle waits for which, and for what, while one waits for a memo another computes: a
+     * wait that would close a loop is a cycle across threads rather than a deadlock.
+     */
+    private let waitLock = Mutex()
+    private let waitsFor = HashMap<Int64, (Int64, DatabaseKey)>()
+
+    private let nextHandle = AtomicInt64(0)
+
     Runtime() {
-        gate.lock()
-        drained = gate.condition()
-        gate.unlock()
+        drainLock.lock()
+        drained = drainLock.condition()
+        drainLock.unlock()
     }
 
     prop revision: Int64 {
@@ -120,16 +143,32 @@ class Runtime {
      * @throws Cancelled - if a write is pending, or the handle is pinned to a revision gone by
      */
     func beginRead(pinned: ?Int64): Unit {
-        synchronized(gate) {
-            unwindIfCancelled(pinned)
-            inFlight++
+        while (true) {
+            // counted in before looking for a write: a write marks itself pending before it counts,
+            // so one of the two sees the other
+            inFlight.fetchAdd(1)
+            if (!writePending.load()) {
+                try {
+                    unwindIfCancelled(pinned)
+                } catch (e: Cancelled) {
+                    endRead()
+                    throw e
+                }
+                return
+            }
+            endRead()
+            if (pinned.isSome()) {
+                throw Cancelled()
+            }
+            // the root handle waits for the write to end, and reads the revision it opens
+            synchronized(gate) {}
         }
     }
 
     func endRead(): Unit {
-        synchronized(gate) {
-            inFlight--
-            if (inFlight == 0) {
+        if (inFlight.fetchSub(1) == 1 && writePending.load()) {
+            // the write looks at the count under the same lock, so it cannot miss this
+            synchronized(drainLock) {
                 drained.notifyAll()
             }
         }
@@ -144,8 +183,10 @@ class Runtime {
         synchronized(gate) {
             writePending.store(true)
             try {
-                while (inFlight > 0) {
-                    drained.wait()
+                synchronized(drainLock) {
+                    while (inFlight.load() > 0) {
+                        drained.wait()
+                    }
                 }
                 for (ingredient in table.load().entries) {
                     ingredient?.newRevision()
@@ -164,6 +205,67 @@ class Runtime {
     func changed(durability: Durability, revision: Int64): Unit {
         for (rank in 0..=durability.rank) {
             lastChanged[rank].store(revision)
+        }
+    }
+
+    /**
+     * A number for a new handle, distinct from every other one's in this database.
+     */
+    func newHandle(): Int64 {
+        nextHandle.fetchAdd(1)
+    }
+
+    /**
+     * Records that handle `waiter` waits for `key`, which handle `owner` computes, until
+     * `stopWaiting` or until the owner lets go of it.
+     *
+     * @throws CycleException - if `owner` waits, through others or not, for `waiter`
+     */
+    func startWaiting(waiter: Int64, owner: Int64, key: DatabaseKey): Unit {
+        synchronized(waitLock) {
+            var current = owner
+            while (true) {
+                if (current == waiter) {
+                    let described = ingredientAt(key.ingredient).describe(key.id)
+                    throw CycleException("cycle: ${described} is computed by a handle waiting for this one", [described])
+                }
+                current = (waitsFor.get(current) ?? break)[0]
+            }
+            waitsFor.add(waiter, (owner, key))
+        }
+    }
+
+    func stopWaiting(waiter: Int64): Unit {
+        synchronized(waitLock) {
+            waitsFor.remove(waiter)
+        }
+    }
+
+    /**
+     * Whoever waited for `key` waits for its owner no more: it is free, whether or not the waiter
+     * has woken to see it.
+     */
+    func released(key: DatabaseKey): Unit {
+        synchronized(waitLock) {
+            if (waitsFor.isEmpty()) {
+                return
+            }
+            let freed = ArrayList<Int64>()
+            for ((waiter, (_, awaited)) in waitsFor where awaited == key) {
+                freed.add(waiter)
+            }
+            for (waiter in freed) {
+                waitsFor.remove(waiter)
+            }
+        }
+    }
+
+    /**
+     * How many handles wait for another's memo: for tests, to know one got there.
+     */
+    func waiting(): Int64 {
+        synchronized(waitLock) {
+            waitsFor.size
         }
     }
 

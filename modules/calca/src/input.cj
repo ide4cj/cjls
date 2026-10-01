@@ -10,26 +10,75 @@ import std.sync.*
 public class InputIngredient {
     private let base: Int64
 
-    public InputIngredient(let name: String, let fields: Array<String>) {
+    /**
+     * A `singleton` has at most one row per database, which `single` finds.
+     */
+    public InputIngredient(let name: String, let fields: Array<String>, let singleton!: Bool = false) {
         base = reserveIngredients(1 + fields.size)
     }
 
     /**
      * Adds a row, which `fill` gives a value in every column, in order. No revision begins: nothing
-     * computed so far can have read the row.
+     * computed so far can have read the row. Except a singleton's, which a query may have looked
+     * for: that one is added in a revision of its own.
      *
-     * @throws IllegalStateException - if the handle is a snapshot, or is inside a query
+     * @throws IllegalStateException - if the handle is a snapshot, or is inside a query, or the
+     * singleton is there already
      */
     public func create(db: Database, durability: Durability, fill: (InputRow) -> Unit): Id {
         let storage = db.storage
         storage.checkWritable("create")
-        storage.read {
+        if (!singleton) {
+            if (storage.batching.isSome()) {
+                // the batch holds the gate
+                return add(storage.runtime, durability, fill)
+            }
+            return storage.read {
+                add(storage.runtime, durability, fill)
+            }
+        }
+        storage.write {
+            revision =>
+            let id = add(storage.runtime, durability, fill)
             let table = table(storage.runtime)
             synchronized(table.lock) {
-                let id = Id(table.rows)
-                fill(InputRow(this, storage.runtime, id, durability))
-                table.rows++
-                id
+                table.createdAt = revision
+            }
+            // what looked for it read nothing of the row yet, so of no durability in particular
+            storage.runtime.changed(Durability.High, revision)
+            id
+        }
+    }
+
+    private func add(runtime: Runtime, durability: Durability, fill: (InputRow) -> Unit): Id {
+        let table = table(runtime)
+        synchronized(table.lock) {
+            if (singleton && table.rows > 0) {
+                throw IllegalStateException("${name} is a singleton, and there is one already")
+            }
+            let id = Id(table.rows)
+            fill(InputRow(this, runtime, id, durability))
+            table.rows++
+            id
+        }
+    }
+
+    /**
+     * The row of a singleton, `None` until it is created. Recorded as read by the query running,
+     * which runs again once the row is created.
+     */
+    public func single(db: Database): ?Id {
+        let storage = db.storage
+        storage.read {
+            let table = table(storage.runtime)
+            let (created, createdAt) = synchronized(table.lock) {
+                (table.rows > 0, table.createdAt)
+            }
+            storage.reportRead(DatabaseKey(base, Id(0)), Durability.High, createdAt)
+            if (created) {
+                Id(0)
+            } else {
+                None
             }
         }
     }
@@ -122,10 +171,20 @@ class InputTable <: Ingredient {
     let lock = Mutex()
     var rows: Int64 = 0
 
+    /**
+     * The revision a singleton's row was created in; the first one until then.
+     */
+    var createdAt = FIRST_REVISION
+
     InputTable(let ingredient: InputIngredient) {}
 
-    public func maybeChangedAfter(_: Database, _: Id, _: Int64): Bool {
-        false
+    /**
+     * Whether the singleton was created since: what looking for it records.
+     */
+    public func maybeChangedAfter(_: Database, _: Id, revision: Int64): Bool {
+        synchronized(lock) {
+            createdAt > revision
+        }
     }
 
     public func describe(id: Id): String {

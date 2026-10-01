@@ -1,7 +1,9 @@
 package cjls.handlers
 
+import fjson.JsonValue
 import rope.Encoding
 import cjls.lsp_types.*
+import cjls.lsp_ext.MemoryUsageRequestSpec
 import cjls.server.*
 
 /**
@@ -17,10 +19,15 @@ public func router(): Router {
         .route(DidOpenTextDocumentNotificationSpec(), handleDidOpen)
         .route(DidChangeTextDocumentNotificationSpec(), handleDidChange)
         .route(DidCloseTextDocumentNotificationSpec(), handleDidClose)
+        .route(InitializedNotificationSpec(), handleInitialized)
+        .route(DidChangeWatchedFilesNotificationSpec(), handleDidChangeWatchedFiles)
+        .route(DidChangeWorkspaceFoldersNotificationSpec(), handleDidChangeWorkspaceFolders)
+        .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
+        .route(MemoryUsageRequestSpec(), handleMemoryUsage)
         .publishDiagnostics(documentDiagnostics)
 }
 
@@ -40,6 +47,11 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         semanticTokensProvider: SemanticTokensOptionsOrSemanticTokensRegistrationOptions.AsSemanticTokensOptions(
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
-                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true)))
+                full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
+        workspaceSymbolProvider: BooleanOrWorkspaceSymbolOptions.AsBoolean(true),
+        workspace: WorkspaceOptions(workspaceFolders: WorkspaceFoldersServerCapabilities(supported: true,
+            changeNotifications: StringOrBoolean.AsBoolean(true))),
+        // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
+        experimental: JsonValue.JsonObject([("memoryUsage", JsonValue.JsonBool(true))])
     )
 }

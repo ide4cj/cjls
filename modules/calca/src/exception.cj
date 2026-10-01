@@ -16,14 +16,49 @@ public class Cancelled <: Exception {
 }
 
 /**
- * Thrown when a tracked function ends up needing its own result, directly or through others.
+ * Thrown when a tracked function ends up needing its own result, directly or through others, and
+ * not every query on the cycle has a fallback (`@CalcaTracked[cycleResult: f]`).
  */
 public class CycleException <: Exception {
-    CycleException(message: String) {
+    /**
+     * The queries on the cycle, described as `name(id)`, from the one needed again on; for a cycle
+     * across handles, the query this handle waited for.
+     */
+    public let participants: Array<String>
+
+    CycleException(message: String, participants: Array<String>) {
         super(message)
+        this.participants = participants
     }
 
     protected func getClassName(): String {
         "CycleException"
+    }
+}
+
+/**
+ * Unwinds a query on a cycle whose queries all have a fallback, to where it takes its own.
+ */
+class CycleUnwindException <: Exception {
+    CycleUnwindException() {
+        super("a query on a cycle unwinds to its fallback")
+    }
+
+    protected func getClassName(): String {
+        "CycleUnwindException"
+    }
+}
+
+/**
+ * Unwinds to whoever verifies `key`, which a query executing meanwhile needed: a cycle, found by
+ * executing the key rather than verifying it.
+ */
+class VerifyingCycleException <: Exception {
+    VerifyingCycleException(let key: DatabaseKey) {
+        super("a query being verified is needed again")
+    }
+
+    protected func getClassName(): String {
+        "VerifyingCycleException"
     }
 }

@@ -54,7 +54,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `cjsyntax` | the Cangjie lexer and parser on `ginkgo`; `SyntaxKind` and `cjsyntax.ast` are generated |
 | `syntax_codegen` | executable: generates `cjsyntax`'s kinds and typed views |
 | `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
-| `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types` |
+| `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
 
 Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjsyntax → ginkgo, index_map, rope}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
