@@ -66,11 +66,17 @@ class Runtime {
     private let tableLock = Mutex()
 
     /**
-     * What a write goes through: it waits here for every operation in flight to end, and one that
-     * begins meanwhile is cancelled. Readers count themselves in and out without it, and take it
-     * only to wake a write waiting for them.
+     * What a write holds throughout, so writes go one at a time and the root handle waits for one
+     * to end; an operation that begins meanwhile is cancelled. Readers count themselves in and out
+     * without it.
      */
     private let gate = Mutex()
+
+    /**
+     * What a write waits for the count under, held only while it looks at the count: the last
+     * reader out takes it to wake the write, never waiting for the change the write makes after.
+     */
+    private let drainLock = Mutex()
     private let drained: Condition
     private let inFlight = AtomicInt64(0)
     private let writePending = AtomicBool(false)
@@ -85,9 +91,9 @@ class Runtime {
     private let nextHandle = AtomicInt64(0)
 
     Runtime() {
-        gate.lock()
-        drained = gate.condition()
-        gate.unlock()
+        drainLock.lock()
+        drained = drainLock.condition()
+        drainLock.unlock()
     }
 
     prop revision: Int64 {
@@ -161,8 +167,8 @@ class Runtime {
 
     func endRead(): Unit {
         if (inFlight.fetchSub(1) == 1 && writePending.load()) {
-            // the write waits for the count under the gate, so it cannot miss this
-            synchronized(gate) {
+            // the write looks at the count under the same lock, so it cannot miss this
+            synchronized(drainLock) {
                 drained.notifyAll()
             }
         }
@@ -177,8 +183,10 @@ class Runtime {
         synchronized(gate) {
             writePending.store(true)
             try {
-                while (inFlight.load() > 0) {
-                    drained.wait()
+                synchronized(drainLock) {
+                    while (inFlight.load() > 0) {
+                        drained.wait()
+                    }
                 }
                 for (ingredient in table.load().entries) {
                     ingredient?.newRevision()

@@ -482,6 +482,54 @@ class CalcaTest {
     }
 
     @TestCase
+    func aSnapshotBegunWhileAWriteWaitsForAQueryIsCancelled(): Unit {
+        // arrange - the write waits for a query parked on another snapshot
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+        let snapshot = db.snapshot()
+        let late = db.snapshot()
+        let reader = spawnParkedLength(snapshot, file)
+        db.parking.parked.remove()
+        let write = spawn {
+            file.setText(db).to("bye")
+        }
+        waitForPendingWrite(late)
+
+        // act, assert
+        @AssertThrows[Cancelled](length(late, file))
+        db.parking.released.add(())
+        @Expect(reader.get())
+        @Expect(write.get(), "hello")
+        @Expect(length(db.snapshot(), file), 3)
+    }
+
+    @TestCase
+    func aSnapshotBegunWhileAWriteChangesInputsIsCancelledWithoutWaitingForIt(): Unit {
+        // arrange - nothing is in flight, and the write holds still in the middle of its change
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+        let snapshot = db.snapshot()
+        let changing = LinkedBlockingQueue<Unit>(1)
+        let finish = LinkedBlockingQueue<Unit>(1)
+        let write = spawn {
+            db.storage.batch {
+                let old = file.setText(db).to("bye")
+                changing.add(())
+                finish.remove()
+                old
+            }
+        }
+        changing.remove()
+
+        // act, assert - would hang if the snapshot waited for the write to end
+        @AssertThrows[Cancelled](length(snapshot, file))
+        @AssertThrows[Cancelled](file.text(snapshot))
+        finish.add(())
+        @Expect(write.get(), "hello")
+        @Expect(length(db.snapshot(), file), 3)
+    }
+
+    @TestCase
     func aSnapshotAskedToStopIsCancelledMidway(): Unit {
         // arrange - the query parks between two reads; the flag is raised while it is parked
         let db = TestDatabase()
