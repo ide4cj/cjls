@@ -1,8 +1,11 @@
 package cjls
 
-import std.env.{getCommand, getCommandLine, getVariable, setVariable}
-import std.process.{launch, ProcessRedirect}
+import std.env.{getCommandLine, getVariable, setVariable}
 import stdx.log.Logger
+@When[os == "Windows"]
+import std.env.getCommand
+@When[os == "Windows"]
+import std.process.{launch, ProcessRedirect}
 
 /**
  * The runtime reads the heap's limit from this variable, once, before `main`.
