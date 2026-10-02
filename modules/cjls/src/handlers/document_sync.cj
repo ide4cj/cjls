@@ -1,9 +1,8 @@
 package cjls.handlers
 
-import std.fs.{File, FSException}
 import stdx.log.Logger
 import rope.{Encoding, Rope}
-import loupe.vfs.VfsPath
+import loupe.vfs.{readFile, VfsPath}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -49,7 +48,7 @@ func handleDidChange(state: ServerState, logger: Logger, params: DidChangeTextDo
 func handleDidClose(state: ServerState, params: DidCloseTextDocumentParams): Unit {
     let path = VfsPath.fromUri(params.textDocument.uri)
     state.openDocuments.remove(path)
-    state.setFileContents(path, diskContents(path))
+    state.setFileContents(path, readFile(path))
 }
 
 /**
@@ -71,19 +70,4 @@ func edited(text: Rope, changes: Array<TextDocumentContentChangeEvent>, encoding
         }
     }
     result
-}
-
-/**
- * What the file at `path` holds on disk, `None` if it is not there, cannot be read, or is not
- * UTF-8.
- */
-func diskContents(path: VfsPath): ?Rope {
-    let filePath = path.filePath ?? return None
-    try {
-        Rope(String.fromUtf8(File.readFrom(filePath)))
-    } catch (_: FSException) {
-        None
-    } catch (_: IllegalArgumentException) {
-        None
-    }
 }
