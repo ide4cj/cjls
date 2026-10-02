@@ -83,10 +83,15 @@ class Runtime {
 
     /**
      * Which handle waits for which, and for what, while one waits for a memo another computes: a
-     * wait that would close a loop is a cycle across threads rather than a deadlock.
+     * wait that would close a loop gives way rather than deadlock.
      */
     private let waitLock = Mutex()
     private let waitsFor = HashMap<Int64, (Int64, DatabaseKey)>()
+
+    /**
+     * Notified as a claim goes, for a handle that gave way to another on a loop of waits.
+     */
+    private let waitReleased: Condition
 
     private let nextHandle = AtomicInt64(0)
 
@@ -94,6 +99,9 @@ class Runtime {
         drainLock.lock()
         drained = drainLock.condition()
         drainLock.unlock()
+        waitLock.lock()
+        waitReleased = waitLock.condition()
+        waitLock.unlock()
     }
 
     @Frozen
@@ -234,19 +242,33 @@ class Runtime {
 
     /**
      * Records that handle `waiter` waits for `key`, which handle `owner` computes, until
-     * `stopWaiting` or until the owner lets go of it.
+     * `stopWaiting` or until the owner lets go of it. Waiting already, for the same, records nothing
+     * again: a waiter that wakes to look whether it was asked to stop does not find again a loop it
+     * was given way to.
      *
-     * @throws CycleException - if `owner` waits, through others or not, for `waiter`
+     * If `owner` waits, through others or not, for `waiter`, the waiter gives way: it waits for `key`
+     * all the same, and is told which of its own queries the loop waits for, to unwind to it and let
+     * go of it (`giveWay`).
+     *
+     * @throws GiveWayException - if `owner` waits, through others or not, for `waiter`
      */
     func startWaiting(waiter: Int64, owner: Int64, key: DatabaseKey): Unit {
         synchronized(waitLock) {
-            var current = owner
-            while (true) {
-                if (current == waiter) {
-                    let described = ingredientAt(key.ingredient).describe(key.id)
-                    throw CycleException("cycle: ${described} is computed by a handle waiting for this one", [described])
+            if (let Some((known, awaited)) <- waitsFor.get(waiter)) {
+                if (known == owner && awaited == key) {
+                    return
                 }
-                current = (waitsFor.get(current) ?? break)[0]
+            }
+            // a handle giving way waits for one on the loop until it lets go: a walk not reaching
+            // the waiter in as many steps as there are edges went round a loop of others
+            var current = owner
+            for (_ in 0..=waitsFor.size) {
+                let (next, awaited) = waitsFor.get(current) ?? break
+                if (next == waiter) {
+                    waitsFor.add(waiter, (owner, key))
+                    throw GiveWayException(awaited)
+                }
+                current = next
             }
             waitsFor.add(waiter, (owner, key))
         }
@@ -273,6 +295,35 @@ class Runtime {
             }
             for (waiter in freed) {
                 waitsFor.remove(waiter)
+            }
+            if (!freed.isEmpty()) {
+                waitReleased.notifyAll()
+            }
+        }
+    }
+
+    /**
+     * Waits, as handle `waiter` that gave way on a loop, until the query it waited for is let go of:
+     * by then its owner has computed the loop on its own handle, and left what it found.
+     *
+     * @throws Cancelled - if `unwindIfCancelled` does, looked at every `CLAIM_WAIT`
+     */
+    func giveWay(waiter: Int64, unwindIfCancelled: () -> Unit): Unit {
+        while (true) {
+            let waiting = synchronized(waitLock) {
+                if (waitsFor.contains(waiter)) {
+                    waitReleased.wait(timeout: CLAIM_WAIT)
+                }
+                waitsFor.contains(waiter)
+            }
+            if (!waiting) {
+                return
+            }
+            try {
+                unwindIfCancelled()
+            } catch (e: Cancelled) {
+                stopWaiting(waiter)
+                throw e
             }
         }
     }

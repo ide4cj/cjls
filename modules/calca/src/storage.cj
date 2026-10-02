@@ -242,6 +242,17 @@ public class Storage {
         throw CycleUnwindException()
     }
 
+    /**
+     * Waits, having given way on a loop of handles waiting for one another, for the handle given way
+     * to to let go of what this one waited for.
+     *
+     * @throws Cancelled - if a write is pending, this is a snapshot of a revision gone by, or it
+     * was asked to stop
+     */
+    func giveWay(): Unit {
+        runtime.giveWay(handle) {=> unwindIfCancelled()}
+    }
+
     func exit(key: DatabaseKey): Unit {
         active.remove(key)
     }

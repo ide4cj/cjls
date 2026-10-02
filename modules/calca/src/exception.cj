@@ -21,8 +21,7 @@ public class Cancelled <: Exception {
  */
 public class CycleException <: Exception {
     /**
-     * The queries on the cycle, described as `name(id)`, from the one needed again on; for a cycle
-     * across handles, the query this handle waited for.
+     * The queries on the cycle, described as `name(id)`, from the one needed again on.
      */
     public let participants: Array<String>
 
@@ -46,6 +45,21 @@ class CycleUnwindException <: Exception {
 
     protected func getClassName(): String {
         "CycleUnwindException"
+    }
+}
+
+/**
+ * Unwinds a handle that would close a loop of handles waiting for one another to `key`, the query of
+ * its own the loop waits for: whoever claimed it lets go of it, and waits for the handle it gave way
+ * to, which computes the loop on its own handle, then fetches it again.
+ */
+class GiveWayException <: Exception {
+    GiveWayException(let key: DatabaseKey) {
+        super("a handle closing a loop of waits gives way")
+    }
+
+    protected func getClassName(): String {
+        "GiveWayException"
     }
 }
 

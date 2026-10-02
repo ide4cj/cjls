@@ -29,6 +29,26 @@ func needsTheFirst(db: TestDb, file: SourceFile): Int64 {
     needsTheOther(db, file) + 1
 }
 
+@CalcaTracked[cycleResult: parkedHeadFallback]
+func parkedHead(db: TestDb, file: SourceFile): Int64 {
+    db.park()
+    parkedTail(db, file) + 1
+}
+
+func parkedHeadFallback(_: TestDb, _: SourceFile): Int64 {
+    -1
+}
+
+@CalcaTracked[cycleResult: parkedTailFallback]
+func parkedTail(db: TestDb, file: SourceFile): Int64 {
+    db.park()
+    parkedHead(db, file) + 1
+}
+
+func parkedTailFallback(_: TestDb, _: SourceFile): Int64 {
+    -2
+}
+
 /**
  * `query` on `db`, spawned: its value, or what it threw.
  */
@@ -155,6 +175,59 @@ class ClaimTest {
         // assert
         @Expect(first.get().isCycle())
         @Expect(second.get().isCycle())
+        @Expect(db.storage.runtime.waiting(), 0)
+    }
+
+    @TestCase
+    func aCycleAcrossHandlesWithFallbacksGivesEachHandleItsFallback(): Unit {
+        // arrange - each handle claims one end of the cycle, and parks before it needs the other
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+        let fromHead = spawnQuery(db.snapshot()) {s => parkedHead(s, file)}
+        db.parking.parked.remove()
+        let fromTail = spawnQuery(db.snapshot()) {s => parkedTail(s, file)}
+        db.parking.parked.remove()
+
+        // act
+        db.parking.disabled.store(true)
+        db.parking.released.add(())
+        db.parking.released.add(())
+
+        // assert - as on one handle, whichever handle closed the loop
+        @Expect(fromHead.get().value(), Some(-1))
+        @Expect(fromTail.get().value(), Some(-2))
+        @Expect(db.storage.runtime.waiting(), 0)
+    }
+
+    @TestCase
+    func aHandleGivingWayOnALoopStopsWhenAskedTo(): Unit {
+        // arrange - each handle parks on its own: the first waits for the second, which closes the
+        // loop and gives way to it; the first takes over the cycle, and parks in it
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello")
+        let headParking = Parking()
+        let tailParking = Parking()
+        let fromHead = spawnQuery(db.snapshot(parking: headParking)) {s => parkedHead(s, file)}
+        headParking.parked.remove()
+        let stop = AtomicBool(false)
+        let fromTail = spawnQuery(db.snapshot(cancelledBy: {=> stop.load()}, parking: tailParking)) {
+            s => parkedTail(s, file)
+        }
+        tailParking.parked.remove()
+        headParking.released.add(())
+        waitForWaiters(db, 1)
+        tailParking.released.add(())
+        headParking.parked.remove()
+
+        // act
+        stop.store(true)
+        let stopped = fromTail.get()
+        headParking.disabled.store(true)
+        headParking.released.add(())
+
+        // assert
+        @Expect(stopped.isCancelled())
+        @Expect(fromHead.get().value(), Some(-1))
         @Expect(db.storage.runtime.waiting(), 0)
     }
 
