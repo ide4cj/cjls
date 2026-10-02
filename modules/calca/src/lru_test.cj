@@ -145,24 +145,79 @@ class LruTest {
     }
 
     @TestCase
-    func nothingIsEvictedWhileASnapshotReads(): Unit {
+    func aValueIsEvictedWithinARevisionOnceMoreThanTheCapacityWereFetchedAfterIt(): Unit {
         // arrange
         let db = TestDatabase()
-        let (a, b, other) = files(db)
+        let (a, b, _) = files(db)
+        let c = SourceFile(db, "c.cj", "c")
+        lru2Length(db, a)
+        lru2Length(db, b)
+        lru2Length(db, c)
+        db.events.take()
+
+        // act
+        lru2Length(db, c)
+        lru2Length(db, b)
+        lru2Length(db, a)
+
+        // assert
+        @Expect(db.events.take(), ["lru2Length(SourceFile(0))"])
+    }
+
+    @TestCase
+    func aSnapshotEvictsAsItReads(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (a, b, _) = files(db)
         let snapshot = db.snapshot()
 
         // act
         lruLength(snapshot, a)
         lruLength(snapshot, b)
         lruLength(snapshot, a)
-        let whileReading = db.events.take()
-        other.setText(db).to("changed")
-        lruLength(db, a)
-        lruLength(db, b)
 
         // assert
-        @Expect(whileReading, ["lruLength(SourceFile(0))", "lruLength(SourceFile(1))"])
-        @Expect(db.events.take(), ["lruLength(SourceFile(1))"])
+        @Expect(db.events.take(), ["lruLength(SourceFile(0))", "lruLength(SourceFile(1))", "lruLength(SourceFile(0))"])
+    }
+
+    @TestCase
+    func aValueEvictedWithinARevisionIsComputedAgainOnlyByWhoeverFetchesIt(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (a, b, _) = files(db)
+        doubledLruLength(db, a)
+        lruLength(db, b)
+        db.events.take()
+
+        // act
+        let doubled = doubledLruLength(db, a)
+        let whileVerified = db.events.take()
+        let length = lruLength(db, a)
+
+        // assert
+        @Expect(doubled, 10)
+        @Expect(length, 5)
+        @Expect(whileVerified.size, 0)
+        @Expect(db.events.take(), ["lruLength(SourceFile(0))"])
+    }
+
+    @TestCase
+    func aValueEvictedWithinARevisionAndComputedAgainLeavesItsDependentsAlone(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (a, b, other) = files(db)
+        doubledLruLength(db, a)
+        lruLength(db, b)
+        lruLength(db, a)
+        other.setText(db).to("changed")
+        db.events.take()
+
+        // act
+        let result = doubledLruLength(db, a)
+
+        // assert
+        @Expect(result, 10)
+        @Expect(db.events.take().size, 0)
     }
 
     @TestCase

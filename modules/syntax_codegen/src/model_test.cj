@@ -45,7 +45,8 @@ func fieldsOf(model: Model, node: String): Array<String> {
             case NodeField(n, t, Nth(i, counted)) => "${n}: ${t} #${i} of ${counted.size}"
             case NodeField(n, t, All) => "${n}: ${t} all"
             case NodeField(n, t, AllFrom(i, counted)) => "${n}: ${t} all after ${i} of ${counted.size}"
-            case TokenField(n, k) => "${n}: ${k}"
+            case TokenField(n, k, false) => "${n}: ${k}"
+            case TokenField(n, k, true) => "${n}: ${k} many"
             case TokenSetField(n, ks) => "${n}: ${String.join(ks, delimiter: "|")}"
         }
     }
@@ -99,7 +100,7 @@ class ModelTest {
         // assert
         @Expect(fieldsOf(sut, "Bin"), ["lhs: E first", "op: Plus|Minus", "rhs: E #1 of 5"])
         @Expect(fieldsOf(sut, "Idx"),
-            ["base: E first", "lBracketToken: LBracket", "es: E all after 1 of 5", "commaToken: Comma",
+            ["base: E first", "lBracketToken: LBracket", "es: E all after 1 of 5", "commaToken: Comma many",
                 "rBracketToken: RBracket"])
         // `Lit` is an `E` too: the second `Lit` is the second of them, after the condition
         @Expect(fieldsOf(sut, "If"),

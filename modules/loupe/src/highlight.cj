@@ -6,7 +6,7 @@ import ginkgo.{Direction, SyntaxElement, TokenSet}
 // the API's ranges, for whoever asks for a part of a file
 public import ginkgo.TextRange
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.Decl
+import cjsyntax.ast.{Annotation, Decl}
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
@@ -360,13 +360,13 @@ func declared(decl: Decl): ?Highlight {
     let node = decl.syntax
     let kind = declarationKind(decl, isMember(node)) ?? return None
     var modifiers = HighlightModifiers.NONE.plus(HighlightModifier.Declaration)
-    if (hasModifier(node, SyntaxKind.StaticKw)) {
+    if (decl.modifiers()?.isStatic() ?? false) {
         modifiers = modifiers.plus(HighlightModifier.Static)
     }
     if (kind == StructureKind.Constant || hasToken(node, SyntaxKind.LetKw)) {
         modifiers = modifiers.plus(HighlightModifier.Readonly)
     }
-    if (isDeprecated(node)) {
+    if (isDeprecated(decl)) {
         modifiers = modifiers.plus(HighlightModifier.Deprecated)
     }
     (HighlightTag.Declared(kind), modifiers)
@@ -389,16 +389,8 @@ func hasToken(node: CjSyntaxNode, kind: SyntaxKind): Bool {
     node.childrenWithTokens() |> any {element: SyntaxElement<SyntaxKind> => element.kind == kind}
 }
 
-func hasModifier(decl: CjSyntaxNode, kind: SyntaxKind): Bool {
-    decl.children() |> any {node: CjSyntaxNode => node.kind == SyntaxKind.Modifiers && hasToken(node, kind)}
-}
-
-func isDeprecated(decl: CjSyntaxNode): Bool {
-    decl.children() |> any {
-        annotation: CjSyntaxNode => annotation.kind == SyntaxKind.Annotation && (annotation.children() |> any {
-            name: CjSyntaxNode => name.kind == SyntaxKind.NameRef && name.text() == "Deprecated"
-        })
-    }
+func isDeprecated(decl: Decl): Bool {
+    decl.annotations() |> any {annotation: Annotation => annotation.nameRef()?.text() == Some("Deprecated")}
 }
 
 /**

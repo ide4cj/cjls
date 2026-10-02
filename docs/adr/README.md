@@ -32,7 +32,7 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0014](0014-diagnostics-pull-first.md) | Diagnostics are pulled; pushed, by the server after a write, only to clients that cannot pull | accepted |
 | [0015](0015-reference-implementations.md) | rust-analyzer is the model, salsa the model for calca, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
 | [0016](0016-editor-integrations-are-repositories.md) | Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim | accepted; how server and clients change together, and who tests which, by D32 |
-| [0017](0017-lru-of-memo-values.md) | calca evicts memo values by LRU; a query result keeps pointers, never nodes | accepted; interned values by D18 |
+| [0017](0017-lru-of-memo-values.md) | calca evicts memo values by LRU; a query result keeps pointers, never nodes | accepted; interned values by D18; eviction within a revision by D36 |
 | [0018](0018-gc-of-interned-values.md) | calca collects unused interned values, and the memos keyed by them | accepted |
 | [0019](0019-syntactic-highlighting.md) | Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types | accepted |
 | [0020](0020-no-lto.md) | The Linux binary is not linked with LTO: cjc miscompiles the stack maps under it | accepted |
@@ -51,3 +51,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0033](0033-project-model.md) | A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files | accepted |
 | [0034](0034-item-ids-and-the-item-tree.md) | An item is named by a hash of its parent and its name; a file's items are a tree with no ranges | accepted |
 | [0035](0035-a-handle-closing-a-loop-gives-way.md) | A handle closing a loop of waits gives way, and the owner computes the cycle; one memo per handle otherwise as D29 | accepted |
+| [0036](0036-lru-evicts-within-a-revision.md) | calca evicts by LRU as it touches, within a revision too | accepted |

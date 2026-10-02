@@ -84,8 +84,307 @@ let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
         SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
         SyntaxKind.NothingKw, SyntaxKind.UnitKw])
 
+/**
+ * A node that declares a name.
+ */
+public interface HasName {
+    prop syntax: SyntaxNode<SyntaxKind>
+
+    func name(): ?Name
+}
+
+/**
+ * Any node that is a `HasName`, viewed as one.
+ */
 @Derive[Equatable, Hashable]
-public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & ToString {
+public struct AnyHasName <: AstNode<SyntaxKind, AnyHasName> & HasName & ToString {
+    AnyHasName(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        match (kind) {
+            case SyntaxKind.ImportAlias | SyntaxKind.FuncDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
+                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.TypeAliasDecl
+                | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
+                | SyntaxKind.TypeParam | SyntaxKind.Param | SyntaxKind.NamedType | SyntaxKind.BindPat
+                | SyntaxKind.TypePat | SyntaxKind.CatchPat | SyntaxKind.ResourceDecl | SyntaxKind.LambdaParam => true
+            case _ => false
+        }
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasName {
+        if (canCast(node.kind)) {
+            AnyHasName(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func name(): ?Name {
+        astChild<SyntaxKind, Name>(node)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * A node that may have modifiers.
+ */
+public interface HasModifiers {
+    prop syntax: SyntaxNode<SyntaxKind>
+
+    func modifiers(): ?Modifiers
+}
+
+/**
+ * Any node that is a `HasModifiers`, viewed as one.
+ */
+@Derive[Equatable, Hashable]
+public struct AnyHasModifiers <: AstNode<SyntaxKind, AnyHasModifiers> & HasModifiers & ToString {
+    AnyHasModifiers(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        match (kind) {
+            case SyntaxKind.SourceFile | SyntaxKind.FeaturesDirective | SyntaxKind.PackageHeader | SyntaxKind.ImportDecl
+                | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
+                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
+                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
+                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
+                | SyntaxKind.MacroExpandDecl | SyntaxKind.PropAccessor | SyntaxKind.Param => true
+            case _ => false
+        }
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasModifiers {
+        if (canCast(node.kind)) {
+            AnyHasModifiers(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func modifiers(): ?Modifiers {
+        astChild<SyntaxKind, Modifiers>(node)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * A node that may have annotations.
+ */
+public interface HasAnnotations {
+    prop syntax: SyntaxNode<SyntaxKind>
+
+    func annotations(): Iterator<Annotation>
+}
+
+/**
+ * Any node that is a `HasAnnotations`, viewed as one.
+ */
+@Derive[Equatable, Hashable]
+public struct AnyHasAnnotations <: AstNode<SyntaxKind, AnyHasAnnotations> & HasAnnotations & ToString {
+    AnyHasAnnotations(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        match (kind) {
+            case SyntaxKind.SourceFile | SyntaxKind.FeaturesDirective | SyntaxKind.PackageHeader | SyntaxKind.ImportDecl
+                | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
+                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
+                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
+                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
+                | SyntaxKind.MacroExpandDecl | SyntaxKind.PropAccessor | SyntaxKind.Param | SyntaxKind.LambdaExpr => true
+            case _ => false
+        }
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasAnnotations {
+        if (canCast(node.kind)) {
+            AnyHasAnnotations(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func annotations(): Iterator<Annotation> {
+        astChildren<SyntaxKind, Annotation>(node)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * A node that may have type parameters.
+ */
+public interface HasTypeParams {
+    prop syntax: SyntaxNode<SyntaxKind>
+
+    func typeParamList(): ?TypeParamList
+}
+
+/**
+ * Any node that is a `HasTypeParams`, viewed as one.
+ */
+@Derive[Equatable, Hashable]
+public struct AnyHasTypeParams <: AstNode<SyntaxKind, AnyHasTypeParams> & HasTypeParams & ToString {
+    AnyHasTypeParams(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        match (kind) {
+            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
+                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
+                | SyntaxKind.TypeAliasDecl | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl => true
+            case _ => false
+        }
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasTypeParams {
+        if (canCast(node.kind)) {
+            AnyHasTypeParams(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func typeParamList(): ?TypeParamList {
+        astChild<SyntaxKind, TypeParamList>(node)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * A node that may have a `where` clause.
+ */
+public interface HasWhereClause {
+    prop syntax: SyntaxNode<SyntaxKind>
+
+    func whereClause(): ?WhereClause
+}
+
+/**
+ * Any node that is a `HasWhereClause`, viewed as one.
+ */
+@Derive[Equatable, Hashable]
+public struct AnyHasWhereClause <: AstNode<SyntaxKind, AnyHasWhereClause> & HasWhereClause & ToString {
+    AnyHasWhereClause(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        match (kind) {
+            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
+                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
+                | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl => true
+            case _ => false
+        }
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasWhereClause {
+        if (canCast(node.kind)) {
+            AnyHasWhereClause(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func whereClause(): ?WhereClause {
+        astChild<SyntaxKind, WhereClause>(node)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * A node the parser gives the comments right before it, its documentation.
+ */
+public interface HasDocComment {
+    prop syntax: SyntaxNode<SyntaxKind>
+
+    /**
+     * The comments before the rest of it, in order: none but the documentation is there.
+     */
+    func docComments(): Array<SyntaxToken<SyntaxKind>> {
+        docCommentsOf(syntax)
+    }
+}
+
+/**
+ * Any node that is a `HasDocComment`, viewed as one.
+ */
+@Derive[Equatable, Hashable]
+public struct AnyHasDocComment <: AstNode<SyntaxKind, AnyHasDocComment> & HasDocComment & ToString {
+    AnyHasDocComment(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        match (kind) {
+            case SyntaxKind.PackageHeader | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl
+                | SyntaxKind.ClassDecl | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl
+                | SyntaxKind.ExtendDecl | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl
+                | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
+                | SyntaxKind.ForeignBlock | SyntaxKind.MacroExpandDecl => true
+            case _ => false
+        }
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasDocComment {
+        if (canCast(node.kind)) {
+            AnyHasDocComment(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+@Derive[Equatable, Hashable]
+public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & HasModifiers & HasAnnotations & ToString {
     SourceFile(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -108,6 +407,10 @@ public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & ToString {
 
     public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Semicolon)
+    }
+
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
     }
 
     public func featuresDirective(): ?FeaturesDirective {
@@ -140,7 +443,7 @@ public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & ToString {
+public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasModifiers & HasAnnotations & ToString {
     FeaturesDirective(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -185,8 +488,16 @@ public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & ToSt
         astToken(node, SyntaxKind.Dot)
     }
 
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
+    }
+
     public func commaToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Comma)
+    }
+
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
     }
 
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
@@ -199,7 +510,7 @@ public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & ToSt
 }
 
 @Derive[Equatable, Hashable]
-public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & ToString {
+public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & HasModifiers & HasAnnotations & HasDocComment & ToString {
     PackageHeader(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -248,13 +559,17 @@ public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & ToString {
         astToken(node, SyntaxKind.Dot)
     }
 
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
+    }
+
     public func toString(): String {
         node.text()
     }
 }
 
 @Derive[Equatable, Hashable]
-public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & ToString {
+public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & HasModifiers & HasAnnotations & ToString {
     ImportDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -333,8 +648,16 @@ public struct ImportTree <: AstNode<SyntaxKind, ImportTree> & ToString {
         astToken(node, SyntaxKind.Dot)
     }
 
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
+    }
+
     public func colonColonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.ColonColon)
+    }
+
+    public func colonColonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.ColonColon)
     }
 
     public func starToken(): ?SyntaxToken<SyntaxKind> {
@@ -384,6 +707,10 @@ public struct ImportTreeList <: AstNode<SyntaxKind, ImportTreeList> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
     }
@@ -394,7 +721,7 @@ public struct ImportTreeList <: AstNode<SyntaxKind, ImportTreeList> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & ToString {
+public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & HasName & ToString {
     ImportAlias(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -573,6 +900,10 @@ public struct AnnotationArgList <: AstNode<SyntaxKind, AnnotationArgList> & ToSt
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rBracketToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBracket)
     }
@@ -608,72 +939,144 @@ public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & ToString {
         astToken(node, SyntaxKind.StaticKw)
     }
 
+    public func staticTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.StaticKw)
+    }
+
     public func publicToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.PublicKw)
+    }
+
+    public func publicTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.PublicKw)
     }
 
     public func privateToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.PrivateKw)
     }
 
+    public func privateTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.PrivateKw)
+    }
+
     public func internalToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.InternalKw)
+    }
+
+    public func internalTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.InternalKw)
     }
 
     public func protectedToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.ProtectedKw)
     }
 
+    public func protectedTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.ProtectedKw)
+    }
+
     public func overrideToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.OverrideKw)
+    }
+
+    public func overrideTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.OverrideKw)
     }
 
     public func redefToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RedefKw)
     }
 
+    public func redefTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.RedefKw)
+    }
+
     public func abstractToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.AbstractKw)
+    }
+
+    public func abstractTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.AbstractKw)
     }
 
     public func sealedToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.SealedKw)
     }
 
+    public func sealedTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.SealedKw)
+    }
+
     public func openToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.OpenKw)
+    }
+
+    public func openTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.OpenKw)
     }
 
     public func foreignToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.ForeignKw)
     }
 
+    public func foreignTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.ForeignKw)
+    }
+
     public func inoutToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.InoutKw)
+    }
+
+    public func inoutTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.InoutKw)
     }
 
     public func mutToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.MutKw)
     }
 
+    public func mutTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.MutKw)
+    }
+
     public func unsafeToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.UnsafeKw)
+    }
+
+    public func unsafeTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.UnsafeKw)
     }
 
     public func operatorToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.OperatorKw)
     }
 
+    public func operatorTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.OperatorKw)
+    }
+
     public func constToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.ConstKw)
+    }
+
+    public func constTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.ConstKw)
     }
 
     public func commonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.CommonKw)
     }
 
+    public func commonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.CommonKw)
+    }
+
     public func specificToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.SpecificKw)
+    }
+
+    public func specificTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.SpecificKw)
     }
 
     public func toString(): String {
@@ -681,7 +1084,8 @@ public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & ToString {
     }
 }
 
-public enum Decl <: AstNode<SyntaxKind, Decl> & Equatable<Decl> & Hashable & ToString {
+public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & HasDocComment & Equatable<Decl> &
+    Hashable & ToString {
     | AsFuncDecl(FuncDecl)
     | AsMainDecl(MainDecl)
     | AsMacroDecl(MacroDecl)
@@ -758,6 +1162,50 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & Equatable<Decl> & Hashable & ToS
         }
     }
 
+    public func modifiers(): ?Modifiers {
+        match (this) {
+            case AsFuncDecl(it) => it.modifiers()
+            case AsMainDecl(it) => it.modifiers()
+            case AsMacroDecl(it) => it.modifiers()
+            case AsClassDecl(it) => it.modifiers()
+            case AsInterfaceDecl(it) => it.modifiers()
+            case AsStructDecl(it) => it.modifiers()
+            case AsEnumDecl(it) => it.modifiers()
+            case AsExtendDecl(it) => it.modifiers()
+            case AsTypeAliasDecl(it) => it.modifiers()
+            case AsVarDecl(it) => it.modifiers()
+            case AsPropDecl(it) => it.modifiers()
+            case AsInitDecl(it) => it.modifiers()
+            case AsFinalizerDecl(it) => it.modifiers()
+            case AsPrimaryInitDecl(it) => it.modifiers()
+            case AsEnumCtor(it) => it.modifiers()
+            case AsForeignBlock(it) => it.modifiers()
+            case AsMacroExpandDecl(it) => it.modifiers()
+        }
+    }
+
+    public func annotations(): Iterator<Annotation> {
+        match (this) {
+            case AsFuncDecl(it) => it.annotations()
+            case AsMainDecl(it) => it.annotations()
+            case AsMacroDecl(it) => it.annotations()
+            case AsClassDecl(it) => it.annotations()
+            case AsInterfaceDecl(it) => it.annotations()
+            case AsStructDecl(it) => it.annotations()
+            case AsEnumDecl(it) => it.annotations()
+            case AsExtendDecl(it) => it.annotations()
+            case AsTypeAliasDecl(it) => it.annotations()
+            case AsVarDecl(it) => it.annotations()
+            case AsPropDecl(it) => it.annotations()
+            case AsInitDecl(it) => it.annotations()
+            case AsFinalizerDecl(it) => it.annotations()
+            case AsPrimaryInitDecl(it) => it.annotations()
+            case AsEnumCtor(it) => it.annotations()
+            case AsForeignBlock(it) => it.annotations()
+            case AsMacroExpandDecl(it) => it.annotations()
+        }
+    }
+
     public operator func ==(other: Decl): Bool {
         syntax == other.syntax
     }
@@ -776,7 +1224,7 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & Equatable<Decl> & Hashable & ToS
 }
 
 @Derive[Equatable, Hashable]
-public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & ToString {
+public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     FuncDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -839,7 +1287,7 @@ public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & ToString {
+public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     MainDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -898,7 +1346,7 @@ public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & ToString {
+public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     MacroDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -961,7 +1409,7 @@ public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & ToString {
+public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     ClassDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1020,7 +1468,7 @@ public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & ToString {
+public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     InterfaceDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1079,7 +1527,7 @@ public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & ToString {
+public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     StructDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1138,7 +1586,7 @@ public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & ToString {
+public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     EnumDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1197,7 +1645,7 @@ public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & ToString {
+public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     ExtendDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1256,7 +1704,7 @@ public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & ToString {
+public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasDocComment & ToString {
     TypeAliasDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1314,7 +1762,7 @@ public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & ToString {
  * `let`, `var` or `const`, of a name or a pattern
  */
 @Derive[Equatable, Hashable]
-public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & ToString {
+public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
     VarDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1381,7 +1829,7 @@ public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & ToString {
+public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
     PropDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1436,7 +1884,7 @@ public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & ToString {
+public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     InitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1498,7 +1946,7 @@ public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & ToString {
  * `~init`
  */
 @Derive[Equatable, Hashable]
-public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & ToString {
+public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     FinalizerDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1564,7 +2012,7 @@ public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & ToString {
  * a primary constructor, named as its type
  */
 @Derive[Equatable, Hashable]
-public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & ToString {
+public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
     PrimaryInitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1623,7 +2071,7 @@ public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & ToString
 }
 
 @Derive[Equatable, Hashable]
-public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & ToString {
+public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
     EnumCtor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1668,6 +2116,10 @@ public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -1678,7 +2130,7 @@ public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & ToString {
+public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & HasModifiers & HasAnnotations & HasDocComment & ToString {
     ForeignBlock(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1719,6 +2171,10 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & ToString {
         astToken(node, SyntaxKind.Semicolon)
     }
 
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
+    }
+
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
     }
@@ -1732,7 +2188,7 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & ToString {
  * a macro call on a declaration
  */
 @Derive[Equatable, Hashable]
-public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & ToString {
+public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & HasModifiers & HasAnnotations & HasDocComment & ToString {
     MacroExpandDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1775,6 +2231,10 @@ public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & ToString
 
     public func dotToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Dot)
+    }
+
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
     }
 
     public func macroAttr(): ?MacroAttr {
@@ -1835,6 +2295,10 @@ public struct DeclBody <: AstNode<SyntaxKind, DeclBody> & ToString {
         astToken(node, SyntaxKind.Semicolon)
     }
 
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
+    }
+
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
     }
@@ -1878,12 +2342,24 @@ public struct EnumBody <: AstNode<SyntaxKind, EnumBody> & ToString {
         astToken(node, SyntaxKind.Pipe)
     }
 
+    public func pipeTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Pipe)
+    }
+
     public func dotDotDotToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.DotDotDot)
     }
 
+    public func dotDotDotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.DotDotDot)
+    }
+
     public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Semicolon)
+    }
+
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
     }
 
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
@@ -1929,6 +2405,10 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & ToString {
         astToken(node, SyntaxKind.Semicolon)
     }
 
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
+    }
+
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
     }
@@ -1942,7 +2422,7 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & ToString {
  * `get()` or `set(v)` in a property
  */
 @Derive[Equatable, Hashable]
-public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & ToString {
+public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & HasModifiers & HasAnnotations & ToString {
     PropAccessor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2022,6 +2502,10 @@ public struct TypeParamList <: AstNode<SyntaxKind, TypeParamList> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func gtToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Gt)
     }
@@ -2032,7 +2516,7 @@ public struct TypeParamList <: AstNode<SyntaxKind, TypeParamList> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct TypeParam <: AstNode<SyntaxKind, TypeParam> & ToString {
+public struct TypeParam <: AstNode<SyntaxKind, TypeParam> & HasName & ToString {
     TypeParam(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2094,6 +2578,10 @@ public struct WhereClause <: AstNode<SyntaxKind, WhereClause> & ToString {
 
     public func commaToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Comma)
+    }
+
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
     }
 
     public func toString(): String {
@@ -2173,6 +2661,10 @@ public struct TypeBoundList <: AstNode<SyntaxKind, TypeBoundList> & ToString {
         astToken(node, SyntaxKind.Amp)
     }
 
+    public func ampTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Amp)
+    }
+
     public func toString(): String {
         node.text()
     }
@@ -2216,6 +2708,10 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -2226,7 +2722,7 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct Param <: AstNode<SyntaxKind, Param> & ToString {
+public struct Param <: AstNode<SyntaxKind, Param> & HasName & HasModifiers & HasAnnotations & ToString {
     Param(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2367,6 +2863,10 @@ public struct Block <: AstNode<SyntaxKind, Block> & ToString {
 
     public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Semicolon)
+    }
+
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
     }
 
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
@@ -2533,6 +3033,10 @@ public struct PathType <: AstNode<SyntaxKind, PathType> & ToString {
         astToken(node, SyntaxKind.Dot)
     }
 
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
+    }
+
     public func toString(): String {
         node.text()
     }
@@ -2642,6 +3146,10 @@ public struct TupleType <: AstNode<SyntaxKind, TupleType> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -2655,7 +3163,7 @@ public struct TupleType <: AstNode<SyntaxKind, TupleType> & ToString {
  * `name: T` in a tuple type
  */
 @Derive[Equatable, Hashable]
-public struct NamedType <: AstNode<SyntaxKind, NamedType> & ToString {
+public struct NamedType <: AstNode<SyntaxKind, NamedType> & HasName & ToString {
     NamedType(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2775,6 +3283,10 @@ public struct FuncType <: AstNode<SyntaxKind, FuncType> & ToString {
 
     public func commaToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Comma)
+    }
+
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
     }
 
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
@@ -2945,6 +3457,10 @@ public struct TypeArgList <: AstNode<SyntaxKind, TypeArgList> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func gtToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Gt)
     }
@@ -3094,7 +3610,7 @@ public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & ToString {
  * a lone name: a binding, or an enum constructor without arguments
  */
 @Derive[Equatable, Hashable]
-public struct BindPat <: AstNode<SyntaxKind, BindPat> & ToString {
+public struct BindPat <: AstNode<SyntaxKind, BindPat> & HasName & ToString {
     BindPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -3125,7 +3641,7 @@ public struct BindPat <: AstNode<SyntaxKind, BindPat> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct TypePat <: AstNode<SyntaxKind, TypePat> & ToString {
+public struct TypePat <: AstNode<SyntaxKind, TypePat> & HasName & ToString {
     TypePat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -3201,6 +3717,10 @@ public struct TuplePat <: AstNode<SyntaxKind, TuplePat> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -3240,6 +3760,10 @@ public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & ToString {
         astToken(node, SyntaxKind.Dot)
     }
 
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
+    }
+
     public func lParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.LParen)
     }
@@ -3252,6 +3776,10 @@ public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -3262,7 +3790,7 @@ public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & ToString {
+public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & HasName & ToString {
     CatchPat(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -3301,6 +3829,10 @@ public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & ToString {
 
     public func pipeToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Pipe)
+    }
+
+    public func pipeTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Pipe)
     }
 
     public func toString(): String {
@@ -3548,6 +4080,10 @@ public struct StringLit <: AstNode<SyntaxKind, StringLit> & ToString {
         astToken(node, SyntaxKind.StringContent)
     }
 
+    public func stringContentTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.StringContent)
+    }
+
     public func interpolations(): Iterator<Interpolation> {
         astChildren<SyntaxKind, Interpolation>(node)
     }
@@ -3593,6 +4129,10 @@ public struct Interpolation <: AstNode<SyntaxKind, Interpolation> & ToString {
 
     public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Semicolon)
+    }
+
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
     }
 
     public func interpolationEndToken(): ?SyntaxToken<SyntaxKind> {
@@ -3751,6 +4291,10 @@ public struct ArgList <: AstNode<SyntaxKind, ArgList> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -3874,6 +4418,10 @@ public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & ToString {
 
     public func commaToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Comma)
+    }
+
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
     }
 
     public func rBracketToken(): ?SyntaxToken<SyntaxKind> {
@@ -4229,6 +4777,10 @@ public struct TupleExpr <: AstNode<SyntaxKind, TupleExpr> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -4270,6 +4822,10 @@ public struct ArrayExpr <: AstNode<SyntaxKind, ArrayExpr> & ToString {
 
     public func commaToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Comma)
+    }
+
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
     }
 
     public func rBracketToken(): ?SyntaxToken<SyntaxKind> {
@@ -4412,6 +4968,10 @@ public struct LetExpr <: AstNode<SyntaxKind, LetExpr> & ToString {
         astToken(node, SyntaxKind.Pipe)
     }
 
+    public func pipeTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Pipe)
+    }
+
     public func lArrowToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.LArrow)
     }
@@ -4506,6 +5066,10 @@ public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & ToString {
         astToken(node, SyntaxKind.Semicolon)
     }
 
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
+    }
+
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
     }
@@ -4552,6 +5116,10 @@ public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & ToString {
         astToken(node, SyntaxKind.Pipe)
     }
 
+    public func pipeTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Pipe)
+    }
+
     public func guard(): ?Guard {
         astChild<SyntaxKind, Guard>(node)
     }
@@ -4562,6 +5130,10 @@ public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & ToString {
 
     public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Semicolon)
+    }
+
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
     }
 
     public func toString(): String {
@@ -4688,6 +5260,10 @@ public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & ToString {
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }
@@ -4701,7 +5277,7 @@ public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & ToString {
  * `name: T = expr` in a try-with-resources
  */
 @Derive[Equatable, Hashable]
-public struct ResourceDecl <: AstNode<SyntaxKind, ResourceDecl> & ToString {
+public struct ResourceDecl <: AstNode<SyntaxKind, ResourceDecl> & HasName & ToString {
     ResourceDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -5243,7 +5819,7 @@ public struct UnsafeExpr <: AstNode<SyntaxKind, UnsafeExpr> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & ToString {
+public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & HasAnnotations & ToString {
     LambdaExpr(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -5288,6 +5864,10 @@ public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & ToString {
         astToken(node, SyntaxKind.Semicolon)
     }
 
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
+    }
+
     public func rBraceToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBrace)
     }
@@ -5327,13 +5907,17 @@ public struct LambdaParamList <: AstNode<SyntaxKind, LambdaParamList> & ToString
         astToken(node, SyntaxKind.Comma)
     }
 
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func toString(): String {
         node.text()
     }
 }
 
 @Derive[Equatable, Hashable]
-public struct LambdaParam <: AstNode<SyntaxKind, LambdaParam> & ToString {
+public struct LambdaParam <: AstNode<SyntaxKind, LambdaParam> & HasName & ToString {
     LambdaParam(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -5705,6 +6289,10 @@ public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & ToString
 
     public func dotToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Dot)
+    }
+
+    public func dotTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Dot)
     }
 
     public func macroAttr(): ?MacroAttr {

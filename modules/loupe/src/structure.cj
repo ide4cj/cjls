@@ -2,9 +2,9 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxToken}
-import cjsyntax.ast.{Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl}
+import ginkgo.{SyntaxElement, TextRange}
+import cjsyntax.{CjParse, CjSyntaxNode, CjSyntaxToken}
+import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl, identText}
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
@@ -92,22 +92,12 @@ private func structureOf(decls: Iterator<Decl>, inType: Bool): Array<StructureNo
 private func declarationsOf(decl: Decl, inType: Bool): Array<StructureNode> {
     let kind = declarationKind(decl, inType) ?? return declaredIn(decl, inType)
     match (decl) {
-        case Decl.AsClassDecl(it) => named(decl, it.name(), kind, members(it.declBody()?.decls()))
-        case Decl.AsInterfaceDecl(it) => named(decl, it.name(), kind, members(it.declBody()?.decls()))
-        case Decl.AsStructDecl(it) => named(decl, it.name(), kind, members(it.declBody()?.decls()))
-        case Decl.AsEnumDecl(it) => named(decl, it.name(), kind, members(it.enumBody()?.decls()))
-        case Decl.AsEnumCtor(it) => named(decl, it.name(), kind, [])
         case Decl.AsExtendDecl(it) => extension(it)
-        case Decl.AsFuncDecl(it) => named(decl, it.name(), kind, [])
-        case Decl.AsMacroDecl(it) => named(decl, it.name(), kind, [])
-        case Decl.AsPrimaryInitDecl(it) => named(decl, it.name(), kind, [])
-        case Decl.AsPropDecl(it) => named(decl, it.name(), kind, [])
-        case Decl.AsTypeAliasDecl(it) => named(decl, it.name(), kind, [])
         case Decl.AsMainDecl(it) => byKeyword(decl, "main", kind, it.mainToken())
         case Decl.AsInitDecl(it) => byKeyword(decl, "init", kind, it.initToken())
         case Decl.AsFinalizerDecl(it) => byKeyword(decl, "~init", kind, it.initToken())
         case Decl.AsVarDecl(it) => variables(it, kind)
-        case Decl.AsMacroExpandDecl(_) | Decl.AsForeignBlock(_) => []
+        case _ => named(decl, AnyHasName.cast(decl.syntax).flatMap {it => it.name()}, kind, members(decl))
     }
 }
 
@@ -134,7 +124,7 @@ func declarationKind(decl: Decl, inType: Bool): ?StructureKind {
         case Decl.AsTypeAliasDecl(_) => StructureKind.TypeAlias
         case Decl.AsMainDecl(_) => StructureKind.Main
         case Decl.AsFinalizerDecl(_) => StructureKind.Finalizer
-        case Decl.AsVarDecl(it) => if (it.modifiers()?.constToken().isSome() ?? false) {
+        case Decl.AsVarDecl(it) => if (it.modifiers()?.isConst() ?? false) {
             StructureKind.Constant
         } else if (inType) {
             StructureKind.Field
@@ -164,7 +154,7 @@ private func declaredIn(decl: Decl, inType: Bool): Array<StructureNode> {
  */
 private func named(decl: Decl, name: ?Name, kind: StructureKind, children: Array<StructureNode>): Array<StructureNode> {
     match (name) {
-        case Some(name) => [StructureNode(name.syntax.text(), kind, decl.syntax.textRange, name.syntax.textRange,
+        case Some(name) => [StructureNode(name.text(), kind, decl.syntax.textRange, name.syntax.textRange,
                 children)]
         case None => []
     }
@@ -181,12 +171,28 @@ private func byKeyword(decl: Decl, name: String, kind: StructureKind, keyword: ?
 }
 
 /**
- * Named by the type it extends, as written.
+ * Named by the type it extends, as written but for backquotes.
  */
 private func extension(decl: ExtendDecl): Array<StructureNode> {
     let ty = decl.ty() ?? return []
-    [StructureNode(ty.syntax.text(), StructureKind.Extension, decl.syntax.textRange, ty.syntax.textRange,
-        members(decl.declBody()?.decls()))]
+    let members = match (decl.declBody()) {
+        case Some(body) => structureOf(body.decls(), true)
+        case None => Array<StructureNode>()
+    }
+    [StructureNode(unquotedText(ty.syntax), StructureKind.Extension, decl.syntax.textRange, ty.syntax.textRange, members)]
+}
+
+/**
+ * The text of `node`, its identifiers without their backquotes (A20).
+ */
+private func unquotedText(node: CjSyntaxNode): String {
+    let text = StringBuilder()
+    for (element in node.descendantsWithTokens()) {
+        if (let SyntaxElement.Token(token) <- element) {
+            text.append(identText(token))
+        }
+    }
+    text.toString()
 }
 
 /**
@@ -199,7 +205,7 @@ private func variables(decl: VarDecl, kind: StructureKind): Array<StructureNode>
         case (None, Some(pattern)) => collectBindings(pattern, names)
         case _ => ()
     }
-    names.toArray().map {name => StructureNode(name.syntax.text(), kind, decl.syntax.textRange, name.syntax.textRange, [])}
+    names.toArray().map {name => StructureNode(name.text(), kind, decl.syntax.textRange, name.syntax.textRange, [])}
 }
 
 /**
@@ -224,8 +230,15 @@ private func collectBindings(pattern: Pattern, names: ArrayList<Name>): Unit {
 }
 
 /**
- * A type's members; none while it has no body.
+ * A type's members; none for what is no type, or while it has no body.
  */
-private func members(decls: ?Iterator<Decl>): Array<StructureNode> {
+private func members(decl: Decl): Array<StructureNode> {
+    let decls = match (decl) {
+        case Decl.AsClassDecl(it) => it.declBody()?.decls()
+        case Decl.AsInterfaceDecl(it) => it.declBody()?.decls()
+        case Decl.AsStructDecl(it) => it.declBody()?.decls()
+        case Decl.AsEnumDecl(it) => it.enumBody()?.decls()
+        case _ => None<Iterator<Decl>>
+    }
     structureOf(decls ?? return [], true)
 }

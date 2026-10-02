@@ -136,6 +136,32 @@ public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<
     sink.finish()
 }
 
+/**
+ * Runs `grammar` with `parser` and builds the tree it records over `lexed`, as `buildTree` does. A bug in the
+ * grammar does not escape: if it throws — `bump` on a token of another kind, a loop the step limit stops — the
+ * tree is every token in one error node under a `root`, with an error saying so at the start. It still covers the
+ * text, so a grammar bug met on one file costs that file its structure, not every query over it.
+ */
+@Frozen
+public func parseWith<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<K>, root: K,
+    grammar: (Parser<K>) -> Unit): Parse<K> where K <: Kind<K> {
+    try {
+        grammar(parser)
+        return buildTree(lexed, parser, rules)
+    } catch (e: Exception) {
+        let p = Parser<K>(parser.input, parser.eof, parser.errorKind)
+        let r = p.start()
+        p.error("the parser failed on this file, a bug in it: ${e.message}")
+        let m = p.start()
+        while (!p.atEof()) {
+            p.bumpAny()
+        }
+        m.complete(p, p.errorKind)
+        r.complete(p, root)
+        buildTree(lexed, p, rules)
+    }
+}
+
 class TreeSink<K> where K <: Kind<K> {
     let builder = GreenNodeBuilder<K>()
     let errors = ArrayList<SyntaxError<K>>()

@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Decl, ImportTree, Modifiers, Pattern, VarDecl}
+import cjsyntax.ast.{AnyHasName, Decl, ImportTree, Modifiers, NameRef, Pattern, VarDecl}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import calca.*
 import calca.macros.*
@@ -205,7 +205,7 @@ public func itemTree(db: AnalysisDatabase, file: SourceFile): ItemTree {
 private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
     itemsIn(decls).map {
         item =>
-        let modifiers = modifiersOf(item.macroCalls.map {call => call.modifiers()}.concat([modifiersNode(item.decl)]),
+        let modifiers = modifiersOf(item.macroCalls.map {call => call.modifiers()}.concat([item.decl.modifiers()]),
             inForeignBlock: item.inForeignBlock)
         let macros = item.macroCalls.map {call => macroName(call)}
         let macrosOfItem = match (item.decl) {
@@ -223,27 +223,20 @@ private func idOf(ids: ItemIdMap, node: CjSyntaxNode): ItemId {
     ids.idOf(SyntaxNodePtr(node)) ?? throw IllegalStateException("no id for the item at ${node.textRange}")
 }
 
+/**
+ * What `decl` declares by name: its own, without backquotes; what a keyword names, `main`, `init`,
+ * `~init`; the bindings of a `let`.
+ */
 private func namesOf(decl: Decl): Array<String> {
-    let name = match (decl) {
-        case Decl.AsFuncDecl(it) => it.name()
-        case Decl.AsMacroDecl(it) => it.name()
-        case Decl.AsClassDecl(it) => it.name()
-        case Decl.AsInterfaceDecl(it) => it.name()
-        case Decl.AsStructDecl(it) => it.name()
-        case Decl.AsEnumDecl(it) => it.name()
-        case Decl.AsTypeAliasDecl(it) => it.name()
-        case Decl.AsPropDecl(it) => it.name()
-        case Decl.AsPrimaryInitDecl(it) => it.name()
-        case Decl.AsEnumCtor(it) => it.name()
-        case Decl.AsMainDecl(_) => return ["main"]
-        case Decl.AsInitDecl(_) => return ["init"]
-        case Decl.AsFinalizerDecl(_) => return ["~init"]
-        case Decl.AsVarDecl(it) => return bindingsOf(it)
-        case Decl.AsExtendDecl(_) | Decl.AsMacroExpandDecl(_) | Decl.AsForeignBlock(_) => return []
-    }
-    match (name) {
-        case Some(name) => [name.syntax.text()]
-        case None => []
+    match (decl) {
+        case Decl.AsMainDecl(_) => ["main"]
+        case Decl.AsInitDecl(_) => ["init"]
+        case Decl.AsFinalizerDecl(_) => ["~init"]
+        case Decl.AsVarDecl(it) => bindingsOf(it)
+        case _ => match (AnyHasName.cast(decl.syntax).flatMap {it => it.name()}) {
+            case Some(name) => [name.text()]
+            case None => []
+        }
     }
 }
 
@@ -252,7 +245,7 @@ private func namesOf(decl: Decl): Array<String> {
  */
 private func bindingsOf(decl: VarDecl): Array<String> {
     if (let Some(name) <- decl.name()) {
-        return [name.syntax.text()]
+        return [name.text()]
     }
     let names = ArrayList<String>()
     if (let Some(pattern) <- decl.pattern()) {
@@ -264,10 +257,10 @@ private func bindingsOf(decl: VarDecl): Array<String> {
 private func collectBindings(pattern: Pattern, names: ArrayList<String>): Unit {
     match (pattern) {
         case Pattern.AsBindPat(it) => if (let Some(name) <- it.name()) {
-            names.add(name.syntax.text())
+            names.add(name.text())
         }
         case Pattern.AsTypePat(it) => if (let Some(name) <- it.name()) {
-            names.add(name.syntax.text())
+            names.add(name.text())
         }
         case Pattern.AsTuplePat(it) => for (inner in it.patterns()) {
             collectBindings(inner, names)
@@ -277,18 +270,6 @@ private func collectBindings(pattern: Pattern, names: ArrayList<String>): Unit {
         }
         case Pattern.AsWildcardPat(_) | Pattern.AsLiteralPat(_) => ()
     }
-}
-
-/**
- * The `Modifiers` of any declaration: every one has them first, after its annotations.
- */
-private func modifiersNode(decl: Decl): ?Modifiers {
-    for (child in decl.syntax.children()) {
-        if (let Some(modifiers) <- Modifiers.cast(child)) {
-            return modifiers
-        }
-    }
-    None
 }
 
 /**
@@ -318,7 +299,7 @@ private func lowerImportTree(tree: ImportTree, prefix: Array<String>, paths: Arr
         case Some(list) => for (inner in list.importTrees()) {
             lowerImportTree(inner, segments, paths)
         }
-        case None => paths.add(ImportPath(segments, alias: tree.importAlias()?.name()?.syntax.text(),
+        case None => paths.add(ImportPath(segments, alias: tree.importAlias()?.name()?.text(),
             isGlob: tree.starToken().isSome()))
     }
 }
@@ -332,12 +313,13 @@ private func pathSegments(node: CjSyntaxNode): Array<String> {
     var joinNext = false
     for (element in node.childrenWithTokens()) {
         match (element) {
-            case SyntaxElement.Node(child) where child.kind == SyntaxKind.NameRef =>
+            case SyntaxElement.Node(child) where NameRef.canCast(child.kind) =>
+                let name = NameRef.cast(child)?.text() ?? ""
                 if (joinNext && !segments.isEmpty()) {
                     let org = segments[segments.size - 1]
-                    segments[segments.size - 1] = "${org}::${child.text()}"
+                    segments[segments.size - 1] = "${org}::${name}"
                 } else {
-                    segments.add(child.text())
+                    segments.add(name)
                 }
                 joinNext = false
             case SyntaxElement.Token(token) where token.kind == SyntaxKind.ColonColon => joinNext = true

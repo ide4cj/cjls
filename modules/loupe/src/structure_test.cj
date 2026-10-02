@@ -137,4 +137,11 @@ class StructureTest {
         // act, assert
         @Expect(fileStructure(AnalysisDatabase(), FileId(7)).size, 0)
     }
+
+    @TestCase
+    func aNameInBackquotesIsOutlinedWithoutThem() {
+        // act, assert
+        @Expect(outline("class `C` {\n    func `f`() {}\n}\nextend `C` {}"), "Class C\n  Method f\nExtension C")
+    }
 }
+

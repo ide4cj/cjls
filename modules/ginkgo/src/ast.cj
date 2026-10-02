@@ -138,6 +138,14 @@ public func astToken<K>(parent: SyntaxNode<K>, kinds: TokenSet<K>): ?SyntaxToken
     ownTokens(parent).filter {t => kinds.contains(t.kind)}.next()
 }
 
+/**
+ * The tokens of `parent`, not counting those inside its children, whose kind is `kind`: every `.` of a path.
+ */
+@Frozen
+public func astTokens<K>(parent: SyntaxNode<K>, kind: K): Iterator<SyntaxToken<K>> where K <: Kind<K> {
+    ownTokens(parent).filter {t => t.kind == kind}
+}
+
 @Frozen
 func ownTokens<K>(parent: SyntaxNode<K>): Iterator<SyntaxToken<K>> where K <: Kind<K> {
     parent.childrenWithTokens().filterMap {el => el.asToken()}

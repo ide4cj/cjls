@@ -36,6 +36,21 @@ class DocumentSymbolTest {
     }
 
     @TestCase
+    func anExtensionIsANamespaceNamedByTheTypeItExtends() {
+        // arrange
+        let state = opened("extend Int64 {\n    func f() {}\n}\n")
+
+        // act
+        let symbols = documentSymbols(state, URI).getOrThrow()
+
+        // assert
+        @Expect(symbols.size, 1)
+        @Expect(symbols[0].name, "Int64")
+        @Expect(symbols[0].kind, SymbolKind.Namespace)
+        @Expect(symbols[0].selectionRange.start.character, 7)
+    }
+
+    @TestCase
     func aDocumentTheServerDoesNotKnowHasNoOutline() {
         // act, assert
         @Expect(documentSymbols(ServerState(), URI).isNone())

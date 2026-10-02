@@ -144,6 +144,23 @@ class AnswerThenThrowHandler <: Handler {
     public func onNotification(_: String, _: ?RawJson): Unit {}
 }
 
+/**
+ * Recurses until the stack runs out. Each frame holds 8 KB, read at an index only the call below
+ * gives, so no optimization makes a loop of it, and the stack, half a gigabyte, runs out in a
+ * second rather than tens of millions of frames.
+ */
+func deeper(depth: Int64): Int64 {
+    var kept = VArray<Int64, $1024>(repeat: 0)
+    kept[depth % 1024] = depth
+    let below = deeper(depth + 1)
+    depth - below + kept[(below & 0x7fff_ffff) % 1024]
+}
+
+func overflowTheStack(): Nothing {
+    deeper(0)
+    throw IllegalStateException("the stack never ran out")
+}
+
 func unserved(handler: Handler): (Connection, FakeTransport) {
     let transport = FakeTransport()
     (Connection(transport, handler, getGlobalLogger()), transport)
@@ -203,6 +220,33 @@ class ConnectionServeRequestTest {
         @Expect(Integer(2), bug.id.getOrThrow())
         @Expect(ErrorCode.INTERNAL_ERROR, bug.resultOrError.getErrorOrThrow().code)
         @Expect("handler blew up", bug.resultOrError.getErrorOrThrow().message)
+    }
+
+    @TestCase[inPlace in [ false, true ]]
+    func aHandlerThatOverflowsItsStackIsAnsweredAndTheLoopReadsOn(inPlace: Bool) {
+        // arrange - an `Error`, not an `Exception`: a spawned handler throws it inside
+        // `respondWith`, one in place out of `onRequest`, on the read loop
+        let handler = FakeHandler()
+        handler.inPlace = inPlace
+        handler.onRequestFn = {
+            method, _, _ => if (method == "deep") {
+                overflowTheStack()
+            } else {
+                Result(RawJson.of(42))
+            }
+        }
+        let (_, transport) = serving(handler)
+
+        // act
+        transport.feed(RequestBody(Integer(1), "deep").enveloped())
+        let deep = transport.nextResponse()
+        transport.feed(RequestBody(Integer(2), "m").enveloped())
+        let next = transport.nextResponse()
+
+        // assert
+        @Expect(ErrorCode.INTERNAL_ERROR, deep.resultOrError.getErrorOrThrow().code)
+        @Expect("StackOverflowError", deep.resultOrError.getErrorOrThrow().message)
+        @Expect(42, next.resultOrError.getResultOrThrow().read<Int64>())
     }
 
     @TestCase
@@ -270,6 +314,24 @@ class ConnectionServeNotificationTest {
         let written = transport.nextResponse()
 
         // assert - and the loop is still reading
+        @Expect(Integer(1), written.id.getOrThrow())
+        @Expect(42, written.resultOrError.getResultOrThrow().read<Int64>())
+    }
+
+    @TestCase
+    func aNotificationThatOverflowsItsStackLeavesTheLoopReading() {
+        // arrange
+        let handler = FakeHandler()
+        handler.onRequestFn = {_, _, _ => Result(RawJson.of(42))}
+        handler.onNotificationFn = {_, _ => overflowTheStack()}
+        let (_, transport) = serving(handler)
+
+        // act
+        transport.feed(NotificationBody("note").enveloped())
+        transport.feed(RequestBody(Integer(1), "m").enveloped())
+        let written = transport.nextResponse()
+
+        // assert
         @Expect(Integer(1), written.id.getOrThrow())
         @Expect(42, written.resultOrError.getResultOrThrow().read<Int64>())
     }

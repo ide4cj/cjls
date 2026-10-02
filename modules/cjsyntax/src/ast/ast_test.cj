@@ -14,6 +14,17 @@ func first<T>(text: String): T where T <: AstNode<SyntaxKind, T> {
     root.descendants().filterMap {n => T.cast(n)}.next().getOrThrow()
 }
 
+/**
+ * The first node of `text` that is a `T`, `text` a whole file.
+ */
+func declared<T>(text: String): T where T <: AstNode<SyntaxKind, T> {
+    parse(text).syntaxNode().descendants().filterMap {n => T.cast(n)}.next().getOrThrow()
+}
+
+func declsOf(text: String): Array<Decl> {
+    collectArray(SourceFile.cast(parse(text).syntaxNode()).getOrThrow().decls())
+}
+
 func texts<T>(items: Iterator<T>): Array<String> where T <: ToString {
     collectArray(items.map {i => i.toString()})
 }
@@ -167,5 +178,86 @@ class AstTest {
         @Expect(Expr.cast(lit).isSome())
         @Expect(Pattern.cast(lit).isNone())
         @Expect(Expr.cast(lit).getOrThrow().syntax == lit)
+    }
+
+    @TestCase
+    func aNameInBackquotesIsTheNameWithoutThem() {
+        // act
+        let quoted = declared<FuncDecl>("func `foo`() {}").name().getOrThrow()
+        let plain = declared<FuncDecl>("func foo() {}").name().getOrThrow()
+        let used = first<RefExpr>("`foo`").nameRef().getOrThrow()
+
+        // assert
+        @Expect(quoted.text(), "foo")
+        @Expect(quoted.toString(), "`foo`")
+        @Expect(plain.text(), "foo")
+        @Expect(used.text(), "foo")
+    }
+
+    @TestCase
+    func anOperatorIsNamedByItsTokens() {
+        // act
+        let sut = declared<FuncDecl>("class C {\n    operator func [](i: Int64): Int64 { i }\n}").name().getOrThrow()
+
+        // assert
+        @Expect(sut.text(), "[]")
+    }
+
+    @TestCase
+    func modifiersTellTheVisibilityAndWhatElseIsWritten() {
+        // act
+        let sut = declared<FuncDecl>("class C {\n    protected static func f() {}\n}").modifiers().getOrThrow()
+
+        // assert
+        @Expect(sut.visibility().map {t => t.kind}, Some(SyntaxKind.ProtectedKw))
+        @Expect(sut.isStatic())
+        @Expect(!sut.isOpen())
+        @Expect(!sut.isConst())
+        @Expect(sut.has(SyntaxKind.ProtectedKw))
+    }
+
+    @TestCase
+    func everyDeclarationHasItsModifiersAndAnnotations() {
+        // act
+        let sut = declsOf("@Deprecated\npublic struct S {}\nenum E { | A }\n")
+
+        // assert
+        @Expect(text(sut[0].modifiers()), Some("public"))
+        @Expect(texts(sut[0].annotations()), ["@Deprecated"])
+        @Expect(sut[1].modifiers().isNone())
+        @Expect(texts(sut[1].annotations()), Array<String>())
+    }
+
+    @TestCase
+    func anyNodeThatDeclaresANameIsViewedAsOne() {
+        // arrange
+        let decls = declsOf("class C {}\nlet x = 1\nextend C {}\nfunc `f`() {}\n")
+
+        // act
+        let sut = decls.map {d => AnyHasName.cast(d.syntax).flatMap {it => it.name()}.map {n => n.text()}}
+
+        // assert
+        @Expect(sut, [Some("C"), Some("x"), None, Some("f")])
+    }
+
+    @TestCase
+    func aDeclarationHasTheCommentsRightBeforeItAsItsDocumentation() {
+        // act
+        let sut = declsOf("// one\n/* two */\nfunc f() {}\n\n// not\n\nfunc g() {}\n")
+
+        // assert
+        @Expect(sut[0].docComments().map {t => t.text()}, ["// one", "/* two */"])
+        @Expect(sut[1].docComments().size, 0)
+    }
+
+    @TestCase
+    func everyTokenOfAKindIsThereWhenTheGrammarAllowsSeveral() {
+        // act
+        let sut = declared<ImportTree>("import org::a.b.c\n")
+
+        // assert
+        @Expect(collectArray(sut.dotTokens()).size, 2)
+        @Expect(collectArray(sut.colonColonTokens()).size, 1)
+        @Expect(sut.dotToken().isSome())
     }
 }

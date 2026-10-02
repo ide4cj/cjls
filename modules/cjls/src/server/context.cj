@@ -161,6 +161,8 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
                 pending.await()
             } catch (e: Exception) {
                 requestFailed(method, e, logger)
+            } catch (e: Error) {
+                logger.error("request failed", [("request", method), ("cause", ErrorLogValue(e))])
             }
         }
     }

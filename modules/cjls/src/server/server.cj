@@ -180,8 +180,8 @@ private func cancelledError(request: InboundRequest, logger: Logger): ResponseEr
 
 /**
  * Answers `request` with what `handler` gives; a query cancelled midway is answered
- * `RequestCancelled` or `ContentModified`, see `cancelledError`. Never throws, so it is a safe body for a `spawn`:
- * a thread that throws dumps its stack even when nobody reads its future.
+ * `RequestCancelled` or `ContentModified`, see `cancelledError`, and an `Error` `InternalError`. Never throws,
+ * so it is a safe body for a `spawn`: a thread that throws dumps its stack even when nobody reads its future (S13).
  *
  * @return whether the handler succeeded
  */
@@ -192,6 +192,9 @@ private func answer(request: InboundRequest, logger: Logger, handler: () -> RawJ
     } catch (_: Cancelled) {
         ResultOrError.Error(cancelledError(request, logger))
     } catch (e: Exception) {
+        logFailure(logger, e)
+        ResultOrError.Error(responseErrorOf(e))
+    } catch (e: Error) {
         logFailure(logger, e)
         ResultOrError.Error(responseErrorOf(e))
     }
@@ -212,6 +215,8 @@ private func run(logger: Logger, handler: () -> Unit): Unit {
         logger.debug("cancelled", [("reason", "the content was modified")])
     } catch (e: Exception) {
         logFailure(logger, e)
+    } catch (e: Error) {
+        logFailure(logger, e)
     }
 }
 
@@ -224,6 +229,13 @@ private func logFailure(logger: Logger, e: Exception): Unit {
         case rpc: RpcException => logger.warn("failed", [("error", rpc.message)])
         case _ => logger.error("failed", [("cause", e)])
     }
+}
+
+/**
+ * An `Error` (a stack overflow, out of memory) is a bug as well, and the thread lives on.
+ */
+private func logFailure(logger: Logger, e: Error): Unit {
+    logger.error("failed", [("cause", ErrorLogValue(e))])
 }
 
 private func describe(lifecycle: Lifecycle): String {
