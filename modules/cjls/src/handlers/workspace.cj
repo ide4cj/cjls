@@ -10,7 +10,7 @@ import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
-import loupe.vfs.{isWorkspaceFile, readFile, readFiles, VfsPath}
+import loupe.vfs.{isWorkspaceFile, readCjoFiles, readFile, readFiles, VfsPath}
 import project_model.{findProjects, hostCfg, PROJECT_JSON}
 import cjls.lsp_types.*
 import cjls.server.*
@@ -23,7 +23,8 @@ import cjls.macros.LspHandler
 const WORKSPACE_SYMBOL_LIMIT = 128
 
 /**
- * How much text a load reads at most, in bytes: a sixteenth of the heap. On the runtime's default
+ * How much a load reads at most, in bytes, the `.cjo` of the binaries first and the text of the
+ * sources then: a sixteenth of the heap. On the runtime's default
  * of 256 MiB, 16 MiB of text was loaded and searched and 32 MiB ran out of memory (D30); a root far
  * wider than a project (a home directory, a test suite of a hundred thousand files) would fill any
  * heap with text alone.
@@ -140,11 +141,22 @@ func load(state: ServerState, logger: Logger): Unit {
         }
     }
     let model = ProjectModel.merge(loads.map {load => load.model}, hostCfg())
-    state.setProject(model)
+    // `std` is what every file resolves against: the binaries go first
+    let binaries = readCjoFiles(model.cjoFiles(), unchanged: {file, stamp => state.binaryUnchanged(file, stamp)},
+        budget: budget)
+    for (problem in binaries.problems) {
+        logger.warn(problem)
+    }
+    state.setProject(model, binaries: binaries.files)
     let wanted = model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)}
-    let read = readFiles(wanted, budget: budget)
+    let read = readFiles(wanted, budget: budget - binaries.size)
     state.setFilesContents(read.files.map {file => (file[0], Some(file[1]))})
-    logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size), ("took", MonoTime.now() - start)])
+    logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size),
+        ("cjo", binaries.files.size), ("took", MonoTime.now() - start)])
+    if (binaries.truncated) {
+        logger.warn("the binaries hold more than the server loads: the names of those left out do not resolve",
+            [("budget", budget)])
+    }
     if (read.truncated) {
         logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
             [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
