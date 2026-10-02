@@ -1,5 +1,6 @@
 package cjls
 
+import std.argopt.*
 import std.env.{getStdOut, getVariable, getWorkingDirectory}
 import std.fs.Path
 import stdx.log.Logger
@@ -28,21 +29,11 @@ enum Command {
     | Help
 }
 
-class UsageException <: Exception {
-    UsageException(message: String) {
-        super(message)
-    }
-
-    protected override func getClassName(): String {
-        "UsageException"
-    }
-}
-
 /**
  * The command `args` give, the program's name not among them: no arguments is `Serve`, as an
  * editor starts the server.
  *
- * @throws UsageException - for a command not known, or not given what it takes
+ * @throws ArgumentParseException - for a command not known, or not given what it takes
  */
 func parseCommand(args: Array<String>): Command {
     if (args.isEmpty()) {
@@ -51,7 +42,7 @@ func parseCommand(args: Array<String>): Command {
     match (args[0]) {
         case "project" => PrintProject(projectDir(args[1..]))
         case "help" | "--help" | "-h" => Help
-        case other => throw UsageException("no command `${other}`")
+        case other => throw ArgumentParseException("no command `${other}`")
     }
 }
 
@@ -77,30 +68,21 @@ func printProject(dir: Path, logger: Logger): Int64 {
  * The directory `project`'s options name, `--dir <dir>` (`-d <dir>`) or `--dir=<dir>`, relative to
  * the working one; the working one without them.
  *
- * @throws UsageException - for an option not known, or `--dir` given twice or without a value
+ * the working one; the working one without them. Given twice, the last counts.
+ *
+ * @throws ArgumentParseException - for an option not known, an argument, or `--dir` without a value
  */
 func projectDir(options: Array<String>): Path {
-    var dir: ?String = None
-    var i = 0
-    while (i < options.size) {
-        let value = match (options[i]) {
-            case "--dir" | "-d" where i + 1 < options.size =>
-                i++
-                options[i]
-            case "--dir" | "-d" => throw UsageException("`--dir` takes a directory")
-            case option where option.startsWith("--dir=") => option["--dir=".size..]
-            case option => throw UsageException("`project` takes no `${option}`")
-        }
-        if (dir.isSome()) {
-            throw UsageException("`--dir` is given twice")
-        }
-        if (value.isEmpty()) {
-            throw UsageException("`--dir` takes a directory")
-        }
-        dir = value
-        i++
+    let parsed = parseArguments(options, [Full("dir", r'd', RequiredValue)])
+    if (let Some(argument) <- parsed.nonOptions.first) {
+        throw ArgumentParseException("`project` takes no `${argument}`")
     }
-    let path = Path(dir ?? return getWorkingDirectory())
+    let dir = parsed.options.get("dir") ?? return getWorkingDirectory()
+    // `--dir=` is a value to argopt, and `Path("")` throws on every join
+    if (dir.isEmpty()) {
+        throw ArgumentParseException("`--dir` takes a directory")
+    }
+    let path = Path(dir)
     if (path.isAbsolute()) {
         path
     } else {

@@ -1,5 +1,6 @@
 package cjls
 
+import std.argopt.ArgumentParseException
 import std.env.getWorkingDirectory
 import std.fs.Path
 
@@ -31,13 +32,22 @@ class CommandTest {
     }
 
     @TestCase
+    func dirGivenTwiceIsTheLast() {
+        // act
+        let command = parseCommand(["project", "--dir", "a", "-d", "b"])
+
+        // assert
+        @Expect(dirOf(command), Some(getWorkingDirectory().join("b")))
+    }
+
+    @TestCase
     func anUnknownCommandOrOptionIsAUsageError() {
         // act, assert
-        @AssertThrows[UsageException](parseCommand(["frob"]))
-        @AssertThrows[UsageException](parseCommand(["project", "sub"]))
-        @AssertThrows[UsageException](parseCommand(["project", "--dir"]))
-        @AssertThrows[UsageException](parseCommand(["project", "--dir="]))
-        @AssertThrows[UsageException](parseCommand(["project", "--dir", "a", "--dir", "b"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["frob"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["project", "sub"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["project", "--frob"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir="]))
     }
 }
 

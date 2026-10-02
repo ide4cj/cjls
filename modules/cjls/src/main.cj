@@ -1,5 +1,6 @@
 package cjls
 
+import std.argopt.ArgumentParseException
 import std.env.{getStdErr, getStdOut}
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
@@ -11,7 +12,7 @@ main(args: Array<String>): Int64 {
     let logger = stderrLogger()
     let command = try {
         parseCommand(args)
-    } catch (e: UsageException) {
+    } catch (e: ArgumentParseException) {
         getStdErr().write("cjls: ${e.message}\n${USAGE}")
         return 2
     }
