@@ -61,6 +61,43 @@ func keywordOf(db: TestDb, file: SourceFile): Keyword {
     Keyword(db, file.text(db))
 }
 
+@CalcaTracked
+func repeatedLength(db: TestDb, word: Word, times: Int64): Int64 {
+    word.text(db).size * times
+}
+
+@CalcaTracked
+func doubledLengthOfWord(db: TestDb, file: SourceFile): Int64 {
+    repeatedLength(db, Word(db, file.text(db)), 2)
+}
+
+@CalcaTracked
+extend Word {
+    @CalcaTracked
+    func paddedLength(db: TestDb, width: Int64): Int64 {
+        max(text(db).size, width)
+    }
+}
+
+@CalcaTracked
+func paddedLengthOfWord(db: TestDb, file: SourceFile): Int64 {
+    Word(db, file.text(db)).paddedLength(db, 4)
+}
+
+@CalcaTracked
+func pairLength(db: TestDb, first: Word, second: Word): Int64 {
+    first.text(db).size + second.text(db).size
+}
+
+/**
+ * The length of the file's first two words, `first second`.
+ */
+@CalcaTracked
+func lengthOfPair(db: TestDb, file: SourceFile): Int64 {
+    let words = file.text(db).split(" ")
+    pairLength(db, Word(db, words[0]), Word(db, words[1]))
+}
+
 @Test
 class InternedGcTest {
     @TestCase
@@ -293,6 +330,75 @@ class InternedGcTest {
         @Expect(wordLengthMemos(db).maybeChangedAfter(db, Id(0), 0))
     }
 
+    @TestCase
+    func typingLeavesTheMemosOfAFunctionOfSeveralArgumentsOnlyForTheWordsStillUsed(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (typed, other) = files(db, "f")
+        doubledLengthOfWord(db, typed)
+
+        // act
+        typed.setText(db).to("fo")
+        doubledLengthOfWord(db, typed)
+        typed.setText(db).to("foo")
+        doubledLengthOfWord(db, typed)
+        other.setText(db).to("collects")
+        let result = doubledLengthOfWord(db, typed)
+
+        // assert
+        let memos = memosOf<CalcaFields_repeatedLength_STestDb_SWord_SInt64, Int64>(db,
+            CalcaTracked_repeatedLength_STestDb_SWord_SInt64.FUNCTION.index)
+        @Expect(result, 6)
+        @Expect(memos.entries.size, 1)
+        @Expect(memos.entries.slotCount, 2)
+    }
+
+    @TestCase
+    func typingLeavesTheMemosOfAMethodWithArgumentsOnlyForTheWordsStillUsed(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (typed, other) = files(db, "f")
+        paddedLengthOfWord(db, typed)
+
+        // act
+        typed.setText(db).to("fo")
+        paddedLengthOfWord(db, typed)
+        typed.setText(db).to("foobar")
+        paddedLengthOfWord(db, typed)
+        other.setText(db).to("collects")
+        let result = paddedLengthOfWord(db, typed)
+
+        // assert
+        let memos = memosOf<CalcaFields_Word_DpaddedLength_STestDb_SInt64, Int64>(db,
+            CalcaTracked_Word_DpaddedLength_STestDb_SInt64.FUNCTION.index)
+        @Expect(result, 6)
+        @Expect(memos.entries.size, 1)
+        @Expect(memos.entries.slotCount, 2)
+    }
+
+    @TestCase
+    func aMemoGoesWithAnyValueItsKeyHoldsAndTheOthersKeepTheirs(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (typed, other) = files(db, "x a")
+        lengthOfPair(db, typed)
+
+        // act
+        typed.setText(db).to("x b")
+        lengthOfPair(db, typed)
+        typed.setText(db).to("x c")
+        lengthOfPair(db, typed)
+        other.setText(db).to("collects")
+        let result = lengthOfPair(db, typed)
+
+        // assert
+        let memos = memosOf<CalcaFields_pairLength_STestDb_SWord_SWord, Int64>(db,
+            CalcaTracked_pairLength_STestDb_SWord_SWord.FUNCTION.index)
+        @Expect(result, 2)
+        @Expect(memos.entries.size, 1)
+        @Expect(memos.entries.slotCount, 2)
+    }
+
     /**
      * `a`, holding `text`, and `other`, which the writes go to.
      */
@@ -315,7 +421,11 @@ class InternedGcTest {
     }
 
     private func wordLengthMemos(db: TestDatabase): MemoTable<TestDb, Word, Int64> {
-        let ingredient = db.storage.runtime.ingredientAt(CalcaTracked_wordLength_STestDb_SWord.FUNCTION.index)
-        (ingredient as MemoTable<TestDb, Word, Int64>).getOrThrow()
+        memosOf<Word, Int64>(db, CalcaTracked_wordLength_STestDb_SWord.FUNCTION.index)
+    }
+
+    private func memosOf<K, V>(db: TestDatabase, index: Int64): MemoTable<TestDb, K, V> where K <: Hashable &
+        Equatable<K> {
+        (db.storage.runtime.ingredientAt(index) as MemoTable<TestDb, K, V>).getOrThrow()
     }
 }
