@@ -352,16 +352,31 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     }
 
     /**
-     * `fetchValue` of a memo not verified in this revision, or without a value.
+     * `fetchValue` of a memo not verified in this revision, or without a value. Fetched again once
+     * the handle gave way on a loop of waits whose query of its own is this one.
      */
     private func fetchCold(db: D, storage: Storage, id: Id, key: K): (V, Memo<V>) {
         let databaseKey = DatabaseKey(function.index, id)
+        while (true) {
+            try {
+                return fetchClaimed(db, storage, databaseKey, key)
+            } catch (e: GiveWayException) {
+                if (e.key != databaseKey) {
+                    throw e
+                }
+                storage.giveWay()
+            }
+        }
+        throw IllegalStateException("unreachable")
+    }
+
+    private func fetchClaimed(db: D, storage: Storage, databaseKey: DatabaseKey, key: K): (V, Memo<V>) {
         storage.enter(databaseKey)
         try {
             let old = synchronized(lock) {
                 claim(storage, databaseKey)
                 // the owner waited for may have left it verified or computed
-                entry(id).memo.load()
+                entry(databaseKey.id).memo.load()
             }
             try {
                 match (old) {
@@ -385,19 +400,26 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * Makes `storage` the one handle verifying or computing the memo at `key`, once whoever does
      * now is done. Called with the lock held, which a wait lets go of.
      *
-     * @throws CycleException - if the handle computing it waits, through others or not, for this one
+     * @throws GiveWayException - if the handle computing it waits, through others or not, for this
+     * one, which is to give way: it still waits for the key, until its owner lets go of it
      * @throws Cancelled - if a write is pending, or the waiting handle was asked to stop
      */
     private func claim(storage: Storage, key: DatabaseKey): Unit {
+        var waited = false
         while (let Some(owner) <- claims.get(key.id)) {
             storage.runtime.startWaiting(storage.handle, owner, key)
+            waited = true
             try {
                 // no one tells a waiter its own snapshot was asked to stop: it looks now and then
                 released.wait(timeout: CLAIM_WAIT)
-            } finally {
+                storage.unwindIfCancelled()
+            } catch (e: Cancelled) {
                 storage.runtime.stopWaiting(storage.handle)
+                throw e
             }
-            storage.unwindIfCancelled()
+        }
+        if (waited) {
+            storage.runtime.stopWaiting(storage.handle)
         }
         claims.add(key.id, storage.handle)
     }
@@ -508,11 +530,25 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
         let storage = db.storage
         let databaseKey = DatabaseKey(function.index, id)
+        while (true) {
+            try {
+                return verifyClaimed(typed, storage, databaseKey, revision)
+            } catch (e: GiveWayException) {
+                if (e.key != databaseKey) {
+                    throw e
+                }
+                storage.giveWay()
+            }
+        }
+        throw IllegalStateException("unreachable")
+    }
+
+    private func verifyClaimed(db: D, storage: Storage, databaseKey: DatabaseKey, revision: Int64): Bool {
         storage.enter(databaseKey)
         try {
             let now = storage.runtime.revision
             let found: ?(K, ?Memo<V>, Bool) = synchronized(lock) {
-                match (entries.get(id)) {
+                match (entries.get(databaseKey.id)) {
                     case Some(entry) => match (entry.memo.load()) {
                         case Some(memo) where memo.verifiedAt.load() == now => Some((entry.key, Some(memo), false))
                         case _ =>
@@ -526,10 +562,10 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             let (key, old, claimed) = found ?? return true
             try {
                 match (old) {
-                    case Some(memo) where memo.value.isNone() => !verify(typed, storage.runtime, memo, databaseKey) ||
+                    case Some(memo) where memo.value.isNone() => !verify(db, storage.runtime, memo, databaseKey) ||
                         memo.changedAt > revision
-                    case Some(memo) where verify(typed, storage.runtime, memo, databaseKey) => memo.changedAt > revision
-                    case _ => execute(typed, storage, databaseKey, key, old, unchanged: false)[1].changedAt > revision
+                    case Some(memo) where verify(db, storage.runtime, memo, databaseKey) => memo.changedAt > revision
+                    case _ => execute(db, storage, databaseKey, key, old, unchanged: false)[1].changedAt > revision
                 }
             } finally {
                 if (claimed) {

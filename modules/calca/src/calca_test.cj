@@ -76,8 +76,11 @@ class TestDatabase <: TestDb {
         parking.released.remove()
     }
 
-    func snapshot(cancelledBy!: () -> Bool = {=> false}): TestDatabase {
-        TestDatabase(storage_.snapshot(cancelledBy: cancelledBy), events, parking)
+    /**
+     * A snapshot, parking where this handle does unless given a `Parking` of its own.
+     */
+    func snapshot(cancelledBy!: () -> Bool = {=> false}, parking!: ?Parking = None): TestDatabase {
+        TestDatabase(storage_.snapshot(cancelledBy: cancelledBy), events, parking ?? this.parking)
     }
 }
 
