@@ -1,6 +1,9 @@
 package cjls.handlers
 
+import std.collection.ArrayList
+import std.fs.Path
 import stdxx.Nullable
+import fjson.JsonValue
 import rope.Encoding
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
@@ -18,6 +21,7 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
+    state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
     let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
@@ -33,6 +37,30 @@ func workspaceRoots(params: InitializeParams): Array<VfsPath> {
         case (_, Nullable.Value(uri)) => rootsOf([WorkspaceFolder(uri: uri, name: "")])
         case _ => Array<VfsPath>()
     }
+}
+
+/**
+ * The projects `initializationOptions.linkedProjects` names, each an absolute path or a `file:`
+ * URI; anything else is left out.
+ */
+func linkedProjects(options: ?JsonValue): Array<VfsPath> {
+    let linked = match (options.flatMap {it => it.get("linkedProjects")}) {
+        case Some(JsonValue.JsonArray(items)) => items
+        case _ => return []
+    }
+    let paths = ArrayList<VfsPath>()
+    for (item in linked) {
+        match (item) {
+            case JsonValue.JsonString(text) where text.startsWith("file:") =>
+                let path = VfsPath.fromUri(text)
+                if (path.filePath.isSome()) {
+                    paths.add(path)
+                }
+            case JsonValue.JsonString(text) where Path(text).isAbsolute() => paths.add(VfsPath.file(text))
+            case _ => ()
+        }
+    }
+    paths.toArray()
 }
 
 /**

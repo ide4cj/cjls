@@ -54,6 +54,29 @@ class VfsPathTest {
         // act, assert
         @AssertThrows[IllegalArgumentException](VfsPath.file("a.cj"))
     }
+
+    @TestCase
+    func aPathJoinedGoesDownAndUp() {
+        // arrange
+        let dir = inTemp("ws")
+
+        // act, assert
+        @Expect(dir.join("src/a.cj"), inTemp("ws/src/a.cj"))
+        @Expect(dir.join("../b/./c.cj"), inTemp("b/c.cj"))
+        @Expect(dir.join("src/a.cj").parent, Some(inTemp("ws/src")))
+        @Expect(dir.join("src/a.cj").name, "a.cj")
+    }
+
+    @TestCase
+    func aVirtualPathHasNoParentAndHoldsNothing() {
+        // arrange
+        let path = VfsPath.virtual("untitled:Untitled-1")
+
+        // act, assert
+        @Expect(path.parent, None<VfsPath>)
+        @AssertThrows[IllegalArgumentException](path.join("a.cj"))
+        @AssertThrows[IllegalArgumentException](inTemp("ws").join(getTempDirectory().toString()))
+    }
 }
 
 @When[os != "Windows"]
@@ -74,6 +97,14 @@ class VfsPathOnPosixTest {
         // act, assert
         @Expect(VfsPath.fromUri("file:///a/./b/../c.cj"), VfsPath.fromUri("file://localhost/a/%63.cj"))
         @Expect(VfsPath.file("//a///c.cj"), VfsPath.file("/a/c.cj"))
+    }
+
+    @TestCase
+    func theRootOfTheFileSystemHasNoParentAndNoName() {
+        // act, assert
+        @Expect(VfsPath.file("/").parent, None<VfsPath>)
+        @Expect(VfsPath.file("/").name, "")
+        @Expect(VfsPath.file("/a").parent, Some(VfsPath.file("/")))
     }
 }
 

@@ -20,5 +20,6 @@ calca = { path = "../calca" }
 fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
 loupe = { path = "../loupe" }
+project_model = { path = "../project_model" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }

@@ -1,5 +1,6 @@
 package loupe.db
 
+import std.collection.HashMap
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*
@@ -25,10 +26,10 @@ public struct SourceFile {
  * and can sit under all of them.
  */
 public class AnalysisDatabase <: Database {
-    private AnalysisDatabase(private let storage_: Storage, private let files: Files) {}
+    private AnalysisDatabase(private let storage_: Storage, private let files: Files, private let projects: Projects) {}
 
     public init() {
-        this(Storage(), Files())
+        this(Storage(), Files(), Projects())
     }
 
     public prop storage: Storage {
@@ -41,7 +42,7 @@ public class AnalysisDatabase <: Database {
      * Its queries are `Cancelled` once `cancelledBy` gives `true`, as well as once the files change.
      */
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): AnalysisDatabase {
-        AnalysisDatabase(storage_.snapshot(cancelledBy: cancelledBy), files)
+        AnalysisDatabase(storage_.snapshot(cancelledBy: cancelledBy), files, projects)
     }
 
     /**
@@ -69,15 +70,118 @@ public class AnalysisDatabase <: Database {
     }
 
     /**
-     * Brings the files in step with `changes`, taken from `vfs`.
+     * Brings the files in step with `changes`, taken from `vfs`, each with its module's durability:
+     * `Low` for a file of no module.
      *
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
     public func applyChanges(vfs: Vfs, changes: Array<ChangedFile>): Unit {
         batch {
             for (change in changes) {
-                setFileText(change.fileId, vfs.fileContents(change.fileId) ?? Rope())
+                setFileText(change.fileId, vfs.fileContents(change.fileId) ?? Rope(),
+                    durability: projects.durabilities.get(change.fileId) ?? Durability.Low)
             }
+        }
+    }
+
+    /**
+     * The project, `None` until one is set.
+     */
+    public func project(): ?Project {
+        Project.tryGet(this)
+    }
+
+    /**
+     * Sets the project to `model`, in one revision: a module is the input of its root and its
+     * name, a package the input of its name in its module, made the first time, and only what differs
+     * from what it was set to last is set again.
+     * The files of a module set from now on take its durability; a file is given its id by
+     * `paths`. A file set already keeps the durability it has until it changes.
+     *
+     * @throws IllegalStateException - if this is a snapshot, or a query is running on it
+     */
+    public func setProject(model: ProjectModel, paths: PathInterner): Unit {
+        let durabilities = HashMap<FileId, Durability>()
+        batch {
+            let modules = model.modules.map {module => setModule(module, paths, durabilities)}
+            match (projects.project) {
+                case None => projects.project = (Project(this, model.cfg, modules, model.binaries,
+                    durability: Durability.High), model.cfg, modules, model.binaries)
+                case Some((project, cfg, oldModules, binaries)) =>
+                    if (cfg != model.cfg) {
+                        project.setCfg(this).withDurability(Durability.High).to(model.cfg)
+                    }
+                    if (oldModules != modules) {
+                        project.setModules(this).withDurability(Durability.High).to(modules)
+                    }
+                    if (binaries != model.binaries) {
+                        project.setBinaries(this).withDurability(Durability.High).to(model.binaries)
+                    }
+                    projects.project = (project, model.cfg, modules, model.binaries)
+            }
+        }
+        projects.durabilities = durabilities
+    }
+
+    private func setModule(model: ModuleModel, paths: PathInterner, durabilities: HashMap<FileId, Durability>): Module {
+        let durability = model.durability
+        let packages = model.packages.map {
+            pkg =>
+            let files = pkg.files.map {path => paths.intern(path)}
+            for (file in files) {
+                durabilities.add(file, durability)
+            }
+            setPackage(model.key, pkg, files, durability)
+        }
+        match (projects.modules.get(model.key)) {
+            case Some((module, old)) =>
+                // a package is the input of its name in this module: the same names are the same inputs
+                if (old.packages.map {it => it.name} != model.packages.map {it => it.name} || old.durability != durability) {
+                    module.setPackages(this).withDurability(durability).to(packages)
+                }
+                if (old.deps != model.deps || old.durability != durability) {
+                    module.setDeps(this).withDurability(durability).to(model.deps)
+                }
+                if (old.member != model.member) {
+                    module.setMember(this).withDurability(durability).to(model.member)
+                }
+                if (old.cfg != model.cfg || old.durability != durability) {
+                    module.setCfg(this).withDurability(durability).to(model.cfg)
+                }
+                projects.modules.add(model.key, (module, model))
+                module
+            case None =>
+                let module = Module(this, model.root, model.name, packages, model.deps, model.member, model.cfg,
+                    durability: durability)
+                projects.modules.add(model.key, (module, model))
+                module
+        }
+    }
+
+    private func setPackage(module: ModuleKey, model: PackageModel, files: Array<FileId>, durability: Durability): Package {
+        let key = PackageKey(module, model.name)
+        match (projects.packages.get(key)) {
+            case Some((pkg, old, oldDurability)) =>
+                let moved = oldDurability != durability
+                if (old.dir != model.dir || moved) {
+                    pkg.setDir(this).withDurability(durability).to(model.dir)
+                }
+                if (old.files != model.files || moved) {
+                    pkg.setFiles(this).withDurability(durability).to(files)
+                }
+                if (old.noPrelude != model.noPrelude || moved) {
+                    pkg.setNoPrelude(this).withDurability(durability).to(model.noPrelude)
+                }
+                if (old.isMacro != model.isMacro || moved) {
+                    pkg.setIsMacro(this).withDurability(durability).to(model.isMacro)
+                }
+                projects.packages.add(key, (pkg, model, durability))
+                pkg
+            case None =>
+                let pkg = Package(this, model.name, model.dir, files, model.noPrelude, model.isMacro,
+                    durability: durability)
+                projects.packages.add(key, (pkg, model, durability))
+                pkg
         }
     }
 

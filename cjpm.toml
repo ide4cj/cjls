@@ -11,6 +11,7 @@ members = [
     "modules/jsonrpc",
     "modules/lsp_codegen",
     "modules/loupe",
+    "modules/project_model",
     "modules/rope",
     "modules/stdxx",
     "modules/syntax_codegen",

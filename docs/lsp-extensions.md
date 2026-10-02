@@ -5,6 +5,14 @@ Methods cjls answers beyond LSP (D15). Each is under `cjls/`, advertised as `tru
 
 This file is the editor clients' contract (D32): its first line is the hash of `cjls.lsp_ext`, and `LspExtensionsDocTest` fails until a change there is described here and the hash moved.
 
+## Initialization options
+
+What a client may pass in `initialize`'s `initializationOptions`; all optional.
+
+| Option | |
+|---|---|
+| `linkedProjects: string[]` | projects to load, as R1's: each an absolute path or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides (D33). |
+
 ## `cjls/memoryUsage`
 
 What the Cangjie runtime says of the server's heap, as numbers a driver can read, not a report in text. A request, client to server; capability `experimental.memoryUsage`.

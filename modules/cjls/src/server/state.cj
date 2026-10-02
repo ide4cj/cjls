@@ -1,6 +1,6 @@
 package cjls.server
 
-import std.collection.{ArrayList, HashMap}
+import std.collection.{ArrayList, HashMap, HashSet}
 import rope.{Encoding, Rope}
 import loupe.vfs.*
 import loupe.db.*
@@ -55,6 +55,18 @@ public class ServerState <: FromContext<ServerState> {
      */
     public let watchers = HashMap<VfsPath, String>()
 
+    /**
+     * The projects `initializationOptions` names (`linkedProjects`): a `cj-project.json`, or a
+     * directory to find one in.
+     */
+    public let linkedProjects = ArrayList<VfsPath>()
+
+    /**
+     * The files of the project, as last set: made anew each time, for a set built from an array
+     * takes a third of the time `clear` and `add(all:)` do.
+     */
+    private var projectFiles = HashSet<VfsPath>()
+
     private var filesChanged = false
     private var registrations = 0
 
@@ -100,6 +112,28 @@ public class ServerState <: FromContext<ServerState> {
         if (changes.iterator().any {change => change.kind != ChangeKind.Modify}) {
             this.files = None
         }
+    }
+
+    /**
+     * Sets the project the analysis sees: its modules and packages, and the files of each.
+     */
+    public func setProject(model: ProjectModel): Unit {
+        analysis.setProject(model, vfs.paths)
+        projectFiles = HashSet<VfsPath>(model.files())
+    }
+
+    /**
+     * Whether the file at `path` is one of the project's.
+     */
+    public func inProject(path: VfsPath): Bool {
+        projectFiles.contains(path)
+    }
+
+    /**
+     * Whether the server knows what the file at `path` holds.
+     */
+    public func knows(path: VfsPath): Bool {
+        vfs.fileId(path).isSome()
     }
 
     /**
