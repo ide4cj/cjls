@@ -81,7 +81,7 @@ public struct ChangedFile <: ToString {
 
 /**
  * The contents of every file the server knows, by `FileId`, and what changed in them since they
- * were last passed on — rust-analyzer's `vfs`. It knows no language and no editor: whoever reads a
+ * were last passed on. It knows no language and no editor: whoever reads a
  * file, from disk or from the editor's buffer, sets its contents here, and whoever keeps the
  * analysis up to date takes the changes. Setting a file to what it holds already changes nothing.
  *

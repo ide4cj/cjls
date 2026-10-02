@@ -1,13 +1,13 @@
 <!-- cjls.lsp_ext hash: ff23565387c212f8 -->
 # LSP extensions
 
-Methods cjls answers beyond LSP (D15), as R1's `lsp-extensions.md`. Each is under `cjls/`, advertised as `true` under its name in the `experimental` server capabilities, and optional: every client works without it.
+Methods cjls answers beyond LSP (D15). Each is under `cjls/`, advertised as `true` under its name in the `experimental` server capabilities, and optional: every client works without it.
 
 This file is the editor clients' contract (D32): its first line is the hash of `cjls.lsp_ext`, and `LspExtensionsDocTest` fails until a change there is described here and the hash moved.
 
 ## `cjls/memoryUsage`
 
-What the Cangjie runtime says of the server's heap, as numbers a driver can read (R1's `rust-analyzer/memoryUsage` answers a report in text). A request, client to server; capability `experimental.memoryUsage`.
+What the Cangjie runtime says of the server's heap, as numbers a driver can read, not a report in text. A request, client to server; capability `experimental.memoryUsage`.
 
 | Params (all optional) | |
 |---|---|

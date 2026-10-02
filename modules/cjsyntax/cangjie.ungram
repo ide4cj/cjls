@@ -1,5 +1,5 @@
 // The shape of every node the Cangjie parser makes: which children it has, in what order. `syntax_codegen` makes
-// the node kinds of it, and the typed views of `cjsyntax.ast`. It is rust-analyzer's ungrammar:
+// the node kinds of it, and the typed views of `cjsyntax.ast`. It is an ungrammar:
 //
 //   Node = Rule          a node, or an enum of nodes if the rule only lists nodes: `Expr = BinExpr | ...`
 //   'text'               a token spelled so; `'Ident'`, a token of that kind; `'AnyToken'`, any token at all

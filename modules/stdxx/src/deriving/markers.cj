@@ -5,7 +5,7 @@ import std.collection.*
 
 /*
  * Markers: the attribute macros that configure a derivation from inside the declaration, one per
- * type, field or variant - serde's `#[serde(...)]`, here `@Serde[...]`. A marker expands to
+ * type, field or variant, as `@Serde[...]`. A marker expands to
  * nothing and hands its options to the enclosing `@DeriveExt` as a message, which reads every
  * marker it knows of generically; what the options mean is the business of the derivations that
  * read that marker.
@@ -112,7 +112,7 @@ class Markers {
 
     /**
      * Reports every marker written that none of `read` is: one that configures nothing asked for,
-     * `@Serde` on a type deriving nothing of serde's.
+     * `@Serde` on a type deriving none of the interfaces it configures.
      */
     func reportUnread(read: Array<String>, derive: String): Unit {
         for ((marker, at) in written where !read.contains(marker)) {

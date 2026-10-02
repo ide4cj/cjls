@@ -35,8 +35,8 @@ public struct LineColumn <: ToString {
 }
 
 /**
- * How long a text is by every measure a rope looks it up by. Only `\n` breaks a line, as in
- * rust-analyzer: a `\r` before it is the line's last character, and a lone `\r` breaks nothing.
+ * How long a text is by every measure a rope looks it up by. Only `\n` breaks a line:
+ * a `\r` before it is the line's last character, and a lone `\r` breaks nothing.
  */
 @Derive[Equatable, ToString]
 public struct TextSummary {

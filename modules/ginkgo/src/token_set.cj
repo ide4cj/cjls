@@ -2,7 +2,7 @@ package ginkgo
 
 /**
  * A set of kinds, as bits indexed by their `ordinal`: a membership test is one shift, with nothing allocated.
- * What a grammar recovers at, or what may start a construct, is one of these, as in rust-analyzer.
+ * What a grammar recovers at, or what may start a construct, is one of these.
  */
 public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
     TokenSet(let words!: Array<UInt64>) {}

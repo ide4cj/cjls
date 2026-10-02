@@ -8,7 +8,7 @@ import loupe.vfs.*
 
 /**
  * One file's text as the analysis sees it. The database keeps one per `FileId`, made the first time
- * the file is set, and never drops it: a file deleted is an empty text, as in rust-analyzer.
+ * the file is set, and never drops it: a file deleted is an empty text (A5).
  */
 @CalcaInput
 public struct SourceFile {

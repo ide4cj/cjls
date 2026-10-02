@@ -23,8 +23,7 @@ let DERIVATIONS: Array<Derivation> = [
 /**
  * Generates the interface implementations named in the attributes as extensions of the annotated
  * declaration - what `std.deriving`'s `@Derive` cannot be taught, as its registry is `protected` to
- * `std`. serde's derives are its first: `ToJson` and `FromJson` are serde's `Serialize` and
- * `Deserialize`, `@Serde` its `#[serde(...)]`:
+ * `std`. The codecs are its first: `ToJson` and `FromJson`, configured by `@Serde`:
  * ```cangjie
  * @DeriveExt[ToJson, FromJson]
  * struct Position {
@@ -86,8 +85,8 @@ private func knownMarkers(): Array<String> {
 
 /**
  * What every derivation of one declaration is given: its shape, its markers, and a place to keep
- * what several of them work out from those alike - serde's model, built once however many of
- * serde's derivations are asked for, so a mistake in it is reported once.
+ * what several of them work out from those alike - the codecs' model, built once however many of
+ * the codecs are asked for, so a mistake in it is reported once.
  */
 class DeriveContext {
     private let memos = HashMap<String, Any>()

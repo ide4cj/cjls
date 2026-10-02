@@ -3,7 +3,7 @@ package ginkgo
 import std.deriving.*
 
 /**
- * A node named by its kind and range, rowan's `SyntaxNodePtr`: what a result that outlives a tree keeps
+ * A node named by its kind and range: what a result that outlives a tree keeps
  * instead of the node, which would keep the whole tree alive. It means something only against the tree it
  * was made from, or one of the same text, and `toNode` gives the node back from that tree's root.
  */
@@ -54,7 +54,7 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
 }
 
 /**
- * A `SyntaxNodePtr` to a node viewed as `N`, rowan's `AstPtr`.
+ * A `SyntaxNodePtr` to a node viewed as `N`.
  *
  * Its `==` and `hashCode` are written out: a derived `Hashable` on it, over the derived one of
  * `SyntaxNodePtr<K>` with `K <: Kind<K>`, crashes cjc at -O2 (`CHIR::Type::StripAllRefs`, 1.3.0-alpha

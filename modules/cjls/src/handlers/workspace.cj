@@ -14,7 +14,8 @@ import cjls.server.*
 import cjls.macros.LspHandler
 
 /**
- * How many declarations `workspace/symbol` answers with at most, as rust-analyzer does.
+ * How many declarations `workspace/symbol` answers with at most: a query of a letter or two
+ * matches most of a workspace, and an editor shows a list to pick from, not thousands.
  */
 const WORKSPACE_SYMBOL_LIMIT = 128
 

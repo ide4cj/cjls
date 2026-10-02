@@ -34,7 +34,7 @@ public struct FoundSymbol {
 
 /**
  * Every declaration of the file, in the order of its outline, a declaration before what it holds:
- * the index a search of the workspace goes through, rust-analyzer's `file_symbols`.
+ * the index a search of the workspace goes through.
  *
  * It parses the text itself rather than through `parse`: a search reads every file of the
  * workspace, and `parse` keeps each tree it made until the next revision (D17), which for a
@@ -51,8 +51,8 @@ public func fileSymbols(db: AnalysisDatabase, file: SourceFile): Array<FileSymbo
 /**
  * The declarations of `files` whose names match `query`, at most `limit` of them: in the order
  * of `files`, and in each as `fileSymbols` has them. A name matches when the query's characters
- * are in it in order, whatever their case (`fb` matches `FooBar`), as rust-analyzer's search does;
- * an empty query matches every name.
+ * are in it in order, whatever their case (`fb` matches `FooBar`), so a few letters of a name
+ * find it; an empty query matches every name.
  */
 public func workspaceSymbols(db: AnalysisDatabase, files: Array<FileId>, query: String, limit: Int64): Array<FoundSymbol> {
     let found = ArrayList<FoundSymbol>()

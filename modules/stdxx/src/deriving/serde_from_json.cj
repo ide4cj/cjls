@@ -3,7 +3,7 @@ macro package stdxx.deriving
 import std.ast.*
 
 /*
- * `FromJson`: serde's `Deserialize`, straight from an `FjReader` - keys compared where they lie,
+ * `FromJson`: a value read straight from an `FjReader` - keys compared where they lie,
  * unknown ones skipped, no tree on the way.
  */
 

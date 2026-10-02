@@ -42,7 +42,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 
 | module | what |
 |---|---|
-| `calca` | incremental computation, salsa's model; `calca` runtime + `calca.macros` |
+| `calca` | incremental computation: inputs, interned values, memoized tracked functions; `calca` runtime + `calca.macros` |
 | `rope` | `Rope`, immutable UTF-8 text as a B-tree, and LSP's line/column arithmetic ([D1](docs/adr/0001-files-are-ropes.md)) |
 | `fnum` | numbers as text, for `fjson` and `ftoml`: Ryu (`formatShortest`) and a correctly rounded `parseFloat64` (`Float64.parse` is not) |
 | `fjson` | JSON over bytes, no tree: `FjReader`, `FjWriter`, `ToJson`/`FromJson`, `RawJson`; `JsonValue`, any JSON as a tree, which `LSPAny` aliases (D22, D24) |
@@ -50,7 +50,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `stdxx` | sum types (`Nullable`, `IntegerOrString`) and the `@DeriveExt`/`@Serde` derive macros |
 | `jsonrpc` | the JSON-RPC peer; knows **zero method names** |
 | `index_map` | `IndexMap`/`IndexSet` (insertion order) and their append-only concurrent versions; anything that interns uses them |
-| `ginkgo` | rowan for Cangjie: lossless green/red trees, and rust-analyzer's grammar-agnostic parser machinery |
+| `ginkgo` | lossless green/red syntax trees, and the grammar-agnostic parser machinery |
 | `cjsyntax` | the Cangjie lexer and parser on `ginkgo`; `SyntaxKind` and `cjsyntax.ast` are generated |
 | `syntax_codegen` | executable: generates `cjsyntax`'s kinds and typed views |
 | `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |

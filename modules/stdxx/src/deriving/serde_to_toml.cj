@@ -4,13 +4,13 @@ import std.ast.*
 import std.collection.*
 
 /*
- * `ToToml`: serde's `Serialize`, straight into an `FtWriter`. Where TOML differs from JSON the
+ * `ToToml`: a value written straight into an `FtWriter`. Where TOML differs from JSON the
  * derivation says so when it expands, not a writer when it runs: a `Nullable` is an error, as
  * TOML has no `null`, and a `None` is left out whatever `skipNone` says.
  */
 
 /**
- * A serde derivation for TOML: `derive` of the model, nothing when the model or the check that it
+ * A codec derivation for TOML: `derive` of the model, nothing when the model or the check that it
  * holds no `null` reported a mistake - once, however many TOML derivations are asked for.
  */
 func serdeToml(context: DeriveContext, derive: (DeclModel) -> Tokens): Tokens {

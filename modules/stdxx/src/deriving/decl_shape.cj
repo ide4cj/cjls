@@ -5,7 +5,7 @@ import std.collection.*
 
 /*
  * A declaration as it is written, read once by `@DeriveExt` whatever it derives, and knowing no
- * interface: what a derivation makes of it - serde's wire names, a field's optionality - is the
+ * interface: what a derivation makes of it - wire names, a field's optionality - is the
  * derivation's.
  */
 

@@ -32,7 +32,7 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): Docume
 
 /**
  * A declaration found in the file at `uri`, whose text is `text`: located at its name, where an
- * editor jumps to, as rust-analyzer does.
+ * editor jumps to.
  */
 func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding: Encoding): WorkspaceSymbol {
     WorkspaceSymbol(
@@ -45,8 +45,8 @@ func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding:
 }
 
 /**
- * LSP has no kind for an extension, a macro or `main`: they go as rust-analyzer sends an `impl`,
- * a macro and a function.
+ * LSP has no kind for an extension, a macro or `main`: an extension goes as an `Object`, a macro
+ * and `main` as a function.
  */
 func symbolKind(kind: StructureKind): SymbolKind {
     match (kind) {

@@ -49,7 +49,7 @@ struct SerdeMemberOptions <: ToTokens {
 
     public func toTokens(): Tokens {
         let options = ArrayList<Tokens>()
-        // serde's: a variant's string is its `rename`; an integer, which serde has no word for, its `value`
+        // a variant's string is its `rename`, an integer its `value`
         match (value) {
             case Some(Integer(int)) =>
                 let literal = int.toTokens()
