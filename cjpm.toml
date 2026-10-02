@@ -2,7 +2,9 @@
 members = [
     "modules/calca",
     "modules/cjls",
+    "modules/cjo",
     "modules/cjsyntax",
+    "modules/fbs_codegen",
     "modules/fjson",
     "modules/fnum",
     "modules/ftoml",
