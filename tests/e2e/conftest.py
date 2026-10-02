@@ -4,12 +4,14 @@ The binary is target/release/bin/cjls (`cjls.exe` on Windows); CJLS_BIN override
 """
 
 import asyncio
+import json
 import os
 import pathlib
 import sys
 
 import pytest_lsp
 from lsprotocol import types
+from pygls.protocol import default_converter
 from pytest_lsp import ClientServerConfig, LanguageClient, client_capabilities
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -18,8 +20,19 @@ CJLS = os.environ.get("CJLS_BIN") or str(
 )
 CONFIG = ClientServerConfig(server_command=[CJLS])
 
-# the capabilities of real editors, as pytest-lsp captured them
-CLIENTS = ["visual-studio-code", "neovim"]
+# the capabilities of real editors, as pytest-lsp captured them, or clients/ those it has not
+CLIENTS = ["visual-studio-code", "neovim", "zed"]
+OWN_CLIENTS = pathlib.Path(__file__).parent / "clients"
+
+
+def capabilities(editor: str) -> types.ClientCapabilities:
+    """An editor's capabilities: `clients/<editor>_v<version>.json`, the `initialize` params it sent
+    a server, `experimental` left out (a language's own), else pytest-lsp's."""
+    own = sorted(OWN_CLIENTS.glob(f"{editor.replace('-', '_')}_v*.json"))
+    if not own:
+        return client_capabilities(editor)
+    params = json.loads(own[-1].read_text())
+    return default_converter().structure(params, types.InitializeParams).capabilities
 
 
 async def hang_up(client: LanguageClient):
@@ -42,7 +55,7 @@ async def client(request, lsp_client: LanguageClient):
     `position_encoding` holds the encoding the two agreed on.
     """
     result = await lsp_client.initialize_session(
-        types.InitializeParams(capabilities=client_capabilities(request.param))
+        types.InitializeParams(capabilities=capabilities(request.param))
     )
     lsp_client.position_encoding = result.capabilities.position_encoding
     yield
