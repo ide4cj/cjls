@@ -11,7 +11,8 @@ import sys
 
 import pytest_lsp
 from lsprotocol import types
-from pygls.protocol import default_converter
+from lsprotocol.converters import get_converter
+from packaging.version import Version
 from pytest_lsp import ClientServerConfig, LanguageClient, client_capabilities
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -26,13 +27,15 @@ OWN_CLIENTS = pathlib.Path(__file__).parent / "clients"
 
 
 def capabilities(editor: str) -> types.ClientCapabilities:
-    """An editor's capabilities: `clients/<editor>_v<version>.json`, the `initialize` params it sent
-    a server, `experimental` left out (a language's own), else pytest-lsp's."""
-    own = sorted(OWN_CLIENTS.glob(f"{editor.replace('-', '_')}_v*.json"))
-    if not own:
+    """An editor's capabilities: its latest `clients/<editor>_v<version>.json`, the `clientInfo` and
+    `capabilities` of the `initialize` it sent, `experimental` left out (a language's own), else
+    pytest-lsp's."""
+    own = OWN_CLIENTS.glob(f"{editor.replace('-', '_')}_v*.json")
+    latest = max(own, key=lambda path: Version(path.stem.split("_v")[-1]), default=None)
+    if latest is None:
         return client_capabilities(editor)
-    params = json.loads(own[-1].read_text())
-    return default_converter().structure(params, types.InitializeParams).capabilities
+    params = json.loads(latest.read_text())
+    return get_converter().structure(params, types.InitializeParams).capabilities
 
 
 async def hang_up(client: LanguageClient):
