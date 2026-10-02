@@ -7,14 +7,6 @@ package cjo
 public const CJO_MAJOR: UInt8 = 0
 
 /**
- * Either a value or why there is none.
- */
-public enum Result<T, E> {
-    | Ok(T)
-    | Err(E)
-}
-
-/**
  * Why a file is not opened as a `.cjo`.
  */
 public enum CjoError <: ToString {
@@ -35,26 +27,41 @@ public enum CjoError <: ToString {
 }
 
 /**
- * The package `bytes` hold, if they are a `.cjo` of the format's major: its identifier and its version are
- * checked, nothing else is until it is read (`CjoException`).
+ * A file `openCjo` does not open, and why.
  */
-public func openCjo(bytes: Array<Byte>): Result<Package, CjoError> {
+public class CjoOpenException <: CjoException {
+    public CjoOpenException(public let error: CjoError) {
+        super(error.toString())
+    }
+
+    protected override func getClassName(): String {
+        "CjoOpenException"
+    }
+}
+
+/**
+ * The package `bytes` hold: its identifier and the major of its version are checked, nothing else is until it
+ * is read (`CjoException`).
+ *
+ * @throws CjoOpenException - if `bytes` are not a `.cjo` of the format's major
+ */
+public func openCjo(bytes: Array<Byte>): Package {
     if (bytes.size < 8 || bytes[4..8] != Package.FILE_IDENTIFIER.toArray()) {
-        return Err(NotCjo)
+        throw CjoOpenException(NotCjo)
     }
     let root = Int64(readUInt32(bytes, 0))
     if (root + 4 > bytes.size) {
-        return Err(NotCjo)
+        throw CjoOpenException(NotCjo)
     }
     let (pkg, version) = try {
         let pkg = Package.root(bytes)
         (pkg, pkg.cjoVersion)
     } catch (_: IndexOutOfBoundsException) {
-        return Err(NotCjo)
+        throw CjoOpenException(NotCjo)
     }
     match (version) {
-        case Some(v) where v.majorNum != CJO_MAJOR => Err(ForeignMajor(v.majorNum))
-        case Some(_) => Ok(pkg)
-        case _ => Err(NoVersion)
+        case Some(v) where v.majorNum != CJO_MAJOR => throw CjoOpenException(ForeignMajor(v.majorNum))
+        case Some(_) => pkg
+        case _ => throw CjoOpenException(NoVersion)
     }
 }

@@ -22,13 +22,6 @@ func stdCjo(name: String): Array<Byte> {
     throw IllegalStateException("no ${name}.cjo under ${home.join("modules")}")
 }
 
-func opened(bytes: Array<Byte>): Package {
-    match (openCjo(bytes)) {
-        case Ok(pkg) => pkg
-        case Err(e) => throw IllegalStateException("not opened: ${e}")
-    }
-}
-
 func topLevel(pkg: Package, name: String): Decl {
     for (d in pkg.allDecls where d.isTopLevel && d.identifier == Some(name)) {
         return d
@@ -37,9 +30,11 @@ func topLevel(pkg: Package, name: String): Decl {
 }
 
 func errorOf(bytes: Array<Byte>): String {
-    match (openCjo(bytes)) {
-        case Ok(_) => "opened"
-        case Err(e) => e.toString()
+    try {
+        openCjo(bytes)
+        "opened"
+    } catch (e: CjoOpenException) {
+        e.error.toString()
     }
 }
 
@@ -53,7 +48,7 @@ class OpenCjoTest {
     @TestCase
     func stringIsAPublicStructOfStdCoreInItsFile() {
         // arrange
-        let pkg = opened(stdCjo("std.core"))
+        let pkg = openCjo(stdCjo("std.core"))
 
         // act
         let string = topLevel(pkg, "String")
@@ -78,7 +73,7 @@ class OpenCjoTest {
     @TestCase
     func aBuiltInTypeIsABuiltInDecl() {
         // arrange
-        let pkg = opened(stdCjo("std.core"))
+        let pkg = openCjo(stdCjo("std.core"))
 
         // act
         let pointer = topLevel(pkg, "CPointer")
@@ -109,7 +104,7 @@ class OpenCjoTest {
     func aCjoOfAnotherMajorIsRefused() {
         // arrange
         let bytes = stdCjo("std.core")
-        let version = opened(bytes).cjoVersion.getOrThrow()
+        let version = openCjo(bytes).cjoVersion.getOrThrow()
         bytes[version.pos] = CJO_MAJOR + 1
 
         // act, assert
@@ -120,7 +115,7 @@ class OpenCjoTest {
     func aCjoWithNoVersionIsRefused() {
         // arrange
         let bytes = stdCjo("std.core")
-        let pkg = opened(bytes)
+        let pkg = openCjo(bytes)
         // the vtable says the version, field 1, is not stored
         writeUInt16(bytes, pkg.fb.vtable + 4 + 2 * 1, 0)
 
@@ -132,11 +127,11 @@ class OpenCjoTest {
     func aDeclKindThisReaderDoesNotKnowIsKeptAsItsValue() {
         // arrange
         let bytes = stdCjo("std.core")
-        let string = topLevel(opened(bytes), "String")
+        let string = topLevel(openCjo(bytes), "String")
         writeUInt16(bytes, string.fb.pos + string.fb.offset(0), 0x7fff)
 
         // act
-        let kind = topLevel(opened(bytes), "String").kind
+        let kind = topLevel(openCjo(bytes), "String").kind
 
         // assert
         @Expect(kind, DeclKind.Unknown(0x7fff))
@@ -147,12 +142,12 @@ class OpenCjoTest {
     func aUnionMemberThisReaderDoesNotKnowIsKeptAsItsType() {
         // arrange
         let bytes = stdCjo("std.core")
-        let string = topLevel(opened(bytes), "String")
+        let string = topLevel(openCjo(bytes), "String")
         // `info` is field 17, its type 16
         bytes[string.fb.pos + string.fb.offset(16)] = 200
 
         // act
-        let info = topLevel(opened(bytes), "String").info
+        let info = topLevel(openCjo(bytes), "String").info
 
         // assert
         let tag = match (info) {
@@ -171,13 +166,13 @@ class OpenCjoTest {
     func aVectorLongerThanTheFileThrowsWhenItIsRead() {
         // arrange
         let bytes = stdCjo("std.core")
-        let pkg = opened(bytes)
+        let pkg = openCjo(bytes)
         // `allFiles` is field 5: its offset, then its length where that points
         let at = follow(bytes, pkg.fb.pos + pkg.fb.offset(5))
         writeUInt16(bytes, at + 2, 0x7fff)
 
         // act, assert
-        @AssertThrows[CjoException](opened(bytes).allFiles)
+        @AssertThrows[CjoException](openCjo(bytes).allFiles)
     }
 }
 
@@ -186,7 +181,7 @@ class CjoFindingsTest {
     @TestCase
     func aReExportIsAnImportOfItsFileNotADecl() {
         // arrange
-        let pkg = opened(stdCjo("std.unittest"))
+        let pkg = openCjo(stdCjo("std.unittest"))
 
         // act
         var reExport = Option<ImportSpec>.None
@@ -208,7 +203,7 @@ class CjoFindingsTest {
     @TestCase
     func aConstructorTheCompilerAddedIsMarkedSo() {
         // arrange
-        let pkg = opened(stdCjo("std.argopt"))
+        let pkg = openCjo(stdCjo("std.argopt"))
 
         // act
         var added = 0
