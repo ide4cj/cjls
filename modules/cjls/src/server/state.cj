@@ -62,9 +62,10 @@ public class ServerState <: FromContext<ServerState> {
     public let linkedProjects = ArrayList<VfsPath>()
 
     /**
-     * The files of the project, as last set.
+     * The files of the project, as last set: made anew each time, for a set built from an array
+     * takes a third of the time `clear` and `add(all:)` do.
      */
-    private let projectFiles = HashSet<VfsPath>()
+    private var projectFiles = HashSet<VfsPath>()
 
     private var filesChanged = false
     private var registrations = 0
@@ -118,8 +119,7 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func setProject(model: ProjectModel): Unit {
         analysis.setProject(model, vfs.paths)
-        projectFiles.clear()
-        projectFiles.add(all: model.files())
+        projectFiles = HashSet<VfsPath>(model.files())
     }
 
     /**
