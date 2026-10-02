@@ -3,9 +3,9 @@ import pathlib
 import pytest
 from lsprotocol import types
 from pygls.uris import to_fs_path
-from pytest_lsp import LanguageClient, client_capabilities
+from pytest_lsp import LanguageClient
 
-from conftest import CLIENTS
+from conftest import CLIENTS, capabilities
 
 
 @pytest.mark.parametrize("editor", CLIENTS)
@@ -23,7 +23,7 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
 
     await server.initialize_session(
         types.InitializeParams(
-            capabilities=client_capabilities(editor),
+            capabilities=capabilities(editor),
             workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
         )
     )
@@ -36,7 +36,7 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
     # the same file, not the same text: on Windows the server sends the drive's letter lowercase
     assert pathlib.Path(to_fs_path(symbols[0].location.uri)) == tmp_path / "src" / "a.cj"
     assert symbols[0].location.range.start == types.Position(line=1, character=9)
-    watches = client_capabilities(editor).workspace.did_change_watched_files
+    watches = capabilities(editor).workspace.did_change_watched_files
     if watches and watches.dynamic_registration:
         assert [r.method for r in registered] == ["workspace/didChangeWatchedFiles"]
 
