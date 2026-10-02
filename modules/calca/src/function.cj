@@ -85,6 +85,18 @@ public interface TrackedBody<D, K, V> {
 }
 
 /**
+ * What the keys of a memo table are or hold of interned values, and for each such value the memos
+ * it keys: one when the keys are the values themselves, any number when they hold them among other
+ * fields.
+ */
+enum KeysOfInterned {
+    | KeysUnknown
+    | KeysOfNone
+    | KeysAreInterned(HashMap<DatabaseKey, Id>)
+    | KeysHoldInterned(HashMap<DatabaseKey, HashSet<Id>>)
+}
+
+/**
  * A value computed, with what it was computed from. An evicted memo has lost its value, but still
  * knows what it read and when it last changed, so it can be verified without computing it again.
  */
@@ -131,9 +143,9 @@ class MemoEntry<K, V> {
  * The memos of one tracked function in one database, one per key it was called with. A key's `Id`
  * is its slot in a `Slab`, given the first time it is seen, so what depends on it can name it.
  *
- * Keyed by an `@CalcaInterned` type, the table drops the memo of a value once the value is
- * collected, and its slot is reused under the next generation: a memo that read the dropped one
- * finds its `Id` stale, and counts it as changed.
+ * Keyed by an `@CalcaInterned` type, or by several values any of which is of one, the table drops a
+ * memo once a value its key is or holds is collected, and its slot is reused under the next
+ * generation: a memo that read the dropped one finds its `Id` stale, and counts it as changed.
  *
  * One handle at a time verifies or computes a memo: it claims the key, and another handle needing
  * it waits for the claim to go, then takes what the owner left, verified or computed. A memo already
@@ -156,10 +168,15 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     private let released: Condition
 
     /**
-     * When the keys are interned values, the key's `Id` for the `Id` of the value it is. `None` when
-     * they are not; unknown until the first key.
+     * Which interned values the keys are or hold, and which memos each of them keys; unknown until
+     * the first key.
      */
-    private var byInterned: ?(?HashMap<Id, Id>) = None
+    private var interned: KeysOfInterned = KeysUnknown
+
+    /**
+     * The interned tables this one is registered with, by ingredient.
+     */
+    private let watched = HashSet<Int64>()
 
     /**
      * When the function keeps only some values, the keys whose memo may hold one, in the order they
@@ -188,53 +205,108 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         let entry = MemoEntry<K, V>(key)
         entry.id = entries.insert(entry)
         byKey.add(key, entry)
-        if (let Some(map) <- internedKeys(runtime, key)) {
-            map.add((key as InternedValue).getOrThrow().calcaKey().id, entry.id)
+        match (keysOfInterned(key)) {
+            case KeysAreInterned(memos) =>
+                let value = (key as InternedValue).getOrThrow().calcaKey()
+                watch(runtime, value.ingredient)
+                memos.add(value, entry.id)
+            case KeysHoldInterned(memos) =>
+                for (value in internedFields(key)) {
+                    watch(runtime, value.ingredient)
+                    match (memos.get(value)) {
+                        case Some(ids) => ids.add(entry.id)
+                        case None => memos.add(value, HashSet<Id>([entry.id]))
+                    }
+                }
+            case _ => ()
         }
         entry
     }
 
     /**
-     * Where the key's `Id` goes by the value's, if the keys are interned values. The first key
-     * decides, and registers the table with theirs, to be told what is collected: a macro sees only
-     * tokens, so which type a key is is found out here. Called with the lock held.
+     * Which interned values the keys are or hold. The first key decides: a macro sees only tokens,
+     * so which type a key is is found out here. Called with the lock held.
      */
     @Frozen
-    private func internedKeys(runtime: Runtime, key: K): ?HashMap<Id, Id> {
-        if (let Some(known) <- byInterned) {
-            return known
+    private func keysOfInterned(key: K): KeysOfInterned {
+        if (let KeysUnknown <- interned) {
+            interned = if ((key as InternedValue).isSome()) {
+                KeysAreInterned(HashMap<DatabaseKey, Id>())
+            } else if ((key as InternedFields).isSome()) {
+                KeysHoldInterned(HashMap<DatabaseKey, HashSet<Id>>())
+            } else {
+                KeysOfNone
+            }
         }
-        let found: ?HashMap<Id, Id> = match (key as InternedValue) {
-            case Some(value) =>
-                let ingredient = value.calcaKey().ingredient
-                let table = (runtime.ingredientAt(ingredient) as InternedKeys).getOrThrow {
-                    => IllegalStateException("${function.name} is keyed by ${ingredient}, which interns nothing")
-                }
-                table.watch(this)
-                HashMap<Id, Id>()
-            case None => None
-        }
-        byInterned = found
-        found
+        interned
     }
 
     /**
-     * Drops the memos keyed by the values `collected`, and their keys' `Id`s with them.
+     * The interned values among the fields of `key`, a key of several values.
      */
-    public func dropKeys(collected: Array<Id>): Unit {
-        synchronized(lock) {
-            let map = match (byInterned) {
-                case Some(Some(map)) => map
-                case _ => return
-            }
-            for (value in collected) {
-                let id = map.remove(value) ?? continue
-                if (let Some(entry) <- entries.remove(id)) {
-                    byKey.remove(entry.key)
-                }
-                used?.remove(Id(id.index))
+    private func internedFields(key: K): ArrayList<DatabaseKey> {
+        let values = ArrayList<DatabaseKey>()
+        for (field in (key as InternedFields).getOrThrow().calcaInterned()) {
+            if (let Some(value) <- field) {
+                values.add(value)
             }
         }
+        values
+    }
+
+    /**
+     * Registers the table with the interned one at `ingredient`, to be told what it collects, unless
+     * it is already. Called with the lock held.
+     */
+    private func watch(runtime: Runtime, ingredient: Int64): Unit {
+        if (watched.contains(ingredient)) {
+            return
+        }
+        let table = (runtime.ingredientAt(ingredient) as InternedKeys).getOrThrow {
+            => IllegalStateException("${function.name} is keyed by ${ingredient}, which interns nothing")
+        }
+        table.watch(this)
+        watched.add(ingredient)
+    }
+
+    /**
+     * Drops the memos keyed by the values `collected` of the interned type at `ingredient`, and by
+     * keys holding any of them; their keys' `Id`s go with them.
+     */
+    public func dropKeys(ingredient: Int64, collected: Array<Id>): Unit {
+        synchronized(lock) {
+            match (interned) {
+                case KeysAreInterned(memos) => for (value in collected) {
+                    drop(memos.remove(DatabaseKey(ingredient, value)) ?? continue)
+                }
+                case KeysHoldInterned(memos) => for (value in collected) {
+                    let gone = DatabaseKey(ingredient, value)
+                    for (id in memos.remove(gone) ?? continue) {
+                        let entry = drop(id) ?? continue
+                        // the other values its key held no longer key it
+                        for (other in internedFields(entry.key) where other != gone) {
+                            if (let Some(ids) <- memos.get(other)) {
+                                ids.remove(id)
+                                if (ids.isEmpty()) {
+                                    memos.remove(other)
+                                }
+                            }
+                        }
+                    }
+                }
+                case _ => ()
+            }
+        }
+    }
+
+    /**
+     * Drops the memo at `id`, and gives its entry. Called with the lock held.
+     */
+    private func drop(id: Id): ?MemoEntry<K, V> {
+        used?.remove(Id(id.index))
+        let entry = entries.remove(id) ?? return None
+        byKey.remove(entry.key)
+        entry
     }
 
     /**
