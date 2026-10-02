@@ -3,7 +3,8 @@ package cjo
 /**
  * A file that is a `.cjo` by its header, broken inside: an offset out of the file, a vector longer than it,
  * a value a closed enum does not have, a union with no value. Thrown when a view reads it, not when the file
- * is opened: nothing is checked before it is read. A file that is not opened is a `CjoOpenException`.
+ * is opened: nothing is checked before it is read. A file that is not opened is a `NotCjoException` or a
+ * `CjoVersionException`.
  */
 public open class CjoException <: Exception {
     public init(message: String) {

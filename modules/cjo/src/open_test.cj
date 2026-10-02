@@ -29,12 +29,25 @@ func topLevel(pkg: Package, name: String): Decl {
     throw IllegalStateException("${pkg.fullPkgName} has no top-level ${name}")
 }
 
-func errorOf(bytes: Array<Byte>): String {
+/**
+ * What `openCjo(bytes)` throws.
+ */
+func thrownBy(bytes: Array<Byte>): CjoException {
     try {
         openCjo(bytes)
-        "opened"
-    } catch (e: CjoOpenException) {
-        e.error.toString()
+    } catch (e: CjoException) {
+        return e
+    }
+    throw IllegalStateException("opened")
+}
+
+/**
+ * The major of the `CjoVersionException` `openCjo(bytes)` throws.
+ */
+func versionThrownBy(bytes: Array<Byte>): ?UInt8 {
+    match (thrownBy(bytes)) {
+        case e: CjoVersionException => e.major
+        case e => throw IllegalStateException("${e}, not a CjoVersionException")
     }
 }
 
@@ -95,9 +108,9 @@ class OpenCjoTest {
         renamed[4] = b'X'
 
         // act, assert
-        @Expect(errorOf(text), "not a .cjo")
-        @Expect(errorOf(Array<Byte>()), "not a .cjo")
-        @Expect(errorOf(renamed), "not a .cjo")
+        @Expect(thrownBy(text) is NotCjoException)
+        @Expect(thrownBy(Array<Byte>()) is NotCjoException)
+        @Expect(thrownBy(renamed) is NotCjoException)
     }
 
     @TestCase
@@ -108,7 +121,8 @@ class OpenCjoTest {
         bytes[version.pos] = CJO_MAJOR + 1
 
         // act, assert
-        @Expect(errorOf(bytes), "a .cjo of format ${CJO_MAJOR + 1}.x, not ${CJO_MAJOR}.x")
+        @Expect(versionThrownBy(bytes), Some(CJO_MAJOR + 1))
+        @Expect(thrownBy(bytes).message, "a .cjo of format ${CJO_MAJOR + 1}.x, not ${CJO_MAJOR}.x")
     }
 
     @TestCase
@@ -120,7 +134,7 @@ class OpenCjoTest {
         writeUInt16(bytes, pkg.fb.vtable + 4 + 2 * 1, 0)
 
         // act, assert
-        @Expect(errorOf(bytes), "a .cjo with no format version")
+        @Expect(versionThrownBy(bytes), Option<UInt8>.None)
     }
 
     @TestCase
