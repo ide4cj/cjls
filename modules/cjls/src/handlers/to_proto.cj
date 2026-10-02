@@ -45,8 +45,8 @@ func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding:
 }
 
 /**
- * LSP has no kind for an extension, a macro or `main`: an extension goes as an `Object`, a macro
- * and `main` as a function.
+ * LSP has no kind for an extension, a macro or `main`. An extension declares no type and no value,
+ * only members of a type it names: it goes as a `Namespace`. A macro and `main` go as a function.
  */
 func symbolKind(kind: StructureKind): SymbolKind {
     match (kind) {
@@ -55,7 +55,7 @@ func symbolKind(kind: StructureKind): SymbolKind {
         case StructureKind.Struct => SymbolKind.Struct
         case StructureKind.Enum => SymbolKind.Enum
         case StructureKind.EnumConstructor => SymbolKind.EnumMember
-        case StructureKind.Extension => SymbolKind.Object
+        case StructureKind.Extension => SymbolKind.Namespace
         case StructureKind.Function | StructureKind.Macro | StructureKind.Main => SymbolKind.Function
         case StructureKind.Method | StructureKind.Finalizer => SymbolKind.Method
         case StructureKind.Constructor => SymbolKind.Constructor
