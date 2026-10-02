@@ -83,6 +83,21 @@ class ParseLruTest {
     }
 
     @TestCase
+    func aTreeIsFreedWithinARevisionOnceAsManyOthersWereParsed() {
+        // arrange
+        let db = AnalysisDatabase()
+        let (file, _) = files(db)
+        let tree = weakTree(db, file)
+
+        // act
+        parseOthers(db)
+
+        // assert
+        @Expect(isFreed(tree))
+        keepAlive(db, file)
+    }
+
+    @TestCase
     func aResultHoldingANodeKeepsAnEvictedTreeAlive() {
         // arrange
         let db = AnalysisDatabase()
@@ -139,7 +154,7 @@ class ParseLruTest {
     }
 
     /**
-     * Parses as many other files as `parse` keeps trees, so the next write evicts every tree parsed before.
+     * Parses as many other files as `parse` keeps trees, which evicts every tree parsed before.
      */
     private func parseOthers(db: AnalysisDatabase): Unit {
         for (i in 0..PARSE_LRU) {

@@ -14,8 +14,8 @@ const ABSENT: Int64 = -2
  * recent, and `trim` evicts the oldest while there are more than `capacity`. Iteration goes from the
  * oldest to the most recent.
  *
- * `touch` never evicts, only `trim` does, so the caller decides when eviction happens — under the
- * write gate, while nothing reads. Until then the list may hold more than `capacity`.
+ * `touch` never evicts, only `trim` does, so the caller decides when eviction happens. Until then the
+ * list may hold more than `capacity`.
  *
  * A doubly linked list over the ids themselves: `prev` and `next` are indexed by `Id.index`, which
  * is dense, since it is the key's index in the memo table. Nothing is hashed, and a touch is a few

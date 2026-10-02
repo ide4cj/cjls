@@ -180,7 +180,8 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
 
     /**
      * When the function keeps only some values, the keys whose memo may hold one, in the order they
-     * were last fetched. Touched under `lock`; trimmed in `newRevision`, while nothing reads.
+     * were last fetched. Touched and trimmed under `lock`, together: a value goes as soon as more
+     * than `lru` keys were fetched after it, within a revision too.
      */
     private let used: ?IdLru
 
@@ -328,7 +329,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         }
         let entry = synchronized(lock) {
             let entry = internLocked(storage.runtime, key)
-            used?.touch(entry.id)
+            touchLocked(entry.id)
             entry
         }
         if (let Some(hit) <- current(entry, storage.runtime)) {
@@ -495,7 +496,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         let memo = Memo(storage.runtime.revision, value, changedAt, frame.durability, frame.dependencies.toArray())
         synchronized(lock) {
             entry(databaseKey.id).memo.store(memo)
-            used?.touch(databaseKey.id)
+            touchLocked(databaseKey.id)
         }
         (value, memo)
     }
@@ -578,16 +579,32 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     }
 
     /**
-     * Evicts the values of the keys fetched least recently, beyond `lru`.
+     * Makes `id` the key fetched last, and evicts the values of those fetched least recently, beyond
+     * `lru`. A reader holding a value evicted keeps it; the memo, fetched again, is verified by its
+     * edges and computed again, keeping its `changedAt` when nothing it read changed.
+     */
+    private func touchLocked(id: Id): Unit {
+        if (let Some(used) <- used) {
+            used.touch(id)
+            // a hit adds no key: no closure for it
+            if (used.size > used.capacity) {
+                used.trim(evictLocked)
+            }
+        }
+    }
+
+    private func evictLocked(id: Id): Unit {
+        if (let Some((_, entry)) <- entries.getAt(id.index)) {
+            entry.memo.store(entry.memo.load()?.evicted())
+        }
+    }
+
+    /**
+     * Evicts what a fetch that did not end left beyond `lru` (cancelled, or unwound by a cycle).
      */
     public func newRevision(): Unit {
         synchronized(lock) {
-            used?.trim {
-                id =>
-                if (let Some((_, entry)) <- entries.getAt(id.index)) {
-                    entry.memo.store(entry.memo.load()?.evicted())
-                }
-            }
+            used?.trim(evictLocked)
         }
     }
 
