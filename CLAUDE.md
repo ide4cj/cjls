@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `cjpm` leaves `*.cj.macrocall` and `lib-macro_*.dylib` next to the sources: untracked build output, never edit it.
 
-**Toolchain, CI, releases** ([D11](docs/adr/0011-ci-and-releases.md), [D21](docs/adr/0021-weekly-releases.md)). One nightly, the tag in `.cangjie-version`; `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs it with stdx, as CI does. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, named per target in the root `cjpm.toml`. CI (macOS arm64, Linux x64, Windows x64) builds, tests, runs the lone binary through `tests/e2e` and the Neovim smoke test, and checks commits and the PR **title** with `cog` (PRs are squash-merged). A release is `cog bump --auto` on master (version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, `CHANGELOG.md`, tag); `bump.yml` runs it on Mondays, `release.yml` attaches the binaries.
+**Toolchain, CI, releases** ([D11](docs/adr/0011-ci-and-releases.md), [D21](docs/adr/0021-weekly-releases.md)). One nightly, the tag in `.cangjie-version`; `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs it with stdx, as CI does. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, named per target in the root `cjpm.toml`. CI (macOS arm64, Linux x64, Windows x64) builds, tests, runs the lone binary through `tests/e2e` (no editor client: each tests itself against this CI's build of a paired branch, [D32](docs/adr/0032-one-process-for-server-and-clients.md)), and checks commits and the PR **title** with `cog` (PRs are squash-merged). A release is `cog bump --auto` on master (version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, `CHANGELOG.md`, tag); `bump.yml` runs it on Mondays, `release.yml` attaches the binaries; `nightly.yml` replaces the pre-release `nightly` with master's newest green commit every night.
 
 ### Linking and compiler flags
 
@@ -59,7 +59,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 
 Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjsyntax → ginkgo, index_map, rope}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
 
-Editor integrations are repositories in the `ide4cj` organization ([D16](docs/adr/0016-editor-integrations-are-repositories.md)): Neovim ([`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim)), VS Code, Zed. The server's root is the nearest `cjpm.toml`.
+Editor integrations are repositories in the `ide4cj` organization ([D16](docs/adr/0016-editor-integrations-are-repositories.md)): Neovim ([`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim)), VS Code ([`ide4cj/cangjie-vscode`](https://github.com/ide4cj/cangjie-vscode)), Zed ([`ide4cj/cangjie-zed`](https://github.com/ide4cj/cangjie-zed)); a change across them is one branch name in each (D32), the process in [`ide4cj/.github`](https://github.com/ide4cj/.github). The server's root is the nearest `cjpm.toml`.
 
 ## Rules that cross modules
 

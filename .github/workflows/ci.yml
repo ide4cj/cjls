@@ -111,19 +111,6 @@ jobs:
       - name: pytest-lsp
         run: uv run --project tests/e2e --locked pytest tests/e2e
         shell: bash
-      - uses: rhysd/action-setup-vim@v1
-        with:
-          neovim: true
-          version: stable
-      # the plugin's own tests, against the binary built here (D16); without the SDK, those of cjfmt
-      # are skipped
-      - uses: actions/checkout@v7
-        with:
-          repository: ide4cj/cangjie.nvim
-          path: cangjie.nvim
-      - name: Neovim plugin tests
-        run: nvim --clean --headless -u cangjie.nvim/test/run.lua
-        shell: bash
 
   # a report per commit, kept as an artifact; shared runners are too noisy for a threshold (D23)
   perf:

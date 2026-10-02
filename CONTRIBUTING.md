@@ -1,6 +1,6 @@
 # Contributing
 
-Build, test and commit conventions are in [CLAUDE.md](CLAUDE.md#build--test). This file covers the one change made most often.
+Build, test and commit conventions are in [CLAUDE.md](CLAUDE.md#build--test); a change the editor clients need too, the channels, labels and triage in [ide4cj's CONTRIBUTING](https://github.com/ide4cj/.github/blob/main/CONTRIBUTING.md) (D32). This file covers the one change made most often.
 
 ## Adding a request or notification
 

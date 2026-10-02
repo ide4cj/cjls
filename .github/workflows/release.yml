@@ -28,20 +28,7 @@ jobs:
           pattern: cjls-*
           path: artifacts
       - name: Package
-        run: |
-          mkdir dist
-          package() { # artifact, target, archive format
-            dir="cjls-$2"
-            mkdir "$dir"
-            cp "artifacts/cjls-$1"/* README.md LICENSE-MIT LICENSE-APACHE "$dir/"
-            chmod +x "$dir"/cjls*
-            if [ "$3" = zip ]; then zip -qr "dist/$dir.zip" "$dir"; else tar -czf "dist/$dir.tar.gz" "$dir"; fi
-          }
-          package macOS aarch64-apple-darwin tar
-          package Linux x86_64-unknown-linux-gnu tar
-          package Windows x86_64-pc-windows-gnu zip
-          (cd dist && sha256sum -- * > SHA256SUMS)
-          ls -l dist
+        run: .github/scripts/package.sh artifacts dist
       # the tag's section of CHANGELOG.md, written by hand or by cog alike (D21)
       - name: Notes
         env:
