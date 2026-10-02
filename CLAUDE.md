@@ -66,7 +66,7 @@ Editor integrations are repositories in the `ide4cj` organization ([D16](docs/ad
 
 - **Never print** in the server: stdout is the LSP wire. Loggers are passed down, never global.
 - **Never `await()` an outbound request from a read-loop callback** (a `Context` handler): its answer can only arrive through the loop the callback holds.
-- **A `spawn`ed thread that throws dumps its stack to stderr** even if nobody reads the future: every `spawn` boundary catches internally.
+- **A `spawn`ed thread that throws dumps its stack to stderr** even if nobody reads the future: every `spawn` boundary catches internally, an `Error` as well as an `Exception` (S13).
 - **A blocking foreign function is never `@FastNative`**, nor named like a libc function LLVM knows (`read`, `write`, …): the GC stalls while a thread blocks in one (C5, D13).
 - **Enum constructors are in scope unqualified** throughout their package and past an import: generated code never writes a bare `None`, union variants are `As<Member>`, `SyntaxKind` never names a kind like a type (`ResourceDecl`, `Int64Kw`).
 - **Anything that goes out on an LSP wire needs `@Serde[skipNone]`**: LSP tells an absent key from `null`. The optional/nullable mapping is in `modules/stdxx/CLAUDE.md`.

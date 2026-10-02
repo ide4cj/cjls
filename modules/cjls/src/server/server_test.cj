@@ -72,6 +72,23 @@ func initialized(router: Router, client!: Client = Client()): Server {
     server
 }
 
+/**
+ * Recurses until the stack runs out. Each frame holds 8 KB, read at an index only the call below
+ * gives, so no optimization makes a loop of it, and the stack, half a gigabyte, runs out in a
+ * second rather than tens of millions of frames.
+ */
+func deeper(depth: Int64): Int64 {
+    var kept = VArray<Int64, $1024>(repeat: 0)
+    kept[depth % 1024] = depth
+    let below = deeper(depth + 1)
+    depth - below + kept[(below & 0x7fff_ffff) % 1024]
+}
+
+func overflowTheStack(): Nothing {
+    deeper(0)
+    throw IllegalStateException("the stack never ran out")
+}
+
 let PARKED_PATH = VfsPath.file(getTempDirectory().join("a.cj"))
 
 /**
@@ -344,6 +361,51 @@ class ServerDispatchTest {
 
         // assert
         @Expect(ErrorCode.UNKNOWN_ERROR_CODE, asked.answer().getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func aReadOnlyHandlerThatOverflowsItsStackAnswersInternalError() {
+        // arrange
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
+            _: ReadOnlyContext<HoverParams> => overflowTheStack()
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+
+        // act
+        server.onRequest(asked.request)
+
+        // assert
+        @Expect(ErrorCode.INTERNAL_ERROR, asked.answer().getErrorOrThrow().code)
+    }
+
+    @TestCase
+    func aContextHandlerThatOverflowsItsStackAnswersInternalErrorOnTheReadLoop() {
+        // arrange - a `Context` handler runs within `onRequest`, so nothing may escape it
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
+            _: Context<HoverParams> => overflowTheStack()
+        })
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
+
+        // act
+        server.onRequest(asked.request)
+
+        // assert
+        @Expect(ErrorCode.INTERNAL_ERROR, asked.answer().getErrorOrThrow().code)
+        @Expect(Lifecycle.Initialized, server.lifecycle)
+    }
+
+    @TestCase
+    func aNotificationHandlerThatOverflowsItsStackDoesNotStopTheServer() {
+        // arrange
+        let server = initialized(lifecycleRouter().route(InitializedNotificationSpec()) {
+            _: Context<InitializedParams> => overflowTheStack()
+        })
+
+        // act
+        server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))
+
+        // assert
+        @Expect(Lifecycle.Initialized, server.lifecycle)
     }
 
     @TestCase

@@ -4,7 +4,7 @@ import std.argopt.ArgumentParseException
 import std.env.{getStdErr, getStdOut}
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
-import jsonrpc.FramedJsonRpcTransport
+import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
 import cjls.server.serve
 import cjls.handlers.router
 
@@ -26,6 +26,9 @@ main(args: Array<String>): Int64 {
         }
     } catch (e: Exception) {
         logger.fatal("stopped", [("cause", e)])
+        1
+    } catch (e: Error) {
+        logger.fatal("stopped", [("cause", ErrorLogValue(e))])
         1
     }
 }

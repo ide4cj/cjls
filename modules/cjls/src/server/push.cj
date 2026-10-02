@@ -5,6 +5,7 @@ import std.sync.Mutex
 import stdx.log.Logger
 import calca.Cancelled
 import loupe.vfs.VfsPath
+import jsonrpc.ErrorLogValue
 import cjls.lsp_types.*
 
 /**
@@ -49,6 +50,8 @@ class DiagnosticsPush {
                 logger.debug("push cancelled", [("reason", "the content was modified")])
             } catch (e: Exception) {
                 failed(e)
+            } catch (e: Error) {
+                logger.error("push failed", [("cause", ErrorLogValue(e))])
             }
         }
     }
@@ -65,6 +68,8 @@ class DiagnosticsPush {
             }
         } catch (e: Exception) {
             failed(e)
+        } catch (e: Error) {
+            logger.error("push failed", [("cause", ErrorLogValue(e))])
         }
     }
 
