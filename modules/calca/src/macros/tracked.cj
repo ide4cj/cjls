@@ -275,7 +275,8 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
         case 1 => (fields[0][1], made, quote())
         case _ =>
             let keyName = Token(TokenKind.IDENTIFIER, "CalcaFields_" + prefix)
-            (quote($keyName), quote($keyName($made)), fieldsStruct(keyName, fields.toArray().map {field => (field[0], field[1])}))
+            (quote($keyName), quote($keyName($made)),
+                fieldsStruct(keyName, fields.toArray().map {field => (field[0], field[1])}, holdsInterned: true))
     }
 
     let modifiers = modifiersOf(decl.modifiers)

@@ -189,21 +189,38 @@ func nameLiteral(name: Token): Token {
 
 /**
  * A struct of `fields`, `Hashable` and `Equatable` by all of them: several values as one key, which
- * a tuple cannot be.
+ * a tuple cannot be. A tracked function's key, `holdsInterned`, also tells which of them are
+ * interned values (`InternedFields`), found out at run time: a macro sees only tokens.
  */
-func fieldsStruct(name: Token, fields: Array<(Token, Tokens)>): Tokens {
+func fieldsStruct(name: Token, fields: Array<(Token, Tokens)>, holdsInterned!: Bool = false): Tokens {
     var params = Tokens()
     var hashes = Tokens()
     var equal = quote(true)
+    var keys = Tokens()
     for ((ident, fieldType) in fields) {
         params += quote(let $ident: $fieldType, )
         hashes += quote(hasher.write($ident.hashCode())
         )
         equal += quote(&& $ident == other.$ident)
+        if (keys.size > 0) {
+            keys += Token(TokenKind.COMMA)
+        }
+        keys += quote(calcaKeyOf($ident))
+    }
+    let (superTypes, interned) = if (holdsInterned) {
+        (quote(& InternedFields), quote(
+            public func calcaInterned(): Array<?DatabaseKey> {
+                [$keys]
+            }
+        ))
+    } else {
+        (quote(), quote())
     }
     quote(
-        struct $name <: Hashable & Equatable<$name> {
+        struct $name <: Hashable & Equatable<$name> $superTypes {
             $name($params) {}
+
+            $interned
 
             public func hashCode(): Int64 {
                 var hasher = DefaultHasher()

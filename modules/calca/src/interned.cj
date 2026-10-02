@@ -18,6 +18,23 @@ public interface InternedValue {
 }
 
 /**
+ * The key of a tracked function of several arguments, which the generated `CalcaFields_<function>`
+ * struct implements: the interned values among its fields, `None` for each field that is not one.
+ * How the function learns to drop a memo once any of them is collected. Not for use by hand.
+ */
+public interface InternedFields {
+    func calcaInterned(): Array<?DatabaseKey>
+}
+
+/**
+ * `value`'s table and `Id`, if it is an interned value: what `InternedFields.calcaInterned` gives
+ * of each field, of whatever type, as a macro sees only tokens. Not for use by hand.
+ */
+public func calcaKeyOf<T>(value: T): ?DatabaseKey {
+    (value as InternedValue)?.calcaKey()
+}
+
+/**
  * A `@CalcaInterned` type, process-wide: where its table is in any database. Held by the static
  * `@CalcaInterned` generates; not for use by hand. `K` is the type's fields, as one value.
  *
@@ -116,9 +133,10 @@ class InternSlot<K> {
  */
 interface KeyedByInterned {
     /**
-     * Drops what is keyed by `collected`. Called while nothing reads.
+     * Drops what is keyed by `collected`, values of the interned type at `ingredient`. Called while
+     * nothing reads.
      */
-    func dropKeys(collected: Array<Id>): Unit
+    func dropKeys(ingredient: Int64, collected: Array<Id>): Unit
 }
 
 /**
@@ -250,7 +268,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
             watchers.toArray()
         }
         for (watcher in told) {
-            watcher.dropKeys(collected)
+            watcher.dropKeys(ingredient.index, collected)
         }
     }
 
