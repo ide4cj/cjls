@@ -51,14 +51,15 @@ enum ChildAccess {
 
 enum FieldIr {
     | NodeField(String, String, ChildAccess)
-    | TokenField(String, String)
+    /** a token of one kind, and whether the grammar allows several */
+    | TokenField(String, String, Bool)
     | TokenSetField(String, Array<String>)
 
     prop name: String {
         get() {
             match (this) {
                 case NodeField(n, _, _) => n
-                case TokenField(n, _) => n
+                case TokenField(n, _, _) => n
                 case TokenSetField(n, _) => n
             }
         }
@@ -368,7 +369,7 @@ func lowerNode(model: Model, def: RuleDef): NodeIr {
         let first = own[0]
         match ((first.label, first.node)) {
             case (Some(l), None) => fields.add(TokenSetField(l, dedup(first.tokens)))
-            case (None, None) => fields.add(TokenField(tokenFieldName(first.tokens[0]), first.tokens[0]))
+            case (None, None) => fields.add(TokenField(tokenFieldName(first.tokens[0]), first.tokens[0], isMany(own)))
             case (_, Some(typeName)) =>
                 let many = isMany(own)
                 let name = first.label ?? nodeFieldName(typeName, many)

@@ -42,3 +42,4 @@
 | A17 | A file's input has its module's durability: `Low` for the user's, `Medium` for a dependency's, `High` for `std`; a file of no module `Low`. The project is set before the files it names, so they are created with it (D33). |
 | A18 | Which files a package has is `Package.files`, never found from the texts: a file deleted is an empty text (A5). Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module is a unit of the build, cjc's is the first segment of a name (D33). |
 | A19 | What outlives an edit names an item by its `ItemId`, never by a pointer: a result holding a `SyntaxNodePtr` changes with every edit above it, and so does everything that read it. Items come from `itemTree`, nodes back through `itemIdMap` (D34). |
+| A20 | A name is its `Name.text()` or `NameRef.text()`, never the text of its node or token: `` `foo` `` is `foo`, and a name compared, hashed into an `ItemId` or shown keeps no backquotes. |

@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Decl, MacroExpandDecl}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import calca.*
 import calca.macros.*
@@ -195,32 +195,20 @@ struct ItemSyntax {
     ) {}
 
     /**
-     * What its id is made of besides its parent: its name; `main`, `init`, `~init` for what a
-     * keyword names; the type and the bounds for an `extend`, as written; the pattern of a `let`
-     * that has no single name; the macro of a call. Empty for a name not written yet.
+     * What its id is made of besides its parent: its name, without backquotes; `main`, `init`,
+     * `~init` for what a keyword names; the type and the bounds for an `extend`, as written; the
+     * pattern of a `let` that has no single name; the macro of a call. Empty for a name not
+     * written yet.
      */
     func idName(): String {
         match (decl) {
-            case Decl.AsFuncDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsMacroDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsClassDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsInterfaceDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsStructDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsEnumDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsTypeAliasDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsPropDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsPrimaryInitDecl(it) => compactText(it.name()?.syntax)
-            case Decl.AsEnumCtor(it) => compactText(it.name()?.syntax)
             case Decl.AsMainDecl(_) => "main"
             case Decl.AsInitDecl(_) => "init"
             case Decl.AsFinalizerDecl(_) => "~init"
             case Decl.AsExtendDecl(it) => compactText(it.ty()?.syntax) + compactText(it.typeBoundList()?.syntax)
-            case Decl.AsVarDecl(it) => match (it.name()) {
-                case Some(name) => compactText(name.syntax)
-                case None => compactText(it.pattern()?.syntax)
-            }
+            case Decl.AsVarDecl(it) where it.name().isNone() => compactText(it.pattern()?.syntax)
             case Decl.AsMacroExpandDecl(it) => macroName(it)
-            case Decl.AsForeignBlock(_) => ""
+            case _ => AnyHasName.cast(decl.syntax)?.name()?.text() ?? ""
         }
     }
 
@@ -287,7 +275,7 @@ private func collectItem(decl: Decl, macroCalls: Array<MacroExpandDecl>, inForei
  * The macro a call names, as written: `Derive`, `a.b.M`.
  */
 func macroName(call: MacroExpandDecl): String {
-    call.nameRefs() |> map {name => name.syntax.text()} |> collectArray |> {names => String.join(names, delimiter: ".")}
+    call.nameRefs() |> map {name => name.text()} |> collectArray |> {names => String.join(names, delimiter: ".")}
 }
 
 /**
