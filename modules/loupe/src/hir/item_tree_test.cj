@@ -226,4 +226,21 @@ class ItemTreeTest {
         @Expect(importNode.text(), "import a.b")
         @Expect(map.all.size, 3)
     }
+
+    @TestCase
+    func aNameInBackquotesIsThatNameWithItsId() {
+        // arrange
+        let plain = treeOf("import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\nextend C {}\nlet (y, z) = (1, 2)\n")
+
+        // act
+        let quoted = treeOf("import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\nextend `C` {}\nlet (`y`, z) = (1, 2)\n")
+
+        // assert
+        @Expect(quoted.items[0].names, ["foo"])
+        @Expect(quoted.items[1].members[0].names, ["x"])
+        @Expect(quoted.imports[0].paths, [ImportPath(["a", "b"], alias: "c")])
+        @Expect(quoted.items.map {item => item.id}, plain.items.map {item => item.id})
+        @Expect(quoted.items, plain.items)
+    }
 }
+
