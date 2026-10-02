@@ -23,10 +23,10 @@ func itemNames(db: AnalysisDatabase, file: SourceFile): Array<String> {
 
 func treeOf(text: String): ItemTree {
     let parsed = parseText(text)
-    ItemTree.of(parsed, AstIdMap.of(parsed))
+    ItemTree.of(parsed, ItemIdMap.of(parsed))
 }
 
-func idsOf(text: String): Array<AstId> {
+func idsOf(text: String): Array<ItemId> {
     treeOf(text).items.map {item => item.id}
 }
 
@@ -38,13 +38,13 @@ class ItemTreeTest {
         let db = AnalysisDatabase()
         let file = db.setFileText(FileId(0), Rope("func f() {\n    1\n}\nclass C {\n    func m() {}\n}\n"))
         let names = itemNames(db, file)
-        let map = astIdMap(db, file)
+        let map = itemIdMap(db, file)
         let runs = itemNamesRuns.load()
 
         // act
         db.setFileText(FileId(0), Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {\n    func m() {}\n}\n"))
         let again = itemNames(db, file)
-        let movedMap = astIdMap(db, file)
+        let movedMap = itemIdMap(db, file)
 
         // assert
         @Expect(again, names)
@@ -213,7 +213,7 @@ class ItemTreeTest {
     func anIdGoesBackToItsNodeAndTheNodeToItsId() {
         // arrange
         let parsed = parseText("import a.b\nclass C {\n    @M\n    func m() {}\n}\n")
-        let map = AstIdMap.of(parsed)
+        let map = ItemIdMap.of(parsed)
         let tree = ItemTree.of(parsed, map)
         let method = tree.items[0].members[0]
 

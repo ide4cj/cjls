@@ -62,11 +62,11 @@ public enum ItemKind <: ToString {
  * its parent's id and its name, and its place among the items of the file with the same kind and
  * hash. An edit inside a body, a blank line, an item added or removed or moved leaves the ids of the
  * other items alone; only an overload added before one moves it. It means something only in its
- * file, and goes back to a node through the file's `AstIdMap`.
+ * file, and goes back to a node through the file's `ItemIdMap`.
  */
 @Derive[Equatable, Hashable]
-public struct AstId <: ToString {
-    public AstId(public let kind: ItemKind, public let hash: UInt64, public let index: Int64) {}
+public struct ItemId <: ToString {
+    public ItemId(public let kind: ItemKind, public let hash: Int64, public let index: Int64) {}
 
     public func toString(): String {
         "${kind}#${hash}/${index}"
@@ -81,14 +81,14 @@ public struct AstId <: ToString {
  * The node of an item is its declaration, under any macro calls on it; that of an import, the
  * `ImportDecl`.
  */
-public class AstIdMap <: Equatable<AstIdMap> {
-    private let byId = HashMap<AstId, SyntaxNodePtr<SyntaxKind>>()
-    private let byPtr = HashMap<SyntaxNodePtr<SyntaxKind>, AstId>()
+public class ItemIdMap <: Equatable<ItemIdMap> {
+    private let byId = HashMap<ItemId, SyntaxNodePtr<SyntaxKind>>()
+    private let byPtr = HashMap<SyntaxNodePtr<SyntaxKind>, ItemId>()
 
     /**
      * The ids and pointers in the order the items are in the file, a parent before its members.
      */
-    private AstIdMap(private let ids: Array<AstId>, private let ptrs: Array<SyntaxNodePtr<SyntaxKind>>) {
+    private ItemIdMap(private let ids: Array<ItemId>, private let ptrs: Array<SyntaxNodePtr<SyntaxKind>>) {
         for (i in 0..ids.size) {
             byId.add(ids[i], ptrs[i])
             byPtr.add(ptrs[i], ids[i])
@@ -98,21 +98,21 @@ public class AstIdMap <: Equatable<AstIdMap> {
     /**
      * The ids of the items of `tree`.
      */
-    public static func of(tree: CjParse): AstIdMap {
-        let builder = AstIdBuilder()
+    public static func of(tree: CjParse): ItemIdMap {
+        let builder = ItemIdBuilder()
         if (let Some(root) <- SourceFileNode.cast(tree.syntaxNode())) {
             for (decl in root.importDecls()) {
                 builder.add(None, ItemKind.Import, compactText(decl.importTree()?.syntax), decl.syntax)
             }
             builder.addItems(None, root.decls())
         }
-        AstIdMap(builder.ids.toArray(), builder.ptrs.toArray())
+        ItemIdMap(builder.ids.toArray(), builder.ptrs.toArray())
     }
 
     /**
      * Every id, in the order of the file.
      */
-    public prop all: Array<AstId> {
+    public prop all: Array<ItemId> {
         get() {
             ids
         }
@@ -121,60 +121,60 @@ public class AstIdMap <: Equatable<AstIdMap> {
     /**
      * The pointer to the node of `id`, `None` if no item of the file has it.
      */
-    public func ptr(id: AstId): ?SyntaxNodePtr<SyntaxKind> {
+    public func ptr(id: ItemId): ?SyntaxNodePtr<SyntaxKind> {
         byId.get(id)
     }
 
     /**
      * The id of the item whose node `ptr` points to, `None` if it is no item's.
      */
-    public func idOf(ptr: SyntaxNodePtr<SyntaxKind>): ?AstId {
+    public func idOf(ptr: SyntaxNodePtr<SyntaxKind>): ?ItemId {
         byPtr.get(ptr)
     }
 
     /**
      * The node of `id` under `root`, the tree this was made of, `None` if no item has it.
      */
-    public func node(id: AstId, root: CjSyntaxNode): ?CjSyntaxNode {
+    public func node(id: ItemId, root: CjSyntaxNode): ?CjSyntaxNode {
         ptr(id).flatMap {ptr => ptr.tryToNode(root)}
     }
 
-    public operator func ==(other: AstIdMap): Bool {
+    public operator func ==(other: ItemIdMap): Bool {
         ids == other.ids && ptrs == other.ptrs
     }
 
-    public operator func !=(other: AstIdMap): Bool {
+    public operator func !=(other: ItemIdMap): Bool {
         !(this == other)
     }
 }
 
 /**
- * The file's `AstIdMap`.
+ * The file's `ItemIdMap`.
  */
 @CalcaTracked
-public func astIdMap(db: AnalysisDatabase, file: SourceFile): AstIdMap {
-    AstIdMap.of(parse(db, file))
+public func itemIdMap(db: AnalysisDatabase, file: SourceFile): ItemIdMap {
+    ItemIdMap.of(parse(db, file))
 }
 
 /**
  * The ids given so far, and how many items had each kind and hash.
  */
-class AstIdBuilder {
-    let ids = ArrayList<AstId>()
+class ItemIdBuilder {
+    let ids = ArrayList<ItemId>()
     let ptrs = ArrayList<SyntaxNodePtr<SyntaxKind>>()
-    private let seen = HashMap<AstId, Int64>()
+    private let seen = HashMap<ItemId, Int64>()
 
-    func add(parent: ?AstId, kind: ItemKind, name: String, node: CjSyntaxNode): AstId {
-        let first = AstId(kind, pathHash(parent, name), 0)
+    func add(parent: ?ItemId, kind: ItemKind, name: String, node: CjSyntaxNode): ItemId {
+        let first = ItemId(kind, pathHash(parent, name), 0)
         let index = seen.get(first) ?? 0
         seen.add(first, index + 1)
-        let id = AstId(kind, first.hash, index)
+        let id = ItemId(kind, first.hash, index)
         ids.add(id)
         ptrs.add(SyntaxNodePtr(node))
         id
     }
 
-    func addItems(parent: ?AstId, decls: Iterator<Decl>): Unit {
+    func addItems(parent: ?ItemId, decls: Iterator<Decl>): Unit {
         for (item in itemsIn(decls)) {
             let id = add(parent, item.kind, item.idName(), item.decl.syntax)
             addItems(id, item.members())
@@ -307,40 +307,16 @@ func compactText(syntax: ?CjSyntaxNode): String {
     text.toString()
 }
 
-let FNV_OFFSET: UInt64 = 0xcbf29ce484222325
-
 /**
- * FNV-1a over the parent's id and the name: the same in every process.
+ * The hash of the parent's id and the name. std's hashes have no seed: the same in every process.
  */
-func pathHash(parent: ?AstId, name: String): UInt64 {
-    var hash = FNV_OFFSET
+func pathHash(parent: ?ItemId, name: String): Int64 {
+    var hasher = DefaultHasher()
     if (let Some(parent) <- parent) {
-        hash = mixBytes(hash, parent.kind.toString().toArray())
-        hash = mixWord(hash, parent.hash)
-        hash = mixWord(hash, UInt64(parent.index))
+        hasher.write(parent.kind.hashCode())
+        hasher.write(parent.hash)
+        hasher.write(parent.index)
     }
-    // a separator, so that no parent and name run into another's
-    hash = mixWord(hash, 0)
-    mixBytes(hash, name.toArray())
-}
-
-private func mixWord(hash: UInt64, word: UInt64): UInt64 {
-    var mixed = hash
-    for (shift in 0..64 : 8) {
-        mixed = mixByte(mixed, UInt8((word >> UInt64(shift)) & 0xff))
-    }
-    mixed
-}
-
-private func mixBytes(hash: UInt64, bytes: Array<UInt8>): UInt64 {
-    var mixed = hash
-    for (byte in bytes) {
-        mixed = mixByte(mixed, byte)
-    }
-    mixed
-}
-
-@OverflowWrapping
-private func mixByte(hash: UInt64, byte: UInt8): UInt64 {
-    (hash ^ UInt64(byte)) * 0x100000001b3
+    hasher.write(name)
+    hasher.finish()
 }

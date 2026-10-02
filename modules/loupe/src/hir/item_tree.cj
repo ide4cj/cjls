@@ -112,7 +112,7 @@ public struct ImportPath {
 @Derive[Equatable]
 public struct ImportItem {
     public ImportItem(
-        public let id: AstId,
+        public let id: ItemId,
         public let modifiers: Array<Modifier>,
         public let paths: Array<ImportPath>
     ) {}
@@ -125,7 +125,7 @@ public struct ImportItem {
 @Derive[Equatable]
 public struct Item {
     public Item(
-        public let id: AstId,
+        public let id: ItemId,
         /**
          * What it declares by name: one for most, none for an `extend` or a macro call, each
          * binding of a `let` of a pattern. Empty while its name is not written yet.
@@ -162,7 +162,7 @@ public struct Item {
 
 /**
  * What a file declares, rust-analyzer's `ItemTree`: its package, its imports and its items, named
- * by their `AstId`s. An edit inside a body, or one that only moves items, leaves it equal, so what
+ * by their `ItemId`s. An edit inside a body, or one that only moves items, leaves it equal, so what
  * read it is not run again.
  */
 @Derive[Equatable]
@@ -176,7 +176,7 @@ public struct ItemTree {
     /**
      * The tree of `tree`, its items named by `ids`, made of it.
      */
-    public static func of(tree: CjParse, ids: AstIdMap): ItemTree {
+    public static func of(tree: CjParse, ids: ItemIdMap): ItemTree {
         let root = SourceFileNode.cast(tree.syntaxNode()) ?? return ItemTree(None, [], [])
         let packageHeader = root.packageHeader().map {
             header => PackageItem(String.join(pathSegments(header.syntax), delimiter: "."),
@@ -199,10 +199,10 @@ public struct ItemTree {
  */
 @CalcaTracked
 public func itemTree(db: AnalysisDatabase, file: SourceFile): ItemTree {
-    ItemTree.of(parse(db, file), astIdMap(db, file))
+    ItemTree.of(parse(db, file), itemIdMap(db, file))
 }
 
-private func lowerItems(decls: Iterator<Decl>, ids: AstIdMap): Array<Item> {
+private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
     itemsIn(decls).map {
         item =>
         let modifiers = modifiersOf(item.macroCalls.map {call => call.modifiers()}.concat([modifiersNode(item.decl)]),
@@ -219,7 +219,7 @@ private func lowerItems(decls: Iterator<Decl>, ids: AstIdMap): Array<Item> {
 /**
  * The id `ids` gives the node: made of the same tree, they have every item.
  */
-private func idOf(ids: AstIdMap, node: CjSyntaxNode): AstId {
+private func idOf(ids: ItemIdMap, node: CjSyntaxNode): ItemId {
     ids.idOf(SyntaxNodePtr(node)) ?? throw IllegalStateException("no id for the item at ${node.textRange}")
 }
 
