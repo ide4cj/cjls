@@ -216,7 +216,9 @@ class BinaryLowerer {
     /**
      * The item of the declaration at `index`, under `parent` (named `parentName`) in `file`;
      * `None` for one that is no item (a parameter, a generic parameter, one of a kind this reader
-     * does not know) and for one cjc added, but a primary init and its member parameters.
+     * does not know) and for one cjc added, but those a primary init desugars to: cjc keeps no
+     * `PrimaryCtorDecl`, only the `init` it makes of it (`PrimaryConstructor`) and a field per member
+     * parameter (`isMemberParam`), both `CompilerAdd` (`DesugarPrimaryCtor`).
      */
     private func lowerDecl(parent: ?ItemId, parentName: String, index: Int64, decl: CjoDecl, file: Int64): ?Item {
         let attributes = decl.attributes
@@ -235,7 +237,7 @@ class BinaryLowerer {
             case ItemKind.Main => ["main"]
             case ItemKind.Init => ["init"]
             case ItemKind.Finalizer => ["~init"]
-            // cjc names it `init`; the source, as its type
+            // cjc names it `init`, its `identifierForLsp` as its type, as a source names it
             case ItemKind.PrimaryInit => [parentName]
             case _ where identifier.isEmpty() => []
             case _ => [identifier]
