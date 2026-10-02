@@ -141,7 +141,7 @@ class StructureTest {
     @TestCase
     func aNameInBackquotesIsOutlinedWithoutThem() {
         // act, assert
-        @Expect(outline("class `C` {\n    func `f`() {}\n}"), "Class C\n  Method f")
+        @Expect(outline("class `C` {\n    func `f`() {}\n}\nextend `C` {}"), "Class C\n  Method f\nExtension C")
     }
 }
 

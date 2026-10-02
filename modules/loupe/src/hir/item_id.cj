@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, identText}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import calca.*
 import calca.macros.*
@@ -196,7 +196,8 @@ struct ItemSyntax {
 
     /**
      * What its id is made of besides its parent: its name, without backquotes; `main`, `init`,
-     * `~init` for what a keyword names; the type and the bounds for an `extend`, as written; the
+     * `~init` for what a keyword names; the type and the bounds for an `extend`, as written but for
+     * backquotes; the
      * pattern of a `let` that has no single name; the macro of a call. Empty for a name not
      * written yet.
      */
@@ -279,8 +280,8 @@ func macroName(call: MacroExpandDecl): String {
 }
 
 /**
- * The tokens of `node` but whitespace and comments, one after another: `Map < K , V >` and
- * `Map<K, V>` are the same.
+ * The tokens of `node` but whitespace and comments, one after another, identifiers without their
+ * backquotes: `Map < K , V >`, `Map<K, V>` and `` `Map`<K, V> `` are the same.
  */
 func compactText(syntax: ?CjSyntaxNode): String {
     let node = syntax ?? return ""
@@ -288,7 +289,7 @@ func compactText(syntax: ?CjSyntaxNode): String {
     for (element in node.descendantsWithTokens()) {
         if (let SyntaxElement.Token(token) <- element) {
             if (!token.kind.isTrivia()) {
-                text.append(token.text())
+                text.append(identText(token))
             }
         }
     }

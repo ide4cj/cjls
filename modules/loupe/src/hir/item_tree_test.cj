@@ -230,10 +230,10 @@ class ItemTreeTest {
     @TestCase
     func aNameInBackquotesIsThatNameWithItsId() {
         // arrange
-        let plain = treeOf("import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\n")
+        let plain = treeOf("import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\nextend C {}\nlet (y, z) = (1, 2)\n")
 
         // act
-        let quoted = treeOf("import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\n")
+        let quoted = treeOf("import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\nextend `C` {}\nlet (`y`, z) = (1, 2)\n")
 
         // assert
         @Expect(quoted.items[0].names, ["foo"])

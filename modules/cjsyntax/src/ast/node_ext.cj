@@ -42,6 +42,17 @@ extend NameRef {
 }
 
 /**
+ * The text of `token`; an identifier's without its backquotes, as a name is (A20).
+ */
+public func identText(token: SyntaxToken<SyntaxKind>): String {
+    if (token.kind == SyntaxKind.Ident) {
+        unquoted(token.text())
+    } else {
+        token.text()
+    }
+}
+
+/**
  * An identifier without its backquotes; one left open, as while it is typed, without the first.
  */
 func unquoted(ident: String): String {

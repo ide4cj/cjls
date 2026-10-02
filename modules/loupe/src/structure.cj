@@ -2,9 +2,9 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxToken}
-import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl}
+import ginkgo.{SyntaxElement, TextRange}
+import cjsyntax.{CjParse, CjSyntaxNode, CjSyntaxToken}
+import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl, identText}
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
@@ -171,7 +171,7 @@ private func byKeyword(decl: Decl, name: String, kind: StructureKind, keyword: ?
 }
 
 /**
- * Named by the type it extends, as written.
+ * Named by the type it extends, as written but for backquotes.
  */
 private func extension(decl: ExtendDecl): Array<StructureNode> {
     let ty = decl.ty() ?? return []
@@ -179,7 +179,20 @@ private func extension(decl: ExtendDecl): Array<StructureNode> {
         case Some(body) => structureOf(body.decls(), true)
         case None => Array<StructureNode>()
     }
-    [StructureNode(ty.syntax.text(), StructureKind.Extension, decl.syntax.textRange, ty.syntax.textRange, members)]
+    [StructureNode(unquotedText(ty.syntax), StructureKind.Extension, decl.syntax.textRange, ty.syntax.textRange, members)]
+}
+
+/**
+ * The text of `node`, its identifiers without their backquotes (A20).
+ */
+private func unquotedText(node: CjSyntaxNode): String {
+    let text = StringBuilder()
+    for (element in node.descendantsWithTokens()) {
+        if (let SyntaxElement.Token(token) <- element) {
+            text.append(identText(token))
+        }
+    }
+    text.toString()
 }
 
 /**
