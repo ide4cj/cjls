@@ -10,9 +10,10 @@ const USAGE = """
 Usage: cjls [command]
 
 Commands:
-  (none)           serve LSP over stdio, as an editor starts it
-  project [dir]    print the project found for dir (the current one by default) as cj-project.json
-  help             print this
+  (none)                 serve LSP over stdio, as an editor starts it
+  project [--dir <dir>]  print the project found for <dir>, the current directory by default,
+                         as cj-project.json
+  help                   print this
 """
 
 /**
@@ -48,15 +49,7 @@ func parseCommand(args: Array<String>): Command {
         return Serve
     }
     match (args[0]) {
-        case "project" where args.size == 1 => PrintProject(getWorkingDirectory())
-        case "project" where args.size == 2 =>
-            let dir = Path(args[1])
-            if (dir.isAbsolute()) {
-                PrintProject(dir)
-            } else {
-                PrintProject(getWorkingDirectory().join(dir))
-            }
-        case "project" => throw UsageException("`project` takes one directory at most")
+        case "project" => PrintProject(projectDir(args[1..]))
         case "help" | "--help" | "-h" => Help
         case other => throw UsageException("no command `${other}`")
     }
@@ -78,4 +71,39 @@ func printProject(dir: Path, logger: Logger): Int64 {
     getStdOut().write(prettyProjectJson(toProjectJson(load.model, root)))
     getStdOut().flush()
     0
+}
+
+/**
+ * The directory `project`'s options name, `--dir <dir>` (`-d <dir>`) or `--dir=<dir>`, relative to
+ * the working one; the working one without them.
+ *
+ * @throws UsageException - for an option not known, or `--dir` given twice or without a value
+ */
+func projectDir(options: Array<String>): Path {
+    var dir: ?String = None
+    var i = 0
+    while (i < options.size) {
+        let value = match (options[i]) {
+            case "--dir" | "-d" where i + 1 < options.size =>
+                i++
+                options[i]
+            case "--dir" | "-d" => throw UsageException("`--dir` takes a directory")
+            case option where option.startsWith("--dir=") => option["--dir=".size..]
+            case option => throw UsageException("`project` takes no `${option}`")
+        }
+        if (dir.isSome()) {
+            throw UsageException("`--dir` is given twice")
+        }
+        if (value.isEmpty()) {
+            throw UsageException("`--dir` takes a directory")
+        }
+        dir = value
+        i++
+    }
+    let path = Path(dir ?? return getWorkingDirectory())
+    if (path.isAbsolute()) {
+        path
+    } else {
+        getWorkingDirectory().join(path)
+    }
 }

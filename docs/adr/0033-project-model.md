@@ -17,7 +17,7 @@ Status: accepted, 2026-10-02
 - **`cj-project.json`**: paths relative to the file, `${VAR}` from the environment; a package's files relative to its directory, which its name gives under the module's root unless `dir` says otherwise. Listed `packages` are all the module has; without them, one per directory holding a `*.cj`. `std` is the SDK's `modules/<target>/std` unless a module or a binary is named so.
 - **Projects of several roots are merged**: a module of a name seen before adds its packages, a package its files.
 - **The server loads the model's files**, not every `*.cj` under the roots (D30): a `build.cj` is no package's. A `.cj` come or gone, or a manifest changed, finds the project again; watchers cover `cjpm.toml` and `cj-project.json` too.
-- **`cjls project [dir]`** prints the model as `cj-project.json`, every default written out; no arguments serves LSP, an unknown command exits 2.
+- **`cjls project [--dir <dir>]`** prints the model of `<dir>`, the current directory by default, as `cj-project.json`, every default written out; no arguments serves LSP, an unknown command or option exits 2.
 
 ## Consequences
 

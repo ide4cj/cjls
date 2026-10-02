@@ -1,4 +1,4 @@
-"""`cjls project [dir]`: the project found for a directory, written to stdout as cj-project.json (#69)."""
+"""`cjls project [--dir <dir>]`: the project found for a directory, the current one by default, written to stdout as cj-project.json (#69)."""
 
 import json
 import subprocess
@@ -14,7 +14,7 @@ def test_a_cjpm_project_is_printed_with_every_default_written_out(tmp_path):
     (tmp_path / "src" / "util" / "u.cj").write_text("package app.util\n")
 
     # act
-    run = subprocess.run([CJLS, "project", str(tmp_path)], capture_output=True, timeout=60)
+    run = subprocess.run([CJLS, "project"], cwd=tmp_path, capture_output=True, timeout=60)
 
     # assert
     assert run.returncode == 0, run.stderr.decode()
@@ -28,6 +28,18 @@ def test_a_cjpm_project_is_printed_with_every_default_written_out(tmp_path):
     ]
     assert module["member"] is True
     assert set(project["cfg"]) >= {"os", "arch", "backend"}
+
+
+def test_dir_names_the_directory(tmp_path):
+    # arrange
+    (tmp_path / "cjpm.toml").write_text('[package]\nname = "app"\n')
+
+    # act
+    run = subprocess.run([CJLS, "project", "--dir", str(tmp_path)], capture_output=True, timeout=60)
+
+    # assert
+    assert run.returncode == 0, run.stderr.decode()
+    assert json.loads(run.stdout)["modules"][0]["name"] == "app"
 
 
 def test_an_unknown_command_is_a_usage_error():
