@@ -8,7 +8,7 @@ The Neovim integration lived in `editors/nvim`, rust-analyzer's `editors/code` l
 
 ## Decision
 
-- Neovim: [`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim), a Cangjie plugin rather than a cjls one — the server's `lsp/cjls.lua` (nvim-lspconfig's format), its download from this repository's releases (D11), the ftplugin, and highlighting from [tree-sitter-cangjie](https://github.com/BonZirka/tree-sitter-cangjie) until the server answers semantic tokens.
+- Neovim: [`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim), a Cangjie plugin rather than a cjls one — the server's `lsp/cjls.lua` (nvim-lspconfig's format), its download from this repository's releases (D11), the ftplugin, and highlighting from [tree-sitter-cangjie](https://github.com/ide4cj/tree-sitter-cangjie) until the server answers semantic tokens.
 - The plugin pins the cjls release it downloads, the one it was tested with; a new release is a change to the plugin.
 - This repository's CI runs the plugin's smoke test against the binary it has just built, so a server change that breaks the plugin fails here. The plugin's own CI runs it against the latest release.
 - VS Code and Zed, when they come, are repositories of their own the same way.
