@@ -174,17 +174,17 @@ public struct ProjectModel {
     }
 
     /**
-     * The projects as one, with the cfg of the first (`cfg` if there are none). A module named as
-     * one before it adds its packages to that one, a package named as one before it its files: two
-     * roots of loose files both have a `default`, and a project opened from two roots has its
-     * modules twice. A binary named as one before it is left out.
+     * The projects as one, with the cfg of the first (`cfg` if there are none). A module of a root
+     * seen before adds its packages to that one, a package named as one before it its files: a
+     * project opened from two roots has its modules twice. A binary named as one before it is left
+     * out.
      */
     public static func merge(projects: Array<ProjectModel>, cfg: Cfg): ProjectModel {
         let modules = ArrayList<ModuleModel>()
         let binaries = ArrayList<BinaryModel>()
         for (project in projects) {
             for (module in project.modules) {
-                match (modules.iterator().enumerate().filter {kept => kept[1].name == module.name}.next()) {
+                match (modules.iterator().enumerate().filter {kept => kept[1].root == module.root}.next()) {
                     case Some((index, kept)) => modules[index] = kept.including(module.packages)
                     case None => modules.add(module)
                 }
@@ -230,12 +230,13 @@ public struct Project {
 }
 
 /**
- * A module of the project, one per name, never dropped: a module gone is no longer in `Project`.
+ * A module of the project, one per root, never dropped: a module gone is no longer in `Project`.
+ * Its root, not its name, is what it is: every build script is a module `default` of its own.
  */
 @CalcaInput
 public struct Module {
-    public let name: String
-    public var root: VfsPath
+    public let root: VfsPath
+    public var name: String
     public var packages: Array<Package>
     public var deps: Array<String>
     public var member: Bool
@@ -243,8 +244,8 @@ public struct Module {
 }
 
 /**
- * A package of the project, one per name, never dropped: a package gone is no longer in its
- * module. Its files are an input of their own, not found from their texts: a file deleted is an
+ * A package of the project, one per name in a module, never dropped: a package gone is no longer
+ * in its module. Its files are an input of their own, not found from their texts: a file deleted is an
  * empty text (A5), which nothing tells from an empty file.
  */
 @CalcaInput
@@ -262,7 +263,15 @@ public struct Package {
  */
 class Projects {
     var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>) = None
-    let modules = HashMap<String, (Module, ModuleModel)>()
-    let packages = HashMap<String, (Package, PackageModel, Durability)>()
+    let modules = HashMap<VfsPath, (Module, ModuleModel)>()
+    let packages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
     var durabilities = HashMap<FileId, Durability>()
+}
+
+/**
+ * A package by the root of its module and its name.
+ */
+@Derive[Hashable, Equatable]
+struct PackageKey {
+    PackageKey(let root: VfsPath, let name: String) {}
 }

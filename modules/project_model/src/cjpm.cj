@@ -9,8 +9,14 @@ import loupe.db.*
 import loupe.vfs.VfsPath
 
 /**
+ * The script cjpm runs around a build, beside its `cjpm.toml`.
+ */
+const BUILD_SCRIPT = "build.cj"
+
+/**
  * The project of the `cjpm.toml` at `file`, `None` if there is no such file: a module per package
- * of the workspace, and one per path dependency, reached from them, which is no member. A
+ * of the workspace, and one per path dependency, reached from them, which is no member; and one
+ * per `build.cj`. A
  * dependency of another kind (git, a version) is not there before `cjpm update` and is told in the
  * problems, not guessed.
  *
@@ -27,6 +33,10 @@ public func loadCjpmProject(file: VfsPath, env!: (String) -> ?String, cfg!: Cfg 
     let lowering = CjpmLowering(loading, dir, manifest)
     for (member in lowering.members) {
         lowering.module(member)
+    }
+    // a workspace with no package of its own may still have a build script
+    if (manifest.pkg.isNone()) {
+        lowering.buildScript(dir, manifest, true)
     }
     let binaries = ArrayList<BinaryModel>()
     if (!lowering.modules.iterator().any {module => module.name == "std"}) {
@@ -141,7 +151,33 @@ class CjpmLowering {
             unique.add(dep)
         }
         modules.add(ModuleModel(name, sources, packagesUnder(name, sources), deps: unique.toArray(), member: member))
+        buildScript(dir, manifest, member)
         name
+    }
+
+    /**
+     * The `build.cj` beside `manifest`, in `dir`, as a module of its own: cjpm compiles it alone,
+     * a program of the package `default`, which sees `std` and the manifest's
+     * `script-dependencies`, not the code it builds.
+     */
+    func buildScript(dir: VfsPath, manifest: Manifest, member: Bool): Unit {
+        let script = dir.join(BUILD_SCRIPT)
+        if (!(script.filePath.map {path => isFile(path)} ?? false)) {
+            return
+        }
+        let deps = ArrayList<String>()
+        let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
+        sort(sorted, by: {a, b => a[0].compare(b[0])})
+        for ((key, dep) in sorted) {
+            match (dep) {
+                case Table(table) where table.path.isSome() =>
+                    deps.add(module(loading.resolve(dir, table.path.getOrThrow())) ?? key)
+                case _ => loading.problems.add(
+                    "script dependency `${key}` of ${script} is left out: only path dependencies are read, not git or version ones")
+            }
+        }
+        modules.add(ModuleModel(DEFAULT_PACKAGE, dir, [PackageModel(DEFAULT_PACKAGE, dir, [script])], deps: deps.toArray(),
+            member: member))
     }
 
     /**
@@ -225,6 +261,7 @@ struct Manifest {
         let workspace!: ?Workspace = None,
         let dependencies!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "test-dependencies"] let testDependencies!: ?HashMap<String, Dependency> = None,
+        @Serde[rename: "script-dependencies"] let scriptDependencies!: ?HashMap<String, Dependency> = None,
         let target!: ?HashMap<String, Target> = None
     ) {}
 }

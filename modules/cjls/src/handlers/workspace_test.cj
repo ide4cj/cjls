@@ -258,7 +258,7 @@ class InitializedTest {
 @Test
 class ProjectLoadTest {
     @TestCase
-    func aCjpmProjectLoadsTheFilesOfItsPackagesAndIsWhatTheAnalysisSees() {
+    func aCjpmProjectLoadsTheFilesOfItsPackagesAndItsBuildScriptAndIsWhatTheAnalysisSees() {
         // arrange
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}"),
             ("src/util/u.cj", "package app.util"), ("build.cj", "b")])
@@ -270,11 +270,11 @@ class ProjectLoadTest {
 
         // assert
         @Expect(textAt(state, dir.join("src").join("util").join("u.cj")), Some("package app.util"))
-        @Expect(textAt(state, dir.join("build.cj")), None<String>)
-        let project = state.analysis.project().getOrThrow()
-        let module = project.modules(state.analysis)[0]
-        @Expect(module.name(state.analysis), "app")
-        @Expect(module.packages(state.analysis).map {pkg => pkg.name(state.analysis)}, ["app", "app.util"])
+        @Expect(textAt(state, dir.join("build.cj")), Some("b"))
+        let modules = state.analysis.project().getOrThrow().modules(state.analysis)
+        @Expect(modules.map {module => module.name(state.analysis)}, ["app", "default"])
+        @Expect(modules[0].packages(state.analysis).map {pkg => pkg.name(state.analysis)}, ["app", "app.util"])
+        @Expect(modules[1].root(state.analysis), VfsPath.file(dir))
     }
 
     @TestCase

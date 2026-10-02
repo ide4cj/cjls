@@ -135,13 +135,13 @@ class ProjectTest {
     }
 
     @TestCase
-    func projectsMergedAreOneModuleAndOnePackagePerName() {
+    func projectsMergedAreOneModulePerRootAndOnePackagePerName() {
         // arrange
         let first = ProjectModel(Cfg([("os", "Linux")]), [ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/x.cj")])])],
             binaries: [BinaryModel("stdx", [at("stdx1")])])
         let second = ProjectModel(Cfg([("os", "Windows")]), [
-            ModuleModel("a", at("two"), [PackageModel("a", at("two"), [at("two/y.cj")]), PackageModel("a.b", at("two/b"), [])]),
-            ModuleModel("b", at("b"), [])
+            ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/y.cj")]), PackageModel("a.b", at("one/b"), [])]),
+            ModuleModel("default", at("two"), [PackageModel("default", at("two"), [at("two/build.cj")])])
         ], binaries: [BinaryModel("stdx", [at("stdx2")])])
 
         // act
@@ -149,9 +149,27 @@ class ProjectTest {
 
         // assert
         @Expect(merged.cfg.get("os"), Some("Linux"))
-        @Expect(merged.modules.map {module => module.root}, [at("one"), at("b")])
+        @Expect(merged.modules.map {module => module.root}, [at("one"), at("two")])
         @Expect(merged.modules[0].packages.map {pkg => pkg.name}, ["a", "a.b"])
-        @Expect(merged.modules[0].packages[0].files, [at("one/x.cj"), at("two/y.cj")])
+        @Expect(merged.modules[0].packages[0].files, [at("one/x.cj"), at("one/y.cj")])
         @Expect(merged.binaries.map {binary => binary.paths}, [[at("stdx1")]])
+    }
+
+    @TestCase
+    func modulesOfOneNameAreInputsOfTheirOwnByTheirRoots() {
+        // arrange - two build scripts, each a module `default` of its package `default`
+        let db = AnalysisDatabase()
+        let paths = PathInterner()
+        let script = {dir: String => ModuleModel("default", at(dir), [PackageModel("default", at(dir), [at("${dir}/build.cj")])])}
+
+        // act
+        db.setProject(ProjectModel(Cfg([]), [script("a"), script("b")]), paths)
+
+        // assert
+        let modules = db.project().getOrThrow().modules(db)
+        @Expect(modules.size, 2)
+        @Expect(modules[0] != modules[1])
+        let files = modules.map {module => module.packages(db)[0].files(db)}
+        @Expect(files, [[paths.lookup(at("a/build.cj")).getOrThrow()], [paths.lookup(at("b/build.cj")).getOrThrow()]])
     }
 }

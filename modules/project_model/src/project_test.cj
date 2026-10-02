@@ -185,7 +185,8 @@ class CjpmProjectTest {
             ("ws/b/lib/b.cj", ""),
             ("ws/b/lib/x/y/c.cj", ""),
             ("dep/cjpm.toml", "[package]\nname = \"dep\"\n"),
-            ("dep/src/d.cj", "")
+            ("dep/src/d.cj", ""),
+            ("ws/build.cj", "main(): Int64 { 0 }")
         ])
 
         // act
@@ -198,9 +199,12 @@ class CjpmProjectTest {
             "org::b: org::b=ws/b/lib/b.cj",
             "org::b: org::b.x.y=ws/b/lib/x/y/c.cj",
             "dep: dep=dep/src/d.cj",
-            "a: a=ws/a/src/main.cj"
+            "a: a=ws/a/src/main.cj",
+            "default: default=ws/a/build.cj",
+            "default: default=ws/build.cj"
         ])
-        @Expect(model.modules.map {module => module.member}, [true, false, true])
+        @Expect(model.modules.map {module => module.member}, [true, false, true, true, true])
+        @Expect(model.modules[4].root, dir.join("ws"))
         @Expect(model.modules[2].deps, ["org::b", "dep", "stdx"])
         @Expect(model.modules[1].deps, Array<String>())
         @Expect(model.binaries.map {binary => binary.name}, ["std", "stdx"])
@@ -283,5 +287,32 @@ class FindProjectTest {
         // assert
         @Expect(packagesOf(load.model, dir), ["a: a=a.cj"])
         @Expect(load.problems.size, 1)
+    }
+
+    @TestCase
+    func aBuildScriptIsAModuleOfItsOwnWithItsScriptDependencies() {
+        // arrange
+        let dir = tree([
+            ("cjpm.toml", "[package]\nname = \"app\"\n[script-dependencies]\ntool = { path = \"tool\" }\n" +
+                "remote = \"1.0.0\"\n"),
+            ("build.cj", "main(): Int64 { 0 }"),
+            ("src/main.cj", ""),
+            ("tool/cjpm.toml", "[package]\nname = \"tool\"\n"),
+            ("tool/src/t.cj", "")
+        ])
+
+        // act
+        let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
+        removeTree(dir)
+
+        // assert - the script sees `tool`, the module it builds does not
+        let model = load.model
+        @Expect(packagesOf(model, dir), ["app: app=src/main.cj", "tool: tool=tool/src/t.cj", "default: default=build.cj"])
+        @Expect(model.modules[0].deps, Array<String>())
+        @Expect(model.modules[2].deps, ["tool"])
+        @Expect(model.modules[2].root, dir)
+        @Expect(!model.modules[1].member)
+        @Expect(load.problems.size, 1)
+        @Expect(load.problems[0].contains("`remote`"))
     }
 }

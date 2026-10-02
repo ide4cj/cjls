@@ -92,8 +92,9 @@ public class AnalysisDatabase <: Database {
     }
 
     /**
-     * Sets the project to `model`, in one revision: a module or a package is the input of its
-     * name, made the first time, and only what differs from what it was set to last is set again.
+     * Sets the project to `model`, in one revision: a module is the input of its root, a package
+     * the input of its name in the module of its root, made the first time, and only what differs
+     * from what it was set to last is set again.
      * The files of a module set from now on take its durability; a file is given its id by
      * `paths`. A file set already keeps the durability it has until it changes.
      *
@@ -130,14 +131,14 @@ public class AnalysisDatabase <: Database {
             for (file in files) {
                 durabilities.add(file, durability)
             }
-            setPackage(pkg, files, durability)
+            setPackage(model.root, pkg, files, durability)
         }
-        match (projects.modules.get(model.name)) {
+        match (projects.modules.get(model.root)) {
             case Some((module, old)) =>
-                if (old.root != model.root || old.durability != durability) {
-                    module.setRoot(this).withDurability(durability).to(model.root)
+                if (old.name != model.name || old.durability != durability) {
+                    module.setName(this).withDurability(durability).to(model.name)
                 }
-                // a package is the input of its name: the same names are the same inputs
+                // a package is the input of its name in this module: the same names are the same inputs
                 if (old.packages.map {it => it.name} != model.packages.map {it => it.name} || old.durability != durability) {
                     module.setPackages(this).withDurability(durability).to(packages)
                 }
@@ -150,18 +151,19 @@ public class AnalysisDatabase <: Database {
                 if (old.cfg != model.cfg || old.durability != durability) {
                     module.setCfg(this).withDurability(durability).to(model.cfg)
                 }
-                projects.modules.add(model.name, (module, model))
+                projects.modules.add(model.root, (module, model))
                 module
             case None =>
-                let module = Module(this, model.name, model.root, packages, model.deps, model.member, model.cfg,
+                let module = Module(this, model.root, model.name, packages, model.deps, model.member, model.cfg,
                     durability: durability)
-                projects.modules.add(model.name, (module, model))
+                projects.modules.add(model.root, (module, model))
                 module
         }
     }
 
-    private func setPackage(model: PackageModel, files: Array<FileId>, durability: Durability): Package {
-        match (projects.packages.get(model.name)) {
+    private func setPackage(root: VfsPath, model: PackageModel, files: Array<FileId>, durability: Durability): Package {
+        let key = PackageKey(root, model.name)
+        match (projects.packages.get(key)) {
             case Some((pkg, old, oldDurability)) =>
                 let moved = oldDurability != durability
                 if (old.dir != model.dir || moved) {
@@ -176,12 +178,12 @@ public class AnalysisDatabase <: Database {
                 if (old.isMacro != model.isMacro || moved) {
                     pkg.setIsMacro(this).withDurability(durability).to(model.isMacro)
                 }
-                projects.packages.add(model.name, (pkg, model, durability))
+                projects.packages.add(key, (pkg, model, durability))
                 pkg
             case None =>
                 let pkg = Package(this, model.name, model.dir, files, model.noPrelude, model.isMacro,
                     durability: durability)
-                projects.packages.add(model.name, (pkg, model, durability))
+                projects.packages.add(key, (pkg, model, durability))
                 pkg
         }
     }
