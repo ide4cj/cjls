@@ -92,8 +92,8 @@ public class AnalysisDatabase <: Database {
     }
 
     /**
-     * Sets the project to `model`, in one revision: a module is the input of its root, a package
-     * the input of its name in the module of its root, made the first time, and only what differs
+     * Sets the project to `model`, in one revision: a module is the input of its root and its
+     * name, a package the input of its name in its module, made the first time, and only what differs
      * from what it was set to last is set again.
      * The files of a module set from now on take its durability; a file is given its id by
      * `paths`. A file set already keeps the durability it has until it changes.
@@ -131,13 +131,10 @@ public class AnalysisDatabase <: Database {
             for (file in files) {
                 durabilities.add(file, durability)
             }
-            setPackage(model.root, pkg, files, durability)
+            setPackage(model.key, pkg, files, durability)
         }
-        match (projects.modules.get(model.root)) {
+        match (projects.modules.get(model.key)) {
             case Some((module, old)) =>
-                if (old.name != model.name || old.durability != durability) {
-                    module.setName(this).withDurability(durability).to(model.name)
-                }
                 // a package is the input of its name in this module: the same names are the same inputs
                 if (old.packages.map {it => it.name} != model.packages.map {it => it.name} || old.durability != durability) {
                     module.setPackages(this).withDurability(durability).to(packages)
@@ -151,18 +148,18 @@ public class AnalysisDatabase <: Database {
                 if (old.cfg != model.cfg || old.durability != durability) {
                     module.setCfg(this).withDurability(durability).to(model.cfg)
                 }
-                projects.modules.add(model.root, (module, model))
+                projects.modules.add(model.key, (module, model))
                 module
             case None =>
                 let module = Module(this, model.root, model.name, packages, model.deps, model.member, model.cfg,
                     durability: durability)
-                projects.modules.add(model.root, (module, model))
+                projects.modules.add(model.key, (module, model))
                 module
         }
     }
 
-    private func setPackage(root: VfsPath, model: PackageModel, files: Array<FileId>, durability: Durability): Package {
-        let key = PackageKey(root, model.name)
+    private func setPackage(module: ModuleKey, model: PackageModel, files: Array<FileId>, durability: Durability): Package {
+        let key = PackageKey(module, model.name)
         match (projects.packages.get(key)) {
             case Some((pkg, old, oldDurability)) =>
                 let moved = oldDurability != durability

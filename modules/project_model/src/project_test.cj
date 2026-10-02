@@ -273,6 +273,8 @@ class FindProjectTest {
         ])
         @Expect(load.model.modules.iterator().all {module => module.root == dir})
         @Expect(load.problems.size, 1) // no CANGJIE_HOME
+        // modules of one root are as many after a merge
+        @Expect(packagesOf(ProjectModel.merge([load.model], LINUX), dir), packagesOf(load.model, dir))
     }
 
     @TestCase
@@ -314,5 +316,24 @@ class FindProjectTest {
         @Expect(!model.modules[1].member)
         @Expect(load.problems.size, 1)
         @Expect(load.problems[0].contains("`remote`"))
+    }
+
+    @TestCase
+    func aBuildScriptAmongTheSourcesIsNoneOfThem() {
+        // arrange
+        let dir = tree([
+            ("cjpm.toml", "[package]\nname = \"app\"\nsrc-dir = \".\"\n"),
+            ("build.cj", "main(): Int64 { 0 }"),
+            ("main.cj", "package app"),
+            ("util/build.cj", "package app.util")
+        ])
+
+        // act
+        let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
+        removeTree(dir)
+
+        // assert - only the script beside the manifest is left out, into a module of its own
+        @Expect(packagesOf(load.model, dir), ["app: app=main.cj", "app: app.util=util/build.cj", "default: default=build.cj"])
+        @Expect(load.model.modules.map {module => module.root}, [dir, dir])
     }
 }

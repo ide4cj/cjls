@@ -150,7 +150,16 @@ class CjpmLowering {
         for (dep in deps where !unique.contains(dep)) {
             unique.add(dep)
         }
-        modules.add(ModuleModel(name, sources, packagesUnder(name, sources), deps: unique.toArray(), member: member))
+        // under `src-dir = "."` the build script is beside the sources, and cjpm leaves it out of them
+        let script = dir.join(BUILD_SCRIPT)
+        let packages = ArrayList<PackageModel>()
+        for (pkg in packagesUnder(name, sources)) {
+            let files = pkg.files.filter {file => file != script}
+            if (!files.isEmpty()) {
+                packages.add(PackageModel(pkg.name, pkg.dir, files, noPrelude: pkg.noPrelude, isMacro: pkg.isMacro))
+            }
+        }
+        modules.add(ModuleModel(name, sources, packages.toArray(), deps: unique.toArray(), member: member))
         buildScript(dir, manifest, member)
         name
     }

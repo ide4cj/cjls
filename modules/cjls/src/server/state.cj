@@ -59,12 +59,12 @@ public class ServerState <: FromContext<ServerState> {
      * The projects `initializationOptions` names (`linkedProjects`): a `cj-project.json`, or a
      * directory to find one in.
      */
-    public var linkedProjects = Array<VfsPath>()
+    public let linkedProjects = ArrayList<VfsPath>()
 
     /**
      * The files of the project, as last set.
      */
-    private var projectFiles = HashSet<VfsPath>()
+    private let projectFiles = HashSet<VfsPath>()
 
     private var filesChanged = false
     private var registrations = 0
@@ -118,7 +118,8 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func setProject(model: ProjectModel): Unit {
         analysis.setProject(model, vfs.paths)
-        projectFiles = HashSet<VfsPath>(model.files())
+        projectFiles.clear()
+        projectFiles.add(all: model.files())
     }
 
     /**

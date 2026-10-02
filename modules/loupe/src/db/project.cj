@@ -175,16 +175,16 @@ public struct ProjectModel {
 
     /**
      * The projects as one, with the cfg of the first (`cfg` if there are none). A module of a root
-     * seen before adds its packages to that one, a package named as one before it its files: a
-     * project opened from two roots has its modules twice. A binary named as one before it is left
-     * out.
+     * and a name seen before adds its packages to that one, a package named as one before it its
+     * files: a project opened from two roots has its modules twice. A binary named as one before it
+     * is left out.
      */
     public static func merge(projects: Array<ProjectModel>, cfg: Cfg): ProjectModel {
         let modules = ArrayList<ModuleModel>()
         let binaries = ArrayList<BinaryModel>()
         for (project in projects) {
             for (module in project.modules) {
-                match (modules.iterator().enumerate().filter {kept => kept[1].root == module.root}.next()) {
+                match (modules.iterator().enumerate().filter {kept => kept[1].key == module.key}.next()) {
                     case Some((index, kept)) => modules[index] = kept.including(module.packages)
                     case None => modules.add(module)
                 }
@@ -199,6 +199,15 @@ public struct ProjectModel {
 }
 
 extend ModuleModel {
+    /**
+     * What tells it from the other modules of a project.
+     */
+    prop key: ModuleKey {
+        get() {
+            ModuleKey(root, name)
+        }
+    }
+
     /**
      * This module with `packages` too: the files of one of a name it has already are added to it.
      */
@@ -230,13 +239,13 @@ public struct Project {
 }
 
 /**
- * A module of the project, one per root, never dropped: a module gone is no longer in `Project`.
- * Its root, not its name, is what it is: every build script is a module `default` of its own.
+ * A module of the project, one per root and name, never dropped: a module gone is no longer in
+ * `Project`. Modules may share a root, or a name, not both.
  */
 @CalcaInput
 public struct Module {
     public let root: VfsPath
-    public var name: String
+    public let name: String
     public var packages: Array<Package>
     public var deps: Array<String>
     public var member: Bool
@@ -263,15 +272,23 @@ public struct Package {
  */
 class Projects {
     var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>) = None
-    let modules = HashMap<VfsPath, (Module, ModuleModel)>()
+    let modules = HashMap<ModuleKey, (Module, ModuleModel)>()
     let packages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
     var durabilities = HashMap<FileId, Durability>()
 }
 
 /**
- * A package by the root of its module and its name.
+ * A module by its root and its name.
+ */
+@Derive[Hashable, Equatable]
+struct ModuleKey {
+    ModuleKey(let root: VfsPath, let name: String) {}
+}
+
+/**
+ * A package by its module and its name.
  */
 @Derive[Hashable, Equatable]
 struct PackageKey {
-    PackageKey(let root: VfsPath, let name: String) {}
+    PackageKey(let module: ModuleKey, let name: String) {}
 }

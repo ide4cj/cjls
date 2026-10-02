@@ -132,7 +132,7 @@ func load(state: ServerState, logger: Logger): Unit {
     }
     let start = MonoTime.now()
     let budget = loadBudget()
-    let loads = findProjects(roots, state.linkedProjects, env: {name => getVariable(name)}, budget: budget)
+    let loads = findProjects(roots, state.linkedProjects.toArray(), env: {name => getVariable(name)}, budget: budget)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {

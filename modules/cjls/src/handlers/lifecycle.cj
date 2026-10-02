@@ -21,7 +21,7 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
-    state.linkedProjects = linkedProjects(params.initializationOptions)
+    state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
     let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false

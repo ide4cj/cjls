@@ -9,7 +9,7 @@
 | `PathInterner` | `loupe.vfs` | `FileId` = the path's index in the order seen, for good; a `ConcurrentIndexSet`, a lock only to give an id (C9); the only thread-safe part |
 | `SourceFile` | `loupe.db` | `@CalcaInput { fileId, text: Rope }`, one per `FileId`, never dropped |
 | `ProjectModel` | `loupe.db` | modules (named after their root package), packages and their files, binaries, `Cfg`: plain values, every way of finding a project comes down to it (D33) |
-| `Project`, `Module`, `Package` | `loupe.db` | the model as inputs: `Project` a singleton, a `Module` per root and a `Package` per name in it, never dropped; a package's files a field of its own |
+| `Project`, `Module`, `Package` | `loupe.db` | the model as inputs: `Project` a singleton, a `Module` per root and name and a `Package` per name in it, never dropped; a package's files a field of its own |
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |
 | `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
