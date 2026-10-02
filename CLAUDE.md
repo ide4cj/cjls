@@ -54,11 +54,13 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `cjsyntax` | the Cangjie lexer and parser on `ginkgo`; `SyntaxKind` and `cjsyntax.ast` are generated |
 | `syntax_codegen` | executable: generates `cjsyntax`'s kinds and typed views |
 | `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
+| `cjo` | the `.cjo` files cjc writes for a package: `openCjo`, a read-only flatbuffers runtime and the views of the vendored `CjoFormat.fbs`, generated ([D37](docs/adr/0037-cjo-files-are-read-by-generated-views.md)) |
+| `fbs_codegen` | executable: generates `cjo`'s views from a flatbuffers schema |
 | `project_model` | how files make a project: `cj-project.json`, `cjpm.toml` or loose files, lowered to `loupe.db`'s `ProjectModel` ([D33](docs/adr/0033-project-model.md)) |
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
 
-Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjsyntax → ginkgo, index_map, rope}`; `cjls → project_model → {loupe, stdxx, ftoml}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
+Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjsyntax → ginkgo, index_map, rope}`; `cjls → project_model → {loupe, stdxx, ftoml}`; `cjo` alone, for now. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
 
 Editor integrations are repositories in the `ide4cj` organization ([D16](docs/adr/0016-editor-integrations-are-repositories.md)): Neovim ([`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim)), VS Code ([`ide4cj/cangjie-vscode`](https://github.com/ide4cj/cangjie-vscode)), Zed ([`ide4cj/cangjie-zed`](https://github.com/ide4cj/cangjie-zed)); a change across them is one branch name in each (D32), the process in [`ide4cj/.github`](https://github.com/ide4cj/.github). The server's root is the nearest `cjpm.toml`.
 

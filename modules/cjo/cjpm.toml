@@ -1,0 +1,15 @@
+[package]
+cjc-version = "1.3.0"
+name = "cjo"
+organization = ""
+description = "Reads the .cjo files cjc writes for a package: a read-only flatbuffers runtime and the views of CjoFormat.fbs"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = "-O2"
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]

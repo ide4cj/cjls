@@ -1,0 +1,20 @@
+# The views of `CjoFormat.fbs`, the schema of a .cjo, vendored from cangjie_compiler's `schema/CjoFormat.fbs` at
+# the commit the pinned nightly (`.cangjie-version`) was built from, 84b0a500f66e. `fbs_codegen` makes `src/format.cj`
+# of it: when the nightly moves, take the schema of its commit (its release notes name it), then
+#
+#     cjpm build && target/release/bin/fbs_codegen modules/cjo/cjo_format.toml
+
+schema = "CjoFormat.fbs"
+output = "src/format.cj"
+package = "cjo"
+
+# What `include/cangjie/Modules/CjoVersion.h` lets a patch append to: a reader must take a value it does not know.
+# Every union is open by the same rules, and has an `Unknown` of its own.
+open = ["TypeKind", "DeclKind", "ExprKind", "PackageKind"]
+
+# `TypeKind.Generic` would be a constructor of every package importing cjo, the table no type there.
+[rename]
+Generic = "Generics"
+
+[wrap]
+"Decl.attributes" = "Attributes"
