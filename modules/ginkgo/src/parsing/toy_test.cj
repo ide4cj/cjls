@@ -144,6 +144,11 @@ func toyLex(text: String): Lexed<Toy> {
 func toyParse(text: String): Parse<Toy> {
     let lexed = toyLex(text)
     let p = toyParser(lexed)
+    toyRoot(p)
+    buildTree(lexed, p, ToyTrivia())
+}
+
+func toyRoot(p: Parser<Toy>): Unit {
     let root = p.start()
     while (!p.atEof()) {
         let line = p.start()
@@ -154,7 +159,6 @@ func toyParse(text: String): Parse<Toy> {
         line.complete(p, Line)
     }
     root.complete(p, Root)
-    buildTree(lexed, p, ToyTrivia())
 }
 
 func toyInput(lexed: Lexed<Toy>): Input<Toy> {

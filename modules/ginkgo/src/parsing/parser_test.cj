@@ -181,6 +181,47 @@ class ParserTest {
     }
 
     @TestCase
+    func rewindingCountsTowardsTheStepLimit() {
+        // arrange
+        let p = toyParser(toyLex("1 + 2"))
+        let snapshot = p.snapshot()
+
+        // act & assert
+        @AssertThrows[IllegalStateException]({
+            while (true) {
+                p.bump(Num)
+                p.at(Plus)
+                p.rewind(snapshot)
+            }
+        })
+    }
+
+    @TestCase
+    func aGrammarThatThrowsGivesTheTokensInAnErrorNode() {
+        // arrange
+        let lexed = toyLex("1 + 2 # c")
+
+        // act
+        let parse = parseWith(lexed, toyParser(lexed), ToyTrivia(), Root) {p => p.bump(Plus)}
+
+        // assert
+        @Expect(parse.syntaxNode().debugDump(),
+            "Root@0..9\n  ErrorNode@0..5\n    Num@0..1 \"1\"\n    Ws@1..2 \" \"\n    Plus@2..3 \"+\"\n    Ws@3..4 \" \"\n    Num@4..5 \"2\"\n  Ws@5..6 \" \"\n  Comment@6..9 \"# c\"\n")
+        @Expect(parse.errors.size, 1)
+        @Expect(parse.errors[0].toString().startsWith("0..0: the parser failed on this file, a bug in it: bump(Plus)"))
+    }
+
+    @TestCase
+    func aGrammarThatWorksIsBuiltAsBuildTreeWould() {
+        // act
+        let lexed = toyLex("1 + 2")
+        let parse = parseWith(lexed, toyParser(lexed), ToyTrivia(), Root) {p => toyRoot(p)}
+
+        // assert
+        @Expect(parse == toyParse("1 + 2"))
+    }
+
+    @TestCase
     func parsesOfOneTextAreEqual() {
         // act, assert
         @Expect(toyParse("1 + 2") == toyParse("1 + 2"))

@@ -22,12 +22,18 @@ type P = Parser<SyntaxKind>
  * and `?` only continue an expression on the same line.
  */
 public func parse(text: String): Parse<SyntaxKind> {
+    parseWithGrammar(text, sourceFile)
+}
+
+/**
+ * Parses `text` with `grammar` in place of a source file's. A grammar bug gives a tree of the text's tokens in an
+ * `ErrorNode`, with an error saying so, rather than an exception (see `ginkgo.parsing.parseWith`).
+ */
+func parseWithGrammar(text: String, grammar: (P) -> Unit): Parse<SyntaxKind> {
     let lexed = tokenize(text)
-    let rules = CangjieTrivia()
     let input = lexed.toInput({k => k.isTrivia()}, {k => k == Newline}, contextual: {k, t => contextualKind(k, t)})
     let p = Parser<SyntaxKind>(input, Eof, ErrorNode)
-    sourceFile(p)
-    buildTree(lexed, p, rules)
+    parseWith(lexed, p, CangjieTrivia(), SourceFile, grammar)
 }
 
 /**

@@ -214,5 +214,21 @@ class ParseTest {
         @Expect(parse.syntaxNode().text(), text)
         @Expect(parse.errors.size > 0)
     }
-}
 
+    @TestCase
+    func aGrammarBugGivesAnErrorTreeNotAnException() {
+        // arrange
+        let text = "func f() {}\n// end\n"
+
+        // act
+        let parse = parseWithGrammar(text) {p => p.bump(Semicolon)}
+
+        // assert
+        let sb = StringBuilder()
+        writeSexp(sb, parse.syntaxNode())
+        @Expect(parse.syntaxNode().text(), text)
+        @Expect(sb.toString(), "(SourceFile (ErrorNode func f ( ) { }))")
+        @Expect(parse.errors.size, 1)
+        @Expect(message(parse.errors[0].error).startsWith("the parser failed on this file, a bug in it: bump(Semicolon)"))
+    }
+}

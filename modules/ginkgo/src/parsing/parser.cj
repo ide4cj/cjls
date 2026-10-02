@@ -30,8 +30,9 @@ enum Event<K> where K <: Kind<K> {
  * A recursive-descent parser's view of its input: a cursor over the non-trivia tokens, and the events it records.
  * The grammar is plain functions taking one; see `Marker` for how they make nodes.
  *
- * Reading past the end gives `eof`, forever. A grammar that loops without consuming anything is caught: after
- * `STEP_LIMIT` reads at one position the parser throws instead of hanging.
+ * Reading past the end gives `eof`, forever. A grammar that loops without getting anywhere is caught: after
+ * `STEP_LIMIT` reads without consuming a token past the furthest one consumed yet, the parser throws instead of
+ * hanging — `rewind` going back to try again included.
  */
 public class Parser<K> where K <: Kind<K> {
     static const STEP_LIMIT = 1_000_000
@@ -43,13 +44,14 @@ public class Parser<K> where K <: Kind<K> {
     public Parser(let input: Input<K>, let eof: K, let errorKind: K) {}
 
     var pos = 0
+    var furthest = 0
     var steps = 0
     let events = ArrayList<Event<K>>()
 
     /**
      * The kind `n` tokens ahead.
      *
-     * @throws IllegalStateException - if the parser reads this position too often, stuck in a loop
+     * @throws IllegalStateException - if the parser reads too often without getting further, stuck in a loop
      */
     @Frozen
     public func nth(n: Int64): K {
@@ -195,7 +197,10 @@ public class Parser<K> where K <: Kind<K> {
     func doBump(kind: K, n: Int64): Unit {
         events.add(AddToken(kind, n))
         pos += n
-        steps = 0
+        if (pos > furthest) {
+            furthest = pos
+            steps = 0
+        }
     }
 
     /**
@@ -287,7 +292,6 @@ public class Parser<K> where K <: Kind<K> {
     public func rewind(snapshot: ParserSnapshot): Unit {
         pos = snapshot.pos
         events.remove(snapshot.eventCount..events.size)
-        steps = 0
     }
 
     /**
