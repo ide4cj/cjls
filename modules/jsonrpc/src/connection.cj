@@ -118,6 +118,10 @@ public class Connection <: Resource {
         } catch (e: Exception) {
             // a no-op when the handler answered before it threw
             request.respond(ResultOrError.Error(responseErrorOf(e)))
+        } catch (e: Error) {
+            // a bug, and a stack overflow the next request may well not repeat: read on
+            logger.error("serve request \"${req.method}\" failed", [("cause", ErrorLogValue(e))])
+            request.respond(ResultOrError.Error(responseErrorOf(e)))
         }
     }
 
@@ -135,6 +139,8 @@ public class Connection <: Resource {
                 return
             }
             logger.error("answer to \"${req.method}\" failed", [("cause", e)])
+        } catch (e: Error) {
+            logger.error("answer to \"${req.method}\" failed", [("cause", ErrorLogValue(e))])
         }
     }
 
@@ -144,6 +150,8 @@ public class Connection <: Resource {
         } catch (e: Exception) {
             // nobody waits on a notification's outcome, so there is no one else to tell
             logger.error("serve notification \"${note.method}\" failed", [("cause", e)])
+        } catch (e: Error) {
+            logger.error("serve notification \"${note.method}\" failed", [("cause", ErrorLogValue(e))])
         }
     }
 

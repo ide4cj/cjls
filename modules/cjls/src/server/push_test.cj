@@ -101,6 +101,29 @@ class DiagnosticsPushTest {
         @Expect(cleared.diagnostics.size, 0)
         @Expect(transport.isEmpty())
     }
+
+    @TestCase
+    func aPublishThatOverflowsItsStackSendsNothingAndTheNextOneGoesOut() {
+        // arrange
+        let state = stateWith("a")
+        let overflows = AtomicBool(true)
+        let transport = WrittenTransport()
+        let push = DiagnosticsPush({
+            snap, path => if (overflows.swap(false)) {
+                overflowTheStack()
+            } else {
+                textAsDiagnostic(snap, path)
+            }
+        }, clientOn(transport), NoopLogger())
+
+        // act - `get` rethrows what the `spawn` let escape
+        push.schedule(state.snapshot(), [(PUSHED_PATH, 1)]).get()
+        @Expect(transport.isEmpty())
+        push.schedule(state.snapshot(), [(PUSHED_PATH, 2)]).get()
+
+        // assert
+        @Expect(publishedOf(transport.nextNotification()).version, Some(Int32(2)))
+    }
 }
 
 /**

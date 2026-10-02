@@ -43,13 +43,15 @@ public class InboundRequest {
     }
 
     /**
-     * Responds with what `answer` gives, or with `responseErrorOf` what it throws - so nothing
-     * escapes it, and it is a safe body for a `spawn`.
+     * Responds with what `answer` gives, or with `responseErrorOf` what it throws, an `Error`
+     * included - so nothing escapes it, and it is a safe body for a `spawn`.
      */
     public func respondWith(answer: () -> ResultOrError): Bool {
         let resultOrError = try {
             answer()
         } catch (e: Exception) {
+            ResultOrError.Error(responseErrorOf(e))
+        } catch (e: Error) {
             ResultOrError.Error(responseErrorOf(e))
         }
         respond(resultOrError)
@@ -64,4 +66,12 @@ public func responseErrorOf(e: Exception): ResponseError {
         case rpc: RpcException => rpc.responseError
         case _ => ResponseError(ErrorCode.INTERNAL_ERROR, e.message)
     }
+}
+
+/**
+ * An `Error` (a stack overflow, out of memory) answers with `INTERNAL_ERROR`, named by its class:
+ * it may have no message.
+ */
+public func responseErrorOf(e: Error): ResponseError {
+    ResponseError(ErrorCode.INTERNAL_ERROR, e.toString())
 }
