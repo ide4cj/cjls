@@ -10,8 +10,8 @@ import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
-import loupe.vfs.{isWorkspaceFile, readBinaries, readFile, readFiles, VfsPath}
-import project_model.{binaryPackagesOf, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
+import loupe.vfs.{isWorkspaceFile, readCjoFiles, readFile, readFiles, VfsPath}
+import project_model.{CangjieHome, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -23,7 +23,8 @@ import cjls.macros.LspHandler
 const WORKSPACE_SYMBOL_LIMIT = 128
 
 /**
- * How much text a load reads at most, in bytes: a sixteenth of the heap. On the runtime's default
+ * How much a load reads at most, in bytes, the `.cjo` of the binaries first and the text of the
+ * sources then: a sixteenth of the heap. On the runtime's default
  * of 256 MiB, 16 MiB of text was loaded and searched and 32 MiB ran out of memory (D30); a root far
  * wider than a project (a home directory, a test suite of a hundred thousand files) would fill any
  * heap with text alone.
@@ -127,13 +128,9 @@ func changesProject(event: FileEvent): Bool {
 }
 
 /**
- * Finds the SDK and the project of every root again and sets it, then reads the `.cjo` of its
- * binaries changed since, and the files of its packages the server does not know yet, and sets them
- * all in one revision each; an open document keeps what the editor sent. The binaries go first in
- * the budget: without `std` nothing resolves. On the read loop, so what arrives meanwhile waits and
- * applies after it.
- *
- * What the user is to be told, once: no SDK, or one whose `std` cannot be read; `None` if all is well.
+ * Finds the project of every root again and sets it, then reads the files of its packages the
+ * server does not know yet, and sets them all in one revision; an open document keeps what the
+ * editor sent. On the read loop, so what arrives meanwhile waits and applies after it.
  */
 func load(state: ServerState, logger: Logger): ?String {
     let roots = state.roots.toArray()
@@ -142,11 +139,9 @@ func load(state: ServerState, logger: Logger): ?String {
     }
     let start = MonoTime.now()
     let budget = loadBudget()
-    var warning = Option<String>.None
     let home = findCangjieHome(state.cangjieHome, env: {name => getVariable(name)})
-    match (home) {
-        case Some(home) => logger.info("found the SDK", [("path", home.path), ("source", home.source)])
-        case None => warning = "No Cangjie SDK is found: nothing from std resolves. Set `CANGJIE_HOME`, or the SDK in the editor's settings."
+    if (let Some(home) <- home) {
+        logger.info("found the SDK", [("path", home.path), ("source", home.source)])
     }
     let env = withCangjieHome({name => getVariable(name)}, home)
     let loads = findProjects(roots, state.linkedProjects.toArray(), env: env, budget: budget)
@@ -157,27 +152,47 @@ func load(state: ServerState, logger: Logger): ?String {
         }
     }
     let model = ProjectModel.merge(loads.map {load => load.model}, hostCfg())
-    state.setProject(model)
-    let binaries = binaryPackagesOf(model)
-    let readBinary = readBinaries(binaries.map {pkg => pkg.path}, known: {path => state.analysis.binaryStamp(path)},
+    // `std` is what every file resolves against: the binaries go first
+    let binaries = readCjoFiles(model.cjoFiles(), unchanged: {file, stamp => state.binaryUnchanged(file, stamp)},
         budget: budget)
-    for (problem in state.analysis.setBinaryPackages(binaries, readBinary.files)) {
-        logger.warn(problem.message)
-        if (problem.pkg.module == "std" && warning.isNone()) {
-            warning = "The Cangjie SDK is of a version the server does not read: nothing from std resolves. " +
-                problem.message
-        }
+    for (problem in binaries.problems) {
+        logger.warn(problem)
     }
+    state.setProject(model, binaries: binaries.files)
     let wanted = model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)}
-    let read = readFiles(wanted, budget: budget - readBinary.size)
+    let read = readFiles(wanted, budget: budget - binaries.size)
     state.setFilesContents(read.files.map {file => (file[0], Some(file[1]))})
     logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size),
-        ("binaries", readBinary.files.size), ("binaryBytes", readBinary.size), ("took", MonoTime.now() - start)])
-    if (readBinary.truncated || read.truncated) {
-        logger.warn("the workspace holds more than the server loads: the rest is not seen until opened",
+        ("cjo", binaries.files.size), ("took", MonoTime.now() - start)])
+    if (binaries.truncated) {
+        logger.warn("the binaries hold more than the server loads: the names of those left out do not resolve",
+            [("budget", budget)])
+    }
+    if (read.truncated) {
+        logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
             [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
     }
-    warning
+    sdkWarning(state, home)
+}
+
+/**
+ * What the user is to be told of the SDK, once: none found, or none of its `std` read (another
+ * version, the budget); `None` if `std` is there, or the project has a `std` of its own.
+ */
+func sdkWarning(state: ServerState, home: ?CangjieHome): ?String {
+    let project = state.analysis.project() ?? return None
+    let db = state.analysis
+    if (!project.binaries(db).iterator().any {binary => binary.name == "std"}) {
+        return match (home) {
+            case None where !project.modules(db).iterator().any {module => module.name(db) == "std"} =>
+                "No Cangjie SDK is found: nothing from std resolves. Set `CANGJIE_HOME`, or the SDK in the editor's settings."
+            case _ => None
+        }
+    }
+    if (project.binaryPackages(db).iterator().any {pkg => pkg.binary(db) == "std"}) {
+        return None
+    }
+    "No package of std is read from the Cangjie SDK at ${home?.path ?? "the project's std"}: nothing from std resolves. The server's log says why."
 }
 
 /**

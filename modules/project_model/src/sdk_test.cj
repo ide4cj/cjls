@@ -4,8 +4,6 @@ import std.collection.*
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.db.*
-import loupe.vfs.VfsPath
 
 /**
  * An environment of `vars` alone.
@@ -79,31 +77,5 @@ class FindCangjieHomeOnPosixTest {
         // assert
         @Expect(home.map {it => it.path}, Some(sdk))
         @Expect(home.map {it => it.source}, Some("cjc on PATH"))
-    }
-}
-
-@Test
-class BinaryPackagesOfTest {
-    @TestCase
-    func eachCjoOfADirectoryIsAPackageAndOneNamedReplacesItsNamesake() {
-        // arrange
-        let dir = tree([("std/std.core.cjo", ""), ("std/std.math.cjo", ""), ("std/libstd.a", ""),
-            ("x/x.a.cjo", ""), ("x/x.b.cjo", ""), ("own/x.b.cjo", "")])
-        let model = ProjectModel(LINUX, [], binaries: [
-            BinaryModel("std", [dir.join("std")]),
-            BinaryModel("x", [dir.join("x"), dir.join("gone")], packages: [BinaryPackage("x.b", dir.join("own/x.b.cjo"))])
-        ])
-
-        // act
-        let packages = binaryPackagesOf(model)
-        removeTree(dir)
-
-        // assert
-        @Expect(packages.map {pkg => "${pkg.module}:${pkg.name}=${relative(pkg.path, dir)}"}, [
-            "std:std.core=std/std.core.cjo",
-            "std:std.math=std/std.math.cjo",
-            "x:x.a=x/x.a.cjo",
-            "x:x.b=own/x.b.cjo"
-        ])
     }
 }

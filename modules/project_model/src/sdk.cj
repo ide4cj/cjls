@@ -1,10 +1,6 @@
 package project_model
 
-import std.collection.*
 import std.fs.*
-import std.sort.*
-import loupe.db.{BinaryPackageModel, ProjectModel}
-import loupe.vfs.VfsPath
 
 /**
  * A Cangjie SDK found, and where from: `std` is in it, and `${CANGJIE_HOME}` expands to it.
@@ -99,44 +95,4 @@ func isDirectory(path: String): Bool {
     } catch (_: FSException) {
         false
     })
-}
-
-/**
- * The packages of `model`'s binaries, each once per binary: every `*.cjo` right in a directory of
- * its `paths`, named after the file (`std.core.cjo` is `std.core`), then those it names one by one,
- * in place of one of the same name. A directory that cannot be listed has none.
- */
-public func binaryPackagesOf(model: ProjectModel): Array<BinaryPackageModel> {
-    let packages = ArrayList<BinaryPackageModel>()
-    for (binary in model.binaries) {
-        let byName = HashMap<String, VfsPath>()
-        let names = ArrayList<String>()
-        let found = binary.paths.map {dir => cjoFilesIn(dir)}.flatMap {files => files}.map {
-            file => (file.name.removeSuffix(".cjo"), file)
-        }.concat(binary.packages.map {pkg => (pkg.name, pkg.path)})
-        for ((name, path) in found) {
-            if (byName.add(name, path).isNone()) {
-                names.add(name)
-            }
-        }
-        packages.add(all: names.toArray().map {name => BinaryPackageModel(binary.name, name, byName[name])})
-    }
-    packages.toArray()
-}
-
-/**
- * The `*.cjo` right in `dir`, in the order of their names; none if it cannot be listed.
- */
-func cjoFilesIn(dir: VfsPath): Array<VfsPath> {
-    let path = dir.filePath ?? return []
-    let entries = try {
-        Directory.readFrom(path)
-    } catch (_: FSException) {
-        return []
-    }
-    let files = entries.filter {entry => entry.isRegular() && entry.name.endsWith(".cjo")}.map {
-        entry => VfsPath.file(entry.path)
-    }
-    sort(files, by: {a, b => a.toString().compare(b.toString())})
-    files
 }

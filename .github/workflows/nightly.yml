@@ -1,8 +1,8 @@
 name: Nightly
 
-# The rolling pre-release `nightly` (D32): the binaries of master's newest commit CI passed on,
-# packaged as a release is, so a client follows master by a tag name alone. Nothing to do when that
-# commit is the nightly already.
+# The rolling pre-release `nightly-build` (D32, D39): the binaries of master's newest commit CI
+# passed on, packaged as a release is, so a client follows master by a tag name alone. Nothing to do
+# when that commit is the nightly already.
 on:
   schedule:
     - cron: "0 3 * * *" # every night, 03:00 UTC
@@ -25,6 +25,7 @@ jobs:
       actions: read # the artifacts of CI's run
     env:
       GH_TOKEN: ${{ github.token }}
+      TAG: nightly-build
     steps:
       - name: Master's newest green commit
         id: green
@@ -35,7 +36,7 @@ jobs:
             echo "::notice::CI has not passed on master yet"
             exit 0
           fi
-          current=$(gh release view nightly --repo "$GITHUB_REPOSITORY" --json targetCommitish --jq .targetCommitish 2>/dev/null || true)
+          current=$(gh api "repos/$GITHUB_REPOSITORY/git/ref/tags/$TAG" --jq .object.sha 2>/dev/null || true)
           if [ "$current" = "$sha" ]; then
             echo "::notice::the nightly is $sha already"
             exit 0
@@ -59,7 +60,7 @@ jobs:
         run: |
           since=$(git describe --tags --match 'v*' --abbrev=0 2>/dev/null || true)
           {
-            echo "Master at ${SHA:0:12}, $(git show -s --format=%cs "$SHA"): its newest commit CI passed on. Replaced every night; it reports the version of its sources."
+            echo "Master at ${SHA:0:12}, $(git show -s --format=%cs "$SHA"): its newest commit CI passed on. Updated every night; it reports the version of its sources."
             echo
             if [ -n "$since" ]; then
               echo "Since $since:"
@@ -67,11 +68,17 @@ jobs:
               git log --no-merges --format='- %s' "$since..$SHA"
             fi
           } > notes.md
-      # deleted and made again: a release's tag cannot move, and the assets keep their names
+      # made once, then updated in place: the tag moves, the assets (their names never change) are
+      # replaced. Never deleted: a tag an immutable release had can never be made again (D39).
       - if: steps.green.outputs.sha
         name: Release
         env:
           SHA: ${{ steps.green.outputs.sha }}
         run: |
-          gh release delete nightly --cleanup-tag --yes 2>/dev/null || true
-          gh release create nightly dist/* --prerelease --latest=false --target "$SHA" --title nightly --notes-file notes.md
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" dist/* --clobber
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$SHA" -F force=true --silent
+            gh release edit "$TAG" --target "$SHA" --notes-file notes.md # targetCommitish: what clients compare
+          else
+            gh release create "$TAG" dist/* --prerelease --latest=false --target "$SHA" --title nightly --notes-file notes.md
+          fi

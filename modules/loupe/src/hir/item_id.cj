@@ -13,7 +13,8 @@ import loupe.syntax.parse
 
 /**
  * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;
- * or a type built into the compiler (`Array`, `CPointer`), declared in `std.core`'s `.cjo` alone.
+ * `BuiltIn` is a type of the compiler's own (`Array`, `CPointer`), which only `std.core`'s `.cjo`
+ * declares.
  */
 @Derive[Equatable, Hashable]
 public enum ItemKind <: ToString {
@@ -160,18 +161,32 @@ public func itemIdMap(db: AnalysisDatabase, file: SourceFile): ItemIdMap {
 }
 
 /**
- * The ids given so far, and how many items had each kind and hash.
+ * How many items of a file had each kind and hash so far: what gives the next its index.
+ */
+class ItemIdCounter {
+    private let seen = HashMap<ItemId, Int64>()
+
+    /**
+     * The id of the next item of `kind` named `name` under `parent`.
+     */
+    func next(parent: ?ItemId, kind: ItemKind, name: String): ItemId {
+        let first = ItemId(kind, pathHash(parent, name), 0)
+        let index = seen.get(first) ?? 0
+        seen.add(first, index + 1)
+        ItemId(kind, first.hash, index)
+    }
+}
+
+/**
+ * The ids given so far, and the pointers to their nodes.
  */
 class ItemIdBuilder {
     let ids = ArrayList<ItemId>()
     let ptrs = ArrayList<SyntaxNodePtr<SyntaxKind>>()
-    private let seen = HashMap<ItemId, Int64>()
+    private let counter = ItemIdCounter()
 
     func add(parent: ?ItemId, kind: ItemKind, name: String, node: CjSyntaxNode): ItemId {
-        let first = ItemId(kind, pathHash(parent, name), 0)
-        let index = seen.get(first) ?? 0
-        seen.add(first, index + 1)
-        let id = ItemId(kind, first.hash, index)
+        let id = counter.next(parent, kind, name)
         ids.add(id)
         ptrs.add(SyntaxNodePtr(node))
         id

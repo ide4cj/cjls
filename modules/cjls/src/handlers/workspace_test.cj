@@ -342,20 +342,17 @@ class ProjectLoadTest {
     }
 
     @TestCase
-    func theBinariesOfTheProjectAreLoadedStdFirst() {
+    func aProjectWithTheStdOfTheSdkReadHasNothingToTellOfIt() {
         // arrange - std from the SDK the tests run with
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
         let state = initializedWith([dir], watches: false)
 
         // act
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let warning = load(state, NoopLogger())
         remove(dir, recursive: true)
 
         // assert
-        let packages = state.analysis.binaryPackages().getOrThrow().packages(state.analysis)
-        @Expect(packages.iterator().any {pkg => pkg.module(state.analysis) == "std" && pkg.name(state.analysis) == "std.core"})
-        @Expect(packages[0].module(state.analysis), "std")
-        @Expect(textAt(state, dir.join("src").join("main.cj")), Some("main() {}"))
+        @Expect(warning, None<String>)
     }
 }
 

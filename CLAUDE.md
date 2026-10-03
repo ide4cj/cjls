@@ -21,7 +21,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `cjpm` leaves `*.cj.macrocall` and `lib-macro_*.dylib` next to the sources: untracked build output, never edit it.
 
-**Toolchain, CI, releases** ([D11](docs/adr/0011-ci-and-releases.md), [D21](docs/adr/0021-weekly-releases.md)). One nightly, the tag in `.cangjie-version`; `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs it with stdx, as CI does. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, named per target in the root `cjpm.toml`. CI (macOS arm64, Linux x64, Windows x64) builds, tests, runs the lone binary through `tests/e2e` (no editor client: each tests itself against this CI's build of a paired branch, [D32](docs/adr/0032-one-process-for-server-and-clients.md)), and checks commits and the PR **title** with `cog` (PRs are squash-merged). A release is `cog bump --auto` on master (version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, `CHANGELOG.md`, tag); `bump.yml` runs it on Mondays, `release.yml` attaches the binaries; `nightly.yml` replaces the pre-release `nightly` with master's newest green commit every night.
+**Toolchain, CI, releases** ([D11](docs/adr/0011-ci-and-releases.md), [D21](docs/adr/0021-weekly-releases.md)). One nightly, the tag in `.cangjie-version`; `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs it with stdx, as CI does. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, named per target in the root `cjpm.toml`. CI (macOS arm64, Linux x64, Windows x64) builds, tests, runs the lone binary through `tests/e2e` (no editor client: each tests itself against this CI's build of a paired branch, [D32](docs/adr/0032-one-process-for-server-and-clients.md)), and checks commits and the PR **title** with `cog` (PRs are squash-merged). A release is `cog bump --auto` on master (version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, `CHANGELOG.md`, tag); `bump.yml` runs it on Mondays, `release.yml` attaches the binaries; `nightly.yml` moves the pre-release `nightly-build` to master's newest green commit every night, in place: never delete it ([D39](docs/adr/0039-the-nightly-is-updated-in-place.md)).
 
 ### Linking and compiler flags
 
@@ -53,10 +53,10 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `ginkgo` | lossless green/red syntax trees, and the grammar-agnostic parser machinery |
 | `cjsyntax` | the Cangjie lexer and parser on `ginkgo`; `SyntaxKind` and `cjsyntax.ast` are generated |
 | `syntax_codegen` | executable: generates `cjsyntax`'s kinds and typed views |
-| `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, `loupe.hir` (item trees, of `.cjo` too, [D38](docs/adr/0038-binary-packages-are-inputs-of-their-own.md)), the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
+| `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
 | `cjo` | the `.cjo` files cjc writes for a package: `openCjo`, a read-only flatbuffers runtime and the views of the vendored `CjoFormat.fbs`, generated ([D37](docs/adr/0037-cjo-files-are-read-by-generated-views.md)) |
 | `fbs_codegen` | executable: generates `cjo`'s views from a flatbuffers schema |
-| `project_model` | how files make a project: `cj-project.json`, `cjpm.toml` or loose files, lowered to `loupe.db`'s `ProjectModel` ([D33](docs/adr/0033-project-model.md)); where the SDK is (D38) |
+| `project_model` | how files make a project: `cj-project.json`, `cjpm.toml` or loose files, lowered to `loupe.db`'s `ProjectModel` ([D33](docs/adr/0033-project-model.md)); where the SDK is ([D40](docs/adr/0040-the-sdk-is-found-without-cangjie-home.md)) |
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
 

@@ -3,7 +3,9 @@ package loupe.vfs
 import std.collection.*
 import std.deriving.*
 import std.fs.*
+import std.sort.*
 import std.time.DateTime
+import cjo.{CjoException, openCjo}
 import rope.Rope
 
 /**
@@ -65,96 +67,6 @@ public func readFile(path: VfsPath): ?Rope {
     } catch (_: IllegalArgumentException) {
         None
     }
-}
-
-/**
- * What tells a file read before from one changed since without reading it: its size and the time it
- * was last written.
- */
-@Derive[Equatable]
-public struct FileStamp {
-    public FileStamp(public let size: Int64, public let modified: DateTime) {}
-}
-
-/**
- * The stamp of the file at `path`, `None` if it is not there, is no regular file, or for a virtual
- * path.
- */
-public func fileStamp(path: VfsPath): ?FileStamp {
-    let filePath = path.filePath ?? return None
-    try {
-        let info = FileInfo(filePath)
-        if (info.isRegular()) {
-            FileStamp(info.size, info.lastModificationTime)
-        } else {
-            None
-        }
-    } catch (_: FSException) {
-        None
-    }
-}
-
-/**
- * A file `readBinaries` read, or found unchanged.
- */
-public struct BinaryRead {
-    public BinaryRead(
-        public let path: VfsPath,
-        public let stamp: FileStamp,
-        /**
-         * What it holds, `None` if its stamp is the one it was known by: unchanged, it is not read.
-         */
-        public let bytes: ?Array<Byte>
-    ) {}
-}
-
-/**
- * What `readBinaries` read, and whether that is all of them.
- */
-public struct BinariesRead {
-    public BinariesRead(
-        public let files: Array<BinaryRead>,
-        /**
-         * The bytes the files take, those unchanged too: what is left of the budget is for the text.
-         */
-        public let size: Int64,
-        /**
-         * Whether files were left out for the budget.
-         */
-        public let truncated: Bool
-    ) {}
-}
-
-/**
- * The files at `paths`, as bytes: one whose stamp is what `known` gives for it is not read again, one
- * that is not there or cannot be read is left out, and so is one that does not fit in what is left of
- * `budget`, unchanged or not, in the order of `paths`.
- *
- * Touches nothing but the disk and `known`.
- */
-public func readBinaries(paths: Array<VfsPath>, known!: (VfsPath) -> ?FileStamp, budget!: Int64 = Int64.Max): BinariesRead {
-    let files = ArrayList<BinaryRead>()
-    var left = budget
-    var truncated = false
-    for (path in paths) {
-        let stamp = fileStamp(path) ?? continue
-        if (stamp.size > left) {
-            truncated = true
-            continue
-        }
-        if (known(path) == Some(stamp)) {
-            files.add(BinaryRead(path, stamp, None))
-        } else {
-            let bytes = try {
-                File.readFrom(path.filePath.getOrThrow())
-            } catch (_: FSException) {
-                continue
-            }
-            files.add(BinaryRead(path, stamp, bytes))
-        }
-        left -= stamp.size
-    }
-    BinariesRead(files.toArray(), budget - left, truncated)
 }
 
 /**
@@ -236,4 +148,135 @@ private func outermost(roots: Array<VfsPath>): Array<VfsPath> {
         }
     }
     kept.toArray()
+}
+
+let CJO_SUFFIX = ".cjo"
+
+/**
+ * What tells a file changed without reading it: its size, and when it was written last.
+ */
+@Derive[Equatable]
+public struct FileStamp {
+    public FileStamp(public let size: Int64, public let modified: DateTime) {}
+}
+
+/**
+ * The `.cjo` of a package compiled already: the binary it is of (`std`, one of `bin-dependencies`),
+ * the package, and where the file is.
+ */
+@Derive[Equatable, Hashable]
+public struct CjoFile {
+    public CjoFile(public let binary: String, public let name: String, public let path: VfsPath) {}
+}
+
+/**
+ * A `.cjo` read, and its stamp then; `bytes` are `None` for one unchanged, which is not read again.
+ */
+public struct CjoFileRead {
+    public CjoFileRead(public let file: CjoFile, public let stamp: FileStamp, public let bytes: ?Array<Byte>) {}
+}
+
+/**
+ * What `readCjoFiles` read: the files, the bytes they take, and why others were left out.
+ */
+public struct CjoRead {
+    public CjoRead(
+        public let files: Array<CjoFileRead>,
+        /**
+         * The bytes of the files kept, read now or before.
+         */
+        public let size: Int64,
+        /**
+         * Each file left out for being no `.cjo` this reader knows, with the reason.
+         */
+        public let problems: Array<String>,
+        /**
+         * Whether files were left out for the budget.
+         */
+        public let truncated: Bool
+    ) {}
+}
+
+/**
+ * The `.cjo` in the directory `dir`, each a package of `binary` named as its file is
+ * (`std.core.cjo` is `std.core`), in the order of their names; none for a directory that cannot be
+ * listed, or a virtual one.
+ */
+public func cjoFilesIn(binary: String, dir: VfsPath): Array<CjoFile> {
+    let path = dir.filePath ?? return []
+    let entries = try {
+        Directory.readFrom(path)
+    } catch (_: FSException) {
+        return []
+    }
+    let files = entries.filter {entry => entry.isRegular() && entry.name.endsWith(CJO_SUFFIX)}.map {
+        entry => CjoFile(binary, entry.name.removeSuffix(CJO_SUFFIX), VfsPath.file(entry.path))
+    }
+    sort(files, by: {a, b => a.name.compare(b.name)})
+    files
+}
+
+/**
+ * Reads `files`, each path once, but for those whose stamp `unchanged` takes: they are kept as
+ * they were, and not read. A file that is not there or cannot be read is left out, and so is one
+ * that is not a `.cjo` of the format this reader knows, with a problem; so is one that does not
+ * fit in what is left of `budget`, a file kept unread taking its size of it as one read does.
+ *
+ * Touches nothing but the disk, so any thread may call it.
+ */
+public func readCjoFiles(files: Array<CjoFile>, unchanged!: (CjoFile, FileStamp) -> Bool = {_, _ => false},
+    budget!: Int64 = Int64.Max): CjoRead {
+    let read = ArrayList<CjoFileRead>()
+    let problems = ArrayList<String>()
+    let seen = HashSet<VfsPath>()
+    var left = budget
+    var truncated = false
+    for (file in files where seen.add(file.path)) {
+        let path = file.path.filePath ?? continue
+        let stamp = try {
+            let info = FileInfo(path)
+            FileStamp(info.size, info.lastModificationTime)
+        } catch (_: FSException) {
+            continue
+        }
+        if (stamp.size > left) {
+            truncated = true
+            continue
+        }
+        if (unchanged(file, stamp)) {
+            left -= stamp.size
+            read.add(CjoFileRead(file, stamp, None))
+            continue
+        }
+        let bytes = try {
+            File.readFrom(path)
+        } catch (_: FSException) {
+            continue
+        }
+        // written again since its stamp was taken
+        if (bytes.size > left) {
+            truncated = true
+            continue
+        }
+        if (let Some(problem) <- cjoProblem(bytes)) {
+            problems.add("${file.path}: ${problem}, left out")
+            continue
+        }
+        left -= bytes.size
+        read.add(CjoFileRead(file, stamp, bytes))
+    }
+    CjoRead(read.toArray(), budget - left, problems.toArray(), truncated)
+}
+
+/**
+ * Why `bytes` are no `.cjo` this reader knows, `None` if they are one: only the header is checked,
+ * the rest is read when it is asked for.
+ */
+func cjoProblem(bytes: Array<Byte>): ?String {
+    try {
+        openCjo(bytes)
+        None
+    } catch (e: CjoException) {
+        e.message
+    }
 }

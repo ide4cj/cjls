@@ -1,6 +1,6 @@
 package loupe.db
 
-import std.env.getVariable
+import std.env.getTempDirectory
 import std.fs.*
 import std.sync.*
 import std.time.DateTime
@@ -10,24 +10,10 @@ import calca.*
 import calca.macros.*
 import loupe.vfs.*
 
-/**
- * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.
- */
-func stdCjo(name: String): Array<Byte> {
-    let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK, whose std these tests read"))
-    for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
-        let file = target.path.join("std").join("${name}.cjo")
-        if (exists(file)) {
-            return File.readFrom(file)
-        }
-    }
-    throw IllegalStateException("no ${name}.cjo under ${home.join("modules")}")
-}
-
 let binarySizeRuns = AtomicInt64(0)
 
 /**
- * How many bytes the package has; it counts its runs.
+ * How many bytes the package's `.cjo` holds; it counts its runs.
  */
 @CalcaTracked
 func binarySize(db: AnalysisDatabase, pkg: BinaryPackageFile): Int64 {
@@ -35,124 +21,123 @@ func binarySize(db: AnalysisDatabase, pkg: BinaryPackageFile): Int64 {
     pkg.bytes(db).size
 }
 
-let STAMP = FileStamp(1, DateTime.UnixEpoch)
+let STAMPED = DateTime.now()
 
-func readOf(path: VfsPath, bytes: ?Array<Byte>): BinaryRead {
-    BinaryRead(path, STAMP, bytes)
+/**
+ * `std.core` of the binary `std` read as `bytes`, its stamp telling `bytes` and `version` apart.
+ */
+func coreRead(bytes: ?Array<Byte>, version!: Int64 = 0): CjoFileRead {
+    CjoFileRead(CjoFile("std", "std.core", at("std/std.core.cjo")), FileStamp(version, STAMPED), bytes)
 }
 
-func namesOf(db: AnalysisDatabase): Array<String> {
-    db.binaryPackages().getOrThrow().packages(db).map {pkg => "${pkg.module(db)}:${pkg.name(db)}"}
+func binaryPackagesOf(db: AnalysisDatabase): Array<BinaryPackageFile> {
+    db.project().getOrThrow().binaryPackages(db)
 }
 
 @Test
-class BinaryPackagesTest {
+class BinaryPackageTest {
     @TestCase
-    func thePackagesReadAreSetAsInputsInTheOrderGiven() {
+    func aBinaryPackageReadIsAnInputOfTheProject() {
         // arrange
         let db = AnalysisDatabase()
-        let core = BinaryPackageModel("std", "std.core", at("sdk/std.core.cjo"))
-        let other = BinaryPackageModel("stdx", "stdx.other", at("sdk/stdx.other.cjo"))
-        let bytes = stdCjo("std.core")
 
         // act
-        let problems = db.setBinaryPackages([core, other], [readOf(other.path, bytes), readOf(core.path, bytes)])
+        db.setProject(appProject(), PathInterner(), binaries: [coreRead([1, 2, 3])])
 
         // assert
-        @Expect(problems.size, 0)
-        @Expect(namesOf(db), ["std:std.core", "stdx:stdx.other"])
-        @Expect(db.binaryPackages().getOrThrow().packages(db)[0].bytes(db).size, bytes.size)
-        @Expect(db.binaryStamp(core.path), Some(STAMP))
-        @Expect(core.durability, Durability.High)
-        @Expect(other.durability, Durability.Medium)
+        let packages = binaryPackagesOf(db)
+        @Expect(packages.map {pkg => pkg.name(db)}, ["std.core"])
+        @Expect(packages[0].binary(db), "std")
+        @Expect(packages[0].path(db), at("std/std.core.cjo"))
+        @Expect(packages[0].bytes(db), [1u8, 2, 3])
+        @Expect(db.binaryStamp(coreRead(None).file), Some(FileStamp(0, STAMPED)))
     }
 
     @TestCase
-    func aFileUnchangedOrOfTheSameBytesKeepsItsInputAndWhatReadIt() {
+    func aBinaryPackageLeftUnreadOrReadTheSameChangesNothing() {
         // arrange
         let db = AnalysisDatabase()
-        let core = BinaryPackageModel("std", "std.core", at("sdk/std.core.cjo"))
-        let bytes = stdCjo("std.core")
-        db.setBinaryPackages([core], [readOf(core.path, bytes)])
-        let input = db.binaryPackages().getOrThrow().packages(db)[0]
-        @Expect(binarySize(db, input), bytes.size)
+        let paths = PathInterner()
+        db.setProject(appProject(), paths, binaries: [coreRead([1, 2, 3])])
+        let pkg = binaryPackagesOf(db)[0]
+        @Expect(binarySize(db, pkg), 3)
         let runs = binarySizeRuns.load()
 
-        // act
-        db.setBinaryPackages([core], [readOf(core.path, None)])
-        let unchanged = db.binaryPackages().getOrThrow().packages(db)[0]
-        db.setBinaryPackages([core], [readOf(core.path, bytes.clone())])
-        let size = binarySize(db, input)
+        // act - unread, then read again as it was, with a new stamp
+        db.setProject(appProject(), paths, binaries: [coreRead(None)])
+        let unread = binarySize(db, pkg)
+        db.setProject(appProject(), paths, binaries: [coreRead([1, 2, 3], version: 1)])
+        let same = binarySize(db, pkg)
 
         // assert
-        @Expect(unchanged, input)
-        @Expect(size, bytes.size)
+        @Expect(binaryPackagesOf(db), [pkg])
+        @Expect(unread, 3)
+        @Expect(same, 3)
         @Expect(binarySizeRuns.load() - runs, 0)
+        @Expect(db.binaryStamp(coreRead(None).file), Some(FileStamp(1, STAMPED)))
     }
 
     @TestCase
-    func otherBytesAreSetOnTheSameInput() {
+    func aBinaryPackageReadOtherwiseIsSetAgain() {
         // arrange
         let db = AnalysisDatabase()
-        let pkg = BinaryPackageModel("std", "std.math", at("sdk/std.math.cjo"))
-        db.setBinaryPackages([pkg], [readOf(pkg.path, stdCjo("std.math"))])
-        let input = db.binaryPackages().getOrThrow().packages(db)[0]
-        let other = stdCjo("std.core")
+        let paths = PathInterner()
+        db.setProject(appProject(), paths, binaries: [coreRead([1, 2, 3])])
+        let pkg = binaryPackagesOf(db)[0]
+        @Expect(binarySize(db, pkg), 3)
 
         // act
-        db.setBinaryPackages([pkg], [readOf(pkg.path, other)])
+        db.setProject(appProject(), paths, binaries: [coreRead([1, 2, 3, 4], version: 1)])
 
         // assert
-        @Expect(db.binaryPackages().getOrThrow().packages(db)[0], input)
-        @Expect(binarySize(db, input), other.size)
+        @Expect(binaryPackagesOf(db), [pkg])
+        @Expect(binarySize(db, pkg), 4)
     }
 
     @TestCase
-    func bytesThatAreNoCjoAreAProblemAndThePackageIsLeftOut() {
+    func aBinaryPackageGoneHoldsNoBytes() {
         // arrange
         let db = AnalysisDatabase()
-        let broken = BinaryPackageModel("std", "std.broken", at("sdk/std.broken.cjo"))
-        let core = BinaryPackageModel("std", "std.core", at("sdk/std.core.cjo"))
+        let paths = PathInterner()
+        db.setProject(appProject(), paths, binaries: [coreRead([1, 2, 3])])
+        let pkg = binaryPackagesOf(db)[0]
 
         // act
-        let problems = db.setBinaryPackages([broken, core],
-            [readOf(broken.path, "not a cjo".toArray()), readOf(core.path, stdCjo("std.core"))])
+        db.setProject(appProject(), paths)
 
         // assert
-        @Expect(problems.map {problem => problem.pkg}, [broken])
-        @Expect(problems[0].message, "${broken.path}: not a .cjo")
-        @Expect(problems[0].major, None<UInt8>)
-        @Expect(namesOf(db), ["std:std.core"])
+        @Expect(binaryPackagesOf(db).isEmpty())
+        @Expect(pkg.bytes(db).isEmpty())
+        @Expect(db.binaryStamp(coreRead(None).file), None<FileStamp>)
     }
 
     @TestCase
-    func aPackageNotReadIsNoLongerAmongThem() {
+    func aBinaryPackageUnreadThatWasNeverReadIsLeftOut() {
         // arrange
         let db = AnalysisDatabase()
-        let core = BinaryPackageModel("std", "std.core", at("sdk/std.core.cjo"))
-        let math = BinaryPackageModel("std", "std.math", at("sdk/std.math.cjo"))
-        db.setBinaryPackages([core, math], [readOf(core.path, stdCjo("std.core")), readOf(math.path, stdCjo("std.math"))])
 
-        // act - over the budget, or gone
-        db.setBinaryPackages([core, math], [readOf(core.path, None)])
+        // act
+        db.setProject(appProject(), PathInterner(), binaries: [coreRead(None)])
 
         // assert
-        @Expect(namesOf(db), ["std:std.core"])
+        @Expect(binaryPackagesOf(db).isEmpty())
     }
 
     @TestCase
-    func aFileUnchangedButLastSetAsAnotherPackageGivesItItsBytes() {
+    func theCjoFilesOfAProjectAreThoseOfItsDirectoriesThenThoseItNames() {
         // arrange
-        let db = AnalysisDatabase()
-        let path = at("sdk/std.core.cjo")
-        let bytes = stdCjo("std.core")
-        db.setBinaryPackages([BinaryPackageModel("std", "std.core", path)], [readOf(path, bytes)])
+        let dir = Directory.createTemp(getTempDirectory())
+        File.writeTo(dir.join("stdx.b.cjo"), [])
+        File.writeTo(dir.join("stdx.a.cjo"), [])
+        let named = BinaryPackage("dep.x", at("dep/dep.x.cjo"))
+        let model = ProjectModel(Cfg([]), [], binaries: [BinaryModel("stdx", [VfsPath.file(dir)], packages: [named]),
+            BinaryModel("dep", [], packages: [named])])
 
-        // act - the same file, now of a binary named otherwise
-        db.setBinaryPackages([BinaryPackageModel("sdk", "std.core", path)], [readOf(path, None)])
+        // act
+        let files = model.cjoFiles()
+        remove(dir, recursive: true)
 
         // assert
-        @Expect(namesOf(db), ["sdk:std.core"])
-        @Expect(db.binaryPackages().getOrThrow().packages(db)[0].bytes(db).size, bytes.size)
+        @Expect(files.map {file => "${file.binary}:${file.name}"}, ["stdx:stdx.a", "stdx:stdx.b", "stdx:dep.x", "dep:dep.x"])
     }
 }
