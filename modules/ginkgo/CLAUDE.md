@@ -1,6 +1,6 @@
 # `ginkgo` — lossless trees and the parser machinery
 
-Language-agnostic, no project dependencies. `ginkgo`: lossless green/red syntax trees (`GreenNode`/`GreenToken`, `NodeCache`, `GreenNodeBuilder`, `SyntaxNode`/`SyntaxToken`/`SyntaxElement`, `TextRange`). `TokenSet`, a set of kinds as a bitset over their `ordinal`. `AstNode` and `astChild`/`astChildren`/`astNthChild`/`astToken`, which generated typed views are made of. `SyntaxNodePtr` and `AstPtr`, a node as its kind and range, which a query result keeps instead of the node (A13). `ginkgo.parsing`: the grammar-agnostic half of a parser — `Lexed`, `Input`, the event-based `Parser` with `Marker`s, and `buildTree`.
+Language-agnostic, no project dependencies. `ginkgo`: lossless green/red syntax trees (`GreenNode`/`GreenToken`, `NodeCache`, `GreenNodeBuilder`, `SyntaxNode`/`SyntaxToken`/`SyntaxElement`, `TextRange`). `TokenSet`, a set of kinds as a bitset over their `ordinal`. `AstNode` and `astChild`/`astChildren`/`astNthChild`/`astChildBetween`/`astToken`, which generated typed views are made of. `SyntaxNodePtr` and `AstPtr`, a node as its kind and range, which a query result keeps instead of the node (A13). `ginkgo.parsing`: the grammar-agnostic half of a parser — `Lexed`, `Input`, the event-based `Parser` with `Marker`s, and `buildTree`.
 
 Three layers: the trees in `ginkgo`, the parser machinery in `ginkgo.parsing`, and the grammar in `cjsyntax`. The grammar's side is in `modules/cjsyntax/CLAUDE.md`.
 

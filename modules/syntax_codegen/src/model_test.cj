@@ -17,10 +17,13 @@ func kindsFile(): KindsFile {
             KindEntry(name: "DotDot", text: ".."),
             KindEntry(name: "LBracket", text: "["),
             KindEntry(name: "RBracket", text: "]"),
+            KindEntry(name: "LParen", text: "("),
+            KindEntry(name: "RParen", text: ")"),
             KindEntry(name: "Comma", text: ",")
         ],
         tokens: [KindEntry(name: "Int"), KindEntry(name: "Under", text: "_", word: true)],
-        keywords: [KindEntry(name: "IfKw", text: "if"), KindEntry(name: "ElseKw", text: "else", contextual: true)],
+        keywords: [KindEntry(name: "IfKw", text: "if"), KindEntry(name: "ElseKw", text: "else", contextual: true),
+            KindEntry(name: "SpawnKw", text: "spawn")],
         nodes: [KindEntry(name: "Error")]
     )
 }
@@ -38,6 +41,17 @@ func modelOf(grammar: String): Model {
     buildModel(kindsFile(), parseGrammar(grammar))
 }
 
+func bounds(start: Array<String>, end: Array<String>): String {
+    let result = StringBuilder()
+    if (!start.isEmpty()) {
+        result.append(" after ${String.join(start, delimiter: "|")}")
+    }
+    if (!end.isEmpty()) {
+        result.append(" before ${String.join(end, delimiter: "|")}")
+    }
+    result.toString()
+}
+
 func fieldsOf(model: Model, node: String): Array<String> {
     nodeIr(model, node).fields.map {
         f => match (f) {
@@ -45,6 +59,8 @@ func fieldsOf(model: Model, node: String): Array<String> {
             case NodeField(n, t, Nth(i, counted)) => "${n}: ${t} #${i} of ${counted.size}"
             case NodeField(n, t, All) => "${n}: ${t} all"
             case NodeField(n, t, AllFrom(i, counted)) => "${n}: ${t} all after ${i} of ${counted.size}"
+            case NodeField(n, t, Between(start, end)) => "${n}: ${t}${bounds(start, end)}"
+            case NodeField(n, t, AllBetween(start, end)) => "${n}: ${t} all${bounds(start, end)}"
             case TokenField(n, k, false) => "${n}: ${k}"
             case TokenField(n, k, true) => "${n}: ${k} many"
             case TokenSetField(n, ks) => "${n}: ${String.join(ks, delimiter: "|")}"
@@ -61,8 +77,8 @@ class ModelTest {
 
         // assert
         @Expect(sut.kinds.map {k => k.name},
-            ["Ws", "Plus", "Minus", "DotDot", "LBracket", "RBracket", "Comma", "Int", "Under", "IfKw", "ElseKw", "Error",
-                "Lit", "Bin", "Idx", "If", "Range"])
+            ["Ws", "Plus", "Minus", "DotDot", "LBracket", "RBracket", "LParen", "RParen", "Comma", "Int", "Under",
+                "IfKw", "ElseKw", "SpawnKw", "Error", "Lit", "Bin", "Idx", "If", "Range"])
     }
 
     @TestCase
@@ -93,28 +109,49 @@ class ModelTest {
     }
 
     @TestCase
-    func childrenOfOneTypeAreToldByTheirPositionAmongThoseThatCouldBeTakenForThem() {
+    func childrenOfOneTypeAreToldByTheTokensBetweenThem() {
         // act
         let sut = modelOf(EXPRS)
 
         // assert
-        @Expect(fieldsOf(sut, "Bin"), ["lhs: E first", "op: Plus|Minus", "rhs: E #1 of 5"])
+        @Expect(fieldsOf(sut, "Bin"), ["lhs: E before Plus|Minus", "op: Plus|Minus", "rhs: E after Plus|Minus"])
         @Expect(fieldsOf(sut, "Idx"),
-            ["base: E first", "lBracketToken: LBracket", "es: E all after 1 of 5", "commaToken: Comma many",
+            ["base: E before LBracket", "lBracketToken: LBracket", "es: E all after LBracket", "commaToken: Comma many",
                 "rBracketToken: RBracket"])
-        // `Lit` is an `E` too: the second `Lit` is the second of them, after the condition
-        @Expect(fieldsOf(sut, "If"),
-            ["ifToken: IfKw", "e: E first", "lits: Lit all after 1 of 5", "elseToken: ElseKw", "elseIf: If #1 of 5"])
+        // either end may be missing: the `..` tells them
+        @Expect(fieldsOf(sut, "Range"), ["start: E before DotDot", "dotDotToken: DotDot", "end: E after DotDot"])
     }
 
     @TestCase
-    func childrenAPositionCannotTellAreLeftToBeWrittenByHand() {
+    func aTokenAfterAChildBoundsItWhenTheTokenBeforeItImpliesIt() {
         // act
-        let sut = nodeIr(modelOf(EXPRS), "Range")
+        let sut = modelOf("E = Lit | Spawn\nLit = 'Int'\nSpawn = 'spawn' ('(' context:E ')')? Lit")
 
         // assert
-        @Expect(sut.handWritten, ["start", "end"])
-        @Expect(fieldsOf(modelOf(EXPRS), "Range"), ["dotDotToken: DotDot"])
+        @Expect(fieldsOf(sut, "Spawn")[2], "context: E after LParen before RParen")
+    }
+
+    @TestCase
+    func aChildTheRuleStartsWithIsToldByPosition() {
+        // act
+        let sut = modelOf("E = Lit | Call\nLit = 'Int'\nCall = callee:E Lit")
+
+        // assert
+        @Expect(fieldsOf(sut, "Call"), ["callee: E first", "lit: Lit #1 of 2"])
+    }
+
+    @TestCase
+    func childrenNeitherTokensNorPositionCanTellAreLeftToBeWrittenByHand() {
+        // act
+        let sut = modelOf(EXPRS)
+        let pair = modelOf("E = Lit | Pair\nLit = 'Int'\nPair = '[' first:E ',' second:E ',' ']'")
+
+        // assert
+        // `if 1 else 2`: the condition may be missing, and nothing tells it from the `Lit` after it
+        @Expect(nodeIr(sut, "If").handWritten, ["e", "lits"])
+        @Expect(fieldsOf(sut, "If"), ["ifToken: IfKw", "elseToken: ElseKw", "elseIf: If after ElseKw"])
+        // a token twice is no bound
+        @Expect(nodeIr(pair, "Pair").handWritten, ["first", "second"])
     }
 
     @TestCase

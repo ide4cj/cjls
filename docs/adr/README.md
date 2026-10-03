@@ -25,7 +25,7 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0007](0007-position-encoding.md) | UTF-8 columns when the client offers them | accepted |
 | [0008](0008-cancellation.md) | Two cancellations, two answers | accepted |
 | [0009](0009-names-of-state-and-database.md) | `ServerState` holds the `AnalysisDatabase`; only calca says `Database` | accepted |
-| [0010](0010-generated-syntax.md) | Syntax kinds and typed views are generated from an ungrammar | accepted |
+| [0010](0010-generated-syntax.md) | Syntax kinds and typed views are generated from an ungrammar | accepted; an accessor finds a child by the tokens around it by D41 |
 | [0011](0011-ci-and-releases.md) | A pinned nightly toolchain, CI on three platforms, releases from `cog bump` | accepted; no editor's tests in CI by D32 |
 | [0012](0012-drive-paths.md) | Paths are `std.fs.Path`, URIs are stdx's `URL`; Windows drives are spelled one way | accepted |
 | [0013](0013-stdin-is-read-with-readv.md) | Stdin is read with `readv`, not `read`: cjc treats `read` as `@FastNative` | accepted |
@@ -56,3 +56,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0038](0038-binary-packages-are-inputs-of-their-bytes.md) | A package compiled already is an input of its `.cjo` bytes, out of the `Vfs`, read with the project and lowered into the item model | accepted |
 | [0039](0039-the-nightly-is-updated-in-place.md) | The nightly is the pre-release `nightly-build`, made once and updated in place; immutable releases are off | accepted |
 | [0040](0040-the-sdk-is-found-without-cangjie-home.md) | The SDK is found without `CANGJIE_HOME`: the editor's setting, the variable, cjsdk's default toolchain, `cjc` on `PATH`; it is what `${CANGJIE_HOME}` expands to | accepted |
+| [0041](0041-accessors-are-told-by-tokens.md) | A generated accessor finds a child by the tokens between it and the children that could be taken for it; by position only for the child a rule starts with | accepted |

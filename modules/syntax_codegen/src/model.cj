@@ -47,6 +47,13 @@ enum ChildAccess {
     | All
     /** every child that is one, but for the first ones of these kinds */
     | AllFrom(Int64, Array<String>)
+    /**
+     * the first child that is one after the first token of the kinds of the first list, if any, and before the
+     * next of those of the second, if any
+     */
+    | Between(Array<String>, Array<String>)
+    /** every child that is one in that span */
+    | AllBetween(Array<String>, Array<String>)
 }
 
 enum FieldIr {
@@ -248,7 +255,10 @@ func checkVariantNames(model: Model): Unit {
 
 /**
  * Where a child stands in its rule. `alts` is the path of alternatives it is under, as (alternative, branch):
- * two children that took different branches of one alternative never both appear.
+ * two children that took different branches of one alternative never both appear. `seqs` is the path of sequences
+ * it is in, as (sequence, element), and `direct` whether it is an element of the last itself, not under an
+ * alternative, an option or a repetition there: then a tree without errors has it whenever it has the rest of
+ * that sequence.
  */
 struct Occurrence {
     Occurrence(
@@ -258,6 +268,8 @@ struct Occurrence {
         let optional: Bool,
         let many: Bool,
         let alts: Array<(Int64, Int64)>,
+        let seqs: Array<(Int64, Int64)>,
+        let direct: Bool,
         let order: Int64
     ) {}
 
@@ -278,44 +290,66 @@ struct Occurrence {
     func mandatory(): Bool {
         !optional && !many && alts.isEmpty()
     }
+
+    /**
+     * Whether a tree without errors that has `other` has this too: this is an element of a sequence `other` is in.
+     */
+    func impliedBy(other: Occurrence): Bool {
+        if (!direct) {
+            return false
+        }
+        let (seq, element) = seqs[seqs.size - 1]
+        other.seqs.iterator().any {s => s[0] == seq && s[1] != element}
+    }
 }
 
 class OccurrenceCollector {
     let occurrences = ArrayList<Occurrence>()
+    /** where the rule takes any token */
+    let anyTokens = ArrayList<Occurrence>()
     var nextAlt = 0
+    var nextSeq = 0
 
     OccurrenceCollector(let model: Model, let owner: String) {}
 
-    func collect(rule: Rule, label: ?String, optional: Bool, many: Bool, alts: Array<(Int64, Int64)>): Unit {
+    func collect(rule: Rule, label: ?String, optional: Bool, many: Bool, alts: Array<(Int64, Int64)>,
+        seqs: Array<(Int64, Int64)>, direct: Bool): Unit {
+        func occurrence(label: ?String, node: ?String, tokens: Array<String>, optional: Bool): Occurrence {
+            Occurrence(label, node, tokens, optional, many, alts, seqs, direct, occurrences.size + anyTokens.size)
+        }
         match (rule) {
-            case NodeRef(n) => occurrences.add(Occurrence(label, n, [], optional, many, alts, occurrences.size))
-            case TokenRef(t) where t == ANY_TOKEN => ()
-            case TokenRef(t) =>
-                let kind = model.tokenKinds[t]
-                occurrences.add(Occurrence(label, None, [kind], optional, many, alts, occurrences.size))
+            case NodeRef(n) => occurrences.add(occurrence(label, n, [], optional))
+            case TokenRef(t) where t == ANY_TOKEN => anyTokens.add(occurrence(None, None, [], true))
+            case TokenRef(t) => occurrences.add(occurrence(label, None, [model.tokenKinds[t]], optional))
             case Labeled(l, r) =>
                 match (label) {
                     case Some(outer) => throw GrammarException("`${owner}`: `${l}` is labeled inside `${outer}`")
                     case None => ()
                 }
                 if (let Some(tokens) <- tokensOnly(r)) {
-                    occurrences.add(Occurrence(l, None, tokens, true, false, alts, occurrences.size))
+                    // one of them, though each may be optional
+                    occurrences.add(occurrence(l, None, tokens, true))
                 } else {
-                    collect(r, l, optional, many, alts)
+                    collect(r, l, optional, many, alts, seqs, direct)
                 }
-            case Seq(rs) => for (r in rs) {
-                collect(r, label, optional, many, alts)
-            }
+            case Seq(rs) =>
+                let id = nextSeq
+                nextSeq++
+                for (i in 0..rs.size) {
+                    let path = ArrayList<(Int64, Int64)>(seqs)
+                    path.add((id, i))
+                    collect(rs[i], label, optional, many, alts, path.toArray(), true)
+                }
             case Alt(rs) =>
                 let id = nextAlt
                 nextAlt++
                 for (i in 0..rs.size) {
                     let path = ArrayList<(Int64, Int64)>(alts)
                     path.add((id, i))
-                    collect(rs[i], label, optional, many, path.toArray())
+                    collect(rs[i], label, optional, many, path.toArray(), seqs, false)
                 }
-            case Opt(r) => collect(r, label, true, many, alts)
-            case Rep(r) => collect(r, label, true, true, alts)
+            case Opt(r) => collect(r, label, true, many, alts, seqs, false)
+            case Rep(r) => collect(r, label, true, true, alts, seqs, false)
         }
     }
 
@@ -347,7 +381,7 @@ class OccurrenceCollector {
  */
 func lowerNode(model: Model, def: RuleDef): NodeIr {
     let collector = OccurrenceCollector(model, def.name)
-    collector.collect(def.rule, None, false, false, [])
+    collector.collect(def.rule, None, false, false, [], [], false)
     let occs = collector.occurrences
 
     // fields in the order first met
@@ -373,7 +407,7 @@ func lowerNode(model: Model, def: RuleDef): NodeIr {
             case (_, Some(typeName)) =>
                 let many = isMany(own)
                 let name = first.label ?? nodeFieldName(typeName, many)
-                if (let Some(access) <- childAccess(model, own, many, occs)) {
+                if (let Some(access) <- childAccess(model, own, many, collector)) {
                     fields.add(NodeField(name, typeName, access))
                 } else {
                     handWritten.add(name)
@@ -464,41 +498,112 @@ func checkFieldNames(owner: String, fields: ArrayList<FieldIr>): Unit {
     }
 }
 
-func childAccess(model: Model, own: ArrayList<Occurrence>, many: Bool, all: ArrayList<Occurrence>): ?ChildAccess {
+/**
+ * How the accessor of the occurrences `own` finds its child. Its rivals are the children that could be taken for
+ * it; with none, it is the first child of its type. A rival before it is told from it by a token in between that a
+ * tree without errors has whenever it has the child: the child is after the first such token. A rival after it is
+ * told by a token in between that the tree has whenever it has the rival, or once one of those before the child is
+ * there: the child is before the next such token. Its position among its rivals tells it only in a tree without
+ * errors, where a rival the grammar makes mandatory is there: kept for a rival before it, with no token in between,
+ * that the rule starts with, around which the parser makes the node; `None` otherwise, for an accessor written by
+ * hand.
+ */
+func childAccess(model: Model, own: ArrayList<Occurrence>, many: Bool, collector: OccurrenceCollector): ?ChildAccess {
+    let all = collector.occurrences.toArray()
     let first = own[0]
+    let last = own[own.size - 1]
     let typeName = first.node.getOrThrow()
     let ownKinds = HashSet<String>(model.kindsOf(typeName))
     let rivals = all.filter {
         o => match (o.node) {
-            case Some(n) => fieldKey(o) != fieldKey(first) && !o.excludes(first) &&
+            case Some(n) => fieldKey(o) != fieldKey(first) && own.any {x => !o.excludes(x)} &&
                 model.kindsOf(n).any {k => ownKinds.contains(k)}
             case None => false
         }
     }
     let before = rivals.filter {o => o.order < first.order}
-    let after = rivals.filter {o => o.order > first.order}
-    if (!before.all {o => o.mandatory()}) {
+    let after = rivals.filter {o => o.order > last.order}
+    if (before.size + after.size < rivals.size) {
+        // one amid its own occurrences
         return None
     }
-    if (!after.isEmpty() && (many || !(own.size == 1 && first.mandatory()))) {
+    let tokens = all.filter {o => o.node.isNone() && !o.many && isAnchor(o, collector)}
+    // the tokens before it, after its rivals, there whenever it is
+    let opening = tokens.filter {
+        t => before.all {r => r.order < t.order} && own.all {o => t.order < o.order && t.impliedBy(o)}
+    }
+    var start = opening
+    // the tokens after it, before its rivals, there whenever they are; else whenever those of `opening` that it
+    // starts after are, as `)` after `(`
+    var useOpening = !before.isEmpty()
+    var end = tokens.filter {t => last.order < t.order && after.all {r => t.order < r.order && t.impliedBy(r)}}
+    if (!after.isEmpty() && end.isEmpty()) {
+        let closing = tokens.filter {
+            t => last.order < t.order && after.all {r => t.order < r.order} && opening.any {s => t.impliedBy(s)}
+        }
+        let implying = opening.filter {s => closing.all {t => t.impliedBy(s)}}
+        if (!closing.isEmpty() && !implying.isEmpty()) {
+            end = closing
+            start = implying
+            useOpening = true
+        }
+    }
+    if (after.isEmpty()) {
+        end = Array<Occurrence>()
+    }
+    if (!useOpening) {
+        start = Array<Occurrence>()
+    }
+    // the parser makes the node around the child its rule starts with, once parsed: it is always there
+    func leading(o: Occurrence): Bool {
+        o.order == 0 && o.mandatory()
+    }
+    if (!after.isEmpty() && end.isEmpty() && !(before.isEmpty() && own.size == 1 && leading(first))) {
         return None
     }
-    let counted = ArrayList<String>(model.kindsOf(typeName))
-    for (o in before) {
-        for (k in model.kindsOf(o.node.getOrThrow()) where !counted.contains(k)) {
+    if (!before.isEmpty() && start.isEmpty()) {
+        if (!end.isEmpty() || before.size != 1 || !leading(before[0])) {
+            return None
+        }
+        let counted = ArrayList<String>(model.kindsOf(typeName))
+        for (k in model.kindsOf(before[0].node.getOrThrow()) where !counted.contains(k)) {
             counted.add(k)
         }
+        return if (many) {
+            AllFrom(1, counted.toArray())
+        } else {
+            Nth(1, counted.toArray())
+        }
     }
-    let n = before.size
-    if (many) {
-        if (n == 0) {
+    if (start.isEmpty() && end.isEmpty()) {
+        if (many) {
             All
         } else {
-            AllFrom(n, counted.toArray())
+            First
         }
-    } else if (n == 0) {
-        First
+    } else if (many) {
+        AllBetween(kindsIn(start), kindsIn(end))
     } else {
-        Nth(n, counted.toArray())
+        Between(kindsIn(start), kindsIn(end))
     }
+}
+
+/**
+ * Whether a token tells where it is by its kind: the rule has no other token that may be of that kind in a tree
+ * with it.
+ */
+func isAnchor(t: Occurrence, collector: OccurrenceCollector): Bool {
+    collector.anyTokens.all {a => a.excludes(t)} && collector.occurrences.all {
+        o => o.order == t.order || o.node.isSome() || o.excludes(t) || !o.tokens.any {k => t.tokens.contains(k)}
+    }
+}
+
+func kindsIn(tokens: Array<Occurrence>): Array<String> {
+    let result = ArrayList<String>()
+    for (t in tokens) {
+        for (k in t.tokens where !result.contains(k)) {
+            result.add(k)
+        }
+    }
+    result.toArray()
 }

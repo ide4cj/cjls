@@ -84,6 +84,58 @@ public func astChildrenFrom<K, T>(parent: SyntaxNode<K>, n: Int64, counted: Toke
 }
 
 /**
+ * The first child of `parent` that is a `T` after its first token in `start`, and before the next one in `end`
+ * after that; `None` for either end of `parent`. What tells a child from others that could be taken for it, as the
+ * condition of an `if` from the `if` of an `else if` while the condition is missing: the `)` between them.
+ */
+@Frozen
+public func astChildBetween<K, T>(parent: SyntaxNode<K>, start: ?TokenSet<K>, end: ?TokenSet<K>): ?T where K <: Kind<K>,
+    T <: AstNode<K, T> {
+    AstChildrenBetween<K, T>(parent, start, end).next()
+}
+
+/**
+ * The children of `parent` that are `T`s after its first token in `start`, and before the next one in `end` after
+ * that; `None` for either end of `parent`.
+ */
+@Frozen
+public func astChildrenBetween<K, T>(parent: SyntaxNode<K>, start: ?TokenSet<K>,
+    end: ?TokenSet<K>): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
+    AstChildrenBetween<K, T>(parent, start, end)
+}
+
+class AstChildrenBetween<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
+    var i = 0
+    var started: Bool
+
+    AstChildrenBetween(let parent: SyntaxNode<K>, let start: ?TokenSet<K>, let end: ?TokenSet<K>) {
+        started = start.isNone()
+    }
+
+    @Frozen
+    public func next(): ?T {
+        let green = parent.green
+        while (i < green.childCount) {
+            let at = i
+            i++
+            match (green.child(at)) {
+                case GreenElement.Token(t) where !started => started = start?.contains(t.kind) ?? false
+                case GreenElement.Token(t) where end?.contains(t.kind) ?? false =>
+                    i = green.childCount
+                    return None
+                case GreenElement.Token(_) => ()
+                case GreenElement.Node(n) where started && T.canCast(n.kind) =>
+                    if (let Some(it) <- T.cast(SyntaxNode(n, parent, at, parent.offset + green.childOffset(at)))) {
+                        return it
+                    }
+                case GreenElement.Node(_) => ()
+            }
+        }
+        None
+    }
+}
+
+/**
  * The children of `parent` that are `T`s, but for the first `toSkip` of those whose kind is in `counted`: a red
  * node is made only for a child of the right kind.
  */

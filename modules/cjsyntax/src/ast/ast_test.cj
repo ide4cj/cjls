@@ -71,6 +71,58 @@ class AstTest {
     }
 
     @TestCase
+    func aMissingConditionIsNotTheElseIfAfterIt() {
+        // act
+        let sut = first<IfExpr>("if () { 1 } else if (b) { 2 }")
+
+        // assert
+        @Expect(sut.condition().isNone())
+        @Expect(text(sut.then()), Some("{ 1 }"))
+        @Expect(text(sut.elseIf()), Some("if (b) { 2 }"))
+    }
+
+    @TestCase
+    func aMissingBranchIsNotTheElseAfterIt() {
+        // act
+        let sut = first<IfExpr>("if (a) else { x }")
+
+        // assert
+        @Expect(text(sut.condition()), Some("a"))
+        @Expect(sut.then().isNone())
+        @Expect(text(sut.elseBlock()), Some("{ x }"))
+    }
+
+    @TestCase
+    func aMissingCaseConditionIsNotTheStatementAfterIt() {
+        // act
+        let sut = first<MatchCase>("match { case => a }")
+
+        // assert
+        @Expect(sut.condition().isNone())
+        @Expect(texts(sut.stmts()), ["a"])
+    }
+
+    @TestCase
+    func aMissingSpawnContextIsNotTheLambda() {
+        // act
+        let sut = first<SpawnExpr>("spawn () { => 1 }")
+
+        // assert
+        @Expect(sut.context().isNone())
+        @Expect(text(sut.lambda()), Some("{ => 1 }"))
+    }
+
+    @TestCase
+    func aMissingIndexIsNotTheExpressionIndexed() {
+        // act
+        let sut = first<IndexExpr>("a[]")
+
+        // assert
+        @Expect(text(sut.base()), Some("a"))
+        @Expect(texts(sut.indices()), Array<String>())
+    }
+
+    @TestCase
     func anIndexExpressionHasItsBaseAndIndices() {
         // act
         let sut = first<IndexExpr>("a[i, j]")

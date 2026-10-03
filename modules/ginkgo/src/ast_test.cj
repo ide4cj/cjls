@@ -73,6 +73,30 @@ class AstSupportTest {
     }
 
     @TestCase
+    func childrenBetweenAreAfterTheFirstTokenOfStartAndBeforeTheNextOfEnd() {
+        // arrange
+        let spaces = TokenSet<TestKind>([Space])
+        let words = TokenSet<TestKind>([Word])
+
+        // act & assert
+        @Expect(kindsOf(astChildrenBetween<TestKind, Nested>(root, spaces, spaces)), [Inner])
+        @Expect(kindsOf(astChildrenBetween<TestKind, Nested>(root, words, None)), [Inner, Leaf])
+        @Expect(kindsOf(astChildrenBetween<TestKind, Nested>(root, None, None)), [Inner, Leaf])
+        @Expect(astChildBetween<TestKind, Nested>(root, spaces, None).map {n => n.syntax.kind}, Some(Inner))
+    }
+
+    @TestCase
+    func aChildBetweenTokensThatAreNotThereIsNone() {
+        // arrange
+        let words = TokenSet<TestKind>([Word])
+        let none = TokenSet<TestKind>([Root])
+
+        // act & assert
+        @Expect(astChildBetween<TestKind, Nested>(root, None, words).isNone())
+        @Expect(astChildBetween<TestKind, Nested>(root, none, None).isNone())
+    }
+
+    @TestCase
     func tokenIsTheFirstOwnTokenOfAKind() {
         // arrange
         let inner = astChild<TestKind, Nested>(root).getOrThrow().syntax
