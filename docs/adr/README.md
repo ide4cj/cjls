@@ -47,10 +47,11 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | superseded by D35 |
 | [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33 |
 | [0031](0031-the-server-sets-its-heap.md) | Without `cjHeapSize` the server starts over with a heap of 2 GB; a load keeps a sixteenth of the heap | accepted |
-| [0032](0032-one-process-for-server-and-clients.md) | The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot | accepted; the nightly's tag `nightly-build`, updated in place, by D38 |
-| [0033](0033-project-model.md) | A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files | accepted |
+| [0032](0032-one-process-for-server-and-clients.md) | The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot | accepted; the nightly's tag `nightly-build`, updated in place, by D39 |
+| [0033](0033-project-model.md) | A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files | accepted; its binaries read by D38 |
 | [0034](0034-item-ids-and-the-item-tree.md) | An item is named by a hash of its parent and its name; a file's items are a tree with no ranges | accepted |
 | [0035](0035-a-handle-closing-a-loop-gives-way.md) | A handle closing a loop of waits gives way, and the owner computes the cycle; one memo per handle otherwise as D29 | accepted |
 | [0036](0036-lru-evicts-within-a-revision.md) | calca evicts by LRU as it touches, within a revision too | accepted |
 | [0037](0037-cjo-files-are-read-by-generated-views.md) | A `.cjo` is read through views generated from its vendored schema, on a runtime of our own, with no verifier; the enums a patch may extend are open | accepted |
-| [0038](0038-the-nightly-is-updated-in-place.md) | The nightly is the pre-release `nightly-build`, made once and updated in place; immutable releases are off | accepted |
+| [0038](0038-binary-packages-are-inputs-of-their-bytes.md) | A package compiled already is an input of its `.cjo` bytes, out of the `Vfs`, read with the project and lowered into the item model | accepted |
+| [0039](0039-the-nightly-is-updated-in-place.md) | The nightly is the pre-release `nightly-build`, made once and updated in place; immutable releases are off | accepted |

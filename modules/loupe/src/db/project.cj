@@ -196,6 +196,21 @@ public struct ProjectModel {
         let first = projects.iterator().next().map {project => project.cfg} ?? cfg
         ProjectModel(first, modules.toArray(), binaries: binaries.toArray())
     }
+
+    /**
+     * The `.cjo` of every package of the binaries, as the disk lists them: every one in a directory
+     * of a binary, then those it names one by one.
+     */
+    public func cjoFiles(): Array<CjoFile> {
+        let files = ArrayList<CjoFile>()
+        for (binary in binaries) {
+            for (dir in binary.paths) {
+                files.add(all: cjoFilesIn(binary.name, dir))
+            }
+            files.add(all: binary.packages.map {pkg => CjoFile(binary.name, pkg.name, pkg.path)})
+        }
+        files.toArray()
+    }
 }
 
 extend ModuleModel {
@@ -236,6 +251,10 @@ public struct Project {
     public var cfg: Cfg
     public var modules: Array<Module>
     public var binaries: Array<BinaryModel>
+    /**
+     * The packages of the binaries that were read, in the order of `binaries`.
+     */
+    public var binaryPackages: Array<BinaryPackageFile>
 }
 
 /**
@@ -267,14 +286,46 @@ public struct Package {
 }
 
 /**
+ * A package compiled already, as the analysis sees it: the bytes of its `.cjo`, kept out of the
+ * `Vfs`, which holds what an editor may open and edit as text (D38). One per binary, package and
+ * file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes.
+ */
+@CalcaInput
+public struct BinaryPackageFile {
+    /**
+     * The binary it is of, as `Project.binaries` names it.
+     */
+    public let binary: String
+    public let name: String
+    public let path: VfsPath
+    public var bytes: Array<Byte>
+}
+
+/**
  * The inputs of the project made so far, by name, and what each was last set to; and the
  * durability of each file, its module's. Used on the root handle alone.
  */
 class Projects {
-    var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>) = None
+    var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>, Array<BinaryPackageFile>) = None
     let modules = HashMap<ModuleKey, (Module, ModuleModel)>()
     let packages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
+    /**
+     * Each `.cjo` ever set, with the stamp and the bytes it was set last with: a gone one's are empty.
+     */
+    let binaries = HashMap<CjoFile, (BinaryPackageFile, ?FileStamp, Array<Byte>)>()
     var durabilities = HashMap<FileId, Durability>()
+}
+
+/**
+ * How rarely the files of the binary `name` change: `std`'s with the SDK, any other's when it is
+ * updated.
+ */
+func binaryDurability(name: String): Durability {
+    if (name == "std") {
+        Durability.High
+    } else {
+        Durability.Medium
+    }
 }
 
 /**

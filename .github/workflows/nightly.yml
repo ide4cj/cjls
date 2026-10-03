@@ -1,6 +1,6 @@
 name: Nightly
 
-# The rolling pre-release `nightly-build` (D32, D38): the binaries of master's newest commit CI
+# The rolling pre-release `nightly-build` (D32, D39): the binaries of master's newest commit CI
 # passed on, packaged as a release is, so a client follows master by a tag name alone. Nothing to do
 # when that commit is the nightly already.
 on:
@@ -69,7 +69,7 @@ jobs:
             fi
           } > notes.md
       # made once, then updated in place: the tag moves, the assets (their names never change) are
-      # replaced. Never deleted: a tag an immutable release had can never be made again (D38).
+      # replaced. Never deleted: a tag an immutable release had can never be made again (D39).
       - if: steps.green.outputs.sha
         name: Release
         env:

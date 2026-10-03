@@ -14,6 +14,7 @@ package-configuration = {}
 
 [dependencies]
 calca = { path = "../calca" }
+cjo = { path = "../cjo" }
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
 index_map = { path = "../index_map" }

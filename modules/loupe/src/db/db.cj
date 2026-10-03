@@ -1,6 +1,6 @@
 package loupe.db
 
-import std.collection.HashMap
+import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*
@@ -98,29 +98,79 @@ public class AnalysisDatabase <: Database {
      * The files of a module set from now on take its durability; a file is given its id by
      * `paths`. A file set already keeps the durability it has until it changes.
      *
+     * `binaries` are the packages of `model`'s binaries that were read: a `.cjo` is the input of
+     * its binary, package and path, its bytes set only when they differ from the last; one read
+     * before and not now holds no bytes.
+     *
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
-    public func setProject(model: ProjectModel, paths: PathInterner): Unit {
+    public func setProject(model: ProjectModel, paths: PathInterner, binaries!: Array<CjoFileRead> = []): Unit {
         let durabilities = HashMap<FileId, Durability>()
         batch {
             let modules = model.modules.map {module => setModule(module, paths, durabilities)}
+            let packages = setBinaryPackages(binaries)
             match (projects.project) {
-                case None => projects.project = (Project(this, model.cfg, modules, model.binaries,
-                    durability: Durability.High), model.cfg, modules, model.binaries)
-                case Some((project, cfg, oldModules, binaries)) =>
+                case None => projects.project = (Project(this, model.cfg, modules, model.binaries, packages,
+                    durability: Durability.High), model.cfg, modules, model.binaries, packages)
+                case Some((project, cfg, oldModules, oldBinaries, oldPackages)) =>
                     if (cfg != model.cfg) {
                         project.setCfg(this).withDurability(Durability.High).to(model.cfg)
                     }
                     if (oldModules != modules) {
                         project.setModules(this).withDurability(Durability.High).to(modules)
                     }
-                    if (binaries != model.binaries) {
+                    if (oldBinaries != model.binaries) {
                         project.setBinaries(this).withDurability(Durability.High).to(model.binaries)
                     }
-                    projects.project = (project, model.cfg, modules, model.binaries)
+                    if (oldPackages != packages) {
+                        project.setBinaryPackages(this).withDurability(Durability.High).to(packages)
+                    }
+                    projects.project = (project, model.cfg, modules, model.binaries, packages)
             }
         }
         projects.durabilities = durabilities
+    }
+
+    /**
+     * The stamp of the `.cjo` `file` was set with, `None` if it holds no bytes: whether it needs to
+     * be read again.
+     */
+    public func binaryStamp(file: CjoFile): ?FileStamp {
+        projects.binaries.get(file).flatMap {binary => binary[1]}
+    }
+
+    private func setBinaryPackages(reads: Array<CjoFileRead>): Array<BinaryPackageFile> {
+        let kept = HashSet<CjoFile>()
+        let packages = ArrayList<BinaryPackageFile>()
+        for (read in reads) {
+            let durability = binaryDurability(read.file.binary)
+            match ((projects.binaries.get(read.file), read.bytes)) {
+                case (Some((pkg, _, old)), Some(bytes)) =>
+                    if (bytes != old) {
+                        pkg.setBytes(this).withDurability(durability).to(bytes)
+                    }
+                    projects.binaries.add(read.file, (pkg, read.stamp, bytes))
+                    packages.add(pkg)
+                case (Some((pkg, Some(_), _)), None) => packages.add(pkg)
+                case (None, Some(bytes)) =>
+                    let pkg = BinaryPackageFile(this, read.file.binary, read.file.name, read.file.path, bytes,
+                        durability: durability)
+                    projects.binaries.add(read.file, (pkg, read.stamp, bytes))
+                    packages.add(pkg)
+                // left unread, but nothing was read before
+                case _ => continue
+            }
+            kept.add(read.file)
+        }
+        let gone = projects.binaries.keys() |> filter {file: CjoFile => !kept.contains(file)} |> collectArray
+        for (file in gone) {
+            let (pkg, stamp, _) = projects.binaries[file]
+            if (stamp.isSome()) {
+                pkg.setBytes(this).withDurability(binaryDurability(file.binary)).to([])
+                projects.binaries.add(file, (pkg, None, []))
+            }
+        }
+        packages.toArray()
     }
 
     private func setModule(model: ModuleModel, paths: PathInterner, durabilities: HashMap<FileId, Durability>): Module {

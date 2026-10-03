@@ -9,5 +9,6 @@
   - `begin.file`: with `pkgId == 0` an index into `allFiles` counted from 1 (0: no file); with `pkgId > 0` the file is of package `imports[pkgId - 1]`, counted from 0 among that package's files.
   - A re-export (`public import`) is an `ImportSpec` with `reExport` (3 public, 1 internal) in `allFileImports`; what it re-exports is not in `allDecls`.
   - What cjc added is marked `Attribute.CompilerAdd`: at the top level only the `macroCall_*` of macro packages; among members implicit `init`s, their parameters and the like.
+  - A primary constructor is what cjc desugars it to (`DesugarPrimaryCtor`, `src/Sema/Desugar/DesugarInTypeCheck.cpp`): a `FuncDecl` `init` (`Constructor`, `PrimaryConstructor`, `CompilerAdd`) assigning the fields, and a `VarDecl` field per member parameter (`VarInfo.isMemberParam`, `CompilerAdd`). The `PrimaryCtorDecl` itself is not written, and the type's name it had (`identifierForLsp`) is not either.
   - A `BuiltInDecl` (`Array`, `CPointer`, …) has no real position: file 1, line 0.
 - **Tests** read the SDK's own std (`CANGJIE_HOME`, any target). A case the SDK's files do not have (an unknown enum value or union member, a foreign major, no version, a vector longer than the file) patches the bytes of a real file at the offset its vtable gives: there is no builder, and none is wanted for tests.

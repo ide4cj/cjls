@@ -115,11 +115,20 @@ public class ServerState <: FromContext<ServerState> {
     }
 
     /**
-     * Sets the project the analysis sees: its modules and packages, and the files of each.
+     * Sets the project the analysis sees: its modules and packages, and the files of each; and the
+     * packages of its binaries that were read.
      */
-    public func setProject(model: ProjectModel): Unit {
-        analysis.setProject(model, vfs.paths)
+    public func setProject(model: ProjectModel, binaries!: Array<CjoFileRead> = []): Unit {
+        analysis.setProject(model, vfs.paths, binaries: binaries)
         projectFiles = HashSet<VfsPath>(model.files())
+    }
+
+    /**
+     * Whether the `.cjo` `file` holds what it was last set with, as `stamp` tells: then it is not
+     * read again.
+     */
+    public func binaryUnchanged(file: CjoFile, stamp: FileStamp): Bool {
+        analysis.binaryStamp(file) == stamp
     }
 
     /**
