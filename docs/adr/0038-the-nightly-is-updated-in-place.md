@@ -8,12 +8,12 @@ D32's `nightly.yml` deleted the release `nightly` and made it again. Immutable r
 
 ## Decision
 
-- **The tag is `nightly-build`.** A client's word stays `nightly` (`vim.g.cjls_version = 'nightly'`, Zed's setting, VS Code's pre-release minor) and the client maps it to the tag. Not `Nightly`: a case-insensitive filesystem folds it into a clone's stale `nightly`.
+- **The tag is `nightly-build`**, and a client's setting names it as any tag (`vim.g.cjls_version = 'nightly-build'`, Zed's `version`): no word is mapped to it, as `nightly` finds nothing anyway. Not `Nightly`: a case-insensitive filesystem folds it into a clone's stale `nightly`.
 - **Made once, updated in place, never deleted**: the assets replaced by name (their names never change), the tag moved, the notes edited. A deletion is the only way a tag can be lost.
 - **Immutable releases are off** in this repository. Turning them on again for `v*` takes a nightly that does not roll (a dated tag each night as clangd's, a client taking the newest): a new ADR.
 
 ## Consequences
 
-- No client finds a nightly until each maps `nightly` to `nightly-build`: `ide4cj/.github/actions/cjls`, `cangjie.nvim`, `cangjie-vscode`, `cangjie-zed`, by a paired branch (D32).
+- A user following the nightly sets `nightly-build` in place of `nightly`; `ide4cj/.github/actions/cjls`, `cangjie.nvim`, `cangjie-vscode` and `cangjie-zed` name it, by a paired branch (D32).
 - `v0.1.0` and `v0.2.0` stay immutable; the releases after them are not.
 - Deleting `nightly-build` by hand while immutable releases are on would lose this name as well.
