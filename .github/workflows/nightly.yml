@@ -78,7 +78,7 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             gh release upload "$TAG" dist/* --clobber
             gh api -X PATCH "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" -f sha="$SHA" -F force=true --silent
-            gh release edit "$TAG" --notes-file notes.md
+            gh release edit "$TAG" --target "$SHA" --notes-file notes.md # targetCommitish: what clients compare
           else
             gh release create "$TAG" dist/* --prerelease --latest=false --target "$SHA" --title nightly --notes-file notes.md
           fi
