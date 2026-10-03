@@ -22,8 +22,8 @@ let INSERT_BENCH_FILLED = {=>
 
 /**
  * Inserting into a `ConcurrentIndexMap`: a key seen (no lock), keys never seen (the lock), and
- * several threads inserting the same keys at once; #117 measured the insert that hashes a new key
- * once more, not twice, with it. `cjpm bench '--filter=ConcurrentIndexMapInsertBench.*'`.
+ * several threads inserting the same keys at once: what settled the lookup and add under the lock
+ * against one `entryView` (C9). `cjpm bench '--filter=ConcurrentIndexMapInsertBench.*'`.
  */
 @Test
 class ConcurrentIndexMapInsertBench {
