@@ -9,5 +9,7 @@
   - `begin.file`: with `pkgId == 0` an index into `allFiles` counted from 1 (0: no file); with `pkgId > 0` the file is of package `imports[pkgId - 1]`, counted from 0 among that package's files.
   - A re-export (`public import`) is an `ImportSpec` with `reExport` (3 public, 1 internal) in `allFileImports`; what it re-exports is not in `allDecls`.
   - What cjc added is marked `Attribute.CompilerAdd`: at the top level only the `macroCall_*` of macro packages; among members implicit `init`s, their parameters and the like.
-  - A `BuiltInDecl` (`Array`, `CPointer`, …) has no real position: file 1, line 0.
+  - A `BuiltInDecl` (`RawArray`, `VArray`, `CPointer`, …; `Array` is a struct on `RawArray`) has no real position: file 1, line 0.
+  - An index into `allDecls` (a type's `body`) or `allTypes` (`Decl.type`) is counted from 1, 0 for none. A `body` holds the members alone, never their parameters or generic parameters.
+  - A primary constructor is a `FuncDecl` `init` marked `CompilerAdd`, `Constructor` and `PrimaryConstructor`, the fields it declares `VarDecl`s marked `CompilerAdd`; an `extend` has an empty `identifier`, its type the type extended.
 - **Tests** read the SDK's own std (`CANGJIE_HOME`, any target). A case the SDK's files do not have (an unknown enum value or union member, a foreign major, no version, a vector longer than the file) patches the bytes of a real file at the offset its vtable gives: there is no builder, and none is wanted for tests.

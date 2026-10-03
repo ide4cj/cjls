@@ -26,10 +26,11 @@ public struct SourceFile {
  * and can sit under all of them.
  */
 public class AnalysisDatabase <: Database {
-    private AnalysisDatabase(private let storage_: Storage, private let files: Files, private let projects: Projects) {}
+    private AnalysisDatabase(private let storage_: Storage, private let files: Files, private let projects: Projects,
+        let binaries: Binaries) {}
 
     public init() {
-        this(Storage(), Files(), Projects())
+        this(Storage(), Files(), Projects(), Binaries())
     }
 
     public prop storage: Storage {
@@ -42,7 +43,7 @@ public class AnalysisDatabase <: Database {
      * Its queries are `Cancelled` once `cancelledBy` gives `true`, as well as once the files change.
      */
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): AnalysisDatabase {
-        AnalysisDatabase(storage_.snapshot(cancelledBy: cancelledBy), files, projects)
+        AnalysisDatabase(storage_.snapshot(cancelledBy: cancelledBy), files, projects, binaries)
     }
 
     /**

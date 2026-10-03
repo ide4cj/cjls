@@ -54,7 +54,8 @@ func parseCommand(args: Array<String>): Command {
  */
 func printProject(dir: Path, logger: Logger): Int64 {
     let root = VfsPath.file(dir)
-    let load = findProject(root, env: {name => getVariable(name)})
+    let env = {name: String => getVariable(name)}
+    let load = findProject(root, env: withCangjieHome(env, findCangjieHome(None, env: env)))
     logger.info("found a project", [("source", load.source.toString())])
     for (problem in load.problems) {
         logger.warn(problem)

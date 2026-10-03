@@ -62,6 +62,11 @@ public class ServerState <: FromContext<ServerState> {
     public let linkedProjects = ArrayList<VfsPath>()
 
     /**
+     * The SDK `initializationOptions` names (`cangjieHome`), the first place it is looked for.
+     */
+    public var cangjieHome: ?String = None
+
+    /**
      * The files of the project, as last set: made anew each time, for a set built from an array
      * takes a third of the time `clear` and `add(all:)` do.
      */

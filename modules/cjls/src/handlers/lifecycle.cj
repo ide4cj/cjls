@@ -22,6 +22,7 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.multilineTokens = takesMultilineTokens(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
     state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
+    state.cangjieHome = cangjieHome(params.initializationOptions)
     let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
@@ -61,6 +62,19 @@ func linkedProjects(options: ?JsonValue): Array<VfsPath> {
         }
     }
     paths.toArray()
+}
+
+/**
+ * The SDK `initializationOptions.cangjieHome` names, an absolute path or a `file:` URI; `None` for
+ * anything else.
+ */
+func cangjieHome(options: ?JsonValue): ?String {
+    match (options.flatMap {it => it.get("cangjieHome")}) {
+        case Some(JsonValue.JsonString(text)) where text.startsWith("file:") =>
+            VfsPath.fromUri(text).filePath.map {path => path.toString()}
+        case Some(JsonValue.JsonString(text)) where Path(text).isAbsolute() => text
+        case _ => None
+    }
 }
 
 /**

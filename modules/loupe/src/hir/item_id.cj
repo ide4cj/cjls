@@ -12,7 +12,8 @@ import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
 
 /**
- * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration.
+ * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;
+ * or a type built into the compiler (`Array`, `CPointer`), declared in `std.core`'s `.cjo` alone.
  */
 @Derive[Equatable, Hashable]
 public enum ItemKind <: ToString {
@@ -33,6 +34,7 @@ public enum ItemKind <: ToString {
     | PrimaryInit
     | EnumCtor
     | MacroCall
+    | BuiltIn
 
     public func toString(): String {
         match (this) {
@@ -53,6 +55,7 @@ public enum ItemKind <: ToString {
             case PrimaryInit => "PrimaryInit"
             case EnumCtor => "EnumCtor"
             case MacroCall => "MacroCall"
+            case BuiltIn => "BuiltIn"
         }
     }
 }

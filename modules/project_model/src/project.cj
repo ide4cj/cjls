@@ -82,7 +82,7 @@ class Loading {
         let home = match (env("CANGJIE_HOME")) {
             case Some(home) where Path(home).isAbsolute() => home
             case _ =>
-                problems.add("`CANGJIE_HOME` is not set: `std` is not found")
+                problems.add("no Cangjie SDK is found: `std` is not")
                 return None
         }
         let target = sdkTarget(cfg) ?? return None

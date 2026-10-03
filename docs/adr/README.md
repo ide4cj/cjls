@@ -53,3 +53,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0035](0035-a-handle-closing-a-loop-gives-way.md) | A handle closing a loop of waits gives way, and the owner computes the cycle; one memo per handle otherwise as D29 | accepted |
 | [0036](0036-lru-evicts-within-a-revision.md) | calca evicts by LRU as it touches, within a revision too | accepted |
 | [0037](0037-cjo-files-are-read-by-generated-views.md) | A `.cjo` is read through views generated from its vendored schema, on a runtime of our own, with no verifier; the enums a patch may extend are open | accepted |
+| [0038](0038-binary-packages-are-inputs-of-their-own.md) | A binary package is an input of its own, its `.cjo` outside `Vfs`, lowered into the item tree; the SDK is found without `CANGJIE_HOME` | accepted |

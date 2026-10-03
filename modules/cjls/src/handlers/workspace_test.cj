@@ -327,6 +327,36 @@ class ProjectLoadTest {
         @Expect(linked, [VfsPath.file(a), VfsPath.file(b)])
         @Expect(linkedProjects(Option<JsonValue>.None).size, 0)
     }
+
+    @TestCase
+    func theSdkOptionIsAPathOrAFileUri() {
+        // arrange
+        let sdk = getTempDirectory().join("sdk")
+        let optionOf = {value: JsonValue => JsonValue.JsonObject([("cangjieHome", value)])}
+
+        // act, assert
+        @Expect(cangjieHome(optionOf(JsonValue.JsonString(sdk.toString()))), Some(sdk.toString()))
+        @Expect(cangjieHome(optionOf(JsonValue.JsonString(uriOf(sdk)))), VfsPath.file(sdk).filePath.map {it => it.toString()})
+        @Expect(cangjieHome(optionOf(JsonValue.JsonString("relative"))), None<String>)
+        @Expect(cangjieHome(Option<JsonValue>.None), None<String>)
+    }
+
+    @TestCase
+    func theBinariesOfTheProjectAreLoadedStdFirst() {
+        // arrange - std from the SDK the tests run with
+        let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
+        let state = initializedWith([dir], watches: false)
+
+        // act
+        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        remove(dir, recursive: true)
+
+        // assert
+        let packages = state.analysis.binaryPackages().getOrThrow().packages(state.analysis)
+        @Expect(packages.iterator().any {pkg => pkg.module(state.analysis) == "std" && pkg.name(state.analysis) == "std.core"})
+        @Expect(packages[0].module(state.analysis), "std")
+        @Expect(textAt(state, dir.join("src").join("main.cj")), Some("main() {}"))
+    }
 }
 
 @Test

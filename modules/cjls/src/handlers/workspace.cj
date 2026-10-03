@@ -10,8 +10,8 @@ import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
-import loupe.vfs.{isWorkspaceFile, readFile, readFiles, VfsPath}
-import project_model.{findProjects, hostCfg, PROJECT_JSON}
+import loupe.vfs.{isWorkspaceFile, readBinaries, readFile, readFiles, VfsPath}
+import project_model.{binaryPackagesOf, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -42,7 +42,13 @@ func handleInitialized(state: ServerState, client: Client, logger: Logger, _: In
         logger.info("the client cannot watch files: changes on disk are not seen")
     }
     watch(state, client, logger, state.roots.toArray())
-    load(state, logger)
+    if (let Some(warning) <- load(state, logger)) {
+        try {
+            client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: warning))
+        } catch (e: Exception) {
+            logger.debug("the warning was not shown", [("error", e.toString())])
+        }
+    }
 }
 
 /**
@@ -121,18 +127,29 @@ func changesProject(event: FileEvent): Bool {
 }
 
 /**
- * Finds the project of every root again and sets it, then reads the files of its packages the
- * server does not know yet, and sets them all in one revision; an open document keeps what the
- * editor sent. On the read loop, so what arrives meanwhile waits and applies after it.
+ * Finds the SDK and the project of every root again and sets it, then reads the `.cjo` of its
+ * binaries changed since, and the files of its packages the server does not know yet, and sets them
+ * all in one revision each; an open document keeps what the editor sent. The binaries go first in
+ * the budget: without `std` nothing resolves. On the read loop, so what arrives meanwhile waits and
+ * applies after it.
+ *
+ * What the user is to be told, once: no SDK, or one whose `std` cannot be read; `None` if all is well.
  */
-func load(state: ServerState, logger: Logger): Unit {
+func load(state: ServerState, logger: Logger): ?String {
     let roots = state.roots.toArray()
     if (roots.isEmpty() && state.linkedProjects.isEmpty()) {
-        return
+        return None
     }
     let start = MonoTime.now()
     let budget = loadBudget()
-    let loads = findProjects(roots, state.linkedProjects.toArray(), env: {name => getVariable(name)}, budget: budget)
+    var warning = Option<String>.None
+    let home = findCangjieHome(state.cangjieHome, env: {name => getVariable(name)})
+    match (home) {
+        case Some(home) => logger.info("found the SDK", [("path", home.path), ("source", home.source)])
+        case None => warning = "No Cangjie SDK is found: nothing from std resolves. Set `CANGJIE_HOME`, or the SDK in the editor's settings."
+    }
+    let env = withCangjieHome({name => getVariable(name)}, home)
+    let loads = findProjects(roots, state.linkedProjects.toArray(), env: env, budget: budget)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {
@@ -141,14 +158,26 @@ func load(state: ServerState, logger: Logger): Unit {
     }
     let model = ProjectModel.merge(loads.map {load => load.model}, hostCfg())
     state.setProject(model)
+    let binaries = binaryPackagesOf(model)
+    let readBinary = readBinaries(binaries.map {pkg => pkg.path}, known: {path => state.analysis.binaryStamp(path)},
+        budget: budget)
+    for (problem in state.analysis.setBinaryPackages(binaries, readBinary.files)) {
+        logger.warn(problem.message)
+        if (problem.pkg.module == "std" && warning.isNone()) {
+            warning = "The Cangjie SDK is of a version the server does not read: nothing from std resolves. " +
+                problem.message
+        }
+    }
     let wanted = model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)}
-    let read = readFiles(wanted, budget: budget)
+    let read = readFiles(wanted, budget: budget - readBinary.size)
     state.setFilesContents(read.files.map {file => (file[0], Some(file[1]))})
-    logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size), ("took", MonoTime.now() - start)])
-    if (read.truncated) {
-        logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
+    logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size),
+        ("binaries", readBinary.files.size), ("binaryBytes", readBinary.size), ("took", MonoTime.now() - start)])
+    if (readBinary.truncated || read.truncated) {
+        logger.warn("the workspace holds more than the server loads: the rest is not seen until opened",
             [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
     }
+    warning
 }
 
 /**

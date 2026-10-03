@@ -189,3 +189,75 @@ class LoaderOnPosixTest {
         @Expect(VfsPath.file("/src/a.cj").segmentsUnder(VfsPath.file("/")), Some(["src", "a.cj"]))
     }
 }
+
+@Test
+class ReadBinariesTest {
+    @TestCase
+    func aFileIsReadAsBytesAndOneNotThereIsLeftOut() {
+        // arrange
+        let dir = tree([("a.cjo", "aa"), ("b.cjo", "bbb")])
+        let paths = [VfsPath.file(dir.join("a.cjo")), VfsPath.file(dir.join("gone.cjo")), VfsPath.file(dir.join("b.cjo"))]
+
+        // act
+        let read = readBinaries(paths, known: {_ => None})
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(read.files.map {file => file.path}, [paths[0], paths[2]])
+        @Expect(read.files.map {file => file.bytes ?? []}, ["aa".toArray(), "bbb".toArray()])
+        @Expect(read.files[1].stamp.size, 3)
+        @Expect(read.size, 5)
+        @Expect(!read.truncated)
+    }
+
+    @TestCase
+    func aFileOfTheStampItIsKnownByIsNotReadAgainButTakesItsShareOfTheBudget() {
+        // arrange
+        let dir = tree([("a.cjo", "aa"), ("b.cjo", "bbb")])
+        let a = VfsPath.file(dir.join("a.cjo"))
+        let b = VfsPath.file(dir.join("b.cjo"))
+        let stamp = fileStamp(a).getOrThrow()
+
+        // act
+        let read = readBinaries([a, b], known: {path => if (path == a) {
+            stamp
+        } else {
+            None
+        }})
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(read.files.map {file => file.bytes.isNone()}, [true, false])
+        @Expect(read.files[0].stamp, stamp)
+        @Expect(read.size, 5)
+    }
+
+    @TestCase
+    func aFileThatDoesNotFitInWhatIsLeftIsLeftOutAndTheRestRead() {
+        // arrange
+        let dir = tree([("a.cjo", "aaaa"), ("b.cjo", "bbbbbb"), ("c.cjo", "cc")])
+        let paths = ["a.cjo", "b.cjo", "c.cjo"].map {name => VfsPath.file(dir.join(name))}
+
+        // act
+        let read = readBinaries(paths, known: {_ => None}, budget: 7)
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(read.files.map {file => file.path}, [paths[0], paths[2]])
+        @Expect(read.size, 6)
+        @Expect(read.truncated)
+    }
+
+    @TestCase
+    func aDirectoryOrAVirtualPathHasNoStamp() {
+        // arrange
+        let dir = tree([])
+
+        // act
+        let stamps = [fileStamp(VfsPath.file(dir)), fileStamp(VfsPath.virtual("untitled:1"))]
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(stamps.map {stamp => stamp.isNone()}, [true, true])
+    }
+}

@@ -1,7 +1,9 @@
 package loupe.vfs
 
 import std.collection.*
+import std.deriving.*
 import std.fs.*
+import std.time.DateTime
 import rope.Rope
 
 /**
@@ -63,6 +65,96 @@ public func readFile(path: VfsPath): ?Rope {
     } catch (_: IllegalArgumentException) {
         None
     }
+}
+
+/**
+ * What tells a file read before from one changed since without reading it: its size and the time it
+ * was last written.
+ */
+@Derive[Equatable]
+public struct FileStamp {
+    public FileStamp(public let size: Int64, public let modified: DateTime) {}
+}
+
+/**
+ * The stamp of the file at `path`, `None` if it is not there, is no regular file, or for a virtual
+ * path.
+ */
+public func fileStamp(path: VfsPath): ?FileStamp {
+    let filePath = path.filePath ?? return None
+    try {
+        let info = FileInfo(filePath)
+        if (info.isRegular()) {
+            FileStamp(info.size, info.lastModificationTime)
+        } else {
+            None
+        }
+    } catch (_: FSException) {
+        None
+    }
+}
+
+/**
+ * A file `readBinaries` read, or found unchanged.
+ */
+public struct BinaryRead {
+    public BinaryRead(
+        public let path: VfsPath,
+        public let stamp: FileStamp,
+        /**
+         * What it holds, `None` if its stamp is the one it was known by: unchanged, it is not read.
+         */
+        public let bytes: ?Array<Byte>
+    ) {}
+}
+
+/**
+ * What `readBinaries` read, and whether that is all of them.
+ */
+public struct BinariesRead {
+    public BinariesRead(
+        public let files: Array<BinaryRead>,
+        /**
+         * The bytes the files take, those unchanged too: what is left of the budget is for the text.
+         */
+        public let size: Int64,
+        /**
+         * Whether files were left out for the budget.
+         */
+        public let truncated: Bool
+    ) {}
+}
+
+/**
+ * The files at `paths`, as bytes: one whose stamp is what `known` gives for it is not read again, one
+ * that is not there or cannot be read is left out, and so is one that does not fit in what is left of
+ * `budget`, unchanged or not, in the order of `paths`.
+ *
+ * Touches nothing but the disk and `known`.
+ */
+public func readBinaries(paths: Array<VfsPath>, known!: (VfsPath) -> ?FileStamp, budget!: Int64 = Int64.Max): BinariesRead {
+    let files = ArrayList<BinaryRead>()
+    var left = budget
+    var truncated = false
+    for (path in paths) {
+        let stamp = fileStamp(path) ?? continue
+        if (stamp.size > left) {
+            truncated = true
+            continue
+        }
+        if (known(path) == Some(stamp)) {
+            files.add(BinaryRead(path, stamp, None))
+        } else {
+            let bytes = try {
+                File.readFrom(path.filePath.getOrThrow())
+            } catch (_: FSException) {
+                continue
+            }
+            files.add(BinaryRead(path, stamp, bytes))
+        }
+        left -= stamp.size
+    }
+    BinariesRead(files.toArray(), budget - left, truncated)
 }
 
 /**
