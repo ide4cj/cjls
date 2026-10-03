@@ -240,6 +240,19 @@ class IndexMapTest {
         @Expect(map.isEmpty())
         @Expect(map.indexOf("a").isNone())
     }
+
+    @TestCase
+    func mapsAreEqualWithTheSameEntriesInTheSameOrder() {
+        // arrange
+        let map = mapOf(["a", "b"])
+
+        // act, assert
+        @Expect(map == IndexMap<String, Int64>([("a", 0), ("b", 1)]))
+        @Expect(map != IndexMap<String, Int64>([("b", 1), ("a", 0)]))
+        @Expect(map != IndexMap<String, Int64>([("a", 0), ("b", 2)]))
+        @Expect(map != mapOf(["a"]))
+        @Expect(map == map.clone())
+    }
 }
 
 private func positionIn(model: ArrayList<(Int64, Int64)>, key: Int64): ?Int64 {

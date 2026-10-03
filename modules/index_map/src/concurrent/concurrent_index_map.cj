@@ -13,7 +13,8 @@ const SEGMENTS = 64 - FIRST_SEGMENT_BITS
 /**
  * An `IndexMap` safe to share between threads, for what is only ever added to: interning, where an
  * entry's index is an id handed out for good. Reads (`get`, `indexOf`, `getAt`, `size`) take no
- * lock; `add` takes one only for a key not there yet, to give it the next index.
+ * lock; `addIfAbsent` and `getOrAdd` take one only for a key not there yet, to give it the next
+ * index.
  *
  * There is no removing, and an entry's value never changes once added: a reader holding no lock
  * could otherwise see half of one. The entries live in segments of doubling size that never move, so
@@ -74,24 +75,43 @@ public class ConcurrentIndexMap<K, V> where K <: Hashable & Equatable<K> {
     }
 
     /**
-     * Appends an entry for a new `key`; one already there keeps its value.
+     * Appends an entry for a new `key`; one already there keeps its value, as in
+     * `ConcurrentHashMap.addIfAbsent` (`IndexMap.add` replaces it).
      *
      * @return the value already there, if any
      */
-    public func add(key: K, value: V): ?V {
-        addWithIndex(key, value)[1]
+    public func addIfAbsent(key: K, value: V): ?V {
+        addIfAbsentWithIndex(key, value)[1]
     }
 
     /**
-     * As `add`.
+     * As `addIfAbsent`.
      *
      * @return the position of `key`'s entry, and the value already there, if any
      */
     @Frozen
-    public func addWithIndex(key: K, value: V): (Int64, ?V) {
+    public func addIfAbsentWithIndex(key: K, value: V): (Int64, ?V) {
         match (indices.get(key)) {
             case Some(index) => (index, entry(index)[1])
             case None => append(key, value)
+        }
+    }
+
+    /**
+     * The value of `key`'s entry, appending one of `make()` if there is none. `make` runs only for a
+     * key not there yet, outside the lock: if another thread adds `key` meanwhile, its value is
+     * dropped.
+     *
+     * @return the position of `key`'s entry, and its value
+     */
+    @Frozen
+    public func getOrAdd(key: K, make: () -> V): (Int64, V) {
+        match (indices.get(key)) {
+            case Some(index) => (index, entry(index)[1])
+            case None =>
+                let made = make()
+                let (index, there) = append(key, made)
+                (index, there ?? made)
         }
     }
 
@@ -118,23 +138,33 @@ public class ConcurrentIndexMap<K, V> where K <: Hashable & Equatable<K> {
 
     func append(key: K, value: V): (Int64, ?V) {
         synchronized(lock) {
-            // another thread may have added it meanwhile
-            if (let Some(index) <- indices.get(key)) {
-                return (index, entry(index)[1])
-            }
             let index = count.load()
-            let offset = index + (1 << FIRST_SEGMENT_BITS)
-            let segment = 63 - Int64(leadingZeros(offset)) - FIRST_SEGMENT_BITS
-            let start = 1 << (segment + FIRST_SEGMENT_BITS)
-            if (segments[segment].isNone()) {
-                segments[segment] = Array<?(K, V)>(start, repeat: None)
+            // another thread may have added it meanwhile: looked for and added at once, under the
+            // bucket's lock, so `key` is hashed once more, not twice
+            let found = indices.entryView(key) {
+                view => if (view.value.isNone()) {
+                    put(index, key, value)
+                    // the entry first, then its index: whoever finds the index finds the entry
+                    count.store(index + 1)
+                    view.value = index
+                }
             }
-            segments[segment].getOrThrow()[offset - start] = (key, value)
-            // the entry first, then its index: whoever finds the index finds the entry
-            count.store(index + 1)
-            indices.add(key, index)
-            (index, None)
+            match (found) {
+                // every index already given is below `index`
+                case Some(there) where there != index => (there, entry(there)[1])
+                case _ => (index, None)
+            }
         }
+    }
+
+    private func put(index: Int64, key: K, value: V): Unit {
+        let offset = index + (1 << FIRST_SEGMENT_BITS)
+        let segment = 63 - Int64(leadingZeros(offset)) - FIRST_SEGMENT_BITS
+        let start = 1 << (segment + FIRST_SEGMENT_BITS)
+        if (segments[segment].isNone()) {
+            segments[segment] = Array<?(K, V)>(start, repeat: None)
+        }
+        segments[segment].getOrThrow()[offset - start] = (key, value)
     }
 }
 
@@ -199,7 +229,7 @@ public class ConcurrentIndexSet<T> where T <: Hashable & Equatable<T> {
      */
     @Frozen
     public func addWithIndex(element: T): (Int64, Bool) {
-        let (index, there) = map.addWithIndex(element, ())
+        let (index, there) = map.addIfAbsentWithIndex(element, ())
         (index, there.isNone())
     }
 

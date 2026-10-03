@@ -244,6 +244,29 @@ extend<K, V> IndexMap<K, V> <: ToString where K <: Hashable & Equatable<K> & ToS
     }
 }
 
+extend<K, V> IndexMap<K, V> <: Equatable<IndexMap<K, V>> where K <: Hashable & Equatable<K>, V <: Equatable<V> {
+    /**
+     * The same entries in the same order: unlike `HashMap`'s, the order counts.
+     */
+    public operator func ==(that: IndexMap<K, V>): Bool {
+        if (size != that.size) {
+            return false
+        }
+        for (index in 0..size) {
+            let (key, value) = entries[index]
+            let (thatKey, thatValue) = that.entries[index]
+            if (key != thatKey || value != thatValue) {
+                return false
+            }
+        }
+        true
+    }
+
+    public operator func !=(that: IndexMap<K, V>): Bool {
+        !(this == that)
+    }
+}
+
 class Keys<K, V> <: EquatableCollection<K> where K <: Hashable & Equatable<K> {
     Keys(private let map: IndexMap<K, V>) {}
 
