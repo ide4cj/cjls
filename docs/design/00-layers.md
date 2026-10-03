@@ -19,6 +19,7 @@ cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
   ├────> project_model ──> stdxx, ftoml, loupe
   │
   └────> loupe ──> calca
+           ├─────> cjo
            ├─────> cjsyntax ──> ginkgo
            ├─────> index_map
            └─────> rope
@@ -28,7 +29,7 @@ Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `lou
 
 `loupe`'s packages are layers, never features: a package depends only on those under it, so a query of `loupe.syntax` never sees the API. A feature (`fileStructure`, `diagnostics`, `highlight`, later `hover`) is a file of the API package `loupe`, free to call the others and every query under it. What two features share is a query of a layer below (a resolved name, a type), not a call from one to the other; a layer gets its own package when queries need one (`loupe.hir`), not when a feature appears.
 
-`cjo` (D37) depends on nothing and nothing depends on it yet: `loupe` will read the `.cjo` of `std` and of the binary dependencies through it (#68).
+`cjo` (D37) depends on nothing: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
 
 Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
 
