@@ -438,16 +438,18 @@ func blockOrError(p: P): Unit {
 }
 
 /**
- * Expressions and declarations up to one of `terminators`, separated by newlines or `;`.
+ * Expressions and declarations up to one of `terminators`, separated by newlines or `;`; in braces, up to a line
+ * starting a declaration only a file holds too.
  */
 func statements(p: P, terminators: Array<SyntaxKind>): Unit {
+    let braced = terminators.contains(RBrace)
     var needSeparator = false
     while (true) {
         if (p.eat(Semicolon)) {
             needSeparator = false
             continue
         }
-        if (p.atAny(terminators) || p.atEof()) {
+        if (p.atAny(terminators) || p.atEof() || braced && atTopLevelOnlyDecl(p)) {
             return
         }
         if (needSeparator && !p.newlineBefore()) {
@@ -651,7 +653,7 @@ func matchExpr(p: P): CompletedMarker<SyntaxKind> {
         p.bump(LBrace)
         while (true) {
             while (p.eat(Semicolon)) {}
-            if (p.at(RBrace) || p.atEof()) {
+            if (p.at(RBrace) || p.atEof() || atTopLevelOnlyDecl(p)) {
                 break
             }
             if (p.at(CaseKw)) {

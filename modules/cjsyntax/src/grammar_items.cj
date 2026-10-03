@@ -222,6 +222,55 @@ func atDeclStart(p: P): Bool {
 }
 
 /**
+ * The keywords starting a declaration only a file holds (a foreign block aside): the compiler rejects each in a
+ * block and in a type's body.
+ */
+let TOP_LEVEL_ONLY = TokenSet<SyntaxKind>([ClassKw, StructKw, InterfaceKw, EnumKw, ExtendKw, TypeKw, MainKw, MacroKw,
+    ImportKw, PackageKw])
+
+/**
+ * Whether a line starts here with a declaration only a file holds, behind builtin annotations and modifiers. Such
+ * a line ends the block or body it is in, with an error, so that a `{` left open while typing does not take the
+ * rest of the file in.
+ */
+func atTopLevelOnlyDecl(p: P): Bool {
+    if (!p.newlineBefore()) {
+        return false
+    }
+    var n = 0
+    while (p.nthAt(n, At) && p.nthContextual(n + 1) == Some(BuiltinAnnotationName)) {
+        n += 2
+        if (p.nthAt(n, LBracket)) {
+            n = afterBrackets(p, n)
+        }
+    }
+    while (p.nthAtAny(n, MODIFIERS)) {
+        n++
+    }
+    p.nthAtAny(n, TOP_LEVEL_ONLY)
+}
+
+/**
+ * The position after the `]` closing the `[` `n` tokens ahead, or of the end.
+ */
+func afterBrackets(p: P, n: Int64): Int64 {
+    var i = n
+    var depth = 0
+    while (!p.nthAt(i, Eof)) {
+        if (p.nthAt(i, LBracket)) {
+            depth++
+        } else if (p.nthAt(i, RBracket)) {
+            depth--
+            if (depth == 0) {
+                return i + 1
+            }
+        }
+        i++
+    }
+    i
+}
+
+/**
  * The declaration starting at the current token, annotations and modifiers aside; `None` if none does.
  */
 func declKind(p: P, scope: Scope, mods: ModifierInfo): ?SyntaxKind {
@@ -531,7 +580,7 @@ func declBody(p: P, scope: Scope): Unit {
 func members(p: P, scope: Scope): Unit {
     while (true) {
         while (p.eat(Semicolon)) {}
-        if (p.at(RBrace) || p.atEof()) {
+        if (p.at(RBrace) || p.atEof() || scope != InForeignBlock && atTopLevelOnlyDecl(p)) {
             return
         }
         declaration(p, scope)
@@ -642,7 +691,7 @@ func propBody(p: P): Unit {
     p.bump(LBrace)
     while (true) {
         while (p.eat(Semicolon)) {}
-        if (p.at(RBrace) || p.atEof()) {
+        if (p.at(RBrace) || p.atEof() || atTopLevelOnlyDecl(p)) {
             break
         }
         let a = p.start()

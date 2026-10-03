@@ -1,5 +1,6 @@
 package cjsyntax
 
+import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.*
@@ -107,7 +108,7 @@ class StatementParseTest {
         ("e[1..]", "(IndexExpr (RefExpr (NameRef e)) [ (RangeExpr (Literal 1) ..) ])"),
         ("e[..=2 : 1]", "(IndexExpr (RefExpr (NameRef e)) [ (RangeExpr ..= (Literal 2) : (Literal 1)) ])"),
         ("_ = f()", "(BinExpr (WildcardExpr _) = (CallExpr (RefExpr (NameRef f)) (ArgList ( ))))"),
-        ("class Local {}", "(ClassDecl class (Name Local) (DeclBody { })) !9..9: unexpected class declaration in a block"),
+        ("a; class Local {}", "(RefExpr (NameRef a)) ; (ClassDecl class (Name Local) (DeclBody { })) !12..12: unexpected class declaration in a block"),
         ("f(,)", "(CallExpr (RefExpr (NameRef f)) (ArgList ( (Arg) , ))) !11..11: expected an expression"),
         ("let x = )", "(VarDecl let (Name x) =) (ErrorNode )) !16..16: expected an expression !16..16: expected a newline or ';' !17..17: expected an expression or a declaration"),
         ("f(a", "(CallExpr (RefExpr (NameRef f)) (ArgList ( (Arg (RefExpr (NameRef a))))) !12..12: expected ')'"),
@@ -154,6 +155,49 @@ class DeclarationParseTest {
         ("foreign {\npackage a\nimport b.c\n}", "(SourceFile (ForeignBlock (Modifiers foreign) { (PackageHeader package (NameRef a)) (ImportDecl import (ImportTree (NameRef b) . (NameRef c))) })) !10..10: unexpected package header in a foreign block !20..20: unexpected import in a foreign block"),
         ("class A { func f() {} func g() {} }", "(SourceFile (ClassDecl class (Name A) (DeclBody { (FuncDecl func (Name f) (ParamList ( )) (Block { })) (FuncDecl func (Name g) (ParamList ( )) (Block { })) })))"),
         ("func f() {} func g() {}", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { })) (FuncDecl func (Name g) (ParamList ( )) (Block { }))) !11..11: expected a newline or ';'"),
+    ]
+
+    @TestCase
+    func eachFileParsesToItsTree() {
+        for ((text, expected) in cases) {
+            @Expect(sexp(text), expected)
+        }
+    }
+}
+
+/**
+ * A `{` left open while typing: a line starting a declaration only a file holds ends the blocks and bodies it is in,
+ * so the declarations after it stay at the top level.
+ */
+@Test
+class UnclosedBraceTest {
+    @TestCase[decl in ["class A {}", "struct A {}", "interface A {}", "enum A { X }", "extend A {}", "type A = B",
+        "main() {}", "macro A(t: Tokens): Tokens { t }", "macro package a", "import a.b", "package a",
+        "public open class A {}", "@Deprecated[x[0]]\nclass A {}"]]
+    func anUnclosedBraceLeavesTheDeclarationsAfterItAtTheTopLevel(decl: String) {
+        // arrange
+        let text = "func f() {\n    let x = 1\n${decl}\n${decl}\n"
+
+        // act
+        let root = parse(text).syntaxNode()
+
+        // assert
+        let kinds = root.children() |> map {n: SyntaxNode<SyntaxKind> => n.kind.toString()} |> collectArray
+        @Expect(kinds.size, 3)
+        @Expect(kinds[0], "FuncDecl")
+        @Expect(kinds[1], kinds[2])
+        @Expect(root.firstChild()?.text(), "func f() {\n    let x = 1")
+    }
+
+    let cases: Array<(String, String)> = [
+        ("func f() {\n    if (a) {\n        b\n    }\nclass A {}", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { (IfExpr if ( (RefExpr (NameRef a)) ) (Block { (RefExpr (NameRef b)) })))) (ClassDecl class (Name A) (DeclBody { }))) !39..39: expected '}'"),
+        ("func f() {\n    g({ =>\nclass A {}", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { (CallExpr (RefExpr (NameRef g)) (ArgList ( (Arg (LambdaExpr { =>)))))) (ClassDecl class (Name A) (DeclBody { }))) !21..21: expected '}' !21..21: expected ')' !21..21: expected '}'"),
+        ("func f() {\n    match (a) {\n        case _ => b\nclass A {}", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { (MatchExpr match ( (RefExpr (NameRef a)) ) (MatchBody { (MatchCase case (WildcardPat _) => (RefExpr (NameRef b))))))) (ClassDecl class (Name A) (DeclBody { }))) !46..46: expected '}' !46..46: expected '}'"),
+        ("class A {\n    func f() {\nclass B {}", "(SourceFile (ClassDecl class (Name A) (DeclBody { (FuncDecl func (Name f) (ParamList ( )) (Block {)))) (ClassDecl class (Name B) (DeclBody { }))) !24..24: expected '}' !24..24: expected '}'"),
+        ("class A {\n    prop p: Int64 {\n        get() {\nclass B {}", "(SourceFile (ClassDecl class (Name A) (DeclBody { (PropDecl prop (Name p) : (PrimType Int64) (PropBody { (PropAccessor get (ParamList ( )) (Block {)))))) (ClassDecl class (Name B) (DeclBody { }))) !45..45: expected '}' !45..45: expected '}' !45..45: expected '}'"),
+        ("enum E {\n    | X\n    func f() {\nenum F { Y }", "(SourceFile (EnumDecl enum (Name E) (EnumBody { | (EnumCtor (Name X)) (FuncDecl func (Name f) (ParamList ( )) (Block {)))) (EnumDecl enum (Name F) (EnumBody { (EnumCtor (Name Y)) }))) !31..31: expected '}' !31..31: expected '}'"),
+        ("func f() {\n    a; class A {}\n}", "(SourceFile (FuncDecl func (Name f) (ParamList ( )) (Block { (RefExpr (NameRef a)) ; (ClassDecl class (Name A) (DeclBody { })) }))) !18..18: unexpected class declaration in a block"),
+        ("foreign {\nclass A {}\n}", "(SourceFile (ForeignBlock (Modifiers foreign) { (ClassDecl class (Name A) (DeclBody { })) }))"),
     ]
 
     @TestCase
