@@ -20,7 +20,7 @@ Status: accepted, 2026-10-02
 ## Consequences
 
 - cjls loads its 85 binary packages with its 870 files; a warm load takes ~5 ms more (26–35 → 33 ms).
-- An edit of the SDK or of a manifest is a reload of the project, which reads only the `.cjo` whose stamps moved.
+- A reload of the project (a manifest changed) reads only the `.cjo` whose stamps moved. Nothing watches the `.cjo` themselves: an update of the SDK or of a binary is seen at the next reload or restart (#141).
 - A binary item's ids are stable for one `.cjo` only: an `extend`'s changes with its file's name in the `exportId`.
 - A member parameter is a field of its type in a binary tree, and no item in a source one (D34): resolution finds the fields of a source type in its primary init too (#48).
 - No signatures: a binary item's types are resolved `SemaTy`s already, a query of their own per item (#48). No doc comments: a `.cjo` keeps none.

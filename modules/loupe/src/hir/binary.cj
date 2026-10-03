@@ -67,7 +67,7 @@ public func itemTreeOf(db: AnalysisDatabase, file: ItemFile): ItemTree {
  */
 @CalcaTracked
 public func binaryItemTrees(db: AnalysisDatabase, pkg: BinaryPackageFile): Array<ItemTree> {
-    lowerBinary(pkg.bytes(db)).trees
+    binaryLowering(db, pkg).trees
 }
 
 /**
@@ -75,7 +75,17 @@ public func binaryItemTrees(db: AnalysisDatabase, pkg: BinaryPackageFile): Array
  */
 @CalcaTracked
 public func binaryExports(db: AnalysisDatabase, pkg: BinaryPackageFile): BinaryExports {
-    lowerBinary(pkg.bytes(db)).exports
+    binaryLowering(db, pkg).exports
+}
+
+/**
+ * The package `pkg` holds in the item model, lowered once for both halves: each is a query of its
+ * own, so that what reads one is not run again when only the other changed. It holds what they
+ * hold, nothing more.
+ */
+@CalcaTracked
+func binaryLowering(db: AnalysisDatabase, pkg: BinaryPackageFile): BinaryLowering {
+    lowerBinary(pkg.bytes(db))
 }
 
 /**
@@ -107,7 +117,8 @@ public struct BinaryItem <: ToString {
 /**
  * The items of a package compiled already: an `exportId` (`_CNat6StringE`), which names a
  * declaration in the types of another package, to its item; an item to the index of its
- * declaration in `allDecls`, so that it leads back to it.
+ * declaration in `allDecls`, so that it leads back to it. An `exportId` is unique in its package:
+ * it is the symbol the declaration is linked by (a test holds std to it).
  */
 public class BinaryExports <: Equatable<BinaryExports> {
     private let byExport = HashMap<String, BinaryItem>()
@@ -153,6 +164,7 @@ public class BinaryExports <: Equatable<BinaryExports> {
 /**
  * A package compiled already in the item model.
  */
+@Derive[Equatable]
 struct BinaryLowering {
     BinaryLowering(let trees: Array<ItemTree>, let exports: BinaryExports) {}
 }
@@ -181,12 +193,18 @@ class BinaryLowerer {
     private let selfId: ?UInt32
     private let counters: Array<ItemIdCounter>
     private let items: Array<ArrayList<Item>>
+    /**
+     * Whether the declaration at each index was lowered already: a `body` names each once, and
+     * never a parent of its own, but in a broken file.
+     */
+    private let seen: Array<Bool>
     private let lowered = ArrayList<BinaryItem>()
     private let declIndices = ArrayList<Int64>()
     private let exportIds = ArrayList<String>()
 
     BinaryLowerer(private let pkg: CjoPackage) {
         decls = pkg.allDecls
+        seen = Array(decls.size, repeat: false)
         // a package of no file still has its declarations somewhere
         fileCount = max(pkg.allFiles.size, 1)
         let name = pkg.fullPkgName ?? ""
@@ -204,7 +222,7 @@ class BinaryLowerer {
             let decl = decls[i]
             if (decl.isTopLevel) {
                 let file = fileOf(decl.begin)
-                if (let Some(item) <- lowerDecl(None, "", i, decl, file)) {
+                if (let Some(item) <- lowerDecl(None, "", i, file)) {
                     items[file].add(item)
                 }
             }
@@ -220,7 +238,13 @@ class BinaryLowerer {
      * `PrimaryCtorDecl`, only the `init` it makes of it (`PrimaryConstructor`) and a field per member
      * parameter (`isMemberParam`), both `CompilerAdd` (`DesugarPrimaryCtor`).
      */
-    private func lowerDecl(parent: ?ItemId, parentName: String, index: Int64, decl: CjoDecl, file: Int64): ?Item {
+    private func lowerDecl(parent: ?ItemId, parentName: String, index: Int64, file: Int64): ?Item {
+        // a member out of `allDecls`, or one lowered already, is a broken file's: that one alone is left out
+        if (index < 0 || index >= decls.size || seen[index]) {
+            return None
+        }
+        seen[index] = true
+        let decl = decls[index]
         let attributes = decl.attributes
         let info = decl.info
         let memberParam = match (info) {
@@ -250,8 +274,7 @@ class BinaryLowerer {
         exportIds.add(exportId)
         let members = ArrayList<Item>()
         for (member in bodyOf(info)) {
-            let memberIndex = Int64(member) - 1
-            if (let Some(item) <- lowerDecl(id, identifier, memberIndex, decls[memberIndex], file)) {
+            if (let Some(item) <- lowerDecl(id, identifier, Int64(member) - 1, file)) {
                 members.add(item)
             }
         }
@@ -296,19 +319,13 @@ class BinaryLowerer {
                 case AccessModifier.Internal => Modifier.Internal
                 case AccessModifier.Private => continue
             }
-            let prefix = spec.prefixPaths.toArray()
-            let joined = if (spec.hasDoubleColon && prefix.size >= 2) {
-                ["${prefix[0]}::${prefix[1]}"].concat(prefix[2..])
-            } else {
-                prefix
-            }
             let identifier = spec.identifier ?? ""
-            let isGlob = identifier == "*"
-            let segments = if (isGlob) {
-                joined
-            } else {
-                joined.concat([identifier])
+            // cjc writes one for every import it keeps
+            if (identifier.isEmpty()) {
+                continue
             }
+            let isGlob = identifier == "*"
+            let segments = importSegments(spec.prefixPaths.toArray(), identifier, spec.hasDoubleColon)
             let alias = spec.asIdentifier.flatMap {it => if (it.isEmpty()) {
                 None<String>
             } else {
@@ -323,6 +340,25 @@ class BinaryLowerer {
             imports.add(ImportItem(id, [modifier], [ImportPath(segments, alias: alias, isGlob: isGlob)]))
         }
         imports.toArray()
+    }
+}
+
+/**
+ * The segments of an import as a source's `ImportPath` has them, from what cjc keeps of it: the
+ * names before the last (`prefixPaths`), the last (`identifier`, `*` for a glob, no segment), and
+ * whether the first is an organization (`hasDoubleColon`), one segment with the name after it:
+ * `org::a`, `org::a.B` and `org::a.*` all begin with `org::a`.
+ */
+func importSegments(prefix: Array<String>, identifier: String, hasDoubleColon: Bool): Array<String> {
+    let written = if (identifier == "*") {
+        prefix
+    } else {
+        prefix.concat([identifier])
+    }
+    if (hasDoubleColon && written.size >= 2) {
+        ["${written[0]}::${written[1]}"].concat(written[2..])
+    } else {
+        written
     }
 }
 

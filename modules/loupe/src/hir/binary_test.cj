@@ -1,6 +1,6 @@
 package loupe.hir
 
-import std.collection.ArrayList
+import std.collection.{ArrayList, HashSet}
 import std.env.{getTempDirectory, getVariable}
 import std.fs.*
 import std.time.DateTime
@@ -233,5 +233,52 @@ class BinaryItemTreeTest {
         @Expect(ItemFile.Binary(pkg, index) == ItemFile.Binary(pkg, index))
         @Expect(ItemFile.Binary(pkg, index) != ItemFile.Binary(pkg, index + 1))
         @Expect(ItemFile.Source(source) != ItemFile.Binary(pkg, 0))
+    }
+}
+
+@Test
+class BinaryExportIdTest {
+    @TestCase
+    func anExportIdIsUniqueInItsPackage() {
+        // arrange
+        let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
+        let std = Directory.readFrom(home.join("modules")).filter {target => target.isDirectory()}[0].path.join("std")
+        let files = Directory.readFrom(std).filter {entry => entry.name.endsWith(".cjo")}
+
+        // act
+        let duplicates = ArrayList<String>()
+        for (file in files) {
+            let seen = HashSet<String>()
+            for (decl in openCjo(File.readFrom(file.path)).allDecls) {
+                let exportId = decl.exportId ?? ""
+                if (!exportId.isEmpty() && !seen.add(exportId)) {
+                    duplicates.add("${file.name}: ${exportId}")
+                }
+            }
+        }
+
+        // assert
+        @Expect(files.size > 0)
+        @Expect(duplicates.toArray(), Array<String>())
+    }
+}
+
+@Test
+class ImportSegmentsTest {
+    @TestCase
+    func anOrganizationIsOneSegmentWithTheNameAfterIt() {
+        // act, assert
+        @Expect(importSegments(["org"], "a", true), ["org::a"])
+        @Expect(importSegments(["org", "a"], "B", true), ["org::a", "B"])
+        @Expect(importSegments(["org", "a"], "*", true), ["org::a"])
+        @Expect(importSegments(["org", "a", "b"], "C", true), ["org::a", "b", "C"])
+    }
+
+    @TestCase
+    func aPathWithNoOrganizationIsItsNamesAndAGlobIsNoSegment() {
+        // act, assert
+        @Expect(importSegments([], "a", false), ["a"])
+        @Expect(importSegments(["a", "b"], "C", false), ["a", "b", "C"])
+        @Expect(importSegments(["a", "b"], "*", false), ["a", "b"])
     }
 }

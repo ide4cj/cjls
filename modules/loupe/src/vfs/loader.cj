@@ -253,6 +253,11 @@ public func readCjoFiles(files: Array<CjoFile>, unchanged!: (CjoFile, FileStamp)
         } catch (_: FSException) {
             continue
         }
+        // written again since its stamp was taken
+        if (bytes.size > left) {
+            truncated = true
+            continue
+        }
         if (let Some(problem) <- cjoProblem(bytes)) {
             problems.add("${file.path}: ${problem}, left out")
             continue
