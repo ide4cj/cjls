@@ -56,7 +56,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
 | `cjo` | the `.cjo` files cjc writes for a package: `openCjo`, a read-only flatbuffers runtime and the views of the vendored `CjoFormat.fbs`, generated ([D37](docs/adr/0037-cjo-files-are-read-by-generated-views.md)) |
 | `fbs_codegen` | executable: generates `cjo`'s views from a flatbuffers schema |
-| `project_model` | how files make a project: `cj-project.json`, `cjpm.toml` or loose files, lowered to `loupe.db`'s `ProjectModel` ([D33](docs/adr/0033-project-model.md)) |
+| `project_model` | how files make a project: `cj-project.json`, `cjpm.toml` or loose files, lowered to `loupe.db`'s `ProjectModel` ([D33](docs/adr/0033-project-model.md)); where the SDK is ([D40](docs/adr/0040-the-sdk-is-found-without-cangjie-home.md)) |
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
 

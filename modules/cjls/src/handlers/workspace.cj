@@ -11,7 +11,7 @@ import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{isWorkspaceFile, readCjoFiles, readFile, readFiles, VfsPath}
-import project_model.{findProjects, hostCfg, PROJECT_JSON}
+import project_model.{CangjieHome, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -43,7 +43,13 @@ func handleInitialized(state: ServerState, client: Client, logger: Logger, _: In
         logger.info("the client cannot watch files: changes on disk are not seen")
     }
     watch(state, client, logger, state.roots.toArray())
-    load(state, logger)
+    if (let Some(warning) <- load(state, logger)) {
+        try {
+            client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: warning))
+        } catch (e: Exception) {
+            logger.debug("the warning was not shown", [("error", e.toString())])
+        }
+    }
 }
 
 /**
@@ -126,14 +132,19 @@ func changesProject(event: FileEvent): Bool {
  * server does not know yet, and sets them all in one revision; an open document keeps what the
  * editor sent. On the read loop, so what arrives meanwhile waits and applies after it.
  */
-func load(state: ServerState, logger: Logger): Unit {
+func load(state: ServerState, logger: Logger): ?String {
     let roots = state.roots.toArray()
     if (roots.isEmpty() && state.linkedProjects.isEmpty()) {
-        return
+        return None
     }
     let start = MonoTime.now()
     let budget = loadBudget()
-    let loads = findProjects(roots, state.linkedProjects.toArray(), env: {name => getVariable(name)}, budget: budget)
+    let home = findCangjieHome(state.cangjieHome, env: {name => getVariable(name)})
+    if (let Some(home) <- home) {
+        logger.info("found the SDK", [("path", home.path), ("source", home.source)])
+    }
+    let env = withCangjieHome({name => getVariable(name)}, home)
+    let loads = findProjects(roots, state.linkedProjects.toArray(), env: env, budget: budget)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {
@@ -161,6 +172,27 @@ func load(state: ServerState, logger: Logger): Unit {
         logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
             [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
     }
+    sdkWarning(state, home)
+}
+
+/**
+ * What the user is to be told of the SDK, once: none found, or none of its `std` read (another
+ * version, the budget); `None` if `std` is there, or the project has a `std` of its own.
+ */
+func sdkWarning(state: ServerState, home: ?CangjieHome): ?String {
+    let project = state.analysis.project() ?? return None
+    let db = state.analysis
+    if (!project.binaries(db).iterator().any {binary => binary.name == "std"}) {
+        return match (home) {
+            case None where !project.modules(db).iterator().any {module => module.name(db) == "std"} =>
+                "No Cangjie SDK is found: nothing from std resolves. Set `CANGJIE_HOME`, or the SDK in the editor's settings."
+            case _ => None
+        }
+    }
+    if (project.binaryPackages(db).iterator().any {pkg => pkg.binary(db) == "std"}) {
+        return None
+    }
+    "No package of std is read from the Cangjie SDK at ${home?.path ?? "the project's std"}: nothing from std resolves. The server's log says why."
 }
 
 /**

@@ -327,6 +327,33 @@ class ProjectLoadTest {
         @Expect(linked, [VfsPath.file(a), VfsPath.file(b)])
         @Expect(linkedProjects(Option<JsonValue>.None).size, 0)
     }
+
+    @TestCase
+    func theSdkOptionIsAPathOrAFileUri() {
+        // arrange
+        let sdk = getTempDirectory().join("sdk")
+        let optionOf = {value: JsonValue => JsonValue.JsonObject([("cangjieHome", value)])}
+
+        // act, assert
+        @Expect(cangjieHome(optionOf(JsonValue.JsonString(sdk.toString()))), Some(sdk.toString()))
+        @Expect(cangjieHome(optionOf(JsonValue.JsonString(uriOf(sdk)))), VfsPath.file(sdk).filePath.map {it => it.toString()})
+        @Expect(cangjieHome(optionOf(JsonValue.JsonString("relative"))), None<String>)
+        @Expect(cangjieHome(Option<JsonValue>.None), None<String>)
+    }
+
+    @TestCase
+    func aProjectWithTheStdOfTheSdkReadHasNothingToTellOfIt() {
+        // arrange - std from the SDK the tests run with
+        let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
+        let state = initializedWith([dir], watches: false)
+
+        // act
+        let warning = load(state, NoopLogger())
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(warning, None<String>)
+    }
 }
 
 @Test

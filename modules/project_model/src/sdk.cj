@@ -1,0 +1,98 @@
+package project_model
+
+import std.fs.*
+
+/**
+ * A Cangjie SDK found, and where from: `std` is in it, and `${CANGJIE_HOME}` expands to it.
+ */
+public struct CangjieHome {
+    public CangjieHome(
+        public let path: String,
+        /**
+         * What named it, for the log: `initializationOptions.cangjieHome`, `CANGJIE_HOME`, cjsdk's
+         * default toolchain, or `cjc` on `PATH`.
+         */
+        public let source: String
+    ) {}
+}
+
+/**
+ * The SDK, the first of these that is a directory: `option` (`initializationOptions.cangjieHome`,
+ * which the editor takes from a setting of its own); `CANGJIE_HOME`; cjsdk's default toolchain,
+ * `~/.cjpm/toolchains/default`; and the directory two up from `cjc` on `PATH`, links followed
+ * (`<home>/bin/cjc`). `None` if none is: an editor launches the server with the environment of the
+ * desktop, which `envsetup.sh` never touched.
+ *
+ * `env` gives the value of an environment variable.
+ */
+public func findCangjieHome(option: ?String, env!: (String) -> ?String): ?CangjieHome {
+    let home = match (env("HOME")) {
+        case Some(home) => home
+        case None => env("USERPROFILE")
+    }
+    let candidates: Array<(?String, String)> = [
+        (option, "initializationOptions.cangjieHome"),
+        (env("CANGJIE_HOME"), "CANGJIE_HOME"),
+        (home.map {it => Path(it).join(".cjpm").join("toolchains").join("default").toString()},
+            "the default toolchain of cjsdk"),
+        (cjcOnPath(env("PATH") ?? "").flatMap {cjc => cjc.parent.parent.toString()}, "cjc on PATH")
+    ]
+    for ((path, source) in candidates) {
+        if (let Some(path) <- path) {
+            if (isDirectory(path)) {
+                return CangjieHome(path, source)
+            }
+        }
+    }
+    None
+}
+
+/**
+ * `env` with `CANGJIE_HOME` the SDK found, `None` if none is: what `${CANGJIE_HOME}` expands to in a
+ * path, and where `std` is taken from, whatever the environment says.
+ */
+public func withCangjieHome(env: (String) -> ?String, home: ?CangjieHome): (String) -> ?String {
+    let path = home.map {it => it.path}
+    {
+        name: String => if (name == "CANGJIE_HOME") {
+            path
+        } else {
+            env(name)
+        }
+    }
+}
+
+/**
+ * `cjc` in the first directory of `path` that has it, its links followed, `None` if none has.
+ */
+func cjcOnPath(path: String): ?Path {
+    let separator = if (HOST_OS == "Windows") {
+        ";"
+    } else {
+        ":"
+    }
+    let name = if (HOST_OS == "Windows") {
+        "cjc.exe"
+    } else {
+        "cjc"
+    }
+    for (dir in path.split(separator) where !dir.isEmpty() && Path(dir).isAbsolute()) {
+        let cjc = Path(dir).join(name)
+        try {
+            if (exists(cjc)) {
+                return canonicalize(cjc)
+            }
+        } catch (_: FSException) {
+            continue
+        }
+    }
+    None
+}
+
+func isDirectory(path: String): Bool {
+    Path(path).isAbsolute() && (try {
+        exists(path) && FileInfo(path).isDirectory()
+    } catch (_: FSException) {
+        false
+    })
+}
