@@ -14,7 +14,7 @@ class ConcurrentIndexMapTest {
 
         // act
         for (i in 0..1000) {
-            map.add("k${i}", i * 10)
+            map.addIfAbsent("k${i}", i * 10)
         }
 
         // assert
@@ -30,11 +30,11 @@ class ConcurrentIndexMapTest {
     func aKeyAddedAgainKeepsItsPlaceAndItsFirstValue(): Unit {
         // arrange
         let map = ConcurrentIndexMap<String, Int64>()
-        map.add("a", 1)
-        map.add("b", 2)
+        map.addIfAbsent("a", 1)
+        map.addIfAbsent("b", 2)
 
         // act
-        let (index, there) = map.addWithIndex("a", 3)
+        let (index, there) = map.addIfAbsentWithIndex("a", 3)
 
         // assert
         @Expect(index, 0)
@@ -44,10 +44,29 @@ class ConcurrentIndexMapTest {
     }
 
     @TestCase
+    func getOrAddMakesAValueOnlyForANewKey(): Unit {
+        // arrange
+        let map = ConcurrentIndexMap<String, Int64>()
+        map.addIfAbsent("a", 1)
+        let made = ArrayList<String>()
+
+        // act
+        let (thereIndex, thereValue) = map.getOrAdd("a") {=> made.add("a"); 2}
+        let (newIndex, newValue) = map.getOrAdd("b") {=> made.add("b"); 3}
+
+        // assert
+        @Expect((thereIndex, thereValue) == (0, 1))
+        @Expect((newIndex, newValue) == (1, 3))
+        @Expect(made.toArray(), ["b"])
+        @Expect(map.get("b"), Some(3))
+        @Expect(map.size, 2)
+    }
+
+    @TestCase
     func thereIsNoEntryOutsideTheOnesAdded(): Unit {
         // arrange
         let map = ConcurrentIndexMap<String, Int64>()
-        map.add("a", 1)
+        map.addIfAbsent("a", 1)
 
         // act, assert
         @Expect(map.getAt(-1).isNone())
@@ -61,7 +80,7 @@ class ConcurrentIndexMapTest {
         // arrange
         let map = ConcurrentIndexMap<String, Int64>()
         for (key in ["c", "a", "b"]) {
-            map.add(key, 0)
+            map.addIfAbsent(key, 0)
         }
 
         // act
@@ -83,7 +102,7 @@ class ConcurrentIndexMapTest {
                 start.waitUntilZero()
                 for (i in 0..2000) {
                     let key = if (thread % 2 == 0) { i } else { 1999 - i }
-                    map.add(key, key)
+                    map.addIfAbsent(key, key)
                 }
             }
         }

@@ -174,6 +174,27 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
     }
 }
 
+extend<T> IndexSet<T> <: Equatable<IndexSet<T>> where T <: Hashable & Equatable<T> {
+    /**
+     * The same elements in the same order: unlike `HashSet`'s, the order counts.
+     */
+    public operator func ==(that: IndexSet<T>): Bool {
+        if (size != that.size) {
+            return false
+        }
+        for (index in 0..size) {
+            if (map.entries[index][0] != that.map.entries[index][0]) {
+                return false
+            }
+        }
+        true
+    }
+
+    public operator func !=(that: IndexSet<T>): Bool {
+        !(this == that)
+    }
+}
+
 extend<T> IndexSet<T> <: ToString where T <: Hashable & Equatable<T> & ToString {
     /**
      * As `HashSet` renders: `[a, b]`, in order.

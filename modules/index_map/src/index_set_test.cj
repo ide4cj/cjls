@@ -100,6 +100,18 @@ class IndexSetTest {
     }
 
     @TestCase
+    func setsAreEqualWithTheSameElementsInTheSameOrder() {
+        // arrange
+        let set = IndexSet<String>(["a", "b"])
+
+        // act, assert
+        @Expect(set == IndexSet<String>(["a", "b", "a"]))
+        @Expect(set != IndexSet<String>(["b", "a"]))
+        @Expect(set != IndexSet<String>(["a"]))
+        @Expect(IndexSet<String>() == IndexSet<String>())
+    }
+
+    @TestCase
     func aCloneIsIndependent() {
         // arrange
         let set = IndexSet<String>(["a"])
