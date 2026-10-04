@@ -58,3 +58,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0040](0040-the-sdk-is-found-without-cangjie-home.md) | The SDK is found without `CANGJIE_HOME`: the editor's setting, the variable, cjsdk's default toolchain, `cjc` on `PATH`; it is what `${CANGJIE_HOME}` expands to | accepted |
 | [0041](0041-accessors-are-told-by-tokens.md) | A generated accessor finds a child by the tokens between it and the children that could be taken for it; by position only for the child a rule starts with | accepted |
 | [0042](0042-a-swallowed-unwind-stores-no-memo.md) | A query that swallows calca's unwinding (`catch (e: Exception)` around a fetch) stores no memo, and throws it again | accepted |
+| [0043](0043-analysis-tests-are-fixtures.md) | Analysis tests are fixtures: files, a place and the answers as one text in `loupe.fixture`, written into the test by `UPDATE_EXPECT=1` | accepted |
