@@ -95,8 +95,8 @@ func accessorImplementors(model: Model, name: String, typeName: String, many: Bo
 func hasAccessor(f: FieldIr, name: String, typeName: String, many: Bool): Bool {
     match (f) {
         case NodeField(n, t, access) where n == name && t == typeName => match (access) {
-            case First | Nth(_, _) => !many
-            case All | AllFrom(_, _) => many
+            case First | Nth(_, _) | Between(_, _) => !many
+            case All | AllFrom(_, _) | AllBetween(_, _) => many
         }
         case _ => false
     }

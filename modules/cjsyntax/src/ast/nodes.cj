@@ -16,6 +16,8 @@ let PRIM_TYPE_KEYWORD = TokenSet<SyntaxKind>(
         SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
         SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
         SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+let FUNC_TYPE_TYPES_END = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
+let FUNC_TYPE_RET_START = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
 let LITERAL_PAT_VALUE = TokenSet<SyntaxKind>(
     [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
         SyntaxKind.TrueKw, SyntaxKind.FalseKw])
@@ -33,18 +35,17 @@ let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
         SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr, SyntaxKind.TypeConvExpr,
         SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr, SyntaxKind.MacroExpandExpr,
         SyntaxKind.MacroExpandDecl])
-let INDEX_EXPR_INDICES = TokenSet<SyntaxKind>(
-    [SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr, SyntaxKind.CallExpr,
-        SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr, SyntaxKind.UnaryExpr,
-        SyntaxKind.BinExpr, SyntaxKind.IsExpr, SyntaxKind.AsExpr, SyntaxKind.RangeExpr, SyntaxKind.PostfixExpr,
-        SyntaxKind.ParenExpr, SyntaxKind.TupleExpr, SyntaxKind.ArrayExpr, SyntaxKind.UnitExpr, SyntaxKind.IfExpr,
-        SyntaxKind.LetExpr, SyntaxKind.MatchExpr, SyntaxKind.TryExpr, SyntaxKind.ForInExpr, SyntaxKind.WhileExpr,
-        SyntaxKind.DoWhileExpr, SyntaxKind.ThrowExpr, SyntaxKind.ReturnExpr, SyntaxKind.BreakExpr,
-        SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
-        SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
-        SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
-        SyntaxKind.MacroExpandExpr, SyntaxKind.MacroExpandDecl])
+let INDEX_EXPR_BASE_END = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
+let INDEX_EXPR_INDICES_START = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
 let UNARY_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.Minus, SyntaxKind.Bang])
+let BIN_EXPR_LHS_END = TokenSet<SyntaxKind>(
+    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
+        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
+        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
+        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
+        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
+        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
+        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
 let BIN_EXPR_OP = TokenSet<SyntaxKind>(
     [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
         SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
@@ -53,31 +54,28 @@ let BIN_EXPR_OP = TokenSet<SyntaxKind>(
         SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
         SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
         SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
-let BIN_EXPR_RHS = TokenSet<SyntaxKind>(
-    [SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr, SyntaxKind.CallExpr,
-        SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr, SyntaxKind.UnaryExpr,
-        SyntaxKind.BinExpr, SyntaxKind.IsExpr, SyntaxKind.AsExpr, SyntaxKind.RangeExpr, SyntaxKind.PostfixExpr,
-        SyntaxKind.ParenExpr, SyntaxKind.TupleExpr, SyntaxKind.ArrayExpr, SyntaxKind.UnitExpr, SyntaxKind.IfExpr,
-        SyntaxKind.LetExpr, SyntaxKind.MatchExpr, SyntaxKind.TryExpr, SyntaxKind.ForInExpr, SyntaxKind.WhileExpr,
-        SyntaxKind.DoWhileExpr, SyntaxKind.ThrowExpr, SyntaxKind.ReturnExpr, SyntaxKind.BreakExpr,
-        SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
-        SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
-        SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
-        SyntaxKind.MacroExpandExpr, SyntaxKind.MacroExpandDecl])
+let BIN_EXPR_RHS_START = TokenSet<SyntaxKind>(
+    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
+        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
+        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
+        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
+        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
+        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
+        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let RANGE_EXPR_START_END = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
 let RANGE_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
+let RANGE_EXPR_END_START = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
+let RANGE_EXPR_END_END = TokenSet<SyntaxKind>([SyntaxKind.Colon])
+let RANGE_EXPR_STEP_START = TokenSet<SyntaxKind>([SyntaxKind.Colon])
 let POSTFIX_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.PlusPlus, SyntaxKind.MinusMinus])
-let IF_EXPR_ELSE_BLOCK = TokenSet<SyntaxKind>([SyntaxKind.Block])
-let IF_EXPR_ELSE_IF = TokenSet<SyntaxKind>(
-    [SyntaxKind.IfExpr, SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr,
-        SyntaxKind.CallExpr, SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr,
-        SyntaxKind.UnaryExpr, SyntaxKind.BinExpr, SyntaxKind.IsExpr, SyntaxKind.AsExpr, SyntaxKind.RangeExpr,
-        SyntaxKind.PostfixExpr, SyntaxKind.ParenExpr, SyntaxKind.TupleExpr, SyntaxKind.ArrayExpr, SyntaxKind.UnitExpr,
-        SyntaxKind.LetExpr, SyntaxKind.MatchExpr, SyntaxKind.TryExpr, SyntaxKind.ForInExpr, SyntaxKind.WhileExpr,
-        SyntaxKind.DoWhileExpr, SyntaxKind.ThrowExpr, SyntaxKind.ReturnExpr, SyntaxKind.BreakExpr,
-        SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
-        SyntaxKind.LambdaExpr, SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr,
-        SyntaxKind.TypeConvExpr, SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr,
-        SyntaxKind.MacroExpandExpr, SyntaxKind.MacroExpandDecl])
+let IF_EXPR_CONDITION_END = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.ElseKw])
+let IF_EXPR_THEN_END = TokenSet<SyntaxKind>([SyntaxKind.ElseKw])
+let IF_EXPR_ELSE_BLOCK_START = TokenSet<SyntaxKind>([SyntaxKind.ElseKw])
+let IF_EXPR_ELSE_IF_START = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.ElseKw])
+let MATCH_CASE_CONDITION_END = TokenSet<SyntaxKind>([SyntaxKind.FatArrow])
+let MATCH_CASE_STMTS_START = TokenSet<SyntaxKind>([SyntaxKind.FatArrow])
+let SPAWN_EXPR_CONTEXT_START = TokenSet<SyntaxKind>([SyntaxKind.LParen])
+let SPAWN_EXPR_CONTEXT_END = TokenSet<SyntaxKind>([SyntaxKind.RParen])
 let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
     [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
         SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
@@ -3248,9 +3246,6 @@ public struct ParenType <: AstNode<SyntaxKind, ParenType> & ToString {
     }
 }
 
-/**
- * Written by hand, as the grammar cannot tell them by position: `types`, `ret`.
- */
 @Derive[Equatable, Hashable]
 public struct FuncType <: AstNode<SyntaxKind, FuncType> & ToString {
     FuncType(let node: SyntaxNode<SyntaxKind>) {}
@@ -3277,6 +3272,10 @@ public struct FuncType <: AstNode<SyntaxKind, FuncType> & ToString {
         astToken(node, SyntaxKind.LParen)
     }
 
+    public func types(): Iterator<Type> {
+        astChildrenBetween<SyntaxKind, Type>(node, None, FUNC_TYPE_TYPES_END)
+    }
+
     public func namedTypes(): Iterator<NamedType> {
         astChildren<SyntaxKind, NamedType>(node)
     }
@@ -3295,6 +3294,10 @@ public struct FuncType <: AstNode<SyntaxKind, FuncType> & ToString {
 
     public func arrowToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Arrow)
+    }
+
+    public func ret(): ?Type {
+        astChildBetween<SyntaxKind, Type>(node, FUNC_TYPE_RET_START, None)
     }
 
     public func toString(): String {
@@ -4405,7 +4408,7 @@ public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & ToString {
     }
 
     public func base(): ?Expr {
-        astChild<SyntaxKind, Expr>(node)
+        astChildBetween<SyntaxKind, Expr>(node, None, INDEX_EXPR_BASE_END)
     }
 
     public func lBracketToken(): ?SyntaxToken<SyntaxKind> {
@@ -4413,7 +4416,7 @@ public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & ToString {
     }
 
     public func indices(): Iterator<Expr> {
-        astChildrenFrom<SyntaxKind, Expr>(node, 1, INDEX_EXPR_INDICES)
+        astChildrenBetween<SyntaxKind, Expr>(node, INDEX_EXPR_INDICES_START, None)
     }
 
     public func commaToken(): ?SyntaxToken<SyntaxKind> {
@@ -4532,7 +4535,7 @@ public struct BinExpr <: AstNode<SyntaxKind, BinExpr> & ToString {
     }
 
     public func lhs(): ?Expr {
-        astChild<SyntaxKind, Expr>(node)
+        astChildBetween<SyntaxKind, Expr>(node, None, BIN_EXPR_LHS_END)
     }
 
     public func op(): ?SyntaxToken<SyntaxKind> {
@@ -4540,7 +4543,7 @@ public struct BinExpr <: AstNode<SyntaxKind, BinExpr> & ToString {
     }
 
     public func rhs(): ?Expr {
-        astNthChild<SyntaxKind, Expr>(node, 1, BIN_EXPR_RHS)
+        astChildBetween<SyntaxKind, Expr>(node, BIN_EXPR_RHS_START, None)
     }
 
     public func toString(): String {
@@ -4628,8 +4631,6 @@ public struct AsExpr <: AstNode<SyntaxKind, AsExpr> & ToString {
 
 /**
  * `a..b`, `a..=b : step`; in an index, either end may be left out
- *
- * Written by hand, as the grammar cannot tell them by position: `start`, `end`, `step`.
  */
 @Derive[Equatable, Hashable]
 public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & ToString {
@@ -4653,12 +4654,24 @@ public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & ToString {
         }
     }
 
+    public func start(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, None, RANGE_EXPR_START_END)
+    }
+
     public func op(): ?SyntaxToken<SyntaxKind> {
         astToken(node, RANGE_EXPR_OP)
     }
 
+    public func end(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, RANGE_EXPR_END_START, RANGE_EXPR_END_END)
+    }
+
     public func colonToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Colon)
+    }
+
+    public func step(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, RANGE_EXPR_STEP_START, None)
     }
 
     public func toString(): String {
@@ -4903,7 +4916,7 @@ public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & ToString {
     }
 
     public func condition(): ?Expr {
-        astChild<SyntaxKind, Expr>(node)
+        astChildBetween<SyntaxKind, Expr>(node, None, IF_EXPR_CONDITION_END)
     }
 
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
@@ -4911,7 +4924,7 @@ public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & ToString {
     }
 
     public func then(): ?Block {
-        astChild<SyntaxKind, Block>(node)
+        astChildBetween<SyntaxKind, Block>(node, None, IF_EXPR_THEN_END)
     }
 
     public func elseToken(): ?SyntaxToken<SyntaxKind> {
@@ -4919,11 +4932,11 @@ public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & ToString {
     }
 
     public func elseBlock(): ?Block {
-        astNthChild<SyntaxKind, Block>(node, 1, IF_EXPR_ELSE_BLOCK)
+        astChildBetween<SyntaxKind, Block>(node, IF_EXPR_ELSE_BLOCK_START, None)
     }
 
     public func elseIf(): ?IfExpr {
-        astNthChild<SyntaxKind, IfExpr>(node, 1, IF_EXPR_ELSE_IF)
+        astChildBetween<SyntaxKind, IfExpr>(node, IF_EXPR_ELSE_IF_START, None)
     }
 
     public func toString(): String {
@@ -5079,9 +5092,6 @@ public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & ToString {
     }
 }
 
-/**
- * Written by hand, as the grammar cannot tell them by position: `condition`, `stmts`.
- */
 @Derive[Equatable, Hashable]
 public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & ToString {
     MatchCase(let node: SyntaxNode<SyntaxKind>) {}
@@ -5124,8 +5134,16 @@ public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & ToString {
         astChild<SyntaxKind, Guard>(node)
     }
 
+    public func condition(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, None, MATCH_CASE_CONDITION_END)
+    }
+
     public func fatArrowToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.FatArrow)
+    }
+
+    public func stmts(): Iterator<Stmt> {
+        astChildrenBetween<SyntaxKind, Stmt>(node, MATCH_CASE_STMTS_START, None)
     }
 
     public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
@@ -5695,7 +5713,7 @@ public struct ContinueExpr <: AstNode<SyntaxKind, ContinueExpr> & ToString {
 }
 
 /**
- * Written by hand, as the grammar cannot tell them by position: `context`, `lambda`.
+ * Written by hand, as the grammar tells them neither by the tokens around them nor by position: `lambda`.
  */
 @Derive[Equatable, Hashable]
 public struct SpawnExpr <: AstNode<SyntaxKind, SpawnExpr> & ToString {
@@ -5725,6 +5743,10 @@ public struct SpawnExpr <: AstNode<SyntaxKind, SpawnExpr> & ToString {
 
     public func lParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.LParen)
+    }
+
+    public func context(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, SPAWN_EXPR_CONTEXT_START, SPAWN_EXPR_CONTEXT_END)
     }
 
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {

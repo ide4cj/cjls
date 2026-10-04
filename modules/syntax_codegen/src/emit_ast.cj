@@ -65,7 +65,9 @@ func emitNode(w: CodeWriter, n: NodeIr, sets: ArrayList<(String, Array<String>)>
             doc.add("")
         }
         let names = n.handWritten.map {f => "`${f}`"}
-        doc.add("Written by hand, as the grammar cannot tell them by position: ${String.join(names, delimiter: ", ")}.")
+        let listed = String.join(names, delimiter: ", ")
+        doc.add("Written by hand, as the grammar tells them neither by the tokens around them nor by position: " +
+            "${listed}.")
     }
     w.doc(doc.toArray())
     w.line("@Derive[Equatable, Hashable]")
@@ -106,6 +108,8 @@ func emitField(w: CodeWriter, owner: String, f: FieldIr, sets: ArrayList<(String
             match (access) {
                 case Nth(_, counted) => setNamed(counted)
                 case AllFrom(_, counted) => setNamed(counted)
+                case Between(start, end) => boundSets(owner, name, start, end, sets)
+                case AllBetween(start, end) => boundSets(owner, name, start, end, sets)
                 case First | All => ()
             }
             w.block("public func ${name}(): ${accessorType(typeName, access)}") {
@@ -132,10 +136,34 @@ func setName(owner: String, field: String): String {
     "${screamingSnake(owner)}_${screamingSnake(field)}"
 }
 
+/**
+ * The sets of tokens the child of `field` is after and before.
+ */
+func boundSets(owner: String, field: String, start: Array<String>, end: Array<String>,
+    sets: ArrayList<(String, Array<String>)>): Unit {
+    if (!start.isEmpty()) {
+        sets.add((setName(owner, "${field}Start"), start))
+    }
+    if (!end.isEmpty()) {
+        sets.add((setName(owner, "${field}End"), end))
+    }
+}
+
+/**
+ * The argument naming the set of tokens that bounds the child of `field` on one side, if one does.
+ */
+func boundArg(owner: String, field: String, side: String, kinds: Array<String>): String {
+    if (kinds.isEmpty()) {
+        "None"
+    } else {
+        setName(owner, "${field}${side}")
+    }
+}
+
 func accessorType(typeName: String, access: ChildAccess): String {
     match (access) {
-        case First | Nth(_, _) => accessorType(typeName, false)
-        case All | AllFrom(_, _) => accessorType(typeName, true)
+        case First | Nth(_, _) | Between(_, _) => accessorType(typeName, false)
+        case All | AllFrom(_, _) | AllBetween(_, _) => accessorType(typeName, true)
     }
 }
 
@@ -152,11 +180,16 @@ func accessorType(typeName: String, many: Bool): String {
  */
 func childCall(owner: String, name: String, typeName: String, access: ChildAccess): String {
     let call = "<SyntaxKind, ${typeName}>"
+    func bounds(start: Array<String>, end: Array<String>): String {
+        "${boundArg(owner, name, "Start", start)}, ${boundArg(owner, name, "End", end)}"
+    }
     match (access) {
         case First => "astChild${call}(node)"
         case Nth(i, _) => "astNthChild${call}(node, ${i}, ${setName(owner, name)})"
         case All => "astChildren${call}(node)"
         case AllFrom(i, _) => "astChildrenFrom${call}(node, ${i}, ${setName(owner, name)})"
+        case Between(start, end) => "astChildBetween${call}(node, ${bounds(start, end)})"
+        case AllBetween(start, end) => "astChildrenBetween${call}(node, ${bounds(start, end)})"
     }
 }
 
