@@ -15,7 +15,7 @@ Status: accepted, 2026-10-05
 - **A declaration across files is a `DefId`**: its `ItemFile` and `ItemId`, `@CalcaInterned`. What is keyed by a declaration (a signature, a body) is keyed by it. Not a tracked struct (salsa's, R2's; #14 §8): `ItemId` is already stable under edits (D34), a query per field stands for tracking by field, and an interned id is made anywhere (from a `.cjo`, from a cursor) without running the query that would have created it.
 - **One map of names to sets**, every declaration with its visibility; a `private` one too, left out by the lookup from another file. A name redefined is reported by the map itself, against every declaration after the first that is not a function or comes after one that is not: it is a fact of the declarations, not of a use. An ambiguity (two enums' constructors, later two imports) is the use's.
 - **The constructors are a map of their own**, under the names, with their enum's visibility.
-- **A package's scope will hold its re-exports** (step 4): the scope of a file is its plain imports, then its package's declarations and re-exports, then the prelude. This corrects D44's "an import is its file's", which holds for a plain `import` alone.
+- **A package's scope will hold its re-exports** (step 4): the scope of a file is its package's declarations, then its plain imports with its package's re-exports, then the prelude, each level shadowing those under it but for functions, which overload across them (N13, N14). This corrects D44's "an import is its file's", which holds for a plain `import` alone.
 
 ## Consequences
 
