@@ -13,35 +13,10 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
  * Where an item is declared: a source file, or a file of a package compiled already, by its index
  * among the package's files. Name resolution takes either alike.
  */
-public enum ItemFile <: Equatable<ItemFile> & Hashable {
+@Derive[Equatable, Hashable]
+public enum ItemFile {
     | Source(SourceFile)
     | Binary(BinaryPackageFile, Int64)
-
-    public operator func ==(other: ItemFile): Bool {
-        match ((this, other)) {
-            case (Source(a), Source(b)) => a == b
-            case (Binary(a, i), Binary(b, j)) => a == b && i == j
-            case _ => false
-        }
-    }
-
-    public operator func !=(other: ItemFile): Bool {
-        !(this == other)
-    }
-
-    public func hashCode(): Int64 {
-        var hasher = DefaultHasher()
-        match (this) {
-            case Source(file) =>
-                hasher.write(0)
-                hasher.write(file.hashCode())
-            case Binary(pkg, index) =>
-                hasher.write(1)
-                hasher.write(pkg.hashCode())
-                hasher.write(index)
-        }
-        hasher.finish()
-    }
 }
 
 /**

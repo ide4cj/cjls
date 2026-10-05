@@ -1,5 +1,7 @@
 package ftoml
 
+import std.deriving.*
+
 /*
  * TOML's four kinds of time, which `std.time` does not have - its `DateTime` is always an instant
  * in a zone. Seconds may be left out (TOML 1.1), and read as `:00`; a fraction keeps its first
@@ -7,7 +9,8 @@ package ftoml
  */
 
 /** A day, without any relation to a zone: `1979-05-27`. */
-public struct LocalDate <: Equatable<LocalDate> & ToString {
+@Derive[Equatable]
+public struct LocalDate <: ToString {
     /**
      * @throws IllegalArgumentException - if there is no such day
      */
@@ -27,21 +30,14 @@ public struct LocalDate <: Equatable<LocalDate> & ToString {
         }
     }
 
-    public operator func ==(other: LocalDate): Bool {
-        year == other.year && month == other.month && day == other.day
-    }
-
-    public operator func !=(other: LocalDate): Bool {
-        !(this == other)
-    }
-
     public func toString(): String {
         "${pad(year, 4)}-${pad(month, 2)}-${pad(day, 2)}"
     }
 }
 
 /** A time of day, without any relation to a day or a zone: `07:32:00.5`. */
-public struct LocalTime <: Equatable<LocalTime> & ToString {
+@Derive[Equatable]
+public struct LocalTime <: ToString {
     /**
      * @throws IllegalArgumentException - if there is no such time; `second` may be 60, a leap second
      */
@@ -67,14 +63,6 @@ public struct LocalTime <: Equatable<LocalTime> & ToString {
         }
     }
 
-    public operator func ==(other: LocalTime): Bool {
-        hour == other.hour && minute == other.minute && second == other.second && nanosecond == other.nanosecond
-    }
-
-    public operator func !=(other: LocalTime): Bool {
-        !(this == other)
-    }
-
     /** Seconds always, a fraction only when there is one, in as few digits as it takes. */
     public func toString(): String {
         let whole = "${pad(hour, 2)}:${pad(minute, 2)}:${pad(second, 2)}"
@@ -86,7 +74,8 @@ public struct LocalTime <: Equatable<LocalTime> & ToString {
 }
 
 /** A day and a time of it, without any relation to a zone: `1979-05-27T07:32:00`. */
-public struct LocalDateTime <: Equatable<LocalDateTime> & ToString {
+@Derive[Equatable]
+public struct LocalDateTime <: ToString {
     public LocalDateTime(public let date: LocalDate, public let time: LocalTime) {}
 
     /**
@@ -99,14 +88,6 @@ public struct LocalDateTime <: Equatable<LocalDateTime> & ToString {
         }
     }
 
-    public operator func ==(other: LocalDateTime): Bool {
-        date == other.date && time == other.time
-    }
-
-    public operator func !=(other: LocalDateTime): Bool {
-        !(this == other)
-    }
-
     public func toString(): String {
         "${date}T${time}"
     }
@@ -117,7 +98,8 @@ public struct LocalDateTime <: Equatable<LocalDateTime> & ToString {
  * equal when they are written alike, not when they are the same instant; `Z` and `-00:00` are an
  * offset of zero.
  */
-public struct OffsetDateTime <: Equatable<OffsetDateTime> & ToString {
+@Derive[Equatable]
+public struct OffsetDateTime <: ToString {
     /**
      * @throws IllegalArgumentException - if the offset is not within a day
      */
@@ -135,14 +117,6 @@ public struct OffsetDateTime <: Equatable<OffsetDateTime> & ToString {
             case AsOffsetDateTime(v) => v
             case _ => throw IllegalArgumentException("not an offset date-time: ${text}")
         }
-    }
-
-    public operator func ==(other: OffsetDateTime): Bool {
-        dateTime == other.dateTime && offsetMinutes == other.offsetMinutes
-    }
-
-    public operator func !=(other: OffsetDateTime): Bool {
-        !(this == other)
     }
 
     public func toString(): String {

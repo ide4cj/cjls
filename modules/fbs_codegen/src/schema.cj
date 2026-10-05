@@ -2,11 +2,13 @@ package fbs_codegen
 
 import std.collection.*
 import std.convert.*
+import std.deriving.*
 
 /**
  * A scalar of a schema, by its name there (`uint32`, or its alias `uint`).
  */
-enum Scalar <: Equatable<Scalar> {
+@Derive[Equatable]
+enum Scalar {
     | FbBool
     | FbInt8
     | FbUInt8
@@ -75,14 +77,6 @@ enum Scalar <: Equatable<Scalar> {
             }
         }
     }
-
-    public operator func ==(other: Scalar): Bool {
-        cangjie == other.cangjie
-    }
-
-    public operator func !=(other: Scalar): Bool {
-        cangjie != other.cangjie
-    }
 }
 
 /**
@@ -119,23 +113,12 @@ class UnionMember {
     UnionMember(let name: String, let typeName: String, let doc: Array<String>) {}
 }
 
-enum DeclKind <: Equatable<DeclKind> {
+@Derive[Equatable]
+enum DeclKind {
     | EnumDecl
     | UnionDecl
     | StructDecl
     | TableDecl
-
-    public operator func ==(other: DeclKind): Bool {
-        match ((this, other)) {
-            case (EnumDecl, EnumDecl) | (UnionDecl, UnionDecl) | (StructDecl, StructDecl) | (TableDecl, TableDecl) =>
-                true
-            case _ => false
-        }
-    }
-
-    public operator func !=(other: DeclKind): Bool {
-        !(this == other)
-    }
 }
 
 /**
@@ -182,23 +165,13 @@ class SchemaException <: Exception {
 
 // ---- lexer
 
-enum TokenKind <: Equatable<TokenKind> {
+@Derive[Equatable]
+enum TokenKind {
     | Ident
     | Number
     | StringLit
     | Punct
     | Eof
-
-    public operator func ==(other: TokenKind): Bool {
-        match ((this, other)) {
-            case (Ident, Ident) | (Number, Number) | (StringLit, StringLit) | (Punct, Punct) | (Eof, Eof) => true
-            case _ => false
-        }
-    }
-
-    public operator func !=(other: TokenKind): Bool {
-        !(this == other)
-    }
 }
 
 struct Token {
