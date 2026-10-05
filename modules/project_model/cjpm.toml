@@ -17,3 +17,8 @@ fjson = { path = "../fjson" }
 ftoml = { path = "../ftoml" }
 loupe = { path = "../loupe" }
 stdxx = { path = "../stdxx" }
+
+[test-dependencies]
+cjsyntax = { path = "../cjsyntax" }
+ginkgo = { path = "../ginkgo" }
+rope = { path = "../rope" }

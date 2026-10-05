@@ -186,6 +186,10 @@ public enum ImportError <: ToString {
      * A package reached again through its re-exports (N36).
      */
     | Cycle(String)
+    /**
+     * A package importing itself (N47).
+     */
+    | SelfImport(String)
 
     public func toString(): String {
         match (this) {
@@ -193,6 +197,7 @@ public enum ImportError <: ToString {
             case NotAccessible(name, pkg) => "'${name}' is not accessible in package '${pkg}'"
             case PackageReExported(name) => "imported package name '${name}' cannot be re-exported"
             case Cycle(name) => "cyclic dependency through '${name}'"
+            case SelfImport(name) => "package '${name}' should not import itself"
         }
     }
 }
@@ -213,31 +218,87 @@ public enum ImportResolution {
     | Unresolved(ImportError)
 }
 
+
 /**
- * What `path`, of an import `level` re-exports with, brings into `from`. A path naming a package is
- * the package (N30); else its last segment is a name of the package the others name, seen by
- * `from` (N2–N4) among the package's exports, those of a visibility narrower than `level` left out
- * (N37).
+ * What a path of an import names, before the names it brings are read: a package, every name of
+ * one, or one name of one.
  */
-public func resolveImport(db: AnalysisDatabase, from: PackageRef, path: ImportPath, level: Visibility): ImportResolution {
+public enum ImportTarget {
+    /**
+     * A package, under the name its path ends in or its alias (N7, N8).
+     */
+    | PackageOf(String, PackageRef)
+    /**
+     * Every name of a package (`p.*`), the package and its full name.
+     */
+    | GlobOf(PackageRef, String)
+    /**
+     * One name of a package (`p.f`, `p.C as D`): the package, its full name, the name, its alias.
+     */
+    | NameOf(PackageRef, String, String, ?String)
+    | NoTarget(ImportError)
+}
+
+/**
+ * A package importing itself, an error at the path (N47): `name` is the path as written.
+ */
+func selfImport(from: PackageRef, target: PackageRef, name: String): ?ImportTarget {
+    if (target == from) {
+        ImportTarget.NoTarget(ImportError.SelfImport(name))
+    } else {
+        None
+    }
+}
+
+/**
+ * What `path`, of an import `level` re-exports with, names from `from`. A path naming a package is
+ * the package (N30); else its last segment is a name of the package the others name. A package
+ * importing itself names nothing (N47).
+ */
+public func targetOf(db: AnalysisDatabase, from: PackageRef, path: ImportPath, level: Visibility): ImportTarget {
     let index = packageIndex(db)
     let full = String.join(path.segments, delimiter: ".")
     if (path.isGlob) {
-        let target = index.find(full, from: from) ?? return ImportResolution.Unresolved(ImportError.NoPackage(full))
-        return namesOf(db, from, target, full, level, None)
+        let target = index.find(full, from: from) ?? return ImportTarget.NoTarget(ImportError.NoPackage(full))
+        return selfImport(from, target, full) ?? ImportTarget.GlobOf(target, full)
     }
     if (let Some(target) <- index.find(full, from: from)) {
-        if (level != Visibility.Private) {
-            return ImportResolution.Unresolved(ImportError.PackageReExported(full))
+        if (let Some(error) <- selfImport(from, target, full)) {
+            return error
         }
-        return ImportResolution.ToPackage(path.alias ?? path.segments[path.segments.size - 1], target)
+        if (level != Visibility.Private) {
+            return ImportTarget.NoTarget(ImportError.PackageReExported(full))
+        }
+        return ImportTarget.PackageOf(path.alias ?? path.segments[path.segments.size - 1], target)
     }
     if (path.segments.size < 2) {
-        return ImportResolution.Unresolved(ImportError.NoPackage(full))
+        return ImportTarget.NoTarget(ImportError.NoPackage(full))
     }
     let pkgName = String.join(path.segments[..path.segments.size - 1], delimiter: ".")
-    let target = index.find(pkgName, from: from) ?? return ImportResolution.Unresolved(ImportError.NoPackage(pkgName))
-    namesOf(db, from, target, pkgName, level, (path.segments[path.segments.size - 1], path.alias))
+    let target = index.find(pkgName, from: from) ?? return ImportTarget.NoTarget(ImportError.NoPackage(pkgName))
+    selfImport(from, target, pkgName) ?? ImportTarget.NameOf(target, pkgName, path.segments[path.segments.size - 1], path.alias)
+}
+
+/**
+ * What `path`, of an import `level` re-exports with, brings into `from`: its target (`targetOf`)
+ * and, for names, those of the package's exports `from` sees (N2–N4), those of a visibility
+ * narrower than `level` left out (N37).
+ */
+public func resolveImport(db: AnalysisDatabase, from: PackageRef, path: ImportPath, level: Visibility): ImportResolution {
+    match (targetOf(db, from, path, level)) {
+        case PackageOf(name, target) => ImportResolution.ToPackage(name, target)
+        case GlobOf(target, full) => namesOf(db, from, target, full, level, None)
+        case NameOf(target, pkgName, name, alias) => namesOf(db, from, target, pkgName, level, (name, alias))
+        case NoTarget(error) => ImportResolution.Unresolved(error)
+    }
+}
+
+/**
+ * The declarations of `defs` a package standing so to theirs sees, and an import of `level` keeps:
+ * one too narrow for it is left out silently, as cjc does (N37).
+ */
+public func visibleOf(defs: Array<Def>, relation: PackageRelation, level: Visibility): Array<DefId> {
+    defs.filter {def => def.visibility.isSeen(by: relation) && level.rank <= def.visibility.rank}.map {def => def.id}
 }
 
 /**
@@ -251,19 +312,16 @@ func namesOf(db: AnalysisDatabase, from: PackageRef, target: PackageRef, targetN
         return ImportResolution.Unresolved(ImportError.Cycle(targetName))
     }
     let relation = relationOf(nameOf(db, from), targetName)
-    let seen = {defs: Array<Def> => defs.filter {def => def.visibility.isSeen(by: relation)}}
-    // a declaration too narrow for the import is left out silently, as cjc does (N37)
-    let kept = {defs: Array<Def> => defs.filter {def => level.rank <= def.visibility.rank}.map {def => def.id}}
     let names = IndexMap<String, Array<DefId>>()
     match (name) {
         case Some((one, alias)) =>
-            let visible = seen(exports.names.get(one) ?? [])
-            if (visible.isEmpty()) {
+            let defs = exports.names.get(one) ?? []
+            if (!defs.iterator().any {def => def.visibility.isSeen(by: relation)}) {
                 return ImportResolution.Unresolved(ImportError.NotAccessible(one, targetName))
             }
-            names[alias ?? one] = kept(visible)
+            names[alias ?? one] = visibleOf(defs, relation, level)
         case None => for ((each, defs) in exports.names) {
-            let ids = kept(seen(defs))
+            let ids = visibleOf(defs, relation, level)
             if (!ids.isEmpty()) {
                 names[each] = ids
             }
@@ -275,13 +333,15 @@ func namesOf(db: AnalysisDatabase, from: PackageRef, target: PackageRef, targetN
 /**
  * What a package shows to its importers (D46): its declarations but the `private` ones, and what
  * it re-exports, each with the visibility of its import (N11, N28, N29, N32), one name a set of
- * both and no shadowing between them (N33), a declaration once (N34). `cyclic` when its re-exports
+ * both and no shadowing between them (N33), a declaration once (N34). Under them, the constructors
+ * of the enums among them by name, which come with their enum (N44). `cyclic` when its re-exports
  * reach it again (N36): nothing then.
  */
 @Derive[Equatable]
 public struct PackageExports {
     public PackageExports(
         public let names: IndexMap<String, Array<Def>>,
+        public let ctors!: IndexMap<String, Array<Def>> = IndexMap<String, Array<Def>>(),
         public let cyclic!: Bool = false
     ) {}
 }
@@ -299,25 +359,36 @@ public func packageExports(db: AnalysisDatabase, pkg: PackageRef): PackageExport
             addOnce(entryOf(names, name), def)
         }
     }
-    for (file in filesOf(db, pkg)) {
-        for (item in itemTreeOf(db, file).imports) {
-            let level = importLevelOf(item)
-            if (level == Visibility.Private) {
-                continue
+    let reExported = packageImports(db, pkg)
+    for ((name, imported) in reExported.names) {
+        let entry = entryOf(names, name)
+        for (one in imported) {
+            if (let (OfDecl(id), Some(site)) <- (one.target, one.site)) {
+                addOnce(entry, Def(id, site.level))
             }
-            for (path in item.paths) {
-                if (let ToNames(_, imported) <- resolveImport(db, pkg, path, level)) {
-                    for ((name, ids) in imported) {
-                        let entry = entryOf(names, name)
-                        for (id in ids) {
-                            addOnce(entry, Def(id, level))
-                        }
-                    }
+        }
+    }
+    for (glob in reExported.globs) {
+        let exports = packageExports(db, glob.pkg)
+        for ((name, defs) in exports.names) {
+            let ids = visibleOf(defs, glob.relation, glob.level)
+            if (!ids.isEmpty()) {
+                let entry = entryOf(names, name)
+                for (id in ids) {
+                    addOnce(entry, Def(id, glob.level))
                 }
             }
         }
     }
-    PackageExports(frozen(names) {defs => defs.toArray()})
+    let ctors = IndexMap<String, ArrayList<Def>>()
+    for ((_, defs) in names) {
+        for (def in defs) {
+            for ((name, ctor) in ctorsOf(db, def.id)) {
+                addOnce(entryOf(ctors, name), Def(ctor, def.visibility))
+            }
+        }
+    }
+    PackageExports(frozen(names) {defs => defs.toArray()}, ctors: frozen(ctors) {defs => defs.toArray()})
 }
 
 /**
@@ -338,4 +409,30 @@ func addOnce(defs: ArrayList<Def>, def: Def): Unit {
         return
     }
     defs.add(def)
+}
+
+/**
+ * The item `def` stands for, `None` once its file no longer has it.
+ */
+public func itemOf(db: AnalysisDatabase, def: DefId): ?Item {
+    let id = def.item(db)
+    itemTreeOf(db, def.file(db)).items.iterator().filter {item => item.id == id}.next()
+}
+
+/**
+ * The constructors of `def` by name, if it is an enum: none else.
+ */
+public func ctorsOf(db: AnalysisDatabase, def: DefId): Array<(String, DefId)> {
+    if (def.item(db).kind != ItemKind.Enum) {
+        return []
+    }
+    let item = itemOf(db, def) ?? return []
+    let file = def.file(db)
+    let ctors = ArrayList<(String, DefId)>()
+    for (ctor in item.members where ctor.kind == ItemKind.EnumCtor) {
+        for (name in ctor.names) {
+            ctors.add((name, DefId(db, file, ctor.id)))
+        }
+    }
+    ctors.toArray()
 }

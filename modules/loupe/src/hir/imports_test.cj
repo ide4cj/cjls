@@ -474,13 +474,13 @@ class ImportsTest {
     }
 
     @TestCase
-    func aPackageReExportingItselfIsACycle() {
-        // N36
+    func aPackageImportingItselfIsAnError() {
+        // N47
         checkImport(#"
             //- /b/b.cj module=m package=m.b
             package m.b
             public import m.b.$0*
-            //            ^^^^^ error: cyclic dependency through 'm.b'
+            //            ^^^^^ error: package 'm.b' should not import itself
             public class X {}
             "#)
     }

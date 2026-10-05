@@ -60,5 +60,6 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0042](0042-a-swallowed-unwind-stores-no-memo.md) | A query that swallows calca's unwinding (`catch (e: Exception)` around a fetch) stores no memo, and throws it again | accepted |
 | [0043](0043-analysis-tests-are-fixtures.md) | Analysis tests are fixtures: files, a place and the answers as one text in `loupe.fixture`, written into the test by `UPDATE_EXPECT=1` | accepted |
 | [0044](0044-resolution-is-layered-as-rust-analyzer.md) | Resolution is layered as rust-analyzer's, a definition map per package; members, overloads and `extend` are inference's | accepted; a re-export is its package's, not its file's, by D45 |
-| [0045](0045-a-package-scope-is-a-def-map-of-sets.md) | A package's scope is a def map of sets, its declarations named by an interned `DefId`; re-exports are the package's | accepted |
+| [0045](0045-a-package-scope-is-a-def-map-of-sets.md) | A package's scope is a def map of sets, its declarations named by an interned `DefId`; re-exports are the package's | accepted; the prelude is a glob at the level of the imports, not under them, by D47 |
 | [0046](0046-imports-resolve-down-the-packages.md) | Imports resolve down the packages, a package's exports a query of their own; a re-export keeps its import's visibility | accepted |
+| [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted |
