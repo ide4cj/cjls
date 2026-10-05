@@ -11,7 +11,7 @@ const RANGE_PRECEDENCE = 11
  * An expression; false, with nothing consumed, if none starts here. Assignment is allowed at this level only.
  */
 func expr(p: P, r: Restrictions): Bool {
-    exprBp(p, r, 0, true).isSome()
+    exprBp(p, r, 0, top: true).isSome()
 }
 
 func exprOrError(p: P, r: Restrictions): Unit {
@@ -25,16 +25,16 @@ func exprOrError(p: P, r: Restrictions): Unit {
  * operator on the left; `**` and `??` also at equal precedence, being right-associative, and assignment (0) only
  * at the start of an expression (`top`).
  */
-func exprBp(p: P, r: Restrictions, precedence: Int64, top: Bool): ?CompletedMarker<SyntaxKind> {
+func exprBp(p: P, r: Restrictions, precedence: Int64, top!: Bool): ?CompletedMarker<SyntaxKind> {
     let lhs = if (r.allowLet && p.at(LetKw)) {
         letExpr(p)
     } else {
         unaryOrPostfix(p, r) ?? return None
     }
-    binaryRest(p, r, precedence, top, lhs)
+    binaryRest(p, r, precedence, lhs, top: top)
 }
 
-func binaryRest(p: P, r: Restrictions, precedence: Int64, top: Bool, first: CompletedMarker<SyntaxKind>): ?CompletedMarker<SyntaxKind> {
+func binaryRest(p: P, r: Restrictions, precedence: Int64, first: CompletedMarker<SyntaxKind>, top!: Bool): ?CompletedMarker<SyntaxKind> {
     var lhs = first
     while (let Some((op, n, opPrecedence)) <- binaryOp(p)) {
         if (r.allowLet && lhs.kind == LetExpr && opPrecedence < RANGE_PRECEDENCE && op != AmpAmp && op != PipePipe) {
@@ -85,7 +85,7 @@ func binaryRest(p: P, r: Restrictions, precedence: Int64, top: Bool, first: Comp
  * The right side of a binary operator: an expression, not a declaration a macro call applies to.
  */
 func operand(p: P, r: Restrictions, precedence: Int64): Unit {
-    match (exprBp(p, r, precedence, false)) {
+    match (exprBp(p, r, precedence, top: false)) {
         case None => p.error("expected an expression")
         case Some(cm) where cm.kind == MacroExpandDecl => p.error("expected an expression, found a declaration")
         case _ => ()
@@ -227,7 +227,7 @@ func indexArg(p: P): Unit {
     let startless = p.at(DotDot) || p.at(DotDotEq)
     let m = p.start()
     if (!startless) {
-        let first = exprBp(p, Restrictions.NONE, RANGE_PRECEDENCE, true)
+        let first = exprBp(p, Restrictions.NONE, RANGE_PRECEDENCE, top: true)
         match (first) {
             case None =>
                 m.abandon(p)
@@ -235,17 +235,17 @@ func indexArg(p: P): Unit {
                 return
             case Some(cm) where !(p.at(DotDot) || p.at(DotDotEq)) =>
                 m.abandon(p)
-                binaryRest(p, Restrictions.NONE, 0, true, cm)
+                binaryRest(p, Restrictions.NONE, 0, cm, top: true)
                 return
             case _ => ()
         }
     }
     p.bumpAny()
     if (!p.at(RBracket) && !p.at(Colon) && !p.at(Comma)) {
-        exprBp(p, Restrictions.NONE, RANGE_PRECEDENCE, true)
+        exprBp(p, Restrictions.NONE, RANGE_PRECEDENCE, top: true)
     }
     if (p.eat(Colon)) {
-        if (exprBp(p, Restrictions.NONE, RANGE_PRECEDENCE, true).isNone()) {
+        if (exprBp(p, Restrictions.NONE, RANGE_PRECEDENCE, top: true).isNone()) {
             p.error("expected an expression")
         }
     }
@@ -353,7 +353,7 @@ func parenExpr(p: P, r: Restrictions): CompletedMarker<SyntaxKind> {
     if (p.eat(RParen)) {
         return m.complete(p, UnitExpr)
     }
-    let inner = Restrictions(r.allowLet, false, RParen)
+    let inner = Restrictions(allowLet: r.allowLet, commaCloser: RParen)
     exprOrError(p, inner)
     if (!p.at(Comma)) {
         p.expect(RParen)
@@ -522,7 +522,7 @@ func letExpr(p: P): CompletedMarker<SyntaxKind> {
         pattern(p)
     }
     if (p.expect(LArrow)) {
-        if (exprBp(p, Restrictions(false, true, None), 0, true).isNone()) {
+        if (exprBp(p, Restrictions(letInit: true), 0, top: true).isNone()) {
             p.error("expected an expression")
         }
     }

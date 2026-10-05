@@ -66,7 +66,7 @@ class FtParser {
                     lineEnd()
             }
         }
-        FtDocument(FtValue(AsTable(root), 0, 0), bytes)
+        FtDocument(FtValue(AsTable(root)), bytes)
     }
 
     private func fail(reason: String): FtException {
@@ -248,7 +248,8 @@ class FtParser {
             match (target.get(part.name)) {
                 case None =>
                     let created = nested(target, Dotted, part.start)
-                    target.add(part.name, FtValue(AsTable(created), part.start, part.end), part.start, part.end)
+                    target.add(part.name, FtValue(AsTable(created), start: part.start, end: part.end),
+                        keyStart: part.start, keyEnd: part.end)
                     target = created
                 case Some(existing) => match (existing.data) {
                     // dotted keys add only to tables dotted keys under the same header defined
@@ -263,7 +264,7 @@ class FtParser {
             throw fail("`${joined(parts, parts.size)}` is defined twice", last.start)
         }
         let value = value(target.level + 1)
-        target.add(last.name, value, last.start, last.end)
+        target.add(last.name, value, keyStart: last.start, keyEnd: last.end)
     }
 
     /** `[a.b]` or `[[a.b]]`; the table it opens becomes the current one. */
@@ -292,7 +293,8 @@ class FtParser {
             match (parent.get(part.name)) {
                 case None =>
                     let created = nested(parent, Implicit, part.start)
-                    parent.add(part.name, FtValue(AsTable(created), part.start, part.end), part.start, part.end)
+                    parent.add(part.name, FtValue(AsTable(created), start: part.start, end: part.end),
+                        keyStart: part.start, keyEnd: part.end)
                     parent = created
                 case Some(existing) => match (existing.data) {
                     case AsTable(sub) where sub.origin == Braced =>
@@ -311,7 +313,8 @@ class FtParser {
             let array = match (parent.get(last.name)) {
                 case None =>
                     let created = FtArray(true)
-                    parent.add(last.name, FtValue(AsArray(created), start, end), last.start, last.end)
+                    parent.add(last.name, FtValue(AsArray(created), start: start, end: end),
+                        keyStart: last.start, keyEnd: last.end)
                     created
                 case Some(existing) => match (existing.data) {
                     case AsArray(array) where array.isTableArray => array
@@ -321,13 +324,14 @@ class FtParser {
             }
             // the array one level down, its tables two
             let element = nested(parent, ArrayElement, last.start, levels: 2)
-            array.items.add(FtValue(AsTable(element), start, end))
+            array.items.add(FtValue(AsTable(element), start: start, end: end))
             element
         } else {
             match (parent.get(last.name)) {
                 case None =>
                     let created = nested(parent, Header, last.start)
-                    parent.add(last.name, FtValue(AsTable(created), start, end), last.start, last.end)
+                    parent.add(last.name, FtValue(AsTable(created), start: start, end: end),
+                        keyStart: last.start, keyEnd: last.end)
                     created
                 case Some(existing) => match (existing.data) {
                     case AsTable(sub) where sub.origin == Implicit =>
@@ -378,7 +382,7 @@ class FtParser {
             case b where isDigit(b) || b == 0x2B || b == 0x2D || b == 0x69 || b == 0x6E => number()
             case _ => throw fail("expected a value")
         }
-        FtValue(data, start, pos)
+        FtValue(data, start: start, end: pos)
     }
 
     private func keyword(text: String): Unit {

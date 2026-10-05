@@ -200,7 +200,7 @@ struct RandomDocument <: Arbitrary<RandomDocument> & Shrink<RandomDocument> & To
     RandomDocument(let root: FtValue) {}
 
     public static func arbitrary(random: RandomSource): Generator<RandomDocument> {
-        Generators.generate {=> RandomDocument(FtValue(AsTable(randomTable(random, 3)), 0, 0))}
+        Generators.generate {=> RandomDocument(FtValue(AsTable(randomTable(random, 3))))}
     }
 
     /** The same with one entry of the root table fewer, or one of its tables emptied. */
@@ -210,9 +210,9 @@ struct RandomDocument <: Arbitrary<RandomDocument> & Shrink<RandomDocument> & To
         for ((key, _) in table) {
             let without = FtTable(Braced)
             for ((other, value) in table where other != key) {
-                without.add(other, value, 0, 0)
+                without.add(other, value)
             }
-            smaller.add(RandomDocument(FtValue(AsTable(without), 0, 0)))
+            smaller.add(RandomDocument(FtValue(AsTable(without))))
         }
         smaller
     }
@@ -242,7 +242,7 @@ func randomTable(random: RandomSource, depth: Int64): FtTable {
             randomString(random)
         }
         if (!table.contains(key)) {
-            table.add(key, randomValue(random, depth), 0, 0)
+            table.add(key, randomValue(random, depth))
         }
     }
     table
@@ -268,7 +268,7 @@ func randomValue(random: RandomSource, depth: Int64): FtValue {
             AsArray(array)
         case _ => AsTable(randomTable(random, depth - 1))
     }
-    FtValue(data, 0, 0)
+    FtValue(data)
 }
 
 func randomDate(random: RandomSource): LocalDate {

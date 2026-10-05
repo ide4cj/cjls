@@ -254,21 +254,21 @@ struct ItemSyntax {
 func itemsIn(decls: Iterator<Decl>): Array<ItemSyntax> {
     let items = ArrayList<ItemSyntax>()
     for (decl in decls) {
-        collectItem(decl, [], false, items)
+        collectItem(decl, [], items, inForeignBlock: false)
     }
     items.toArray()
 }
 
-private func collectItem(decl: Decl, macroCalls: Array<MacroExpandDecl>, inForeignBlock: Bool,
-    items: ArrayList<ItemSyntax>): Unit {
+private func collectItem(decl: Decl, macroCalls: Array<MacroExpandDecl>, items: ArrayList<ItemSyntax>,
+    inForeignBlock!: Bool): Unit {
     let kind = match (decl) {
         case Decl.AsMacroExpandDecl(call) => match (call.decl()) {
-            case Some(inner) => return collectItem(inner, macroCalls.concat([call]), inForeignBlock, items)
+            case Some(inner) => return collectItem(inner, macroCalls.concat([call]), items, inForeignBlock: inForeignBlock)
             case None => ItemKind.MacroCall
         }
         case Decl.AsForeignBlock(block) =>
             for (inner in block.decls()) {
-                collectItem(inner, macroCalls, true, items)
+                collectItem(inner, macroCalls, items, inForeignBlock: true)
             }
             return
         case Decl.AsFuncDecl(_) => ItemKind.Func

@@ -37,7 +37,7 @@ let PUNCTUATION_BY_FIRST_BYTE: Array<Array<(Array<Byte>, SyntaxKind)>> = {
 class Frame {
     var braceDepth = 0
 
-    Frame(let inString: Bool, let quoteChar: Byte, let multiline: Bool) {}
+    Frame(let inString!: Bool, let quoteChar!: Byte, let multiline!: Bool) {}
 }
 
 class Lexer {
@@ -49,7 +49,7 @@ class Lexer {
     Lexer(text: String) {
         bytes = text.toArray()
         lexed = Lexed<SyntaxKind>(text)
-        frames.add(Frame(false, 0, false))
+        frames.add(Frame(inString: false, quoteChar: 0, multiline: false))
     }
 
     func run(): Lexed<SyntaxKind> {
@@ -112,7 +112,7 @@ class Lexer {
         if (peek(0) == b'$' && peek(1) == b'{') {
             pos += 2
             emit(InterpolationStart, start)
-            frames.add(Frame(false, 0, false))
+            frames.add(Frame(inString: false, quoteChar: 0, multiline: false))
             return
         }
         if (!frame.multiline && atLineBreak()) {
@@ -196,7 +196,7 @@ class Lexer {
             case b'J' where peek(1) == b'"' =>
                 pos += 2
                 emit(StringStart, start)
-                frames.add(Frame(true, b'"', false))
+                frames.add(Frame(inString: true, quoteChar: b'"', multiline: false))
             case b'r' where peek(1) == b'\'' || peek(1) == b'"' => runeLiteral(start, RuneLit)
             case b'b' where peek(1) == b'\'' => runeLiteral(start, ByteLit)
             case b'#' => rawStringOrHash(start)
@@ -284,7 +284,7 @@ class Lexer {
         let multiline = peek(1) == quoteChar && peek(2) == quoteChar
         pos += if (multiline) { 3 } else { 1 }
         emit(StringStart, start)
-        frames.add(Frame(true, quoteChar, multiline))
+        frames.add(Frame(inString: true, quoteChar: quoteChar, multiline: multiline))
     }
 
     /**

@@ -10,12 +10,12 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     /**
      * @param indexInParent - among the parent's children, tokens included
      */
-    SyntaxNode(public let green: GreenNode<K>, public let parent: ?SyntaxNode<K>, public let indexInParent: Int64,
-        let offset: Int64) {}
+    SyntaxNode(public let green: GreenNode<K>, public let parent!: ?SyntaxNode<K>, public let indexInParent!: Int64,
+        let offset!: Int64) {}
 
     @Frozen
     public static func newRoot(green: GreenNode<K>): SyntaxNode<K> {
-        SyntaxNode(green, None, 0, 0)
+        SyntaxNode(green, parent: None, indexInParent: 0, offset: 0)
     }
 
     @Frozen
@@ -50,7 +50,7 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
     func element(i: Int64): SyntaxElement<K> {
         let at = offset + green.childOffset(i)
         match (green.child(i)) {
-            case GreenElement.Node(n) => SyntaxElement.Node(SyntaxNode(n, this, i, at))
+            case GreenElement.Node(n) => SyntaxElement.Node(SyntaxNode(n, parent: this, indexInParent: i, offset: at))
             case GreenElement.Token(t) => SyntaxElement.Token(SyntaxToken(t, this, i, at))
         }
     }
@@ -73,7 +73,7 @@ public class SyntaxNode<K> <: Equatable<SyntaxNode<K>> & Hashable & ToString whe
         var i = from
         while (0 <= i && i < green.childCount) {
             if (let GreenElement.Node(n) <- green.child(i)) {
-                return SyntaxNode(n, this, i, offset + green.childOffset(i))
+                return SyntaxNode(n, parent: this, indexInParent: i, offset: offset + green.childOffset(i))
             }
             i += step
         }

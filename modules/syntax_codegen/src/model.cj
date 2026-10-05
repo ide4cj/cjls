@@ -312,15 +312,15 @@ class OccurrenceCollector {
 
     OccurrenceCollector(let model: Model, let owner: String) {}
 
-    func collect(rule: Rule, label: ?String, optional: Bool, many: Bool, alts: Array<(Int64, Int64)>,
-        seqs: Array<(Int64, Int64)>, direct: Bool): Unit {
-        func occurrence(label: ?String, node: ?String, tokens: Array<String>, optional: Bool): Occurrence {
+    func collect(rule: Rule, label: ?String, alts: Array<(Int64, Int64)>, seqs: Array<(Int64, Int64)>,
+        optional!: Bool, many!: Bool, direct!: Bool): Unit {
+        func occurrence(label: ?String, node: ?String, tokens: Array<String>, optional!: Bool): Occurrence {
             Occurrence(label, node, tokens, optional, many, alts, seqs, direct, occurrences.size + anyTokens.size)
         }
         match (rule) {
-            case NodeRef(n) => occurrences.add(occurrence(label, n, [], optional))
-            case TokenRef(t) where t == ANY_TOKEN => anyTokens.add(occurrence(None, None, [], true))
-            case TokenRef(t) => occurrences.add(occurrence(label, None, [model.tokenKinds[t]], optional))
+            case NodeRef(n) => occurrences.add(occurrence(label, n, [], optional: optional))
+            case TokenRef(t) where t == ANY_TOKEN => anyTokens.add(occurrence(None, None, [], optional: true))
+            case TokenRef(t) => occurrences.add(occurrence(label, None, [model.tokenKinds[t]], optional: optional))
             case Labeled(l, r) =>
                 match (label) {
                     case Some(outer) => throw GrammarException("`${owner}`: `${l}` is labeled inside `${outer}`")
@@ -328,9 +328,9 @@ class OccurrenceCollector {
                 }
                 if (let Some(tokens) <- tokensOnly(r)) {
                     // one of them, though each may be optional
-                    occurrences.add(occurrence(l, None, tokens, true))
+                    occurrences.add(occurrence(l, None, tokens, optional: true))
                 } else {
-                    collect(r, l, optional, many, alts, seqs, direct)
+                    collect(r, l, alts, seqs, optional: optional, many: many, direct: direct)
                 }
             case Seq(rs) =>
                 let id = nextSeq
@@ -338,7 +338,7 @@ class OccurrenceCollector {
                 for (i in 0..rs.size) {
                     let path = ArrayList<(Int64, Int64)>(seqs)
                     path.add((id, i))
-                    collect(rs[i], label, optional, many, alts, path.toArray(), true)
+                    collect(rs[i], label, alts, path.toArray(), optional: optional, many: many, direct: true)
                 }
             case Alt(rs) =>
                 let id = nextAlt
@@ -346,10 +346,10 @@ class OccurrenceCollector {
                 for (i in 0..rs.size) {
                     let path = ArrayList<(Int64, Int64)>(alts)
                     path.add((id, i))
-                    collect(rs[i], label, optional, many, path.toArray(), seqs, false)
+                    collect(rs[i], label, path.toArray(), seqs, optional: optional, many: many, direct: false)
                 }
-            case Opt(r) => collect(r, label, true, many, alts, seqs, false)
-            case Rep(r) => collect(r, label, true, true, alts, seqs, false)
+            case Opt(r) => collect(r, label, alts, seqs, optional: true, many: many, direct: false)
+            case Rep(r) => collect(r, label, alts, seqs, optional: true, many: true, direct: false)
         }
     }
 
@@ -381,7 +381,7 @@ class OccurrenceCollector {
  */
 func lowerNode(model: Model, def: RuleDef): NodeIr {
     let collector = OccurrenceCollector(model, def.name)
-    collector.collect(def.rule, None, false, false, [], [], false)
+    collector.collect(def.rule, None, [], [], optional: false, many: false, direct: false)
     let occs = collector.occurrences
 
     // fields in the order first met

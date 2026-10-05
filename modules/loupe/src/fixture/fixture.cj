@@ -248,11 +248,12 @@ public class Fixture {
     }
 
     /**
-     * A database of the project and the texts of the files.
+     * A database of the project and the texts of the files, with the packages compiled already of
+     * `binaries`.
      */
-    public func database(): AnalysisDatabase {
+    public func database(binaries!: Array<CjoFileRead> = []): AnalysisDatabase {
         let db = AnalysisDatabase()
-        db.setProject(projectModel(), paths)
+        db.setProject(projectModel(), paths, binaries: binaries)
         for (file in files) {
             db.setFileText(file.fileId, Rope(file.text))
         }

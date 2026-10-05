@@ -106,11 +106,11 @@ func describeDecl(kind: SyntaxKind): String {
 
 struct ModifierInfo {
     ModifierInfo(
-        let isForeign: Bool,
-        let lastConst: Bool,
-        let isOperator: Bool,
+        let isForeign!: Bool = false,
+        let lastConst!: Bool = false,
+        let isOperator!: Bool = false,
         /** `common` or `specific`: a multiplatform declaration, which may leave out its body. */
-        let isPlatform: Bool
+        let isPlatform!: Bool = false
     ) {}
 }
 
@@ -348,7 +348,7 @@ func annotations(p: P): Unit {
 
 func modifiers(p: P): ModifierInfo {
     if (!atModifier(p)) {
-        return ModifierInfo(false, false, false, false)
+        return ModifierInfo()
     }
     let m = p.start()
     var isForeign = false
@@ -363,7 +363,7 @@ func modifiers(p: P): ModifierInfo {
         p.bumpAny()
     }
     m.complete(p, Modifiers)
-    ModifierInfo(isForeign, lastConst, isOperator, isPlatform)
+    ModifierInfo(isForeign: isForeign, lastConst: lastConst, isOperator: isOperator, isPlatform: isPlatform)
 }
 
 func funcDecl(p: P, m: Marker, ctx: DeclContext): Unit {

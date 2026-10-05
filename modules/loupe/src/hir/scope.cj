@@ -267,12 +267,13 @@ func isIn(kind: ItemKind, ns: Namespace): Bool {
 }
 
 /**
- * Whether `target` is seen in `ns`: a package in both, as the first segment of a path.
+ * Whether `target` is seen in `ns`: a package as a value, the first segment of a path (N43); as a
+ * type it is none (N53), and the qualifier of a path in a type is looked up apart (N52).
  */
 func isIn(target: ScopeTarget, db: AnalysisDatabase, ns: Namespace): Bool {
     match (target) {
         case OfDecl(id) => isIn(id.item(db).kind, ns)
-        case OfPackage(_) => true
+        case OfPackage(_) => ns == Namespace.Values
     }
 }
 

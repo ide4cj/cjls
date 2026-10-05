@@ -1,37 +1,21 @@
 package loupe.hir
 
 import std.collection.{ArrayList, HashSet}
-import std.env.{getTempDirectory, getVariable}
+import std.env.getVariable
 import std.fs.*
-import std.time.DateTime
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjo.openCjo
 import rope.Rope
-import loupe.vfs.{CjoFile, CjoFileRead, FileId, FileStamp, PathInterner, VfsPath}
+import loupe.vfs.{FileId, PathInterner}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Cfg, ProjectModel}
-
-/**
- * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.
- */
-func stdCjo(name: String): Array<Byte> {
-    let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
-    for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
-        let file = target.path.join("std").join("${name}.cjo")
-        if (exists(file)) {
-            return File.readFrom(file)
-        }
-    }
-    throw IllegalStateException("no ${name}.cjo under ${home.join("modules")}")
-}
+import loupe.fixture.{stdCjo, stdCjoRead}
 
 /**
  * The input of the package `name` of `std`, holding `bytes`, in `db`.
  */
 func binaryPackage(db: AnalysisDatabase, name: String, bytes: Array<Byte>): BinaryPackageFile {
-    let file = CjoFile("std", name, VfsPath.file(getTempDirectory().join("${name}.cjo")))
-    db.setProject(ProjectModel(Cfg([]), []), PathInterner(),
-        binaries: [CjoFileRead(file, FileStamp(bytes.size, DateTime.now()), bytes)])
+    db.setProject(ProjectModel(Cfg([]), []), PathInterner(), binaries: [stdCjoRead(name, bytes)])
     db.project().getOrThrow().binaryPackages(db)[0]
 }
 
@@ -211,7 +195,7 @@ class BinaryItemTreeTest {
         // act, assert
         @Expect(binaryItemTrees(db, pkg).isEmpty())
         @Expect(binaryExports(db, pkg).itemOf("_CNat6StringE"), None<BinaryItem>)
-        @Expect(itemTreeOf(db, ItemFile.Binary(pkg, 0)), ItemTree(None, [], []))
+        @Expect(itemTreeOf(db, ItemFile.Binary(pkg, 0)), ItemTree())
     }
 
     @TestCase
