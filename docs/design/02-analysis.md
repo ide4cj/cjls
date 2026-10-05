@@ -17,6 +17,7 @@
 | `ItemId`, `itemIdMap` | `loupe.hir` | an item named so that edits elsewhere leave it, and the file's map of ids to pointers and back (D34) |
 | `itemTree` | `loupe.hir` | what a file declares: package, imports, items by `ItemId`, no ranges, no bodies; equal after an edit inside a body (D34) |
 | `defMap` | `loupe.hir` | a package's declarations by name, each a set with its visibility, its enums' constructors under them, its redefinitions; keyed by a `PackageRef`, either kind of package (D45) |
+| `packageExports`, `packageIndex`, `resolveImport` | `loupe.hir` | what a package shows its importers: its declarations but the `private` ones and its re-exports, each with its import's visibility, on the exports of the packages it re-exports from; the project's packages by full name and what each module may import from; one path of an import to a package, names, or an error (D46) |
 | `binaryItemTrees`, `binaryExports` | `loupe.hir` | a `.cjo` in the same model: an `ItemTree` per file of the package, its re-exports its imports; an `exportId` to its item, an item back to its `Decl` (`binaryDecl`). `ItemFile` is either kind of file (D38) |
 | loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFiles`, `readFile`, `isWorkspaceFile`; `cjoFilesIn`, `readCjoFiles` (by stamp, header checked): the disk, nothing else (D30, D38) |
 | project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33); the SDK (`findCangjieHome`, D40) |
