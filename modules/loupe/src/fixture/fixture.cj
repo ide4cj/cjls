@@ -1,6 +1,7 @@
 package loupe.fixture
 
 import std.collection.*
+import std.deriving.*
 import std.env.getTempDirectory
 import std.sort.*
 import ginkgo.TextRange
@@ -101,16 +102,9 @@ struct FixtureLine {
  * An expected answer, under the line it is about: `//^^^ text` for the range of the carets, `//|
  * text` for the empty one before the bar.
  */
-public struct Annotation <: Equatable<Annotation> & ToString {
+@Derive[Equatable]
+public struct Annotation <: ToString {
     public Annotation(public let fileId: FileId, public let range: TextRange, public let text: String) {}
-
-    public operator func ==(other: Annotation): Bool {
-        fileId.index == other.fileId.index && range == other.range && text == other.text
-    }
-
-    public operator func !=(other: Annotation): Bool {
-        !(this == other)
-    }
 
     public func toString(): String {
         "${fileId} ${range} ${text}"

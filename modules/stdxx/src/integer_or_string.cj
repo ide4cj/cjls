@@ -1,30 +1,12 @@
 package stdxx
 
+import std.deriving.*
 import fjson.*
 
-// by hand: `@Derive` leaves a `check_` function per constructor parameter unused
-public enum IntegerOrString <: Equatable<IntegerOrString> & Hashable & ToString {
+@Derive[Equatable, Hashable]
+public enum IntegerOrString <: ToString {
     | Integer(Int32)
     | String(String)
-
-    public operator func ==(other: IntegerOrString): Bool {
-        match ((this, other)) {
-            case (Integer(a), Integer(b)) => a == b
-            case (String(a), String(b)) => a == b
-            case _ => false
-        }
-    }
-
-    public operator func !=(other: IntegerOrString): Bool {
-        !(this == other)
-    }
-
-    public func hashCode(): Int64 {
-        match (this) {
-            case Integer(i) => i.hashCode()
-            case String(s) => s.hashCode()
-        }
-    }
 
     public func toString(): String {
         match (this) {
