@@ -268,6 +268,12 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
         })
     }
     let unpacked = arguments(taken.toArray())
+    // a key of `Unit` is read by nothing: unnamed, it warns of nothing
+    let keyParam = if (fields.isEmpty()) {
+        quote(_)
+    } else {
+        quote(calcaKey)
+    }
 
     // no field is a key of `Unit`, one its own key, several a struct of them all
     let (keyType, keyArg, keyStruct) = match (fields.size) {
@@ -292,12 +298,12 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
                 (quote($(taken[0]).$bodyName($db $rest)), quote())
             }
             (quote(
-                public static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
+                public static func calcaExecute($db: $dbType, $keyParam: $keyType): $returnType {
                     $call
                 }
             ), quote($staticMark func $bodyName($signature): $returnType $body))
         case None => (quote(
-            public static func calcaExecute($db: $dbType, calcaKey: $keyType): $returnType {
+            public static func calcaExecute($db: $dbType, $keyParam: $keyType): $returnType {
                 calcaRun($db $unpacked)
             }
 
@@ -310,7 +316,7 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
                 true
             }
 
-            public static func calcaFallback($db: $dbType, calcaKey: $keyType): $returnType {
+            public static func calcaFallback($db: $dbType, $keyParam: $keyType): $returnType {
                 $recover($db $unpacked)
             }
         )
