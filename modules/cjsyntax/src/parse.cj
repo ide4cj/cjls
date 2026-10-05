@@ -106,22 +106,22 @@ func isDocumentable(kind: SyntaxKind): Bool {
 struct Restrictions {
     Restrictions(
         /** In an `if` or `while` condition: `let pattern <- expr` is an operand. */
-        let allowLet: Bool,
+        let allowLet!: Bool = false,
         /** The initializer of a `let` condition: operators below `..` end it. */
-        let letInit: Bool,
+        let letInit!: Bool = false,
         /** Among comma-separated expressions ending at this token: `a < b, c > d` are comparisons there. */
-        let commaCloser: ?SyntaxKind
+        let commaCloser!: ?SyntaxKind = None
     ) {}
 
-    static let NONE = Restrictions(false, false, None)
-    static let CONDITION = Restrictions(true, false, None)
+    static let NONE = Restrictions()
+    static let CONDITION = Restrictions(allowLet: true)
 
     static func commaList(closer: SyntaxKind): Restrictions {
-        Restrictions(false, false, closer)
+        Restrictions(commaCloser: closer)
     }
 
     func withoutLet(): Restrictions {
-        Restrictions(false, letInit, commaCloser)
+        Restrictions(letInit: letInit, commaCloser: commaCloser)
     }
 }
 

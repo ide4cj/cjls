@@ -195,7 +195,7 @@ class BinaryItemTreeTest {
         // act, assert
         @Expect(binaryItemTrees(db, pkg).isEmpty())
         @Expect(binaryExports(db, pkg).itemOf("_CNat6StringE"), None<BinaryItem>)
-        @Expect(itemTreeOf(db, ItemFile.Binary(pkg, 0)), ItemTree(None, [], []))
+        @Expect(itemTreeOf(db, ItemFile.Binary(pkg, 0)), ItemTree())
     }
 
     @TestCase

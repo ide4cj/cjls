@@ -168,16 +168,16 @@ public struct Item {
 @Derive[Equatable]
 public struct ItemTree {
     public ItemTree(
-        public let packageHeader: ?PackageItem,
-        public let imports: Array<ImportItem>,
-        public let items: Array<Item>
+        public let packageHeader!: ?PackageItem = None,
+        public let imports!: Array<ImportItem> = [],
+        public let items!: Array<Item> = []
     ) {}
 
     /**
      * The tree of `tree`, its items named by `ids`, made of it.
      */
     public static func of(tree: CjParse, ids: ItemIdMap): ItemTree {
-        let root = SourceFileNode.cast(tree.syntaxNode()) ?? return ItemTree(None, [], [])
+        let root = SourceFileNode.cast(tree.syntaxNode()) ?? return ItemTree()
         let packageHeader = root.packageHeader().map {
             header => PackageItem(String.join(pathSegments(header.syntax), delimiter: "."),
                 header.macroToken().isSome(), modifiersOf([header.modifiers()]))
@@ -190,7 +190,7 @@ public struct ItemTree {
             }
             ImportItem(idOf(ids, decl.syntax), modifiersOf([decl.modifiers()]), paths.toArray())
         } |> collectArray
-        ItemTree(packageHeader, imports, lowerItems(root.decls(), ids))
+        ItemTree(packageHeader: packageHeader, imports: imports, items: lowerItems(root.decls(), ids))
     }
 }
 

@@ -30,7 +30,7 @@ public func itemTreeOf(db: AnalysisDatabase, file: ItemFile): ItemTree {
             if (index >= 0 && index < trees.size) {
                 trees[index]
             } else {
-                ItemTree(None, [], [])
+                ItemTree()
             }
     }
 }
@@ -103,8 +103,8 @@ public class BinaryExports <: Equatable<BinaryExports> {
      * Each item, the index of its declaration and its `exportId` (empty for none), in the order
      * they were lowered in.
      */
-    BinaryExports(private let items: Array<BinaryItem>, private let decls: Array<Int64>,
-        private let exportIds: Array<String>) {
+    BinaryExports(private let items!: Array<BinaryItem> = [], private let decls!: Array<Int64> = [],
+        private let exportIds!: Array<String> = []) {
         for (i in 0..items.size) {
             byItem.add(items[i], decls[i])
             if (!exportIds[i].isEmpty()) {
@@ -152,7 +152,7 @@ func lowerBinary(bytes: Array<Byte>): BinaryLowering {
     try {
         BinaryLowerer(openCjo(bytes)).lower()
     } catch (_: Exception) {
-        BinaryLowering([], BinaryExports([], [], []))
+        BinaryLowering([], BinaryExports())
     }
 }
 
@@ -197,13 +197,13 @@ class BinaryLowerer {
             let decl = decls[i]
             if (decl.isTopLevel) {
                 let file = fileOf(decl.begin)
-                if (let Some(item) <- lowerDecl(None, "", i, file)) {
+                if (let Some(item) <- lowerDecl(i, file)) {
                     items[file].add(item)
                 }
             }
         }
-        let trees = Array(fileCount) {file => ItemTree(header, imports[file], items[file].toArray())}
-        BinaryLowering(trees, BinaryExports(lowered.toArray(), declIndices.toArray(), exportIds.toArray()))
+        let trees = Array(fileCount) {file => ItemTree(packageHeader: header, imports: imports[file], items: items[file].toArray())}
+        BinaryLowering(trees, BinaryExports(items: lowered.toArray(), decls: declIndices.toArray(), exportIds: exportIds.toArray()))
     }
 
     /**
@@ -213,7 +213,7 @@ class BinaryLowerer {
      * `PrimaryCtorDecl`, only the `init` it makes of it (`PrimaryConstructor`) and a field per member
      * parameter (`isMemberParam`), both `CompilerAdd` (`DesugarPrimaryCtor`).
      */
-    private func lowerDecl(parent: ?ItemId, parentName: String, index: Int64, file: Int64): ?Item {
+    private func lowerDecl(index: Int64, file: Int64, parent!: ?ItemId = None, parentName!: String = ""): ?Item {
         // a member out of `allDecls`, or one lowered already, is a broken file's: that one alone is left out
         if (index < 0 || index >= decls.size || seen[index]) {
             return None
@@ -249,7 +249,7 @@ class BinaryLowerer {
         exportIds.add(exportId)
         let members = ArrayList<Item>()
         for (member in bodyOf(info)) {
-            if (let Some(item) <- lowerDecl(id, identifier, Int64(member) - 1, file)) {
+            if (let Some(item) <- lowerDecl(Int64(member) - 1, file, parent: id, parentName: identifier)) {
                 members.add(item)
             }
         }
