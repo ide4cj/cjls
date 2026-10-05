@@ -240,6 +240,17 @@ public enum ImportTarget {
 }
 
 /**
+ * A package importing itself, an error at the path (N47): `name` is the path as written.
+ */
+func selfImport(from: PackageRef, target: PackageRef, name: String): ?ImportTarget {
+    if (target == from) {
+        ImportTarget.NoTarget(ImportError.SelfImport(name))
+    } else {
+        None
+    }
+}
+
+/**
  * What `path`, of an import `level` re-exports with, names from `from`. A path naming a package is
  * the package (N30); else its last segment is a name of the package the others name. A package
  * importing itself names nothing (N47).
@@ -247,17 +258,12 @@ public enum ImportTarget {
 public func targetOf(db: AnalysisDatabase, from: PackageRef, path: ImportPath, level: Visibility): ImportTarget {
     let index = packageIndex(db)
     let full = String.join(path.segments, delimiter: ".")
-    let selfImport = {target: PackageRef, name: String => if (target == from) {
-        Some(ImportTarget.NoTarget(ImportError.SelfImport(name)))
-    } else {
-        None<ImportTarget>
-    }}
     if (path.isGlob) {
         let target = index.find(full, from: from) ?? return ImportTarget.NoTarget(ImportError.NoPackage(full))
-        return selfImport(target, full) ?? ImportTarget.GlobOf(target, full)
+        return selfImport(from, target, full) ?? ImportTarget.GlobOf(target, full)
     }
     if (let Some(target) <- index.find(full, from: from)) {
-        if (let Some(error) <- selfImport(target, full)) {
+        if (let Some(error) <- selfImport(from, target, full)) {
             return error
         }
         if (level != Visibility.Private) {
@@ -270,7 +276,7 @@ public func targetOf(db: AnalysisDatabase, from: PackageRef, path: ImportPath, l
     }
     let pkgName = String.join(path.segments[..path.segments.size - 1], delimiter: ".")
     let target = index.find(pkgName, from: from) ?? return ImportTarget.NoTarget(ImportError.NoPackage(pkgName))
-    selfImport(target, pkgName) ?? ImportTarget.NameOf(target, pkgName, path.segments[path.segments.size - 1], path.alias)
+    selfImport(from, target, pkgName) ?? ImportTarget.NameOf(target, pkgName, path.segments[path.segments.size - 1], path.alias)
 }
 
 /**

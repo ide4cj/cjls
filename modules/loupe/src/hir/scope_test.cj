@@ -325,6 +325,42 @@ class ScopeTest {
     }
 
     @TestCase
+    func functionsOfThePackageShadowAnImportedVariableSilently() {
+        // N40: cjc warns of nothing, and no function of the package is overloaded by the variable
+        checkScope(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public var x: Int64 = 0
+            public let y: Int64 = 0
+            //- /main.cj module=m package=m
+            package m
+            import m.a.x
+            import m.a.*
+            func x(n: Int64): Int64 { n }
+            //   ^ def
+            func x(): Int64 { 0 }
+            //   ^ def
+            func g() { $0x(1) }
+            "#)
+    }
+
+    @TestCase
+    func aFunctionOfThePackageShadowsAGlobbedVariable() {
+        // N40
+        checkScope(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public let y: Int64 = 0
+            //- /main.cj module=m package=m
+            package m
+            import m.a.*
+            func y(): Int64 { 0 }
+            //   ^ def
+            func g() { let f = $0y }
+            "#)
+    }
+
+    @TestCase
     func aFunctionOfThePackageDoesNotShadowAnImportedTypeAsAType() {
         // N41
         checkScope(#"
