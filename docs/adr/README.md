@@ -59,3 +59,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0041](0041-accessors-are-told-by-tokens.md) | A generated accessor finds a child by the tokens between it and the children that could be taken for it; by position only for the child a rule starts with | accepted |
 | [0042](0042-a-swallowed-unwind-stores-no-memo.md) | A query that swallows calca's unwinding (`catch (e: Exception)` around a fetch) stores no memo, and throws it again | accepted |
 | [0043](0043-analysis-tests-are-fixtures.md) | Analysis tests are fixtures: files, a place and the answers as one text in `loupe.fixture`, written into the test by `UPDATE_EXPECT=1` | accepted |
+| [0044](0044-resolution-is-layered-as-rust-analyzer.md) | Resolution is layered as rust-analyzer's, a definition map per package; members, overloads and `extend` are inference's | accepted |

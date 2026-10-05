@@ -56,7 +56,7 @@ Looked at, not references:
 | Semantic tokens | R1 | `syntax_highlighting` over the tree, refined by `hir` | #16 |
 | Workspace, watched files | R1, R5 | `project_model`, `load-cargo`; `go/packages`, file watching | #12 |
 | Project model | R1, R4, R5 | cjpm has no `cargo metadata` / `go list`: read `cjpm.toml` ourselves, as R4 does; R1's `rust-project.json` for what cjpm does not build, `cj-project.json` | D33 |
-| Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap` | #48 |
+| Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap`, per package rather than per crate: Cangjie's unit of namespace; imports per file | D44, #48 |
 | Types, overloads, class hierarchies, `extend` | R3, R6, R7 | R1 has no overloading and no subclassing: Roslyn's and K2's overload resolution, cjc's Sema as the specification | #48 |
 | Macros | R1, R4 | expand out of process, by running the compiled macro package | #47 |
 | Workspace symbols, references | R6, R7, R8 | R1 searches the text, then resolves; the others keep an index. In memory first; on disk only when measured to be needed | #12, #50 |
