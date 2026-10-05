@@ -3,6 +3,7 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import loupe.fixture.*
+import loupe.hir.*
 import loupe.syntax.parse
 
 /**
@@ -527,5 +528,33 @@ class DefinitionTest {
             //           ^ no definition
             }
             "#)
+    }
+
+    @TestCase
+    func aTypeOfACompiledPackageHasNoSourceToGoTo() {
+        // arrange
+        let parsed = Fixture.parse(#"
+            //- /main.cj module=m package=m
+            package m
+            func f(x: $0String): Unit {}
+            "#)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let cursor = parsed.cursor.getOrThrow()
+        let file = ItemFile.Source(db.sourceFile(cursor.fileId).getOrThrow())
+        let f = DefId(db, file, itemTreeOf(db, file).items[0].id)
+
+        // act
+        let targets = definitionAt(db, cursor.fileId, cursor.offset)
+
+        // assert
+        let compiled = match (resolveTypePath(db, typeScopeOf(db, f).getOrThrow(), ["String"])[0]) {
+            case Resolved(TypeOf(id)) => match (id.file(db)) {
+                case Binary(_, _) => true
+                case Source(_) => false
+            }
+            case _ => false
+        }
+        @Expect(compiled)
+        @Expect(targets.isEmpty())
     }
 }

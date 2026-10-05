@@ -64,13 +64,24 @@ public enum PathResolution <: ToString {
 }
 
 /**
+ * The type parameters of one declaration: the declaration, which `GenericOf` names, and their
+ * names in order, an index among them a `GenericOf`'s.
+ */
+public struct Generics {
+    public Generics(public let owner: DefId, public let names: Array<String>) {}
+}
+
+/**
  * Where the types of a declaration's signature are looked up, rust-analyzer's `Resolver`: the type
  * parameters of the declaration, then of the type or `extend` it is a member of, the innermost
  * first, each shadowing anything of its name (N55); then the scope of its file.
  */
 public struct TypeScope {
     public TypeScope(
-        public let generics: Array<(DefId, Array<String>)>,
+        /**
+         * The type parameters of the declaration, then of its parent, if it has one.
+         */
+        public let generics: Array<Generics>,
         public let pkg: Package,
         public let file: SourceFile
     ) {}
@@ -86,9 +97,9 @@ public func typeScopeOf(db: AnalysisDatabase, def: DefId): ?TypeScope {
         case Binary(_, _) => return None
     }
     let pkg = packageOfFile(db, file) ?? return None
-    let generics = ArrayList<(DefId, Array<String>)>([(def, signature(db, def).generics)])
+    let generics = ArrayList<Generics>([Generics(def, signature(db, def).generics)])
     if (let Some(parent) <- parentOf(db, def)) {
-        generics.add((parent, signature(db, parent).generics))
+        generics.add(Generics(parent, signature(db, parent).generics))
     }
     TypeScope(generics.toArray(), pkg, file)
 }
@@ -172,9 +183,9 @@ func qualifierNamed(db: AnalysisDatabase, scope: TypeScope, name: String): ?Path
  * The type `name` names in `scope`: a type parameter, else a type of the file's scope.
  */
 func typeNamed(db: AnalysisDatabase, scope: TypeScope, name: String): PathResolution {
-    for ((owner, names) in scope.generics) {
-        for (i in 0..names.size where names[i] == name) {
-            return PathResolution.Resolved(GenericOf(owner, i))
+    for (generics in scope.generics) {
+        for (i in 0..generics.names.size where generics.names[i] == name) {
+            return PathResolution.Resolved(GenericOf(generics.owner, i))
         }
     }
     match (lookUp(db, scope.pkg, scope.file, name, Namespace.Types)) {

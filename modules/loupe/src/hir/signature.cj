@@ -49,9 +49,9 @@ public enum TypeRef {
     | OptionRef(TypeRefId)
     | ThisRef
     /**
-     * `VArray<T, $n>`, its size as written.
+     * `VArray<T, $n>`, its size as written; `None` if the parser did not find it.
      */
-    | VArrayRef(TypeRefId, String)
+    | VArrayRef(TypeRefId, ?String)
     /**
      * A type the declaration does not write, or the parser did not find.
      */
@@ -77,33 +77,29 @@ public struct Signature {
         /**
          * Its type parameters by name, in order.
          */
-        public let generics: Array<String>,
+        public let generics!: Array<String> = [],
         /**
          * Every type it writes, one inside another before it.
          */
-        public let types: Array<TypeRef>,
+        public let types!: Array<TypeRef> = [],
         /**
          * Those of its parameters, of every list in order; an enum constructor's.
          */
-        public let params: Array<TypeRefId>,
+        public let params!: Array<TypeRefId> = [],
         /**
          * Its declared type: a function's return type, a variable's or property's type, what an
          * alias names, the type an `extend` extends.
          */
-        public let ty: ?TypeRefId,
+        public let ty!: ?TypeRefId = None,
         /**
          * The types after `<:`: a type's supertypes, an `extend`'s interfaces.
          */
-        public let supers: Array<TypeRefId>,
+        public let supers!: Array<TypeRefId> = [],
         /**
          * Its `where`.
          */
-        public let bounds: Array<TypeBound>
+        public let bounds!: Array<TypeBound> = []
     ) {}
-
-    public static func empty(): Signature {
-        Signature([], [], [], None, [], [])
-    }
 
     public operator func [](id: TypeRefId): TypeRef {
         types[id.index]
@@ -127,7 +123,7 @@ public struct Signature {
             case FuncRef(params, ret) => "(${list(params)}) -> ${text(ret)}"
             case OptionRef(inner) => "?${text(inner)}"
             case ThisRef => "This"
-            case VArrayRef(element, size) => "VArray<${text(element)}, $${size}>"
+            case VArrayRef(element, size) => "VArray<${text(element)}, $${size ?? "_"}>"
             case MissingRef => "_"
         }
     }
@@ -172,7 +168,7 @@ public func signatureWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredSig
             return lowerSignature(decl)
         }
     }
-    LoweredSignature(Signature.empty(), SignatureSourceMap([]))
+    LoweredSignature(Signature(), SignatureSourceMap([]))
 }
 
 /**
@@ -220,7 +216,7 @@ func lowerSignature(decl: Decl): LoweredSignature {
         case None => Array<TypeBound>()
     }
     LoweredSignature(
-        Signature(generics, lowering.types.toArray(), params, ty, supers, bounds),
+        Signature(generics: generics, types: lowering.types.toArray(), params: params, ty: ty, supers: supers, bounds: bounds),
         SignatureSourceMap(lowering.ptrs.toArray())
     )
 }
@@ -277,7 +273,7 @@ class SignatureLowering {
             case Type.AsFuncType(it) => TypeRef.FuncRef(elements(it.syntax, it.arrowToken()?.textRange.start), lower(it.ret()))
             case Type.AsOptionType(it) => TypeRef.OptionRef(lower(it.ty()))
             case Type.AsThisType(_) => TypeRef.ThisRef
-            case Type.AsVArrayType(it) => TypeRef.VArrayRef(lower(it.ty()), it.intLitToken()?.text() ?? "")
+            case Type.AsVArrayType(it) => TypeRef.VArrayRef(lower(it.ty()), it.intLitToken()?.text())
         }
         add(lowered, SyntaxNodePtr(ty.syntax))
     }

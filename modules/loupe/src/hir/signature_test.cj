@@ -155,4 +155,19 @@ class SignatureTest {
         @Expect(paramCount(db, def), 2)
         @Expect(signatureReaderRuns.load(), before + 1)
     }
+
+    @TestCase
+    func aDeclarationOfACompiledPackageHasAnEmptySignatureAndNoTypeScope() {
+        // arrange
+        let db = AnalysisDatabase()
+        let bytes = stdCjo("std.core")
+        let pkg = binaryPackage(db, "std.core", bytes)
+        let file = ItemFile.Binary(pkg, fileIndex(bytes, "std.core/string.cj"))
+        let string = DefId(db, file, named(itemTreeOf(db, file).items, "String").id)
+        // act
+        let lowered = signatureWithSourceMap(db, string)
+        // assert
+        @Expect(lowered, LoweredSignature(Signature(), SignatureSourceMap([])))
+        @Expect(typeScopeOf(db, string).isNone())
+    }
 }
