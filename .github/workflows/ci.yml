@@ -139,3 +139,45 @@ jobs:
           path: |
             perf.json
             perf-logs
+
+  # the lines the tests reach, in a target dir of its own: instrumentation slows the tests, and the
+  # build's cache and this one would undo each other (D49). No threshold: shared runners are noisy (D23)
+  coverage:
+    name: Coverage (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write # the `badges` branch, and only on a push to master
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      - run: python tests/corpora/fetch.py
+      - run: cjpm test --coverage --no-progress --timeout-each=2m --target-dir target/cov
+      - run: cjcov -r . -s modules -x -j --html-details -o coverage
+        run: |
+          python .github/scripts/coverage.py coverage/coverage.json --badge coverage.json | tee "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage
+      # a PR never changes the badge
+      - name: Publish the badge
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin badges >/dev/null; then
+            git fetch --depth 1 origin badges
+            git worktree add badges FETCH_HEAD
+          else
+            git worktree add --orphan -b badges badges
+          fi
+          cp coverage.json badges/coverage.json
+          cd badges
+          git add coverage.json
+          if git diff --cached --quiet; then
+            echo "the badge is as it was"
+          else
+            git commit -m "chore: coverage $(python -c 'import json; print(json.load(open("coverage.json"))["message"])') at $GITHUB_SHA"
+            git push origin HEAD:badges
+          fi

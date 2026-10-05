@@ -1,5 +1,7 @@
 # cjls
 
+[![coverage](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/ide4cj/cjls/badges/coverage.json)](https://github.com/ide4cj/cjls/actions/workflows/ci.yml)
+
 A language server for [Cangjie](https://cangjie-lang.cn), written in Cangjie:
 incremental, answering from a snapshot while you type,
 reporting no error in code the compiler accepts.
