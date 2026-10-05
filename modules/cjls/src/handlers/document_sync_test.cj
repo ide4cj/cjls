@@ -20,9 +20,12 @@ func opened(text: String, uri!: String = URI): ServerState {
     state
 }
 
-func partial(startLine: UInt32, startColumn: UInt32, endLine: UInt32, endColumn: UInt32, text: String): TextDocumentContentChangeEvent {
+/**
+ * A change replacing `from..to`, each a line and a column, with `text`.
+ */
+func partial(text: String, from!: (UInt32, UInt32), to!: (UInt32, UInt32)): TextDocumentContentChangeEvent {
     TextDocumentContentChangeEvent.AsTextDocumentContentChangePartial(TextDocumentContentChangePartial(
-        range: LspRange(start: Position(line: startLine, character: startColumn), end: Position(line: endLine, character: endColumn)),
+        range: LspRange(start: Position(line: from[0], character: from[1]), end: Position(line: to[0], character: to[1])),
         text: text))
 }
 
@@ -54,7 +57,11 @@ class DocumentSyncTest {
         let state = opened("let a = 1\nlet b = 2\n")
 
         // act
-        change(state, [partial(0, 4, 0, 5, "x"), partial(1, 0, 1, 0, "// b\n"), partial(2, 8, 2, 9, "3")])
+        change(state, [
+            partial("x", from: (0, 4), to: (0, 5)),
+            partial("// b\n", from: (1, 0), to: (1, 0)),
+            partial("3", from: (2, 8), to: (2, 9))
+        ])
 
         // assert
         @Expect(textOf(state), Some("let x = 1\n// b\nlet b = 3\n"))
@@ -68,7 +75,7 @@ class DocumentSyncTest {
 
         // act
         change(state, [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
-            TextDocumentContentChangeWholeDocument(text: "new")), partial(0, 3, 0, 3, "er")])
+            TextDocumentContentChangeWholeDocument(text: "new")), partial("er", from: (0, 3), to: (0, 3))])
 
         // assert
         @Expect(textOf(state), Some("newer"))
@@ -82,8 +89,8 @@ class DocumentSyncTest {
         utf8.encoding = Encoding.Utf8
 
         // act
-        change(utf16, [partial(0, 2, 0, 3, "b")])
-        change(utf8, [partial(0, 4, 0, 5, "b")])
+        change(utf16, [partial("b", from: (0, 2), to: (0, 3))])
+        change(utf8, [partial("b", from: (0, 4), to: (0, 5))])
 
         // assert
         @Expect(textOf(utf16), Some("😀b\n"))
@@ -96,7 +103,7 @@ class DocumentSyncTest {
         let state = opened("abc")
 
         // act
-        change(state, [partial(0, 0, 0, 1, "x"), partial(0, 2, 0, 1, "y")])
+        change(state, [partial("x", from: (0, 0), to: (0, 1)), partial("y", from: (0, 2), to: (0, 1))])
 
         // assert
         @Expect(textOf(state), Some("abc"))
@@ -109,7 +116,7 @@ class DocumentSyncTest {
         let state = ServerState()
 
         // act
-        change(state, [partial(0, 0, 0, 0, "x")])
+        change(state, [partial("x", from: (0, 0), to: (0, 0))])
 
         // assert
         @Expect(textOf(state), None<String>)

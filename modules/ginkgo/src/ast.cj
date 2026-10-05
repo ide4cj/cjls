@@ -29,7 +29,7 @@ public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: A
     for (i in 0..green.childCount) {
         if (let GreenElement.Node(n) <- green.child(i)) {
             if (T.canCast(n.kind)) {
-                if (let Some(it) <- T.cast(SyntaxNode(n, parent, i, parent.offset + green.childOffset(i)))) {
+                if (let Some(it) <- T.cast(SyntaxNode(n, parent: parent, indexInParent: i, offset: parent.offset + green.childOffset(i)))) {
                     return it
                 }
             }
@@ -61,7 +61,7 @@ public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet
             if (counted.contains(node.kind)) {
                 if (seen == n) {
                     return if (T.canCast(node.kind)) {
-                        T.cast(SyntaxNode(node, parent, i, parent.offset + green.childOffset(i)))
+                        T.cast(SyntaxNode(node, parent: parent, indexInParent: i, offset: parent.offset + green.childOffset(i)))
                     } else {
                         None
                     }
@@ -125,7 +125,7 @@ class AstChildrenBetween<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K
                     return None
                 case GreenElement.Token(_) => ()
                 case GreenElement.Node(n) where started && T.canCast(n.kind) =>
-                    if (let Some(it) <- T.cast(SyntaxNode(n, parent, at, parent.offset + green.childOffset(at)))) {
+                    if (let Some(it) <- T.cast(SyntaxNode(n, parent: parent, indexInParent: at, offset: parent.offset + green.childOffset(at)))) {
                         return it
                     }
                 case GreenElement.Node(_) => ()
@@ -154,7 +154,7 @@ class AstChildren<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
                 if (toSkip > 0 && (counted?.contains(n.kind) ?? false)) {
                     toSkip--
                 } else if (T.canCast(n.kind)) {
-                    if (let Some(it) <- T.cast(SyntaxNode(n, parent, at, parent.offset + green.childOffset(at)))) {
+                    if (let Some(it) <- T.cast(SyntaxNode(n, parent: parent, indexInParent: at, offset: parent.offset + green.childOffset(at)))) {
                         return it
                     }
                 }

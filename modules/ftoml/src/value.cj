@@ -51,7 +51,7 @@ public class FtValue {
     var startAt: Int64
     var endAt: Int64
 
-    public init(data: FtData, start: Int64, end: Int64) {
+    public init(data: FtData, start!: Int64 = 0, end!: Int64 = 0) {
         this.data = data
         startAt = start
         endAt = end
@@ -180,7 +180,7 @@ public class FtTable <: Iterable<(String, FtValue)> {
         entries.indexOf(key).map {index => keySpans[index]}
     }
 
-    func add(key: String, value: FtValue, keyStart: Int64, keyEnd: Int64): Unit {
+    func add(key: String, value: FtValue, keyStart!: Int64 = 0, keyEnd!: Int64 = 0): Unit {
         entries.add(key, value)
         keySpans.add((keyStart, keyEnd))
     }

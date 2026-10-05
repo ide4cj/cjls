@@ -41,13 +41,13 @@ public struct LineColumn <: ToString {
 @Derive[Equatable, ToString]
 public struct TextSummary {
     public TextSummary(
-        public let bytes: Int64,
-        public let utf16: Int64,
-        public let chars: Int64,
-        public let lineBreaks: Int64
+        public let bytes!: Int64 = 0,
+        public let utf16!: Int64 = 0,
+        public let chars!: Int64 = 0,
+        public let lineBreaks!: Int64 = 0
     ) {}
 
-    public static let EMPTY = TextSummary(0, 0, 0, 0)
+    public static let EMPTY = TextSummary()
 
     public static func of(text: String): TextSummary {
         summarize(text, 0, text.size)
@@ -65,7 +65,8 @@ public struct TextSummary {
     }
 
     public operator func +(other: TextSummary): TextSummary {
-        TextSummary(bytes + other.bytes, utf16 + other.utf16, chars + other.chars, lineBreaks + other.lineBreaks)
+        TextSummary(bytes: bytes + other.bytes, utf16: utf16 + other.utf16, chars: chars + other.chars,
+            lineBreaks: lineBreaks + other.lineBreaks)
     }
 }
 
@@ -87,7 +88,7 @@ func summarize(text: String, from: Int64, to: Int64): TextSummary {
             utf16 += if (b >= 0xF0) { 2 } else { 1 }
         }
     }
-    TextSummary(to - from, utf16, chars, lineBreaks)
+    TextSummary(bytes: to - from, utf16: utf16, chars: chars, lineBreaks: lineBreaks)
 }
 
 func isContinuation(b: Byte): Bool {
