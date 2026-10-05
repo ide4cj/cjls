@@ -16,6 +16,7 @@
 | `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
 | `ItemId`, `itemIdMap` | `loupe.hir` | an item named so that edits elsewhere leave it, and the file's map of ids to pointers and back (D34) |
 | `itemTree` | `loupe.hir` | what a file declares: package, imports, items by `ItemId`, no ranges, no bodies; equal after an edit inside a body (D34) |
+| `defMap` | `loupe.hir` | a package's declarations by name, each a set with its visibility, its enums' constructors under them, its redefinitions; keyed by a `PackageRef`, either kind of package (D45) |
 | `binaryItemTrees`, `binaryExports` | `loupe.hir` | a `.cjo` in the same model: an `ItemTree` per file of the package, its re-exports its imports; an `exportId` to its item, an item back to its `Decl` (`binaryDecl`). `ItemFile` is either kind of file (D38) |
 | loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFiles`, `readFile`, `isWorkspaceFile`; `cjoFilesIn`, `readCjoFiles` (by stamp, header checked): the disk, nothing else (D30, D38) |
 | project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33); the SDK (`findCangjieHome`, D40) |
@@ -47,3 +48,4 @@
 | A20 | A name is its `Name.text()` or `NameRef.text()`, never the text of its node or token: `` `foo` `` is `foo`, and a name compared, hashed into an `ItemId` or shown keeps no backquotes. |
 | A21 | A query body never catches `Exception` around a calca call, only what it means to tolerate: calca unwinds with `Exception`s, and a body catching one stores nothing and throws it again (D42). A handler interns nothing the user types: interned outside a query, a value is `High`, kept forever (D18). |
 | A22 | Resolution is layered (D44): `itemTree` (a file) → `defMap` (a package) → signatures (an `ItemId`) → bodies and their scopes → inference (a body); a layer reads only those under it. A name in a scope is a set of definitions; a member, an overload or an `extend`'s member is found by inference, never by a `defMap`. |
+| A23 | A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair held apart; a query about one declaration is keyed by it (D45). |
