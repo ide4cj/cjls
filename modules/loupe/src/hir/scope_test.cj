@@ -28,8 +28,7 @@ func sourcePackageOf(db: AnalysisDatabase, file: FixtureFile): Package {
  * Checks what the name at the cursor of `fixture`, used in `ns`, means in its file is its
  * annotations: `//^ def` under each declaration found, `//^ ambiguous` under each candidate of an
  * ambiguity, `//^ ctor` and `//^ imported ctor` under constructors; under the name, `//^ package p`,
- * `//^ ambiguous package p` or `//^ not found`. The imports with their globs read whole
- * (`mergedImports`) must mean the same.
+ * `//^ ambiguous package p` or `//^ not found`.
  */
 func checkScope(fixture: String, ns!: Namespace = Namespace.Values): Unit {
     let parsed = Fixture.parse(fixture)
@@ -48,9 +47,6 @@ func checkScope(fixture: String, ns!: Namespace = Namespace.Values): Unit {
     let (name, range) = use ?? throw FixtureException("no token at $0")
     let pkg = sourcePackageOf(db, file)
     let resolution = lookUp(db, pkg, source, name, ns)
-    let merged = lookUpIn(db, defMap(db, PackageRef.Source(pkg)), ItemFile.Source(source), mergedImports(db, pkg, source),
-        name, ns)
-    @Expect(merged, resolution)
     let onDecl = {id: DefId, text: String => annotationOn(db, id, nameOfDef(db, id), text)}
     let annotations: Array<Annotation> = match (resolution) {
         case Found(ids) => ids.map {id => onDecl(id, "def")}

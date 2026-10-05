@@ -21,5 +21,4 @@ stdxx = { path = "../stdxx" }
 [test-dependencies]
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
-index_map = { path = "../index_map" }
 rope = { path = "../rope" }

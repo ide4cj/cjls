@@ -3,7 +3,6 @@ package project_model
 import std.collection.*
 import std.env.{getVariable, getWorkingDirectory}
 import std.fs.*
-import std.runtime.{gc, getUsedHeapSize}
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.SyntaxElement
@@ -13,7 +12,6 @@ import rope.Rope
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
-import index_map.IndexMap
 import loupe.vfs.{FileId, readCjoFiles, readFiles, Vfs, VfsPath}
 
 /**
@@ -63,14 +61,13 @@ class BenchWorkspace {
     }
 
     /**
-     * Every identifier of every file looked up as a value, through the imports `levelOf` gives:
-     * how many mean something.
+     * Every identifier of every file looked up as a value: how many mean something.
      */
-    func lookUpAll(levelOf: (Package, SourceFile) -> ImportLevel): Int64 {
+    func lookUpAll(): Int64 {
         var found = 0
         for ((pkg, file, names) in files) {
             let defs = defMap(db, PackageRef.Source(pkg))
-            let imports = levelOf(pkg, file)
+            let imports = importsOf(db, pkg, file)
             for (name in names) {
                 if (lookUpIn(db, defs, ItemFile.Source(file), imports, name, Namespace.Values) != Resolution.NotFound) {
                     found++
@@ -78,21 +75,6 @@ class BenchWorkspace {
             }
         }
         found
-    }
-
-    /**
-     * What both levels read: every file's item tree, every package's def map and exports.
-     */
-    func readShared(): Unit {
-        for ((_, file, _) in files) {
-            itemTree(db, file)
-        }
-        for ((_, packages) in packageIndex(db).packages) {
-            for (indexed in packages) {
-                defMap(db, indexed.pkg)
-                packageExports(db, indexed.pkg)
-            }
-        }
     }
 
     /**
@@ -133,14 +115,6 @@ func workspaceRoot(): VfsPath {
     throw IllegalStateException("unreachable")
 }
 
-func lazyLevel(db: AnalysisDatabase): (Package, SourceFile) -> ImportLevel {
-    {pkg: Package, file: SourceFile => importsOf(db, pkg, file)}
-}
-
-func mergedLevel(db: AnalysisDatabase): (Package, SourceFile) -> ImportLevel {
-    {pkg: Package, file: SourceFile => mergedImports(db, pkg, file)}
-}
-
 /**
  * The workspace of the benches, loaded by the first.
  */
@@ -175,133 +149,23 @@ func toggle(ws: BenchWorkspace): Unit {
 }
 
 /**
- * A file's scope, its imports kept with their globs (`importsOf`, A) or read whole
- * (`mergedImports`, B), on this repository: `cjpm bench '--filter=ScopeBench.*'`.
+ * A file's scope on this repository, its identifiers looked up: `cjpm bench '--filter=ScopeBench.*'`.
  */
 @Test
 class ScopeBench {
     @Bench
-    func lookUpEveryIdentifierLazy(): Int64 {
-        let ws = workspace()
-        ws.lookUpAll(lazyLevel(ws.db))
+    func lookUpEveryIdentifier(): Int64 {
+        workspace().lookUpAll()
     }
 
+    /**
+     * A declaration added to the package the most files import by a glob, or taken away: the
+     * imports of those files stay as they were, what they bring is read again (D47).
+     */
     @Bench
-    func lookUpEveryIdentifierMerged(): Int64 {
-        let ws = workspace()
-        ws.lookUpAll(mergedLevel(ws.db))
-    }
-
-    @Bench
-    func addANameToTheMostGlobbedPackageThenLookUpLazy(): Int64 {
+    func addANameToTheMostGlobbedPackageThenLookUpEveryIdentifier(): Int64 {
         let ws = workspace()
         toggle(ws)
-        ws.lookUpAll(lazyLevel(ws.db))
+        ws.lookUpAll()
     }
-
-    @Bench
-    func addANameToTheMostGlobbedPackageThenLookUpMerged(): Int64 {
-        let ws = workspace()
-        toggle(ws)
-        ws.lookUpAll(mergedLevel(ws.db))
-    }
-}
-
-var memoryPrinted = false
-
-/**
- * The heap a level of imports holds for every file of this repository, each on a database of its
- * own: `cjpm bench '--filter=ScopeMemoryBench.*'`, printed once.
- */
-@Test
-class ScopeMemoryBench {
-    @Bench
-    func heldByEveryFilesImports(): Int64 {
-        if (memoryPrinted) {
-            return 0
-        }
-        memoryPrinted = true
-        let ws = BenchWorkspace()
-        ws.readShared()
-        ws.lookUpAll(lazyLevel(ws.db))
-        ws.lookUpAll(mergedLevel(ws.db))
-        let identifiers = ws.files.iterator().fold(0) {sum, it => sum + it[2].size}
-        println("${ws.files.size} files, ${identifiers} identifiers")
-        let packages = HashSet<Package>()
-        for ((pkg, _, _) in ws.files) {
-            packages.add(pkg)
-        }
-        // A: each file's imports and each package's re-exports, globs kept as their packages
-        let lazyNames = ws.files.iterator().fold(0) {sum, it => sum + fileImports(ws.db, it[0], it[1]).names.size}
-        let lazyBytes = heldBy {
-            =>
-            let held = ArrayList<ImportedNames>()
-            for ((pkg, file, _) in ws.files) {
-                held.add(copyOf(fileImports(ws.db, pkg, file)))
-            }
-            for (pkg in packages) {
-                held.add(copyOf(packageImports(ws.db, PackageRef.Source(pkg))))
-            }
-            held
-        }
-        println("lazy: ${lazyNames} names held, ${lazyBytes / 1024} KiB")
-        // B: each file's imports with every glob read whole
-        let mergedNames = ws.files.iterator().fold(0) {sum, it => sum + mergedImports(ws.db, it[0], it[1]).size}
-        let mergedBytes = heldBy {
-            =>
-            let held = ArrayList<MergedImports>()
-            for ((pkg, file, _) in ws.files) {
-                let merged = mergedImports(ws.db, pkg, file)
-                held.add(MergedImports(copyOf(merged.byName), copyOf(merged.ctorsByName)))
-            }
-            held
-        }
-        println("merged: ${mergedNames} names held, ${mergedBytes / 1024} KiB")
-        0
-    }
-}
-
-const COPIES = 10
-
-/**
- * The heap what `make` makes holds: `COPIES` of it held at once, the growth of the heap shared out.
- */
-func heldBy<T>(make: () -> T): Int64 {
-    let before = settledHeap()
-    let copies = ArrayList<T>()
-    for (_ in 0..COPIES) {
-        copies.add(make())
-    }
-    let after = settledHeap()
-    // keeps them alive past the reading
-    if (copies.size != COPIES) {
-        throw IllegalStateException("copies lost")
-    }
-    (after - before) / COPIES
-}
-
-func copyOf<V>(map: IndexMap<String, Array<V>>): IndexMap<String, Array<V>> {
-    IndexMap<String, Array<V>>(map.toArray().map {entry => (entry[0], entry[1].clone())})
-}
-
-func copyOf(names: ImportedNames): ImportedNames {
-    ImportedNames(copyOf(names.names), copyOf(names.ctors), names.globs.clone())
-}
-
-/**
- * The heap in use once the garbage is collected: collected until two readings in a row are
- * within a MiB of each other.
- */
-func settledHeap(): Int64 {
-    var last = Int64.Max
-    for (_ in 0..50) {
-        gc(heavy: true)
-        sleep(Duration.millisecond * 100)
-        let now = getUsedHeapSize()
-        if (now - last < 1024 * 1024 && last - now < 1024 * 1024) {
-            return now
-        }
-        last = now
-    }
-    throw IllegalStateException("the heap does not settle")
 }

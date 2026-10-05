@@ -166,53 +166,38 @@ public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): I
 
 /**
  * The level of imports of a file's scope (N11, N39): its plain imports, its package's re-exports
- * and the prelude, one level, none shadowing another.
+ * and the prelude, one level, none shadowing another. A glob is read by name at each lookup, not
+ * copied whole into each file (D47).
  */
-public interface ImportLevel {
+public struct ImportLevel {
+    public ImportLevel(public let file: ImportedNames, public let pkg: ImportedNames) {}
+
     /**
      * Everything the level has by `name`, a declaration as often as it is brought.
      */
-    func names(db: AnalysisDatabase, name: String): Array<Imported>
-
-    /**
-     * The constructors of the enums it has, by `name`.
-     */
-    func ctors(db: AnalysisDatabase, name: String): Array<DefId>
-}
-
-/**
- * The level of imports as `fileImports` and `packageImports` keep it, globs read by name at each
- * lookup.
- */
-public struct LazyImports <: ImportLevel {
-    public LazyImports(let file: ImportedNames, let pkg: ImportedNames) {}
-
     public func names(db: AnalysisDatabase, name: String): Array<Imported> {
         let found = ArrayList<Imported>()
-        for (imports in [file, pkg]) {
-            found.add(all: imports.names.get(name) ?? [])
-        }
-        for (imports in [file, pkg]) {
-            for (glob in imports.globs) {
-                let exports = packageExports(db, glob.pkg)
-                for (id in visibleOf(exports.names.get(name) ?? [], glob.relation, glob.level)) {
-                    found.add(Imported(ScopeTarget.OfDecl(id), glob.site))
-                }
+        found.add(all: file.names.get(name) ?? [])
+        found.add(all: pkg.names.get(name) ?? [])
+        for (glob in file.globs.iterator().concat(pkg.globs.iterator())) {
+            let exports = packageExports(db, glob.pkg)
+            for (id in visibleOf(exports.names.get(name) ?? [], glob.relation, glob.level)) {
+                found.add(Imported(ScopeTarget.OfDecl(id), glob.site))
             }
         }
         found.toArray()
     }
 
+    /**
+     * The constructors of the enums it has, by `name`.
+     */
     public func ctors(db: AnalysisDatabase, name: String): Array<DefId> {
         let found = ArrayList<DefId>()
-        for (imports in [file, pkg]) {
-            found.add(all: imports.ctors.get(name) ?? [])
-        }
-        for (imports in [file, pkg]) {
-            for (glob in imports.globs) {
-                let exports = packageExports(db, glob.pkg)
-                found.add(all: visibleOf(exports.ctors.get(name) ?? [], glob.relation, glob.level))
-            }
+        found.add(all: file.ctors.get(name) ?? [])
+        found.add(all: pkg.ctors.get(name) ?? [])
+        for (glob in file.globs.iterator().concat(pkg.globs.iterator())) {
+            let exports = packageExports(db, glob.pkg)
+            found.add(all: visibleOf(exports.ctors.get(name) ?? [], glob.relation, glob.level))
         }
         found.toArray()
     }
@@ -221,76 +206,8 @@ public struct LazyImports <: ImportLevel {
 /**
  * The level of imports of `file`, of `pkg`.
  */
-public func importsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): LazyImports {
-    LazyImports(fileImports(db, pkg, file), packageImports(db, PackageRef.Source(pkg)))
-}
-
-/**
- * The level of imports with every glob read: one map of every name, as rust-analyzer's
- * `ItemScope` holds them.
- */
-@Derive[Equatable]
-public struct MergedImports <: ImportLevel {
-    public MergedImports(
-        public let byName: IndexMap<String, Array<Imported>>,
-        public let ctorsByName: IndexMap<String, Array<DefId>>
-    ) {}
-
-    /**
-     * How many names it holds.
-     */
-    public prop size: Int64 {
-        get() {
-            byName.size
-        }
-    }
-
-    public func names(_: AnalysisDatabase, name: String): Array<Imported> {
-        byName.get(name) ?? []
-    }
-
-    public func ctors(_: AnalysisDatabase, name: String): Array<DefId> {
-        ctorsByName.get(name) ?? []
-    }
-}
-
-/**
- * The `MergedImports` of `file`, of `pkg`: those of `importsOf`, each glob read whole.
- */
-@CalcaTracked
-public func mergedImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): MergedImports {
-    let lazy = importsOf(db, pkg, file)
-    let names = IndexMap<String, ArrayList<Imported>>()
-    let ctors = IndexMap<String, ArrayList<DefId>>()
-    for (imports in [lazy.file, lazy.pkg]) {
-        for ((name, imported) in imports.names) {
-            entryOf(names, name).add(all: imported)
-        }
-        for ((name, ids) in imports.ctors) {
-            entryOf(ctors, name).add(all: ids)
-        }
-    }
-    for (imports in [lazy.file, lazy.pkg]) {
-        for (glob in imports.globs) {
-            let exports = packageExports(db, glob.pkg)
-            for ((name, defs) in exports.names) {
-                let ids = visibleOf(defs, glob.relation, glob.level)
-                if (!ids.isEmpty()) {
-                    let entry = entryOf(names, name)
-                    for (id in ids) {
-                        entry.add(Imported(ScopeTarget.OfDecl(id), glob.site))
-                    }
-                }
-            }
-            for ((name, defs) in exports.ctors) {
-                let ids = visibleOf(defs, glob.relation, glob.level)
-                if (!ids.isEmpty()) {
-                    entryOf(ctors, name).add(all: ids)
-                }
-            }
-        }
-    }
-    MergedImports(frozen(names) {list => list.toArray()}, frozen(ctors) {list => list.toArray()})
+public func importsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): ImportLevel {
+    ImportLevel(fileImports(db, pkg, file), packageImports(db, PackageRef.Source(pkg)))
 }
 
 /**
