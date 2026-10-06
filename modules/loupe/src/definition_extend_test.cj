@@ -71,6 +71,39 @@ class ExtendDefinitionTest {
     }
 
     @TestCase
+    func anExtendOfNoInterfaceOfATypeOfTheLanguageIsSeenInItsPackage() {
+        // N81
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            extend Int64 {
+                public static func seven(): Int64 { 7 }
+            //                     ^^^^^ def
+            }
+            func g(): Int64 { Int64.$0seven() }
+            "#)
+    }
+
+    @TestCase
+    func anExtendOfNoInterfaceOfATypeOfTheLanguageIsNotSeenOutsideItsPackage() {
+        // N81: cjc's "undeclared identifier 'seven'", a glob of its package or not; only `std.core`'s
+        // are seen everywhere (N84)
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            extend Int64 {
+                public static func seven(): Int64 { 7 }
+            }
+            public func unused(): Unit {}
+            //- /main.cj module=m package=m
+            package m
+            import m.a.*
+            func g(): Int64 { Int64.$0seven() }
+            //                        ^^^^^ no definition
+            "#)
+    }
+
+    @TestCase
     func anExtendOfAnInterfacesPackageThroughTheInterfaceImported() {
         // N82
         // the interface's `e` too: an implementation is not told from what it implements (step 8)

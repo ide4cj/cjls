@@ -57,25 +57,6 @@ func typeOfPath(db: AnalysisDatabase, def: DefId, segments: Array<TypeSegment>):
 }
 
 /**
- * The `extend`s of every package of the project, by the type each extends, cjc's map of them: which
- * of them a file sees is the lookup's to choose (`isExtendSeen`, D53).
- */
-@CalcaTracked
-public func extendsByType(db: AnalysisDatabase): IndexMap<ExtendedType, Array<DefId>> {
-    let found = IndexMap<ExtendedType, ArrayList<DefId>>()
-    for ((pkg, _) in packageIndex(db).owners) {
-        for ((ty, ids) in packageExtends(db, pkg)) {
-            if (let Some(list) <- found.get(ty)) {
-                list.add(all: ids)
-            } else {
-                found[ty] = ArrayList<DefId>(ids)
-            }
-        }
-    }
-    IndexMap<ExtendedType, Array<DefId>>(found.toArray().map {entry => (entry[0], entry[1].toArray())})
-}
-
-/**
  * The `extend`s of a package, by the type each extends.
  */
 @CalcaTracked
@@ -219,12 +200,78 @@ func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
 }
 
 /**
- * The `extend`s of `ty` the file `from` sees.
+ * The `extend`s of `ty` the file `from` sees, looked for in the packages that may hold one (D53):
+ * the type's, `std.core` for a type of the language, and those of `extendPackagesOf` the file.
  */
 func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array<DefId> {
-    let all = extendsByType(db).get(ty) ?? return []
     let viewer = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
-    all.filter {ext => isExtendSeen(db, ext, ty, viewer)}
+    let pkgs = ArrayList<PackageRef>()
+    let typePackage = match (ty) {
+        case DeclType(id) => packageRefOf(db, id)
+        case PrimType(_) => match (viewer) {
+            case Some((pkg, _)) => packageIndex(db).find("std.core", from: PackageRef.Source(pkg))
+            case None => packageIndex(db).packages.get("std.core").flatMap {all => all.get(0)}.map {one => one.pkg}
+        }
+    }
+    if (let Some(one) <- typePackage) {
+        pkgs.add(one)
+    }
+    if (let Some((pkg, file)) <- viewer) {
+        for (one in extendPackagesOf(db, pkg, file) where !pkgs.contains(one)) {
+            pkgs.add(one)
+        }
+    }
+    pkgs |> flatMap {pkg: PackageRef => packageExtends(db, pkg).get(ty) ?? []} |> filter {
+        ext: DefId => isExtendSeen(db, ext, ty, viewer)
+    } |> collectArray
+}
+
+/**
+ * The packages whose `extend`s a file of `pkg` may see of a type of another package: its own, and
+ * those of the interfaces its imports bring (N82, N83), rust-analyzer's traits in scope. A superset:
+ * whether the file imports an interface an `extend` lists is `isExtendSeen`'s to tell.
+ */
+@CalcaTracked
+public func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<PackageRef> {
+    let found = ArrayList<PackageRef>([PackageRef.Source(pkg)])
+    let imports = importsOf(db, pkg, file)
+    for (names in [imports.file, imports.pkg]) {
+        for ((_, all) in names.names) {
+            for (one in all) {
+                let ref: ?PackageRef = match (one.target) {
+                    case OfDecl(id) where id.item(db).kind == ItemKind.Interface => packageRefOf(db, id)
+                    // `import m.i`, then `i.I`
+                    case OfPackage(other) => other
+                    case _ => None<PackageRef>
+                }
+                if (let Some(other) <- ref && !found.contains(other)) {
+                    found.add(other)
+                }
+            }
+        }
+        for (glob in names.globs) {
+            for (other in interfacePackagesOf(db, glob.pkg) where !found.contains(other)) {
+                found.add(other)
+            }
+        }
+    }
+    found.toArray()
+}
+
+/**
+ * The packages of the interfaces `pkg` exports, its own and those it re-exports, whoever sees them.
+ */
+@CalcaTracked
+public func interfacePackagesOf(db: AnalysisDatabase, pkg: PackageRef): Array<PackageRef> {
+    let found = ArrayList<PackageRef>()
+    for ((_, defs) in packageExports(db, pkg).names) {
+        for (def in defs where def.id.item(db).kind == ItemKind.Interface) {
+            if (let Some(other) <- packageRefOf(db, def.id) && !found.contains(other)) {
+                found.add(other)
+            }
+        }
+    }
+    found.toArray()
 }
 
 /**

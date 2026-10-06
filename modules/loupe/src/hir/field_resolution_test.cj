@@ -51,6 +51,20 @@ class FieldResolutionTest {
     }
 
     @TestCase
+    func anExtendOfNoInterfaceOfStdCoreIsSeenEverywhere() {
+        // N84: `std.core`'s `extend Float64 { fromBits, toBits }`, the type's package's (N81)
+        // arrange
+        let (db, _, f) = declOf(#"
+            package m
+            func f(): Float64 { Float64.fromBits(0) }
+            "#, "f", binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        // act
+        let resolution = resolveField(db, f, fieldNamed(db, f, "fromBits"))
+        // assert
+        @Expect(describe(db, resolution), ["std.core extend fromBits"])
+    }
+
+    @TestCase
     func anExtendOfAnInterfacesCjoIsNotSeenWithoutTheInterface() {
         // N84, N82: cjc's "undeclared identifier 'parse'"
         // arrange
