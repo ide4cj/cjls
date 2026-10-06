@@ -200,12 +200,12 @@ func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
 }
 
 /**
- * The `extend`s of `ty` the file `from` sees, looked for in the packages that may hold one (D53):
- * the type's, `std.core` for a type of the language, and those of `extendPackagesOf` the file.
+ * The `extend`s of `ty` the file `from` sees, looked for where one may be (D53): in the type's
+ * package, `std.core` for a type of the language, in the file's, and among the `extend`s of other
+ * types the packages of its interfaces hold (`interfaceExtendsOf`).
  */
 func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array<DefId> {
     let viewer = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
-    let pkgs = ArrayList<PackageRef>()
     let typePackage = match (ty) {
         case DeclType(id) => packageRefOf(db, id)
         case PrimType(_) => match (viewer) {
@@ -213,26 +213,61 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
             case None => packageIndex(db).packages.get("std.core").flatMap {all => all.get(0)}.map {one => one.pkg}
         }
     }
+    let found = ArrayList<DefId>()
     if (let Some(one) <- typePackage) {
-        pkgs.add(one)
+        found.add(all: packageExtends(db, one).get(ty) ?? [])
     }
     if (let Some((pkg, file)) <- viewer) {
-        for (one in extendPackagesOf(db, pkg, file) where !pkgs.contains(one)) {
-            pkgs.add(one)
+        if (typePackage != PackageRef.Source(pkg)) {
+            found.add(all: packageExtends(db, PackageRef.Source(pkg)).get(ty) ?? [])
         }
+        found.add(all: interfaceExtendsOf(db, pkg, file).get(ty) ?? [])
     }
-    pkgs |> flatMap {pkg: PackageRef => packageExtends(db, pkg).get(ty) ?? []} |> filter {
-        ext: DefId => isExtendSeen(db, ext, ty, viewer)
-    } |> collectArray
+    found.toArray().filter {ext => isExtendSeen(db, ext, ty, viewer)}
 }
 
 /**
- * The packages whose `extend`s a file of `pkg` may see of a type of another package: its own, and
- * those of the interfaces its imports bring (N82, N83), rust-analyzer's traits in scope. A superset:
- * whether the file imports an interface an `extend` lists is `isExtendSeen`'s to tell.
+ * The `extend`s a file of `pkg` may see through an interface it imports (N82), by the type each
+ * extends: those of the types of other packages the packages of its interfaces hold
+ * (`foreignExtends`), rust-analyzer's traits in scope. A superset: whether the file imports an
+ * interface an `extend` lists is `isExtendSeen`'s to tell.
  */
 @CalcaTracked
-public func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<PackageRef> {
+public func interfaceExtendsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): IndexMap<ExtendedType, Array<DefId>> {
+    let found = IndexMap<ExtendedType, ArrayList<DefId>>()
+    for (other in extendPackagesOf(db, pkg, file)) {
+        for ((ty, ids) in foreignExtends(db, other)) {
+            if (let Some(list) <- found.get(ty)) {
+                list.add(all: ids)
+            } else {
+                found[ty] = ArrayList<DefId>(ids)
+            }
+        }
+    }
+    IndexMap<ExtendedType, Array<DefId>>(found.toArray().map {entry => (entry[0], entry[1].toArray())})
+}
+
+/**
+ * The `extend`s of `pkg` of the types of other packages, those of the language of any but
+ * `std.core`: the only ones an importer may see through an interface (N83).
+ */
+@CalcaTracked
+public func foreignExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<ExtendedType, Array<DefId>> {
+    let isCore = nameOf(db, pkg) == "std.core"
+    let found = packageExtends(db, pkg).toArray().filter {
+        entry => match (entry[0]) {
+            case DeclType(id) => packageRefOf(db, id) != pkg
+            case PrimType(_) => !isCore
+        }
+    }
+    IndexMap<ExtendedType, Array<DefId>>(found)
+}
+
+/**
+ * The packages other than `pkg` of the interfaces a file of it imports (N82, N83), by name, alias,
+ * glob, its package's re-export, or their package's name.
+ */
+func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<PackageRef> {
     let found = ArrayList<PackageRef>([PackageRef.Source(pkg)])
     let imports = importsOf(db, pkg, file)
     for (names in [imports.file, imports.pkg]) {
@@ -255,7 +290,7 @@ public func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFil
             }
         }
     }
-    found.toArray()
+    found.toArray()[1..]
 }
 
 /**
