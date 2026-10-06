@@ -87,7 +87,7 @@ public func resolveField(db: AnalysisDatabase, def: DefId, expr: ExprId): FieldR
                 FieldResolution.PackageMembers(ids)
             }
         case TypesReceiver(types) =>
-            let targets = memberLookup(db, types, name, from: packageOf(db, def))
+            let targets = memberLookup(db, types, name, from: sourceFileOf(db, def))
             if (targets.isEmpty()) {
                 FieldResolution.NoField
             } else {

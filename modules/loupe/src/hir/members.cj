@@ -5,7 +5,7 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
-import loupe.db.{AnalysisDatabase, Package}
+import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
  * A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).
@@ -24,10 +24,16 @@ public enum ExtendedType <: ToString {
 }
 
 /**
- * The type the `extend` `def` extends, its path resolved in its scope; `None` for one that does not
- * resolve to a type.
+ * The type the `extend` `def` extends, its path resolved in its scope, or as its `.cjo` has it;
+ * `None` for one that does not resolve to a type.
  */
 public func extendedTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
+    if (let Binary(pkg, index) <- def.file(db)) {
+        if (def.item(db).kind != ItemKind.Extend) {
+            return None
+        }
+        return binaryExtendedType(db, pkg, BinaryItem(index, def.item(db)))
+    }
     let sig = signature(db, def)
     let ty = sig.ty ?? return None
     match (sig[ty]) {
@@ -51,12 +57,12 @@ func typeOfPath(db: AnalysisDatabase, def: DefId, segments: Array<TypeSegment>):
 }
 
 /**
- * The `extend`s of a source package, by the type each extends.
+ * The `extend`s of a package, by the type each extends.
  */
 @CalcaTracked
-public func packageExtends(db: AnalysisDatabase, pkg: Package): IndexMap<ExtendedType, Array<DefId>> {
+public func packageExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<ExtendedType, Array<DefId>> {
     let found = IndexMap<ExtendedType, ArrayList<DefId>>()
-    for (file in filesOf(db, PackageRef.Source(pkg))) {
+    for (file in filesOf(db, pkg)) {
         for (item in itemTreeOf(db, file).items where item.kind == ItemKind.Extend) {
             let def = DefId(db, file, item.id)
             if (let Some(ty) <- extendedTypeOf(db, def)) {
@@ -106,35 +112,51 @@ public enum MemberTarget <: ToString {
 }
 
 /**
- * The level of members of the type around the body of `def`, as seen from its package (N69, N70):
+ * The level of members of the type around the body of `def`, as seen from its file (N69, N70):
  * `memberLookup` from that type.
  */
 public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<MemberTarget> {
     let start = enclosingTypeOf(db, def) ?? return []
-    memberLookup(db, [start], name, from: packageOf(db, def))
+    memberLookup(db, [start], name, from: sourceFileOf(db, def))
 }
 
 /**
  * The package `def` is declared in, if it is a source package.
  */
 func packageOf(db: AnalysisDatabase, def: DefId): ?Package {
+    sourceFileOf(db, def).flatMap {file => packageOfFile(db, file)}
+}
+
+/**
+ * The file `def` is declared in, if it is a source file.
+ */
+func sourceFileOf(db: AnalysisDatabase, def: DefId): ?SourceFile {
     match (def.file(db)) {
-        case Source(file) => packageOfFile(db, file)
+        case Source(file) => file
         case Binary(_, _) => None
     }
 }
 
 /**
- * The members named `name` of the types `start`, as seen from the package `from`: their own, their
- * `extend`s', then their supertypes' and theirs, level by level, the nearest that has `name`
- * deciding but for functions, which gather over the levels (N69, N70, N77). A member's modifiers do
- * not hide it: cjc finds a private member of a supertype, then says it cannot be accessed (N80).
- *
- * The `extend`s are those of `from` and of each type's package; those of another package, seen
- * through an interface the file imports, are not yet.
+ * The package `def` is declared in, of either kind; `None` for a source file of no package.
+ */
+func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
+    match (def.file(db)) {
+        case Source(file) => packageOfFile(db, file).map {pkg => PackageRef.Source(pkg)}
+        case Binary(pkg, _) => PackageRef.Binary(pkg)
+    }
+}
+
+/**
+ * The members named `name` of the types `start`, as seen from the file `from`: their own, the
+ * `extend`s' it sees (`isExtendSeen`), then their supertypes' and theirs, level by level, the
+ * nearest that has `name` deciding but for functions, which gather over the levels (N69, N70, N77).
+ * A member's modifiers do not hide it: cjc finds a private member of a supertype, or one of an
+ * `extend` seen through an interface it does not declare, then says it cannot be accessed or is no
+ * member (N80, N82).
  */
 public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name: String,
-    from!: ?Package): Array<MemberTarget> {
+    from!: ?SourceFile): Array<MemberTarget> {
     let funcs = ArrayList<MemberTarget>()
     let seen = HashSet<ExtendedType>(start)
     var level = start
@@ -178,19 +200,185 @@ func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
 }
 
 /**
- * The `extend`s of `ty` in the package `from` and in the type's own, if it is a source package's.
+ * The `extend`s of `ty` the file `from` sees, looked for where one may be (D53): in the type's
+ * package, `std.core` for a type of the language, in the file's, and among the `extend`s of other
+ * types the packages of its interfaces hold (`interfaceExtendsOf`).
  */
-func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?Package): Array<DefId> {
-    let pkgs = ArrayList<Package>()
-    if (let Some(one) <- from) {
-        pkgs.add(one)
-    }
-    if (let DeclType(id) <- ty && let Source(file) <- id.file(db)) {
-        if (let Some(own) <- packageOfFile(db, file) && !pkgs.contains(own)) {
-            pkgs.add(own)
+func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array<DefId> {
+    let viewer = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
+    let typePackage = match (ty) {
+        case DeclType(id) => packageRefOf(db, id)
+        case PrimType(_) => match (viewer) {
+            case Some((pkg, _)) => packageIndex(db).find("std.core", from: PackageRef.Source(pkg))
+            // a lookup from a `.cjo`, compiled against the SDK's `std.core`: a binary one, not a
+            // package of the project named so, which the index lists first
+            case None => packageIndex(db).packages.get("std.core").flatMap {
+                all => all.iterator().filter {
+                    one => match (one.pkg) {
+                        case Binary(_) => true
+                        case Source(_) => false
+                    }
+                }.next()
+            }.map {one => one.pkg}
         }
     }
-    pkgs |> flatMap {pkg: Package => packageExtends(db, pkg).get(ty) ?? []} |> collectArray
+    let found = ArrayList<DefId>()
+    if (let Some(one) <- typePackage) {
+        found.add(all: packageExtends(db, one).get(ty) ?? [])
+    }
+    if (let Some((pkg, file)) <- viewer) {
+        if (typePackage != PackageRef.Source(pkg)) {
+            found.add(all: packageExtends(db, PackageRef.Source(pkg)).get(ty) ?? [])
+        }
+        found.add(all: interfaceExtendsOf(db, pkg, file).get(ty) ?? [])
+    }
+    found.toArray().filter {ext => isExtendSeen(db, ext, ty, viewer)}
+}
+
+/**
+ * The `extend`s a file of `pkg` may see through an interface it imports (N82), by the type each
+ * extends: those of the types of other packages the packages of its interfaces hold
+ * (`foreignExtends`), rust-analyzer's traits in scope. A superset: whether the file imports an
+ * interface an `extend` lists is `isExtendSeen`'s to tell.
+ */
+@CalcaTracked
+public func interfaceExtendsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): IndexMap<ExtendedType, Array<DefId>> {
+    let found = IndexMap<ExtendedType, ArrayList<DefId>>()
+    for (other in extendPackagesOf(db, pkg, file)) {
+        for ((ty, ids) in foreignExtends(db, other)) {
+            if (let Some(list) <- found.get(ty)) {
+                list.add(all: ids)
+            } else {
+                found[ty] = ArrayList<DefId>(ids)
+            }
+        }
+    }
+    IndexMap<ExtendedType, Array<DefId>>(found.toArray().map {entry => (entry[0], entry[1].toArray())})
+}
+
+/**
+ * The `extend`s of `pkg` of the types of other packages, those of the language of any but
+ * `std.core`: the only ones an importer may see through an interface (N83).
+ */
+@CalcaTracked
+public func foreignExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<ExtendedType, Array<DefId>> {
+    let isCore = nameOf(db, pkg) == "std.core"
+    let found = packageExtends(db, pkg).toArray().filter {
+        entry => match (entry[0]) {
+            case DeclType(id) => packageRefOf(db, id) != pkg
+            case PrimType(_) => !isCore
+        }
+    }
+    IndexMap<ExtendedType, Array<DefId>>(found)
+}
+
+/**
+ * The packages other than `pkg` of the interfaces a file of it imports (N82, N83), by name, alias,
+ * glob, its package's re-export, or their package's name.
+ */
+func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<PackageRef> {
+    let found = ArrayList<PackageRef>([PackageRef.Source(pkg)])
+    let imports = importsOf(db, pkg, file)
+    for (names in [imports.file, imports.pkg]) {
+        for ((_, all) in names.names) {
+            for (one in all) {
+                let ref: ?PackageRef = match (one.target) {
+                    case OfDecl(id) where id.item(db).kind == ItemKind.Interface => packageRefOf(db, id)
+                    // `import m.i`, then `i.I`
+                    case OfPackage(other) => other
+                    case _ => None<PackageRef>
+                }
+                if (let Some(other) <- ref && !found.contains(other)) {
+                    found.add(other)
+                }
+            }
+        }
+        for (glob in names.globs) {
+            for (other in interfacePackagesOf(db, glob.pkg) where !found.contains(other)) {
+                found.add(other)
+            }
+        }
+    }
+    found.toArray()[1..]
+}
+
+/**
+ * The packages of the interfaces `pkg` exports, its own and those it re-exports, whoever sees them.
+ */
+@CalcaTracked
+public func interfacePackagesOf(db: AnalysisDatabase, pkg: PackageRef): Array<PackageRef> {
+    let found = ArrayList<PackageRef>()
+    for ((_, defs) in packageExports(db, pkg).names) {
+        for (def in defs where def.id.item(db).kind == ItemKind.Interface) {
+            if (let Some(other) <- packageRefOf(db, def.id) && !found.contains(other)) {
+                found.add(other)
+            }
+        }
+    }
+    found.toArray()
+}
+
+/**
+ * Whether the file of `viewer`, of its package, sees the `extend` `ext` of `ty`, cjc's
+ * `IsExtendAccessible`: one of its package does (N81); one of the type's package, `std.core` for a
+ * type of the language, is seen wherever the type is (N81, N82, N84); one of another package, an
+ * interface's (N83), where the file imports one of the interfaces it lists, and the type (N82). With
+ * no file, only the type's package's are.
+ */
+func isExtendSeen(db: AnalysisDatabase, ext: DefId, ty: ExtendedType, viewer: ?(Package, SourceFile)): Bool {
+    let extPkg = packageRefOf(db, ext) ?? return false
+    if (let Some((pkg, _)) <- viewer && extPkg == PackageRef.Source(pkg)) {
+        return true
+    }
+    let ofTypesPackage = match (ty) {
+        case DeclType(id) => packageRefOf(db, id) == extPkg
+        case PrimType(_) => nameOf(db, extPkg) == "std.core"
+    }
+    if (ofTypesPackage) {
+        return true
+    }
+    let (pkg, file) = viewer ?? return false
+    let imports = importsOf(db, pkg, file)
+    let typeSeen = match (ty) {
+        case DeclType(id) => isImported(db, pkg, imports, id)
+        case PrimType(_) => true
+    }
+    typeSeen && supertypes(db, ext).iterator().any {
+        one => match (one) {
+            case DeclType(id) => isImported(db, pkg, imports, id)
+            case PrimType(_) => false
+        }
+    }
+}
+
+/**
+ * Whether a file of `pkg` whose level of imports is `imports` sees the declaration `id` (cjc's
+ * `IsDeclAccessible`): one of its package, or one it imports by its name, an alias, a glob, its
+ * package's re-export, or its package's name (`import m.i`, then `i.I`).
+ */
+func isImported(db: AnalysisDatabase, pkg: Package, imports: ImportLevel, id: DefId): Bool {
+    let own = packageRefOf(db, id) ?? return false
+    if (own == PackageRef.Source(pkg)) {
+        return true
+    }
+    for (names in [imports.file, imports.pkg]) {
+        for ((_, all) in names.names) {
+            for (one in all) {
+                match (one.target) {
+                    case OfDecl(other) where other == id => return true
+                    case OfPackage(other) where other == own => return true
+                    case _ => ()
+                }
+            }
+        }
+    }
+    let name = itemOf(db, id).flatMap {item => item.names.get(0)} ?? return false
+    imports.names(db, name).iterator().any {
+        one => match (one.target) {
+            case OfDecl(other) => other == id
+            case OfPackage(_) => false
+        }
+    }
 }
 
 /**

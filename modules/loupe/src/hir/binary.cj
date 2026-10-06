@@ -5,7 +5,7 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import cjo.{AccessLevel, AccessModifier, Attribute, Attributes, DeclInfo, DeclKind, FbVector, FullId, openCjo, PackageKind,
-    Position, SemaTyInfo}
+    Position, SemaTyInfo, TypeKind}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
@@ -85,7 +85,7 @@ public func binaryDecl(db: AnalysisDatabase, pkg: BinaryPackageFile, item: Binar
  */
 public func binarySupertypes(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): Array<DefId> {
     let index = binaryExports(db, pkg).declIndex(item) ?? return []
-    let names = try {
+    let refs = try {
         let cjo = openCjo(pkg.bytes(db))
         let inherited = match (cjo.allDecls[index].info) {
             case Some(DeclInfo.AsClassInfo(it)) => it.inheritedTypes.toArray()
@@ -96,44 +96,106 @@ public func binarySupertypes(db: AnalysisDatabase, pkg: BinaryPackageFile, item:
             case _ => Array<UInt32>()
         }
         let imports = cjo.imports.toArray()
-        let types = cjo.allTypes
-        inherited |> filterMap {
-            ty: UInt32 =>
-            // a type is named by its place among `allTypes` from 1, 0 for none
-            if (ty == 0 || Int64(ty) > types.size) {
-                return None<(?String, String, Int64)>
-            }
-            let declPtr = match (types[Int64(ty) - 1].info) {
-                case Some(SemaTyInfo.AsCompositeTyInfo(info)) => info.declPtr
-                case _ => None<FullId>
-            }
-            let id = declPtr ?? return None<(?String, String, Int64)>
-            // -2 this package, by the place of the declaration among `allDecls` from 1; 0 and up a
-            // package it imports, by the declaration's `exportId`
-            match (id.pkgId) {
-                case -2 => Some((None<String>, "", Int64(id.index) - 1))
-                case n where n >= 0 && Int64(n) < imports.size => Some((Some(imports[Int64(n)]), id.decl ?? "", -1))
-                case _ => None<(?String, String, Int64)>
-            }
-        } |> collectArray
+        inherited |> filterMap {ty: UInt32 => binaryTypeRef(cjo, imports, ty)} |> collectArray
     } catch (_: Exception) {
         return []
     }
-    names |> filterMap {
-        name: (?String, String, Int64) =>
-        let (pkgName, exportId, declIndex) = name
-        match (pkgName) {
-            case None => binaryExports(db, pkg).itemAt(declIndex).map {
-                one => DefId(db, ItemFile.Binary(pkg, one.file), one.id)
-            }
-            case Some(full) => match (packageIndex(db).find(full, from: PackageRef.Binary(pkg))) {
-                case Some(PackageRef.Binary(other)) => binaryExports(db, other).itemOf(exportId).map {
-                    one => DefId(db, ItemFile.Binary(other, one.file), one.id)
-                }
-                case _ => None
-            }
+    refs |> filterMap {
+        ref: BinaryTypeRef => match (resolveBinaryType(db, pkg, ref)) {
+            case Some(DeclType(id)) => id
+            case _ => None
         }
     } |> collectArray
+}
+
+/**
+ * The type the `extend` `item` of `pkg` extends, as its `.cjo` resolved it; `None` for one that
+ * cannot be found among the packages of the project.
+ */
+public func binaryExtendedType(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): ?ExtendedType {
+    let index = binaryExports(db, pkg).declIndex(item) ?? return None
+    let ref = try {
+        let cjo = openCjo(pkg.bytes(db))
+        binaryTypeRef(cjo, cjo.imports.toArray(), cjo.allDecls[index].`type`)
+    } catch (_: Exception) {
+        None<BinaryTypeRef>
+    }
+    resolveBinaryType(db, pkg, ref ?? return None)
+}
+
+/**
+ * A type of a `.cjo`, as far as its bytes tell.
+ */
+enum BinaryTypeRef {
+    /**
+     * A type of the language, by its keyword.
+     */
+    | PrimTypeRef(String)
+    /**
+     * A type of the compiler's own (`CPointer`, `CString`), by its name in `std.core`.
+     */
+    | BuiltInRef(String)
+    /**
+     * A declaration of this package by its index among `allDecls`, or of a package it imports, by
+     * its name and the declaration's `exportId`.
+     */
+    | OwnDeclRef(Int64)
+    | ImportedDeclRef(String, String)
+}
+
+/**
+ * The type `ty` of `cjo`, whose imports are `imports`: by its place among `allTypes` from 1, 0 for
+ * none.
+ */
+func binaryTypeRef(cjo: CjoPackage, imports: Array<String>, ty: UInt32): ?BinaryTypeRef {
+    let types = cjo.allTypes
+    if (ty == 0 || Int64(ty) > types.size) {
+        return None
+    }
+    let semaTy = types[Int64(ty) - 1]
+    match (semaTy.kind) {
+        case TypeKind.CPointer | TypeKind.CString => return BinaryTypeRef.BuiltInRef(semaTy.kind.toString())
+        case TypeKind.`Unit` | TypeKind.`Int8` | TypeKind.`Int16` | TypeKind.`Int32` | TypeKind.`Int64` |
+            TypeKind.`IntNative` | TypeKind.`UInt8` | TypeKind.`UInt16` | TypeKind.`UInt32` | TypeKind.`UInt64` |
+            TypeKind.`UIntNative` | TypeKind.`Float16` | TypeKind.`Float32` | TypeKind.`Float64` | TypeKind.`Rune` |
+            TypeKind.`Nothing` | TypeKind.`Bool` => return BinaryTypeRef.PrimTypeRef(semaTy.kind.toString())
+        case _ => ()
+    }
+    let id = match (semaTy.info) {
+        case Some(SemaTyInfo.AsCompositeTyInfo(info)) => info.declPtr
+        case _ => None<FullId>
+    } ?? return None
+    // -2 this package, by the place of the declaration among `allDecls` from 1; 0 and up a package
+    // it imports, by the declaration's `exportId`
+    match (id.pkgId) {
+        case -2 => BinaryTypeRef.OwnDeclRef(Int64(id.index) - 1)
+        case n where n >= 0 && Int64(n) < imports.size => BinaryTypeRef.ImportedDeclRef(imports[Int64(n)], id.decl ?? "")
+        case _ => None
+    }
+}
+
+/**
+ * The type `ref`, of `pkg`, names among the packages of the project; `None` for one not found.
+ */
+func resolveBinaryType(db: AnalysisDatabase, pkg: BinaryPackageFile, ref: BinaryTypeRef): ?ExtendedType {
+    match (ref) {
+        case PrimTypeRef(name) => ExtendedType.PrimType(name)
+        case BuiltInRef(name) =>
+            let core = packageIndex(db).find("std.core", from: PackageRef.Binary(pkg)) ?? return None
+            let builtIns = packageExports(db, core).names.get(name) ?? []
+            builtIns.iterator().filter {one => one.id.item(db).kind == ItemKind.BuiltIn}.next().map {
+                one => ExtendedType.DeclType(one.id)
+            }
+        case OwnDeclRef(index) => binaryExports(db, pkg).itemAt(index).map {
+            one => ExtendedType.DeclType(DefId(db, ItemFile.Binary(pkg, one.file), one.id))
+        }
+        case ImportedDeclRef(full, exportId) => match (packageIndex(db).find(full, from: PackageRef.Binary(pkg))) {
+            case Some(PackageRef.Binary(other)) => binaryExports(db, other).itemOf(exportId).map {
+                one => ExtendedType.DeclType(DefId(db, ItemFile.Binary(other, one.file), one.id))
+            }
+            case _ => None
+        }
+    }
 }
 
 /**
