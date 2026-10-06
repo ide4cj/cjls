@@ -32,7 +32,8 @@ func resolveEveryBodyName(ws: BenchWorkspace, onFailed!: (SourceFile, DefId, Str
 }
 
 /**
- * The names used in this repository's bodies, resolved: `cjpm bench '--filter=BodyResolutionBench.*'`.
+ * The names used in this repository's bodies, resolved, every query memoized past the first run, which the default
+ * heap does not hold: `cjHeapSize=2GB cjpm bench '--filter=BodyResolutionBench.*'`.
  */
 @Test
 class BodyResolutionBench {
