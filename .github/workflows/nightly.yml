@@ -5,7 +5,7 @@ name: Nightly
 # when that commit is the nightly already.
 on:
   schedule:
-    - cron: "0 3 * * *" # every night, 03:00 UTC
+    - cron: "17 3 * * *" # every night, 03:17 UTC: off the hour, when GitHub delays schedules least
   workflow_dispatch:
 
 concurrency:
@@ -30,8 +30,11 @@ jobs:
       - name: Master's newest green commit
         id: green
         run: |
+          # the newest runs, filtered here: the API's own `status=success` filter returned a run of two
+          # days before for a day (2026-10-05) while newer ones had passed
           read -r run sha < <(gh run list --repo "$GITHUB_REPOSITORY" --workflow ci.yml --branch master --event push \
-            --status success --limit 1 --json databaseId,headSha --jq '.[0] | "\(.databaseId) \(.headSha)"') || true
+            --limit 30 --json databaseId,headSha,conclusion \
+            --jq 'map(select(.conclusion == "success")) | .[0] // empty | "\(.databaseId) \(.headSha)"') || true
           if [ -z "$sha" ]; then
             echo "::notice::CI has not passed on master yet"
             exit 0
