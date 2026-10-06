@@ -23,7 +23,7 @@ cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
 rope = { path = "../rope" }
 
-# `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D50
+# `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
 [target.aarch64-apple-darwin.release]
 compile-option = "-O2"
 

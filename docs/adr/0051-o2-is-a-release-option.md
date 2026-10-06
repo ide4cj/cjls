@@ -1,4 +1,4 @@
-# ADR-0050: `-O2` is a release option, and the coverage builds with `-g`
+# ADR-0051: `-O2` is a release option, and the coverage builds with `-g`
 
 Status: accepted, 2026-10-06
 

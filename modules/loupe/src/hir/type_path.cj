@@ -20,6 +20,11 @@ public enum TypeTarget <: ToString {
      */
     | GenericOf(DefId, Int64)
     /**
+     * A type parameter of a function declared in a body (N68): the declaration of the body, the
+     * function's place among its `funcs`, and the parameter's among the function's.
+     */
+    | LocalGenericOf(DefId, Int64, Int64)
+    /**
      * A package imported by its name, before the type it holds (N51).
      */
     | QualifierOf(PackageRef)
@@ -28,6 +33,7 @@ public enum TypeTarget <: ToString {
         match (this) {
             case TypeOf(id) => "type ${id}"
             case GenericOf(id, index) => "generic ${index} of ${id}"
+            case LocalGenericOf(id, local, index) => "generic ${index} of local ${local} of ${id}"
             case QualifierOf(pkg) => "package ${pkg}"
         }
     }
