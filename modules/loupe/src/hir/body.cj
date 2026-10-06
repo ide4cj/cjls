@@ -4,8 +4,8 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, Interpolation, LambdaExpr, MatchCase, Name, ParamList,
-    PathSegment, Pattern, ResourceDecl, Type}
+import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr, MatchCase,
+    Name, ParamList, PathSegment, Pattern, ResourceDecl, Type}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -107,7 +107,11 @@ public struct LocalFunc {
         public let generics: Array<String>,
         public let params: Array<BodyParam>,
         public let ret: ?TypeRefId,
-        public let body: ?ExprId
+        public let body: ?ExprId,
+        /**
+         * Its `where`, as a signature's (N78).
+         */
+        public let bounds!: Array<TypeBound> = []
     ) {}
 }
 
@@ -524,7 +528,14 @@ class BodyLowering {
                 }
                 let params = params(it.paramLists())
                 let ret = it.retType().flatMap {one => one.ty()}.map {one => types.lower(one)}
-                funcs.add(LocalFunc(name, generics, params, ret, blockOf(it.block())))
+                let bounds = match (it.whereClause()) {
+                    case Some(clause) => clause.genericConstraints() |> map {
+                        constraint: GenericConstraint =>
+                        TypeBound(types.lower(constraint.ty()), types.bounds(constraint.typeBoundList()))
+                    } |> collectArray
+                    case None => Array<TypeBound>()
+                }
+                funcs.add(LocalFunc(name, generics, params, ret, blockOf(it.block()), bounds: bounds))
                 Stmt.FuncStmt(funcs.size - 1)
             case Decl.AsMacroExpandDecl(it) => it.decl().flatMap {inner => stmtOf(inner)}
             case _ => None

@@ -67,3 +67,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0049](0049-coverage-is-a-workflow-of-its-own.md) | Coverage is a workflow of its own, counted over source files (tests excluded), shown by a shields.io endpoint badge on a `badges` branch | accepted |
 | [0050](0050-a-body-is-lowered-to-hir-and-scoped.md) | A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup | accepted |
 | [0051](0051-o2-is-a-release-option.md) | `-O2` is in each module's `[target.<triple>.release]`, not its `compile-option`: the coverage builds with `-g`, unoptimized | accepted |
+| [0052](0052-a-name-after-a-dot-is-resolved-by-names-up-to-a-value.md) | A name after a `.` is resolved by names up to a value, members looked up from a type; a value's member is inference's | accepted |

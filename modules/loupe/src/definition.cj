@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BindPat, EnumPat, PathSegment, PathType, RefExpr}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BindPat, EnumPat, MemberAccessExpr, PathSegment, PathType, RefExpr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -79,7 +79,8 @@ func typeTargets(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, segme
 
 /**
  * Where the name `token`, in the body of `def`, is declared: what a name used there means (N59–N71),
- * the constructor a pattern names (N72), a local itself at its declaration.
+ * what a name after a `.` does (N75–N79), the constructor a pattern names (N72), a local itself at
+ * its declaration.
  */
 func bodyTargets(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<NavigationTarget> {
     let name = token.parent
@@ -95,6 +96,16 @@ func bodyTargets(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<
         return match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())) {
             case Values(targets) => targets |> filterMap {target: ValueTarget => valueTarget(db, def, target)} |> collectArray
             case InFile(resolution) => fileTargets(db, resolution)
+        }
+    }
+    if (let Some(access) <- MemberAccessExpr.cast(node)) {
+        let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return []
+        return match (resolveField(db, def, expr)) {
+            case PackageMembers(ids) => declTargets(db, ids)
+            case TypeMembers(targets) => targets |> filterMap {
+                target: MemberTarget => valueTarget(db, def, ValueTarget.MemberOf(target))
+            } |> collectArray
+            case _ => []
         }
     }
     if (let Some(bind) <- BindPat.cast(node)) {
