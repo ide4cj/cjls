@@ -155,8 +155,10 @@ func binaryTypeRef(cjo: CjoPackage, imports: Array<String>, ty: UInt32): ?Binary
     let semaTy = types[Int64(ty) - 1]
     match (semaTy.kind) {
         case TypeKind.CPointer | TypeKind.CString => return BinaryTypeRef.BuiltInRef(semaTy.kind.toString())
-        // `Unit` to `Bool`: the types of the language
-        case kind where kind.value >= 1 && kind.value <= 17 => return BinaryTypeRef.PrimTypeRef(kind.toString())
+        case TypeKind.`Unit` | TypeKind.`Int8` | TypeKind.`Int16` | TypeKind.`Int32` | TypeKind.`Int64` |
+            TypeKind.`IntNative` | TypeKind.`UInt8` | TypeKind.`UInt16` | TypeKind.`UInt32` | TypeKind.`UInt64` |
+            TypeKind.`UIntNative` | TypeKind.`Float16` | TypeKind.`Float32` | TypeKind.`Float64` | TypeKind.`Rune` |
+            TypeKind.`Nothing` | TypeKind.`Bool` => return BinaryTypeRef.PrimTypeRef(semaTy.kind.toString())
         case _ => ()
     }
     let id = match (semaTy.info) {

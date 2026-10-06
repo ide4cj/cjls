@@ -210,7 +210,16 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
         case DeclType(id) => packageRefOf(db, id)
         case PrimType(_) => match (viewer) {
             case Some((pkg, _)) => packageIndex(db).find("std.core", from: PackageRef.Source(pkg))
-            case None => packageIndex(db).packages.get("std.core").flatMap {all => all.get(0)}.map {one => one.pkg}
+            // a lookup from a `.cjo`, compiled against the SDK's `std.core`: a binary one, not a
+            // package of the project named so, which the index lists first
+            case None => packageIndex(db).packages.get("std.core").flatMap {
+                all => all.iterator().filter {
+                    one => match (one.pkg) {
+                        case Binary(_) => true
+                        case Source(_) => false
+                    }
+                }.next()
+            }.map {one => one.pkg}
         }
     }
     let found = ArrayList<DefId>()
