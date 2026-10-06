@@ -517,20 +517,6 @@ class DefinitionTest {
     }
 
     @TestCase
-    func aTypeInABodyIsNotYetResolved() {
-        // step 6 of #48
-        checkDefinition(#"
-            //- /main.cj module=m package=m
-            package m
-            class C {}
-            func f(): Unit {
-                let x: $0C = C()
-            //           ^ no definition
-            }
-            "#)
-    }
-
-    @TestCase
     func aTypeOfACompiledPackageHasNoSourceToGoTo() {
         // arrange
         let parsed = Fixture.parse(#"

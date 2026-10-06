@@ -4,7 +4,8 @@ import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
-import cjo.{AccessLevel, AccessModifier, Attribute, Attributes, DeclInfo, DeclKind, FbVector, openCjo, PackageKind, Position}
+import cjo.{AccessLevel, AccessModifier, Attribute, Attributes, DeclInfo, DeclKind, FbVector, FullId, openCjo, PackageKind,
+    Position, SemaTyInfo}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
@@ -78,6 +79,64 @@ public func binaryDecl(db: AnalysisDatabase, pkg: BinaryPackageFile, item: Binar
 }
 
 /**
+ * The types the declaration of `item` in `pkg` inherits from, as its `.cjo` resolved them: a class's,
+ * an interface's, a struct's, an enum's, an `extend`'s; none that cannot be found among the packages
+ * of the project.
+ */
+public func binarySupertypes(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): Array<DefId> {
+    let index = binaryExports(db, pkg).declIndex(item) ?? return []
+    let names = try {
+        let cjo = openCjo(pkg.bytes(db))
+        let inherited = match (cjo.allDecls[index].info) {
+            case Some(DeclInfo.AsClassInfo(it)) => it.inheritedTypes.toArray()
+            case Some(DeclInfo.AsInterfaceInfo(it)) => it.inheritedTypes.toArray()
+            case Some(DeclInfo.AsStructInfo(it)) => it.inheritedTypes.toArray()
+            case Some(DeclInfo.AsEnumInfo(it)) => it.inheritedTypes.toArray()
+            case Some(DeclInfo.AsExtendInfo(it)) => it.inheritedTypes.toArray()
+            case _ => Array<UInt32>()
+        }
+        let imports = cjo.imports.toArray()
+        let types = cjo.allTypes
+        inherited |> filterMap {
+            ty: UInt32 =>
+            // a type is named by its place among `allTypes` from 1, 0 for none
+            if (ty == 0 || Int64(ty) > types.size) {
+                return None<(?String, String, Int64)>
+            }
+            let declPtr = match (types[Int64(ty) - 1].info) {
+                case Some(SemaTyInfo.AsCompositeTyInfo(info)) => info.declPtr
+                case _ => None<FullId>
+            }
+            let id = declPtr ?? return None<(?String, String, Int64)>
+            // -2 this package, by the place of the declaration among `allDecls` from 1; 0 and up a
+            // package it imports, by the declaration's `exportId`
+            match (id.pkgId) {
+                case -2 => Some((None<String>, "", Int64(id.index) - 1))
+                case n where n >= 0 && Int64(n) < imports.size => Some((Some(imports[Int64(n)]), id.decl ?? "", -1))
+                case _ => None<(?String, String, Int64)>
+            }
+        } |> collectArray
+    } catch (_: Exception) {
+        return []
+    }
+    names |> filterMap {
+        name: (?String, String, Int64) =>
+        let (pkgName, exportId, declIndex) = name
+        match (pkgName) {
+            case None => binaryExports(db, pkg).itemAt(declIndex).map {
+                one => DefId(db, ItemFile.Binary(pkg, one.file), one.id)
+            }
+            case Some(full) => match (packageIndex(db).find(full, from: PackageRef.Binary(pkg))) {
+                case Some(PackageRef.Binary(other)) => binaryExports(db, other).itemOf(exportId).map {
+                    one => DefId(db, ItemFile.Binary(other, one.file), one.id)
+                }
+                case _ => None
+            }
+        }
+    } |> collectArray
+}
+
+/**
  * An item of a package compiled already: the index of its file, and its id there.
  */
 @Derive[Equatable, Hashable]
@@ -125,6 +184,16 @@ public class BinaryExports <: Equatable<BinaryExports> {
      */
     public func declIndex(item: BinaryItem): ?Int64 {
         byItem.get(item)
+    }
+
+    /**
+     * The item of the declaration at `index` in `allDecls`, `None` if it is none's.
+     */
+    public func itemAt(index: Int64): ?BinaryItem {
+        for (i in 0..decls.size where decls[i] == index) {
+            return items[i]
+        }
+        None
     }
 
     public operator func ==(other: BinaryExports): Bool {
