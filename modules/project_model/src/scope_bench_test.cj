@@ -68,7 +68,7 @@ class BenchWorkspace {
         for ((pkg, file, names) in files) {
             let defs = defMap(db, PackageRef.Source(pkg))
             let imports = importsOf(db, pkg, file)
-            let ctorImports = ctorImportsOf(db, pkg)
+            let ctorImports = packageCtorImports(db, pkg)
             for (name in names) {
                 if (lookUpIn(db, defs, ItemFile.Source(file), imports, name, Namespace.Values, ctorImports: ctorImports) != Resolution.NotFound) {
                     found++

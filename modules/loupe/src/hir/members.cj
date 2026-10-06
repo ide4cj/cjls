@@ -132,7 +132,7 @@ public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<
             for (ext in extends) {
                 found.add(all: membersOfItem(db, ext, name))
             }
-            for (one in supertypesOf(db, ty).concat(extends |> flatMap {ext: DefId => supertypesOfExtend(db, ext)} |> collectArray)
+            for (one in supertypesOf(db, ty).concat(extends |> flatMap {ext: DefId => supertypes(db, ext)} |> collectArray)
                 where !seen.contains(one)) {
                 seen.add(one)
                 next.add(one)
@@ -217,32 +217,32 @@ func membersOfItem(db: AnalysisDatabase, id: DefId, name: String): Array<MemberT
 }
 
 /**
- * The types the declaration `ty` inherits from: as its signature writes them, resolved, or as its
- * `.cjo` has them.
+ * The types the declaration `ty` inherits from; none for a type of the language.
  */
 func supertypesOf(db: AnalysisDatabase, ty: ExtendedType): Array<ExtendedType> {
-    let id = match (ty) {
-        case DeclType(id) => id
-        case PrimType(_) => return []
-    }
-    match (id.file(db)) {
-        case Source(_) => supertypesOfExtend(db, id)
-        case Binary(pkg, index) => binarySupertypes(db, pkg, BinaryItem(index, id.item(db))).map {
-            one => ExtendedType.DeclType(one)
-        }
+    match (ty) {
+        case DeclType(id) => supertypes(db, id)
+        case PrimType(_) => []
     }
 }
 
 /**
- * The types after `<:` in the signature of the source declaration `def`, a type or an `extend`,
- * resolved.
+ * The types `def`, a type or an `extend`, inherits from: as its signature writes them, resolved,
+ * or as its `.cjo` has them. A query: every name looked up in its members' bodies reads it.
  */
-func supertypesOfExtend(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
-    let sig = signature(db, def)
-    sig.supers |> filterMap {
-        ty: TypeRefId => match (sig[ty]) {
-            case PathRef(segments) => typeOfPath(db, def, segments).map {id => ExtendedType.DeclType(id)}
-            case _ => None
+@CalcaTracked
+public func supertypes(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
+    match (def.file(db)) {
+        case Source(_) =>
+            let sig = signature(db, def)
+            sig.supers |> filterMap {
+                ty: TypeRefId => match (sig[ty]) {
+                    case PathRef(segments) => typeOfPath(db, def, segments).map {id => ExtendedType.DeclType(id)}
+                    case _ => None
+                }
+            } |> collectArray
+        case Binary(pkg, index) => binarySupertypes(db, pkg, BinaryItem(index, def.item(db))).map {
+            one => ExtendedType.DeclType(one)
         }
-    } |> collectArray
+    }
 }

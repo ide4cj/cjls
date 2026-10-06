@@ -80,7 +80,7 @@ public func ctorsNamed(db: AnalysisDatabase, pkg: Package, name: String): Array<
     for (def in defMap(db, PackageRef.Source(pkg)).ctors.get(name) ?? []) {
         found.add(def.id)
     }
-    for (id in importedCtors(db, ctorImportsOf(db, pkg), name) where !found.contains(id)) {
+    for (id in packageCtorImports(db, pkg).named(db, name) where !found.contains(id)) {
         found.add(id)
     }
     found.toArray()

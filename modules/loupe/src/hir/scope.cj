@@ -285,24 +285,52 @@ func isFunc(target: ScopeTarget, db: AnalysisDatabase): Bool {
 }
 
 /**
- * The levels of imports of every file of `pkg`: the constructors of an enum any of them imports
- * are seen in each file of the package (N73).
+ * The constructors the imports of every file of a package bring, each seen in all of its files
+ * (N73): those of the enums their paths name, and their globs, each glob once however many files
+ * have it (the prelude is every file's).
  */
-public func ctorImportsOf(db: AnalysisDatabase, pkg: Package): Array<ImportLevel> {
-    pkg.files(db) |> filterMap {fileId => db.sourceFile(fileId)} |> map {file => importsOf(db, pkg, file)} |> collectArray
+@Derive[Equatable]
+public struct CtorImports {
+    public CtorImports(public let ctors: IndexMap<String, Array<DefId>>, public let globs: Array<Glob>) {}
+
+    /**
+     * The constructors named `name`, each once.
+     */
+    public func named(db: AnalysisDatabase, name: String): Array<DefId> {
+        let found = ArrayList<DefId>(ctors.get(name) ?? [])
+        for (glob in globs) {
+            for (id in visibleOf(packageExports(db, glob.pkg).ctors.get(name) ?? [], glob.relation, glob.level)
+                where !found.contains(id)) {
+                found.add(id)
+            }
+        }
+        found.toArray()
+    }
 }
 
 /**
- * The constructors named `name` the imports of the files of a package bring, by `ctorImports`.
+ * The `CtorImports` of `pkg`: of its files' plain imports and of its re-exports.
  */
-func importedCtors(db: AnalysisDatabase, ctorImports: Array<ImportLevel>, name: String): Array<DefId> {
-    let found = ArrayList<DefId>()
-    for (level in ctorImports) {
-        for (id in level.ctors(db, name) where !found.contains(id)) {
-            found.add(id)
+@CalcaTracked
+public func packageCtorImports(db: AnalysisDatabase, pkg: Package): CtorImports {
+    let ctors = IndexMap<String, ArrayList<DefId>>()
+    let globs = ArrayList<Glob>()
+    let levels = (pkg.files(db) |> filterMap {fileId => db.sourceFile(fileId)} |> map {file => fileImports(db, pkg, file)} |>
+        collectArray).concat([packageImports(db, PackageRef.Source(pkg))])
+    for (names in levels) {
+        for ((name, ids) in names.ctors) {
+            let entry = entryOf(ctors, name)
+            for (id in ids where !entry.contains(id)) {
+                entry.add(id)
+            }
+        }
+        for (glob in names.globs where !globs.iterator().any {
+            one => one.pkg == glob.pkg && one.relation == glob.relation && one.level == glob.level
+        }) {
+            globs.add(Glob(glob.pkg, glob.relation, glob.level, None))
         }
     }
-    found.toArray()
+    CtorImports(frozen(ctors) {list => list.toArray()}, globs.toArray())
 }
 
 /**
@@ -313,7 +341,7 @@ func importedCtors(db: AnalysisDatabase, ctorImports: Array<ImportLevel>, name: 
  * over the first two (N14).
  */
 public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports: ImportLevel, name: String,
-    ns: Namespace, ctorImports!: Array<ImportLevel>): Resolution {
+    ns: Namespace, ctorImports!: CtorImports): Resolution {
     let own = (defs.names.get(name) ?? []).filter {
         def => (def.visibility != Visibility.Private || def.id.file(db) == from) && isIn(def.id.item(db).kind, ns)
     }.map {def => def.id}
@@ -354,7 +382,7 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
     let ownCtors = (defs.ctors.get(name) ?? []).filter {
         def => def.visibility != Visibility.Private || def.id.file(db) == from
     }.map {def => def.id}
-    let ctorsOfImports = importedCtors(db, ctorImports, name)
+    let ctorsOfImports = ctorImports.named(db, name)
     if (ownCtors.isEmpty() && ctorsOfImports.isEmpty()) {
         Resolution.NotFound
     } else {
@@ -367,5 +395,5 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
  */
 public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String, ns: Namespace): Resolution {
     lookUpIn(db, defMap(db, PackageRef.Source(pkg)), ItemFile.Source(file), importsOf(db, pkg, file), name, ns,
-        ctorImports: ctorImportsOf(db, pkg))
+        ctorImports: packageCtorImports(db, pkg))
 }

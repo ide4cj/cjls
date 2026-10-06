@@ -25,7 +25,7 @@ public struct NavigationTarget {
 
 /**
  * Where the name at `offset` of the file is declared: a name in a type of a signature (D48) or of a
- * body, a name a body uses, a constructor a pattern names (D49); each candidate of an ambiguity or
+ * body, a name a body uses, a constructor a pattern names (D50); each candidate of an ambiguity or
  * of an overload. Nothing for a package, a member after a `.` (inference's, step 7), nor yet for a
  * declaration of a package compiled already, which has no source.
  */

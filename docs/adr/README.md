@@ -62,6 +62,7 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0044](0044-resolution-is-layered-as-rust-analyzer.md) | Resolution is layered as rust-analyzer's, a definition map per package; members, overloads and `extend` are inference's | accepted; a re-export is its package's, not its file's, by D45 |
 | [0045](0045-a-package-scope-is-a-def-map-of-sets.md) | A package's scope is a def map of sets, its declarations named by an interned `DefId`; re-exports are the package's | accepted; the prelude is a glob at the level of the imports, not under them, by D47 |
 | [0046](0046-imports-resolve-down-the-packages.md) | Imports resolve down the packages, a package's exports a query of their own; a re-export keeps its import's visibility | accepted |
-| [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted |
+| [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted; the constructors of an enum any file of the package imports are seen in each, by D50 |
 | [0048](0048-a-signature-is-a-query-of-its-declaration.md) | A signature is a query of its declaration; a path in a type resolves to declarations, not yet to types | accepted |
 | [0049](0049-coverage-is-a-workflow-of-its-own.md) | Coverage is a workflow of its own, counted over source files (tests excluded), shown by a shields.io endpoint badge on a `badges` branch | accepted |
+| [0050](0050-a-body-is-lowered-to-hir-and-scoped.md) | A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup | accepted |
