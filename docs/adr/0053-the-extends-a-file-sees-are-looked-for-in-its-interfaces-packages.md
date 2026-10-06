@@ -10,13 +10,13 @@ Status: accepted, 2026-10-06
 
 ## Decision
 
-- **The `extend`s of a type a file may see are looked for in few packages**: the file's, the type's (`std.core` for a type of the language), and those of the interfaces its imports bring (`extendPackagesOf(pkg, file)`, a query per file, made of `interfacePackagesOf(pkg)` for a glob), R1's traits in scope; each package's `extend`s by type are `packageExtends`, of a `.cjo` too (its type read from `Decl.type`).
-- One index of every package's `extend`s, as cjc's (A), was built and measured first: it found the same on every name after a `.` of this repository (15 820, identical answers) and the fixtures, but lowered every `.cjo` of the project on the first lookup, and ran again on any `extend` changed anywhere. An IDE reads what the file reaches.
+- **The `extend`s of a type a file may see are looked for where one may be**: the type's package (`std.core` for a type of the language), the file's, and the packages of the interfaces its imports bring, R1's traits in scope. By N83 the last hold only `extend`s of other packages' types (`foreignExtends(pkg)`), so a file's are one small map (`interfaceExtendsOf(pkg, file)`) and a lookup fetches three. Each package's `extend`s by type are `packageExtends`, of a `.cjo` too (its type read from `Decl.type`).
+- One index of every package's `extend`s, as cjc's (A), was built and measured first: it found the same on every name after a `.` of this repository (15 820, identical answers) and the fixtures, but lowered every `.cjo` of the project on the first lookup and ran again on any `extend` changed anywhere. On filaco.dev, a cold pass over every name after a `.` of this repository: 2.91 s against 2.59 s here; memoized, `FieldResolutionBench` 262 ms against 240 ms, `BodyResolutionBench` 0.531 s against 0.547 s (±3%). An IDE reads what the file reaches.
 - **Which of them a file sees is decided at the lookup** (`isExtendSeen`, cjc's `IsExtendAccessible`): `memberLookup(from:)` takes the file, not the package.
 - **A member of an `extend` seen through an interface is found whether or not the interface declares it**: whether it is accessible is a check at the use, as D52 leaves a member's modifiers (N80).
 
 ## Consequences
 
-- An edit adding or removing an `extend` runs again the lookups of files that may see it, not every one; an import changed runs that file's `extendPackagesOf`.
+- An edit adding or removing an `extend` runs again the lookups of files that may see it, not every one; an import changed runs that file's `interfaceExtendsOf`.
 - `Int64.Max`, `Float64.fromBits`, `Int64.parse` with `std.convert` imported, and the members an imported interface brings resolve. On this repository every name after a `.` that names alone can tell resolves, but those a macro declares (D47).
 - An implementation is not told from what it implements: `C.e()` finds the `extend`'s `e` and its interface's (step 8). Nor `extend G<Int64>` from `G<String>`'s (N86): both are found.
