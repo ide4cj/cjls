@@ -1,0 +1,91 @@
+name: Coverage
+
+# a workflow of its own, not a job of ci.yml: bump, nightly, release and the editors' paired
+# branches read ci.yml's success, and coverage is no gate (D49)
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+# bash, not the default `bash -e`: `-o pipefail` too, so a failing script is not hidden by `tee`
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # the lines the tests reach, in a target dir of its own: instrumentation slows the tests, and the
+  # build's cache and this one would undo each other. No threshold: shared runners are noisy (D23)
+  coverage:
+    name: Coverage (ubuntu-latest)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      - run: python tests/corpora/fetch.py
+      - run: cjpm test --coverage --no-progress --timeout-each=2m --target-dir target/cov
+      # the report of a run whose tests failed too
+      - name: Report
+        if: ${{ !cancelled() }}
+        run: |
+          cjcov -r . -s modules -x -j --html-details -o coverage
+          python .github/scripts/coverage.py coverage/coverage.json --badge badge.json | tee -a "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v7
+        if: ${{ !cancelled() }}
+        with:
+          name: coverage-${{ github.sha }}
+          path: coverage
+          if-no-files-found: error
+      # handed to `publish`; a PR never changes the badge
+      - uses: actions/upload-artifact@v7
+        if: github.event_name == 'push'
+        with:
+          name: badge
+          path: badge.json
+          if-no-files-found: error
+
+  # the only job that can write, and it runs nothing of the code under test
+  publish:
+    name: Publish the badge
+    needs: coverage
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write # the `badges` branch
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: badge
+      - run: |
+          # a re-run of an older commit's run would put its percent over a newer one's
+          head=$(git ls-remote origin refs/heads/master | cut -f1)
+          if [ "$head" != "$GITHUB_SHA" ]; then
+            echo "master is at $head now, not $GITHUB_SHA: the badge is left as it is"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin badges >/dev/null; then
+            git fetch --depth 1 origin badges
+            git worktree add badges FETCH_HEAD
+          else
+            git worktree add --orphan -b badges badges
+          fi
+          cp badge.json badges/coverage.json
+          cd badges
+          git add coverage.json
+          if git diff --cached --quiet; then
+            echo "the badge is as it was"
+          else
+            git commit -m "chore: coverage $(python -c 'import json; print(json.load(open("coverage.json"))["message"])') at $GITHUB_SHA"
+            git push origin HEAD:badges
+          fi

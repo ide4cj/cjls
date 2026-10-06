@@ -2,6 +2,7 @@
 .vscode
 build-script-cache
 cov_output
+/coverage
 target
 /third_party
 *.gcda
