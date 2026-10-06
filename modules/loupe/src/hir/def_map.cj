@@ -60,14 +60,14 @@ public enum Visibility <: ToString {
 }
 
 /**
- * The visibility `item` is written with; `internal` when none is.
+ * The visibility `item` is written with; `internal` when none is, `public` for `sealed` (N87).
  */
 public func visibilityOf(item: Item): Visibility {
     if (item.has(Modifier.Private)) {
         Visibility.Private
     } else if (item.has(Modifier.Protected)) {
         Visibility.Protected
-    } else if (item.has(Modifier.Public)) {
+    } else if (item.has(Modifier.Public) || item.has(Modifier.Sealed)) {
         Visibility.Public
     } else {
         Visibility.Internal

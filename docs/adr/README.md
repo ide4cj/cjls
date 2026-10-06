@@ -68,3 +68,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0050](0050-a-body-is-lowered-to-hir-and-scoped.md) | A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup | accepted |
 | [0051](0051-o2-is-a-release-option.md) | `-O2` is in each module's `[target.<triple>.release]`, not its `compile-option`: the coverage builds with `-g`, unoptimized | accepted |
 | [0052](0052-a-name-after-a-dot-is-resolved-by-names-up-to-a-value.md) | A name after a `.` is resolved by names up to a value, members looked up from a type; a value's member is inference's | accepted |
+| [0053](0053-the-extends-of-every-package-are-indexed-and-filtered-by-the-file.md) | The `extend`s of every package are indexed by type; which of them a file sees is decided at the lookup | accepted |
