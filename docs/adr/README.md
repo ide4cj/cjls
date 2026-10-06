@@ -65,3 +65,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted |
 | [0048](0048-a-signature-is-a-query-of-its-declaration.md) | A signature is a query of its declaration; a path in a type resolves to declarations, not yet to types | accepted |
 | [0049](0049-coverage-is-a-workflow-of-its-own.md) | Coverage is a workflow of its own, counted over source files (tests excluded), shown by a shields.io endpoint badge on a `badges` branch | accepted |
+| [0050](0050-o2-is-a-release-option.md) | `-O2` is in each module's `[target.<triple>.release]`, not its `compile-option`: the coverage builds with `-g`, unoptimized | accepted |
