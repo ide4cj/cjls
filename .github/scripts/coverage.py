@@ -4,7 +4,7 @@
     cjcov -r . -s modules -x -j -o <dir>
     python3 .github/scripts/coverage.py <dir>/coverage.json [--badge badge.json]
 
-Prints `hit/total percent`. Only `modules/*/src/**` files that are neither `*_test.cj` nor in `GENERATED` count: cjcov
+Prints `hit/total percent`. Only `modules/*/src/**` files that are neither `*_test.cj` nor in `GENERATED` or `MACROS` count: cjcov
 counts the tests too, which flatters the number, and `-e`/`-i` match a path prefix, so the
 suffix cannot be excluded there; the generated files are listed below. `--badge` writes a shields.io endpoint JSON.
 """
@@ -25,6 +25,13 @@ GENERATED = (
     "modules/fnum/src/pow10_table.cj",
 )
 
+# Macro packages expand at compile time, and the instrumentation does not see what runs then.
+MACROS = (
+    "modules/calca/src/macros/",
+    "modules/cjls/src/macros/",
+    "modules/stdxx/src/deriving/",
+)
+
 
 def counts(report: dict) -> tuple[int, int]:
     hit = total = 0
@@ -33,7 +40,7 @@ def counts(report: dict) -> tuple[int, int]:
         parts = path.parts
         if len(parts) < 4 or parts[0] != "modules" or parts[2] != "src":
             continue
-        if path.name.endswith("_test.cj") or file["filepath"].startswith(GENERATED):
+        if path.name.endswith("_test.cj") or file["filepath"].startswith(GENERATED + MACROS):
             continue
         hit += len(file["hitLines"])
         total += file["totalLines"]

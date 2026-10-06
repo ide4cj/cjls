@@ -11,7 +11,7 @@ Status: accepted, 2026-10-06
 ## Decision
 
 - **A job of its own, Linux x64 only** (`coverage` in `ci.yml`), `cjpm test --coverage` in `--target-dir target/cov`. Instrumentation slows the tests, and `build`'s cache and this one would undo each other (D24, D27).
-- **The percent is `hitLines` over `totalLines` of `coverage.json`**, summed over `modules/*/src/**` files not ending `_test.cj` and not in the `GENERATED` list of `.github/scripts/coverage.py` (runnable locally). Generated code is left out: the generator's own tests cover the generator, and its output has nothing to check. The list is explicit, by path, not read from a header: a new generated file is a line in a diff. Macro-expanded code (`stdxx`) stays in, though the instrumentation does not see it.
+- **The percent is `hitLines` over `totalLines` of `coverage.json`**, summed over `modules/*/src/**` files not ending `_test.cj` and not in the `GENERATED` list of `.github/scripts/coverage.py` (runnable locally). Generated code is left out: the generator's own tests cover the generator, and its output has nothing to check. The list is explicit, by path, not read from a header: a new generated file is a line in a diff. Macro packages (`calca.macros`, `cjls.macros`, `stdxx.deriving`) are left out too, by a list of their own (`MACROS`): they run at compile time, where the instrumentation does not see them.
 - **The badge is a shields.io endpoint**: a JSON committed to the `badges` branch by a push to master, read through `img.shields.io/endpoint`. No secret, no third-party service. The job alone has `contents: write`; a PR never publishes.
 - **The HTML report is an artifact** of every run, PRs included.
 - **No threshold, no gate**: shared runners are noisy (D23).
