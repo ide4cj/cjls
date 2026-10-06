@@ -320,6 +320,12 @@ class ScopesBuilder {
                     let own = add(current, [], genericsOf: index, generics: localFunc.generics)
                     let inner = params(localFunc.params, own)
                     typeIn(localFunc.ret, own)
+                    for (bound in localFunc.bounds) {
+                        typeIn(bound.ty, own)
+                        for (one in bound.bounds) {
+                            typeIn(one, own)
+                        }
+                    }
                     walkOpt(localFunc.body, inner)
             }
         }

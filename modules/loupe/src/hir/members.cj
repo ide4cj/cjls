@@ -106,23 +106,38 @@ public enum MemberTarget <: ToString {
 }
 
 /**
- * The level of members of the type around the body of `def`, as seen from its package: its own,
- * its `extend`s', then its supertypes' and theirs, level by level, the nearest that has `name`
- * deciding but for functions, which gather over the levels (N69, N70). A private member of a
- * supertype is found too: cjc finds it, then says it cannot be accessed.
- *
- * The `extend`s are those of the body's package and of the type's; those of another package,
- * seen through an interface it imports, are member lookup's (step 7).
+ * The level of members of the type around the body of `def`, as seen from its package (N69, N70):
+ * `memberLookup` from that type.
  */
 public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<MemberTarget> {
     let start = enclosingTypeOf(db, def) ?? return []
-    let from = match (def.file(db)) {
+    memberLookup(db, [start], name, from: packageOf(db, def))
+}
+
+/**
+ * The package `def` is declared in, if it is a source package.
+ */
+func packageOf(db: AnalysisDatabase, def: DefId): ?Package {
+    match (def.file(db)) {
         case Source(file) => packageOfFile(db, file)
-        case Binary(_, _) => None<Package>
+        case Binary(_, _) => None
     }
+}
+
+/**
+ * The members named `name` of the types `start`, as seen from the package `from`: their own, their
+ * `extend`s', then their supertypes' and theirs, level by level, the nearest that has `name`
+ * deciding but for functions, which gather over the levels (N69, N70, N77). A member's modifiers do
+ * not hide it: cjc finds a private member of a supertype, then says it cannot be accessed (N80).
+ *
+ * The `extend`s are those of `from` and of each type's package; those of another package, seen
+ * through an interface the file imports, are not yet.
+ */
+public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name: String,
+    from!: ?Package): Array<MemberTarget> {
     let funcs = ArrayList<MemberTarget>()
-    let seen = HashSet<ExtendedType>([start])
-    var level = [start]
+    let seen = HashSet<ExtendedType>(start)
+    var level = start
     while (!level.isEmpty()) {
         let found = ArrayList<MemberTarget>()
         let next = ArrayList<ExtendedType>()
