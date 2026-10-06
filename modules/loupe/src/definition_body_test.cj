@@ -159,6 +159,21 @@ class BodyDefinitionTest {
     }
 
     @TestCase
+    func aVariableOfThePackageStopsTheLocalFunctions() {
+        // N63
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            let g = 1
+            func f(): Int64 {
+                func g(n: Int64): Int64 { n }
+            //       ^ def
+                $0g(1)
+            }
+            "#)
+    }
+
+    @TestCase
     func aLocalFunctionHidesAConstructor() {
         // N63
         checkDefinition(#"

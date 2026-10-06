@@ -155,6 +155,8 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
     if (funcs.isEmpty()) {
         return BodyResolution.InFile(inFile)
     }
+    // the file's functions join those found; anything else there (a variable, an ambiguity, nothing)
+    // stops them, as a variable of a nearer level does (N63)
     if (let Found(ids) <- inFile && ids.iterator().all {id => id.item(db).kind == ItemKind.Func}) {
         for (id in ids) {
             funcs.add(ValueTarget.DeclOf(id))
