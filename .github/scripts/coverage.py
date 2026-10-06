@@ -4,15 +4,26 @@
     cjcov -r . -s modules -x -j -o <dir>
     python3 .github/scripts/coverage.py <dir>/coverage.json [--badge badge.json]
 
-Prints `hit/total percent`. Only `modules/*/src/**` files that are not `*_test.cj` count: cjcov
+Prints `hit/total percent`. Only `modules/*/src/**` files that are neither `*_test.cj` nor in `GENERATED` count: cjcov
 counts the tests too, which flatters the number, and `-e`/`-i` match a path prefix, so the
-suffix cannot be excluded there. `--badge` writes a shields.io endpoint JSON.
+suffix cannot be excluded there; the generated files are listed below. `--badge` writes a shields.io endpoint JSON.
 """
 
 import argparse
 import json
 import sys
 from pathlib import Path, PurePosixPath
+
+
+# What a generator writes, by path: a directory (ends in `/`) or a file. A list, not a header
+# check, so that a new generated file is a decision in a diff (D49).
+GENERATED = (
+    "modules/cjls/src/lsp_types/",  # lsp_codegen
+    "modules/cjo/src/format.cj",  # fbs_codegen
+    "modules/cjsyntax/src/ast/nodes.cj",  # syntax_codegen
+    "modules/cjsyntax/src/syntax_kind.cj",  # syntax_codegen
+    "modules/fnum/src/pow10_table.cj",
+)
 
 
 def counts(report: dict) -> tuple[int, int]:
@@ -22,7 +33,7 @@ def counts(report: dict) -> tuple[int, int]:
         parts = path.parts
         if len(parts) < 4 or parts[0] != "modules" or parts[2] != "src":
             continue
-        if path.name.endswith("_test.cj"):
+        if path.name.endswith("_test.cj") or file["filepath"].startswith(GENERATED):
             continue
         hit += len(file["hitLines"])
         total += file["totalLines"]
