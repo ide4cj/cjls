@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, PathSegment, PathType}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BindPat, EnumPat, PathSegment, PathType, RefExpr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -24,39 +24,148 @@ public struct NavigationTarget {
 }
 
 /**
- * Where the name at `offset` of the file is declared, for now a name in a type of a signature (D48):
- * a type, a type parameter, the class of `This`; each candidate of an ambiguity. Nothing for a
- * package, nor yet for a declaration of a package compiled already, which has no source.
+ * Where the name at `offset` of the file is declared: a name in a type of a signature (D48) or of a
+ * body, a name a body uses, a constructor a pattern names (D49); each candidate of an ambiguity or
+ * of an overload. Nothing for a package, a member after a `.` (inference's, step 7), nor yet for a
+ * declaration of a package compiled already, which has no source.
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
     let root = parse(db, file).syntaxNode()
     let token = tokenAt(root, offset) ?? return []
-    let (typeNode, segment) = typeAt(token) ?? return []
     let ids = itemIdMap(db, file)
-    let item = typeNode.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
+    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
     let def = DefId(db, ItemFile.Source(file), item ?? return [])
+    if (let Some((typeNode, segment)) <- typeAt(token)) {
+        return typeTargets(db, def, typeNode, segment)
+    }
+    bodyTargets(db, def, token)
+}
+
+/**
+ * Where the name of the segment `segment` of the type `typeNode`, in the signature or the body of
+ * `def`, is declared.
+ */
+func typeTargets(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, segment: Int64): Array<NavigationTarget> {
+    let ptr = SyntaxNodePtr(typeNode)
     let lowered = signatureWithSourceMap(db, def)
-    let ty = lowered.sourceMap.typeAt(SyntaxNodePtr(typeNode)) ?? return []
-    match (lowered.signature[ty]) {
-        case PathRef(segments) =>
-            let scope = typeScopeOf(db, def) ?? return []
-            match (resolveTypePath(db, scope, segments.map {one => one.name})[segment]) {
-                case Resolved(target) => listOf(targetOf(db, target))
-                case AmbiguousPath(targets) => targets |> filterMap {
-                    target: ScopeTarget => match (target) {
-                        case OfDecl(id) => targetOf(db, TypeOf(id))
-                        case OfPackage(_) => None
-                    }
-                } |> collectArray
-                case _ => []
-            }
+    let (ty, resolve) = match (lowered.sourceMap.typeAt(ptr)) {
+        case Some(ty) => (lowered.signature[ty], {
+            path: Array<String> => resolveTypePath(db, typeScopeOf(db, def) ?? return Array<PathResolution>(), path)
+        })
+        case None =>
+            let lowered = bodyWithSourceMap(db, def)
+            let ty = lowered.sourceMap.typeAt(ptr) ?? return []
+            (lowered.body.types[ty.index], {path: Array<String> => resolveBodyTypePath(db, def, ty, path)})
+    }
+    match (ty) {
+        case PathRef(segments) => match (resolve(segments.map {one => one.name}).get(segment)) {
+            case Some(Resolved(target)) => listOf(targetOf(db, target))
+            case Some(AmbiguousPath(targets)) => declTargets(db, targets |> filterMap {
+                target: ScopeTarget => match (target) {
+                    case OfDecl(id) => id
+                    case OfPackage(_) => None
+                }
+            } |> collectArray)
+            case _ => []
+        }
         case ThisRef => match (parentOf(db, def)) {
             case Some(parent) where parent.item(db).kind == ItemKind.Class => listOf(targetOf(db, TypeOf(parent)))
             case _ => []
         }
         case _ => []
     }
+}
+
+/**
+ * Where the name `token`, in the body of `def`, is declared: what a name used there means (N59–N71),
+ * the constructor a pattern names (N72), a local itself at its declaration.
+ */
+func bodyTargets(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<NavigationTarget> {
+    let name = token.parent
+    let node = name.parent ?? return []
+    let lowered = bodyWithSourceMap(db, def)
+    let sourceMap = lowered.sourceMap
+    let pkg = match (def.file(db)) {
+        case Source(file) => packageOfFile(db, file) ?? return []
+        case Binary(_, _) => return []
+    }
+    if (let Some(ref) <- RefExpr.cast(node)) {
+        let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return []
+        return match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())) {
+            case Values(targets) => targets |> filterMap {target: ValueTarget => valueTarget(db, def, target)} |> collectArray
+            case InFile(resolution) => fileTargets(db, resolution)
+        }
+    }
+    if (let Some(bind) <- BindPat.cast(node)) {
+        let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return []
+        let ctors = if (lowered.body[local].lone) {
+            ctorsNamed(db, pkg, token.text())
+        } else {
+            Array<DefId>()
+        }
+        return if (ctors.isEmpty()) {
+            listOf(localTarget(db, def, local))
+        } else {
+            declTargets(db, ctors)
+        }
+    }
+    if (let Some(segment) <- PathSegment.cast(node)) {
+        let pat = segment.syntax.parent.flatMap {one => EnumPat.cast(one)} ?? return []
+        let segments = pat.pathSegments() |> collectArray
+        if (segments.size == 1) {
+            return declTargets(db, ctorsNamed(db, pkg, token.text()))
+        }
+        return []
+    }
+    listOf(sourceMap.localAt(SyntaxNodePtr(name)).flatMap {local => localTarget(db, def, local)})
+}
+
+/**
+ * Where what a name of a body stands for is declared.
+ */
+func valueTarget(db: AnalysisDatabase, def: DefId, target: ValueTarget): ?NavigationTarget {
+    match (target) {
+        case LocalOf(local) => localTarget(db, def, local)
+        case MemberOf(MemberDecl(id)) => declTarget(db, id)
+        case MemberOf(MemberParam(ctor, local)) => localTarget(db, ctor, local)
+        case DeclOf(id) => declTarget(db, id)
+        case TypeParamOf(typeTarget) => targetOf(db, typeTarget)
+    }
+}
+
+/**
+ * Where what the file's scope has is declared: its declarations, its constructors.
+ */
+func fileTargets(db: AnalysisDatabase, resolution: Resolution): Array<NavigationTarget> {
+    match (resolution) {
+        case Found(ids) => declTargets(db, ids)
+        case Ambiguous(targets) => declTargets(db, targets |> filterMap {
+            target: ScopeTarget => match (target) {
+                case OfDecl(id) => id
+                case OfPackage(_) => None
+            }
+        } |> collectArray)
+        case Ctors(own, imported) => declTargets(db, own.concat(imported))
+        case _ => []
+    }
+}
+
+func declTargets(db: AnalysisDatabase, ids: Array<DefId>): Array<NavigationTarget> {
+    ids |> filterMap {id: DefId => declTarget(db, id)} |> collectArray
+}
+
+/**
+ * The local `local` of the body of `def`: its name, in the node declaring it.
+ */
+func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId): ?NavigationTarget {
+    let file = match (def.file(db)) {
+        case Source(file) => file
+        case Binary(_, _) => return None
+    }
+    let ptr = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
+    let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
+    NavigationTarget(file.fileId(db), name.parent?.textRange ?? name.textRange, name.textRange)
 }
 
 func listOf(target: ?NavigationTarget): Array<NavigationTarget> {
@@ -104,18 +213,41 @@ func typeAt(token: CjSyntaxToken): ?(CjSyntaxNode, Int64) {
  */
 func targetOf(db: AnalysisDatabase, target: TypeTarget): ?NavigationTarget {
     match (target) {
-        case TypeOf(id) =>
-            let (file, node) = nodeOf(db, id) ?? return None
-            let name = AnyHasName.cast(node).flatMap {it => it.name()}
-            NavigationTarget(file.fileId(db), node.textRange, name?.syntax.textRange ?? node.textRange)
+        case TypeOf(id) => declTarget(db, id)
         case GenericOf(owner, index) =>
             let (file, node) = nodeOf(db, owner) ?? return None
-            let params = AnyHasTypeParams.cast(node).flatMap {it => it.typeParamList()} ?? return None
-            let param = (params.typeParams() |> skip(index) |> first) ?? return None
-            let name = param.name()?.syntax.textRange ?? param.syntax.textRange
-            NavigationTarget(file.fileId(db), param.syntax.textRange, name)
+            genericTarget(db, file, node, index)
+        case LocalGenericOf(owner, localFunc, index) =>
+            let file = match (owner.file(db)) {
+                case Source(file) => file
+                case Binary(_, _) => return None
+            }
+            let lowered = bodyWithSourceMap(db, owner)
+            let local = lowered.body.funcs.get(localFunc)?.local ?? return None
+            let ptr = lowered.sourceMap.locals.get(local.index) ?? return None
+            let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
+            genericTarget(db, file, name.parent ?? return None, index)
         case QualifierOf(_) => None
     }
+}
+
+/**
+ * The type parameter at `index` of the declaration `node`.
+ */
+func genericTarget(db: AnalysisDatabase, file: SourceFile, node: CjSyntaxNode, index: Int64): ?NavigationTarget {
+    let params = AnyHasTypeParams.cast(node).flatMap {it => it.typeParamList()} ?? return None
+    let param = (params.typeParams() |> skip(index) |> first) ?? return None
+    let name = param.name()?.syntax.textRange ?? param.syntax.textRange
+    NavigationTarget(file.fileId(db), param.syntax.textRange, name)
+}
+
+/**
+ * Where the declaration `id` is: its node and its name.
+ */
+func declTarget(db: AnalysisDatabase, id: DefId): ?NavigationTarget {
+    let (file, node) = nodeOf(db, id) ?? return None
+    let name = AnyHasName.cast(node).flatMap {it => it.name()}
+    NavigationTarget(file.fileId(db), node.textRange, name?.syntax.textRange ?? node.textRange)
 }
 
 /**

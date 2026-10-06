@@ -285,13 +285,35 @@ func isFunc(target: ScopeTarget, db: AnalysisDatabase): Bool {
 }
 
 /**
+ * The levels of imports of every file of `pkg`: the constructors of an enum any of them imports
+ * are seen in each file of the package (N73).
+ */
+public func ctorImportsOf(db: AnalysisDatabase, pkg: Package): Array<ImportLevel> {
+    pkg.files(db) |> filterMap {fileId => db.sourceFile(fileId)} |> map {file => importsOf(db, pkg, file)} |> collectArray
+}
+
+/**
+ * The constructors named `name` the imports of the files of a package bring, by `ctorImports`.
+ */
+func importedCtors(db: AnalysisDatabase, ctorImports: Array<ImportLevel>, name: String): Array<DefId> {
+    let found = ArrayList<DefId>()
+    for (level in ctorImports) {
+        for (id in level.ctors(db, name) where !found.contains(id)) {
+            found.add(id)
+        }
+    }
+    found.toArray()
+}
+
+/**
  * What `name`, used in `ns`, means in the file `from` of the package of `defs`, its imports
- * `imports`. The levels, the first that has it deciding: the package's declarations (N13, N40,
- * N49), the imports (N39, N42, N43), the constructors (N45, N46). Functions gather over the first
- * two (N14).
+ * `imports`, those of every file of the package `ctorImports`. The levels, the first that has it
+ * deciding: the package's declarations (N13, N40, N49), the imports (N39, N42, N43), the
+ * constructors (N45, N46), of the enums any file of the package imports (N73). Functions gather
+ * over the first two (N14).
  */
 public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports: ImportLevel, name: String,
-    ns: Namespace): Resolution {
+    ns: Namespace, ctorImports!: Array<ImportLevel>): Resolution {
     let own = (defs.names.get(name) ?? []).filter {
         def => (def.visibility != Visibility.Private || def.id.file(db) == from) && isIn(def.id.item(db).kind, ns)
     }.map {def => def.id}
@@ -332,14 +354,11 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
     let ownCtors = (defs.ctors.get(name) ?? []).filter {
         def => def.visibility != Visibility.Private || def.id.file(db) == from
     }.map {def => def.id}
-    let importedCtors = ArrayList<DefId>()
-    for (id in imports.ctors(db, name) where !importedCtors.contains(id)) {
-        importedCtors.add(id)
-    }
-    if (ownCtors.isEmpty() && importedCtors.isEmpty()) {
+    let ctorsOfImports = importedCtors(db, ctorImports, name)
+    if (ownCtors.isEmpty() && ctorsOfImports.isEmpty()) {
         Resolution.NotFound
     } else {
-        Resolution.Ctors(ownCtors, importedCtors.toArray())
+        Resolution.Ctors(ownCtors, ctorsOfImports)
     }
 }
 
@@ -347,5 +366,6 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
  * What `name`, used in `ns`, means in `file` of `pkg`.
  */
 public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String, ns: Namespace): Resolution {
-    lookUpIn(db, defMap(db, PackageRef.Source(pkg)), ItemFile.Source(file), importsOf(db, pkg, file), name, ns)
+    lookUpIn(db, defMap(db, PackageRef.Source(pkg)), ItemFile.Source(file), importsOf(db, pkg, file), name, ns,
+        ctorImports: ctorImportsOf(db, pkg))
 }
