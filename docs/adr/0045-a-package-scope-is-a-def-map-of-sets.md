@@ -1,6 +1,7 @@
-# ADR-0045: A package's scope is a def map of sets, its declarations named by an interned `DefId`
+# ADR-0045: A package's scope is a def map of sets, its declarations named by an interned `DefId`; re-exports are the package's
 
 Status: accepted, 2026-10-05
+Amends ADR-0044: a re-export is its package's, not its file's
 
 ## Context
 

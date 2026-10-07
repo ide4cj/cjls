@@ -34,6 +34,25 @@ jobs:
           TITLE: ${{ github.event.pull_request.title }}
         run: cog verify "$TITLE"
 
+  docs:
+    name: Docs ids
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read # the ADR numbers the open PRs took
+    steps:
+      - uses: actions/checkout@v7
+      - name: Test scripts/docs.py
+        run: python3 -m unittest discover -s scripts -p '*_test.py'
+      # every ADR number and rule id once, every ADR header readable; on a PR, its ADR numbers
+      # not taken by an older open PR (D56)
+      - name: Every id once
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: python3 scripts/docs.py check ${PR:+--open-prs "$PR"}
+
   build:
     name: Build and test (${{ matrix.os }})
     strategy:

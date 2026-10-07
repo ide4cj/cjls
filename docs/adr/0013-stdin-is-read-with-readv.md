@@ -1,4 +1,4 @@
-# ADR-0013: Stdin is read with `readv`, not `read`
+# ADR-0013: Stdin is read with `readv`, not `read`: cjc treats `read` as `@FastNative`
 
 Status: accepted, 2026-09-26
 

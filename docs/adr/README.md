@@ -2,17 +2,20 @@
 
 One decision per file, ≤ 1 page: the decision and why, not how it was reached — a benchmark's table goes in the PR, the ADR keeps the result. An accepted ADR is not rewritten: a new one replaces it, saying "supersedes ADR-NNNN". In discussion `D7` ≡ `ADR-0007`.
 
-Template:
+An ADR is started by `python3 scripts/docs.py new-adr <slug> "<decision>"`, which takes the next number free on master and in the open pull requests; the number is the PR's from then on. The table below is written from the headers after the merge (D56): a PR does not touch it. What an ADR changes in an older one, short of replacing it, is an `Amends` line of the newer one's header, shown in the older one's row.
 
 ```md
 # ADR-NNNN: <decision>
 
 Status: proposed | accepted | superseded by ADR-NNNN, <date>
+Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 
 ## Context
 ## Decision
 ## Consequences
 ```
+
+<!-- written by `python3 scripts/docs.py index` after a merge (D56): never by hand -->
 
 | # | Decision | Status |
 |---|---|---|
@@ -39,7 +42,7 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0021](0021-weekly-releases.md) | A release every week from a green master; the first one by hand, its changelog written; versions of cjls's own | accepted; a nightly by D32 |
 | [0022](0022-json-codec.md) | The wire is read and written with fjson, through serde's derives `ToJson`/`FromJson` and one `@Serde` marker | accepted |
 | [0023](0023-performance-is-measured-over-stdio.md) | Speed and memory are measured over stdio, by one driver for every server | accepted |
-| [0024](0024-fjson-conformance.md) | fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep | accepted; the suite fetched by D26, `readFloat64` rounded correctly by D25 |
+| [0024](0024-fjson-conformance.md) | fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep | accepted; `readFloat64` rounded correctly by D25; the suite fetched by D26 |
 | [0025](0025-toml-through-serde.md) | TOML is read and written by ftoml, TOML 1.1 of our own, through `ToToml`/`FromToml` derived from the same `@Serde` model | accepted |
 | [0026](0026-test-suites-are-fetched.md) | Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored | accepted |
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28 |
@@ -62,7 +65,7 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0044](0044-resolution-is-layered-as-rust-analyzer.md) | Resolution is layered as rust-analyzer's, a definition map per package; members, overloads and `extend` are inference's | accepted; a re-export is its package's, not its file's, by D45 |
 | [0045](0045-a-package-scope-is-a-def-map-of-sets.md) | A package's scope is a def map of sets, its declarations named by an interned `DefId`; re-exports are the package's | accepted; the prelude is a glob at the level of the imports, not under them, by D47 |
 | [0046](0046-imports-resolve-down-the-packages.md) | Imports resolve down the packages, a package's exports a query of their own; a re-export keeps its import's visibility | accepted |
-| [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted; the constructors of an enum any file of the package imports are seen in each, by D50 |
+| [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted; the constructors of an enum any file of the package imports are seen in each by D50 |
 | [0048](0048-a-signature-is-a-query-of-its-declaration.md) | A signature is a query of its declaration; a path in a type resolves to declarations, not yet to types | accepted |
 | [0049](0049-coverage-is-a-workflow-of-its-own.md) | Coverage is a workflow of its own, counted over source files (tests excluded), shown by a shields.io endpoint badge on a `badges` branch | accepted |
 | [0050](0050-a-body-is-lowered-to-hir-and-scoped.md) | A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup | accepted |
@@ -71,4 +74,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0053](0053-the-extends-a-file-sees-are-looked-for-in-its-interfaces-packages.md) | The `extend`s a file may see are looked for in the packages of its interfaces; which of them it sees is decided at the lookup | accepted |
 | [0054](0054-a-type-is-an-interned-ty-a-signature-lowered-to-it.md) | A type is an interned `Ty`; a declaration's signature is lowered to it in one query, of a source or a `.cjo` alike | accepted |
 | [0055](0055-a-body-is-inferred-locally-in-one-query.md) | A body's types are inferred locally, as cjc checks them, in one query of the body; a type not written is the body's | accepted |
-| [0056](0056-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis: bounds, a join, rounds for what waits | accepted |
+| [0056](0056-the-adr-index-is-written-after-the-merge.md) | The ADR index is written after the merge by a bot; a number is taken when the ADR is started, and checked to be the only one | accepted |

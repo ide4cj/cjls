@@ -1,6 +1,7 @@
 # ADR-0047: A file's scope reads its globs at the lookup; the prelude is a glob of every file
 
 Status: accepted, 2026-10-05
+Amends ADR-0045: the prelude is a glob at the level of the imports, not under them
 
 ## Context
 

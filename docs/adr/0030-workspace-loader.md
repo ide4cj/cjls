@@ -1,4 +1,4 @@
-# ADR-0030: The workspace is loaded on the read loop, under a budget, and watched by the client
+# ADR-0030: The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index
 
 Status: accepted, 2026-09-29
 

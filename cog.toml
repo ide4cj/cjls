@@ -13,6 +13,10 @@ post_bump_hooks = [
     "git push origin v{{version}}",
 ]
 
+# docs.yml's commit of the ADR index (D56): the PR that changed an ADR is in the changelog already
+[commit_types]
+index = { changelog_title = "ADR index", omit_from_changelog = true }
+
 [changelog]
 path = "CHANGELOG.md"
 template = "remote"

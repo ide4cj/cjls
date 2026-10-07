@@ -1,6 +1,9 @@
 # ADR-0032: The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot
 
 Status: accepted, 2026-09-29. Closes #89; supersedes D16's "a change is two pull requests, the server's first" and "this repository's CI runs the plugin's smoke test" (D11's too), and D21's "no nightly yet".
+Amends ADR-0011: no editor's tests in CI
+Amends ADR-0016: how server and clients change together, and who tests which
+Amends ADR-0021: a nightly
 
 ## Context
 
