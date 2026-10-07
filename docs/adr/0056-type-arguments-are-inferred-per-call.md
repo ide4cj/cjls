@@ -1,0 +1,23 @@
+# ADR-0056: Type arguments not written are inferred per call, as cjc's local synthesis
+
+Status: accepted, 2026-10-08
+
+## Context
+
+- D55 infers a body locally, but a call of a generic function, constructor or enum constructor whose type arguments are not written (`Box(1)`, `gen(x)`, `Some(1)` of no type expected) had an error type for them (#48 step 8c).
+- cjc (R3) solves them per call (`LocalTypeArgumentSynthesis`, `PrepareTyArgsSynthesis`): a variable per type parameter, `arg <: param` and the type expected an upper bound of the return type, `where` bounds upper bounds; a variable is the join of its lower bounds, else the meet of its upper; arguments that cannot be synthesized alone (a lambda of untyped parameters, `none()`) are checked again against their parameters as far as solved, unknown parts `?`, while each round solves more. Its only sharing of variables across calls, a last resort when an argument holds a lambda, still defaults a literal first.
+- Kotlin's K2 (R7, R9) solves one system for a tree of calls; R1 unifies over the whole body (D55 rejected that). Both accept programs cjc rejects: `let x: Option<Int8> = id(Some(1))` and `let r: Int8 = apply2({x => x}, 1)` are errors of cjc 1.3.0-alpha.20260918, which defaults the literal inside its own call first.
+- cjc 1.3.0-alpha.20260918 (N108–N114, in #48 step 8c's PR): the join of what is passed (`pair(D1(), D2())` `Base`; type arguments invariant: `pair(Box(D1()), Box(D2()))` `Object`); a literal of no suffix takes another argument's type or a numeric bound, else `Int64`/`Float64` (`pair(1, 2u8)` `UInt8`; `pair(1, 2.0)` an error); the type expected and `where` bounds as upper bounds (`mkb()` of `T <: Base` `Option<Base>`); a value boxed into an `Option` parameter (`takeOpt(1)` `Int64`); a lambda waits for its parameters' types; nothing known, or bounds no type meets, "unable to infer generic argument of this function", never told by a later use (`let l = ArrayList(); l.add(1)`).
+
+## Decision
+
+- **As cjc, per call** (option A of step 8c): a `TypeArgSolver` per call of open type parameters, its variables `InferTy`s; bounds from the arguments synthesized alone, the type expected and the `where` bounds; solved as cjc's `FindSolution`. What waits is checked again against its parameter solved so far, an unknown part an error type, while a round solves more; then each literal and what waited is checked against its parameter solved. K2's system per tree of calls (option B) was the other way: more principled, but it types what cjc rejects (literals above all) and moves where an error is; weakening it to cjc's order is cjc's algorithm inside it.
+- **A variable never leaves its call** (A26): an argument is checked against no type holding one, and the call's and callee's types are recorded solved, an unsolved variable an error type. Variables are numbered on from the body's last live one and given back when the call ends, so a call inferred inside an argument has its own; were cjc to share them across calls, a call would hand its type with its variables to the one around it instead of solving them.
+- **What is open is the callee's**: a `Callable` names the declaration whose type parameters its types hold (`open`), instantiated at the call only; used as a value, not called, they are an error type, as before. An override is told by its parameters with the open ones erased, as before.
+- **Not checked yet**: a mismatch of an argument with its parameter, and the error where a call is not solved, are 8c′'s, with every other mismatch against a type expected.
+
+## Consequences
+
+- On this repository's source at c9fec2d, inferred by both builds: of 139 806 expressions, those of an error type 14 811 → 14 465, those whose type holds one (`Box<{unknown}>`) 3 912 → 1 322. 3 099 expressions get a type, 45 hold less unknown, none loses one. 64 change from one type to another: 55 literals take the type of a parameter another argument solved (`0` for a `UInt8`, as `pair(1, 2u8)`), 9 branches no longer join an `Array<X>` with an `Array<{unknown}>` into a common supertype `ToString`.
+- On filaco.dev's Ryzen 7 8845HS, a cold pass over every body: 8.33, 8.69, 8.49 s before, 8.34, 8.71, 8.70 s after (each on its own source, 1.1% more expressions after); `InferenceBench`, the memos read, 16.6 ms ±17% before, 16.3 ms ±16% after.
+- A named argument is still inferred alone, telling its type parameter nothing; an argument that synthesized a type is not checked again against its parameter solved (cjc checks every argument again); a join of lower bounds that fails is no solution even if an upper bound would be (cjc's `tyM`).

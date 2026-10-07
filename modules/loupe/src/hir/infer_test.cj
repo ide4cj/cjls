@@ -611,6 +611,8 @@ class InferTest {
             //      ^ Object
                 let i = Box(Box(1))
             //      ^ Box<Box<Int64>>
+                let k = Box(1).value
+            //      ^ Int64
                 let j = gen({x: Int64 => x})
             //      ^ (Int64) -> Int64
             //               ^ Int64
