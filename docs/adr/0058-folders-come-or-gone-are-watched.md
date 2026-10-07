@@ -1,4 +1,4 @@
-# ADR-0057: Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest
+# ADR-0058: Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest
 
 Status: accepted, 2026-10-08
 Amends ADR-0030: what is watched, and which event finds the project again
