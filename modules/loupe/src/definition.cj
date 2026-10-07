@@ -105,7 +105,11 @@ func bodyTargets(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<
             case TypeMembers(targets) => targets |> filterMap {
                 target: MemberTarget => valueTarget(db, def, ValueTarget.MemberOf(target))
             } |> collectArray
-            case _ => []
+            // a member of a value: what its type has (D55)
+            case OfValue => (inferBody(db, def).fieldOf(expr) ?? []) |> filterMap {
+                target: MemberTarget => valueTarget(db, def, ValueTarget.MemberOf(target))
+            } |> collectArray
+            case NoField => []
         }
     }
     if (let Some(bind) <- BindPat.cast(node)) {

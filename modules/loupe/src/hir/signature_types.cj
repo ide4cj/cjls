@@ -285,10 +285,17 @@ func coreDecl(db: AnalysisDatabase, from: PackageRef, name: String, kind: ItemKi
 }
 
 /**
- * One source declaration's signature as it is lowered: its types, by id, and the errors found.
+ * One source declaration's signature as it is lowered, or the types its body writes: its types, by
+ * id, and the errors found.
  */
 class SourceTyLowering {
     private let sig: Signature
+    private let types: Array<TypeRef>
+    /**
+     * Whether `types` are the body's: a path there may name a type parameter of a local function
+     * (N68), and `This` is not its declaration's return type.
+     */
+    private let inBody: Bool
     private let scope: ?TypeScope
     private let parent: ?DefId
     /**
@@ -300,6 +307,8 @@ class SourceTyLowering {
 
     SourceTyLowering(private let db: AnalysisDatabase, private let def: DefId) {
         sig = signature(db, def)
+        types = sig.types
+        inBody = false
         scope = typeScopeOf(db, def)
         parent = scope?.generics.get(1)?.owner
         cycle = if (def.item(db).kind == ItemKind.TypeAlias) {
@@ -307,6 +316,27 @@ class SourceTyLowering {
         } else {
             None
         }
+    }
+
+    /**
+     * The lowering of the types `body`, the body of `def`, writes.
+     */
+    init(db: AnalysisDatabase, def: DefId, body: Body) {
+        this.db = db
+        this.def = def
+        sig = signature(db, def)
+        types = body.types
+        inBody = true
+        scope = typeScopeOf(db, def)
+        parent = scope?.generics.get(1)?.owner
+        cycle = None
+    }
+
+    /**
+     * The type `id` of the body.
+     */
+    func lowerType(id: TypeRefId): Ty {
+        lowerAt(id)
     }
 
     func lower(): SignatureTypes {
@@ -354,10 +384,10 @@ class SourceTyLowering {
     }
 
     /**
-     * The type `id` of the signature.
+     * The type `id` of the signature, or of the body.
      */
     private func lowerAt(id: TypeRefId): Ty {
-        let kind = match (sig[id]) {
+        let kind = match (types[id.index]) {
             case PrimRef(name) where name.isEmpty() => ErrorTy
             case PrimRef(name) => PrimTy(name)
             case TupleRef(elements) => TupleTy(elements.map {one => lowerAt(one)})
@@ -390,7 +420,7 @@ class SourceTyLowering {
         let isStatic = owner.flatMap {one => itemOf(db, one)}.flatMap {
             item => item.members.iterator().filter {member => member.id == def.item(db)}.next()
         }.map {member => member.has(Modifier.Static)} ?? false
-        if (isMethod && !isStatic && sig.ty == Some(id)) {
+        if (!inBody && isMethod && !isStatic && sig.ty == Some(id)) {
             return ThisTy
         }
         errors.add(TyError(id, TyErrorKind.ThisNotAllowed(isMethod && isStatic)))
@@ -405,7 +435,12 @@ class SourceTyLowering {
         let last = segments.get(segments.size - 1) ?? return Ty(db, ErrorTy)
         let args = last.args.map {arg => lowerAt(arg)}
         let typeScope = scope ?? return Ty(db, ErrorTy)
-        let resolved = resolveTypePath(db, typeScope, segments.map {segment => segment.name})
+        let names = segments.map {segment => segment.name}
+        let resolved = if (inBody) {
+            resolveBodyTypePath(db, def, id, names)
+        } else {
+            resolveTypePath(db, typeScope, names)
+        }
         match (resolved.get(resolved.size - 1)) {
             // an alias does not see its own name in its type (N93)
             case Some(Resolved(TypeOf(target))) where target == def && target.item(db).kind == ItemKind.TypeAlias =>
@@ -420,7 +455,8 @@ class SourceTyLowering {
             case Some(UnresolvedPath) =>
                 unresolved(id, typeScope, segments, resolved)
                 Ty(db, ErrorTy)
-            // a type ambiguous, packages conflicting: errors of names
+            // a type ambiguous, packages conflicting: errors of names; a local function's type
+            // parameter: no `Ty` yet (8c)
             case _ => Ty(db, ErrorTy)
         }
     }

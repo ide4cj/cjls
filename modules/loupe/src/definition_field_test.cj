@@ -4,8 +4,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 
 /**
- * Where a name after a `.` in a body is declared (step 7 of #48), as far as names alone tell: after
- * a package, a type, a type parameter, `this` or `super`. After a value it is inference's.
+ * Where a name after a `.` in a body is declared (step 7 of #48): after a package, a type, a type
+ * parameter, `this` or `super`, as names tell; after a value, as its type does (step 8b).
  */
 @Test
 class FieldDefinitionTest {
@@ -161,28 +161,28 @@ class FieldDefinitionTest {
             package m
             import m.a
             class K { func f(): Bool { true } }
+            //             ^ def
             func g(): Unit {
                 let a = K()
                 a.$0f()
-            //    ^ no definition
             }
             "#)
     }
 
     @TestCase
     func aLocalHidesAType() {
-        // N75
+        // N75, N80: the local's type has `make`; cjc says an object cannot access static member 'make'
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
             class C {
                 static func make(): Int64 { 1 }
+            //              ^^^^ def
                 func other(): Bool { true }
             }
             func g(): Unit {
                 let C = C()
                 C.$0make()
-            //      ^^^^ no definition
             }
             "#)
     }
@@ -477,51 +477,84 @@ class FieldDefinitionTest {
     }
 
     @TestCase
-    func aMemberOfAValueIsNotYetResolved() {
-        // N75: the value's type tells, inference's (step 8)
+    func aMemberOfAValueByItsType() {
+        // N75: the value's type tells (D55)
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
             class K {
                 func f(): Int64 { 1 }
+            //       ^ def
             }
             func g(): Int64 {
                 let k = K()
                 k.$0f()
-            //    ^ no definition
             }
             "#)
     }
 
     @TestCase
-    func aMemberOfACallIsNotYetResolved() {
+    func aMemberOfACallByWhatItReturns() {
         // N75
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
             class K {
                 func f(): Int64 { 1 }
+            //       ^ def
             }
             func k(): K { K() }
             func g(): Int64 { k().$0f() }
-            //                    ^ no definition
             "#)
     }
 
     @TestCase
-    func aMemberOfAStaticVariableIsNotYetResolved() {
-        // N75: `C.k` is a value
+    func aMemberOfAStaticVariableByItsInferredType() {
+        // N75, N100: `C.k` is a value, of the type of `K()`
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
             class K {
                 func f(): Int64 { 1 }
+            //       ^ def
             }
             class C {
                 static let k = K()
             }
             func g(): Int64 { C.k.$0f() }
-            //                    ^ no definition
+            "#)
+    }
+
+    @TestCase
+    func anExtendOfAnotherInstanceOfTheTypeIsNotSeen() {
+        // N86: cjc says 'only' is not a member of class 'Box<S>'
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Box<T> {}
+            class S {}
+            extend Box<Int64> {
+                func only(): Int64 { 1 }
+            }
+            func g(b: Box<S>): Int64 { b.$0only() }
+            //                             ^^^^ no definition
+            "#)
+    }
+
+    @TestCase
+    func anOverrideHidesWhatItOverrides() {
+        // N107
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            open class A {
+                public open func f(): Int64 { 1 }
+            }
+            class B <: A {
+                public override func f(): Int64 { 2 }
+            //                       ^ def
+            }
+            func g(b: B): Int64 { b.$0f() }
             "#)
     }
 }
