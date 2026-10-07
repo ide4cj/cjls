@@ -105,33 +105,18 @@ class TypeArgSolver {
     }
 
     /**
-     * The type of each variable, `None` for one nothing tells, or of bounds no type meets. A
-     * variable bounded by another is solved after it (cjc's `TyVarConstraintGraph`); a bound still
-     * naming an unsolved one is left out at last (`T <: Comparable<T>`).
+     * The type of each variable, `None` for one nothing tells, or of bounds no type meets. A lower
+     * bound holds no variable: what is passed was inferred before, with none. An upper bound may (a
+     * `where` bound, `T <: Comparable<T>`): one still naming a variable not solved is left out, so
+     * the order of cjc's `TyVarConstraintGraph` is no question.
      */
     func solve(): Array<?Ty> {
         let solved = Array<?Ty>(count, repeat: None)
-        let done = Array<Bool>(count, repeat: false)
-        var lenient = false
-        while (true) {
-            var progress = false
-            for (i in 0..count where !done[i]) {
-                let lower = bounds[i].lower.toArray().map {one => replaceVars(db, one, base, solved)}
-                let upper = bounds[i].upper.toArray().map {one => replaceVars(db, one, base, solved)}
-                if (!lenient && bounds[i].lower.iterator().any {one => hasUnsolved(one, done)}) {
-                    continue
-                }
-                let free = {tys: Array<Ty> => tys.filter {one => !hasVars(one) && !hasErrors(db, one)}}
-                solved[i] = choose(free(lower), free(upper), bounds[i])
-                done[i] = true
-                progress = true
-            }
-            if (done.iterator().all {one => one}) {
-                break
-            }
-            if (!progress) {
-                lenient = true
-            }
+        let known = {tys: Array<Ty> => tys.map {one => replaceVars(db, one, base, solved)}.filter {
+            one => !hasErrors(db, one)
+        }}
+        for (i in 0..count) {
+            solved[i] = choose(known(bounds[i].lower.toArray()), known(bounds[i].upper.toArray()), bounds[i])
         }
         solved
     }
@@ -233,15 +218,6 @@ class TypeArgSolver {
 
     private func hasVars(ty: Ty): Bool {
         anyIn(db, ty) {one => varOf(one).isSome()}
-    }
-
-    private func hasUnsolved(ty: Ty, done: Array<Bool>): Bool {
-        anyIn(db, ty) {
-            one => match (varOf(one)) {
-                case Some(index) => !done[index]
-                case None => false
-            }
-        }
     }
 }
 
