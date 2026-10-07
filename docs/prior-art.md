@@ -84,7 +84,8 @@ Features:
 | Semantic tokens | `full` | `full`, `range` | #16 (syntactic; `full` and `range`) |
 | Document symbols | yes | yes | yes |
 | Workspace symbols | yes | yes | #12 |
-| Hover, definition, references, document highlight, rename | yes | yes | after #48 |
+| Definition | yes | yes | yes; not into a compiled package (#50) |
+| Hover, references, document highlight, rename | yes | yes | after #48 |
 | Completion, signature help | yes | yes | after #48 |
 | Type definition, implementation | — | yes | after #48 |
 | Call and type hierarchy | yes | — | after #48 |

@@ -38,6 +38,12 @@ public class ServerState <: FromContext<ServerState> {
     public var multilineTokens = false
 
     /**
+     * Whether the client takes a definition as `LocationLink`s, as agreed on at `initialize`; one
+     * that does not gets `Location`s.
+     */
+    public var locationLinks = false
+
+    /**
      * The roots of the workspace, as `initialize` and `didChangeWorkspaceFolders` give them: the
      * files under them are loaded, and watched.
      */
@@ -174,7 +180,8 @@ public class ServerState <: FromContext<ServerState> {
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
         let files = this.files ?? vfs.files()
         this.files = files
-        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens)
+        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
+            locationLinks)
     }
 
     /**
@@ -196,7 +203,8 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
         /**
          * Every file with contents, in the order of their ids.
          */
-        public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool) {}
+        public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
+        public let locationLinks: Bool) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot
