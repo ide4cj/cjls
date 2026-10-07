@@ -1,4 +1,4 @@
-# ADR-0020: The Linux binary is not linked with LTO
+# ADR-0020: The Linux binary is not linked with LTO: cjc miscompiles the stack maps under it
 
 Status: accepted, 2026-09-27
 

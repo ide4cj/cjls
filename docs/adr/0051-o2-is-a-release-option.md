@@ -1,4 +1,4 @@
-# ADR-0051: `-O2` is a release option, and the coverage builds with `-g`
+# ADR-0051: `-O2` is in each module's `[target.<triple>.release]`, not its `compile-option`: the coverage builds with `-g`, unoptimized
 
 Status: accepted, 2026-10-06
 

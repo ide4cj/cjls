@@ -1,4 +1,4 @@
-# ADR-0037: A `.cjo` is read through views generated from its vendored schema, on a runtime of our own, with no verifier
+# ADR-0037: A `.cjo` is read through views generated from its vendored schema, on a runtime of our own, with no verifier; the enums a patch may extend are open
 
 Status: accepted, 2026-10-02
 

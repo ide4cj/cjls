@@ -1,6 +1,7 @@
-# ADR-0033: A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by a module of its own
+# ADR-0033: A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files
 
 Status: accepted, 2026-10-02
+Amends ADR-0030: what is loaded is the project's files
 
 ## Context
 

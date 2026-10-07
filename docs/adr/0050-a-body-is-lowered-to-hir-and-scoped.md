@@ -1,6 +1,7 @@
 # ADR-0050: A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup
 
 Status: accepted, 2026-10-06
+Amends ADR-0047: the constructors of an enum any file of the package imports are seen in each
 
 ## Context
 

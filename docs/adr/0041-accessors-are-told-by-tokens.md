@@ -1,6 +1,7 @@
-# ADR-0041: A generated accessor finds a child by the tokens between it and the children that could be taken for it
+# ADR-0041: A generated accessor finds a child by the tokens between it and the children that could be taken for it; by position only for the child a rule starts with
 
 Status: accepted, 2026-10-04. Supersedes D10's accessor finding a child by its position (#139).
+Amends ADR-0010: an accessor finds a child by the tokens around it
 
 ## Context
 

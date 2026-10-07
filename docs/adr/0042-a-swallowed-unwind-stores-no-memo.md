@@ -1,4 +1,4 @@
-# ADR-0042: A query that swallows calca's unwinding stores no memo, and throws it again
+# ADR-0042: A query that swallows calca's unwinding (`catch (e: Exception)` around a fetch) stores no memo, and throws it again
 
 Status: accepted, 2026-10-04
 

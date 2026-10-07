@@ -1,4 +1,4 @@
-# ADR-0049: Coverage is a workflow of its own, counted over source files, shown by an endpoint badge
+# ADR-0049: Coverage is a workflow of its own, counted over source files (tests excluded), shown by a shields.io endpoint badge on a `badges` branch
 
 Status: accepted, 2026-10-06
 

@@ -1,4 +1,4 @@
-# ADR-0046: Imports resolve down the packages, a package's exports a query of their own
+# ADR-0046: Imports resolve down the packages, a package's exports a query of their own; a re-export keeps its import's visibility
 
 Status: accepted, 2026-10-05
 
