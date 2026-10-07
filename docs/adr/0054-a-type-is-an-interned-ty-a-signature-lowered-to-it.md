@@ -6,7 +6,7 @@ Status: accepted, 2026-10-06
 
 - D48 resolves a path in a type to declarations and leaves `Ty` to inference (#48 step 8). Inference compares types, substitutes their parameters and unifies them with its variables: it needs a type as a value, its names resolved, its aliases expanded (step 8a).
 - rust-analyzer (R1) interns its `Ty` in salsa; a type parameter is a `Param` by its place among the generics of its owner, the parent's first; a signature is lowered by queries of their own (`ty`, `callable_item_signature`, `field_types`, `generic_predicates`), split mostly because of cycles through associated types, an alias expanded and its cycle an error. cjc hash-conses its `Ty`s in `TypeManager` (`GetClassTy(decl, args)` hands out one pointer), a `GenericsTy` per `GenericParamDecl`, and substitutes aliases in PreCheck (`ResolveTypeAlias`), after its cycle check; a `.cjo` keeps the `SemaTy`s it resolved, an alias kept as one (`Array<Byte>`).
-- cjc 1.3.0-alpha.20260918 (N88–N92): `This` only as the whole return type of an instance function of a class ("'This' type is not allowed", "… here" in a static one); "undeclared type name"; a generic type of no argument ("generic type should be used with type argument"), in a supertype, an `extend`, an alias as well; as many arguments as no parameters ("type argument's number does not match type parameter's number"), a type parameter's or a non-generic type's included; "type cycle detected: 'X->Y->X'", once per alias of the cycle.
+- cjc 1.3.0-alpha.20260918 (N88–N93): `This` only as the whole return type of an instance function of a class ("'This' type is not allowed", "… here" in a static one); "undeclared type name"; a generic type of no argument ("generic type should be used with type argument"), in a supertype, an `extend`, an alias as well; as many arguments as no parameters ("type argument's number does not match type parameter's number"), a type parameter's or a non-generic type's included; "type cycle detected: 'X->Y->X'", once per alias of the cycle; inside its own type an alias does not see its own name ("undeclared type name 'X'").
 
 ## Decision
 
@@ -18,6 +18,6 @@ Status: accepted, 2026-10-06
 
 ## Consequences
 
-- Every declaration of this repository has its signature as types, none an error: 23 068 types, 0.71 s cold on an M-series Mac (`SignatureTypesBench`). Of the `.cjo`s of the project, those of `std.ast`, `stdx.chir` and `stdx.syntax` name types of `flatbuffers`, which the SDK has no `.cjo` of: error types.
+- Every declaration of this repository has its signature as types, none an error: 23 068 types, 4.5 ms (±16%, median) once the queries are computed, on an M-series Mac (`SignatureTypesBench`). Of the `.cjo`s of the project, those of `std.ast`, `stdx.chir` and `stdx.syntax` name types of `flatbuffers`, which the SDK has no `.cjo` of: error types.
 - The errors are found, not reported yet, as the bodies' are not (D50). cjc reports a cycle at the alias; here it is at the type the alias writes.
 - A use of `This` keeps it, unsubstituted (`ThisTy`): the type of what a call is on is inference's. So is a type not written, and a literal's.
