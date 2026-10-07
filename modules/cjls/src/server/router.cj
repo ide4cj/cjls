@@ -1,6 +1,6 @@
 package cjls.server
 
-import std.collection.HashMap
+import std.collection.{ArrayList, HashMap}
 import fjson.RawJson
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
@@ -31,6 +31,19 @@ public class Router {
     let requests = HashMap<String, RequestRoute>()
     let notifications = HashMap<String, NotificationRoute>()
     var diagnostics: ?(ServerSnapshot, VfsPath) -> Array<Diagnostic> = None
+
+    /**
+     * The methods it has a handler for, requests and notifications: what
+     * `capabilities()` is checked against (`CapabilitiesTest`), not a way to
+     * dispatch.
+     */
+    public prop methods: Array<String> {
+        get() {
+            let methods = ArrayList<String>(requests.keys())
+            methods.add(all: notifications.keys())
+            methods.toArray()
+        }
+    }
 
     /**
      * The state the handlers share; a fresh one unless given.

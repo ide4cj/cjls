@@ -44,7 +44,9 @@ class DiagnosticsPush {
         spawn {
             try {
                 for ((path, version) in documents) {
-                    publish(path, version, diagnosticsOf(snapshot, path), generation)
+                    if (let Some(diagnostics) <- computed(snapshot, path)) {
+                        publish(path, version, diagnostics, generation)
+                    }
                 }
             } catch (_: CancelledException) {
                 logger.debug("push cancelled", [("reason", "the content was modified")])
@@ -53,6 +55,24 @@ class DiagnosticsPush {
             } catch (e: Error) {
                 logger.error("push failed", [("cause", ErrorLogValue(e))])
             }
+        }
+    }
+
+    /**
+     * The diagnostics of one document, or none if computing them failed: that costs this document
+     * only. A cancellation is the snapshot's and any other `Error` the process's, so they end the push.
+     */
+    private func computed(snapshot: ServerSnapshot, path: VfsPath): ?Array<Diagnostic> {
+        try {
+            Some(diagnosticsOf(snapshot, path))
+        } catch (e: CancelledException) {
+            throw e
+        } catch (e: Exception) {
+            logger.error("diagnostics failed", [("cause", e), ("uri", path.toUri())])
+            None
+        } catch (e: StackOverflowError) {
+            logger.error("diagnostics failed", [("cause", ErrorLogValue(e)), ("uri", path.toUri())])
+            None
         }
     }
 
