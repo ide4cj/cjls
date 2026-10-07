@@ -2,7 +2,7 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
-import loupe.{FileSymbol, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
+import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
 import loupe.Diagnostic as LoupeDiagnostic
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
@@ -64,6 +64,56 @@ func symbolKind(kind: StructureKind): SymbolKind {
         case StructureKind.Field => SymbolKind.Field
         case StructureKind.Constant => SymbolKind.Constant
         case StructureKind.TypeAlias => SymbolKind.TypeParameter
+    }
+}
+
+/**
+ * `folds`, sorted by start, as LSP has them: lines, and columns of `encoding` unless the client folds
+ * whole lines only (`lineFoldingOnly`). Such a client hides all of a fold's last line, so a fold
+ * followed on that line, as by `} else {`, ends a line earlier, and is left out once a single line
+ * is all it has. No more than `limit`, the first by start.
+ */
+func foldingRanges(text: Rope, folds: Array<Fold>, encoding: Encoding, lineFoldingOnly: Bool, limit: ?Int64): Array<FoldingRange> {
+    let result = ArrayList<FoldingRange>()
+    for (fold in folds) {
+        if (let Some(limit) <- limit && result.size >= limit) {
+            break
+        }
+        let start = text.positionOf(fold.range.start, encoding)
+        let end = text.positionOf(fold.range.end, encoding)
+        let kind = foldingRangeKind(fold.kind)
+        if (!lineFoldingOnly) {
+            result.add(FoldingRange(startLine: UInt32(start.line), startCharacter: UInt32(start.column),
+                endLine: UInt32(end.line), endCharacter: UInt32(end.column), kind: kind))
+            continue
+        }
+        let endLine = if (followedOnItsLine(text, fold.range.end, end.line)) {
+            end.line - 1
+        } else {
+            end.line
+        }
+        if (endLine > start.line) {
+            result.add(FoldingRange(startLine: UInt32(start.line), endLine: UInt32(endLine), kind: kind))
+        }
+    }
+    result.toArray()
+}
+
+/**
+ * Whether anything but spaces follows `offset` on `line`, its line.
+ */
+func followedOnItsLine(text: Rope, offset: Int64, line: Int64): Bool {
+    text.slice(offset..text.lineEnd(line)).toString().toRuneArray().any {it => !it.isAsciiWhiteSpace()}
+}
+
+/**
+ * LSP has a kind for a comment and for imports only.
+ */
+func foldingRangeKind(kind: FoldKind): ?FoldingRangeKind {
+    match (kind) {
+        case FoldKind.Comment => FoldingRangeKind.COMMENT
+        case FoldKind.Imports => FoldingRangeKind.IMPORTS
+        case _ => None
     }
 }
 

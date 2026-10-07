@@ -27,6 +27,7 @@ public func router(): Router {
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
+        .route(FoldingRangeRequestSpec(), handleFoldingRange)
         .route(MemoryUsageRequestSpec(), handleMemoryUsage)
         .publishDiagnostics(documentDiagnostics)
 }
@@ -48,6 +49,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
                 full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
+        // a file's folds are its own: no `workspace/foldingRange/refresh`
+        foldingRangeProvider: BooleanOrFoldingRangeOptionsOrFoldingRangeRegistrationOptions.AsBoolean(true),
         workspaceSymbolProvider: BooleanOrWorkspaceSymbolOptions.AsBoolean(true),
         workspace: WorkspaceOptions(workspaceFolders: WorkspaceFoldersServerCapabilities(supported: true,
             changeNotifications: StringOrBoolean.AsBoolean(true))),

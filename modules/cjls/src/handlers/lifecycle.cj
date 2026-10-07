@@ -20,6 +20,9 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
+    let folding = params.capabilities.textDocument.flatMap {textDocument => textDocument.foldingRange}
+    state.lineFoldingOnly = folding.flatMap {it => it.lineFoldingOnly} ?? false
+    state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}
     state.roots.add(all: workspaceRoots(params))
     state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
     state.cangjieHome = cangjieHome(params.initializationOptions)
