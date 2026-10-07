@@ -219,6 +219,7 @@ public struct BinaryItem <: ToString {
 public class BinaryExports <: Equatable<BinaryExports> {
     private let byExport = HashMap<String, BinaryItem>()
     private let byItem = HashMap<BinaryItem, Int64>()
+    private let byDecl = HashMap<Int64, BinaryItem>()
 
     /**
      * Each item, the index of its declaration and its `exportId` (empty for none), in the order
@@ -228,6 +229,7 @@ public class BinaryExports <: Equatable<BinaryExports> {
         private let exportIds!: Array<String> = []) {
         for (i in 0..items.size) {
             byItem.add(items[i], decls[i])
+            byDecl.add(decls[i], items[i])
             if (!exportIds[i].isEmpty()) {
                 byExport.add(exportIds[i], items[i])
             }
@@ -252,10 +254,7 @@ public class BinaryExports <: Equatable<BinaryExports> {
      * The item of the declaration at `index` in `allDecls`, `None` if it is none's.
      */
     public func itemAt(index: Int64): ?BinaryItem {
-        for (i in 0..decls.size where decls[i] == index) {
-            return items[i]
-        }
-        None
+        byDecl.get(index)
     }
 
     public operator func ==(other: BinaryExports): Bool {

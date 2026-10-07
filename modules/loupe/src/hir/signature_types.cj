@@ -5,7 +5,7 @@ import std.convert.Parsable
 import std.deriving.*
 import calca.*
 import calca.macros.*
-import cjo.{DeclInfo, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
+import cjo.{CjoException, DeclInfo, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile}
@@ -27,6 +27,10 @@ public enum TyErrorKind {
      * A path whose name is no type of the scope (N89), an alias's own in its type (N93).
      */
     | UndeclaredType(String)
+    /**
+     * A path whose name is no type, but a function, a variable or a package of the scope (N94).
+     */
+    | NotAType(String)
     /**
      * A generic type written with no type arguments (N90).
      */
@@ -56,6 +60,7 @@ public struct TyError {
     public func message(): String {
         match (kind) {
             case UndeclaredType(name) => "undeclared type name '${name}'"
+            case NotAType(name) => "'${name}' is not a type"
             case NeedsTypeArgs => "generic type should be used with type argument"
             case WrongTypeArgCount => "type argument's number does not match type parameter's number"
             case ThisNotAllowed(here) where here => "'This' type is not allowed here"
@@ -88,11 +93,12 @@ public struct SignatureTypes {
          */
         public let ty!: ?Ty = None,
         /**
-         * The types after `<:`: a type's supertypes, an `extend`'s interfaces.
+         * The types after `<:`: a type's supertypes, an `extend`'s interfaces; a class's superclass
+         * first, `Object` if it names none, as cjc adds it.
          */
         public let supers!: Array<Ty> = [],
         /**
-         * Its `where`.
+         * Its `where`, as written: not the bounds cjc adds to an `extend` of a generic type.
          */
         public let bounds!: Array<TyBound> = [],
         /**
@@ -139,7 +145,8 @@ public struct SignatureTypes {
 /**
  * The `SignatureTypes` of `def`: of its node in a source file, lowered from its `Signature` in its
  * `TypeScope`; of its declaration in a `.cjo`, from the types cjc resolved; an empty one for an
- * item no longer there. Only an alias reads another's, so a cycle is of aliases alone (A14).
+ * item no longer there. Only an alias reads another's, and one on a cycle reads none of the cycle,
+ * so a cycle here is a bug of the search for them (A14).
  */
 @CalcaTracked[cycleResult: signatureTypesOnCycle]
 public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
@@ -150,43 +157,54 @@ public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
 }
 
 /**
- * The `SignatureTypes` of an alias on a cycle: its type an error (N92), as cjc reports each
- * alias of the cycle; nothing else reads another's.
+ * The `SignatureTypes` of an alias calca finds on a cycle the search for them missed: its type an
+ * error (N92).
  */
 func signatureTypesOnCycle(db: AnalysisDatabase, def: DefId): SignatureTypes {
     let sig = signature(db, def)
-    let error = Ty(db, ErrorTy)
+    let cycle = aliasCycleOf(db, def) ?? [def, def]
     let errors = match (sig.ty) {
-        case Some(at) => [TyError(at, TyErrorKind.TypeCycle(aliasCycleOf(db, def)))]
+        case Some(at) => [TyError(at, TyErrorKind.TypeCycle(cycle.map {id => aliasName(db, id)}))]
         case None => Array<TyError>()
     }
-    SignatureTypes(generics: sig.generics, ty: error, errors: errors)
+    SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors)
 }
 
 /**
- * The names of the aliases from `def` around back to it, `def`'s first and last (`X->Y->X`): the
- * first alias each one's type names, by its paths' last segments; `X->X` if none leads back.
+ * The aliases from `def` around back to it, `def` first and last (`X->Y->X`), found as cjc finds
+ * them: depth first, in the order of the types of each alias, a path's arguments before it; `None`
+ * if none leads back, `def` on no cycle.
  */
-func aliasCycleOf(db: AnalysisDatabase, def: DefId): Array<String> {
-    let nameOf = {id: DefId => declItemOf(db, id).flatMap {item => item.names.get(0)} ?? ""}
-    let names = ArrayList<String>([nameOf(def)])
-    let seen = HashSet<DefId>()
-    seen.add(def)
-    var current = def
-    while (true) {
-        let next = aliasesNamedBy(db, current).iterator().filter {id => id == def || !seen.contains(id)}.next() ?? break
-        names.add(nameOf(next))
-        if (next == def) {
-            return names.toArray()
-        }
-        seen.add(next)
-        current = next
-    }
-    [nameOf(def), nameOf(def)]
+func aliasCycleOf(db: AnalysisDatabase, def: DefId): ?Array<DefId> {
+    aliasPath(db, def, def, HashSet<DefId>([def]))
 }
 
 /**
- * The aliases the type of the alias `def` names, in the order its types are written.
+ * A path of aliases from `from` to `to`, each named by the type of the one before, through none of
+ * `visited`; `from` first, `to` last.
+ */
+func aliasPath(db: AnalysisDatabase, from: DefId, to: DefId, visited: HashSet<DefId>): ?Array<DefId> {
+    for (next in aliasesNamedBy(db, from)) {
+        if (next == to) {
+            return [from, to]
+        }
+        if (!visited.contains(next)) {
+            visited.add(next)
+            if (let Some(rest) <- aliasPath(db, next, to, visited)) {
+                return [from].concat(rest)
+            }
+        }
+    }
+    None
+}
+
+func aliasName(db: AnalysisDatabase, def: DefId): String {
+    declItemOf(db, def).flatMap {item => item.names.get(0)} ?? ""
+}
+
+/**
+ * The aliases the type of the alias `def` names, in the order its types are written, but itself,
+ * which it does not see (N93); none of a `.cjo`'s, which name no source's.
  */
 func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
     let sig = signature(db, def)
@@ -195,7 +213,8 @@ func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
     for (ty in sig.types) {
         if (let PathRef(segments) <- ty) {
             let resolved = resolveTypePath(db, scope, segments.map {segment => segment.name})
-            if (let Some(Resolved(TypeOf(id))) <- resolved.get(resolved.size - 1) && id.item(db).kind == ItemKind.TypeAlias) {
+            if (let Some(Resolved(TypeOf(id))) <- resolved.get(resolved.size - 1) && id != def &&
+                id.item(db).kind == ItemKind.TypeAlias) {
                 found.add(id)
             }
         }
@@ -205,13 +224,32 @@ func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
 
 /**
  * The type parameters of `def` by name, read without lowering its types: a source declaration's
- * from its `Signature`, as a path naming it counts its arguments against them (N90, N91) and a
- * type of a cycle of supertypes (`class A <: I<B>`, `class B <: I<A>`) needs no other's types.
+ * from its `Signature`, a `.cjo`'s from its declaration, as a path naming it counts its arguments
+ * against them (N90, N91) and a type of a cycle of supertypes (`class A <: I<B>`, `class B <:
+ * I<A>`) needs no other's types.
  */
 public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
     match (def.file(db)) {
         case Source(_) => signature(db, def).generics
-        case Binary(_, _) => signatureTypes(db, def).generics
+        case Binary(pkg, index) => binaryGenericsOf(db, pkg, BinaryItem(index, def.item(db)))
+    }
+}
+
+/**
+ * The type parameters of the declaration `item` of the `.cjo` of `pkg` by name; none for a
+ * declaration it does not have, or bytes that break where they are read.
+ */
+@CalcaTracked
+func binaryGenericsOf(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): Array<String> {
+    let index = binaryExports(db, pkg).declIndex(item) ?? return []
+    let bytes = pkg.bytes(db)
+    try {
+        let cjo = openCjo(bytes)
+        genericDeclsOf(cjo.allDecls[index]).map {param => cjo.allDecls[Int64(param) - 1].identifier ?? ""}
+    } catch (_: CjoException) {
+        []
+    } catch (_: IndexOutOfBoundsException) {
+        []
     }
 }
 
@@ -252,15 +290,23 @@ func coreDecl(db: AnalysisDatabase, from: PackageRef, name: String, kind: ItemKi
 class SourceTyLowering {
     private let sig: Signature
     private let scope: ?TypeScope
-    private let item: ?Item
     private let parent: ?DefId
+    /**
+     * The cycle of aliases of an alias on one (N92): its type an error, and no alias of the cycle
+     * expanded in it.
+     */
+    private let cycle: ?Array<DefId>
     private let errors = ArrayList<TyError>()
 
     SourceTyLowering(private let db: AnalysisDatabase, private let def: DefId) {
         sig = signature(db, def)
         scope = typeScopeOf(db, def)
-        item = declItemOf(db, def)
-        parent = parentOf(db, def)
+        parent = scope?.generics.get(1)?.owner
+        cycle = if (def.item(db).kind == ItemKind.TypeAlias) {
+            aliasCycleOf(db, def)
+        } else {
+            None
+        }
     }
 
     func lower(): SignatureTypes {
@@ -274,10 +320,37 @@ class SourceTyLowering {
             }
             case _ => sig.ty.map {id => lowerAt(id)}
         }
-        let supers = sig.supers.map {id => lowerAt(id)}
+        let written = sig.supers.map {id => lowerAt(id)}
+        let supers = if (kind == ItemKind.Class) {
+            withSuperclass(written)
+        } else {
+            written
+        }
         let bounds = sig.bounds.map {bound => TyBound(lowerAt(bound.ty), bound.bounds.map {id => lowerAt(id)})}
+        if (let Some(names) <- cycle && let Some(at) <- sig.ty) {
+            errors.add(TyError(at, TyErrorKind.TypeCycle(names.map {id => aliasName(db, id)})))
+            return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray())
+        }
         SignatureTypes(generics: sig.generics, params: params, ty: ty, supers: supers, bounds: bounds,
             errors: errors.toArray())
+    }
+
+    /**
+     * The supertypes of a class, `supers`, `std.core`'s `Object` first if none of them is a class
+     * (N79): cjc adds it, and a `.cjo` keeps it.
+     */
+    private func withSuperclass(supers: Array<Ty>): Array<Ty> {
+        let named = supers.iterator().any {
+            one => match (one.kind(db)) {
+                case DeclTy(id, _) => id.item(db).kind == ItemKind.Class
+                case _ => false
+            }
+        }
+        let object = scope.flatMap {one => coreDecl(db, PackageRef.Source(one.pkg), "Object", ItemKind.Class)}
+        match (object) {
+            case Some(id) where !named && id != def => [Ty(db, DeclTy(id, []))].concat(supers)
+            case _ => supers
+        }
     }
 
     /**
@@ -312,8 +385,11 @@ class SourceTyLowering {
      * `This` at `id`: allowed as the whole return type of an instance function of a class (N88).
      */
     private func thisAt(id: TypeRefId): TyKind {
-        let isMethod = def.item(db).kind == ItemKind.Func && (parent.map {one => one.item(db).kind == ItemKind.Class} ?? false)
-        let isStatic = item.map {one => one.has(Modifier.Static)} ?? false
+        let owner = parent.filter {one => one.item(db).kind == ItemKind.Class}
+        let isMethod = def.item(db).kind == ItemKind.Func && owner.isSome()
+        let isStatic = owner.flatMap {one => itemOf(db, one)}.flatMap {
+            item => item.members.iterator().filter {member => member.id == def.item(db)}.next()
+        }.map {member => member.has(Modifier.Static)} ?? false
         if (isMethod && !isStatic && sig.ty == Some(id)) {
             return ThisTy
         }
@@ -341,24 +417,72 @@ class SourceTyLowering {
                     errors.add(TyError(id, TyErrorKind.WrongTypeArgCount))
                 }
                 Ty(db, ParamTy(owner, index))
-            case Some(UnresolvedPath) where segments.size == 1 =>
-                errors.add(TyError(id, TyErrorKind.UndeclaredType(last.name)))
+            case Some(UnresolvedPath) =>
+                unresolved(id, typeScope, segments, resolved)
                 Ty(db, ErrorTy)
-            // a package as a qualifier, a type ambiguous, packages conflicting: errors of names
+            // a type ambiguous, packages conflicting: errors of names
             case _ => Ty(db, ErrorTy)
         }
     }
 
     /**
+     * An error for each segment of the path `segments` at `id` that `resolved` leaves unresolved, up
+     * to one ambiguous: a name of nothing (N89), of something but a type (N94), or one after a type
+     * or a type parameter (N95).
+     */
+    private func unresolved(id: TypeRefId, typeScope: TypeScope, segments: Array<TypeSegment>,
+        resolved: Array<PathResolution>): Unit {
+        for (i in 0..resolved.size) {
+            let name = segments[i].name
+            match (resolved[i]) {
+                case UnresolvedPath =>
+                    let named = match (resolved.get(i - 1)) {
+                        case None => isValueNamed(typeScope, name)
+                        case Some(Resolved(QualifierOf(pkg))) => isExportNamed(typeScope, pkg, name)
+                        case _ => false
+                    }
+                    errors.add(TyError(id, if (named) {
+                        TyErrorKind.NotAType(name)
+                    } else {
+                        TyErrorKind.UndeclaredType(name)
+                    }))
+                case Resolved(_) => ()
+                case _ => return
+            }
+        }
+    }
+
+    /**
+     * Whether `name` is a function, a variable or a package of `typeScope`; cjc counts a
+     * constructor as nothing (N94).
+     */
+    private func isValueNamed(typeScope: TypeScope, name: String): Bool {
+        match (lookUp(db, typeScope.pkg, typeScope.file, name, Namespace.Values)) {
+            case Found(_) | FoundPackage(_) | Ambiguous(_) => true
+            case _ => false
+        }
+    }
+
+    /**
+     * Whether `pkg` exports something named `name` that `typeScope`'s package sees.
+     */
+    private func isExportNamed(typeScope: TypeScope, pkg: PackageRef, name: String): Bool {
+        let relation = relationOf(typeScope.pkg.name(db), nameOf(db, pkg))
+        !visibleOf(packageExports(db, pkg).names.get(name) ?? [], relation, Visibility.Private).isEmpty()
+    }
+
+    /**
      * The declaration `target` applied to `args`, as many as its type parameters (N90, N91): an
-     * alias expanded, `CFunc<F>` a C function type.
+     * alias expanded, but one of the cycle `def` is on; `CFunc<F>` a C function type, its one
+     * argument counted first (N96).
      */
     private func applied(id: TypeRefId, target: DefId, args: Array<Ty>): Ty {
+        let isCFunc = target.item(db).kind == ItemKind.BuiltIn && isNamed(db, target, "CFunc")
         let count = genericsOf(db, target).size
         let fitted = if (args.size == count) {
             args
         } else {
-            errors.add(TyError(id, if (args.isEmpty()) {
+            errors.add(TyError(id, if (args.isEmpty() && !isCFunc) {
                 TyErrorKind.NeedsTypeArgs
             } else {
                 TyErrorKind.WrongTypeArgCount
@@ -366,10 +490,12 @@ class SourceTyLowering {
             Array(count) {i => args.get(i) ?? Ty(db, ErrorTy)}
         }
         match (target.item(db).kind) {
+            case TypeAlias where cycle.isSome() && aliasPath(db, target, def, HashSet<DefId>([target])).isSome() =>
+                Ty(db, ErrorTy)
             case TypeAlias =>
                 let aliased = signatureTypes(db, target).ty ?? Ty(db, ErrorTy)
                 substitute(db, aliased, target, fitted)
-            case BuiltIn where isNamed(db, target, "CFunc") => match (fitted.get(0).map {one => one.kind(db)}) {
+            case BuiltIn where isCFunc => match (fitted.get(0).map {one => one.kind(db)}) {
                 case Some(FuncTy(params, ret, _)) => Ty(db, FuncTy(params, ret, true))
                 case _ => Ty(db, ErrorTy)
             }
@@ -394,13 +520,22 @@ func lowerBinarySignature(db: AnalysisDatabase, def: DefId, pkg: BinaryPackageFi
     let parentIndex = parent.flatMap {
         one => binaryExports(db, pkg).declIndex(BinaryItem(item.file, one.item(db)))
     }
+    let bytes = pkg.bytes(db)
+    // what the bytes throw alone: a calca call under it unwinds through (A21)
     try {
-        let cjo = openCjo(pkg.bytes(db))
-        BinaryTyLowering(index, parent, parentIndex, db, pkg, cjo, def).lower()
-    } catch (_: Exception) {
+        BinaryTyLowering(index, parent, parentIndex, db, pkg, openCjo(bytes), def).lower()
+    } catch (_: CjoException) {
+        SignatureTypes()
+    } catch (_: IndexOutOfBoundsException) {
         SignatureTypes()
     }
 }
+
+/**
+ * The most dimensions a `RawArray` of a `.cjo` is read with, far more than a type writes: more
+ * are a broken file's.
+ */
+let maxRawArrayDims = 64
 
 /**
  * One declaration of a `.cjo` as types: cjc's `SemaTy`s, each by its place among `allTypes` from 1,
@@ -414,6 +549,10 @@ class BinaryTyLowering {
      * `allDecls` from 1, with whose they are.
      */
     private let owners: Array<(DefId, Array<UInt32>)>
+    /**
+     * The types being lowered, each inside the one before.
+     */
+    private let lowering = HashSet<UInt32>()
 
     BinaryTyLowering(index: Int64, parent: ?DefId, parentIndex: ?Int64, private let db: AnalysisDatabase,
         private let pkg: BinaryPackageFile, private let cjo: CjoPackage, private let def: DefId) {
@@ -428,7 +567,9 @@ class BinaryTyLowering {
 
     func lower(): SignatureTypes {
         let generics = genericDeclsOf(decl).map {param => cjo.allDecls[Int64(param) - 1].identifier ?? ""}
-        let bounds = (decl.generic?.constraints.toArray() ?? []).map {
+        // those cjc adds to an `extend` of a generic type, its type's bounds, are no source's
+        let written = (decl.generic?.constraints.toArray() ?? []).filter {constraint => !constraint.isImplicitlyIntroduced}
+        let bounds = written.map {
             constraint => TyBound(lowerAt(constraint.`type`), constraint.uppers.toArray().map {upper => lowerAt(upper)})
         }
         let supers = match (decl.info) {
@@ -460,6 +601,18 @@ class BinaryTyLowering {
      * The type at `index` among `allTypes`, from 1.
      */
     private func lowerAt(index: UInt32): Ty {
+        // a type inside itself is a broken file's (D38)
+        if (!lowering.add(index)) {
+            return Ty(db, ErrorTy)
+        }
+        try {
+            lowerSemaTy(index)
+        } finally {
+            lowering.remove(index)
+        }
+    }
+
+    private func lowerSemaTy(index: UInt32): Ty {
         let semaTy = semaTyOf(index) ?? return Ty(db, ErrorTy)
         let args = semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}
         let kind = match (semaTy.kind) {
@@ -520,9 +673,13 @@ class BinaryTyLowering {
     }
 
     /**
-     * `RawArray<T>` of `dims` dimensions, one inside another: `RawArray<RawArray<T>>` of 2.
+     * `RawArray<T>` of `dims` dimensions, one inside another: `RawArray<RawArray<T>>` of 2; an
+     * error for more than `maxRawArrayDims`, a broken file's (D38).
      */
     private func rawArrayOf(args: Array<Ty>, dims: Int64): Ty {
+        if (dims > maxRawArrayDims) {
+            return Ty(db, ErrorTy)
+        }
         let element = args.get(0) ?? return Ty(db, ErrorTy)
         let rawArray = match (resolveBinaryType(db, pkg, BinaryTypeRef.BuiltInRef("RawArray"))) {
             case Some(DeclType(id)) => id

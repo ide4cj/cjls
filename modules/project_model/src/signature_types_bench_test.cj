@@ -15,7 +15,9 @@ func lowerEverySignature(ws: BenchWorkspace, onFailed!: (SourceFile, DefId, Sign
     for ((_, file, _) in ws.files) {
         for (def in defsOf(ws, file)) {
             let types = signatureTypes(ws.db, def)
-            let all = types.params.concat(types.ty.map {ty => [ty]} ?? []).concat(types.supers)
+            let bounds = types.bounds.map {bound => [bound.ty].concat(bound.bounds)}
+            let all = types.params.concat(types.ty.map {ty => [ty]} ?? []).concat(types.supers).concat(
+                bounds.iterator().flatMap {one => one.iterator()} |> collectArray)
             var failed = !types.errors.isEmpty()
             for (ty in all) {
                 let (size, errors) = sizeOf(ws.db, ty)
@@ -53,12 +55,14 @@ func sizeOf(db: AnalysisDatabase, ty: Ty): (Int64, Int64) {
 }
 
 /**
- * The signatures of this repository's declarations as types: `cjpm bench '--filter=SignatureTypesBench.*'`.
+ * The signatures of this repository's declarations as types, read once they are computed: what a
+ * run after the first measures is the memos read, not the lowering. `cjpm bench
+ * '--filter=SignatureTypesBench.*'`.
  */
 @Test
 class SignatureTypesBench {
     @Bench
-    func lowerEverySignatureOfTheWorkspace(): Int64 {
+    func readEverySignatureOfTheWorkspaceComputed(): Int64 {
         lowerEverySignature(workspace())
     }
 }

@@ -75,6 +75,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      */
     | ErrorTy
 
+    // by hand: `@Derive[Hashable]` hashes each field, and std's `Array` is not `Hashable`
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
         match (this) {
