@@ -93,6 +93,10 @@ func bodyTargets(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<
     }
     if (let Some(ref) <- RefExpr.cast(node)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return []
+        // of overloads, the one inference chose (8d)
+        if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
+            return declTargets(db, [decl])
+        }
         return match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())) {
             case Values(targets) => targets |> filterMap {target: ValueTarget => valueTarget(db, def, target)} |> collectArray
             case InFile(resolution) => fileTargets(db, resolution)
@@ -100,6 +104,9 @@ func bodyTargets(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<
     }
     if (let Some(access) <- MemberAccessExpr.cast(node)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return []
+        if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
+            return declTargets(db, [decl])
+        }
         return match (resolveField(db, def, expr)) {
             case PackageMembers(ids) => declTargets(db, ids)
             case TypeMembers(targets) => targets |> filterMap {
