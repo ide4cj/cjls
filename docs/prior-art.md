@@ -89,7 +89,8 @@ Features:
 | Completion, signature help | yes | yes | after #48 |
 | Type definition, implementation | — | yes | after #48 |
 | Call and type hierarchy | yes | — | after #48 |
-| Folding, selection range, formatting | — | yes | — |
+| Folding | — | yes | yes (syntactic) |
+| Selection range, formatting | — | yes | — |
 | Code actions, code lens, document links | yes | code actions | — |
 | Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | #47 |
 | `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | #49 |
