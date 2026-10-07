@@ -421,7 +421,7 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
     | MacroExpandExpr
     /** `[...]` after a macro name */
     | MacroAttr
-    /** `(...)` after a macro name */
+    /** `(...)` after a macro name: an argument list when the tokens parse as one, before any expansion */
     | MacroArgs
 
     /**
