@@ -14,6 +14,10 @@ import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 
 let PUSHED_PATH = VfsPath.file(getTempDirectory().join("pushed.cj"))
+let FIRST_PATH = VfsPath.file(getTempDirectory().join("first.cj"))
+let SECOND_PATH = VfsPath.file(getTempDirectory().join("second.cj"))
+let THIRD_PATH = VfsPath.file(getTempDirectory().join("third.cj"))
+let THREE_DOCUMENTS: Array<(VfsPath, Int32)> = [(FIRST_PATH, 1), (SECOND_PATH, 1), (THIRD_PATH, 1)]
 
 /**
  * One diagnostic, its message the document's text as the snapshot has it.
@@ -123,6 +127,75 @@ class DiagnosticsPushTest {
 
         // assert
         @Expect(publishedOf(transport.nextNotification()).version, Some(Int32(2)))
+    }
+
+    @TestCase
+    func aDocumentWhoseDiagnosticsThrowDoesNotStopTheOnesAfterIt() {
+        // arrange
+        let transport = WrittenTransport()
+        let push = DiagnosticsPush({
+            snap, path => if (path == SECOND_PATH) {
+                throw Exception("a query failed")
+            } else {
+                textAsDiagnostic(snap, path)
+            }
+        }, clientOn(transport), NoopLogger())
+
+        // act
+        push.schedule(ServerState().snapshot(), THREE_DOCUMENTS).get()
+
+        // assert - `get` waited for every write, so a missing one fails here rather than hangs
+        @Assert(!transport.isEmpty())
+        @Expect(publishedOf(transport.nextNotification()).uri, FIRST_PATH.toUri())
+        @Assert(!transport.isEmpty())
+        @Expect(publishedOf(transport.nextNotification()).uri, THIRD_PATH.toUri())
+        @Expect(transport.isEmpty())
+    }
+
+    @TestCase
+    func aDocumentWhoseDiagnosticsOverflowTheStackDoesNotStopTheOnesAfterIt() {
+        // arrange
+        let transport = WrittenTransport()
+        let push = DiagnosticsPush({
+            snap, path => if (path == SECOND_PATH) {
+                overflowTheStack()
+            } else {
+                textAsDiagnostic(snap, path)
+            }
+        }, clientOn(transport), NoopLogger())
+
+        // act
+        push.schedule(ServerState().snapshot(), THREE_DOCUMENTS).get()
+
+        // assert
+        @Assert(!transport.isEmpty())
+        @Expect(publishedOf(transport.nextNotification()).uri, FIRST_PATH.toUri())
+        @Assert(!transport.isEmpty())
+        @Expect(publishedOf(transport.nextNotification()).uri, THIRD_PATH.toUri())
+        @Expect(transport.isEmpty())
+    }
+
+    @TestCase
+    func aCancellationEndsThePushOfTheDocumentsAfterIt() {
+        // arrange - the second document's diagnostics change a file under the snapshot, then query it
+        let state = stateWith("a")
+        let transport = WrittenTransport()
+        let push = DiagnosticsPush({
+            snap, path => if (path == SECOND_PATH) {
+                state.setFileContents(PUSHED_PATH, Rope("b"))
+                textAsDiagnostic(snap, PUSHED_PATH)
+            } else {
+                textAsDiagnostic(snap, path)
+            }
+        }, clientOn(transport), NoopLogger())
+
+        // act
+        push.schedule(state.snapshot(), THREE_DOCUMENTS).get()
+
+        // assert
+        @Assert(!transport.isEmpty())
+        @Expect(publishedOf(transport.nextNotification()).uri, FIRST_PATH.toUri())
+        @Expect(transport.isEmpty())
     }
 }
 
