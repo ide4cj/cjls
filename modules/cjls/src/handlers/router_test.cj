@@ -51,6 +51,7 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
                 methods.add(WillSaveTextDocumentWaitUntilRequestSpec.METHOD)
             }
         case "documentSymbolProvider" => methods.add(DocumentSymbolRequestSpec.METHOD)
+        case "selectionRangeProvider" => methods.add(SelectionRangeRequestSpec.METHOD)
         case "workspaceSymbolProvider" => methods.add(WorkspaceSymbolRequestSpec.METHOD)
         case "diagnosticProvider" =>
             methods.add(DocumentDiagnosticRequestSpec.METHOD)

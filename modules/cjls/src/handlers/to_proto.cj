@@ -2,7 +2,8 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
-import loupe.{FileSymbol, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
+import loupe.{FileSymbol, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode,
+    TextRange}
 import loupe.Diagnostic as LoupeDiagnostic
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
@@ -28,6 +29,18 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): Docume
         selectionRange: lspRange(text, node.selectionRange.start, node.selectionRange.end, encoding),
         children: node.children.map {child => documentSymbol(text, child, encoding)}
     )
+}
+
+/**
+ * `ranges`, innermost first and at least one, nested as LSP has them: each the `parent` of the one
+ * before it.
+ */
+func selectionRange(text: Rope, ranges: Array<TextRange>, encoding: Encoding): SelectionRange {
+    var outer = None<SelectionRange>
+    for (i in ranges.size - 1..=0 : -1) {
+        outer = SelectionRange(range: lspRange(text, ranges[i].start, ranges[i].end, encoding), parent: outer)
+    }
+    outer.getOrThrow()
 }
 
 /**
