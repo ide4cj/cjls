@@ -11,9 +11,12 @@ target
 *.dylib
 *.cjo
 
-# Claude Code: only the shared settings are checked in
+# Claude Code: the shared settings and what they name are checked in
 .claude/*
 !.claude/settings.json
+!.claude/hooks/
+!.claude/agents/
+!.claude/skills/
 
 # the third-party test suites, as tests/corpora/fetch.py puts them
 .corpora
