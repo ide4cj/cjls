@@ -188,7 +188,7 @@ class Inference {
             infer(accessor, Ty(db, expected))
         }
         let found = fields.values().toArray()
-        found.sortBy {a, b => a.expr.index.compare(b.expr.index)}
+        sort(found, by: {a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index)})
         InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, ty: ty)
     }
 
