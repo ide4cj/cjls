@@ -579,8 +579,47 @@ class InferTest {
     }
 
     @TestCase
-    func typeArgumentsNotWrittenAreNotInferredYet() {
-        // 8c: cjc infers `Box<Int64>` for `a`, `Int64` for `b`, `Option<Int64>` for `d`
+    func aTypeArgumentNotWrittenIsTheJoinOfWhatIsPassed() {
+        checkInference(#"
+            package m
+            open class Base {}
+            class D1 <: Base {}
+            class D2 <: Base {}
+            class Box<T> {
+                public Box(public let value: T) {}
+            //                        ^^^^^ T
+            }
+            func gen<T>(a: T): T { a }
+            //          ^ T
+            func pair<T>(a: T, b: T): T { a }
+            //           ^ T
+            //                 ^ T
+            func f(): Unit {
+                let a = Box(1)
+            //      ^ Box<Int64>
+                let b = gen("s")
+            //      ^ String
+                let c = gen<Int8>(1)
+            //      ^ Int8
+                let d = Some(D1())
+            //      ^ Option<D1>
+                let e = pair(D1(), D2())
+            //      ^ Base
+                let g = pair(Box(D1()), Box(D2()))
+            //      ^ Object
+                let h = pair(D1(), Box(1))
+            //      ^ Object
+                let i = Box(Box(1))
+            //      ^ Box<Box<Int64>>
+                let j = gen({x: Int64 => x})
+            //      ^ (Int64) -> Int64
+            //               ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLiteralPassedTakesTheTypeOfAnotherArgumentOrOfTheTypeExpected() {
         checkInference(#"
             package m
             class Box<T> {
@@ -589,15 +628,172 @@ class InferTest {
             }
             func gen<T>(a: T): T { a }
             //          ^ T
+            func pair<T>(a: T, b: T): T { a }
+            //           ^ T
+            //                 ^ T
             func f(): Unit {
-                let a = Box(1)
-            //      ^ Box<{unknown}>
-                let b = gen(1)
-            //      ^ {unknown}
-                let c = gen<Int8>(1)
+                let a = pair(1, 2u8)
+            //      ^ UInt8
+                let b = pair(-1, 2i16)
+            //      ^ Int16
+                let c = pair(1.0, 2.0f32)
+            //      ^ Float32
+                let d: Int8 = gen(1)
             //      ^ Int8
-                let d = Some(1)
+                let e: ?Int64 = gen(1)
+            //      ^ Option<Int64>
+                let g: Box<Int16> = Box(1)
+            //      ^ Box<Int16>
+                let h = gen(1)
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTypeArgumentIsTheTypeExpectedOrABoundWhenNothingIsPassed() {
+        checkInference(#"
+            package m
+            open class Base {}
+            class D1 <: Base {}
+            class Box<T> {
+                public Box(public let value: T) {}
+            //                        ^^^^^ T
+            }
+            func none<T>(): Option<T> { None }
+            func mk<T>(): Array<T> { [] }
+            func mkb<T>(): Option<T> where T <: Base { None }
+            func idb<T>(x: T): T where T <: Base { x }
+            //          ^ T
+            func gen<T>(a: T): T { a }
+            //          ^ T
+            func f(): Unit {
+                let a: Array<Int64> = mk()
+            //      ^ Array<Int64>
+                let b: Option<String> = none()
+            //      ^ Option<String>
+                let c = mkb()
+            //      ^ Option<Base>
+                let d = idb(D1())
+            //      ^ D1
+                let e: Box<Base> = Box(D1())
+            //      ^ Box<Base>
+                let g: Base = gen(D1())
+            //      ^ Base
+            }
+            "#)
+    }
+
+    @TestCase
+    func aValueIsBoxedIntoTheOptionOfAParameter() {
+        checkInference(#"
+            package m
+            open class Base {}
+            class D1 <: Base {}
+            func takeOpt<T>(o: ?T): T { o.getOrThrow() }
+            //              ^ Option<T>
+            func pair<T>(a: T, b: T): T { a }
+            //           ^ T
+            //                 ^ T
+            func f(): Unit {
+                let a = takeOpt(1)
+            //      ^ Int64
+                let b = takeOpt(Some(D1()))
+            //      ^ D1
+                let c = takeOpt(D1())
+            //      ^ D1
+                let d = pair(Some(1), None)
+            //      ^ Option<Int64>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLambdaWaitsForTheTypesOfItsParameters() {
+        checkInference(#"
+            package m
+            class Box<T> {
+                public Box(public let value: T) {}
+            //                        ^^^^^ T
+                public func map<R>(g: (T) -> R): Box<R> { Box(g(value)) }
+            //                     ^ (T) -> R
+            }
+            func apply<T, R>(x: T, g: (T) -> R): R { g(x) }
+            //               ^ T
+            //                     ^ (T) -> R
+            func first<T>(g: (T) -> Int64, x: T): Int64 { g(x) }
+            //            ^ (T) -> Int64
+            //                             ^ T
+            func f(): Unit {
+                let a = apply(1, {x => x.toString()})
+            //      ^ String
+            //                    ^ Int64
+                let b = first({y => y + 1}, 2)
+            //      ^ Int64
+            //                 ^ Int64
+                let c = Box(1).map({z => z > 0})
+            //      ^ Box<Bool>
+            //                      ^ Int64
+                let d = apply("s", {w: String => w.size})
+            //      ^ Int64
+            //                      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
+    func anArgumentOfNoTypeAloneIsCheckedAgainstWhatTheOthersSolved() {
+        checkInference(#"
+            package m
+            func none<T>(): Option<T> { None }
+            func pair<T>(a: T, b: T): T { a }
+            //           ^ T
+            //                 ^ T
+            func f(): Unit {
+                let a = pair(none(), Some(1))
+            //      ^ Option<Int64>
+                let b = pair(None, Some("s"))
+            //      ^ Option<String>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aRecursiveCallSolvesItsTypeParameterAsItself() {
+        checkInference(#"
+            package m
+            func rec<T>(x: T): T {
+            //          ^ T
+                let y = rec(x)
+            //      ^ T
+                y
+            }
+            "#)
+    }
+
+    @TestCase
+    func whatNothingTellsOrNoTypeMeetsIsAnError() {
+        checkInference(#"
+            package m
+            import std.collection.ArrayList
+            func none<T>(): Option<T> { None }
+            func pair<T>(a: T, b: T): T { a }
+            //           ^ T
+            //                 ^ T
+            func f(): Unit {
+                // cjc: unable to infer generic argument of this function
+                let a = none()
             //      ^ Option<{unknown}>
+                // cjc: unable to infer generic argument of this function
+                let b = ArrayList()
+            //      ^ ArrayList<{unknown}>
+                b.add(1)
+                // cjc: unable to infer generic argument of this function
+                let c = pair(1, "s")
+            //      ^ {unknown}
+                // cjc: unable to infer generic argument of this function
+                let d = pair(1, 2.0)
+            //      ^ {unknown}
             }
             "#)
     }

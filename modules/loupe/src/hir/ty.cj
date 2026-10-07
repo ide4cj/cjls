@@ -35,13 +35,14 @@ public struct Ty {
             case ParamTy(owner, index) => genericsOf(db, owner).get(index) ?? "{unknown}"
             case ThisTy => "This"
             case ErrorTy => "{unknown}"
+            case InferTy(index) => "{var ${index}}"
         }
     }
 }
 
 /**
- * What a `Ty` is: cjc's `TypeKind`s a signature can write, and an error. The literals' `Int` and
- * `Float`, and inference's variables, are inference's (8b).
+ * What a `Ty` is: cjc's `TypeKind`s a signature can write, an error, and a variable of the type
+ * arguments of a call being inferred.
  */
 public enum TyKind <: Hashable & Equatable<TyKind> {
     /**
@@ -74,6 +75,11 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      * A type that does not resolve, or is not allowed where it is written: cjc's `InvalidTy`.
      */
     | ErrorTy
+    /**
+     * A type argument of a call not written, while the call is inferred (D56): cjc's placeholder
+     * `TyVar`. Never in an `InferenceResult`: what is not solved is an error type.
+     */
+    | InferTy(Int64)
 
     // by hand: `@Derive[Hashable]` hashes each field, and std's `Array` is not `Hashable`
     public func hashCode(): Int64 {
@@ -104,6 +110,9 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
                 hasher.write(index)
             case ThisTy => hasher.write(6)
             case ErrorTy => hasher.write(7)
+            case InferTy(index) =>
+                hasher.write(8)
+                hasher.write(index)
         }
         hasher.finish()
     }
@@ -118,6 +127,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
             case (ParamTy(a, aIndex), ParamTy(b, bIndex)) => a == b && aIndex == bIndex
             case (ThisTy, ThisTy) => true
             case (ErrorTy, ErrorTy) => true
+            case (InferTy(a), InferTy(b)) => a == b
             case _ => false
         }
     }

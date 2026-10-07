@@ -3,6 +3,7 @@ package loupe.hir
 import std.collection.*
 import std.convert.Parsable
 import std.deriving.*
+import std.sort.*
 import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
@@ -99,13 +100,27 @@ func declaredTyOnCycle(db: AnalysisDatabase, _: DefId): Ty {
 
 /**
  * What a call may call: the types of its parameters and what it returns, as seen on what it is
- * called on.
+ * called on; `open`, the declaration whose type parameters in them are the call's to infer (8c).
  */
 struct Callable {
-    Callable(let params: Array<Ty>, let ret: Ty) {}
+    Callable(let params: Array<Ty>, let ret: Ty, let open!: ?DefId = None) {}
 
+    /**
+     * Its type as a value, not called: the type parameters still open unknown.
+     */
     func ty(db: AnalysisDatabase): Ty {
-        Ty(db, FuncTy(params, ret, false))
+        Ty(db, FuncTy(erasedParams(db), erased(db, ret), false))
+    }
+
+    func erasedParams(db: AnalysisDatabase): Array<Ty> {
+        params.map {one => erased(db, one)}
+    }
+
+    func erased(db: AnalysisDatabase, ty: Ty): Ty {
+        match (open) {
+            case Some(owner) => eraseParams(db, ty, owner)
+            case None => ty
+        }
     }
 }
 
@@ -134,8 +149,11 @@ class Inference {
     private let locals: Array<Ty>
     private let types: Array<?Ty>
     private let lowering: SourceTyLowering
-    private let fields = ArrayList<FieldTargets>()
+    // by expression: an argument inferred again replaces what it found
+    private let fields = HashMap<Int64, FieldTargets>()
     private let frames = ArrayList<Frame>()
+    // the first variable of the next call inferred: those of the calls being inferred are under it
+    private var nextVar = 0
 
     Inference(private let db: AnalysisDatabase, private let def: DefId) {
         hir = body(db, def)
@@ -169,7 +187,9 @@ class Inference {
             }
             infer(accessor, Ty(db, expected))
         }
-        InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: fields.toArray(), ty: ty)
+        let found = fields.values().toArray()
+        found.sortBy {a, b => a.expr.index.compare(b.expr.index)}
+        InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, ty: ty)
     }
 
     /**
@@ -478,7 +498,9 @@ class Inference {
      * returns what that type does, else the join of its block's type and its `return`s' (N103).
      */
     private func lambdaTy(params: Array<BodyParam>, block: ExprId, expected: ?Ty): Ty {
-        let wanted: ?(Array<Ty>, Ty) = match (expected.map {one => one.kind(db)}) {
+        let wanted: ?(Array<Ty>, ?Ty) = match (expected.map {one => one.kind(db)}) {
+            // a return type unknown, of a type argument not solved yet, is synthesized (8c)
+            case Some(FuncTy(tys, ret, _)) where tys.size == params.size && ret.kind(db) == ErrorTy => (tys, None)
             case Some(FuncTy(tys, ret, _)) where tys.size == params.size => (tys, ret)
             case _ => None
         }
@@ -491,7 +513,7 @@ class Inference {
         for (i in 0..params.size) {
             param(params[i], paramTys[i])
         }
-        Ty(db, FuncTy(paramTys, function(wanted.map {one => one[1]}, block), false))
+        Ty(db, FuncTy(paramTys, function(wanted.flatMap {one => one[1]}, block), false))
     }
 
     /**
@@ -828,7 +850,7 @@ class Inference {
             case EnumCtor =>
                 let callable = ctorCallable(id, explicit, None, expected) ?? return error
                 if (callable.params.isEmpty()) {
-                    callable.ret
+                    callable.erased(db, callable.ret)
                 } else {
                     callable.ty(db)
                 }
@@ -877,16 +899,17 @@ class Inference {
     }
 
     /**
-     * The function `id`, its own type arguments `explicit` if given, else unknown (8c); seen on
-     * `recv` if it is a member called on one.
+     * The function `id`, its own type arguments `explicit` if given, else open, the call's to infer
+     * (8c); seen on `recv` if it is a member called on one.
      */
     private func funcCallable(id: DefId, explicit: Array<Ty>, recv: ?Ty): Callable {
         let generics = signatureTypes(db, id).generics.size
+        let isWritten = generics > 0 && explicit.size == generics
         let own = {
-            ty: Ty => if (generics > 0 && explicit.size == generics) {
+            ty: Ty => if (isWritten) {
                 substitute(db, ty, id, explicit)
             } else {
-                eraseParams(db, ty, id)
+                ty
             }
         }
         let seen = {
@@ -895,24 +918,45 @@ class Inference {
                 case None => own(ty)
             }
         }
-        Callable(signatureTypes(db, id).params.map {one => seen(one)}, seen(valueOf(id)))
+        let open: ?DefId = if (generics > 0 && !isWritten) {
+            id
+        } else {
+            None
+        }
+        Callable(signatureTypes(db, id).params.map {one => seen(one)}, seen(valueOf(id)), open: open)
     }
 
     /**
      * The enum constructor `id`, its enum's type arguments `explicit`, else those of `recv` or of
-     * `expected` if of its enum, else unknown (8c).
+     * `expected` if of its enum, else open, the call's to infer (8c).
      */
     private func ctorCallable(id: DefId, explicit: Array<Ty>, recv: ?Ty, expected: ?Ty): ?Callable {
         let parent = parentOf(db, id) ?? return None
-        let args = typeArgsOf(parent, explicit, recv ?? expected)
-        Callable(signatureTypes(db, id).params.map {one => substitute(db, one, parent, args)}, Ty(db, DeclTy(parent, args)))
+        let (args, open) = openTypeArgsOf(parent, explicit, recv ?? expected)
+        Callable(signatureTypes(db, id).params.map {one => substitute(db, one, parent, args)},
+            Ty(db, DeclTy(parent, args)), open: open)
     }
 
     /**
      * The type arguments of the type `id`: `explicit`, else those of `wanted` if it is of `id`, else
-     * unknown (8c).
+     * unknown.
      */
     private func typeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): Array<Ty> {
+        knownTypeArgsOf(id, explicit, wanted) ?? Array(genericsOf(db, id).size) {_ => error}
+    }
+
+    /**
+     * The type arguments of the type `id` called: as `typeArgsOf`, else its type parameters, open
+     * for the call to infer (8c), and `id`.
+     */
+    private func openTypeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): (Array<Ty>, ?DefId) {
+        if (let Some(args) <- knownTypeArgsOf(id, explicit, wanted)) {
+            return (args, None)
+        }
+        (Array(genericsOf(db, id).size) {i => Ty(db, ParamTy(id, i))}, id)
+    }
+
+    private func knownTypeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): ?Array<Ty> {
         let count = genericsOf(db, id).size
         if (explicit.size == count) {
             return explicit
@@ -920,25 +964,25 @@ class Inference {
         if (let Some(one) <- wanted && let DeclTy(other, args) <- one.kind(db) && other == id && args.size == count) {
             return args
         }
-        Array(count) {_ => error}
+        None
     }
 
     /**
-     * The constructors of the type `id` applied to `args`; of one that declares none, the one of no
-     * parameters.
+     * The constructors of the type `id` applied to `args`, the type parameters of `open` among them
+     * the call's to infer; of one that declares none, the one of no parameters.
      */
-    private func initCallables(id: DefId, args: Array<Ty>): Array<Callable> {
+    private func initCallables(id: DefId, args: Array<Ty>, open!: ?DefId = None): Array<Callable> {
         let item = declItemOf(db, id) ?? return []
         let file = id.file(db)
         let self = Ty(db, DeclTy(id, args))
         let inits = item.members.filter {member => member.kind == ItemKind.Init || member.kind == ItemKind.PrimaryInit}
         if (inits.isEmpty()) {
-            return [Callable([], self)]
+            return [Callable([], self, open: open)]
         }
         inits.map {
             member => Callable(signatureTypes(db, DefId(db, file, member.id)).params.map {
                 one => substitute(db, one, id, args)
-            }, self)
+            }, self, open: open)
         }
     }
 
@@ -959,7 +1003,9 @@ class Inference {
     private func declCallables(id: DefId, explicit: Array<Ty>, expected: ?Ty): Array<Callable> {
         match (id.item(db).kind) {
             case Func => [funcCallable(id, explicit, None)]
-            case Class | Struct => initCallables(id, typeArgsOf(id, explicit, expected))
+            case Class | Struct =>
+                let (args, open) = openTypeArgsOf(id, explicit, expected)
+                initCallables(id, args, open: open)
             case EnumCtor => match (ctorCallable(id, explicit, None, expected)) {
                 case Some(one) => [one]
                 case None => []
@@ -1009,6 +1055,9 @@ class Inference {
             return error
         }
         let callable = fitting[0]
+        if (let Some(owner) <- callable.open) {
+            return genericCallTy(callee, callable, owner, args, expected)
+        }
         exprs[callee.index] = callable.ty(db)
         var positional = 0
         for (arg in args) {
@@ -1023,12 +1072,158 @@ class Inference {
     }
 
     /**
+     * A call of `callable` whose type arguments, those of `owner`, are not written: inferred from
+     * the arguments and `expected`, as cjc's `PrepareTyArgsSynthesis` does (D56). Each argument is
+     * checked against its parameter if that names no type argument, else synthesized alone and its
+     * type a lower bound of the parameter; a literal of no suffix leaves its type to the solution, a
+     * lambda of a parameter not written, or an argument of no type alone (`none()`), wait. Solved as
+     * far as they tell, those that wait are checked against their parameters as far as solved, the
+     * unknown an error type, which bounds again; until a round solves nothing new. Then each that
+     * waited, and each literal, is checked against its parameter solved.
+     */
+    private func genericCallTy(callee: ExprId, callable: Callable, owner: DefId, args: Array<CallArg>,
+        expected: ?Ty): Ty {
+        let base = nextVar
+        let count = genericsOf(db, owner).size
+        nextVar += count
+        let vars = Array(count) {i => Ty(db, InferTy(base + i))}
+        let open = {ty: Ty => substitute(db, ty, owner, vars)}
+        let params = callable.params.map(open)
+        let ret = open(callable.ret)
+        // the parameter of each argument, a named one none: it is inferred alone
+        let targets = Array<?Ty>(args.size, repeat: None)
+        var positional = 0
+        for (i in 0..args.size where args[i].name.isNone()) {
+            targets[i] = params.get(positional)
+            positional++
+        }
+        let synthesized = Array<?Ty>(args.size, repeat: None)
+        let ideal = Array<?Bool>(args.size, repeat: None)
+        let waiting = ArrayList<Int64>()
+        for (i in 0..args.size) {
+            let expr = args[i].expr
+            match (targets[i]) {
+                case Some(target) where hasInferVars(db, target) =>
+                    if (let Some(isFloat) <- idealLiteral(expr)) {
+                        ideal[i] = isFloat
+                    } else if (isUntypedLambda(expr)) {
+                        waiting.add(i)
+                    } else {
+                        let ty = infer(expr, None)
+                        if (hasErrors(db, ty)) {
+                            waiting.add(i)
+                        } else {
+                            synthesized[i] = ty
+                        }
+                    }
+                case Some(target) => infer(expr, target)
+                case None => infer(expr, None)
+            }
+        }
+        let solve = {
+            =>
+            let solver = TypeArgSolver(db, base, count, from, coreId("Option", ItemKind.Enum))
+            solver.boundedBy(owner, vars)
+            for (i in 0..args.size) {
+                let target = targets[i] ?? continue
+                if (let Some(ty) <- synthesized[i]) {
+                    solver.constrain(ty, target)
+                }
+                if (let Some(isFloat) <- ideal[i]) {
+                    solver.literal(isFloat, target)
+                }
+            }
+            if (let Some(one) <- expected && hasInferVars(db, ret)) {
+                solver.constrain(ret, one)
+            }
+            solver.solve()
+        }
+        var solved = solve()
+        var unsolved = solved.iterator().filter {one => one.isNone()}.count()
+        while (unsolved > 0 && !waiting.isEmpty()) {
+            for (i in waiting.toArray()) {
+                let target = replaceVars(db, targets[i].getOrThrow(), base, solved)
+                if (!isKnownEnough(target)) {
+                    continue
+                }
+                let ty = infer(args[i].expr, target)
+                if (isUntypedLambda(args[i].expr) || !hasErrors(db, ty)) {
+                    synthesized[i] = ty
+                    waiting.removeIf {one => one == i}
+                }
+            }
+            let next = solve()
+            let left = next.iterator().filter {one => one.isNone()}.count()
+            if (left >= unsolved) {
+                break
+            }
+            solved = next
+            unsolved = left
+        }
+        let solution = solved
+        let final = {ty: Ty => replaceVars(db, ty, base, solution)}
+        for (i in 0..args.size) {
+            let target = targets[i] ?? continue
+            if (ideal[i].isSome() || waiting.contains(i) || isUntypedLambda(args[i].expr)) {
+                infer(args[i].expr, final(target))
+            }
+        }
+        nextVar = base
+        exprs[callee.index] = Ty(db, FuncTy(params.map(final), final(ret), false))
+        final(ret)
+    }
+
+    /**
+     * Whether a parameter's type, solved as far as it is, tells an argument that waits anything:
+     * a function type's parameters all known, any other type not unknown as a whole (cjc's
+     * `UnsolvedAsQuest`).
+     */
+    private func isKnownEnough(target: Ty): Bool {
+        match (target.kind(db)) {
+            case FuncTy(params, _, _) => params.iterator().all {one => !hasErrors(db, one)}
+            case ErrorTy => false
+            case _ => true
+        }
+    }
+
+    /**
+     * For a number of no suffix, cjc's ideal type, whether it is a float.
+     */
+    private func idealLiteral(id: ExprId): ?Bool {
+        match (hir[id]) {
+            case LitExpr(text) where isNumber(text) =>
+                let lower = text.replace("_", "").toAsciiLower()
+                let isHex = lower.startsWith("0x")
+                if (suffixOf(lower, isHex).isSome()) {
+                    return None
+                }
+                Some(if (isHex) {
+                    lower.contains("p") || lower.contains(".")
+                } else {
+                    lower.contains(".") || lower.contains("e")
+                })
+            case UnaryExpr("-", inner) => idealLiteral(inner)
+            case _ => None
+        }
+    }
+
+    /**
+     * Whether `id` is a lambda of a parameter whose type it does not write.
+     */
+    private func isUntypedLambda(id: ExprId): Bool {
+        match (hir[id]) {
+            case LambdaExpr(params, _) => params.iterator().any {one => one.ty.isNone()}
+            case _ => false
+        }
+    }
+
+    /**
      * `callables`, the nearest first, but those whose parameters a nearer one has: a member that
      * overrides or implements another hides it (N107).
      */
     private func overriding(callables: Array<Callable>): Array<Callable> {
         let kept = ArrayList<Callable>()
-        for (one in callables where kept.iterator().all {other => other.params != one.params}) {
+        for (one in callables where kept.iterator().all {other => other.erasedParams(db) != one.erasedParams(db)}) {
             kept.add(one)
         }
         kept.toArray()
@@ -1138,7 +1333,7 @@ class Inference {
                 target => isMemberOf(target, head)
             }, head)
             if (!targets.isEmpty()) {
-                fields.add(FieldTargets(expr, targets))
+                fields[expr.index] = FieldTargets(expr, targets)
                 return (targets, head)
             }
         }
@@ -1154,7 +1349,7 @@ class Inference {
         let params = ArrayList<Array<Ty>>()
         for (target in targets) {
             if (let MemberDecl(id) <- target && id.item(db).kind == ItemKind.Func) {
-                let own = funcCallable(id, [], recv).params
+                let own = funcCallable(id, [], recv).erasedParams(db)
                 if (params.iterator().any {one => one == own}) {
                     continue
                 }
