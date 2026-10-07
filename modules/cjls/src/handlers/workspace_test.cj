@@ -211,7 +211,7 @@ class InitializedTest {
                     case WorkspaceFolderOrURI.AsURI(uri) => uri
                     case _ => ""
                 }, uriOf(b))
-                @Expect(relative.pattern, "**/*.cj")
+                @Expect(relative.pattern, "**/*")
             case _ => @Fail("not a relative pattern")
         }
         @Expect(state.watchers.get(VfsPath.file(b)), Some(registrations[1].id))
@@ -233,7 +233,7 @@ class InitializedTest {
         let request = transport.nextRequest().getOrThrow()
         let registration = request.params.getOrThrow().read<RegistrationParams>().registrations[0]
         match (watchersOf(registration)[0].globPattern) {
-            case GlobPattern.AsPattern(glob) => @Expect(glob, VfsPath.file(root).toString().replace("\\", "/") + "/**/*.cj")
+            case GlobPattern.AsPattern(glob) => @Expect(glob, VfsPath.file(root).toString().replace("\\", "/") + "/**/*")
             case _ => @Fail("not a glob")
         }
     }
@@ -297,18 +297,18 @@ class ProjectLoadTest {
     }
 
     @TestCase
-    func aRootIsWatchedForItsManifestsToo() {
+    func aRootIsWatchedForWhatComesOrGoesAndForItsFilesAndManifestsChanged() {
         // act
         let registration = watcherRegistration("1", VfsPath.file(getTempDirectory().join("ws")), true)
 
         // assert
-        let patterns = watchersOf(registration).map {
+        let watched = watchersOf(registration).map {
             watcher => match (watcher.globPattern) {
-                case GlobPattern.AsRelativePattern(relative) => relative.pattern
+                case GlobPattern.AsRelativePattern(relative) => "${relative.pattern} ${watcher.kind?.value ?? 0}"
                 case _ => ""
             }
         }
-        @Expect(patterns, ["**/*.cj", "**/cjpm.toml", "**/cj-project.json"])
+        @Expect(watched, ["**/* 5", "**/*.cj 2", "**/cjpm.toml 2", "**/cj-project.json 2"])
     }
 
     @TestCase
@@ -416,6 +416,70 @@ class DidChangeWatchedFilesTest {
         @Expect(textAt(state, dir.join("a.cj")), Some("a"))
         @Expect(textAt(state, dir.join("src").join("b.cj")), None<String>)
         @Expect(textAt(state, dir.join("src").join("deep").join("c.cj")), None<String>)
+    }
+
+    @TestCase
+    func aDirectoryCreatedIsReadWhenReportedAlone() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let state = initializedWith([dir], watches: false)
+        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let b = writeFile(dir, "src/net/b.cj", "b")
+        let c = writeFile(dir, "src/net/deep/c.cj", "c")
+
+        // act
+        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("src").join("net"), FileChangeType.Created)]))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(textAt(state, b), Some("b"))
+        @Expect(textAt(state, c), Some("c"))
+    }
+
+    @TestCase
+    func aDirectoryRenamedIsGoneAndReadUnderItsNewName() {
+        // arrange
+        let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}"),
+            ("src/old/b.cj", "package app.old")])
+        let state = initializedWith([dir], watches: false)
+        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let old = dir.join("src").join("old")
+        let new = dir.join("src").join("new")
+        rename(old, to: new)
+
+        // act
+        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(old, FileChangeType.Deleted), fileEvent(new, FileChangeType.Created)]))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(textAt(state, old.join("b.cj")), None<String>)
+        @Expect(textAt(state, new.join("b.cj")), Some("package app.old"))
+        let module = state.analysis.project().getOrThrow().modules(state.analysis)[0]
+        @Expect(module.packages(state.analysis).map {pkg => pkg.name(state.analysis)}, ["app", "app.new"])
+    }
+
+    @TestCase
+    func whatTheWalkSkipsComingFindsNoProjectAgain() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let state = initializedWith([dir], watches: false)
+        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let unreported = writeFile(dir, "b.cj", "b")
+        writeFile(dir, "target/release/out.o", "o")
+        writeFile(dir, ".git/HEAD", "h")
+        writeFile(dir, "notes.md", "n")
+
+        // act
+        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("target").join("release"), FileChangeType.Created),
+            fileEvent(dir.join(".git"), FileChangeType.Deleted), fileEvent(dir.join("notes.md"), FileChangeType.Created),
+            fileEvent(dir.join("a.cj"), FileChangeType.Changed)]))
+        remove(dir, recursive: true)
+
+        // assert: had the project been found again, the file not reported would be read
+        @Expect(textAt(state, unreported), None<String>)
     }
 
     @TestCase
