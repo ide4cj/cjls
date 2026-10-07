@@ -19,6 +19,6 @@ Status: accepted, 2026-10-07
 
 ## Consequences
 
-- On this repository, 139 654 expressions, 14 822 of no type but those that are no value (a macro, a type or package before a `.`): members a macro declares (D47's gap), `[]`, `??` and operators of types (8e), overloads (8d), and what follows from them. A cold pass over every body 4.2 s on an M-series Mac; `InferenceBench` reads the memos.
+- On this repository (5c67102), 139 806 expressions, 14 811 of no type but those that are no value (a macro, a type or package before a `.`, the callee of a call of no type): calls (3 902) and names (3 177) of members a macro declares (D47's gap) and of overloads (8d); `[]` (1 197 of 1 297), binary operators (2 090: `??` and operators of types) and `?.` (76 of 76), 8e's; the blocks (3 133), members (874) and branches (`match` 130, `if` 83, `try` 16) of what has none. A cold pass over every body 8.4–8.6 s in three runs on filaco.dev's Ryzen 7 8845HS; `InferenceBench` reads the memos, 14.4–14.8 ms.
 - The errors are not found yet: a mismatch needs subtyping checked against cjc at each use, and is 8c's with the constraints.
 - A local function's type parameters have no `Ty` yet: an error type.
