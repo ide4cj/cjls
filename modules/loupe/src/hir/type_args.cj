@@ -73,7 +73,7 @@ class TypeArgSolver {
                     constrain(bParams[i], aParams[i])
                 }
                 constrain(aRet, bRet)
-            case (VArrayTy(a, _), VArrayTy(b, _)) => equal(a, b)
+            // no `VArray` of a type parameter: cjc rejects one
             case (_, DeclTy(id, args)) => match (asInstanceOf(db, sub, id, from).map {one => one.kind(db)}) {
                 case Some(DeclTy(_, subArgs)) where subArgs.size == args.size =>
                     for (i in 0..args.size) {

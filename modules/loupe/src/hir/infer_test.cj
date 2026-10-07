@@ -761,6 +761,77 @@ class InferTest {
     }
 
     @TestCase
+    func aTypeArgumentIsSolvedThroughTuplesSelfBoundsAndOtherParameters() {
+        checkInference(#"
+            package m
+            open class Base {}
+            class D1 <: Base {}
+            func gen<T>(a: T): T { a }
+            //          ^ T
+            func fstOf<A, B>(p: (A, B)): A { p[0] }
+            //               ^ (A, B)
+            func maxOf<T>(a: T, b: T): T where T <: Comparable<T> { if (a > b) { a } else { b } }
+            //            ^ T
+            //                  ^ T
+            func tag<T>(x: T, name: String): T { x }
+            //          ^ T
+            //                ^^^^ String
+            func named<T>(x: T, n!: Int64): T { x }
+            //            ^ T
+            //                  ^ Int64
+            func f(): Unit {
+                let a = fstOf((1, "s"))
+            //      ^ Int64
+                let b = maxOf(1, 2)
+            //      ^ Int64
+                let c = maxOf("a", "b")
+            //      ^ String
+                let d = tag(1, "a")
+            //      ^ Int64
+                let e = named(1, n: 2)
+            //      ^ Int64
+                let g = gen(0x1p3)
+            //      ^ Float64
+                let h: ?Base = gen(D1())
+            //      ^ Option<Base>
+                // `Nothing`: cjc compiles `let _: Int64 = i`
+                let i = gen(throw Exception())
+            //      ^ Nothing
+            }
+            "#)
+    }
+
+    @TestCase
+    func whatWaitsIsCheckedOnlyOnceItsParameterIsKnown() {
+        checkInference(#"
+            package m
+            func none<T>(): Option<T> { None }
+            func pair<T>(a: T, b: T): T { a }
+            //           ^ T
+            //                 ^ T
+            func lam<T>(g: (T) -> Unit): Unit {}
+            //          ^ (T) -> Unit
+            func pick<T, R>(a: Option<T>, b: T, g: (T) -> R): R { g(b) }
+            //              ^ Option<T>
+            //                            ^ T
+            //                                  ^ (T) -> R
+            func f(): Unit {
+                let a = pick(None, 1, {x => x.toString()})
+            //      ^ String
+            //                         ^ Int64
+                // cjc: unable to infer generic argument of this function
+                lam(
+                    // cjc: parameters of this lambda expression must have type annotations
+                    {y => ()})
+            //       ^ {unknown}
+                // cjc: unable to infer generic argument of this function
+                let b = pair(none(), none())
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
     func aRecursiveCallSolvesItsTypeParameterAsItself() {
         checkInference(#"
             package m
