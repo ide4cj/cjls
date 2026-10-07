@@ -22,6 +22,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `cjpm` leaves `*.cj.macrocall` and `lib-macro_*.dylib` next to the sources: untracked build output, never edit it.
 
+**Worktrees** (`.claude/worktrees/`, each with a `target` of 0.5–1 GB) go when their PR merges: a second `SessionStart` hook removes, in the background, a clean, idle worktree and the local branch whose PR is merged and whose upstream GitHub deleted (`.claude/hooks/prune-merged-worktrees.sh --dry-run` shows what it would). A PR under review is read with `gh pr diff`, or built in a `git worktree add` removed when the review ends — never one kept.
+
 **Toolchain, CI, releases** ([D11](docs/adr/0011-ci-and-releases.md), [D21](docs/adr/0021-weekly-releases.md)). One nightly, the tag in `.cangjie-version`; `python3 .github/actions/setup-cangjie/setup.py <tag> <dir>` installs it with stdx, as CI does. stdx lives in `${CANGJIE_HOME}/third_party/stdx/<os>_<arch>_cjnative/static/stdx`, named per target in the root `cjpm.toml`. CI (macOS arm64, Linux x64, Windows x64) builds, tests, runs the lone binary through `tests/e2e` (no editor client: each tests itself against this CI's build of a paired branch, [D32](docs/adr/0032-one-process-for-server-and-clients.md)), and checks commits and the PR **title** with `cog` (PRs are squash-merged). A release is `cog bump --auto` on master (version into `modules/cjls/cjpm.toml` and `VERSION` in `handlers/lifecycle.cj`, `CHANGELOG.md`, tag); `bump.yml` runs it on Mondays, `release.yml` attaches the binaries; `nightly.yml` moves the pre-release `nightly-build` to master's newest green commit every night, in place: never delete it ([D39](docs/adr/0039-the-nightly-is-updated-in-place.md)).
 
 ### Linking and compiler flags
