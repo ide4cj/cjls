@@ -1,6 +1,7 @@
-# ADR-0025: TOML is read and written by ftoml, through the same @Serde model
+# ADR-0025: TOML is read and written by ftoml, TOML 1.1 of our own, through `ToToml`/`FromToml` derived from the same `@Serde` model
 
 Status: accepted, 2026-09-27. Closes #43 (Q21), and #31's correctly rounded `readFloat64`; supersedes D22's `DataModel` for the configs.
+Amends ADR-0024: `readFloat64` rounded correctly
 
 ## Context
 

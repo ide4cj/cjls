@@ -1,6 +1,7 @@
 # ADR-0039: The nightly is the pre-release `nightly-build`, made once and updated in place; immutable releases are off
 
 Status: accepted, 2026-10-03. Supersedes D32's tag `nightly` and its release deleted and made again every night.
+Amends ADR-0032: the nightly's tag `nightly-build`, updated in place
 
 ## Context
 

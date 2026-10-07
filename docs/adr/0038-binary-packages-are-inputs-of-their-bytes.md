@@ -1,6 +1,7 @@
-# ADR-0038: A package compiled already is an input of its `.cjo` bytes, out of the `Vfs`, lowered into the item model
+# ADR-0038: A package compiled already is an input of its `.cjo` bytes, out of the `Vfs`, read with the project and lowered into the item model
 
 Status: accepted, 2026-10-02
+Amends ADR-0033: its binaries read
 
 ## Context
 

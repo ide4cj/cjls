@@ -1,6 +1,7 @@
-# ADR-0026: Third-party test suites are fetched at a pinned commit, not vendored
+# ADR-0026: Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored
 
 Status: accepted, 2026-09-28. Supersedes D24's vendoring of JSONTestSuite.
+Amends ADR-0024: the suite fetched
 
 ## Context
 

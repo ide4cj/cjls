@@ -1,4 +1,4 @@
-# ADR-0052: A name after a `.` is resolved by names up to a value; members are looked up from a type
+# ADR-0052: A name after a `.` is resolved by names up to a value, members looked up from a type; a value's member is inference's
 
 Status: accepted, 2026-10-06
 

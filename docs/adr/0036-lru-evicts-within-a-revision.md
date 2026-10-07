@@ -1,6 +1,7 @@
 # ADR-0036: calca evicts by LRU as it touches, within a revision too
 
 Status: accepted, 2026-10-02; supersedes ADR-0017's "eviction happens only when a write opens a revision"
+Amends ADR-0017: eviction within a revision
 
 ## Context
 
