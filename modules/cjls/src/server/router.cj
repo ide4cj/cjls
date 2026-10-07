@@ -33,7 +33,9 @@ public class Router {
     var diagnostics: ?(ServerSnapshot, VfsPath) -> Array<Diagnostic> = None
 
     /**
-     * The methods it has a handler for, requests and notifications.
+     * The methods it has a handler for, requests and notifications: what
+     * `capabilities()` is checked against (`CapabilitiesTest`), not a way to
+     * dispatch.
      */
     public prop methods: Array<String> {
         get() {
