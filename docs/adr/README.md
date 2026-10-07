@@ -70,3 +70,4 @@ Status: proposed | accepted | superseded by ADR-NNNN, <date>
 | [0052](0052-a-name-after-a-dot-is-resolved-by-names-up-to-a-value.md) | A name after a `.` is resolved by names up to a value, members looked up from a type; a value's member is inference's | accepted |
 | [0053](0053-the-extends-a-file-sees-are-looked-for-in-its-interfaces-packages.md) | The `extend`s a file may see are looked for in the packages of its interfaces; which of them it sees is decided at the lookup | accepted |
 | [0054](0054-a-type-is-an-interned-ty-a-signature-lowered-to-it.md) | A type is an interned `Ty`; a declaration's signature is lowered to it in one query, of a source or a `.cjo` alike | accepted |
+| [0055](0055-a-body-is-inferred-locally-in-one-query.md) | A body's types are inferred locally, as cjc checks them, in one query of the body; a type not written is the body's | accepted |
