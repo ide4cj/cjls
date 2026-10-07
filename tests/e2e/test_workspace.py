@@ -8,6 +8,15 @@ from pytest_lsp import LanguageClient
 from conftest import CLIENTS, capabilities
 
 
+async def loaded(client: LanguageClient):
+    """Waits for the end of the server's first load of the workspace, as its `$/progress` tells: it
+    loads on a thread of its own, and a search before the end sees what is loaded so far (D58)."""
+    # nothing is awaited between the look and the wait, so no notification falls between them
+    while not any(isinstance(report, types.WorkDoneProgressEnd)
+                  for reports in client.progress_reports.values() for report in reports):
+        await client.wait_for_notification(types.PROGRESS)
+
+
 @pytest.mark.parametrize("editor", CLIENTS)
 async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: LanguageClient, tmp_path, editor):
     # arrange
@@ -21,12 +30,15 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
     def register(params: types.RegistrationParams):
         registered.extend(params.registrations)
 
+
     await server.initialize_session(
         types.InitializeParams(
             capabilities=capabilities(editor),
             workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
         )
     )
+
+    await loaded(server)
 
     # act
     symbols = await server.workspace_symbol_async(types.WorkspaceSymbolParams(query="findme"))

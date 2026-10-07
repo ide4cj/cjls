@@ -51,6 +51,11 @@ public class ServerState <: FromContext<ServerState> {
     public var relativePatterns = false
 
     /**
+     * Whether the client shows the progress of work the server begins, as agreed on at `initialize`.
+     */
+    public var workDoneProgress = false
+
+    /**
      * The id each root's watcher was registered with, to unregister it by.
      */
     public let watchers = HashMap<VfsPath, String>()
@@ -74,6 +79,13 @@ public class ServerState <: FromContext<ServerState> {
 
     private var filesChanged = false
     private var registrations = 0
+
+    /**
+     * The latest load begun, which ends any before it; and the paths set since it began, by
+     * anything but itself, whose contents what it read before must not undo: `None` once it ended.
+     */
+    private var load = 0
+    private var setDuringLoad: ?HashSet<VfsPath> = None
 
     /**
      * The files with contents, for a snapshot to list; `None` once a file was created or deleted
@@ -105,6 +117,64 @@ public class ServerState <: FromContext<ServerState> {
      * all of them at once, in one revision.
      */
     public func setFilesContents(files: Array<(VfsPath, ?Rope)>): Unit {
+        if (let Some(set) <- setDuringLoad) {
+            for ((path, _) in files) {
+                set.add(path)
+            }
+        }
+        apply(files)
+    }
+
+    /**
+     * Begins a load (D58), which ends the one before: from now on, a file set by anything but the
+     * load is left as it is set.
+     *
+     * @return the load's number, which it sets its files with
+     */
+    public func beginLoad(): Int64 {
+        load++
+        setDuringLoad = HashSet<VfsPath>()
+        load
+    }
+
+    /**
+     * Whether `load` is the latest begun, and has not ended.
+     */
+    public func isLoading(load: Int64): Bool {
+        this.load == load && setDuringLoad.isSome()
+    }
+
+    /**
+     * Sets the files `load` read, in one revision, as `setFilesContents` does, but for the documents
+     * open and the files set since it began: those the editor or a newer read of the disk gave.
+     *
+     * @return whether `load` is the latest begun, and has not ended: nothing is set otherwise
+     */
+    public func setLoadedFiles(load: Int64, files: Array<(VfsPath, Rope)>): Bool {
+        let set = setDuringLoad ?? return false
+        if (this.load != load) {
+            return false
+        }
+        apply(files.filter {file => !openDocuments.contains(file[0]) && !set.contains(file[0])}.map {
+            file => (file[0], Some(file[1]))
+        })
+        true
+    }
+
+    /**
+     * Ends `load`, if it is the latest begun.
+     *
+     * @return whether it was, and had not ended
+     */
+    public func endLoad(load: Int64): Bool {
+        if (!isLoading(load)) {
+            return false
+        }
+        setDuringLoad = None
+        true
+    }
+
+    private func apply(files: Array<(VfsPath, ?Rope)>): Unit {
         for ((path, text) in files) {
             vfs.setFileContents(path, text)
         }
@@ -129,11 +199,11 @@ public class ServerState <: FromContext<ServerState> {
     }
 
     /**
-     * Whether the `.cjo` `file` holds what it was last set with, as `stamp` tells: then it is not
-     * read again.
+     * The stamp of the `.cjo` `file` when it was last set, `None` if it never was: one that still
+     * has it is not read again.
      */
-    public func binaryUnchanged(file: CjoFile, stamp: FileStamp): Bool {
-        analysis.binaryStamp(file) == stamp
+    public func binaryStamp(file: CjoFile): ?FileStamp {
+        analysis.binaryStamp(file)
     }
 
     /**

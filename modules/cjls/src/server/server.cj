@@ -7,7 +7,6 @@ import stdx.log.*
 import calca.CancelledException
 import fjson.RawJson
 import jsonrpc.*
-import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 
 @Derive[Equatable]
@@ -30,10 +29,11 @@ class Server <: Handler {
     var lifecycle = Lifecycle.Uninitialized
     private var shutDownCleanly = false
 
-    private let push: ?DiagnosticsPush
+    private let loop: Loop
 
     Server(private let router: Router, private let client: Client, private let logger: Logger) {
-        push = router.diagnostics.map {diagnostics => DiagnosticsPush(diagnostics, client, logger)}
+        let push = router.diagnostics.map {diagnostics => DiagnosticsPush(diagnostics, client, logger)}
+        loop = Loop(router.state, push)
     }
 
     /**
@@ -62,14 +62,14 @@ class Server <: Handler {
                 request.respond(
                     ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
             case Some(Exclusive(handler)) =>
-                let parts = Parts(router.state, client, request.cancellation, logger)
-                if (writing {answer(request, logger) {handler(parts, request.params)}}) {
+                let parts = Parts(loop, client, request.cancellation, logger)
+                if (loop.write {_ => answer(request, logger) {handler(parts, request.params)}}) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
                 let cancellation = request.cancellation
-                let snapshot = router.state.snapshot(cancelledBy: {=> cancellation.isCancelled})
+                let snapshot = loop.snapshot(cancelledBy: {=> cancellation.isCancelled})
                 let parts = ReadOnlyParts(snapshot, client, cancellation, logger)
                 spawn {
                     answer(request, logger) {handler(parts, request.params)}
@@ -96,38 +96,13 @@ class Server <: Handler {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                writing {run(logger) {handler(Parts(router.state, client, cancellation, logger), params)}}
+                loop.write {_ => run(logger) {handler(Parts(loop, client, cancellation, logger), params)}}
             case Some(ReadOnly(handler)) =>
-                let parts = ReadOnlyParts(router.state.snapshot(), client, cancellation, logger)
+                let parts = ReadOnlyParts(loop.snapshot(), client, cancellation, logger)
                 spawn {
                     run(logger) {handler(parts, params)}
                 }
         }
-    }
-
-    /**
-     * Runs a `Context` handler, then the work its changes call for (S7): a client that cannot pull
-     * is pushed nothing for the documents just closed, at once, and the diagnostics of every open
-     * document, from a snapshot taken here, once the files changed or a document opened.
-     */
-    private func writing<T>(handler: () -> T): T {
-        let state = router.state
-        let openBefore = HashSet<VfsPath>(state.openDocuments.keys())
-        let result = handler()
-        let filesChanged = state.takeFilesChanged()
-        let push = push ?? return result
-        if (!state.pushesDiagnostics) {
-            return result
-        }
-        for (path in openBefore where !state.openDocuments.contains(path)) {
-            push.clear(path)
-        }
-        let opened = state.openDocuments.keys().iterator().any {path => !openBefore.contains(path)}
-        if (filesChanged || opened) {
-            let documents = collectArray(state.openDocuments)
-            push.schedule(state.snapshot(), documents)
-        }
-        result
     }
 
     private func refusalOf(method: String): ?ResponseError {

@@ -1,6 +1,6 @@
 package cjls.handlers
 
-import std.collection.ArrayList
+import std.collection.{ArrayList, HashMap}
 import std.env.getVariable
 import std.runtime.getMaxHeapSize
 import std.time.MonoTime
@@ -10,7 +10,7 @@ import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
-import loupe.vfs.{isWorkspaceFile, readCjoFiles, readFile, readFiles, VfsPath}
+import loupe.vfs.{CjoFile, FileStamp, isWorkspaceFile, readCjoFiles, readFile, readFiles, VfsPath}
 import project_model.{CangjieHome, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
 import cjls.lsp_types.*
 import cjls.server.*
@@ -38,30 +38,23 @@ func loadBudget(): Int64 {
  * rather than lost.
  */
 @LspHandler
-func handleInitialized(state: ServerState, client: Client, logger: Logger, _: InitializedParams): Unit {
+func handleInitialized(loop: Loop, client: Client, logger: Logger, _: InitializedParams): Unit {
+    let state = loop.state
     if (!state.roots.isEmpty() && !state.watchesFiles) {
         logger.info("the client cannot watch files: changes on disk are not seen")
     }
     watch(state, client, logger, state.roots.toArray())
-    if (let Some(warning) <- load(state, logger)) {
-        try {
-            client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: warning))
-        } catch (e: Exception) {
-            logger.debug("the warning was not shown", [("error", e.toString())])
-        }
-    }
+    startLoad(loop, client, logger)
 }
 
 /**
  * A file created or changed is read from disk, one deleted is gone, and a directory deleted takes
  * every file under it; a document open in the editor keeps its buffer, whatever the disk says. A
- * file come or gone, or a manifest changed, finds the project again first.
+ * file come or gone, or a manifest changed, finds the project again, after.
  */
 @LspHandler
-func handleDidChangeWatchedFiles(state: ServerState, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
-    if (params.changes.iterator().any {event => changesProject(event)}) {
-        load(state, logger)
-    }
+func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
+    let state = loop.state
     let roots = state.roots.toArray()
     let files = ArrayList<(VfsPath, ?Rope)>()
     for (event in params.changes) {
@@ -77,6 +70,9 @@ func handleDidChangeWatchedFiles(state: ServerState, logger: Logger, params: Did
         }
     }
     state.setFilesContents(files.filter {file => !state.openDocuments.contains(file[0])}.toArray())
+    if (params.changes.iterator().any {event => changesProject(event)}) {
+        startLoad(loop, client, logger)
+    }
 }
 
 /**
@@ -84,8 +80,9 @@ func handleDidChangeWatchedFiles(state: ServerState, logger: Logger, params: Did
  * but for those open in the editor, and those under another root.
  */
 @LspHandler
-func handleDidChangeWorkspaceFolders(state: ServerState, client: Client, logger: Logger,
+func handleDidChangeWorkspaceFolders(loop: Loop, client: Client, logger: Logger,
     params: DidChangeWorkspaceFoldersParams): Unit {
+    let state = loop.state
     let removed = rootsOf(params.event.removed)
     // after the removal, so a folder both removed and added stays a root
     state.roots.removeIf {root => removed.contains(root)}
@@ -102,7 +99,7 @@ func handleDidChangeWorkspaceFolders(state: ServerState, client: Client, logger:
         }
     }
     state.setFilesContents(gone.toArray())
-    load(state, logger)
+    startLoad(loop, client, logger)
 }
 
 /**
@@ -128,23 +125,87 @@ func changesProject(event: FileEvent): Bool {
 }
 
 /**
- * Finds the project of every root again and sets it, then reads the files of its packages the
- * server does not know yet, and sets them all in one revision; an open document keeps what the
- * editor sent. On the read loop, so what arrives meanwhile waits and applies after it.
+ * A load as the state was when it began (D58): its number, and where it finds the project.
  */
-func load(state: ServerState, logger: Logger): ?String {
-    let roots = state.roots.toArray()
-    if (roots.isEmpty() && state.linkedProjects.isEmpty()) {
+struct LoadRequest {
+    LoadRequest(
+        let load: Int64,
+        let roots: Array<VfsPath>,
+        let linkedProjects: Array<VfsPath>,
+        let cangjieHome: ?String,
+        /**
+         * Whether the client is shown its progress.
+         */
+        let progress: Bool
+    ) {}
+}
+
+/**
+ * Begins a load, which ends the one before, and runs it on a thread of its own; the user is told
+ * of the SDK at its end, if anything is to be told. Nothing to load without roots or linked projects.
+ */
+func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
+    let request = loadRequest(loop.state) ?? return ()
+    loop.start(logger) {
+        if (let Some(warning) <- load(loop, client, logger, request)) {
+            try {
+                client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: warning))
+            } catch (e: Exception) {
+                logger.debug("the warning was not shown", [("error", e.toString())])
+            }
+        }
+    }
+}
+
+/**
+ * Begins a load of the roots and the linked projects of `state`; `None` if there are none.
+ */
+func loadRequest(state: ServerState): ?LoadRequest {
+    if (state.roots.isEmpty() && state.linkedProjects.isEmpty()) {
         return None
     }
+    LoadRequest(state.beginLoad(), state.roots.toArray(), state.linkedProjects.toArray(), state.cangjieHome,
+        state.workDoneProgress)
+}
+
+/**
+ * Finds the project of every root again, reads the `.cjo` of its binaries and sets them with it,
+ * then reads the files of its packages the server does not know yet, and sets them
+ * `LOAD_BATCH` at a time, one revision each, reporting how many are done. The disk is read here,
+ * on the thread the load runs on; the state is changed through `loop` alone, between the messages,
+ * and once a newer load began nothing more is set.
+ *
+ * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
+ */
+func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?String {
+    let progress = WorkDoneProgress.begin(client, logger,
+        if (request.progress) {
+            "cjls/load/${request.load}"
+        } else {
+            None
+        }, "Loading the workspace")
+    try {
+        loadProject(loop, logger, request, progress)
+    } finally {
+        progress.end(Option<String>.None)
+    }
+}
+
+/**
+ * How many files a load sets in one revision: the read loop waits while a batch is set, and every
+ * revision cancels what the snapshots before it were computing.
+ */
+const LOAD_BATCH = 1024
+
+func loadProject(loop: Loop, logger: Logger, request: LoadRequest, progress: WorkDoneProgress): ?String {
     let start = MonoTime.now()
     let budget = loadBudget()
-    let home = findCangjieHome(state.cangjieHome, env: {name => getVariable(name)})
+    let home = findCangjieHome(request.cangjieHome, env: {name => getVariable(name)})
     if (let Some(home) <- home) {
         logger.info("found the SDK", [("path", home.path), ("source", home.source)])
     }
     let env = withCangjieHome({name => getVariable(name)}, home)
-    let loads = findProjects(roots, state.linkedProjects.toArray(), env: env, budget: budget)
+    let loads = findProjects(request.roots, request.linkedProjects, env: env, budget: budget)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {
@@ -153,26 +214,65 @@ func load(state: ServerState, logger: Logger): ?String {
     }
     let model = ProjectModel.merge(loads.map {load => load.model}, hostCfg())
     // `std` is what every file resolves against: the binaries go first
-    let binaries = readCjoFiles(model.cjoFiles(), unchanged: {file, stamp => state.binaryUnchanged(file, stamp)},
+    let cjoFiles = model.cjoFiles()
+    let stamps = loop.write {
+        state: ServerState =>
+        let stamps = HashMap<CjoFile, FileStamp>()
+        for (file in cjoFiles) {
+            if (let Some(stamp) <- state.binaryStamp(file)) {
+                stamps[file] = stamp
+            }
+        }
+        stamps
+    }
+    let binaries = readCjoFiles(cjoFiles, unchanged: {file, stamp => stamps.get(file) == stamp},
         budget: budget)
     for (problem in binaries.problems) {
         logger.warn(problem)
     }
-    state.setProject(model, binaries: binaries.files)
-    let wanted = model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)}
-    let read = readFiles(wanted, budget: budget - binaries.size)
-    state.setFilesContents(read.files.map {file => (file[0], Some(file[1]))})
-    logger.info("loaded the workspace", [("roots", roots.size), ("files", read.files.size),
+    let wanted = loop.write {
+        state: ServerState =>
+        if (state.isLoading(request.load)) {
+            state.setProject(model, binaries: binaries.files)
+            Some(model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)})
+        } else {
+            Option<Array<VfsPath>>.None
+        }
+    } ?? return None
+    var left = budget - binaries.size
+    var loaded = 0
+    var truncated = false
+    for (from in 0..wanted.size : LOAD_BATCH) {
+        let to = min(from + LOAD_BATCH, wanted.size)
+        let read = readFiles(wanted[from..to], budget: left)
+        left -= read.files.iterator().fold(0) {size, file => size + file[1].size}
+        truncated = truncated || read.truncated
+        if (!loop.write {state: ServerState => state.setLoadedFiles(request.load, read.files)}) {
+            return None
+        }
+        loaded += read.files.size
+        progress.report(to, wanted.size, "${to}/${wanted.size} files")
+    }
+    // `Some(None)`: the load ended, with nothing to tell
+    let warning = loop.write {
+        state: ServerState =>
+        if (state.endLoad(request.load)) {
+            Some(sdkWarning(state, home))
+        } else {
+            Option<?String>.None
+        }
+    } ?? return None
+    logger.info("loaded the workspace", [("roots", request.roots.size), ("files", loaded),
         ("cjo", binaries.files.size), ("took", MonoTime.now() - start)])
     if (binaries.truncated) {
         logger.warn("the binaries hold more than the server loads: the names of those left out do not resolve",
             [("budget", budget)])
     }
-    if (read.truncated) {
+    if (truncated) {
         logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
-            [("budget", budget), ("roots", String.join(roots.map {root => root.toString()}, delimiter: ", "))])
+            [("budget", budget), ("roots", String.join(request.roots.map {root => root.toString()}, delimiter: ", "))])
     }
-    sdkWarning(state, home)
+    warning
 }
 
 /**

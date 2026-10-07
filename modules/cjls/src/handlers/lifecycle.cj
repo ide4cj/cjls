@@ -26,6 +26,7 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
+    state.workDoneProgress = params.capabilities.window.flatMap {window => window.workDoneProgress} ?? false
     InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
 }
 

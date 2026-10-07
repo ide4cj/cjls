@@ -1,12 +1,13 @@
 package cjls.handlers
 
+import std.collection.collectArray
 import std.collection.concurrent.LinkedBlockingQueue
 import std.env.getTempDirectory
 import std.fs.*
 import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.log.NoopLogger
+import stdx.log.{Logger, NoopLogger}
 import stdxx.Nullable
 import fjson.{JsonValue, RawJson}
 import jsonrpc.*
@@ -47,6 +48,59 @@ class RequestsTransport <: JsonRpcTransport {
             requests.add(request)
         }
     }
+}
+
+/**
+ * A transport that answers every request written, with `null` or, if `refuses`, an error, read back
+ * by the connection's loop; and keeps everything written, so a test can look at it in order.
+ */
+class AnsweringTransport <: JsonRpcTransport {
+    let written = LinkedBlockingQueue<Body>()
+    private let inbound = LinkedBlockingQueue<?Body>()
+    private let closed = AtomicBool(false)
+
+    AnsweringTransport(private let refuses!: Bool = false) {}
+
+    public func isClosed(): Bool {
+        closed.load()
+    }
+
+    public func close(): Unit {
+        if (!closed.swap(true)) {
+            inbound.add(Option<Body>.None)
+        }
+    }
+
+    public func read(): ?Body {
+        inbound.remove()
+    }
+
+    public func write(body: Body): Unit {
+        written.add(body)
+        if (let Request(request) <- body) {
+            let answer = if (refuses) {
+                ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
+            } else {
+                ResultOrError.Result(RawJson.NULL)
+            }
+            inbound.add(ResponseBody(Nullable.Value(request.id), answer).enveloped())
+        }
+    }
+}
+
+/**
+ * A client whose requests `transport` answers, on a loop of its own until it is closed.
+ */
+func answeredClientOn(transport: AnsweringTransport): Client {
+    let client = Client()
+    let connection = Connection(transport, NoHandler(), NoopLogger())
+    client.connect(connection)
+    spawn {
+        try {
+            connection.serve()
+        } catch (_: Exception) {}
+    }
+    client
 }
 
 class NoHandler <: Handler {
@@ -94,14 +148,38 @@ func uriOf(path: Path): String {
  * A state as `initialize` leaves it for a client with `roots` as its folders, which watches files
  * for the server if `watches`, with relative patterns if `relative`.
  */
-func initializedWith(roots: Array<Path>, watches!: Bool = true, relative!: Bool = true): ServerState {
+func initializedWith(roots: Array<Path>, watches!: Bool = true, relative!: Bool = true): Loop {
     let state = ServerState()
     handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
         capabilities: ClientCapabilities(workspace: WorkspaceClientCapabilities(
             didChangeWatchedFiles: DidChangeWatchedFilesClientCapabilities(dynamicRegistration: watches,
                 relativePatternSupport: relative))),
         workspaceFolders: Some(Nullable.Value(roots.map {root => WorkspaceFolder(uri: uriOf(root), name: "ws")}))))
-    state
+    Loop(state)
+}
+
+/**
+ * `handleInitialized`, and the load it begins, to its end.
+ */
+func initialized(loop: Loop, client: Client, logger: Logger, params: InitializedParams): Unit {
+    handleInitialized(loop, client, logger, params)
+    loop.join()
+}
+
+/**
+ * `handleDidChangeWatchedFiles`, and the load it may begin, to its end.
+ */
+func watchedFilesChanged(loop: Loop, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
+    handleDidChangeWatchedFiles(loop, Client(), logger, params)
+    loop.join()
+}
+
+/**
+ * `handleDidChangeWorkspaceFolders`, and the load it begins, to its end.
+ */
+func foldersChanged(loop: Loop, client: Client, logger: Logger, params: DidChangeWorkspaceFoldersParams): Unit {
+    handleDidChangeWorkspaceFolders(loop, client, logger, params)
+    loop.join()
 }
 
 func textAt(state: ServerState, path: Path): ?String {
@@ -140,7 +218,7 @@ class InitializedTest {
         let b = getTempDirectory().join("b")
 
         // act
-        let folders = initializedWith([a, b]).roots.toArray()
+        let folders = initializedWith([a, b]).state.roots.toArray()
         let state = ServerState()
         handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Value(uriOf(a)),
             capabilities: ClientCapabilities(), workspaceFolders: Some(Nullable.Value(Array<WorkspaceFolder>()))))
@@ -172,11 +250,12 @@ class InitializedTest {
     func theFilesOfEveryRootAreLoadedAndAnOpenOneKeepsTheEditorsText() {
         // arrange
         let dir = workspaceOf([("a.cj", "a"), ("src/b.cj", "b"), ("target/c.cj", "c")])
-        let state = initializedWith([dir], watches: false)
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
         openIn(state, dir.join("a.cj"), "edited")
 
         // act
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir, recursive: true)
 
         // assert
@@ -190,12 +269,13 @@ class InitializedTest {
         // arrange
         let a = getTempDirectory().join("cjls-a")
         let b = getTempDirectory().join("cjls-b")
-        let state = initializedWith([a, b])
+        let loop = initializedWith([a, b])
+        let state = loop.state
         let transport = RequestsTransport()
         let client = clientOn(transport)
 
         // act
-        handleInitialized(state, client, NoopLogger(), InitializedParams())
+        initialized(loop, client, NoopLogger(), InitializedParams())
         client.close()
 
         // assert
@@ -221,12 +301,13 @@ class InitializedTest {
     func aClientWithoutRelativePatternsGetsAGlobOfTheRootsPath() {
         // arrange
         let root = getTempDirectory().join("cjls-a")
-        let state = initializedWith([root], relative: false)
+        let loop = initializedWith([root], relative: false)
+        let state = loop.state
         let transport = RequestsTransport()
         let client = clientOn(transport)
 
         // act
-        handleInitialized(state, client, NoopLogger(), InitializedParams())
+        initialized(loop, client, NoopLogger(), InitializedParams())
         client.close()
 
         // assert
@@ -241,12 +322,13 @@ class InitializedTest {
     @TestCase
     func nothingIsRegisteredWithAClientThatCannotWatch() {
         // arrange
-        let state = initializedWith([getTempDirectory().join("cjls-a")], watches: false)
+        let loop = initializedWith([getTempDirectory().join("cjls-a")], watches: false)
+        let state = loop.state
         let transport = RequestsTransport()
         let client = clientOn(transport)
 
         // act
-        handleInitialized(state, client, NoopLogger(), InitializedParams())
+        initialized(loop, client, NoopLogger(), InitializedParams())
         client.close()
 
         // assert
@@ -262,10 +344,12 @@ class ProjectLoadTest {
         // arrange
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}"),
             ("src/util/u.cj", "package app.util"), ("build.cj", "b")])
-        let state = initializedWith([dir], watches: false)
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+
 
         // act
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir, recursive: true)
 
         // assert
@@ -281,12 +365,13 @@ class ProjectLoadTest {
     func aDirectoryOfFilesCreatedIsAPackageOfItsOwn() {
         // arrange
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
-        let state = initializedWith([dir], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         let created = writeFile(dir, "src/net/http.cj", "package app.net")
 
         // act
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(created, FileChangeType.Created)]))
         remove(dir, recursive: true)
 
@@ -345,10 +430,12 @@ class ProjectLoadTest {
     func aProjectWithTheStdOfTheSdkReadHasNothingToTellOfIt() {
         // arrange - std from the SDK the tests run with
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
-        let state = initializedWith([dir], watches: false)
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+
 
         // act
-        let warning = load(state, NoopLogger())
+        let warning = load(loop, Client(), NoopLogger(), loadRequest(state).getOrThrow())
         remove(dir, recursive: true)
 
         // assert
@@ -362,14 +449,15 @@ class DidChangeWatchedFilesTest {
     func aFileCreatedOrChangedIsReadAndOneDeletedIsGone() {
         // arrange
         let dir = workspaceOf([("a.cj", "a"), ("b.cj", "b")])
-        let state = initializedWith([dir], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         let created = writeFile(dir, "src/c.cj", "c")
         writeFile(dir, "a.cj", "changed")
         remove(dir.join("b.cj"))
 
         // act
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(created, FileChangeType.Created), fileEvent(dir.join("a.cj"), FileChangeType.Changed),
             fileEvent(dir.join("b.cj"), FileChangeType.Deleted)]))
         remove(dir, recursive: true)
@@ -384,14 +472,15 @@ class DidChangeWatchedFilesTest {
     func anOpenDocumentKeepsTheEditorsText() {
         // arrange
         let dir = workspaceOf([("a.cj", "a")])
-        let state = initializedWith([dir], watches: false)
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
         openIn(state, dir.join("a.cj"), "edited")
         writeFile(dir, "a.cj", "on disk")
 
         // act
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("a.cj"), FileChangeType.Changed)]))
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("a.cj"), FileChangeType.Deleted)]))
         remove(dir, recursive: true)
 
@@ -403,12 +492,13 @@ class DidChangeWatchedFilesTest {
     func aDirectoryDeletedTakesEveryFileUnderIt() {
         // arrange
         let dir = workspaceOf([("a.cj", "a"), ("src/b.cj", "b"), ("src/deep/c.cj", "c")])
-        let state = initializedWith([dir], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir.join("src"), recursive: true)
 
         // act
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("src"), FileChangeType.Deleted)]))
         remove(dir, recursive: true)
 
@@ -422,10 +512,12 @@ class DidChangeWatchedFilesTest {
     func aFileTheWalkWouldNotReadIsLeftAlone() {
         // arrange
         let dir = workspaceOf([("target/out.cj", "t"), ("notes.md", "n")])
-        let state = initializedWith([dir], watches: false)
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+
 
         // act
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("target").join("out.cj"), FileChangeType.Created),
             fileEvent(dir.join("notes.md"), FileChangeType.Created)]))
         remove(dir, recursive: true)
@@ -443,12 +535,13 @@ class DidChangeWorkspaceFoldersTest {
         // arrange
         let first = workspaceOf([("a.cj", "a")])
         let added = workspaceOf([("b.cj", "b")])
-        let state = initializedWith([first])
+        let loop = initializedWith([first])
+        let state = loop.state
         let transport = RequestsTransport()
         let client = clientOn(transport)
 
         // act
-        handleDidChangeWorkspaceFolders(state, client, NoopLogger(), DidChangeWorkspaceFoldersParams(
+        foldersChanged(loop, client, NoopLogger(), DidChangeWorkspaceFoldersParams(
             event: WorkspaceFoldersChangeEvent(added: [WorkspaceFolder(uri: uriOf(added), name: "b")], removed: [])))
         client.close()
         remove(first, recursive: true)
@@ -466,15 +559,16 @@ class DidChangeWorkspaceFoldersTest {
     func aFolderRemovedIsUnwatchedAndItsFilesGoButForTheOpenOnes() {
         // arrange
         let dir = workspaceOf([("a.cj", "a"), ("b.cj", "b")])
-        let state = initializedWith([dir])
+        let loop = initializedWith([dir])
+        let state = loop.state
         let transport = RequestsTransport()
         let client = clientOn(transport)
-        handleInitialized(state, client, NoopLogger(), InitializedParams())
+        initialized(loop, client, NoopLogger(), InitializedParams())
         let registered = transport.nextRequest().getOrThrow().params.getOrThrow().read<RegistrationParams>()
         openIn(state, dir.join("a.cj"), "edited")
 
         // act
-        handleDidChangeWorkspaceFolders(state, client, NoopLogger(), DidChangeWorkspaceFoldersParams(
+        foldersChanged(loop, client, NoopLogger(), DidChangeWorkspaceFoldersParams(
             event: WorkspaceFoldersChangeEvent(added: [], removed: [WorkspaceFolder(uri: uriOf(dir), name: "ws")])))
         client.close()
         remove(dir, recursive: true)
@@ -495,11 +589,12 @@ class DidChangeWorkspaceFoldersTest {
         // arrange - `inner` is a root of its own, inside `outer`
         let outer = workspaceOf([("a.cj", "a"), ("inner/b.cj", "b")])
         let inner = outer.join("inner")
-        let state = initializedWith([outer, inner], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([outer, inner], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
 
         // act
-        handleDidChangeWorkspaceFolders(state, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+        foldersChanged(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
             event: WorkspaceFoldersChangeEvent(added: [], removed: [WorkspaceFolder(uri: uriOf(outer), name: "outer")])))
         remove(outer, recursive: true)
 
@@ -512,12 +607,13 @@ class DidChangeWorkspaceFoldersTest {
     func aFolderRemovedAndAddedAtOnceStaysARoot() {
         // arrange
         let dir = workspaceOf([("a.cj", "a")])
-        let state = initializedWith([dir], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         let folder = WorkspaceFolder(uri: uriOf(dir), name: "ws")
 
         // act
-        handleDidChangeWorkspaceFolders(state, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+        foldersChanged(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
             event: WorkspaceFoldersChangeEvent(added: [folder], removed: [folder])))
         remove(dir, recursive: true)
 
@@ -533,8 +629,9 @@ class WorkspaceSymbolTest {
     func aDeclarationOfAFileNotOpenIsFoundAtItsName() {
         // arrange
         let dir = workspaceOf([("a.cj", "class Outer {\n    func target() {}\n}\n")])
-        let state = initializedWith([dir], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir, recursive: true)
 
         // act
@@ -560,10 +657,11 @@ class WorkspaceSymbolTest {
     func aFileGoneIsSearchedNoMore() {
         // arrange
         let dir = workspaceOf([("a.cj", "func f() {}\n"), ("b.cj", "func g() {}\n")])
-        let state = initializedWith([dir], watches: false)
-        handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir.join("a.cj"))
-        handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("a.cj"), FileChangeType.Deleted)]))
         remove(dir, recursive: true)
 
@@ -573,5 +671,98 @@ class WorkspaceSymbolTest {
         // assert
         let names = workspaceSymbolsOf(answer).map {symbol => symbol.name}
         @Expect(names, ["g"])
+    }
+}
+
+@Test
+class LoadOffTheLoopTest {
+    @TestCase
+    func aLoadEndedByANewerOneSetsNothingMore() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        let older = loadRequest(state).getOrThrow()
+        let newer = loadRequest(state).getOrThrow()
+
+        // act
+        load(loop, Client(), NoopLogger(), older)
+        let olderSet = textAt(state, dir.join("a.cj"))
+        load(loop, Client(), NoopLogger(), newer)
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(olderSet, None<String>)
+        @Expect(textAt(state, dir.join("a.cj")), Some("a"))
+    }
+
+    @TestCase
+    func aDocumentOpenedWhileALoadRunsKeepsTheEditorsText() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "on disk"), ("b.cj", "b")])
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        let request = loadRequest(state).getOrThrow()
+        openIn(state, dir.join("a.cj"), "edited")
+
+        // act
+        load(loop, Client(), NoopLogger(), request)
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(textAt(state, dir.join("a.cj")), Some("edited"))
+        @Expect(textAt(state, dir.join("b.cj")), Some("b"))
+    }
+
+    @TestCase
+    func theClientIsShownTheProgressOfTheLoadInFiles() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a"), ("b.cj", "b")])
+        let loop = initializedWith([dir], watches: false)
+        loop.state.workDoneProgress = true
+        let transport = AnsweringTransport()
+        let client = answeredClientOn(transport)
+
+        // act
+        initialized(loop, client, NoopLogger(), InitializedParams())
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert
+        let create = transport.written.remove().getRequestBodyOrThrow()
+        @Expect(create.method, "window/workDoneProgress/create")
+        let token = create.params.getOrThrow().read<WorkDoneProgressCreateParams>().token
+        let progress = (0..3).iterator().map {
+            _: Int64 =>
+            let notification = transport.written.remove().getNotificationBodyOrThrow()
+            @Expect(notification.method, "$/progress")
+            let params = notification.params.getOrThrow().read<ProgressParams>()
+            @Expect(params.token, token)
+            RawJson.of(params.value)
+        } |> collectArray
+        @Expect(progress[0].read<WorkDoneProgressBegin>().title, "Loading the workspace")
+        @Expect(progress[1].read<WorkDoneProgressReport>().message, Some("2/2 files"))
+        @Expect(progress[1].read<WorkDoneProgressReport>().percentage, Some(100u32))
+        @Expect(progress[2].read<WorkDoneProgressEnd>().message, None<String>)
+    }
+
+    @TestCase
+    func aClientThatRefusesTheTokenIsShownNoProgress() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let loop = initializedWith([dir], watches: false)
+        loop.state.workDoneProgress = true
+        let transport = AnsweringTransport(refuses: true)
+        let client = answeredClientOn(transport)
+
+        // act
+        initialized(loop, client, NoopLogger(), InitializedParams())
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(transport.written.remove().getRequestBodyOrThrow().method, "window/workDoneProgress/create")
+        @Expect(transport.written.tryRemove().isNone())
+        @Expect(textAt(loop.state, dir.join("a.cj")), Some("a"))
     }
 }
