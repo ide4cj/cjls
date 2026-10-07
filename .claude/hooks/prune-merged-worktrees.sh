@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Removes what a squash-merged PR leaves behind: its worktree under .claude/worktrees and its local branch.
 # GitHub deletes a merged head branch (delete_branch_on_merge), so after a prune its upstream is gone;
-# a branch is removed only when its PR is MERGED too, and a worktree only when it is clean and idle,
+# a branch is removed only when a MERGED PR's head is its tip, and a worktree only when it is clean and idle,
 # so a session still in it, or work never pushed, is left alone. What is kept is listed on stderr;
 # `--dry-run` prints the commands instead of running them.
 set -u
@@ -15,7 +15,12 @@ git fetch --prune --quiet 2>/dev/null || exit 0
 
 idle_minutes=120
 
-merged() { [ "$(gh pr list --head "$1" --state merged --json number --jq length 2>/dev/null)" = 1 ]; }
+# A PR merged this very commit: a name merged once and reused for new work, or a fork's branch of the
+# same name, has another tip and is kept.
+merged() {
+  gh pr list --head "$1" --state merged --limit 100 --json headRefOid --jq '.[].headRefOid' 2>/dev/null |
+    grep -qx "$(git rev-parse "refs/heads/$1")"
+}
 
 git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads |
   awk '$2 == "[gone]" { print $1 }' |
