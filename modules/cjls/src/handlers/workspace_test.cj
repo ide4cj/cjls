@@ -461,20 +461,23 @@ class DidChangeWatchedFilesTest {
     }
 
     @TestCase
-    func whatTheWalkSkipsComingFindsNoProjectAgain() {
+    func whatHoldsNoFileOfTheWorkspaceComingOrGoingFindsNoProjectAgain() {
         // arrange
-        let dir = workspaceOf([("a.cj", "a")])
+        let dir = workspaceOf([("a.cj", "a"), ("old.md", "o"), ("docs/guide.md", "g")])
         let state = initializedWith([dir], watches: false)
         handleInitialized(state, Client(), NoopLogger(), InitializedParams())
         let unreported = writeFile(dir, "b.cj", "b")
         writeFile(dir, "target/release/out.o", "o")
         writeFile(dir, ".git/HEAD", "h")
         writeFile(dir, "notes.md", "n")
+        remove(dir.join("old.md"))
+        remove(dir.join("docs"), recursive: true)
 
         // act
         handleDidChangeWatchedFiles(state, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("target").join("release"), FileChangeType.Created),
             fileEvent(dir.join(".git"), FileChangeType.Deleted), fileEvent(dir.join("notes.md"), FileChangeType.Created),
+            fileEvent(dir.join("old.md"), FileChangeType.Deleted), fileEvent(dir.join("docs"), FileChangeType.Deleted),
             fileEvent(dir.join("a.cj"), FileChangeType.Changed)]))
         remove(dir, recursive: true)
 

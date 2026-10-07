@@ -2,7 +2,7 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import std.env.getVariable
-import std.fs.{exists, FileInfo, FSException}
+import std.fs.{FileInfo, FSException}
 import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
@@ -62,7 +62,7 @@ func handleInitialized(state: ServerState, client: Client, logger: Logger, _: In
 @LspHandler
 func handleDidChangeWatchedFiles(state: ServerState, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
     let roots = state.roots.toArray()
-    if (params.changes.iterator().any {event => changesProject(event, roots)}) {
+    if (params.changes.iterator().any {event => changesProject(state, event, roots)}) {
         load(state, logger)
     }
     let files = ArrayList<(VfsPath, ?Rope)>()
@@ -122,33 +122,30 @@ func handleWorkspaceSymbol(snap: ServerSnapshot, params: WorkspaceSymbolParams):
 }
 
 /**
- * Whether `event` may change the project: a manifest changed, a Cangjie file come or gone, or a
- * directory of the workspace come or gone. Whatever else comes or goes under a root is reported
- * too, cjpm's output among it, and finds no project again.
+ * Whether `event` may change the project: a manifest changed, a Cangjie file come or gone, a
+ * directory of the workspace come, or one gone with files the server knows. Whatever else comes or
+ * goes under a root is reported too, cjpm's output among it, and finds no project again.
  */
-func changesProject(event: FileEvent, roots: Array<VfsPath>): Bool {
+func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>): Bool {
     let path = VfsPath.fromUri(event.uri)
     match (event.`type`) {
         case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON => true
         case FileChangeType.Changed => false
         case _ where isCangjieFile(path.name) => true
-        // what is gone cannot be told a directory or a file
-        case FileChangeType.Deleted => isWorkspaceDirectory(path, roots)
+        // what is gone cannot be told a directory or a file, but one holding no file known leaves none to drop
+        case FileChangeType.Deleted => isWorkspaceDirectory(path, roots) && !state.filesUnder(path).isEmpty()
         case _ => isWorkspaceDirectory(path, roots) && isDirectory(path)
     }
 }
 
 /**
- * Whether a directory is at `path`, not a link to one, which the walk does not follow.
+ * Whether a directory is at `path`; a link to one is not (`FileInfo` does not follow it), as the
+ * walk does not follow it either.
  */
 func isDirectory(path: VfsPath): Bool {
     let filePath = path.filePath ?? return false
     try {
-        if (!exists(filePath)) {
-            return false
-        }
-        let info = FileInfo(filePath)
-        info.isDirectory() && !info.isSymbolicLink()
+        FileInfo(filePath).isDirectory()
     } catch (_: FSException) {
         false
     }

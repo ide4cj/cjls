@@ -13,11 +13,11 @@ Amends ADR-0030: what is watched, and which event finds the project again
 ## Decision
 
 - **Each root's registration watches `**/*` for `Create | Delete`, and `**/*.cj`, `cjpm.toml`, `cj-project.json` for `Change`**: no path is watched for one kind twice, so VS Code sends it once.
-- **A non-`.cj` path come or gone finds the project again only if the walk goes into it** (`loupe.vfs.isWorkspaceDirectory`: under a root, through no `target` or hidden directory), and, if come, it is a directory on disk, not a link; a path gone cannot be told a directory, so one the walk would go into counts. A manifest or a `.cj` does as before.
+- **A non-`.cj` path come or gone finds the project again only if the walk goes into it** (`loupe.vfs.isWorkspaceDirectory`: under a root, through no `target` or hidden directory), and, if come, it is a directory on disk, not a link; a path gone cannot be told a directory, so it counts if the server knows files under it. A manifest or a `.cj` does as before.
 - **A directory come is read by the project found again**, which walks the disk; a directory gone takes its known files, as D30. Rejected: walking the directory on its own (`readRoots` under the budget) — the load already reads every file of the project the server does not know.
 
 ## Consequences
 
 - A client that ignores `kind` (Zed) also reports every file changed under a root; such an event is dropped unread.
-- A file come under a root through scanned directories (a `README.md`) is taken for a directory only if one is on disk: it finds no project again. One gone (`rm notes.md`) does.
+- A file come or gone under a root (a `README.md`) finds no project again, nor does a directory gone whose files the server never read (left out for the budget): the next load drops them from the project.
 - Without dynamic registration nothing is watched still (D30).
