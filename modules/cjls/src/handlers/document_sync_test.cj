@@ -52,6 +52,19 @@ class DocumentSyncTest {
     }
 
     @TestCase
+    func theSnapshotGivesAFilesPathBackFromItsId() {
+        // arrange
+        let snapshot = opened("func f() {}\n").snapshot()
+        let file = snapshot.sourceFile(VfsPath.fromUri(URI)).getOrThrow()
+
+        // act
+        let path = snapshot.path(file.fileId(snapshot.analysis))
+
+        // assert
+        @Expect(path, VfsPath.fromUri(URI))
+    }
+
+    @TestCase
     func changesApplyInOrderEachToWhatTheOneBeforeLeft() {
         // arrange
         let state = opened("let a = 1\nlet b = 2\n")

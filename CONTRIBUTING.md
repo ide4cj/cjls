@@ -32,7 +32,7 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
 3. **Register it** with one line in `handlers/router.cj`: `.route(HoverRequestSpec(), handleHover)`. A one-liner can be a lambda instead, its context annotated: `.route(ShutdownRequestSpec()) {_: Context<Unit> => ()}`.
 
-4. **Advertise it** in `capabilities()` in `handlers/router.cj`, or clients will never send it.
+4. **Advertise it** in `capabilities()` in `handlers/router.cj`, or clients will never send it. `CapabilitiesTest` (`handlers/router_test.cj`) fails while a routed method is not advertised or an advertised one not routed; a capability it does not know yet goes in its table, with the methods it advertises.
 
 5. **Nothing goes in `docs/`** for a request that takes the slice as it is: the router and the handler are the record. Only a new rule or a real decision does ([docs/README.md](docs/README.md#when-a-change-writes-here)).
 
