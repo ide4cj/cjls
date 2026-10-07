@@ -75,3 +75,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0054](0054-a-type-is-an-interned-ty-a-signature-lowered-to-it.md) | A type is an interned `Ty`; a declaration's signature is lowered to it in one query, of a source or a `.cjo` alike | accepted |
 | [0055](0055-a-body-is-inferred-locally-in-one-query.md) | A body's types are inferred locally, as cjc checks them, in one query of the body; a type not written is the body's | accepted |
 | [0056](0056-the-adr-index-is-written-after-the-merge.md) | The ADR index is written after the merge by a bot; a number is taken when the ADR is started, and checked to be the only one | accepted |
+| [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted |
