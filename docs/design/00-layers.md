@@ -18,7 +18,10 @@ cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
   │
   ├────> project_model ──> stdxx, ftoml, loupe
   │
+  ├────> cjformat ──> cjsyntax
+  │
   └────> loupe ──> calca
+           ├─────> cjformat
            ├─────> cjo
            ├─────> cjsyntax ──> ginkgo
            ├─────> index_map
@@ -28,6 +31,8 @@ cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
 Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `loupe → hir → syntax → db → vfs`.
 
 `loupe`'s packages are layers, never features: a package depends only on those under it, so a query of `loupe.syntax` never sees the API. A feature (`fileStructure`, `diagnostics`, `highlight`, later `hover`) is a file of the API package `loupe`, free to call the others and every query under it. What two features share is a query of a layer below (a resolved name, a type), not a call from one to the other; a layer gets its own package when queries need one (`loupe.hir`), not when a feature appears.
+
+`cjformat` (D60) formats on `cjsyntax`'s tree alone: the server through `loupe.formatting`, `cjls fmt` on a file's text.
 
 `cjo` (D37) depends on nothing: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
 
