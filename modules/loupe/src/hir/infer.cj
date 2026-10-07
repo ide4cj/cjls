@@ -1073,7 +1073,7 @@ class Inference {
 
     /**
      * A call of `callable` whose type arguments, those of `owner`, are not written: inferred from
-     * the arguments and `expected`, as cjc's `PrepareTyArgsSynthesis` does (D56). Each argument is
+     * the arguments and `expected`, as cjc's `PrepareTyArgsSynthesis` does (D57). Each argument is
      * checked against its parameter if that names no type argument, else synthesized alone and its
      * type a lower bound of the parameter; a literal of no suffix leaves its type to the solution, a
      * lambda of a parameter not written, or an argument of no type alone (`none()`), wait. Solved as

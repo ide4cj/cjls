@@ -4,7 +4,7 @@ import std.collection.*
 import loupe.db.{AnalysisDatabase, SourceFile}
 
 /**
- * What a call tells of one of its type arguments not written (D56): the types it is a supertype of
+ * What a call tells of one of its type arguments not written (D57): the types it is a supertype of
  * (`lower`: what is passed), those it is a subtype of (`upper`: its type parameter's bounds, what
  * the call is expected to be), and whether an integer or a float literal of no suffix is passed for
  * it, cjc's ideal types.
@@ -18,7 +18,7 @@ class VarBounds {
 
 /**
  * The type arguments not written of one call, as cjc's `LocalTypeArgumentSynthesis` solves them
- * (D56): `count` variables, `InferTy(base)` on, each bounded by what the call's arguments and the
+ * (D57): `count` variables, `InferTy(base)` on, each bounded by what the call's arguments and the
  * type expected of it say, then chosen: the join of what is passed, else the one bound under every
  * other. No variable outlives the call: what it passes is inferred before, its own variables solved.
  */
@@ -164,7 +164,8 @@ class TypeArgSolver {
             }))
         }
         if (!lower.isEmpty()) {
-            // `Nothing` alone: no solution but of an upper bound
+            // what is passed is `Nothing` alone (`gen(throw e)`): an upper bound if there is one,
+            // else `Nothing` itself, which cjc gives too (`let _: Int64 = gen(throw e)` compiles)
             if (let Some(met) <- meet(upper)) {
                 return met
             }

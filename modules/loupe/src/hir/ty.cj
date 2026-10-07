@@ -76,7 +76,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      */
     | ErrorTy
     /**
-     * A type argument of a call not written, while the call is inferred (D56): cjc's placeholder
+     * A type argument of a call not written, while the call is inferred (D57): cjc's placeholder
      * `TyVar`. Never in an `InferenceResult`: what is not solved is an error type.
      */
     | InferTy(Int64)

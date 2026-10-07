@@ -1,4 +1,4 @@
-# ADR-0056: Type arguments not written are inferred per call, as cjc's local synthesis
+# ADR-0057: Type arguments not written are inferred per call, as cjc's local synthesis
 
 Status: accepted, 2026-10-08
 
