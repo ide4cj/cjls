@@ -202,6 +202,9 @@ class Inference {
     // how many candidates are being tried, one inside another: what is written meanwhile is undone
     private var trying = 0
     private let undo = ArrayList<Undo>()
+    // the arguments of the calls whose candidates are tried that are of one type whatever is
+    // expected of them, inferred once before: a candidate only compares it
+    private let known = HashMap<Int64, Ty>()
 
     Inference(private let db: AnalysisDatabase, private let def: DefId) {
         hir = body(db, def)
@@ -717,6 +720,16 @@ class Inference {
     }
 
     /**
+     * `ty`, an `Option` looked through: what a value given for it is boxed from.
+     */
+    private func unboxed(ty: Ty): Ty {
+        match (ty.kind(db)) {
+            case DeclTy(id, args) where args.size == 1 && Some(id) == option => unboxed(args[0])
+            case _ => ty
+        }
+    }
+
+    /**
      * The type of the language `expected` is, `?T` looked through.
      */
     private func expectedPrim(expected: ?Ty): ?String {
@@ -844,7 +857,7 @@ class Inference {
      * join (N98).
      */
     private func arrayTy(elements: Array<ExprId>, expected: ?Ty): Ty {
-        let wanted: ?Ty = match (expected.map {one => one.kind(db)}) {
+        let wanted: ?Ty = match (expected.map {one => unboxed(one).kind(db)}) {
             case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == coreId("Array", ItemKind.Struct) => args[0]
             case _ => None
         }
@@ -1249,6 +1262,19 @@ class Inference {
      */
     private func chooseOverload(callee: ExprId, candidates: Array<Callable>, args: Array<CallArg>,
         expected: ?Ty): ?Callable {
+        let own = args.filter {arg => isSelfTyped(arg.expr) && !known.contains(arg.expr.index)}
+        for (arg in own) {
+            known[arg.expr.index] = infer(arg.expr, None)
+        }
+        let chosen = mostSpecificFitting(callee, candidates, args, expected)
+        for (arg in own) {
+            known.remove(arg.expr.index)
+        }
+        chosen
+    }
+
+    private func mostSpecificFitting(callee: ExprId, candidates: Array<Callable>, args: Array<CallArg>,
+        expected: ?Ty): ?Callable {
         let levels = candidates.map {one => one.level}
         sort(levels)
         var last: ?Int64 = None
@@ -1276,6 +1302,49 @@ class Inference {
             }
         }
         None
+    }
+
+    /**
+     * Whether `id` is of one type whatever is expected of it: a local, a variable or property, a
+     * member of a value, a string, `this`. A candidate tried compares it, inferring it once.
+     */
+    private func isSelfTyped(id: ExprId): Bool {
+        let isValue = {decl: DefId => decl.item(db).kind == ItemKind.Var || decl.item(db).kind == ItemKind.Prop}
+        match (hir[id]) {
+            case LitExpr(text) => !isNumber(text)
+            case StrExpr(_) | ThisExpr => true
+            case PathExpr(name, _) => match (resolveBodyName(db, def, scopes.scopeOf(id), name)) {
+                case Values(targets) where targets.size == 1 => match (targets[0]) {
+                    case LocalOf(_) => true
+                    case DeclOf(decl) => isValue(decl)
+                    case MemberOf(MemberDecl(decl)) => isValue(decl)
+                    case MemberOf(MemberParam(_, _)) => true
+                    case TypeParamOf(_) => false
+                }
+                case InFile(Found(ids)) where ids.size == 1 => isValue(ids[0])
+                case _ => false
+            }
+            // of a value, a member is looked up from its type alone
+            case FieldExpr(receiver, _, _) => match (resolveField(db, def, id)) {
+                case OfValue => isSelfTyped(receiver)
+                case _ => false
+            }
+            case _ => false
+        }
+    }
+
+    /**
+     * Checks the argument `expr` against `expected`; while a candidate is tried, one known before
+     * is compared, not inferred again.
+     */
+    private func checkArg(expr: ExprId, expected: ?Ty): Ty {
+        if (trying > 0 && let Some(ty) <- known.get(expr.index)) {
+            if (let Some(one) <- expected && !fits(ty, one)) {
+                mismatches++
+            }
+            return ty
+        }
+        infer(expr, expected)
     }
 
     /**
@@ -1384,7 +1453,7 @@ class Inference {
             if (arg.name.isSome()) {
                 infer(arg.expr, None)
             } else {
-                infer(arg.expr, callable.params.get(positional))
+                checkArg(arg.expr, callable.params.get(positional))
                 positional++
             }
         }
@@ -1429,15 +1498,15 @@ class Inference {
                     } else if (isUntypedLambda(expr)) {
                         waiting.add(i)
                     } else {
-                        let ty = infer(expr, None)
+                        let ty = checkArg(expr, None)
                         if (hasErrors(db, ty)) {
                             waiting.add(i)
                         } else {
                             synthesized[i] = ty
                         }
                     }
-                case Some(target) => infer(expr, target)
-                case None => infer(expr, None)
+                case Some(target) => checkArg(expr, target)
+                case None => checkArg(expr, None)
             }
         }
         let solve = {
