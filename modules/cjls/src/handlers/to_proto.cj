@@ -4,6 +4,7 @@ import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
 import loupe.{FileSymbol, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
 import loupe.Diagnostic as LoupeDiagnostic
+import loupe.TextEdit as LoupeTextEdit
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 
@@ -18,6 +19,10 @@ func lspRange(text: Rope, start: Int64, end: Int64, encoding: Encoding): LspRang
 func lspPosition(text: Rope, offset: Int64, encoding: Encoding): Position {
     let position = text.positionOf(offset, encoding)
     Position(line: UInt32(position.line), character: UInt32(position.column))
+}
+
+func textEdit(text: Rope, edit: LoupeTextEdit, encoding: Encoding): TextEdit {
+    TextEdit(range: lspRange(text, edit.range.start, edit.range.end, encoding), newText: edit.text)
 }
 
 func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): DocumentSymbol {

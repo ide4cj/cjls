@@ -14,6 +14,9 @@ Commands:
   (none)                 serve LSP over stdio, as an editor starts it
   project [--dir <dir>]  print the project found for <dir>, the current directory by default,
                          as cj-project.json
+  fmt [--check] <path>...
+                         format the Cangjie files at <path>, a directory's as the server reads
+                         them; with --check, change nothing and fail if a file would change
   help                   print this
 """
 
@@ -26,6 +29,10 @@ enum Command {
      * Print the project of this directory, as `cj-project.json`.
      */
     | PrintProject(Path)
+    /**
+     * Format the files at these paths, or with `check` only say which would change.
+     */
+    | Format(Array<Path>, Bool)
     | Help
 }
 
@@ -41,6 +48,7 @@ func parseCommand(args: Array<String>): Command {
     }
     match (args[0]) {
         case "project" => PrintProject(projectDir(args[1..]))
+        case "fmt" => formatCommand(args[1..])
         case "help" | "--help" | "-h" => Help
         case other => throw ArgumentParseException("no command `${other}`")
     }
@@ -83,7 +91,25 @@ func projectDir(options: Array<String>): Path {
     if (dir.isEmpty()) {
         throw ArgumentParseException("`--dir` takes a directory")
     }
-    let path = Path(dir)
+    absolute(Path(dir))
+}
+
+/**
+ * What `fmt`'s arguments say: `--check` (`-c`) and at least one path, relative to the working
+ * directory.
+ *
+ * @throws ArgumentParseException - for an option not known, or no path
+ */
+func formatCommand(arguments: Array<String>): Command {
+    let parsed = parseArguments(arguments, [Full("check", r'c', NoValue)])
+    if (parsed.nonOptions.isEmpty()) {
+        throw ArgumentParseException("`fmt` takes the paths to format")
+    }
+    let paths = parsed.nonOptions.map {argument => absolute(Path(argument))}
+    Format(paths, parsed.options.contains("check"))
+}
+
+func absolute(path: Path): Path {
     if (path.isAbsolute()) {
         path
     } else {
