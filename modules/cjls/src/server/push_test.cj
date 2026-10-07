@@ -124,6 +124,31 @@ class DiagnosticsPushTest {
         // assert
         @Expect(publishedOf(transport.nextNotification()).version, Some(Int32(2)))
     }
+
+    @TestCase
+    func aDocumentWhoseDiagnosticsThrowDoesNotStopTheOnesAfterIt() {
+        // arrange
+        let state = stateWith("a")
+        let first = VfsPath.file(getTempDirectory().join("first.cj"))
+        let second = VfsPath.file(getTempDirectory().join("second.cj"))
+        let third = VfsPath.file(getTempDirectory().join("third.cj"))
+        let transport = WrittenTransport()
+        let push = DiagnosticsPush({
+            snap, path => if (path == second) {
+                throw Exception("a query failed")
+            } else {
+                textAsDiagnostic(snap, path)
+            }
+        }, clientOn(transport), NoopLogger())
+
+        // act
+        push.schedule(state.snapshot(), [(first, 1), (second, 1), (third, 1)]).get()
+
+        // assert
+        @Expect(publishedOf(transport.nextNotification()).uri, first.toUri())
+        @Expect(publishedOf(transport.nextNotification()).uri, third.toUri())
+        @Expect(transport.isEmpty())
+    }
 }
 
 /**

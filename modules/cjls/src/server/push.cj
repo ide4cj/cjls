@@ -44,7 +44,16 @@ class DiagnosticsPush {
         spawn {
             try {
                 for ((path, version) in documents) {
-                    publish(path, version, diagnosticsOf(snapshot, path), generation)
+                    // one that fails costs only itself; a cancellation is the snapshot's, so it ends the push
+                    try {
+                        publish(path, version, diagnosticsOf(snapshot, path), generation)
+                    } catch (e: CancelledException) {
+                        throw e
+                    } catch (e: Exception) {
+                        failed(e)
+                    } catch (e: Error) {
+                        logger.error("push failed", [("cause", ErrorLogValue(e)), ("uri", path.toUri())])
+                    }
                 }
             } catch (_: CancelledException) {
                 logger.debug("push cancelled", [("reason", "the content was modified")])
