@@ -205,6 +205,8 @@ class Inference {
     // the arguments of the calls whose candidates are tried that are of one type whatever is
     // expected of them, inferred once before: a candidate only compares it
     private let known = HashMap<Int64, Ty>()
+    // the blocks of functions returning `Unit` and what their value is: of any type (N118)
+    private let dropped = HashSet<Int64>()
 
     Inference(private let db: AnalysisDatabase, private let def: DefId) {
         hir = body(db, def)
@@ -340,7 +342,10 @@ class Inference {
         let frame = Frame(ret)
         frames.add(frame)
         // of a function returning `Unit`, the block's value is dropped, whatever its type (N118)
-        let blockTy = infer(block, ret.filter {one => one.kind(db) != PrimTy("Unit")})
+        if (let Some(one) <- ret && one.kind(db) == PrimTy("Unit")) {
+            dropped.add(block.index)
+        }
+        let blockTy = infer(block, ret)
         frames.remove(at: frames.size - 1)
         match (ret) {
             case Some(one) => one
@@ -395,13 +400,38 @@ class Inference {
     private func infer(id: ExprId, expected: ?Ty): Ty {
         let ty = inferExpr(id, expected)
         setExpr(id, ty)
-        if (let Some(one) <- expected && !fits(ty, one)) {
+        if (let Some(one) <- expected && !fits(ty, one) &&
+            !(dropped.contains(id.index) && one.kind(db) == PrimTy("Unit"))) {
             mismatches++
         }
         ty
     }
 
+    /**
+     * What the value of `id` is, if it is a block, a branch or a body: the last expression of a
+     * block, each branch, the block of `synchronized` or `unsafe`.
+     */
+    private func tailsOf(id: ExprId): Array<ExprId> {
+        match (hir[id]) {
+            case BlockExpr(stmts) => match (stmts.get(stmts.size - 1)) {
+                case Some(ExprStmt(expr)) => [expr]
+                case _ => []
+            }
+            case IfExpr(_, then, Some(otherwise)) => [then, otherwise]
+            case MatchExpr(_, arms) => arms.map {arm => arm.body}
+            case TryExpr(_, tried, catches, _) => [tried].concat(catches.map {arm => arm.body})
+            case SynchronizedExpr(_, block) => [block]
+            case UnsafeExpr(block) => [block]
+            case _ => []
+        }
+    }
+
     private func inferExpr(id: ExprId, expected: ?Ty): Ty {
+        if (dropped.contains(id.index)) {
+            for (one in tailsOf(id)) {
+                dropped.add(one.index)
+            }
+        }
         match (hir[id]) {
             case MissingExpr | MacroExpr => error
             case LitExpr(text) => literalTy(text, expected)
@@ -412,7 +442,10 @@ class Inference {
                 core("String", ItemKind.Struct, [])
             case PathExpr(name, args) => pathTy(id, name, args, expected)
             case FieldExpr(receiver, name, args) => fieldTy(id, receiver, name, args, expected)
-            case CallExpr(callee, args) => callTy(callee, args, expected)
+            // a call whose value is dropped returns what it may (N118)
+            case CallExpr(callee, args) => callTy(callee, args, expected.filter {
+                one => !(dropped.contains(id.index) && one.kind(db) == PrimTy("Unit"))
+            })
             case IndexExpr(base, indices) => indexTy(base, indices)
             case OptionalExpr(inner) =>
                 // `a?.b`, `a?()` (8e)
