@@ -1,4 +1,4 @@
-# ADR-0040: The SDK is found without `CANGJIE_HOME`, and is what `${CANGJIE_HOME}` expands to
+# ADR-0040: The SDK is found without `CANGJIE_HOME`: the editor's setting, the variable, cjsdk's default toolchain, `cjc` on `PATH`; it is what `${CANGJIE_HOME}` expands to
 
 Status: accepted, 2026-10-04
 

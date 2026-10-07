@@ -1,4 +1,4 @@
-# ADR-0043: Analysis tests are fixtures: files, a place and the answers as one text, written into the test by running it
+# ADR-0043: Analysis tests are fixtures: files, a place and the answers as one text in `loupe.fixture`, written into the test by `UPDATE_EXPECT=1`
 
 Status: accepted, 2026-10-04
 

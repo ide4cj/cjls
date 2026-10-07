@@ -24,6 +24,7 @@ public func router(): Router {
         .route(DidChangeWorkspaceFoldersNotificationSpec(), handleDidChangeWorkspaceFolders)
         .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
+        .route(DefinitionRequestSpec(), handleDefinition)
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
@@ -41,6 +42,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind.AsTextDocumentSyncOptions(
             TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
         documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
+        definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
         // a file's diagnostics are its own, and nothing is reported for files not open (D14)
         diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
             DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false)),

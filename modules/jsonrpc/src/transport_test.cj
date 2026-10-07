@@ -108,12 +108,11 @@ class JsonRpcTransportReadTest {
     @TestCase[pair in [
         ("Content-Length: 50\r\n\r\n{\"jsonrpc\":\"2.0\"}", "JSON-RPC content truncated: expected 50 bytes, got 17"),
         ("Content-Length: 33554432\r\n\r\nshort", "JSON-RPC content truncated: expected 33554432 bytes, got 5"),
-        ("Content-Length: 33554433\r\n\r\nshort",
-            "JSON-RPC body size limit exceeded: expected at most 33554432, got 33554433 bytes"),
+        ("Content-Length: 33554433\r\n\r\nshort", "JSON-RPC content truncated: expected 33554433 bytes, got 5"),
         ("Content-Length: nope\r\n\r\n{}", "\"Content-Length\" value is invalid")
     ]]
     func aBrokenFrameLosesTheFraming(pair: (String, String)) {
-        // arrange - the limit is checked before anything is allocated, and is inclusive
+        // arrange - a frame at the limit is read and one over it skipped, so either is cut short
         let (bytes, message) = pair
 
         // act
@@ -153,6 +152,39 @@ class JsonRpcTransportDecodeErrorTest {
         @AssertThrows[RpcException](transport.read())
         @AssertThrows[RpcException](transport.read())
         @AssertThrows[RpcException](transport.read())
+        let note = transport.read().getOrThrow().getNotificationBodyOrThrow()
+
+        // assert
+        @Expect("m", note.method)
+    }
+}
+
+@Test
+class JsonRpcTransportSizeLimitTest {
+    @TestCase[chunk in [ 1, 3, 4096 ]]
+    func aFrameOverTheLimitIsRefusedAndTheNextOneRead(chunk: Int64) {
+        // arrange - skipped in short reads too, as a pipe under load hands them out
+        let bytes = readToEnd(framed([##"{"jsonrpc":"2.0","method":"big"}"##, ##"{"jsonrpc":"2.0","method":"m"}"##]))
+        let transport = FramedJsonRpcTransport(ChunkedInputStream(bytes, chunk), ByteBuffer(), getGlobalLogger(),
+            bodyBytesMax: 30)
+
+        // act
+        let e = @AssertThrows[RpcException](transport.read())
+        let note = transport.read().getOrThrow().getNotificationBodyOrThrow()
+
+        // assert
+        @Expect(ErrorCode.INVALID_REQUEST, e.code)
+        @Expect("JSON-RPC body size limit exceeded: expected at most 30, got 32 bytes", e.message)
+        @Expect("m", note.method)
+    }
+
+    @TestCase
+    func aFrameAtTheLimitIsRead() {
+        // arrange
+        let transport = FramedJsonRpcTransport(framed(##"{"jsonrpc":"2.0","method":"m"}"##), ByteBuffer(),
+            getGlobalLogger(), bodyBytesMax: 30)
+
+        // act
         let note = transport.read().getOrThrow().getNotificationBodyOrThrow()
 
         // assert

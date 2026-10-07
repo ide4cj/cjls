@@ -2,7 +2,8 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
-import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag, Severity, StructureKind, StructureNode}
+import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag,
+    NavigationTarget, Severity, StructureKind, StructureNode}
 import loupe.Diagnostic as LoupeDiagnostic
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
@@ -42,6 +43,26 @@ func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding:
         location: LocationOrLocationUriOnly.AsLocation(Location(uri: uri,
             range: lspRange(text, symbol.selectionRange.start, symbol.selectionRange.end, encoding)))
     )
+}
+
+/**
+ * A declaration `target` goes to, in the file at `uri` whose text is `text`: the whole of it, and
+ * its name to select.
+ */
+func locationLink(text: Rope, uri: DocumentUri, target: NavigationTarget, encoding: Encoding): LocationLink {
+    LocationLink(
+        targetUri: uri,
+        targetRange: lspRange(text, target.fullRange.start, target.fullRange.end, encoding),
+        targetSelectionRange: lspRange(text, target.focusRange.start, target.focusRange.end, encoding)
+    )
+}
+
+/**
+ * A declaration `target` goes to, for a client that takes no links: at its name, where an editor
+ * jumps to.
+ */
+func location(text: Rope, uri: DocumentUri, target: NavigationTarget, encoding: Encoding): Location {
+    Location(uri: uri, range: lspRange(text, target.focusRange.start, target.focusRange.end, encoding))
 }
 
 /**

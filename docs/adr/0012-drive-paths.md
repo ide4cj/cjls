@@ -1,6 +1,7 @@
 # ADR-0012: Paths are `std.fs.Path`, URIs are stdx's `URL`; Windows drives are spelled one way
 
 Status: accepted, 2026-09-26
+Amends ADR-0002: Windows paths
 
 ## Context
 
