@@ -432,7 +432,13 @@ class Inference {
                     case Some(TupleTy(tys)) where tys.size == elements.size => tys
                     case _ => Array<Ty>()
                 }
-                Ty(db, TupleTy(Array(elements.size) {i => infer(elements[i], wanted.get(i))}))
+                let tys = Array(elements.size) {i => infer(elements[i], wanted.get(i))}
+                // of the tuple expected if each element fits it (`(s, t)` a `(String, ?Tree)`)
+                if (!wanted.isEmpty() && (0..tys.size).iterator().all {i => fits(tys[i], wanted[i])}) {
+                    Ty(db, TupleTy(wanted))
+                } else {
+                    Ty(db, TupleTy(tys))
+                }
             case ArrayExpr(elements) => arrayTy(elements, expected)
             case UnitExpr => prim("Unit")
             case IfExpr(condition, then, otherwise) =>
@@ -564,8 +570,9 @@ class Inference {
     private func branches(ids: Array<ExprId>, expected: ?Ty): Ty {
         let tys = ids.map {one => infer(one, expected)}
         let joined = joinTys(db, tys, from)
+        // checked against a type each branch fits, the expression is of it, as cjc's check gives
         match (expected) {
-            case Some(one) where joined.kind(db) == ErrorTy => one
+            case Some(one) where joined.kind(db) == ErrorTy || tys.iterator().all {ty => fits(ty, one)} => one
             case _ => joined
         }
     }
@@ -770,16 +777,26 @@ class Inference {
         let isComparison = COMPARISONS.contains(op)
         var left = error
         var right = error
+        // what one side tells the other is of a type of the language: an operator of another type
+        // takes what it declares (8e)
+        let ofPrim = {
+            ty: ?Ty => ty.filter {
+                one => match (one.kind(db)) {
+                    case PrimTy(_) => true
+                    case _ => false
+                }
+            }
+        }
         if (isNumericLiteral(lhs) && !isNumericLiteral(rhs)) {
             right = infer(rhs, None)
-            left = infer(lhs, right)
+            left = infer(lhs, ofPrim(right))
         } else {
             left = infer(lhs, if (isComparison) {
                 None
             } else {
-                expected
+                ofPrim(expected)
             })
-            right = infer(rhs, rightExpected(op, left))
+            right = infer(rhs, ofPrim(rightExpected(op, left)))
         }
         match ((left.kind(db), right.kind(db))) {
             case (PrimTy(_), PrimTy(_)) where isComparison => prim("Bool")

@@ -125,7 +125,30 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
         case (ParamTy(owner, _), _) => signatureTypes(db, owner).bounds.iterator().any {
             bound => bound.ty == sub && bound.bounds.iterator().any {one => isSubtype(db, one, sup, from)}
         }
-        case (_, DeclTy(id, _)) => asInstanceOf(db, sub, id, from) == Some(sup)
+        case (_, DeclTy(id, _)) => match (asInstanceOf(db, sub, id, from)) {
+            case Some(one) => isAlike(db, one, sup)
+            case None => false
+        }
+        case _ => false
+    }
+}
+
+/**
+ * Whether `a` and `b` are one type but where either is an error type, which stands for any: type
+ * arguments are invariant, but `Array<{unknown}>` hides nothing.
+ */
+func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
+    if (a == b) {
+        return true
+    }
+    let all = {xs: Array<Ty>, ys: Array<Ty> => xs.size == ys.size &&
+        (0..xs.size).iterator().all {i => isAlike(db, xs[i], ys[i])}}
+    match ((a.kind(db), b.kind(db))) {
+        case (ErrorTy, _) | (_, ErrorTy) => true
+        case (DeclTy(x, xs), DeclTy(y, ys)) => x == y && all(xs, ys)
+        case (TupleTy(xs), TupleTy(ys)) => all(xs, ys)
+        case (FuncTy(xs, x, xc), FuncTy(ys, y, yc)) => xc == yc && all(xs, ys) && isAlike(db, x, y)
+        case (VArrayTy(x, xn), VArrayTy(y, yn)) => xn == yn && isAlike(db, x, y)
         case _ => false
     }
 }
