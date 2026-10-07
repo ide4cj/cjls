@@ -36,7 +36,8 @@ Only for a client that cannot pull (`initialize` found no `textDocument.diagnost
 | spawn | per open document: `diagnostics(snap.analysis, fileId)` → LSP `Diagnostic`s | `documentDiagnostics`, `to_proto.cj` |
 | spawn | generation still the document's latest → `client.notify(PublishDiagnosticsNotificationSpec(), …)` with its `version`; else dropped | `DiagnosticsPush.publish` |
 | spawn | `CancelledException` → dropped, `DEBUG`: the write that cancelled it scheduled its own | `DiagnosticsPush.schedule` |
-| spawn | the connection closed → dropped, `DEBUG`; anything else → `ERROR`, nothing sent | `DiagnosticsPush.schedule` |
+| spawn | one document's diagnostics throw an `Exception` or overflow the stack → `ERROR` with its `uri`, that document skipped, the others sent | `DiagnosticsPush.computed` |
+| spawn | the connection closed → dropped, `DEBUG`; anything else (a failed send, any other `Error`) → `ERROR`, the push ends | `DiagnosticsPush.schedule` |
 
 `didClose` publishes an empty list for the document at once, on the read loop, so its errors do not stay in the editor.
 
