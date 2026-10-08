@@ -306,6 +306,46 @@ class FormatTest {
     }
 
     @TestCase
+    func aBlockCommentsLinesKeepTheirAlignmentWhereTheShiftWouldPassTheMargin() {
+        check(
+            code(#"
+            class A {
+                    /*
+              a
+                b
+                    */
+            }
+            "#),
+            code(#"
+            class A {
+                /*
+            a
+              b
+                  */
+            }
+            "#))
+    }
+
+    @TestCase
+    func whatAMacroReadsAsTokensKeepsItsAlignmentWhereTheShiftWouldPassTheMargin() {
+        check(
+            code(#"
+            func f() {
+                    @M(
+              x
+                      y)
+            }
+            "#),
+            code(#"
+            func f() {
+                @M(
+            x
+                    y)
+            }
+            "#))
+    }
+
+    @TestCase
     func trailingWhitespaceGoesAndBlankLinesAreKeptToOne() {
         check("\n\nlet a = 1   \n\n\n\nlet b = 2 // c  \n\n", "let a = 1\n\nlet b = 2 // c\n")
     }

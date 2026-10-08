@@ -1,7 +1,7 @@
 package cjls
 
 import std.env.getTempDirectory
-import std.fs.{Directory, File, Path}
+import std.fs.{Directory, File, FSException, Path}
 import std.io.{ByteBuffer, readToEnd}
 
 /**
@@ -71,5 +71,23 @@ class FormatPathsTest {
         @Expect(lines.size, 2)
         @Expect(lines[0], "${dir.join("none.cj")}: no such file or directory")
         @Expect(lines[1].endsWith("a.cj: not formatted: it has syntax errors"))
+    }
+
+    @TestCase
+    func aFileNotWrittenIsNamedOnErrAndFails() {
+        // arrange
+        let dir = Directory.createTemp(getTempDirectory())
+        let file = dir.join("a.cj")
+        File.writeTo(file, "func f() {\nx\n}\n".toArray())
+        let (out, err) = (ByteBuffer(), ByteBuffer())
+
+        // act
+        let exitCode = formatPaths([file], false, out, err,
+            write: {_, _ => throw FSException("Permission denied")})
+
+        // assert
+        @Expect(exitCode, 1)
+        @Expect(written(out), "")
+        @Expect(written(err).endsWith("a.cj: not written: Permission denied\n"))
     }
 }

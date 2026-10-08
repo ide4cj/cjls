@@ -1,7 +1,7 @@
 package cjls
 
 import std.collection.ArrayList
-import std.fs.{File, FileInfo, Path, exists}
+import std.fs.{File, FileInfo, FSException, Path, exists}
 import std.io.OutputStream
 import std.sort.sort
 import rope.Rope
@@ -11,12 +11,19 @@ import cjformat.formatText
 /**
  * Formats the Cangjie files at `paths` in place, or with `check` only names those it would change;
  * a directory stands for the files the server would read in it (`readRoots`). Each file changed,
- * or to be, goes to `out` on a line, a file with syntax errors to `err`, left alone.
+ * or to be, goes to `out` on a line, a file with syntax errors or not written to `err`, left alone.
+ * `write` writes a file; a test's fails.
  *
- * @return the exit code: `1` if a path is not there or a file has syntax errors, or with `check`
- * if one is to change
+ * @return the exit code: `1` if a path is not there, a file has syntax errors or is not written,
+ * or with `check` if one is to change
  */
-func formatPaths(paths: Array<Path>, check: Bool, out: OutputStream, err: OutputStream): Int64 {
+func formatPaths(
+    paths: Array<Path>,
+    check: Bool,
+    out: OutputStream,
+    err: OutputStream,
+    write!: (Path, Array<Byte>) -> Unit = {path, bytes => File.writeTo(path, bytes)}
+): Int64 {
     var failed = false
     for (path in paths where !exists(path)) {
         err.write("${path}: no such file or directory\n".toArray())
@@ -32,7 +39,13 @@ func formatPaths(paths: Array<Path>, check: Bool, out: OutputStream, err: Output
                 if (check) {
                     failed = true
                 } else {
-                    File.writeTo(path.filePath.getOrThrow(), formatted.toArray())
+                    try {
+                        write(path.filePath.getOrThrow(), formatted.toArray())
+                    } catch (e: FSException) {
+                        err.write("${path}: not written: ${e.message}\n".toArray())
+                        failed = true
+                        continue
+                    }
                 }
                 out.write("${path}\n".toArray())
             case _ => ()

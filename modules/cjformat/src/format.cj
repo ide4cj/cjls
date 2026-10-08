@@ -142,7 +142,7 @@ class Formatter {
         }
         let lineBreak = if (space.contains("\r\n")) { "\r\n" } else { "\n" }
         let (newIndent, kept) = if (opaqueEnd >= 0 && end < opaqueEnd) {
-            (max(0, oldIndent + opaqueDelta), breaks)
+            (oldIndent + opaqueDelta, breaks)
         } else {
             (indentOf(next), if (first) { 0 } else { min(breaks, 2) })
         }
@@ -167,7 +167,7 @@ class Formatter {
         }
         if (let Some(opaque) <- outermostOpaque(t)) {
             opaqueEnd = opaque.textRange.end
-            opaqueDelta = lineDelta
+            opaqueDelta = boundedDelta(lineDelta, lineIndentsIn(opaque))
             return
         }
         if (t.kind.isTrivia()) {
@@ -233,29 +233,26 @@ class Formatter {
 
     /**
      * A comment without trailing whitespace on its lines, the lines after its first moved as much
-     * as that one.
+     * as that one, or as far as the least indented of them can go.
      */
     func comment(t: CjSyntaxToken) {
-        let original = t.text()
-        let lines = original.split("\n")
+        let lines = t.text().split("\n")
+        let crs = lines.map {line => line.endsWith("\r")}
+        let trimmed = lines.map {line => line.trimAsciiEnd()}
+        let after = trimmed[1..].filter {line => !line.isEmpty()}
+        let delta = boundedDelta(lineDelta, after.map {line => indentOfLine(line)})
         let out = StringBuilder()
         for (i in 0..lines.size) {
-            var current = lines[i]
-            let cr = current.endsWith("\r")
-            if (cr) {
-                current = current[..current.size - 1]
-            }
-            current = current.trimAsciiEnd()
+            var current = trimmed[i]
             if (i > 0 && !current.isEmpty()) {
-                let content = current.trimAsciiStart()
-                let indent = current.size - content.size
-                current = " " * max(0, indent + lineDelta) + content
+                let indent = indentOfLine(current)
+                current = " " * (indent + delta) + current[indent..]
             }
             if (i > 0) {
                 out.append("\n")
             }
             out.append(current)
-            if (cr) {
+            if (crs[i]) {
                 out.append("\r")
             }
         }
@@ -361,6 +358,48 @@ func isPrefix(element: CjSyntaxElement, parent: SyntaxKind): Bool {
         case At | AtBang | Dot | NameRef | MacroAttr => parent == MacroExpandDecl || parent == MacroExpandExpr
         case _ => false
     }
+}
+
+/**
+ * `delta`, or as much of it as the least of `indents` can take: what moves as a whole keeps the
+ * alignment of its lines, the least indented at the margin rather than the others shifted less.
+ */
+func boundedDelta(delta: Int64, indents: Array<Int64>): Int64 {
+    indents.fold(delta) {bounded, indent => max(bounded, -indent)}
+}
+
+/**
+ * The columns of whitespace `line` starts with.
+ */
+func indentOfLine(line: String): Int64 {
+    line.size - line.trimAsciiStart().size
+}
+
+/**
+ * The indents of the lines that start inside `node`, after its first token.
+ */
+func lineIndentsIn(node: CjSyntaxNode): Array<Int64> {
+    let text = node.text()
+    let start = node.textRange.start
+    let indents = ArrayList<Int64>()
+    var spaceFrom = -1
+    for (element in node.descendantsWithTokens()) {
+        let token = element.asToken() ?? continue
+        if (isSpace(token.kind)) {
+            if (spaceFrom < 0) {
+                spaceFrom = token.textRange.start - start
+            }
+            continue
+        }
+        if (spaceFrom >= 0) {
+            let space = text[spaceFrom..token.textRange.start - start]
+            if (let Some(at) <- space.lastIndexOf("\n")) {
+                indents.add(space.size - at - 1)
+            }
+            spaceFrom = -1
+        }
+    }
+    indents.toArray()
 }
 
 func lineBreakIn(text: String): String {
