@@ -20,6 +20,10 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
+    let folding = params.capabilities.textDocument.flatMap {textDocument => textDocument.foldingRange}
+    state.lineFoldingOnly = folding.flatMap {it => it.lineFoldingOnly} ?? false
+    state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}
+    state.locationLinks = takesLocationLinks(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
     state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
     state.cangjieHome = cangjieHome(params.initializationOptions)
@@ -105,6 +109,15 @@ func pullsDiagnostics(capabilities: ClientCapabilities): Bool {
 func takesMultilineTokens(capabilities: ClientCapabilities): Bool {
     capabilities.textDocument.flatMap {textDocument => textDocument.semanticTokens}.flatMap {
         semanticTokens => semanticTokens.multilineTokenSupport
+    } ?? false
+}
+
+/**
+ * Whether the client takes a definition as `LocationLink`s; `false` unless it says so, as LSP has it.
+ */
+func takesLocationLinks(capabilities: ClientCapabilities): Bool {
+    capabilities.textDocument.flatMap {textDocument => textDocument.definition}.flatMap {
+        definition => definition.linkSupport
     } ?? false
 }
 

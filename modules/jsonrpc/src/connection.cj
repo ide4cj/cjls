@@ -53,16 +53,18 @@ public class Connection <: Resource {
     }
 
     public func close(): Unit {
-        transport.close()
-        for ((_, token) in inflight) {
-            token.cancel()
+        try {
+            transport.close()
+        } finally {
+            cancelInflight()
+            abandonPending()
         }
-        abandonPending()
     }
 
     /**
      * Reads until the peer hangs up or the connection is closed. Undecodable frames are answered
-     * and skipped. However it ends, no caller is left waiting on an answer that cannot arrive.
+     * and skipped. However it ends, the connection is closed as `close` does: no caller is left
+     * waiting on an answer that cannot arrive, and no handler working on one nobody will read.
      *
      * @throws TransportException - if the framing is lost in either direction
      */
@@ -91,7 +93,7 @@ public class Connection <: Resource {
                 }
             }
         } finally {
-            abandonPending()
+            close()
         }
     }
 
@@ -108,6 +110,10 @@ public class Connection <: Resource {
             let refusal = ResponseError(ErrorCode.INVALID_REQUEST, "request id ${req.id} is already in flight")
             send(ResponseBody(Value(req.id), ResultOrError.Error(refusal)).enveloped())
             return
+        }
+        if (isClosed()) {
+            // a `close` from another thread may have cancelled the others before this one was in
+            cancellation.cancel()
         }
 
         let request = InboundRequest(req.id, req.method, req.params, cancellation, {
@@ -175,6 +181,21 @@ public class Connection <: Resource {
      */
     private func forget(id: RequestId): Unit {
         pending.remove(id)
+    }
+
+    /**
+     * Cancels and forgets every inbound request, answered or not: a handler that never answers
+     * would otherwise keep its id for the lifetime of the process.
+     */
+    private func cancelInflight(): Unit {
+        let ids = ArrayList<RequestId>()
+        for ((id, _) in inflight) {
+            ids.add(id)
+        }
+
+        for (id in ids) {
+            inflight.remove(id)?.cancel()
+        }
     }
 
     private func abandonPending(): Unit {

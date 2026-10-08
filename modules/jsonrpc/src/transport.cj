@@ -21,6 +21,7 @@ public interface JsonRpcTransport <: JsonRpcReader & JsonRpcWriter {}
 public class FramedJsonRpcTransport <: JsonRpcTransport {
     public static const BODY_BYTES_MAX: Int64 = 32 * 1024 * 1024
     private static const WRITER_KEPT_MAX: Int64 = 1024 * 1024
+    private static const SKIP_CHUNK: Int64 = 64 * 1024
 
     private let input: BufferedInputStream<InputStream>
     private let output: BufferedOutputStream<OutputStream>
@@ -30,8 +31,11 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
     private var writer = FjWriter()
     private let writing = Mutex()
 
+    /**
+     * @param bodyBytesMax - the largest content read; one over it is skipped and refused
+     */
     public FramedJsonRpcTransport(private let source: InputStream, private let sink: OutputStream,
-        private let logger: Logger) {
+        private let logger: Logger, private let bodyBytesMax!: Int64 = BODY_BYTES_MAX) {
         this.input = BufferedInputStream(source)
         this.output = BufferedOutputStream(sink)
     }
@@ -65,7 +69,7 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
      * that already ends on `None` needs no second exit. A header cut off by the stream's end
      * is EOF too, as nothing can tell it from one.
      *
-     * @throws RpcException - if the frame carries no decodable message
+     * @throws RpcException - if the frame carries no decodable message, or is over the limit
      * @throws TransportException - if the framing is malformed or truncated
      */
     public func read(): ?Body {
@@ -77,7 +81,14 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         if (header.contentLength == 0) {
             throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC frame declares an empty content")
         }
-        let payload = readExactly(Int64(header.contentLength))
+        let count = Int64(header.contentLength)
+        if (count > bodyBytesMax) {
+            // the length is known, so the stream stays in sync past the content left unread
+            skipExactly(count)
+            throw RpcException(ErrorCode.INVALID_REQUEST,
+                "JSON-RPC body size limit exceeded: expected at most ${bodyBytesMax}, got ${count} bytes")
+        }
+        let payload = readExactly(count)
         reader.reset(payload)
         try {
             let body = Body.fromJson(reader)
@@ -125,13 +136,9 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
     }
 
     /**
-     * @throws TransportException - if the stream ends first, or `count` is over the limit
+     * @throws TransportException - if the stream ends first
      */
     private func readExactly(count: Int64): Array<Byte> {
-        if (count > BODY_BYTES_MAX) {
-            throw TransportException(
-                "JSON-RPC body size limit exceeded: expected at most ${BODY_BYTES_MAX}, got ${count} bytes")
-        }
         let res = Array<Byte>(count, repeat: 0)
         // a `BufferedInputStream` keeps reading until the buffer is full or the stream ends
         let readBytes = input.read(res)
@@ -141,5 +148,23 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         }
 
         res
+    }
+
+    /**
+     * Reads `count` bytes a chunk at a time, keeping none: the content is over the limit precisely
+     * so as not to hold it.
+     *
+     * @throws TransportException - if the stream ends first
+     */
+    private func skipExactly(count: Int64): Unit {
+        let chunk = Array<Byte>(min(count, SKIP_CHUNK), repeat: 0)
+        var skipped = 0
+        while (skipped < count) {
+            let readBytes = input.read(chunk[..min(count - skipped, chunk.size)])
+            if (readBytes == 0) {
+                throw TransportException("JSON-RPC content truncated: expected ${count} bytes, got ${skipped}")
+            }
+            skipped += readBytes
+        }
     }
 }

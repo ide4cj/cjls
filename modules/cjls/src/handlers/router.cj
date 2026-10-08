@@ -24,9 +24,11 @@ public func router(): Router {
         .route(DidChangeWorkspaceFoldersNotificationSpec(), handleDidChangeWorkspaceFolders)
         .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
+        .route(DefinitionRequestSpec(), handleDefinition)
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
+        .route(FoldingRangeRequestSpec(), handleFoldingRange)
         .route(MemoryUsageRequestSpec(), handleMemoryUsage)
         .publishDiagnostics(documentDiagnostics)
 }
@@ -40,6 +42,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind.AsTextDocumentSyncOptions(
             TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
         documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
+        definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
         // a file's diagnostics are its own, and nothing is reported for files not open (D14)
         diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
             DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false)),
@@ -48,6 +51,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             SemanticTokensOptions(legend: semanticTokensLegend(),
                 range: BooleanOrSemanticTokensOptionsRange.AsBoolean(true),
                 full: BooleanOrSemanticTokensFullDelta.AsBoolean(true))),
+        // a file's folds are its own: no `workspace/foldingRange/refresh`
+        foldingRangeProvider: BooleanOrFoldingRangeOptionsOrFoldingRangeRegistrationOptions.AsBoolean(true),
         workspaceSymbolProvider: BooleanOrWorkspaceSymbolOptions.AsBoolean(true),
         workspace: WorkspaceOptions(workspaceFolders: WorkspaceFoldersServerCapabilities(supported: true,
             changeNotifications: StringOrBoolean.AsBoolean(true))),

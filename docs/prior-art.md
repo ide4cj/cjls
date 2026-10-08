@@ -84,11 +84,13 @@ Features:
 | Semantic tokens | `full` | `full`, `range` | #16 (syntactic; `full` and `range`) |
 | Document symbols | yes | yes | yes |
 | Workspace symbols | yes | yes | #12 |
-| Hover, definition, references, document highlight, rename | yes | yes | after #48 |
+| Definition | yes | yes | yes; not into a compiled package (#50) |
+| Hover, references, document highlight, rename | yes | yes | after #48 |
 | Completion, signature help | yes | yes | after #48 |
 | Type definition, implementation | — | yes | after #48 |
 | Call and type hierarchy | yes | — | after #48 |
-| Folding, selection range, formatting | — | yes | — |
+| Folding | — | yes | yes (syntactic) |
+| Selection range, formatting | — | yes | — |
 | Code actions, code lens, document links | yes | code actions | — |
 | Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | #47 |
 | `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | #49 |
