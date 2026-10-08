@@ -4,8 +4,8 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr, MatchCase,
-    Name, ParamList, PathSegment, Pattern, ResourceDecl, Type}
+import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr,
+    MacroExpandExpr, MatchCase, Name, ParamList, PathSegment, Pattern, ResourceDecl, Type}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -243,9 +243,10 @@ public enum Expr {
     | VArrayExpr(TypeRefId, Array<CallArg>)
     | BlockExpr(Array<Stmt>)
     /**
-     * A `quote` or a macro call: what it expands to is not known here.
+     * A `quote` or a macro call: what it expands to is not known here. A macro call's arguments when they parse as
+     * an argument list, lowered so the names in them resolve; the macro sees them as tokens all the same.
      */
-    | MacroExpr
+    | MacroExpr(Array<CallArg>)
 }
 
 /**
@@ -630,8 +631,10 @@ class BodyLowering {
             case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
             case AstExpr.AsVArrayExpr(it) =>
                 Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
-            case AstExpr.AsQuoteExpr(_) | AstExpr.AsMacroExpandExpr(_) => Expr.MacroExpr
-            case AstExpr.AsMacroExpandDecl(_) => Expr.MacroExpr
+            // no arguments: a quote's tokens are what it builds, not code run here, and a macro call on a declaration
+            // (`var f = @M func g() {}`) is given the declaration, not values
+            case AstExpr.AsQuoteExpr(_) | AstExpr.AsMacroExpandDecl(_) => Expr.MacroExpr([])
+            case AstExpr.AsMacroExpandExpr(it) => Expr.MacroExpr(macroArgs(it))
         }
         add(lowered, node.syntax)
     }
@@ -647,6 +650,16 @@ class BodyLowering {
         match (nodes) {
             case Some(it) => it |> map {one: Type => types.lower(one)} |> collectArray
             case None => Array<TypeRefId>()
+        }
+    }
+
+    /**
+     * `@M(a, b)`'s arguments, of the innermost call when `@A[x] @M(a, b)` nests them.
+     */
+    private func macroArgs(node: MacroExpandExpr): Array<CallArg> {
+        match (node.macroArgs()) {
+            case Some(it) => args(it.argList())
+            case None => node.macroExpandExpr().map {inner => macroArgs(inner)} ?? []
         }
     }
 

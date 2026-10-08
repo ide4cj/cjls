@@ -274,7 +274,13 @@ class Inference {
 
     private func inferExpr(id: ExprId, expected: ?Ty): Ty {
         match (hir[id]) {
-            case MissingExpr | MacroExpr => error
+            case MissingExpr => error
+            case MacroExpr(args) =>
+                // what the macro makes of them is not known: each alone
+                for (arg in args) {
+                    infer(arg.expr, None)
+                }
+                error
             case LitExpr(text) => literalTy(text, expected)
             case StrExpr(parts) =>
                 for (part in parts) {

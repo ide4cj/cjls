@@ -253,9 +253,10 @@ func indexArg(p: P): Unit {
 }
 
 /**
- * `(a, name: b, inout c)` for a call, `[a, name: b]` for an annotation.
+ * `(a, name: b, inout c)` for a call, `[a, name: b]` for an annotation. With `bareLambdas`, an argument `{ … }`
+ * needs no `=>`, as a trailing lambda: a macro's, which std.unittest's `@AssertThrows({ … })` is given.
  */
-func argList(p: P, open: SyntaxKind, close: SyntaxKind, kind: SyntaxKind): Unit {
+func argList(p: P, open: SyntaxKind, close: SyntaxKind, kind: SyntaxKind, bareLambdas!: Bool = false): Unit {
     let m = p.start()
     p.bump(open)
     while (!p.at(close) && !p.atEof()) {
@@ -266,7 +267,11 @@ func argList(p: P, open: SyntaxKind, close: SyntaxKind, kind: SyntaxKind): Unit 
         } else {
             p.eat(InoutKw)
         }
-        exprOrError(p, Restrictions.commaList(close))
+        if (bareLambdas && p.at(LBrace)) {
+            lambdaExpr(p, true)
+        } else {
+            exprOrError(p, Restrictions.commaList(close))
+        }
         a.complete(p, Arg)
         if (!p.eat(Comma)) {
             break
