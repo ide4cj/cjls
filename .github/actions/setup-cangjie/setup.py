@@ -14,6 +14,7 @@ mirror's origin: a toolchain bump is .cangjie-version and the pin in one commit.
 """
 
 import hashlib
+import http.client
 import json
 import os
 import platform
@@ -73,7 +74,8 @@ def fetch(tag, name, path):
         try:
             with open(path, "wb") as out:
                 actual = download(f"{mirror}/{tag}/{name}", out)
-        except OSError as e:
+        # a chunked body cut short is an HTTPException, not an OSError
+        except (OSError, http.client.HTTPException) as e:
             print(f"  failed: {e}", file=sys.stderr)
             continue
         if actual == expected:

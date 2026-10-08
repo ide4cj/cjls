@@ -20,7 +20,8 @@ runs:
     - uses: actions/cache@v4
       with:
         path: ${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}
-        key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.tag }}
+        # the pin too: a pin corrected under the same tag must not keep the old toolchain
+        key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.tag }}-${{ hashFiles('.cangjie-sha256') }}
 
     - shell: bash
       run: python "$GITHUB_ACTION_PATH/setup.py" "${{ steps.version.outputs.tag }}" "${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}"
