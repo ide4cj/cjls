@@ -17,6 +17,7 @@ package-configuration = { cjls = { compile-option = "--static -Woff driver-arg" 
 
 [dependencies]
 calca = { path = "../calca" }
+cjformat = { path = "../cjformat" }
 fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
 loupe = { path = "../loupe" }

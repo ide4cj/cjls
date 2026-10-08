@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "modules/calca",
+    "modules/cjformat",
     "modules/cjls",
     "modules/cjo",
     "modules/cjsyntax",

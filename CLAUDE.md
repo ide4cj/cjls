@@ -12,7 +12,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 `cjpm` is on `PATH` in Claude Code sessions (a `SessionStart` hook in `.claude/settings.json` loads `envsetup.sh` for every Bash command — don't `source` it). In a shell of your own: `source ~/.cangjie/envsetup.sh` once. From the repo root:
 
-- `cjpm build` · `cjpm run` (the server) · `cjpm clean`; `target/release/bin/cjls project [--dir <dir>]` prints the project the server finds for `<dir>` (the current directory by default) as `cj-project.json` (D33)
+- `cjpm build` · `cjpm run` (the server) · `cjpm clean`; `target/release/bin/cjls project [--dir <dir>]` prints the project the server finds for `<dir>` (the current directory by default) as `cj-project.json` (D33); `target/release/bin/cjls fmt [--check] <path>...` formats the Cangjie files there in place, or with `--check` names those it would change and fails (D60)
 - `cjpm test --target-dir target/test` — all tests (the `pre-push` hook runs it). CI adds `--no-progress`: the progress report stalls now and then and fails a run whose tests all passed.
 - `python3 tests/corpora/fetch.py` — the third-party suites `cjpm test` holds fjson and ftoml to (JSONTestSuite, toml-test), fetched into `.corpora/` at the commits it pins ([D26](docs/adr/0026-test-suites-are-fetched.md)); once per clone, and again when a pin moves. Without them those tests fail, naming it. The `pre-push` hook and CI run it first.
 - A subset: `cjpm test --target-dir target/test '--filter=ConnectionCloseTest.*'` (`<TestClass>.<testCase>`, `*` wildcards). Quote it: the user's shell is fish.
@@ -55,6 +55,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `index_map` | `IndexMap`/`IndexSet` (insertion order) and their append-only concurrent versions; anything that interns uses them |
 | `ginkgo` | lossless green/red syntax trees, and the grammar-agnostic parser machinery |
 | `cjsyntax` | the Cangjie lexer and parser on `ginkgo`; `SyntaxKind` and `cjsyntax.ast` are generated |
+| `cjformat` | the formatter on `cjsyntax`'s tree: whitespace only, the line breaks kept ([D60](docs/adr/0060-the-formatter-keeps-line-breaks.md)) |
 | `syntax_codegen` | executable: generates `cjsyntax`'s kinds and typed views |
 | `loupe` | the analysis: `loupe.vfs`, `loupe.db`, `loupe.syntax`, the API in `loupe` ([D5](docs/adr/0005-loupe-knows-no-lsp.md)) |
 | `cjo` | the `.cjo` files cjc writes for a package: `openCjo`, a read-only flatbuffers runtime and the views of the vendored `CjoFormat.fbs`, generated ([D37](docs/adr/0037-cjo-files-are-read-by-generated-views.md)) |
@@ -63,7 +64,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
 
-Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjo, cjsyntax → ginkgo, index_map, rope}`; `cjls → project_model → {loupe, stdxx, ftoml}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
+Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjformat → cjsyntax, cjo, cjsyntax → ginkgo, index_map, rope}`; `cjls → project_model → {loupe, stdxx, ftoml}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
 
 Editor integrations are repositories in the `ide4cj` organization ([D16](docs/adr/0016-editor-integrations-are-repositories.md)): Neovim ([`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim)), VS Code ([`ide4cj/cangjie-vscode`](https://github.com/ide4cj/cangjie-vscode)), Zed ([`ide4cj/cangjie-zed`](https://github.com/ide4cj/cangjie-zed)); a change across them is one branch name in each (D32), the process in [`ide4cj/.github`](https://github.com/ide4cj/.github). The server's root is the nearest `cjpm.toml`.
 
