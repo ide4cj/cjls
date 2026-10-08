@@ -625,12 +625,11 @@ class BodyDefinitionTest {
 
     @TestCase
     func aMemberFunctionAndOneOfThePackageOverload() {
-        // N70
+        // N70; the call takes the one its argument fits (N115)
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
             func g(s: String): String { s }
-            //   ^ def
             class A {
                 func g(n: Int64): Int64 { n }
             //       ^ def
@@ -820,6 +819,39 @@ class BodyDefinitionTest {
                     set(v) { x = $0v }
             //          ^ def
                 }
+            }
+            "#)
+    }
+
+    @TestCase
+    func theTypeExpectedOfACallChoosesTheOverloadByWhatItReturns() {
+        // N115
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class S {}
+            func h(x: Int64): Int64 { x }
+            func h(x: Int32): S { S() }
+            //   ^ def
+            func g(): Unit {
+                let a: S = $0h(1)
+            }
+            "#)
+    }
+
+    @TestCase
+    func overloadsAsAValueAreTheOneOfTheParametersExpected() {
+        // N121
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class S {}
+            func h(x: Int64): Int64 { x }
+            func h(x: S): S { x }
+            //   ^ def
+            func apply(f: (S) -> S): S { f(S()) }
+            func g(): Unit {
+                apply($0h)
             }
             "#)
     }

@@ -106,7 +106,8 @@ func allSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Array<Ty> {
 
 /**
  * Whether `sub` is `sup` or one of its subtypes; `Nothing` is every type's, and an error type
- * stands for any.
+ * stands for any. A tuple's elements are covariant, a function's parameters contravariant and its
+ * return type covariant (N116); a type parameter is a subtype of what its bounds are.
  */
 func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool {
     if (sub == sup) {
@@ -115,7 +116,56 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
     match ((sub.kind(db), sup.kind(db))) {
         case (ErrorTy, _) | (_, ErrorTy) => true
         case (PrimTy("Nothing"), _) => true
-        case (_, DeclTy(id, _)) => asInstanceOf(db, sub, id, from) == Some(sup)
+        case (TupleTy(subs), TupleTy(sups)) => subs.size == sups.size &&
+            (0..subs.size).iterator().all {i => isSubtype(db, subs[i], sups[i], from)}
+        case (FuncTy(subParams, subRet, subC), FuncTy(supParams, supRet, supC)) => subC == supC &&
+            subParams.size == supParams.size &&
+            (0..subParams.size).iterator().all {i => isSubtype(db, supParams[i], subParams[i], from)} &&
+            isSubtype(db, subRet, supRet, from)
+        case (ParamTy(owner, _), _) => signatureTypes(db, owner).bounds.iterator().any {
+            bound => bound.ty == sub && bound.bounds.iterator().any {one => isSubtype(db, one, sup, from)}
+        }
+        case (_, DeclTy(id, _)) => match (asInstanceOf(db, sub, id, from)) {
+            case Some(one) => isAlike(db, one, sup)
+            case None => false
+        }
+        case _ => false
+    }
+}
+
+/**
+ * Whether `a` and `b` are one type but where either is an error type, which stands for any: type
+ * arguments are invariant, but `Array<{unknown}>` hides nothing.
+ */
+func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
+    if (a == b) {
+        return true
+    }
+    let all = {xs: Array<Ty>, ys: Array<Ty> => xs.size == ys.size &&
+        (0..xs.size).iterator().all {i => isAlike(db, xs[i], ys[i])}}
+    match ((a.kind(db), b.kind(db))) {
+        case (ErrorTy, _) | (_, ErrorTy) => true
+        case (DeclTy(x, xs), DeclTy(y, ys)) => x == y && all(xs, ys)
+        case (TupleTy(xs), TupleTy(ys)) => all(xs, ys)
+        case (FuncTy(xs, x, xc), FuncTy(ys, y, yc)) => xc == yc && all(xs, ys) && isAlike(db, x, y)
+        case (VArrayTy(x, xn), VArrayTy(y, yn)) => xn == yn && isAlike(db, x, y)
+        case _ => false
+    }
+}
+
+/**
+ * Whether a value of the type `sub` may be given where `sup` is expected, as cjc checks it: a
+ * subtype, or boxed into the `Option` (`option`, `std.core`'s) `sup` is (N111). A variable of a
+ * call stands for any, as an error type does.
+ */
+func isAssignable(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile, option: ?DefId): Bool {
+    if (isSubtype(db, sub, sup, from)) {
+        return true
+    }
+    match ((sub.kind(db), sup.kind(db))) {
+        case (InferTy(_), _) | (_, InferTy(_)) => true
+        case (_, DeclTy(id, args)) where Some(id) == option && args.size == 1 =>
+            isAssignable(db, sub, args[0], from, option)
         case _ => false
     }
 }
