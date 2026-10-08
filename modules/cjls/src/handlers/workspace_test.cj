@@ -59,7 +59,10 @@ class AnsweringTransport <: JsonRpcTransport {
     private let inbound = LinkedBlockingQueue<?Body>()
     private let closed = AtomicBool(false)
 
-    AnsweringTransport(private let refuses!: Bool = false) {}
+    /**
+     * @param answers - whether a request is answered at all
+     */
+    AnsweringTransport(private let refuses!: Bool = false, private let answers!: Bool = true) {}
 
     public func isClosed(): Bool {
         closed.load()
@@ -77,7 +80,7 @@ class AnsweringTransport <: JsonRpcTransport {
 
     public func write(body: Body): Unit {
         written.add(body)
-        if (let Request(request) <- body) {
+        if (let Request(request) <- body && answers) {
             let answer = if (refuses) {
                 ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
             } else {
@@ -817,12 +820,12 @@ class LoadOffTheLoopTest {
     }
 
     @TestCase
-    func aClientThatRefusesTheTokenIsShownNoProgress() {
+    func aClientThatNeverAnswersTheTokensCreationIsShownTheLoadAnyway() {
         // arrange
         let dir = workspaceOf([("a.cj", "a")])
         let loop = initializedWith([dir], watches: false)
         loop.state.workDoneProgress = true
-        let transport = AnsweringTransport(refuses: true)
+        let transport = AnsweringTransport(answers: false)
         let client = answeredClientOn(transport)
 
         // act
@@ -831,8 +834,30 @@ class LoadOffTheLoopTest {
         remove(dir, recursive: true)
 
         // assert
-        @Expect(transport.written.remove().getRequestBodyOrThrow().method, "window/workDoneProgress/create")
-        @Expect(transport.written.tryRemove().isNone())
         @Expect(textAt(loop.state, dir.join("a.cj")), Some("a"))
+        @Expect(transport.written.remove().getRequestBodyOrThrow().method, "window/workDoneProgress/create")
+        let progress = (0..3).iterator().map {
+            _: Int64 => transport.written.remove().getNotificationBodyOrThrow().method
+        } |> collectArray
+        @Expect(progress, ["$/progress", "$/progress", "$/progress"])
+    }
+
+    @TestCase
+    func nothingIsSentUnderATokenTheClientRefused() {
+        // arrange
+        let transport = AnsweringTransport(refuses: true)
+        let client = answeredClientOn(transport)
+        let progress = WorkDoneProgress.begin(client, NoopLogger(), Some("t"), "Work")
+        progress.creation?.get()
+
+        // act
+        progress.report(1, 2, "1/2")
+        progress.end(Option<String>.None)
+        client.close()
+
+        // assert: the work began before the answer came
+        @Expect(transport.written.remove().getRequestBodyOrThrow().method, "window/workDoneProgress/create")
+        @Expect(transport.written.remove().getNotificationBodyOrThrow().method, "$/progress")
+        @Expect(transport.written.tryRemove().isNone())
     }
 }

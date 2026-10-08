@@ -214,6 +214,7 @@ func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?St
     try {
         loadProject(loop, logger, request, progress)
     } finally {
+        // a load ended by a newer one ends its token too: the newer one began a token of its own
         progress.end(Option<String>.None)
     }
 }

@@ -22,7 +22,6 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
     def register(params: types.RegistrationParams):
         registered.extend(params.registrations)
 
-
     await server.initialize_session(
         types.InitializeParams(
             capabilities=capabilities(editor),
