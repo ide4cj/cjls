@@ -87,6 +87,11 @@ public struct Signature {
          */
         public let params!: Array<TypeRefId> = [],
         /**
+         * The name each of its parameters is passed by, `None` for one passed by place (`value!`
+         * is `value`); as many as `params`, or none if none is named.
+         */
+        public let paramNames!: Array<?String> = [],
+        /**
          * Its declared type: a function's return type, a variable's or property's type, what an
          * alias names, the type an `extend` extends.
          */
@@ -216,7 +221,8 @@ func lowerSignature(decl: Decl): LoweredSignature {
         case None => Array<TypeBound>()
     }
     LoweredSignature(
-        Signature(generics: generics, types: lowering.types.toArray(), params: params, ty: ty, supers: supers, bounds: bounds),
+        Signature(generics: generics, types: lowering.types.toArray(), params: params, paramNames: lowering.names, ty: ty,
+            supers: supers, bounds: bounds),
         SignatureSourceMap(lowering.ptrs.toArray())
     )
 }
@@ -227,13 +233,24 @@ func lowerSignature(decl: Decl): LoweredSignature {
 class SignatureLowering {
     let types = ArrayList<TypeRef>()
     let ptrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
+    // of the parameters `params` lowered, the name of each passed by name
+    var names = Array<?String>()
 
     func params(lists: Iterator<ParamList>): Array<TypeRefId> {
         let ids = ArrayList<TypeRefId>()
+        let found = ArrayList<?String>()
         for (list in lists) {
             for (param in list.params()) {
                 ids.add(lower(param.ty()))
+                found.add(if (param.bangToken().isSome()) {
+                    param.name()?.text()
+                } else {
+                    None
+                })
             }
+        }
+        if (found.iterator().any {one => one.isSome()}) {
+            names = found.toArray()
         }
         ids.toArray()
     }

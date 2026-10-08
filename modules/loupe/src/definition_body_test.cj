@@ -855,4 +855,99 @@ class BodyDefinitionTest {
             }
             "#)
     }
+
+    @TestCase
+    func anOperatorGoesToTheOperatorFunctionItCalls() {
+        // N122
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            struct V {
+                operator func +(o: V): V { this }
+                operator func +(n: Int64): Int64 { n }
+            //                ^ def
+            }
+            func g(v: V): Unit {
+                let a = v $0+ 1
+            }
+            "#)
+    }
+
+    @TestCase
+    func insideAnOperatorOfTwoCharactersGoesToItsFunction() {
+        // N122
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            struct V {
+                operator func ==(o: V): Bool { true }
+            //                ^^ def
+            }
+            func g(v: V): Unit {
+                let a = v =$0= v
+            }
+            "#)
+    }
+
+    @TestCase
+    func aNameTouchingAnOperatorGoesWhereTheNameIsDeclared() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            struct V {
+                operator func +(o: V): V { this }
+            }
+            func g(v: V): Unit {
+            //     ^ def
+                let a = v$0+v
+            }
+            "#)
+    }
+
+    @TestCase
+    func anIndexAssignedGoesToTheOperatorTakingAValue() {
+        // N124
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Grid {
+                operator func [](i: Int64): Int64 { i }
+                operator func [](i: Int64, value!: Int64): Unit {}
+            //                ^^ def
+            }
+            func g(x: Grid): Unit {
+                x[$01] = 2
+            }
+            "#)
+    }
+
+    @TestCase
+    func aCompoundAssignmentGoesToTheOperatorItCalls() {
+        // N126
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            struct V {
+                operator func -(): V { this }
+                operator func -(o: V): V { this }
+            //                ^ def
+            }
+            func g(): Unit {
+                var v = V()
+                v $0-= v
+            }
+            "#)
+    }
+
+    @TestCase
+    func anOperatorOfTheLanguageGoesNowhere() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            func g(): Unit {
+                let a = 1 $0+ 2
+            //              ^ no definition
+            }
+            "#)
+    }
 }

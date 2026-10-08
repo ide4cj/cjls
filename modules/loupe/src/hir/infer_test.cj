@@ -1237,6 +1237,417 @@ class InferTest {
     }
 
     @TestCase
+    func anIndexIsACallOfTheOperatorItsTypeDeclares() {
+        // N122: but a tuple's by a literal and a `VArray`'s, `a[i]` is `a.[](i)`, chosen as a call's
+        checkInference(#"
+            package m
+            import std.collection.*
+            class Grid {
+                operator func [](i: Int64): String { "" }
+            //                   ^ Int64
+                operator func [](s: String): Int64 { 1 }
+            //                   ^ String
+                operator func [](i: Int64, j: Int64): Bool { true }
+            //                   ^ Int64
+            //                             ^ Int64
+                operator func [](i: Int64, value!: String): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ String
+            }
+            struct Narrow {
+                operator func [](i: Int8): String { "" }
+            //                   ^ Int8
+            }
+            func test(): Unit {
+                let a = [1, 2, 3]
+            //      ^ Array<Int64>
+                let e = a[0]
+            //      ^ Int64
+                let r = a[0..2]
+            //      ^ Array<Int64>
+                let v: VArray<Int64, $2> = [1, 2]
+            //      ^ VArray<Int64, $2>
+                let ve = v[1]
+            //      ^^ Int64
+                let l = ArrayList<String>()
+            //      ^ ArrayList<String>
+                let le = l[0]
+            //      ^^ String
+                let m = HashMap<String, Bool>()
+            //      ^ HashMap<String, Bool>
+                let me = m["k"]
+            //      ^^ Bool
+                let s = "abc"
+            //      ^ String
+                let b = s[0]
+            //      ^ UInt8
+                let sub = s[0..1]
+            //      ^^^ String
+                let g = Grid()
+            //      ^ Grid
+                let g1 = g[1]
+            //      ^^ String
+                let g2 = g["x"]
+            //      ^^ Int64
+                let g3 = g[1, 2]
+            //      ^^ Bool
+                let n = Narrow()[1]
+            //      ^ String
+                let t = (1, "s")
+            //      ^ (Int64, String)
+                let t1 = t[1]
+            //      ^^ String
+                let i = 1
+            //      ^ Int64
+                // cjc: tuple index must be an integer literal
+                let ti = t[i]
+            //      ^^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func anAssignmentToAnIndexCallsTheOperatorTakingAValue() {
+        // N124: `a[i] = v` is `a.[](i, value: v)`, of a `[]` taking `value!` last
+        checkInference(#"
+            package m
+            import std.collection.*
+            class Grid {
+                operator func [](i: Int64): String { "" }
+            //                   ^ Int64
+                operator func [](i: Int64, j: Int64): Bool { true }
+            //                   ^ Int64
+            //                             ^ Int64
+                operator func [](i: Int64, value!: String): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ String
+            }
+            struct Ro {
+                operator func [](i: Int64): Int8 { 1 }
+            //                   ^ Int64
+            }
+            func test(): Unit {
+                let g = Grid()
+            //      ^ Grid
+                let u = (g[1] = "v")
+            //      ^ Unit
+                // cjc: cannot assign to this subscript expression
+                let w = (g[1] = 2)
+            //      ^ Unit
+                // cjc: cannot assign to this subscript expression
+                Ro()[0] = 1
+                let a = [1, 2, 3]
+            //      ^ Array<Int64>
+                let au = (a[0] = 5)
+            //      ^^ Unit
+                let cu = (a[0] += 1)
+            //      ^^ Unit
+                let l = ArrayList<String>()
+            //      ^ ArrayList<String>
+                l[0] += "x"
+                g[1] += "x"
+            }
+            "#)
+    }
+
+    @TestCase
+    func anOperatorOfATypeIsACallOfItsMember() {
+        // N122, N123: `a + b` is `a.+(b)`, `-a` `a.-()`, of its type's or an `extend`'s, chosen as a
+        // call's: by the right, by the type expected; one not declared is none
+        checkInference(#"
+            package m
+            struct V {
+                V(let x: Int64) {}
+            //        ^ Int64
+                operator func +(o: V): V { V(x + o.x) }
+            //                  ^ V
+                operator func +(n: Int8): String { "" }
+            //                  ^ Int8
+                operator func -(): V { this }
+                operator func -(o: V): Bool { true }
+            //                  ^ V
+                operator func !(): Int64 { 1 }
+                operator func ==(o: V): Bool { true }
+            //                   ^ V
+                operator func <(o: V): String { "" }
+            //                  ^ V
+                operator func *(n: Int32): Int64 { 1 }
+            //                  ^ Int32
+                operator func *(n: Int64): V { this }
+            //                  ^ Int64
+            }
+            extend V {
+                operator func /(o: V): Float64 { 1.0 }
+            //                  ^ V
+            }
+            open class B {
+                operator func +(o: B): Int64 { 1 }
+            //                  ^ B
+            }
+            class C <: B {}
+            extend Int64 {
+                operator func +(s: String): String { s }
+            //                  ^ String
+            }
+            func test(): Unit {
+                let v = V(1)
+            //      ^ V
+                let add = v + v
+            //      ^^^ V
+                let lit = v + 1
+            //      ^^^ String
+                let neg = -v
+            //      ^^^ V
+                let sub = v - v
+            //      ^^^ Bool
+                let not = !v
+            //      ^^^ Int64
+                let eq = v == v
+            //      ^^ Bool
+                // cjc: invalid binary operator '!=' on type 'Struct-V' and 'Struct-V'
+                let ne = v != v
+            //      ^^ {unknown}
+                let lt = v < v
+            //      ^^ String
+                let mul = v * 1
+            //      ^^^ V
+                let mi: Int64 = v * 1
+            //      ^^ Int64
+                let div = v / v
+            //      ^^^ Float64
+                let inherited = C() + C()
+            //      ^^^^^^^^^ Int64
+                let ext = 1 + "s"
+            //      ^^^ String
+                let str = "a" + "b"
+            //      ^^^ String
+                let rep = "a" * 3
+            //      ^^^ String
+                let tup = (1, 2) == (1, 2)
+            //      ^^^ Bool
+                let opt = Some(1) == None
+            //      ^^^ Bool
+                // cjc: invalid binary operator '+' on type 'Struct-V' and 'Struct-String'
+                let bad = v + "s"
+            //      ^^^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func anOperatorOfATypeParameterIsItsBoundsAndOfAGenericTypeItsArguments() {
+        // N122
+        checkInference(#"
+            package m
+            interface Addable<T> {
+                operator func +(o: T): T
+            //                  ^ T
+            }
+            func sum<T>(a: T, b: T) where T <: Addable<T> {
+            //   ^^^ Unit
+            //          ^ T
+            //                ^ T
+                let s = a + b
+            //      ^ T
+            }
+            struct Box<T> {
+                Box(let t: T) {}
+            //          ^ T
+                operator func [](i: Int64): T { t }
+            //                   ^ Int64
+                operator func +(o: Box<T>): Box<T> { this }
+            //                  ^ Box<T>
+            }
+            func test(): Unit {
+                let b = Box(1)
+            //      ^ Box<Int64>
+                let e = b[0]
+            //      ^ Int64
+                let bb = b + b
+            //      ^^ Box<Int64>
+                let s = Box("s")[0]
+            //      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLiteralLeftOfAnOperatorOfAnotherTypeIsOfItsDefaultType() {
+        // N125: the language's tried first, then the left synthesized alone; the right a call's
+        // argument, the type expected its return type's
+        checkInference(#"
+            package m
+            struct V {
+                V(let x: Int64) {}
+            //        ^ Int64
+                operator func +(n: Int8): Int8 { n }
+            //                  ^ Int8
+                operator func +(n: Int16): V { this }
+            //                  ^ Int16
+                operator func [](i: Int8): String { "" }
+            //                   ^ Int8
+                operator func <<(n: Int64): V { this }
+            //                   ^ Int64
+            }
+            extend Int8 {
+                operator func *(o: V): String { "" }
+            //                  ^ V
+            }
+            extend Int64 {
+                operator func -(o: V): Bool { true }
+            //                  ^ V
+            }
+            func test(): Unit {
+                let v = V(1)
+            //      ^ V
+                // cjc: invalid binary operator '*' on type 'Int64' and 'Struct-V'; of `Int64`'s one `*`,
+                // `*(Duration)`, its return type, as a call of one candidate's (D55)
+                let l8 = 3 * v
+            //      ^^ Duration
+                let l64 = 3 - v
+            //      ^^^ Bool
+                let a: Int8 = v + 1
+            //      ^ Int8
+                let b: V = v + 1
+            //      ^ V
+                // cjc: invalid binary operator '+' on type 'Struct-V' and 'Int16'
+                let c = v + 1
+            //      ^ {unknown}
+                let i = v[1]
+            //      ^ String
+                let sh = v << 2
+            //      ^^ V
+            }
+            "#)
+    }
+
+    @TestCase
+    func aCompoundAssignmentOfATypesOperatorAssignsWhatItGives() {
+        // N126: `x op= v` is `x = x.op(v)`
+        checkInference(#"
+            package m
+            struct V {
+                V(let x: Int64) {}
+            //        ^ Int64
+                operator func +(o: V): V { V(x + o.x) }
+            //                  ^ V
+                operator func -(n: Int64): Int64 { 1 }
+            //                  ^ Int64
+                operator func *(n: UInt8): V { this }
+            //                  ^ UInt8
+            }
+            class Cell {
+                var v = V(1)
+            //      ^ V
+            }
+            func f(x: Unit): Int64 { 1 }
+            //     ^ Unit
+            func f(x: String): String { "" }
+            //     ^ String
+            func test(): Unit {
+                var v = V(1)
+            //      ^ V
+                v += v
+                let u = (v += v)
+            //      ^ Unit
+                // cjc: type incompatible in this compound assignment expression
+                v -= 1
+                v *= 2
+                Cell().v += V(2)
+                var arr = [V(1)]
+            //      ^^^ Array<V>
+                arr[0] += V(2)
+                let o: ?V = v + v
+            //      ^ Option<V>
+                let fu = f(v += v)
+            //      ^^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func theLanguagesOperatorsAreBetweenItsTypesAndTheRestTheTypesOwn() {
+        // N125, N126: arithmetic of numbers, an index of a tuple by a literal of any base, of a
+        // `VArray` assigned as the language's
+        checkInference(#"
+            package m
+            extend Int64 {
+                operator func +(s: String): String { s }
+            //                  ^ String
+            }
+            func test(): Unit {
+                let n = 1
+            //      ^ Int64
+                // cjc: invalid binary operator '*' on type 'Float64' and 'Int64'; of `Float64`'s one
+                // `*`, `*(Duration)`, its return type (D55)
+                let fl = 1.5 * n
+            //      ^^ Duration
+                let ext = n + "s"
+            //      ^^^ String
+                // cjc: invalid binary operator '&' on type 'Bool' and 'Bool'
+                let bits = true & false
+            //      ^^^^ {unknown}
+                var b = true
+            //      ^ Bool
+                b &&= false
+                let bu = (b ||= true)
+            //      ^^ Unit
+                var m = 1
+            //      ^ Int64
+                // cjc: cannot convert a floating-point literal to type 'Int64'
+                m += 1.5
+                var va: VArray<Int64, $2> = [1, 2]
+            //      ^^ VArray<Int64, $2>
+                let vu = (va[1] = 4)
+            //      ^^ Unit
+                let t = (1, "s")
+            //      ^ (Int64, String)
+                let hex = t[0x1]
+            //      ^^^ String
+                let t3 = (1, "s", true)
+            //      ^^ (Int64, String, Bool)
+                let bin = t3[0b1]
+            //      ^^^ String
+                let oct = t3[0o2]
+            //      ^^^ Bool
+                let suffixed = t3[1i64]
+            //      ^^^^^^^^ String
+                // cjc: cannot convert a floating-point literal to type 'Int64'
+                let float = t3[1.5]
+            //      ^^^^^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func anIntegerLiteralIsReadInItsBase() {
+        @Expect(integerOf("0xAf"), Some(175))
+        @Expect(integerOf("0o17"), Some(15))
+        @Expect(integerOf("0b1_01"), Some(5))
+        @Expect(integerOf("2u8"), Some(2))
+        @Expect(integerOf("0o9"), None)
+        @Expect(integerOf("0x"), None)
+        @Expect(integerOf("99999999999999999999"), None)
+    }
+
+    @TestCase
+    func anOperatorOfTheLanguageIsKeptWhateverFailsInsideItsOperands() {
+        // its operands fitting it, a check failing deeper is no reason to try a type's operator
+        checkInference(#"
+            package m
+            func g(x: Int64): Int64 { x }
+            //     ^ Int64
+            func test(b: UInt8, c: Bool): Unit {
+            //        ^ UInt8
+            //                  ^ Bool
+                // cjc: mismatched types
+                let sum = b + (if (c) { g("s"); 1 } else { 2 })
+            //      ^^^ UInt8
+            }
+            "#)
+    }
+
+    @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
         let parsed = Fixture.parse(#"
