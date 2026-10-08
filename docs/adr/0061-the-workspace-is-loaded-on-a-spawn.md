@@ -1,4 +1,4 @@
-# ADR-0058: The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded
+# ADR-0061: The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded
 
 Status: accepted, 2026-10-08
 Amends ADR-0030: the load on the read loop, in one revision

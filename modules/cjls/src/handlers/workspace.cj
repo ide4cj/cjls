@@ -125,7 +125,7 @@ func changesProject(event: FileEvent): Bool {
 }
 
 /**
- * A load as the state was when it began (D58): its number, and where it finds the project.
+ * A load as the state was when it began (D61): its number, and where it finds the project.
  */
 struct LoadRequest {
     LoadRequest(

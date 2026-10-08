@@ -7,7 +7,7 @@ import jsonrpc.ErrorLogValue
 import loupe.vfs.VfsPath
 
 /**
- * The read loop, as work a handler leaves to a thread of its own sees it (D58): `write` changes
+ * The read loop, as work a handler leaves to a thread of its own sees it (D61): `write` changes
  * the state between two messages, as a `Context` handler does, and is followed by the work a write
  * calls for (S7). The server runs every `Context` handler through it and takes every snapshot under
  * it, so a write from a thread of its own is one more message, in no message's middle.

@@ -8,7 +8,7 @@ from lsprotocol import types
 from pygls.uris import to_fs_path
 from pytest_lsp import LanguageClient
 
-from conftest import CLIENTS, capabilities
+from conftest import CLIENTS, capabilities, loaded
 
 SOURCE = """\
 class K {
@@ -53,6 +53,7 @@ async def test_a_name_goes_to_its_declarations(server: LanguageClient, tmp_path,
             workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
         )
     )
+    await loaded(server)
 
     async def definition(line: int, character: int):
         return await server.text_document_definition_async(

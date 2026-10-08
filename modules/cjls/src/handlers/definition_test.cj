@@ -14,9 +14,10 @@ import cjls.server.*
  */
 func loaded(files: Array<(String, String)>, links!: Bool = true): (ServerState, Path) {
     let dir = workspaceOf(files)
-    let state = initializedWith([dir], watches: false)
+    let loop = initializedWith([dir], watches: false)
+    let state = loop.state
     state.locationLinks = links
-    handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+    initialized(loop, Client(), NoopLogger(), InitializedParams())
     remove(dir, recursive: true)
     (state, dir)
 }
