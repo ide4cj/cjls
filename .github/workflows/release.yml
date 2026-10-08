@@ -9,8 +9,12 @@ permissions:
   contents: read
 
 jobs:
+  # a called workflow gets no permission its caller withholds: what any of ci.yml's jobs asks for
   ci:
     uses: ./.github/workflows/ci.yml
+    permissions:
+      contents: read
+      pull-requests: read
 
   publish:
     name: GitHub release
