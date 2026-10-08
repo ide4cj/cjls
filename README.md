@@ -25,7 +25,8 @@ VS Code and Zed extensions are planned.
 
 ## Build
 
-The toolchain is the Cangjie nightly named in [`.cangjie-version`](.cangjie-version), with its stdx:
+The toolchain is the Cangjie nightly named in [`.cangjie-version`](.cangjie-version), with its stdx, checked
+against [`.cangjie-sha256`](.cangjie-sha256):
 
 ```sh
 python3 .github/actions/setup-cangjie/setup.py "$(cat .cangjie-version)" ~/.cangjie-nightly

@@ -1,24 +1,36 @@
 """Installs a Cangjie nightly SDK and its stdx, and exports the SDK's environment.
 
     python3 setup.py <tag> <dest>
+    python3 setup.py pin <tag>
 
 The SDK is unpacked to <dest>/cangjie, the stdx for the host into
 <dest>/cangjie/third_party/stdx/<os>_<arch>_cjnative, where the root cjpm.toml looks for it.
 Both are skipped when already there (a cache hit). The environment `envsetup` would set is
 written to $GITHUB_ENV/$GITHUB_PATH on GitHub Actions, and printed as `export` lines otherwise.
+
+An archive comes from the GitHub mirror, else from gitcode, and is unpacked only if its sha256
+is the one in .cangjie-sha256. `pin` writes that file for <tag> from gitcode's archives, the
+mirror's origin: a toolchain bump is .cangjie-version and the pin in one commit.
 """
 
+import hashlib
 import json
 import os
 import platform
-import shutil
 import subprocess
 import sys
 import tarfile
 import urllib.request
 import zipfile
 
-RELEASES = "https://gitcode.com/Cangjie/nightly_build/releases/download"
+# tried in order; the mirror is a personal account's, so what it serves is checked against SUMS
+MIRRORS = [
+    "https://github.com/cangjie-bot/nightly_build/releases/download",
+    "https://gitcode.com/Cangjie/nightly_build/releases/download",
+]
+ORIGIN = MIRRORS[-1]
+
+SUMS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".cangjie-sha256")
 
 # host -> (asset platform, SDK archive extension, stdx directory)
 PLATFORMS = {
@@ -31,11 +43,44 @@ PLATFORMS = {
 SHELL_NOISE = {"_", "SHLVL", "PWD", "OLDPWD"}
 
 
-def download(url, path):
+def archives(asset, ext, tag):
+    return [f"cangjie-sdk-{asset}-{tag}.{ext}", f"cangjie-stdx-{asset}-{tag}.1.zip"]
+
+
+def download(url, out):
+    """Copies url to the file out, returns its sha256."""
     print(f"downloading {url}", file=sys.stderr)
+    digest = hashlib.sha256()
     request = urllib.request.Request(url, headers={"User-Agent": "cjls-ci"})
-    with urllib.request.urlopen(request) as response, open(path, "wb") as out:
-        shutil.copyfileobj(response, out, 1 << 20)
+    # a read stalled for a minute is an error, so the next mirror is tried
+    with urllib.request.urlopen(request, timeout=60) as response:
+        while chunk := response.read(1 << 20):
+            digest.update(chunk)
+            out.write(chunk)
+    return digest.hexdigest()
+
+
+def pinned():
+    with open(SUMS) as f:
+        return {name: sha for sha, name in (line.split() for line in f if line.strip())}
+
+
+def fetch(tag, name, path):
+    expected = pinned().get(name)
+    if expected is None:
+        sys.exit(f"{name} is not in .cangjie-sha256: run `python3 {sys.argv[0]} pin {tag}`")
+    for mirror in MIRRORS:
+        try:
+            with open(path, "wb") as out:
+                actual = download(f"{mirror}/{tag}/{name}", out)
+        except OSError as e:
+            print(f"  failed: {e}", file=sys.stderr)
+            continue
+        if actual == expected:
+            return
+        print(f"  sha256 {actual}, pinned {expected}", file=sys.stderr)
+    os.remove(path)
+    sys.exit(f"no mirror served {name} as pinned")
 
 
 def unpack(archive, dest):
@@ -53,20 +98,30 @@ def unpack(archive, dest):
 
 def install(tag, dest):
     asset, ext, stdx_dir = PLATFORMS[(platform.system(), platform.machine())]
+    sdk, stdx = archives(asset, ext, tag)
     home = os.path.join(dest, "cangjie")
     os.makedirs(dest, exist_ok=True)
     if not os.path.isdir(os.path.join(home, "bin")):
         archive = os.path.join(dest, f"sdk.{ext}")
-        download(f"{RELEASES}/{tag}/cangjie-sdk-{asset}-{tag}.{ext}", archive)
+        fetch(tag, sdk, archive)
         unpack(archive, dest)
         os.remove(archive)
     stdx_root = os.path.join(home, "third_party", "stdx")
     if not os.path.isdir(os.path.join(stdx_root, stdx_dir, "static", "stdx")):
         archive = os.path.join(dest, "stdx.zip")
-        download(f"{RELEASES}/{tag}/cangjie-stdx-{asset}-{tag}.1.zip", archive)
+        fetch(tag, stdx, archive)
         unpack(archive, stdx_root)
         os.remove(archive)
     return home
+
+
+def pin(tag):
+    """Writes .cangjie-sha256: every platform's archives for tag, hashed as gitcode serves them."""
+    names = [name for asset, ext, _ in PLATFORMS.values() for name in archives(asset, ext, tag)]
+    with open(os.devnull, "wb") as null:
+        lines = [f"{download(f'{ORIGIN}/{tag}/{name}', null)}  {name}\n" for name in names]
+    with open(SUMS, "w") as f:
+        f.writelines(lines)
 
 
 def environment(home):
@@ -101,6 +156,9 @@ def environment(home):
 
 
 def main():
+    if sys.argv[1] == "pin":
+        pin(sys.argv[2])
+        return
     tag, dest = sys.argv[1], os.path.abspath(sys.argv[2])
     home = install(tag, dest)
     variables, path = environment(home)
