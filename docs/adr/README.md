@@ -48,7 +48,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28 |
 | [0028](0028-ci-stamps-a-package.md) | CI stamps a package's files with one mtime, made of the whole directory | accepted |
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | superseded by D35 |
-| [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33 |
+| [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33; what is watched, and which event finds the project again, by D58 |
 | [0031](0031-the-server-sets-its-heap.md) | Without `cjHeapSize` the server starts over with a heap of 2 GB; a load keeps a sixteenth of the heap | accepted |
 | [0032](0032-one-process-for-server-and-clients.md) | The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot | accepted; the nightly's tag `nightly-build`, updated in place, by D39 |
 | [0033](0033-project-model.md) | A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files | accepted; its binaries read by D38 |
@@ -75,3 +75,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0054](0054-a-type-is-an-interned-ty-a-signature-lowered-to-it.md) | A type is an interned `Ty`; a declaration's signature is lowered to it in one query, of a source or a `.cjo` alike | accepted |
 | [0055](0055-a-body-is-inferred-locally-in-one-query.md) | A body's types are inferred locally, as cjc checks them, in one query of the body; a type not written is the body's | accepted |
 | [0056](0056-the-adr-index-is-written-after-the-merge.md) | The ADR index is written after the merge by a bot; a number is taken when the ADR is started, and checked to be the only one | accepted |
+| [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted |
+| [0058](0058-folders-come-or-gone-are-watched.md) | Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest | accepted |
