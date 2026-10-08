@@ -1285,6 +1285,11 @@ class Inference {
                 }
                 callWith(callee, callable, args, expected)
             case None =>
+                // candidates of which none fits, or no one most specific, fail a candidate around
+                // (cjc's "no matching function", "ambiguous match")
+                if (!all.isEmpty()) {
+                    mismatches++
+                }
                 for (arg in args) {
                     infer(arg.expr, None)
                 }
@@ -1408,15 +1413,12 @@ class Inference {
     }
 
     /**
-     * Whether `one` is as specific as `other` (cjc's `CompareFuncCandidates`, N119): each of its
-     * parameters a subtype of `other`'s, but of two numbers `Int64` first among the integers, any
-     * integer before a float, `Float64` first among the floats; for `other` generic, its type
-     * arguments inferred from `one`'s parameters passed to it.
+     * Whether `one` is as specific as `other`, of as many parameters (cjc's `CompareFuncCandidates`,
+     * N119): each of its parameters a subtype of `other`'s, but of two numbers `Int64` first among
+     * the integers, any integer before a float, `Float64` first among the floats; for `other`
+     * generic, its type arguments inferred from `one`'s parameters passed to it.
      */
     private func isMoreSpecific(one: Callable, other: Callable): Bool {
-        if (one.params.size != other.params.size) {
-            return false
-        }
         for (i in 0..one.params.size) {
             if (let Some(order) <- numberOrder(one.params[i], other.params[i]) && order > 0) {
                 return false

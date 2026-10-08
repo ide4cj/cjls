@@ -1084,6 +1084,122 @@ class InferTest {
     }
 
     @TestCase
+    func whatACandidateTriedWritesIsUndoneAndInferredAgainForTheOneTaken() {
+        // A27: a member, a call of overloads and an argument of one type in the candidates tried
+        checkInference(#"
+            package m
+            class Box {
+                let n = 1
+            //      ^ Int64
+                func get(): Int64 { 1 }
+            }
+            class P {
+                P(let p: Int64) {}
+            //        ^ Int64
+                let q = 2
+            //      ^ Int64
+                func f(x: Int64): Int64 { x }
+            //         ^ Int64
+                func f(x: String): String { x }
+            //         ^ String
+                func run(): Unit {
+                    let a = f(p)
+            //          ^ Int64
+                    let b = f(q)
+            //          ^ Int64
+                }
+            }
+            let gv = 1
+            //  ^^ Int64
+            func f(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(x: String): String { x }
+            //     ^ String
+            func n2(x: Bool, y: Int8): Int8 { y }
+            //      ^ Bool
+            //               ^ Int8
+            func n2(x: Bool, y: Int64): Int64 { y }
+            //      ^ Bool
+            //               ^ Int64
+            func test(b: Box): Unit {
+            //        ^ Box
+                let a = f(b.get())
+            //      ^ Int64
+                let d = f(f(1))
+            //      ^ Int64
+                let e = f(gv)
+            //      ^ Int64
+                let g = f(b.n)
+            //      ^ Int64
+                let y = n2(true, 1)
+            //      ^ Int64
+                let s: String = "x" * 3
+            //      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
+    func theBranchesOfALambdaReturningUnitAreOfAnyType() {
+        // N118
+        checkInference(#"
+            package m
+            func k(h: () -> Unit): Int64 { 1 }
+            //     ^ () -> Unit
+            func k(h: () -> Bool): String { "" }
+            //     ^ () -> Bool
+            func test(c: Bool): Unit {
+            //        ^ Bool
+                let u = k({ => if (c) { 1 } else { "s" } })
+            //      ^ Int64
+                let w = k({ => match (c) { case true => 1 case false => 2 } })
+            //      ^ Int64
+                let x = k({ => unsafe { 1 } })
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTypeArgumentUnknownIsAlikeToAny() {
+        // a tuple's or a function's part unknown in an argument of a type hides nothing
+        checkInference(#"
+            package m
+            func h(x: Array<(Int64, String)>): Int64 { 1 }
+            //     ^ Array<(Int64, String)>
+            func h(x: String): String { "" }
+            //     ^ String
+            func h2(x: Array<(Int64) -> String>): Int64 { 1 }
+            //      ^ Array<(Int64) -> String>
+            func h2(x: String): String { "" }
+            //      ^ String
+            func f(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(x: String): String { x }
+            //     ^ String
+            func test(): Unit {
+                // cjc: undeclared identifier 'nope'
+                let t = [(1, nope)]
+            //      ^ Array<(Int64, {unknown})>
+                let z = h(t)
+            //      ^ Int64
+                // cjc: undeclared identifier 'nope'
+                let fs = [{x: Int64 => nope}]
+            //      ^^ Array<(Int64) -> {unknown}>
+            //             ^ Int64
+                let z2 = h2(fs)
+            //      ^^ Int64
+                // cjc: ambiguous use of 'f'
+                let v = f
+            //      ^ {unknown}
+                // cjc: no matching function declaration for function reference 'f'
+                let fv: (Bool) -> Bool = f
+            //      ^^ (Bool) -> Bool
+            }
+            "#)
+    }
+
+    @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
         let parsed = Fixture.parse(#"
