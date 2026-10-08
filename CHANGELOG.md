@@ -2,6 +2,43 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.4.0](https://github.com/ide4cj/cjls/compare/30584a34c189f21d29921d1badf83077a8bf36c1..v0.4.0) - 2026-10-08
+#### Features
+- (**cjformat**) a formatter of our own on the syntax tree, as textDocument/formatting and cjls fmt (#184) - ([d779a48](https://github.com/ide4cj/cjls/commit/d779a48f70f39605dd22a36d166a5978d45aa1cb)) - FilaCo
+- (**cjls**) selection ranges from the syntax tree (#42) (#186) - ([38586ea](https://github.com/ide4cj/cjls/commit/38586ea35f578b2687926d68b0b867294cc8033f)) - FilaCo
+- (**cjls**) the workspace loaded on a spawn, in batches between the messages, reporting $/progress (#84) (#183) - ([d5c3daa](https://github.com/ide4cj/cjls/commit/d5c3daab6d3d634efe5fdd664a48fa0a3d226b4d)) - FilaCo
+- (**cjls**) textDocument/definition from definitionAt (#169) (#178) - ([66e5e4e](https://github.com/ide4cj/cjls/commit/66e5e4e39018ced8b7e305ab0e8c57184618ff30)) - FilaCo
+- (**loupe**) an overload taken by trying each candidate, the nearest level first, the most specific (D63) (#48) (#185) - ([156af2d](https://github.com/ide4cj/cjls/commit/156af2d3d2a2f879b6dcf2c93778030d74a6d3cc)) - FilaCo
+- (**loupe**) an expression macro's arguments parsed as an argument list and resolved before expansion (#174) (#182) - ([1a2d61a](https://github.com/ide4cj/cjls/commit/1a2d61a4de29b16bcb559c66e544d04056ba8135)) - FilaCo
+- (**loupe**) folding ranges from the syntax tree, textDocument/foldingRange (#41) (#180) - ([f1337e8](https://github.com/ide4cj/cjls/commit/f1337e893959fdbcb731a825822d835201c85b2a)) - FilaCo
+- (**loupe**) type arguments not written inferred per call, as cjc's local synthesis (D57) (#48) (#177) - ([6a525c5](https://github.com/ide4cj/cjls/commit/6a525c52e2cae8022d15702e5176b68821fd3216)) - FilaCo
+- (**loupe**) a body's types inferred locally in one query, a member of a value looked up from its type (D55) (#48) (#168) - ([c9fec2d](https://github.com/ide4cj/cjls/commit/c9fec2d57db54b1adafef2cef7139c10c0ebaba3)) - FilaCo
+- (**loupe**) a type an interned Ty, a declaration signature lowered to it, of a source or a .cjo (D54) (#48) (#163) - ([db23b75](https://github.com/ide4cj/cjls/commit/db23b75045ce6e08268652e686dcc67c1c1ca0d7)) - FilaCo
+- (**loupe**) the extends a file may see looked for in its interfaces' packages, those it sees chosen at the lookup (D53) (#48) (#161) - ([9585362](https://github.com/ide4cj/cjls/commit/958536294d1cfdc6c83575867f3aae254b69fa2c)) - FilaCo
+- (**loupe**) a name after a dot resolved by names up to a value, members looked up from a type (D52) (#48) (#160) - ([9f0d522](https://github.com/ide4cj/cjls/commit/9f0d522df52eaf19fafd947f32d96a471d95eda8)) - FilaCo
+- (**loupe**) a body lowered to HIR, its scopes, and what a name in it means (D49) (#48) (#156) - ([9c44137](https://github.com/ide4cj/cjls/commit/9c4413758dbb16d127abf71223a63f3e7fe3ff48)) - FilaCo
+- (**loupe**) a signature a query of its declaration, the paths in its types resolved (D48) (#48) (#153) - ([b4a4671](https://github.com/ide4cj/cjls/commit/b4a4671fa9cf54f91e099c43a3be15b6de7f2a7c)) - FilaCo
+- (**loupe**) a file's scope, the prelude a glob of every file, globs read at the lookup (D47) (#48) (#152) - ([af1187e](https://github.com/ide4cj/cjls/commit/af1187ea90227fdf72a294e5f691cb1bd664716b)) - FilaCo
+- (**loupe**) imports resolve down the packages, a package's exports (D46) (#48) (#151) - ([30584a3](https://github.com/ide4cj/cjls/commit/30584a34c189f21d29921d1badf83077a8bf36c1)) - FilaCo
+#### Bug Fixes
+- (**ci**) the nightly filters CI's runs for success itself, scheduled off the hour (#158) - ([08c0cd0](https://github.com/ide4cj/cjls/commit/08c0cd048b67c453c4c226e055e94194d30060ed)) - FilaCo
+- (**cjls**) a folder come or gone is watched and followed, as VS Code reports it as one event (D58) (#94) (#181) - ([5f1cea4](https://github.com/ide4cj/cjls/commit/5f1cea400e5027dbf6b19a5c02d0166083e2da88)) - FilaCo
+- (**cjls**) a document whose diagnostics throw no longer stops the push of the ones after it (#162) - ([ba642ce](https://github.com/ide4cj/cjls/commit/ba642ce88249b2368b4dd49a884574ef7084854c)) - FilaCo
+- (**jsonrpc**) the end of input cancels what is in flight, a frame over the limit is answered and skipped (#109) (#179) - ([fc32f54](https://github.com/ide4cj/cjls/commit/fc32f5481d959cd1a360d5d1bd764e87903ff3b3)) - FilaCo
+#### Documentation
+- (**adr**) the ADR index written after the merge by a bot, an id taken once (D56) (#147) (#173) - ([8311d1f](https://github.com/ide4cj/cjls/commit/8311d1f27314aafb3a048b13c6295d250271dd50)) - FilaCo
+#### Tests
+- (**cjls**) what the server advertises checked against its routes, a file's path from the snapshot (#106) (#165) - ([3d08b0a](https://github.com/ide4cj/cjls/commit/3d08b0a48891933c23e12e4d349144e3e7631699)) - FilaCo
+#### Build system
+- -O2 a release option, the coverage built with -g and no warning (D51) (#157) - ([33cb913](https://github.com/ide4cj/cjls/commit/33cb913a9fbab5d1017fb830b02c92b201fc3913)) - FilaCo
+#### Continuous Integration
+- the toolchain from the GitHub mirror, checked against sha256 pinned from gitcode (D62) (#190) - ([975a6b3](https://github.com/ide4cj/cjls/commit/975a6b3715f26b973cccc0c9f176180e4dfd6fd4)) - FilaCo
+- code coverage of the workspace with cjcov, shown as a README badge (#155) - ([6ea8f21](https://github.com/ide4cj/cjls/commit/6ea8f21eedd7cd801851c5dc7ea0a23cbb64688e)) - Valerie
+#### Miscellaneous Chores
+- (**claude**) merged worktrees pruned at session start, a Sonnet scout agent, a change-coverage skill (#167) - ([0f0605b](https://github.com/ide4cj/cjls/commit/0f0605b205faca4dc67833aa2b7886da592019e3)) - FilaCo
+
+- - -
+
 ## [v0.3.0](https://github.com/ide4cj/cjls/compare/3225c41716083f99cd21bdc169583507e8e86b2b..v0.3.0) - 2026-10-05
 #### Features
 - (**calca**) an LRU evicts as it touches, within a revision too (#85) (#132) - ([32f6443](https://github.com/ide4cj/cjls/commit/32f64434cddb83b25909338e312bf18a33c9fae5)) - FilaCo
