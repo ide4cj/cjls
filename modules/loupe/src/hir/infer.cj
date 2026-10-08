@@ -823,8 +823,8 @@ class Inference {
         let isComparison = COMPARISONS.contains(op)
         var left = error
         var right = error
-        // what one side tells the other is of a type of the language: an operator of another type
-        // takes what it declares (8e)
+        // what one side tells the other of an arithmetic is of a type of the language: an operator
+        // of another type takes what it declares (8e, `"x" * n`)
         let ofPrim = {
             ty: ?Ty => ty.filter {
                 one => match (one.kind(db)) {
@@ -842,7 +842,12 @@ class Inference {
             } else {
                 ofPrim(expected)
             })
-            right = infer(rhs, ofPrim(rightExpected(op, left)))
+            // but a comparison: `==` of a type takes one of that type (`Option<T>`'s `Option<T>`)
+            right = infer(rhs, if (isComparison) {
+                rightExpected(op, left)
+            } else {
+                ofPrim(rightExpected(op, left))
+            })
         }
         match ((left.kind(db), right.kind(db))) {
             case (PrimTy(_), PrimTy(_)) where isComparison => prim("Bool")
