@@ -6,7 +6,7 @@ from lsprotocol.converters import get_converter
 from pygls.uris import to_fs_path
 from pytest_lsp import LanguageClient
 
-from conftest import CLIENTS, capabilities
+from conftest import CLIENTS, capabilities, loaded
 
 
 @pytest.mark.parametrize("editor", CLIENTS)
@@ -28,6 +28,8 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
             workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
         )
     )
+
+    await loaded(server)
 
     # act
     symbols = await server.workspace_symbol_async(types.WorkspaceSymbolParams(query="findme"))
@@ -62,6 +64,7 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
             workspace_folders=[types.WorkspaceFolder(uri=root.as_uri(), name="ws")],
         )
     )
+    await loaded(server)
 
     async def found() -> list[str]:
         symbols = await server.workspace_symbol_async(types.WorkspaceSymbolParams(query="findme"))
@@ -74,6 +77,7 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
             changes=[types.FileEvent(uri=(root / "src" / "a").as_uri(), type=types.FileChangeType.Deleted)]
         )
     )
+    await loaded(server, 2)
     after_gone = await found()
     (tmp_path / "away").rename(root / "src" / "b")
     server.workspace_did_change_watched_files(
@@ -81,6 +85,7 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
             changes=[types.FileEvent(uri=(root / "src" / "b").as_uri(), type=types.FileChangeType.Created)]
         )
     )
+    await loaded(server, 3)
     after_come = await found()
 
     # assert: the server follows such an event, and a watcher of the editor's lets it through

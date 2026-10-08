@@ -12,11 +12,17 @@ import cjls.lsp_types.{LspOutboundNotification, LspOutboundRequest}
 public class Context<P> {
     Context(
         public let params: P,
-        public let state: ServerState,
+        public let loop: Loop,
         public let client: Client,
         public let cancellation: CancellationToken,
         public let logger: Logger
     ) {}
+
+    public prop state: ServerState {
+        get() {
+            loop.state
+        }
+    }
 }
 
 /**
@@ -51,10 +57,10 @@ public interface FromReadOnlyContext<T> {
  * A context but for its params, which the route decodes, knowing their type.
  */
 class Parts {
-    Parts(let state: ServerState, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
+    Parts(let loop: Loop, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
 
     func context<P>(params: P): Context<P> {
-        Context(params, state, client, cancellation, logger)
+        Context(params, loop, client, cancellation, logger)
     }
 }
 
