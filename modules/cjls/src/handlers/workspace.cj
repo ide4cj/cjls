@@ -2,6 +2,7 @@ package cjls.handlers
 
 import std.collection.{ArrayList, HashMap}
 import std.env.getVariable
+import std.fs.{FileInfo, FSException}
 import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
@@ -10,7 +11,8 @@ import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
-import loupe.vfs.{CjoFile, FileStamp, isWorkspaceFile, readCjoFiles, readFile, readFiles, VfsPath}
+import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
+    readFiles, VfsPath}
 import project_model.{CangjieHome, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
 import cjls.lsp_types.*
 import cjls.server.*
@@ -50,12 +52,15 @@ func handleInitialized(loop: Loop, client: Client, logger: Logger, _: Initialize
 /**
  * A file created or changed is read from disk, one deleted is gone, and a directory deleted takes
  * every file under it; a document open in the editor keeps its buffer, whatever the disk says. A
- * file come or gone, or a manifest changed, finds the project again, after.
+ * file or a directory come or gone, or a manifest changed, finds the project again, after, which
+ * reads the files of a directory come: an editor may report the directory alone.
  */
 @LspHandler
 func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
     let state = loop.state
     let roots = state.roots.toArray()
+    // before the files are dropped: a directory gone changes the project if it held a file known
+    let reload = params.changes.iterator().any {event => changesProject(state, event, roots)}
     let files = ArrayList<(VfsPath, ?Rope)>()
     for (event in params.changes) {
         let path = VfsPath.fromUri(event.uri)
@@ -70,7 +75,7 @@ func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, par
         }
     }
     state.setFilesContents(files.filter {file => !state.openDocuments.contains(file[0])}.toArray())
-    if (params.changes.iterator().any {event => changesProject(event)}) {
+    if (reload) {
         startLoad(loop, client, logger)
     }
 }
@@ -117,11 +122,33 @@ func handleWorkspaceSymbol(snap: ServerSnapshot, params: WorkspaceSymbolParams):
 }
 
 /**
- * Whether `event` may change the project: a manifest changed, or a file or a directory come or gone.
+ * Whether `event` may change the project: a manifest changed, a Cangjie file come or gone, a
+ * directory of the workspace come, or one gone with files the server knows. Whatever else comes or
+ * goes under a root is reported too, cjpm's output among it, and finds no project again.
  */
-func changesProject(event: FileEvent): Bool {
-    let name = VfsPath.fromUri(event.uri).name
-    name == "cjpm.toml" || name == PROJECT_JSON || event.`type` != FileChangeType.Changed
+func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>): Bool {
+    let path = VfsPath.fromUri(event.uri)
+    match (event.`type`) {
+        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON => true
+        case FileChangeType.Changed => false
+        case _ where isCangjieFile(path.name) => true
+        // what is gone cannot be told a directory or a file, but one holding no file known leaves none to drop
+        case FileChangeType.Deleted => isWorkspaceDirectory(path, roots) && !state.filesUnder(path).isEmpty()
+        case _ => isWorkspaceDirectory(path, roots) && isDirectory(path)
+    }
+}
+
+/**
+ * Whether a directory is at `path`; a link to one is not (`FileInfo` does not follow it), as the
+ * walk does not follow it either.
+ */
+func isDirectory(path: VfsPath): Bool {
+    let filePath = path.filePath ?? return false
+    try {
+        FileInfo(filePath).isDirectory()
+    } catch (_: FSException) {
+        false
+    }
 }
 
 /**
@@ -329,18 +356,25 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
 }
 
 /**
- * Watchers of every Cangjie file under `root`, and of the manifests that say how they are built:
- * patterns relative to it if the client takes them, globs of its path otherwise.
+ * Watchers of everything come or gone under `root`, since VS Code reports a directory come or gone
+ * as one event for it, not one per file under it; and of every Cangjie file and every manifest
+ * saying how they are built changed. Patterns relative to `root` if the client takes them, globs of
+ * its path otherwise. One kind of event is watched for a path once, so a client sending an event
+ * per watcher it matches (VS Code) sends it once.
  */
 func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registration {
-    let watchers = ["**/*.cj", "**/cjpm.toml", "**/${PROJECT_JSON}"].map {
-        glob =>
+    let comeOrGone = WatchKind(WatchKind.CREATE.value | WatchKind.DELETE.value)
+    let watched = [("**/*", comeOrGone), ("**/*.cj", WatchKind.CHANGE), ("**/cjpm.toml", WatchKind.CHANGE),
+        ("**/${PROJECT_JSON}", WatchKind.CHANGE)]
+    let watchers = watched.map {
+        globAndKind =>
+        let (glob, kind) = globAndKind
         let pattern = if (relative) {
             GlobPattern.AsRelativePattern(RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(root.toUri()), pattern: glob))
         } else {
             GlobPattern.AsPattern(root.toString().replace("\\", "/").removeSuffix("/") + "/" + glob)
         }
-        FileSystemWatcher(globPattern: pattern)
+        FileSystemWatcher(globPattern: pattern, kind: kind)
     }
     let options = DidChangeWatchedFilesRegistrationOptions(watchers: watchers)
     Registration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD,

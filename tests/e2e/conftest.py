@@ -38,12 +38,12 @@ def capabilities(editor: str) -> types.ClientCapabilities:
     return get_converter().structure(params, types.InitializeParams).capabilities
 
 
-async def loaded(client: LanguageClient):
-    """Waits for the end of the server's first load of the workspace, as its `$/progress` tells: it
+async def loaded(client: LanguageClient, loads: int = 1):
+    """Waits for the end of the server's `loads`th load of the workspace, as its `$/progress` tells: it
     loads on a thread of its own, and a request before the end answers from what is loaded so far (D61)."""
     # nothing is awaited between the look and the wait, so no notification falls between them
-    while not any(isinstance(report, types.WorkDoneProgressEnd)
-                  for reports in client.progress_reports.values() for report in reports):
+    while sum(isinstance(report, types.WorkDoneProgressEnd)
+              for reports in client.progress_reports.values() for report in reports) < loads:
         await client.wait_for_notification(types.PROGRESS)
 
 
