@@ -109,6 +109,7 @@ func wordAt(token: CjSyntaxToken, offset: Int64): ?TextRange {
         let (rune, size) = if (position < bytes.size) {
             Rune.fromUtf8(bytes, position)
         } else {
+            // past the end: a non-word rune, so a word running to the end is ended like any other
             (r' ', 0)
         }
         if (rune == r'_' || rune.isLetter() || rune.isNumber()) {
@@ -150,7 +151,8 @@ func withComma(element: CjSyntaxNode): ?TextRange {
 }
 
 /**
- * The comma next to `element` in `direction`, spaces on one line between them.
+ * The comma next to `element` in `direction`, spaces on one line between them: a comma past a line
+ * break is not taken, so `a\n, b` selects `a` alone (`Newline` is a token of its own, not `Whitespace`).
  */
 func commaBeside(element: CjSyntaxNode, direction: Direction): ?CjSyntaxToken {
     let beside = element.siblingsWithTokens(direction) |> skip(1) |>
