@@ -68,7 +68,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0047](0047-a-file-scope-reads-its-globs-at-the-lookup.md) | A file's scope reads its globs at the lookup; the prelude is a glob of every file | accepted; the constructors of an enum any file of the package imports are seen in each by D50 |
 | [0048](0048-a-signature-is-a-query-of-its-declaration.md) | A signature is a query of its declaration; a path in a type resolves to declarations, not yet to types | accepted |
 | [0049](0049-coverage-is-a-workflow-of-its-own.md) | Coverage is a workflow of its own, counted over source files (tests excluded), shown by a shields.io endpoint badge on a `badges` branch | accepted |
-| [0050](0050-a-body-is-lowered-to-hir-and-scoped.md) | A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup | accepted |
+| [0050](0050-a-body-is-lowered-to-hir-and-scoped.md) | A body is lowered to HIR as rust-analyzer's, its scopes a query over it; the members of the type around it a level of the lookup | accepted; a macro call's arguments lowered when they parse by D59 |
 | [0051](0051-o2-is-a-release-option.md) | `-O2` is in each module's `[target.<triple>.release]`, not its `compile-option`: the coverage builds with `-g`, unoptimized | accepted |
 | [0052](0052-a-name-after-a-dot-is-resolved-by-names-up-to-a-value.md) | A name after a `.` is resolved by names up to a value, members looked up from a type; a value's member is inference's | accepted |
 | [0053](0053-the-extends-a-file-sees-are-looked-for-in-its-interfaces-packages.md) | The `extend`s a file may see are looked for in the packages of its interfaces; which of them it sees is decided at the lookup | accepted |
@@ -77,3 +77,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0056](0056-the-adr-index-is-written-after-the-merge.md) | The ADR index is written after the merge by a bot; a number is taken when the ADR is started, and checked to be the only one | accepted |
 | [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted |
 | [0058](0058-folders-come-or-gone-are-watched.md) | Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest | accepted |
+| [0059](0059-macro-arguments-are-parsed-before-expansion.md) | An expression macro's arguments are parsed as an argument list when they parse as one, before any expansion | accepted |
+| [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted |

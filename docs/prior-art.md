@@ -36,7 +36,7 @@ Looked at, not references:
 | Concurrency | read loop writes; a `spawn` per `readonly` request on a snapshot | main loop writes; a pool reads snapshots | same as R1 | a worker per file (`ArkASTWorker`) | a snapshot per change | snapshots, async | read/write actions | a worker per file (`ASTWorker`) | one worker thread, every request in turn |
 | Cancellation | a write cancels in-flight queries (D8) | same (salsa) | same (salsa) | not checked | context per snapshot | cancellation tokens | read action restarted | per request | none: a queued request runs |
 | Project model | none yet (#12) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` | a module per workspace folder; `cjpm.toml` not read |
-| Macros | none yet (#47) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
+| Macros | not expanded (#47); an expression macro's arguments parsed when they parse as an argument list (D59) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
 | Cache between sessions | none (#50) | none: every start analyzes again ([#4712](https://github.com/rust-lang/rust-analyzer/issues/4712), open since 2020) | none ([ty#471](https://github.com/astral-sh/ty/issues/471)) | its index | export data and xrefs per package | its index | IntelliJ's indexes | its background index | not checked |
 | Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk | IntelliJ stubs |
 | Diagnostics | none yet (#17) | pull for its own, push for `cargo check`'s on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
@@ -93,7 +93,7 @@ Features:
 | Selection range | — | yes | yes |
 | Formatting | — | yes | — |
 | Code actions, code lens, document links | yes | code actions | — |
-| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | #47 |
+| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | arguments parsed, not expanded (D59); #47 |
 | `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | #49 |
 | Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio, in place of standard ones | — | only where LSP has nothing, under `cjls/` (D15) |
 

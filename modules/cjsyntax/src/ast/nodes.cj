@@ -6373,7 +6373,7 @@ public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & ToString {
 }
 
 /**
- * `(...)` after a macro name
+ * `(...)` after a macro name: an argument list when the tokens parse as one, before any expansion
  */
 @Derive[Equatable, Hashable]
 public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & ToString {
@@ -6395,6 +6395,10 @@ public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & ToString {
         get() {
             node
         }
+    }
+
+    public func argList(): ?ArgList {
+        astChild<SyntaxKind, ArgList>(node)
     }
 
     public func lParenToken(): ?SyntaxToken<SyntaxKind> {
