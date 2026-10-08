@@ -14,7 +14,7 @@ import jsonrpc.*
  * A document will save notification is sent from the client to the server before
  * the document is actually saved.
  */
-public struct WillSaveTextDocumentNotificationSpec <: LspInboundNotification<WillSaveTextDocumentParams> {
+public struct WillSaveTextDocumentNotificationSpec <: LspInboundNotification<WillSaveTextDocumentParams> & LspRegistrable<TextDocumentRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/willSave"
@@ -28,6 +28,12 @@ public struct WillSaveTextDocumentNotificationSpec <: LspInboundNotification<Wil
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

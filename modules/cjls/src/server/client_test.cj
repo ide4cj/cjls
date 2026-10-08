@@ -6,6 +6,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
 import stdxx.Nullable
+import fjson.RawJson
 import jsonrpc.*
 import cjls.lsp_types.*
 
@@ -21,6 +22,10 @@ class WrittenTransport <: JsonRpcTransport {
      */
     func nextNotification(): NotificationBody {
         written.remove().getNotificationBodyOrThrow()
+    }
+
+    func nextRequest(): RequestBody {
+        written.remove().getRequestBodyOrThrow()
     }
 
     /**
@@ -90,12 +95,13 @@ class RecordingLogger <: Logger {
 }
 
 /**
- * A transport that answers every request written with an error, read back by the connection's
- * loop.
+ * A transport that answers every request written with `answer`, read back by the connection's loop.
  */
-class RefusingTransport <: JsonRpcTransport {
+class AnsweringTransport <: JsonRpcTransport {
     private let inbound = LinkedBlockingQueue<?Body>()
     private let closed = AtomicBool(false)
+
+    AnsweringTransport(private let answer: ResultOrError) {}
 
     public func isClosed(): Bool {
         closed.load()
@@ -113,10 +119,22 @@ class RefusingTransport <: JsonRpcTransport {
 
     public func write(body: Body): Unit {
         if (let Request(request) <- body) {
-            inbound.add(ResponseBody(Nullable.Value(request.id),
-                ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))).enveloped())
+            inbound.add(ResponseBody(Nullable.Value(request.id), answer).enveloped())
         }
     }
+}
+
+/**
+ * A client connected to `transport`, its connection served until the test closes it.
+ */
+func servedClientOn(transport: AnsweringTransport): (Client, Future<Unit>) {
+    let client = Client()
+    let connection = Connection(transport, serverOf(Router()), NoopLogger())
+    client.connect(connection)
+    let serving = spawn {
+        connection.serve()
+    }
+    (client, serving)
 }
 
 @Test
@@ -124,13 +142,8 @@ class ClientTest {
     @TestCase
     func aRequestTheClientRefusesIsAWarning() {
         // arrange
-        let transport = RefusingTransport()
-        let client = Client()
-        let connection = Connection(transport, serverOf(Router()), NoopLogger())
-        client.connect(connection)
-        let serving = spawn {
-            connection.serve()
-        }
+        let (client, serving) = servedClientOn(
+            AnsweringTransport(ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))))
         let logger = RecordingLogger()
 
         // act
@@ -142,6 +155,56 @@ class ClientTest {
         serving.get()
         @Expect(level, LogLevel.WARN)
         @Expect(message, "request failed")
+    }
+
+    @TestCase
+    func anAnswerReadsAsTheResultTheSpecNames() {
+        // arrange
+        let (client, serving) = servedClientOn(
+            AnsweringTransport(ResultOrError.Result(RawJson(##"["cangjie", null]"##.toArray()))))
+
+        // act
+        let settings = client.request(ConfigurationRequestSpec(),
+            ConfigurationParams(items: [ConfigurationItem(section: "cangjie"), ConfigurationItem(section: "other")]))
+            .await()
+
+        // assert
+        client.close()
+        serving.get()
+        @Expect(settings.size, 2)
+        @Expect(settings[0].asString(), "cangjie")
+        @Expect(settings[1].isNull())
+    }
+
+    @TestCase
+    func anAnswerTheClientRefusesIsThrownByAwait() {
+        // arrange
+        let (client, serving) = servedClientOn(
+            AnsweringTransport(ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))))
+        let answer = client.request(SemanticTokensRefreshRequestSpec(), ())
+
+        // act
+        let e = @AssertThrows[RpcException](answer.await())
+
+        // assert
+        client.close()
+        serving.get()
+        @Expect(e.code, ErrorCode.METHOD_NOT_FOUND)
+    }
+
+    @TestCase
+    func aRequestOfNoParamsLeavesThemOut() {
+        // arrange
+        let transport = WrittenTransport()
+        let client = clientOn(transport)
+
+        // act - `workspace/semanticTokens/refresh`
+        client.request(SemanticTokensRefreshRequestSpec(), ())
+
+        // assert
+        let sent = transport.nextRequest()
+        @Expect(sent.method, "workspace/semanticTokens/refresh")
+        @Expect(sent.params.isNone())
     }
 
     @TestCase

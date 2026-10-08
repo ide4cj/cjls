@@ -32,4 +32,12 @@ public struct ShowMessageRequestSpec <: LspOutboundRequest<ShowMessageRequestPar
             METHOD
         }
     }
+
+    public func encodeParams(params: ShowMessageRequestParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): Nullable<MessageActionItem> {
+        result.read<Nullable<MessageActionItem>>()
+    }
 }

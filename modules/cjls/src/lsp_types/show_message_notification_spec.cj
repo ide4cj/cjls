@@ -32,4 +32,8 @@ public struct ShowMessageNotificationSpec <: LspOutboundNotification<ShowMessage
             METHOD
         }
     }
+
+    public func encodeParams(params: ShowMessageParams): RawJson {
+        RawJson.of(params)
+    }
 }

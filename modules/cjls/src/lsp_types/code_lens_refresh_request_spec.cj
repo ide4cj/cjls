@@ -33,4 +33,12 @@ public struct CodeLensRefreshRequestSpec <: LspOutboundRequest<Unit, Unit> {
             METHOD
         }
     }
+
+    public func encodeParams(params: Unit): RawJson {
+        RawJson.NULL
+    }
+
+    public func decodeResult(result: RawJson): Unit {
+        ()
+    }
 }

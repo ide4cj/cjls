@@ -7,7 +7,6 @@ import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
 import stdxx.Nullable
-import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
@@ -347,7 +346,7 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
     let unregistrations = ArrayList<Unregistration>()
     for (root in roots) {
         if (let Some(id) <- state.watchers.remove(root)) {
-            unregistrations.add(Unregistration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD))
+            unregistrations.add(DidChangeWatchedFilesNotificationSpec().unregistration(id))
         }
     }
     if (!unregistrations.isEmpty()) {
@@ -377,9 +376,7 @@ func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registratio
         }
         FileSystemWatcher(globPattern: pattern, kind: kind)
     }
-    let options = DidChangeWatchedFilesRegistrationOptions(watchers: watchers)
-    Registration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD,
-        registerOptions: RawJson.of(options).read<JsonValue>())
+    DidChangeWatchedFilesNotificationSpec().registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers))
 }
 
 /**

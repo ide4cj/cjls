@@ -63,7 +63,7 @@ Only for a client that cannot pull (`initialize` found no `textDocument.diagnost
 | S7 | Work after a write is scheduled by the server, not by a handler: it takes the snapshot on the read loop, after the `Context` handler returned, and runs the queries on a `spawn` (D14). |
 | S8 | One source of diagnostics per client: a client that pulls is never pushed to (D14). |
 | S9 | A push never overwrites a newer one: a publish whose generation is not its document's latest is dropped before `notify`. |
-| S10 | An outbound request goes by `Client.request(spec, params, logger)`: sent from the handler, answered on a `spawn`, a failure logged. A handler never awaits one (D30). |
+| S10 | An outbound request goes by its spec, never a method string: `Client.request(spec, params, logger)` sent from the handler, answered on a `spawn`, a failure logged; one whose result is read, `Client.request(spec, params)`, awaited on a `spawn` of its own. A handler never awaits one (D30). |
 | S11 | An open document is the editor's: nothing read from disk (a load, a watched change, a folder removed) sets it; `didClose` hands it back to the disk (D30). |
 | S12 | The changes one handler makes to the files go in one revision (`ServerState.setFilesContents`). |
 | S13 | Every `spawn` and the read loop catch `Error` (a stack overflow, out of memory) as well as `Exception`: a request is answered `InternalError`, the failure logged `ERROR` with its stack (`ErrorLogValue`: stdx.log takes no `Error`), and the server reads on. |

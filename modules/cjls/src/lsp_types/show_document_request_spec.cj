@@ -36,4 +36,12 @@ public struct ShowDocumentRequestSpec <: LspOutboundRequest<ShowDocumentParams, 
             METHOD
         }
     }
+
+    public func encodeParams(params: ShowDocumentParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): ShowDocumentResult {
+        result.read<ShowDocumentResult>()
+    }
 }

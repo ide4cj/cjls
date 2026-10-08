@@ -31,4 +31,12 @@ public struct WorkspaceFoldersRequestSpec <: LspOutboundRequest<Unit, Nullable<A
             METHOD
         }
     }
+
+    public func encodeParams(params: Unit): RawJson {
+        RawJson.NULL
+    }
+
+    public func decodeResult(result: RawJson): Nullable<Array<WorkspaceFolder>> {
+        result.read<Nullable<Array<WorkspaceFolder>>>()
+    }
 }

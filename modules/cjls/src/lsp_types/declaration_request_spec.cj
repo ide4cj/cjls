@@ -16,7 +16,7 @@ import jsonrpc.*
  * the response is of type {@link Declaration} or a typed array of {@link DeclarationLink}
  * or a Thenable that resolves to such.
  */
-public struct DeclarationRequestSpec <: LspInboundRequest<DeclarationParams, Nullable<DeclarationOrDeclarationLinks>> {
+public struct DeclarationRequestSpec <: LspInboundRequest<DeclarationParams, Nullable<DeclarationOrDeclarationLinks>> & LspRegistrable<DeclarationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/declaration"
@@ -30,6 +30,12 @@ public struct DeclarationRequestSpec <: LspInboundRequest<DeclarationParams, Nul
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

@@ -26,7 +26,15 @@ struct MessageIr {
          * `None` for a request answered with a bare `null` - `shutdown` - and for a notification.
          */
         let result!: ?TypeIr = None,
-        let isRequest!: Bool
+        let isRequest!: Bool,
+        /**
+         * `None` for a message the server cannot register at run time.
+         */
+        let registrationOptions!: ?TypeIr = None,
+        /**
+         * The method a registration names, when it is not `method` - `textDocument/semanticTokens`.
+         */
+        let registrationMethod!: ?String = None
     ) {}
 
     prop paramsType: String {
@@ -50,8 +58,7 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
     for (request in mm.requests) {
         let owner = messageIdentOf(request.typeName, request.method)
         // not declared yet, but resolved all the same: the types they name must exist
-        resolveUnused(resolver, owner, [("PartialResult", request.partialResult), ("ErrorData", request.errorData),
-            ("RegistrationOptions", request.registrationOptions)])
+        resolveUnused(resolver, owner, [("PartialResult", request.partialResult), ("ErrorData", request.errorData)])
         messages.add(
             MessageIr(
                 resolveDoc(request),
@@ -60,13 +67,14 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
                 direction: request.messageDirection,
                 params: paramsOf(resolver, owner, request.params),
                 result: resultOf(resolver, owner, request.result),
-                isRequest: true
+                isRequest: true,
+                registrationOptions: optionalOf(resolver, owner + "RegistrationOptions", request.registrationOptions),
+                registrationMethod: request.registrationMethod
             )
         )
     }
     for (notification in mm.notifications) {
         let owner = messageIdentOf(notification.typeName, notification.method)
-        resolveUnused(resolver, owner, [("RegistrationOptions", notification.registrationOptions)])
         messages.add(
             MessageIr(
                 resolveDoc(notification),
@@ -74,7 +82,10 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
                 method: notification.method,
                 direction: notification.messageDirection,
                 params: paramsOf(resolver, owner, notification.params),
-                isRequest: false
+                isRequest: false,
+                registrationOptions: optionalOf(resolver, owner + "RegistrationOptions",
+                    notification.registrationOptions),
+                registrationMethod: notification.registrationMethod
             )
         )
     }
@@ -105,12 +116,16 @@ private func resultOf(resolver: TypeResolver, owner: String, result: Type): ?Typ
     }
 }
 
+private func optionalOf(resolver: TypeResolver, context: String, t: ?Type): ?TypeIr {
+    match (t) {
+        case Some(Base(Null)) | None => None
+        case Some(some) => resolver.resolve(some, context: context)
+    }
+}
+
 private func resolveUnused(resolver: TypeResolver, owner: String, types: Array<(String, ?Type)>): Unit {
     for ((part, t) in types) {
-        match (t) {
-            case Some(Base(Null)) | None => ()
-            case Some(some) => resolver.resolve(some, context: owner + part)
-        }
+        optionalOf(resolver, owner + part, t)
     }
 }
 
@@ -123,15 +138,19 @@ extend CjEmitter {
             "Notification<${messageIr.paramsType}>"
         }
         // the direction is in the type, so a handler of a message the server sends does not compile
-        let (spec, isInbound) = match (messageIr.direction) {
-            case ClientToServer => ("LspInbound${types}", true)
-            case ServerToClient => ("LspOutbound${types}", false)
-            case Both => ("LspInbound${types} & LspOutbound${types}", true)
+        let (spec, isInbound, isOutbound) = match (messageIr.direction) {
+            case ClientToServer => ("LspInbound${types}", true, false)
+            case ServerToClient => ("LspOutbound${types}", false, true)
+            case Both => ("LspInbound${types} & LspOutbound${types}", true, true)
+        }
+        let supertypes = match (messageIr.registrationOptions) {
+            case Some(options) => "${spec} & LspRegistrable<${options}>"
+            case None => spec
         }
 
         emitDoc(messageIr.doc)
         // verbatim: cjfmt leaves the spaces `Tokens` puts around `<` and `>` in a type
-        emitln("public struct ${ident} <: ${spec} {")
+        emitln("public struct ${ident} <: ${supertypes} {")
         indented {
             =>
                 emitln("public static prop METHOD: String {")
@@ -145,9 +164,24 @@ extend CjEmitter {
                 emitln("public prop method: String {")
                 indented {=> emitln("get() { METHOD }")}
                 emitln("}")
+                if (messageIr.registrationOptions.isSome()) {
+                    nl()
+                    emitln("public prop registrationMethod: String {")
+                    indented {
+                        => match (messageIr.registrationMethod) {
+                            case Some(registrationMethod) => emitln("get() { \"${registrationMethod}\" }")
+                            case None => emitln("get() { METHOD }")
+                        }
+                    }
+                    emitln("}")
+                }
                 if (isInbound) {
                     nl()
-                    emitCodec(messageIr)
+                    emitInboundCodec(messageIr)
+                }
+                if (isOutbound) {
+                    nl()
+                    emitOutboundCodec(messageIr)
                 }
         }
         emitln("}")
@@ -158,7 +192,7 @@ extend CjEmitter {
      * to decode and a result to encode, and `Unit` - which stands for neither - can never be
      * `ToJson`, being a type of `std`.
      */
-    private func emitCodec(messageIr: MessageIr): Unit {
+    private func emitInboundCodec(messageIr: MessageIr): Unit {
         emitln("public func decodeParams(params: ?RawJson): ${messageIr.paramsType} {")
         indented {
             => match (messageIr.params) {
@@ -177,6 +211,34 @@ extend CjEmitter {
             => match (messageIr.result) {
                 case Some(_) => emitln("RawJson.of(result)")
                 case None => emitln("RawJson.NULL")
+            }
+        }
+        emitln("}")
+    }
+
+    /**
+     * The other way round, for the same reason: params of none are `null`, which the connection
+     * leaves out, and a bare `null` result is read as `()` whatever the client sends.
+     */
+    private func emitOutboundCodec(messageIr: MessageIr): Unit {
+        emitln("public func encodeParams(params: ${messageIr.paramsType}): RawJson {")
+        indented {
+            => match (messageIr.params) {
+                case Some(_) => emitln("RawJson.of(params)")
+                case None => emitln("RawJson.NULL")
+            }
+        }
+        emitln("}")
+        if (!messageIr.isRequest) {
+            return
+        }
+
+        nl()
+        emitln("public func decodeResult(result: RawJson): ${messageIr.resultType} {")
+        indented {
+            => match (messageIr.result) {
+                case Some(resultType) => emitln("result.read<${resultType}>()")
+                case None => emitln("()")
             }
         }
         emitln("}")

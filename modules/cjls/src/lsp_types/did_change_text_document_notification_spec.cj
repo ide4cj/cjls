@@ -14,7 +14,7 @@ import jsonrpc.*
  * The document change notification is sent from the client to the server to signal
  * changes to a text document.
  */
-public struct DidChangeTextDocumentNotificationSpec <: LspInboundNotification<DidChangeTextDocumentParams> {
+public struct DidChangeTextDocumentNotificationSpec <: LspInboundNotification<DidChangeTextDocumentParams> & LspRegistrable<TextDocumentChangeRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/didChange"
@@ -28,6 +28,12 @@ public struct DidChangeTextDocumentNotificationSpec <: LspInboundNotification<Di
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

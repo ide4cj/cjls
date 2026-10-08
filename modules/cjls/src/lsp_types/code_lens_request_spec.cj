@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * A request to provide code lens for the given text document.
  */
-public struct CodeLensRequestSpec <: LspInboundRequest<CodeLensParams, Nullable<Array<CodeLens>>> {
+public struct CodeLensRequestSpec <: LspInboundRequest<CodeLensParams, Nullable<Array<CodeLens>>> & LspRegistrable<CodeLensRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/codeLens"
@@ -27,6 +27,12 @@ public struct CodeLensRequestSpec <: LspInboundRequest<CodeLensParams, Nullable<
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }
