@@ -64,7 +64,7 @@ class FindCangjieHomeOnPosixTest {
     @TestCase
     func cjcOnPathIsFollowedThroughItsLinkToItsSdk() {
         // arrange
-        let dir = tree([("sdk/bin/cjc", ""), ("empty/x", "")])
+        let dir = tree([("sdk/bin/cjc", ""), ("sdk/modules/x", ""), ("empty/x", "")])
         Directory.create(dir.join("links").filePath.getOrThrow())
         SymbolicLink.create(dir.join("links/cjc").filePath.getOrThrow(), to: dir.join("sdk/bin/cjc").filePath.getOrThrow())
         let path = "relative:${dir.join("empty")}:${dir.join("links")}"
@@ -77,5 +77,41 @@ class FindCangjieHomeOnPosixTest {
         // assert
         @Expect(home.map {it => it.path}, Some(sdk))
         @Expect(home.map {it => it.source}, Some("cjc on PATH"))
+    }
+
+    @TestCase
+    func aCjcWithNoSdkAroundItIsPassedOver() {
+        // arrange: cjsdk's shim, `~/.local/bin/cjc` a link to `~/.local/bin/cjsdk`
+        let dir = tree([("local/bin/cjsdk", "")])
+        SymbolicLink.create(dir.join("local/bin/cjc").filePath.getOrThrow(),
+            to: dir.join("local/bin/cjsdk").filePath.getOrThrow())
+
+        // act
+        let home = findCangjieHome(None, env: envOf([("PATH", dir.join("local/bin").toString())]))
+        removeTree(dir)
+
+        // assert
+        @Expect(home.isNone())
+    }
+
+    @TestCase
+    func anSdkCjsdkInstalledIsItsDefaultToolchain() {
+        // arrange: as cjsdk installs one, `default` a link and `~/.local/bin/cjc` one to cjsdk itself
+        let dir = tree([("user/.cjpm/toolchains/nightly/bin/cjc", ""), ("user/.cjpm/toolchains/nightly/modules/x", ""),
+            ("user/.local/bin/cjsdk", "")])
+        let toolchains = dir.join("user/.cjpm/toolchains")
+        SymbolicLink.create(toolchains.join("default").filePath.getOrThrow(),
+            to: toolchains.join("nightly").filePath.getOrThrow())
+        SymbolicLink.create(dir.join("user/.local/bin/cjc").filePath.getOrThrow(),
+            to: dir.join("user/.local/bin/cjsdk").filePath.getOrThrow())
+        let env = envOf([("HOME", dir.join("user").toString()), ("PATH", dir.join("user/.local/bin").toString())])
+
+        // act
+        let home = findCangjieHome(None, env: env)
+        removeTree(dir)
+
+        // assert
+        @Expect(home.map {it => it.path}, Some(toolchains.join("default").toString()))
+        @Expect(home.map {it => it.source}, Some("the default toolchain of cjsdk"))
     }
 }

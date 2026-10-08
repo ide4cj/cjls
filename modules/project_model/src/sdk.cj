@@ -19,9 +19,10 @@ public struct CangjieHome {
 /**
  * The SDK, the first of these that is a directory: `option` (`initializationOptions.cangjieHome`,
  * which the editor takes from a setting of its own); `CANGJIE_HOME`; cjsdk's default toolchain,
- * `~/.cjpm/toolchains/default`; and the directory two up from `cjc` on `PATH`, links followed
- * (`<home>/bin/cjc`). `None` if none is: an editor launches the server with the environment of the
- * desktop, which `envsetup.sh` never touched.
+ * `~/.cjpm/toolchains/default`, a link cjsdk makes; and the directory two up from `cjc` on `PATH`,
+ * links followed (`<home>/bin/cjc`), if `std`'s `modules` is in it: cjsdk links `~/.local/bin/cjc` to
+ * itself, and `~/.local` is no SDK. `None` if none is: an editor launches the server with the
+ * environment of the desktop, which `envsetup.sh` never touched.
  *
  * `env` gives the value of an environment variable.
  */
@@ -35,7 +36,13 @@ public func findCangjieHome(option: ?String, env!: (String) -> ?String): ?Cangji
         (env("CANGJIE_HOME"), "CANGJIE_HOME"),
         (home.map {it => Path(it).join(".cjpm").join("toolchains").join("default").toString()},
             "the default toolchain of cjsdk"),
-        (cjcOnPath(env("PATH") ?? "").flatMap {cjc => cjc.parent.parent.toString()}, "cjc on PATH")
+        (cjcOnPath(env("PATH") ?? "").flatMap {cjc => cjc.parent.parent.toString()}.flatMap {
+            home => if (isDirectory(Path(home).join("modules").toString())) {
+                home
+            } else {
+                None
+            }
+        }, "cjc on PATH")
     ]
     for ((path, source) in candidates) {
         if (let Some(path) <- path) {
@@ -89,9 +96,12 @@ func cjcOnPath(path: String): ?Path {
     None
 }
 
+/**
+ * Whether `path` is absolute and a directory, its links followed: a `FileInfo` is the link's own.
+ */
 func isDirectory(path: String): Bool {
     Path(path).isAbsolute() && (try {
-        exists(path) && FileInfo(path).isDirectory()
+        exists(path) && FileInfo(canonicalize(Path(path))).isDirectory()
     } catch (_: FSException) {
         false
     })
