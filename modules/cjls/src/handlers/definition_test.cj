@@ -14,9 +14,10 @@ import cjls.server.*
  */
 func loaded(files: Array<(String, String)>, links!: Bool = true): (ServerState, Path) {
     let dir = workspaceOf(files)
-    let state = initializedWith([dir], watches: false)
+    let loop = initializedWith([dir], watches: false)
+    let state = loop.state
     state.locationLinks = links
-    handleInitialized(state, Client(), NoopLogger(), InitializedParams())
+    initialized(loop, Client(), NoopLogger(), InitializedParams())
     remove(dir, recursive: true)
     (state, dir)
 }
@@ -74,9 +75,9 @@ class DefinitionTest {
     }
 
     @TestCase
-    func anOverloadGoesToEachOfItsFunctions() {
-        // arrange
-        let (state, dir) = loaded([("a.cj", "func g(n: Int64) {}\nfunc g(s: String) {}\nfunc f() {\n    g(1)\n}\n")])
+    func anAmbiguousCallGoesToEachOfItsFunctions() {
+        // arrange: neither is more specific for `1` (N120)
+        let (state, dir) = loaded([("a.cj", "func g(n: Int8) {}\nfunc g(n: Int16) {}\nfunc f() {\n    g(1)\n}\n")])
 
         // act
         let links = linksOf(definitionOf(state, dir.join("a.cj"), 3, 4))

@@ -48,7 +48,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28 |
 | [0028](0028-ci-stamps-a-package.md) | CI stamps a package's files with one mtime, made of the whole directory | accepted |
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | superseded by D35 |
-| [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33; what is watched, and which event finds the project again, by D58 |
+| [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33; what is watched, and which event finds the project again, by D58; the load on the read loop, in one revision, by D61 |
 | [0031](0031-the-server-sets-its-heap.md) | Without `cjHeapSize` the server starts over with a heap of 2 GB; a load keeps a sixteenth of the heap | accepted |
 | [0032](0032-one-process-for-server-and-clients.md) | The server and its editor clients change by one process: the protocol their contract, paired branches, two channels, pins bumped by a bot | accepted; the nightly's tag `nightly-build`, updated in place, by D39 |
 | [0033](0033-project-model.md) | A project is a model of loupe's, found from `cj-project.json`, `cjpm.toml` or loose files by `project_model`; the server loads its files | accepted; its binaries read by D38 |
@@ -79,3 +79,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0058](0058-folders-come-or-gone-are-watched.md) | Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest | accepted |
 | [0059](0059-macro-arguments-are-parsed-before-expansion.md) | An expression macro's arguments are parsed as an argument list when they parse as one, before any expansion | accepted |
 | [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted |
+| [0061](0061-the-workspace-is-loaded-on-a-spawn.md) | The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded | accepted |
+| [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted |

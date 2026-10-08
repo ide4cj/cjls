@@ -460,7 +460,7 @@ class FieldDefinitionTest {
 
     @TestCase
     func anOverloadOfASubclassDoesNotHideTheSuperclasss() {
-        // N70
+        // N70; the call takes the one of as many parameters (N115)
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
@@ -470,8 +470,26 @@ class FieldDefinitionTest {
             }
             class B <: A {
                 func f(x: Int64): Bool { true }
-            //       ^ def
                 func g(): Int64 { this.$0f() }
+            }
+            "#)
+    }
+
+    @TestCase
+    func aMemberOfAValueCalledGoesToTheOverloadTaken() {
+        // N117, N119: the members of a type and its supertypes are one level, `Int64` first
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            open class A {
+                public func m(x: Int64): Int64 { x }
+            //              ^ def
+            }
+            class B <: A {
+                public func m(x: Int8): Int8 { x }
+            }
+            func g(): Unit {
+                B().$0m(1)
             }
             "#)
     }

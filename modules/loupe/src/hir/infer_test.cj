@@ -872,6 +872,371 @@ class InferTest {
     }
 
     @TestCase
+    func aCallTakesTheOverloadItsArgumentsFit() {
+        // N115
+        checkInference(#"
+            package m
+            func f(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(x: String): String { x }
+            //     ^ String
+            func f(x: Int64, y: Int64): Bool { true }
+            //     ^ Int64
+            //               ^ Int64
+            func o(x: ?Int64): Int64 { 1 }
+            //     ^ Option<Int64>
+            func o(x: String): String { "" }
+            //     ^ String
+            func z<T>(a: T, b: T): T { a }
+            //        ^ T
+            //              ^ T
+            func z(a: Int64, b: String): Bool { true }
+            //     ^ Int64
+            //               ^ String
+            func test(): Unit {
+                let a = f(1)
+            //      ^ Int64
+                let b = f("s")
+            //      ^ String
+                let c = f(1, 2)
+            //      ^ Bool
+                let d = o(1)
+            //      ^ Int64
+                // the generic one's `T` is no type both are
+                let e = z(1, "s")
+            //      ^ Bool
+            }
+            "#)
+    }
+
+    @TestCase
+    func ofSeveralThatFitTheMostSpecificIsTaken() {
+        // N119
+        checkInference(#"
+            package m
+            open class Base {}
+            class D <: Base {}
+            func g(x: Base): Int64 { 1 }
+            //     ^ Base
+            func g(x: D): String { "" }
+            //     ^ D
+            func n(x: Int8): Int8 { x }
+            //     ^ Int8
+            func n(x: Int64): Int64 { x }
+            //     ^ Int64
+            func r(x: Float32): Float32 { x }
+            //     ^ Float32
+            func r(x: Float64): Float64 { x }
+            //     ^ Float64
+            func q<T>(x: T): String { "" }
+            //        ^ T
+            func q(x: Int64): Int64 { x }
+            //     ^ Int64
+            func test(): Unit {
+                let a = g(D())
+            //      ^ String
+                let b = g(Base())
+            //      ^ Int64
+                let c = n(1)
+            //      ^ Int64
+                let d = n(1i8)
+            //      ^ Int8
+                let e = r(1.0)
+            //      ^ Float64
+                let f = q(1)
+            //      ^ Int64
+                let h = q("s")
+            //      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
+    func theNearestLevelWhereAnOverloadFitsDecides() {
+        // N117: a local, the members, the package, the imported
+        checkInference(#"
+            package m
+            func f(x: Int64): Int64 { x }
+            //     ^ Int64
+            func g(x: Int64): Int64 { x }
+            //     ^ Int64
+            func println(x: Int8): Int8 { x }
+            //           ^ Int8
+            open class A { public func m(x: Int64): Int64 { x } }
+            //                           ^ Int64
+            class B <: A {
+                public func m(x: Int8): Int8 { x }
+            //                ^ Int8
+                func f(x: Int8): Int8 { x }
+            //         ^ Int8
+                func g(x: String): String { x }
+            //         ^ String
+                func test(): Unit {
+                    let a = f(1)
+            //          ^ Int8
+                    let b = g(1)
+            //          ^ Int64
+                    // the members of a type and of its supertypes are one level
+                    let c = this.m(1)
+            //          ^ Int64
+                    let d = println(1)
+            //          ^ Int8
+                    let p = println("s")
+            //          ^ Unit
+                    func f(x: Int16): Int16 { x }
+            //           ^ (Int16) -> Int16
+            //             ^ Int16
+                    let e = f(1)
+            //          ^ Int16
+                }
+            }
+            "#)
+    }
+
+    @TestCase
+    func overloadsNoneOfWhichIsMostSpecificAreAmbiguous() {
+        // N120
+        checkInference(#"
+            package m
+            open class Base {}
+            interface I {}
+            class D <: Base & I {}
+            func f(x: Base): Int64 { 1 }
+            //     ^ Base
+            func f(x: I): String { "" }
+            //     ^ I
+            func g(x: Int8): Int8 { x }
+            //     ^ Int8
+            func g(x: Int16): Int16 { x }
+            //     ^ Int16
+            func h(a: (Int64) -> Int64): Int64 { 1 }
+            //     ^ (Int64) -> Int64
+            func h(a: (String) -> String): String { "" }
+            //     ^ (String) -> String
+            func test(): Unit {
+                // cjc: ambiguous match for function call 'f'
+                let a = f(D())
+            //      ^ {unknown}
+                // cjc: ambiguous match for function call 'g'
+                let b = g(1)
+            //      ^ {unknown}
+                // cjc: ambiguous match for function call 'h'
+                let c = h({x => x})
+            //      ^ {unknown}
+            //             ^ {unknown}
+                let d = h({x: Int64 => x})
+            //      ^ Int64
+            //             ^ Int64
+                // cjc: cannot convert an integer literal to type 'Class-Base'
+                let e = f(1)
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func anOverloadedCallInAnArgumentIsTakenForEachCandidateTried() {
+        // N115 nested: the inner call's overload by the type the outer candidate expects
+        checkInference(#"
+            package m
+            func p(x: Int64, y: String): Int64 { 1 }
+            //     ^ Int64
+            //               ^ String
+            func p(x: String, y: String): String { "" }
+            //     ^ String
+            //                ^ String
+            func k(x: String): Int64 { 1 }
+            //     ^ String
+            func k(x: Int64): String { "" }
+            //     ^ Int64
+            func h(x: Int64): Int64 { x }
+            //     ^ Int64
+            func h(x: Int32): String { "" }
+            //     ^ Int32
+            func test(): Unit {
+                let s = "a"
+            //      ^ String
+                let n = 1
+            //      ^ Int64
+                let a = p(k(s), s)
+            //      ^ Int64
+                let b = p(k(n), s)
+            //      ^ String
+                let c: String = p(h(1), s)
+            //      ^ String
+                // cjc: ambiguous match for function call 'p'
+                let d = p(h(1), s)
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLambdaFitsAFunctionReturningUnitWhateverItsBlockIs() {
+        // N118
+        checkInference(#"
+            package m
+            func k(h: () -> Unit): Int64 { 1 }
+            //     ^ () -> Unit
+            func k(h: () -> Bool): String { "" }
+            //     ^ () -> Bool
+            func test(): Unit {
+                // `**=` of an integer takes a `UInt64`
+                let a = k({ => var y = 2; y **= 2u64 })
+            //      ^ Int64
+            //                     ^ Int64
+                let b = k({ => 1 })
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func tuplesAreCovariantAndFunctionsContravariantInTheirParameters() {
+        // N116
+        checkInference(#"
+            package m
+            open class Base {}
+            class D <: Base {}
+            func t(x: (Base, Int64)): Int64 { 1 }
+            //     ^ (Base, Int64)
+            func t(x: String): String { "" }
+            //     ^ String
+            func w(h: (D) -> Base): Int64 { 1 }
+            //     ^ (D) -> Base
+            func w(h: String): String { "" }
+            //     ^ String
+            func test(): Unit {
+                let p = (D(), 1)
+            //      ^ (D, Int64)
+                let a = t(p)
+            //      ^ Int64
+                let hb = { x: Base => D() }
+            //      ^^ (Base) -> D
+            //             ^ Base
+                let b = w(hb)
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func whatACandidateTriedWritesIsUndoneAndInferredAgainForTheOneTaken() {
+        // A27: a member, a call of overloads and an argument of one type in the candidates tried
+        checkInference(#"
+            package m
+            class Box {
+                let n = 1
+            //      ^ Int64
+                func get(): Int64 { 1 }
+            }
+            class P {
+                P(let p: Int64) {}
+            //        ^ Int64
+                let q = 2
+            //      ^ Int64
+                func f(x: Int64): Int64 { x }
+            //         ^ Int64
+                func f(x: String): String { x }
+            //         ^ String
+                func run(): Unit {
+                    let a = f(p)
+            //          ^ Int64
+                    let b = f(q)
+            //          ^ Int64
+                }
+            }
+            let gv = 1
+            //  ^^ Int64
+            func f(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(x: String): String { x }
+            //     ^ String
+            func n2(x: Bool, y: Int8): Int8 { y }
+            //      ^ Bool
+            //               ^ Int8
+            func n2(x: Bool, y: Int64): Int64 { y }
+            //      ^ Bool
+            //               ^ Int64
+            func test(b: Box): Unit {
+            //        ^ Box
+                let a = f(b.get())
+            //      ^ Int64
+                let d = f(f(1))
+            //      ^ Int64
+                let e = f(gv)
+            //      ^ Int64
+                let g = f(b.n)
+            //      ^ Int64
+                let y = n2(true, 1)
+            //      ^ Int64
+                let s: String = "x" * 3
+            //      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
+    func theBranchesOfALambdaReturningUnitAreOfAnyType() {
+        // N118
+        checkInference(#"
+            package m
+            func k(h: () -> Unit): Int64 { 1 }
+            //     ^ () -> Unit
+            func k(h: () -> Bool): String { "" }
+            //     ^ () -> Bool
+            func test(c: Bool): Unit {
+            //        ^ Bool
+                let u = k({ => if (c) { 1 } else { "s" } })
+            //      ^ Int64
+                let w = k({ => match (c) { case true => 1 case false => 2 } })
+            //      ^ Int64
+                let x = k({ => unsafe { 1 } })
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTypeArgumentUnknownIsAlikeToAny() {
+        // a tuple's or a function's part unknown in an argument of a type hides nothing
+        checkInference(#"
+            package m
+            func h(x: Array<(Int64, String)>): Int64 { 1 }
+            //     ^ Array<(Int64, String)>
+            func h(x: String): String { "" }
+            //     ^ String
+            func h2(x: Array<(Int64) -> String>): Int64 { 1 }
+            //      ^ Array<(Int64) -> String>
+            func h2(x: String): String { "" }
+            //      ^ String
+            func f(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(x: String): String { x }
+            //     ^ String
+            func test(): Unit {
+                // cjc: undeclared identifier 'nope'
+                let t = [(1, nope)]
+            //      ^ Array<(Int64, {unknown})>
+                let z = h(t)
+            //      ^ Int64
+                // cjc: undeclared identifier 'nope'
+                let fs = [{x: Int64 => nope}]
+            //      ^^ Array<(Int64) -> {unknown}>
+            //             ^ Int64
+                let z2 = h2(fs)
+            //      ^^ Int64
+                // cjc: ambiguous use of 'f'
+                let v = f
+            //      ^ {unknown}
+                // cjc: no matching function declaration for function reference 'f'
+                let fv: (Bool) -> Bool = f
+            //      ^^ (Bool) -> Bool
+            }
+            "#)
+    }
+
+    @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
         let parsed = Fixture.parse(#"

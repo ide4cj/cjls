@@ -187,13 +187,7 @@ class TypeArgSolver {
      * `Option`.
      */
     private func fits(sub: Ty, sup: Ty): Bool {
-        if (isSubtype(db, sub, sup, from)) {
-            return true
-        }
-        match (sup.kind(db)) {
-            case DeclTy(id, args) where Some(id) == option && args.size == 1 => fits(sub, args[0])
-            case _ => false
-        }
+        isAssignable(db, sub, sup, from, option)
     }
 
     private func equal(a: Ty, b: Ty): Unit {
