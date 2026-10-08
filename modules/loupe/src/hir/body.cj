@@ -631,6 +631,8 @@ class BodyLowering {
             case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
             case AstExpr.AsVArrayExpr(it) =>
                 Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
+            // no arguments: a quote's tokens are what it builds, not code run here, and a macro call on a declaration
+            // (`var f = @M func g() {}`) is given the declaration, not values
             case AstExpr.AsQuoteExpr(_) | AstExpr.AsMacroExpandDecl(_) => Expr.MacroExpr([])
             case AstExpr.AsMacroExpandExpr(it) => Expr.MacroExpr(macroArgs(it))
         }
