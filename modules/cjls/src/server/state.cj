@@ -44,6 +44,13 @@ public class ServerState <: FromContext<ServerState> {
     public var locationLinks = false
 
     /**
+     * Whether the client folds whole lines only, and how many folds of a document it takes at most,
+     * as agreed on at `initialize`.
+     */
+    public var lineFoldingOnly = false
+    public var foldingRangeLimit: ?Int64 = None
+
+    /**
      * The roots of the workspace, as `initialize` and `didChangeWorkspaceFolders` give them: the
      * files under them are loaded, and watched.
      */
@@ -181,7 +188,7 @@ public class ServerState <: FromContext<ServerState> {
         let files = this.files ?? vfs.files()
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
-            locationLinks)
+            locationLinks, lineFoldingOnly, foldingRangeLimit)
     }
 
     /**
@@ -204,7 +211,7 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * Every file with contents, in the order of their ids.
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let locationLinks: Bool) {}
+        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot
