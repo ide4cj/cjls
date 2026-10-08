@@ -1,4 +1,4 @@
-# ADR-0016: Each editor integration is a repository of its own in ide4cj
+# ADR-0016: Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim
 
 Status: accepted, 2026-09-27
 

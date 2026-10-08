@@ -74,7 +74,22 @@ public func readFile(path: VfsPath): ?Rope {
  * editor reports is one to a file of the workspace.
  */
 public func isWorkspaceFile(path: VfsPath, roots: Array<VfsPath>): Bool {
-    isCangjieFile(path.toString()) && roots.iterator().any {
+    isCangjieFile(path.toString()) && isReached(path, roots)
+}
+
+/**
+ * Whether `readRoots(roots)` goes into the directory at `path`, were one on the disk: whether a
+ * directory the editor reports come or gone may hold files of the workspace. A root itself is not.
+ */
+public func isWorkspaceDirectory(path: VfsPath, roots: Array<VfsPath>): Bool {
+    isScanned(path.name) && isReached(path, roots)
+}
+
+/**
+ * Whether the walk of `roots` reaches `path`: under one of them, through directories it goes into.
+ */
+private func isReached(path: VfsPath, roots: Array<VfsPath>): Bool {
+    roots.iterator().any {
         root => match (path.segmentsUnder(root)) {
             case Some(segments) where segments.size > 0 =>
                 segments[..segments.size - 1].iterator().all {name => isScanned(name)}

@@ -1,4 +1,4 @@
-# ADR-0027: Builds are incremental, clean on a new compiler and for a release; CI caches `target`
+# ADR-0027: Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master
 
 Status: accepted, 2026-09-27
 

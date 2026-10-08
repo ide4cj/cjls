@@ -1,6 +1,7 @@
 # ADR-0018: calca collects unused interned values, and the memos keyed by them
 
 Status: accepted, 2026-09-27
+Amends ADR-0017: interned values
 
 ## Context
 

@@ -1,6 +1,7 @@
 # ADR-0028: CI stamps a package's files with one mtime, made of the whole directory
 
 Status: accepted, 2026-09-29
+Amends ADR-0027: stamps
 
 ## Context
 

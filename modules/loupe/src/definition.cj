@@ -25,9 +25,9 @@ public struct NavigationTarget {
 
 /**
  * Where the name at `offset` of the file is declared: a name in a type of a signature (D48) or of a
- * body, a name a body uses, a constructor a pattern names (D50); each candidate of an ambiguity or
- * of an overload. Nothing for a package, a member after a `.` (inference's, step 7), nor yet for a
- * declaration of a package compiled already, which has no source.
+ * body, a name a body uses, a constructor a pattern names (D50), a member after a `.` of a package,
+ * a type (D52) or a value (D55); each candidate of an ambiguity or of an overload. Nothing for a
+ * package, nor yet for a declaration of a package compiled already, which has no source.
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []

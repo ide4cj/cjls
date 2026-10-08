@@ -1,4 +1,4 @@
-# ADR-0022: The wire is read and written with fjson, through serde's derives
+# ADR-0022: The wire is read and written with fjson, through serde's derives `ToJson`/`FromJson` and one `@Serde` marker
 
 Status: accepted, 2026-09-27
 

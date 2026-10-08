@@ -1,6 +1,7 @@
 package jsonrpc
 
 import std.collection.concurrent.*
+import std.io.ByteBuffer
 import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -445,6 +446,25 @@ class ConnectionServeRecoveryTest {
     }
 
     @TestCase
+    func aFrameOverTheLimitIsAnsweredAndTheNextOneRead() {
+        // arrange
+        let input = framed([##"{"jsonrpc":"2.0","id":1,"method":"big"}"##, ##"{"jsonrpc":"2.0","method":"next"}"##])
+        let output = ByteBuffer()
+        let handler = FakeHandler()
+        let connection = Connection(FramedJsonRpcTransport(input, output, getGlobalLogger(), bodyBytesMax: 34),
+            handler, getGlobalLogger())
+
+        // act
+        connection.serve()
+        let resp = reading(output).read().getOrThrow().getResponseBodyOrThrow()
+
+        // assert - the id was never read, so the error is answered under none
+        @Assert(resp.id.isNull())
+        @Expect(ErrorCode.INVALID_REQUEST, resp.resultOrError.getErrorOrThrow().code)
+        @Expect("next", handler.notified.remove())
+    }
+
+    @TestCase
     func serveReturnsOnCleanEof() {
         // arrange
         let (connection, transport) = unserved(FakeHandler())
@@ -639,6 +659,35 @@ class ConnectionOutboundTest {
     }
 }
 
+/**
+ * Closes the connection from inside its first `read`, then hands the read loop a request: the
+ * request is dispatched after `close` cancelled everything in flight.
+ */
+class ClosingTransport <: JsonRpcTransport {
+    private let fake = FakeTransport()
+    var connection: ?Connection = None
+
+    public func isClosed(): Bool {
+        fake.isClosed()
+    }
+
+    public func close(): Unit {
+        fake.close()
+    }
+
+    public func read(): ?Body {
+        if (isClosed()) {
+            return None
+        }
+        connection?.close()
+        RequestBody(Integer(1), "late").enveloped()
+    }
+
+    public func write(body: Body): Unit {
+        fake.write(body)
+    }
+}
+
 @Test
 class ConnectionCloseTest {
     @TestCase
@@ -701,6 +750,47 @@ class ConnectionCloseTest {
 
         // assert
         @Assert(token.isCancelled)
+    }
+
+    @TestCase
+    func theEndOfInputTellsInFlightHandlersToGiveUp() {
+        // arrange
+        let started = LinkedBlockingQueue<CancellationToken>()
+        let release = LinkedBlockingQueue<Bool>()
+        let handler = FakeHandler()
+        handler.onRequestFn = {
+            _, _, cancel =>
+                started.add(cancel)
+                release.remove()
+                Result(rawJson("null"))
+        }
+        let (connection, transport) = unserved(handler)
+        transport.feed(RequestBody(Integer(7), "slow").enveloped())
+        transport.hangUp()
+
+        // act - on the test's own thread: it returns, or the test hangs
+        connection.serve()
+        let token = started.remove()
+        release.add(true)
+
+        // assert
+        @Assert(token.isCancelled)
+        @Assert(connection.isClosed())
+    }
+
+    @TestCase
+    func aRequestDispatchedAsTheConnectionClosesIsCancelled() {
+        // arrange
+        let handler = KeepingHandler()
+        let transport = ClosingTransport()
+        let connection = Connection(transport, handler, getGlobalLogger())
+        transport.connection = connection
+
+        // act
+        connection.serve()
+
+        // assert
+        @Assert(handler.received.remove().cancellation.isCancelled)
     }
 
     @TestCase

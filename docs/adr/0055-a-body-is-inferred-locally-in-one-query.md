@@ -1,4 +1,4 @@
-# ADR-0055: A body's types are inferred locally, as cjc checks them, in one query of the body
+# ADR-0055: A body's types are inferred locally, as cjc checks them, in one query of the body; a type not written is the body's
 
 Status: accepted, 2026-10-07
 

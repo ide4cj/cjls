@@ -1,4 +1,4 @@
-# ADR-0035: A handle closing a loop of waits gives way, and the owner computes the cycle
+# ADR-0035: A handle closing a loop of waits gives way, and the owner computes the cycle; one memo per handle otherwise as D29
 
 Status: accepted, 2026-10-02; supersedes ADR-0029
 

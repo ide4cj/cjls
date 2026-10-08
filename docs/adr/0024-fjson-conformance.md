@@ -1,4 +1,4 @@
-# ADR-0024: fjson is held to JSONTestSuite, and reads a lone surrogate as U+FFFD
+# ADR-0024: fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep
 
 Status: accepted, 2026-09-27
 

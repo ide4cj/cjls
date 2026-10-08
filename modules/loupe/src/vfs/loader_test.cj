@@ -135,6 +135,20 @@ class LoaderTest {
     }
 
     @TestCase
+    func aDirectoryOfTheWorkspaceIsOneTheWalkWouldGoInto() {
+        // arrange
+        let root = inTemp("ws")
+
+        // act, assert
+        @Expect(isWorkspaceDirectory(inTemp("ws/src/net"), [root]))
+        @Expect(!isWorkspaceDirectory(inTemp("ws"), [root]))
+        @Expect(!isWorkspaceDirectory(inTemp("ws/target"), [root]))
+        @Expect(!isWorkspaceDirectory(inTemp("ws/target/release"), [root]))
+        @Expect(!isWorkspaceDirectory(inTemp("ws/src/.cache"), [root]))
+        @Expect(!isWorkspaceDirectory(inTemp("elsewhere/src"), [root]))
+    }
+
+    @TestCase
     func aPathIsUnderItselfAndWhatHoldsIt() {
         // arrange
         let dir = inTemp("ws")

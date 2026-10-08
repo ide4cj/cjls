@@ -1,4 +1,4 @@
-# ADR-0031: The server starts over with a heap of 2 GB, and a load keeps a sixteenth of the heap
+# ADR-0031: Without `cjHeapSize` the server starts over with a heap of 2 GB; a load keeps a sixteenth of the heap
 
 Status: accepted, 2026-09-29
 
