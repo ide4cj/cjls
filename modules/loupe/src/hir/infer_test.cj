@@ -1035,6 +1035,43 @@ class InferTest {
     }
 
     @TestCase
+    func anOverloadedCallInAnArgumentIsTakenForEachCandidateTried() {
+        // N115 nested: the inner call's overload by the type the outer candidate expects
+        checkInference(#"
+            package m
+            func p(x: Int64, y: String): Int64 { 1 }
+            //     ^ Int64
+            //               ^ String
+            func p(x: String, y: String): String { "" }
+            //     ^ String
+            //                ^ String
+            func k(x: String): Int64 { 1 }
+            //     ^ String
+            func k(x: Int64): String { "" }
+            //     ^ Int64
+            func h(x: Int64): Int64 { x }
+            //     ^ Int64
+            func h(x: Int32): String { "" }
+            //     ^ Int32
+            func test(): Unit {
+                let s = "a"
+            //      ^ String
+                let n = 1
+            //      ^ Int64
+                let a = p(k(s), s)
+            //      ^ Int64
+                let b = p(k(n), s)
+            //      ^ String
+                let c: String = p(h(1), s)
+            //      ^ String
+                // cjc: ambiguous match for function call 'p'
+                let d = p(h(1), s)
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
     func aLambdaFitsAFunctionReturningUnitWhateverItsBlockIs() {
         // N118
         checkInference(#"

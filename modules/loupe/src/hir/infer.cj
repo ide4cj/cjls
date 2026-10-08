@@ -1331,7 +1331,8 @@ class Inference {
                 if (fit.iterator().any {one => one.decl.map {id => id.item(db).kind} == Some(ItemKind.EnumCtor)}) {
                     return None
                 }
-                // those no other is more specific than, and not the other way too
+                // those no other is more specific than, and not the other way too: two as specific as
+                // each other (`g(Int8)`, `g(Int16)`) both stay, and the call is ambiguous, as in cjc
                 let best = Array(fit.size) {i => i}.filter {
                     i => (0..fit.size).iterator().all {
                         j => i == j || !isMoreSpecific(fit[j], fit[i]) || isMoreSpecific(fit[i], fit[j])
@@ -1455,20 +1456,7 @@ class Inference {
             case (PrimTy(x), PrimTy(y)) => (x, y)
             case _ => return None
         }
-        let rank = {
-            name: String => if (name == "Int64") {
-                0
-            } else if (INTEGER_TYPES.contains(name)) {
-                1
-            } else if (name == "Float64") {
-                2
-            } else if (FLOAT_TYPES.contains(name)) {
-                3
-            } else {
-                -1
-            }
-        }
-        let (l, r) = (rank(left), rank(right))
+        let (l, r) = (numberRank(left), numberRank(right))
         if (l < 0 || r < 0) {
             return None
         }
@@ -1895,6 +1883,24 @@ class Inference {
                 substitute(db, aliased, id, typeArgsOf(id, explicit, None))
             case _ => error
         }
+    }
+}
+
+/**
+ * Where a type of numbers named `name` comes among overloads (`numberOrder`): `Int64`, the other
+ * integers, `Float64`, the other floats; -1 for no number.
+ */
+func numberRank(name: String): Int64 {
+    if (name == "Int64") {
+        0
+    } else if (INTEGER_TYPES.contains(name)) {
+        1
+    } else if (name == "Float64") {
+        2
+    } else if (FLOAT_TYPES.contains(name)) {
+        3
+    } else {
+        -1
     }
 }
 
