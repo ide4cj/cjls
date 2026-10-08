@@ -73,6 +73,23 @@ class MacroResolutionTest {
     }
 
     @TestCase
+    func aPathWithSpacesAndBackquotesIsItsNames() {
+        // act
+        let macros = macrosNamed(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.deriving
+            import std.deriving.*
+            @ deriving . `Derive`[Equatable]
+            @`Derive`[Hashable]
+            class C {}
+            "#, "C")
+
+        // assert
+        @Expect(macros, ["cjo Derive", "cjo Derive"])
+    }
+
+    @TestCase
     func aMacroUnderAnAlias() {
         // act
         let macros = macrosNamed(#"

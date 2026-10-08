@@ -58,6 +58,7 @@ func macroTargets(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken):
         case (_, Some(expr)) => expr.nameRefs() |> collectArray
         case _ => return None
     }
+    // A segment of a macro's name is nothing else: a file of no package leaves it nowhere, not to the lookups below.
     let pkg = packageOfFile(db, file) ?? return []
     let segment = names.map {one => one.syntax.textRange}.indexOf(name.syntax.textRange) ?? return []
     let resolved = resolveMacroPath(db, pkg, file, names.map {one => one.text()})
