@@ -41,6 +41,18 @@ class CommandTest {
     }
 
     @TestCase
+    func fmtTakesPathsRelativeToTheWorkingDirectoryAndCheck() {
+        // act
+        let (paths, check) = formatOf(parseCommand(["fmt", "a", "--check", "b"])).getOrThrow()
+        let (_, unchecked) = formatOf(parseCommand(["fmt", "a"])).getOrThrow()
+
+        // assert
+        @Expect(paths, [getWorkingDirectory().join("a"), getWorkingDirectory().join("b")])
+        @Expect(check)
+        @Expect(!unchecked)
+    }
+
+    @TestCase
     func anUnknownCommandOrOptionIsAUsageError() {
         // act, assert
         @AssertThrows[ArgumentParseException](parseCommand(["frob"]))
@@ -48,6 +60,15 @@ class CommandTest {
         @AssertThrows[ArgumentParseException](parseCommand(["project", "--frob"]))
         @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir"]))
         @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir="]))
+        @AssertThrows[ArgumentParseException](parseCommand(["fmt"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["fmt", "--frob", "a"]))
+    }
+}
+
+func formatOf(command: Command): ?(Array<Path>, Bool) {
+    match (command) {
+        case Format(paths, check) => (paths, check)
+        case _ => Option<(Array<Path>, Bool)>.None
     }
 }
 

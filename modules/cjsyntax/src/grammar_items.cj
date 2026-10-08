@@ -906,11 +906,20 @@ func macroCallHead(p: P): Unit {
     }
 }
 
+/**
+ * `(...)` after a macro name: tokens the macro is given, read as an argument list when they parse as one, which
+ * no compiler does before expansion, so names inside resolve; any error, and they stay tokens.
+ */
 func macroArgs(p: P): Unit {
     let m = p.start()
-    p.bump(LParen)
-    balancedTokens(p, LParen, RParen)
-    p.expect(RParen)
+    let snapshot = p.snapshot()
+    argList(p, LParen, RParen, ArgList, bareLambdas: true)
+    if (p.hasErrorSince(snapshot)) {
+        p.rewind(snapshot)
+        p.bump(LParen)
+        balancedTokens(p, LParen, RParen)
+        p.expect(RParen)
+    }
     m.complete(p, MacroArgs)
 }
 
