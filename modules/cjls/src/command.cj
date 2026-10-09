@@ -85,7 +85,7 @@ func printProject(dir: Path, logger: Logger): Int64 {
 
 /**
  * Fetches the sources of `std` of the SDK found as the server finds it (D40) into `dir`, `src` in the
- * SDK without one, where the server looks for them (D65, D67).
+ * SDK without one, where the server looks for them (D65, D69).
  *
  * @return the exit code
  */

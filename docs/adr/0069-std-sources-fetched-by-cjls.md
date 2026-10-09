@@ -1,4 +1,4 @@
-# ADR-0067: The sources of std are fetched by `cjls fetch-src`, from `cangjie_runtime` at the commit the nightly's release notes name, into the SDK's `src`
+# ADR-0069: The sources of std are fetched by `cjls fetch-src`, from `cangjie_runtime` at the commit the nightly's release notes name, into the SDK's `src`
 
 Status: proposed
 

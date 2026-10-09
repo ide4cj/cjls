@@ -102,7 +102,7 @@ class SystemSrcHost <: SrcHost {
 
 /**
  * Puts the sources of `std` of the SDK at `home` into `dir`, laid out as `cangjie_runtime`'s
- * `stdlib/libs`, as `findCangjieSrc` looks for them (D65, D67): the commit of `cangjie_runtime` is the
+ * `stdlib/libs`, as `findCangjieSrc` looks for them (D65, D69): the commit of `cangjie_runtime` is the
  * one the release notes of the SDK's nightly name, its version what `cjc --version` prints. Nothing
  * is downloaded if `dir` is of that commit already; a `dir` holding something else is left alone.
  * What it does goes to `err`, the directory filled to `out`.
