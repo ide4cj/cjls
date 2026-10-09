@@ -1,4 +1,4 @@
-# ADR-0067: The `.cjo` of the binaries are watched from the directories they are in, by a registration of their own, and an event on one finds the project again
+# ADR-0068: The `.cjo` of the binaries are watched from the directories they are in, by a registration of their own, and an event on one finds the project again
 
 Status: accepted, 2026-10-09
 Amends ADR-0038: what starts a read of the `.cjo`
