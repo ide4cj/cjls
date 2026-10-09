@@ -25,6 +25,7 @@ public func router(): Router {
         .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(DefinitionRequestSpec(), handleDefinition)
+        .route(HoverRequestSpec(), handleHover)
         .route(SelectionRangeRequestSpec(), handleSelectionRange)
         .route(DocumentFormattingRequestSpec(), handleFormatting)
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
@@ -45,6 +46,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
         documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
         definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
+        hoverProvider: BooleanOrHoverOptions.AsBoolean(true),
         selectionRangeProvider: BooleanOrSelectionRangeOptionsOrSelectionRangeRegistrationOptions.AsBoolean(true),
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
         // a file's diagnostics are its own, and nothing is reported for files not open (D14)

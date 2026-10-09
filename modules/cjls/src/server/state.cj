@@ -69,6 +69,12 @@ public class ServerState <: FromContext<ServerState> {
     public var locationLinks = false
 
     /**
+     * Whether the client takes a hover's content as Markdown, as agreed on at `initialize`; one that
+     * does not gets plain text.
+     */
+    public var hoverMarkdown = false
+
+    /**
      * Whether the client folds whole lines only, and how many folds of a document it takes at most,
      * as agreed on at `initialize`.
      */
@@ -340,7 +346,7 @@ public class ServerState <: FromContext<ServerState> {
         let files = this.files ?? vfs.files().filter {id => !binarySourceFiles.contains(vfs.filePath(id))}
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
-            locationLinks, lineFoldingOnly, foldingRangeLimit)
+            locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown)
     }
 
     /**
@@ -363,7 +369,8 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * Every file with contents, in the order of their ids.
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64) {}
+        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64,
+        public let hoverMarkdown: Bool) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot

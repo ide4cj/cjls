@@ -206,7 +206,7 @@ func joinTys(db: AnalysisDatabase, tys: Array<Ty>, from: ?SourceFile): Ty {
  * type parameters of the type or `extend` it is in replaced by `recv`'s arguments as an instance of
  * it, `This` by `recv` (N88); `None` for a member of an `extend` `recv` is no instance of (N86).
  */
-func asMemberOf(db: AnalysisDatabase, ty: Ty, member: DefId, recv: Ty, from: ?SourceFile): ?Ty {
+public func asMemberOf(db: AnalysisDatabase, ty: Ty, member: DefId, recv: Ty, from: ?SourceFile): ?Ty {
     let owner = parentOf(db, member) ?? return ty
     let args = ownerArgs(db, owner, recv, from) ?? return None
     let applied = substitute(db, ty, owner, args)
