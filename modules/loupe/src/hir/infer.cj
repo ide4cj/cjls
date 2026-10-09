@@ -382,10 +382,10 @@ class Inference {
     }
 
     /**
-     * The type of `std.core`'s declaration `name` of `kind`, applied to `args`.
+     * The type of the lang item `item`, applied to `args`.
      */
-    private func core(name: String, kind: ItemKind, args: Array<Ty>): Ty {
-        match (coreId(name, kind)) {
+    private func langTy(item: LangItem, args: Array<Ty>): Ty {
+        match (langId(item)) {
             case Some(id) => Ty(db, DeclTy(id, args))
             case None => error
         }
@@ -411,9 +411,9 @@ class Inference {
         }
     }
 
-    private func coreId(name: String, kind: ItemKind): ?DefId {
+    private func langId(item: LangItem): ?DefId {
         let ref = packageRefOf(db, def) ?? return None
-        coreDecl(db, ref, name, kind)
+        langItem(db, ref, item)
     }
 
     /**
@@ -480,7 +480,7 @@ class Inference {
                 for (part in parts) {
                     infer(part, None)
                 }
-                core("String", ItemKind.Struct, [])
+                langTy(LangItem.StringStruct, [])
             case PathExpr(name, args) => pathTy(id, name, args, expected)
             case FieldExpr(receiver, name, args) => fieldTy(id, receiver, name, args, expected)
             // a call whose value is dropped returns what it may (N118)
@@ -562,7 +562,7 @@ class Inference {
                     infer(one, None)
                 }
                 match (infer(lambda, None).kind(db)) {
-                    case FuncTy(_, ret, _) => core("Future", ItemKind.Class, [ret])
+                    case FuncTy(_, ret, _) => langTy(LangItem.FutureClass, [ret])
                     case _ => error
                 }
             case SynchronizedExpr(lock, block) =>
@@ -696,7 +696,7 @@ class Inference {
      * instance of (N105).
      */
     private func elementTy(iterated: Ty): Ty {
-        let iterable = coreId("Iterable", ItemKind.Interface) ?? return error
+        let iterable = langId(LangItem.IterableInterface) ?? return error
         match (asInstanceOf(db, iterated, iterable, from).map {one => one.kind(db)}) {
             case Some(DeclTy(_, args)) => args.get(0) ?? error
             case _ => error
@@ -776,7 +776,7 @@ class Inference {
             return prim("UInt8")
         }
         if (!isNumber(text)) {
-            return core("String", ItemKind.Struct, [])
+            return langTy(LangItem.StringStruct, [])
         }
         let lower = text.replace("_", "").toAsciiLower()
         let isHex = lower.startsWith("0x")
@@ -956,7 +956,7 @@ class Inference {
      * synthesized alone before the call (N129).
      */
     private func compositionTy(id: ExprId, lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
-        let composition = packageRefOf(db, def).flatMap {ref => langItem(db, ref, LangItem.CompositionFunc)}
+        let composition = langId(LangItem.CompositionFunc)
         match (composition) {
             case Some(decl) where !isUntypedLambda(lhs) && !isUntypedLambda(rhs) =>
                 callWith(id, funcCallable(decl, [], None), [CallArg(None, lhs), CallArg(None, rhs)], expected)
@@ -1181,7 +1181,7 @@ class Inference {
 
     private func rangeTy(start: ?ExprId, end: ?ExprId, step: ?ExprId, expected: ?Ty): Ty {
         let wanted: ?Ty = match (expected.map {one => one.kind(db)}) {
-            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == coreId("Range", ItemKind.Struct) => args[0]
+            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == langId(LangItem.RangeStruct) => args[0]
             case _ => None
         }
         var element: ?Ty = None
@@ -1198,7 +1198,7 @@ class Inference {
         if (let Some(one) <- step) {
             infer(one, prim("Int64"))
         }
-        core("Range", ItemKind.Struct, [element ?? error])
+        langTy(LangItem.RangeStruct, [element ?? error])
     }
 
     /**
@@ -1207,7 +1207,7 @@ class Inference {
      */
     private func arrayTy(elements: Array<ExprId>, expected: ?Ty): Ty {
         let wanted: ?Ty = match (expected.map {one => unboxed(one).kind(db)}) {
-            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == coreId("Array", ItemKind.Struct) => args[0]
+            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == langId(LangItem.ArrayStruct) => args[0]
             case _ => None
         }
         let element = match (wanted) {
@@ -1219,7 +1219,7 @@ class Inference {
             case None where elements.isEmpty() => error
             case None => joinTys(db, elements.map {e => infer(e, None)}, from)
         }
-        core("Array", ItemKind.Struct, [element])
+        langTy(LangItem.ArrayStruct, [element])
     }
 
     /**

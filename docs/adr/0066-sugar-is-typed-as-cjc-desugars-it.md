@@ -19,7 +19,12 @@ Status: proposed
   - `??` is checked as `ChkCoalescingExpr` checks it, not lowered into a `match`, whose branches would join.
   - `x |> f` is a call of `f` with the argument `x`, the overload it takes `f`'s callee.
   - `f ~> g` is a call of `composition` with `f` and `g`, an operand a lambda of a parameter not written an error.
-- **The declarations the language means are lang items** (option A, as R1): `LangItem` names them, and `langItem(db, from, item)` finds each in `std.core`, its visibility aside. It names `Option` (for `?T`, `??` and boxing) and `composition` now; 8g adds `Some` and `None` for `?.` lowered into `match`es in the HIR.
+- **The declarations the language means are lang items** (option A, as R1): `LangItem` names them, and `langItem(db, from, item)` finds each in `std.core`, its visibility aside.
+  - It names `Option` (`?T`, `??`, `as`, boxing), `composition` (`~>`), `Object` (the superclass of a class of none), `String` (a string literal), `Future` (`spawn`), `Iterable` (`for-in`), `Range` (`a..b`) and `Array` (`[a, b]`). Nothing else looks up a declaration of `std.core` by name.
+  - 8g adds `Some` and `None`, for `?.` lowered into `match`es in the HIR.
+- **The compiler's own types are no lang items.** These are `CPointer`, `CString`, `RawArray`, `VArray` and `CFunc`: a file names them, through its scope, and the syntax means none of them.
+  - cjc has no declaration of them in `std.core`'s source, only `extend`s; it adds a `BuiltInDecl` of each to the package when it compiles it (`AddBuiltInPointerDecl`), which its `.cjo` carries.
+  - They are to be types of their own (option 2B of step 8f, as R1's `TyKind::Raw`), their `extend`s found by the type, not by a declaration: `std.core` developed from its source has no `.cjo` and so no `BuiltInDecl`, and loupe must analyze it. That is a step of its own; until then they are the `.cjo`'s `BuiltInDecl`s.
 - A value of a type that has an `operator func ()` is called through it (`k(1)`, `1 |> k`).
 - A lambda checked against a return type holding an unsolved type argument is checked against it as far as it is known, and returns what its body gives (N132).
 
