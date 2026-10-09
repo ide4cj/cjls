@@ -108,17 +108,24 @@ class RulesTest(unittest.TestCase):
 
 
 class OpenPrsTest(unittest.TestCase):
-    ADRS = [Adr(56, "0056-mine.md", "Mine", "proposed", [])]
+    MINE = {171: [(56, "0056-mine.md")]}
 
     def test_an_older_pull_request_with_the_number_fails_the_younger(self):
         with self.assertRaisesRegex(DocsError, r"ADR-0056 is #170's \(0056-theirs.md\)"):
-            docs.check_open_prs(171, self.ADRS, {170: [(56, "0056-theirs.md")]})
+            docs.check_open_prs(171, {170: [(56, "0056-theirs.md")], **self.MINE})
 
     def test_a_younger_pull_request_with_the_number_is_its_own_concern(self):
-        docs.check_open_prs(170, self.ADRS, {171: [(56, "0056-theirs.md")]})
+        docs.check_open_prs(170, {170: [(56, "0056-theirs.md")], **self.MINE})
 
-    def test_an_older_pull_request_editing_the_same_adr_is_no_clash(self):
-        docs.check_open_prs(171, self.ADRS, {170: [(56, "0056-mine.md")]})
+    def test_a_pull_request_stacked_on_an_older_one_adding_its_adr_is_no_clash(self):
+        docs.check_open_prs(171, {170: [(56, "0056-mine.md")], **self.MINE})
+
+    def test_an_older_pull_request_adding_a_number_master_took_fails_only_itself(self):
+        # master has 0056 as well: #170 is to move, #171 adds another number
+        docs.check_open_prs(171, {170: [(56, "0056-theirs.md")], 171: [(57, "0057-mine.md")]})
+
+    def test_a_pull_request_adding_no_adr_clashes_with_none(self):
+        docs.check_open_prs(171, {170: [(56, "0056-theirs.md")]})
 
 
 if __name__ == "__main__":
