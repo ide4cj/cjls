@@ -6,6 +6,31 @@ import loupe.vfs.*
 import loupe.db.*
 
 /**
+ * The `.cjo` of a project's binaries (D38), as an event reports them: every one in the
+ * directories of theirs, each directory come or gone too, and those named one by one; and the id
+ * of the registration the client watches them by, to unregister it by, `None` if it does not.
+ */
+public struct BinaryWatch {
+    public BinaryWatch(
+        public let id: ?String,
+        public let dirs: Array<VfsPath>,
+        public let files: Array<VfsPath>
+    ) {}
+
+    /**
+     * Whether an event at `path` is of what is watched: a `.cjo` in one of `dirs`, one of `files`,
+     * or one of `dirs` itself, come or gone as a whole.
+     */
+    public func covers(path: VfsPath): Bool {
+        if (files.contains(path) || dirs.contains(path)) {
+            return true
+        }
+        let parent = path.parent ?? return false
+        path.name.endsWith(".cjo") && dirs.contains(parent)
+    }
+}
+
+/**
  * The server's state, which a handler given a `Context` changes: the files as the editor and the
  * disk give them, the documents the editor has open, and the analysis, kept in step with the
  * files: a query takes `state.analysis`, the root handle of the analysis database.
@@ -72,6 +97,12 @@ public class ServerState <: FromContext<ServerState> {
      * The id each root's watcher was registered with, to unregister it by.
      */
     public let watchers = HashMap<VfsPath, String>()
+
+    /**
+     * The `.cjo` of the binaries of the last project set, and how the client watches them; `None`
+     * before a project is.
+     */
+    public var binaryWatch: ?BinaryWatch = None
 
     /**
      * The projects `initializationOptions` names (`linkedProjects`): a `cj-project.json`, or a
