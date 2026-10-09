@@ -38,4 +38,8 @@ public struct DidRenameFilesNotificationSpec <: LspInboundNotification<RenameFil
     public func decodeParams(params: ?RawJson): RenameFilesParams {
         decodeMessageParams<RenameFilesParams>(params)
     }
+
+    public func decodeParams(r: FjReader): RenameFilesParams {
+        decodeMessageParams<RenameFilesParams>(r)
+    }
 }

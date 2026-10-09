@@ -38,4 +38,8 @@ public struct DidDeleteFilesNotificationSpec <: LspInboundNotification<DeleteFil
     public func decodeParams(params: ?RawJson): DeleteFilesParams {
         decodeMessageParams<DeleteFilesParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DeleteFilesParams {
+        decodeMessageParams<DeleteFilesParams>(r)
+    }
 }

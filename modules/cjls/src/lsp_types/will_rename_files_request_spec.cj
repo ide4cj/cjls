@@ -39,6 +39,10 @@ public struct WillRenameFilesRequestSpec <: LspInboundRequest<RenameFilesParams,
         decodeMessageParams<RenameFilesParams>(params)
     }
 
+    public func decodeParams(r: FjReader): RenameFilesParams {
+        decodeMessageParams<RenameFilesParams>(r)
+    }
+
     public func encodeResult(result: Nullable<WorkspaceEdit>): RawJson {
         RawJson.of(result)
     }

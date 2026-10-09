@@ -38,6 +38,10 @@ public struct ImplementationRequestSpec <: LspInboundRequest<ImplementationParam
         decodeMessageParams<ImplementationParams>(params)
     }
 
+    public func decodeParams(r: FjReader): ImplementationParams {
+        decodeMessageParams<ImplementationParams>(r)
+    }
+
     public func encodeResult(result: Nullable<DefinitionOrDefinitionLinks>): RawJson {
         RawJson.of(result)
     }

@@ -36,4 +36,8 @@ public struct DidChangeWorkspaceFoldersNotificationSpec <: LspInboundNotificatio
     public func decodeParams(params: ?RawJson): DidChangeWorkspaceFoldersParams {
         decodeMessageParams<DidChangeWorkspaceFoldersParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidChangeWorkspaceFoldersParams {
+        decodeMessageParams<DidChangeWorkspaceFoldersParams>(r)
+    }
 }

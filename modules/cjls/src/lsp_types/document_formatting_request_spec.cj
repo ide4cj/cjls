@@ -36,6 +36,10 @@ public struct DocumentFormattingRequestSpec <: LspInboundRequest<DocumentFormatt
         decodeMessageParams<DocumentFormattingParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DocumentFormattingParams {
+        decodeMessageParams<DocumentFormattingParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<TextEdit>>): RawJson {
         RawJson.of(result)
     }

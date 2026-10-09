@@ -41,6 +41,10 @@ public struct WillSaveTextDocumentWaitUntilRequestSpec <: LspInboundRequest<Will
         decodeMessageParams<WillSaveTextDocumentParams>(params)
     }
 
+    public func decodeParams(r: FjReader): WillSaveTextDocumentParams {
+        decodeMessageParams<WillSaveTextDocumentParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<TextEdit>>): RawJson {
         RawJson.of(result)
     }

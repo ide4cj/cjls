@@ -10,6 +10,20 @@ public interface JsonRpcReader <: Resource {
      * @return `None` once the peer hangs up
      */
     func read(): ?Body
+
+    /**
+     * The next message, its params read in place by the reader `paramsReader` gives for its
+     * method, when it could (D70): the second value, `None` when it could not. A transport that
+     * reads no bytes of its own leaves them to the handler.
+     *
+     * @return `None` once the peer hangs up
+     */
+    func read(paramsReader: (String) -> Option<(FjReader) -> Any>): ?(Body, ?Any) {
+        match (read()) {
+            case Some(body) => (body, None)
+            case None => None
+        }
+    }
 }
 
 public interface JsonRpcWriter <: Resource {
@@ -73,6 +87,13 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
      * @throws TransportException - if the framing is malformed or truncated
      */
     public func read(): ?Body {
+        match (read(NO_PARAMS_READER)) {
+            case Some((body, _)) => body
+            case None => None
+        }
+    }
+
+    public func read(paramsReader: (String) -> Option<(FjReader) -> Any>): ?(Body, ?Any) {
         if (isClosed()) {
             return None
         }
@@ -91,9 +112,9 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         let payload = readExactly(count)
         reader.reset(payload)
         try {
-            let body = Body.fromJson(reader)
+            let message = Body.read(reader, paramsReader)
             reader.end()
-            body
+            message
         } catch (e: FjException) {
             // read in one pass, a message does not say which it failed at: the JSON or the message
             if (!isJson(payload)) {

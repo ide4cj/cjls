@@ -69,10 +69,11 @@ public class Connection <: Resource {
      * @throws TransportException - if the framing is lost in either direction
      */
     public func serve(): Unit {
+        let paramsReader = {method: String => handler.paramsReader(method)}
         try {
             while (true) {
-                let body = try {
-                    transport.read() ?? break
+                let (body, decodedParams) = try {
+                    transport.read(paramsReader) ?? break
                 } catch (e: RpcException) {
                     // the frame never got far enough to have an id
                     send(ResponseBody(Null, ResultOrError.Error(e.responseError)).enveloped())
@@ -87,8 +88,8 @@ public class Connection <: Resource {
                 }
 
                 match (body) {
-                    case Request(req) => dispatchRequest(req)
-                    case Notification(note) => dispatchNotification(note)
+                    case Request(req) => dispatchRequest(req, decodedParams)
+                    case Notification(note) => dispatchNotification(note, decodedParams)
                     case Response(resp) => complete(resp)
                 }
             }
@@ -103,7 +104,7 @@ public class Connection <: Resource {
      *
      * @throws TransportException - if the frame cannot be written
      */
-    private func dispatchRequest(req: RequestBody): Unit {
+    private func dispatchRequest(req: RequestBody, decodedParams: ?Any): Unit {
         let cancellation = CancellationToken()
         if (inflight.addIfAbsent(req.id, cancellation).isSome()) {
             // the id is taken, so a response carrying it would be ambiguous
@@ -118,7 +119,7 @@ public class Connection <: Resource {
 
         let request = InboundRequest(req.id, req.method, req.params, cancellation, {
             resultOrError => answer(req, resultOrError)
-        })
+        }, decodedParams: decodedParams)
         try {
             handler.onRequest(request)
         } catch (e: Exception) {
@@ -150,9 +151,9 @@ public class Connection <: Resource {
         }
     }
 
-    private func dispatchNotification(note: NotificationBody): Unit {
+    private func dispatchNotification(note: NotificationBody, decodedParams: ?Any): Unit {
         try {
-            handler.onNotification(note.method, note.params)
+            handler.onNotification(note.method, note.params, decodedParams)
         } catch (e: Exception) {
             // nobody waits on a notification's outcome, so there is no one else to tell
             logger.error("serve notification \"${note.method}\" failed", [("cause", e)])

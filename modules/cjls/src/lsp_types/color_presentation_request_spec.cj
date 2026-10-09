@@ -39,6 +39,10 @@ public struct ColorPresentationRequestSpec <: LspInboundRequest<ColorPresentatio
         decodeMessageParams<ColorPresentationParams>(params)
     }
 
+    public func decodeParams(r: FjReader): ColorPresentationParams {
+        decodeMessageParams<ColorPresentationParams>(r)
+    }
+
     public func encodeResult(result: Array<ColorPresentation>): RawJson {
         RawJson.of(result)
     }

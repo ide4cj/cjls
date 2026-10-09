@@ -32,4 +32,8 @@ public struct CancelNotificationSpec <: LspInboundNotification<CancelParams> & L
     public func decodeParams(params: ?RawJson): CancelParams {
         decodeMessageParams<CancelParams>(params)
     }
+
+    public func decodeParams(r: FjReader): CancelParams {
+        decodeMessageParams<CancelParams>(r)
+    }
 }

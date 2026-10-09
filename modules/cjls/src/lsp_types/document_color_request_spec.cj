@@ -39,6 +39,10 @@ public struct DocumentColorRequestSpec <: LspInboundRequest<DocumentColorParams,
         decodeMessageParams<DocumentColorParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DocumentColorParams {
+        decodeMessageParams<DocumentColorParams>(r)
+    }
+
     public func encodeResult(result: Array<ColorInformation>): RawJson {
         RawJson.of(result)
     }

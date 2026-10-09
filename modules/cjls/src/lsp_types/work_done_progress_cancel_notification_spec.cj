@@ -36,4 +36,8 @@ public struct WorkDoneProgressCancelNotificationSpec <: LspInboundNotification<W
     public func decodeParams(params: ?RawJson): WorkDoneProgressCancelParams {
         decodeMessageParams<WorkDoneProgressCancelParams>(params)
     }
+
+    public func decodeParams(r: FjReader): WorkDoneProgressCancelParams {
+        decodeMessageParams<WorkDoneProgressCancelParams>(r)
+    }
 }

@@ -37,4 +37,8 @@ public struct DidCloseNotebookDocumentNotificationSpec <: LspInboundNotification
     public func decodeParams(params: ?RawJson): DidCloseNotebookDocumentParams {
         decodeMessageParams<DidCloseNotebookDocumentParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidCloseNotebookDocumentParams {
+        decodeMessageParams<DidCloseNotebookDocumentParams>(r)
+    }
 }

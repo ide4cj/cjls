@@ -32,4 +32,8 @@ public struct DidChangeNotebookDocumentNotificationSpec <: LspInboundNotificatio
     public func decodeParams(params: ?RawJson): DidChangeNotebookDocumentParams {
         decodeMessageParams<DidChangeNotebookDocumentParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidChangeNotebookDocumentParams {
+        decodeMessageParams<DidChangeNotebookDocumentParams>(r)
+    }
 }

@@ -39,6 +39,10 @@ public struct ReferencesRequestSpec <: LspInboundRequest<ReferenceParams, Nullab
         decodeMessageParams<ReferenceParams>(params)
     }
 
+    public func decodeParams(r: FjReader): ReferenceParams {
+        decodeMessageParams<ReferenceParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<Location>>): RawJson {
         RawJson.of(result)
     }

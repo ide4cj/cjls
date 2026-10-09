@@ -36,4 +36,8 @@ public struct DidChangeWatchedFilesNotificationSpec <: LspInboundNotification<Di
     public func decodeParams(params: ?RawJson): DidChangeWatchedFilesParams {
         decodeMessageParams<DidChangeWatchedFilesParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidChangeWatchedFilesParams {
+        decodeMessageParams<DidChangeWatchedFilesParams>(r)
+    }
 }

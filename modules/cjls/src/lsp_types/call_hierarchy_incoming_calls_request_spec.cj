@@ -38,6 +38,10 @@ public struct CallHierarchyIncomingCallsRequestSpec <: LspInboundRequest<CallHie
         decodeMessageParams<CallHierarchyIncomingCallsParams>(params)
     }
 
+    public func decodeParams(r: FjReader): CallHierarchyIncomingCallsParams {
+        decodeMessageParams<CallHierarchyIncomingCallsParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<CallHierarchyIncomingCall>>): RawJson {
         RawJson.of(result)
     }

@@ -40,6 +40,10 @@ public struct InlayHintRequestSpec <: LspInboundRequest<InlayHintParams, Nullabl
         decodeMessageParams<InlayHintParams>(params)
     }
 
+    public func decodeParams(r: FjReader): InlayHintParams {
+        decodeMessageParams<InlayHintParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<InlayHint>>): RawJson {
         RawJson.of(result)
     }

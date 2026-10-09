@@ -1,7 +1,7 @@
 package cjls.server
 
 import std.collection.{ArrayList, HashMap}
-import fjson.RawJson
+import fjson.{FjReader, RawJson}
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 
@@ -64,12 +64,18 @@ public class Router {
     }
 
     /**
+     * How each method's params are read where they lie in the frame, for the read loop (D70):
+     * what `Server.paramsReader` answers from.
+     */
+    let paramsReaders = HashMap<String, (FjReader) -> Any>()
+
+    /**
      * @throws IllegalArgumentException - if the method already has a handler
      */
     public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (Context<P>) -> R): Router {
         add(requests, spec.method, RequestRoute.Exclusive({
-            parts, params => spec.encodeResult(handler(parts.context(spec.decodeParams(params))))
-        }))
+            parts, params, decoded => spec.encodeResult(handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params))))
+        }), inPlace(spec))
     }
 
     /**
@@ -77,8 +83,8 @@ public class Router {
      */
     public func route<P>(spec: LspInboundNotification<P>, handler: (Context<P>) -> Unit): Router {
         add(notifications, spec.method, NotificationRoute.Exclusive({
-            parts, params => handler(parts.context(spec.decodeParams(params)))
-        }))
+            parts, params, decoded => handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+        }), inPlace(spec))
     }
 
     /**
@@ -88,8 +94,8 @@ public class Router {
     public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (ReadOnlyContext<P>) -> R): Router {
         refuseLifecycle(spec.method)
         add(requests, spec.method, RequestRoute.ReadOnly({
-            parts, params => spec.encodeResult(handler(parts.context(spec.decodeParams(params))))
-        }))
+            parts, params, decoded => spec.encodeResult(handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params))))
+        }), inPlace(spec))
     }
 
     /**
@@ -99,27 +105,59 @@ public class Router {
     public func route<P>(spec: LspInboundNotification<P>, handler: (ReadOnlyContext<P>) -> Unit): Router {
         refuseLifecycle(spec.method)
         add(notifications, spec.method, NotificationRoute.ReadOnly({
-            parts, params => handler(parts.context(spec.decodeParams(params)))
-        }))
+            parts, params, decoded => handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+        }), inPlace(spec))
     }
 
-    private func add<T>(routes: HashMap<String, T>, method: String, route: T): Router {
+    private func add<T>(routes: HashMap<String, T>, method: String, route: T, inPlace: (FjReader) -> Any): Router {
         if (routes.contains(method)) {
             throw IllegalArgumentException("two handlers for \"${method}\"")
         }
         routes.add(method, route)
+        paramsReaders.add(method, inPlace)
         this
+    }
+
+    private func inPlace<P, R>(spec: LspInboundRequest<P, R>): (FjReader) -> Any {
+        {
+            r =>
+            let params: Any = spec.decodeParams(r)
+            params
+        }
+    }
+
+    private func inPlace<P>(spec: LspInboundNotification<P>): (FjReader) -> Any {
+        {
+            r =>
+            let params: Any = spec.decodeParams(r)
+            params
+        }
     }
 }
 
+/**
+ * The params the read loop decoded in place, as the route's type; `None` when it could not, or
+ * they are not of it.
+ */
+func decodedAs<P>(decoded: ?Any): ?P {
+    match (decoded) {
+        case Some(value) => value as P
+        case None => None
+    }
+}
+
+/**
+ * A route runs on its parts and the message's params: their bytes, and what the read loop
+ * decoded of them in place, if it did (D70).
+ */
 enum RequestRoute {
-    | Exclusive((Parts, ?RawJson) -> RawJson)
-    | ReadOnly((ReadOnlyParts, ?RawJson) -> RawJson)
+    | Exclusive((Parts, ?RawJson, ?Any) -> RawJson)
+    | ReadOnly((ReadOnlyParts, ?RawJson, ?Any) -> RawJson)
 }
 
 enum NotificationRoute {
-    | Exclusive((Parts, ?RawJson) -> Unit)
-    | ReadOnly((ReadOnlyParts, ?RawJson) -> Unit)
+    | Exclusive((Parts, ?RawJson, ?Any) -> Unit)
+    | ReadOnly((ReadOnlyParts, ?RawJson, ?Any) -> Unit)
 }
 
 private func refuseLifecycle(method: String): Unit {

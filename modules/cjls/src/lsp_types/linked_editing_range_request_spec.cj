@@ -38,6 +38,10 @@ public struct LinkedEditingRangeRequestSpec <: LspInboundRequest<LinkedEditingRa
         decodeMessageParams<LinkedEditingRangeParams>(params)
     }
 
+    public func decodeParams(r: FjReader): LinkedEditingRangeParams {
+        decodeMessageParams<LinkedEditingRangeParams>(r)
+    }
+
     public func encodeResult(result: Nullable<LinkedEditingRanges>): RawJson {
         RawJson.of(result)
     }

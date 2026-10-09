@@ -40,6 +40,10 @@ public struct InlineCompletionRequestSpec <: LspInboundRequest<InlineCompletionP
         decodeMessageParams<InlineCompletionParams>(params)
     }
 
+    public func decodeParams(r: FjReader): InlineCompletionParams {
+        decodeMessageParams<InlineCompletionParams>(r)
+    }
+
     public func encodeResult(result: Nullable<InlineCompletionListOrInlineCompletionItems>): RawJson {
         RawJson.of(result)
     }

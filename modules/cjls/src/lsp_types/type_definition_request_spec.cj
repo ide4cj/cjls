@@ -38,6 +38,10 @@ public struct TypeDefinitionRequestSpec <: LspInboundRequest<TypeDefinitionParam
         decodeMessageParams<TypeDefinitionParams>(params)
     }
 
+    public func decodeParams(r: FjReader): TypeDefinitionParams {
+        decodeMessageParams<TypeDefinitionParams>(r)
+    }
+
     public func encodeResult(result: Nullable<DefinitionOrDefinitionLinks>): RawJson {
         RawJson.of(result)
     }

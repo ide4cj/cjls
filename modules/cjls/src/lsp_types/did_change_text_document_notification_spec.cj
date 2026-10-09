@@ -36,4 +36,8 @@ public struct DidChangeTextDocumentNotificationSpec <: LspInboundNotification<Di
     public func decodeParams(params: ?RawJson): DidChangeTextDocumentParams {
         decodeMessageParams<DidChangeTextDocumentParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidChangeTextDocumentParams {
+        decodeMessageParams<DidChangeTextDocumentParams>(r)
+    }
 }

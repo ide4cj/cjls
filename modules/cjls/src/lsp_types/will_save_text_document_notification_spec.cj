@@ -36,4 +36,8 @@ public struct WillSaveTextDocumentNotificationSpec <: LspInboundNotification<Wil
     public func decodeParams(params: ?RawJson): WillSaveTextDocumentParams {
         decodeMessageParams<WillSaveTextDocumentParams>(params)
     }
+
+    public func decodeParams(r: FjReader): WillSaveTextDocumentParams {
+        decodeMessageParams<WillSaveTextDocumentParams>(r)
+    }
 }

@@ -36,6 +36,10 @@ public struct CodeLensRequestSpec <: LspInboundRequest<CodeLensParams, Nullable<
         decodeMessageParams<CodeLensParams>(params)
     }
 
+    public func decodeParams(r: FjReader): CodeLensParams {
+        decodeMessageParams<CodeLensParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<CodeLens>>): RawJson {
         RawJson.of(result)
     }

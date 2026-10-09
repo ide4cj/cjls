@@ -32,4 +32,8 @@ public struct ProgressNotificationSpec <: LspInboundNotification<ProgressParams>
     public func decodeParams(params: ?RawJson): ProgressParams {
         decodeMessageParams<ProgressParams>(params)
     }
+
+    public func decodeParams(r: FjReader): ProgressParams {
+        decodeMessageParams<ProgressParams>(r)
+    }
 }
