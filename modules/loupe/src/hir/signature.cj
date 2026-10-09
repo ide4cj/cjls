@@ -9,7 +9,6 @@ import cjsyntax.ast.{AnyHasTypeParams, AnyHasWhereClause, Decl, GenericConstrain
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
-import loupe.syntax.parse
 
 /**
  * A type of a signature, by its place among the signature's `types`.
@@ -162,14 +161,13 @@ public struct LoweredSignature {
 }
 
 /**
- * The `LoweredSignature` of `def`: of its node in a source file; an empty one for a declaration of a
+ * The `LoweredSignature` of `def`: of its node in a source file or an expansion; an empty one for a declaration of a
  * package compiled already, whose types its `.cjo` has resolved, or for an item no longer there.
  */
 @CalcaTracked
 public func signatureWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredSignature {
-    if (let Source(file) <- def.file(db)) {
-        let root = parse(db, file).syntaxNode()
-        if (let Some(decl) <- itemIdMap(db, file).node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
+    if (let Some((root, ids)) <- syntaxOf(db, def.file(db))) {
+        if (let Some(decl) <- ids.node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
             return lowerSignature(decl)
         }
     }
