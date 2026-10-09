@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * A request to format a range in a document.
  */
-public struct DocumentRangeFormattingRequestSpec <: LspInboundRequest<DocumentRangeFormattingParams, Nullable<Array<TextEdit>>> {
+public struct DocumentRangeFormattingRequestSpec <: LspInboundRequest<DocumentRangeFormattingParams, Nullable<Array<TextEdit>>> & LspRegistrable<DocumentRangeFormattingRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/rangeFormatting"
@@ -27,6 +27,12 @@ public struct DocumentRangeFormattingRequestSpec <: LspInboundRequest<DocumentRa
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

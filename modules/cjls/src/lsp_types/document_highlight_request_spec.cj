@@ -16,7 +16,7 @@ import jsonrpc.*
  * the request response is an array of type {@link DocumentHighlight}
  * or a Thenable that resolves to such.
  */
-public struct DocumentHighlightRequestSpec <: LspInboundRequest<DocumentHighlightParams, Nullable<Array<DocumentHighlight>>> {
+public struct DocumentHighlightRequestSpec <: LspInboundRequest<DocumentHighlightParams, Nullable<Array<DocumentHighlight>>> & LspRegistrable<DocumentHighlightRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/documentHighlight"
@@ -30,6 +30,12 @@ public struct DocumentHighlightRequestSpec <: LspInboundRequest<DocumentHighligh
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

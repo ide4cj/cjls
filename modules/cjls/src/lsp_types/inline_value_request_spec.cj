@@ -17,7 +17,7 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-public struct InlineValueRequestSpec <: LspInboundRequest<InlineValueParams, Nullable<Array<InlineValue>>> {
+public struct InlineValueRequestSpec <: LspInboundRequest<InlineValueParams, Nullable<Array<InlineValue>>> & LspRegistrable<InlineValueRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/inlineValue"
@@ -31,6 +31,12 @@ public struct InlineValueRequestSpec <: LspInboundRequest<InlineValueParams, Nul
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

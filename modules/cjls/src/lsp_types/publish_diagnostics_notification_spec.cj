@@ -32,4 +32,8 @@ public struct PublishDiagnosticsNotificationSpec <: LspOutboundNotification<Publ
             METHOD
         }
     }
+
+    public func encodeParams(params: PublishDiagnosticsParams): RawJson {
+        RawJson.of(params)
+    }
 }

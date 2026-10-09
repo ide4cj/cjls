@@ -32,4 +32,12 @@ public struct WorkDoneProgressCreateRequestSpec <: LspOutboundRequest<WorkDonePr
             METHOD
         }
     }
+
+    public func encodeParams(params: WorkDoneProgressCreateParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): Unit {
+        ()
+    }
 }

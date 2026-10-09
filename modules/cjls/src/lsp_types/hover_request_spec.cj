@@ -15,7 +15,7 @@ import jsonrpc.*
  * parameter is of type {@link TextDocumentPosition} the response is of
  * type {@link Hover} or a Thenable that resolves to such.
  */
-public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>> {
+public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>> & LspRegistrable<HoverRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/hover"
@@ -29,6 +29,12 @@ public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

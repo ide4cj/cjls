@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * A request to rename a symbol.
  */
-public struct RenameRequestSpec <: LspInboundRequest<RenameParams, Nullable<WorkspaceEdit>> {
+public struct RenameRequestSpec <: LspInboundRequest<RenameParams, Nullable<WorkspaceEdit>> & LspRegistrable<RenameRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/rename"
@@ -27,6 +27,12 @@ public struct RenameRequestSpec <: LspInboundRequest<RenameParams, Nullable<Work
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

@@ -17,7 +17,7 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-public struct InlayHintRequestSpec <: LspInboundRequest<InlayHintParams, Nullable<Array<InlayHint>>> {
+public struct InlayHintRequestSpec <: LspInboundRequest<InlayHintParams, Nullable<Array<InlayHint>>> & LspRegistrable<InlayHintRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/inlayHint"
@@ -31,6 +31,12 @@ public struct InlayHintRequestSpec <: LspInboundRequest<InlayHintParams, Nullabl
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

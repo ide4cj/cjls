@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct WillDeleteFilesRequestSpec <: LspInboundRequest<DeleteFilesParams, Nullable<WorkspaceEdit>> {
+public struct WillDeleteFilesRequestSpec <: LspInboundRequest<DeleteFilesParams, Nullable<WorkspaceEdit>> & LspRegistrable<FileOperationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/willDeleteFiles"
@@ -30,6 +30,12 @@ public struct WillDeleteFilesRequestSpec <: LspInboundRequest<DeleteFilesParams,
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

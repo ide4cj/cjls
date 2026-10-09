@@ -32,4 +32,12 @@ public struct RegistrationRequestSpec <: LspOutboundRequest<RegistrationParams, 
             METHOD
         }
     }
+
+    public func encodeParams(params: RegistrationParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): Unit {
+        ()
+    }
 }

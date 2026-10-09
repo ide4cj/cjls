@@ -17,7 +17,7 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
-public struct InlineCompletionRequestSpec <: LspInboundRequest<InlineCompletionParams, Nullable<InlineCompletionListOrInlineCompletionItems>> {
+public struct InlineCompletionRequestSpec <: LspInboundRequest<InlineCompletionParams, Nullable<InlineCompletionListOrInlineCompletionItems>> & LspRegistrable<InlineCompletionRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/inlineCompletion"
@@ -31,6 +31,12 @@ public struct InlineCompletionRequestSpec <: LspInboundRequest<InlineCompletionP
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

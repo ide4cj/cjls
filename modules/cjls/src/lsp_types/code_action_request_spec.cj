@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * A request to provide commands for the given text document and range.
  */
-public struct CodeActionRequestSpec <: LspInboundRequest<CodeActionParams, Nullable<Array<CommandOrCodeAction>>> {
+public struct CodeActionRequestSpec <: LspInboundRequest<CodeActionParams, Nullable<Array<CommandOrCodeAction>>> & LspRegistrable<CodeActionRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/codeAction"
@@ -27,6 +27,12 @@ public struct CodeActionRequestSpec <: LspInboundRequest<CodeActionParams, Nulla
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

@@ -10,7 +10,7 @@ import stdxx.{IntegerOrString, Nullable}
 import stdxx.deriving.*
 import jsonrpc.*
 
-public struct SignatureHelpRequestSpec <: LspInboundRequest<SignatureHelpParams, Nullable<SignatureHelp>> {
+public struct SignatureHelpRequestSpec <: LspInboundRequest<SignatureHelpParams, Nullable<SignatureHelp>> & LspRegistrable<SignatureHelpRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/signatureHelp"
@@ -24,6 +24,12 @@ public struct SignatureHelpRequestSpec <: LspInboundRequest<SignatureHelpParams,
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }
