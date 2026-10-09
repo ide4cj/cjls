@@ -34,7 +34,7 @@ class SemanticTokensEncodingTest {
         // arrange
         let tokens = [
             HighlightedRange(TextRange(0, 3), HighlightTag.Keyword),
-            HighlightedRange(TextRange(4, 5), HighlightTag.Declared(StructureKind.Variable),
+            HighlightedRange(TextRange(4, 5), HighlightTag.Symbol(StructureKind.Variable),
                 modifiers: HighlightModifiers.NONE.plus(HighlightModifier.Declaration).plus(HighlightModifier.Readonly)),
             HighlightedRange(TextRange(8, 9), HighlightTag.NumberLiteral)
         ]
@@ -173,5 +173,25 @@ class SemanticTokensTest {
 
         // assert
         @Expect(state.multilineTokens, multiline)
+    }
+
+    @TestCase[row in [
+        (ClientCapabilities(workspace: WorkspaceClientCapabilities(semanticTokens: SemanticTokensWorkspaceClientCapabilities(
+            refreshSupport: true))), true),
+        (ClientCapabilities(workspace: WorkspaceClientCapabilities(semanticTokens: SemanticTokensWorkspaceClientCapabilities())),
+            false),
+        (ClientCapabilities(), false)
+    ]]
+    func tokensAreRefreshedOnlyForAClientThatSaysItAsksAgain(row: (ClientCapabilities, Bool)) {
+        // arrange
+        let (capabilities, refreshes) = row
+        let state = ServerState()
+
+        // act
+        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+            capabilities: capabilities))
+
+        // assert
+        @Expect(state.refreshesSemanticTokens, refreshes)
     }
 }
