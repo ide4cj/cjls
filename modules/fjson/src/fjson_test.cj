@@ -133,6 +133,36 @@ class FjReaderTest {
     }
 
     @TestCase
+    func rewindReadsAValueAgainAfterAnAttemptThatStoppedMidway() {
+        // arrange
+        let r = reader(#"[1, {"a": "x", "b": 2}, 3]"#)
+        r.beginArray()
+        r.nextItem()
+        r.readInt64()
+        r.nextItem()
+
+        // act: a decoder that reads the first member, then gives up
+        let mark = r.mark()
+        r.beginObject()
+        r.nextKey()
+        r.readString()
+        r.rewind(mark)
+        r.beginObject()
+        var keys = ArrayList<String>()
+        while (r.nextKey()) {
+            keys.add(r.key())
+            r.skipValue()
+        }
+        r.nextItem()
+        let last = r.readInt64()
+
+        // assert
+        @Expect(["a", "b"], keys.toArray())
+        @Expect(3, last)
+        @Expect(!r.nextItem())
+    }
+
+    @TestCase
     func refusesMissingAndTrailingCommas() {
         // act, assert
         @AssertThrows[FjException](skipObject(#"{"a": 1 "b": 2}"#))

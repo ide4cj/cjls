@@ -18,6 +18,8 @@ import cjls.lsp_types.Range as LspRange
 
 let BENCH_KEYSTROKE: Array<Byte> = ##"{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","version":42},"contentChanges":[{"range":{"start":{"line":120,"character":17},"end":{"line":120,"character":17}},"rangeLength":0,"text":"a"}]}}"##.toArray()
 
+let BENCH_KEYSTROKE_PARAMS: ?RawJson = fromJsonBytes<Body>(BENCH_KEYSTROKE).getNotificationBodyOrThrow().params
+
 // JSON string content, escapes included: quotes, backslashes, a tab, Cyrillic and an emoji
 let BENCH_LINE = #"    let s = \"a \\\"quoted\\\" \\\\ path\tтекст 😀\"; // комментарий\n"#
 
@@ -51,6 +53,17 @@ class JsonCodecBench {
     func readKeystroke(): DidChangeTextDocumentParams {
         let body = fromJsonBytes<Body>(BENCH_KEYSTROKE)
         DidChangeTextDocumentNotificationSpec().decodeParams(body.getNotificationBodyOrThrow().params)
+    }
+
+    // the two passes of `readKeystroke` apart: the envelope's, skipping `params` into a slice, and the route's
+    @Bench
+    func readKeystrokeEnvelope(): Body {
+        fromJsonBytes<Body>(BENCH_KEYSTROKE)
+    }
+
+    @Bench
+    func readKeystrokeParams(): DidChangeTextDocumentParams {
+        DidChangeTextDocumentNotificationSpec().decodeParams(BENCH_KEYSTROKE_PARAMS)
     }
 
     @Bench
