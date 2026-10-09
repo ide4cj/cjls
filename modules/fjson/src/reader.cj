@@ -592,6 +592,24 @@ public class FjReader {
         bytes[start..pos]
     }
 
+    /**
+     * Where the next value starts, for `rewind`: a union tries its variants from the same place, on
+     * the same reader, so a failed attempt costs no slice and no second reader.
+     */
+    @Frozen
+    public func mark(): Int64 {
+        ws()
+        pos
+    }
+
+    /** Back at a `mark`, as if nothing after it had been read. */
+    @Frozen
+    public func rewind(mark: Int64): Unit {
+        pos = mark
+        // a mark is taken where a value starts, and a value's container has had its separator by then
+        first = false
+    }
+
     /** Nothing but whitespace is left. */
     @Frozen
     public func end(): Unit {
