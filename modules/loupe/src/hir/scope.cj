@@ -211,13 +211,15 @@ public func importsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Imp
 }
 
 /**
- * Where a name is used: as a type, or as a value (N41). A type does not see functions or
- * variables; neither sees a macro.
+ * Where a name is used: as a type, or as a value (N41), or as the macro of a call. A type does not
+ * see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive`
+ * leaves `@Derive` the imported macro).
  */
 @Derive[Equatable]
 public enum Namespace {
     | Types
     | Values
+    | Macros
 }
 
 /**
@@ -260,8 +262,8 @@ public enum Resolution <: ToString {
  */
 func isIn(kind: ItemKind, ns: Namespace): Bool {
     match (kind) {
-        case Macro => false
-        case Class | Interface | Struct | Enum | TypeAlias | BuiltIn => true
+        case Macro => ns == Namespace.Macros
+        case Class | Interface | Struct | Enum | TypeAlias | BuiltIn => ns != Namespace.Macros
         case _ => ns == Namespace.Values
     }
 }
@@ -376,7 +378,7 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
         }
         return Resolution.Ambiguous(imported.toArray())
     }
-    if (ns == Namespace.Types) {
+    if (ns != Namespace.Values) {
         return Resolution.NotFound
     }
     let ownCtors = (defs.ctors.get(name) ?? []).filter {

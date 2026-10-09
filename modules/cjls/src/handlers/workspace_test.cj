@@ -694,6 +694,87 @@ class DidChangeWorkspaceFoldersTest {
         @Expect(state.roots.toArray(), [VfsPath.file(dir)])
         @Expect(textAt(state, dir.join("a.cj")), Some("a"))
     }
+
+    @TestCase
+    func aFolderRemovedTakesItsFilesWithTheProjectTheLoadSets() {
+        // arrange
+        let removed = workspaceOf([("a.cj", "a")])
+        let kept = workspaceOf([("b.cj", "b")])
+        let loop = initializedWith([removed, kept], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        let file = VfsPath.file(removed.join("a.cj"))
+
+        // act - the load waits for the write the handler runs in, as it waits for a message
+        let (textBefore, inProjectBefore) = loop.write {
+            state: ServerState =>
+            handleDidChangeWorkspaceFolders(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+                event: WorkspaceFoldersChangeEvent(added: [], removed: [WorkspaceFolder(uri: uriOf(removed), name: "a")])))
+            (textAt(state, removed.join("a.cj")), state.inProject(file))
+        }
+        loop.join()
+        remove(removed, recursive: true)
+        remove(kept, recursive: true)
+
+        // assert
+        @Expect(textBefore, Some("a"))
+        @Expect(inProjectBefore)
+        @Expect(textAt(state, removed.join("a.cj")), None<String>)
+        @Expect(!state.inProject(file))
+        @Expect(textAt(state, kept.join("b.cj")), Some("b"))
+    }
+
+    @TestCase
+    func theFilesOfAFolderRemovedGoWithTheLoadThatEndedItsOwn() {
+        // arrange
+        let removed = workspaceOf([("a.cj", "a")])
+        let kept = workspaceOf([("b.cj", "b")])
+        let added = workspaceOf([("c.cj", "c")])
+        let loop = initializedWith([removed, kept], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+
+        // act - the second change begins a load before the first sets anything
+        loop.write {
+            _: ServerState =>
+            handleDidChangeWorkspaceFolders(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+                event: WorkspaceFoldersChangeEvent(added: [], removed: [WorkspaceFolder(uri: uriOf(removed), name: "a")])))
+            handleDidChangeWorkspaceFolders(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+                event: WorkspaceFoldersChangeEvent(added: [WorkspaceFolder(uri: uriOf(added), name: "c")], removed: [])))
+        }
+        loop.join()
+        remove(removed, recursive: true)
+        remove(kept, recursive: true)
+        remove(added, recursive: true)
+
+        // assert
+        @Expect(textAt(state, removed.join("a.cj")), None<String>)
+        @Expect(textAt(state, added.join("c.cj")), Some("c"))
+    }
+
+    @TestCase
+    func aDocumentOpenedBeforeTheLoadSetsTheProjectKeepsTheEditorsText() {
+        // arrange
+        let removed = workspaceOf([("a.cj", "a")])
+        let kept = workspaceOf([("b.cj", "b")])
+        let loop = initializedWith([removed, kept], watches: false)
+        let state = loop.state
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+
+        // act
+        loop.write {
+            state: ServerState =>
+            handleDidChangeWorkspaceFolders(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+                event: WorkspaceFoldersChangeEvent(added: [], removed: [WorkspaceFolder(uri: uriOf(removed), name: "a")])))
+            openIn(state, removed.join("a.cj"), "edited")
+        }
+        loop.join()
+        remove(removed, recursive: true)
+        remove(kept, recursive: true)
+
+        // assert
+        @Expect(textAt(state, removed.join("a.cj")), Some("edited"))
+    }
 }
 
 @Test

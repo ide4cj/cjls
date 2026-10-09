@@ -70,7 +70,8 @@ public struct InferenceResult {
     }
 
     /**
-     * The declaration the call whose callee is `expr` takes, if it was chosen among several.
+     * The declaration the call whose callee is `expr` takes, if it was chosen among several; the
+     * operator function the operator `expr` calls (8e).
      */
     public func calleeOf(expr: ExprId): ?DefId {
         callees.iterator().filter {one => one.expr == expr}.next().map {one => one.decl}
@@ -122,14 +123,25 @@ let MEMBER_LEVEL = 1 << 32
  * called on; `open`, the declaration whose type parameters in them are the call's to infer (8c);
  * the declaration it is, if one; how far it is from the call, cjc's scope level counted the other
  * way: a local function by the scopes out to its own, then `MEMBER_LEVEL` for a member of the type
- * around the body, one more for a declaration of the package, two for one imported (N117).
+ * around the body, one more for a declaration of the package, two for one imported (N117); the
+ * name each parameter is passed by, as its signature says.
  */
 struct Callable {
     Callable(let params: Array<Ty>, let ret: Ty, let open!: ?DefId = None, let decl!: ?DefId = None,
-        let level!: Int64 = 0) {}
+        let level!: Int64 = 0, let names!: Array<?String> = []) {}
 
     func at(level: Int64): Callable {
-        Callable(params, ret, open: open, decl: decl, level: level)
+        Callable(params, ret, open: open, decl: decl, level: level, names: names)
+    }
+
+    /**
+     * Whether it takes its last parameter by name: of an operator `[]`, the one assigned (N124).
+     */
+    func takesValue(): Bool {
+        match (names.get(names.size - 1)) {
+            case Some(Some(_)) => true
+            case _ => false
+        }
     }
 
     /**
@@ -207,6 +219,8 @@ class Inference {
     private let known = HashMap<Int64, Ty>()
     // the blocks of functions returning `Unit` and what their value is: of any type (N118)
     private let dropped = HashSet<Int64>()
+    // the operators of a type by name, as looked up once in the body (8e)
+    private let operators = HashMap<Ty, HashMap<String, Array<Callable>>>()
 
     Inference(private let db: AnalysisDatabase, private let def: DefId) {
         hir = body(db, def)
@@ -452,13 +466,13 @@ class Inference {
             case CallExpr(callee, args) => callTy(callee, args, expected.filter {
                 one => !(dropped.contains(id.index) && one.kind(db) == PrimTy("Unit"))
             })
-            case IndexExpr(base, indices) => indexTy(base, indices)
+            case IndexExpr(base, indices) => indexTy(id, base, indices, expected)
             case OptionalExpr(inner) =>
                 // `a?.b`, `a?()` (8e)
                 infer(inner, None)
                 error
-            case UnaryExpr(op, operand) => unaryTy(op, operand, expected)
-            case BinaryExpr(op, lhs, rhs) => binaryTy(op, lhs, rhs, expected)
+            case UnaryExpr(op, operand) => unaryTy(id, op, operand, expected)
+            case BinaryExpr(op, lhs, rhs) => binaryTy(id, op, lhs, rhs, expected)
             case IsExpr(inner, _) =>
                 infer(inner, None)
                 prim("Bool")
@@ -789,31 +803,27 @@ class Inference {
         }
     }
 
-    private func unaryTy(op: String, operand: ExprId, expected: ?Ty): Ty {
-        let ty = infer(operand, expected)
+    /**
+     * `!x`, `-x`: of a type of the language, its own; else the operator its type declares (N123).
+     */
+    private func unaryTy(id: ExprId, op: String, operand: ExprId, expected: ?Ty): Ty {
+        // a type of the language expected passes to the operand (`let x: ?Int8 = -1`), another not
+        let ty = infer(operand, expected.filter {one => isPrim(unboxed(one))})
         match (ty.kind(db)) {
             case PrimTy(name) where op == "!" && (name == "Bool" || INTEGER_TYPES.contains(name)) => ty
             case PrimTy(name) where op == "-" && (INTEGER_TYPES.contains(name) || FLOAT_TYPES.contains(name)) => ty
-            // an operator a type declares (8e)
-            case _ => error
+            case _ => operatorTy(id, ty, op, [], expected)
         }
     }
 
     /**
-     * An operator between two: an assignment is `Unit`, its right checked against its left; one of
-     * the language's between its types, a literal of the type of the other side (N99); one a type
-     * declares, not yet (8e).
+     * An operator between two: an assignment's `assignTy`; one of the language's between its types,
+     * a literal of the type of the other side (N99); else the operator the left's type declares,
+     * called with the right (N122), as cjc tries the language's first and the declared after.
      */
-    private func binaryTy(op: String, lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
+    private func binaryTy(id: ExprId, op: String, lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
         if (ASSIGNMENTS.contains(op)) {
-            let target = infer(lhs, None)
-            // `**=` of an integer takes a `UInt64`; `<<=` its left's type (N118)
-            infer(rhs, if (op == "**=") {
-                rightExpected("**", target)
-            } else {
-                target
-            })
-            return prim("Unit")
+            return assignTy(id, op, lhs, rhs)
         }
         if (op == "&&" || op == "||") {
             infer(lhs, prim("Bool"))
@@ -821,45 +831,257 @@ class Inference {
             return prim("Bool")
         }
         if (!COMPARISONS.contains(op) && !ARITHMETIC.contains(op)) {
-            // `??`, `|>`, `~>` (8e)
+            // `??`, `|>`, `~>` (8f)
             infer(lhs, None)
             infer(rhs, None)
             return error
         }
         let isComparison = COMPARISONS.contains(op)
-        var left = error
-        var right = error
-        // what one side tells the other of an arithmetic is of a type of the language: an operator
-        // of another type takes what it declares (8e, `"x" * n`)
-        let ofPrim = {
-            ty: ?Ty => ty.filter {
-                one => match (one.kind(db)) {
-                    case PrimTy(_) => true
-                    case _ => false
+        let left = if (isNumericLiteral(lhs) && !isNumericLiteral(rhs)) {
+            // a number before what is not: of the type of the other side, if one of the language
+            let found = builtin {
+                =>
+                let right = infer(rhs, None)
+                if (!isPrim(right)) {
+                    return None
                 }
+                let left = infer(lhs, right)
+                if (!fits(left, right)) {
+                    return None
+                }
+                builtinTy(op, left, right)
             }
-        }
-        if (isNumericLiteral(lhs) && !isNumericLiteral(rhs)) {
-            right = infer(rhs, None)
-            left = infer(lhs, ofPrim(right))
+            if (let Some(ty) <- found) {
+                return ty
+            }
+            // else alone, of its default type, the right not told anything (N125)
+            infer(lhs, None)
         } else {
-            left = infer(lhs, if (isComparison) {
+            let synthesized = infer(lhs, if (isComparison) {
                 None
             } else {
-                ofPrim(expected)
+                primOnly(expected)
             })
-            // but a comparison: `==` of a type takes one of that type (`Option<T>`'s `Option<T>`)
-            right = infer(rhs, if (isComparison) {
-                rightExpected(op, left)
-            } else {
-                ofPrim(rightExpected(op, left))
-            })
+            if (isPrim(synthesized) || isTuple(synthesized)) {
+                // but a comparison: `==` of a type takes one of that type
+                let found = builtin {
+                    =>
+                    let wanted = if (isComparison) {
+                        rightExpected(op, synthesized)
+                    } else {
+                        primOnly(rightExpected(op, synthesized))
+                    }
+                    let right = infer(rhs, wanted)
+                    if (let Some(one) <- wanted && !fits(right, one)) {
+                        return None
+                    }
+                    builtinTy(op, synthesized, right)
+                }
+                if (let Some(ty) <- found) {
+                    return ty
+                }
+            }
+            synthesized
         }
+        operatorTy(id, left, op, [CallArg(None, rhs)], expected)
+    }
+
+    /**
+     * What `op`, one of the language's, gives between its types `left` and `right`: a comparison
+     * `Bool`, an arithmetic of numbers the left's type, `==` and `!=` of tuples `Bool`; `None`
+     * between others.
+     */
+    private func builtinTy(op: String, left: Ty, right: Ty): ?Ty {
+        let isComparison = COMPARISONS.contains(op)
         match ((left.kind(db), right.kind(db))) {
             case (PrimTy(_), PrimTy(_)) where isComparison => prim("Bool")
-            case (PrimTy(_), PrimTy(_)) => left
-            case _ => error
+            case (PrimTy(name), PrimTy(_)) where INTEGER_TYPES.contains(name) || FLOAT_TYPES.contains(name) => left
+            case (TupleTy(_), TupleTy(_)) where op == "==" || op == "!=" => prim("Bool")
+            case _ => None
         }
+    }
+
+    /**
+     * An assignment, `Unit`: its right checked against its left; `a[i] = v` of a type's `[]` a
+     * call of its `[](i, value!: T)` (N124); `x op= v` the language's `op`, else `x = x.op(v)`, what
+     * the operator gives taken by `x` (N126).
+     */
+    private func assignTy(id: ExprId, op: String, lhs: ExprId, rhs: ExprId): Ty {
+        if (op == "=" && let IndexExpr(base, indices) <- hir[lhs]) {
+            let baseTy = infer(base, None)
+            if (!isIndexedByLanguage(baseTy)) {
+                let args = indices.map {one => CallArg(None, one)}.concat([CallArg(None, rhs)])
+                let (_, chosen) = operatorCall(lhs, baseTy, "[]", args, None, setter: true)
+                // `a[i]` is of what is assigned to it
+                let value = chosen.flatMap {one => one.params.get(one.params.size - 1)}
+                setExpr(lhs, value ?? error)
+                return prim("Unit")
+            }
+        }
+        let target = infer(lhs, None)
+        if (op == "=") {
+            infer(rhs, target)
+            return prim("Unit")
+        }
+        let base = op[0..op.size - 1]
+        if (base == "&&" || base == "||") {
+            infer(rhs, prim("Bool"))
+            return prim("Unit")
+        }
+        if (isPrim(target)) {
+            // `**=` of an integer takes a `UInt64`; `<<=` its left's type (N118)
+            let found = builtin {
+                =>
+                let wanted = if (base == "**") {
+                    rightExpected("**", target)
+                } else {
+                    target
+                }
+                let right = infer(rhs, wanted)
+                if (let Some(one) <- wanted && !fits(right, one)) {
+                    return None
+                }
+                builtinTy(base, target, right)
+            }
+            if (found.isSome()) {
+                return prim("Unit")
+            }
+        }
+        let ty = operatorTy(id, target, base, [CallArg(None, rhs)], target)
+        if (!fits(ty, target)) {
+            mismatches++
+        }
+        prim("Unit")
+    }
+
+    /**
+     * Runs `attempt`, a way of the language's own operators, as cjc tries one with its diagnostics
+     * suppressed: what it writes kept if it gives a type, its operands fitting it, else undone, as a
+     * candidate tried is (A27). What fails inside an operand is no reason to drop the language's
+     * operator: it fails another way too.
+     */
+    private func builtin(attempt: () -> ?Ty): ?Ty {
+        let mark = undo.size
+        let before = mismatches
+        let vars = nextVar
+        trying++
+        let ty = attempt()
+        trying--
+        if (let Some(one) <- ty) {
+            // kept: what it journaled is for a candidate tried around it to undo, if there is one
+            if (trying == 0) {
+                undo.clear()
+            }
+            return one
+        }
+        rollBack(mark)
+        mismatches = before
+        nextVar = vars
+        None
+    }
+
+    /**
+     * The operator `op` of a value of the type `recv` called with `args`, as cjc's
+     * `DesugarOperatorOverloadExpr` calls `recv.op(args)`: what it returns, or an error type.
+     */
+    private func operatorTy(id: ExprId, recv: Ty, op: String, args: Array<CallArg>, expected: ?Ty): Ty {
+        operatorCall(id, recv, op, args, expected)[0]
+    }
+
+    /**
+     * A call of the operator `op` of a value of the type `recv` with `args`: its members of that
+     * name of as many parameters, `[]`'s taking `value` last if `setter` and the others if not,
+     * chosen among as a call's candidates are (N122); the one taken recorded as what `id` calls.
+     * What it returns, and the one taken.
+     */
+    private func operatorCall(id: ExprId, recv: Ty, op: String, args: Array<CallArg>, expected: ?Ty,
+        setter!: Bool = false): (Ty, ?Callable) {
+        let candidates = operatorCallables(recv, op).filter {
+            one => one.params.size == args.size && one.takesValue() == setter
+        }
+        let chosen = if (candidates.size > 1) {
+            chooseOverload(id, candidates, args, expected)
+        } else {
+            candidates.get(0)
+        }
+        match (chosen) {
+            case Some(callable) =>
+                if (let Some(decl) <- callable.decl) {
+                    setCallee(id, decl)
+                }
+                (callWith(id, callable, args, expected), callable)
+            case None =>
+                // as a call's: candidates of which none fits, or no one most specific
+                if (!candidates.isEmpty()) {
+                    mismatches++
+                }
+                for (arg in args) {
+                    infer(arg.expr, None)
+                }
+                (error, None)
+        }
+    }
+
+    /**
+     * The operators named `op` a value of the type `ty` has: its type's, or a type parameter's
+     * bounds', as its other members (N86, N107).
+     */
+    private func operatorCallables(ty: Ty, op: String): Array<Callable> {
+        let ofTy = match (operators.get(ty)) {
+            case Some(one) => one
+            case None =>
+                let one = HashMap<String, Array<Callable>>()
+                operators[ty] = one
+                one
+        }
+        if (let Some(found) <- ofTy.get(op)) {
+            return found
+        }
+        let found = lookUpOperators(ty, op)
+        ofTy[op] = found
+        found
+    }
+
+    private func lookUpOperators(ty: Ty, op: String): Array<Callable> {
+        for (head in headsOf(ty)) {
+            let start = match (head.kind(db)) {
+                case DeclTy(id, _) => ExtendedType.DeclType(id)
+                case PrimTy(name) => ExtendedType.PrimType(name)
+                case _ => continue
+            }
+            let found = ArrayList<Callable>()
+            for (target in memberLookup(db, [start], op, from: from) where isMemberOf(target, head)) {
+                if (let MemberDecl(decl) <- target && decl.item(db).kind == ItemKind.Func) {
+                    found.add(funcCallable(decl, [], head))
+                }
+            }
+            if (!found.isEmpty()) {
+                return overriding(found.toArray())
+            }
+        }
+        []
+    }
+
+    private func isPrim(ty: Ty): Bool {
+        match (ty.kind(db)) {
+            case PrimTy(_) => true
+            case _ => false
+        }
+    }
+
+    private func isTuple(ty: Ty): Bool {
+        match (ty.kind(db)) {
+            case TupleTy(_) => true
+            case _ => false
+        }
+    }
+
+    /**
+     * `ty` if it is of a type of the language: what one side of an operator tells the other, as an
+     * operator of another type takes what it declares (`"x" * n`).
+     */
+    private func primOnly(ty: ?Ty): ?Ty {
+        ty.filter {one => isPrim(one)}
     }
 
     /**
@@ -918,20 +1140,40 @@ class Inference {
     }
 
     /**
-     * `a[i]`: an element of a tuple by a literal; of anything else, the operator `[]` (8e).
+     * `a[i]`: an element of a tuple by a literal, of a `VArray` by an `Int64`; of anything else, a
+     * call of its operator `[]` with the indices (N122).
      */
-    private func indexTy(base: ExprId, indices: Array<ExprId>): Ty {
+    private func indexTy(id: ExprId, base: ExprId, indices: Array<ExprId>, expected: ?Ty): Ty {
         let baseTy = infer(base, None)
-        for (index in indices) {
-            infer(index, None)
-        }
-        match ((baseTy.kind(db), indices.get(0).map {one => hir[one]})) {
-            case (TupleTy(elements), Some(LitExpr(text))) where indices.size == 1 =>
-                match (Int64.tryParse(text)) {
-                    case Some(n) => elements.get(n) ?? error
-                    case None => error
+        match (baseTy.kind(db)) {
+            case TupleTy(elements) =>
+                for (index in indices) {
+                    infer(index, None)
                 }
-            case _ => error
+                // cjc: tuple index must be an integer literal
+                match (indices.get(0).map {one => hir[one]}) {
+                    case Some(LitExpr(text)) where indices.size == 1 => match (integerOf(text)) {
+                        case Some(n) => elements.get(n) ?? error
+                        case None => error
+                    }
+                    case _ => error
+                }
+            case VArrayTy(element, _) =>
+                for (index in indices) {
+                    infer(index, prim("Int64"))
+                }
+                element
+            case _ => operatorTy(id, baseTy, "[]", indices.map {one => CallArg(None, one)}, expected)
+        }
+    }
+
+    /**
+     * Whether `a[i]` of a value of the type `ty` is the language's: of a tuple or a `VArray`.
+     */
+    private func isIndexedByLanguage(ty: Ty): Bool {
+        match (ty.kind(db)) {
+            case TupleTy(_) | VArrayTy(_, _) => true
+            case _ => false
         }
     }
 
@@ -1151,7 +1393,8 @@ class Inference {
         } else {
             None
         }
-        Callable(signatureTypes(db, id).params.map {one => seen(one)}, seen(valueOf(id)), open: open, decl: id)
+        let sig = signatureTypes(db, id)
+        Callable(sig.params.map {one => seen(one)}, seen(valueOf(id)), open: open, decl: id, names: sig.paramNames)
     }
 
     /**
@@ -1931,4 +2174,45 @@ func suffixOf(lower: String, isHex: Bool): ?String {
         }
     }
     None
+}
+
+/**
+ * The value of `text`, an integer literal of any base, `_`s and its suffix aside (`0x1`, `1_0`,
+ * `2i64`); `None` if it is none, or too large to index anything.
+ */
+func integerOf(text: String): ?Int64 {
+    let lower = text.replace("_", "").toAsciiLower()
+    let (digits, radix) = if (lower.startsWith("0x")) {
+        (lower[2..], 16)
+    } else if (lower.startsWith("0o")) {
+        (lower[2..], 8)
+    } else if (lower.startsWith("0b")) {
+        (lower[2..], 2)
+    } else {
+        (lower, 10)
+    }
+    var value = 0
+    var any = false
+    for (r in digits.runes()) {
+        if (r == r'i' || r == r'u') {
+            break
+        }
+        let digit = if (r.isAsciiNumber()) {
+            Int64(UInt32(r) - UInt32(r'0'))
+        } else if (r >= r'a' && r <= r'f') {
+            Int64(UInt32(r) - UInt32(r'a')) + 10
+        } else {
+            return None
+        }
+        if (digit >= radix || value > (1 << 40)) {
+            return None
+        }
+        value = value * radix + digit
+        any = true
+    }
+    if (any) {
+        value
+    } else {
+        None
+    }
 }

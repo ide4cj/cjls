@@ -115,3 +115,126 @@ class MacroArgumentDefinitionTest {
             "#)
     }
 }
+
+/**
+ * The macro a call names (#175): looked up as a macro, in its file's scope, whatever the call is on or in.
+ */
+@Test
+class MacroNameDefinitionTest {
+    @TestCase
+    func aMacroOnADeclarationOfTheFile() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.*
+            @$0M
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aMacroOnAMember() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            class C {
+                @$0M
+                func f(): Unit {}
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aMacroCalledInABody() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            func f(): Int64 {
+                @$0M(1)
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aMacroAfterThePackageImportedByItsName() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms
+            @ms.$0M
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aMacroUnderAnAlias() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M as N
+            @$0N
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aFunctionOfTheMacrosNameIsNotTheMacro() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.*
+            func M(): Unit {}
+            @$0M
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aMacroNotImportedHasNoDefinition() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class C {
+                @Ma$0c
+            //   ^^^ no definition
+                func f(): Unit {}
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro Mac(input: Tokens): Tokens { input }
+            "#)
+    }
+}
