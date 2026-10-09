@@ -64,7 +64,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
 
-Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjformat → cjsyntax, cjo, cjsyntax → ginkgo, index_map, rope}`; `cjls → project_model → {loupe, stdxx, ftoml}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
+Dependencies flow one way ([00-layers.md](docs/design/00-layers.md)): `cjls → jsonrpc → stdxx → fjson → fnum`; `cjls → loupe → {calca, cjformat → cjsyntax, cjo, cjsyntax → ginkgo, index_map, rope}`; `cjls → project_model → {loupe, cjsyntax, stdxx, ftoml}`. The generators sit outside, on `stdxx` and `ftoml` (`→ fnum`; `lsp_codegen` also `fjson`).
 
 Editor integrations are repositories in the `ide4cj` organization ([D16](docs/adr/0016-editor-integrations-are-repositories.md)): Neovim ([`ide4cj/cangjie.nvim`](https://github.com/ide4cj/cangjie.nvim)), VS Code ([`ide4cj/cangjie-vscode`](https://github.com/ide4cj/cangjie-vscode)), Zed ([`ide4cj/cangjie-zed`](https://github.com/ide4cj/cangjie-zed)); a change across them is one branch name in each (D32), the process in [`ide4cj/.github`](https://github.com/ide4cj/.github). The server's root is the nearest `cjpm.toml`.
 

@@ -5,6 +5,7 @@ import std.fs.*
 import std.sort.*
 import loupe.db.*
 import loupe.vfs.{isCangjieFile, isScanned, VfsPath}
+import cjsyntax.{SyntaxKind, tokenize}
 
 /**
  * How much of a file is read for its `package` line: a header comes first, after comments at most.
@@ -21,18 +22,23 @@ const DEFAULT_PACKAGE = "default"
  * they are built: a package per name the files' `package` lines give (`default` without one), in
  * the directory of its first file, and a module per root package, rooted at `root`, with `std`
  * alone to import. At most `budget` bytes of files are taken, as a load would read no more.
+ *
+ * Files without a `package` line two or more of which declare `main` are programs compiled one by
+ * one (D67): each that does is a module `default` of its own, rooted at the file, its package
+ * `default` holding it and the files without `main` of its directory; the files without `main` of
+ * the other directories stay the module `default` of `root`.
  */
 public func looseProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg(),
     budget!: Int64 = Int64.Max): ProjectLoad {
     let loading = Loading(env, cfg)
     let walk = LooseWalk(budget)
     walk.walk(root)
+    let programs = programsOf(walk)
     let names = walk.byPackage.keys().toArray()
     sort(names)
     let modules = ArrayList<(String, ArrayList<PackageModel>)>()
     for (name in names) {
-        let files = walk.byPackage[name].toArray()
-        sort(files, by: {a, b => a.toString().compare(b.toString())})
+        let files = sortedPaths(walk.byPackage[name].toArray())
         let pkg = PackageModel(name, files[0].parent.getOrThrow(), files)
         let module = moduleOf(name)
         match (modules.iterator().filter {it => it[0] == module}.next()) {
@@ -47,13 +53,57 @@ public func looseProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = h
     if (let Some(std) <- loading.stdBinary()) {
         binaries.add(std)
     }
-    let model = ProjectModel(cfg, modules.toArray().map {module => ModuleModel(module[0], root, module[1].toArray())},
-        binaries: binaries.toArray())
+    let models = modules.toArray().map {module => ModuleModel(module[0], root, module[1].toArray())}.concat(programs)
+    // the programs after the `default` of the root, the modules in the order of their names
+    sort(models, stable: true, by: {a: ModuleModel, b: ModuleModel => a.name.compare(b.name)})
+    let model = ProjectModel(cfg, models, binaries: binaries.toArray())
     ProjectLoad(model, LooseFiles(root), loading.problems.toArray())
 }
 
+/**
+ * The programs among the files `walk` found without a `package` line, each a module of its own, if
+ * two or more of them declare `main` (D67); the files they hold are taken out of `walk`'s
+ * `default`. None, and `default` left as it is, otherwise: one `main` or none is one program, or a
+ * library.
+ */
+private func programsOf(walk: LooseWalk): Array<ModuleModel> {
+    if (walk.mains.size < 2) {
+        if (!walk.mains.isEmpty()) {
+            walk.add(DEFAULT_PACKAGE, walk.mains[0])
+        }
+        return []
+    }
+    let helpers = walk.byPackage.get(DEFAULT_PACKAGE) ?? ArrayList<VfsPath>()
+    let mainDirs = HashSet<VfsPath>(walk.mains.toArray().map {file => file.parent.getOrThrow()})
+    let programs = sortedPaths(walk.mains.toArray()).map {
+        program =>
+        let dir = program.parent.getOrThrow()
+        let files = helpers.toArray().filter {file => file.parent == Some(dir)}
+        ModuleModel(DEFAULT_PACKAGE, program, [PackageModel(DEFAULT_PACKAGE, dir, sortedPaths(files.concat([program])))])
+    }
+    let left = helpers.toArray().filter {file => !mainDirs.contains(file.parent.getOrThrow())}
+    if (left.isEmpty()) {
+        walk.byPackage.remove(DEFAULT_PACKAGE)
+    } else {
+        walk.byPackage[DEFAULT_PACKAGE] = ArrayList<VfsPath>(left)
+    }
+    programs
+}
+
+private func sortedPaths(paths: Array<VfsPath>): Array<VfsPath> {
+    sort(paths, by: {a, b => a.toString().compare(b.toString())})
+    paths
+}
+
 private class LooseWalk {
+    /**
+     * The files of each package, but those without a `package` line declaring `main`.
+     */
     let byPackage = HashMap<String, ArrayList<VfsPath>>()
+    /**
+     * The files without a `package` line declaring `main`.
+     */
+    let mains = ArrayList<VfsPath>()
     var truncated = false
 
     LooseWalk(private var budget: Int64) {}
@@ -77,41 +127,110 @@ private class LooseWalk {
                 }
                 budget -= entry.size
                 let file = VfsPath.file(entry.path)
-                let name = packageOf(entry.path) ?? DEFAULT_PACKAGE
-                if (!byPackage.contains(name)) {
-                    byPackage.add(name, ArrayList<VfsPath>())
+                match (headerOf(entry.path)) {
+                    case Named(name) => add(name, file)
+                    case Unnamed(true) => mains.add(file)
+                    case Unnamed(false) => add(DEFAULT_PACKAGE, file)
                 }
-                byPackage[name].add(file)
             }
         }
+    }
+
+    func add(name: String, file: VfsPath): Unit {
+        if (!byPackage.contains(name)) {
+            byPackage.add(name, ArrayList<VfsPath>())
+        }
+        byPackage[name].add(file)
     }
 }
 
 /**
- * The package the `package` line of the file at `path` names, `None` without one, or if it cannot
- * be read.
+ * What the walk needs of a file: the package its `package` line names, or without one whether it
+ * declares `main`.
  */
-func packageOf(path: Path): ?String {
-    let header = try {
-        let file = File(path, OpenMode.Read)
-        try {
-            let buffer = Array<Byte>(HEADER_BYTES, repeat: 0)
-            var read = 0
-            while (read < buffer.size) {
-                let n = file.read(buffer[read..])
-                if (n == 0) {
-                    break
-                }
-                read += n
-            }
-            buffer[..read]
-        } finally {
-            file.close()
+enum LooseHeader {
+    | Named(String)
+    | Unnamed(Bool)
+}
+
+/**
+ * The header of the file at `path`: its first `HEADER_BYTES` for the `package` line, all of it
+ * without one, for a `main` may come anywhere. One that cannot be read is no `main`.
+ */
+func headerOf(path: Path): LooseHeader {
+    try {
+        let header = readPrefix(path, HEADER_BYTES)
+        if (let Some(name) <- packageHeader(header)) {
+            return Named(name)
         }
+        let text = if (header.size < HEADER_BYTES) {
+            header
+        } else {
+            File.readFrom(path)
+        }
+        Unnamed(declaresMain(text))
     } catch (_: FSException) {
-        return None
+        Unnamed(false)
     }
-    packageHeader(header)
+}
+
+/**
+ * The first `limit` bytes of the file at `path`, fewer if it is shorter.
+ *
+ * @throws FSException - if it cannot be read
+ */
+func readPrefix(path: Path, limit: Int64): Array<Byte> {
+    let file = File(path, OpenMode.Read)
+    try {
+        let buffer = Array<Byte>(limit, repeat: 0)
+        var read = 0
+        while (read < buffer.size) {
+            let n = file.read(buffer[read..])
+            if (n == 0) {
+                break
+            }
+            read += n
+        }
+        buffer[..read]
+    } finally {
+        file.close()
+    }
+}
+
+/**
+ * Whether `text` declares `main` at its top level: the keyword `main` outside every bracket and
+ * string, as a `main` declaration has it (`func main` too, which cjc reports). Only a text holding
+ * the bytes `main` is lexed, by `cjsyntax`'s lexer, which knows the strings, their interpolations
+ * and the comments; one that is no UTF-8 declares nothing.
+ */
+public func declaresMain(text: Array<Byte>): Bool {
+    if (!containsMain(text)) {
+        return false
+    }
+    let source = try {
+        String.fromUtf8(text)
+    } catch (_: IllegalArgumentException) {
+        return false
+    }
+    let lexed = tokenize(source)
+    var depth = 0
+    for (i in 0..lexed.size) {
+        match (lexed.kind(i)) {
+            case LParen | LBracket | LBrace | StringStart => depth++
+            case RParen | RBracket | RBrace | StringEnd where depth > 0 => depth--
+            case MainKw where depth == 0 => return true
+            case _ => ()
+        }
+    }
+    false
+}
+
+private func containsMain(text: Array<Byte>): Bool {
+    for (i in 0..(text.size - 3) where text[i] == b'm' && text[i + 1] == b'a' && text[i + 2] == b'i' &&
+        text[i + 3] == b'n') {
+        return true
+    }
+    false
 }
 
 /**

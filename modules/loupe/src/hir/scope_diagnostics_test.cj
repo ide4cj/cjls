@@ -21,6 +21,7 @@ func rangeOf(db: AnalysisDatabase, site: ImportSite): TextRange {
             leavesOf(decl.importTree().getOrThrow(), leaves)
             tightRange(leaves[site.path].syntax)
         case ItemFile.Binary(_, _) => throw FixtureException("an import of a .cjo")
+        case ItemFile.Expansion(_) => throw FixtureException("an import of an expansion")
     }
 }
 
