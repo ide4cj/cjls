@@ -25,6 +25,7 @@ public func router(): Router {
         .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(DefinitionRequestSpec(), handleDefinition)
+        .route(DocumentHighlightRequestSpec(), handleDocumentHighlight)
         .route(HoverRequestSpec(), handleHover)
         .route(SelectionRangeRequestSpec(), handleSelectionRange)
         .route(DocumentFormattingRequestSpec(), handleFormatting)
@@ -46,6 +47,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)),
         documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
         definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
+        documentHighlightProvider: BooleanOrDocumentHighlightOptions.AsBoolean(true),
         hoverProvider: BooleanOrHoverOptions.AsBoolean(true),
         selectionRangeProvider: BooleanOrSelectionRangeOptionsOrSelectionRangeRegistrationOptions.AsBoolean(true),
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
