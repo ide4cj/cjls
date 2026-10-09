@@ -10,7 +10,7 @@ load() { awk '{print $1}' /proc/loadavg; }
 quiet_before() { awk '{exit !($1 < 2.5)}' /proc/loadavg; }
 quiet_after() { awk '{exit !($1 < 4.0)}' /proc/loadavg; }
 table() { grep -A14 "TCS: .*$class" "$1" | grep -E '^\s*\|' | sed 's/\x1b\[[0-9;]*[a-zA-Z]//g; s/.\[[0-9]*C//g'; }
-for attempt in 1 2 3 4 5 6; do
+for attempt in 1 2 3 4 5 6 7 8 9 10 11 12; do
   until quiet_before; do sleep 15; done
   l0=$(load)
   (cd "$here" && cjpm bench --target-dir target/bench "--filter=$class.*" > "$log" 2>&1)
@@ -20,5 +20,5 @@ for attempt in 1 2 3 4 5 6; do
   table "$log"
   exit 0
 done
-echo "no quiet run in 6 attempts"
+echo "no quiet run in 12 attempts"
 exit 1
