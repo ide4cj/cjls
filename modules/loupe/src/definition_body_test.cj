@@ -940,6 +940,21 @@ class BodyDefinitionTest {
     }
 
     @TestCase
+    func theFunctionOfAPipelineGoesToTheOverloadItsLeftChooses() {
+        // N128
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            func g(x: Int64): Int64 { x }
+            func g(x: Bool): Bool { x }
+            //   ^ def
+            func f(): Unit {
+                let a = true |> $0g
+            }
+            "#)
+    }
+
+    @TestCase
     func anOperatorOfTheLanguageGoesNowhere() {
         checkDefinition(#"
             //- /main.cj module=m package=m

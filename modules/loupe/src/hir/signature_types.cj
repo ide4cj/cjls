@@ -281,7 +281,7 @@ func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
 
 /**
  * The declaration `name` of `std.core`, among the packages `from` may import, if one is of `kind`:
- * `Option` for `?T` (N58), the types of the compiler's own.
+ * the types of the language's own (`String`, `Range`) and its `LangItem`s.
  */
 func coreDecl(db: AnalysisDatabase, from: PackageRef, name: String, kind: ItemKind): ?DefId {
     let core = packageIndex(db).find("std.core", from: from) ?? return None
@@ -546,7 +546,7 @@ class SourceTyLowering {
 
     private func optionDecl(): ?DefId {
         let pkg = scope?.pkg ?? return None
-        coreDecl(db, PackageRef.Source(pkg), "Option", ItemKind.Enum)
+        langItem(db, PackageRef.Source(pkg), LangItem.OptionEnum)
     }
 }
 
