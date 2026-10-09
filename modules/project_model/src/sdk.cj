@@ -70,6 +70,59 @@ public func withCangjieHome(env: (String) -> ?String, home: ?CangjieHome): (Stri
 }
 
 /**
+ * The sources of the SDK's version found, and where from: a directory holding `std`'s, laid out as
+ * `cangjie_runtime`'s `stdlib/libs` (`std/collection/array_list.cj`).
+ */
+public struct CangjieSrc {
+    public CangjieSrc(
+        public let path: String,
+        /**
+         * What named it, for the log: `initializationOptions.cangjieSrc`, `CANGJIE_SRC`, or the SDK.
+         */
+        public let source: String
+    ) {}
+}
+
+/**
+ * The sources of the SDK, the first of these that holds a directory `std`: `option`
+ * (`initializationOptions.cangjieSrc`, from a setting of the editor's); `CANGJIE_SRC`; `src` in the SDK
+ * (`env`'s `CANGJIE_HOME`), where they are put for the SDK they are of. `None` if none does: without
+ * them nothing changes but that a declaration of `std` has nowhere to go (D65).
+ *
+ * `env` gives the value of an environment variable.
+ */
+public func findCangjieSrc(option: ?String, env!: (String) -> ?String): ?CangjieSrc {
+    let candidates: Array<(?String, String)> = [
+        (option, "initializationOptions.cangjieSrc"),
+        (env("CANGJIE_SRC"), "CANGJIE_SRC"),
+        (env("CANGJIE_HOME").map {home => Path(home).join("src").toString()}, "the SDK")
+    ]
+    for ((path, source) in candidates) {
+        if (let Some(path) <- path) {
+            if (isDirectory(Path(path).join("std").toString())) {
+                return CangjieSrc(path, source)
+            }
+        }
+    }
+    None
+}
+
+/**
+ * `env` with `CANGJIE_SRC` the sources found, `None` if none are: where `std`'s sources are taken
+ * from, whatever the environment says.
+ */
+public func withCangjieSrc(env: (String) -> ?String, src: ?CangjieSrc): (String) -> ?String {
+    let path = src.map {it => it.path}
+    {
+        name: String => if (name == "CANGJIE_SRC") {
+            path
+        } else {
+            env(name)
+        }
+    }
+}
+
+/**
  * `cjc` in the first directory of `path` that has it, its links followed, `None` if none has.
  */
 func cjcOnPath(path: String): ?Path {

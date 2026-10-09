@@ -127,6 +127,46 @@ class ProjectJsonTest {
     }
 
     @TestCase
+    func stdHasTheSourcesCangjieSrcNamesAPackagePerDirectory() {
+        // arrange
+        let src = tree([("std/std.cj", ""), ("std/collection/array_list.cj", ""), ("std/collection/CMakeLists.txt", "")])
+        let env = {name: String => if (name == "CANGJIE_SRC") {
+            src.toString()
+        } else {
+            sdkEnv(name)
+        }}
+
+        // act
+        let model = lowerProjectJson(ProjectJson(), src, Loading(env, LINUX))
+        let without = lowerProjectJson(ProjectJson(), src, Loading(sdkEnv, LINUX))
+        removeTree(src)
+
+        // assert
+        let sources = model.binaries[0].sources.getOrThrow()
+        @Expect(sources.dir, src.join("std"))
+        @Expect(sources.packages.map {pkg => pkg.name}, ["std", "std.collection"])
+        @Expect(sources.packages[1].files, [src.join("std/collection/array_list.cj")])
+        @Expect(without.binaries[0].sources.isNone())
+    }
+
+    @TestCase
+    func aBinaryOfTheProjectFileNamesItsSourcesRelativeToIt() {
+        // arrange
+        let dir = tree([("libs/stdx/stdx.cj", ""), ("libs/stdx/net/http.cj", "")])
+        let json = ProjectJson(binaries: [BinaryJson(name: "stdx", paths: ["bin"], sources: "libs/stdx")])
+
+        // act
+        let model = lowerProjectJson(json, dir, Loading(sdkEnv, LINUX))
+        let written = toProjectJson(model, dir)
+        removeTree(dir)
+
+        // assert
+        let stdx = model.binaries[1]
+        @Expect(stdx.sources.map {sources => sources.packages.map {pkg => pkg.name}}, Some(["stdx", "stdx.net"]))
+        @Expect(written.binaries.getOrThrow()[1].sources, Some("libs/stdx"))
+    }
+
+    @TestCase
     func stdComesFromTheSdkAndVariablesFromTheEnvironment() {
         // arrange
         let dir = tree([("app/main.cj", "")])

@@ -31,6 +31,13 @@ SUITES = {
         "ce08da1ddb075d1c7596d663c7fcba9a2ae02c5c",
         ["/LICENSE", "/tests/"],
     ),
+    # std's sources, which go to definition reads with the SDK's .cjo (D65): the commit of
+    # cangjie_runtime the nightly in .cangjie-version was built from, as its release notes name it
+    "cangjie_runtime": (
+        "https://github.com/cangjie-bot/cangjie_runtime",
+        "5d555bcc34d656a064b904ecc61e0575b98dddab",
+        ["/LICENSE", "/stdlib/libs/std/"],
+    ),
 }
 
 

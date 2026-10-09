@@ -101,7 +101,8 @@ public class AnalysisDatabase <: Database {
      *
      * `binaries` are the packages of `model`'s binaries that were read: a `.cjo` is the input of
      * its binary, package and path, its bytes set only when they differ from the last; one read
-     * before and not now holds no bytes.
+     * before and not now holds no bytes. The files of the binaries' sources are given their ids by
+     * `paths` too, and the durability of their binary.
      *
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
@@ -110,10 +111,11 @@ public class AnalysisDatabase <: Database {
         batch {
             let modules = model.modules.map {module => setModule(module, paths, durabilities)}
             let packages = setBinaryPackages(binaries)
+            let sources = binarySources(model, paths, durabilities)
             match (projects.project) {
-                case None => projects.project = (Project(this, model.cfg, modules, model.binaries, packages,
-                    durability: Durability.High), model.cfg, modules, model.binaries, packages)
-                case Some((project, cfg, oldModules, oldBinaries, oldPackages)) =>
+                case None => projects.project = (Project(this, model.cfg, modules, model.binaries, packages, sources,
+                    durability: Durability.High), model.cfg, modules, model.binaries, packages, sources)
+                case Some((project, cfg, oldModules, oldBinaries, oldPackages, oldSources)) =>
                     if (cfg != model.cfg) {
                         project.setCfg(this).withDurability(Durability.High).to(model.cfg)
                     }
@@ -126,7 +128,10 @@ public class AnalysisDatabase <: Database {
                     if (oldPackages != packages) {
                         project.setBinaryPackages(this).withDurability(Durability.High).to(packages)
                     }
-                    projects.project = (project, model.cfg, modules, model.binaries, packages)
+                    if (oldSources != sources) {
+                        project.setBinarySources(this).withDurability(Durability.High).to(sources)
+                    }
+                    projects.project = (project, model.cfg, modules, model.binaries, packages, sources)
             }
         }
         projects.durabilities = durabilities
@@ -138,6 +143,25 @@ public class AnalysisDatabase <: Database {
      */
     public func binaryStamp(file: CjoFile): ?FileStamp {
         projects.binaries.get(file).flatMap {binary => binary[1]}
+    }
+
+    /**
+     * The files of the sources of `model`'s binaries, each named as its binary's `.cjo` names it.
+     */
+    private func binarySources(model: ProjectModel, paths: PathInterner,
+        durabilities: HashMap<FileId, Durability>): Array<BinarySourceFile> {
+        let files = ArrayList<BinarySourceFile>()
+        for (binary in model.binaries) {
+            let durability = binaryDurability(binary.name)
+            for (pkg in binary.sources?.packages ?? []) {
+                for (path in pkg.files) {
+                    let fileId = paths.intern(path)
+                    durabilities.add(fileId, durability)
+                    files.add(BinarySourceFile(binary.name, "${pkg.name}/${path.name}", fileId))
+                }
+            }
+        }
+        files.toArray()
     }
 
     private func setBinaryPackages(reads: Array<CjoFileRead>): Array<BinaryPackageFile> {
