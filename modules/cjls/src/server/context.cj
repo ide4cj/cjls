@@ -207,7 +207,10 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
 }
 
 /**
- * The answer to a request sent to the client, read as the result its spec names.
+ * The answer to a request sent to the client, read as the result its spec names. Single-use: the
+ * first `await()` takes the answer, and the connection forgets the id once it is delivered, so a
+ * second `await()` would wait for an answer that never comes (as `PendingRequest.await`, which it
+ * forwards to).
  */
 public struct PendingAnswer<R> {
     PendingAnswer(private let pending: PendingRequest<RawJson>, private let decode: (RawJson) -> R) {}
