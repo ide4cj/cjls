@@ -4,8 +4,8 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, BindPat, EnumPat, IndexExpr, MemberAccessExpr, PathSegment, PathType,
-    RefExpr, UnaryExpr}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, BindPat, EnumPat, IndexExpr, MacroExpandDecl, MacroExpandExpr,
+    MemberAccessExpr, NameRef, PathSegment, PathType, RefExpr, UnaryExpr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -27,14 +27,17 @@ public struct NavigationTarget {
 /**
  * Where the name at `offset` of the file is declared: a name in a type of a signature (D48) or of a
  * body, a name a body uses, a constructor a pattern names (D50), a member after a `.` of a package,
- * a type (D52) or a value (D55); the operator function an operator calls (8e); each candidate of an
- * ambiguity or of an overload. Nothing for a
- * package, nor yet for a declaration of a package compiled already, which has no source.
+ * a type (D52) or a value (D55), the macro of a call; the operator function an operator calls (8e);
+ * each candidate of an ambiguity or of an overload. Nothing for a package, nor yet for a declaration
+ * of a package compiled already, which has no source.
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
     let root = parse(db, file).syntaxNode()
     let token = tokenAt(root, offset) ?? return []
+    if (let Some(targets) <- macroTargets(db, file, token)) {
+        return targets
+    }
     let ids = itemIdMap(db, file)
     let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
     let def = DefId(db, ItemFile.Source(file), item ?? return [])
@@ -42,6 +45,25 @@ public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): A
         return typeTargets(db, def, typeNode, segment)
     }
     bodyTargets(db, def, token)
+}
+
+/**
+ * Where the macro a call names is declared, if `token` is a segment of the name of one: looked up in the file's
+ * scope, a macro being no local, whatever item the call is on or in.
+ */
+func macroTargets(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ?Array<NavigationTarget> {
+    let name = NameRef.cast(token.parent) ?? return None
+    let call = name.syntax.parent ?? return None
+    let names = match ((MacroExpandDecl.cast(call), MacroExpandExpr.cast(call))) {
+        case (Some(decl), _) => decl.nameRefs() |> collectArray
+        case (_, Some(expr)) => expr.nameRefs() |> collectArray
+        case _ => return None
+    }
+    // A segment of a macro's name is nothing else: a file of no package leaves it nowhere, not to the lookups below.
+    let pkg = packageOfFile(db, file) ?? return []
+    let segment = names.map {one => one.syntax.textRange}.indexOf(name.syntax.textRange) ?? return []
+    let resolved = resolveMacroPath(db, pkg, file, names.map {one => one.text()})
+    fileTargets(db, resolved[segment])
 }
 
 /**
