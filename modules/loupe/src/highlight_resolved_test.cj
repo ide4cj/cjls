@@ -252,6 +252,9 @@ class HighlightResolvedTest {
             //      ^ Namespace
             //        ^ Namespace
             public class A {}
+            public func make(): A { A() }
+            //                  ^ Class
+            //                      ^ Class
             //- /b.cj module=m package=m.b
             package m.b
             //      ^ Namespace
@@ -267,7 +270,30 @@ class HighlightResolvedTest {
             //        ^ Namespace
             //          ^ Class
             //                ^ Class
+            func g(): A { a.make() }
+            //        ^ Class
+            //            ^ Namespace
+            //              ^^^^ Function
             "#)
+    }
+
+    @TestCase
+    func aMutablePropertyAndACaughtException() {
+        checkHighlight(#"
+            //- /main.cj module=m package=m
+            package m
+            //      ^ Namespace
+            class C {
+                mut prop q: Int64 { get() { 0 } set(v) {} }
+            }
+            func f(c: C): Int64 {
+            //        ^ Class
+                try { c.q } catch (e: Exception) { 0 }
+            //        ^ Parameter
+            //          ^ Property[Mutable]
+            //                        ^^^^^^^^^ Class[DefaultLibrary]
+            }
+            "#, binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
     }
 }
 
@@ -292,5 +318,24 @@ class HighlightStdTest {
             //          ^ Variable[Readonly]
             }
             "#, binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+    }
+
+    @TestCase
+    func aNameThatMeansNothingWhereOnlyStdsMacrosAreCalledIsUnresolved() {
+        // std's macros declare no name a body uses; a type of the compiler's own is of the default library
+        checkHighlight(#"
+            //- /main.cj module=m package=m
+              package m
+            //        ^ Namespace
+              import std.deriving.*
+            //       ^^^ Namespace
+            //           ^^^^^^^^ Namespace
+              @Derive[Equatable]
+            // ^^^^^^ Macro[DefaultLibrary]
+              class P {}
+              func f(xs: Array<Int64>): Unit { missing }
+            //           ^^^^^ Struct[DefaultLibrary]
+            //                                 ^^^^^^^ UnresolvedReference
+            "#, binaries: ["std.core", "std.deriving"].map {name => stdCjoRead(name, stdCjo(name))})
     }
 }
