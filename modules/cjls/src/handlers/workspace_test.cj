@@ -350,7 +350,6 @@ class ProjectLoadTest {
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
 
-
         // act
         initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir, recursive: true)
@@ -423,10 +422,12 @@ class ProjectLoadTest {
         let optionOf = {value: JsonValue => JsonValue.JsonObject([("cangjieHome", value)])}
 
         // act, assert
-        @Expect(cangjieHome(optionOf(JsonValue.JsonString(sdk.toString()))), Some(sdk.toString()))
-        @Expect(cangjieHome(optionOf(JsonValue.JsonString(uriOf(sdk)))), VfsPath.file(sdk).filePath.map {it => it.toString()})
-        @Expect(cangjieHome(optionOf(JsonValue.JsonString("relative"))), None<String>)
-        @Expect(cangjieHome(Option<JsonValue>.None), None<String>)
+        @Expect(pathOption(optionOf(JsonValue.JsonString(sdk.toString())), "cangjieHome"), Some(sdk.toString()))
+        @Expect(pathOption(optionOf(JsonValue.JsonString(uriOf(sdk))), "cangjieHome"),
+            VfsPath.file(sdk).filePath.map {it => it.toString()})
+        @Expect(pathOption(optionOf(JsonValue.JsonString("relative")), "cangjieHome"), None<String>)
+        @Expect(pathOption(optionOf(JsonValue.JsonString(sdk.toString())), "cangjieSrc"), None<String>)
+        @Expect(pathOption(Option<JsonValue>.None, "cangjieHome"), None<String>)
     }
 
     @TestCase
@@ -435,7 +436,6 @@ class ProjectLoadTest {
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
-
 
         // act
         let warning = load(loop, Client(), NoopLogger(), loadRequest(state).getOrThrow())
@@ -587,7 +587,6 @@ class DidChangeWatchedFilesTest {
         let dir = workspaceOf([("target/out.cj", "t"), ("notes.md", "n")])
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
-
 
         // act
         watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
@@ -805,6 +804,26 @@ class WorkspaceSymbolTest {
         @Expect(location.range.start.line, 1u32)
         @Expect(location.range.start.character, 9u32)
         @Expect(location.range.end.character, 15u32)
+    }
+
+    @TestCase
+    func theSourcesOfStdAreReadButNotSearched() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "func target() {}\n")])
+        let src = workspaceOf([("std/core/x.cj", "package std.core\nfunc targetInStd() {}\n")])
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        state.cangjieSrc = src.toString()
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        remove(dir, recursive: true)
+        remove(src, recursive: true)
+
+        // act
+        let answer = handleWorkspaceSymbol(state.snapshot(), WorkspaceSymbolParams(query: "targ"))
+
+        // assert
+        @Expect(textAt(state, src.join("std/core/x.cj")), Some("package std.core\nfunc targetInStd() {}\n"))
+        @Expect(workspaceSymbolsOf(answer).map {symbol => symbol.name}, ["target"])
     }
 
     @TestCase

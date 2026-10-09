@@ -133,6 +133,22 @@ public struct BinaryPackage {
 }
 
 /**
+ * The sources a binary was compiled from, of its version: what its `.cjo` keeps nothing of, the
+ * declarations to go to. Never resolved against: a name resolves in the `.cjo` alone (D38).
+ */
+@Derive[Equatable]
+public struct BinarySources {
+    public BinarySources(
+        /**
+         * The directory of its root package, each package in the directory its name gives under it
+         * (`std.collection` in `<dir>/collection`).
+         */
+        public let dir: VfsPath,
+        public let packages: Array<PackageModel>
+    ) {}
+}
+
+/**
  * Modules compiled already, as cjpm's `bin-dependencies` give them: directories every `.cjo` of
  * which is a package (`path-option`), and packages one by one (`package-option`).
  */
@@ -141,7 +157,11 @@ public struct BinaryModel {
     public BinaryModel(
         public let name: String,
         public let paths: Array<VfsPath>,
-        public let packages!: Array<BinaryPackage> = []
+        public let packages!: Array<BinaryPackage> = [],
+        /**
+         * Its sources, `None` if they are not there.
+         */
+        public let sources!: ?BinarySources = None
     ) {}
 }
 
@@ -165,6 +185,23 @@ public struct ProjectModel {
         let ordered = ArrayList<VfsPath>()
         for (module in modules) {
             for (pkg in module.packages) {
+                for (file in pkg.files where files.add(file)) {
+                    ordered.add(file)
+                }
+            }
+        }
+        ordered.toArray()
+    }
+
+    /**
+     * The files of the sources of every binary, each once: read as the files of the packages are,
+     * but of no package.
+     */
+    public func binarySourceFiles(): Array<VfsPath> {
+        let files = HashSet<VfsPath>()
+        let ordered = ArrayList<VfsPath>()
+        for (binary in binaries) {
+            for (pkg in binary.sources?.packages ?? []) {
                 for (file in pkg.files where files.add(file)) {
                     ordered.add(file)
                 }
@@ -255,6 +292,19 @@ public struct Project {
      * The packages of the binaries that were read, in the order of `binaries`.
      */
     public var binaryPackages: Array<BinaryPackageFile>
+    /**
+     * The files of the sources of the binaries, in the order of `binaries`.
+     */
+    public var binarySources: Array<BinarySourceFile>
+}
+
+/**
+ * A file of the sources of a binary: its id, and the file of a `.cjo` of the binary it is, as
+ * `allFiles` names it (`std.collection/array_list.cj`).
+ */
+@Derive[Equatable]
+public struct BinarySourceFile {
+    public BinarySourceFile(public let binary: String, public let name: String, public let fileId: FileId) {}
 }
 
 /**
@@ -306,7 +356,8 @@ public struct BinaryPackageFile {
  * durability of each file, its module's. Used on the root handle alone.
  */
 class Projects {
-    var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>, Array<BinaryPackageFile>) = None
+    var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>, Array<BinaryPackageFile>,
+        Array<BinarySourceFile>) = None
     let modules = HashMap<ModuleKey, (Module, ModuleModel)>()
     let packages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
     /**

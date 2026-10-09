@@ -11,6 +11,7 @@
 | `ProjectModel` | `loupe.db` | modules (named after their root package), packages and their files, binaries, `Cfg`: plain values, every way of finding a project comes down to it (D33) |
 | `Project`, `Module`, `Package` | `loupe.db` | the model as inputs: `Project` a singleton, a `Module` per root and name and a `Package` per name in it, never dropped; a package's files a field of its own |
 | `BinaryPackageFile` | `loupe.db` | `@CalcaInput { binary, name, path, bytes }`: a package compiled already, its `.cjo` as bytes, out of the `Vfs`; one per binary, package and path, never dropped, a gone one empty (D38) |
+| `BinarySourceFile` | `loupe.db` | a file of a binary's sources, `Project.binarySources`: its `FileId`, named as the binary's `.cjo` names it; in no package, so never resolved against, only gone to (D65) |
 | `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
 | `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |
 | `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
@@ -20,7 +21,7 @@
 | `packageExports`, `packageIndex`, `resolveImport` | `loupe.hir` | what a package shows its importers: its declarations but the `private` ones and its re-exports, each with its import's visibility, on the exports of the packages it re-exports from; the project's packages by full name and what each module may import from; one path of an import to a package, names, or an error (D46) |
 | `binaryItemTrees`, `binaryExports` | `loupe.hir` | a `.cjo` in the same model: an `ItemTree` per file of the package, its re-exports its imports; an `exportId` to its item, an item back to its `Decl` (`binaryDecl`). `ItemFile` is either kind of file (D38) |
 | loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFiles`, `readFile`, `isWorkspaceFile`; `cjoFilesIn`, `readCjoFiles` (by stamp, header checked): the disk, nothing else (D30, D38) |
-| project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33); the SDK (`findCangjieHome`, D40) |
+| project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33); the SDK (`findCangjieHome`, D40) and its sources (`findCangjieSrc`, D65) |
 | API | `loupe` | a file per feature (`fileStructure`, …): plain functions over queries, speaking `FileId`, `TextRange` and loupe's own types (A3, A8) |
 
 ## Rules

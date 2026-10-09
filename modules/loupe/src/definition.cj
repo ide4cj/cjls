@@ -2,11 +2,13 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
+import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
+import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, BindPat, EnumPat, IndexExpr, MacroExpandDecl, MacroExpandExpr,
     MemberAccessExpr, NameRef, PathSegment, PathType, RefExpr, UnaryExpr}
-import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
@@ -28,8 +30,8 @@ public struct NavigationTarget {
  * Where the name at `offset` of the file is declared: a name in a type of a signature (D48) or of a
  * body, a name a body uses, a constructor a pattern names (D50), a member after a `.` of a package,
  * a type (D52) or a value (D55), the macro of a call; the operator function an operator calls (8e);
- * each candidate of an ambiguity or of an overload. Nothing for a package, nor yet for a declaration
- * of a package compiled already, which has no source.
+ * each candidate of an ambiguity or of an overload. Nothing for a package, nor for a declaration of
+ * a package compiled already whose binary's sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
@@ -314,12 +316,82 @@ func genericTarget(db: AnalysisDatabase, file: SourceFile, node: CjSyntaxNode, i
 }
 
 /**
- * Where the declaration `id` is: its node and its name.
+ * Where the declaration `id` is: its node and its name; for one of a package compiled already, where
+ * its `.cjo` says it is in the sources of its binary.
  */
 func declTarget(db: AnalysisDatabase, id: DefId): ?NavigationTarget {
+    if (let Binary(pkg, file) <- id.file(db)) {
+        return binaryTarget(db, pkg, file, id.item(db))
+    }
     let (file, node) = nodeOf(db, id) ?? return None
     let name = AnyHasName.cast(node).flatMap {it => it.name()}
     NavigationTarget(file.fileId(db), node.textRange, name?.syntax.textRange ?? node.textRange)
+}
+
+/**
+ * Where the item `id` of the file `file` of `pkg` is in the sources of its binary: from the start of
+ * its declaration to the end, and its name, at the positions its `.cjo` gives, which are of the
+ * sources it was compiled from (D65). `None` without the sources, and wherever its name is not
+ * written at its position: sources of another version, or a declaration cjc made (a `BuiltInDecl`'s
+ * position is none, a `let` of a pattern has no name).
+ */
+func binaryTarget(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64, id: ItemId): ?NavigationTarget {
+    let index = binaryExports(db, pkg).declIndex(BinaryItem(file, id)) ?? return None
+    let name = (findItem(itemTreeOf(db, ItemFile.Binary(pkg, file)).items, id)?.names ?? []).get(0) ?? return None
+    // the positions of cjc: lines and columns from 1, columns in bytes, the end past the declaration
+    let (fileName, begin, end, at) = try {
+        let cjo = openCjo(pkg.bytes(db))
+        let decl = cjo.allDecls[index]
+        let lineColumn = {position: ?CjoPosition => position.map {it => (Int64(it.line) - 1, Int64(it.column) - 1)}}
+        (cjo.allFiles[file], lineColumn(decl.begin), lineColumn(decl.end), lineColumn(decl.identifierPos))
+    } catch (_: Exception) {
+        return None
+    }
+    let binary = pkg.binary(db)
+    let sources = db.project()?.binarySources(db) ?? return None
+    let fileId = (sources |> filter {source: BinarySourceFile => source.binary == binary && source.name == fileName} |>
+        map {source: BinarySourceFile => source.fileId} |> first) ?? return None
+    let text = (db.sourceFile(fileId) ?? return None).text(db)
+    let offsetOf = {
+        position: ?(Int64, Int64) => match (position) {
+            case Some((line, column)) where line >= 0 && column >= 0 && line < text.lineCount =>
+                Some(text.offsetOf(LineColumn(line, column), Encoding.Utf8))
+            case _ => Option<Int64>.None
+        }
+    }
+    // a name in backquotes is at the name, inside them
+    let start = offsetOf(at) ?? return None
+    if (!writes(text, start, name)) {
+        return None
+    }
+    let focus = TextRange(start, start + name.size)
+    let full = match ((offsetOf(begin), offsetOf(end))) {
+        case (Some(from), Some(to)) where from <= focus.start && focus.end <= to => TextRange(from, to)
+        case _ => focus
+    }
+    NavigationTarget(fileId, full, focus)
+}
+
+/**
+ * The item `id` among `items` and their members.
+ */
+func findItem(items: Array<Item>, id: ItemId): ?Item {
+    for (item in items) {
+        if (item.id == id) {
+            return item
+        }
+        if (let Some(member) <- findItem(item.members, id)) {
+            return member
+        }
+    }
+    None
+}
+
+/**
+ * Whether `text` has `written` at `offset`.
+ */
+func writes(text: Rope, offset: Int64, written: String): Bool {
+    offset + written.size <= text.size && text.slice(offset..offset + written.size).toString() == written
 }
 
 /**

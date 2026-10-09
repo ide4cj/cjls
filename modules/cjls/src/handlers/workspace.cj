@@ -12,7 +12,8 @@ import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
-import project_model.{CangjieHome, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
+import project_model.{CangjieHome, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON,
+    withCangjieHome, withCangjieSrc}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -155,6 +156,7 @@ struct LoadRequest {
         let roots: Array<VfsPath>,
         let linkedProjects: Array<VfsPath>,
         let cangjieHome: ?String,
+        let cangjieSrc: ?String,
         /**
          * Whether the client is shown its progress.
          */
@@ -193,16 +195,16 @@ func loadRequest(state: ServerState): ?LoadRequest {
         return None
     }
     LoadRequest(state.beginLoad(), state.roots.toArray(), state.linkedProjects.toArray(), state.cangjieHome,
-        state.workDoneProgress)
+        state.cangjieSrc, state.workDoneProgress)
 }
 
 /**
  * Finds the project of every root again, reads the `.cjo` of its binaries and sets them with it,
  * the files of the folders removed gone in the same revision, then reads the files of its
- * packages the server does not know yet, and sets them `LOAD_BATCH` at a time, one revision each,
- * reporting how many are done. The disk is read here, on the thread the load runs on; the state is
- * changed through `loop` alone, between the messages, and once a newer load began nothing more is
- * set.
+ * packages and of its binaries' sources the server does not know yet, and sets them `LOAD_BATCH`
+ * at a time, one revision each, reporting how many are done. The disk is read here, on the thread
+ * the load runs on; the state is changed through `loop` alone, between the messages, and once a
+ * newer load began nothing more is set.
  *
  * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
  */
@@ -234,7 +236,12 @@ func loadProject(loop: Loop, logger: Logger, request: LoadRequest, progress: Wor
     if (let Some(home) <- home) {
         logger.info("found the SDK", [("path", home.path), ("source", home.source)])
     }
-    let env = withCangjieHome({name => getVariable(name)}, home)
+    let withHome = withCangjieHome({name => getVariable(name)}, home)
+    let src = findCangjieSrc(request.cangjieSrc, env: withHome)
+    if (let Some(src) <- src) {
+        logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
+    }
+    let env = withCangjieSrc(withHome, src)
     let loads = findProjects(request.roots, request.linkedProjects, env: env, budget: budget)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
@@ -264,7 +271,9 @@ func loadProject(loop: Loop, logger: Logger, request: LoadRequest, progress: Wor
         state: ServerState =>
         if (state.isLoading(request.load)) {
             state.setProject(model, binaries: binaries.files)
-            Some(model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)})
+            Some(model.files().concat(model.binarySourceFiles()).filter {
+                path => !state.openDocuments.contains(path) && !state.knows(path)
+            })
         } else {
             Option<Array<VfsPath>>.None
         }

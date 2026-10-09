@@ -85,10 +85,21 @@ public class ServerState <: FromContext<ServerState> {
     public var cangjieHome: ?String = None
 
     /**
+     * The sources of the SDK `initializationOptions` names (`cangjieSrc`), the first place they are
+     * looked for.
+     */
+    public var cangjieSrc: ?String = None
+
+    /**
      * The files of the project, as last set: made anew each time, for a set built from an array
      * takes a third of the time `clear` and `add(all:)` do.
      */
     private var projectFiles = HashSet<VfsPath>()
+
+    /**
+     * The files of the sources of the binaries, as last set: read, but no file of the workspace.
+     */
+    private var binarySourceFiles = HashSet<VfsPath>()
 
     private var filesChanged = false
     private var registrations = 0
@@ -108,8 +119,9 @@ public class ServerState <: FromContext<ServerState> {
     private var goneWithProject = HashSet<VfsPath>()
 
     /**
-     * The files with contents, for a snapshot to list; `None` once a file was created or deleted
-     * since, until the next snapshot lists them again.
+     * The files with contents but for the sources of the binaries, for a snapshot to list; `None`
+     * once a file was created or deleted, or the project set, since, until the next snapshot lists
+     * them again.
      */
     private var files: ?Array<FileId> = Array<FileId>()
 
@@ -246,6 +258,8 @@ public class ServerState <: FromContext<ServerState> {
             apply(gone)
         }
         projectFiles = HashSet<VfsPath>(model.files())
+        binarySourceFiles = HashSet<VfsPath>(model.binarySourceFiles())
+        files = None
     }
 
     /**
@@ -292,7 +306,7 @@ public class ServerState <: FromContext<ServerState> {
      * `CancelledException`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
-        let files = this.files ?? vfs.files()
+        let files = this.files ?? vfs.files().filter {id => !binarySourceFiles.contains(vfs.filePath(id))}
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
             locationLinks, lineFoldingOnly, foldingRangeLimit)

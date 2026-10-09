@@ -115,7 +115,7 @@ jobs:
         os: [macos-latest, ubuntu-latest, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    # no SDK here: the binary has to run the way an editor starts it
+    # no SDK in the environment: the binary has to run the way an editor starts it
     env:
       CJLS_BIN: ${{ github.workspace }}/bin/cjls${{ matrix.os == 'windows-latest' && '.exe' || '' }}
     steps:
@@ -125,6 +125,22 @@ jobs:
           name: cjls-${{ runner.os }}
           path: bin
       - run: chmod +x "$CJLS_BIN"
+        shell: bash
+      # std's `.cjo` and sources for the case going into them, which passes them as an editor does,
+      # in `initializationOptions`: the SDK from the build's cache, its environment left unset
+      - id: version
+        shell: bash
+        run: echo "tag=$(tr -d '[:space:]' < .cangjie-version)" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}
+          key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.tag }}-${{ hashFiles('.cangjie-sha256') }}
+      - shell: bash
+        run: |
+          dest="${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}"
+          env -u GITHUB_ENV -u GITHUB_PATH python .github/actions/setup-cangjie/setup.py "${{ steps.version.outputs.tag }}" "$dest" > /dev/null
+          echo "CJLS_E2E_SDK=$dest/cangjie" >> "$GITHUB_ENV"
+      - run: python tests/corpora/fetch.py cangjie_runtime
         shell: bash
       - uses: astral-sh/setup-uv@v7
       - name: pytest-lsp

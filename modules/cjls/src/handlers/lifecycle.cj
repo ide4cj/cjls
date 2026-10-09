@@ -26,7 +26,8 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.locationLinks = takesLocationLinks(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
     state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
-    state.cangjieHome = cangjieHome(params.initializationOptions)
+    state.cangjieHome = pathOption(params.initializationOptions, "cangjieHome")
+    state.cangjieSrc = pathOption(params.initializationOptions, "cangjieSrc")
     let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
@@ -70,11 +71,11 @@ func linkedProjects(options: ?JsonValue): Array<VfsPath> {
 }
 
 /**
- * The SDK `initializationOptions.cangjieHome` names, an absolute path or a `file:` URI; `None` for
- * anything else.
+ * The path the option `name` of `initializationOptions` names, an absolute path or a `file:` URI:
+ * the SDK (`cangjieHome`), its sources (`cangjieSrc`). `None` for anything else.
  */
-func cangjieHome(options: ?JsonValue): ?String {
-    match (options.flatMap {it => it.get("cangjieHome")}) {
+func pathOption(options: ?JsonValue, name: String): ?String {
+    match (options.flatMap {it => it.get(name)}) {
         case Some(JsonValue.JsonString(text)) where text.startsWith("file:") =>
             VfsPath.fromUri(text).filePath.map {path => path.toString()}
         case Some(JsonValue.JsonString(text)) where Path(text).isAbsolute() => text

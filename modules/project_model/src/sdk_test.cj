@@ -58,6 +58,59 @@ class FindCangjieHomeTest {
     }
 }
 
+@Test
+class FindCangjieSrcTest {
+    @TestCase
+    func theOptionComesFirstThenCangjieSrcThenTheSdk() {
+        // arrange
+        let dir = tree([("option/std/std.cj", ""), ("env/std/std.cj", ""), ("sdk/src/std/std.cj", "")])
+        let option = dir.join("option").toString()
+        let env = envOf([("CANGJIE_SRC", dir.join("env").toString()), ("CANGJIE_HOME", dir.join("sdk").toString())])
+
+        // act
+        let first = findCangjieSrc(option, env: env)
+        let noOption = findCangjieSrc(None, env: env)
+        let noVariable = findCangjieSrc(None, env: envOf([("CANGJIE_HOME", dir.join("sdk").toString())]))
+        let nothing = findCangjieSrc(None, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(first.map {src => src.path}, Some(option))
+        @Expect(first.map {src => src.source}, Some("initializationOptions.cangjieSrc"))
+        @Expect(noOption.map {src => src.path}, Some(dir.join("env").toString()))
+        @Expect(noOption.map {src => src.source}, Some("CANGJIE_SRC"))
+        @Expect(noVariable.map {src => src.path}, Some(Path(dir.join("sdk").toString()).join("src").toString()))
+        @Expect(noVariable.map {src => src.source}, Some("the SDK"))
+        @Expect(nothing.isNone())
+    }
+
+    @TestCase
+    func aDirectoryWithoutStdIsPassedOver() {
+        // arrange
+        let dir = tree([("option/stdx/x.cj", ""), ("sdk/src/std/std.cj", "")])
+        let env = envOf([("CANGJIE_SRC", dir.join("gone").toString()), ("CANGJIE_HOME", dir.join("sdk").toString())])
+
+        // act
+        let src = findCangjieSrc(dir.join("option").toString(), env: env)
+        removeTree(dir)
+
+        // assert
+        @Expect(src.map {it => it.source}, Some("the SDK"))
+    }
+
+    @TestCase
+    func cangjieSrcIsTheSourcesFoundWhateverTheEnvironmentSays() {
+        // arrange
+        let env = withCangjieSrc(envOf([("CANGJIE_SRC", "/elsewhere"), ("A", "a")]), CangjieSrc("/src", "test"))
+        let none = withCangjieSrc(envOf([("CANGJIE_SRC", "/elsewhere")]), None)
+
+        // act, assert
+        @Expect(env("CANGJIE_SRC"), Some("/src"))
+        @Expect(env("A"), Some("a"))
+        @Expect(none("CANGJIE_SRC"), None<String>)
+    }
+}
+
 @When[os != "Windows"]
 @Test
 class FindCangjieHomeOnPosixTest {

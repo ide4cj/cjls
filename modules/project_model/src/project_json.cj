@@ -92,7 +92,12 @@ public struct BinaryJson {
     public BinaryJson(
         public let name!: String,
         public let paths!: ?Array<String> = None,
-        public let packages!: ?HashMap<String, String> = None
+        public let packages!: ?HashMap<String, String> = None,
+        /**
+         * The directory of the sources it was compiled from, of its root package: go to definition
+         * goes there, names resolve in the `.cjo` still (D65).
+         */
+        public let sources!: ?String = None
     ) {}
 }
 
