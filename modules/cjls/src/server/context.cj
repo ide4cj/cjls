@@ -1,7 +1,7 @@
 package cjls.server
 
 import stdx.log.Logger
-import fjson.{FromJson, RawJson, ToJson}
+import fjson.RawJson
 import jsonrpc.*
 import cjls.lsp_types.{LspOutboundNotification, LspOutboundRequest}
 
@@ -132,11 +132,13 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func notify<P>(spec: LspOutboundNotification<P>, params: P): Unit where P <: ToJson {
-        connected().notify(spec.method, params)
+    public func notify<P>(spec: LspOutboundNotification<P>, params: P): Unit {
+        connected().notify(spec.method, spec.encodeParams(params))
     }
 
     /**
+     * Sends the request `spec` names; its answer is read as the result `spec` names.
+     *
      * @note never await the answer from a handler given a `Context`: it can only arrive through the
      * read loop that handler is holding
      *
@@ -144,9 +146,9 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      * @throws RpcException - if params are not serialized to array|object|null
      * @throws TransportException - if the frame cannot be written
      */
-    public func request<P, R>(method: String, params: P): PendingRequest<R> where P <: ToJson,
-        R <: FromJson<R> {
-        connected().request<P, R>(method, params)
+    public func request<P, R>(spec: LspOutboundRequest<P, R>, params: P): PendingAnswer<R> {
+        let pending = connected().request<RawJson, RawJson>(spec.method, spec.encodeParams(params))
+        PendingAnswer<R>(pending, {result => spec.decodeResult(result)})
     }
 
     /**
@@ -154,17 +156,17 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      * thread of its own, so any handler may call it: a failure is a `WARN` of `logger`, and a
      * `DEBUG` once the connection is closed, as nothing sent then reaches the client.
      */
-    public func request<P>(spec: LspOutboundRequest<P, Unit>, params: P, logger: Logger): Unit where P <: ToJson {
+    public func request<P>(spec: LspOutboundRequest<P, Unit>, params: P, logger: Logger): Unit {
         let method = spec.method
-        let pending = try {
-            connected().request<P, RawJson>(method, params)
+        let answer = try {
+            request(spec, params)
         } catch (e: Exception) {
             requestFailed(method, e, logger)
             return
         }
         spawn {
             try {
-                pending.await()
+                answer.await()
             } catch (e: Exception) {
                 requestFailed(method, e, logger)
             } catch (e: Error) {
@@ -201,5 +203,31 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
 
     private func connected(): Connection {
         connection.getOrThrow {=> IllegalStateException("the client is not connected yet")}
+    }
+}
+
+/**
+ * The answer to a request sent to the client, read as the result its spec names. Single-use: the
+ * first `await()` takes the answer, and the connection forgets the id once it is delivered, so a
+ * second `await()` would wait for an answer that never comes (as `PendingRequest.await`, which it
+ * forwards to).
+ */
+public struct PendingAnswer<R> {
+    PendingAnswer(private let pending: PendingRequest<RawJson>, private let decode: (RawJson) -> R) {}
+
+    public prop id: RequestId {
+        get() {
+            pending.id
+        }
+    }
+
+    /**
+     * Blocks the caller's own thread; never a handler's given a `Context` (see `Client.request`).
+     *
+     * @throws RpcException - if the client answered with an error, or the connection closed first
+     * @throws FjException - if the result does not read as an `R`
+     */
+    public func await(): R {
+        decode(pending.await())
     }
 }

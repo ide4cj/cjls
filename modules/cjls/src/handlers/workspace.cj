@@ -7,7 +7,6 @@ import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
 import stdxx.Nullable
-import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
@@ -83,7 +82,8 @@ func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, par
 
 /**
  * A folder added is watched and loaded; one removed is no longer watched, and its files are gone
- * but for those open in the editor, and those under another root.
+ * but for those open in the editor, and those under another root: with the project the load sets,
+ * in its revision (S12), so no snapshot sees the old project without them.
  */
 @LspHandler
 func handleDidChangeWorkspaceFolders(loop: Loop, client: Client, logger: Logger,
@@ -97,14 +97,9 @@ func handleDidChangeWorkspaceFolders(loop: Loop, client: Client, logger: Logger,
     unwatch(state, client, logger, removed)
     watch(state, client, logger, added)
 
-    let roots = state.roots.toArray()
-    let gone = ArrayList<(VfsPath, ?Rope)>()
     for (root in removed) {
-        for (path in state.filesUnder(root) where !state.openDocuments.contains(path) && !isWorkspaceFile(path, roots)) {
-            gone.add((path, None))
-        }
+        state.dropWithProject(state.filesUnder(root).filter {path => !state.openDocuments.contains(path)})
     }
-    state.setFilesContents(gone.toArray())
     startLoad(loop, client, logger)
 }
 
@@ -171,10 +166,16 @@ struct LoadRequest {
 
 /**
  * Begins a load, which ends the one before, and runs it on a thread of its own; the user is told
- * of the SDK at its end, if anything is to be told. Nothing to load without roots or linked projects.
+ * of the SDK at its end, if anything is to be told. Nothing to load without roots or linked
+ * projects: the files of the folders removed go at once.
  */
 func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
-    let request = loadRequest(loop.state) ?? return ()
+    let request = match (loadRequest(loop.state)) {
+        case Some(request) => request
+        case None =>
+            loop.state.dropGone()
+            return
+    }
     loop.start(logger) {
         if (let Some(warning) <- load(loop, client, logger, request)) {
             try {
@@ -199,10 +200,11 @@ func loadRequest(state: ServerState): ?LoadRequest {
 
 /**
  * Finds the project of every root again, reads the `.cjo` of its binaries and sets them with it,
- * then reads the files of its packages and of its binaries' sources the server does not know yet,
- * and sets them `LOAD_BATCH` at a time, one revision each, reporting how many are done. The disk is read here,
- * on the thread the load runs on; the state is changed through `loop` alone, between the messages,
- * and once a newer load began nothing more is set.
+ * the files of the folders removed gone in the same revision, then reads the files of its
+ * packages and of its binaries' sources the server does not know yet, and sets them `LOAD_BATCH`
+ * at a time, one revision each, reporting how many are done. The disk is read here, on the thread
+ * the load runs on; the state is changed through `loop` alone, between the messages, and once a
+ * newer load began nothing more is set.
  *
  * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
  */
@@ -356,7 +358,7 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
     let unregistrations = ArrayList<Unregistration>()
     for (root in roots) {
         if (let Some(id) <- state.watchers.remove(root)) {
-            unregistrations.add(Unregistration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD))
+            unregistrations.add(DidChangeWatchedFilesNotificationSpec().unregistration(id))
         }
     }
     if (!unregistrations.isEmpty()) {
@@ -386,9 +388,7 @@ func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registratio
         }
         FileSystemWatcher(globPattern: pattern, kind: kind)
     }
-    let options = DidChangeWatchedFilesRegistrationOptions(watchers: watchers)
-    Registration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD,
-        registerOptions: RawJson.of(options).read<JsonValue>())
+    DidChangeWatchedFilesNotificationSpec().registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers))
 }
 
 /**

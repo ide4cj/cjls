@@ -10,7 +10,7 @@ import stdxx.{IntegerOrString, Nullable}
 import stdxx.deriving.*
 import jsonrpc.*
 
-public struct DidChangeNotebookDocumentNotificationSpec <: LspInboundNotification<DidChangeNotebookDocumentParams> {
+public struct DidChangeNotebookDocumentNotificationSpec <: LspInboundNotification<DidChangeNotebookDocumentParams> & LspRegistrable<NotebookDocumentSyncRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "notebookDocument/didChange"
@@ -26,6 +26,12 @@ public struct DidChangeNotebookDocumentNotificationSpec <: LspInboundNotificatio
     public prop method: String {
         get() {
             METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
+        get() {
+            "notebookDocument/sync"
         }
     }
 

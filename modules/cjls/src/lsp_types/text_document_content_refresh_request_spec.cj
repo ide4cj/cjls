@@ -34,4 +34,12 @@ public struct TextDocumentContentRefreshRequestSpec <: LspOutboundRequest<TextDo
             METHOD
         }
     }
+
+    public func encodeParams(params: TextDocumentContentRefreshParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): Unit {
+        ()
+    }
 }

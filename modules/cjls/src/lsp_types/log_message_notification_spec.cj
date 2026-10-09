@@ -32,4 +32,8 @@ public struct LogMessageNotificationSpec <: LspOutboundNotification<LogMessagePa
             METHOD
         }
     }
+
+    public func encodeParams(params: LogMessageParams): RawJson {
+        RawJson.of(params)
+    }
 }

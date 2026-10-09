@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct DidRenameFilesNotificationSpec <: LspInboundNotification<RenameFilesParams> {
+public struct DidRenameFilesNotificationSpec <: LspInboundNotification<RenameFilesParams> & LspRegistrable<FileOperationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/didRenameFiles"
@@ -30,6 +30,12 @@ public struct DidRenameFilesNotificationSpec <: LspInboundNotification<RenameFil
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

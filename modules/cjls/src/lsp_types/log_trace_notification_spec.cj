@@ -28,4 +28,8 @@ public struct LogTraceNotificationSpec <: LspOutboundNotification<LogTraceParams
             METHOD
         }
     }
+
+    public func encodeParams(params: LogTraceParams): RawJson {
+        RawJson.of(params)
+    }
 }

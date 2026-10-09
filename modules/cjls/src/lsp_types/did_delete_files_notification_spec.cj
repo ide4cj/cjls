@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct DidDeleteFilesNotificationSpec <: LspInboundNotification<DeleteFilesParams> {
+public struct DidDeleteFilesNotificationSpec <: LspInboundNotification<DeleteFilesParams> & LspRegistrable<FileOperationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/didDeleteFiles"
@@ -30,6 +30,12 @@ public struct DidDeleteFilesNotificationSpec <: LspInboundNotification<DeleteFil
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

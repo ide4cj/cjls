@@ -14,7 +14,7 @@ import jsonrpc.*
  * The document save notification is sent from the client to the server when
  * the document got saved in the client.
  */
-public struct DidSaveTextDocumentNotificationSpec <: LspInboundNotification<DidSaveTextDocumentParams> {
+public struct DidSaveTextDocumentNotificationSpec <: LspInboundNotification<DidSaveTextDocumentParams> & LspRegistrable<TextDocumentSaveRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/didSave"
@@ -28,6 +28,12 @@ public struct DidSaveTextDocumentNotificationSpec <: LspInboundNotification<DidS
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

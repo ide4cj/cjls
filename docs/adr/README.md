@@ -82,3 +82,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0061](0061-the-workspace-is-loaded-on-a-spawn.md) | The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded | accepted |
 | [0062](0062-toolchain-from-the-github-mirror.md) | The toolchain is downloaded from the GitHub mirror, checked against sha256 pinned from gitcode | accepted |
 | [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted |
+| [0064](0064-an-operator-is-a-call-of-its-types-member.md) | An operator of a type is a call of its member, the language's own tried first, as cjc | accepted |

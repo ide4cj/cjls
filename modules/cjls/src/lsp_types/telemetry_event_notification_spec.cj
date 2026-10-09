@@ -32,4 +32,8 @@ public struct TelemetryEventNotificationSpec <: LspOutboundNotification<LSPAny> 
             METHOD
         }
     }
+
+    public func encodeParams(params: LSPAny): RawJson {
+        RawJson.of(params)
+    }
 }

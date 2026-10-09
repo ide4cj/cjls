@@ -15,7 +15,7 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-public struct DidOpenNotebookDocumentNotificationSpec <: LspInboundNotification<DidOpenNotebookDocumentParams> {
+public struct DidOpenNotebookDocumentNotificationSpec <: LspInboundNotification<DidOpenNotebookDocumentParams> & LspRegistrable<NotebookDocumentSyncRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "notebookDocument/didOpen"
@@ -31,6 +31,12 @@ public struct DidOpenNotebookDocumentNotificationSpec <: LspInboundNotification<
     public prop method: String {
         get() {
             METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
+        get() {
+            "notebookDocument/sync"
         }
     }
 

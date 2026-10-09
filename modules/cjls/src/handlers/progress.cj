@@ -79,8 +79,7 @@ class WorkDoneProgress {
  */
 func create(client: Client, logger: Logger, token: ProgressToken, refused: AtomicBool): ?Future<Unit> {
     let pending = try {
-        client.request<WorkDoneProgressCreateParams, RawJson>(WorkDoneProgressCreateRequestSpec.METHOD,
-            WorkDoneProgressCreateParams(token: token))
+        client.request(WorkDoneProgressCreateRequestSpec(), WorkDoneProgressCreateParams(token: token))
     } catch (e: Exception) {
         logger.debug("no progress is shown", [("error", e.toString())])
         return None
@@ -88,7 +87,6 @@ func create(client: Client, logger: Logger, token: ProgressToken, refused: Atomi
     spawn {
         try {
             pending.await()
-            ()
         } catch (e: Exception) {
             refused.store(true)
             logger.debug("no more progress is shown", [("error", e.toString())])

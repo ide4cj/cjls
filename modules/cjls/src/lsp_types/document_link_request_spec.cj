@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * A request to provide document links
  */
-public struct DocumentLinkRequestSpec <: LspInboundRequest<DocumentLinkParams, Nullable<Array<DocumentLink>>> {
+public struct DocumentLinkRequestSpec <: LspInboundRequest<DocumentLinkParams, Nullable<Array<DocumentLink>>> & LspRegistrable<DocumentLinkRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/documentLink"
@@ -27,6 +27,12 @@ public struct DocumentLinkRequestSpec <: LspInboundRequest<DocumentLinkParams, N
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

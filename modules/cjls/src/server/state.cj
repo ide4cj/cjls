@@ -112,6 +112,13 @@ public class ServerState <: FromContext<ServerState> {
     private var setDuringLoad: ?HashSet<VfsPath> = None
 
     /**
+     * The files of the folders removed, which go with the next project set, in its revision (S12):
+     * until then the workspace is the old project with all its files. A file set meanwhile is no
+     * longer among them.
+     */
+    private var goneWithProject = HashSet<VfsPath>()
+
+    /**
      * The files with contents but for the sources of the binaries, for a snapshot to list; `None`
      * once a file was created or deleted, or the project set, since, until the next snapshot lists
      * them again.
@@ -142,12 +149,36 @@ public class ServerState <: FromContext<ServerState> {
      * all of them at once, in one revision.
      */
     public func setFilesContents(files: Array<(VfsPath, ?Rope)>): Unit {
-        if (let Some(set) <- setDuringLoad) {
-            for ((path, _) in files) {
-                set.add(path)
-            }
+        for ((path, _) in files) {
+            setDuringLoad?.add(path)
+            goneWithProject.remove(path)
         }
         apply(files)
+    }
+
+    /**
+     * Makes the files at `paths` go with the next project set, in its revision, but for those under
+     * a root then: a folder removed takes its files with the project it leaves.
+     */
+    public func dropWithProject(paths: Array<VfsPath>): Unit {
+        goneWithProject.add(all: paths)
+    }
+
+    /**
+     * Drops at once, in a revision of their own, the files `dropWithProject` left for a project no
+     * load is to set.
+     */
+    public func dropGone(): Unit {
+        apply(takeGone())
+    }
+
+    private func takeGone(): Array<(VfsPath, ?Rope)> {
+        let rootsNow = roots.toArray()
+        let gone = goneWithProject.toArray().filter {path => !isWorkspaceFile(path, rootsNow)}.map {
+            path => (path, Option<Rope>.None)
+        }
+        goneWithProject = HashSet<VfsPath>()
+        gone
     }
 
     /**
@@ -216,10 +247,16 @@ public class ServerState <: FromContext<ServerState> {
 
     /**
      * Sets the project the analysis sees: its modules and packages, and the files of each; and the
-     * packages of its binaries that were read.
+     * packages of its binaries that were read. The files `dropWithProject` left go in the same
+     * revision.
      */
     public func setProject(model: ProjectModel, binaries!: Array<CjoFileRead> = []): Unit {
-        analysis.setProject(model, vfs.paths, binaries: binaries)
+        let gone = takeGone()
+        analysis.batch {
+            analysis.setProject(model, vfs.paths, binaries: binaries)
+            // after the project: a file gone takes the durability the new project gives it
+            apply(gone)
+        }
         projectFiles = HashSet<VfsPath>(model.files())
         binarySourceFiles = HashSet<VfsPath>(model.binarySourceFiles())
         files = None

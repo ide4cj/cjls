@@ -12,10 +12,12 @@
 #
 # The ids are prior-art.md's (R4, R9): what is measured here is what that page compares.
 
+# It loads the workspace on a thread of its own, a revision per batch, reporting `$/progress`
+# (#183): a scenario begun before the load ends sees its requests answered `ContentModified`.
 [cjls]
 command = ["{env:CJLS_BIN}"]
 fallback-command = ["{repo}/target/release/bin/cjls"]
-ready = "initialized"
+ready = "progress"
 
 # R4, the SDK's server. It accepts `{}` as options; which of those its VS Code extension sends
 # change what it does is still to be found out (#22). It sends no `$/progress`, so it is ready

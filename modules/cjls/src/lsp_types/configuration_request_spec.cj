@@ -37,4 +37,12 @@ public struct ConfigurationRequestSpec <: LspOutboundRequest<ConfigurationParams
             METHOD
         }
     }
+
+    public func encodeParams(params: ConfigurationParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): Array<LSPAny> {
+        result.read<Array<LSPAny>>()
+    }
 }
