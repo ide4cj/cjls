@@ -16,7 +16,7 @@
 ```
 cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
   │
-  ├────> project_model ──> stdxx, ftoml, loupe
+  ├────> project_model ──> stdxx, ftoml, loupe, cjsyntax
   │
   ├────> cjformat ──> cjsyntax
   │
