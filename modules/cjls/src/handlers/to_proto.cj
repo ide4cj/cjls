@@ -4,6 +4,7 @@ import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
 import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag,
     NavigationTarget, Severity, StructureKind, StructureNode, TextRange}
+import loupe.{RelatedHighlight, ReferenceAccess}
 import loupe.Diagnostic as LoupeDiagnostic
 import loupe.TextEdit as LoupeTextEdit
 import cjls.lsp_types.*
@@ -80,6 +81,18 @@ func locationLink(text: Rope, uri: DocumentUri, target: NavigationTarget, encodi
  */
 func location(text: Rope, uri: DocumentUri, target: NavigationTarget, encoding: Encoding): Location {
     Location(uri: uri, range: lspRange(text, target.focusRange.start, target.focusRange.end, encoding))
+}
+
+/**
+ * A name meaning what the one asked about does: a read, a write, or text, LSP's default, for neither.
+ */
+func documentHighlight(text: Rope, highlight: RelatedHighlight, encoding: Encoding): DocumentHighlight {
+    let kind = match (highlight.access) {
+        case Some(ReadAccess) => DocumentHighlightKind.Read
+        case Some(WriteAccess) => DocumentHighlightKind.Write
+        case None => DocumentHighlightKind.Text
+    }
+    DocumentHighlight(range: lspRange(text, highlight.range.start, highlight.range.end, encoding), kind: kind)
 }
 
 /**
