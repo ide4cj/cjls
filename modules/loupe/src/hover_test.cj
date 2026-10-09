@@ -227,6 +227,20 @@ class HoverTest {
     }
 
     @TestCase
+    func aTypeParameterOfAnExtendShowsTheExtendsBounds() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {}
+            class Box<T> {}
+            extend<T> Box<T> where T <: I {
+                func get(x: $0T): T { x }
+            //              ^ T <: I
+            }
+            "#)
+    }
+
+    @TestCase
     func aTypeParameterOfALocalFunctionShowsItsBounds() {
         checkHover(#"
             //- /main.cj module=m package=m
