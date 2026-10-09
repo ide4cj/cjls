@@ -127,7 +127,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     let sourceMap = lowered.sourceMap
     let pkg = match (def.file(db)) {
         case Source(file) => packageOfFile(db, file) ?? return None
-        case Binary(_, _) => return None
+        case _ => return None
     }
     // an operator: the operator function it calls (8e)
     if (isOperator(token)) {

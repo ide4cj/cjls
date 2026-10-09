@@ -27,8 +27,9 @@ public struct NavigationTarget {
 
 /**
  * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
- * `goto_definition`); the operator function an operator calls (8e). Nothing for a package, nor for a declaration of
- * a package compiled already whose binary's sources are not there (D65).
+ * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
+ * call names (#175). Nothing for a package, nor for a declaration of a package compiled already whose binary's
+ * sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
@@ -74,7 +75,7 @@ func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId): ?NavigationT
 func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, CjSyntaxNode) {
     let file = match (def.file(db)) {
         case Source(file) => file
-        case Binary(_, _) => return None
+        case _ => return None
     }
     let ptr = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
     let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
@@ -144,7 +145,7 @@ func targetOf(db: AnalysisDatabase, target: TypeTarget): ?NavigationTarget {
         case LocalGenericOf(owner, localFunc, index) =>
             let file = match (owner.file(db)) {
                 case Source(file) => file
-                case Binary(_, _) => return None
+                case _ => return None
             }
             let lowered = bodyWithSourceMap(db, owner)
             let local = lowered.body.funcs.get(localFunc)?.local ?? return None
@@ -167,11 +168,17 @@ func genericTarget(db: AnalysisDatabase, file: SourceFile, node: CjSyntaxNode, i
 
 /**
  * Where the declaration `id` is: its node and its name; for one of a package compiled already, where
- * its `.cjo` says it is in the sources of its binary.
+ * its `.cjo` says it is in the sources of its binary; for one a macro call adds, what in the call
+ * adds it, the interface of `@Derive[...]`.
  */
 func declTarget(db: AnalysisDatabase, id: DefId): ?NavigationTarget {
-    if (let Binary(pkg, file) <- id.file(db)) {
-        return binaryTarget(db, pkg, file, id.item(db))
+    match (id.file(db)) {
+        case Binary(pkg, file) => return binaryTarget(db, pkg, file, id.item(db))
+        // what a macro call adds: where the call writes it (#175)
+        case Expansion(call) =>
+            let (focus, full) = expansionOrigin(db, call, id.item(db)) ?? return None
+            return NavigationTarget(call.file(db).fileId(db), full, focus)
+        case Source(_) => ()
     }
     let (file, node) = nodeOf(db, id) ?? return None
     let name = AnyHasName.cast(node).flatMap {it => it.name()}
@@ -250,7 +257,7 @@ func writes(text: Rope, offset: Int64, written: String): Bool {
 func nodeOf(db: AnalysisDatabase, id: DefId): ?(SourceFile, CjSyntaxNode) {
     let file = match (id.file(db)) {
         case Source(file) => file
-        case Binary(_, _) => return None
+        case _ => return None
     }
     let node = itemIdMap(db, file).node(id.item(db), parse(db, file).syntaxNode()) ?? return None
     (file, node)

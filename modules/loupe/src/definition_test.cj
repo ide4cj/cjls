@@ -536,7 +536,7 @@ class DefinitionTest {
         let compiled = match (resolveTypePath(db, typeScopeOf(db, f).getOrThrow(), ["String"])[0]) {
             case Resolved(TypeOf(id)) => match (id.file(db)) {
                 case Binary(_, _) => true
-                case Source(_) => false
+                case Source(_) | Expansion(_) => false
             }
             case _ => false
         }

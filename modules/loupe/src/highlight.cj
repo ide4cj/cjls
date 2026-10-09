@@ -347,7 +347,7 @@ func callsMacrosOfItsOwn(db: AnalysisDatabase, pkg: Package): Bool {
     for (one in filesOf(db, PackageRef.Source(pkg))) {
         let file = match (one) {
             case Source(file) => file
-            case Binary(_, _) => continue
+            case _ => continue
         }
         for (item in itemTree(db, file).items) {
             for (name in item.macros where !isCompiledMacro(db, pkg, file, name)) {
@@ -367,7 +367,7 @@ func isCompiledMacro(db: AnalysisDatabase, pkg: Package, file: SourceFile, name:
         case Some(Found(ids)) => ids.size > 0 && (ids |> all {
             id: DefId => match (id.file(db)) {
                 case Binary(_, _) => true
-                case Source(_) => false
+                case _ => false
             }
         })
         case _ => false
@@ -389,6 +389,8 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
                 modifiers = modifiers.plus(HighlightModifier.DefaultLibrary)
             }
             Option<Decl>.None
+        // what `@Derive` adds: no modifier its call writes (#175)
+        case Expansion(_) => Option<Decl>.None
     }
     if (item.has(Modifier.Static)) {
         modifiers = modifiers.plus(HighlightModifier.Static)
@@ -444,7 +446,7 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
  */
 func isMutable(db: AnalysisDatabase, id: DefId, source: ?Decl): Bool {
     match (id.file(db)) {
-        case Source(_) => match (source) {
+        case Source(_) | Expansion(_) => match (source) {
             case Some(decl) => hasToken(decl.syntax, SyntaxKind.VarKw)
             case None => false
         }
