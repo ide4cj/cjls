@@ -412,8 +412,10 @@ func addOnce(defs: ArrayList<Def>, def: Def): Unit {
 }
 
 /**
- * The item `def` stands for, `None` once its file no longer has it.
+ * The item `def` stands for, `None` once its file no longer has it. A query: the search is over the
+ * file, and a body asks it of every name it resolves.
  */
+@CalcaTracked
 public func itemOf(db: AnalysisDatabase, def: DefId): ?Item {
     let id = def.item(db)
     itemTreeOf(db, def.file(db)).items.iterator().filter {item => item.id == id}.next()

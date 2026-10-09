@@ -259,8 +259,10 @@ func binaryGenericsOf(db: AnalysisDatabase, pkg: BinaryPackageFile, item: Binary
 }
 
 /**
- * The item of `def`, a member of a type or an `extend` as well as a declaration of a file.
+ * The item of `def`, a member of a type or an `extend` as well as a declaration of a file. A query,
+ * as `itemOf`: an enum's constructors are searched among hundreds.
  */
+@CalcaTracked
 public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
     if (let Some(item) <- itemOf(db, def)) {
         return item
