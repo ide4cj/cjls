@@ -13,7 +13,7 @@ What a client may pass in `initialize`'s `initializationOptions`; all optional.
 |---|---|
 | `linkedProjects: string[]` | projects to load, as R1's: each an absolute path or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides (D33). |
 | `cangjieHome: string` | the Cangjie SDK, an absolute path or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`; `std` is taken from it, and `${CANGJIE_HOME}` in a project's paths expands to it (D40). |
-| `cangjieSrc: string` | the sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`; go to definition on a declaration of `std` goes there (D65). |
+| `cangjieSrc: string` | the sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`; go to definition on a declaration of `std` goes there (D65). `cjls fetch-src` puts them in the SDK's `src` (D69). |
 
 ## `cjls/memoryUsage`
 
