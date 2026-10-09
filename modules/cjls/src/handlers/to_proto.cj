@@ -4,7 +4,7 @@ import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
 import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag,
     NavigationTarget, Severity, StructureKind, StructureNode, TextRange}
-import loupe.{RelatedHighlight, ReferenceAccess}
+import loupe.{HoverItem, HoverResult, RelatedHighlight, ReferenceAccess}
 import loupe.Diagnostic as LoupeDiagnostic
 import loupe.TextEdit as LoupeTextEdit
 import cjls.lsp_types.*
@@ -93,6 +93,47 @@ func documentHighlight(text: Rope, highlight: RelatedHighlight, encoding: Encodi
         case None => DocumentHighlightKind.Text
     }
     DocumentHighlight(range: lspRange(text, highlight.range.start, highlight.range.end, encoding), kind: kind)
+}
+
+/**
+ * What a hover found, each thing the name stands for apart, as rust-analyzer shows it: where it is
+ * and its declaration as Cangjie code, then its doc comment as written; to a client of plain text,
+ * the same lines.
+ */
+func hoverContent(hover: HoverResult, markdown: Bool): MarkupContent {
+    let parts = hover.items.map {
+        item: HoverItem =>
+        let lines = ArrayList<String>()
+        if (let Some(path) <- item.path) {
+            lines.add(codeBlock(path, markdown))
+        }
+        lines.add(codeBlock(item.code, markdown))
+        if (let Some(doc) <- item.doc) {
+            lines.add(if (markdown) {
+                "---\n\n${doc}"
+            } else {
+                "\n${doc}"
+            })
+        }
+        String.join(lines.toArray(), delimiter: if (markdown) {
+            "\n\n"
+        } else {
+            "\n"
+        })
+    }
+    if (markdown) {
+        MarkupContent(kind: MarkupKind.Markdown, value: String.join(parts, delimiter: "\n\n---\n\n"))
+    } else {
+        MarkupContent(kind: MarkupKind.PlainText, value: String.join(parts, delimiter: "\n\n"))
+    }
+}
+
+func codeBlock(code: String, markdown: Bool): String {
+    if (markdown) {
+        "```cangjie\n${code}\n```"
+    } else {
+        code
+    }
 }
 
 /**
