@@ -44,7 +44,7 @@ public interface LspInboundRequest<P, R> <: LspMessageSpec {
 
     /**
      * The params where they lie in the frame, the reader on their value: how the read loop reads
-     * them in place once `method` is known (D70). Reads exactly the one value, or throws.
+     * them in place once `method` is known (D73). Reads exactly the one value, or throws.
      *
      * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
      */
@@ -54,9 +54,20 @@ public interface LspInboundRequest<P, R> <: LspMessageSpec {
 }
 
 /**
- * A request the server sends, which the client answers.
+ * A request the server sends, which the client answers. `P` is `Unit` for a request that takes no
+ * params - `workspace/semanticTokens/refresh` - `R` for one answered with a bare `null`.
  */
-public interface LspOutboundRequest<P, R> <: LspMessageSpec {}
+public interface LspOutboundRequest<P, R> <: LspMessageSpec {
+    /**
+     * Params of none are `null`, which the connection leaves out.
+     */
+    func encodeParams(params: P): RawJson
+
+    /**
+     * @throws FjException - if the result does not read as an `R`
+     */
+    func decodeResult(result: RawJson): R
+}
 
 /**
  * A notification the client sends. `P` is `Unit` for one that takes no params - `exit`.
@@ -71,7 +82,7 @@ public interface LspInboundNotification<P> <: LspMessageSpec {
 
     /**
      * The params where they lie in the frame, the reader on their value: how the read loop reads
-     * them in place once `method` is known (D70). Reads exactly the one value, or throws.
+     * them in place once `method` is known (D73). Reads exactly the one value, or throws.
      *
      * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
      */
@@ -81,7 +92,32 @@ public interface LspInboundNotification<P> <: LspMessageSpec {
 /**
  * A notification the server sends.
  */
-public interface LspOutboundNotification<P> <: LspMessageSpec {}
+public interface LspOutboundNotification<P> <: LspMessageSpec {
+    /**
+     * Params of none are `null`, which the connection leaves out.
+     */
+    func encodeParams(params: P): RawJson
+}
+
+/**
+ * A message the server can ask the client for at run time, `O` being the options it registers
+ * with - `client/registerCapability` and `client/unregisterCapability` take what these make.
+ */
+public interface LspRegistrable<O> <: LspMessageSpec where O <: ToJson {
+    /**
+     * The method a registration names: `method`, but for a message registered together with others
+     * - `textDocument/semanticTokens`.
+     */
+    prop registrationMethod: String
+
+    func registration(id: String, options: O): Registration {
+        Registration(id: id, method: registrationMethod, registerOptions: RawJson.of(options).read<JsonValue>())
+    }
+
+    func unregistration(id: String): Unregistration {
+        Unregistration(id: id, method: registrationMethod)
+    }
+}
 
 /**
  * Absent params read as `null`, so a `P` that allows for none - a struct of optional fields only -

@@ -249,15 +249,26 @@ public class Fixture {
 
     /**
      * A database of the project and the texts of the files, with the packages compiled already of
-     * `binaries`.
+     * `binaries`, and the binaries `models` with the texts of their sources, as the disk has them.
      */
-    public func database(binaries!: Array<CjoFileRead> = []): AnalysisDatabase {
+    public func database(binaries!: Array<CjoFileRead> = [], models!: Array<BinaryModel> = []): AnalysisDatabase {
         let db = AnalysisDatabase()
-        db.setProject(projectModel(), paths, binaries: binaries)
+        let model = ProjectModel(Cfg([]), projectModel().modules, binaries: models)
+        db.setProject(model, paths, binaries: binaries)
         for (file in files) {
             db.setFileText(file.fileId, Rope(file.text))
         }
+        for (path in model.binarySourceFiles()) {
+            db.setFileText(paths.intern(path), readFile(path) ?? throw FixtureException("${path} cannot be read"))
+        }
         db
+    }
+
+    /**
+     * The path of the file `fileId`, of the fixture or of the sources of a binary.
+     */
+    public func pathOf(fileId: FileId): VfsPath {
+        paths.path(fileId)
     }
 
     /**

@@ -16,7 +16,7 @@ import jsonrpc.*
  * response is of type {@link ColorPresentation ColorPresentation[]} or a Thenable
  * that resolves to such.
  */
-public struct ColorPresentationRequestSpec <: LspInboundRequest<ColorPresentationParams, Array<ColorPresentation>> {
+public struct ColorPresentationRequestSpec <: LspInboundRequest<ColorPresentationParams, Array<ColorPresentation>> & LspRegistrable<DocumentColorRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/colorPresentation"
@@ -30,6 +30,12 @@ public struct ColorPresentationRequestSpec <: LspInboundRequest<ColorPresentatio
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

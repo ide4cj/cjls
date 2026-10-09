@@ -1,5 +1,6 @@
 package cjls
 
+import stdxx.Nullable
 import fjson.*
 import jsonrpc.*
 import cjls.lsp_types.*
@@ -172,5 +173,61 @@ class LspTypesTest {
 
         // assert
         @Expect("null", result.toString())
+    }
+
+    @TestCase
+    func aRequestTheServerSendsWritesItsParamsAndReadsItsResult() {
+        // arrange
+        let spec = ConfigurationRequestSpec()
+
+        // act
+        let params = spec.encodeParams(ConfigurationParams(items: [ConfigurationItem(section: "cangjie")]))
+        let result = spec.decodeResult(RawJson(##"[{"a": 1}, null]"##.toArray()))
+
+        // assert
+        @Expect(##"{"items":[{"section":"cangjie"}]}"##, params.toString())
+        @Expect(2, result.size)
+        @Expect(1, result[0]["a"].asInteger())
+        @Expect(result[1].isNull())
+    }
+
+    @TestCase
+    func aRequestTheServerSendsWithoutParamsOrResultWritesNullAndTakesAnyAnswer() {
+        // arrange - `workspace/semanticTokens/refresh`
+        let spec = SemanticTokensRefreshRequestSpec()
+
+        // act
+        let params = spec.encodeParams(())
+        spec.decodeResult(RawJson(##"{"odd": true}"##.toArray()))
+
+        // assert
+        @Expect("null", params.toString())
+    }
+
+    @TestCase
+    func aRegistrationNamesTheMethodItsMessageIsRegisteredUnder() {
+        // arrange - a delta is registered with the full document's tokens
+        let options = SemanticTokensRegistrationOptions(documentSelector: Nullable<DocumentSelector>.Null,
+            legend: SemanticTokensLegend(tokenTypes: ["keyword"], tokenModifiers: []))
+
+        // act
+        let registration = SemanticTokensDeltaRequestSpec().registration("7", options)
+        let unregistration = SemanticTokensDeltaRequestSpec().unregistration("7")
+
+        // assert
+        @Expect("7", registration.id)
+        @Expect("textDocument/semanticTokens", registration.method)
+        @Expect("keyword", registration.registerOptions.getOrThrow()["legend"]["tokenTypes"][0].asString())
+        @Expect("textDocument/semanticTokens", unregistration.method)
+    }
+
+    @TestCase
+    func aRegistrationOfAMessageRegisteredAloneNamesItsOwnMethod() {
+        // act
+        let registration = DidChangeWatchedFilesNotificationSpec().registration("1",
+            DidChangeWatchedFilesRegistrationOptions(watchers: []))
+
+        // assert
+        @Expect("workspace/didChangeWatchedFiles", registration.method)
     }
 }

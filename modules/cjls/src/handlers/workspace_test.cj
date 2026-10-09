@@ -350,7 +350,6 @@ class ProjectLoadTest {
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
 
-
         // act
         initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir, recursive: true)
@@ -423,10 +422,12 @@ class ProjectLoadTest {
         let optionOf = {value: JsonValue => JsonValue.JsonObject([("cangjieHome", value)])}
 
         // act, assert
-        @Expect(cangjieHome(optionOf(JsonValue.JsonString(sdk.toString()))), Some(sdk.toString()))
-        @Expect(cangjieHome(optionOf(JsonValue.JsonString(uriOf(sdk)))), VfsPath.file(sdk).filePath.map {it => it.toString()})
-        @Expect(cangjieHome(optionOf(JsonValue.JsonString("relative"))), None<String>)
-        @Expect(cangjieHome(Option<JsonValue>.None), None<String>)
+        @Expect(pathOption(optionOf(JsonValue.JsonString(sdk.toString())), "cangjieHome"), Some(sdk.toString()))
+        @Expect(pathOption(optionOf(JsonValue.JsonString(uriOf(sdk))), "cangjieHome"),
+            VfsPath.file(sdk).filePath.map {it => it.toString()})
+        @Expect(pathOption(optionOf(JsonValue.JsonString("relative")), "cangjieHome"), None<String>)
+        @Expect(pathOption(optionOf(JsonValue.JsonString(sdk.toString())), "cangjieSrc"), None<String>)
+        @Expect(pathOption(Option<JsonValue>.None, "cangjieHome"), None<String>)
     }
 
     @TestCase
@@ -435,7 +436,6 @@ class ProjectLoadTest {
         let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")])
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
-
 
         // act
         let warning = load(loop, Client(), NoopLogger(), loadRequest(state).getOrThrow())
@@ -588,7 +588,6 @@ class DidChangeWatchedFilesTest {
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
 
-
         // act
         watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
             fileEvent(dir.join("target").join("out.cj"), FileChangeType.Created),
@@ -638,6 +637,8 @@ class DidChangeWorkspaceFoldersTest {
         let client = clientOn(transport)
         initialized(loop, client, NoopLogger(), InitializedParams())
         let registered = transport.nextRequest().getOrThrow().params.getOrThrow().read<RegistrationParams>()
+        // the binaries' registration, of the SDK the tests run with
+        while (transport.nextRequest().isSome()) {}
         openIn(state, dir.join("a.cj"), "edited")
 
         // act
@@ -808,6 +809,26 @@ class WorkspaceSymbolTest {
     }
 
     @TestCase
+    func theSourcesOfStdAreReadButNotSearched() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "func target() {}\n")])
+        let src = workspaceOf([("std/core/x.cj", "package std.core\nfunc targetInStd() {}\n")])
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        state.cangjieSrc = src.toString()
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        remove(dir, recursive: true)
+        remove(src, recursive: true)
+
+        // act
+        let answer = handleWorkspaceSymbol(state.snapshot(), WorkspaceSymbolParams(query: "targ"))
+
+        // assert
+        @Expect(textAt(state, src.join("std/core/x.cj")), Some("package std.core\nfunc targetInStd() {}\n"))
+        @Expect(workspaceSymbolsOf(answer).map {symbol => symbol.name}, ["target"])
+    }
+
+    @TestCase
     func aFileGoneIsSearchedNoMore() {
         // arrange
         let dir = workspaceOf([("a.cj", "func f() {}\n"), ("b.cj", "func g() {}\n")])
@@ -940,5 +961,211 @@ class LoadOffTheLoopTest {
         @Expect(transport.written.remove().getRequestBodyOrThrow().method, "window/workDoneProgress/create")
         @Expect(transport.written.remove().getNotificationBodyOrThrow().method, "$/progress")
         @Expect(transport.written.tryRemove().isNone())
+    }
+}
+
+/**
+ * A root `ws` whose project names binaries outside it, in `libs`: `bin`, a directory of `.cjo`, and
+ * `other.x`, a `.cjo` named; and `sdk`, an SDK of no `.cjo`, so the tests see no SDK of their own.
+ */
+func binariesWorkspace(): Path {
+    workspaceOf([("ws/cj-project.json", projectWithBinaryDir("bin")), ("ws/src/main.cj", "main() {}"),
+        ("libs/bin/a.cjo", "not a cjo"), ("libs/other/other.x.cjo", "not a cjo"), ("sdk/README", "")])
+}
+
+func projectWithBinaryDir(name: String): String {
+    "{\"modules\": [{\"name\": \"app\", \"root\": \"src\"}], \"binaries\": [{\"name\": \"bin\", " +
+        "\"paths\": [\"../libs/${name}\"], \"packages\": {\"other.x\": \"../libs/other/other.x.cjo\"}}]}"
+}
+
+/**
+ * `dir`'s root initialized and loaded for a client watching files, with relative patterns, whose
+ * requests go to `transport`; the registration of the root's watchers taken from it.
+ */
+func watchingBinaries(dir: Path, transport: RequestsTransport, client: Client): Loop {
+    let loop = initializedWith([dir.join("ws")])
+    loop.state.cangjieHome = dir.join("sdk").toString()
+    initialized(loop, client, NoopLogger(), InitializedParams())
+    @Expect(transport.nextRequest()?.method, Some("client/registerCapability"))
+    loop
+}
+
+/**
+ * Each watcher of `registration`, as its base, its pattern and its kind.
+ */
+func describedWatchers(registration: Registration): Array<String> {
+    watchersOf(registration).map {
+        watcher =>
+        let kind = watcher.kind?.value ?? 0
+        match (watcher.globPattern) {
+            case GlobPattern.AsRelativePattern(relative) =>
+                let base = match (relative.baseUri) {
+                    case WorkspaceFolderOrURI.AsURI(uri) => uri
+                    case WorkspaceFolderOrURI.AsWorkspaceFolder(folder) => folder.uri
+                }
+                "${base} ${relative.pattern} ${kind}"
+            case GlobPattern.AsPattern(glob) => "${glob} ${kind}"
+        }
+    }
+}
+
+func registrationsOf(request: RequestBody): Array<Registration> {
+    @Expect(request.method, "client/registerCapability")
+    request.params.getOrThrow().read<RegistrationParams>().registrations
+}
+
+@Test
+class BinaryWatchTest {
+    @TestCase
+    func theCjoOfTheBinariesAreWatchedFromTheDirectoriesTheyAreIn() {
+        // arrange
+        let dir = binariesWorkspace()
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+
+        // act
+        let loop = watchingBinaries(dir, transport, client)
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert: std's directory is the SDK's own, one of its target under `modules`
+        let registrations = registrationsOf(transport.nextRequest().getOrThrow())
+        @Expect(registrations.size, 1)
+        @Expect(registrations[0].method, "workspace/didChangeWatchedFiles")
+        let watched = describedWatchers(registrations[0])
+        let libs = uriOf(dir.join("libs"))
+        @Expect(watched.filter {watcher => !watcher.startsWith(uriOf(dir.join("sdk").join("modules")))}, [
+            "${libs} bin 5", "${libs} bin/*.cjo 7", "${uriOf(dir.join("libs").join("other"))} other.x.cjo 7"])
+        @Expect(watched.filter {watcher => watcher.endsWith(" std 5") || watcher.endsWith(" std/*.cjo 7")}.size, 2)
+        @Expect(loop.state.binaryWatch.getOrThrow().id, Some(registrations[0].id))
+    }
+
+    @TestCase
+    func aClientWithoutRelativePatternsGetsGlobsOfTheBinariesPaths() {
+        // arrange
+        let libs = VfsPath.file(getTempDirectory().join("cjls-libs"))
+        let watch = BinaryWatch("1", [libs.join("bin")], [libs.join("other").join("other.x.cjo")])
+
+        // act
+        let watched = describedWatchers(binaryRegistration("1", watch, false))
+
+        // assert
+        let path = libs.toString().replace("\\", "/")
+        @Expect(watched, ["${path}/bin 5", "${path}/bin/*.cjo 7", "${path}/other/other.x.cjo 7"])
+    }
+
+    @TestCase
+    func aCjoOfTheBinariesChangedFindsTheProjectAgainAndRegistersNothingMore() {
+        // arrange
+        let dir = binariesWorkspace()
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+        let loop = watchingBinaries(dir, transport, client)
+        transport.nextRequest()
+        let unreported = writeFile(dir, "ws/src/b.cj", "b")
+
+        // act
+        handleDidChangeWatchedFiles(loop, client, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("libs").join("bin").join("a.cjo"), FileChangeType.Changed)]))
+        loop.join()
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert: the project found again reads the file not reported
+        @Expect(textAt(loop.state, unreported), Some("b"))
+        @Expect(transport.nextRequest().isNone())
+    }
+
+    @TestCase
+    func aDirectoryOfTheBinariesReplacedAsAWholeFindsTheProjectAgain() {
+        // arrange
+        let dir = binariesWorkspace()
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+        let loop = watchingBinaries(dir, transport, client)
+        let unreported = writeFile(dir, "ws/src/b.cj", "b")
+
+        // act: VS Code reports a directory come or gone as one event for it
+        handleDidChangeWatchedFiles(loop, client, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("libs").join("bin"), FileChangeType.Created)]))
+        loop.join()
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(textAt(loop.state, unreported), Some("b"))
+    }
+
+    @TestCase
+    func aCjoReportedByAClientNotAskedToWatchItFindsTheProjectAgain() {
+        // arrange
+        let dir = binariesWorkspace()
+        let loop = initializedWith([dir.join("ws")], watches: false)
+        loop.state.cangjieHome = dir.join("sdk").toString()
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        let unreported = writeFile(dir, "ws/src/b.cj", "b")
+
+        // act
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("libs").join("other").join("other.x.cjo"), FileChangeType.Changed)]))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(textAt(loop.state, unreported), Some("b"))
+        @Expect(loop.state.binaryWatch.getOrThrow().id, None<String>)
+    }
+
+    @TestCase
+    func aCjoOfNoBinaryFindsNoProjectAgain() {
+        // arrange
+        let dir = binariesWorkspace()
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+        let loop = watchingBinaries(dir, transport, client)
+        let unreported = writeFile(dir, "ws/src/b.cj", "b")
+
+        // act
+        handleDidChangeWatchedFiles(loop, client, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("libs").join("a.cjo"), FileChangeType.Changed),
+            fileEvent(dir.join("libs").join("bin").join("deep").join("a.cjo"), FileChangeType.Changed),
+            fileEvent(dir.join("libs").join("bin").join("a.txt"), FileChangeType.Changed),
+            fileEvent(dir.join("libs").join("other").join("other.y.cjo"), FileChangeType.Changed)]))
+        loop.join()
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(textAt(loop.state, unreported), None<String>)
+    }
+
+    @TestCase
+    func binariesChangedAreRegisteredAnewAndTheOnesBeforeUnregistered() {
+        // arrange
+        let dir = binariesWorkspace()
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+        let loop = watchingBinaries(dir, transport, client)
+        let before = registrationsOf(transport.nextRequest().getOrThrow())[0].id
+        writeFile(dir, "ws/cj-project.json", projectWithBinaryDir("bin2"))
+
+        // act
+        handleDidChangeWatchedFiles(loop, client, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("ws").join("cj-project.json"), FileChangeType.Changed)]))
+        loop.join()
+        client.close()
+        remove(dir, recursive: true)
+
+        // assert: the new watchers first, so no event falls between the two
+        let registration = registrationsOf(transport.nextRequest().getOrThrow())[0]
+        @Expect(registration.id != before)
+        @Expect(describedWatchers(registration).contains("${uriOf(dir.join("libs"))} bin2/*.cjo 7"))
+        let unregister = transport.nextRequest().getOrThrow()
+        @Expect(unregister.method, "client/unregisterCapability")
+        @Expect(unregister.params.getOrThrow().read<UnregistrationParams>().unregisterations.map {it => it.id},
+            [before])
+        let watch = loop.state.binaryWatch.getOrThrow()
+        @Expect(watch.id, Some(registration.id))
+        @Expect(watch.covers(VfsPath.file(dir.join("libs").join("bin2").join("a.cjo"))))
+        @Expect(!watch.covers(VfsPath.file(dir.join("libs").join("bin").join("a.cjo"))))
     }
 }

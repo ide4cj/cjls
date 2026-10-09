@@ -16,7 +16,7 @@ import jsonrpc.*
  * response is of type {@link ColorInformation ColorInformation[]} or a Thenable
  * that resolves to such.
  */
-public struct DocumentColorRequestSpec <: LspInboundRequest<DocumentColorParams, Array<ColorInformation>> {
+public struct DocumentColorRequestSpec <: LspInboundRequest<DocumentColorParams, Array<ColorInformation>> & LspRegistrable<DocumentColorRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/documentColor"
@@ -30,6 +30,12 @@ public struct DocumentColorRequestSpec <: LspInboundRequest<DocumentColorParams,
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

@@ -31,4 +31,12 @@ public struct ApplyWorkspaceEditRequestSpec <: LspOutboundRequest<ApplyWorkspace
             METHOD
         }
     }
+
+    public func encodeParams(params: ApplyWorkspaceEditParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): ApplyWorkspaceEditResult {
+        result.read<ApplyWorkspaceEditResult>()
+    }
 }

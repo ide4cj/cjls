@@ -20,7 +20,7 @@ import jsonrpc.*
  * This means open and close notification must be balanced and the max open count
  * is one.
  */
-public struct DidOpenTextDocumentNotificationSpec <: LspInboundNotification<DidOpenTextDocumentParams> {
+public struct DidOpenTextDocumentNotificationSpec <: LspInboundNotification<DidOpenTextDocumentParams> & LspRegistrable<TextDocumentRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/didOpen"
@@ -34,6 +34,12 @@ public struct DidOpenTextDocumentNotificationSpec <: LspInboundNotification<DidO
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

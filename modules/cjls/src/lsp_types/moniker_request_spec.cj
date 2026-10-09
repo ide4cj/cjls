@@ -15,7 +15,7 @@ import jsonrpc.*
  * The request parameter is of type {@link TextDocumentPositionParams}.
  * The response is of type {@link Moniker Moniker[]} or `null`.
  */
-public struct MonikerRequestSpec <: LspInboundRequest<MonikerParams, Nullable<Array<Moniker>>> {
+public struct MonikerRequestSpec <: LspInboundRequest<MonikerParams, Nullable<Array<Moniker>>> & LspRegistrable<MonikerRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/moniker"
@@ -29,6 +29,12 @@ public struct MonikerRequestSpec <: LspInboundRequest<MonikerParams, Nullable<Ar
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

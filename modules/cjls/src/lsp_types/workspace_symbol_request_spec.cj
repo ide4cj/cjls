@@ -25,7 +25,7 @@ import jsonrpc.*
 need to advertise support for WorkspaceSymbols via the client capability
 `workspace.symbol.resolveSupport`.
  */
-public struct WorkspaceSymbolRequestSpec <: LspInboundRequest<WorkspaceSymbolParams, Nullable<SymbolInformationsOrWorkspaceSymbols>> {
+public struct WorkspaceSymbolRequestSpec <: LspInboundRequest<WorkspaceSymbolParams, Nullable<SymbolInformationsOrWorkspaceSymbols>> & LspRegistrable<WorkspaceSymbolRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/symbol"
@@ -39,6 +39,12 @@ public struct WorkspaceSymbolRequestSpec <: LspInboundRequest<WorkspaceSymbolPar
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

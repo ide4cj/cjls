@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * @since 3.16.0
  */
-public struct SemanticTokensRequestSpec <: LspInboundRequest<SemanticTokensParams, Nullable<SemanticTokens>> {
+public struct SemanticTokensRequestSpec <: LspInboundRequest<SemanticTokensParams, Nullable<SemanticTokens>> & LspRegistrable<SemanticTokensRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/semanticTokens/full"
@@ -29,6 +29,12 @@ public struct SemanticTokensRequestSpec <: LspInboundRequest<SemanticTokensParam
     public prop method: String {
         get() {
             METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
+        get() {
+            "textDocument/semanticTokens"
         }
     }
 

@@ -15,7 +15,7 @@ import jsonrpc.*
  * when the client's configuration has changed. The notification contains
  * the changed configuration as defined by the language client.
  */
-public struct DidChangeConfigurationNotificationSpec <: LspInboundNotification<DidChangeConfigurationParams> {
+public struct DidChangeConfigurationNotificationSpec <: LspInboundNotification<DidChangeConfigurationParams> & LspRegistrable<DidChangeConfigurationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/didChangeConfiguration"
@@ -29,6 +29,12 @@ public struct DidChangeConfigurationNotificationSpec <: LspInboundNotification<D
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

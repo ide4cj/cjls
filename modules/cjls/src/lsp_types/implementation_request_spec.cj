@@ -15,7 +15,7 @@ import jsonrpc.*
  * document position. The request's parameter is of type {@link TextDocumentPositionParams}
  * the response is of type {@link Definition} or a Thenable that resolves to such.
  */
-public struct ImplementationRequestSpec <: LspInboundRequest<ImplementationParams, Nullable<DefinitionOrDefinitionLinks>> {
+public struct ImplementationRequestSpec <: LspInboundRequest<ImplementationParams, Nullable<DefinitionOrDefinitionLinks>> & LspRegistrable<ImplementationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/implementation"
@@ -29,6 +29,12 @@ public struct ImplementationRequestSpec <: LspInboundRequest<ImplementationParam
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

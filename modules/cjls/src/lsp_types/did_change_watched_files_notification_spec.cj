@@ -14,7 +14,7 @@ import jsonrpc.*
  * The watched files notification is sent from the client to the server when
  * the client detects changes to file watched by the language client.
  */
-public struct DidChangeWatchedFilesNotificationSpec <: LspInboundNotification<DidChangeWatchedFilesParams> {
+public struct DidChangeWatchedFilesNotificationSpec <: LspInboundNotification<DidChangeWatchedFilesParams> & LspRegistrable<DidChangeWatchedFilesRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/didChangeWatchedFiles"
@@ -28,6 +28,12 @@ public struct DidChangeWatchedFilesNotificationSpec <: LspInboundNotification<Di
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

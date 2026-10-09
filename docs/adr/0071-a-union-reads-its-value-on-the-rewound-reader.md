@@ -1,4 +1,4 @@
-# ADR-0066: A union reads its value on the reader itself, rewound to the value's start between attempts
+# ADR-0071: A union reads its value on the reader itself, rewound to the value's start between attempts
 
 Status: accepted, 2026-10-09
 

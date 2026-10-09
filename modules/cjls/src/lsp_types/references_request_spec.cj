@@ -16,7 +16,7 @@ import jsonrpc.*
  * type {@link ReferenceParams} the response is of type
  * {@link Location Location[]} or a Thenable that resolves to such.
  */
-public struct ReferencesRequestSpec <: LspInboundRequest<ReferenceParams, Nullable<Array<Location>>> {
+public struct ReferencesRequestSpec <: LspInboundRequest<ReferenceParams, Nullable<Array<Location>>> & LspRegistrable<ReferenceRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/references"
@@ -30,6 +30,12 @@ public struct ReferencesRequestSpec <: LspInboundRequest<ReferenceParams, Nullab
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

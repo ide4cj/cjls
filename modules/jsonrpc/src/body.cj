@@ -34,7 +34,7 @@ public enum Body <: ToJson & FromJson<Body> {
     }
 
     /**
-     * The message, with its params read in place (D70) when `method` came before them and
+     * The message, with its params read in place (D73) when `method` came before them and
      * `paramsReader` gives a reader for that method: what the reader returned is the second value.
      * The params stay in the body as their bytes either way. A reader that throws leaves them
      * unread, as if there had been none: whoever reads them next fails the same way, with an id to

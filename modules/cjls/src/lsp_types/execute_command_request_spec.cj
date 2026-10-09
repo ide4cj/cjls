@@ -14,7 +14,7 @@ import jsonrpc.*
  * A request send from the client to the server to execute a command. The request might return
  * a workspace edit which the client will apply to the workspace.
  */
-public struct ExecuteCommandRequestSpec <: LspInboundRequest<ExecuteCommandParams, LSPAny> {
+public struct ExecuteCommandRequestSpec <: LspInboundRequest<ExecuteCommandParams, LSPAny> & LspRegistrable<ExecuteCommandRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/executeCommand"
@@ -28,6 +28,12 @@ public struct ExecuteCommandRequestSpec <: LspInboundRequest<ExecuteCommandParam
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

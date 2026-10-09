@@ -20,7 +20,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct WillCreateFilesRequestSpec <: LspInboundRequest<CreateFilesParams, Nullable<WorkspaceEdit>> {
+public struct WillCreateFilesRequestSpec <: LspInboundRequest<CreateFilesParams, Nullable<WorkspaceEdit>> & LspRegistrable<FileOperationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/willCreateFiles"
@@ -34,6 +34,12 @@ public struct WillCreateFilesRequestSpec <: LspInboundRequest<CreateFilesParams,
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

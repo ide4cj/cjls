@@ -32,4 +32,12 @@ public struct UnregistrationRequestSpec <: LspOutboundRequest<UnregistrationPara
             METHOD
         }
     }
+
+    public func encodeParams(params: UnregistrationParams): RawJson {
+        RawJson.of(params)
+    }
+
+    public func decodeResult(result: RawJson): Unit {
+        ()
+    }
 }

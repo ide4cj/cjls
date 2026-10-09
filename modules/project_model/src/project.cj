@@ -76,7 +76,8 @@ class Loading {
     }
 
     /**
-     * `std` from the SDK, as cjc finds it: `$CANGJIE_HOME/modules/<target>/std`.
+     * `std` from the SDK, as cjc finds it: `$CANGJIE_HOME/modules/<target>/std`; with its sources,
+     * `$CANGJIE_SRC/std`, if they are there.
      */
     func stdBinary(): ?BinaryModel {
         let home = match (env("CANGJIE_HOME")) {
@@ -86,7 +87,12 @@ class Loading {
                 return None
         }
         let target = sdkTarget(cfg) ?? return None
-        BinaryModel("std", [VfsPath.file(home).join("modules/${target}/std")])
+        let sources = match (env("CANGJIE_SRC")) {
+            case Some(src) where isDirectory(Path(src).join("std").toString()) =>
+                sourcesOf("std", VfsPath.file(src).join("std"))
+            case _ => Option<BinarySources>.None
+        }
+        BinaryModel("std", [VfsPath.file(home).join("modules/${target}/std")], sources: sources)
     }
 }
 
@@ -184,7 +190,7 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
         }
         sort(packages, by: {a, b => a.name.compare(b.name)})
         binaries.add(BinaryModel(binary.name, (binary.paths ?? []).map {path => loading.resolve(base, path)},
-            packages: packages))
+            packages: packages, sources: binary.sources.map {dir => sourcesOf(binary.name, loading.resolve(base, dir))}))
     }
     ProjectModel(cfg, modules, binaries: binaries.toArray())
 }
@@ -218,7 +224,8 @@ public func toProjectJson(model: ProjectModel, base: VfsPath): ProjectJson {
         for (pkg in binary.packages) {
             packages.add(pkg.name, relative(pkg.path, base))
         }
-        BinaryJson(name: binary.name, paths: binary.paths.map {path => relative(path, base)}, packages: packages)
+        BinaryJson(name: binary.name, paths: binary.paths.map {path => relative(path, base)}, packages: packages,
+            sources: binary.sources.map {sources => relative(sources.dir, base)})
     }
     ProjectJson(cfg: jsonOf(model.cfg), modules: modules, binaries: binaries)
 }
@@ -259,6 +266,14 @@ func packageDir(module: String, root: VfsPath, name: String, loading: Loading): 
         return root
     }
     root.join(name[module.size + 1..].replace(".", "/"))
+}
+
+/**
+ * The sources of the binary `name` in `dir`: a package per directory holding a `*.cj`, named as a
+ * module's are.
+ */
+func sourcesOf(name: String, dir: VfsPath): BinarySources {
+    BinarySources(dir, packagesUnder(name, dir))
 }
 
 /**

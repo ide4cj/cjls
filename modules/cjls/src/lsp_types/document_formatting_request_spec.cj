@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * A request to format a whole document.
  */
-public struct DocumentFormattingRequestSpec <: LspInboundRequest<DocumentFormattingParams, Nullable<Array<TextEdit>>> {
+public struct DocumentFormattingRequestSpec <: LspInboundRequest<DocumentFormattingParams, Nullable<Array<TextEdit>>> & LspRegistrable<DocumentFormattingRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/formatting"
@@ -27,6 +27,12 @@ public struct DocumentFormattingRequestSpec <: LspInboundRequest<DocumentFormatt
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

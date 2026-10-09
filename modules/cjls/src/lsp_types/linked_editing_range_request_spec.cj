@@ -15,7 +15,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct LinkedEditingRangeRequestSpec <: LspInboundRequest<LinkedEditingRangeParams, Nullable<LinkedEditingRanges>> {
+public struct LinkedEditingRangeRequestSpec <: LspInboundRequest<LinkedEditingRangeParams, Nullable<LinkedEditingRanges>> & LspRegistrable<LinkedEditingRangeRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/linkedEditingRange"
@@ -29,6 +29,12 @@ public struct LinkedEditingRangeRequestSpec <: LspInboundRequest<LinkedEditingRa
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

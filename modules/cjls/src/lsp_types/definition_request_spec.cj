@@ -16,7 +16,7 @@ import jsonrpc.*
  * the response is of either type {@link Definition} or a typed array of
  * {@link DefinitionLink} or a Thenable that resolves to such.
  */
-public struct DefinitionRequestSpec <: LspInboundRequest<DefinitionParams, Nullable<DefinitionOrDefinitionLinks>> {
+public struct DefinitionRequestSpec <: LspInboundRequest<DefinitionParams, Nullable<DefinitionOrDefinitionLinks>> & LspRegistrable<DefinitionRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/definition"
@@ -30,6 +30,12 @@ public struct DefinitionRequestSpec <: LspInboundRequest<DefinitionParams, Nulla
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

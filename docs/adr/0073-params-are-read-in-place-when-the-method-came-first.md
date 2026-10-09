@@ -1,11 +1,11 @@
-# ADR-0070: Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes
+# ADR-0073: Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes
 
 Status: accepted, 2026-10-09
 
 ## Context
 
 - D22 reads the envelope in one pass and leaves `params` as a slice of the frame (`RawJson`), since `params` may come before `method`; the route then reads the slice as its type. D22 named the cost: a handler's params are read twice, and reading them in place when `method` came first "takes the route in the read loop".
-- `JsonCodecBench` on the server's own path, after D66: a keystroke's `didChange` 1.69 µs, of which the envelope's skip over `params` 0.35 µs and a reader made for the slice 0.12 µs and 530 bytes; the same bytes read in one pass, envelope and params together, 1.03 µs.
+- `JsonCodecBench` on the server's own path, after D71: a keystroke's `didChange` 1.69 µs, of which the envelope's skip over `params` 0.35 µs and a reader made for the slice 0.12 µs and 530 bytes; the same bytes read in one pass, envelope and params together, 1.03 µs.
 - Every known client writes `method` before `params` (vscode-languageclient, Neovim, Zed, lsp4j; `jsonrpc` itself does).
 - `jsonrpc` knows zero method names (D3); only the `Handler` above it knows what a method's params are.
 

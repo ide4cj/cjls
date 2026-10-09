@@ -21,7 +21,7 @@ import jsonrpc.*
  * request. However, properties that are needed for the initial sorting and filtering, like `sortText`,
  * `filterText`, `insertText`, and `textEdit`, must not be changed during resolve.
  */
-public struct CompletionRequestSpec <: LspInboundRequest<CompletionParams, Nullable<CompletionItemsOrCompletionList>> {
+public struct CompletionRequestSpec <: LspInboundRequest<CompletionParams, Nullable<CompletionItemsOrCompletionList>> & LspRegistrable<CompletionRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/completion"
@@ -35,6 +35,12 @@ public struct CompletionRequestSpec <: LspInboundRequest<CompletionParams, Nulla
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

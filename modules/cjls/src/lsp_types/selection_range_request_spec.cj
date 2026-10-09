@@ -16,7 +16,7 @@ import jsonrpc.*
  * response is of type {@link SelectionRange SelectionRange[]} or a Thenable
  * that resolves to such.
  */
-public struct SelectionRangeRequestSpec <: LspInboundRequest<SelectionRangeParams, Nullable<Array<SelectionRange>>> {
+public struct SelectionRangeRequestSpec <: LspInboundRequest<SelectionRangeParams, Nullable<Array<SelectionRange>>> & LspRegistrable<SelectionRangeRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/selectionRange"
@@ -30,6 +30,12 @@ public struct SelectionRangeRequestSpec <: LspInboundRequest<SelectionRangeParam
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

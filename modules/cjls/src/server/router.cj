@@ -64,7 +64,7 @@ public class Router {
     }
 
     /**
-     * How each method's params are read where they lie in the frame, for the read loop (D70):
+     * How each method's params are read where they lie in the frame, for the read loop (D73):
      * what `Server.paramsReader` answers from.
      */
     let paramsReaders = HashMap<String, (FjReader) -> Any>()
@@ -148,7 +148,7 @@ func decodedAs<P>(decoded: ?Any): ?P {
 
 /**
  * A route runs on its parts and the message's params: their bytes, and what the read loop
- * decoded of them in place, if it did (D70).
+ * decoded of them in place, if it did (D73).
  */
 enum RequestRoute {
     | Exclusive((Parts, ?RawJson, ?Any) -> RawJson)

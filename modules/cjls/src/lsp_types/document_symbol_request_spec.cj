@@ -16,7 +16,7 @@ import jsonrpc.*
  * response is of type {@link SymbolInformation SymbolInformation[]} or a Thenable
  * that resolves to such.
  */
-public struct DocumentSymbolRequestSpec <: LspInboundRequest<DocumentSymbolParams, Nullable<SymbolInformationsOrDocumentSymbols>> {
+public struct DocumentSymbolRequestSpec <: LspInboundRequest<DocumentSymbolParams, Nullable<SymbolInformationsOrDocumentSymbols>> & LspRegistrable<DocumentSymbolRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/documentSymbol"
@@ -30,6 +30,12 @@ public struct DocumentSymbolRequestSpec <: LspInboundRequest<DocumentSymbolParam
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

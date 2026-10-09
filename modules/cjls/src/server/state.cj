@@ -6,6 +6,31 @@ import loupe.vfs.*
 import loupe.db.*
 
 /**
+ * The `.cjo` of a project's binaries (D38), as an event reports them: every one in the
+ * directories of theirs, each directory come or gone too, and those named one by one; and the id
+ * of the registration the client watches them by, to unregister it by, `None` if it does not.
+ */
+public struct BinaryWatch {
+    public BinaryWatch(
+        public let id: ?String,
+        public let dirs: Array<VfsPath>,
+        public let files: Array<VfsPath>
+    ) {}
+
+    /**
+     * Whether an event at `path` is of what is watched: a `.cjo` in one of `dirs`, one of `files`,
+     * or one of `dirs` itself, come or gone as a whole.
+     */
+    public func covers(path: VfsPath): Bool {
+        if (files.contains(path) || dirs.contains(path)) {
+            return true
+        }
+        let parent = path.parent ?? return false
+        path.name.endsWith(".cjo") && dirs.contains(parent)
+    }
+}
+
+/**
  * The server's state, which a handler given a `Context` changes: the files as the editor and the
  * disk give them, the documents the editor has open, and the analysis, kept in step with the
  * files: a query takes `state.analysis`, the root handle of the analysis database.
@@ -44,6 +69,12 @@ public class ServerState <: FromContext<ServerState> {
     public var locationLinks = false
 
     /**
+     * Whether the client takes a hover's content as Markdown, as agreed on at `initialize`; one that
+     * does not gets plain text.
+     */
+    public var hoverMarkdown = false
+
+    /**
      * Whether the client folds whole lines only, and how many folds of a document it takes at most,
      * as agreed on at `initialize`.
      */
@@ -74,6 +105,12 @@ public class ServerState <: FromContext<ServerState> {
     public let watchers = HashMap<VfsPath, String>()
 
     /**
+     * The `.cjo` of the binaries of the last project set, and how the client watches them; `None`
+     * before a project is.
+     */
+    public var binaryWatch: ?BinaryWatch = None
+
+    /**
      * The projects `initializationOptions` names (`linkedProjects`): a `cj-project.json`, or a
      * directory to find one in.
      */
@@ -85,10 +122,21 @@ public class ServerState <: FromContext<ServerState> {
     public var cangjieHome: ?String = None
 
     /**
+     * The sources of the SDK `initializationOptions` names (`cangjieSrc`), the first place they are
+     * looked for.
+     */
+    public var cangjieSrc: ?String = None
+
+    /**
      * The files of the project, as last set: made anew each time, for a set built from an array
      * takes a third of the time `clear` and `add(all:)` do.
      */
     private var projectFiles = HashSet<VfsPath>()
+
+    /**
+     * The files of the sources of the binaries, as last set: read, but no file of the workspace.
+     */
+    private var binarySourceFiles = HashSet<VfsPath>()
 
     private var filesChanged = false
     private var registrations = 0
@@ -108,8 +156,9 @@ public class ServerState <: FromContext<ServerState> {
     private var goneWithProject = HashSet<VfsPath>()
 
     /**
-     * The files with contents, for a snapshot to list; `None` once a file was created or deleted
-     * since, until the next snapshot lists them again.
+     * The files with contents but for the sources of the binaries, for a snapshot to list; `None`
+     * once a file was created or deleted, or the project set, since, until the next snapshot lists
+     * them again.
      */
     private var files: ?Array<FileId> = Array<FileId>()
 
@@ -246,6 +295,8 @@ public class ServerState <: FromContext<ServerState> {
             apply(gone)
         }
         projectFiles = HashSet<VfsPath>(model.files())
+        binarySourceFiles = HashSet<VfsPath>(model.binarySourceFiles())
+        files = None
     }
 
     /**
@@ -292,10 +343,10 @@ public class ServerState <: FromContext<ServerState> {
      * `CancelledException`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
-        let files = this.files ?? vfs.files()
+        let files = this.files ?? vfs.files().filter {id => !binarySourceFiles.contains(vfs.filePath(id))}
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
-            locationLinks, lineFoldingOnly, foldingRangeLimit)
+            locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown)
     }
 
     /**
@@ -318,7 +369,8 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * Every file with contents, in the order of their ids.
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64) {}
+        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64,
+        public let hoverMarkdown: Bool) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot

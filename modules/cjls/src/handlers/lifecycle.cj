@@ -24,9 +24,11 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.lineFoldingOnly = folding.flatMap {it => it.lineFoldingOnly} ?? false
     state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}
     state.locationLinks = takesLocationLinks(params.capabilities)
+    state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
     state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
-    state.cangjieHome = cangjieHome(params.initializationOptions)
+    state.cangjieHome = pathOption(params.initializationOptions, "cangjieHome")
+    state.cangjieSrc = pathOption(params.initializationOptions, "cangjieSrc")
     let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
@@ -70,11 +72,11 @@ func linkedProjects(options: ?JsonValue): Array<VfsPath> {
 }
 
 /**
- * The SDK `initializationOptions.cangjieHome` names, an absolute path or a `file:` URI; `None` for
- * anything else.
+ * The path the option `name` of `initializationOptions` names, an absolute path or a `file:` URI:
+ * the SDK (`cangjieHome`), its sources (`cangjieSrc`). `None` for anything else.
  */
-func cangjieHome(options: ?JsonValue): ?String {
-    match (options.flatMap {it => it.get("cangjieHome")}) {
+func pathOption(options: ?JsonValue, name: String): ?String {
+    match (options.flatMap {it => it.get(name)}) {
         case Some(JsonValue.JsonString(text)) where text.startsWith("file:") =>
             VfsPath.fromUri(text).filePath.map {path => path.toString()}
         case Some(JsonValue.JsonString(text)) where Path(text).isAbsolute() => text
@@ -119,6 +121,16 @@ func takesLocationLinks(capabilities: ClientCapabilities): Bool {
     capabilities.textDocument.flatMap {textDocument => textDocument.definition}.flatMap {
         definition => definition.linkSupport
     } ?? false
+}
+
+/**
+ * Whether the client takes a hover's content as Markdown: one of the formats it lists.
+ */
+func takesHoverMarkdown(capabilities: ClientCapabilities): Bool {
+    let formats = capabilities.textDocument.flatMap {textDocument => textDocument.hover}.flatMap {
+        hover => hover.contentFormat
+    } ?? []
+    formats.contains(MarkupKind.Markdown)
 }
 
 func positionEncodingKind(encoding: Encoding): PositionEncodingKind {

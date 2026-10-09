@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.17.0
  */
-public struct DocumentDiagnosticRequestSpec <: LspInboundRequest<DocumentDiagnosticParams, DocumentDiagnosticReport> {
+public struct DocumentDiagnosticRequestSpec <: LspInboundRequest<DocumentDiagnosticParams, DocumentDiagnosticReport> & LspRegistrable<DiagnosticRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/diagnostic"
@@ -30,6 +30,12 @@ public struct DocumentDiagnosticRequestSpec <: LspInboundRequest<DocumentDiagnos
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

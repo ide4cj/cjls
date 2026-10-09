@@ -19,7 +19,7 @@ import jsonrpc.*
  * doesn't mean that the document was open in an editor before. A close
  * notification requires a previous open notification to be sent.
  */
-public struct DidCloseTextDocumentNotificationSpec <: LspInboundNotification<DidCloseTextDocumentParams> {
+public struct DidCloseTextDocumentNotificationSpec <: LspInboundNotification<DidCloseTextDocumentParams> & LspRegistrable<TextDocumentRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/didClose"
@@ -33,6 +33,12 @@ public struct DidCloseTextDocumentNotificationSpec <: LspInboundNotification<Did
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

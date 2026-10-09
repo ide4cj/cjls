@@ -156,7 +156,7 @@ public struct SignatureTypes {
 @CalcaTracked[cycleResult: signatureTypesOnCycle]
 public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
     match (def.file(db)) {
-        case Source(_) => SourceTyLowering(db, def).lower()
+        case Source(_) | Expansion(_) => SourceTyLowering(db, def).lower()
         case Binary(pkg, index) => lowerBinarySignature(db, def, pkg, BinaryItem(index, def.item(db)))
     }
 }
@@ -235,7 +235,7 @@ func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
  */
 public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
     match (def.file(db)) {
-        case Source(_) => signature(db, def).generics
+        case Source(_) | Expansion(_) => signature(db, def).generics
         case Binary(pkg, index) => binaryGenericsOf(db, pkg, BinaryItem(index, def.item(db)))
     }
 }
@@ -277,16 +277,6 @@ public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
 func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
     let count = genericsOf(db, def).size
     Ty(db, DeclTy(def, Array(count) {i => Ty(db, ParamTy(def, i))}))
-}
-
-/**
- * The declaration `name` of `std.core`, among the packages `from` may import, if one is of `kind`:
- * `Option` for `?T` (N58), the types of the compiler's own.
- */
-func coreDecl(db: AnalysisDatabase, from: PackageRef, name: String, kind: ItemKind): ?DefId {
-    let core = packageIndex(db).find("std.core", from: from) ?? return None
-    let defs = packageExports(db, core).names.get(name) ?? return None
-    defs.iterator().filter {one => one.id.item(db).kind == kind}.next().map {one => one.id}
 }
 
 /**
@@ -381,7 +371,7 @@ class SourceTyLowering {
                 case _ => false
             }
         }
-        let object = scope.flatMap {one => coreDecl(db, PackageRef.Source(one.pkg), "Object", ItemKind.Class)}
+        let object = scope.flatMap {one => langItem(db, PackageRef.Source(one.pkg), LangItem.ObjectClass)}
         match (object) {
             case Some(id) where !named && id != def => [Ty(db, DeclTy(id, []))].concat(supers)
             case _ => supers
@@ -546,7 +536,7 @@ class SourceTyLowering {
 
     private func optionDecl(): ?DefId {
         let pkg = scope?.pkg ?? return None
-        coreDecl(db, PackageRef.Source(pkg), "Option", ItemKind.Enum)
+        langItem(db, PackageRef.Source(pkg), LangItem.OptionEnum)
     }
 }
 

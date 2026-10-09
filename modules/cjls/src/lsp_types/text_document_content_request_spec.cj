@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
-public struct TextDocumentContentRequestSpec <: LspInboundRequest<TextDocumentContentParams, TextDocumentContentResult> {
+public struct TextDocumentContentRequestSpec <: LspInboundRequest<TextDocumentContentParams, TextDocumentContentResult> & LspRegistrable<TextDocumentContentRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/textDocumentContent"
@@ -30,6 +30,12 @@ public struct TextDocumentContentRequestSpec <: LspInboundRequest<TextDocumentCo
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

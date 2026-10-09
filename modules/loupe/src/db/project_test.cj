@@ -175,4 +175,45 @@ class ProjectTest {
         @Expect(files, [[paths.lookup(at("one/a.cj")).getOrThrow()], [paths.lookup(at("one/b.cj")).getOrThrow()],
             [paths.lookup(at("two/b.cj")).getOrThrow()]])
     }
+
+    @TestCase
+    func theSourcesOfABinaryAreItsFilesNamedAsItsCjoNamesThemInNoPackage() {
+        // arrange
+        let db = AnalysisDatabase()
+        let paths = PathInterner()
+        let sources = BinarySources(at("src/std"), [
+            PackageModel("std", at("src/std"), [at("src/std/std.cj")]),
+            PackageModel("std.collection", at("src/std/collection"), [at("src/std/collection/array_list.cj")])
+        ])
+        let model = ProjectModel(Cfg([]), appProject().modules,
+            binaries: [BinaryModel("std", [at("std")], sources: sources)])
+
+        // act
+        db.setProject(model, paths)
+
+        // assert
+        let project = db.project().getOrThrow()
+        @Expect(project.binarySources(db), [
+            BinarySourceFile("std", "std/std.cj", paths.lookup(at("src/std/std.cj")).getOrThrow()),
+            BinarySourceFile("std", "std.collection/array_list.cj",
+                paths.lookup(at("src/std/collection/array_list.cj")).getOrThrow())
+        ])
+        @Expect(model.files(), [at("app/src/a.cj"), at("app/src/util/u.cj")])
+        @Expect(model.binarySourceFiles(), [at("src/std/std.cj"), at("src/std/collection/array_list.cj")])
+    }
+
+    @TestCase
+    func sourcesGoneLeaveTheBinaryWithNone() {
+        // arrange
+        let db = AnalysisDatabase()
+        let paths = PathInterner()
+        let sources = BinarySources(at("src/std"), [PackageModel("std", at("src/std"), [at("src/std/std.cj")])])
+        db.setProject(ProjectModel(Cfg([]), [], binaries: [BinaryModel("std", [at("std")], sources: sources)]), paths)
+
+        // act
+        db.setProject(ProjectModel(Cfg([]), [], binaries: [BinaryModel("std", [at("std")])]), paths)
+
+        // assert
+        @Expect(db.project().getOrThrow().binarySources(db).isEmpty())
+    }
 }

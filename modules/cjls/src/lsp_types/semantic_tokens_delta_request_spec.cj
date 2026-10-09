@@ -13,7 +13,7 @@ import jsonrpc.*
 /**
  * @since 3.16.0
  */
-public struct SemanticTokensDeltaRequestSpec <: LspInboundRequest<SemanticTokensDeltaParams, Nullable<SemanticTokensOrSemanticTokensDelta>> {
+public struct SemanticTokensDeltaRequestSpec <: LspInboundRequest<SemanticTokensDeltaParams, Nullable<SemanticTokensOrSemanticTokensDelta>> & LspRegistrable<SemanticTokensRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/semanticTokens/full/delta"
@@ -29,6 +29,12 @@ public struct SemanticTokensDeltaRequestSpec <: LspInboundRequest<SemanticTokens
     public prop method: String {
         get() {
             METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
+        get() {
+            "textDocument/semanticTokens"
         }
     }
 

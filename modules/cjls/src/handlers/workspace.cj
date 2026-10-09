@@ -1,19 +1,19 @@
 package cjls.handlers
 
-import std.collection.{ArrayList, HashMap}
+import std.collection.{ArrayList, HashMap, HashSet}
 import std.env.getVariable
 import std.fs.{FileInfo, FSException}
 import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
 import stdxx.Nullable
-import fjson.{JsonValue, RawJson}
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
-import project_model.{CangjieHome, findCangjieHome, findProjects, hostCfg, PROJECT_JSON, withCangjieHome}
+import project_model.{CangjieHome, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON,
+    withCangjieHome, withCangjieSrc}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -52,8 +52,9 @@ func handleInitialized(loop: Loop, client: Client, logger: Logger, _: Initialize
 /**
  * A file created or changed is read from disk, one deleted is gone, and a directory deleted takes
  * every file under it; a document open in the editor keeps its buffer, whatever the disk says. A
- * file or a directory come or gone, or a manifest changed, finds the project again, after, which
- * reads the files of a directory come: an editor may report the directory alone.
+ * file or a directory come or gone, a manifest changed, or a `.cjo` of the binaries, finds the
+ * project again, after, which reads the files of a directory come (an editor may report the
+ * directory alone) and the `.cjo` whose stamps moved.
  */
 @LspHandler
 func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
@@ -118,13 +119,15 @@ func handleWorkspaceSymbol(snap: ServerSnapshot, params: WorkspaceSymbolParams):
 }
 
 /**
- * Whether `event` may change the project: a manifest changed, a Cangjie file come or gone, a
- * directory of the workspace come, or one gone with files the server knows. Whatever else comes or
- * goes under a root is reported too, cjpm's output among it, and finds no project again.
+ * Whether `event` may change the project: a manifest changed, a `.cjo` of the binaries or a
+ * directory of theirs, a Cangjie file come or gone, a directory of the workspace come, or one gone
+ * with files the server knows. Whatever else comes or goes under a root is reported too, cjpm's
+ * output among it, and finds no project again.
  */
 func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>): Bool {
     let path = VfsPath.fromUri(event.uri)
     match (event.`type`) {
+        case _ where state.binaryWatch?.covers(path) ?? false => true
         case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON => true
         case FileChangeType.Changed => false
         case _ where isCangjieFile(path.name) => true
@@ -156,6 +159,7 @@ struct LoadRequest {
         let roots: Array<VfsPath>,
         let linkedProjects: Array<VfsPath>,
         let cangjieHome: ?String,
+        let cangjieSrc: ?String,
         /**
          * Whether the client is shown its progress.
          */
@@ -194,16 +198,16 @@ func loadRequest(state: ServerState): ?LoadRequest {
         return None
     }
     LoadRequest(state.beginLoad(), state.roots.toArray(), state.linkedProjects.toArray(), state.cangjieHome,
-        state.workDoneProgress)
+        state.cangjieSrc, state.workDoneProgress)
 }
 
 /**
  * Finds the project of every root again, reads the `.cjo` of its binaries and sets them with it,
  * the files of the folders removed gone in the same revision, then reads the files of its
- * packages the server does not know yet, and sets them `LOAD_BATCH` at a time, one revision each,
- * reporting how many are done. The disk is read here, on the thread the load runs on; the state is
- * changed through `loop` alone, between the messages, and once a newer load began nothing more is
- * set.
+ * packages and of its binaries' sources the server does not know yet, and sets them `LOAD_BATCH`
+ * at a time, one revision each, reporting how many are done. The disk is read here, on the thread
+ * the load runs on; the state is changed through `loop` alone, between the messages, and once a
+ * newer load began nothing more is set.
  *
  * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
  */
@@ -215,7 +219,7 @@ func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?St
             None
         }, "Loading the workspace")
     try {
-        loadProject(loop, logger, request, progress)
+        loadProject(loop, client, logger, request, progress)
     } finally {
         // a load ended by a newer one ends its token too: the newer one began a token of its own
         progress.end(Option<String>.None)
@@ -228,14 +232,19 @@ func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?St
  */
 const LOAD_BATCH = 1024
 
-func loadProject(loop: Loop, logger: Logger, request: LoadRequest, progress: WorkDoneProgress): ?String {
+func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadRequest, progress: WorkDoneProgress): ?String {
     let start = MonoTime.now()
     let budget = loadBudget()
     let home = findCangjieHome(request.cangjieHome, env: {name => getVariable(name)})
     if (let Some(home) <- home) {
         logger.info("found the SDK", [("path", home.path), ("source", home.source)])
     }
-    let env = withCangjieHome({name => getVariable(name)}, home)
+    let withHome = withCangjieHome({name => getVariable(name)}, home)
+    let src = findCangjieSrc(request.cangjieSrc, env: withHome)
+    if (let Some(src) <- src) {
+        logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
+    }
+    let env = withCangjieSrc(withHome, src)
     let loads = findProjects(request.roots, request.linkedProjects, env: env, budget: budget)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
@@ -265,7 +274,10 @@ func loadProject(loop: Loop, logger: Logger, request: LoadRequest, progress: Wor
         state: ServerState =>
         if (state.isLoading(request.load)) {
             state.setProject(model, binaries: binaries.files)
-            Some(model.files().filter {path => !state.openDocuments.contains(path) && !state.knows(path)})
+            watchBinaries(state, client, logger, model)
+            Some(model.files().concat(model.binarySourceFiles()).filter {
+                path => !state.openDocuments.contains(path) && !state.knows(path)
+            })
         } else {
             Option<Array<VfsPath>>.None
         }
@@ -344,13 +356,97 @@ func watch(state: ServerState, client: Client, logger: Logger, roots: Array<VfsP
 }
 
 /**
+ * Keeps the `.cjo` of the binaries of `model`, which an event reloads the project for, and, if they
+ * are not those the client watches already, asks it to watch them by a registration of their own,
+ * the one before unregistered after: they are outside the roots, as the SDK is, and change with
+ * the project. Nothing is registered if the client cannot register a watcher at run time.
+ */
+func watchBinaries(state: ServerState, client: Client, logger: Logger, model: ProjectModel): Unit {
+    let (dirs, files) = binaryPaths(model)
+    let before = state.binaryWatch
+    if (let Some(before) <- before && before.dirs == dirs && before.files == files) {
+        return
+    }
+    let id: ?String = if (state.watchesFiles && (!dirs.isEmpty() || !files.isEmpty())) {
+        state.registrationId()
+    } else {
+        Option<String>.None
+    }
+    let watch = BinaryWatch(id, dirs, files)
+    state.binaryWatch = watch
+    if (let Some(id) <- id) {
+        client.request(RegistrationRequestSpec(),
+            RegistrationParams(registrations: [binaryRegistration(id, watch, state.relativePatterns)]), logger)
+    }
+    if (let Some(id) <- before.flatMap {before => before.id}) {
+        client.request(UnregistrationRequestSpec(),
+            UnregistrationParams(unregisterations: [DidChangeWatchedFilesNotificationSpec().unregistration(id)]),
+            logger)
+    }
+}
+
+/**
+ * The directories of the binaries of `model`, and the `.cjo` it names one by one, each once, in
+ * the order the model gives them.
+ */
+func binaryPaths(model: ProjectModel): (Array<VfsPath>, Array<VfsPath>) {
+    let seen = HashSet<VfsPath>()
+    let dirs = ArrayList<VfsPath>()
+    let files = ArrayList<VfsPath>()
+    for (binary in model.binaries) {
+        dirs.add(all: binary.paths.filter {dir => seen.add(dir)})
+        files.add(all: binary.packages.map {pkg => pkg.path}.filter {file => seen.add(file)})
+    }
+    (dirs.toArray(), files.toArray())
+}
+
+/**
+ * Watchers of the `.cjo` of `watch`: of every one in a directory, and of a `.cjo` named, created,
+ * changed or deleted; and of a directory itself come or gone, as a client reports a directory
+ * replaced as a whole (D58), so each is watched from the directory it is in. Patterns relative to
+ * that directory if the client takes them, globs of their paths otherwise, which a client that
+ * matches a glob only under its workspace folders (Neovim) matches for a binary under one alone.
+ */
+func binaryRegistration(id: String, watch: BinaryWatch, relative: Bool): Registration {
+    let comeOrGone = WatchKind(WatchKind.CREATE.value | WatchKind.DELETE.value)
+    let any = WatchKind(WatchKind.CREATE.value | WatchKind.CHANGE.value | WatchKind.DELETE.value)
+    let watchers = ArrayList<FileSystemWatcher>()
+    for (dir in watch.dirs) {
+        match (dir.parent) {
+            case Some(parent) =>
+                watchers.add(FileSystemWatcher(globPattern: globPattern(parent, dir.name, relative), kind: comeOrGone))
+                watchers.add(FileSystemWatcher(globPattern: globPattern(parent, "${dir.name}/*.cjo", relative), kind: any))
+            case None => watchers.add(FileSystemWatcher(globPattern: globPattern(dir, "*.cjo", relative), kind: any))
+        }
+    }
+    for (file in watch.files) {
+        let parent = file.parent ?? continue
+        watchers.add(FileSystemWatcher(globPattern: globPattern(parent, file.name, relative), kind: any))
+    }
+    DidChangeWatchedFilesNotificationSpec().registration(id,
+        DidChangeWatchedFilesRegistrationOptions(watchers: watchers.toArray()))
+}
+
+/**
+ * The pattern `glob` relative to the directory `base`, or, for a client that takes no relative
+ * pattern, a glob of `base`'s path followed by `glob`.
+ */
+func globPattern(base: VfsPath, glob: String, relative: Bool): GlobPattern {
+    if (relative) {
+        return GlobPattern.AsRelativePattern(RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(base.toUri()),
+            pattern: glob))
+    }
+    GlobPattern.AsPattern(base.toString().replace("\\", "/").removeSuffix("/") + "/" + glob)
+}
+
+/**
  * Asks the client to stop watching the files of each root it watches them for.
  */
 func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<VfsPath>): Unit {
     let unregistrations = ArrayList<Unregistration>()
     for (root in roots) {
         if (let Some(id) <- state.watchers.remove(root)) {
-            unregistrations.add(Unregistration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD))
+            unregistrations.add(DidChangeWatchedFilesNotificationSpec().unregistration(id))
         }
     }
     if (!unregistrations.isEmpty()) {
@@ -373,16 +469,9 @@ func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registratio
     let watchers = watched.map {
         globAndKind =>
         let (glob, kind) = globAndKind
-        let pattern = if (relative) {
-            GlobPattern.AsRelativePattern(RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(root.toUri()), pattern: glob))
-        } else {
-            GlobPattern.AsPattern(root.toString().replace("\\", "/").removeSuffix("/") + "/" + glob)
-        }
-        FileSystemWatcher(globPattern: pattern, kind: kind)
+        FileSystemWatcher(globPattern: globPattern(root, glob, relative), kind: kind)
     }
-    let options = DidChangeWatchedFilesRegistrationOptions(watchers: watchers)
-    Registration(id: id, method: DidChangeWatchedFilesNotificationSpec.METHOD,
-        registerOptions: RawJson.of(options).read<JsonValue>())
+    DidChangeWatchedFilesNotificationSpec().registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers))
 }
 
 /**

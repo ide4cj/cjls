@@ -98,10 +98,7 @@ public struct TypeScope {
  * no package.
  */
 public func typeScopeOf(db: AnalysisDatabase, def: DefId): ?TypeScope {
-    let file = match (def.file(db)) {
-        case Source(file) => file
-        case Binary(_, _) => return None
-    }
+    let file = scopeFileOf(db, def.file(db)) ?? return None
     let pkg = packageOfFile(db, file) ?? return None
     let generics = ArrayList<Generics>([Generics(def, signature(db, def).generics)])
     if (let Some(parent) <- parentOf(db, def)) {

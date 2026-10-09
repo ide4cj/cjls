@@ -26,7 +26,7 @@ let BENCH_KEYSTROKE_PARAMS_BYTES: Array<Byte> = (BENCH_KEYSTROKE_PARAMS ?? RawJs
 // kept from message to message, as the transport keeps its own
 let BENCH_READER = FjReader(Array<Byte>())
 
-// the route's readers of params in place, one per method, as `Router` keeps them (D70)
+// the route's readers of params in place, one per method, as `Router` keeps them (D73)
 let BENCH_PARAMS_READERS: HashMap<String, (FjReader) -> Any> = HashMap<String, (FjReader) -> Any>(
     [(DidChangeTextDocumentNotificationSpec.METHOD, {
         r =>
@@ -36,7 +36,7 @@ let BENCH_PARAMS_READERS: HashMap<String, (FjReader) -> Any> = HashMap<String, (
 
 let BENCH_PARAMS_READER: (String) -> Option<(FjReader) -> Any> = {method => BENCH_PARAMS_READERS.get(method)}
 
-/** The server's path since D70: the envelope read with the params in place, the route taking them decoded. */
+/** The server's path since D73: the envelope read with the params in place, the route taking them decoded. */
 func keystrokeReadInPlace(): DidChangeTextDocumentParams {
     BENCH_READER.reset(BENCH_KEYSTROKE)
     let (body, decoded) = Body.read(BENCH_READER, BENCH_PARAMS_READER)

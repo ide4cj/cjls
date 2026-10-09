@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct DidCreateFilesNotificationSpec <: LspInboundNotification<CreateFilesParams> {
+public struct DidCreateFilesNotificationSpec <: LspInboundNotification<CreateFilesParams> & LspRegistrable<FileOperationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/didCreateFiles"
@@ -30,6 +30,12 @@ public struct DidCreateFilesNotificationSpec <: LspInboundNotification<CreateFil
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

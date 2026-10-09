@@ -15,7 +15,7 @@ import jsonrpc.*
  *
  * @since 3.18.0
  */
-public struct DocumentRangesFormattingRequestSpec <: LspInboundRequest<DocumentRangesFormattingParams, Nullable<Array<TextEdit>>> {
+public struct DocumentRangesFormattingRequestSpec <: LspInboundRequest<DocumentRangesFormattingParams, Nullable<Array<TextEdit>>> & LspRegistrable<DocumentRangeFormattingRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/rangesFormatting"
@@ -29,6 +29,12 @@ public struct DocumentRangesFormattingRequestSpec <: LspInboundRequest<DocumentR
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

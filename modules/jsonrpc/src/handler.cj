@@ -31,7 +31,7 @@ public interface Handler {
     }
 
     /**
-     * How the params of `method` are read where they lie in the frame (D70): the read loop calls
+     * How the params of `method` are read where they lie in the frame (D73): the read loop calls
      * the reader at the `params` key, when `method` came before it, with the reader on the value.
      * It reads exactly that one value; what it returns reaches the handler as the message's
      * `decodedParams`. A throw leaves the params their bytes, for the handler to read and fail the

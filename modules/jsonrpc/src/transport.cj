@@ -13,7 +13,7 @@ public interface JsonRpcReader <: Resource {
 
     /**
      * The next message, its params read in place by the reader `paramsReader` gives for its
-     * method, when it could (D70): the second value, `None` when it could not. A transport that
+     * method, when it could (D73): the second value, `None` when it could not. A transport that
      * reads no bytes of its own leaves them to the handler.
      *
      * @return `None` once the peer hangs up

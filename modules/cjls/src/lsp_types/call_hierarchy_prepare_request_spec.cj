@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct CallHierarchyPrepareRequestSpec <: LspInboundRequest<CallHierarchyPrepareParams, Nullable<Array<CallHierarchyItem>>> {
+public struct CallHierarchyPrepareRequestSpec <: LspInboundRequest<CallHierarchyPrepareParams, Nullable<Array<CallHierarchyItem>>> & LspRegistrable<CallHierarchyRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/prepareCallHierarchy"
@@ -30,6 +30,12 @@ public struct CallHierarchyPrepareRequestSpec <: LspInboundRequest<CallHierarchy
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

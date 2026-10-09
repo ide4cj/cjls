@@ -16,7 +16,7 @@ import jsonrpc.*
  * response is of type {@link FoldingRangeList} or a Thenable
  * that resolves to such.
  */
-public struct FoldingRangeRequestSpec <: LspInboundRequest<FoldingRangeParams, Nullable<Array<FoldingRange>>> {
+public struct FoldingRangeRequestSpec <: LspInboundRequest<FoldingRangeParams, Nullable<Array<FoldingRange>>> & LspRegistrable<FoldingRangeRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/foldingRange"
@@ -30,6 +30,12 @@ public struct FoldingRangeRequestSpec <: LspInboundRequest<FoldingRangeParams, N
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

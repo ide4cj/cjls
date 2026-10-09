@@ -18,7 +18,7 @@ import jsonrpc.*
  * server constantly fails on this request. This is done to keep the save fast and
  * reliable.
  */
-public struct WillSaveTextDocumentWaitUntilRequestSpec <: LspInboundRequest<WillSaveTextDocumentParams, Nullable<Array<TextEdit>>> {
+public struct WillSaveTextDocumentWaitUntilRequestSpec <: LspInboundRequest<WillSaveTextDocumentParams, Nullable<Array<TextEdit>>> & LspRegistrable<TextDocumentRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "textDocument/willSaveWaitUntil"
@@ -32,6 +32,12 @@ public struct WillSaveTextDocumentWaitUntilRequestSpec <: LspInboundRequest<Will
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }

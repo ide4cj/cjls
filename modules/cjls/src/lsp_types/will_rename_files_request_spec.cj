@@ -16,7 +16,7 @@ import jsonrpc.*
  *
  * @since 3.16.0
  */
-public struct WillRenameFilesRequestSpec <: LspInboundRequest<RenameFilesParams, Nullable<WorkspaceEdit>> {
+public struct WillRenameFilesRequestSpec <: LspInboundRequest<RenameFilesParams, Nullable<WorkspaceEdit>> & LspRegistrable<FileOperationRegistrationOptions> {
     public static prop METHOD: String {
         get() {
             "workspace/willRenameFiles"
@@ -30,6 +30,12 @@ public struct WillRenameFilesRequestSpec <: LspInboundRequest<RenameFilesParams,
     }
 
     public prop method: String {
+        get() {
+            METHOD
+        }
+    }
+
+    public prop registrationMethod: String {
         get() {
             METHOD
         }
