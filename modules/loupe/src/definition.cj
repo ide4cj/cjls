@@ -253,11 +253,16 @@ func tokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
 }
 
 /**
- * Whether `token` is an operator: of a binary or unary expression, or the brackets of an index.
+ * Whether `token` is an operator: the operator of a binary or unary expression, or a bracket of an index.
  */
 func isOperator(token: CjSyntaxToken): Bool {
-    !token.kind.isTrivia() && (BinExpr.canCast(token.parent.kind) || UnaryExpr.canCast(token.parent.kind) ||
-        IndexExpr.canCast(token.parent.kind))
+    let parent = token.parent
+    if (IndexExpr.canCast(parent.kind)) {
+        return token.kind == SyntaxKind.LBracket || token.kind == SyntaxKind.RBracket
+    }
+    let op = BinExpr.cast(parent).flatMap {expr => expr.op()} ?? UnaryExpr.cast(parent).flatMap {expr => expr.op()} ??
+        return false
+    op.textRange == token.textRange
 }
 
 /**

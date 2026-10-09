@@ -1335,7 +1335,8 @@ class InferTest {
                 let w = (g[1] = 2)
             //      ^ Unit
                 // cjc: cannot assign to this subscript expression
-                Ro()[0] = 1
+                Ro()[0] = match (g[0]) { case s => s }
+            //                                ^ String
                 let a = [1, 2, 3]
             //      ^ Array<Int64>
                 let au = (a[0] = 5)
