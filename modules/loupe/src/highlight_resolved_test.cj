@@ -53,7 +53,7 @@ func isUse(token: CjSyntaxToken): Bool {
 }
 
 /**
- * A name at its use highlighted by what it means (#201, D70).
+ * A name at its use highlighted by what it means (#201, D72).
  */
 @Test
 class HighlightResolvedTest {

@@ -1,4 +1,4 @@
-# ADR-0070: Semantic tokens tell a name at its use by what it means, through a Definition shared with go to definition
+# ADR-0072: Semantic tokens tell a name at its use by what it means, through a Definition shared with go to definition
 
 Status: accepted, 2026-10-09
 Amends ADR-0019: a name at its use is told; the legend has `namespace`, and two types and modifiers of its own; `refresh` is sent

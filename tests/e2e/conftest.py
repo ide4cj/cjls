@@ -49,7 +49,7 @@ async def loaded(client: LanguageClient, loads: int = 1):
 
 def answers_refreshes(client: LanguageClient):
     """Answers the server asking for semantic tokens again, as an editor of `refreshSupport` does
-    (D70): it may ask after any change of the files."""
+    (D72): it may ask after any change of the files."""
 
     @client.feature(types.WORKSPACE_SEMANTIC_TOKENS_REFRESH)
     def refresh(_params: None):

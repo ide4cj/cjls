@@ -14,7 +14,7 @@ import loupe.hir.*
 import loupe.syntax.parse
 
 /**
- * What a token is: by the tree, and a name at its use by what it means (D70). In a file of no
+ * What a token is: by the tree, and a name at its use by what it means (D72). In a file of no
  * package, which names do not resolve in, a name inside a type is taken for one.
  */
 @Derive[Equatable]
@@ -160,7 +160,7 @@ public struct HighlightedRange <: ToString {
 /**
  * The tokens of a file and what each is, in the order of the text, none overlapping: only those
  * `range` intersects if given. A name at its use is told by what `classifyName` says it means, the
- * first of several (D70); one that means nothing is an `UnresolvedReference`. A token nothing is
+ * first of several (D72); one that means nothing is an `UnresolvedReference`. A token nothing is
  * known of is left out: punctuation, a name at a use resolution does not tell yet, and any name at
  * its use in a file of no package. Whatever sits in an `ErrorNode` is told by its kind alone. Empty
  * for a file the database does not know.

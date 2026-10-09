@@ -53,7 +53,7 @@ Looked at, not references:
 | Incremental engine | salsa, R2 | salsa's current API; R2 uses it natively, R1 through `query-group-macro` | `calca`; what is missing: #13, #14 |
 | Cancellation on write | R1 | salsa's `Cancelled` | D8 |
 | Diagnostics delivery | R1, R2 | pull, push only for clients without it | #17 |
-| Semantic tokens | R1 | `syntax_highlighting` over the tree, refined by `hir` through `Definition` | #16, #201 (D70) |
+| Semantic tokens | R1 | `syntax_highlighting` over the tree, refined by `hir` through `Definition` | #16, #201 (D72) |
 | Workspace, watched files | R1, R5 | `project_model`, `load-cargo`; `go/packages`, file watching | #12 |
 | Project model | R1, R4, R5 | cjpm has no `cargo metadata` / `go list`: read `cjpm.toml` ourselves, as R4 does; R1's `rust-project.json` for what cjpm does not build, `cj-project.json` | D33 |
 | Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap`, per package rather than per crate: Cangjie's unit of namespace; imports per file | D44, #48 |

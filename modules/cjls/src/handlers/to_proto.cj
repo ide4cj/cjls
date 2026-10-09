@@ -171,12 +171,12 @@ func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
 }
 
 /**
- * A name that means nothing: no type of LSP's own says so (D70).
+ * A name that means nothing: no type of LSP's own says so (D72).
  */
 let UNRESOLVED_REFERENCE = SemanticTokenTypes("unresolvedReference")
 
 /**
- * The token types the server sends, LSP's own but one, `unresolvedReference` (D19, D70); a token's
+ * The token types the server sends, LSP's own but one, `unresolvedReference` (D19, D72); a token's
  * type is its index here.
  */
 let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,
@@ -188,7 +188,7 @@ let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, Seman
     SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE]
 
 /**
- * The modifiers, LSP's own but one, `mutable` (D70); a token's modifiers are bits by their index here.
+ * The modifiers, LSP's own but one, `mutable` (D72); a token's modifiers are bits by their index here.
  */
 let TOKEN_MODIFIERS = [(SemanticTokenModifiers.DECLARATION, HighlightModifier.Declaration),
     (SemanticTokenModifiers.DOCUMENTATION, HighlightModifier.Documentation),
