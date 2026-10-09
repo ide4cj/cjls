@@ -75,6 +75,23 @@ class DefinitionTest {
     }
 
     @TestCase
+    func aNameOfAProgramAmongLooseOnesGoesToItsOwnFileAndItsHelpers() {
+        // arrange: programs compiled one by one, each with the helper (D67)
+        let program = {n: Int64 => "let my_const = ${n}\nmain(): Int64 {\n    helper(my_const)\n}\n"}
+        let (state, dir) = loaded([("a.cj", program(1)), ("b.cj", program(2)), ("c.cj", program(3)),
+            ("util.cj", "func helper(n: Int64): Int64 {\n    n\n}\n")])
+
+        // act
+        let own = linksOf(definitionOf(state, dir.join("b.cj"), 2, 11))
+        let helper = linksOf(definitionOf(state, dir.join("c.cj"), 2, 4))
+
+        // assert
+        @Expect(own.map {link => link.targetUri}, [uriOf(dir.join("b.cj"))])
+        @Expect(at(own[0].targetSelectionRange.start), "0:4")
+        @Expect(helper.map {link => link.targetUri}, [uriOf(dir.join("util.cj"))])
+    }
+
+    @TestCase
     func anAmbiguousCallGoesToEachOfItsFunctions() {
         // arrange: neither is more specific for `1` (N120)
         let (state, dir) = loaded([("a.cj", "func g(n: Int8) {}\nfunc g(n: Int16) {}\nfunc f() {\n    g(1)\n}\n")])
