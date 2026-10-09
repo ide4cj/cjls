@@ -98,10 +98,7 @@ class Hovers {
 
     private prop from: ?SourceFile {
         get() {
-            match (def.file(db)) {
-                case Source(file) => file
-                case Binary(_, _) => None
-            }
+            scopeFileOf(db, def.file(db))
         }
     }
 
@@ -196,7 +193,7 @@ class Hovers {
         }
         let pkg: ?Package = match (def.file(db)) {
             case Source(file) => packageOfFile(db, file)
-            case Binary(_, _) => None
+            case _ => None
         }
         if (let Some(_) <- BindPat.cast(node)) {
             let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return []
@@ -269,7 +266,7 @@ class Hovers {
     private func varKeyword(owner: DefId, local: LocalId): String {
         let file = match (owner.file(db)) {
             case Source(file) => file
-            case Binary(_, _) => return ""
+            case _ => return ""
         }
         let ptr = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index) ?? return ""
         let name = (ptr ?? return "").tryToNode(parse(db, file).syntaxNode()) ?? return ""
@@ -393,12 +390,13 @@ class Hovers {
      */
     private func paramNamesOf(id: DefId): Array<String> {
         match (id.file(db)) {
-            case Source(_) =>
-                let (_, node) = nodeOf(db, id) ?? return []
+            case Binary(pkg, file) => binaryParamNames(pkg, BinaryItem(file, id.item(db)))
+            case file =>
+                let (root, ids) = syntaxOf(db, file) ?? return []
+                let node = ids.node(id.item(db), root) ?? return []
                 node.children() |> filterMap {child: CjSyntaxNode => ParamList.cast(child)} |> flatMap {
                     list: ParamList => list.params()
                 } |> map {param: Param => param.name()?.text() ?? "_"} |> collectArray
-            case Binary(pkg, file) => binaryParamNames(pkg, BinaryItem(file, id.item(db)))
         }
     }
 
@@ -432,9 +430,9 @@ class Hovers {
      */
     private func varKeyword(id: DefId): String {
         match (id.file(db)) {
-            case Source(_) =>
-                let (_, node) = nodeOf(db, id) ?? return ""
-                keywordOf(VarDecl.cast(node) ?? return "")
+            case Source(_) | Expansion(_) =>
+                let (root, ids) = syntaxOf(db, id.file(db)) ?? return ""
+                keywordOf(VarDecl.cast(ids.node(id.item(db), root) ?? return "") ?? return "")
             case Binary(pkg, file) => match (binaryDecl(db, pkg, BinaryItem(file, id.item(db))).flatMap {decl => decl.info}) {
                 case Some(DeclInfo.AsVarInfo(it)) where it.isConst => ""
                 case Some(DeclInfo.AsVarInfo(it)) where it.isVar => "var "
@@ -468,8 +466,8 @@ class Hovers {
      */
     private func pathOf(id: DefId): ?String {
         let pkg = match (id.file(db)) {
-            case Source(file) => packageOfFile(db, file)?.name(db)
             case Binary(binary, _) => binary.name(db)
+            case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}?.name(db)
         }
         let owner: ?String = match (parentOf(db, id)) {
             case Some(parent) where parent.item(db).kind == ItemKind.Extend => match (signatureTypes(db, parent).ty) {
@@ -508,6 +506,8 @@ class Hovers {
                 }
                 (at.parent.ancestors() |> filter {one: CjSyntaxNode => AnyHasDocComment.canCast(one.kind)} |> first) ??
                     return None
+            // what a macro call adds is generated, with no doc comment (#175)
+            case Expansion(_) => return None
         }
         let comments = AnyHasDocComment.cast(node)?.docComments() ?? return None
         let doc = docText(comments.map {comment => comment.text()})

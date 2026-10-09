@@ -7,7 +7,8 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import fjson.*
 import loupe.db.*
-import loupe.vfs.VfsPath
+import loupe.hir.{defMap, PackageRef}
+import loupe.vfs.{readFiles, Vfs, VfsPath}
 
 /**
  * A directory of its own under the temporary one, holding `files` (paths relative to it, with `/`
@@ -57,6 +58,36 @@ func packagesOf(model: ProjectModel, dir: VfsPath): Array<String> {
         }
     }
     out.toArray()
+}
+
+@Test
+class DeclaresMainTest {
+    @TestCase[sample in [
+        ("main(): Int64 {\n    0\n}\n", true),
+        ("/** doc */\n@When[os == \"Linux\"]\nmain() {}", true),
+        ("func main() {}", true),
+        ("class C {\n    func main() {}\n}\n", false),
+        ("let domain = 1\nlet s = \"main\"\nlet t = \"\${ { => main }() }\"\n", false),
+        ("let r = #\"main\"#\n// main()\n/* main() /* main */ */\n", false),
+        ("func f(x!: Int64 = main) {}", false),
+        ("", false)
+    ]]
+    func aMainIsTheKeywordOutsideEveryBracketAndString(sample: (String, Bool)) {
+        // act
+        let found = declaresMain(sample[0].toArray())
+
+        // assert
+        @Expect(found, sample[1])
+    }
+
+    @TestCase
+    func aTextThatIsNoUtf8DeclaresNothing() {
+        // act
+        let found = declaresMain("main() {}".toArray().concat([0xFFu8]))
+
+        // assert
+        @Expect(found, false)
+    }
 }
 
 @Test
@@ -329,6 +360,81 @@ class FindProjectTest {
         // assert
         @Expect(packagesOf(load.model, dir), ["a: a=a.cj"])
         @Expect(load.problems.size, 1)
+    }
+
+    @TestCase
+    func looseFilesWithAMainEachAreAProgramEachWithTheFilesWithoutMainOfTheirDirectory() {
+        // arrange
+        let dir = tree([("a.cj", "let my_const = 1\nmain() {}\n"), ("b.cj", "let my_const = 2\nmain() {}\n"),
+            ("util.cj", "func helper() {}\n"), ("sub/c.cj", "main() {}\n"), ("lib/d.cj", "func d() {}\n"),
+            ("e.cj", "package app\nmain() {}\n")])
+
+        // act
+        let load = findProject(dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(packagesOf(load.model, dir), [
+            "app: app=e.cj", "default: default=lib/d.cj", "default: default=a.cj,util.cj",
+            "default: default=b.cj,util.cj", "default: default=sub/c.cj"
+        ])
+        @Expect(load.model.modules.map {module => relative(module.root, dir)}, [".", ".", "a.cj", "b.cj", "sub/c.cj"])
+        // the files of the project are read once
+        @Expect(load.model.files().size, 6)
+    }
+
+    @TestCase
+    func looseFilesWithOneMainAmongThemAreOneProgram() {
+        // arrange
+        let dir = tree([("a.cj", "main() {\n    helper()\n}\n"), ("b.cj", "func helper() {}\n"),
+            ("x/c.cj", "let c = \"main()\"\n")])
+
+        // act
+        let load = findProject(dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(packagesOf(load.model, dir), ["default: default=a.cj,b.cj,x/c.cj"])
+        @Expect(load.model.modules.iterator().all {module => module.root == dir})
+    }
+
+    @TestCase
+    func aMainPastTheHeaderMakesAProgram() {
+        // arrange
+        let comment = "// ${"x" * HEADER_BYTES}\n"
+        let dir = tree([("a.cj", "${comment}main() {}\n"), ("b.cj", "main() {}\n")])
+
+        // act
+        let load = findProject(dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(packagesOf(load.model, dir), ["default: default=a.cj", "default: default=b.cj"])
+    }
+
+    @TestCase
+    func programsOfOneDirectoryRedefineNothingOfEachOther() {
+        // arrange
+        let dir = tree([("a.cj", "let my_const = 1\nmain() {}\n"), ("b.cj", "let my_const = 2\nmain() {}\n"),
+            ("util.cj", "func helper() {}\n")])
+        let load = findProject(dir, env: noEnv)
+        let db = AnalysisDatabase()
+        let vfs = Vfs()
+        db.setProject(load.model, vfs.paths)
+        for ((path, text) in readFiles(load.model.files()).files) {
+            vfs.setFileContents(path, text)
+        }
+        db.applyChanges(vfs, vfs.takeChanges())
+        removeTree(dir)
+
+        // act
+        let packages = db.project().getOrThrow().modules(db).map {module => module.packages(db)[0]}
+        let maps = packages.map {pkg => defMap(db, PackageRef.Source(pkg))}
+
+        // assert
+        @Expect(maps.size, 2)
+        @Expect(maps.map {map => map.errors.size}, [0, 0])
+        @Expect(maps.map {map => map.names.contains("helper")}, [true, true])
     }
 
     @TestCase

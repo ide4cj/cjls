@@ -32,6 +32,7 @@ func macrosNamed(fixture: String, name: String): Array<String> {
                 let origin = match (id.file(db)) {
                     case Binary(_, _) => "cjo"
                     case Source(_) => "source"
+                    case Expansion(_) => "expansion"
                 }
                 "${origin} ${nameOfDef(db, id)}"
             }, delimiter: ", ")

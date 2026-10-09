@@ -1,3 +1,4 @@
+import json
 import pathlib
 
 import pytest
@@ -41,7 +42,8 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
     assert symbols[0].location.range.start == types.Position(line=1, character=9)
     watches = capabilities(editor).workspace.did_change_watched_files
     if watches and watches.dynamic_registration:
-        assert [r.method for r in registered] == ["workspace/didChangeWatchedFiles"]
+        # the root's, and the binaries' of the SDK the server found, if it found one
+        assert {r.method for r in registered} == {"workspace/didChangeWatchedFiles"}
 
     await server.shutdown_session()
 
@@ -104,5 +106,60 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
         # a relative pattern, or a glob of the root's path for a client without them
         globs = [w.glob_pattern if isinstance(w.glob_pattern, str) else w.glob_pattern.pattern for w in watchers]
         assert any(g.split("/")[-2:] == ["**", "*"] and w.kind == come_or_gone for g, w in zip(globs, watchers))
+
+    await server.shutdown_session()
+
+
+@pytest.mark.parametrize("editor", CLIENTS)
+async def test_a_cjo_of_a_binary_changed_finds_the_project_again(server: LanguageClient, tmp_path, editor):
+    # arrange: a binary outside the root, as the SDK is
+    root = tmp_path / "ws"
+    (root / "src").mkdir(parents=True)
+    (root / "src" / "a.cj").write_text("func findMe() {}\n")
+    (tmp_path / "libs" / "bin").mkdir(parents=True)
+    (root / "cj-project.json").write_text(json.dumps({
+        "modules": [{"name": "app", "root": "src"}],
+        "binaries": [{"name": "bin", "paths": ["../libs/bin"]}],
+    }))
+    registered: list[types.Registration] = []
+
+    @server.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def register(params: types.RegistrationParams):
+        registered.extend(params.registrations)
+
+    await server.initialize_session(
+        types.InitializeParams(
+            capabilities=capabilities(editor),
+            workspace_folders=[types.WorkspaceFolder(uri=root.as_uri(), name="ws")],
+        )
+    )
+    await loaded(server)
+
+    # act: a file nothing reports, then a `.cjo` of the binary come
+    (root / "src" / "b.cj").write_text("func findMeToo() {}\n")
+    (tmp_path / "libs" / "bin" / "a.cjo").write_bytes(b"not a cjo")
+    server.workspace_did_change_watched_files(
+        types.DidChangeWatchedFilesParams(
+            changes=[types.FileEvent(uri=(tmp_path / "libs" / "bin" / "a.cjo").as_uri(),
+                                     type=types.FileChangeType.Created)]
+        )
+    )
+    await loaded(server, 2)
+    symbols = await server.workspace_symbol_async(types.WorkspaceSymbolParams(query="findmetoo"))
+
+    # assert: the project found again reads the file not reported, and the binary's directory is watched
+    assert [s.name for s in symbols] == ["findMeToo"]
+    watches = capabilities(editor).workspace.did_change_watched_files
+    if watches and watches.dynamic_registration:
+        watchers = [
+            watcher
+            for registration in registered
+            for watcher in get_converter()
+            .structure(registration.register_options, types.DidChangeWatchedFilesRegistrationOptions)
+            .watchers
+        ]
+        # a pattern relative to the directory the binary's is in, or a glob of its path
+        globs = [w.glob_pattern if isinstance(w.glob_pattern, str) else w.glob_pattern.pattern for w in watchers]
+        assert any(g.split("/")[-2:] == ["bin", "*.cjo"] for g in globs)
 
     await server.shutdown_session()

@@ -1649,6 +1649,215 @@ class InferTest {
     }
 
     @TestCase
+    func coalescingIsTheValueOfItsLeftOrItsRightCheckedAgainstIt() {
+        // N127: the left synthesized alone, an `Option<T>`; the right checked against `T`, or against
+        // the type expected, of which `T` is a subtype; no join; right-associative, looser than `||`
+        checkInference(#"
+            package m
+            open class Base {}
+            class Derived <: Base {}
+            func test(a: ?Int64, a8: ?Int8, aa: ??Int64, d: ?Derived, b: Base, flag: ?Bool): Unit {
+            //        ^ Option<Int64>
+            //                   ^^ Option<Int8>
+            //                              ^^ Option<Option<Int64>>
+            //                                           ^ Option<Derived>
+            //                                                        ^ Base
+            //                                                                 ^^^^ Option<Bool>
+                let i = a ?? 1
+            //      ^ Int64
+                let i8 = a8 ?? 1
+            //      ^^ Int8
+                let o = aa ?? None
+            //      ^ Option<Int64>
+                let s = Some(1) ?? 2
+            //      ^ Int64
+                let base: Base = d ?? b
+            //      ^^^^ Base
+                let boxed: ?Int64 = a ?? None
+            //      ^^^^^ Option<Int64>
+                let early = a ?? return
+            //      ^^^^^ Int64
+                let chained = a ?? a ?? 1
+            //      ^^^^^^^ Int64
+                let loose = flag ?? false || true
+            //      ^^^^^ Bool
+                // cjc: mismatched types: the right checked against `Derived`, the left's `T` all the same
+                let x = d ?? b
+            //      ^ Derived
+                // cjc: mismatched types: `a ?? a` an `Int64`, no `Option`
+                let grouped = (a ?? a) ?? 1
+            //      ^^^^^^^ {unknown}
+                // cjc: type of left operand does not support coalescing operation
+                let n = 1 ?? 2
+            //      ^ {unknown}
+                // cjc: mismatched types: `Int64` no `Int8`
+                let narrow: Int8 = a ?? 1
+            //      ^^^^^^ Int8
+            }
+            "#)
+    }
+
+    @TestCase
+    func aPipelineCallsItsRightWithItsLeft() {
+        // N128: `x |> f` is `f(x)`, a call's overloads and type arguments; left-associative
+        checkInference(#"
+            package m
+            class C {
+                func n(x: Int64): String { "" }
+            //         ^ Int64
+            }
+            func f(x: Int64): String { "" }
+            //     ^ Int64
+            func s(x: String): Bool { true }
+            //     ^ String
+            func id<T>(x: T): T { x }
+            //         ^ T
+            func g(x: Int64): String { "" }
+            //     ^ Int64
+            func g(x: String): Bool { true }
+            //     ^ String
+            func h8(x: Int8): Int8 { x }
+            //      ^ Int8
+            func test(o: C, fn: (Int64) -> String): Unit {
+            //        ^ C
+            //              ^^ (Int64) -> String
+                let a = 1 |> f
+            //      ^ String
+                let b = 1 |> g
+            //      ^ String
+                let c = "s" |> g
+            //      ^ Bool
+                let d = 1 |> id
+            //      ^ Int64
+                let e: Int8 = 1 |> id
+            //      ^ Int8
+                let lit = 1 |> h8
+            //      ^^^ Int8
+                let m = 1 |> o.n
+            //      ^ String
+                let v = 1 |> fn
+            //      ^ String
+                let chain = 1 |> f |> s
+            //      ^^^^^ Bool
+                let lambda = 1 |> {x: Int8 => x}
+            //      ^^^^^^ Int8
+            //                     ^ Int8
+                let composed = 1 |> (f ~> s)
+            //      ^^^^^^^^ Bool
+                // not yet: an `Int64` to cjc, the type arguments of `first("x")` solved with what it
+                // is called with, as of `first("x")([1, 2])` (N131); here solved alone, of its bound
+                let generic = [1, 2] |> first("x")
+            //      ^^^^^^^ ToString
+            }
+            func first<T>(d: String): (Iterable<T>) -> T where T <: ToString {
+            //            ^ String
+                {it => it.iterator().next().getOrThrow()}
+            //   ^^ Iterable<T>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLambdaReturningWhatHoldsATypeArgumentNotSolvedIsSynthesized() {
+        // N132: its body tells the argument (`R` of `Option<R>`), as cjc's `filterMap {d => d as T}`
+        checkInference(#"
+            package m
+            open class Base {}
+            class Derived <: Base {}
+            class Box<T> {
+                func fm<R>(g: (T) -> Option<R>): Array<R> { [] }
+            //             ^ (T) -> Option<R>
+            }
+            func test(b: Box<Base>): Unit {
+            //        ^ Box<Base>
+                let k = b.fm {x => x as Derived}
+            //      ^ Array<Derived>
+            //                ^ Base
+            }
+            "#)
+    }
+
+    @TestCase
+    func aCompositionIsStdCoresCompositionOfItsOperandsSynthesizedAlone() {
+        // N129: `f ~> g` is `std.core`'s `composition(f, g)`, `(T1) -> T3` of `(T1) -> T2` and
+        // `(T2) -> T3`; an operand a lambda of a parameter not written is an error
+        checkInference(#"
+            package m
+            open class Base {}
+            class Derived <: Base {}
+            func f(x: Int64): String { "" }
+            //     ^ Int64
+            func s(x: String): Bool { true }
+            //     ^ String
+            func g(x: Int64): String { "" }
+            //     ^ Int64
+            func g(x: String): Bool { true }
+            //     ^ String
+            func d(x: Int64): Derived { Derived() }
+            //     ^ Int64
+            func b(x: Base): Bool { true }
+            //     ^ Base
+            func id<T>(x: T): T { x }
+            //         ^ T
+            func test(): Unit {
+                let a = f ~> s
+            //      ^ (Int64) -> Bool
+                let sub = d ~> b
+            //      ^^^ (Int64) -> Bool
+                let overloaded = f ~> g
+            //      ^^^^^^^^^^ (Int64) -> Bool
+                let three = f ~> s ~> {x: Bool => 1}
+            //      ^^^^^ (Int64) -> Int64
+            //                         ^ Bool
+                let explicit = id<Int64> ~> f
+            //      ^^^^^^^^ (Int64) -> String
+                let called = (f ~> s)(1)
+            //      ^^^^^^ Bool
+                let expected: (Int64) -> Base = f ~> {x: String => Derived()}
+            //      ^^^^^^^^ (Int64) -> Base
+            //                                        ^ String
+                // cjc: parameters of this lambda expression must have type annotations
+                let untyped = f ~> {x => x.size}
+            //      ^^^^^^^ {unknown}
+            //                      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aValueOfATypeOfACallOperatorIsCalledThroughIt() {
+        // N130: `k(x)` of a value of no function type is `k.()(x)`, in a pipeline and a composition
+        // too
+        checkInference(#"
+            package m
+            class K {
+                operator func ()(x: Int64): Bool { true }
+            //                   ^ Int64
+                operator func ()(x: String): String { x }
+            //                   ^ String
+            }
+            func f(x: Int64): String { "" }
+            //     ^ Int64
+            func test(k: K): Unit {
+            //        ^ K
+                let a = k(1)
+            //      ^ Bool
+                let b = k("s")
+            //      ^ String
+                let c = 1 |> k
+            //      ^ Bool
+                // cjc: type of left operand does not support coalescing operation
+                let unknown = (1 ?? 2)(3)
+            //      ^^^^^^^ {unknown}
+                // not yet: a `(Int64) -> String` to cjc, of `k.()` the one taking a `String`; an
+                // operand of a composition is not called through its `operator ()` here
+                let d = f ~> k
+            //      ^ (Int64) -> {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
         let parsed = Fixture.parse(#"

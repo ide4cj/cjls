@@ -234,7 +234,7 @@ class Inference {
         locals = Array<Ty>(hir.locals.size, repeat: error)
         types = Array<?Ty>(hir.types.size, repeat: None)
         lowering = SourceTyLowering(db, def, hir)
-        option = packageRefOf(db, def).flatMap {ref => coreDecl(db, ref, "Option", ItemKind.Enum)}
+        option = packageRefOf(db, def).flatMap {ref => langItem(db, ref, LangItem.OptionEnum)}
     }
 
     func run(): InferenceResult {
@@ -350,16 +350,17 @@ class Inference {
 
     /**
      * Infers `block`, the body of a function returning `ret` if written; the return type: `ret`, else
-     * the block's type joined with those of its `return`s (N100).
+     * the block's type joined with those of its `return`s (N100). Of no `ret`, the block is checked
+     * against `hint` if given, a return type known in part.
      */
-    private func function(ret: ?Ty, block: ExprId): Ty {
+    private func function(ret: ?Ty, block: ExprId, hint!: ?Ty = None): Ty {
         let frame = Frame(ret)
         frames.add(frame)
         // of a function returning `Unit`, the block's value is dropped, whatever its type (N118)
         if (let Some(one) <- ret && one.kind(db) == PrimTy("Unit")) {
             dropped.add(block.index)
         }
-        let blockTy = infer(block, ret)
+        let blockTy = infer(block, ret ?? hint)
         frames.remove(at: frames.size - 1)
         match (ret) {
             case Some(one) => one
@@ -381,18 +382,38 @@ class Inference {
     }
 
     /**
-     * The type of `std.core`'s declaration `name` of `kind`, applied to `args`.
+     * The type of the lang item `item`, applied to `args`.
      */
-    private func core(name: String, kind: ItemKind, args: Array<Ty>): Ty {
-        match (coreId(name, kind)) {
+    private func langTy(item: LangItem, args: Array<Ty>): Ty {
+        match (langId(item)) {
             case Some(id) => Ty(db, DeclTy(id, args))
             case None => error
         }
     }
 
-    private func coreId(name: String, kind: ItemKind): ?DefId {
+    /**
+     * `?arg`, `std.core`'s `Option<arg>`.
+     */
+    private func optionOf(arg: Ty): Ty {
+        match (option) {
+            case Some(id) => Ty(db, DeclTy(id, [arg]))
+            case None => error
+        }
+    }
+
+    /**
+     * `T` of `ty`, an `Option<T>`; none of any other type.
+     */
+    private func optionArg(ty: Ty): ?Ty {
+        match (ty.kind(db)) {
+            case DeclTy(id, args) where args.size == 1 && Some(id) == option => args[0]
+            case _ => None
+        }
+    }
+
+    private func langId(item: LangItem): ?DefId {
         let ref = packageRefOf(db, def) ?? return None
-        coreDecl(db, ref, name, kind)
+        langItem(db, ref, item)
     }
 
     /**
@@ -459,7 +480,7 @@ class Inference {
                 for (part in parts) {
                     infer(part, None)
                 }
-                core("String", ItemKind.Struct, [])
+                langTy(LangItem.StringStruct, [])
             case PathExpr(name, args) => pathTy(id, name, args, expected)
             case FieldExpr(receiver, name, args) => fieldTy(id, receiver, name, args, expected)
             // a call whose value is dropped returns what it may (N118)
@@ -478,7 +499,7 @@ class Inference {
                 prim("Bool")
             case AsExpr(inner, ty) =>
                 infer(inner, None)
-                core("Option", ItemKind.Enum, [typeAt(ty)])
+                optionOf(typeAt(ty))
             case RangeExpr(start, end, step, _) => rangeTy(start, end, step, expected)
             case PostfixExpr(inner, _) =>
                 infer(inner, None)
@@ -541,7 +562,7 @@ class Inference {
                     infer(one, None)
                 }
                 match (infer(lambda, None).kind(db)) {
-                    case FuncTy(_, ret, _) => core("Future", ItemKind.Class, [ret])
+                    case FuncTy(_, ret, _) => langTy(LangItem.FutureClass, [ret])
                     case _ => error
                 }
             case SynchronizedExpr(lock, block) =>
@@ -675,7 +696,7 @@ class Inference {
      * instance of (N105).
      */
     private func elementTy(iterated: Ty): Ty {
-        let iterable = coreId("Iterable", ItemKind.Interface) ?? return error
+        let iterable = langId(LangItem.IterableInterface) ?? return error
         match (asInstanceOf(db, iterated, iterable, from).map {one => one.kind(db)}) {
             case Some(DeclTy(_, args)) => args.get(0) ?? error
             case _ => error
@@ -688,8 +709,6 @@ class Inference {
      */
     private func lambdaTy(params: Array<BodyParam>, block: ExprId, expected: ?Ty): Ty {
         let wanted: ?(Array<Ty>, ?Ty) = match (expected.map {one => one.kind(db)}) {
-            // a return type unknown, of a type argument not solved yet, is synthesized (8c)
-            case Some(FuncTy(tys, ret, _)) where tys.size == params.size && ret.kind(db) == ErrorTy => (tys, None)
             case Some(FuncTy(tys, ret, _)) where tys.size == params.size => (tys, ret)
             case _ => None
         }
@@ -702,7 +721,16 @@ class Inference {
         for (i in 0..params.size) {
             param(params[i], paramTys[i])
         }
-        Ty(db, FuncTy(paramTys, function(wanted.flatMap {one => one[1]}, block), false))
+        let ret = wanted.flatMap {one => one[1]}
+        // a return type holding a type argument not solved yet (8c) is what the body gives, checked
+        // against it as far as it is known: the body tells the argument (`Option<R>` of `filterMap`,
+        // N132)
+        let retTy = match (ret) {
+            case Some(one) where one.kind(db) == ErrorTy => function(None, block)
+            case Some(one) where hasErrors(db, one) => function(None, block, hint: one)
+            case _ => function(ret, block)
+        }
+        Ty(db, FuncTy(paramTys, retTy, false))
     }
 
     /**
@@ -748,7 +776,7 @@ class Inference {
             return prim("UInt8")
         }
         if (!isNumber(text)) {
-            return core("String", ItemKind.Struct, [])
+            return langTy(LangItem.StringStruct, [])
         }
         let lower = text.replace("_", "").toAsciiLower()
         let isHex = lower.startsWith("0x")
@@ -789,7 +817,7 @@ class Inference {
         let one = expected ?? return None
         match (one.kind(db)) {
             case PrimTy(name) => name
-            case DeclTy(id, args) where args.size == 1 && Some(id) == coreId("Option", ItemKind.Enum) =>
+            case DeclTy(id, args) where args.size == 1 && Some(id) == option =>
                 expectedPrim(args[0])
             case _ => None
         }
@@ -830,8 +858,16 @@ class Inference {
             infer(rhs, prim("Bool"))
             return prim("Bool")
         }
+        // a value dropped is of any type, as a call's (N118)
+        let kept = expected.filter {one => !(dropped.contains(id.index) && one.kind(db) == PrimTy("Unit"))}
+        match (op) {
+            case "??" => return coalescingTy(lhs, rhs, kept)
+            // `x |> f` is `f(x)` (N128)
+            case "|>" => return callTy(rhs, [CallArg(None, lhs)], kept)
+            case "~>" => return compositionTy(id, lhs, rhs, expected)
+            case _ => ()
+        }
         if (!COMPARISONS.contains(op) && !ARITHMETIC.contains(op)) {
-            // `??`, `|>`, `~>` (8f)
             infer(lhs, None)
             infer(rhs, None)
             return error
@@ -884,6 +920,53 @@ class Inference {
             synthesized
         }
         operatorTy(id, left, op, [CallArg(None, rhs)], expected)
+    }
+
+    /**
+     * `lhs ?? rhs`, as cjc's `ChkCoalescingExpr`: the left synthesized alone, an `Option<T>`; the
+     * right checked against `T`, then of `T`, or, a type expected, `T` checked against it and the
+     * right against it, then of it; no join of the two (N127).
+     */
+    private func coalescingTy(lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
+        let left = infer(lhs, None)
+        let inner = match (optionArg(left)) {
+            case Some(one) => one
+            case None =>
+                // cjc: "coalescing is only valid for 'Option'"
+                mismatches++
+                infer(rhs, None)
+                return error
+        }
+        match (expected) {
+            case Some(one) =>
+                if (!fits(inner, one)) {
+                    mismatches++
+                }
+                infer(rhs, one)
+                one
+            case None =>
+                infer(rhs, inner)
+                inner
+        }
+    }
+
+    /**
+     * `lhs ~> rhs`, as cjc: a call of `std.core`'s `composition(lhs, rhs)`, of `(T1) -> T2` and
+     * `(T2) -> T3` a `(T1) -> T3`; a lambda of a parameter not written an error, its operands
+     * synthesized alone before the call (N129).
+     */
+    private func compositionTy(id: ExprId, lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
+        let composition = langId(LangItem.CompositionFunc)
+        match (composition) {
+            case Some(decl) where !isUntypedLambda(lhs) && !isUntypedLambda(rhs) =>
+                callWith(id, funcCallable(decl, [], None), [CallArg(None, lhs), CallArg(None, rhs)], expected)
+            case _ =>
+                // cjc: "parameters of this lambda expression must have type annotations"
+                mismatches++
+                infer(lhs, None)
+                infer(rhs, None)
+                error
+        }
     }
 
     /**
@@ -1098,7 +1181,7 @@ class Inference {
 
     private func rangeTy(start: ?ExprId, end: ?ExprId, step: ?ExprId, expected: ?Ty): Ty {
         let wanted: ?Ty = match (expected.map {one => one.kind(db)}) {
-            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == coreId("Range", ItemKind.Struct) => args[0]
+            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == langId(LangItem.RangeStruct) => args[0]
             case _ => None
         }
         var element: ?Ty = None
@@ -1115,7 +1198,7 @@ class Inference {
         if (let Some(one) <- step) {
             infer(one, prim("Int64"))
         }
-        core("Range", ItemKind.Struct, [element ?? error])
+        langTy(LangItem.RangeStruct, [element ?? error])
     }
 
     /**
@@ -1124,7 +1207,7 @@ class Inference {
      */
     private func arrayTy(elements: Array<ExprId>, expected: ?Ty): Ty {
         let wanted: ?Ty = match (expected.map {one => unboxed(one).kind(db)}) {
-            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == coreId("Array", ItemKind.Struct) => args[0]
+            case Some(DeclTy(id, args)) where args.size == 1 && Some(id) == langId(LangItem.ArrayStruct) => args[0]
             case _ => None
         }
         let element = match (wanted) {
@@ -1136,7 +1219,7 @@ class Inference {
             case None where elements.isEmpty() => error
             case None => joinTys(db, elements.map {e => infer(e, None)}, from)
         }
-        core("Array", ItemKind.Struct, [element])
+        langTy(LangItem.ArrayStruct, [element])
     }
 
     /**
@@ -1464,7 +1547,12 @@ class Inference {
     private func valueCallables(ty: Ty): Array<Callable> {
         match (ty.kind(db)) {
             case FuncTy(params, ret, _) => [Callable(params, ret)]
-            case _ => []
+            case ErrorTy => []
+            // of another type, its `operator func ()` (N130): what is called is the value, not
+            // the operator a name of it goes to
+            case _ => operatorCallables(ty, "()").map {
+                one => Callable(one.params, one.ret, open: one.open, names: one.names)
+            }
         }
     }
 
@@ -1788,7 +1876,7 @@ class Inference {
         }
         let solve = {
             =>
-            let solver = TypeArgSolver(db, base, count, from, coreId("Option", ItemKind.Enum))
+            let solver = TypeArgSolver(db, base, count, from, option)
             solver.boundedBy(owner, vars)
             for (i in 0..args.size) {
                 let target = targets[i] ?? continue
