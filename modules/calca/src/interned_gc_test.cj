@@ -157,6 +157,28 @@ class InternedGcTest {
     }
 
     @TestCase
+    func batchesThatChangeNothingLeaveAValueAQueryHoldsAlive(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let (a, _) = files(db, "foo")
+        let foo = wordOf(db, a)
+        db.events.take()
+
+        // act
+        for (_ in 0..2) {
+            db.storage.batch {}
+            // the table used, by no query
+            Word(db, "bar")
+        }
+        let again = wordOf(db, a)
+
+        // assert
+        @Expect(db.events.take().size, 0)
+        @Expect(again, foo)
+        @Expect(again.text(db), "foo")
+    }
+
+    @TestCase
     func aValueInternedByAMoreDurableQueryIsNeverCollected(): Unit {
         // arrange
         let db = TestDatabase()
