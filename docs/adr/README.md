@@ -84,3 +84,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted |
 | [0064](0064-an-operator-is-a-call-of-its-types-member.md) | An operator of a type is a call of its member, the language's own tried first, as cjc | accepted |
 | [0065](0065-binary-sources-at-the-cjo-positions.md) | A declaration of a package compiled already goes to the sources of its binary, at the position its `.cjo` gives, its name checked there | accepted |
+| [0066](0066-sugar-is-typed-as-cjc-desugars-it.md) | Coalescing, pipelines and compositions are typed as what cjc desugars them to, std.core named through lang items | proposed |
