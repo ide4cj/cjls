@@ -11,13 +11,15 @@ import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 
 /**
- * Where an item is declared: a source file, or a file of a package compiled already, by its index
- * among the package's files. Name resolution takes either alike.
+ * Where an item is declared: a source file, a file of a package compiled already, by its index
+ * among the package's files, or the expansion of a macro call on an item of a source file (#175).
+ * Name resolution takes each alike.
  */
 @Derive[Equatable, Hashable]
 public enum ItemFile {
     | Source(SourceFile)
     | Binary(BinaryPackageFile, Int64)
+    | Expansion(MacroCallId)
 }
 
 /**
@@ -26,6 +28,7 @@ public enum ItemFile {
 public func itemTreeOf(db: AnalysisDatabase, file: ItemFile): ItemTree {
     match (file) {
         case Source(source) => itemTree(db, source)
+        case Expansion(call) => expansionItemTree(db, call)
         case Binary(pkg, index) =>
             let trees = binaryItemTrees(db, pkg)
             if (index >= 0 && index < trees.size) {

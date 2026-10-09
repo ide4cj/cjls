@@ -60,13 +60,11 @@ public enum BodyResolution <: ToString {
 }
 
 /**
- * The source file and the package of `def`, if it is a source declaration of the project.
+ * The source file and the package of `def`, if it is a source declaration of the project: of the macro call for one
+ * of an expansion.
  */
 func sourceOf(db: AnalysisDatabase, def: DefId): ?(Package, SourceFile) {
-    let file = match (def.file(db)) {
-        case Source(file) => file
-        case Binary(_, _) => return None
-    }
+    let file = scopeFileOf(db, def.file(db)) ?? return None
     let pkg = packageOfFile(db, file) ?? return None
     (pkg, file)
 }

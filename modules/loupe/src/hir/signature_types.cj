@@ -156,7 +156,7 @@ public struct SignatureTypes {
 @CalcaTracked[cycleResult: signatureTypesOnCycle]
 public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
     match (def.file(db)) {
-        case Source(_) => SourceTyLowering(db, def).lower()
+        case Source(_) | Expansion(_) => SourceTyLowering(db, def).lower()
         case Binary(pkg, index) => lowerBinarySignature(db, def, pkg, BinaryItem(index, def.item(db)))
     }
 }
@@ -235,7 +235,7 @@ func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
  */
 public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
     match (def.file(db)) {
-        case Source(_) => signature(db, def).generics
+        case Source(_) | Expansion(_) => signature(db, def).generics
         case Binary(pkg, index) => binaryGenericsOf(db, pkg, BinaryItem(index, def.item(db)))
     }
 }

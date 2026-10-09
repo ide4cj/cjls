@@ -57,12 +57,14 @@ func typeOfPath(db: AnalysisDatabase, def: DefId, segments: Array<TypeSegment>):
 }
 
 /**
- * The `extend`s of a package, by the type each extends.
+ * The `extend`s of a package, by the type each extends: those of its files, then those the macro
+ * calls of each add (#175).
  */
 @CalcaTracked
 public func packageExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<ExtendedType, Array<DefId>> {
     let found = IndexMap<ExtendedType, ArrayList<DefId>>()
-    for (file in filesOf(db, pkg)) {
+    let files = filesOf(db, pkg)
+    for (file in files.concat(files |> flatMap {one: ItemFile => expansionsOf(db, one)} |> collectArray)) {
         for (item in itemTreeOf(db, file).items where item.kind == ItemKind.Extend) {
             let def = DefId(db, file, item.id)
             if (let Some(ty) <- extendedTypeOf(db, def)) {
@@ -128,13 +130,11 @@ func packageOf(db: AnalysisDatabase, def: DefId): ?Package {
 }
 
 /**
- * The file `def` is declared in, if it is a source file.
+ * The source file `def` is declared in, that of the macro call for one of an expansion, whose names
+ * resolve there; `None` for one of a package compiled already.
  */
 func sourceFileOf(db: AnalysisDatabase, def: DefId): ?SourceFile {
-    match (def.file(db)) {
-        case Source(file) => file
-        case Binary(_, _) => None
-    }
+    scopeFileOf(db, def.file(db))
 }
 
 /**
@@ -142,8 +142,8 @@ func sourceFileOf(db: AnalysisDatabase, def: DefId): ?SourceFile {
  */
 func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
     match (def.file(db)) {
-        case Source(file) => packageOfFile(db, file).map {pkg => PackageRef.Source(pkg)}
         case Binary(pkg, _) => PackageRef.Binary(pkg)
+        case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}.map {pkg => PackageRef.Source(pkg)}
     }
 }
 
@@ -436,7 +436,7 @@ func supertypesOf(db: AnalysisDatabase, ty: ExtendedType): Array<ExtendedType> {
 @CalcaTracked
 public func supertypes(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
     match (def.file(db)) {
-        case Source(_) =>
+        case Source(_) | Expansion(_) =>
             let sig = signature(db, def)
             sig.supers |> filterMap {
                 ty: TypeRefId => match (sig[ty]) {
