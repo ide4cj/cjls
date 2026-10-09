@@ -24,7 +24,7 @@ Status: proposed
   - 8g adds `Some` and `None`, for `?.` lowered into `match`es in the HIR.
 - **The compiler's own types are no lang items.** These are `CPointer`, `CString`, `RawArray`, `VArray` and `CFunc`: a file names them, through its scope, and the syntax means none of them.
   - cjc has no declaration of them in `std.core`'s source, only `extend`s; it adds a `BuiltInDecl` of each to the package when it compiles it (`AddBuiltInPointerDecl`), which its `.cjo` carries.
-  - They are to be types of their own (option 2B of step 8f, as R1's `TyKind::Raw`), their `extend`s found by the type, not by a declaration: `std.core` developed from its source has no `.cjo` and so no `BuiltInDecl`, and loupe must analyze it. That is a step of its own; until then they are the `.cjo`'s `BuiltInDecl`s.
+  - They are to be types of their own (option 2B of step 8f, as R1's `TyKind::Raw`), their `extend`s found by the type, not by a declaration: `std.core` developed from its source has no `.cjo` and so no `BuiltInDecl`, and loupe must analyze it. That is a step of its own (#218); until then they are the `.cjo`'s `BuiltInDecl`s.
 - A value of a type that has an `operator func ()` is called through it (`k(1)`, `1 |> k`).
 - A lambda checked against a return type holding an unsolved type argument is checked against it as far as it is known, and returns what its body gives (N132).
 
