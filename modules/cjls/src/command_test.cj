@@ -53,6 +53,17 @@ class CommandTest {
     }
 
     @TestCase
+    func fetchSrcIsIntoTheSdkUnlessDirSaysOtherwise() {
+        // act
+        let none = parseCommand(["fetch-src"])
+        let dir = parseCommand(["fetch-src", "--dir", "src"])
+
+        // assert
+        @Expect(fetchSrcDirOf(none), Some(Option<Path>.None))
+        @Expect(fetchSrcDirOf(dir), Some(Some(getWorkingDirectory().join("src"))))
+    }
+
+    @TestCase
     func anUnknownCommandOrOptionIsAUsageError() {
         // act, assert
         @AssertThrows[ArgumentParseException](parseCommand(["frob"]))
@@ -61,6 +72,8 @@ class CommandTest {
         @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir"]))
         @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir="]))
         @AssertThrows[ArgumentParseException](parseCommand(["fmt"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["fetch-src", "src"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["fetch-src", "--dir="]))
         @AssertThrows[ArgumentParseException](parseCommand(["fmt", "--frob", "a"]))
     }
 }
@@ -76,5 +89,12 @@ func dirOf(command: Command): ?Path {
     match (command) {
         case PrintProject(dir) => dir
         case _ => Option<Path>.None
+    }
+}
+
+func fetchSrcDirOf(command: Command): ??Path {
+    match (command) {
+        case FetchSrc(dir) => Some(dir)
+        case _ => Option<?Path>.None
     }
 }
