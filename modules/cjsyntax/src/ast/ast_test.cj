@@ -303,6 +303,22 @@ class AstTest {
     }
 
     @TestCase
+    func aDeclarationInMacroCallsHasTheCommentsBeforeTheCallsToo() {
+        // arrange
+        let call = declsOf("/** outer */\n@A\n// inner\n@B[x]\nclass C {}\n")[0]
+
+        // act
+        let sut = match (MacroExpandDecl.cast(call.syntax).flatMap {it => it.decl()}) {
+            case Some(Decl.AsMacroExpandDecl(it)) => it.decl().getOrThrow()
+            case _ => throw Exception("no declaration in two macro calls")
+        }
+
+        // assert
+        @Expect(sut.docComments().map {t => t.text()}, ["/** outer */", "// inner"])
+        @Expect(call.docComments().map {t => t.text()}, ["/** outer */"])
+    }
+
+    @TestCase
     func everyTokenOfAKindIsThereWhenTheGrammarAllowsSeveral() {
         // act
         let sut = declared<ImportTree>("import org::a.b.c\n")

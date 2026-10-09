@@ -287,6 +287,40 @@ class HoverTest {
     }
 
     @TestCase
+    func aDeclarationInAMacroCallShowsTheDocBeforeTheCall() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            /** a struct */
+            @Derive[Equatable]
+            struct S {}
+            func g(s: $0S): Unit {}
+            //          ^ struct S in m — a struct
+            "#)
+    }
+
+    @TestCase
+    func aDeclarationInCallsOfAnyMacroShowsTheDocBeforeThem() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            // a function
+            @M
+            @M
+            func f(): Unit {}
+            main() {
+                $0f()
+            //    ^ func f(): Unit in m — a function
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#)
+    }
+
+    @TestCase
     func aMacroCallShowsNothingYet() {
         checkHover(#"
             //- /main.cj module=m package=m

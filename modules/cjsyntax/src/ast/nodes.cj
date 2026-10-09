@@ -337,7 +337,7 @@ public interface HasDocComment {
     prop syntax: SyntaxNode<SyntaxKind>
 
     /**
-     * The comments before the rest of it, in order: none but the documentation is there.
+     * Its documentation, in order: the comments before the macro calls around it, outermost first, then before the rest of it.
      */
     func docComments(): Array<SyntaxToken<SyntaxKind>> {
         docCommentsOf(syntax)
