@@ -89,8 +89,50 @@ class BodyTest {
         // assert
         @Expect(lowered.exprs.filter {expr => expr == Expr.MissingExpr}.size, 0)
         @Expect(lowered.pats.filter {pat => pat == Pat.MissingPat}.size, 0)
-        @Expect(lowered.locals.map {local => local.name}, ["o", "xs", "e", "a", "b", "c", "arr", "x", "g", "v", "v", "i", "n", "B",
+        @Expect(lowered.locals.map {local => local.name}, ["o", "xs", "e", "a", "b", "c", "arr", "x", "g", "$v", "v", "v", "i", "n", "B",
             "r", "x", "t", "u", "w"])
+    }
+
+    @TestCase
+    func anOptionalChainIsLoweredIntoAMatchOfEachQuestionMark() {
+        // arrange
+        let (db, _, f) = declOf(#"
+            package m
+            class C {
+                var b: ?C = None
+                var c = 1
+            }
+            func f(a: ?C): Unit {
+                a?.b?.c
+            }
+            "#, "f")
+        // act
+        let lowered = bodyWithSourceMap(db, f)
+        // assert: `match (a) { case Some($v) => match ($v.b) { case Some($v) => Some($v.c) case None => None }
+        // case None => None }`, the inner lowered first
+        let hir = lowered.body
+        let quests = (0..hir.exprs.size) |> filter {
+            i => if (let QuestMatchExpr(_, _) <- hir.exprs[i]) { true } else { false }
+        } |> collectArray
+        @Expect(quests.size, 2)
+        let (inner, outer) = (quests[0], quests[1])
+        if (let QuestMatchExpr(selector, arms) <- hir.exprs[outer]) {
+            @Expect(hir[selector], Expr.PathExpr("a", []))
+            @Expect(arms[0].body, ExprId(inner))
+            @Expect(hir[arms[1].body], Expr.LangExpr(LangItem.OptionNone))
+        }
+        if (let QuestMatchExpr(selector, arms) <- hir.exprs[inner]) {
+            @Expect(if (let FieldExpr(_, "b", _) <- hir[selector]) { true } else { false })
+            @Expect(if (let CallExpr(callee, _) <- hir[arms[0].body]) {
+                hir[callee] == Expr.LangExpr(LangItem.OptionSome)
+            } else {
+                false
+            })
+        }
+        @Expect(hir.locals.map {local => local.name}, ["a", "$v", "$v"])
+        // the chain's node is found as written, `$v.c`, not as the `match`es it is desugared into
+        let written = lowered.sourceMap.exprAt(lowered.sourceMap.exprs[outer].getOrThrow()).getOrThrow()
+        @Expect(if (let FieldExpr(_, "c", _) <- hir[written]) { true } else { false })
     }
 
     @TestCase

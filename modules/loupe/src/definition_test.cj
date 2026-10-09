@@ -8,11 +8,12 @@ import loupe.syntax.parse
 
 /**
  * Checks where the name at the cursor of `fixture` is declared is its annotations: `//^ def` under
- * the name of each declaration found, `//^ no definition` under the name at the cursor if none is.
+ * the name of each declaration found, `//^ no definition` under the name at the cursor if none is;
+ * the packages of std `std` read from the SDK.
  */
-func checkDefinition(fixture: String): Unit {
+func checkDefinition(fixture: String, std!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database()
+    let db = parsed.database(binaries: std.map {name => stdCjoRead(name, stdCjo(name))})
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let targets = definitionAt(db, cursor.fileId, cursor.offset)
     let annotations = if (targets.isEmpty()) {
