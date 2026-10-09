@@ -199,10 +199,11 @@ func loadRequest(state: ServerState): ?LoadRequest {
 
 /**
  * Finds the project of every root again, reads the `.cjo` of its binaries and sets them with it,
- * the files of the folders removed gone in the same revision, then reads the files of its packages the server does not know yet, and sets them
- * `LOAD_BATCH` at a time, one revision each, reporting how many are done. The disk is read here,
- * on the thread the load runs on; the state is changed through `loop` alone, between the messages,
- * and once a newer load began nothing more is set.
+ * the files of the folders removed gone in the same revision, then reads the files of its
+ * packages the server does not know yet, and sets them `LOAD_BATCH` at a time, one revision each,
+ * reporting how many are done. The disk is read here, on the thread the load runs on; the state is
+ * changed through `loop` alone, between the messages, and once a newer load began nothing more is
+ * set.
  *
  * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
  */

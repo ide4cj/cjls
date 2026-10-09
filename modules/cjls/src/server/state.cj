@@ -242,6 +242,7 @@ public class ServerState <: FromContext<ServerState> {
         let gone = takeGone()
         analysis.batch {
             analysis.setProject(model, vfs.paths, binaries: binaries)
+            // after the project: a file gone takes the durability the new project gives it
             apply(gone)
         }
         projectFiles = HashSet<VfsPath>(model.files())
