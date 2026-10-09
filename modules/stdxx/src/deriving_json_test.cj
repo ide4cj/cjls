@@ -248,6 +248,16 @@ class DeriveJsonUntaggedEnumTest {
     }
 
     @TestCase
+    func aVariantFailingMidwayLeavesTheNextOneAtTheValuesStartInsideAnArray() {
+        // act
+        let items = read<Array<DerivedNarrowOrWide>>("[5000000000, 7, 5000000001]")
+
+        // assert
+        @Expect([DerivedNarrowOrWide.Wide(5_000_000_000), DerivedNarrowOrWide.Narrow(7),
+            DerivedNarrowOrWide.Wide(5_000_000_001)], items)
+    }
+
+    @TestCase
     func aValueMatchingNoVariantThrows() {
         // act
         let e = @AssertThrows[FjException](read<DerivedScalarOrList>(" 1"))

@@ -54,6 +54,8 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
         case "documentFormattingProvider" => methods.add(DocumentFormattingRequestSpec.METHOD)
         case "foldingRangeProvider" => methods.add(FoldingRangeRequestSpec.METHOD)
         case "definitionProvider" => methods.add(DefinitionRequestSpec.METHOD)
+        case "documentHighlightProvider" => methods.add(DocumentHighlightRequestSpec.METHOD)
+        case "hoverProvider" => methods.add(HoverRequestSpec.METHOD)
         case "selectionRangeProvider" => methods.add(SelectionRangeRequestSpec.METHOD)
         case "workspaceSymbolProvider" => methods.add(WorkspaceSymbolRequestSpec.METHOD)
         case "diagnosticProvider" =>

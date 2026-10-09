@@ -3,6 +3,7 @@ package cjls
 import std.argopt.*
 import std.env.{getStdOut, getVariable, getWorkingDirectory}
 import std.fs.Path
+import std.io.OutputStream
 import stdx.log.Logger
 import loupe.vfs.VfsPath
 import project_model.*
@@ -17,6 +18,9 @@ Commands:
   fmt [--check] <path>...
                          format the Cangjie files at <path>, a directory's as the server reads
                          them; with --check, change nothing and fail if a file would change
+  fetch-src [--dir <dir>]
+                         download the sources of std of the SDK found, at the commit its nightly's
+                         release notes name, into <dir>, the SDK's src by default
   help                   print this
 """
 
@@ -33,6 +37,10 @@ enum Command {
      * Format the files at these paths, or with `check` only say which would change.
      */
     | Format(Array<Path>, Bool)
+    /**
+     * Fetch the sources of `std` of the SDK into this directory, the SDK's `src` without one.
+     */
+    | FetchSrc(?Path)
     | Help
 }
 
@@ -49,6 +57,7 @@ func parseCommand(args: Array<String>): Command {
     match (args[0]) {
         case "project" => PrintProject(projectDir(args[1..]))
         case "fmt" => formatCommand(args[1..])
+        case "fetch-src" => FetchSrc(fetchSrcDir(args[1..]))
         case "help" | "--help" | "-h" => Help
         case other => throw ArgumentParseException("no command `${other}`")
     }
@@ -72,6 +81,42 @@ func printProject(dir: Path, logger: Logger): Int64 {
     getStdOut().write(prettyProjectJson(toProjectJson(load.model, root)))
     getStdOut().flush()
     0
+}
+
+/**
+ * Fetches the sources of `std` of the SDK found as the server finds it (D40) into `dir`, `src` in the
+ * SDK without one, where the server looks for them (D65, D69).
+ *
+ * @return the exit code
+ */
+func fetchSrcCommand(dir: ?Path, out: OutputStream, err: OutputStream): Int64 {
+    let env = {name: String => getVariable(name)}
+    let home = match (findCangjieHome(None, env: env)) {
+        case Some(home) => Path(home.path)
+        case None =>
+            err.write("no SDK found: set CANGJIE_HOME\n".toArray())
+            err.flush()
+            return 1
+    }
+    fetchSrc(home, dir ?? home.join("src"), SystemSrcHost(), out, err)
+}
+
+/**
+ * The directory `fetch-src`'s options name, `--dir <dir>` (`-d <dir>`) or `--dir=<dir>`, relative to
+ * the working one; `None` without them.
+ *
+ * @throws ArgumentParseException - for an option not known, an argument, or `--dir` without a value
+ */
+func fetchSrcDir(options: Array<String>): ?Path {
+    let parsed = parseArguments(options, [Full("dir", r'd', RequiredValue)])
+    if (let Some(argument) <- parsed.nonOptions.first) {
+        throw ArgumentParseException("`fetch-src` takes no `${argument}`")
+    }
+    let dir = parsed.options.get("dir") ?? return None
+    if (dir.isEmpty()) {
+        throw ArgumentParseException("`--dir` takes a directory")
+    }
+    absolute(Path(dir))
 }
 
 /**

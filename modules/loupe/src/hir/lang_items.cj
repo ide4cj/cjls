@@ -17,6 +17,11 @@ public enum LangItem {
      */
     | OptionEnum
     /**
+     * `Option`'s `Some` and `None`: what an optional chain `a?.b` is desugared to (8g).
+     */
+    | OptionSome
+    | OptionNone
+    /**
      * `composition`: `f ~> g`; not `public`, a file cannot name it.
      */
     | CompositionFunc
@@ -48,6 +53,8 @@ public enum LangItem {
     public func name(): String {
         match (this) {
             case OptionEnum => "Option"
+            case OptionSome => "Some"
+            case OptionNone => "None"
             case CompositionFunc => "composition"
             case ObjectClass => "Object"
             case StringStruct => "String"
@@ -61,10 +68,21 @@ public enum LangItem {
     public func kind(): ItemKind {
         match (this) {
             case OptionEnum => ItemKind.Enum
+            case OptionSome | OptionNone => ItemKind.EnumCtor
             case CompositionFunc => ItemKind.Func
             case ObjectClass | FutureClass => ItemKind.Class
             case StringStruct | RangeStruct | ArrayStruct => ItemKind.Struct
             case IterableInterface => ItemKind.Interface
+        }
+    }
+
+    /**
+     * The lang item it is a member of: an enum's of a constructor.
+     */
+    public func owner(): ?LangItem {
+        match (this) {
+            case OptionSome | OptionNone => OptionEnum
+            case _ => None
         }
     }
 }
@@ -75,6 +93,14 @@ public enum LangItem {
  */
 @CalcaTracked
 public func langItem(db: AnalysisDatabase, from: PackageRef, item: LangItem): ?DefId {
+    if (let Some(owner) <- item.owner()) {
+        let parent = langItem(db, from, owner) ?? return None
+        let members = declItemOf(db, parent)?.members ?? return None
+        let file = parent.file(db)
+        return members.iterator().map {member => DefId(db, file, member.id)}.filter {
+            one => one.item(db).kind == item.kind() && isNamed(db, one, item.name())
+        }.next()
+    }
     let core = packageIndex(db).find("std.core", from: from) ?? return None
     let defs = packageExports(db, core).names.get(item.name()) ?? return None
     defs.iterator().filter {one => one.id.item(db).kind == item.kind()}.next().map {one => one.id}

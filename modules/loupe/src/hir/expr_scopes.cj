@@ -174,6 +174,20 @@ class ScopesBuilder {
         }
     }
 
+    /**
+     * A `match`: its scrutinee in `scope`, each arm in a scope of what its patterns bind.
+     */
+    private func walkMatch(scrutinee: ?ExprId, arms: Array<MatchArm>, scope: ScopeId): Unit {
+        walkOpt(scrutinee, scope)
+        for (arm in arms) {
+            patTypes(arm.pats, scope)
+            let inner = add(scope, bindings(arm.pats))
+            walkOpt(arm.guard, inner)
+            walkOpt(arm.condition, inner)
+            walk(arm.body, inner)
+        }
+    }
+
     private func walk(expr: ExprId, scope: ScopeId): Unit {
         exprScopes[expr.index] = scope
         match (body[expr]) {
@@ -193,7 +207,6 @@ class ScopesBuilder {
             case IndexExpr(base, indices) =>
                 walk(base, scope)
                 walkAll(indices, scope)
-            case OptionalExpr(inner) => walk(inner, scope)
             case UnaryExpr(_, inner) => walk(inner, scope)
             case BinaryExpr(_, lhs, rhs) =>
                 walk(lhs, scope)
@@ -217,15 +230,8 @@ class ScopesBuilder {
             case LetExpr(pats, value) =>
                 walk(value, scope)
                 patTypes(pats, scope)
-            case MatchExpr(scrutinee, arms) =>
-                walkOpt(scrutinee, scope)
-                for (arm in arms) {
-                    patTypes(arm.pats, scope)
-                    let inner = add(scope, bindings(arm.pats))
-                    walkOpt(arm.guard, inner)
-                    walkOpt(arm.condition, inner)
-                    walk(arm.body, inner)
-                }
+            case MatchExpr(scrutinee, arms) => walkMatch(scrutinee, arms, scope)
+            case QuestMatchExpr(selector, arms) => walkMatch(selector, arms, scope)
             case TryExpr(resources, tried, catches, finallyBlock) =>
                 var current = scope
                 for (resource in resources) {

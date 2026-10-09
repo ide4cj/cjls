@@ -26,6 +26,7 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.lineFoldingOnly = folding.flatMap {it => it.lineFoldingOnly} ?? false
     state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}
     state.locationLinks = takesLocationLinks(params.capabilities)
+    state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
     state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
     state.cangjieHome = pathOption(params.initializationOptions, "cangjieHome")
@@ -122,6 +123,16 @@ func takesLocationLinks(capabilities: ClientCapabilities): Bool {
     capabilities.textDocument.flatMap {textDocument => textDocument.definition}.flatMap {
         definition => definition.linkSupport
     } ?? false
+}
+
+/**
+ * Whether the client takes a hover's content as Markdown: one of the formats it lists.
+ */
+func takesHoverMarkdown(capabilities: ClientCapabilities): Bool {
+    let formats = capabilities.textDocument.flatMap {textDocument => textDocument.hover}.flatMap {
+        hover => hover.contentFormat
+    } ?? []
+    formats.contains(MarkupKind.Markdown)
 }
 
 func positionEncodingKind(encoding: Encoding): PositionEncodingKind {

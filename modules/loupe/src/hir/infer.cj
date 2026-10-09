@@ -454,6 +454,7 @@ class Inference {
             }
             case IfExpr(_, then, Some(otherwise)) => [then, otherwise]
             case MatchExpr(_, arms) => arms.map {arm => arm.body}
+            case QuestMatchExpr(_, arms) => arms.map {arm => arm.body}
             case TryExpr(_, tried, catches, _) => [tried].concat(catches.map {arm => arm.body})
             case SynchronizedExpr(_, block) => [block]
             case UnsafeExpr(block) => [block]
@@ -488,10 +489,6 @@ class Inference {
                 one => !(dropped.contains(id.index) && one.kind(db) == PrimTy("Unit"))
             })
             case IndexExpr(base, indices) => indexTy(id, base, indices, expected)
-            case OptionalExpr(inner) =>
-                // `a?.b`, `a?()` (8e)
-                infer(inner, None)
-                error
             case UnaryExpr(op, operand) => unaryTy(id, op, operand, expected)
             case BinaryExpr(op, lhs, rhs) => binaryTy(id, op, lhs, rhs, expected)
             case IsExpr(inner, _) =>
@@ -534,6 +531,11 @@ class Inference {
                 }
                 prim("Bool")
             case MatchExpr(scrutinee, arms) => matchExprTy(scrutinee, arms, expected)
+            case QuestMatchExpr(selector, arms) => questMatchTy(selector, arms)
+            case LangExpr(item) => match (langId(item)) {
+                case Some(decl) => declValueTy(decl, [], expected)
+                case None => error
+            }
             case TryExpr(resources, tried, catches, cleanup) => tryExprTy(resources, tried, catches, cleanup, expected)
             case ForExpr(pat, iterated, guard, loopBody) =>
                 bindPat(pat, elementTy(infer(iterated, None)))
@@ -668,6 +670,32 @@ class Inference {
             }
         }
         branches(arms.map {arm => arm.body}, expected)
+    }
+
+    /**
+     * The `match` an optional chain is desugared to, as cjc's `SynQuestSugarMatchCaseBody`, whatever
+     * is expected of it: its selector synthesized, an `Option` (N133); its first arm synthesized, the
+     * type of the `match`, the second checked against it; no join.
+     */
+    private func questMatchTy(selector: ExprId, arms: Array<MatchArm>): Ty {
+        let selectorTy = infer(selector, None)
+        let isOption = optionArg(selectorTy).isSome()
+        // cjc's "cannot use optional chaining on non-optional value"
+        if (!isOption && selectorTy.kind(db) != ErrorTy) {
+            mismatches++
+        }
+        for (arm in arms) {
+            for (pat in arm.pats) {
+                bindPat(pat, selectorTy)
+            }
+        }
+        let some = infer(arms[0].body, None)
+        infer(arms[1].body, some)
+        if (isOption) {
+            some
+        } else {
+            error
+        }
     }
 
     private func tryExprTy(resources: Array<Resource>, tried: ExprId, catches: Array<CatchArm>, cleanup: ?ExprId,
@@ -2053,6 +2081,10 @@ class Inference {
                     case _ => []
                 }
             case FieldExpr(receiver, name, args) => fieldCallables(callee, receiver, name, args, expected)
+            case LangExpr(item) => match (langId(item)) {
+                case Some(decl) => declCallables(decl, [], expected)
+                case None => []
+            }
             // `super(…)` and `this(…)` in a constructor
             case SuperExpr | ThisExpr => match (infer(callee, None).kind(db)) {
                 case DeclTy(id, args) => initCallables(id, args).map {

@@ -1858,6 +1858,177 @@ class InferTest {
     }
 
     @TestCase
+    func anOptionalChainIsAnOptionOfItsLastLink() {
+        // N133: `a?.b.c` is `match (a) { case Some(v) => Some(v.b.c) case None => None }`, each `?`
+        // a `match` inside the one of the `?` before it; the chain is all of the links after the
+        // first `?`, an assignment to it included; a parenthesis ends it
+        checkInference(#"
+            package m
+            class C {
+                var b = 1
+            //      ^ Int64
+                var o: ?Int64 = None
+                var d = D()
+            //      ^ D
+                var od: ?D = None
+                func f(): Int64 { 1 }
+                func g(x: Int64): Int64 { x }
+            //         ^ Int64
+                func g(x: String): String { x }
+            //         ^ String
+                func id<T>(x: T): T { x }
+            //             ^ T
+                func h(fn: (Int64) -> Int64): Int64 { fn(1) }
+            //         ^^ (Int64) -> Int64
+                operator func [](i: Int64): String { "" }
+            //                   ^ Int64
+            }
+            class D {
+                var e = true
+            //      ^ Bool
+                var od: ?D = None
+            }
+            func get(): ?C { None }
+            func test(a: ?C, arr: ?Array<Int64>, fn: ?((Int64) -> Bool), aa: ??C): Unit {
+            //        ^ Option<C>
+            //               ^^^ Option<Array<Int64>>
+            //                                   ^^ Option<(Int64) -> Bool>
+            //                                                           ^^ Option<Option<C>>
+                let field = a?.b
+            //      ^^^^^ Option<Int64>
+                let call = a?.f()
+            //      ^^^^ Option<Int64>
+                let overload = a?.g("s")
+            //      ^^^^^^^^ Option<String>
+                let generic = a?.id(1)
+            //      ^^^^^^^ Option<Int64>
+                let index = a?[0]
+            //      ^^^^^ Option<String>
+                let arrayIndex = arr?[0]
+            //      ^^^^^^^^^^ Option<Int64>
+                let lambda = a?.h {x => x + 1}
+            //      ^^^^^^ Option<Int64>
+            //                     ^ Int64
+                let value = fn?(1)
+            //      ^^^^^ Option<Bool>
+                let plain = a?.d.e
+            //      ^^^^^ Option<Bool>
+                let nested = a?.od?.e
+            //      ^^^^^^ Option<Bool>
+                let nested3 = a?.od?.od?.e
+            //      ^^^^^^^ Option<Bool>
+                let mixed = a?.d.od?.e
+            //      ^^^^^ Option<Bool>
+                let optional = a?.o
+            //      ^^^^^^^^ Option<Option<Int64>>
+                let method = a?.f
+            //      ^^^^^^ Option<() -> Int64>
+                let ofCall = get()?.b
+            //      ^^^^^^ Option<Int64>
+                let parenthesized = (a?.d)?.e
+            //      ^^^^^^^^^^^^^ Option<Bool>
+                let coalesced = a?.b ?? 0
+            //      ^^^^^^^^^ Int64
+                let cast = a?.b as Int64
+            //      ^^^^ Option<Int64>
+                let v = "s"
+            //      ^ String
+                let notCaptured = a?.g(v)
+            //      ^^^^^^^^^^^ Option<String>
+                let lambdaOfChain = {=> a?.b}
+            //      ^^^^^^^^^^^^^ () -> Option<Int64>
+                // not yet: an `Option<Int64>` to cjc, the `Int64` boxed, as of `if (c) { o } else { 1 }`;
+                // branches are joined unboxed here
+                let joined = if (true) { a?.b } else { 1 }
+            //      ^^^^^^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func anOptionalChainIsSynthesizedWhateverIsExpectedOfIt() {
+        // N134: synthesized alone, then checked against what is expected of it, boxed if need be; its
+        // left an `Option`; an assignment to it `Unit`
+        checkInference(#"
+            package m
+            class C {
+                var b = 1
+            //      ^ Int64
+                var d = D()
+            //      ^ D
+                var od: ?D = None
+                func id<T>(x: T): T { x }
+            //             ^ T
+                operator func [](i: Int64): String { "" }
+            //                   ^ Int64
+                operator func [](i: Int64, value!: String): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ String
+            }
+            class D {
+                var e = true
+            //      ^ Bool
+            }
+            func dropped(a: ?C): Unit { a?.id(1) }
+            //           ^ Option<C>
+            func test(a: ?C, c: C, aa: ??C): Unit {
+            //        ^ Option<C>
+            //               ^ C
+            //                     ^^ Option<Option<C>>
+                let boxed: ??Int64 = a?.b
+            //      ^^^^^ Option<Option<Int64>>
+                let nested: ?Bool = a?.od?.e
+            //      ^^^^^^ Option<Bool>
+                let assigned = (a?.b = 1)
+            //      ^^^^^^^^ Unit
+                a?.b += 1
+                a?.b++
+                a?[0] = "s"
+                a?.od?.e = false
+                // cjc: mismatched types: `?Int64`, the literal not of the type expected
+                let narrow: ?Int8 = a?.id(1)
+            //      ^^^^^^ Option<Int8>
+                // cjc: mismatched types: no `Option` is a subtype of another
+                let base: ?Object = a?.d
+            //      ^^^^ Option<Object>
+                // cjc: cannot use optional chaining on non-optional value of type 'Class-C'
+                let nonOption = c?.b
+            //      ^^^^^^^^^ {unknown}
+                // cjc: 'b' is not a member of enum 'Option<Class-C>'
+                let optionOfOption = aa?.b
+            //      ^^^^^^^^^^^^^^ Option<{unknown}>
+                // cjc: 'e' is not a member of enum 'Option<Class-D>'
+                let parenthesized = (a?.d).e
+            //      ^^^^^^^^^^^^^ {unknown}
+                // cjc: invalid binary operator '+' on type 'Enum-Option<Int64>' and 'Int64'
+                let sum = a?.b + 1
+            //      ^^^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func anOptionalChainIsOfStdCoresOptionWhateverTheScopeNames() {
+        // N135: a `Some` and a `None` of the package do not change it
+        checkInference(#"
+            package m
+            enum E {
+                | Some(Int64)
+                | None
+            }
+            class C {
+                var b = 1
+            //      ^ Int64
+            }
+            func test(a: ?C): Unit {
+            //        ^ Option<C>
+                let field = a?.b
+            //      ^^^^^ Option<Int64>
+            }
+            "#)
+    }
+
+    @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
         let parsed = Fixture.parse(#"

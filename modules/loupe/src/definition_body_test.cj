@@ -955,6 +955,55 @@ class BodyDefinitionTest {
     }
 
     @TestCase
+    func aMemberAfterAnOptionalChainGoesToTheOverloadTaken() {
+        // N133
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class C {
+                func g(x: Int64): Int64 { x }
+                func g(x: String): String { x }
+            //       ^ def
+            }
+            func f(a: ?C): Unit {
+                let b = a?.$0g("s")
+            }
+            "#, std: ["std.core"])
+    }
+
+    @TestCase
+    func aMemberAfterAnOptionalChainGoesNowhereWithoutStdCore() {
+        // no `Option`, nor its `Some` and `None`: the left of `?` is of no type
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class C {
+                var b = 1
+            }
+            func f(a: ?C): Unit {
+                let b = a?.$0b
+            //             ^ no definition
+            }
+            "#)
+    }
+
+    @TestCase
+    func anIndexAfterAnOptionalChainGoesToItsOperator() {
+        // N133
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class C {
+                operator func [](i: Int64): String { "" }
+            //                ^^ def
+            }
+            func f(a: ?C): Unit {
+                let b = a?$0[0]
+            }
+            "#, std: ["std.core"])
+    }
+
+    @TestCase
     func anOperatorOfTheLanguageGoesNowhere() {
         checkDefinition(#"
             //- /main.cj module=m package=m

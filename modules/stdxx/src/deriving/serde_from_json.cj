@@ -203,9 +203,10 @@ private func scalarEnumFromJson(model: EnumModel, isInteger: Bool, other: ?Deriv
 }
 
 /**
- * Each variant tried in declaration order on the value's own bytes - a slice of the input, so
- * nothing is copied - and the first that reads, to its end, is the one. Any exception means "not
- * this variant".
+ * Each variant tried in declaration order from the value's start - the reader rewound to its mark
+ * between attempts, so nothing is sliced or copied - and the first that reads is the one: a
+ * decoder reads exactly one value, so one that read is at the value's end. Any exception means
+ * "not this variant".
  */
 private func untaggedEnumFromJson(model: EnumModel): Tokens {
     let typeName = typeNameOf(model.decl)
@@ -216,10 +217,8 @@ private func untaggedEnumFromJson(model: EnumModel): Tokens {
             let payloadType = variant.payloadTypes[0]
             attempts += quote(
                 try {
-                    item.reset(raw)
-                    let payload = $payloadType.fromJson(item)
-                    item.end()
-                    return $ident(payload)
+                    r.rewind(mark)
+                    return $ident($payloadType.fromJson(r))
                 } catch (_: Exception) {}
             )
             continue
@@ -232,20 +231,19 @@ private func untaggedEnumFromJson(model: EnumModel): Tokens {
             let binding = bindings[i]
             let payloadType = variant.payloadTypes[i]
             reads += quote(
-                if (!item.nextItem()) {
+                if (!r.nextItem()) {
                     throw FjException("")
                 }
-                let $binding = $payloadType.fromJson(item)
+                let $binding = $payloadType.fromJson(r)
             )
         }
         let args = commaSeparated(bindings)
         attempts += quote(
             try {
-                item.reset(raw)
-                item.beginArray()
+                r.rewind(mark)
+                r.beginArray()
                 $reads
-                if (!item.nextItem()) {
-                    item.end()
+                if (!r.nextItem()) {
                     return $ident($args)
                 }
             } catch (_: Exception) {}
@@ -254,17 +252,15 @@ private func untaggedEnumFromJson(model: EnumModel): Tokens {
     let unmatched = Token(TokenKind.STRING_LITERAL, "no `${typeName.value}` variant matched the value at byte ")
 
     quote(
-        let raw = r.rawValue()
-        let start = r.position - raw.size
-        let item = FjReader(raw)
+        let mark = r.mark()
         $attempts
-        throw FjException($unmatched + start.toString())
+        throw FjException($unmatched + mark.toString())
     )
 }
 
 /**
- * The tag may come after the payload, so the value is read twice from its own bytes: once for the
- * tag, then for the fields of the variant it names.
+ * The tag may come after the payload, so the value is read twice: once for the tag, then, the
+ * reader rewound to its mark, for the fields of the variant it names.
  */
 private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
     let typeName = typeNameOf(model.decl)
@@ -274,21 +270,24 @@ private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
         let ident = variant.ident
         let literal = variant.value.literal
         if (variant.payloadFields.isEmpty()) {
+            // the reader is at the object's start again: past it, as reading its fields would be
             cases += quote(
-                case $literal => $ident
+                case $literal =>
+                    r.skipValue()
+                    $ident
             )
             continue
         }
 
-        let (locals, branches) = fieldReaders(variant.payloadFields, quote(item))
+        let (locals, branches) = fieldReaders(variant.payloadFields, quote(r))
         let args = commaSeparated(variant.payloadFields.map {field => fieldValue(field, typeName)})
         cases += quote(
             case $literal =>
                 $locals
-                item.beginObject()
-                while (item.nextKey()) {
+                r.beginObject()
+                while (r.nextKey()) {
                     $branches
-                    item.skipValue()
+                    r.skipValue()
                 }
                 $ident($args)
         )
@@ -296,18 +295,17 @@ private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` ${tag}: ")
 
     quote(
-        let raw = r.rawValue()
-        let item = FjReader(raw)
+        let mark = r.mark()
         var tag: ?String = Option<String>.None
-        item.beginObject()
-        while (item.nextKey()) {
-            if (item.keyIs($tagLiteral)) {
-                tag = item.readString()
+        r.beginObject()
+        while (r.nextKey()) {
+            if (r.keyIs($tagLiteral)) {
+                tag = r.readString()
             } else {
-                item.skipValue()
+                r.skipValue()
             }
         }
-        item.reset(raw)
+        r.rewind(mark)
         match (tag ?? throw missingField($typeName, $tagLiteral)) {
             $cases
             case other => throw FjException($unexpected + other)
