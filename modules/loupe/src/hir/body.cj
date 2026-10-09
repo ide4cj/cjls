@@ -185,7 +185,6 @@ public enum Expr {
      */
     | CallExpr(ExprId, Array<CallArg>)
     | IndexExpr(ExprId, Array<ExprId>)
-    | OptionalExpr(ExprId)
     | UnaryExpr(String, ExprId)
     /**
      * An operator between two, assignments included.
@@ -211,6 +210,13 @@ public enum Expr {
      */
     | LetExpr(Array<PatId>, ExprId)
     | MatchExpr(?ExprId, Array<MatchArm>)
+    /**
+     * The `match` an optional chain is desugared to, cjc's `MatchExpr` of `SugarKind::QUEST` (8g): `a?.b.c` is
+     * `match (a) { case Some($v) => Some($v.b.c) case None => None }`, each `?` a `match` inside
+     * the one of the `?` before it; an assignment `a?.b = x` or `a?.b++` is `$v.b = x`, `$v.b++` in
+     * its first arm, `()` in its second.
+     */
+    | QuestMatchExpr(ExprId, Array<MatchArm>)
     | TryExpr(Array<Resource>, ExprId, Array<CatchArm>, ?ExprId)
     /**
      * Its pattern, what it iterates over, its guard, its body.
@@ -241,6 +247,10 @@ public enum Expr {
      */
     | PrimExpr(String)
     | VArrayExpr(TypeRefId, Array<CallArg>)
+    /**
+     * A declaration of `std.core` a desugaring names, whatever the scopes do: R1's `Path::LangItem`.
+     */
+    | LangExpr(LangItem)
     | BlockExpr(Array<Stmt>)
     /**
      * A `quote` or a macro call: what it expands to is not known here. A macro call's arguments when they parse as
@@ -334,6 +344,10 @@ public struct BodySourceMap {
         public let types!: Array<?SyntaxNodePtr<SyntaxKind>> = []
     ) {}
 
+    /**
+     * The expression of the node `ptr` as written: of a node desugared, the first of those of the
+     * node, the `match`es it is desugared into after it (A29).
+     */
     public func exprAt(ptr: SyntaxNodePtr<SyntaxKind>): ?ExprId {
         indexOf(exprs, ptr).map {i => ExprId(i)}
     }
@@ -431,6 +445,9 @@ class BodyLowering {
     let locals = ArrayList<Local>()
     let localPtrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
     let funcs = ArrayList<LocalFunc>()
+    // the `?`s of the optional chains being lowered, innermost last: what each is applied to, and the
+    // local its value is bound to
+    private let quests = ArrayList<(ExprId, LocalId)>()
 
     func finish(params: Array<BodyParam>, value: ?ExprId, accessors: Array<ExprId>): LoweredBody {
         LoweredBody(
@@ -543,7 +560,63 @@ class BodyLowering {
         }
     }
 
+    /**
+     * The expression `node`; an optional chain that ends at it desugared (8g).
+     */
     func expr(node: AstExpr): ExprId {
+        let mark = quests.size
+        let id = link(node)
+        if (quests.size == mark) {
+            id
+        } else {
+            questMatches(id, mark, node)
+        }
+    }
+
+    /**
+     * `node`, an optional chain that ends there yet to be desugared: the `match`es of its `?`s,
+     * from the innermost out, around `value` (cjc's `DesugarOptionalChainExpr`).
+     */
+    private func questMatches(value: ExprId, mark: Int64, node: AstExpr): ExprId {
+        let assigns = match (node) {
+            case AstExpr.AsBinExpr(it) => ASSIGNMENTS.contains(it.op()?.text() ?? "")
+            case AstExpr.AsPostfixExpr(_) => true
+            case _ => false
+        }
+        var inner = if (assigns) {
+            value
+        } else {
+            synthesized(Expr.CallExpr(synthesized(Expr.LangExpr(LangItem.OptionSome)), [CallArg(None, value)]))
+        }
+        while (quests.size > mark) {
+            // read before removed: -O2 miscompiles one taken apart straight from `remove`
+            let (selector, local) = quests[quests.size - 1]
+            quests.remove(at: quests.size - 1)
+            let some = addPat(Pat.EnumPat(["Some"], [addPat(Pat.BindPat(local), None)]), None)
+            let none = addPat(Pat.EnumPat(["None"], []), None)
+            let otherwise = if (assigns) {
+                synthesized(Expr.UnitExpr)
+            } else {
+                synthesized(Expr.LangExpr(LangItem.OptionNone))
+            }
+            // after the chain's own: an expression is found by its node as written (`exprAt`)
+            inner = add(Expr.QuestMatchExpr(selector, [MatchArm([some], None, None, inner),
+                MatchArm([none], None, None, otherwise)]), node.syntax)
+        }
+        inner
+    }
+
+    private func synthesized(expr: Expr): ExprId {
+        exprs.add(expr)
+        exprPtrs.add(None)
+        ExprId(exprs.size - 1)
+    }
+
+    /**
+     * `node`, a link of an optional chain if it is one, the chain not desugared yet: what its
+     * left is, a link of its own, the `?`s of what it applies to are those of the chain.
+     */
+    private func link(node: AstExpr): ExprId {
         let lowered = match (node) {
             case AstExpr.AsLiteral(it) => Expr.LitExpr(it.value()?.text() ?? "")
             case AstExpr.AsStringLit(it) => Expr.StrExpr(it.interpolations() |> map {
@@ -551,25 +624,39 @@ class BodyLowering {
             } |> collectArray)
             case AstExpr.AsRefExpr(it) => Expr.PathExpr(it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
             case AstExpr.AsMemberAccessExpr(it) =>
-                Expr.FieldExpr(exprOf(it.receiver()), it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
-            case AstExpr.AsCallExpr(it) => Expr.CallExpr(exprOf(it.callee()), args(it.argList()))
+                Expr.FieldExpr(linkOf(it.receiver()), it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
+            case AstExpr.AsCallExpr(it) => Expr.CallExpr(linkOf(it.callee()), args(it.argList()))
             case AstExpr.AsTrailingLambdaExpr(it) =>
-                let callee = exprOf(it.callee())
+                let callee = linkOf(it.callee())
                 let lambda = lambdaOf(it.lambda())
                 match (this.exprs[callee.index]) {
                     // `f(a) {…}` is `f(a, {…})`
                     case Expr.CallExpr(inner, args) => Expr.CallExpr(inner, args.concat([CallArg(None, lambda)]))
                     case _ => Expr.CallExpr(callee, [CallArg(None, lambda)])
                 }
-            case AstExpr.AsIndexExpr(it) => Expr.IndexExpr(exprOf(it.base()), it.indices() |> map {one => expr(one)} |> collectArray)
-            case AstExpr.AsOptionalExpr(it) => Expr.OptionalExpr(exprOf(it.expr()))
+            case AstExpr.AsIndexExpr(it) => Expr.IndexExpr(linkOf(it.base()), it.indices() |> map {one => expr(one)} |> collectArray)
+            // `a?`: `$v`, bound to the value of `a` by the `match` the chain is desugared to
+            case AstExpr.AsOptionalExpr(it) =>
+                let selector = linkOf(it.expr())
+                locals.add(Local("$v", LocalKind.PatLocal))
+                localPtrs.add(None)
+                quests.add((selector, LocalId(locals.size - 1)))
+                Expr.PathExpr("$v", [])
             case AstExpr.AsUnaryExpr(it) => Expr.UnaryExpr(it.op()?.text() ?? "", exprOf(it.expr()))
-            case AstExpr.AsBinExpr(it) => Expr.BinaryExpr(it.op()?.text() ?? "", exprOf(it.lhs()), exprOf(it.rhs()))
+            case AstExpr.AsBinExpr(it) =>
+                let op = it.op()?.text() ?? ""
+                // an assignment's left a link: `a?.b = x` is a chain (cjc's `ParseExprWithRightExprOrType`)
+                let lhs = if (ASSIGNMENTS.contains(op)) {
+                    linkOf(it.lhs())
+                } else {
+                    exprOf(it.lhs())
+                }
+                Expr.BinaryExpr(op, lhs, exprOf(it.rhs()))
             case AstExpr.AsIsExpr(it) => Expr.IsExpr(exprOf(it.expr()), types.lower(it.ty()))
             case AstExpr.AsAsExpr(it) => Expr.AsExpr(exprOf(it.expr()), types.lower(it.ty()))
             case AstExpr.AsRangeExpr(it) => Expr.RangeExpr(it.start().map {one => expr(one)}, it.end().map {one => expr(one)},
                 it.step().map {one => expr(one)}, it.op()?.kind == SyntaxKind.DotDotEq)
-            case AstExpr.AsPostfixExpr(it) => Expr.PostfixExpr(exprOf(it.expr()), it.op()?.text() ?? "")
+            case AstExpr.AsPostfixExpr(it) => Expr.PostfixExpr(linkOf(it.expr()), it.op()?.text() ?? "")
             case AstExpr.AsParenExpr(it) => return exprOf(it.expr())
             case AstExpr.AsTupleExpr(it) => Expr.TupleExpr(it.exprs() |> map {one => expr(one)} |> collectArray)
             case AstExpr.AsArrayExpr(it) => Expr.ArrayExpr(it.exprs() |> map {one => expr(one)} |> collectArray)
@@ -642,6 +729,13 @@ class BodyLowering {
     private func exprOf(node: ?AstExpr): ExprId {
         match (node) {
             case Some(one) => expr(one)
+            case None => missing()
+        }
+    }
+
+    private func linkOf(node: ?AstExpr): ExprId {
+        match (node) {
+            case Some(one) => link(one)
             case None => missing()
         }
     }
