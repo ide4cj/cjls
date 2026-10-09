@@ -205,12 +205,37 @@ class HoverTest {
     }
 
     @TestCase
-    func aTypeParameter() {
+    func aTypeParameterNothingBoundsHasNoHover() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
             func f<T>(x: $0T): T { x }
-            //             ^ T
+            //             ^ no hover
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterShowsWhatItsWhereBoundsItBy() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {}
+            interface J {}
+            func f<T, U>(x: $0T, y: U): T where T <: I, U <: J, T <: J { x }
+            //                ^ T <: I & J
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterOfALocalFunctionShowsItsBounds() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {}
+            main() {
+                func g<T>(x: $0T): T where T <: I { x }
+            //                 ^ T <: I
+            }
             "#)
     }
 
