@@ -43,4 +43,8 @@ public struct DidChangeConfigurationNotificationSpec <: LspInboundNotification<D
     public func decodeParams(params: ?RawJson): DidChangeConfigurationParams {
         decodeMessageParams<DidChangeConfigurationParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidChangeConfigurationParams {
+        decodeMessageParams<DidChangeConfigurationParams>(r)
+    }
 }

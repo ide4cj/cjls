@@ -39,6 +39,10 @@ public struct SignatureHelpRequestSpec <: LspInboundRequest<SignatureHelpParams,
         decodeMessageParams<SignatureHelpParams>(params)
     }
 
+    public func decodeParams(r: FjReader): SignatureHelpParams {
+        decodeMessageParams<SignatureHelpParams>(r)
+    }
+
     public func encodeResult(result: Nullable<SignatureHelp>): RawJson {
         RawJson.of(result)
     }

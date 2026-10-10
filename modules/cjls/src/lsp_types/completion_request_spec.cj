@@ -50,6 +50,10 @@ public struct CompletionRequestSpec <: LspInboundRequest<CompletionParams, Nulla
         decodeMessageParams<CompletionParams>(params)
     }
 
+    public func decodeParams(r: FjReader): CompletionParams {
+        decodeMessageParams<CompletionParams>(r)
+    }
+
     public func encodeResult(result: Nullable<CompletionItemsOrCompletionList>): RawJson {
         RawJson.of(result)
     }

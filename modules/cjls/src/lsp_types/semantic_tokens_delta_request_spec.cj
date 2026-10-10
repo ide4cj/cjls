@@ -42,6 +42,10 @@ public struct SemanticTokensDeltaRequestSpec <: LspInboundRequest<SemanticTokens
         decodeMessageParams<SemanticTokensDeltaParams>(params)
     }
 
+    public func decodeParams(r: FjReader): SemanticTokensDeltaParams {
+        decodeMessageParams<SemanticTokensDeltaParams>(r)
+    }
+
     public func encodeResult(result: Nullable<SemanticTokensOrSemanticTokensDelta>): RawJson {
         RawJson.of(result)
     }

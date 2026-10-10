@@ -84,6 +84,31 @@ class FakeTransport <: JsonRpcTransport {
         }
     }
 
+    /**
+     * Reads the params in place as the framed transport would, had `method` come first in the frame.
+     */
+    public func read(paramsReader: (String) -> Option<(FjReader) -> Any>): ?(Body, ?Any) {
+        let body = read() ?? return None
+        let decoded = match (body) {
+            case Request(req) => decodedInPlace(req.method, req.params, paramsReader)
+            case Notification(note) => decodedInPlace(note.method, note.params, paramsReader)
+            case Response(_) => Option<Any>.None
+        }
+        (body, decoded)
+    }
+
+    private func decodedInPlace(method: String, params: ?RawJson,
+        paramsReader: (String) -> Option<(FjReader) -> Any>): ?Any {
+        match ((paramsReader(method), params)) {
+            case (Some(readInPlace), Some(raw)) => try {
+                readInPlace(FjReader(raw.bytes))
+            } catch (_: Exception) {
+                None
+            }
+            case _ => None
+        }
+    }
+
     public func write(body: Body): Unit {
         if (isClosed()) {
             throw TransportException("fake transport is closed")
@@ -102,11 +127,24 @@ class FakeHandler <: Handler {
         _, _, _ => Result(rawJson("null"))
     }
     var onNotificationFn: (String, ?RawJson) -> Unit = {_, _ => ()}
+    var paramsReaderFn: (String) -> Option<(FjReader) -> Any> = {_ => None}
     var inPlace = false
 
     let notified = LinkedBlockingQueue<String>()
+    // what each message's params were decoded into in place, `None` recorded as a `None`
+    let decodedParams = LinkedBlockingQueue<Option<Any>>()
+
+    public func paramsReader(method: String): Option<(FjReader) -> Any> {
+        paramsReaderFn(method)
+    }
+
+    public func onNotification(method: String, params: ?RawJson, decodedParams: ?Any): Unit {
+        this.decodedParams.add(decodedParams)
+        onNotification(method, params)
+    }
 
     public func onRequest(request: InboundRequest): Unit {
+        decodedParams.add(request.decodedParams)
         if (inPlace) {
             request.respond(onRequestFn(request.method, request.params, request.cancellation))
             return
@@ -192,6 +230,35 @@ class ConnectionServeRequestTest {
         // assert
         @Expect(Integer(1), resp.id.getOrThrow())
         @Expect("m:42", resp.resultOrError.getResultOrThrow().read<String>())
+    }
+
+    @TestCase
+    func paramsTheHandlersReaderDecodedInPlaceReachItWithTheMessage() {
+        // arrange - the handler reads "m"'s params as a tree, and nothing else's
+        let handler = FakeHandler()
+        handler.paramsReaderFn = {
+            method => if (method == "m") {
+                Some<(FjReader) -> Any>({
+                    r =>
+                    let tree: Any = JsonValue.fromJson(r)
+                    tree
+                })
+            } else {
+                None
+            }
+        }
+        let (_, transport) = serving(handler)
+
+        // act
+        transport.feed(RequestBody(Integer(1), "m", params: rawJson(#"{"a":42}"#)).enveloped())
+        transport.nextResponse()
+        transport.feed(NotificationBody("other", params: rawJson(#"{"a":1}"#)).enveloped())
+        handler.notified.remove()
+
+        // assert
+        let decoded = handler.decodedParams.remove().getOrThrow()
+        @Expect(42, (decoded as JsonValue).getOrThrow()["a"].asInteger())
+        @Expect(handler.decodedParams.remove().isNone())
     }
 
     @TestCase[inPlace in [ false, true ]]

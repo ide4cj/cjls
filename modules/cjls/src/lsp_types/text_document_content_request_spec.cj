@@ -45,6 +45,10 @@ public struct TextDocumentContentRequestSpec <: LspInboundRequest<TextDocumentCo
         decodeMessageParams<TextDocumentContentParams>(params)
     }
 
+    public func decodeParams(r: FjReader): TextDocumentContentParams {
+        decodeMessageParams<TextDocumentContentParams>(r)
+    }
+
     public func encodeResult(result: TextDocumentContentResult): RawJson {
         RawJson.of(result)
     }

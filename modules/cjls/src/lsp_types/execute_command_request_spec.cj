@@ -43,6 +43,10 @@ public struct ExecuteCommandRequestSpec <: LspInboundRequest<ExecuteCommandParam
         decodeMessageParams<ExecuteCommandParams>(params)
     }
 
+    public func decodeParams(r: FjReader): ExecuteCommandParams {
+        decodeMessageParams<ExecuteCommandParams>(r)
+    }
+
     public func encodeResult(result: LSPAny): RawJson {
         RawJson.of(result)
     }

@@ -38,6 +38,10 @@ public struct TypeHierarchySupertypesRequestSpec <: LspInboundRequest<TypeHierar
         decodeMessageParams<TypeHierarchySupertypesParams>(params)
     }
 
+    public func decodeParams(r: FjReader): TypeHierarchySupertypesParams {
+        decodeMessageParams<TypeHierarchySupertypesParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<TypeHierarchyItem>>): RawJson {
         RawJson.of(result)
     }

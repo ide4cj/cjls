@@ -45,6 +45,10 @@ public struct DocumentHighlightRequestSpec <: LspInboundRequest<DocumentHighligh
         decodeMessageParams<DocumentHighlightParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DocumentHighlightParams {
+        decodeMessageParams<DocumentHighlightParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<DocumentHighlight>>): RawJson {
         RawJson.of(result)
     }

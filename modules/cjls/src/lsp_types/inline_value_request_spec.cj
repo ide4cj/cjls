@@ -46,6 +46,10 @@ public struct InlineValueRequestSpec <: LspInboundRequest<InlineValueParams, Nul
         decodeMessageParams<InlineValueParams>(params)
     }
 
+    public func decodeParams(r: FjReader): InlineValueParams {
+        decodeMessageParams<InlineValueParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<InlineValue>>): RawJson {
         RawJson.of(result)
     }

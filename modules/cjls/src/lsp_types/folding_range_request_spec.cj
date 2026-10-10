@@ -45,6 +45,10 @@ public struct FoldingRangeRequestSpec <: LspInboundRequest<FoldingRangeParams, N
         decodeMessageParams<FoldingRangeParams>(params)
     }
 
+    public func decodeParams(r: FjReader): FoldingRangeParams {
+        decodeMessageParams<FoldingRangeParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<FoldingRange>>): RawJson {
         RawJson.of(result)
     }

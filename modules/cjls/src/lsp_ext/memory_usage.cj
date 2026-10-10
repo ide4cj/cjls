@@ -42,6 +42,17 @@ public struct MemoryUsageRequestSpec <: LspInboundRequest<MemoryUsageParams, Mem
         }
     }
 
+    /**
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as `MemoryUsageParams`
+     */
+    public func decodeParams(r: FjReader): MemoryUsageParams {
+        try {
+            MemoryUsageParams.fromJson(r)
+        } catch (e: Exception) {
+            throw RpcException(ErrorCode.INVALID_PARAMS, e.message)
+        }
+    }
+
     public func encodeResult(result: MemoryUsage): RawJson {
         RawJson.of(result)
     }

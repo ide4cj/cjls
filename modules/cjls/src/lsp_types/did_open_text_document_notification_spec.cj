@@ -48,4 +48,8 @@ public struct DidOpenTextDocumentNotificationSpec <: LspInboundNotification<DidO
     public func decodeParams(params: ?RawJson): DidOpenTextDocumentParams {
         decodeMessageParams<DidOpenTextDocumentParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidOpenTextDocumentParams {
+        decodeMessageParams<DidOpenTextDocumentParams>(r)
+    }
 }

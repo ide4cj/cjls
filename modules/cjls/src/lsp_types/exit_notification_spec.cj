@@ -36,4 +36,8 @@ public struct ExitNotificationSpec <: LspInboundNotification<Unit> {
     public func decodeParams(params: ?RawJson): Unit {
         ()
     }
+
+    public func decodeParams(r: FjReader): Unit {
+        r.skipValue()
+    }
 }

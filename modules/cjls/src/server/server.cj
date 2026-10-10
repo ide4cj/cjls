@@ -5,7 +5,7 @@ import std.deriving.*
 import std.time.MonoTime
 import stdx.log.*
 import calca.CancelledException
-import fjson.RawJson
+import fjson.{FjReader, RawJson}
 import jsonrpc.*
 import cjls.lsp_types.*
 
@@ -63,7 +63,7 @@ class Server <: Handler {
                     ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
             case Some(Exclusive(handler)) =>
                 let parts = Parts(loop, client, request.cancellation, logger)
-                if (loop.write {_ => answer(request, logger) {handler(parts, request.params)}}) {
+                if (loop.write {_ => answer(request, logger) {handler(parts, request.params, request.decodedParams)}}) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
@@ -72,35 +72,47 @@ class Server <: Handler {
                 let snapshot = loop.snapshot(cancelledBy: {=> cancellation.isCancelled})
                 let parts = ReadOnlyParts(snapshot, client, cancellation, logger)
                 spawn {
-                    answer(request, logger) {handler(parts, request.params)}
+                    answer(request, logger) {handler(parts, request.params, request.decodedParams)}
                 }
         }
     }
 
     public func onNotification(method: String, params: ?RawJson): Unit {
+        onNotification(method, params, Option<Any>.None)
+    }
+
+    public func onNotification(method: String, params: ?RawJson, decodedParams: ?Any): Unit {
         let logger = logger.withAttrs([("method", method)])
         if (method == ExitNotificationSpec.METHOD) {
-            dispatch(method, params, logger)
+            dispatch(method, params, decodedParams, logger)
             exit()
             return
         }
         match (lifecycle) {
-            case Initialized => dispatch(method, params, logger)
+            case Initialized => dispatch(method, params, decodedParams, logger)
             case _ => logger.debug("dropped", [("reason", "the server is ${describe(lifecycle)}")])
         }
     }
 
-    private func dispatch(method: String, params: ?RawJson, logger: Logger): Unit {
+    /**
+     * The route's own reader of the method's params, for the read loop to read them in place (D73);
+     * a method without a route keeps its params bytes, to be refused as today.
+     */
+    public func paramsReader(method: String): Option<(FjReader) -> Any> {
+        router.paramsReaders.get(method)
+    }
+
+    private func dispatch(method: String, params: ?RawJson, decodedParams: ?Any, logger: Logger): Unit {
         let cancellation = CancellationToken()
         match (router.notifications.get(method)) {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                loop.write {_ => run(logger) {handler(Parts(loop, client, cancellation, logger), params)}}
+                loop.write {_ => run(logger) {handler(Parts(loop, client, cancellation, logger), params, decodedParams)}}
             case Some(ReadOnly(handler)) =>
                 let parts = ReadOnlyParts(loop.snapshot(), client, cancellation, logger)
                 spawn {
-                    run(logger) {handler(parts, params)}
+                    run(logger) {handler(parts, params, decodedParams)}
                 }
         }
     }

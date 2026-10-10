@@ -42,6 +42,10 @@ public struct DocumentLinkRequestSpec <: LspInboundRequest<DocumentLinkParams, N
         decodeMessageParams<DocumentLinkParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DocumentLinkParams {
+        decodeMessageParams<DocumentLinkParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<DocumentLink>>): RawJson {
         RawJson.of(result)
     }

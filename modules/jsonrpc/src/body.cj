@@ -11,6 +11,9 @@ private let ID = FjName("id")
 private let RESULT = FjName("result")
 private let ERROR = FjName("error")
 
+/** No method's params read in place: they all stay bytes. */
+let NO_PARAMS_READER: (String) -> Option<(FjReader) -> Any> = {_ => None}
+
 /**
  * One message. JSON-RPC has no discriminator field, so the shape is the discriminator: `id`,
  * `method`, `result` and `error` present or not decide the variant. It is read in one pass, whatever
@@ -27,10 +30,25 @@ public enum Body <: ToJson & FromJson<Body> {
      * @throws FjException - if the JSON is not a message's
      */
     public static func fromJson(r: FjReader): Body {
+        read(r, NO_PARAMS_READER)[0]
+    }
+
+    /**
+     * The message, with its params read in place (D73) when `method` came before them and
+     * `paramsReader` gives a reader for that method: what the reader returned is the second value.
+     * The params stay in the body as their bytes either way. A reader that throws leaves them
+     * unread, as if there had been none: whoever reads them next fails the same way, with an id to
+     * answer to.
+     *
+     * @throws RpcException - if the protocol invariants are not met
+     * @throws FjException - if the JSON is not a message's
+     */
+    public static func read(r: FjReader, paramsReader: (String) -> Option<(FjReader) -> Any>): (Body, ?Any) {
         var version: ?String = None
         var id: ?Nullable<RequestId> = None
         var method: ?String = None
         var params: ?RawJson = None
+        var decoded: ?Any = None
         var result: ?RawJson = None
         var error: ?ResponseError = None
 
@@ -48,7 +66,23 @@ public enum Body <: ToJson & FromJson<Body> {
             } else if (r.keyIs("method")) {
                 method = r.readString()
             } else if (r.keyIs("params")) {
-                params = paramsOf(r)
+                let reader = match (method) {
+                    case Some(name) => paramsReader(name)
+                    case None => Option<(FjReader) -> Any>.None
+                }
+                match (reader) {
+                    case Some(readInPlace) =>
+                        let mark = r.mark()
+                        try {
+                            decoded = readInPlace(r)
+                            params = RawJson(r.sliceSince(mark))
+                        } catch (_: Exception) {
+                            decoded = None
+                            r.rewind(mark)
+                            params = paramsOf(r)
+                        }
+                    case None => params = paramsOf(r)
+                }
             } else if (r.keyIs("result")) {
                 result = RawJson.fromJson(r)
             } else if (r.keyIs("error")) {
@@ -61,9 +95,9 @@ public enum Body <: ToJson & FromJson<Body> {
         if (version != Some("2.0")) {
             throw RpcException(ErrorCode.INVALID_REQUEST, "invalid \"jsonrpc\" field value")
         }
-        let someId = id ?? return Notification(
-            NotificationBody(method ?? throw missingField("Notification", "method"), params: params))
-        match ((result, error)) {
+        let someId = id ?? return (Notification(
+            NotificationBody(method ?? throw missingField("Notification", "method"), params: params)), decoded)
+        let body = match ((result, error)) {
             case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST,
                 "a response carries both \"result\" and \"error\"")
             case (Some(value), None) => Response(ResponseBody(someId, Result(value)))
@@ -75,6 +109,7 @@ public enum Body <: ToJson & FromJson<Body> {
                 }
                 Request(RequestBody(requestId, method ?? throw missingField("Request", "method"), params: params))
         }
+        (body, decoded)
     }
 
     public func toJson(w: FjWriter): Unit {

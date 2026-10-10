@@ -45,6 +45,10 @@ public struct SelectionRangeRequestSpec <: LspInboundRequest<SelectionRangeParam
         decodeMessageParams<SelectionRangeParams>(params)
     }
 
+    public func decodeParams(r: FjReader): SelectionRangeParams {
+        decodeMessageParams<SelectionRangeParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<SelectionRange>>): RawJson {
         RawJson.of(result)
     }

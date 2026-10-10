@@ -22,9 +22,10 @@ class Asked {
     let answers = LinkedBlockingQueue<ResultOrError>()
     let request: InboundRequest
 
-    Asked(method: String, params!: ?RawJson = Option<RawJson>.None) {
+    Asked(method: String, params!: ?RawJson = Option<RawJson>.None, decodedParams!: ?Any = Option<Any>.None) {
         let answers = this.answers
-        request = InboundRequest(Integer(1), method, params, CancellationToken(), {answer => answers.add(answer)})
+        request = InboundRequest(Integer(1), method, params, CancellationToken(), {answer => answers.add(answer)},
+            decodedParams: decodedParams)
     }
 
     func answer(): ResultOrError {
@@ -346,6 +347,37 @@ class ServerDispatchTest {
         let contents = treeOf(asked.answer().getResultOrThrow())["contents"]
         @Expect("3:true", contents["value"].asString())
         @Expect(refEq(client, describedClients.remove()))
+    }
+
+    @TestCase
+    func paramsTheReadLoopDecodedInPlaceAreTheOnesAHandlerGets() {
+        // arrange - the bytes say line 3, what was decoded in place line 7
+        let server = initialized(lifecycleRouter().route(HoverRequestSpec(), describeHover))
+        let decoded: Any = HoverParams(textDocument: TextDocumentIdentifier(uri: "file:///a.cj"),
+            position: Position(line: 7, character: 1))
+        let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams(), decodedParams: decoded)
+
+        // act
+        server.onRequest(asked.request)
+
+        // assert
+        let contents = treeOf(asked.answer().getResultOrThrow())["contents"]
+        @Expect("7:false", contents["value"].asString())
+        describedClients.remove()
+    }
+
+    @TestCase
+    func theServerReadsARoutedMethodsParamsInPlaceAndNoOthers() {
+        // arrange
+        let server = serverOf(lifecycleRouter().route(HoverRequestSpec(), describeHover))
+
+        // act
+        let readInPlace = server.paramsReader(HoverRequestSpec.METHOD).getOrThrow()
+        let params = readInPlace(FjReader(hoverParams().bytes))
+
+        // assert
+        @Expect(3, (params as HoverParams).getOrThrow().position.line)
+        @Expect(server.paramsReader(DefinitionRequestSpec.METHOD).isNone())
     }
 
     @TestCase

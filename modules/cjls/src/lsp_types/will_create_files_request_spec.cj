@@ -49,6 +49,10 @@ public struct WillCreateFilesRequestSpec <: LspInboundRequest<CreateFilesParams,
         decodeMessageParams<CreateFilesParams>(params)
     }
 
+    public func decodeParams(r: FjReader): CreateFilesParams {
+        decodeMessageParams<CreateFilesParams>(r)
+    }
+
     public func encodeResult(result: Nullable<WorkspaceEdit>): RawJson {
         RawJson.of(result)
     }

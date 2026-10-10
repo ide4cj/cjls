@@ -37,4 +37,8 @@ public struct InitializedNotificationSpec <: LspInboundNotification<InitializedP
     public func decodeParams(params: ?RawJson): InitializedParams {
         decodeMessageParams<InitializedParams>(params)
     }
+
+    public func decodeParams(r: FjReader): InitializedParams {
+        decodeMessageParams<InitializedParams>(r)
+    }
 }
