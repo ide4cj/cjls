@@ -57,7 +57,7 @@ func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotati
 }
 
 /**
- * What an expression of no type known is (#53, D76): an error the user made, which cjc reports, and
+ * What an expression of no type known is (#53, D77): an error the user made, which cjc reports, and
  * whatever is made of it; a type the analysis cannot find, and why, and whatever is made of it; no
  * value, a type or package before a `.`. Each case compiled with cjc 1.3.0-alpha.20261002 first:
  * one of no `cjc:` comment compiles.

@@ -34,13 +34,13 @@ public struct CalleeTarget {
  * What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its
  * expressions, patterns and locals, by id; the members found after the `.` of a value; the
  * overload each call of several takes. A type not found is an error, or one the analysis cannot
- * find, and why (D76).
+ * find, and why (D77).
  */
 @Derive[Equatable]
 public struct InferenceResult {
     public InferenceResult(
         /**
-         * `None` for a type or a package before a `.`: no value (D76).
+         * `None` for a type or a package before a `.`: no value (D77).
          */
         public let exprs!: Array<?Ty> = [],
         public let pats!: Array<Ty> = [],
@@ -284,7 +284,7 @@ class Inference {
 
     /**
      * Records that `id`, a type or a package before a `.`, and each before it (`pkg.Type.member`), is
-     * no value (D76).
+     * no value (D77).
      */
     private func noValue(id: ExprId): Unit {
         match (hir[id]) {
@@ -329,7 +329,7 @@ class Inference {
 
     /**
      * What is made of `tys` when it cannot be: of a type not known among them, that one, else an
-     * error, the user's (D76).
+     * error, the user's (D77).
      */
     private func failed(tys: Array<Ty>): Ty {
         unknownOf(db, tys) ?? error

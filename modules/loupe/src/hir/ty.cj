@@ -75,13 +75,13 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
     /**
      * An error the user made, which cjc reports, and what is made of it: a type that does not
      * resolve or is not allowed where it is written, a value that is not, a call that fits none;
-     * cjc's `InvalidTy`, ty's `Unknown` (D76). It fits any type, as each of a check of it would be
+     * cjc's `InvalidTy`, ty's `Unknown` (D77). It fits any type, as each of a check of it would be
      * an error cjc does not report.
      */
     | ErrorTy
     /**
      * A type the analysis cannot find, why, and what is made of it, where cjc may well find one:
-     * ty's `Todo` (D76). It fits any type, as an error does, and is never an error itself.
+     * ty's `Todo` (D77). It fits any type, as an error does, and is never an error itself.
      */
     | TodoTy(Todo)
     /**
@@ -151,7 +151,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
 }
 
 /**
- * Why the analysis cannot find a type (D76): what it does not do yet, each a gap of its own.
+ * Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
  */
 @Derive[Equatable, Hashable]
 public enum Todo <: ToString {

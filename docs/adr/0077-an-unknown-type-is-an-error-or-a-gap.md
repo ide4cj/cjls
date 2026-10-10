@@ -1,4 +1,4 @@
-# ADR-0076: A type not known is an error the user made or one the analysis cannot find, and why; a type or package before a dot is no value
+# ADR-0077: A type not known is an error the user made or one the analysis cannot find, and why; a type or package before a dot is no value
 
 Status: proposed
 

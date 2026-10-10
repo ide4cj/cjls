@@ -107,7 +107,7 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
 
 /**
  * What `id`, an expression of no type known of the body of `def` none of whose children is one, is,
- * as #48's step 8c′ counted them before the error type was split (D76).
+ * as #48's step 8c′ counted them before the error type was split (D77).
  */
 func rootKindOf(db: AnalysisDatabase, def: DefId, hir: Body, result: InferenceResult, id: ExprId): String {
     match (hir[id]) {
@@ -156,7 +156,7 @@ func textOf(ws: BenchWorkspace, file: SourceFile, def: DefId, id: ExprId): Strin
 
 /**
  * Each expression of the workspace's bodies: whether it is of no type known, why, and what it was
- * before the error type was split (D76). A cold pass over every body, 2 GB of heap: run with
+ * before the error type was split (D77). A cold pass over every body, 2 GB of heap: run with
  * `CJLS_CENSUS=1 cjHeapSize=2GB cjpm test --show-all-output --target-dir target/test
  * '--filter=InferenceCensusTest.*'`, else it passes doing nothing.
  */

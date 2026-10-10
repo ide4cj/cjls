@@ -243,7 +243,7 @@ func hasUnknowns(db: AnalysisDatabase, ty: Ty): Bool {
 /**
  * The type not known that `tys` are or hold, what a type made of them is when it cannot be found:
  * one the analysis cannot find before an error, for an error may be no error once it is found
- * (D76); `None` if they hold none.
+ * (D77); `None` if they hold none.
  */
 func unknownOf(db: AnalysisDatabase, tys: Array<Ty>): ?Ty {
     var error: ?Ty = None
