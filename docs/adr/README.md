@@ -90,3 +90,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0069](0069-std-sources-fetched-by-cjls.md) | The sources of std are fetched by `cjls fetch-src`, from `cangjie_runtime` at the commit the nightly's release notes name, into the SDK's `src` | proposed |
 | [0070](0070-an-optional-chain-is-lowered-into-matches.md) | An optional chain is lowered into the matches cjc desugars it to, Some and None lang items | proposed |
 | [0071](0071-a-union-reads-its-value-on-the-rewound-reader.md) | A union reads its value on the reader itself, rewound to the value's start between attempts | accepted |
+| [0073](0073-params-are-read-in-place-when-the-method-came-first.md) | Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes | accepted |
