@@ -168,7 +168,8 @@ def open_pr_adrs() -> Optional[Dict[int, List[tuple]]]:
         for f in pr.get("files") or []:
             path = Path(f["path"])
             name = ADR_FILE.match(path.name)
-            if path.parent.as_posix() == "docs/adr" and name and f.get("additions", 0) > 0:
+            if (path.parent.as_posix() == "docs/adr" and name
+                    and f.get("changeType") in ("ADDED", "RENAMED")):
                 adrs.setdefault(pr["number"], []).append((int(name.group(1)), path.name))
     return adrs
 
@@ -197,9 +198,12 @@ def new_adr(slug: str, decision: str) -> Path:
     return path
 
 
-def check_open_prs(pr: int, adrs: List[Adr], prs: Dict[int, List[tuple]]) -> None:
-    """Fails if an open pull request older than `pr` adds an ADR of a number `adrs` has otherwise."""
-    mine = {a.number: a.file for a in adrs}
+def check_open_prs(pr: int, prs: Dict[int, List[tuple]]) -> None:
+    """Fails if an open pull request older than `pr` adds an ADR of a number `pr` adds otherwise.
+
+    Only the ADRs `pr` adds are its own: one master has is no open pull request's to take, and an
+    older one still adding that number fails by itself, every id once on its merge with master."""
+    mine = dict(prs.get(pr, []))
     for other, files in sorted(prs.items()):
         if other >= pr:
             continue  # the younger pull request takes another number
@@ -227,13 +231,13 @@ def main(argv: List[str]) -> int:
             rows = index_rows(read_adrs())
             INDEX.write_text(write_index(INDEX.read_text(encoding="utf-8"), rows), encoding="utf-8")
         else:
-            adrs = read_adrs()
+            read_adrs()
             check_rules()
             if args.open_prs is not None:
                 prs = open_pr_adrs()
                 if prs is None:
                     raise DocsError("--open-prs needs `gh`, logged in")
-                check_open_prs(args.open_prs, adrs, prs)
+                check_open_prs(args.open_prs, prs)
     except DocsError as e:
         print(f"error: {e}", file=sys.stderr)
         return 1
