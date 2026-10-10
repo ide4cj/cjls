@@ -205,15 +205,21 @@ class Highlighter {
     private let ids: ?ItemIdMap
     // what a name meaning each declaration is, once a request
     private let declarations = HashMap<DefId, ?Highlight>()
+    // what a name meaning each local is, by the body and the local, once a request
+    private let locals = HashMap<DefId, HashMap<Int64, ?Highlight>>()
 
     /**
      * The tokens of `node`, `item` the innermost item around it.
      */
     func walk(node: CjSyntaxNode, inError: Bool, item: ?DefId): Unit {
         let inErrorNode = inError || node.kind == SyntaxKind.ErrorNode
-        let here = match (ids.flatMap {ids => ids.idOf(SyntaxNodePtr(node))}) {
-            case Some(id) => DefId(db, ItemFile.Source(file), id)
-            case None => item
+        let here = match (ids) {
+            case Some(ids) where Decl.canCast(node.kind) || node.kind == SyntaxKind.ImportDecl =>
+                match (ids.idOf(SyntaxNodePtr(node))) {
+                    case Some(id) => DefId(db, ItemFile.Source(file), id)
+                    case None => item
+                }
+            case _ => item
         }
         for (child in node.childrenWithTokens()) {
             if (!wanted(child.textRange)) {
@@ -310,7 +316,21 @@ class Highlighter {
                     declarations.add(id, found)
                     found
             }
-            case LocalDef(def, local) => localHighlight(def, local)
+            case LocalDef(def, local) =>
+                let known = match (locals.get(def)) {
+                    case Some(one) => one
+                    case None =>
+                        let one = HashMap<Int64, ?Highlight>()
+                        locals.add(def, one)
+                        one
+                }
+                match (known.get(local.index)) {
+                    case Some(found) => found
+                    case None =>
+                        let found = localHighlight(def, local)
+                        known.add(local.index, found)
+                        found
+                }
             case MemberParamDef(ctor, local) =>
                 let field = HighlightTag.Symbol(StructureKind.Field)
                 let (_, name) = localName(db, ctor, local) ?? return tagged(field)
@@ -380,7 +400,7 @@ func isCompiledMacro(db: AnalysisDatabase, pkg: Package, file: SourceFile, name:
  */
 func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
     let file = id.file(db)
-    let item = findItem(itemTreeOf(db, file).items, id.item(db)) ?? return None
+    let item = declItemOf(db, id) ?? return None
     var modifiers = HighlightModifiers.NONE
     let source = match (file) {
         case Source(_) => nodeOf(db, id).flatMap {found => Decl.cast(found[1])}

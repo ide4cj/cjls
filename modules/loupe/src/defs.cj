@@ -139,25 +139,29 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     }
     if (let Some(ref) <- RefExpr.cast(node)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return None
+        let inferred = inferBody(db, def)
         // of overloads, the one inference chose (8d)
-        if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
+        if (let Some(decl) <- inferred.calleeOf(expr)) {
             return [Definition.DeclDef(decl)]
         }
-        return match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())) {
+        let resolution = inferred.nameOf(expr) ?? resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr),
+            token.text())
+        return match (resolution) {
             case Values(targets) => targets.map {target => valueDefinition(def, target)}
             case InFile(resolution) => fileDefinitions(resolution)
         }
     }
     if (let Some(access) <- MemberAccessExpr.cast(node)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return None
-        if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
+        let inferred = inferBody(db, def)
+        if (let Some(decl) <- inferred.calleeOf(expr)) {
             return [Definition.DeclDef(decl)]
         }
-        return match (resolveField(db, def, expr)) {
+        return match (inferred.accessOf(expr) ?? resolveField(db, def, expr)) {
             case PackageMembers(ids) => ids.map {id => Definition.DeclDef(id)}
             case TypeMembers(targets) => targets.map {target => memberDefinition(target)}
             // a member of a value: what its type has (D55), nothing if it is not known
-            case OfValue => inferBody(db, def).fieldOf(expr).map {
+            case OfValue => inferred.fieldOf(expr).map {
                 targets => targets.map {target => memberDefinition(target)}
             }
             case NoField => []
