@@ -107,6 +107,20 @@ class FormatRangeTest {
     }
 
     @TestCase
+    func aBraceJoinsTheLineBeforeWhenEitherLineIsCovered() {
+        // arrange
+        let text = "func f()\n    {\n}\n"
+
+        // act
+        let fromFirst = formattedIn(text, linesOf(text, 0, 0))
+        let fromSecond = formattedIn(text, linesOf(text, 1, 1))
+
+        // assert
+        @Expect(fromFirst, Some("func f() {\n}\n"))
+        @Expect(fromSecond, Some("func f() {\n}\n"))
+    }
+
+    @TestCase
     func aFileWithSyntaxErrorsIsNotFormatted() {
         // arrange
         let text = "func f( {\nlet a = 1\n"
