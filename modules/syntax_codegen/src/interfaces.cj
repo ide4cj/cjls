@@ -33,7 +33,7 @@ let INTERFACES: Array<InterfaceSpec> = [
         Accessor("whereClause", "WhereClause", false)),
     InterfaceSpec("HasDocComment", "A node the parser gives the comments right before it, its documentation.",
         Provided(
-            "The comments before the rest of it, in order: none but the documentation is there.",
+            "Its documentation, in order: the comments before the macro calls around it, outermost first, then before the rest of it.",
             "func docComments(): Array<${TOKEN_TYPE}>",
             "docCommentsOf(syntax)",
             ["Decl", "PackageHeader"]

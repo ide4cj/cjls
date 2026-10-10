@@ -103,9 +103,26 @@ extend Modifiers {
 }
 
 /**
- * The comments among the trivia `node` starts with: those the parser gave it as its documentation.
+ * The comments the parser gave `node` as its documentation, among the trivia it starts with, after
+ * those of the macro calls around it, outermost first: before `@M class C`, they go to the call.
  */
 func docCommentsOf(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>> {
+    let calls = ArrayList<SyntaxNode<SyntaxKind>>()
+    var parent = node.parent
+    while (let Some(one) <- parent && one.kind == SyntaxKind.MacroExpandDecl) {
+        calls.add(one)
+        parent = one.parent
+    }
+    calls.reverse()
+    let comments = ArrayList<SyntaxToken<SyntaxKind>>()
+    for (call in calls) {
+        comments.add(all: leadingComments(call))
+    }
+    comments.add(all: leadingComments(node))
+    comments.toArray()
+}
+
+private func leadingComments(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>> {
     let comments = ArrayList<SyntaxToken<SyntaxKind>>()
     for (element in node.childrenWithTokens()) {
         match (element) {
