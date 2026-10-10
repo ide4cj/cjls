@@ -6,6 +6,7 @@ Amends ADR-0060: the line breaks are the author's
 ## Context
 
 - D60 keeps every line break, and indents a line that does not start an element as one carrying the element on, one level in. A body's `{` moved to a line of its own (`if (a)` / `{`) was kept there one level in, its `}` at the statement's level: a stair no style writes, which formatting never undid.
+- Cangjie's coding standard, which cjfmt implements, asks for K&R braces on every non-empty block, and cjfmt has no option for it: it joins such a `{` to the line before (checked with cjfmt 1.3.0-alpha.05).
 - rustfmt, ktfmt and swift-format put the `{` of a body on the line its declaration or statement ends on; gofmt needs no rule, since Go's grammar refuses the break. This repository writes it so.
 
 ## Decision
