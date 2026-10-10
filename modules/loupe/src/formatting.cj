@@ -4,7 +4,8 @@ public import cjformat.TextEdit
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
-import cjformat.format
+import cjformat.{format, formatRange}
+import ginkgo.TextRange
 
 /**
  * The edits that format a file (`cjformat.format`), on the tree the database already holds; `None`
@@ -14,4 +15,12 @@ import cjformat.format
  */
 public func formatting(db: AnalysisDatabase, fileId: FileId): ?Array<TextEdit> {
     format(parse(db, db.sourceFile(fileId) ?? return None))
+}
+
+/**
+ * The edits that format the lines `range` covers (`cjformat.formatRange`), indented as the whole
+ * file formatted indents them; `None` as for `formatting`.
+ */
+public func rangeFormatting(db: AnalysisDatabase, fileId: FileId, range: TextRange): ?Array<TextEdit> {
+    formatRange(parse(db, db.sourceFile(fileId) ?? return None), range)
 }

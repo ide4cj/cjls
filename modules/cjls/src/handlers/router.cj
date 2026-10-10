@@ -29,6 +29,7 @@ public func router(): Router {
         .route(HoverRequestSpec(), handleHover)
         .route(SelectionRangeRequestSpec(), handleSelectionRange)
         .route(DocumentFormattingRequestSpec(), handleFormatting)
+        .route(DocumentRangeFormattingRequestSpec(), handleRangeFormatting)
         .route(DocumentDiagnosticRequestSpec(), handleDocumentDiagnostic)
         .route(SemanticTokensRequestSpec(), handleSemanticTokensFull)
         .route(SemanticTokensRangeRequestSpec(), handleSemanticTokensRange)
@@ -51,6 +52,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         hoverProvider: BooleanOrHoverOptions.AsBoolean(true),
         selectionRangeProvider: BooleanOrSelectionRangeOptionsOrSelectionRangeRegistrationOptions.AsBoolean(true),
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
+        documentRangeFormattingProvider: BooleanOrDocumentRangeFormattingOptions.AsBoolean(true),
         // a file's diagnostics are its own, and nothing is reported for files not open (D14)
         diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
             DiagnosticOptions(interFileDependencies: false, workspaceDiagnostics: false)),

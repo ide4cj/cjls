@@ -46,6 +46,78 @@ public func formatText(text: String): ?String {
 }
 
 /**
+ * The edits of `format` that change the lines `range` covers, and no other line; `None` when the
+ * file has syntax errors. A range ending where a line starts does not cover that line.
+ *
+ * The lines are indented as the whole file formatted indents them. An edit across a line break is
+ * the end of one line and the indent of the next: each part is kept if its line is covered.
+ */
+public func formatRange(parse: CjParse, range: TextRange): ?Array<TextEdit> {
+    let edits = format(parse) ?? return None
+    Some(editsOnLines(parse.syntaxNode().text(), edits, range))
+}
+
+/**
+ * Of `edits` to `text`, split at their last line break, the parts on the lines `range` covers.
+ */
+func editsOnLines(text: String, edits: Array<TextEdit>, range: TextRange): Array<TextEdit> {
+    let first = match (lastLineBreak(text, 0, range.start)) {
+        case Some(i) => i + 1
+        case None => 0
+    }
+    // the line break ending the last line covered, or the text's end
+    let last = if (range.end > range.start && text[range.end - 1] == b'\n') {
+        range.end - 1
+    } else {
+        lineBreakFrom(text, range.end)
+    }
+    let covered = {edit: TextEdit => first <= edit.range.start && edit.range.start <= last &&
+        text[edit.range.start..edit.range.end] != edit.text}
+    let kept = ArrayList<TextEdit>()
+    for (edit in edits) {
+        match (lastLineBreak(text, edit.range.start, edit.range.end)) {
+            case Some(i) =>
+                let (end, indent) = match (lastLineBreak(edit.text, 0, edit.text.size)) {
+                    case Some(j) => (edit.text[..j + 1], edit.text[j + 1..])
+                    case None => (edit.text, "")
+                }
+                for (part in [TextEdit(TextRange(edit.range.start, i + 1), end),
+                    TextEdit(TextRange(i + 1, edit.range.end), indent)] where covered(part)) {
+                    kept.add(part)
+                }
+            case None where covered(edit) => kept.add(edit)
+            case None => ()
+        }
+    }
+    kept.toArray()
+}
+
+/**
+ * Where the last `\n` in `text[from..to]` is.
+ */
+func lastLineBreak(text: String, from: Int64, to: Int64): ?Int64 {
+    var i = to - 1
+    while (i >= from) {
+        if (text[i] == b'\n') {
+            return i
+        }
+        i--
+    }
+    None
+}
+
+/**
+ * Where the first `\n` from `from` on is, or the end of `text`.
+ */
+func lineBreakFrom(text: String, from: Int64): Int64 {
+    var i = from
+    while (i < text.size && text[i] != b'\n') {
+        i++
+    }
+    i
+}
+
+/**
  * `text` with `edits`, in order and apart, made to it.
  */
 public func applyEdits(text: String, edits: Array<TextEdit>): String {

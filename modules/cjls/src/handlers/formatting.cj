@@ -1,7 +1,7 @@
 package cjls.handlers
 
 import stdxx.Nullable
-import loupe.formatting
+import loupe.{formatting, rangeFormatting, TextRange}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -16,5 +16,18 @@ func handleFormatting(snap: ServerSnapshot, params: DocumentFormattingParams): N
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
     let edits = formatting(snap.analysis, file.fileId(snap.analysis)) ?? return Nullable.Null
+    Nullable.Value(edits.map {edit => textEdit(text, edit, snap.encoding)})
+}
+
+/**
+ * The edits that format the lines `params.range` covers, as `handleFormatting` would format them;
+ * `null` likewise.
+ */
+@LspHandler[readonly]
+func handleRangeFormatting(snap: ServerSnapshot, params: DocumentRangeFormattingParams): Nullable<Array<TextEdit>> {
+    let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
+    let text = file.text(snap.analysis)
+    let range = TextRange(offsetOf(snap, file, params.range.start), offsetOf(snap, file, params.range.end))
+    let edits = rangeFormatting(snap.analysis, file.fileId(snap.analysis), range) ?? return Nullable.Null
     Nullable.Value(edits.map {edit => textEdit(text, edit, snap.encoding)})
 }
