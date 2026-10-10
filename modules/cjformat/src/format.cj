@@ -22,7 +22,8 @@ public struct TextEdit {
  * The edits that format a file, in order and apart; `None` when it has syntax errors, as what the
  * formatter would make of them is a guess.
  *
- * Only whitespace changes, and only where a line starts or ends: the line breaks are the author's.
+ * Only whitespace changes, and only where a line starts or ends: the line breaks are the author's,
+ * but for a body's `{` on a line of its own, which joins the line before unless a line comment ends it.
  * A line is indented by the brackets open at its start, one level for all those opened on one line,
  * and one more when it carries on what an earlier line started; a declaration's or a statement's
  * `{}` is indented from the line it starts on, as is what follows the `=>` of a `case`. What a macro
@@ -50,7 +51,8 @@ public func formatText(text: String): ?String {
  * file has syntax errors. A range ending where a line starts does not cover that line.
  *
  * The lines are indented as the whole file formatted indents them. An edit across a line break is
- * the end of one line and the indent of the next: each part is kept if its line is covered.
+ * the end of one line and the indent of the next: each part is kept if its line is covered; one
+ * joining a `{` to the line before is kept whole if it touches a line covered.
  */
 public func formatRange(parse: CjParse, range: TextRange): ?Array<TextEdit> {
     let edits = format(parse) ?? return None
@@ -76,6 +78,11 @@ func editsOnLines(text: String, edits: Array<TextEdit>, range: TextRange): Array
     let kept = ArrayList<TextEdit>()
     for (edit in edits) {
         match (lastLineBreak(text, edit.range.start, edit.range.end)) {
+            // a `{` joining the line before: whole, if it touches a line covered
+            case Some(_) where !edit.text.contains("\n") =>
+                if (edit.range.start <= last && first <= edit.range.end) {
+                    kept.add(edit)
+                }
             case Some(i) =>
                 let (end, indent) = match (lastLineBreak(edit.text, 0, edit.text.size)) {
                     case Some(j) => (edit.text[..j + 1], edit.text[j + 1..])
@@ -160,6 +167,8 @@ class Formatter {
     /** The end of the node kept as written the current token is in, `-1` outside one. */
     var opaqueEnd = -1
     var opaqueDelta = 0
+    /** The kind of the last token not whitespace, `None` before the first. */
+    var previous: ?SyntaxKind = None
 
     init(root: CjSyntaxNode) {
         this.root = root
@@ -190,6 +199,7 @@ class Formatter {
             }
             gap(start, tokens[j], first)
             token(tokens[j])
+            previous = tokens[j].kind
             first = false
             i = j + 1
         }
@@ -198,13 +208,17 @@ class Formatter {
 
     /**
      * The whitespace from `start` to `next`: where it breaks the line, the line breaks, kept to two,
-     * and `next`'s indent.
+     * and `next`'s indent; one space before a body's `{` that would start a line.
      */
     func gap(start: Int64, next: CjSyntaxToken, first: Bool) {
         let end = next.textRange.start
         let space = text[start..end]
         let breaks = space.count("\n")
         if (breaks == 0 && !first) {
+            return
+        }
+        if (joinsLineBefore(next, end)) {
+            replace(start, end, " ")
             return
         }
         line++
@@ -221,6 +235,15 @@ class Formatter {
         lineIndent = newIndent
         lineDelta = newIndent - oldIndent
         replace(start, end, lineBreak * kept + " " * newIndent)
+    }
+
+    /**
+     * Whether `next`, starting a line at `end`, is a body's `{` to be put at the end of the line
+     * before: not inside what is kept as written, and not after a line comment, which ends its line.
+     */
+    func joinsLineBefore(next: CjSyntaxToken, end: Int64): Bool {
+        let after = previous ?? return false
+        isBodyBrace(next.kind, next.parent.kind) && after != LineComment && !(opaqueEnd >= 0 && end < opaqueEnd)
     }
 
     func token(t: CjSyntaxToken) {
@@ -273,8 +296,9 @@ class Formatter {
 
     /**
      * The indent of the line `t` starts: a closer's is its bracket's line's, an element's that of
-     * the elements of the bracket it is in, a line carrying an element on one level more, unless
-     * the element started on the bracket's line.
+     * the elements of the bracket it is in, a body's `{` (after a line comment) that of the element
+     * it belongs to, a line carrying an element on one level more, unless the element started on the
+     * bracket's line.
      */
     func indentOf(t: CjSyntaxToken): Int64 {
         popArrows(t)
@@ -286,6 +310,9 @@ class Formatter {
             top.elementLine = line
             top.elementIndent = top.contentIndent
             return top.contentIndent
+        }
+        if (isBodyBrace(t.kind, t.parent.kind)) {
+            return top.elementIndent
         }
         top.contentIndent + if (top.line == top.elementLine) { 0 } else { INDENT }
     }
