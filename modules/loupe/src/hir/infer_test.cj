@@ -16,12 +16,11 @@ import rope.Rope
 /**
  * Checks the types inference gives the bodies of `fixture` are its annotations: `//^ Int64` under
  * the name of each local, and of each function or variable whose type its signature does not
- * write. `std.core` and `std.collection` are packages of the project.
+ * write. `binaries` are the packages of std's of the project.
  */
-func checkInference(fixture: String): Unit {
+func checkInference(fixture: String, binaries!: Array<String> = ["std.core", "std.collection"]): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core")),
-        stdCjoRead("std.collection", stdCjo("std.collection"))])
+    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
     let actual = ArrayList<Annotation>()
     for (file in parsed.files) {
         let source = db.sourceFile(file.fileId).getOrThrow()
@@ -2024,6 +2023,65 @@ class InferTest {
             //        ^ Option<C>
                 let field = a?.b
             //      ^^^^^ Option<Int64>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aQuoteAndStdsTestMacrosAreOfTheTypesTheirExpansionsAre() {
+        // cjc 1.3.0-alpha.20261002 (N136): each the type its expansion gives, whatever the arguments
+        checkInference(#"
+            package m
+            import std.ast.*
+            import std.unittest.*
+            import std.unittest.testmacro.*
+            open class Base <: Exception {}
+            class A <: Base {}
+            class B <: Base {}
+            func test(): Unit {
+                let q = quote(1 + 2)
+            //      ^ Tokens
+                let e = @Expect(1, 1)
+            //      ^ Unit
+                let a = @Assert(1, 1)
+            //      ^ Unit
+                let pa = @PowerAssert(1 == 1)
+            //      ^^ Unit
+                let fe = @FailExpect("x")
+            //      ^^ Unit
+                let at = @AssertThrows[A](throw A())
+            //      ^^ A
+                let ab = @AssertThrows[A | B](throw A())
+            //      ^^ Base
+                let ae = @AssertThrows(throw A())
+            //      ^^ Exception
+                let et = @ExpectThrows[A](throw A())
+            //      ^^ Option<A>
+                let eb = @ExpectThrows[A | B](throw A())
+            //      ^^ Option<Exception>
+                let ee = @ExpectThrows(throw A())
+            //      ^^ Option<Exception>
+            }
+            func fails(): Int64 {
+                let fl = @Fail("x")
+            //      ^^ Nothing
+                fl
+            }
+            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"])
+    }
+
+    @TestCase
+    func aStaticMemberOfATypeParameterIsSeenOnItsBound() {
+        // cjc 1.3.0-alpha.20261002 (N139): `T.make()` of `T <: Make<T>` is a `T`
+        checkInference(#"
+            package m
+            interface Make<T> {
+                static func make(): T
+            }
+            func build<T>(): T where T <: Make<T> {
+                let x = T.make()
+            //      ^ T
+                x
             }
             "#)
     }

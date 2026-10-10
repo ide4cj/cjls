@@ -63,7 +63,7 @@ class TypeArgSolver {
             return
         }
         match ((sub.kind(db), sup.kind(db))) {
-            case (ErrorTy, _) | (_, ErrorTy) => ()
+            case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) => ()
             case (TupleTy(a), TupleTy(b)) where a.size == b.size =>
                 for (i in 0..a.size) {
                     constrain(a[i], b[i])
@@ -113,7 +113,7 @@ class TypeArgSolver {
     func solve(): Array<?Ty> {
         let solved = Array<?Ty>(count, repeat: None)
         let known = {tys: Array<Ty> => tys.map {one => replaceVars(db, one, base, solved)}.filter {
-            one => !hasErrors(db, one)
+            one => !hasUnknowns(db, one)
         }}
         for (i in 0..count) {
             solved[i] = choose(known(bounds[i].lower.toArray()), known(bounds[i].upper.toArray()), bounds[i])
@@ -146,7 +146,7 @@ class TypeArgSolver {
                 case (Some(kinds), PrimTy(name)) => kinds.contains(name)
                 case _ => false
             }
-            if (joined.kind(db) != ErrorTy && fitsIdeal && upper.iterator().all {one => fits(joined, one)}) {
+            if (!isUnknown(db, joined) && fitsIdeal && upper.iterator().all {one => fits(joined, one)}) {
                 return joined
             }
             return None
@@ -234,10 +234,51 @@ func anyIn(db: AnalysisDatabase, ty: Ty, test: (Ty) -> Bool): Bool {
 }
 
 /**
- * Whether `ty` is or holds an error type.
+ * Whether `ty` is or holds a type not known.
  */
-func hasErrors(db: AnalysisDatabase, ty: Ty): Bool {
-    anyIn(db, ty) {one => one.kind(db) == ErrorTy}
+func hasUnknowns(db: AnalysisDatabase, ty: Ty): Bool {
+    anyIn(db, ty) {one => isUnknown(db, one)}
+}
+
+/**
+ * The type not known that `tys` are or hold, what a type made of them is when it cannot be found:
+ * one the analysis cannot find before an error, for an error may be no error once it is found
+ * (D76); `None` if they hold none.
+ */
+func unknownOf(db: AnalysisDatabase, tys: Array<Ty>): ?Ty {
+    var error: ?Ty = None
+    for (ty in tys) {
+        match (firstUnknownIn(db, ty)) {
+            case Some(found) where isTodo(db, found) => return found
+            case Some(found) where error.isNone() => error = found
+            case _ => ()
+        }
+    }
+    error
+}
+
+/**
+ * The first type not known `ty` is or holds, one the analysis cannot find before an error.
+ */
+func firstUnknownIn(db: AnalysisDatabase, ty: Ty): ?Ty {
+    if (isUnknown(db, ty)) {
+        return ty
+    }
+    let all = {tys: Array<Ty> => unknownOf(db, tys)}
+    match (ty.kind(db)) {
+        case DeclTy(_, args) => all(args)
+        case TupleTy(elements) => all(elements)
+        case FuncTy(params, ret, _) => all(params.concat([ret]))
+        case VArrayTy(element, _) => firstUnknownIn(db, element)
+        case _ => None
+    }
+}
+
+func isTodo(db: AnalysisDatabase, ty: Ty): Bool {
+    match (ty.kind(db)) {
+        case TodoTy(_) => true
+        case _ => false
+    }
 }
 
 /**
@@ -253,16 +294,17 @@ func hasInferVars(db: AnalysisDatabase, ty: Ty): Bool {
 }
 
 /**
- * `ty` with each variable `InferTy(base + i)` replaced by `solved[i]`, an error type if `None`.
+ * `ty` with each variable `InferTy(base + i)` replaced by `solved[i]`, `unsolved` if `None`: an
+ * error type unless given.
  */
-func replaceVars(db: AnalysisDatabase, ty: Ty, base: Int64, solved: Array<?Ty>): Ty {
-    let all = {tys: Array<Ty> => tys.map {one => replaceVars(db, one, base, solved)}}
+func replaceVars(db: AnalysisDatabase, ty: Ty, base: Int64, solved: Array<?Ty>, unsolved!: ?Ty = None): Ty {
+    let all = {tys: Array<Ty> => tys.map {one => replaceVars(db, one, base, solved, unsolved: unsolved)}}
     match (ty.kind(db)) {
-        case InferTy(n) where n >= base && n < base + solved.size => solved[n - base] ?? Ty(db, ErrorTy)
+        case InferTy(n) where n >= base && n < base + solved.size => solved[n - base] ?? unsolved ?? Ty(db, ErrorTy)
         case DeclTy(def, args) => Ty(db, DeclTy(def, all(args)))
         case TupleTy(elements) => Ty(db, TupleTy(all(elements)))
-        case FuncTy(params, ret, isC) => Ty(db, FuncTy(all(params), replaceVars(db, ret, base, solved), isC))
-        case VArrayTy(element, size) => Ty(db, VArrayTy(replaceVars(db, element, base, solved), size))
+        case FuncTy(params, ret, isC) => Ty(db, FuncTy(all(params), replaceVars(db, ret, base, solved, unsolved: unsolved), isC))
+        case VArrayTy(element, size) => Ty(db, VArrayTy(replaceVars(db, element, base, solved, unsolved: unsolved), size))
         case _ => ty
     }
 }

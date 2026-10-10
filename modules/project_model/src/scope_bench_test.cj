@@ -12,7 +12,7 @@ import rope.Rope
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
-import loupe.vfs.{FileId, readCjoFiles, readFiles, Vfs, VfsPath}
+import loupe.vfs.{FileId, PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
 
 /**
  * The workspace this repository is, loaded as the server loads one: its project, the `.cjo` of
@@ -20,6 +20,7 @@ import loupe.vfs.{FileId, readCjoFiles, readFiles, Vfs, VfsPath}
  */
 class BenchWorkspace {
     let db = AnalysisDatabase()
+    let paths: PathInterner
     /**
      * Each file of the user's modules, its package, and the identifiers it uses, each once.
      */
@@ -29,6 +30,7 @@ class BenchWorkspace {
         let root = workspaceRoot()
         let load = findProject(root, env: {name => getVariable(name)})
         let vfs = Vfs()
+        paths = vfs.paths
         let binaries = readCjoFiles(load.model.cjoFiles())
         db.setProject(load.model, vfs.paths, binaries: binaries.files)
         for ((path, text) in readFiles(load.model.files()).files) {
