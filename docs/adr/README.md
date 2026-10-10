@@ -78,7 +78,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted |
 | [0058](0058-folders-come-or-gone-are-watched.md) | Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest | accepted |
 | [0059](0059-macro-arguments-are-parsed-before-expansion.md) | An expression macro's arguments are parsed as an argument list when they parse as one, before any expansion | accepted |
-| [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted |
+| [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted; the line breaks are the author's by D76 |
 | [0061](0061-the-workspace-is-loaded-on-a-spawn.md) | The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded | accepted |
 | [0062](0062-toolchain-from-the-github-mirror.md) | The toolchain is downloaded from the GitHub mirror, checked against sha256 pinned from gitcode | accepted |
 | [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted |
@@ -93,3 +93,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0073](0073-params-are-read-in-place-when-the-method-came-first.md) | Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes | accepted |
 | [0074](0074-range-formatting.md) | A range is formatted by the whole file's edits on the lines it covers | proposed |
 | [0075](0075-a-write-that-changes-nothing-opens-no-revision.md) | A write that changes no input opens no revision | proposed |
+| [0076](0076-a-bodys-brace-joins-the-line-before.md) | A body's `{` on a line of its own joins the line before | proposed |
