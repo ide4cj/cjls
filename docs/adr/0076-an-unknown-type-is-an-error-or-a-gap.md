@@ -17,6 +17,8 @@ Status: proposed
 
 ## Consequences
 
-- On this repository (183 066 expressions; `CJLS_CENSUS=1` `InferenceCensusTest`): see the PR of step 8c′a for the table. Of the 13 131, the qualifiers are no value, the macro calls typed but those `--test` makes visible (135, a `TodoTy`), the rest a `TodoTy` with its reason or an `ErrorTy`; the `ErrorTy`s left that are no consequence of another are gaps of the analysis, each family an issue.
+- On this repository (`CJLS_CENSUS=1` `InferenceCensusTest`), master `b14ebada`'s 13 131 expressions of an error type of 181 426 are, of 183 018 after: 3 869 no value (the qualifiers); 877 `ErrorTy` and 3 975 `TodoTy` (`MacroMember` 2 561, `ArgMatching` 1 203, `MacroCall` 211); the rest, about 4 400, typed (std.unittest's macro calls and what was made of them, N138, N139, `f(a) {…}`). Of the `ErrorTy`s, 142 are roots other than a local, each a gap of the analysis on a source cjc accepts (`@When`'s twins #149, an `Option` joined with its argument #249, `None<T>`, stdx's `Logger`, a `Range` index, `Byte`'s extensions): 8c′b reports nothing about them, being no mismatch of known types, and its gate names those that would be.
+- New gaps, each a `Todo`: #254 (`ArgMatching`), #255 (std.unittest.testmacro's macros under `--test`).
 - `f(a) {…}` is one expression, the call with the lambda its last argument, of the whole node: `f(a)` had one of its own that inference never reached.
+- A cold pass over every body is about 2% slower (14.10 s → 14.37 s, the medians of seven quiet runs each on filaco.dev).
 - 8c′b reports a mismatch only between types holding neither kind, and nothing about a value of either.

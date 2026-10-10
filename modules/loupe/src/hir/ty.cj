@@ -156,8 +156,8 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
 @Derive[Equatable, Hashable]
 public enum Todo <: ToString {
     /**
-     * The value of a call of a macro whose expansion is not read: a user's (#176), or std's not
-     * known (N136).
+     * The value of a call of a macro whose expansion is not read: a user's (#176), std's not known
+     * (N136), or one not found, which `--test` may make visible (#255).
      */
     | MacroCall
     /**
@@ -180,7 +180,7 @@ public enum Todo <: ToString {
     | LocalGeneric
     /**
      * A call that fits none of the overloads it names, by name, of a default value or variadic:
-     * arguments are matched to parameters by their count and place alone yet (D63).
+     * arguments are matched to parameters by their count and place alone yet (#254).
      */
     | ArgMatching
     /**

@@ -692,7 +692,7 @@ class Inference {
             // call takes the one it fits
             case Some(Ambiguous(targets)) => oneMacroOf(targets) ?? return todo(Todo.MacroCall)
             // not found, where cjc may find it: `cjpm test` compiles a package with `--test`, its macros
-            // std.unittest.testmacro's unimported (N137)
+            // std.unittest.testmacro's unimported (N137, #255)
             case _ => return todo(Todo.MacroCall)
         }
         if (packageRefOf(db, decl).map {one => nameOf(db, one)} != Some("std.unittest.testmacro")) {
@@ -1921,7 +1921,7 @@ class Inference {
                 }
                 let argTys = args.map {arg => infer(arg.expr, None)}
                 // an argument not known fits any candidate: of several, none is taken for it; arguments
-                // by name, of default values or variadic are matched by their count alone yet (D63); a
+                // by name, of default values or variadic are matched by their count alone yet (#254); a
                 // macro whose expansion is not read may declare the one that fits
                 let byMatching = fitting.isEmpty() || args.iterator().any {arg => arg.name.isSome()} ||
                     all.iterator().any {one => one.names.iterator().any {name => name.isSome()}}
@@ -2259,7 +2259,7 @@ class Inference {
         // a type argument not solved for an argument not known is not known as it is, else an error
         // (cjc: "can not infer")
         let inferred = args |> filterMap {arg: CallArg => inferredTyOf(arg.expr)} |> collectArray
-        // an argument by name puts those after it out of place yet (D63)
+        // an argument by name puts those after it out of place yet (#254)
         let unsolvedTy = match (unknownOf(db, inferred.concat(listOf(expected)))) {
             case Some(unknown) => unknown
             case None where args.iterator().any {arg => arg.name.isSome()} => todo(Todo.ArgMatching)
