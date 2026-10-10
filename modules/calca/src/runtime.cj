@@ -205,7 +205,7 @@ class Runtime {
      * revision, which it is given. Holds the gate throughout, so nothing begins until it is done;
      * the ingredients let go of what they no longer need then, with nothing reading them.
      *
-     * A `change` that changed no input (an empty batch) opens no revision (D72): a memo is verified
+     * A `change` that changed no input (an empty batch) opens no revision (D75): a memo is verified
      * without its edges when nothing of its durability changed, so it would not keep alive what it
      * interned, while the revision aged the interned values.
      */
