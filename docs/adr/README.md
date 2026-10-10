@@ -91,3 +91,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0070](0070-an-optional-chain-is-lowered-into-matches.md) | An optional chain is lowered into the matches cjc desugars it to, Some and None lang items | proposed |
 | [0071](0071-a-union-reads-its-value-on-the-rewound-reader.md) | A union reads its value on the reader itself, rewound to the value's start between attempts | accepted |
 | [0073](0073-params-are-read-in-place-when-the-method-came-first.md) | Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes | accepted |
+| [0074](0074-range-formatting.md) | A range is formatted by the whole file's edits on the lines it covers | proposed |
