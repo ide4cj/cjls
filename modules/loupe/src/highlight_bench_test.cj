@@ -22,28 +22,39 @@ func fixtureFiles(text: StringBuilder, module: String, deps: String, dir: Path, 
     }
 }
 
-// this repository's `ginkgo` and `cjsyntax`, of std's `core` and `collection`: what `nodes.cj`, its largest
-// file, is highlighted in
-let highlightFixture: Fixture = {
-    =>
-    let text = StringBuilder()
-    fixtureFiles(text, "ginkgo", "", Path("modules/ginkgo/src"), "ginkgo")
-    fixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src"), "cjsyntax")
-    fixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src/ast"), "cjsyntax.ast")
-    Fixture.parse(text.toString())
-}()
+/**
+ * This repository's `ginkgo` and `cjsyntax`, of std's `core` and `collection`, `nodes.cj`, its largest file, highlighted
+ * once: every body of the file inferred. Made by the first bench that asks, not when the package starts: `cjpm test`
+ * runs no bench, and should not pay for it.
+ */
+class HighlightBenchState {
+    let db: AnalysisDatabase
+    let nodesFile: FileId
 
-let nodesFile: FileId = highlightFixture.file("/cjsyntax/cjsyntax.ast/nodes.cj").fileId
+    init() {
+        let text = StringBuilder()
+        fixtureFiles(text, "ginkgo", "", Path("modules/ginkgo/src"), "ginkgo")
+        fixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src"), "cjsyntax")
+        fixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src/ast"), "cjsyntax.ast")
+        let fixture = Fixture.parse(text.toString())
+        nodesFile = fixture.file("/cjsyntax/cjsyntax.ast/nodes.cj").fileId
+        db = fixture.database(binaries: ["std.core", "std.collection"].map {
+            name => stdCjoRead(name, stdCjo(name))
+        })
+        highlight(db, nodesFile)
+    }
+}
 
-// highlighted once: every body of the file inferred
-let highlightDb: AnalysisDatabase = {
-    =>
-    let db = highlightFixture.database(binaries: ["std.core", "std.collection"].map {
-        name => stdCjoRead(name, stdCjo(name))
-    })
-    highlight(db, nodesFile)
-    db
-}()
+var highlightBenchState: ?HighlightBenchState = None
+
+func highlightBench(): HighlightBenchState {
+    if (let Some(state) <- highlightBenchState) {
+        return state
+    }
+    let state = HighlightBenchState()
+    highlightBenchState = state
+    state
+}
 
 @Test
 class HighlightBench {
@@ -52,7 +63,8 @@ class HighlightBench {
      */
     @Bench
     func aLargeFileItsBodiesInferred(): Int64 {
-        highlight(highlightDb, nodesFile).size
+        let state = highlightBench()
+        highlight(state.db, state.nodesFile).size
     }
 
     /**
@@ -60,8 +72,9 @@ class HighlightBench {
      */
     @Bench
     func aLargeFileAfterAnEditInABody(): Int64 {
-        let text = highlightDb.sourceFile(nodesFile).getOrThrow().text(highlightDb).toString()
-        highlightDb.setFileText(nodesFile, Rope(text))
-        highlight(highlightDb, nodesFile).size
+        let state = highlightBench()
+        let text = state.db.sourceFile(state.nodesFile).getOrThrow().text(state.db).toString()
+        state.db.setFileText(state.nodesFile, Rope(text))
+        highlight(state.db, state.nodesFile).size
     }
 }
