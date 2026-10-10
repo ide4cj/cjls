@@ -36,7 +36,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0015](0015-reference-implementations.md) | rust-analyzer is the model, salsa the model for calca, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
 | [0016](0016-editor-integrations-are-repositories.md) | Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim | accepted; how server and clients change together, and who tests which, by D32 |
 | [0017](0017-lru-of-memo-values.md) | calca evicts memo values by LRU; a query result keeps pointers, never nodes | accepted; interned values by D18; eviction within a revision by D36 |
-| [0018](0018-gc-of-interned-values.md) | calca collects unused interned values, and the memos keyed by them | accepted |
+| [0018](0018-gc-of-interned-values.md) | calca collects unused interned values, and the memos keyed by them | accepted; interned values by D75 |
 | [0019](0019-syntactic-highlighting.md) | Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types | accepted |
 | [0020](0020-no-lto.md) | The Linux binary is not linked with LTO: cjc miscompiles the stack maps under it | accepted |
 | [0021](0021-weekly-releases.md) | A release every week from a green master; the first one by hand, its changelog written; versions of cjls's own | accepted; a nightly by D32 |
@@ -92,3 +92,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0071](0071-a-union-reads-its-value-on-the-rewound-reader.md) | A union reads its value on the reader itself, rewound to the value's start between attempts | accepted |
 | [0073](0073-params-are-read-in-place-when-the-method-came-first.md) | Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes | accepted |
 | [0074](0074-range-formatting.md) | A range is formatted by the whole file's edits on the lines it covers | proposed |
+| [0075](0075-a-write-that-changes-nothing-opens-no-revision.md) | A write that changes no input opens no revision | proposed |
