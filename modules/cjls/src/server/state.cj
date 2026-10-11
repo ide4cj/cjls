@@ -111,21 +111,20 @@ public class ServerState <: FromContext<ServerState> {
     public var binaryWatch: ?BinaryWatch = None
 
     /**
-     * The projects `initializationOptions` names (`linkedProjects`): a `cj-project.json`, or a
-     * directory to find one in.
+     * What the user set, as `initialize` and then the client's configuration give it (D79).
      */
-    public let linkedProjects = ArrayList<VfsPath>()
+    public var settings = Settings()
 
     /**
-     * The SDK `initializationOptions` names (`cangjieHome`), the first place it is looked for.
+     * Whether the client answers `workspace/configuration`, as agreed on at `initialize`: it is asked
+     * for the settings rather than read from what it pushes; and whether it takes a registration for
+     * `didChangeConfiguration`, without which it may never send one.
      */
-    public var cangjieHome: ?String = None
+    public var pullsSettings = false
+    public var registersSettings = false
 
-    /**
-     * The sources of the SDK `initializationOptions` names (`cangjieSrc`), the first place they are
-     * looked for.
-     */
-    public var cangjieSrc: ?String = None
+    // the last time the settings were asked for: an older answer is not taken
+    private var settingsPull = 0
 
     /**
      * The files of the project, as last set: made anew each time, for a set built from an array
@@ -355,6 +354,21 @@ public class ServerState <: FromContext<ServerState> {
     public func registrationId(): String {
         registrations++
         "cjls-${registrations}"
+    }
+
+    /**
+     * Begins asking the client for the settings, which ends the asking before: its number.
+     */
+    public func beginSettingsPull(): Int64 {
+        settingsPull++
+        settingsPull
+    }
+
+    /**
+     * Whether `pull` is the last time the settings were asked for, the one whose answer is taken.
+     */
+    public func isLastSettingsPull(pull: Int64): Bool {
+        pull == settingsPull
     }
 }
 

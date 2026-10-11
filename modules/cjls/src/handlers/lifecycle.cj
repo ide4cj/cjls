@@ -1,9 +1,7 @@
 package cjls.handlers
 
-import std.collection.ArrayList
-import std.fs.Path
+import stdx.log.Logger
 import stdxx.Nullable
-import fjson.JsonValue
 import rope.Encoding
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
@@ -16,7 +14,7 @@ import cjls.macros.LspHandler
 const VERSION = "0.4.0"
 
 @LspHandler
-func handleInitialize(state: ServerState, params: InitializeParams): InitializeResult {
+func handleInitialize(state: ServerState, client: Client, logger: Logger, params: InitializeParams): InitializeResult {
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
@@ -26,10 +24,13 @@ func handleInitialize(state: ServerState, params: InitializeParams): InitializeR
     state.locationLinks = takesLocationLinks(params.capabilities)
     state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
-    state.linkedProjects.add(all: linkedProjects(params.initializationOptions))
-    state.cangjieHome = pathOption(params.initializationOptions, "cangjieHome")
-    state.cangjieSrc = pathOption(params.initializationOptions, "cangjieSrc")
-    let watching = params.capabilities.workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
+    state.settings = initialSettings(params.initializationOptions, client, logger)
+    let workspace = params.capabilities.workspace
+    state.pullsSettings = workspace.flatMap {workspace => workspace.configuration} ?? false
+    state.registersSettings = workspace.flatMap {workspace => workspace.didChangeConfiguration}.flatMap {
+        it => it.dynamicRegistration
+    } ?? false
+    let watching = workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
     state.workDoneProgress = params.capabilities.window.flatMap {window => window.workDoneProgress} ?? false
@@ -44,43 +45,6 @@ func workspaceRoots(params: InitializeParams): Array<VfsPath> {
         case (Some(Nullable.Value(folders)), _) where !folders.isEmpty() => rootsOf(folders)
         case (_, Nullable.Value(uri)) => rootsOf([WorkspaceFolder(uri: uri, name: "")])
         case _ => Array<VfsPath>()
-    }
-}
-
-/**
- * The projects `initializationOptions.linkedProjects` names, each an absolute path or a `file:`
- * URI; anything else is left out.
- */
-func linkedProjects(options: ?JsonValue): Array<VfsPath> {
-    let linked = match (options.flatMap {it => it.get("linkedProjects")}) {
-        case Some(JsonValue.JsonArray(items)) => items
-        case _ => return []
-    }
-    let paths = ArrayList<VfsPath>()
-    for (item in linked) {
-        match (item) {
-            case JsonValue.JsonString(text) where text.startsWith("file:") =>
-                let path = VfsPath.fromUri(text)
-                if (path.filePath.isSome()) {
-                    paths.add(path)
-                }
-            case JsonValue.JsonString(text) where Path(text).isAbsolute() => paths.add(VfsPath.file(text))
-            case _ => ()
-        }
-    }
-    paths.toArray()
-}
-
-/**
- * The path the option `name` of `initializationOptions` names, an absolute path or a `file:` URI:
- * the SDK (`cangjieHome`), its sources (`cangjieSrc`). `None` for anything else.
- */
-func pathOption(options: ?JsonValue, name: String): ?String {
-    match (options.flatMap {it => it.get(name)}) {
-        case Some(JsonValue.JsonString(text)) where text.startsWith("file:") =>
-            VfsPath.fromUri(text).filePath.map {path => path.toString()}
-        case Some(JsonValue.JsonString(text)) where Path(text).isAbsolute() => text
-        case _ => None
     }
 }
 

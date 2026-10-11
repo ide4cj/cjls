@@ -22,6 +22,7 @@ main(args: Array<String>): Int64 {
             case PrintProject(dir) => printProject(dir, logger)
             case Format(paths, check) => formatPaths(paths, check, getStdOut(), getStdErr())
             case FetchSrc(dir) => fetchSrcCommand(dir, getStdOut(), getStdErr())
+            case PrintConfigSchema => printConfigSchema(getStdOut())
             case Help =>
                 getStdOut().write(USAGE)
                 0

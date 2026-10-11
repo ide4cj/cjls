@@ -5,8 +5,10 @@ import std.env.{getStdOut, getVariable, getWorkingDirectory}
 import std.fs.Path
 import std.io.OutputStream
 import stdx.log.Logger
+import fjson.JsonValue
 import loupe.vfs.VfsPath
 import project_model.*
+import cjls.server.settingsSchema
 
 const USAGE = """
 Usage: cjls [command]
@@ -21,6 +23,7 @@ Commands:
   fetch-src [--dir <dir>]
                          download the sources of std of the SDK found, at the commit its nightly's
                          release notes name, into <dir>, the SDK's src by default
+  --config-schema        print the JSON Schema of the server's settings
   help                   print this
 """
 
@@ -41,6 +44,10 @@ enum Command {
      * Fetch the sources of `std` of the SDK into this directory, the SDK's `src` without one.
      */
     | FetchSrc(?Path)
+    /**
+     * Print the JSON Schema of the settings.
+     */
+    | PrintConfigSchema
     | Help
 }
 
@@ -58,6 +65,8 @@ func parseCommand(args: Array<String>): Command {
         case "project" => PrintProject(projectDir(args[1..]))
         case "fmt" => formatCommand(args[1..])
         case "fetch-src" => FetchSrc(fetchSrcDir(args[1..]))
+        case "--config-schema" where args.size == 1 => PrintConfigSchema
+        case "--config-schema" => throw ArgumentParseException("`--config-schema` takes no `${args[1]}`")
         case "help" | "--help" | "-h" => Help
         case other => throw ArgumentParseException("no command `${other}`")
     }
@@ -80,6 +89,18 @@ func printProject(dir: Path, logger: Logger): Int64 {
     }
     getStdOut().write(prettyProjectJson(toProjectJson(load.model, root)))
     getStdOut().flush()
+    0
+}
+
+/**
+ * Prints the JSON Schema of the settings to `out`, as the editors' clients generate theirs from
+ * (D32, D79).
+ *
+ * @return the exit code
+ */
+func printConfigSchema(out: OutputStream): Int64 {
+    out.write((settingsSchema().toPrettyString() + "\n").toArray())
+    out.flush()
     0
 }
 

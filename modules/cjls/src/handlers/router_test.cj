@@ -6,11 +6,13 @@ import rope.Encoding
 import cjls.lsp_types.*
 
 /**
- * The methods every server takes unasked, and `didChangeWatchedFiles`, which the server registers
- * at run time with a client that watches files for it.
+ * The methods every server takes unasked (`didChangeConfiguration` among them, which the server
+ * also registers with a client that takes it), and `didChangeWatchedFiles`, which the server
+ * registers at run time with a client that watches files for it.
  */
 private let UNADVERTISED = [InitializeRequestSpec.METHOD, InitializedNotificationSpec.METHOD, ShutdownRequestSpec.METHOD,
-    CancelNotificationSpec.METHOD, DidChangeWatchedFilesNotificationSpec.METHOD]
+    CancelNotificationSpec.METHOD, DidChangeWatchedFilesNotificationSpec.METHOD,
+    DidChangeConfigurationNotificationSpec.METHOD]
 
 /**
  * Whether a capability is on: `true`, or options.
