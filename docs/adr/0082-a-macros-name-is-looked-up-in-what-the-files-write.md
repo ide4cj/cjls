@@ -1,4 +1,4 @@
-# ADR-0081: A macro's name is looked up in what the files write, never in what macros add
+# ADR-0082: A macro's name is looked up in what the files write, never in what macros add
 
 Status: proposed
 
