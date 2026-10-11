@@ -1,4 +1,4 @@
-# ADR-0079: A member named through a type or alone is filtered by the type the names give, in the lookup
+# ADR-0081: A member named through a type or alone is filtered by the type the names give, in the lookup
 
 Status: proposed
 Amends ADR-0052 and ADR-0053: their Consequences leave the filters to inference (step 8)
@@ -18,5 +18,5 @@ Amends ADR-0052 and ADR-0053: their Consequences leave the filters to inference 
 ## Consequences
 
 - `C.e()`, `this.e()`, `super.f()`, `m()` go to the implementation or override alone; `Int64.parse` under `import std.convert.*` to the two `extend`s' `parse`.
-- A resolved name reads `signatureTypes` of the functions it finds, when they are two or more, and the supertypes of its type for an `extend` of a generic type.
+- The type is found only when a filter needs it (`LookupTy`): an `extend` of a generic type met, or functions found on two levels, whose parameters are then compared; the others pay nothing (`BodyResolutionBench`, `FieldResolutionBench`).
 - Inference's own filters of a value's members (`valueMembers`) and operators stay; `memberLookup(on:)` can replace them.

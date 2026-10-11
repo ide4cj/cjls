@@ -119,7 +119,7 @@ public enum MemberTarget <: ToString {
  */
 public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<MemberTarget> {
     let start = enclosingTypeOf(db, def) ?? return []
-    memberLookup(db, [start], name, from: sourceFileOf(db, def), on: selfTyAround(db, def))
+    lookUpMembers(db, [start], name, sourceFileOf(db, def), LookupTy({=> selfTyAround(db, def)}))
 }
 
 /**
@@ -173,17 +173,39 @@ func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
  */
 public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name: String,
     from!: ?SourceFile, on!: ?Ty = None): Array<MemberTarget> {
+    lookUpMembers(db, start, name, from, LookupTy({=> on}))
+}
+
+/**
+ * The type a member lookup is on, found only once a filter needs it: most lookups meet no generic
+ * type's `extend` and no function on two levels, and pay nothing for it.
+ */
+class LookupTy {
+    private var found: ?Option<Ty> = None
+
+    LookupTy(private let find: () -> ?Ty) {}
+
+    func get(): ?Ty {
+        if (let Some(one) <- found) {
+            return one
+        }
+        let one = find()
+        found = one
+        one
+    }
+}
+
+func lookUpMembers(db: AnalysisDatabase, start: Array<ExtendedType>, name: String, from: ?SourceFile,
+    on: LookupTy): Array<MemberTarget> {
     let funcs = ArrayList<MemberTarget>()
+    var funcLevels = 0
     let seen = HashSet<ExtendedType>(start)
     var level = start
     while (!level.isEmpty()) {
         let found = ArrayList<MemberTarget>()
         let next = ArrayList<ExtendedType>()
         for (ty in level) {
-            let extends = match (on) {
-                case Some(recv) => extendsOf(db, ty, from).filter {ext => isExtendOf(db, ext, recv, from)}
-                case None => extendsOf(db, ty, from)
-            }
+            let extends = extendsOn(db, ty, on, from)
             found.add(all: ownMembersNamed(db, ty, name))
             for (ext in extends) {
                 found.add(all: membersOfItem(db, ext, name))
@@ -199,8 +221,12 @@ public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name:
             if (funcs.isEmpty() && nonFuncs) {
                 return found.toArray()
             }
+            let before = funcs.size
             for (target in found where isFuncMember(db, target) && !funcs.contains(target)) {
                 funcs.add(target)
+            }
+            if (funcs.size > before) {
+                funcLevels++
             }
             if (nonFuncs) {
                 break
@@ -208,22 +234,33 @@ public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name:
         }
         level = next.toArray()
     }
-    match (on) {
+    // a function hides only one of a farther level: those of one level overload each other
+    if (funcLevels < 2) {
+        return funcs.toArray()
+    }
+    match (on.get()) {
         case Some(recv) => notOverridden(db, funcs.toArray(), recv, from)
         case None => funcs.toArray()
     }
 }
 
 /**
- * Whether the `extend` `ext` extends `recv`, or a type `recv` is an instance of (N86): any of a
- * type of no type parameters does; of a generic type, one whose type `recv` gives arguments.
+ * The `extend`s of `ty` the file `from` sees (`extendsOf`) that are of the type `on`, or of the
+ * instance of `ty` it is (N86): all of a type of no type parameters; of a generic one, those whose
+ * type that instance gives arguments. All if `on` is not known, or no instance of `ty`.
  */
-func isExtendOf(db: AnalysisDatabase, ext: DefId, recv: Ty, from: ?SourceFile): Bool {
-    match (extendedTypeOf(db, ext)) {
-        case Some(DeclType(id)) where genericsOf(db, id).isEmpty() => true
-        case Some(PrimType(_)) => true
-        case _ => ownerArgs(db, ext, recv, from).isSome()
+func extendsOn(db: AnalysisDatabase, ty: ExtendedType, on: LookupTy, from: ?SourceFile): Array<DefId> {
+    let all = extendsOf(db, ty, from)
+    let id = match (ty) {
+        case DeclType(id) where !all.isEmpty() && !genericsOf(db, id).isEmpty() => id
+        case _ => return all
     }
+    let recv = on.get() ?? return all
+    let instance = match (recv.kind(db)) {
+        case DeclTy(head, _) where head == id => recv
+        case _ => asInstanceOf(db, recv, id, from) ?? return all
+    }
+    all.filter {ext => extendArgs(db, ext, instance).isSome()}
 }
 
 /**
@@ -232,15 +269,12 @@ func isExtendOf(db: AnalysisDatabase, ext: DefId, recv: Ty, from: ?SourceFile): 
  * there, as inference compares its candidates.
  */
 func notOverridden(db: AnalysisDatabase, targets: Array<MemberTarget>, recv: Ty, from: ?SourceFile): Array<MemberTarget> {
-    if (targets.size < 2) {
-        return targets
-    }
     let kept = ArrayList<MemberTarget>()
     let params = ArrayList<Array<Ty>>()
     for (target in targets) {
         if (let MemberDecl(id) <- target && id.item(db).kind == ItemKind.Func) {
             let own = signatureTypes(db, id).params.map {
-                one => eraseParams(db, asMemberOf(db, one, id, recv, from) ?? Ty(db, ErrorTy), id)
+                one => eraseParams(db, paramOn(db, one, id, recv, from), id)
             }
             if (params.iterator().any {other => other == own}) {
                 continue
@@ -250,6 +284,17 @@ func notOverridden(db: AnalysisDatabase, targets: Array<MemberTarget>, recv: Ty,
         kept.add(target)
     }
     kept.toArray()
+}
+
+/**
+ * The type `ty` of a parameter of the member `member` as seen on `recv` (`asMemberOf`): as it is
+ * written if the type or `extend` it is in has no type parameters.
+ */
+func paramOn(db: AnalysisDatabase, ty: Ty, member: DefId, recv: Ty, from: ?SourceFile): Ty {
+    match (parentOf(db, member)) {
+        case Some(owner) where genericsOf(db, owner).isEmpty() => ty
+        case _ => asMemberOf(db, ty, member, recv, from) ?? Ty(db, ErrorTy)
+    }
 }
 
 func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
