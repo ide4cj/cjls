@@ -48,8 +48,8 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
             let memos = storage.runtime.existing<MemoTable<D, K, V>>(index) ?? storage.runtime.ingredient(index) {
                 => memoTable<B>()
             }
-            let (value, memo, id) = memos.fetchValue(db, storage, key)
-            storage.reportRead(DatabaseKey(index, id), memo.durability, memo.changedAt)
+            let (value, memo, entry) = memos.fetchValue(db, storage, key)
+            storage.reportRead(DatabaseKey(index, entry.id), entry, memo.durability, memo.changedAt)
             value
         } finally {
             storage.endOperation(outermost)
@@ -112,7 +112,7 @@ class Memo<V> {
         let value: ?V,
         let changedAt: Int64,
         let durability: Durability,
-        let dependencies: Array<DatabaseKey>
+        let dependencies: Array<Dependency>
     ) {
         this.verifiedAt = AtomicInt64(verifiedAt)
     }
@@ -128,8 +128,12 @@ class Memo<V> {
 /**
  * The key of a memo table, its `Id`, and the memo at it, `None` until it is first computed. The memo
  * is replaced under the table's lock and read without it.
+ *
+ * The edge of a memo that read this one: verified in this revision, with a value, it tells whether it
+ * changed as a hit of `fetchValue` is answered, and every edge of every memo verified after it ends
+ * here. Dropped with its key, it holds no memo, and its edge goes to the table, which finds it gone.
  */
-class MemoEntry<K, V> {
+class MemoEntry<K, V> <: Edge {
     let memo = AtomicOptionReference<Memo<V>>()
 
     /**
@@ -138,6 +142,17 @@ class MemoEntry<K, V> {
     var id = Id(0)
 
     MemoEntry(let key: K) {}
+
+    public func changedAfter(revision: Int64, now: Int64): EdgeAnswer {
+        let memo = memo.load() ?? return EdgeUnknown
+        if (memo.verifiedAt.load() != now || memo.value.isNone()) {
+            EdgeUnknown
+        } else if (memo.changedAt > revision) {
+            EdgeChanged
+        } else {
+            EdgeUnchanged
+        }
+    }
 }
 
 /**
@@ -308,19 +323,21 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         used?.remove(Id(id.index))
         let entry = entries.remove(id) ?? return None
         byKey.remove(entry.key)
+        // what read it keeps the entry as its edge
+        entry.memo.store(None)
         entry
     }
 
     /**
      * The value at `id` and the memo holding it: remembered if the memo is verified, else computed
-     * again. A use of the key, as far as `lru` goes; its `Id`, a new one the first time.
+     * again. A use of the key, as far as `lru` goes; its entry, a new one the first time.
      *
      * A hit takes no lock, unless the function keeps only some values and the use has to be
      * recorded, and marks nothing as being worked on: a memo verified in this revision is neither
      * verified nor computed on any handle.
      */
     @Frozen
-    func fetchValue(db: D, storage: Storage, key: K): (V, Memo<V>, Id) {
+    func fetchValue(db: D, storage: Storage, key: K): (V, Memo<V>, MemoEntry<K, V>) {
         if (used.isNone()) {
             if (let Some(entry) <- byKey.get(key)) {
                 if (let Some(hit) <- current(entry, storage.runtime)) {
@@ -337,20 +354,20 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
             return hit
         }
         let (value, memo) = fetchCold(db, storage, entry.id, key)
-        (value, memo, entry.id)
+        (value, memo, entry)
     }
 
     /**
      * The value at `entry`, if its memo has one and is verified in this revision.
      */
     @Frozen
-    private func current(entry: MemoEntry<K, V>, runtime: Runtime): ?(V, Memo<V>, Id) {
+    private func current(entry: MemoEntry<K, V>, runtime: Runtime): ?(V, Memo<V>, MemoEntry<K, V>) {
         let memo = entry.memo.load() ?? return None
         let value = memo.value ?? return None
         if (memo.verifiedAt.load() != runtime.revision) {
             return None
         }
-        (value, memo, entry.id)
+        (value, memo, entry)
     }
 
     /**
@@ -452,7 +469,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         }
         let changed = try {
             runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
-                dependency => runtime.ingredientAt(dependency.ingredient).maybeChangedAfter(db, dependency.id, verifiedAt)
+                dependency => dependency.maybeChangedAfter(db, runtime, verifiedAt)
             }
         } catch (e: VerifyingCycleException) {
             if (e.key != key) {
@@ -538,27 +555,8 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * value that is not current is computed again, so backdating can tell whether it changed. An
      * evicted one never is: if nothing it read changed, neither did it; else it may have, and
      * whoever fetches it computes it. A memo dropped with its key is changed.
-     *
-     * A memo with a value verified in this revision is answered at once, as a hit of `fetchValue`
-     * is: nothing works on it, and every edge of every memo verified after it ends there, in the
-     * code shared by every instance of this class.
      */
     public func maybeChangedAfter(db: Database, id: Id, revision: Int64): Bool {
-        let now = db.storage.runtime.revision
-        // the revision the memo last changed in if it is verified now, else -1: no generic tuple or
-        // option made on the way, each a type looked up at run time here
-        let changedAt = synchronized(lock) {
-            match (entries.get(id)) {
-                case Some(entry) => match (entry.memo.load()) {
-                    case Some(memo) where memo.verifiedAt.load() == now && memo.value.isSome() => memo.changedAt
-                    case _ => -1
-                }
-                case None => -1
-            }
-        }
-        if (changedAt >= 0) {
-            return changedAt > revision
-        }
         let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
         let storage = db.storage
         let databaseKey = DatabaseKey(function.index, id)

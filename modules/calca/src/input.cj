@@ -75,7 +75,7 @@ public class InputIngredient {
             let (created, createdAt) = synchronized(table.lock) {
                 (table.rows > 0, table.createdAt)
             }
-            storage.reportRead(DatabaseKey(base, Id(0)), Durability.High, createdAt)
+            storage.reportRead(DatabaseKey(base, Id(0)), ASK_THE_INGREDIENT, Durability.High, createdAt)
             if (created) {
                 Id(0)
             } else {
@@ -218,7 +218,7 @@ class InputColumn<T> <: Ingredient {
         let stamp = synchronized(table.lock) {
             stamps[id.index]
         }
-        storage.reportRead(DatabaseKey(index, id), stamp.durability, stamp.changedAt)
+        storage.reportRead(DatabaseKey(index, id), ASK_THE_INGREDIENT, stamp.durability, stamp.changedAt)
         stamp.value
     }
 

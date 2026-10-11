@@ -289,12 +289,12 @@ public class Storage {
     }
 
     /**
-     * Records a read on the query running, if any.
+     * Records a read on the query running, if any, through `edge`.
      */
     @Frozen
-    func reportRead(key: DatabaseKey, durability: Durability, changedAt: Int64): Unit {
+    func reportRead(key: DatabaseKey, edge: Edge, durability: Durability, changedAt: Int64): Unit {
         if (let Some(frame) <- stack.last) {
-            frame.read(key, durability, changedAt)
+            frame.read(key, edge, durability, changedAt)
             if (frame.unwinding) {
                 // a query on a recovered cycle: it takes its fallback, whatever it would compute
                 throw CycleUnwindException()
@@ -323,7 +323,7 @@ public class Storage {
 class ActiveQuery {
     ActiveQuery(let key: DatabaseKey) {}
 
-    let dependencies = ArrayList<DatabaseKey>()
+    let dependencies = ArrayList<Dependency>()
     private let seen = HashSet<DatabaseKey>()
     var durability = Durability.High
     var changedAt = FIRST_REVISION
@@ -345,9 +345,9 @@ class ActiveQuery {
      */
     var unwoundBy: ?Exception = None
 
-    func read(key: DatabaseKey, durability: Durability, changedAt: Int64): Unit {
+    func read(key: DatabaseKey, edge: Edge, durability: Durability, changedAt: Int64): Unit {
         if (seen.add(key)) {
-            dependencies.add(key)
+            dependencies.add(Dependency(key, edge))
         }
         this.durability = min(this.durability, durability)
         this.changedAt = max(this.changedAt, changedAt)
@@ -357,9 +357,9 @@ class ActiveQuery {
      * Adds what `other` read, but the queries on `cycle`.
      */
     func absorb(other: ActiveQuery, cycle: HashSet<DatabaseKey>): Unit {
-        for (key in other.dependencies where !cycle.contains(key)) {
-            if (seen.add(key)) {
-                dependencies.add(key)
+        for (dependency in other.dependencies where !cycle.contains(dependency.key)) {
+            if (seen.add(dependency.key)) {
+                dependencies.add(dependency)
             }
         }
         durability = min(durability, other.durability)
@@ -371,12 +371,12 @@ class ActiveQuery {
      * and on none of the queries on it, whose values are all fallbacks.
      */
     func enterCycle(union: ActiveQuery, cycle: HashSet<DatabaseKey>): Unit {
-        let kept = dependencies.toArray().filter {key => !cycle.contains(key)}
+        let kept = dependencies.toArray().filter {dependency => !cycle.contains(dependency.key)}
         dependencies.clear()
         seen.clear()
-        for (key in kept) {
-            seen.add(key)
-            dependencies.add(key)
+        for (dependency in kept) {
+            seen.add(dependency.key)
+            dependencies.add(dependency)
         }
         absorb(union, cycle)
         inCycle = true
