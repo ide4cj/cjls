@@ -86,6 +86,17 @@ public class Storage {
     }
 
     /**
+     * How many times a tracked function's body has run in this database, on any handle, since it
+     * was made: the work its answers took, counted rather than timed. A body unwound midway (by a
+     * cancellation, or a cycle) counts too.
+     */
+    public prop executions: Int64 {
+        get() {
+            runtime.executions.load()
+        }
+    }
+
+    /**
      * @throws CancelledException - if a write is pending, this is a snapshot of a revision gone by,
      * or it was asked to stop
      */

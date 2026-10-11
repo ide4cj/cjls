@@ -24,6 +24,9 @@ CAPABILITIES = types.ClientCapabilities(
     text_document=types.TextDocumentClientCapabilities(
         synchronization=types.TextDocumentSyncClientCapabilities(did_save=True),
         document_symbol=types.DocumentSymbolClientCapabilities(hierarchical_document_symbol_support=True),
+        definition=types.DefinitionClientCapabilities(link_support=True),
+        hover=types.HoverClientCapabilities(content_format=[types.MarkupKind.Markdown, types.MarkupKind.PlainText]),
+        completion=types.CompletionClientCapabilities(),
         publish_diagnostics=types.PublishDiagnosticsClientCapabilities(),
         diagnostic=types.DiagnosticClientCapabilities(),
     ),
@@ -284,6 +287,49 @@ class Session:
             self.timeout,
         )
         return result or []
+
+    # navigation: each returns the answer, `None` for none
+
+    def position_params(self, uri: str, line: int, character: int) -> dict:
+        return {
+            "text_document": types.TextDocumentIdentifier(uri=uri),
+            "position": types.Position(line=line, character=character),
+        }
+
+    async def definition(self, uri: str, line: int, character: int):
+        params = types.DefinitionParams(**self.position_params(uri, line, character))
+        return await asyncio.wait_for(self.client.text_document_definition_async(params), self.timeout)
+
+    async def hover(self, uri: str, line: int, character: int):
+        params = types.HoverParams(**self.position_params(uri, line, character))
+        return await asyncio.wait_for(self.client.text_document_hover_async(params), self.timeout)
+
+    def send_hover(self, uri: str, line: int, character: int) -> asyncio.Future:
+        """A hover sent now, on the wire before whatever is sent next, answered by the future:
+        `hover` sends only once awaited, behind what was sent meanwhile."""
+        params = types.HoverParams(**self.position_params(uri, line, character))
+        future = self.client.protocol.send_request(types.TEXT_DOCUMENT_HOVER, params)
+        return future if asyncio.isfuture(future) else asyncio.wrap_future(future)
+
+    async def completion(self, uri: str, line: int, character: int):
+        params = types.CompletionParams(**self.position_params(uri, line, character))
+        return await asyncio.wait_for(self.client.text_document_completion_async(params), self.timeout)
+
+    # counted work
+
+    def counts_queries(self) -> bool:
+        experimental = self.result.capabilities.experimental if self.result else None
+        return isinstance(experimental, dict) and bool(experimental.get("analysisStats"))
+
+    async def queries_executed(self) -> int | None:
+        """`cjls/analysisStats`'s `queriesExecuted` (docs/lsp-extensions.md), `None` for a server
+        without it: the queries computed since it started, the same in every run of the same
+        requests, so a threshold on it does not flake as one on time would."""
+        if not self.counts_queries():
+            return None
+        result = await asyncio.wait_for(self.client.protocol.send_request_async("cjls/analysisStats"), self.timeout)
+        value = result.get("queriesExecuted") if isinstance(result, dict) else getattr(result, "queriesExecuted")
+        return int(value)
 
 
 def column(text: str, encoding: str) -> int:

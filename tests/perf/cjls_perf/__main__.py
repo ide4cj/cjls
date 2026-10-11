@@ -3,6 +3,7 @@
     uv run --project tests/perf python -m cjls_perf list
     uv run --project tests/perf python -m cjls_perf run --server cjls --server lsp-server -o perf.json
     uv run --project tests/perf python -m cjls_perf compare before.json after.json
+    uv run --project tests/perf python -m cjls_perf check perf.json
 """
 
 import argparse
@@ -19,7 +20,7 @@ import sys
 import tempfile
 import traceback
 
-from . import scenarios, servers, workspace
+from . import scenarios, servers, thresholds, workspace
 from .session import Session
 
 SCHEMA = 1
@@ -95,7 +96,7 @@ def format_metrics(metrics: dict[str, float]) -> str:
 
 async def run(args) -> dict:
     chosen = args.scenario or list(scenarios.SCENARIOS)
-    options = scenarios.Options(keystrokes=args.keystrokes)
+    options = scenarios.Options(keystrokes=args.keystrokes, requests=args.requests)
     with tempfile.TemporaryDirectory(prefix="cjls-perf-") as scratch:
         if args.workspace:
             space = workspace.existing(args.workspace.resolve(), args.file)
@@ -113,7 +114,7 @@ async def run(args) -> dict:
                 "subject_lines": space.subject_text.count("\n"),
                 "subject_bytes": space.subject.stat().st_size,
             },
-            "options": {"keystrokes": args.keystrokes, "repeat": args.repeat, "scenarios": chosen},
+            "options": {"lines": args.lines, "keystrokes": args.keystrokes, "requests": args.requests, "repeat": args.repeat, "scenarios": chosen},
             "servers": {},
         }
         for name in args.server:
@@ -172,12 +173,17 @@ def main():
     run_parser.add_argument("--workspace", type=pathlib.Path, help="a cjpm project of one's own instead of a generated one")
     run_parser.add_argument("--file", type=pathlib.Path, help="the subject within --workspace; its largest .cj file by default")
     run_parser.add_argument("--keystrokes", type=int, default=50)
+    run_parser.add_argument("--requests", type=int, default=50, help="places each navigation scenario asks at, per pass")
     run_parser.add_argument("--repeat", type=int, default=3, help="runs per scenario; the report keeps each and their median")
     run_parser.add_argument("--logs", type=pathlib.Path, default=pathlib.Path("perf-logs"), help="where the servers' stderr goes")
     run_parser.add_argument("-o", "--output", type=pathlib.Path, help="the JSON report; stdout by default")
 
     compare_parser = commands.add_parser("compare", help="a Markdown table of one or more reports")
     compare_parser.add_argument("reports", type=pathlib.Path, nargs="+")
+
+    check_parser = commands.add_parser("check", help="fail if a report counts more work than thresholds.toml allows")
+    check_parser.add_argument("report", type=pathlib.Path)
+    check_parser.add_argument("--thresholds", type=pathlib.Path, default=thresholds.THRESHOLDS)
 
     args = parser.parse_args()
     # pygls logs every message a server gets wrong, with its traceback; the report notes them instead
@@ -205,8 +211,13 @@ def main():
         ]
         if failed:
             sys.exit(f"failed: {', '.join(failed)}")
-    else:
+    elif args.command == "compare":
         print(compare(args.reports))
+    else:
+        table, failures = thresholds.check(json.loads(args.report.read_text()), thresholds.load(args.thresholds))
+        print(table)
+        if failures:
+            sys.exit("over the threshold: " + "; ".join(failures))
 
 
 if __name__ == "__main__":

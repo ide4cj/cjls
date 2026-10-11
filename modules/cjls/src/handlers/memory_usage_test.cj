@@ -146,7 +146,7 @@ class MemoryUsageTest {
         let json = RawJson.of(capabilities(Encoding.Utf16)).toString()
 
         // assert
-        @Expect(json.contains(##""experimental":{"memoryUsage":true}"##))
+        @Expect(json.contains(##""experimental":{"memoryUsage":true,"##))
     }
 }
 
