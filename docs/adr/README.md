@@ -94,3 +94,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0074](0074-range-formatting.md) | A range is formatted by the whole file's edits on the lines it covers | proposed |
 | [0075](0075-a-write-that-changes-nothing-opens-no-revision.md) | A write that changes no input opens no revision | proposed |
 | [0076](0076-a-bodys-brace-joins-the-line-before.md) | A body's `{` on a line of its own joins the line before | proposed |
+| [0077](0077-an-unknown-type-is-an-error-or-a-gap.md) | A type not known is an error the user made or one the analysis cannot find, and why; a type or package before a dot is no value | proposed |
