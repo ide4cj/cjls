@@ -95,6 +95,11 @@ class Runtime {
 
     private let nextHandle = AtomicInt64(0)
 
+    /**
+     * Tracked functions' bodies run, on every handle, since the database was made.
+     */
+    let executions = AtomicInt64(0)
+
     Runtime() {
         drainLock.lock()
         drained = drainLock.condition()

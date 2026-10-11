@@ -1,4 +1,4 @@
-<!-- cjls.lsp_ext hash: 062e3d097216c4f3 -->
+<!-- cjls.lsp_ext hash: 8d091e9afa5b937b -->
 # LSP extensions
 
 Methods cjls answers beyond LSP (D15). Each is under `cjls/`, advertised as `true` under its name in the `experimental` server capabilities, and optional: every client works without it.
@@ -35,3 +35,13 @@ No `heapDump` on Windows: `RequestFailed`, before any collection. There `dumpHea
 | `threads` | `getThreadCount` | Cangjie threads |
 
 The collector runs on a timer (~150 ms), not on allocation, so between collections `allocatedHeap` and the process's RSS grow with the garbage of the interval (#22): what the server holds is `allocatedHeap` after `collect`.
+
+## `cjls/analysisStats`
+
+The work the analysis has done, counted rather than timed: read before and after a request, the difference is what that request cost, the same on every machine and every run (`tests/perf` sets its threshold on it, D81). A request, client to server, without params; capability `experimental.analysisStats`.
+
+| Result | |
+|---|---|
+| `queriesExecuted` | how many times a query was computed since the server started, rather than taken from what the analysis remembered (calca's `Storage.executions`), on every thread |
+
+A request's count is its own only while nothing else runs: a client pulling diagnostics, after the workspace has loaded, and one request at a time.

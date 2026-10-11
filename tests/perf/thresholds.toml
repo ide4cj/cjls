@@ -1,0 +1,26 @@
+# What `cjls-perf check` holds a report to (D81): the most queries a pass of a scenario may
+# execute, as `cjls/analysisStats` counts them. A count is the same in every run of the same
+# requests on the same files, on any machine, so a ceiling never flakes; times are reported, never
+# checked (D23).
+#
+# A ceiling is the count measured with about a quarter of headroom, and `warm_queries` the count
+# itself: asked again, nothing has changed, so nothing is computed again. A change doing more work
+# on purpose raises a ceiling here and says why in its pull request; one doing less may lower it.
+
+# what the counts hold for: `cjls-perf run`'s defaults on the generated workspace
+[options]
+generated = true
+lines = 5000
+requests = 50
+
+# measured at 31fdb08d, nightly 1.3.0-alpha.20261002001050: 782 / 0 / 753
+[cjls.definition]
+cold_queries = 980
+warm_queries = 0
+edit_queries = 950
+
+# measured at 31fdb08d, nightly 1.3.0-alpha.20261002001050: 1009 / 0 / 978
+[cjls.hover]
+cold_queries = 1260
+warm_queries = 0
+edit_queries = 1230

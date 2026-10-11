@@ -284,6 +284,26 @@ class CalcaTest {
     }
 
     @TestCase
+    func executionsCountTheBodiesRunOnEveryHandleNotTheHits(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello world")
+        firstWordLength(db, file)
+        let before = db.storage.executions
+
+        // act
+        firstWordLength(db, file)
+        isLong(db.snapshot(), file)
+        file.setText(db).to("hi world")
+        firstWordLength(db, file)
+
+        // assert: `isLong` and `length` on the snapshot; then `firstWord` again, whose new name
+        // runs `nameLength` and so `firstWordLength`
+        @Expect(db.storage.executions - before, 5)
+        @Expect(db.snapshot().storage.executions, db.storage.executions)
+    }
+
+    @TestCase
     func aTrackedFunctionWithoutArgumentsIsRememberedToo(): Unit {
         // arrange
         let db = TestDatabase()
