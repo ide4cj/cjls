@@ -78,7 +78,8 @@ public struct ImportedNames {
  * The `ImportedNames` of `imports`, each with its file, made in the package `from`; `prelude`
  * after the globs of their own.
  */
-func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(ItemFile, ImportItem)>, prelude: ?Glob): ImportedNames {
+func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(ItemFile, ImportItem)>, prelude: ?Glob,
+    stage: ScopeStage): ImportedNames {
     let names = IndexMap<String, ArrayList<Imported>>()
     let ctors = IndexMap<String, ArrayList<DefId>>()
     let globs = ArrayList<Glob>()
@@ -91,7 +92,7 @@ func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(Item
                 case PackageOf(name, pkg) => entryOf(names, name).add(Imported(ScopeTarget.OfPackage(pkg), site))
                 case GlobOf(pkg, full) => globs.add(Glob(pkg, relationOf(fromName, full), level, site))
                 case NameOf(pkg, pkgName, name, alias) =>
-                    if (let ToNames(_, brought) <- namesOf(db, from, pkg, pkgName, level, (name, alias))) {
+                    if (let ToNames(_, brought) <- namesOf(db, from, pkg, pkgName, level, (name, alias), stage: stage)) {
                         for ((each, ids) in brought) {
                             let entry = entryOf(names, each)
                             for (id in ids) {
@@ -114,23 +115,30 @@ func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(Item
 
 /**
  * What `pkg` re-exports (`internal import`, `public import`): seen in each of its files (N11), and
- * by its importers through its exports.
+ * by its importers through its exports. `packageImportsAt` `Expanded`.
+ */
+public func packageImports(db: AnalysisDatabase, pkg: PackageRef): ImportedNames {
+    packageImportsAt(db, pkg, ScopeStage.Expanded)
+}
+
+/**
+ * What `pkg` re-exports, the names of the packages they name read at `stage`.
  */
 @CalcaTracked[cycleResult: importsOnCycle]
-public func packageImports(db: AnalysisDatabase, pkg: PackageRef): ImportedNames {
+public func packageImportsAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): ImportedNames {
     let imports = ArrayList<(ItemFile, ImportItem)>()
     for (file in filesOf(db, pkg)) {
         for (item in itemTreeOf(db, file).imports where importLevelOf(item) != Visibility.Private) {
             imports.add((file, item))
         }
     }
-    collectImports(db, pkg, imports.toArray(), None)
+    collectImports(db, pkg, imports.toArray(), None, stage)
 }
 
 /**
  * Re-exports met again on a cycle of them: none; the exports on the cycle tell it.
  */
-func importsOnCycle(_: AnalysisDatabase, _: PackageRef): ImportedNames {
+func importsOnCycle(_: AnalysisDatabase, _: PackageRef, _: ScopeStage): ImportedNames {
     ImportedNames(IndexMap<String, Array<Imported>>(), IndexMap<String, Array<DefId>>(), [])
 }
 
@@ -153,15 +161,23 @@ public func preludeOf(db: AnalysisDatabase, pkg: Package): ?Glob {
 /**
  * What the plain imports of `file`, of `pkg`, bring, the prelude among its globs; the package's
  * re-exports are `packageImports`'s. A glob is its package: what it brings is read at a lookup,
- * so a name added to a package leaves this alone.
+ * so a name added to a package leaves this alone. `fileImportsAt` `Expanded`.
+ */
+public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): ImportedNames {
+    fileImportsAt(db, pkg, file, ScopeStage.Expanded)
+}
+
+/**
+ * What the plain imports of `file`, of `pkg`, bring, the names of the packages they name read at
+ * `stage`.
  */
 @CalcaTracked
-public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): ImportedNames {
+public func fileImportsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stage: ScopeStage): ImportedNames {
     let own = ItemFile.Source(file)
     let imports = itemTree(db, file).imports.filter {item => importLevelOf(item) == Visibility.Private}.map {
         item => (own, item)
     }
-    collectImports(db, PackageRef.Source(pkg), imports, preludeOf(db, pkg))
+    collectImports(db, PackageRef.Source(pkg), imports, preludeOf(db, pkg), stage)
 }
 
 /**
@@ -170,7 +186,14 @@ public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): I
  * copied whole into each file (D47).
  */
 public struct ImportLevel {
-    public ImportLevel(public let file: ImportedNames, public let pkg: ImportedNames) {}
+    public ImportLevel(
+        public let file: ImportedNames,
+        public let pkg: ImportedNames,
+        /**
+         * What the packages of its globs are read at.
+         */
+        public let stage!: ScopeStage = ScopeStage.Expanded
+    ) {}
 
     /**
      * Everything the level has by `name`, a declaration as often as it is brought.
@@ -180,7 +203,7 @@ public struct ImportLevel {
         found.add(all: file.names.get(name) ?? [])
         found.add(all: pkg.names.get(name) ?? [])
         for (glob in file.globs.iterator().concat(pkg.globs.iterator())) {
-            let exports = packageExports(db, glob.pkg)
+            let exports = exportsAt(db, glob.pkg, stage)
             for (id in visibleOf(exports.names.get(name) ?? [], glob.relation, glob.level)) {
                 found.add(Imported(ScopeTarget.OfDecl(id), glob.site))
             }
@@ -196,7 +219,7 @@ public struct ImportLevel {
         found.add(all: file.ctors.get(name) ?? [])
         found.add(all: pkg.ctors.get(name) ?? [])
         for (glob in file.globs.iterator().concat(pkg.globs.iterator())) {
-            let exports = packageExports(db, glob.pkg)
+            let exports = exportsAt(db, glob.pkg, stage)
             found.add(all: visibleOf(exports.ctors.get(name) ?? [], glob.relation, glob.level))
         }
         found.toArray()
@@ -207,7 +230,14 @@ public struct ImportLevel {
  * The level of imports of `file`, of `pkg`.
  */
 public func importsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): ImportLevel {
-    ImportLevel(fileImports(db, pkg, file), packageImports(db, PackageRef.Source(pkg)))
+    importsAt(db, pkg, file, ScopeStage.Expanded)
+}
+
+/**
+ * The level of imports of `file`, of `pkg`, the packages it names read at `stage`.
+ */
+public func importsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stage: ScopeStage): ImportLevel {
+    ImportLevel(fileImportsAt(db, pkg, file, stage), packageImportsAt(db, PackageRef.Source(pkg), stage), stage: stage)
 }
 
 /**
@@ -396,6 +426,18 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
  * What `name`, used in `ns`, means in `file` of `pkg`.
  */
 public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String, ns: Namespace): Resolution {
-    lookUpIn(db, defMap(db, PackageRef.Source(pkg)), ItemFile.Source(file), importsOf(db, pkg, file), name, ns,
-        ctorImports: packageCtorImports(db, pkg))
+    // a macro's name among what the files write: what is expanded depends on it (#175)
+    let stage = if (ns == Namespace.Macros) {
+        ScopeStage.Written
+    } else {
+        ScopeStage.Expanded
+    }
+    // constructors are values: a macro's lookup reads none
+    let ctorImports = if (ns == Namespace.Values) {
+        packageCtorImports(db, pkg)
+    } else {
+        CtorImports(IndexMap<String, Array<DefId>>(), [])
+    }
+    lookUpIn(db, defMapAt(db, PackageRef.Source(pkg), stage), ItemFile.Source(file), importsAt(db, pkg, file, stage),
+        name, ns, ctorImports: ctorImports)
 }

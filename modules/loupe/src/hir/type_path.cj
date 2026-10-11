@@ -168,9 +168,10 @@ public func resolveTypePath(db: AnalysisDatabase, scope: TypeScope, path: Array<
  * The package the file imports by `name`, as the qualifier of a path (N51, N52): of its imports
  * alone, whatever else has the name.
  */
-func qualifierNamed(db: AnalysisDatabase, scope: TypeScope, name: String): ?PathResolution {
+func qualifierNamed(db: AnalysisDatabase, scope: TypeScope, name: String,
+    stage!: ScopeStage = ScopeStage.Expanded): ?PathResolution {
     let pkgs = ArrayList<PackageRef>()
-    for (one in importsOf(db, scope.pkg, scope.file).names(db, name)) {
+    for (one in importsAt(db, scope.pkg, scope.file, stage).names(db, name)) {
         if (let OfPackage(pkg) <- one.target && !pkgs.contains(pkg)) {
             pkgs.add(pkg)
         }
