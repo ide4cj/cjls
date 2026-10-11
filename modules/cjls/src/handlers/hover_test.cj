@@ -3,6 +3,7 @@ package cjls.handlers
 import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
+import stdx.log.NoopLogger
 import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
@@ -83,8 +84,9 @@ class HoverHandlerTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: capabilities))
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
 
         // assert
         @Expect(state.hoverMarkdown, markdown)

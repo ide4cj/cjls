@@ -9,7 +9,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.{Logger, NoopLogger}
 import stdxx.Nullable
-import fjson.{JsonValue, RawJson}
+import fjson.RawJson
 import jsonrpc.*
 import rope.{Encoding, Rope}
 import loupe.vfs.VfsPath
@@ -51,8 +51,9 @@ class RequestsTransport <: JsonRpcTransport {
 }
 
 /**
- * A transport that answers every request written, with `null` or, if `refuses`, an error, read back
- * by the connection's loop; and keeps everything written, so a test can look at it in order.
+ * A transport that answers every request written, with what `result` gives it (`null`) or, if
+ * `refuses`, an error, read back by the connection's loop; and keeps everything written, so a test can look at
+ * it in order.
  */
 class AnsweringTransport <: JsonRpcTransport {
     let written = LinkedBlockingQueue<Body>()
@@ -62,7 +63,8 @@ class AnsweringTransport <: JsonRpcTransport {
     /**
      * @param answers - whether a request is answered at all
      */
-    AnsweringTransport(private let refuses!: Bool = false, private let answers!: Bool = true) {}
+    AnsweringTransport(private let refuses!: Bool = false, private let answers!: Bool = true,
+        private let result!: (RequestBody) -> RawJson = {_ => RawJson.NULL}) {}
 
     public func isClosed(): Bool {
         closed.load()
@@ -84,7 +86,7 @@ class AnsweringTransport <: JsonRpcTransport {
             let answer = if (refuses) {
                 ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
             } else {
-                ResultOrError.Result(RawJson.NULL)
+                ResultOrError.Result(result(request))
             }
             inbound.add(ResponseBody(Nullable.Value(request.id), answer).enveloped())
         }
@@ -153,11 +155,12 @@ func uriOf(path: Path): String {
  */
 func initializedWith(roots: Array<Path>, watches!: Bool = true, relative!: Bool = true): Loop {
     let state = ServerState()
-    handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-        capabilities: ClientCapabilities(workspace: WorkspaceClientCapabilities(
-            didChangeWatchedFiles: DidChangeWatchedFilesClientCapabilities(dynamicRegistration: watches,
-                relativePatternSupport: relative))),
-        workspaceFolders: Some(Nullable.Value(roots.map {root => WorkspaceFolder(uri: uriOf(root), name: "ws")}))))
+    handleInitialize(state, Client(), NoopLogger(),
+        InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+            capabilities: ClientCapabilities(workspace: WorkspaceClientCapabilities(
+                didChangeWatchedFiles: DidChangeWatchedFilesClientCapabilities(dynamicRegistration: watches,
+                    relativePatternSupport: relative))),
+            workspaceFolders: Some(Nullable.Value(roots.map {root => WorkspaceFolder(uri: uriOf(root), name: "ws")}))))
     Loop(state)
 }
 
@@ -223,8 +226,9 @@ class InitializedTest {
         // act
         let folders = initializedWith([a, b]).state.roots.toArray()
         let state = ServerState()
-        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Value(uriOf(a)),
-            capabilities: ClientCapabilities(), workspaceFolders: Some(Nullable.Value(Array<WorkspaceFolder>()))))
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Value(uriOf(a)),
+                capabilities: ClientCapabilities(), workspaceFolders: Some(Nullable.Value(Array<WorkspaceFolder>()))))
 
         // assert
         @Expect(folders, [VfsPath.file(a), VfsPath.file(b)])
@@ -396,38 +400,6 @@ class ProjectLoadTest {
             }
         }
         @Expect(watched, ["**/* 5", "**/*.cj 2", "**/cjpm.toml 2", "**/cj-project.json 2"])
-    }
-
-    @TestCase
-    func linkedProjectsArePathsOrFileUris() {
-        // arrange
-        let a = getTempDirectory().join("a")
-        let b = getTempDirectory().join("b").join("cj-project.json")
-        let options = JsonValue.JsonObject([("linkedProjects", JsonValue.JsonArray([
-            JsonValue.JsonString(a.toString()), JsonValue.JsonString(uriOf(b)), JsonValue.JsonString("relative"),
-            JsonValue.JsonInteger(1)]))])
-
-        // act
-        let linked = linkedProjects(options)
-
-        // assert
-        @Expect(linked, [VfsPath.file(a), VfsPath.file(b)])
-        @Expect(linkedProjects(Option<JsonValue>.None).size, 0)
-    }
-
-    @TestCase
-    func theSdkOptionIsAPathOrAFileUri() {
-        // arrange
-        let sdk = getTempDirectory().join("sdk")
-        let optionOf = {value: JsonValue => JsonValue.JsonObject([("cangjieHome", value)])}
-
-        // act, assert
-        @Expect(pathOption(optionOf(JsonValue.JsonString(sdk.toString())), "cangjieHome"), Some(sdk.toString()))
-        @Expect(pathOption(optionOf(JsonValue.JsonString(uriOf(sdk))), "cangjieHome"),
-            VfsPath.file(sdk).filePath.map {it => it.toString()})
-        @Expect(pathOption(optionOf(JsonValue.JsonString("relative")), "cangjieHome"), None<String>)
-        @Expect(pathOption(optionOf(JsonValue.JsonString(sdk.toString())), "cangjieSrc"), None<String>)
-        @Expect(pathOption(Option<JsonValue>.None, "cangjieHome"), None<String>)
     }
 
     @TestCase
@@ -815,7 +787,7 @@ class WorkspaceSymbolTest {
         let src = workspaceOf([("std/core/x.cj", "package std.core\nfunc targetInStd() {}\n")])
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
-        state.cangjieSrc = src.toString()
+        state.settings = Settings(cangjieSrc: src.toString())
         initialized(loop, Client(), NoopLogger(), InitializedParams())
         remove(dir, recursive: true)
         remove(src, recursive: true)
@@ -984,7 +956,7 @@ func projectWithBinaryDir(name: String): String {
  */
 func watchingBinaries(dir: Path, transport: RequestsTransport, client: Client): Loop {
     let loop = initializedWith([dir.join("ws")])
-    loop.state.cangjieHome = dir.join("sdk").toString()
+    loop.state.settings = Settings(cangjieHome: dir.join("sdk").toString())
     initialized(loop, client, NoopLogger(), InitializedParams())
     @Expect(transport.nextRequest()?.method, Some("client/registerCapability"))
     loop
@@ -1101,7 +1073,7 @@ class BinaryWatchTest {
         // arrange
         let dir = binariesWorkspace()
         let loop = initializedWith([dir.join("ws")], watches: false)
-        loop.state.cangjieHome = dir.join("sdk").toString()
+        loop.state.settings = Settings(cangjieHome: dir.join("sdk").toString())
         initialized(loop, Client(), NoopLogger(), InitializedParams())
         let unreported = writeFile(dir, "ws/src/b.cj", "b")
 

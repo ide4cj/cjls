@@ -42,8 +42,8 @@ async def test_workspace_symbol_finds_a_declaration_of_a_file_not_open(server: L
     assert symbols[0].location.range.start == types.Position(line=1, character=9)
     watches = capabilities(editor).workspace.did_change_watched_files
     if watches and watches.dynamic_registration:
-        # the root's, and the binaries' of the SDK the server found, if it found one
-        assert {r.method for r in registered} == {"workspace/didChangeWatchedFiles"}
+        # the root's, and the binaries' of the SDK the server found, if it found one; the settings' aside (D79)
+        assert {r.method for r in registered} - {"workspace/didChangeConfiguration"} == {"workspace/didChangeWatchedFiles"}
 
     await server.shutdown_session()
 
@@ -98,6 +98,7 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
         watchers = [
             watcher
             for registration in registered
+            if registration.method == types.WORKSPACE_DID_CHANGE_WATCHED_FILES
             for watcher in get_converter()
             .structure(registration.register_options, types.DidChangeWatchedFilesRegistrationOptions)
             .watchers
@@ -154,6 +155,7 @@ async def test_a_cjo_of_a_binary_changed_finds_the_project_again(server: Languag
         watchers = [
             watcher
             for registration in registered
+            if registration.method == types.WORKSPACE_DID_CHANGE_WATCHED_FILES
             for watcher in get_converter()
             .structure(registration.register_options, types.DidChangeWatchedFilesRegistrationOptions)
             .watchers

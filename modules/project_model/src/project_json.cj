@@ -106,33 +106,5 @@ public struct BinaryJson {
  * break.
  */
 public func prettyProjectJson(json: ProjectJson): String {
-    let builder = StringBuilder()
-    pretty(fromJsonBytes<JsonValue>(toJsonBytes(json)), 0, builder)
-    builder.append("\n")
-    builder.toString()
-}
-
-private func pretty(value: JsonValue, depth: Int64, out: StringBuilder): Unit {
-    let inner = "  " * (depth + 1)
-    match (value) {
-        case JsonArray(items) where !items.isEmpty() =>
-            out.append("[\n")
-            for (i in 0..items.size) {
-                out.append(inner)
-                pretty(items[i], depth + 1, out)
-                out.append(if (i + 1 < items.size) { ",\n" } else { "\n" })
-            }
-            out.append("  " * depth + "]")
-        case JsonObject(members) where !members.isEmpty() =>
-            out.append("{\n")
-            for (i in 0..members.size) {
-                out.append(inner)
-                out.append(JsonValue.JsonString(members[i][0]).toString())
-                out.append(": ")
-                pretty(members[i][1], depth + 1, out)
-                out.append(if (i + 1 < members.size) { ",\n" } else { "\n" })
-            }
-            out.append("  " * depth + "}")
-        case _ => out.append(value.toString())
-    }
+    fromJsonBytes<JsonValue>(toJsonBytes(json)).toPrettyString() + "\n"
 }

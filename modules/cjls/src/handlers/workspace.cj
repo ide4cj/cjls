@@ -37,7 +37,7 @@ func loadBudget(): Int64 {
 
 /**
  * The files of every root are watched, then loaded: a change on disk between the two is reported,
- * rather than lost.
+ * rather than lost. Then the settings are asked for, and their changes watched (D79).
  */
 @LspHandler
 func handleInitialized(loop: Loop, client: Client, logger: Logger, _: InitializedParams): Unit {
@@ -47,6 +47,9 @@ func handleInitialized(loop: Loop, client: Client, logger: Logger, _: Initialize
     }
     watch(state, client, logger, state.roots.toArray())
     startLoad(loop, client, logger)
+    // the load begins with `initializationOptions`, and begins again if the answer differs
+    watchSettings(state, client, logger)
+    pullSettings(loop, client, logger)
 }
 
 /**
@@ -181,12 +184,19 @@ func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
     }
     loop.start(logger) {
         if (let Some(warning) <- load(loop, client, logger, request)) {
-            try {
-                client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: warning))
-            } catch (e: Exception) {
-                logger.debug("the warning was not shown", [("error", e.toString())])
-            }
+            showWarning(client, logger, warning)
         }
+    }
+}
+
+/**
+ * Shows the user `message` as a warning; one that cannot be sent is a `DEBUG` of `logger`.
+ */
+func showWarning(client: Client, logger: Logger, message: String): Unit {
+    try {
+        client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: message))
+    } catch (e: Exception) {
+        logger.debug("the warning was not shown", [("error", e.toString())])
     }
 }
 
@@ -194,11 +204,12 @@ func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
  * Begins a load of the roots and the linked projects of `state`; `None` if there are none.
  */
 func loadRequest(state: ServerState): ?LoadRequest {
-    if (state.roots.isEmpty() && state.linkedProjects.isEmpty()) {
+    let settings = state.settings
+    if (state.roots.isEmpty() && settings.linkedProjects.isEmpty()) {
         return None
     }
-    LoadRequest(state.beginLoad(), state.roots.toArray(), state.linkedProjects.toArray(), state.cangjieHome,
-        state.cangjieSrc, state.workDoneProgress)
+    LoadRequest(state.beginLoad(), state.roots.toArray(), settings.linkedProjects, settings.cangjieHome,
+        settings.cangjieSrc, state.workDoneProgress)
 }
 
 /**
