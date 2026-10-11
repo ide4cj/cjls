@@ -1,6 +1,7 @@
 package cjls.server
 
 import std.collection.{ArrayList, HashMap, HashSet}
+import std.runtime.getMaxHeapSize
 import rope.{Encoding, Rope}
 import loupe.vfs.*
 import loupe.db.*
@@ -126,6 +127,22 @@ public class ServerState <: FromContext<ServerState> {
      * looked for.
      */
     public var cangjieSrc: ?String = None
+
+    /**
+     * How much a load reads at most, in bytes, the `.cjo` of the binaries first and the text of the
+     * sources then: a sixteenth of the heap (D31). On the runtime's default of 256 MiB, 16 MiB of
+     * text was loaded and searched and 32 MiB ran out of memory (D30); a root far wider than a
+     * project (a home directory, a test suite of a hundred thousand files) would fill any heap with
+     * text alone.
+     */
+    public var loadBudget = getMaxHeapSize() / 16
+
+    /**
+     * The roots of loose files the last project set left files out of, past the load budget: a
+     * document opened there may be none of the project's, and the project is found again for it
+     * (D80).
+     */
+    public var partialRoots: Array<VfsPath> = []
 
     /**
      * The files of the project, as last set: made anew each time, for a set built from an array
@@ -255,6 +272,15 @@ public class ServerState <: FromContext<ServerState> {
     }
 
     /**
+     * Whether a load is running: one begun has not ended.
+     */
+    public prop loading: Bool {
+        get() {
+            setDuringLoad.isSome()
+        }
+    }
+
+    /**
      * Ends `load`, if it is the latest begun.
      *
      * @return whether it was, and had not ended
@@ -312,6 +338,14 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func inProject(path: VfsPath): Bool {
         projectFiles.contains(path)
+    }
+
+    /**
+     * Whether the Cangjie file at `path` is under a root the last project left files out of, and
+     * none of its own: a document open there is analyzed once the project is found again (D80).
+     */
+    public func leftOut(path: VfsPath): Bool {
+        !inProject(path) && isWorkspaceFile(path, partialRoots)
     }
 
     /**

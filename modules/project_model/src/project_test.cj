@@ -360,6 +360,42 @@ class FindProjectTest {
         // assert
         @Expect(packagesOf(load.model, dir), ["a: a=a.cj"])
         @Expect(load.problems.size, 1)
+        @Expect(load.partial)
+    }
+
+    @TestCase
+    func theDirectoryOfAnOpenDocumentComesFirstAndTheDocumentWhateverTheBudget() {
+        // arrange - the filler and the document are each past the budget, the helper within it
+        let dir = tree([("x/filler.cj", "// ${"x" * 100}\n"), ("y/main.cj", "main() {\n    helper()\n}\n"),
+            ("y/util.cj", "func helper() {}"), ("z/other.cj", "func other() {}")])
+        let elsewhere = VfsPath.file(getTempDirectory().join("elsewhere.cj"))
+
+        // act
+        let alone = findProject(dir, env: noEnv, budget: 20)
+        let opened = findProject(dir, env: noEnv, budget: 20, open: [dir.join("y/main.cj"), elsewhere])
+        removeTree(dir)
+
+        // assert
+        @Expect(alone.partial)
+        @Expect(!packagesOf(alone.model, dir).iterator().any {pkg => pkg.contains("y/main.cj")})
+        @Expect(packagesOf(opened.model, dir), ["default: default=y/main.cj,y/util.cj"])
+        @Expect(opened.partial)
+    }
+
+    @TestCase
+    func looseFilesWithinTheBudgetAreWholeWithOrWithoutDocumentsOpen() {
+        // arrange
+        let dir = tree([("a.cj", "package a"), ("b/b.cj", "package a.b")])
+
+        // act
+        let alone = findProject(dir, env: noEnv)
+        let opened = findProject(dir, env: noEnv, open: [dir.join("b/b.cj")])
+        removeTree(dir)
+
+        // assert
+        @Expect(!alone.partial)
+        @Expect(!opened.partial)
+        @Expect(packagesOf(opened.model, dir), ["a: a=a.cj", "a: a.b=b/b.cj"])
     }
 
     @TestCase
