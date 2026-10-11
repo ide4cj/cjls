@@ -17,6 +17,7 @@ Amends ADR-0084: a memo verified in this revision answers a dependent through it
 
 ## Consequences
 
-- `VerifyBench` (calca: 1024 memos of 72 dependencies each, two to one memos and interned values, as `inferBody`'s): an unrelated edit verifies in about half the time.
+- `VerifyBench` (calca: 1024 memos of 72 dependencies each, two to one memos and interned values, as `inferBody`'s): an unrelated edit 29.5 → 12.8 ms ±2%. `HighlightBench`: 214.5 → 192.9 ms ±9% after a space added in the last body of `nodes.cj`, unchanged with its bodies inferred.
+- `tests/perf` (D84's files and runs, three each, interleaved, at load below 1.5): a keystroke p50 on `infer.cj` 111 → 86 ms (`tokens`) and 96 → 78 ms (`tokens_body`), on `nodes.cj` 255 → 217 ms and 253 → 215 ms; p95 on `nodes.cj` 358 → 299 and 286 → 225 ms; first tokens unchanged. Peak RSS on `nodes.cj` 368 → 394 MB and 357 → 404 MB, far more than the edges' bytes, on `infer.cj` within the runs' spread: not explained yet.
 - A dependency is 8 bytes more, and it keeps alive a dropped memo's entry and key, or a collected value's fields, until the memo reading it is computed again.
 - `MemoTable.maybeChangedAfter` has no fast path of its own any more: what reaches it is not verified in this revision.
