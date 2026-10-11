@@ -1,4 +1,4 @@
-# ADR-0081: A member named through a type or alone is filtered by the type the names give, in the lookup
+# ADR-0083: A member named through a type or alone is filtered by the type the names give, in the lookup
 
 Status: proposed
 Amends ADR-0052 and ADR-0053: their Consequences leave the filters to inference (step 8)

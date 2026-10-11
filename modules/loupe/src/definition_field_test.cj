@@ -743,6 +743,78 @@ class FieldDefinitionTest {
     }
 
     @TestCase
+    func superFindsTheSuperclasssImplementationNotWhatItImplements() {
+        // N79, N107, #239
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {
+                func f(): Int64 { 0 }
+            }
+            open class A <: I {
+                public open func f(): Int64 { 1 }
+            //                   ^ def
+            }
+            class B <: A {
+                public override func f(): Int64 { 2 }
+                func h(): Int64 { super.$0f() }
+            }
+            "#)
+    }
+
+    @TestCase
+    func anAliasOfAnInstanceHasItsExtendsMembers() {
+        // N86
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Box<T> {}
+            extend Box<Int64> {
+                static func only(): Int64 { 1 }
+            //              ^^^^ def
+            }
+            type IntBox = Box<Int64>
+            func g(): Int64 { IntBox.$0only() }
+            "#)
+    }
+
+    @TestCase
+    func anAliasOfAnotherInstanceHasNotItsExtendsMembers() {
+        // N86, #239: cjc's 'only' is not a member of class 'Box<Class-S>'
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Box<T> {}
+            class S {}
+            extend Box<Int64> {
+                static func only(): Int64 { 1 }
+            }
+            type SBox = Box<S>
+            func g(): Int64 { SBox.$0only() }
+            //                       ^^^^ no definition
+            "#)
+    }
+
+    @TestCase
+    func aTypeOfAPackageWithArgumentsHasNotAnotherInstancesExtends() {
+        // N76, N86, #239
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public class Box<T> {}
+            public class S {}
+            extend Box<Int64> {
+                public static func only(): Int64 { 1 }
+            }
+            //- /main.cj module=m package=m
+            package m
+            import m.a
+            func g(): Int64 { a.Box<a.S>.$0only() }
+            //                             ^^^^ no definition
+            "#)
+    }
+
+    @TestCase
     func aNameAloneFallsThroughAnExtendOfAnotherInstanceToThePackage() {
         // N86, #239: cjc calls the package's `only`, the member level having none
         checkDefinition(#"
