@@ -18,10 +18,10 @@ let ARITHMETIC = ["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>"]
  * The members the name after the `.` of a value names, found from the value's type (N75).
  */
 @Derive[Equatable]
-public struct FieldTargets <: OfExpr {
+public struct FieldTargets <: ByIndex {
     public FieldTargets(public let expr: ExprId, public let targets: Array<MemberTarget>) {}
 
-    public func exprIndex(): Int64 {
+    public func keyIndex(): Int64 {
         expr.index
     }
 }
@@ -30,10 +30,10 @@ public struct FieldTargets <: OfExpr {
  * The declaration a call of several candidates takes, by its callee (8d).
  */
 @Derive[Equatable]
-public struct CalleeTarget <: OfExpr {
+public struct CalleeTarget <: ByIndex {
     public CalleeTarget(public let expr: ExprId, public let decl: DefId) {}
 
-    public func exprIndex(): Int64 {
+    public func keyIndex(): Int64 {
         expr.index
     }
 }
@@ -43,10 +43,10 @@ public struct CalleeTarget <: OfExpr {
  * definition read, not resolving it again.
  */
 @Derive[Equatable]
-public struct NameTarget <: OfExpr {
+public struct NameTarget <: ByIndex {
     public NameTarget(public let expr: ExprId, public let resolution: BodyResolution) {}
 
-    public func exprIndex(): Int64 {
+    public func keyIndex(): Int64 {
         expr.index
     }
 }
@@ -56,33 +56,33 @@ public struct NameTarget <: OfExpr {
  * member of a package or of types, or one of a value, which `FieldTargets` tells.
  */
 @Derive[Equatable]
-public struct AccessTarget <: OfExpr {
+public struct AccessTarget <: ByIndex {
     public AccessTarget(public let expr: ExprId, public let resolution: FieldResolution) {}
 
-    public func exprIndex(): Int64 {
+    public func keyIndex(): Int64 {
         expr.index
     }
 }
 
 /**
- * What inference found of an expression, in an array sorted by expression.
+ * What was found of an expression or a type, in an array sorted by its index.
  */
-public interface OfExpr {
-    func exprIndex(): Int64
+public interface ByIndex {
+    func keyIndex(): Int64
 }
 
 /**
- * The one of `sorted` of `expr`, by bisection.
+ * The one of `sorted` whose index is `index`, by bisection.
  */
-func findOfExpr<T>(sorted: Array<T>, expr: ExprId): ?T where T <: OfExpr {
+func findByIndex<T>(sorted: Array<T>, index: Int64): ?T where T <: ByIndex {
     var low = 0
     var high = sorted.size
     while (low < high) {
         let middle = (low + high) / 2
-        let at = sorted[middle].exprIndex()
-        if (at == expr.index) {
+        let at = sorted[middle].keyIndex()
+        if (at == index) {
             return sorted[middle]
-        } else if (at < expr.index) {
+        } else if (at < index) {
             low = middle + 1
         } else {
             high = middle
@@ -113,6 +113,11 @@ public struct InferenceResult {
          */
         public let accesses!: Array<AccessTarget> = [],
         /**
+         * What each segment of each path of a type the body writes names, by the type: of those
+         * inference lowered.
+         */
+        public let typePaths!: Array<TypePathTarget> = [],
+        /**
          * The type the body gives its declaration: a function's return type, a variable's type;
          * `None` for one of no such type.
          */
@@ -135,7 +140,7 @@ public struct InferenceResult {
      * The members the name after the `.` of `expr` names, if it follows a value.
      */
     public func fieldOf(expr: ExprId): ?Array<MemberTarget> {
-        match (findOfExpr(fields, expr)) {
+        match (findByIndex(fields, expr.index)) {
             case Some(one) => one.targets
             case None => None
         }
@@ -146,7 +151,7 @@ public struct InferenceResult {
      * operator function the operator `expr` calls (8e).
      */
     public func calleeOf(expr: ExprId): ?DefId {
-        match (findOfExpr(callees, expr)) {
+        match (findByIndex(callees, expr.index)) {
             case Some(one) => one.decl
             case None => None
         }
@@ -156,7 +161,7 @@ public struct InferenceResult {
      * What the name `expr` uses as a value means, if inference resolved it.
      */
     public func nameOf(expr: ExprId): ?BodyResolution {
-        match (findOfExpr(names, expr)) {
+        match (findByIndex(names, expr.index)) {
             case Some(one) => one.resolution
             case None => None
         }
@@ -166,7 +171,17 @@ public struct InferenceResult {
      * What the name after the `.` of `expr` means, if inference resolved it.
      */
     public func accessOf(expr: ExprId): ?FieldResolution {
-        match (findOfExpr(accesses, expr)) {
+        match (findByIndex(accesses, expr.index)) {
+            case Some(one) => one.resolution
+            case None => None
+        }
+    }
+
+    /**
+     * What each segment of the path of the type `ty` of the body names, if inference lowered it.
+     */
+    public func typePathOf(ty: TypeRefId): ?Array<PathResolution> {
+        match (findByIndex(typePaths, ty.index)) {
             case Some(one) => one.resolution
             case None => None
         }
@@ -365,7 +380,7 @@ class Inference {
             collectArray
         sort(accessed, by: {a: AccessTarget, b: AccessTarget => a.expr.index.compare(b.expr.index)})
         InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, callees: chosen, names: resolved,
-            accesses: accessed, ty: ty)
+            accesses: accessed, typePaths: lowering.typePaths(), ty: ty)
     }
 
     /**

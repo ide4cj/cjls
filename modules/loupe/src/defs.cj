@@ -92,13 +92,17 @@ func typeDefinitions(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, s
     let ptr = SyntaxNodePtr(typeNode)
     let lowered = signatureWithSourceMap(db, def)
     let (ty, resolve) = match (lowered.sourceMap.typeAt(ptr)) {
+        // as lowering resolved it, if it did
         case Some(ty) => (lowered.signature[ty], {
-            path: Array<String> => resolveTypePath(db, typeScopeOf(db, def) ?? return Array<PathResolution>(), path)
+            path: Array<String> => signatureTypes(db, def).pathOf(ty) ??
+                resolveTypePath(db, typeScopeOf(db, def) ?? return Array<PathResolution>(), path)
         })
         case None =>
             let lowered = bodyWithSourceMap(db, def)
             let ty = lowered.sourceMap.typeAt(ptr) ?? return None
-            (lowered.body.types[ty.index], {path: Array<String> => resolveBodyTypePath(db, def, ty, path)})
+            (lowered.body.types[ty.index], {
+                path: Array<String> => inferBody(db, def).typePathOf(ty) ?? resolveBodyTypePath(db, def, ty, path)
+            })
     }
     match (ty) {
         case PathRef(segments) => match (resolve(segments.map {one => one.name}).get(segment)) {

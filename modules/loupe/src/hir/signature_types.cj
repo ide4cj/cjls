@@ -3,6 +3,7 @@ package loupe.hir
 import std.collection.*
 import std.convert.Parsable
 import std.deriving.*
+import std.sort.sort
 import calca.*
 import calca.macros.*
 import cjo.{CjoException, DeclInfo, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
@@ -74,6 +75,19 @@ public struct TyError {
  * A declaration's signature as types (D54): what `Signature` writes, each `TypeRef` lowered to a
  * `Ty`, or what a `.cjo` resolved. One query of each declaration, as `signature` is.
  */
+/**
+ * What each segment of the path of a type names, as lowering it resolved it: what highlighting and go to definition
+ * read, not resolving it again.
+ */
+@Derive[Equatable]
+public struct TypePathTarget <: ByIndex {
+    public TypePathTarget(public let ty: TypeRefId, public let resolution: Array<PathResolution>) {}
+
+    public func keyIndex(): Int64 {
+        ty.index
+    }
+}
+
 @Derive[Equatable]
 public struct SignatureTypes {
     public SignatureTypes(
@@ -109,8 +123,22 @@ public struct SignatureTypes {
         /**
          * The types of its source that are errors; none of a `.cjo`, which cjc checked.
          */
-        public let errors!: Array<TyError> = []
+        public let errors!: Array<TyError> = [],
+        /**
+         * What each segment of each path of its types names, by the type; none of a `.cjo`.
+         */
+        public let typePaths!: Array<TypePathTarget> = []
     ) {}
+
+    /**
+     * What each segment of the path of the type `ty` of the signature names, if it is one.
+     */
+    public func pathOf(ty: TypeRefId): ?Array<PathResolution> {
+        match (findByIndex(typePaths, ty.index)) {
+            case Some(one) => one.resolution
+            case None => None
+        }
+    }
 
     /**
      * The signature as a declaration of `kind` reads, for a test or a hover: `<T>(T, Int64) ->
@@ -301,6 +329,8 @@ class SourceTyLowering {
      */
     private let cycle: ?Array<DefId>
     private let errors = ArrayList<TyError>()
+    // by type: what each segment of a path names, as lowering resolved it
+    private let paths = HashMap<Int64, Array<PathResolution>>()
 
     SourceTyLowering(private let db: AnalysisDatabase, private let def: DefId) {
         sig = signature(db, def)
@@ -356,10 +386,21 @@ class SourceTyLowering {
         let bounds = sig.bounds.map {bound => TyBound(lowerAt(bound.ty), bound.bounds.map {id => lowerAt(id)})}
         if (let Some(names) <- cycle && let Some(at) <- sig.ty) {
             errors.add(TyError(at, TyErrorKind.TypeCycle(names.map {id => aliasName(db, id)})))
-            return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray())
+            return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray(),
+                typePaths: typePaths())
         }
         SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, ty: ty, supers: supers,
-            bounds: bounds, errors: errors.toArray())
+            bounds: bounds, errors: errors.toArray(), typePaths: typePaths())
+    }
+
+    /**
+     * What each segment of each path lowered so far names, sorted by the type.
+     */
+    func typePaths(): Array<TypePathTarget> {
+        let found = paths |> map {entry: (Int64, Array<PathResolution>) => TypePathTarget(TypeRefId(entry[0]), entry[1])} |>
+            collectArray
+        sort(found, by: {a: TypePathTarget, b: TypePathTarget => a.ty.index.compare(b.ty.index)})
+        found
     }
 
     /**
@@ -438,6 +479,7 @@ class SourceTyLowering {
         } else {
             resolveTypePath(db, typeScope, names)
         }
+        paths.add(id.index, resolved)
         match (resolved.get(resolved.size - 1)) {
             // an alias does not see its own name in its type (N93)
             case Some(Resolved(TypeOf(target))) where target == def && target.item(db).kind == ItemKind.TypeAlias =>
