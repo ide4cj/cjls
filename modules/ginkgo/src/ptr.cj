@@ -38,11 +38,29 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
         } else {
             None<SyntaxNode<K>>
         }
-        // an empty range may be inside several children at once, the empty ones and the two around them
-        for (child in root.children() where child.textRange.containsRange(range)) {
-            if (let Some(inner) <- tryToNode(child)) {
-                found = inner
+        // the first child ending at the range's start or after it, by bisection: a node of hundreds of
+        // members is not walked from its first one for each
+        let green = root.green
+        var low = 0
+        var high = green.childCount
+        while (low < high) {
+            let middle = (low + high) / 2
+            if (root.offset + green.childOffset(middle) + green.child(middle).textLen < range.start) {
+                low = middle + 1
+            } else {
+                high = middle
             }
+        }
+        // an empty range may be inside several children at once, the empty ones and the two around them
+        var i = low
+        while (i < green.childCount && root.offset + green.childOffset(i) <= range.start) {
+            let start = root.offset + green.childOffset(i)
+            if (let GreenElement.Node(child) <- green.child(i) && TextRange.at(start, child.textLen).containsRange(range)) {
+                if (let Some(inner) <- tryToNode(SyntaxNode(child, parent: root, indexInParent: i, offset: start))) {
+                    found = inner
+                }
+            }
+            i++
         }
         found
     }

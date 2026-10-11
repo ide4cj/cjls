@@ -18,6 +18,8 @@ func handleInitialize(state: ServerState, client: Client, logger: Logger, params
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
+    state.refreshesSemanticTokens = params.capabilities.workspace.flatMap {workspace => workspace.semanticTokens}
+        .flatMap {semanticTokens => semanticTokens.refreshSupport} ?? false
     let folding = params.capabilities.textDocument.flatMap {textDocument => textDocument.foldingRange}
     state.lineFoldingOnly = folding.flatMap {it => it.lineFoldingOnly} ?? false
     state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}

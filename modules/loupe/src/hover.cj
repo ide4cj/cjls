@@ -55,7 +55,7 @@ public func hoverAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?Hover
     let root = parse(db, file).syntaxNode()
     let token = tokenAt(root, offset) ?? return None
     // a macro's: later, with its expansion (#175)
-    if (macroSymbols(db, file, token).isSome()) {
+    if (macroDefinitions(db, file, token).isSome()) {
         return None
     }
     let ids = itemIdMap(db, file)

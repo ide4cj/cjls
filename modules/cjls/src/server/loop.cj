@@ -25,7 +25,10 @@ public class Loop <: FromContext<Loop> {
         this(state, Option<DiagnosticsPush>.None)
     }
 
-    Loop(public let state: ServerState, private let push: ?DiagnosticsPush) {}
+    /**
+     * `refresh` asks the client for the semantic tokens of its documents again (D72).
+     */
+    Loop(public let state: ServerState, private let push: ?DiagnosticsPush, private let refresh!: ?() -> Unit = None) {}
 
     /**
      * A handler on the loop holds the state already: it calls `start`, never `write`.
@@ -105,6 +108,10 @@ public class Loop <: FromContext<Loop> {
 
     private func afterWrite(openBefore: HashSet<VfsPath>): Unit {
         let filesChanged = state.takeFilesChanged()
+        // a name of one file may mean something else after a change of another, as rust-analyzer has it
+        if (let Some(refresh) <- refresh && filesChanged && state.refreshesSemanticTokens) {
+            refresh()
+        }
         let push = push ?? return ()
         if (!state.pushesDiagnostics) {
             return

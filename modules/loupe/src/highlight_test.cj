@@ -35,7 +35,7 @@ class HighlightTest {
         @Expect(result, [
             "Comment[Documentation]@0..7 /* c */",
             "Keyword@8..11 var",
-            "Variable[Declaration]@12..13 b",
+            "Variable[Declaration, Mutable]@12..13 b",
             "Operator@14..15 =",
             "Operator@18..20 >>",
             "NumberLiteral@21..22 2",
@@ -53,7 +53,7 @@ class HighlightTest {
         // act
         let result = highlighted("class A<T> {\n    static let x: Int64 = 1\n    A(let y: Int64, z: Bool) {}\n    prop p: T { get() { x } }\n    operator func +(o: A<T>): A<T> { this }\n}\nconst K = 1")
 
-        // assert - `x` in the getter is a use, not told yet
+        // assert - `x` in the getter is a use, not told in a file of no package
         @Expect(result, [
             "Keyword@0..5 class",
             "Class[Declaration]@6..7 A",
@@ -158,7 +158,7 @@ class HighlightTest {
         let result = highlighted(
             "main() { for ((i, _) in xs) { match (e) { case R => 0 case G(n) => n case q: E => 1 } }; f {a => a} }")
 
-        // assert - `R` and `n` may be enum constructors, which only names resolved tell
+        // assert - `R` and `n` may be enum constructors, which only names resolved tell, not in a file of no package
         @Expect(result, [
             "Keyword@0..4 main",
             "Keyword@9..12 for",

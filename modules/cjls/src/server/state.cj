@@ -63,6 +63,12 @@ public class ServerState <: FromContext<ServerState> {
     public var multilineTokens = false
 
     /**
+     * Whether the client asks for the semantic tokens of its documents again when told to, as agreed
+     * on at `initialize`: it is, after a change of the files, which may change any document's (D72).
+     */
+    public var refreshesSemanticTokens = false
+
+    /**
      * Whether the client takes a definition as `LocationLink`s, as agreed on at `initialize`; one
      * that does not gets `Location`s.
      */
