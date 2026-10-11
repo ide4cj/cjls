@@ -30,6 +30,10 @@ func fixtureFiles(text: StringBuilder, module: String, deps: String, dir: Path, 
 class HighlightBenchState {
     let db: AnalysisDatabase
     let nodesFile: FileId
+    // the text of the file, and the same with a space more inside the body of its last method: the bench sets them in
+    // turn, so each run is an edit
+    let texts: Array<String>
+    var edits = 0
 
     init() {
         let text = StringBuilder()
@@ -41,6 +45,9 @@ class HighlightBenchState {
         db = fixture.database(binaries: ["std.core", "std.collection"].map {
             name => stdCjoRead(name, stdCjo(name))
         })
+        let source = db.sourceFile(nodesFile).getOrThrow().text(db).toString()
+        let at = source.lastIndexOf("\n    }\n").getOrThrow()
+        texts = [source, source[..at] + " " + source[at..]]
         highlight(db, nodesFile)
     }
 }
@@ -68,13 +75,14 @@ class HighlightBench {
     }
 
     /**
-     * An edit inside a body first: the bodies inferred again that it changes, and the classifying.
+     * An edit inside the last body first: the file parsed again, every memo of the file verified, what the edit changes
+     * computed again, and the classifying.
      */
     @Bench
     func aLargeFileAfterAnEditInABody(): Int64 {
         let state = highlightBench()
-        let text = state.db.sourceFile(state.nodesFile).getOrThrow().text(state.db).toString()
-        state.db.setFileText(state.nodesFile, Rope(text))
+        state.edits++
+        state.db.setFileText(state.nodesFile, Rope(state.texts[state.edits % 2]))
         highlight(state.db, state.nodesFile).size
     }
 }
