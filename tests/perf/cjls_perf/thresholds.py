@@ -1,4 +1,4 @@
-"""The threshold a report is held to: ceilings on counted work, never on time (D79).
+"""The threshold a report is held to: ceilings on counted work, never on time (D81).
 
 `thresholds.toml` names, per server and scenario, the most a count may be (`cold_queries = 1200`),
 and the options the counts hold for: a count is the same in every run of the same requests on the

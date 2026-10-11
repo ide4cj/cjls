@@ -146,7 +146,7 @@ async def navigate(session: Session, options: Options, capability: str, ask, whe
     is added at the end of the file (`edit`: what an edit elsewhere costs the same answers).
 
     With `cjls/analysisStats` each pass also counts the queries it executed: the work, the same in
-    every run, which `thresholds.toml` holds the server to (D79). Nothing else runs meanwhile: the
+    every run, which `thresholds.toml` holds the server to (D81). Nothing else runs meanwhile: the
     driver pulls diagnostics, so none are computed behind the requests' back."""
     await start(session)
     if not session.supports(capability):

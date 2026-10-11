@@ -38,7 +38,7 @@ The collector runs on a timer (~150 ms), not on allocation, so between collectio
 
 ## `cjls/analysisStats`
 
-The work the analysis has done, counted rather than timed: read before and after a request, the difference is what that request cost, the same on every machine and every run (`tests/perf` sets its threshold on it, D79). A request, client to server, without params; capability `experimental.analysisStats`.
+The work the analysis has done, counted rather than timed: read before and after a request, the difference is what that request cost, the same on every machine and every run (`tests/perf` sets its threshold on it, D81). A request, client to server, without params; capability `experimental.analysisStats`.
 
 | Result | |
 |---|---|
