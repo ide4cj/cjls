@@ -177,10 +177,50 @@ func frozen<V, R>(map: IndexMap<String, ArrayList<V>>, toArray: (ArrayList<V>) -
 }
 
 /**
- * The `DefMap` of `pkg`. An edit inside a body, or one that only moves declarations, leaves the
- * item trees and so this alone.
+ * What a package's scope is read at (#175): what its files write, or that and what the macro calls
+ * in them add. A macro's name is looked up in the first, since no macro is ever generated and what
+ * is expanded depends on it: the second is a function of the first, and never a cycle of queries.
+ */
+@Derive[Equatable, Hashable]
+public enum ScopeStage {
+    | Written
+    | Expanded
+}
+
+/**
+ * The `DefMap` of `pkg`, what the macros called in it add included: `defMapAt` `Expanded`.
+ */
+public func defMap(db: AnalysisDatabase, pkg: PackageRef): DefMap {
+    defMapAt(db, pkg, ScopeStage.Expanded)
+}
+
+/**
+ * The `DefMap` of `pkg` at `stage`: its files', then, `Expanded`, their expansions' after each,
+ * the items an expansion replaces left out (`@Strategy`'s function). An edit inside a body, or one
+ * that only moves declarations, leaves the item trees and so this alone. A package compiled
+ * already has its macros expanded: one `DefMap` at both.
  */
 @CalcaTracked
-public func defMap(db: AnalysisDatabase, pkg: PackageRef): DefMap {
-    collectDefMap(db, filesOf(db, pkg).map {file => (file, itemTreeOf(db, file))})
+public func defMapAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): DefMap {
+    if (let Binary(_) <- pkg && stage == ScopeStage.Written) {
+        return defMapAt(db, pkg, ScopeStage.Expanded)
+    }
+    let files = filesOf(db, pkg)
+    if (stage == ScopeStage.Written) {
+        return collectDefMap(db, files.map {file => (file, itemTreeOf(db, file))})
+    }
+    let trees = ArrayList<(ItemFile, ItemTree)>()
+    for (file in files) {
+        let tree = itemTreeOf(db, file)
+        let expansions = expansionsOf(db, file)
+        let replaced = replacedItemsOf(db, expansions)
+        if (replaced.isEmpty()) {
+            trees.add((file, tree))
+        } else {
+            trees.add((file, ItemTree(packageHeader: tree.packageHeader, imports: tree.imports,
+                items: tree.items.filter {item => !replaced.contains(item.id)})))
+        }
+        trees.add(all: expansions.map {one => (one, itemTreeOf(db, one))})
+    }
+    collectDefMap(db, trees.toArray())
 }
