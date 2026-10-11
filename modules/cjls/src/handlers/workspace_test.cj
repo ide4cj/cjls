@@ -604,7 +604,7 @@ let PROGRAM = "main() {\n    helper()\n}\n"
 
 /**
  * A root of loose files past a budget of 20 bytes: the filler and the program are each past it, the
- * helper the program calls within it (D79).
+ * helper the program calls within it (D80).
  */
 func partialRoot(): Path {
     workspaceOf([("x/filler.cj", "// ${"x" * 100}\n"), ("y/main.cj", PROGRAM), ("y/util.cj", "func helper() {}")])

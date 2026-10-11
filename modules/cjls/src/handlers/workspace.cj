@@ -157,7 +157,7 @@ struct LoadRequest {
          */
         let budget: Int64,
         /**
-         * The documents open: loose files take them, and their directories, first (D79).
+         * The documents open: loose files take them, and their directories, first (D80).
          */
         let open: Array<VfsPath>
     ) {}
@@ -335,7 +335,7 @@ func partialRootsOf(loads: Array<ProjectLoad>): Array<VfsPath> {
 
 /**
  * `paths`, those in a directory of a document of `open` first, as they come otherwise: the
- * packages of what the editor shows are read before the budget runs out (D79).
+ * packages of what the editor shows are read before the budget runs out (D80).
  */
 func openFirst(paths: Array<VfsPath>, open: Array<VfsPath>): Array<VfsPath> {
     if (open.isEmpty()) {

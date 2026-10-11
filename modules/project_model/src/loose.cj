@@ -23,7 +23,7 @@ const DEFAULT_PACKAGE = "default"
  * the directory of its first file, and a module per root package, rooted at `root`, with `std`
  * alone to import. At most `budget` bytes of files are taken, as a load would read no more: the
  * directories of the documents `open` under `root` first, those documents whatever their size, then
- * the rest in walk order (D79). The load says whether any file was left out (`partial`).
+ * the rest in walk order (D80). The load says whether any file was left out (`partial`).
  *
  * Files without a `package` line two or more of which declare `main` are programs compiled one by
  * one (D67): each that does is a module `default` of its own, rooted at the file, its package

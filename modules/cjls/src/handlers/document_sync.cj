@@ -10,7 +10,7 @@ import cjls.macros.LspHandler
 /**
  * From now until `didClose`, the file holds what the editor's buffer does. A document among the
  * files a root's loose project left out, past the load budget, finds the project again, which
- * takes it and its directory first (D79); a load running does that at its end.
+ * takes it and its directory first (D80); a load running does that at its end.
  */
 @LspHandler
 func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTextDocumentParams): Unit {

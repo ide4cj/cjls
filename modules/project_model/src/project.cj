@@ -42,7 +42,7 @@ public struct ProjectLoad {
         public let problems: Array<String>,
         /**
          * Whether files of the source were left out of the model, past the budget: a document
-         * opened among them is not in it (D79).
+         * opened among them is not in it (D80).
          */
         public let partial!: Bool = false) {}
 }

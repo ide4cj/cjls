@@ -1,4 +1,4 @@
-# ADR-0079: A document open is in the project: loose files take the open documents and their directories first, those documents past the budget, and one opened among the files left out finds the project again
+# ADR-0080: A document open is in the project: loose files take the open documents and their directories first, those documents past the budget, and one opened among the files left out finds the project again
 
 Status: accepted, 2026-10-11
 Amends ADR-0031: the budget never leaves an open document out of a loose project

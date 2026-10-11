@@ -140,7 +140,7 @@ public class ServerState <: FromContext<ServerState> {
     /**
      * The roots of loose files the last project set left files out of, past the load budget: a
      * document opened there may be none of the project's, and the project is found again for it
-     * (D79).
+     * (D80).
      */
     public var partialRoots: Array<VfsPath> = []
 
@@ -342,7 +342,7 @@ public class ServerState <: FromContext<ServerState> {
 
     /**
      * Whether the Cangjie file at `path` is under a root the last project left files out of, and
-     * none of its own: a document open there is analyzed once the project is found again (D79).
+     * none of its own: a document open there is analyzed once the project is found again (D80).
      */
     public func leftOut(path: VfsPath): Bool {
         !inProject(path) && isWorkspaceFile(path, partialRoots)
