@@ -87,7 +87,7 @@ public func resolveField(db: AnalysisDatabase, def: DefId, expr: ExprId): FieldR
                 FieldResolution.PackageMembers(ids)
             }
         case TypesReceiver(types) =>
-            let targets = memberLookup(db, types, name, from: sourceFileOf(db, def))
+            let targets = memberLookup(db, types, name, from: sourceFileOf(db, def), on: receiverTyOf(db, def, receiver))
             if (targets.isEmpty()) {
                 FieldResolution.NoField
             } else {
@@ -130,6 +130,51 @@ public func receiverOf(db: AnalysisDatabase, def: DefId, expr: ExprId): Receiver
         }
         case MissingExpr => NoReceiver
         case _ => ValueReceiver
+    }
+}
+
+/**
+ * The type `expr`, the left of a `.` in the body of `def` that names types, is as far as names
+ * tell: `this`'s, `super`'s as an instance of the superclass, a type of the language, a declared
+ * type or an alias, its type arguments those written, else unknown (`Box.make()`, which cjc
+ * infers); `None` for a type parameter, whose members are its bounds'.
+ */
+func receiverTyOf(db: AnalysisDatabase, def: DefId, expr: ExprId): ?Ty {
+    match (body(db, def)[expr]) {
+        case ThisExpr => selfTyAround(db, def)
+        case SuperExpr => match ((superclassOf(db, def), selfTyAround(db, def))) {
+            case (Some(DeclType(id)), Some(own)) => asInstanceOf(db, own, id, sourceFileOf(db, def))
+            case _ => None
+        }
+        case PrimExpr(name) => Ty(db, PrimTy(name))
+        case PathExpr(name, args) => match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), name)) {
+            case InFile(Found(ids)) => namedTyOf(db, def, ids[0], args)
+            case _ => None
+        }
+        case FieldExpr(_, _, args) => match (resolveField(db, def, expr)) {
+            case PackageMembers(ids) => namedTyOf(db, def, ids[0], args)
+            case _ => None
+        }
+        case _ => None
+    }
+}
+
+/**
+ * The type the declaration `id`, a type or an alias of one, named in the body of `def` with the
+ * type arguments `args`, is; its type parameters unknown unless as many are written.
+ */
+func namedTyOf(db: AnalysisDatabase, def: DefId, id: DefId, args: Array<TypeRefId>): ?Ty {
+    let count = genericsOf(db, id).size
+    let applied = if (count > 0 && args.size == count) {
+        let lowering = SourceTyLowering(db, def, body(db, def))
+        args.map {one => lowering.lowerType(one)}
+    } else {
+        Array(count) {_ => Ty(db, ErrorTy)}
+    }
+    match (id.item(db).kind) {
+        case Class | Interface | Struct | Enum | BuiltIn => Ty(db, DeclTy(id, applied))
+        case TypeAlias => signatureTypes(db, id).ty.map {aliased => substitute(db, aliased, id, applied)}
+        case _ => None
     }
 }
 

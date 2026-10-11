@@ -115,11 +115,25 @@ public enum MemberTarget <: ToString {
 
 /**
  * The level of members of the type around the body of `def`, as seen from its file (N69, N70):
- * `memberLookup` from that type.
+ * `memberLookup` from that type, on its self type (`selfTyAround`).
  */
 public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<MemberTarget> {
     let start = enclosingTypeOf(db, def) ?? return []
-    memberLookup(db, [start], name, from: sourceFileOf(db, def))
+    memberLookup(db, [start], name, from: sourceFileOf(db, def), on: selfTyAround(db, def))
+}
+
+/**
+ * The type the body of `def`, a member, is in, as its members see it: its type's own, its type
+ * parameters its arguments (`C<T>`), or the type its `extend` extends (`Box<String>`); `None`
+ * outside a type.
+ */
+func selfTyAround(db: AnalysisDatabase, def: DefId): ?Ty {
+    let parent = parentOf(db, def) ?? return None
+    match (parent.item(db).kind) {
+        case Extend => signatureTypes(db, parent).ty
+        case Class | Interface | Struct | Enum => selfTyOf(db, parent)
+        case _ => None
+    }
 }
 
 /**
@@ -153,10 +167,12 @@ func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
  * nearest that has `name` deciding but for functions, which gather over the levels (N69, N70, N77).
  * A member's modifiers do not hide it: cjc finds a private member of a supertype, or one of an
  * `extend` seen through an interface it does not declare, then says it cannot be accessed or is no
- * member (N80, N82).
+ * member (N80, N82). Looked up on a type `on`, an instance of `start`'s, an `extend` of another
+ * instance is none of its (N86), and a function overriding or implementing another hides it
+ * (N107): what cjc takes for a name of the type around a body, or after a type.
  */
 public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name: String,
-    from!: ?SourceFile): Array<MemberTarget> {
+    from!: ?SourceFile, on!: ?Ty = None): Array<MemberTarget> {
     let funcs = ArrayList<MemberTarget>()
     let seen = HashSet<ExtendedType>(start)
     var level = start
@@ -164,7 +180,10 @@ public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name:
         let found = ArrayList<MemberTarget>()
         let next = ArrayList<ExtendedType>()
         for (ty in level) {
-            let extends = extendsOf(db, ty, from)
+            let extends = match (on) {
+                case Some(recv) => extendsOf(db, ty, from).filter {ext => isExtendOf(db, ext, recv, from)}
+                case None => extendsOf(db, ty, from)
+            }
             found.add(all: ownMembersNamed(db, ty, name))
             for (ext in extends) {
                 found.add(all: membersOfItem(db, ext, name))
@@ -189,7 +208,48 @@ public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name:
         }
         level = next.toArray()
     }
-    funcs.toArray()
+    match (on) {
+        case Some(recv) => notOverridden(db, funcs.toArray(), recv, from)
+        case None => funcs.toArray()
+    }
+}
+
+/**
+ * Whether the `extend` `ext` extends `recv`, or a type `recv` is an instance of (N86): any of a
+ * type of no type parameters does; of a generic type, one whose type `recv` gives arguments.
+ */
+func isExtendOf(db: AnalysisDatabase, ext: DefId, recv: Ty, from: ?SourceFile): Bool {
+    match (extendedTypeOf(db, ext)) {
+        case Some(DeclType(id)) where genericsOf(db, id).isEmpty() => true
+        case Some(PrimType(_)) => true
+        case _ => ownerArgs(db, ext, recv, from).isSome()
+    }
+}
+
+/**
+ * `targets`, the nearest first, but the functions whose parameters, seen on `recv`, a nearer one
+ * has: those it overrides or implements (N107). A function's own type parameters are unknown
+ * there, as inference compares its candidates.
+ */
+func notOverridden(db: AnalysisDatabase, targets: Array<MemberTarget>, recv: Ty, from: ?SourceFile): Array<MemberTarget> {
+    if (targets.size < 2) {
+        return targets
+    }
+    let kept = ArrayList<MemberTarget>()
+    let params = ArrayList<Array<Ty>>()
+    for (target in targets) {
+        if (let MemberDecl(id) <- target && id.item(db).kind == ItemKind.Func) {
+            let own = signatureTypes(db, id).params.map {
+                one => eraseParams(db, asMemberOf(db, one, id, recv, from) ?? Ty(db, ErrorTy), id)
+            }
+            if (params.iterator().any {other => other == own}) {
+                continue
+            }
+            params.add(own)
+        }
+        kept.add(target)
+    }
+    kept.toArray()
 }
 
 func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
