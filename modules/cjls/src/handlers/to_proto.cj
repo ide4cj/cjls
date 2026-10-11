@@ -225,7 +225,12 @@ func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
 }
 
 /**
- * The token types the server sends, LSP's own only, so every theme knows them (D19); a token's
+ * A name that means nothing: no type of LSP's own says so (D72).
+ */
+let UNRESOLVED_REFERENCE = SemanticTokenTypes("unresolvedReference")
+
+/**
+ * The token types the server sends, LSP's own but one, `unresolvedReference` (D19, D72); a token's
  * type is its index here.
  */
 let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,
@@ -234,17 +239,18 @@ let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, Seman
     SemanticTokenTypes.INTERFACE, SemanticTokenTypes.STRUCT, SemanticTokenTypes.ENUM,
     SemanticTokenTypes.ENUM_MEMBER, SemanticTokenTypes.TYPE_PARAMETER, SemanticTokenTypes.FUNCTION,
     SemanticTokenTypes.METHOD, SemanticTokenTypes.PROPERTY, SemanticTokenTypes.VARIABLE,
-    SemanticTokenTypes.PARAMETER]
+    SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE]
 
 /**
- * The modifiers, LSP's own too; a token's modifiers are bits by their index here.
+ * The modifiers, LSP's own but one, `mutable` (D72); a token's modifiers are bits by their index here.
  */
 let TOKEN_MODIFIERS = [(SemanticTokenModifiers.DECLARATION, HighlightModifier.Declaration),
     (SemanticTokenModifiers.DOCUMENTATION, HighlightModifier.Documentation),
     (SemanticTokenModifiers.READONLY, HighlightModifier.Readonly),
     (SemanticTokenModifiers.STATIC, HighlightModifier.Static),
     (SemanticTokenModifiers.DEPRECATED, HighlightModifier.Deprecated),
-    (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary)]
+    (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary),
+    (SemanticTokenModifiers("mutable"), HighlightModifier.Mutable)]
 
 func semanticTokensLegend(): SemanticTokensLegend {
     SemanticTokensLegend(tokenTypes: TOKEN_TYPES.map {it => it.value},
@@ -267,7 +273,9 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
         case HighlightTag.BuiltinType | HighlightTag.TypeName => SemanticTokenTypes.TYPE
         case HighlightTag.TypeParameter => SemanticTokenTypes.TYPE_PARAMETER
         case HighlightTag.Parameter => SemanticTokenTypes.PARAMETER
-        case HighlightTag.Declared(kind) => match (kind) {
+        case HighlightTag.Namespace => SemanticTokenTypes.NAMESPACE
+        case HighlightTag.UnresolvedReference => UNRESOLVED_REFERENCE
+        case HighlightTag.Symbol(kind) => match (kind) {
             case StructureKind.Class => SemanticTokenTypes.CLASS
             case StructureKind.Interface => SemanticTokenTypes.INTERFACE
             case StructureKind.Struct => SemanticTokenTypes.STRUCT

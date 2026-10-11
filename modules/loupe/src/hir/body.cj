@@ -352,46 +352,96 @@ public struct Body {
 }
 
 /**
- * Where each expression, pattern, local and type of a body is written: a local by its name.
+ * Where each expression, pattern, local and type of a body is written: a local by its name; and the
+ * other way round, by hash, for what asks of every name of a file.
  */
-@Derive[Equatable]
-public struct BodySourceMap {
-    public BodySourceMap(
-        public let exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        public let pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        public let locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        public let types!: Array<?SyntaxNodePtr<SyntaxKind>> = []
-    ) {}
+public struct BodySourceMap <: Equatable<BodySourceMap> {
+    public let exprs: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let pats: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let locals: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let types: Array<?SyntaxNodePtr<SyntaxKind>>
+    private let exprIndex: PtrIndex
+    private let patIndex: PtrIndex
+    private let localIndex: PtrIndex
+    private let typeIndex: PtrIndex
+
+    public init(exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [], pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
+        locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [], types!: Array<?SyntaxNodePtr<SyntaxKind>> = []) {
+        this.exprs = exprs
+        this.pats = pats
+        this.locals = locals
+        this.types = types
+        exprIndex = PtrIndex(exprs)
+        patIndex = PtrIndex(pats)
+        localIndex = PtrIndex(locals)
+        typeIndex = PtrIndex(types)
+    }
 
     /**
      * The expression of the node `ptr` as written: of a node desugared, the first of those of the
      * node, the `match`es it is desugared into after it (A29).
      */
     public func exprAt(ptr: SyntaxNodePtr<SyntaxKind>): ?ExprId {
-        indexOf(exprs, ptr).map {i => ExprId(i)}
+        match (exprIndex.get(ptr)) {
+            case Some(i) => ExprId(i)
+            case None => None
+        }
     }
 
     public func patAt(ptr: SyntaxNodePtr<SyntaxKind>): ?PatId {
-        indexOf(pats, ptr).map {i => PatId(i)}
+        match (patIndex.get(ptr)) {
+            case Some(i) => PatId(i)
+            case None => None
+        }
     }
 
     /**
      * The local whose name `ptr` points to.
      */
     public func localAt(ptr: SyntaxNodePtr<SyntaxKind>): ?LocalId {
-        indexOf(locals, ptr).map {i => LocalId(i)}
+        match (localIndex.get(ptr)) {
+            case Some(i) => LocalId(i)
+            case None => None
+        }
     }
 
     public func typeAt(ptr: SyntaxNodePtr<SyntaxKind>): ?TypeRefId {
-        indexOf(types, ptr).map {i => TypeRefId(i)}
+        match (typeIndex.get(ptr)) {
+            case Some(i) => TypeRefId(i)
+            case None => None
+        }
+    }
+
+    /**
+     * Field by field, but the indexes, which the arrays make.
+     */
+    public operator func ==(other: BodySourceMap): Bool {
+        exprs == other.exprs && pats == other.pats && locals == other.locals && types == other.types
+    }
+
+    public operator func !=(other: BodySourceMap): Bool {
+        !(this == other)
     }
 }
 
-func indexOf(ptrs: Array<?SyntaxNodePtr<SyntaxKind>>, ptr: SyntaxNodePtr<SyntaxKind>): ?Int64 {
-    for (i in 0..ptrs.size where ptrs[i] == ptr) {
-        return i
+/**
+ * The first index of each pointer of an array.
+ */
+class PtrIndex {
+    private let first: HashMap<SyntaxNodePtr<SyntaxKind>, Int64>
+
+    init(ptrs: Array<?SyntaxNodePtr<SyntaxKind>>) {
+        first = HashMap<SyntaxNodePtr<SyntaxKind>, Int64>(ptrs.size)
+        for (i in 0..ptrs.size) {
+            if (let Some(ptr) <- ptrs[i] && !first.contains(ptr)) {
+                first.add(ptr, i)
+            }
+        }
     }
-    None
+
+    func get(ptr: SyntaxNodePtr<SyntaxKind>): ?Int64 {
+        first.get(ptr)
+    }
 }
 
 @Derive[Equatable]

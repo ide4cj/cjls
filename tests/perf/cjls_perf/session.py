@@ -26,6 +26,12 @@ CAPABILITIES = types.ClientCapabilities(
         document_symbol=types.DocumentSymbolClientCapabilities(hierarchical_document_symbol_support=True),
         publish_diagnostics=types.PublishDiagnosticsClientCapabilities(),
         diagnostic=types.DiagnosticClientCapabilities(),
+        semantic_tokens=types.SemanticTokensClientCapabilities(
+            requests=types.ClientSemanticTokensRequestOptions(full=True),
+            token_types=[kind.value for kind in types.SemanticTokenTypes],
+            token_modifiers=[modifier.value for modifier in types.SemanticTokenModifiers],
+            formats=[types.TokenFormat.Relative],
+        ),
     ),
 )
 
@@ -284,6 +290,15 @@ class Session:
             self.timeout,
         )
         return result or []
+
+    async def semantic_tokens(self, uri: str) -> list[int]:
+        result = await asyncio.wait_for(
+            self.client.text_document_semantic_tokens_full_async(
+                types.SemanticTokensParams(text_document=types.TextDocumentIdentifier(uri=uri))
+            ),
+            self.timeout,
+        )
+        return result.data if result else []
 
 
 def column(text: str, encoding: str) -> int:

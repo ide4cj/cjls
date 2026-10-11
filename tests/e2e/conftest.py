@@ -47,6 +47,15 @@ async def loaded(client: LanguageClient, loads: int = 1):
         await client.wait_for_notification(types.PROGRESS)
 
 
+def answers_refreshes(client: LanguageClient):
+    """Answers the server asking for semantic tokens again, as an editor of `refreshSupport` does
+    (D72): it may ask after any change of the files."""
+
+    @client.feature(types.WORKSPACE_SEMANTIC_TOKENS_REFRESH)
+    def refresh(_params: None):
+        return None
+
+
 async def hang_up(client: LanguageClient):
     """Ends a server a failed test left running: pygls' `stop` would wait for it forever."""
     server = client._server
@@ -66,6 +75,7 @@ async def client(request, lsp_client: LanguageClient):
 
     `position_encoding` holds the encoding the two agreed on.
     """
+    answers_refreshes(lsp_client)
     result = await lsp_client.initialize_session(
         types.InitializeParams(capabilities=capabilities(request.param))
     )
@@ -80,5 +90,6 @@ async def client(request, lsp_client: LanguageClient):
 @pytest_lsp.fixture(config=CONFIG)
 async def server(lsp_client: LanguageClient):
     """A server just started: the test takes it through its lifecycle itself."""
+    answers_refreshes(lsp_client)
     yield
     await hang_up(lsp_client)

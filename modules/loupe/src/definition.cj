@@ -6,8 +6,7 @@ import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, BindPat, EnumPat, IndexExpr, MacroExpandDecl, MacroExpandExpr,
-    MemberAccessExpr, NameRef, PathSegment, PathType, RefExpr, UnaryExpr}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, PathSegment, PathType, UnaryExpr}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -27,261 +26,60 @@ public struct NavigationTarget {
 }
 
 /**
- * What a name means, one thing however many names say it: a declaration, a local of a body, a type
- * parameter; rust-analyzer's `Definition`.
- */
-@Derive[Equatable]
-enum Symbol {
-    | DeclSymbol(DefId)
-    /**
-     * A local of the body of the declaration, a parameter of a primary constructor among them.
-     */
-    | LocalSymbol(DefId, LocalId)
-    | TypeParamSymbol(TypeTarget)
-}
-
-/**
- * Where the name at `offset` of the file is declared: a name in a type of a signature (D48) or of a
- * body, a name a body uses, a constructor a pattern names (D50), a member after a `.` of a package,
- * a type (D52) or a value (D55), the macro of a call; the operator function an operator calls (8e);
- * each candidate of an ambiguity or of an overload; a member `@Derive` adds, at the interface the
- * call names (#175). Nothing for a package, nor for a declaration of a package compiled already
- * whose binary's sources are not there (D65).
+ * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
+ * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
+ * call names (#175). Nothing for a package, nor for a declaration of a package compiled already whose binary's
+ * sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
-    let token = tokenAt(parse(db, file).syntaxNode(), offset) ?? return []
-    symbolsAt(db, file, token) |> filterMap {symbol: Symbol => navigationTarget(db, symbol)} |> collectArray
+    let root = parse(db, file).syntaxNode()
+    let token = tokenAt(root, offset) ?? return []
+    let defs = classifyName(db, file, itemAround(db, file, token.parent), token) ?? return []
+    defs |> filterMap {one: Definition => targetOfDefinition(db, one)} |> collectArray
 }
 
 /**
- * What the name `token` of `file` means, as `definitionAt` has it.
+ * The innermost item `node` is in, or is.
  */
-func symbolsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): Array<Symbol> {
-    if (let Some(symbols) <- macroSymbols(db, file, token)) {
-        return symbols
-    }
-    let def = itemAround(db, file, token) ?? return []
-    if (let Some((typeNode, segment)) <- typeAt(token)) {
-        return typeSymbols(db, def, typeNode, segment)
-    }
-    bodySymbols(db, def, token)
-}
-
-/**
- * The item `token` is in or of: the declaration whose signature or body it is in, or whose name it is.
- */
-func itemAround(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ?DefId {
+func itemAround(db: AnalysisDatabase, file: SourceFile, node: CjSyntaxNode): ?DefId {
     let ids = itemIdMap(db, file)
-    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
+    let item = node.ancestors() |> filterMap {one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one))} |> first
     DefId(db, ItemFile.Source(file), item ?? return None)
 }
 
 /**
- * Where `symbol` is declared, if in a source.
+ * Where `definition` is declared; `None` for a package.
  */
-func navigationTarget(db: AnalysisDatabase, symbol: Symbol): ?NavigationTarget {
-    match (symbol) {
-        case DeclSymbol(id) => declTarget(db, id)
-        case LocalSymbol(def, local) => localTarget(db, def, local)
-        case TypeParamSymbol(target) => targetOf(db, target)
+func targetOfDefinition(db: AnalysisDatabase, definition: Definition): ?NavigationTarget {
+    match (definition) {
+        case DeclDef(id) => declTarget(db, id)
+        case LocalDef(def, local) => localTarget(db, def, local)
+        case MemberParamDef(ctor, local) => localTarget(db, ctor, local)
+        case TypeParamDef(target) => targetOf(db, target)
+        case PackageDef(_) => None
     }
-}
-
-/**
- * What the macro a call names means, if `token` is a segment of the name of one: looked up in the file's
- * scope, a macro being no local, whatever item the call is on or in.
- */
-func macroSymbols(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ?Array<Symbol> {
-    let name = NameRef.cast(token.parent) ?? return None
-    let call = name.syntax.parent ?? return None
-    let names = match ((MacroExpandDecl.cast(call), MacroExpandExpr.cast(call))) {
-        case (Some(decl), _) => decl.nameRefs() |> collectArray
-        case (_, Some(expr)) => expr.nameRefs() |> collectArray
-        case _ => return None
-    }
-    // A segment of a macro's name is nothing else: a file of no package leaves it nowhere, not to the lookups below.
-    let pkg = packageOfFile(db, file) ?? return []
-    let segment = names.map {one => one.syntax.textRange}.indexOf(name.syntax.textRange) ?? return []
-    let resolved = resolveMacroPath(db, pkg, file, names.map {one => one.text()})
-    resolutionSymbols(resolved[segment])
-}
-
-/**
- * What the name of the segment `segment` of the type `typeNode`, in the signature or the body of
- * `def`, means.
- */
-func typeSymbols(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, segment: Int64): Array<Symbol> {
-    let ptr = SyntaxNodePtr(typeNode)
-    let lowered = signatureWithSourceMap(db, def)
-    let (ty, resolve) = match (lowered.sourceMap.typeAt(ptr)) {
-        case Some(ty) => (lowered.signature[ty], {
-            path: Array<String> => resolveTypePath(db, typeScopeOf(db, def) ?? return Array<PathResolution>(), path)
-        })
-        case None =>
-            let lowered = bodyWithSourceMap(db, def)
-            let ty = lowered.sourceMap.typeAt(ptr) ?? return []
-            (lowered.body.types[ty.index], {path: Array<String> => resolveBodyTypePath(db, def, ty, path)})
-    }
-    match (ty) {
-        case PathRef(segments) => match (resolve(segments.map {one => one.name}).get(segment)) {
-            case Some(Resolved(target)) => listOf(typeSymbol(target))
-            case Some(AmbiguousPath(targets)) => targets |> filterMap {
-                target: ScopeTarget => match (target) {
-                    case OfDecl(id) => Some(DeclSymbol(id))
-                    case OfPackage(_) => None
-                }
-            } |> collectArray
-            case _ => []
-        }
-        case ThisRef => match (parentOf(db, def)) {
-            case Some(parent) where parent.item(db).kind == ItemKind.Class => [DeclSymbol(parent)]
-            case _ => []
-        }
-        case _ => []
-    }
-}
-
-/**
- * What a segment of a type names; nothing for a package.
- */
-func typeSymbol(target: TypeTarget): ?Symbol {
-    match (target) {
-        case TypeOf(id) => DeclSymbol(id)
-        case QualifierOf(_) => None
-        case _ => TypeParamSymbol(target)
-    }
-}
-
-/**
- * What the name `token`, in the body of `def`, means: what a name used there does (N59–N71), what
- * a name after a `.` does (N75–N79), the constructor a pattern names (N72), a local itself at its
- * declaration.
- */
-func bodySymbols(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Array<Symbol> {
-    let name = token.parent
-    let node = name.parent ?? return []
-    let lowered = bodyWithSourceMap(db, def)
-    let sourceMap = lowered.sourceMap
-    let pkg = match (def.file(db)) {
-        case Source(file) => packageOfFile(db, file) ?? return []
-        case _ => return []
-    }
-    // an operator: the operator function it calls (8e)
-    if (isOperator(token)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return []
-        return match (inferBody(db, def).calleeOf(expr)) {
-            case Some(decl) => [DeclSymbol(decl)]
-            case None => []
-        }
-    }
-    if (let Some(ref) <- RefExpr.cast(node)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return []
-        // of overloads, the one inference chose (8d)
-        if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
-            return [DeclSymbol(decl)]
-        }
-        return match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())) {
-            case Values(targets) => targets |> filterMap {target: ValueTarget => valueSymbol(def, target)} |> collectArray
-            case InFile(resolution) => resolutionSymbols(resolution)
-        }
-    }
-    if (let Some(access) <- MemberAccessExpr.cast(node)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return []
-        if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
-            return [DeclSymbol(decl)]
-        }
-        return match (resolveField(db, def, expr)) {
-            case PackageMembers(ids) => ids.map {id => DeclSymbol(id)}
-            case TypeMembers(targets) => targets.map {target => memberSymbol(target)}
-            // a member of a value: what its type has (D55)
-            case OfValue => (inferBody(db, def).fieldOf(expr) ?? []).map {target => memberSymbol(target)}
-            case NoField => []
-        }
-    }
-    if (let Some(bind) <- BindPat.cast(node)) {
-        let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return []
-        let ctors = if (lowered.body[local].lone) {
-            ctorsNamed(db, pkg, token.text())
-        } else {
-            Array<DefId>()
-        }
-        return if (ctors.isEmpty()) {
-            [LocalSymbol(def, local)]
-        } else {
-            ctors.map {id => DeclSymbol(id)}
-        }
-    }
-    if (let Some(segment) <- PathSegment.cast(node)) {
-        let pat = segment.syntax.parent.flatMap {one => EnumPat.cast(one)} ?? return []
-        let segments = pat.pathSegments() |> collectArray
-        if (segments.size == 1) {
-            return ctorsNamed(db, pkg, token.text()).map {id => DeclSymbol(id)}
-        }
-        return []
-    }
-    listOf(sourceMap.localAt(SyntaxNodePtr(name)).map {local => LocalSymbol(def, local)})
-}
-
-/**
- * What a name of the body of `def` stands for.
- */
-func valueSymbol(def: DefId, target: ValueTarget): ?Symbol {
-    match (target) {
-        case LocalOf(local) => LocalSymbol(def, local)
-        case MemberOf(member) => memberSymbol(member)
-        case DeclOf(id) => DeclSymbol(id)
-        case TypeParamOf(typeTarget) => typeSymbol(typeTarget)
-    }
-}
-
-/**
- * A member: its declaration, or the parameter of the primary constructor it is, a local of the
- * constructor's body.
- */
-func memberSymbol(target: MemberTarget): Symbol {
-    match (target) {
-        case MemberDecl(id) => DeclSymbol(id)
-        case MemberParam(ctor, local) => LocalSymbol(ctor, local)
-    }
-}
-
-/**
- * What the file's scope has: its declarations, its constructors.
- */
-func resolutionSymbols(resolution: Resolution): Array<Symbol> {
-    let ids = match (resolution) {
-        case Found(ids) => ids
-        case Ambiguous(targets) => targets |> filterMap {
-            target: ScopeTarget => match (target) {
-                case OfDecl(id) => Some(id)
-                case OfPackage(_) => Option<DefId>.None
-            }
-        } |> collectArray
-        case Ctors(own, imported) => own.concat(imported)
-        case _ => Array<DefId>()
-    }
-    ids.map {id => DeclSymbol(id)}
 }
 
 /**
  * The local `local` of the body of `def`: its name, in the node declaring it.
  */
 func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId): ?NavigationTarget {
+    let (file, name) = localName(db, def, local) ?? return None
+    NavigationTarget(file.fileId(db), name.parent?.textRange ?? name.textRange, name.textRange)
+}
+
+/**
+ * The name of the local `local` of the body of `def`, and its file.
+ */
+func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, CjSyntaxNode) {
     let file = match (def.file(db)) {
         case Source(file) => file
         case _ => return None
     }
     let ptr = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
     let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
-    NavigationTarget(file.fileId(db), name.parent?.textRange ?? name.textRange, name.textRange)
-}
-
-func listOf<T>(one: ?T): Array<T> {
-    match (one) {
-        case Some(it) => [it]
-        case None => []
-    }
+    (file, name)
 }
 
 /**

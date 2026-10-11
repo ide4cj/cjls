@@ -34,7 +34,7 @@ class SemanticTokensEncodingTest {
         // arrange
         let tokens = [
             HighlightedRange(TextRange(0, 3), HighlightTag.Keyword),
-            HighlightedRange(TextRange(4, 5), HighlightTag.Declared(StructureKind.Variable),
+            HighlightedRange(TextRange(4, 5), HighlightTag.Symbol(StructureKind.Variable),
                 modifiers: HighlightModifiers.NONE.plus(HighlightModifier.Declaration).plus(HighlightModifier.Readonly)),
             HighlightedRange(TextRange(8, 9), HighlightTag.NumberLiteral)
         ]
@@ -44,6 +44,28 @@ class SemanticTokensEncodingTest {
 
         // assert
         @Expect(result.data, [0, 0, 3, KEYWORD, 0, 0, 4, 1, VARIABLE, DECLARATION | READONLY, 0, 4, 1, NUMBER, 0])
+    }
+
+    @TestCase
+    func aPackageAnUnresolvedNameAndAVarGoAsTheLegendsOwnTypesAndModifier() {
+        // arrange
+        let legend = semanticTokensLegend()
+        let tokens = [
+            HighlightedRange(TextRange(0, 1), HighlightTag.Namespace),
+            HighlightedRange(TextRange(2, 3), HighlightTag.UnresolvedReference),
+            HighlightedRange(TextRange(4, 5), HighlightTag.Symbol(StructureKind.Variable),
+                modifiers: HighlightModifiers.NONE.plus(HighlightModifier.Mutable))
+        ]
+
+        // act
+        let data = semanticTokens(Rope("a b c"), tokens, Encoding.Utf16, false).data
+
+        // assert - D19's types keep their indices, the new ones come after
+        @Expect(legend.tokenTypes[Int64(data[3])], "namespace")
+        @Expect(legend.tokenTypes[Int64(data[8])], "unresolvedReference")
+        @Expect(legend.tokenTypes[Int64(data[13])], "variable")
+        @Expect(legend.tokenModifiers[6], "mutable")
+        @Expect(data[14], 1u32 << 6)
     }
 
     /**
@@ -173,5 +195,25 @@ class SemanticTokensTest {
 
         // assert
         @Expect(state.multilineTokens, multiline)
+    }
+
+    @TestCase[row in [
+        (ClientCapabilities(workspace: WorkspaceClientCapabilities(semanticTokens: SemanticTokensWorkspaceClientCapabilities(
+            refreshSupport: true))), true),
+        (ClientCapabilities(workspace: WorkspaceClientCapabilities(semanticTokens: SemanticTokensWorkspaceClientCapabilities())),
+            false),
+        (ClientCapabilities(), false)
+    ]]
+    func tokensAreRefreshedOnlyForAClientThatSaysItAsksAgain(row: (ClientCapabilities, Bool)) {
+        // arrange
+        let (capabilities, refreshes) = row
+        let state = ServerState()
+
+        // act
+        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+            capabilities: capabilities))
+
+        // assert
+        @Expect(state.refreshesSemanticTokens, refreshes)
     }
 }

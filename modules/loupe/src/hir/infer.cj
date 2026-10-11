@@ -18,16 +18,77 @@ let ARITHMETIC = ["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>"]
  * The members the name after the `.` of a value names, found from the value's type (N75).
  */
 @Derive[Equatable]
-public struct FieldTargets {
+public struct FieldTargets <: ByIndex {
     public FieldTargets(public let expr: ExprId, public let targets: Array<MemberTarget>) {}
+
+    public func keyIndex(): Int64 {
+        expr.index
+    }
 }
 
 /**
  * The declaration a call of several candidates takes, by its callee (8d).
  */
 @Derive[Equatable]
-public struct CalleeTarget {
+public struct CalleeTarget <: ByIndex {
     public CalleeTarget(public let expr: ExprId, public let decl: DefId) {}
+
+    public func keyIndex(): Int64 {
+        expr.index
+    }
+}
+
+/**
+ * What a name the body uses as a value means, as inference resolved it: what highlighting and go to
+ * definition read, not resolving it again.
+ */
+@Derive[Equatable]
+public struct NameTarget <: ByIndex {
+    public NameTarget(public let expr: ExprId, public let resolution: BodyResolution) {}
+
+    public func keyIndex(): Int64 {
+        expr.index
+    }
+}
+
+/**
+ * What the name after the `.` of an expression means, as inference resolved it before the types: a
+ * member of a package or of types, or one of a value, which `FieldTargets` tells.
+ */
+@Derive[Equatable]
+public struct AccessTarget <: ByIndex {
+    public AccessTarget(public let expr: ExprId, public let resolution: FieldResolution) {}
+
+    public func keyIndex(): Int64 {
+        expr.index
+    }
+}
+
+/**
+ * What was found of an expression or a type, in an array sorted by its index.
+ */
+public interface ByIndex {
+    func keyIndex(): Int64
+}
+
+/**
+ * The one of `sorted` whose index is `index`, by bisection.
+ */
+func findByIndex<T>(sorted: Array<T>, index: Int64): ?T where T <: ByIndex {
+    var low = 0
+    var high = sorted.size
+    while (low < high) {
+        let middle = (low + high) / 2
+        let at = sorted[middle].keyIndex()
+        if (at == index) {
+            return sorted[middle]
+        } else if (at < index) {
+            low = middle + 1
+        } else {
+            high = middle
+        }
+    }
+    None
 }
 
 /**
@@ -47,6 +108,19 @@ public struct InferenceResult {
         public let locals!: Array<Ty> = [],
         public let fields!: Array<FieldTargets> = [],
         public let callees!: Array<CalleeTarget> = [],
+        /**
+         * What each name used as a value means, by its expression.
+         */
+        public let names!: Array<NameTarget> = [],
+        /**
+         * What the name after each `.` means, by its expression.
+         */
+        public let accesses!: Array<AccessTarget> = [],
+        /**
+         * What each segment of each path of a type the body writes names, by the type: of those
+         * inference lowered.
+         */
+        public let typePaths!: Array<TypePathTarget> = [],
         /**
          * The type the body gives its declaration: a function's return type, a variable's type;
          * `None` for one of no such type.
@@ -76,7 +150,10 @@ public struct InferenceResult {
      * The members the name after the `.` of `expr` names, if it follows a value.
      */
     public func fieldOf(expr: ExprId): ?Array<MemberTarget> {
-        fields.iterator().filter {one => one.expr == expr}.next().map {one => one.targets}
+        match (findByIndex(fields, expr.index)) {
+            case Some(one) => one.targets
+            case None => None
+        }
     }
 
     /**
@@ -84,7 +161,40 @@ public struct InferenceResult {
      * operator function the operator `expr` calls (8e).
      */
     public func calleeOf(expr: ExprId): ?DefId {
-        callees.iterator().filter {one => one.expr == expr}.next().map {one => one.decl}
+        match (findByIndex(callees, expr.index)) {
+            case Some(one) => one.decl
+            case None => None
+        }
+    }
+
+    /**
+     * What the name `expr` uses as a value means, if inference resolved it.
+     */
+    public func nameOf(expr: ExprId): ?BodyResolution {
+        match (findByIndex(names, expr.index)) {
+            case Some(one) => one.resolution
+            case None => None
+        }
+    }
+
+    /**
+     * What the name after the `.` of `expr` means, if inference resolved it.
+     */
+    public func accessOf(expr: ExprId): ?FieldResolution {
+        match (findByIndex(accesses, expr.index)) {
+            case Some(one) => one.resolution
+            case None => None
+        }
+    }
+
+    /**
+     * What each segment of the path of the type `ty` of the body names, if inference lowered it.
+     */
+    public func typePathOf(ty: TypeRefId): ?Array<PathResolution> {
+        match (findByIndex(typePaths, ty.index)) {
+            case Some(one) => one.resolution
+            case None => None
+        }
     }
 }
 
@@ -216,6 +326,10 @@ class Inference {
     private let fields = HashMap<Int64, FieldTargets>()
     // by callee: an argument inferred again replaces what it found
     private let callees = HashMap<Int64, CalleeTarget>()
+    // by expression: what each name used as a value means, resolved once
+    private let names = HashMap<Int64, BodyResolution>()
+    // by expression: what the name after each `.` means, resolved once
+    private let access = HashMap<Int64, FieldResolution>()
     private let frames = ArrayList<Frame>()
     // the first variable of the next call inferred: those of the calls being inferred are under it
     private var nextVar = 0
@@ -272,7 +386,38 @@ class Inference {
         sort(found, by: {a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index)})
         let chosen = callees.values().toArray()
         sort(chosen, by: {a: CalleeTarget, b: CalleeTarget => a.expr.index.compare(b.expr.index)})
-        InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, callees: chosen, ty: ty)
+        let resolved = names |> map {entry: (Int64, BodyResolution) => NameTarget(ExprId(entry[0]), entry[1])} |>
+            collectArray
+        sort(resolved, by: {a: NameTarget, b: NameTarget => a.expr.index.compare(b.expr.index)})
+        let accessed = access |> map {entry: (Int64, FieldResolution) => AccessTarget(ExprId(entry[0]), entry[1])} |>
+            collectArray
+        sort(accessed, by: {a: AccessTarget, b: AccessTarget => a.expr.index.compare(b.expr.index)})
+        InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, callees: chosen, names: resolved,
+            accesses: accessed, typePaths: lowering.typePaths(), ty: ty)
+    }
+
+    /**
+     * What the name `name` of the expression `expr` means: resolved once, whatever candidate is tried.
+     */
+    private func resolveName(expr: ExprId, name: String): BodyResolution {
+        if (let Some(known) <- names.get(expr.index)) {
+            return known
+        }
+        let found = resolveBodyName(db, def, scopes.scopeOf(expr), name)
+        names.add(expr.index, found)
+        found
+    }
+
+    /**
+     * What the name after the `.` of `expr` means: resolved once, whatever candidate is tried.
+     */
+    private func resolveAccess(expr: ExprId): FieldResolution {
+        if (let Some(known) <- access.get(expr.index)) {
+            return known
+        }
+        let found = resolveField(db, def, expr)
+        access.add(expr.index, found)
+        found
     }
 
     private func setExpr(id: ExprId, ty: ?Ty): Unit {
@@ -785,12 +930,12 @@ class Inference {
      */
     private func macroFailure(callee: ExprId): Ty {
         let byMacro = match (hir[callee]) {
-            case FieldExpr(receiver, _, _) => match (resolveField(db, def, callee)) {
+            case FieldExpr(receiver, _, _) => match (resolveAccess(callee)) {
                 case OfValue => isMacroTyped(tyOf(receiver))
                 case TypeMembers(_) => isMacroTyped(typeOfReceiver(receiver, None))
                 case _ => false
             }
-            case PathExpr(name, _) => match (resolveBodyName(db, def, scopes.scopeOf(callee), name)) {
+            case PathExpr(name, _) => match (resolveName(callee, name)) {
                 case Values(targets) where targets.iterator().all {
                     one => match (one) {
                         case LocalOf(_) => true
@@ -1618,7 +1763,7 @@ class Inference {
      */
     private func pathTy(id: ExprId, name: String, args: Array<TypeRefId>, expected: ?Ty): Ty {
         let explicit = args.map {one => typeAt(one)}
-        match (resolveBodyName(db, def, scopes.scopeOf(id), name)) {
+        match (resolveName(id, name)) {
             case Values(targets) where targets.size == 1 => match (targets[0]) {
                 case LocalOf(local) => locals[local.index]
                 case MemberOf(target) => memberValueTy(target, thisTy())
@@ -1957,7 +2102,7 @@ class Inference {
                     // a value no function: a macro may have made one of its name
                     macroFailure(callee)
                 }
-            case FieldExpr(receiver, _, _) => match (resolveField(db, def, callee)) {
+            case FieldExpr(receiver, _, _) => match (resolveAccess(callee)) {
                 case OfValue =>
                     let recv = tyOf(receiver)
                     if (isUnknown(db, recv) || !fields.contains(callee.index)) {
@@ -2035,7 +2180,7 @@ class Inference {
         match (hir[id]) {
             case LitExpr(text) => !isNumber(text)
             case StrExpr(_) | ThisExpr => true
-            case PathExpr(name, _) => match (resolveBodyName(db, def, scopes.scopeOf(id), name)) {
+            case PathExpr(name, _) => match (resolveName(id, name)) {
                 case Values(targets) where targets.size == 1 => match (targets[0]) {
                     case LocalOf(_) => true
                     case DeclOf(decl) => isValue(decl)
@@ -2047,7 +2192,7 @@ class Inference {
                 case _ => false
             }
             // of a value, a member is looked up from its type alone
-            case FieldExpr(receiver, _, _) => match (resolveField(db, def, id)) {
+            case FieldExpr(receiver, _, _) => match (resolveAccess(id)) {
                 case OfValue => isSelfTyped(receiver)
                 case _ => false
             }
@@ -2373,7 +2518,7 @@ class Inference {
         match (hir[callee]) {
             case PathExpr(name, args) =>
                 let explicit = args.map {one => typeAt(one)}
-                match (resolveBodyName(db, def, scopes.scopeOf(callee), name)) {
+                match (resolveName(callee, name)) {
                     case Values(targets) =>
                         let found = ArrayList<Callable>()
                         for (target in targets) {
@@ -2425,7 +2570,7 @@ class Inference {
         expected: ?Ty): Array<Callable> {
         let explicit = args.map {one => typeAt(one)}
         let found = ArrayList<Callable>()
-        match (resolveField(db, def, expr)) {
+        match (resolveAccess(expr)) {
             case PackageMembers(ids) =>
                 noValue(receiver)
                 for (id in ids) {
@@ -2452,7 +2597,7 @@ class Inference {
      */
     private func fieldTy(expr: ExprId, receiver: ExprId, name: String, args: Array<TypeRefId>, expected: ?Ty): Ty {
         let explicit = args.map {one => typeAt(one)}
-        match (resolveField(db, def, expr)) {
+        match (resolveAccess(expr)) {
             case PackageMembers(ids) =>
                 noValue(receiver)
                 if (ids.size == 1) {
@@ -2563,7 +2708,7 @@ class Inference {
         match (hir[receiver]) {
             case ThisExpr | SuperExpr => infer(receiver, None)
             case PrimExpr(name) => prim(name)
-            case PathExpr(name, args) => match (resolveBodyName(db, def, scopes.scopeOf(receiver), name)) {
+            case PathExpr(name, args) => match (resolveName(receiver, name)) {
                 case Values(targets) where targets.size == 1 => match (targets[0]) {
                     case TypeParamOf(GenericOf(owner, index)) => Ty(db, ParamTy(owner, index))
                     case _ => error
@@ -2571,7 +2716,7 @@ class Inference {
                 case InFile(Found(ids)) where ids.size == 1 => typeOfDecl(ids[0], args.map {one => typeAt(one)}, expected)
                 case _ => error
             }
-            case FieldExpr(_, _, args) => match (resolveField(db, def, receiver)) {
+            case FieldExpr(_, _, args) => match (resolveAccess(receiver)) {
                 case PackageMembers(ids) where ids.size == 1 => typeOfDecl(ids[0], args.map {one => typeAt(one)}, expected)
                 case _ => error
             }
