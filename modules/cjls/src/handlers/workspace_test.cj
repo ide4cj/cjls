@@ -190,7 +190,7 @@ func textAt(state: ServerState, path: Path): ?String {
 }
 
 func openIn(state: ServerState, path: Path, text: String): Unit {
-    handleDidOpen(state, DidOpenTextDocumentParams(
+    handleDidOpen(Loop(state), Client(), NoopLogger(), DidOpenTextDocumentParams(
         textDocument: TextDocumentItem(uri: uriOf(path), languageId: LanguageKind("cangjie"), version: 1, text: text)))
 }
 
@@ -597,6 +597,116 @@ class DidChangeWatchedFilesTest {
         // assert
         @Expect(textAt(state, dir.join("target").join("out.cj")), None<String>)
         @Expect(textAt(state, dir.join("notes.md")), None<String>)
+    }
+}
+
+let PROGRAM = "main() {\n    helper()\n}\n"
+
+/**
+ * A root of loose files past a budget of 20 bytes: the filler and the program are each past it, the
+ * helper the program calls within it (D79).
+ */
+func partialRoot(): Path {
+    workspaceOf([("x/filler.cj", "// ${"x" * 100}\n"), ("y/main.cj", PROGRAM), ("y/util.cj", "func helper() {}")])
+}
+
+/**
+ * A state with the root `dir` loaded on a budget of 20 bytes.
+ */
+func loadedOnABudget(dir: Path): Loop {
+    let loop = initializedWith([dir], watches: false)
+    loop.state.loadBudget = 20
+    loop.state.locationLinks = true
+    initialized(loop, Client(), NoopLogger(), InitializedParams())
+    loop
+}
+
+func opening(path: Path, text: String): DidOpenTextDocumentParams {
+    DidOpenTextDocumentParams(
+        textDocument: TextDocumentItem(uri: uriOf(path), languageId: LanguageKind("cangjie"), version: 1, text: text))
+}
+
+@Test
+class LeftOutDocumentTest {
+    @TestCase
+    func aDocumentOpenedAmongTheFilesLeftOutIsAnalyzedWithItsDirectory() {
+        // arrange
+        let dir = partialRoot()
+        let loop = loadedOnABudget(dir)
+        let state = loop.state
+        let program = dir.join("y").join("main.cj")
+        let leftOut = state.leftOut(VfsPath.file(program))
+
+        // act
+        handleDidOpen(loop, Client(), NoopLogger(), opening(program, PROGRAM))
+        loop.join()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(leftOut)
+        @Expect(state.inProject(VfsPath.file(program)))
+        let links = linksOf(definitionOf(state, program, 1, 4))
+        @Expect(links.map {link => link.targetUri}, [uriOf(dir.join("y").join("util.cj"))])
+        @Expect(pulled(state.snapshot(), uri: uriOf(program)).size, 0)
+        @Expect(state.partialRoots, [VfsPath.file(dir)])
+    }
+
+    @TestCase
+    func aDocumentOpenedDuringALoadIsTakenByAnotherAtItsEnd() {
+        // arrange - the load was asked for before the document was opened
+        let dir = partialRoot()
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        let program = dir.join("y").join("main.cj")
+        let request = LoadRequest(state.beginLoad(), state.roots.toArray(), [], None, None, false, 20, [])
+        openIn(state, program, PROGRAM)
+
+        // act
+        load(loop, Client(), NoopLogger(), request)
+        loop.join()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(state.inProject(VfsPath.file(program)))
+        @Expect(textAt(state, dir.join("y").join("util.cj")), Some("func helper() {}"))
+    }
+
+    @TestCase
+    func aDocumentOpenedBeforeTheLoadIsTakenByIt() {
+        // arrange
+        let dir = partialRoot()
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        state.loadBudget = 20
+        let program = dir.join("y").join("main.cj")
+        openIn(state, program, PROGRAM)
+
+        // act
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(state.inProject(VfsPath.file(program)))
+        @Expect(textAt(state, dir.join("y").join("util.cj")), Some("func helper() {}"))
+    }
+
+    @TestCase
+    func aDocumentOfAWholeProjectFindsNoProjectAgain() {
+        // arrange - a document of no package, under a root whose files are all loaded
+        let dir = workspaceOf([("a.cj", "func a() {}"), ("target/b.cj", "func b() {}")])
+        let loop = initializedWith([dir], watches: false)
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        let outside = dir.join("target").join("b.cj")
+
+        // act
+        handleDidOpen(loop, Client(), NoopLogger(), opening(outside, "func b() {}"))
+        let loading = loop.state.loading
+        loop.join()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(!loading)
+        @Expect(loop.state.partialRoots.isEmpty())
     }
 }
 

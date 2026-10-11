@@ -39,7 +39,12 @@ public enum ProjectSource <: ToString {
  */
 public struct ProjectLoad {
     public ProjectLoad(public let model: ProjectModel, public let source: ProjectSource,
-        public let problems: Array<String>) {}
+        public let problems: Array<String>,
+        /**
+         * Whether files of the source were left out of the model, past the budget: a document
+         * opened among them is not in it (D79).
+         */
+        public let partial!: Bool = false) {}
 }
 
 /**
@@ -98,13 +103,14 @@ class Loading {
 
 /**
  * The project of the directory `root`, the first that is there: its `cj-project.json`, its
- * `cjpm.toml`, or its loose files, of which at most `budget` bytes. A manifest that cannot be read
- * is told in the problems, and the next way is taken.
+ * `cjpm.toml`, or its loose files, of which at most `budget` bytes, the documents `open` among
+ * them in any case. A manifest that cannot be read is told in the problems, and the next way is
+ * taken.
  *
  * `env` gives the value of an environment variable, for `${VAR}` and `CANGJIE_HOME`.
  */
 public func findProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg(),
-    budget!: Int64 = Int64.Max): ProjectLoad {
+    budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): ProjectLoad {
     let problems = ArrayList<String>()
     for (load in [{=> loadProjectJson(root.join(PROJECT_JSON), env: env, cfg: cfg)},
         {=> loadCjpmProject(root.join("cjpm.toml"), env: env, cfg: cfg)}]) {
@@ -117,9 +123,9 @@ public func findProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = ho
             problems.add(e.message)
         }
     }
-    let loose = looseProject(root, env: env, cfg: cfg, budget: budget)
+    let loose = looseProject(root, env: env, cfg: cfg, budget: budget, open: open)
     problems.add(all: loose.problems)
-    ProjectLoad(loose.model, loose.source, problems.toArray())
+    ProjectLoad(loose.model, loose.source, problems.toArray(), partial: loose.partial)
 }
 
 /**
@@ -330,7 +336,7 @@ func isFile(path: Path): Bool {
     }
 }
 
-private func entriesOf(dir: VfsPath): Array<FileInfo> {
+func entriesOf(dir: VfsPath): Array<FileInfo> {
     let path = dir.filePath ?? return []
     try {
         Directory.readFrom(path)
@@ -342,21 +348,22 @@ private func entriesOf(dir: VfsPath): Array<FileInfo> {
 /**
  * The projects of `roots`, each the first there is: the `cj-project.json` in it, the projects of
  * `linked` under it, its `cjpm.toml`, its loose files. A project of `linked` (a `cj-project.json`,
- * or a directory to find one in) under no root is there too.
+ * or a directory to find one in) under no root is there too. Loose files take the documents `open`
+ * first, and those whatever the budget.
  */
 public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (String) -> ?String,
-    cfg!: Cfg = hostCfg(), budget!: Int64 = Int64.Max): Array<ProjectLoad> {
+    cfg!: Cfg = hostCfg(), budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): Array<ProjectLoad> {
     let loads = ArrayList<ProjectLoad>()
     for (root in roots) {
         let under = linked.filter {path => path.isUnder(root)}
         if (under.isEmpty() || (root.join(PROJECT_JSON).filePath.map {path => isFile(path)} ?? false)) {
-            loads.add(findProject(root, env: env, cfg: cfg, budget: budget))
+            loads.add(findProject(root, env: env, cfg: cfg, budget: budget, open: open))
         } else {
-            loads.add(all: under.map {path => linkedProject(path, env, cfg, budget)})
+            loads.add(all: under.map {path => linkedProject(path, env, cfg, budget, open)})
         }
     }
     for (path in linked where !roots.iterator().any {root => path.isUnder(root)}) {
-        loads.add(linkedProject(path, env, cfg, budget))
+        loads.add(linkedProject(path, env, cfg, budget, open))
     }
     loads.toArray()
 }
@@ -365,10 +372,11 @@ public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (S
  * The project `path` names: a `cj-project.json`, or a directory to find one in. One that cannot be
  * read is no project, and says why.
  */
-func linkedProject(path: VfsPath, env: (String) -> ?String, cfg: Cfg, budget: Int64): ProjectLoad {
+func linkedProject(path: VfsPath, env: (String) -> ?String, cfg: Cfg, budget: Int64,
+    open: Array<VfsPath>): ProjectLoad {
     let isProjectFile = path.filePath.map {file => isFile(file)} ?? false
     if (!isProjectFile) {
-        return findProject(path, env: env, cfg: cfg, budget: budget)
+        return findProject(path, env: env, cfg: cfg, budget: budget, open: open)
     }
     try {
         if (let Some(load) <- loadProjectJson(path, env: env, cfg: cfg)) {

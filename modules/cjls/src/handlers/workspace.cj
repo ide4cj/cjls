@@ -1,9 +1,8 @@
 package cjls.handlers
 
-import std.collection.{ArrayList, HashMap, HashSet}
+import std.collection.{ArrayList, collectArray, HashMap, HashSet}
 import std.env.getVariable
 import std.fs.{FileInfo, FSException}
-import std.runtime.getMaxHeapSize
 import std.time.MonoTime
 import stdx.log.Logger
 import stdxx.Nullable
@@ -12,8 +11,8 @@ import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
-import project_model.{CangjieHome, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON,
-    withCangjieHome, withCangjieSrc}
+import project_model.{CangjieHome, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON, ProjectLoad,
+    ProjectSource, withCangjieHome, withCangjieSrc}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -23,17 +22,6 @@ import cjls.macros.LspHandler
  * matches most of a workspace, and an editor shows a list to pick from, not thousands.
  */
 const WORKSPACE_SYMBOL_LIMIT = 128
-
-/**
- * How much a load reads at most, in bytes, the `.cjo` of the binaries first and the text of the
- * sources then: a sixteenth of the heap. On the runtime's default
- * of 256 MiB, 16 MiB of text was loaded and searched and 32 MiB ran out of memory (D30); a root far
- * wider than a project (a home directory, a test suite of a hundred thousand files) would fill any
- * heap with text alone.
- */
-func loadBudget(): Int64 {
-    getMaxHeapSize() / 16
-}
 
 /**
  * The files of every root are watched, then loaded: a change on disk between the two is reported,
@@ -163,7 +151,15 @@ struct LoadRequest {
         /**
          * Whether the client is shown its progress.
          */
-        let progress: Bool
+        let progress: Bool,
+        /**
+         * How much it reads at most, in bytes.
+         */
+        let budget: Int64,
+        /**
+         * The documents open: loose files take them, and their directories, first (D79).
+         */
+        let open: Array<VfsPath>
     ) {}
 }
 
@@ -198,7 +194,7 @@ func loadRequest(state: ServerState): ?LoadRequest {
         return None
     }
     LoadRequest(state.beginLoad(), state.roots.toArray(), state.linkedProjects.toArray(), state.cangjieHome,
-        state.cangjieSrc, state.workDoneProgress)
+        state.cangjieSrc, state.workDoneProgress, state.loadBudget, collectArray(state.openDocuments.keys()))
 }
 
 /**
@@ -234,7 +230,7 @@ const LOAD_BATCH = 1024
 
 func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadRequest, progress: WorkDoneProgress): ?String {
     let start = MonoTime.now()
-    let budget = loadBudget()
+    let budget = request.budget
     let home = findCangjieHome(request.cangjieHome, env: {name => getVariable(name)})
     if (let Some(home) <- home) {
         logger.info("found the SDK", [("path", home.path), ("source", home.source)])
@@ -245,7 +241,7 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
         logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
     }
     let env = withCangjieSrc(withHome, src)
-    let loads = findProjects(request.roots, request.linkedProjects, env: env, budget: budget)
+    let loads = findProjects(request.roots, request.linkedProjects, env: env, budget: budget, open: request.open)
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {
@@ -274,10 +270,11 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
         state: ServerState =>
         if (state.isLoading(request.load)) {
             state.setProject(model, binaries: binaries.files)
+            state.partialRoots = partialRootsOf(loads)
             watchBinaries(state, client, logger, model)
-            Some(model.files().concat(model.binarySourceFiles()).filter {
+            Some(openFirst(model.files().concat(model.binarySourceFiles()).filter {
                 path => !state.openDocuments.contains(path) && !state.knows(path)
-            })
+            }, request.open))
         } else {
             Option<Array<VfsPath>>.None
         }
@@ -300,6 +297,11 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
     let warning = loop.write {
         state: ServerState =>
         if (state.endLoad(request.load)) {
+            // a document opened since the project was found, among the files it left out
+            let opened = state.openDocuments.keys().iterator().filter {path => !request.open.contains(path)}
+            if (opened.any {path => state.leftOut(path)}) {
+                startLoad(loop, client, logger)
+            }
             Some(sdkWarning(state, home))
         } else {
             Option<?String>.None
@@ -316,6 +318,37 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
             [("budget", budget), ("roots", String.join(request.roots.map {root => root.toString()}, delimiter: ", "))])
     }
     warning
+}
+
+/**
+ * The roots of loose files `loads` left files out of.
+ */
+func partialRootsOf(loads: Array<ProjectLoad>): Array<VfsPath> {
+    let roots = ArrayList<VfsPath>()
+    for (load in loads where load.partial) {
+        if (let LooseFiles(root) <- load.source) {
+            roots.add(root)
+        }
+    }
+    roots.toArray()
+}
+
+/**
+ * `paths`, those in a directory of a document of `open` first, as they come otherwise: the
+ * packages of what the editor shows are read before the budget runs out (D79).
+ */
+func openFirst(paths: Array<VfsPath>, open: Array<VfsPath>): Array<VfsPath> {
+    if (open.isEmpty()) {
+        return paths
+    }
+    let dirs = HashSet<VfsPath>()
+    for (path in open) {
+        if (let Some(dir) <- path.parent) {
+            dirs.add(dir)
+        }
+    }
+    let near = {path: VfsPath => path.parent.map {dir => dirs.contains(dir)} ?? false}
+    paths.filter(near).concat(paths.filter {path => !near(path)})
 }
 
 /**
