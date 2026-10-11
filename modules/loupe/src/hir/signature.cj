@@ -309,6 +309,13 @@ class SignatureLowering {
         ids.toArray()
     }
 
+    /**
+     * The type named `name`, a path of one segment, written where no node is a type: a macro's `[…]`.
+     */
+    func named(name: String): TypeRefId {
+        add(TypeRef.PathRef([TypeSegment(name, [])]), None)
+    }
+
     private func add(ty: TypeRef, ptr: ?SyntaxNodePtr<SyntaxKind>): TypeRefId {
         types.add(ty)
         ptrs.add(ptr)

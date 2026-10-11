@@ -201,6 +201,16 @@ extend CjEmitter {
             }
         }
         emitln("}")
+        nl()
+        // in place, the value is there whatever the type: one without params skips it
+        emitln("public func decodeParams(r: FjReader): ${messageIr.paramsType} {")
+        indented {
+            => match (messageIr.params) {
+                case Some(params) => emitln("decodeMessageParams<${params}>(r)")
+                case None => emitln("r.skipValue()")
+            }
+        }
+        emitln("}")
         if (!messageIr.isRequest) {
             return
         }

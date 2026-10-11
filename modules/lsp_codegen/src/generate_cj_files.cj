@@ -108,6 +108,14 @@ public interface LspInboundRequest<P, R> <: LspMessageSpec {
      */
     func decodeParams(params: ?RawJson): P
 
+    /**
+     * The params where they lie in the frame, the reader on their value: how the read loop reads
+     * them in place once `method` is known (D73). Reads exactly the one value, or throws.
+     *
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+     */
+    func decodeParams(r: FjReader): P
+
     func encodeResult(result: R): RawJson
 }
 
@@ -137,6 +145,14 @@ public interface LspInboundNotification<P> <: LspMessageSpec {
      * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
      */
     func decodeParams(params: ?RawJson): P
+
+    /**
+     * The params where they lie in the frame, the reader on their value: how the read loop reads
+     * them in place once `method` is known (D73). Reads exactly the one value, or throws.
+     *
+     * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+     */
+    func decodeParams(r: FjReader): P
 }
 
 /**
@@ -178,6 +194,19 @@ public interface LspRegistrable<O> <: LspMessageSpec where O <: ToJson {
 func decodeMessageParams<P>(params: ?RawJson): P where P <: FromJson<P> {
     try {
         (params ?? RawJson.NULL).read<P>()
+    } catch (e: Exception) {
+        throw RpcException(ErrorCode.INVALID_PARAMS, e.message)
+    }
+}
+
+/**
+ * The params the reader is on, read as a `P` where they lie.
+ *
+ * @throws RpcException - `INVALID_PARAMS`, if the params do not read as a `P`
+ */
+func decodeMessageParams<P>(r: FjReader): P where P <: FromJson<P> {
+    try {
+        P.fromJson(r)
     } catch (e: Exception) {
         throw RpcException(ErrorCode.INVALID_PARAMS, e.message)
     }

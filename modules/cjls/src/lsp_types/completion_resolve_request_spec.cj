@@ -38,6 +38,10 @@ public struct CompletionResolveRequestSpec <: LspInboundRequest<CompletionItem, 
         decodeMessageParams<CompletionItem>(params)
     }
 
+    public func decodeParams(r: FjReader): CompletionItem {
+        decodeMessageParams<CompletionItem>(r)
+    }
+
     public func encodeResult(result: CompletionItem): RawJson {
         RawJson.of(result)
     }

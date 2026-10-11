@@ -234,13 +234,32 @@ class Hovers {
     private func typeItem(target: TypeTarget): ?HoverItem {
         match (target) {
             case TypeOf(id) => declItem(id, None)
-            case GenericOf(owner, index) => HoverItem(genericsOf(db, owner).get(index) ?? return None)
+            case GenericOf(owner, index) =>
+                let name = genericsOf(db, owner).get(index) ?? return None
+                let param = Ty(db, ParamTy(owner, index))
+                boundedItem(name, signatureTypes(db, owner).bounds |> filter {bound: TyBound => bound.ty == param} |>
+                    flatMap {bound: TyBound => bound.bounds} |> map {one: Ty => one.text(db)} |> collectArray)
             case LocalGenericOf(owner, localFunc, index) =>
-                HoverItem(bodyWithSourceMap(db, owner).body.funcs.get(localFunc).flatMap {one => one.generics.get(index)} ??
-                    return None)
+                let lowered = body(db, owner)
+                let localFn = lowered.funcs.get(localFunc) ?? return None
+                let name = localFn.generics.get(index) ?? return None
+                let types = lowered.typesAsSignature()
+                boundedItem(name, localFn.bounds |> filter {bound: TypeBound => types.text(bound.ty) == name} |>
+                    flatMap {bound: TypeBound => bound.bounds} |> map {one: TypeRefId => types.text(one)} |> collectArray)
             // a package, which declares nothing
             case QualifierOf(_) => None
         }
+    }
+
+    /**
+     * The type parameter `name` and what its `where` bounds it by, `T <: A & B`; `None` for one it
+     * bounds by nothing, whose hover would only repeat its name.
+     */
+    private func boundedItem(name: String, bounds: Array<String>): ?HoverItem {
+        if (bounds.isEmpty()) {
+            return None
+        }
+        HoverItem("${name} <: ${String.join(bounds, delimiter: " & ")}")
     }
 
     /**

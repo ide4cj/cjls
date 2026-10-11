@@ -14,13 +14,16 @@ public class InboundRequest {
      * Public so a `Handler` can be driven without a connection behind it.
      *
      * @param deliver - must not throw: the thread answering may have nobody above it to catch
+     * @param decodedParams - the params as the handler's `paramsReader` read them in place, when
+     * the read loop could (D73); `params` holds their bytes either way
      */
     public InboundRequest(
         public let id: RequestId,
         public let method: String,
         public let params: ?RawJson,
         public let cancellation: CancellationToken,
-        private let deliver: (ResultOrError) -> Unit
+        private let deliver: (ResultOrError) -> Unit,
+        public let decodedParams!: ?Any = None
     ) {}
 
     public prop isAnswered: Bool {

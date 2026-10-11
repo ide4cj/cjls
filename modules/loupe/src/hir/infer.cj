@@ -94,12 +94,16 @@ func findByIndex<T>(sorted: Array<T>, index: Int64): ?T where T <: ByIndex {
 /**
  * What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its
  * expressions, patterns and locals, by id; the members found after the `.` of a value; the
- * overload each call of several takes. A type not found is an error type.
+ * overload each call of several takes. A type not found is an error, or one the analysis cannot
+ * find, and why (D77).
  */
 @Derive[Equatable]
 public struct InferenceResult {
     public InferenceResult(
-        public let exprs!: Array<Ty> = [],
+        /**
+         * `None` for a type or a package before a `.`: no value (D77).
+         */
+        public let exprs!: Array<?Ty> = [],
         public let pats!: Array<Ty> = [],
         public let locals!: Array<Ty> = [],
         public let fields!: Array<FieldTargets> = [],
@@ -124,8 +128,14 @@ public struct InferenceResult {
         public let ty!: ?Ty = None
     ) {}
 
+    /**
+     * The type of `id`; `None` if it is no value, a type or a package before a `.`.
+     */
     public operator func [](id: ExprId): ?Ty {
-        exprs.get(id.index)
+        match (exprs.get(id.index)) {
+            case Some(one) => one
+            case None => None
+        }
     }
 
     public operator func [](id: PatId): ?Ty {
@@ -202,7 +212,7 @@ public func inferBody(db: AnalysisDatabase, def: DefId): InferenceResult {
 func inferBodyOnCycle(db: AnalysisDatabase, def: DefId): InferenceResult {
     let lowered = body(db, def)
     let error = Ty(db, ErrorTy)
-    InferenceResult(exprs: lowered.exprs.map {_ => error}, pats: lowered.pats.map {_ => error},
+    InferenceResult(exprs: lowered.exprs.map {_ => Some(error)}, pats: lowered.pats.map {_ => error},
         locals: lowered.locals.map {_ => error}, ty: error)
 }
 
@@ -287,7 +297,7 @@ class Frame {
  * What a write of inference replaced, while a candidate of a call is tried (8d): undone after it.
  */
 enum Undo {
-    | ExprWas(ExprId, Ty)
+    | ExprWas(ExprId, ?Ty)
     | PatWas(PatId, Ty)
     | LocalWas(LocalId, Ty)
     | FieldWas(ExprId, ?FieldTargets)
@@ -305,7 +315,9 @@ class Inference {
     private let from: ?SourceFile
     private let pkg: ?Package
     private let error: Ty
-    private let exprs: Array<Ty>
+    // what an expression inference does not reach is of
+    private let notInferred: Ty
+    private let exprs: Array<?Ty>
     private let pats: Array<Ty>
     private let locals: Array<Ty>
     private let types: Array<?Ty>
@@ -343,7 +355,8 @@ class Inference {
         from = sourceFileOf(db, def)
         pkg = packageOf(db, def)
         error = Ty(db, ErrorTy)
-        exprs = Array<Ty>(hir.exprs.size, repeat: error)
+        notInferred = Ty(db, TodoTy(Todo.NotInferred))
+        exprs = Array<?Ty>(hir.exprs.size, repeat: notInferred)
         pats = Array<Ty>(hir.pats.size, repeat: error)
         locals = Array<Ty>(hir.locals.size, repeat: error)
         types = Array<?Ty>(hir.types.size, repeat: None)
@@ -407,11 +420,64 @@ class Inference {
         found
     }
 
-    private func setExpr(id: ExprId, ty: Ty): Unit {
+    private func setExpr(id: ExprId, ty: ?Ty): Unit {
         if (trying > 0) {
             undo.add(ExprWas(id, exprs[id.index]))
         }
         exprs[id.index] = ty
+    }
+
+    /**
+     * Records that `id`, a type or a package before a `.`, and each before it (`pkg.Type.member`), is
+     * no value (D77).
+     */
+    private func noValue(id: ExprId): Unit {
+        match (hir[id]) {
+            case PathExpr(_, _) | PrimExpr(_) => setExpr(id, None)
+            case FieldExpr(receiver, _, _) =>
+                setExpr(id, None)
+                noValue(receiver)
+            case _ => ()
+        }
+    }
+
+    /**
+     * The type `id` was inferred of; an error if it is no value.
+     */
+    private func tyOf(id: ExprId): Ty {
+        exprs[id.index] ?? error
+    }
+
+    /**
+     * The type `id` was inferred of, if it was.
+     */
+    private func inferredTyOf(id: ExprId): ?Ty {
+        exprs[id.index].filter {one => one != notInferred}
+    }
+
+    /**
+     * `ty` if given, as a list of none or one.
+     */
+    private func listOf(ty: ?Ty): Array<Ty> {
+        match (ty) {
+            case Some(one) => [one]
+            case None => []
+        }
+    }
+
+    /**
+     * A type the analysis cannot find, `why`.
+     */
+    private func todo(why: Todo): Ty {
+        Ty(db, TodoTy(why))
+    }
+
+    /**
+     * What is made of `tys` when it cannot be: of a type not known among them, that one, else an
+     * error, the user's (D77).
+     */
+    private func failed(tys: Array<Ty>): Ty {
+        unknownOf(db, tys) ?? error
     }
 
     private func setPat(id: PatId, ty: Ty): Unit {
@@ -532,7 +598,7 @@ class Inference {
     private func langTy(item: LangItem, args: Array<Ty>): Ty {
         match (langId(item)) {
             case Some(id) => Ty(db, DeclTy(id, args))
-            case None => error
+            case None => todo(Todo.NoStd)
         }
     }
 
@@ -542,7 +608,7 @@ class Inference {
     private func optionOf(arg: Ty): Ty {
         match (option) {
             case Some(id) => Ty(db, DeclTy(id, [arg]))
-            case None => error
+            case None => todo(Todo.NoStd)
         }
     }
 
@@ -615,12 +681,8 @@ class Inference {
         }
         match (hir[id]) {
             case MissingExpr => error
-            case MacroExpr(args) =>
-                // what the macro makes of them is not known: each alone
-                for (arg in args) {
-                    infer(arg.expr, None)
-                }
-                error
+            case QuoteExpr => quoteTy()
+            case MacroExpr(call) => macroTy(call)
             case LitExpr(text) => literalTy(text, expected)
             case StrExpr(parts) =>
                 for (part in parts) {
@@ -663,9 +725,10 @@ class Inference {
             case IfExpr(condition, then, otherwise) =>
                 infer(condition, prim("Bool"))
                 match (otherwise) {
-                    case Some(one) => branches([then, one], expected)
+                    case Some(one) => branches([then, one], expected, dropped.contains(id.index))
                     // of no `else`, `Unit` (N102)
                     case None =>
+                        dropped.add(then.index)
                         infer(then, None)
                         prim("Unit")
                 }
@@ -675,25 +738,29 @@ class Inference {
                     bindPat(pat, valueTy)
                 }
                 prim("Bool")
-            case MatchExpr(scrutinee, arms) => matchExprTy(scrutinee, arms, expected)
+            case MatchExpr(scrutinee, arms) => matchExprTy(scrutinee, arms, expected, dropped.contains(id.index))
             case QuestMatchExpr(selector, arms) => questMatchTy(selector, arms)
             case LangExpr(item) => match (langId(item)) {
                 case Some(decl) => declValueTy(decl, [], expected)
-                case None => error
+                case None => todo(Todo.NoStd)
             }
-            case TryExpr(resources, tried, catches, cleanup) => tryExprTy(resources, tried, catches, cleanup, expected)
+            case TryExpr(resources, tried, catches, cleanup) =>
+                tryExprTy(resources, tried, catches, cleanup, expected, dropped.contains(id.index))
             case ForExpr(pat, iterated, guard, loopBody) =>
                 bindPat(pat, elementTy(infer(iterated, None)))
                 if (let Some(one) <- guard) {
                     infer(one, prim("Bool"))
                 }
+                dropped.add(loopBody.index)
                 infer(loopBody, None)
                 prim("Unit")
             case WhileExpr(condition, loopBody) =>
                 infer(condition, prim("Bool"))
+                dropped.add(loopBody.index)
                 infer(loopBody, None)
                 prim("Unit")
             case DoWhileExpr(loopBody, condition) =>
+                dropped.add(loopBody.index)
                 infer(loopBody, None)
                 infer(condition, prim("Bool"))
                 prim("Unit")
@@ -708,9 +775,10 @@ class Inference {
                 if (let Some(one) <- context) {
                     infer(one, None)
                 }
-                match (infer(lambda, None).kind(db)) {
+                let lambdaTy = infer(lambda, None)
+                match (lambdaTy.kind(db)) {
                     case FuncTy(_, ret, _) => langTy(LangItem.FutureClass, [ret])
-                    case _ => error
+                    case _ => failed([lambdaTy])
                 }
             case SynchronizedExpr(lock, block) =>
                 infer(lock, None)
@@ -723,7 +791,7 @@ class Inference {
             case ConvExpr(name, inner) =>
                 infer(inner, None)
                 prim(name)
-            // a type before a `.`, no value
+            // a type of the language as a value; one before a `.` is no value, never inferred
             case PrimExpr(_) => error
             case VArrayExpr(ty, args) =>
                 for (arg in args) {
@@ -731,6 +799,186 @@ class Inference {
                 }
                 typeAt(ty)
             case BlockExpr(stmts) => blockTy(stmts, expected)
+        }
+    }
+
+    /**
+     * `quote(…)`: `std.ast`'s `Tokens`, in a file that imports from `std.ast`, else an error (cjc:
+     * "import 'std.ast' to use the 'quote' expression", N136).
+     */
+    private func quoteTy(): Ty {
+        let file = from ?? return todo(Todo.NoStd)
+        let imported = itemTree(db, file).imports.iterator().any {
+            item => item.paths.iterator().any {
+                path => path.segments.size >= 2 && path.segments[0] == "std" && path.segments[1] == "ast"
+            }
+        }
+        if (imported) {
+            langTy(LangItem.TokensClass, [])
+        } else {
+            error
+        }
+    }
+
+    /**
+     * A macro call, its arguments each inferred alone: of std.unittest's expression macros, the type
+     * their expansion gives, whatever the arguments (N136); of any other, or of one not found, a type
+     * the analysis cannot find (#176).
+     */
+    private func macroTy(call: MacroCall): Ty {
+        for (arg in call.args) {
+            infer(arg.expr, None)
+        }
+        let file = from ?? return todo(Todo.MacroCall)
+        let owner = pkg ?? return todo(Todo.MacroCall)
+        let decl = match (resolveMacroPath(db, owner, file, call.path).get(call.path.size - 1)) {
+            case Some(Found(ids)) where ids.size == 1 => ids[0]
+            // a macro of a `[…]` and one of none, of one name and package (`@Expect`, `@AssertThrows`): the
+            // call takes the one it fits
+            case Some(Ambiguous(targets)) => oneMacroOf(targets) ?? return todo(Todo.MacroCall)
+            // not found, where cjc may find it: `cjpm test` compiles a package with `--test`, its macros
+            // std.unittest.testmacro's unimported (N137, #255)
+            case _ => return todo(Todo.MacroCall)
+        }
+        if (packageRefOf(db, decl).map {one => nameOf(db, one)} != Some("std.unittest.testmacro")) {
+            return todo(Todo.MacroCall)
+        }
+        let thrown = call.attr.map {tys => tys.map {one => typeAt(one)}}
+        match (itemOf(db, decl).flatMap {item => item.names.get(0)} ?? "") {
+            case "Expect" | "Assert" | "PowerAssert" | "FailExpect" => prim("Unit")
+            case "Fail" => prim("Nothing")
+            // what it catches: `[A | B]` their join, as `catch (e: A | B)`'s
+            case "AssertThrows" => match (thrown) {
+                case None => langTy(LangItem.ExceptionClass, [])
+                case Some(tys) where tys.isEmpty() => todo(Todo.MacroCall)
+                case Some(tys) => joinTys(db, tys, from)
+            }
+            // `[A | B]` an `Option<Exception>`
+            case "ExpectThrows" => match (thrown) {
+                case Some(tys) where tys.size == 1 => optionOf(tys[0])
+                case Some(tys) where tys.isEmpty() => todo(Todo.MacroCall)
+                case _ => optionOf(langTy(LangItem.ExceptionClass, []))
+            }
+            case _ => todo(Todo.MacroCall)
+        }
+    }
+
+    /**
+     * The first of `targets` if each is a declaration of one package and one name.
+     */
+    private func oneMacroOf(targets: Array<ScopeTarget>): ?DefId {
+        let ids = ArrayList<DefId>()
+        for (target in targets) {
+            match (target) {
+                case OfDecl(id) => ids.add(id)
+                case _ => return None
+            }
+        }
+        let first = ids.get(0) ?? return None
+        let pkgOf = {id: DefId => packageRefOf(db, id)}
+        let nameOf = {id: DefId => itemOf(db, id).flatMap {item => item.names.get(0)}}
+        if (ids.iterator().all {id => pkgOf(id) == pkgOf(first) && nameOf(id) == nameOf(first)}) {
+            first
+        } else {
+            None
+        }
+    }
+
+    /**
+     * A name of the body that names nothing: an error (cjc: "undeclared identifier"), but in a package
+     * where a macro whose expansion is not read may declare it (#176).
+     */
+    private func notFound(): Ty {
+        match (pkg) {
+            case Some(one) where packageHasUnreadMacros(db, one) => todo(Todo.MacroMember)
+            case _ => error
+        }
+    }
+
+    /**
+     * A member of a value of the type `recv` that is not found: of a type not known, that one; of a
+     * type a macro whose expansion is not read is called on, maybe the macro's (#176); else an error
+     * (cjc: "'x' is not a member of").
+     */
+    private func memberNotFound(recv: Ty): Ty {
+        if (isUnknown(db, recv)) {
+            return recv
+        }
+        if (isMacroTyped(recv)) {
+            todo(Todo.MacroMember)
+        } else {
+            error
+        }
+    }
+
+    /**
+     * Whether a macro whose expansion is not read is called on the type of `ty`, or on a bound's.
+     */
+    private func isMacroTyped(ty: Ty): Bool {
+        headsOf(ty).iterator().any {
+            head => match (head.kind(db)) {
+                case DeclTy(id, _) => hasUnreadMacros(db, id)
+                case _ => false
+            }
+        }
+    }
+
+    /**
+     * What a call of `callee` that fits none of what it names is: a type the analysis cannot find if
+     * a macro whose expansion is not read may declare one that fits, a member of a type it is called
+     * on or a name of the package (#176); else an error (cjc: "no matching function").
+     */
+    private func macroFailure(callee: ExprId): Ty {
+        let byMacro = match (hir[callee]) {
+            case FieldExpr(receiver, _, _) => match (resolveAccess(callee)) {
+                case OfValue => isMacroTyped(tyOf(receiver))
+                case TypeMembers(_) => isMacroTyped(typeOfReceiver(receiver, None))
+                case _ => false
+            }
+            case PathExpr(name, _) => match (resolveName(callee, name)) {
+                case Values(targets) where targets.iterator().all {
+                    one => match (one) {
+                        case LocalOf(_) => true
+                        case _ => false
+                    }
+                } => false
+                case _ => pkg.map {one => packageHasUnreadMacros(db, one)} ?? false
+            }
+            case _ => false
+        }
+        if (byMacro) {
+            todo(Todo.MacroMember)
+        } else {
+            error
+        }
+    }
+
+    /**
+     * A `FieldExpr` of the left `receiver` whose name `resolveField` finds nothing of: a member of a
+     * package or a type not found, its left no value; else its left, inferred, names nothing (N75).
+     */
+    private func noField(receiver: ExprId): Ty {
+        match (receiverOf(db, def, receiver)) {
+            case PackageReceiver(_) =>
+                noValue(receiver)
+                notFound()
+            case TypesReceiver(types) =>
+                match (hir[receiver]) {
+                    case ThisExpr | SuperExpr => infer(receiver, None)
+                    case _ => noValue(receiver)
+                }
+                let byMacro = types.iterator().any {
+                    one => match (one) {
+                        case DeclType(id) => hasUnreadMacros(db, id)
+                        case _ => false
+                    }
+                }
+                if (byMacro) {
+                    todo(Todo.MacroMember)
+                } else {
+                    error
+                }
+            case _ => failed([infer(receiver, None)])
         }
     }
 
@@ -746,7 +994,10 @@ class Inference {
                     let valueTy = value.map {one => infer(one, declared)}
                     bindPat(pat, declared ?? valueTy ?? error)
                 case ExprStmt(expr) where i == stmts.size - 1 => return infer(expr, expected)
-                case ExprStmt(expr) => infer(expr, None)
+                // a statement's value is not used: of any type, an `if` of branches of no join (N138)
+                case ExprStmt(expr) =>
+                    dropped.add(expr.index)
+                    infer(expr, None)
                 case FuncStmt(index) => localFunc(index)
             }
         }
@@ -789,19 +1040,21 @@ class Inference {
 
     /**
      * Branches of an `if`, `match` or `try`, each checked against `expected`: their join, or, if
-     * there is none, what was expected (N97, N106).
+     * there is none, what was expected (N97, N106); of no join of types known and a value not used,
+     * `Unit` (N138).
      */
-    private func branches(ids: Array<ExprId>, expected: ?Ty): Ty {
+    private func branches(ids: Array<ExprId>, expected: ?Ty, isDropped: Bool): Ty {
         let tys = ids.map {one => infer(one, expected)}
         let joined = joinTys(db, tys, from)
         // checked against a type each branch fits, the expression is of it, as cjc's check gives
         match (expected) {
-            case Some(one) where joined.kind(db) == ErrorTy || tys.iterator().all {ty => fits(ty, one)} => one
+            case Some(one) where isUnknown(db, joined) || tys.iterator().all {ty => fits(ty, one)} => one
+            case _ where isDropped && joined.kind(db) == ErrorTy && unknownOf(db, tys).isNone() => prim("Unit")
             case _ => joined
         }
     }
 
-    private func matchExprTy(scrutinee: ?ExprId, arms: Array<MatchArm>, expected: ?Ty): Ty {
+    private func matchExprTy(scrutinee: ?ExprId, arms: Array<MatchArm>, expected: ?Ty, isDropped: Bool): Ty {
         let scrutineeTy = scrutinee.map {one => infer(one, None)}
         for (arm in arms) {
             for (pat in arm.pats) {
@@ -814,7 +1067,7 @@ class Inference {
                 infer(condition, prim("Bool"))
             }
         }
-        branches(arms.map {arm => arm.body}, expected)
+        branches(arms.map {arm => arm.body}, expected, isDropped)
     }
 
     /**
@@ -826,7 +1079,7 @@ class Inference {
         let selectorTy = infer(selector, None)
         let isOption = optionArg(selectorTy).isSome()
         // cjc's "cannot use optional chaining on non-optional value"
-        if (!isOption && selectorTy.kind(db) != ErrorTy) {
+        if (!isOption && !isUnknown(db, selectorTy)) {
             mismatches++
         }
         for (arm in arms) {
@@ -839,12 +1092,12 @@ class Inference {
         if (isOption) {
             some
         } else {
-            error
+            failed([selectorTy])
         }
     }
 
     private func tryExprTy(resources: Array<Resource>, tried: ExprId, catches: Array<CatchArm>, cleanup: ?ExprId,
-        expected: ?Ty): Ty {
+        expected: ?Ty, isDropped: Bool): Ty {
         for (resource in resources) {
             let declared = resource.ty.map {one => typeAt(one)}
             let valueTy = infer(resource.value, declared)
@@ -861,7 +1114,7 @@ class Inference {
         if (let Some(one) <- cleanup) {
             infer(one, None)
         }
-        branches([tried].concat(catches.map {arm => arm.body}), expected)
+        branches([tried].concat(catches.map {arm => arm.body}), expected, isDropped)
     }
 
     /**
@@ -869,10 +1122,11 @@ class Inference {
      * instance of (N105).
      */
     private func elementTy(iterated: Ty): Ty {
-        let iterable = langId(LangItem.IterableInterface) ?? return error
+        let iterable = langId(LangItem.IterableInterface) ?? return todo(Todo.NoStd)
         match (asInstanceOf(db, iterated, iterable, from).map {one => one.kind(db)}) {
             case Some(DeclTy(_, args)) => args.get(0) ?? error
-            case _ => error
+            // cjc: the type is not an instance of `Iterable`
+            case _ => failed([iterated])
         }
     }
 
@@ -885,10 +1139,12 @@ class Inference {
             case Some(FuncTy(tys, ret, _)) where tys.size == params.size => (tys, ret)
             case _ => None
         }
+        // cjc: a parameter's type must be written, or told by the type expected
+        let untold = failed(listOf(expected))
         let paramTys = Array(params.size) {
             i => match (params[i].ty) {
                 case Some(ty) => typeAt(ty)
-                case None => wanted.flatMap {one => one[0].get(i)} ?? error
+                case None => wanted.flatMap {one => one[0].get(i)} ?? untold
             }
         }
         for (i in 0..params.size) {
@@ -899,8 +1155,8 @@ class Inference {
         // against it as far as it is known: the body tells the argument (`Option<R>` of `filterMap`,
         // N132)
         let retTy = match (ret) {
-            case Some(one) where one.kind(db) == ErrorTy => function(None, block)
-            case Some(one) where hasErrors(db, one) => function(None, block, hint: one)
+            case Some(one) where isUnknown(db, one) => function(None, block)
+            case Some(one) where hasUnknowns(db, one) => function(None, block, hint: one)
             case _ => function(ret, block)
         }
         Ty(db, FuncTy(paramTys, retTy, false))
@@ -1041,9 +1297,7 @@ class Inference {
             case _ => ()
         }
         if (!COMPARISONS.contains(op) && !ARITHMETIC.contains(op)) {
-            infer(lhs, None)
-            infer(rhs, None)
-            return error
+            return failed([infer(lhs, None), infer(rhs, None)])
         }
         let isComparison = COMPARISONS.contains(op)
         let left = if (isNumericLiteral(lhs) && !isNumericLiteral(rhs)) {
@@ -1106,9 +1360,11 @@ class Inference {
             case Some(one) => one
             case None =>
                 // cjc: "coalescing is only valid for 'Option'"
-                mismatches++
+                if (!isUnknown(db, left)) {
+                    mismatches++
+                }
                 infer(rhs, None)
-                return error
+                return failed([left])
         }
         match (expected) {
             case Some(one) =>
@@ -1167,10 +1423,10 @@ class Inference {
             let baseTy = infer(base, None)
             if (!isIndexedByLanguage(baseTy)) {
                 let args = indices.map {one => CallArg(None, one)}.concat([CallArg(None, rhs)])
-                let (_, chosen) = operatorCall(lhs, baseTy, "[]", args, None, setter: true)
+                let (failure, chosen) = operatorCall(lhs, baseTy, "[]", args, None, setter: true)
                 // `a[i]` is of what is assigned to it
                 let value = chosen.flatMap {one => one.params.get(one.params.size - 1)}
-                setExpr(lhs, value ?? error)
+                setExpr(lhs, value ?? failure)
                 return prim("Unit")
             }
         }
@@ -1271,10 +1527,14 @@ class Inference {
                 if (!candidates.isEmpty()) {
                     mismatches++
                 }
-                for (arg in args) {
-                    infer(arg.expr, None)
+                let argTys = args.map {arg => infer(arg.expr, None)}
+                // an operator a macro whose expansion is not read may declare (`@CalcaInterned`'s `==`)
+                let byMacro = if (isMacroTyped(recv)) {
+                    todo(Todo.MacroMember)
+                } else {
+                    error
                 }
-                (error, None)
+                (unknownOf(db, [recv].concat(argTys)) ?? byMacro, None)
         }
     }
 
@@ -1389,7 +1649,8 @@ class Inference {
                     infer(e, one)
                 }
                 one
-            case None where elements.isEmpty() => error
+            // cjc: an empty array's element type is to be told
+            case None where elements.isEmpty() => failed(listOf(expected))
             case None => joinTys(db, elements.map {e => infer(e, None)}, from)
         }
         langTy(LangItem.ArrayStruct, [element])
@@ -1456,12 +1717,12 @@ class Inference {
                     case _ => Array<Ty>()
                 }
                 for (i in 0..elements.size) {
-                    bindPat(elements[i], tys.get(i) ?? error)
+                    bindPat(elements[i], tys.get(i) ?? failed([ty]))
                 }
             case EnumPat(path, args) =>
                 let params = ctorParamsOf(path, ty)
                 for (i in 0..args.size) {
-                    bindPat(args[i], params.get(i) ?? error)
+                    bindPat(args[i], params.get(i) ?? failed([ty]))
                 }
             case _ => ()
         }
@@ -1510,15 +1771,18 @@ class Inference {
                 case TypeParamOf(_) => error
             }
             case InFile(Found(ids)) where ids.size == 1 => declValueTy(ids[0], explicit, expected)
+            // cjc: several constructors, none of the enum expected
             case InFile(Ctors(own, all)) => match (chooseCtor(own, all, expected)) {
                 case Some(ctor) => declValueTy(ctor, explicit, expected)
-                case None => error
+                case None => failed(listOf(expected))
             }
             // functions overloading one another, as a value: the one of the parameters expected
             case Values(_) | InFile(Found(_)) => match (expected.map {one => one.kind(db)}) {
                 case Some(FuncTy(params, _, _)) => overloadOfParams(id, callablesOf(id, expected), params)
-                case _ => error
+                case _ => failed(listOf(expected))
             }
+            case InFile(NotFound) => notFound()
+            // ambiguous: cjc reports it
             case _ => error
         }
     }
@@ -1720,7 +1984,7 @@ class Inference {
     private func valueCallables(ty: Ty): Array<Callable> {
         match (ty.kind(db)) {
             case FuncTy(params, ret, _) => [Callable(params, ret)]
-            case ErrorTy => []
+            case ErrorTy | TodoTy(_) => []
             // of another type, its `operator func ()` (N130): what is called is the value, not
             // the operator a name of it goes to
             case _ => operatorCallables(ty, "()").map {
@@ -1800,12 +2064,61 @@ class Inference {
                 if (!all.isEmpty()) {
                     mismatches++
                 }
-                for (arg in args) {
-                    infer(arg.expr, None)
+                let argTys = args.map {arg => infer(arg.expr, None)}
+                // an argument not known fits any candidate: of several, none is taken for it; arguments
+                // by name, of default values or variadic are matched by their count alone yet (#254); a
+                // macro whose expansion is not read may declare the one that fits
+                let byMatching = fitting.isEmpty() || args.iterator().any {arg => arg.name.isSome()} ||
+                    all.iterator().any {one => one.names.iterator().any {name => name.isSome()}}
+                let failure = if (all.isEmpty()) {
+                    calleeFailure(callee)
+                } else if (let Some(unknown) <- unknownOf(db, argTys.concat(listOf(expected)))) {
+                    unknown
+                } else if (byMatching) {
+                    todo(Todo.ArgMatching)
+                } else {
+                    macroFailure(callee)
                 }
-                error
+                match (hir[callee]) {
+                    case PathExpr(_, _) | FieldExpr(_, _, _) | LangExpr(_) => setExpr(callee, failure)
+                    case _ => ()
+                }
+                failure
         }
     }
+
+    /**
+     * What a call of `callee` that means nothing to call is: of a name of nothing, of a member not
+     * found, of a value not known, that one; else an error, a value no function (cjc: "cannot be
+     * called").
+     */
+    private func calleeFailure(callee: ExprId): Ty {
+        match (hir[callee]) {
+            case PathExpr(name, args) =>
+                let ty = pathTy(callee, name, args, None)
+                if (isUnknown(db, ty)) {
+                    ty
+                } else {
+                    // a value no function: a macro may have made one of its name
+                    macroFailure(callee)
+                }
+            case FieldExpr(receiver, _, _) => match (resolveAccess(callee)) {
+                case OfValue =>
+                    let recv = tyOf(receiver)
+                    if (isUnknown(db, recv) || !fields.contains(callee.index)) {
+                        memberNotFound(recv)
+                    } else {
+                        // a member no function: a macro may have made it one (`@CalcaInput`'s fields)
+                        macroFailure(callee)
+                    }
+                case NoField => noField(receiver)
+                case _ => error
+            }
+            case LangExpr(_) => todo(Todo.NoStd)
+            case _ => failed([tyOf(callee)])
+        }
+    }
+
 
     /**
      * The one of `candidates`, each of as many parameters as `args`, a call takes, as cjc's
@@ -2037,7 +2350,7 @@ class Inference {
                         waiting.add(i)
                     } else {
                         let ty = checkArg(expr, None)
-                        if (hasErrors(db, ty)) {
+                        if (hasUnknowns(db, ty)) {
                             waiting.add(i)
                         } else {
                             synthesized[i] = ty
@@ -2074,7 +2387,7 @@ class Inference {
                     continue
                 }
                 let ty = infer(args[i].expr, target)
-                if (isUntypedLambda(args[i].expr) || !hasErrors(db, ty)) {
+                if (isUntypedLambda(args[i].expr) || !hasUnknowns(db, ty)) {
                     synthesized[i] = ty
                     waiting.removeIf {one => one == i}
                 }
@@ -2088,7 +2401,16 @@ class Inference {
             unsolved = left
         }
         let solution = solved
-        let final = {ty: Ty => replaceVars(db, ty, base, solution)}
+        // a type argument not solved for an argument not known is not known as it is, else an error
+        // (cjc: "can not infer")
+        let inferred = args |> filterMap {arg: CallArg => inferredTyOf(arg.expr)} |> collectArray
+        // an argument by name puts those after it out of place yet (#254)
+        let unsolvedTy = match (unknownOf(db, inferred.concat(listOf(expected)))) {
+            case Some(unknown) => unknown
+            case None where args.iterator().any {arg => arg.name.isSome()} => todo(Todo.ArgMatching)
+            case None => error
+        }
+        let final = {ty: Ty => replaceVars(db, ty, base, solution, unsolved: unsolvedTy)}
         // a call not solved fits not, nor what synthesized a type its parameter solved takes not (8d)
         if (unsolved > 0) {
             mismatches++
@@ -2113,8 +2435,8 @@ class Inference {
      */
     private func isKnownEnough(target: Ty): Bool {
         match (target.kind(db)) {
-            case FuncTy(params, _, _) => params.iterator().all {one => !hasErrors(db, one)}
-            case ErrorTy => false
+            case FuncTy(params, _, _) => params.iterator().all {one => !hasUnknowns(db, one)}
+            case ErrorTy | TodoTy(_) => false
             case _ => true
         }
     }
@@ -2250,10 +2572,12 @@ class Inference {
         let found = ArrayList<Callable>()
         match (resolveAccess(expr)) {
             case PackageMembers(ids) =>
+                noValue(receiver)
                 for (id in ids) {
                     found.add(all: declCallables(id, explicit, expected))
                 }
             case TypeMembers(targets) =>
+                noValue(receiver)
                 let recv = typeOfReceiver(receiver, expected)
                 for (target in targets) {
                     found.add(all: memberCallables(target, recv, explicit, expected))
@@ -2274,17 +2598,32 @@ class Inference {
     private func fieldTy(expr: ExprId, receiver: ExprId, name: String, args: Array<TypeRefId>, expected: ?Ty): Ty {
         let explicit = args.map {one => typeAt(one)}
         match (resolveAccess(expr)) {
-            case PackageMembers(ids) where ids.size == 1 => declValueTy(ids[0], explicit, expected)
-            case TypeMembers(targets) where targets.size == 1 =>
-                memberValueTy(targets[0], typeOfReceiver(receiver, expected))
+            case PackageMembers(ids) =>
+                noValue(receiver)
+                if (ids.size == 1) {
+                    declValueTy(ids[0], explicit, expected)
+                } else {
+                    failed(listOf(expected))
+                }
+            case TypeMembers(targets) =>
+                noValue(receiver)
+                if (targets.size == 1) {
+                    memberValueTy(targets[0], typeOfReceiver(receiver, expected))
+                } else {
+                    failed(listOf(expected))
+                }
             case OfValue =>
-                let (targets, recv) = valueMembers(expr, infer(receiver, None), name)
+                let recvTy = infer(receiver, None)
+                let (targets, recv) = valueMembers(expr, recvTy, name)
                 if (targets.size == 1) {
                     memberValueTy(targets[0], recv)
+                } else if (targets.isEmpty()) {
+                    memberNotFound(recvTy)
                 } else {
-                    error
+                    // overloads as a value, the expected type telling none
+                    failed(listOf(expected))
                 }
-            case _ => error
+            case NoField => noField(receiver)
         }
     }
 

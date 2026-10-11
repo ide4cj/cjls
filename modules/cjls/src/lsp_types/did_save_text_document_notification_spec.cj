@@ -42,4 +42,8 @@ public struct DidSaveTextDocumentNotificationSpec <: LspInboundNotification<DidS
     public func decodeParams(params: ?RawJson): DidSaveTextDocumentParams {
         decodeMessageParams<DidSaveTextDocumentParams>(params)
     }
+
+    public func decodeParams(r: FjReader): DidSaveTextDocumentParams {
+        decodeMessageParams<DidSaveTextDocumentParams>(r)
+    }
 }

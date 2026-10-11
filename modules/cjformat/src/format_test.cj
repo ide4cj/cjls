@@ -346,6 +346,77 @@ class FormatTest {
     }
 
     @TestCase
+    func aBodysBraceOnALineOfItsOwnJoinsTheLineBefore() {
+        check(
+            code(#"
+            class A <: B
+            {
+                func f(): Unit
+                {
+                    if (a)
+                    {
+                        g()
+                    } else
+                        {
+                        h()
+                    }
+                    match (a)
+
+                    {
+                        case _ => ()
+                    }
+                }
+            }
+            "#),
+            code(#"
+            class A <: B {
+                func f(): Unit {
+                    if (a) {
+                        g()
+                    } else {
+                        h()
+                    }
+                    match (a) {
+                        case _ => ()
+                    }
+                }
+            }
+            "#))
+    }
+
+    @TestCase
+    func aBodysBraceAfterALineCommentIsAtTheLevelOfItsStatement() {
+        check(
+            code(#"
+            func f() {
+                if (a) // c
+                    {
+                    g()
+                }
+            }
+            "#),
+            code(#"
+            func f() {
+                if (a) // c
+                {
+                    g()
+                }
+            }
+            "#))
+    }
+
+    @TestCase
+    func aLambdasBraceKeepsItsLine() {
+        let source = code(#"
+            func f() {
+                let g =
+                    {x: Int64 => x}
+            }
+            "#)
+        check(source, source)
+    }
+
+    @TestCase
     func trailingWhitespaceGoesAndBlankLinesAreKeptToOne() {
         check("\n\nlet a = 1   \n\n\n\nlet b = 2 // c  \n\n", "let a = 1\n\nlet b = 2 // c\n")
     }

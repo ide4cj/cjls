@@ -205,12 +205,51 @@ class HoverTest {
     }
 
     @TestCase
-    func aTypeParameter() {
+    func aTypeParameterNothingBoundsHasNoHover() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
             func f<T>(x: $0T): T { x }
-            //             ^ T
+            //             ^ no hover
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterShowsWhatItsWhereBoundsItBy() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {}
+            interface J {}
+            func f<T, U>(x: $0T, y: U): T where T <: I, U <: J, T <: J { x }
+            //                ^ T <: I & J
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterOfAnExtendShowsTheExtendsBounds() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {}
+            class Box<T> {}
+            extend<T> Box<T> where T <: I {
+                func get(x: $0T): T { x }
+            //              ^ T <: I
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterOfALocalFunctionShowsItsBounds() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            interface I {}
+            main() {
+                func g<T>(x: $0T): T where T <: I { x }
+            //                 ^ T <: I
+            }
             "#)
     }
 
@@ -283,6 +322,40 @@ class HoverTest {
                 $0nowhere
             //    ^^^^^^^ no hover
             }
+            "#)
+    }
+
+    @TestCase
+    func aDeclarationInAMacroCallShowsTheDocBeforeTheCall() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            /** a struct */
+            @Derive[Equatable]
+            struct S {}
+            func g(s: $0S): Unit {}
+            //          ^ struct S in m — a struct
+            "#)
+    }
+
+    @TestCase
+    func aDeclarationInCallsOfAnyMacroShowsTheDocBeforeThem() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            // a function
+            @M
+            @M
+            func f(): Unit {}
+            main() {
+                $0f()
+            //    ^ func f(): Unit in m — a function
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
             "#)
     }
 

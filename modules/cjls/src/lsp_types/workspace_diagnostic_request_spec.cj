@@ -38,6 +38,10 @@ public struct WorkspaceDiagnosticRequestSpec <: LspInboundRequest<WorkspaceDiagn
         decodeMessageParams<WorkspaceDiagnosticParams>(params)
     }
 
+    public func decodeParams(r: FjReader): WorkspaceDiagnosticParams {
+        decodeMessageParams<WorkspaceDiagnosticParams>(r)
+    }
+
     public func encodeResult(result: WorkspaceDiagnosticReport): RawJson {
         RawJson.of(result)
     }

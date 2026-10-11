@@ -46,14 +46,14 @@ func extendArgs(db: AnalysisDatabase, ext: DefId, ty: Ty): ?Array<Ty> {
 
 /**
  * Whether `actual` is `pattern`, a type written with the type parameters of `owner`, for some of
- * their arguments, each bound in `binds` as it is met. An error type in `actual` matches anything:
- * what is not known hides nothing.
+ * their arguments, each bound in `binds` as it is met. A type not known in `actual` matches
+ * anything: it hides nothing.
  */
 func matchTy(db: AnalysisDatabase, pattern: Ty, actual: Ty, owner: DefId, binds: Array<?Ty>): Bool {
     let all = {patterns: Array<Ty>, actuals: Array<Ty> => patterns.size == actuals.size &&
         (0..patterns.size).iterator().all {i => matchTy(db, patterns[i], actuals[i], owner, binds)}}
     match ((pattern.kind(db), actual.kind(db))) {
-        case (_, ErrorTy) => true
+        case (_, ErrorTy) | (_, TodoTy(_)) => true
         case (ParamTy(of, index), _) where of == owner && index < binds.size => match (binds[index]) {
             case Some(bound) => bound == actual
             case None =>
@@ -105,7 +105,7 @@ func allSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Array<Ty> {
 }
 
 /**
- * Whether `sub` is `sup` or one of its subtypes; `Nothing` is every type's, and an error type
+ * Whether `sub` is `sup` or one of its subtypes; `Nothing` is every type's, and a type not known
  * stands for any. A tuple's elements are covariant, a function's parameters contravariant and its
  * return type covariant (N116); a type parameter is a subtype of what its bounds are.
  */
@@ -114,7 +114,7 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
         return true
     }
     match ((sub.kind(db), sup.kind(db))) {
-        case (ErrorTy, _) | (_, ErrorTy) => true
+        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) => true
         case (PrimTy("Nothing"), _) => true
         case (TupleTy(subs), TupleTy(sups)) => subs.size == sups.size &&
             (0..subs.size).iterator().all {i => isSubtype(db, subs[i], sups[i], from)}
@@ -134,7 +134,7 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
 }
 
 /**
- * Whether `a` and `b` are one type but where either is an error type, which stands for any: type
+ * Whether `a` and `b` are one type but where either is not known, which stands for any: type
  * arguments are invariant, but `Array<{unknown}>` hides nothing.
  */
 func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
@@ -144,7 +144,7 @@ func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
     let all = {xs: Array<Ty>, ys: Array<Ty> => xs.size == ys.size &&
         (0..xs.size).iterator().all {i => isAlike(db, xs[i], ys[i])}}
     match ((a.kind(db), b.kind(db))) {
-        case (ErrorTy, _) | (_, ErrorTy) => true
+        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) => true
         case (DeclTy(x, xs), DeclTy(y, ys)) => x == y && all(xs, ys)
         case (TupleTy(xs), TupleTy(ys)) => all(xs, ys)
         case (FuncTy(xs, x, xc), FuncTy(ys, y, yc)) => xc == yc && all(xs, ys) && isAlike(db, x, y)
@@ -179,13 +179,13 @@ func isNothing(db: AnalysisDatabase, ty: Ty): Bool {
  * leaves the others, equal types are their type, else the one common supertype that is a subtype
  * of every other common one (`A` and `B` of `Base`, N97); an error if there is none, or several
  * (two classes of one interface: `Object` and the interface), or a literal of another type (`1` and
- * `2u8`).
+ * `2u8`). Of a branch of a type not known, that one: whatever the join, it is not known.
  */
 func joinTys(db: AnalysisDatabase, tys: Array<Ty>, from: ?SourceFile): Ty {
     let real = tys.filter {one => !isNothing(db, one)}
     let first = real.get(0) ?? return Ty(db, PrimTy("Nothing"))
-    if (real.iterator().any {one => one.kind(db) == ErrorTy}) {
-        return Ty(db, ErrorTy)
+    if (let Some(unknown) <- unknownOf(db, real.filter {one => isUnknown(db, one)})) {
+        return unknown
     }
     if (real.iterator().all {one => one == first}) {
         return first
@@ -231,11 +231,21 @@ func ownerArgs(db: AnalysisDatabase, owner: DefId, recv: Ty, from: ?SourceFile):
         return extendArgs(db, owner, instance)
     }
     match (asInstanceOf(db, recv, owner, from).map {one => one.kind(db)}) {
-        case Some(DeclTy(_, args)) => args
-        // a member of a type the value is no instance of: a type parameter's bound, a `.cjo` cjc
-        // checked; its arguments unknown
-        case _ => genericsOf(db, owner).map {_ => Ty(db, ErrorTy)}
+        case Some(DeclTy(_, args)) => return args
+        case _ => ()
     }
+    // of a type parameter, its bound's that is an instance of `owner` (`T <: FromJson<T>`'s `fromJson`)
+    if (let ParamTy(param, _) <- recv.kind(db)) {
+        for (bound in signatureTypes(db, param).bounds where bound.ty == recv) {
+            for (one in bound.bounds) {
+                if (let Some(DeclTy(_, args)) <- asInstanceOf(db, one, owner, from).map {it => it.kind(db)}) {
+                    return args
+                }
+            }
+        }
+    }
+    // a member of a type the value is no instance of: a `.cjo` cjc checked; its arguments unknown
+    genericsOf(db, owner).map {_ => Ty(db, ErrorTy)}
 }
 
 /**

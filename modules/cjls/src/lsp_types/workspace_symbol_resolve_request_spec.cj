@@ -39,6 +39,10 @@ public struct WorkspaceSymbolResolveRequestSpec <: LspInboundRequest<WorkspaceSy
         decodeMessageParams<WorkspaceSymbol>(params)
     }
 
+    public func decodeParams(r: FjReader): WorkspaceSymbol {
+        decodeMessageParams<WorkspaceSymbol>(r)
+    }
+
     public func encodeResult(result: WorkspaceSymbol): RawJson {
         RawJson.of(result)
     }

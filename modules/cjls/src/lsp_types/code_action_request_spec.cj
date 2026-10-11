@@ -42,6 +42,10 @@ public struct CodeActionRequestSpec <: LspInboundRequest<CodeActionParams, Nulla
         decodeMessageParams<CodeActionParams>(params)
     }
 
+    public func decodeParams(r: FjReader): CodeActionParams {
+        decodeMessageParams<CodeActionParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<CommandOrCodeAction>>): RawJson {
         RawJson.of(result)
     }

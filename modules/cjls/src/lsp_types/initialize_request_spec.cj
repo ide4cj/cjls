@@ -40,6 +40,10 @@ public struct InitializeRequestSpec <: LspInboundRequest<InitializeParams, Initi
         decodeMessageParams<InitializeParams>(params)
     }
 
+    public func decodeParams(r: FjReader): InitializeParams {
+        decodeMessageParams<InitializeParams>(r)
+    }
+
     public func encodeResult(result: InitializeResult): RawJson {
         RawJson.of(result)
     }

@@ -36,6 +36,10 @@ public struct SemanticTokensRangeRequestSpec <: LspInboundRequest<SemanticTokens
         decodeMessageParams<SemanticTokensRangeParams>(params)
     }
 
+    public func decodeParams(r: FjReader): SemanticTokensRangeParams {
+        decodeMessageParams<SemanticTokensRangeParams>(r)
+    }
+
     public func encodeResult(result: Nullable<SemanticTokens>): RawJson {
         RawJson.of(result)
     }

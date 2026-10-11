@@ -45,6 +45,10 @@ public struct DocumentDiagnosticRequestSpec <: LspInboundRequest<DocumentDiagnos
         decodeMessageParams<DocumentDiagnosticParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DocumentDiagnosticParams {
+        decodeMessageParams<DocumentDiagnosticParams>(r)
+    }
+
     public func encodeResult(result: DocumentDiagnosticReport): RawJson {
         RawJson.of(result)
     }

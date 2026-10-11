@@ -45,6 +45,10 @@ public struct DocumentSymbolRequestSpec <: LspInboundRequest<DocumentSymbolParam
         decodeMessageParams<DocumentSymbolParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DocumentSymbolParams {
+        decodeMessageParams<DocumentSymbolParams>(r)
+    }
+
     public func encodeResult(result: Nullable<SymbolInformationsOrDocumentSymbols>): RawJson {
         RawJson.of(result)
     }

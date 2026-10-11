@@ -39,7 +39,7 @@ Looked at, not references:
 | Macros | not expanded (#47); an expression macro's arguments parsed when they parse as an argument list (D59) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
 | Cache between sessions | none (#50) | none: every start analyzes again ([#4712](https://github.com/rust-lang/rust-analyzer/issues/4712), open since 2020) | none ([ty#471](https://github.com/astral-sh/ty/issues/471)) | its index | export data and xrefs per package | its index | IntelliJ's indexes | its background index | not checked |
 | Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk | IntelliJ stubs |
-| Diagnostics | none yet (#17) | pull for its own, push for `cargo check`'s on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
+| Diagnostics | syntax: pull, push for clients without it (#17); semantic: #53 | pull for its own, push for `cargo check`'s on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
 
 ## Where each part of cjls comes from
 
@@ -58,10 +58,27 @@ Looked at, not references:
 | Project model | R1, R4, R5 | cjpm has no `cargo metadata` / `go list`: read `cjpm.toml` ourselves, as R4 does; R1's `rust-project.json` for what cjpm does not build, `cj-project.json` | D33 |
 | Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap`, per package rather than per crate: Cangjie's unit of namespace; imports per file | D44, #48 |
 | Types, overloads, class hierarchies, `extend` | R3, R6, R7 | R1 has no overloading and no subclassing: Roslyn's and K2's overload resolution, cjc's Sema as the specification | #48 |
+| Semantic diagnostics, no cascades | R1, R2, R7 | in the inference result, not accumulated; an error type fits anything; a limitation of the analysis told from an error of the user (R2); none on a desugared node (R3, R7) | [below](#semantic-diagnostics), #53 |
 | Macros | R1, R4 | expand out of process, by running the compiled macro package | #47 |
 | Workspace symbols, references | R6, R7, R8 | R1 searches the text, then resolves; the others keep an index. In memory first; on disk only when measured to be needed | #12, #50 |
 | LSP extensions | R1 | `lsp-extensions.md`: methods of its own where LSP has none, under a prefix, in `experimental` | D15 |
 | Test fixtures | R1 | `$0` cursors, `//- /path` multi-file fixtures, `//^^^` annotations, expect-test's `UPDATE_EXPECT` | D43 |
+
+## Semantic diagnostics
+
+What each reports of what its analysis finds wrong, and how one error is kept from making many. Read 2026-10-10: R1 at `88552f8`, R2 (ruff) at `874539b`, R6 and R7 at master; paths are from each repository's root; — is not read, or has no such thing.
+
+| | R1 rust-analyzer | R2 ty | R3 cjc | R6 Roslyn | R7 Kotlin K2 |
+|---|---|---|---|---|---|
+| Where kept | `InferenceResult.diagnostics`, one query's value (`hir-ty/src/infer.rs`); `hir` maps them to syntax, `ide-diagnostics` to messages | the value of `infer_scope_types`, per scope; `check_types` gathers a file's (`ty_python_semantic/src/types.rs`). No salsa accumulators | one `DiagnosticEngine` for the compilation | a `BindingDiagnosticBag` passed down the binder | on the tree: resolution leaves error nodes holding a `ConeDiagnostic`, and checkers report them in a pass of their own (`ErrorNodeDiagnosticCollectorComponent.kt`) |
+| An error type in a check | fits anything: `(Error, _) \| (_, Error) => Ok` (rustc's `rustc_type_ir/src/relate.rs`) | `Unknown` is dynamic: assignable both ways | asserted never to reach a mismatch (`CJC_ASSERT(Ty::IsTyCorrect)`, `src/Sema/Diags.cpp`); 552 checks by hand in Sema | no mismatch if either side `ContainsErrorType()`, at any depth (`Binder_Statements.cs`) | `errorTypesEqualToAnything = true` (`FirHelpers.kt`, `isSubtypeForTypeMismatch`) |
+| A diagnostic about a value of an error type | dropped when the result is written, if its type references an error (`hir-ty/src/infer/unify.rs`, `resolve_diagnostics`) | a member of `Unknown` is `Unknown` | by hand | `HasAnyErrors` on the bound node | none for a call whose receiver did not resolve |
+| A mismatch of a node | once a node (`emit_type_mismatch`); not shown if either side is wholly unknown (`ide-diagnostics/src/handlers/type_mismatch.rs`) | — | — | — | — |
+| "The analysis cannot" vs. "the user erred" | one `Error` | two dynamic types: `Unknown` (an error, reported) and `Todo("reason")` (a limitation of ty, its reason shown in debug builds) | — | — | — |
+| A node the compiler made (desugaring, macro) | — | — | none: `Node::ShouldDiagnose` (`COMPILER_ADD`, macro-invoked) | — | none: `KtFakeSourceElementKind` |
+| A candidate tried | — | `suppress_diagnostics()` | `DiagSuppressor` | — | — |
+| Shown by default | about 60 marked stable, `type-mismatch` among them; `unresolved-field`, `-method`, `-ident`, `-import`, `-assoc-item`, `unimplemented-trait`, `type-must-be-known` experimental, off (`diagnostics.experimental.enable`); the whole truth is `cargo check`'s on save | rules with levels, `# ty: ignore[rule]`, none in unreachable code | only the first stage that erred (`FirstErrorCategory`): no semantic errors under a syntax error | all | all |
+| Under syntax errors | none from a file of 16 or more (`ide-diagnostics/src/lib.rs`) | — | none (above) | — | — |
 
 ## Competitors
 
@@ -80,7 +97,7 @@ Features:
 
 | Feature | R4 | R9 | cjls |
 |---|---|---|---|
-| Diagnostics | the compiler's, all of them; push | its checkers; push | none; syntax in #17, semantic after #48 |
+| Diagnostics | the compiler's, all of them; push | its checkers; push | syntax (#17); semantic: #53 |
 | Semantic tokens | `full` | `full`, `range` | #16, #201: names at their use by what they mean; `full`, `range`, `refresh` |
 | Document symbols | yes | yes | yes |
 | Workspace symbols | yes | yes | #12 |
@@ -92,7 +109,7 @@ Features:
 | Call and type hierarchy | yes | — | after #48 |
 | Folding | — | yes | yes (syntactic) |
 | Selection range | — | yes | yes |
-| Formatting | — | yes | — |
+| Formatting | — | yes | yes, ranges too (D60, D74) |
 | Code actions, code lens, document links | yes | code actions | — |
 | Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | arguments parsed, not expanded (D59); #47 |
 | `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | #49 |

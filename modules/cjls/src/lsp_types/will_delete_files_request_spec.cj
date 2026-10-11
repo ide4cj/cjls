@@ -45,6 +45,10 @@ public struct WillDeleteFilesRequestSpec <: LspInboundRequest<DeleteFilesParams,
         decodeMessageParams<DeleteFilesParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DeleteFilesParams {
+        decodeMessageParams<DeleteFilesParams>(r)
+    }
+
     public func encodeResult(result: Nullable<WorkspaceEdit>): RawJson {
         RawJson.of(result)
     }

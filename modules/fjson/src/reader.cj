@@ -22,7 +22,6 @@ public enum FjKind {
 
 /** How many containers deep `skipValue` and `rawValue` go: a value nested deeper is refused. */
 const MAX_DEPTH = 512
-const SCRATCH_INITIAL = 256
 // what a reader keeps from message to message: `FramedJsonRpcTransport`'s writer keeps as much
 const SCRATCH_KEPT_MAX = 1024 * 1024
 
@@ -46,8 +45,9 @@ public class FjReader {
     private var keyStart = 0
     private var keyLength = 0
     private var keyInScratch = false
-    // unescaped strings are built here and copied out, one buffer for the reader's lifetime
-    private var scratch = Array<Byte>(SCRATCH_INITIAL, repeat: 0)
+    // unescaped strings are built here and copied out, one buffer for the reader's lifetime,
+    // allocated by the first escape met: a reader made for one value may never meet one
+    private var scratch = Array<Byte>()
 
     public FjReader(private var bytes: Array<Byte>) {}
 
@@ -59,7 +59,7 @@ public class FjReader {
         first = false
         // one outsized string must not keep its buffer for the lifetime of the connection
         if (scratch.size > SCRATCH_KEPT_MAX) {
-            scratch = Array<Byte>(SCRATCH_INITIAL, repeat: 0)
+            scratch = Array<Byte>()
         }
     }
 
@@ -608,6 +608,15 @@ public class FjReader {
         pos = mark
         // a mark is taken where a value starts, and a value's container has had its separator by then
         first = false
+    }
+
+    /**
+     * The bytes from a `mark` to where the reader is, a slice of the input: a value read in place
+     * kept as its own bytes as well.
+     */
+    @Frozen
+    public func sliceSince(mark: Int64): Array<Byte> {
+        bytes[mark..pos]
     }
 
     /** Nothing but whitespace is left. */

@@ -44,4 +44,8 @@ public struct DidCreateFilesNotificationSpec <: LspInboundNotification<CreateFil
     public func decodeParams(params: ?RawJson): CreateFilesParams {
         decodeMessageParams<CreateFilesParams>(params)
     }
+
+    public func decodeParams(r: FjReader): CreateFilesParams {
+        decodeMessageParams<CreateFilesParams>(r)
+    }
 }

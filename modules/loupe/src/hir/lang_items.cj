@@ -6,9 +6,9 @@ import calca.macros.*
 import loupe.db.AnalysisDatabase
 
 /**
- * A declaration of `std.core` the language itself means, whatever a file's scope names: what the
- * syntax is sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own
- * types (`CPointer`, `CString`): a file names those, through its scope.
+ * A declaration of std the language itself means, whatever a file's scope names: what the syntax is
+ * sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types
+ * (`CPointer`, `CString`): a file names those, through its scope.
  */
 @Derive[Equatable, Hashable]
 public enum LangItem {
@@ -49,6 +49,14 @@ public enum LangItem {
      * `Array`: `[a, b]`.
      */
     | ArrayStruct
+    /**
+     * `Exception`: what `@AssertThrows` of no `[…]` gives (N136).
+     */
+    | ExceptionClass
+    /**
+     * `std.ast`'s `Tokens`: `quote(…)` (N136).
+     */
+    | TokensClass
 
     public func name(): String {
         match (this) {
@@ -62,6 +70,8 @@ public enum LangItem {
             case IterableInterface => "Iterable"
             case RangeStruct => "Range"
             case ArrayStruct => "Array"
+            case ExceptionClass => "Exception"
+            case TokensClass => "Tokens"
         }
     }
 
@@ -70,9 +80,19 @@ public enum LangItem {
             case OptionEnum => ItemKind.Enum
             case OptionSome | OptionNone => ItemKind.EnumCtor
             case CompositionFunc => ItemKind.Func
-            case ObjectClass | FutureClass => ItemKind.Class
+            case ObjectClass | FutureClass | ExceptionClass | TokensClass => ItemKind.Class
             case StringStruct | RangeStruct | ArrayStruct => ItemKind.Struct
             case IterableInterface => ItemKind.Interface
+        }
+    }
+
+    /**
+     * The package of std it is declared in.
+     */
+    public func pkg(): String {
+        match (this) {
+            case TokensClass => "std.ast"
+            case _ => "std.core"
         }
     }
 
@@ -88,7 +108,7 @@ public enum LangItem {
 }
 
 /**
- * The declaration `item` of the `std.core` the package `from` may import, its visibility aside; none
+ * The declaration `item` of the std the package `from` may import, its visibility aside; none
  * without an SDK.
  */
 @CalcaTracked
@@ -101,7 +121,7 @@ public func langItem(db: AnalysisDatabase, from: PackageRef, item: LangItem): ?D
             one => one.item(db).kind == item.kind() && isNamed(db, one, item.name())
         }.next()
     }
-    let core = packageIndex(db).find("std.core", from: from) ?? return None
+    let core = packageIndex(db).find(item.pkg(), from: from) ?? return None
     let defs = packageExports(db, core).names.get(item.name()) ?? return None
     defs.iterator().filter {one => one.id.item(db).kind == item.kind()}.next().map {one => one.id}
 }

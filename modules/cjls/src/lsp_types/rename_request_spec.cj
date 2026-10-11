@@ -42,6 +42,10 @@ public struct RenameRequestSpec <: LspInboundRequest<RenameParams, Nullable<Work
         decodeMessageParams<RenameParams>(params)
     }
 
+    public func decodeParams(r: FjReader): RenameParams {
+        decodeMessageParams<RenameParams>(r)
+    }
+
     public func encodeResult(result: Nullable<WorkspaceEdit>): RawJson {
         RawJson.of(result)
     }

@@ -38,6 +38,10 @@ public struct PrepareRenameRequestSpec <: LspInboundRequest<PrepareRenameParams,
         decodeMessageParams<PrepareRenameParams>(params)
     }
 
+    public func decodeParams(r: FjReader): PrepareRenameParams {
+        decodeMessageParams<PrepareRenameParams>(r)
+    }
+
     public func encodeResult(result: Nullable<PrepareRenameResult>): RawJson {
         RawJson.of(result)
     }

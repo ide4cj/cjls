@@ -45,6 +45,10 @@ public struct TypeHierarchyPrepareRequestSpec <: LspInboundRequest<TypeHierarchy
         decodeMessageParams<TypeHierarchyPrepareParams>(params)
     }
 
+    public func decodeParams(r: FjReader): TypeHierarchyPrepareParams {
+        decodeMessageParams<TypeHierarchyPrepareParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<TypeHierarchyItem>>): RawJson {
         RawJson.of(result)
     }

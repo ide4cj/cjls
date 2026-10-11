@@ -32,4 +32,17 @@ class FormattingTest {
         @Expect(formatting(db, FileId(0)), None)
         @Expect(formatting(db, FileId(1)), None)
     }
+
+    @TestCase
+    func theLinesOfARangeAreFormattedAndNoOther() {
+        // arrange
+        let db = AnalysisDatabase()
+        db.setFileText(FileId(0), Rope("func f() {\nx\ny\n}\n"))
+
+        // act
+        let edits = rangeFormatting(db, FileId(0), TextRange(13, 14))
+
+        // assert
+        @Expect(edits, Some([TextEdit(TextRange(13, 13), "    ")]))
+    }
 }

@@ -39,6 +39,10 @@ public struct ShutdownRequestSpec <: LspInboundRequest<Unit, Unit> {
         ()
     }
 
+    public func decodeParams(r: FjReader): Unit {
+        r.skipValue()
+    }
+
     public func encodeResult(result: Unit): RawJson {
         RawJson.NULL
     }

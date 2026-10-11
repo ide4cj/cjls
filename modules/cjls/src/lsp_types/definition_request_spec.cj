@@ -45,6 +45,10 @@ public struct DefinitionRequestSpec <: LspInboundRequest<DefinitionParams, Nulla
         decodeMessageParams<DefinitionParams>(params)
     }
 
+    public func decodeParams(r: FjReader): DefinitionParams {
+        decodeMessageParams<DefinitionParams>(r)
+    }
+
     public func encodeResult(result: Nullable<DefinitionOrDefinitionLinks>): RawJson {
         RawJson.of(result)
     }

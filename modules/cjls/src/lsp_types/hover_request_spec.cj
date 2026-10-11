@@ -44,6 +44,10 @@ public struct HoverRequestSpec <: LspInboundRequest<HoverParams, Nullable<Hover>
         decodeMessageParams<HoverParams>(params)
     }
 
+    public func decodeParams(r: FjReader): HoverParams {
+        decodeMessageParams<HoverParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Hover>): RawJson {
         RawJson.of(result)
     }

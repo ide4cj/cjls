@@ -204,6 +204,10 @@ class Runtime {
      * Cancels the operations in flight, waits for them to end, and makes `change` in a new
      * revision, which it is given. Holds the gate throughout, so nothing begins until it is done;
      * the ingredients let go of what they no longer need then, with nothing reading them.
+     *
+     * A `change` that changed no input (an empty batch) opens no revision (D75): a memo is verified
+     * without its edges when nothing of its durability changed, so it would not keep alive what it
+     * interned, while the revision aged the interned values.
      */
     func write<T>(change: (Int64) -> T): T {
         synchronized(gate) {
@@ -217,7 +221,15 @@ class Runtime {
                 for (ingredient in table.load().entries) {
                     ingredient?.newRevision()
                 }
-                change(revision_.fetchAdd(1) + 1)
+                let revision = revision_.fetchAdd(1) + 1
+                try {
+                    change(revision)
+                } finally {
+                    // any change is one of `Low` inputs at least
+                    if (lastChanged[Durability.Low.rank].load() != revision) {
+                        revision_.store(revision - 1)
+                    }
+                }
             } finally {
                 writePending.store(false)
             }

@@ -44,6 +44,10 @@ public struct MonikerRequestSpec <: LspInboundRequest<MonikerParams, Nullable<Ar
         decodeMessageParams<MonikerParams>(params)
     }
 
+    public func decodeParams(r: FjReader): MonikerParams {
+        decodeMessageParams<MonikerParams>(r)
+    }
+
     public func encodeResult(result: Nullable<Array<Moniker>>): RawJson {
         RawJson.of(result)
     }

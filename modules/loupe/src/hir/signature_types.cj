@@ -434,7 +434,7 @@ class SourceTyLowering {
                 let element = lowerAt(inner)
                 match (optionDecl()) {
                     case Some(option) => DeclTy(option, [element])
-                    case None => ErrorTy
+                    case None => TodoTy(Todo.NoStd)
                 }
             case ThisRef => thisAt(id)
             case VArrayRef(element, size) =>
@@ -494,8 +494,9 @@ class SourceTyLowering {
             case Some(UnresolvedPath) =>
                 unresolved(id, typeScope, segments, resolved)
                 Ty(db, ErrorTy)
-            // a type ambiguous, packages conflicting: errors of names; a local function's type
-            // parameter: no `Ty` yet (8c)
+            // a local function's type parameter: no `Ty` yet (8c)
+            case Some(Resolved(LocalGenericOf(_, _, _))) => Ty(db, TodoTy(Todo.LocalGeneric))
+            // a type ambiguous, packages conflicting: errors of names
             case _ => Ty(db, ErrorTy)
         }
     }
@@ -664,7 +665,7 @@ class BinaryTyLowering {
             case Some(semaTy) where semaTy.kind == TypeKind.Func && isCallable(def.item(db).kind) =>
                 let ret = match (semaTy.info) {
                     case Some(SemaTyInfo.AsFuncTyInfo(info)) => lowerAt(info.retType)
-                    case _ => Ty(db, ErrorTy)
+                    case _ => Ty(db, TodoTy(Todo.BinaryType))
                 }
                 (semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}, ret)
             case _ => (Array<Ty>(), lowerAt(declared))
@@ -704,7 +705,7 @@ class BinaryTyLowering {
     private func lowerAt(index: UInt32): Ty {
         // a type inside itself is a broken file's (D38)
         if (!lowering.add(index)) {
-            return Ty(db, ErrorTy)
+            return Ty(db, TodoTy(Todo.BinaryType))
         }
         try {
             lowerSemaTy(index)
@@ -714,13 +715,13 @@ class BinaryTyLowering {
     }
 
     private func lowerSemaTy(index: UInt32): Ty {
-        let semaTy = semaTyOf(index) ?? return Ty(db, ErrorTy)
+        let semaTy = semaTyOf(index) ?? return Ty(db, TodoTy(Todo.BinaryType))
         let args = semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}
         let kind = match (semaTy.kind) {
             case TypeKind.Tuple => TupleTy(args)
             case TypeKind.Func => match (semaTy.info) {
                 case Some(SemaTyInfo.AsFuncTyInfo(info)) => FuncTy(args, lowerAt(info.retType), info.isC)
-                case _ => ErrorTy
+                case _ => TodoTy(Todo.BinaryType)
             }
             case TypeKind.Enum | TypeKind.Struct | TypeKind.Class | TypeKind.Interface => match (semaTy.info) {
                 case Some(SemaTyInfo.AsCompositeTyInfo(info)) where info.isThisTy => ThisTy
@@ -730,18 +731,18 @@ class BinaryTyLowering {
             case TypeKind.Array => return rawArrayOf(args, dimsOf(semaTy.info))
             case TypeKind.`VArray` => match (args.get(0)) {
                 case Some(element) => VArrayTy(element, dimsOf(semaTy.info))
-                case None => ErrorTy
+                case None => TodoTy(Todo.BinaryType)
             }
             case TypeKind.Generic => match (semaTy.info) {
                 case Some(SemaTyInfo.AsGenericTyInfo(info)) => paramOf(info.declPtr)
-                case _ => ErrorTy
+                case _ => TodoTy(Todo.BinaryType)
             }
             // an alias, which cjc keeps in the types it writes: `Array<Byte>`
             case TypeKind.Type => return aliasOf(binaryTypeRef(cjo, imports, index), args)
             // `Unit` to `Bool`: the types of the language
             case kind where kind.value >= 1 && kind.value <= 17 => PrimTy(kind.toString())
             // an invalid one, one a newer format added
-            case _ => ErrorTy
+            case _ => TodoTy(Todo.BinaryType)
         }
         Ty(db, kind)
     }
@@ -758,7 +759,7 @@ class BinaryTyLowering {
     private func declTyOf(ref: ?BinaryTypeRef, args: Array<Ty>): TyKind {
         match (ref.flatMap {one => resolveBinaryType(db, pkg, one)}) {
             case Some(DeclType(id)) => DeclTy(id, args)
-            case _ => ErrorTy
+            case _ => TodoTy(Todo.BinaryType)
         }
     }
 
@@ -768,8 +769,8 @@ class BinaryTyLowering {
     private func aliasOf(ref: ?BinaryTypeRef, args: Array<Ty>): Ty {
         match (ref.flatMap {one => resolveBinaryType(db, pkg, one)}) {
             case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias =>
-                substitute(db, signatureTypes(db, id).ty ?? Ty(db, ErrorTy), id, args)
-            case _ => Ty(db, ErrorTy)
+                substitute(db, signatureTypes(db, id).ty ?? Ty(db, TodoTy(Todo.BinaryType)), id, args)
+            case _ => Ty(db, TodoTy(Todo.BinaryType))
         }
     }
 
@@ -779,12 +780,12 @@ class BinaryTyLowering {
      */
     private func rawArrayOf(args: Array<Ty>, dims: Int64): Ty {
         if (dims > maxRawArrayDims) {
-            return Ty(db, ErrorTy)
+            return Ty(db, TodoTy(Todo.BinaryType))
         }
-        let element = args.get(0) ?? return Ty(db, ErrorTy)
+        let element = args.get(0) ?? return Ty(db, TodoTy(Todo.BinaryType))
         let rawArray = match (resolveBinaryType(db, pkg, BinaryTypeRef.BuiltInRef("RawArray"))) {
             case Some(DeclType(id)) => id
-            case _ => return Ty(db, ErrorTy)
+            case _ => return Ty(db, TodoTy(Todo.BinaryType))
         }
         var ty = element
         for (_ in 0..max(dims, 1)) {
@@ -797,16 +798,16 @@ class BinaryTyLowering {
      * The type parameter `ptr` points to, of the declaration or of its parent.
      */
     private func paramOf(ptr: ?FullId): TyKind {
-        let at = ptr ?? return ErrorTy
+        let at = ptr ?? return TodoTy(Todo.BinaryType)
         if (at.pkgId != -2) {
-            return ErrorTy
+            return TodoTy(Todo.BinaryType)
         }
         for ((owner, params) in owners) {
             for (i in 0..params.size where params[i] == at.index) {
                 return ParamTy(owner, i)
             }
         }
-        ErrorTy
+        TodoTy(Todo.BinaryType)
     }
 }
 

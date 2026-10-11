@@ -32,4 +32,8 @@ public struct SetTraceNotificationSpec <: LspInboundNotification<SetTraceParams>
     public func decodeParams(params: ?RawJson): SetTraceParams {
         decodeMessageParams<SetTraceParams>(params)
     }
+
+    public func decodeParams(r: FjReader): SetTraceParams {
+        decodeMessageParams<SetTraceParams>(r)
+    }
 }

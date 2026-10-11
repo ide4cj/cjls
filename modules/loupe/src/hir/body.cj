@@ -2,10 +2,10 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.SyntaxNodePtr
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr,
-    MacroExpandExpr, MatchCase, Name, ParamList, PathSegment, Pattern, ResourceDecl, Type}
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
+import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr, MacroAttr,
+    MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern, ResourceDecl, Type, identText}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -253,10 +253,29 @@ public enum Expr {
     | LangExpr(LangItem)
     | BlockExpr(Array<Stmt>)
     /**
-     * A `quote` or a macro call: what it expands to is not known here. A macro call's arguments when they parse as
-     * an argument list, lowered so the names in them resolve; the macro sees them as tokens all the same.
+     * `quote(…)`: its tokens are what it builds, not code run here; an `std.ast.Tokens` (N136).
      */
-    | MacroExpr(Array<CallArg>)
+    | QuoteExpr
+    /**
+     * A macro call: what it expands to is not known here.
+     */
+    | MacroExpr(MacroCall)
+}
+
+/**
+ * A macro called in a body, `@M[a](b, c)`: the path it names, the macro outermost of those nested
+ * (`@A @B(x)`); the types its `[…]` lists, if it has one, each an identifier, those between `|`
+ * (`@AssertThrows[A | B]`, N136), none of one of anything else; its arguments when they parse as
+ * an argument list, the innermost's, lowered so the names in them resolve: the macro sees them as
+ * tokens all the same.
+ */
+@Derive[Equatable]
+public struct MacroCall {
+    public MacroCall(
+        public let path: Array<String>,
+        public let attr: ?Array<TypeRefId>,
+        public let args: Array<CallArg>
+    ) {}
 }
 
 /**
@@ -680,8 +699,11 @@ class BodyLowering {
                 let callee = linkOf(it.callee())
                 let lambda = lambdaOf(it.lambda())
                 match (this.exprs[callee.index]) {
-                    // `f(a) {…}` is `f(a, {…})`
-                    case Expr.CallExpr(inner, args) => Expr.CallExpr(inner, args.concat([CallArg(None, lambda)]))
+                    // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
+                    case Expr.CallExpr(inner, args) =>
+                        this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda)]))
+                        exprPtrs[callee.index] = SyntaxNodePtr(it.syntax)
+                        return callee
                     case _ => Expr.CallExpr(callee, [CallArg(None, lambda)])
                 }
             case AstExpr.AsIndexExpr(it) => Expr.IndexExpr(linkOf(it.base()), it.indices() |> map {one => expr(one)} |> collectArray)
@@ -768,10 +790,13 @@ class BodyLowering {
             case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
             case AstExpr.AsVArrayExpr(it) =>
                 Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
-            // no arguments: a quote's tokens are what it builds, not code run here, and a macro call on a declaration
-            // (`var f = @M func g() {}`) is given the declaration, not values
-            case AstExpr.AsQuoteExpr(_) | AstExpr.AsMacroExpandDecl(_) => Expr.MacroExpr([])
-            case AstExpr.AsMacroExpandExpr(it) => Expr.MacroExpr(macroArgs(it))
+            case AstExpr.AsQuoteExpr(_) => Expr.QuoteExpr
+            // no arguments: a macro call on a declaration (`var f = @M func g() {}`) is given the declaration, not
+            // values
+            case AstExpr.AsMacroExpandDecl(it) => Expr.MacroExpr(MacroCall(macroName(it).split("."), None, []))
+            case AstExpr.AsMacroExpandExpr(it) =>
+                let path = it.nameRefs() |> map {name: NameRef => name.text()} |> collectArray
+                Expr.MacroExpr(MacroCall(path, it.macroAttr().map {attr => attrTypes(attr)}, macroArgs(it)))
         }
         add(lowered, node.syntax)
     }
@@ -795,6 +820,34 @@ class BodyLowering {
             case Some(it) => it |> map {one: Type => types.lower(one)} |> collectArray
             case None => Array<TypeRefId>()
         }
+    }
+
+    /**
+     * The types `attr`, a macro call's `[…]`, lists: identifiers between `|`; none if it holds anything else.
+     */
+    private func attrTypes(attr: MacroAttr): Array<TypeRefId> {
+        let tokens = ArrayList<CjSyntaxToken>()
+        for (element in attr.syntax.descendantsWithTokens()) {
+            if (let SyntaxElement.Token(token) <- element && !token.kind.isTrivia() && token.kind != SyntaxKind.LBracket &&
+                token.kind != SyntaxKind.RBracket) {
+                tokens.add(token)
+            }
+        }
+        // `A`, `A | B`: an identifier at each even place, a `|` at each odd one
+        for (i in 0..tokens.size) {
+            let wanted = if (i % 2 == 0) {
+                SyntaxKind.Ident
+            } else {
+                SyntaxKind.Pipe
+            }
+            if (tokens[i].kind != wanted) {
+                return []
+            }
+        }
+        if (tokens.size % 2 == 0) {
+            return []
+        }
+        tokens.toArray().filter {token => token.kind == SyntaxKind.Ident}.map {token => types.named(identText(token))}
     }
 
     /**

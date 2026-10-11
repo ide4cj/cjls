@@ -1,5 +1,6 @@
 package jsonrpc
 
+import std.collection.ArrayList
 import std.unittest.*
 import std.unittest.testmacro.*
 import fjson.*
@@ -100,6 +101,80 @@ class BodyCodecTest {
         let request = body.getRequestBodyOrThrow()
         @Expect("m", request.method)
         @Expect(##"{"a" : [1, 2]}"##, request.params.getOrThrow().toString())
+    }
+
+    @TestCase
+    func paramsAfterTheMethodAreReadInPlaceByTheMethodsReaderAndKeptAsBytesToo() {
+        // arrange
+        let readers: (String) -> Option<(FjReader) -> Any> = {
+            method => if (method == "m") {
+                Some<(FjReader) -> Any>({
+                    r =>
+                    let tree: Any = JsonValue.fromJson(r)
+                    tree
+                })
+            } else {
+                None
+            }
+        }
+        let frame = ##"{"jsonrpc":"2.0","method":"m","params": {"a": [1, 2]},"id":3}"##
+
+        // act
+        let (body, decoded) = Body.read(FjReader(frame.toArray()), readers)
+
+        // assert
+        let request = body.getRequestBodyOrThrow()
+        @Expect(request.id == 3)
+        @Expect(##"{"a": [1, 2]}"##, request.params.getOrThrow().toString())
+        let tree = (decoded.getOrThrow() as JsonValue).getOrThrow()
+        @Expect(2, tree["a"][1].asInteger())
+    }
+
+    @TestCase
+    func paramsBeforeTheMethodOrOfAMethodWithoutAReaderStayBytes() {
+        // arrange
+        let asked = ArrayList<String>()
+        let readers: (String) -> Option<(FjReader) -> Any> = {
+            method =>
+            asked.add(method)
+            Some<(FjReader) -> Any>({_ => throw IllegalStateException("never called")})
+        }
+
+        // act
+        let (early, decodedEarly) = Body.read(
+            FjReader(##"{"params": {"a": 1}, "method": "m", "jsonrpc": "2.0"}"##.toArray()), readers)
+        let (_, decodedUnrouted) = Body.read(
+            FjReader(##"{"jsonrpc": "2.0", "method": "n", "params": {"a": 1}}"##.toArray()), {_ => None})
+
+        // assert
+        @Expect(decodedEarly.isNone())
+        @Expect(decodedUnrouted.isNone())
+        @Expect(##"{"a": 1}"##, early.getNotificationBodyOrThrow().params.getOrThrow().toString())
+        @Expect(0, asked.size)
+    }
+
+    @TestCase
+    func aReaderThatThrowsPartWayLeavesTheParamsTheirBytes() {
+        // arrange - the reader takes the first key and gives up inside the object
+        let readers: (String) -> Option<(FjReader) -> Any> = {
+            _ => Some<(FjReader) -> Any>({
+                r =>
+                r.beginObject()
+                r.nextKey()
+                r.skipValue()
+                throw FjException("not what I expected")
+            })
+        }
+
+        // act
+        let (body, decoded) = Body.read(
+            FjReader(##"{"jsonrpc":"2.0","method":"m","params":{"a":1,"b":2},"id":4}"##.toArray()), readers)
+
+        // assert
+        @Expect(decoded.isNone())
+        let request = body.getRequestBodyOrThrow()
+        @Expect(request.id == 4)
+        @Expect(##"{"a":1,"b":2}"##, request.params.getOrThrow().toString())
     }
 
     @TestCase
