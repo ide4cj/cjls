@@ -893,8 +893,12 @@ class LoadOffTheLoopTest {
     func theClientIsShownTheProgressOfTheLoadInFiles() {
         // arrange
         let dir = workspaceOf([("a.cj", "a"), ("b.cj", "b")])
+        // std's sources of no file, before the SDK's: `cjls fetch-src` may have put some there
+        let src = Directory.createTemp(getTempDirectory())
+        Directory.create(src.join("std"))
         let loop = initializedWith([dir], watches: false)
         loop.state.workDoneProgress = true
+        loop.state.cangjieSrc = src.toString()
         let transport = AnsweringTransport()
         let client = answeredClientOn(transport)
 
@@ -902,6 +906,7 @@ class LoadOffTheLoopTest {
         initialized(loop, client, NoopLogger(), InitializedParams())
         client.close()
         remove(dir, recursive: true)
+        remove(src, recursive: true)
 
         // assert
         let create = transport.written.remove().getRequestBodyOrThrow()
