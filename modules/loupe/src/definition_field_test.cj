@@ -743,6 +743,25 @@ class FieldDefinitionTest {
     }
 
     @TestCase
+    func aNameAloneFallsThroughAnExtendOfAnotherInstanceToThePackage() {
+        // N86, #239: cjc calls the package's `only`, the member level having none
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Box<T> {}
+            class S {}
+            extend Box<Int64> {
+                static func only(): Int64 { 1 }
+            }
+            func only(): Int64 { 42 }
+            //   ^^^^ def
+            extend Box<S> {
+                func g(): Int64 { $0only() }
+            }
+            "#)
+    }
+
+    @TestCase
     func anExtendOfAnotherInstanceIsNoneOfTheMembersAfterThisInAnExtend() {
         // N86, #239: cjc's 'only' is not a member of class 'Box<S>'
         checkDefinition(#"
