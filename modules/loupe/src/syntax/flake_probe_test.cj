@@ -16,6 +16,21 @@ func weakRoot(db: AnalysisDatabase, file: SourceFile): WeakRef<CjSyntaxNode> {
     WeakRef(rootOf(db, file), CleanupPolicy.EAGER)
 }
 
+func probeDb(): (AnalysisDatabase, SourceFile, FileId) {
+    let db = AnalysisDatabase()
+    let file = db.setFileText(FileId(0), Rope("func f() {}\nfunc g() {}\n"))
+    let other = FileId(1)
+    db.setFileText(other, Rope(""))
+    (db, file, other)
+}
+
+func evictAndWrite(db: AnalysisDatabase, other: FileId): Unit {
+    for (j in 0..PARSE_LRU) {
+        parse(db, db.setFileText(FileId(100 + j), Rope("let x${j} = ${j}")))
+    }
+    db.setFileText(other, Rope("changed"))
+}
+
 @Test
 class FlakeProbeTest {
     @TestCase
@@ -23,22 +38,22 @@ class FlakeProbeTest {
         var treeFreed = 0
         var rootFreed = 0
         var rootAliveTreeFreed = 0
-        var rootRunAgain = 0
-        for (i in 0..300) {
-            let db = AnalysisDatabase()
-            let file = db.setFileText(FileId(0), Rope("func f() {}\nfunc g() {}\n"))
-            let other = FileId(1)
-            db.setFileText(other, Rope(""))
+        var runBefore = 0
+        var runAfterFreed = 0
+        for (_ in 0..300) {
+            let (db, file, other) = probeDb()
             let tree = weakTree(db, file)
             let root = weakRoot(db, file)
-            let rootRuns = db.storage.executionsOf("rootOf")
-            for (j in 0..PARSE_LRU) {
-                parse(db, db.setFileText(FileId(100 + j), Rope("let x${j} = ${j}")))
-            }
-            db.setFileText(other, Rope("changed"))
+            let runs = db.storage.executionsOf("rootOf")
+            @Expect(runs, 1)
+            evictAndWrite(db, other)
 
             let freed = isFreed(tree)
             let rootGone = root.value.isNone()
+            if (db.storage.executionsOf("rootOf") != runs) {
+                runBefore++
+            }
+            @Expect(rootOf(db, file).text(), file.text(db).toString())
             if (freed) {
                 treeFreed++
                 if (rootGone) {
@@ -46,13 +61,56 @@ class FlakeProbeTest {
                 } else {
                     rootAliveTreeFreed++
                 }
+                // calca dropped the value: fetched again, it is computed again; the GC freed what the memo
+                // holds: it is answered from the memo
+                if (db.storage.executionsOf("rootOf") != runs) {
+                    runAfterFreed++
+                }
             }
-            if (db.storage.executionsOf("rootOf") != rootRuns) {
-                rootRunAgain++
+        }
+        println("PROBE1 treeFreed=${treeFreed} rootFreed=${rootFreed} rootAliveTreeFreed=${rootAliveTreeFreed} runBefore=${runBefore} runAfterFreed=${runAfterFreed}")
+        @Expect(treeFreed, 0)
+    }
+
+    /**
+     * The test holds the node itself: a tree freed here is the GC's doing alone.
+     */
+    @TestCase
+    func aNodeHeldByTheTestKeepsItsTreeAliveRepeated() {
+        var treeFreed = 0
+        for (_ in 0..300) {
+            let (db, file, other) = probeDb()
+            let tree = weakTree(db, file)
+            let node = rootOf(db, file)
+            evictAndWrite(db, other)
+
+            if (isFreed(tree)) {
+                treeFreed++
+            }
+            @Expect(node.text(), file.text(db).toString())
+        }
+        println("PROBE2 treeFreed=${treeFreed}")
+        @Expect(treeFreed, 0)
+    }
+
+    /**
+     * Neither calca nor the test holds the tree after its eviction but through `parse`'s memo, kept by no `lru`
+     * eviction: a control, the tree should stay.
+     */
+    @TestCase
+    func aTreeNotEvictedStaysRepeated() {
+        var treeFreed = 0
+        for (_ in 0..300) {
+            let (db, file, other) = probeDb()
+            let tree = weakTree(db, file)
+            db.setFileText(other, Rope("changed"))
+
+            if (isFreed(tree)) {
+                treeFreed++
             }
             @Expect(rootOf(db, file).text(), file.text(db).toString())
         }
-        println("PROBE treeFreed=${treeFreed} rootFreed=${rootFreed} rootAliveTreeFreed=${rootAliveTreeFreed} rootRunAgain=${rootRunAgain}")
+        println("PROBE3 treeFreed=${treeFreed}")
         @Expect(treeFreed, 0)
     }
 }
