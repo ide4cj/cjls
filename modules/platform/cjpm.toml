@@ -14,7 +14,7 @@ package-configuration = {}
 
 [dependencies]
 
-# Cangjie multiplatform: one package over source sets, chosen by the host's `os.*` (D99)
+# Cangjie multiplatform: one package over source sets, chosen by the host's `os.*` (D100)
 [profile]
 experimental = true
 

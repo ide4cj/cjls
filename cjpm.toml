@@ -33,7 +33,7 @@ script-dir = ""
 [dependencies]
 
 # `-i` on every build and test; cjpm's cache knows nothing of the SDK, hence build.cj (D27)
-# Cangjie multiplatform, which `platform` is (D99): cjpm wants it of the workspace as well as the module
+# Cangjie multiplatform, which `platform` is (D100): cjpm wants it of the workspace as well as the module
 [profile]
 experimental = true
 

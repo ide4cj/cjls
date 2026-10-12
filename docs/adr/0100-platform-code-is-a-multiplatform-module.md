@@ -1,4 +1,4 @@
-# ADR-0099: What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations
+# ADR-0100: What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations
 
 Status: proposed
 
