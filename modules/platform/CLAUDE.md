@@ -5,7 +5,7 @@ A multiplatform module ([D100](../../docs/adr/0100-platform-code-is-a-multiplatf
 - **A test is in a product set** (`linux`, `darwin`, `windows`): one in `common` or `posix` is neither compiled nor run, and cjpm says nothing. What `common` code does is tested by the modules calling it.
 - **Another platform is type-checked here**: `cjpm build -m modules/platform --no-feature-deduce --enable-features=os.windows` (`os.darwin`); only that OS's CI runs its tests.
 - **`build.cj` copies the product up**: `cjpm test` of a module using `platform` looks for `libplatform.a` and `platform.cjo` in `<target>/<profile>/platform/`, not in the product set's `src/<set>/product/`, and neither imports nor links them otherwise; after each build the script copies them there, in every directory under `target` (cjpm tells it no `--target-dir`).
-- **`-O1`** (D98): at `-O2` the common part puts the std functions it calls into the library, and the link fails.
+- **`-O1`** (D101): at `-O2` the common part puts the std functions it calls into the library, and the link fails.
 - **A constant is a function** (`hostOs()`): a `common let` wants its `specific` in the very next set, `posix`. A `specific` function warns of a parameter it does not use: an API never takes what one platform ignores.
 - **The architecture is `@When[arch == …]`** (`hostArch`): cjpm has features for `os.*` alone.
 - **Windows** is Win32 through FFI: `CreateProcessW` for a child on two inherited pipe handles, suspended until it is in a kill-on-close job (`KillOnCloseJob`, D78, D91); `relaunch` runs the server again as a child after `tieChildrenToThisProcess`. No foreign function that blocks is `@FastNative` or named like a libc function (C5).

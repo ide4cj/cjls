@@ -1,4 +1,4 @@
-# ADR-0098: The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O`
+# ADR-0101: The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O`
 
 Status: proposed. Supersedes D51's sections in the root's `cjpm.toml`.
 
