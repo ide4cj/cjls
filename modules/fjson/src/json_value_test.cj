@@ -45,4 +45,13 @@ class JsonValueTest {
         @Expect(read("null").isNull())
         @Expect(read(#"{"a":1,"b":2}"#) != read(#"{"b":2,"a":1}"#))
     }
+
+    @TestCase
+    func aPrettyValueHasAnItemOrAMemberPerLineAndAnEmptyContainerOnOne() {
+        // act
+        let text = read(#"{"a":[1,"x"],"b":{},"c":[],"d":{"e":null}}"#).toPrettyString()
+
+        // assert
+        @Expect(text, "{\n  \"a\": [\n    1,\n    \"x\"\n  ],\n  \"b\": {},\n  \"c\": [],\n  \"d\": {\n    \"e\": null\n  }\n}")
+    }
 }

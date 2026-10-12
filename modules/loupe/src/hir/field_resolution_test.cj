@@ -80,8 +80,8 @@ class FieldResolutionTest {
 
     @TestCase
     func anExtendOfAnInterfacesCjoIsSeenThroughTheInterfaceImported() {
-        // N84, N82: `Parsable`'s and `RadixConvertible`'s, an implementation and what it implements
-        // both (step 8)
+        // N84, N82: the `extend`s' implementing `Parsable`'s and `RadixConvertible`'s, which they
+        // hide (N107, #239)
         // arrange
         let (db, _, f) = declOf(#"
             package m
@@ -91,8 +91,7 @@ class FieldResolutionTest {
         // act
         let resolution = resolveField(db, f, fieldNamed(db, f, "parse"))
         // assert
-        @Expect(describe(db, resolution),
-            ["std.convert extend parse", "std.convert extend parse", "std.convert interface parse", "std.convert interface parse"])
+        @Expect(describe(db, resolution), ["std.convert extend parse", "std.convert extend parse"])
     }
 
     @TestCase
