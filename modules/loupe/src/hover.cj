@@ -52,15 +52,31 @@ public struct HoverItem {
  */
 public func hoverAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?HoverResult {
     let file = db.sourceFile(fileId) ?? return None
-    let root = parse(db, file).syntaxNode()
+    hoverIn(db, ItemFile.Source(file), offset)
+}
+
+/**
+ * What the name at `offset` of the text of the expansion of `call` (`expandedMacro`) stands for, as `hoverAt` finds
+ * it in a file, the names of the expansion in the scope of the call's file; the range of the result is of that text.
+ * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`).
+ */
+public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: Int64): ?HoverResult {
+    hoverIn(db, ItemFile.Expansion(call), offset)
+}
+
+/**
+ * What the name at `offset` of `file`, a source file or an expansion, stands for.
+ */
+func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult {
+    let scope = scopeFileOf(db, file) ?? return None
+    let (root, ids) = syntaxOf(db, file) ?? return None
     let token = tokenAt(root, offset) ?? return None
     // a macro's: later, with its expansion (#175)
-    if (macroDefinitions(db, file, token).isSome()) {
+    if (macroDefinitions(db, scope, token).isSome()) {
         return None
     }
-    let ids = itemIdMap(db, file)
     let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
-    let def = DefId(db, ItemFile.Source(file), item ?? return None)
+    let def = DefId(db, file, item ?? return None)
     let items = if (isDeclaredName(db, def, token)) {
         Hovers(db, def, token).ofDecl(def)
     } else if (let Some((typeNode, segment)) <- typeAt(token)) {
@@ -78,7 +94,7 @@ public func hoverAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?Hover
  * Whether `token` is the name `def` declares, where it declares it.
  */
 func isDeclaredName(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Bool {
-    let (_, node) = nodeOf(db, def) ?? return false
+    let node = itemNodeOf(db, def) ?? return false
     if (let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
         return name.syntax.textRange == token.parent.textRange
     }
@@ -191,10 +207,7 @@ class Hovers {
                 case NoField => []
             }
         }
-        let pkg: ?Package = match (def.file(db)) {
-            case Source(file) => packageOfFile(db, file)
-            case _ => None
-        }
+        let pkg: ?Package = from.flatMap {file => packageOfFile(db, file)}
         if (let Some(_) <- BindPat.cast(node)) {
             let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return []
             let ctors = match (pkg) {

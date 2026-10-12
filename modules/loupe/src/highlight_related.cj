@@ -75,7 +75,7 @@ func meaningsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): A
             return [Definition.DeclDef(DefId(db, ItemFile.Source(file), item))]
         }
     }
-    let defs = classifyName(db, file, itemAround(db, file, token.parent), token) ?? return []
+    let defs = classifyName(db, file, itemAround(db, ItemFile.Source(file), token.parent), token) ?? return []
     defs |> filterMap {
         definition: Definition => match (definition) {
             case MemberParamDef(ctor, local) => Some(Definition.LocalDef(ctor, local))
