@@ -33,7 +33,8 @@ class Server <: Handler {
 
     Server(private let router: Router, private let client: Client, private let logger: Logger) {
         let push = router.diagnostics.map {diagnostics => DiagnosticsPush(diagnostics, client, logger)}
-        loop = Loop(router.state, push, refresh: {=> client.request(SemanticTokensRefreshRequestSpec(), (), logger)})
+        loop = Loop(router.state, push, refreshTokens: {=> client.request(SemanticTokensRefreshRequestSpec(), (), logger)},
+            refreshDiagnostics: {=> client.request(DiagnosticRefreshRequestSpec(), (), logger)})
     }
 
     /**
