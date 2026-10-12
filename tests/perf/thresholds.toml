@@ -13,14 +13,15 @@ generated = true
 lines = 5000
 requests = 50
 
-# measured at 31fdb08d, nightly 1.3.0-alpha.20261002001050: 782 / 0 / 753
+# measured after #229, nightly 1.3.0-alpha.20261002001050: 1252 / 0 / 1203 (782 / 0 / 753 before:
+# #229 made itemOf, declItemOf, parentOf and lookUp queries, each counted where it was a call)
 [cjls.definition]
-cold_queries = 980
+cold_queries = 1570
 warm_queries = 0
-edit_queries = 950
+edit_queries = 1510
 
-# measured at 31fdb08d, nightly 1.3.0-alpha.20261002001050: 1009 / 0 / 978
+# measured after #229, nightly 1.3.0-alpha.20261002001050: 1583 / 0 / 1522 (1009 / 0 / 978 before)
 [cjls.hover]
-cold_queries = 1260
+cold_queries = 1980
 warm_queries = 0
-edit_queries = 1230
+edit_queries = 1910
