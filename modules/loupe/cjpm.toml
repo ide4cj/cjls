@@ -19,6 +19,7 @@ cjo = { path = "../cjo" }
 cjsyntax = { path = "../cjsyntax" }
 ginkgo = { path = "../ginkgo" }
 index_map = { path = "../index_map" }
+platform = { path = "../platform" }
 rope = { path = "../rope" }
 
 # `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51

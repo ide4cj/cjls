@@ -1,6 +1,6 @@
-package macro_server
+features { os.windows }
+package platform
 
-import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -31,20 +31,16 @@ class WindowsCommandTest {
     }
 
     @TestCase
-    func theCommandLineIsTheServerItsTwoHandlesSerialAndCjc(): Unit {
-        // arrange
-        let paths = MacroServerPaths.inSdk(Path("C:\\Cangjie SDK"), "windows_x86_64_cjnative")
-
+    func theCommandLineIsEachArgumentQuoted(): Unit {
         // act
-        let line = windowsCommandLine(paths, 520, 524)
+        let line = windowsCommandLine(["C:\\Cangjie SDK\\LSPMacroServer.exe", "520", "524", "0", "C:\\sdk\\cjc.exe"])
 
         // assert
-        @Expect(line, "\"${paths.server}\" 520 524 0 \"${paths.cjc}\"")
-        @Expect(paths.server.toString().endsWith("LSPMacroServer.exe"))
+        @Expect(line, "\"C:\\Cangjie SDK\\LSPMacroServer.exe\" 520 524 0 C:\\sdk\\cjc.exe")
     }
 
     @TestCase
-    func theRuntimeGoesFirstOnPathWhateverItsCase(): Unit {
+    func theLibraryDirectoryGoesFirstOnPathWhateverItsCase(): Unit {
         // act
         let block = text(windowsEnvironment([("b", "2"), ("Path", "C:\\bin"), ("A", "1")], "C:\\rt"))
 
@@ -53,7 +49,7 @@ class WindowsCommandTest {
     }
 
     @TestCase
-    func withNoPathTheRuntimeIsAllOfIt(): Unit {
+    func withNoPathTheLibraryDirectoryIsAllOfIt(): Unit {
         // act
         let block = text(windowsEnvironment([("X", "1")], "C:\\rt"))
 

@@ -1,0 +1,68 @@
+[package]
+cjc-version = "1.3.0"
+name = "platform"
+organization = ""
+description = "What differs between the hosts cjls runs on, one source set per platform"
+version = "0.1.0"
+target-dir = ""
+script-dir = ""
+output-type = "static"
+compile-option = ""
+override-compile-option = ""
+link-option = ""
+package-configuration = {}
+
+[dependencies]
+
+# Cangjie multiplatform: one package over source sets, chosen by the host's `os.*` (D99)
+[profile]
+experimental = true
+
+# what macOS and Linux share, `posix`, between `common` and theirs: the OS feature maps to it
+[[feature]]
+name = "user.platform.posix"
+mapping = []
+
+[[feature]]
+name = "os.linux"
+mapping = ["user.platform.posix"]
+
+[[feature]]
+name = "os.darwin"
+mapping = ["user.platform.posix"]
+
+[[source-set]]
+name = "common"
+src-dir = "./src/common"
+features = []
+
+[[source-set]]
+name = "posix"
+src-dir = "./src/posix"
+features = ["user.platform.posix"]
+
+[[source-set]]
+name = "linux"
+src-dir = "./src/linux"
+features = ["user.platform.posix", "os.linux"]
+
+[[source-set]]
+name = "darwin"
+src-dir = "./src/darwin"
+features = ["user.platform.posix", "os.darwin"]
+
+[[source-set]]
+name = "windows"
+src-dir = "./src/windows"
+features = ["os.windows"]
+
+# `-O1`, not `-O2`: the common part at `-O2` puts std functions into the library, which then fails to
+# link (D98); `-g` (the coverage's) builds unoptimized, D51
+[target.aarch64-apple-darwin.release]
+compile-option = "-O1"
+
+[target.x86_64-unknown-linux-gnu.release]
+compile-option = "-O1"
+
+[target.x86_64-w64-mingw32.release]
+compile-option = "-O1"

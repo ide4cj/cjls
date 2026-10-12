@@ -16,6 +16,7 @@ members = [
     "modules/lsp_codegen",
     "modules/loupe",
     "modules/macro_server",
+    "modules/platform",
     "modules/project_model",
     "modules/rope",
     "modules/stdxx",
@@ -32,6 +33,10 @@ script-dir = ""
 [dependencies]
 
 # `-i` on every build and test; cjpm's cache knows nothing of the SDK, hence build.cj (D27)
+# Cangjie multiplatform, which `platform` is (D99): cjpm wants it of the workspace as well as the module
+[profile]
+experimental = true
+
 [profile.build]
 incremental = true
 
