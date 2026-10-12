@@ -421,7 +421,7 @@ class Inference {
         locals = Array<Ty>(hir.locals.size, repeat: error)
         types = Array<?Ty>(hir.types.size, repeat: None)
         lowering = SourceTyLowering(db, def, hir)
-        option = packageRefOf(db, def).flatMap {ref => langItem(db, ref, LangItem.OptionEnum)}
+        option = stdViewerOf(db, def).flatMap {ref => langItem(db, ref, LangItem.OptionEnum)}
     }
 
     func run(): InferenceResult {
@@ -703,7 +703,7 @@ class Inference {
     }
 
     private func langId(item: LangItem): ?DefId {
-        let ref = packageRefOf(db, def) ?? return None
+        let ref = stdViewerOf(db, def) ?? return None
         langItem(db, ref, item)
     }
 
