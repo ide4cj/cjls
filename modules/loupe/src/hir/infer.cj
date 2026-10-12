@@ -1,7 +1,6 @@
 package loupe.hir
 
 import std.collection.*
-import std.convert.Parsable
 import std.deriving.*
 import std.sort.*
 import calca.*

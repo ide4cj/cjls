@@ -18,7 +18,7 @@ public interface JsonRpcReader <: Resource {
      *
      * @return `None` once the peer hangs up
      */
-    func read(paramsReader: (String) -> Option<(FjReader) -> Any>): ?(Body, ?Any) {
+    func read(_: (String) -> Option<(FjReader) -> Any>): ?(Body, ?Any) {
         match (read()) {
             case Some(body) => (body, None)
             case None => None

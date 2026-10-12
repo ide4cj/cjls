@@ -245,6 +245,26 @@ class InferenceDiagnosticsTest {
     }
 
     @TestCase
+    func aVariadicFunctionOfACjoIsCalledWithItsArraysElements() {
+        checkDiagnostics(#"
+            package m
+            import std.collection.ArrayList
+            // cjc: no error
+            func g(s: String): Unit {
+                let a = String.fromUtf8(97u8, 98u8)
+                let b = String.fromUtf8()
+                let c = String.fromUtf8([97u8])
+                let d = Float64.max(1.0, 2.0)
+                let e = Float64.max(1.0, 2.0, 3.0, 4.0)
+                let f = ArrayList.of(1, 2, 3)
+                let h = ArrayList<Int64>.of()
+                let t = s.trimStart(r'a', r'b')
+                let u = s.trimStart(r'a')
+            }
+            "#, binaries: ["std.core", "std.collection"])
+    }
+
+    @TestCase
     func aFileOfNoPackageCallsAVariadicFunctionOfStdCoreWithItsArraysElements() {
         // arrange - a project with the SDK's std, and a file in none of its packages: one under
         // `target`, or above the root
