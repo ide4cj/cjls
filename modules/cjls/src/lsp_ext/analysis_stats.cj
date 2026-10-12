@@ -2,7 +2,6 @@ package cjls.lsp_ext
 
 import fjson.*
 import stdxx.deriving.*
-import jsonrpc.*
 import cjls.lsp_types.{LspInboundRequest, MessageDirection}
 
 /**
@@ -28,7 +27,7 @@ public struct AnalysisStatsRequestSpec <: LspInboundRequest<Unit, AnalysisStats>
         }
     }
 
-    public func decodeParams(params: ?RawJson): Unit {
+    public func decodeParams(_: ?RawJson): Unit {
         ()
     }
 

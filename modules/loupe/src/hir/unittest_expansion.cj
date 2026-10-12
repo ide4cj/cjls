@@ -46,7 +46,9 @@ func testClassExpansion(decl: Decl, template!: Bool): ?Expansion {
  * registration.
  */
 func testFuncExpansion(decl: Decl): ?Expansion {
-    let fn = FuncDecl.cast(decl.syntax) ?? return None
+    if (FuncDecl.cast(decl.syntax).isNone()) {
+        return None
+    }
     let name = "TestCase_${identText(nameTokenOf(decl) ?? return None)}"
     let text = StringBuilder()
     text.append("class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite {}\n}\n")
@@ -58,7 +60,9 @@ func testFuncExpansion(decl: Decl): ?Expansion {
  * What `@TestBuilder` adds after the function `decl`, which it keeps: the registration of the suite it builds.
  */
 func testBuilderExpansion(decl: Decl): ?Expansion {
-    let fn = FuncDecl.cast(decl.syntax) ?? return None
+    if (FuncDecl.cast(decl.syntax).isNone()) {
+        return None
+    }
     let name = identText(nameTokenOf(decl) ?? return None)
     let text = StringBuilder()
     appendRegistration(text, "TestPackageExtension_${name}", "register_${name}")

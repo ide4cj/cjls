@@ -33,7 +33,7 @@ interface Ingredient {
      * How many times the body of the tracked function named `name` ran in this database, if this is
      * its memos; 0 for any other ingredient.
      */
-    func executionsOf(name: String): Int64 {
+    func executionsOf(_: String): Int64 {
         0
     }
 
