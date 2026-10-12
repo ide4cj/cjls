@@ -82,7 +82,7 @@ class HighlightTest {
             "TypeName@128..129 T",
             "TypeName@133..134 A",
             "TypeName@135..136 T",
-            "Keyword@140..144 this",
+            "Variable[DefaultLibrary]@140..144 this",
             "Keyword@149..154 const",
             "Constant[Declaration, Readonly]@155..156 K",
             "Operator@157..158 =",

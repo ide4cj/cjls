@@ -69,6 +69,31 @@ class SemanticTokensEncodingTest {
         @Expect(data[14], 1u32 << 6)
     }
 
+    @TestCase
+    func aClientAugmentingItsGrammarGetsOnlyWhatTheGrammarCannotName() {
+        // arrange
+        let documentation = HighlightModifiers.NONE.plus(HighlightModifier.Documentation)
+        let variable = HighlightedRange(TextRange(4, 5), HighlightTag.Symbol(StructureKind.Variable))
+        let docComment = HighlightedRange(TextRange(10, 16), HighlightTag.Comment, modifiers: documentation)
+        let tokens = [
+            HighlightedRange(TextRange(0, 3), HighlightTag.Keyword),
+            variable,
+            HighlightedRange(TextRange(6, 7), HighlightTag.Operator),
+            HighlightedRange(TextRange(8, 9), HighlightTag.NumberLiteral),
+            docComment,
+            HighlightedRange(TextRange(17, 20), HighlightTag.StringLiteral),
+            HighlightedRange(TextRange(21, 24), HighlightTag.Comment)
+        ]
+
+        // act
+        let augmenting = overSyntax(tokens, true)
+        let alone = overSyntax(tokens, false)
+
+        // assert - a comment the grammar cannot tell documents is kept
+        @Expect(augmenting, [variable, docComment])
+        @Expect(alone, tokens)
+    }
+
     /**
      * `(encoding, column of a)`: the emoji is four bytes, two UTF-16 units and one character.
      */
@@ -198,6 +223,42 @@ class SemanticTokensTest {
 
         // assert
         @Expect(state.multilineTokens, multiline)
+    }
+
+    @TestCase[row in [
+        (ClientCapabilities(textDocument: TextDocumentClientCapabilities(semanticTokens: SemanticTokensClientCapabilities(
+            requests: ClientSemanticTokensRequestOptions(), tokenTypes: [], tokenModifiers: [],
+            formats: [TokenFormat.Relative], augmentsSyntaxTokens: true))), true),
+        (ClientCapabilities(textDocument: TextDocumentClientCapabilities(semanticTokens: SemanticTokensClientCapabilities(
+            requests: ClientSemanticTokensRequestOptions(), tokenTypes: [], tokenModifiers: [],
+            formats: [TokenFormat.Relative]))), false),
+        (ClientCapabilities(), false)
+    ]]
+    func tokensAugmentAGrammarOnlyForAClientThatSaysItHasOne(row: (ClientCapabilities, Bool)) {
+        // arrange
+        let (capabilities, augments) = row
+        let state = ServerState()
+
+        // act
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
+
+        // assert
+        @Expect(state.augmentsSyntaxTokens, augments)
+    }
+
+    @TestCase
+    func aDocumentOfAClientAugmentingItsGrammarHasNoKeywordToken() {
+        // arrange
+        let state = opened("class A {}")
+        state.augmentsSyntaxTokens = true
+
+        // act
+        let data = semanticTokensData(state, URI).getOrThrow()
+
+        // assert
+        @Expect(data, [0, 6, 1, CLASS, DECLARATION])
     }
 
     @TestCase[row in [

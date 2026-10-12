@@ -299,6 +299,23 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
     }
 }
 
+/**
+ * `tokens`, less those a client laying them over a grammar of its own has from it: a keyword, a
+ * comment, a literal or an operator, unless a modifier tells what the grammar cannot (D105).
+ */
+func overSyntax(tokens: Array<HighlightedRange>, augments: Bool): Array<HighlightedRange> {
+    if (!augments) {
+        return tokens
+    }
+    tokens.filter {
+        token => !token.modifiers.isEmpty() || match (token.tag) {
+            case HighlightTag.Keyword | HighlightTag.Comment | HighlightTag.StringLiteral |
+                HighlightTag.NumberLiteral | HighlightTag.Operator => false
+            case _ => true
+        }
+    }
+}
+
 func tokenTypeIndex(tag: HighlightTag): UInt32 {
     let tokenKind = tokenType(tag)
     var index = 0
