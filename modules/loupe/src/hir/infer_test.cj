@@ -456,6 +456,33 @@ class InferTest {
     }
 
     @TestCase
+    func anInterfaceAnExtendOfAnotherInstanceAddsIsNotTheValues() {
+        checkInference(#"
+            package m
+            interface I {
+                func hello(): Int64 { 1 }
+                operator func -(): Int64 { 2 }
+            }
+            class Box<T> {}
+            extend Box<Int64> <: I {}
+            func f(i: Box<Int64>, s: Box<String>): Unit {
+            //     ^ Box<Int64>
+            //                    ^ Box<String>
+                let a = i.hello()
+            //      ^ Int64
+                let b = -i
+            //      ^ Int64
+                // cjc: 'hello' is not a member of class 'Box<Struct-String>'
+                let c = s.hello()
+            //      ^ {unknown}
+                // cjc: invalid unary operator '-' on type 'Class-Box<Struct-String>'
+                let d = -s
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
     func aMemberOfATypeOfTheLanguageIsItsExtends() {
         checkInference(#"
             package m
