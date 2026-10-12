@@ -8,10 +8,12 @@ import std.process.*
 
 /**
  * Where an SDK keeps what the server needs: the server, the `cjc` it finds its runtime by
- * (`dirname(cjc)/../runtime/lib/<host>`), and that runtime, which `dlopen` needs to load a macro's library.
+ * (`dirname(cjc)/../runtime/lib/<host>`), that runtime, which `dlopen` needs to load a macro's library, and the
+ * `Tokens.inc` cjc's token kinds are numbered by (`TokenNumbers`).
  */
 public struct MacroServerPaths {
-    public MacroServerPaths(public let server!: Path, public let cjc!: Path, public let runtimeLib!: Path) {}
+    public MacroServerPaths(public let server!: Path, public let cjc!: Path, public let runtimeLib!: Path,
+        public let tokensInc!: Path) {}
 
     /**
      * Those of the SDK at `home` for the host `target` (`linux_x86_64_cjnative`).
@@ -25,7 +27,8 @@ public struct MacroServerPaths {
         MacroServerPaths(
             server: home.join("tools").join("bin").join("LSPMacroServer${exe}"),
             cjc: home.join("bin").join("cjc${exe}"),
-            runtimeLib: home.join("runtime").join("lib").join(target)
+            runtimeLib: home.join("runtime").join("lib").join(target),
+            tokensInc: home.join("include").join("cangjie").join("Lex").join("Tokens.inc")
         )
     }
 }

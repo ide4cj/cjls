@@ -109,6 +109,11 @@ public struct SignatureTypes {
          */
         public let paramDefaults!: Array<Bool> = [],
         /**
+         * Whether, a `foreign` function's, it takes any number of arguments more after `params`:
+         * its `...`; of a source.
+         */
+        public let isCVariadic!: Bool = false,
+        /**
          * What a declaration is a value or a type of: a function's return type, a variable's or
          * property's type, the type an `extend` extends, what an alias expands to; a type's own,
          * its parameters its arguments (`C<T>`); a constructor's, an `init`'s or an enum
@@ -393,8 +398,9 @@ class SourceTyLowering {
             return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray(),
                 typePaths: typePaths())
         }
-        SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, paramDefaults: sig.paramDefaults, ty: ty, supers: supers,
-            bounds: bounds, errors: errors.toArray(), typePaths: typePaths())
+        SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, paramDefaults: sig.paramDefaults,
+            isCVariadic: sig.isCVariadic, ty: ty, supers: supers, bounds: bounds, errors: errors.toArray(),
+            typePaths: typePaths())
     }
 
     /**
