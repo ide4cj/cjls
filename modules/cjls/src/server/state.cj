@@ -418,8 +418,10 @@ public class ServerState <: FromContext<ServerState> {
      * Changes what the files say, as an edit does.
      */
     public func setMacroLibraries(stamps: Array<(Package, Int64)>): Unit {
+        // read before the batch, which reads nothing
+        let changed = stamps.filter {one => one[0].macroLibrary(analysis) != one[1]}
         analysis.batch {
-            for ((pkg, stamp) in stamps where pkg.macroLibrary(analysis) != stamp) {
+            for ((pkg, stamp) in changed) {
                 pkg.setMacroLibrary(analysis).to(stamp)
             }
         }
