@@ -102,3 +102,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0081](0081-the-perf-threshold-is-on-queries-executed.md) | The perf threshold is on queries executed, not on time | accepted |
 | [0083](0083-members-named-through-a-type-are-filtered-by-its-type.md) | A member named through a type or alone is filtered by the type the names give, in the lookup | proposed |
 | [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed |
+| [0086](0086-json-is-read-without-a-tape.md) | JSON is read by the pull reader, not through a tape index | accepted |
