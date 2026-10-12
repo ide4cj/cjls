@@ -980,7 +980,7 @@ class LoadOffTheLoopTest {
         Directory.create(src.join("std"))
         let loop = initializedWith([dir], watches: false)
         loop.state.workDoneProgress = true
-        loop.state.cangjieSrc = src.toString()
+        loop.state.settings = Settings(cangjieSrc: src.toString())
         let transport = AnsweringTransport()
         let client = answeredClientOn(transport)
 
