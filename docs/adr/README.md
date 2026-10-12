@@ -110,3 +110,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0089](0089-calca-counts-executions-per-function.md) | calca counts the executions of each tracked function, and keeps no trace | accepted |
 | [0090](0090-what-inference-finds-wrong-is-reported.md) | What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources | proposed |
 | [0091](0091-the-windows-macro-server-is-started-by-createprocessw.md) | On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone | proposed |
+| [0092](0092-a-new-file-is-given-its-package-line.md) | A document opened blank is given its package line | proposed |
