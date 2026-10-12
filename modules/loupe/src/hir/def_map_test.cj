@@ -50,7 +50,8 @@ func annotationOn(db: AnalysisDatabase, def: DefId, name: String, text: String):
 /**
  * Checks the `defMap` of every package of `fixture` is its annotations, under the names of the
  * declarations: `//^ internal` a declaration and its visibility, `//^ ctor public` an enum's
- * constructor, `//^ error: redefinition of 'A'` a redefinition.
+ * constructor, `//^ common public` a `common` declaration a `specific` one completes, `//^ error:
+ * redefinition of 'A'` a redefinition.
  */
 func checkDefMap(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
@@ -69,6 +70,9 @@ func checkDefMap(fixture: String): Unit {
         }
         for ((name, defs) in map.ctors) {
             actual.add(all: defs.map {def => annotationOn(db, def.id, name, "ctor ${def.visibility}")})
+        }
+        for ((name, defs) in map.commons) {
+            actual.add(all: defs.map {def => annotationOn(db, def.id, name, "common ${def.visibility}")})
         }
         actual.add(all: map.errors.map {
             error => annotationOn(db, error.def, error.name, "error: redefinition of '${error.name}'")
@@ -130,6 +134,34 @@ class DefMapTest {
             //   ^ internal
             //      ^ internal
             extend A {}
+            "#)
+    }
+
+    @TestCase
+    func aCommonDeclarationASpecificCompletesIsPutAsideAndNoRedefinition() {
+        // #318: of the same name and kind only; an enum's constructors are its specific's
+        checkDefMap(#"
+            //- /common/a.cj
+            public common class Host {
+            //                  ^^^^ common public
+                public common init()
+            }
+            public common func f(): Int64
+            //                 ^ common public
+            public common func g(): Int64
+            //                 ^ public
+            public common enum E { | A }
+            //                 ^ common public
+            //- /linux/a.cj
+            public specific class Host {
+            //                    ^^^^ public
+                public specific init() {}
+            }
+            public specific func f(): Int64 { 1 }
+            //                   ^ public
+            public specific enum E { | A }
+            //                   ^ public
+            //                         ^ ctor public
             "#)
     }
 

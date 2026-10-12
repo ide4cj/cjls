@@ -5,7 +5,7 @@ import std.deriving.*
 import std.sort.*
 import ginkgo.TextRange
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.{AnyHasName, CallExpr, ImportDecl, ImportTree, TrailingLambdaExpr}
+import cjsyntax.ast.{AnyHasName, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
@@ -145,12 +145,17 @@ func argsStart(node: CjSyntaxNode): Int64 {
 
 /**
  * What is wrong with the scope of `file`, where cjc puts it: a path that fails from its start to
- * its last name, a name brought twice or shadowed at that name, a declaration at its name.
+ * its last name, a name brought twice or shadowed at that name, a declaration at its name; and the
+ * `common` declarations no `specific` one completes, at their names (#318).
  */
 func scopeDiagnosticsOf(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode): Array<Diagnostic> {
     let pkg = packageOfFile(db, file) ?? return []
     let ids = itemIdMap(db, file)
     let found = ArrayList<Diagnostic>()
+    for (one in noSpecifics(db, pkg, file)) {
+        let node = ids.node(one.def.item(db), root) ?? continue
+        found.add(Diagnostic(declNameRange(node), Severity.Error, one.message))
+    }
     for (one in scopeDiagnostics(db, pkg, file)) {
         let range = match (one.at) {
             case AtImport(site) =>
@@ -175,6 +180,17 @@ func scopeDiagnosticsOf(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNo
         found.add(Diagnostic(range, severity, one.problem.message()))
     }
     found.toArray()
+}
+
+/**
+ * The name of the declaration `node`, its `init` for a constructor, the whole of it for one of
+ * neither.
+ */
+func declNameRange(node: CjSyntaxNode): TextRange {
+    if (let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
+        return name.syntax.textRange
+    }
+    InitDecl.cast(node).flatMap {decl => decl.initToken()}.map {token => token.textRange} ?? node.textRange
 }
 
 /**
