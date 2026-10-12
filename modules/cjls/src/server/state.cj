@@ -179,10 +179,10 @@ public class ServerState <: FromContext<ServerState> {
     public var versionedEdits = false
 
     /**
-     * The blank documents opened while a load ran: each is given its `package` line once the load
-     * ends, with the project that names its package (#294).
+     * The blank documents opened while a load ran, and the version each was opened at: one still at
+     * it is given its `package` line once the load ends, with the project that names its package (#294).
      */
-    public let blankDuringLoad = HashSet<VfsPath>()
+    public let blankDuringLoad = HashMap<VfsPath, Int32>()
 
     private var filesChanged = false
     private var registrations = 0

@@ -79,8 +79,8 @@ class NewFilePackageTest {
         @Expect(edit.label, Some("package app.net"))
         let edits = changesOf(edit, uriOf(path))
         @Expect(edits.size, 1)
-        @Expect(spanOf(edits[0].range), "0:0-1:0")
-        @Expect(edits[0].newText, "package app.net\n\n")
+        @Expect(spanOf(edits[0].range), "0:0-0:0")
+        @Expect(edits[0].newText, "package app.net\n")
         @Expect(transport.nextRequest().isNone())
     }
 
@@ -111,7 +111,7 @@ class NewFilePackageTest {
                 match (document.edits[0]) {
                     case AsTextEdit(text) =>
                         @Expect(spanOf(text.range), "0:0-0:0")
-                        @Expect(text.newText, "package app.util\n\n")
+                        @Expect(text.newText, "package app.util\n")
                     case _ => @Fail("not a text edit")
                 }
             case _ => @Fail("not an edit of a document")
@@ -137,7 +137,7 @@ class NewFilePackageTest {
 
         // assert
         @Expect(beforeTheEnd.isNone())
-        @Expect(changesOf(editOf(transport.nextRequest().getOrThrow()), uriOf(path))[0].newText, "package app\n\n")
+        @Expect(changesOf(editOf(transport.nextRequest().getOrThrow()), uriOf(path))[0].newText, "package app\n")
     }
 
     @TestCase
@@ -156,6 +156,30 @@ class NewFilePackageTest {
             textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
             contentChanges: [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
                 TextDocumentContentChangeWholeDocument(text: "class A {}"))]))
+        load(loop, client, NoopLogger(), request)
+        client.close()
+        remove(root, recursive: true)
+
+        // assert
+        @Expect(transport.nextRequest().isNone())
+    }
+
+    @TestCase
+    func aDocumentChangedWhileALoadRunsIsLeftAloneThoughStillBlank() {
+        // arrange
+        let root = appModule()
+        let loop = editableWith(root, loaded: false)
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+        let request = loadRequest(loop.state).getOrThrow()
+        let path = root.join("src").join("new.cj")
+        openBlank(loop, client, path)
+
+        // act: a line typed and taken back, or Neovim's change of a line it is about to type on
+        handleDidChange(loop.state, NoopLogger(), DidChangeTextDocumentParams(
+            textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
+            contentChanges: [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
+                TextDocumentContentChangeWholeDocument(text: "\n\n"))]))
         load(loop, client, NoopLogger(), request)
         client.close()
         remove(root, recursive: true)

@@ -22,12 +22,12 @@ Status: proposed
   - that of a package in the file's directory, unless it is `default`;
   - else, under the nearest module whose packages are each named after their directory (cjpm's, never loose files'), the module's name and the directories down to the file's.
   - None when a directory's name is not an identifier, or no module holds the file.
-- **A document opened while a load runs is given its line when the load ends**, if it is still open and blank.
-- **The whole blank text is replaced by `package <name>\n\n`.** The edit carries the version opened when the client declares `documentChanges`, so an editor typed in since refuses it. Otherwise it goes as `changes`, after the text was checked blank on the loop.
+- **A document opened while a load runs is given its line when the load ends**, if it is still open, blank, and at the version it was opened at.
+- **`package <name>\n` is inserted at the start, nothing replaced.** The server may not have heard of a keystroke yet: Neovim sends `didChange` 150 ms after it (`debounce_text_changes`), and a document opened as a project loads waits for the load's end. An insertion that races it puts the line before what was typed, where replacing the blank text would remove that. The edit carries the version opened when the client declares `documentChanges`, so an editor typed in since refuses it; otherwise it goes as `changes`.
 - **The setting `newFilePackage`** (D79), on by default, turns it off. Changing it finds no project again: only `linkedProjects`, `cangjieHome` and `cangjieSrc` do.
 
 ## Consequences
 
-- An empty `.cj` opened on purpose is given the line too; the setting is the way out.
+- An empty `.cj` opened on purpose is given the line too, and its buffer is left modified (Neovim's `:q` refuses it); the setting is the way out.
 - A file created and never opened gets nothing, unlike gopls.
-- A client without `documentChanges`, such as Neovim, takes an edit of no version: a keystroke between the check and the edit is overwritten.
+- A client without `documentChanges`, such as Neovim, takes an edit of no version: one typed before the server heard of it ends up below the line, and nothing is lost.

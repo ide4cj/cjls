@@ -6,6 +6,7 @@ import stdxx.Nullable
 import rope.Rope
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
 import cjls.server.*
 
 /**
@@ -20,7 +21,9 @@ func packageLineOnOpen(loop: Loop, client: Client, logger: Logger, path: VfsPath
         return
     }
     if (state.loading) {
-        state.blankDuringLoad.add(path)
+        if (let Some(version) <- state.openDocuments.get(path)) {
+            state.blankDuringLoad.add(path, version)
+        }
     } else if (let Some(edit) <- packageLineEdit(state, path)) {
         applyEdit(loop, client, logger, edit)
     }
@@ -28,19 +31,22 @@ func packageLineOnOpen(loop: Loop, client: Client, logger: Logger, path: VfsPath
 
 /**
  * The edits that give the documents opened blank while a load ran their `package` line, those still
- * open and blank; once the load ended.
+ * open, blank, and at the version they were opened at; once the load ended.
  */
 func packageLinesAfterLoad(state: ServerState): Array<ApplyWorkspaceEditParams> {
-    let paths = collectArray(state.blankDuringLoad)
+    let opened = collectArray(state.blankDuringLoad)
     state.blankDuringLoad.clear()
-    collectArray(paths.iterator().filterMap {path => packageLineEdit(state, path)})
+    collectArray(opened.iterator().filter {it => state.openDocuments.get(it[0]) == Some(it[1])}.filterMap {
+        it => packageLineEdit(state, it[0])
+    })
 }
 
 /**
- * The edit that gives the document open at `path` its `package` line, the whole of its blank text
- * replaced: `None` if the setting is off, the client applies no edits, the document is not open or
- * not blank, or the project names no package for it. Of the version the document is at, if the
- * client takes one, so a document typed in since is left alone.
+ * The edit that gives the document open at `path` its `package` line, inserted at its start, so an
+ * edit that races a keystroke the server has not heard of yet removes nothing: `None` if the
+ * setting is off, the client applies no edits, the document is not open or not blank, or the
+ * project names no package for it. Of the version the document is at, if the client takes one, so
+ * a document typed in since is left alone.
  */
 func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditParams {
     if (!state.settings.newFilePackage || !state.appliesEdits) {
@@ -53,7 +59,8 @@ func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditPara
     }
     let name = state.packageOfNewFile(path) ?? return None
     let line = "package ${name}"
-    let edit = TextEdit(range: lspRange(text, 0, text.size, state.encoding), newText: "${line}\n\n")
+    let start = Position(line: 0, character: 0)
+    let edit = TextEdit(range: LspRange(start: start, end: start), newText: "${line}\n")
     let uri = path.toUri()
     let workspaceEdit = if (state.versionedEdits) {
         let document = TextDocumentEdit(textDocument: OptionalVersionedTextDocumentIdentifier(uri: uri,
