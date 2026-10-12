@@ -79,7 +79,7 @@ class WhenDiagnosticsTest {
     }
 
     @TestCase
-    func whatCjcRejectsIsAnErrorAndItsCodeActive() {
+    func whatCjcRejectsIsAnErrorAndItsCodeOutButNotGreyed() {
         checkDiagnostics(#"
             //- /main.cj cfg=os:Linux
             @When[os == "linux"] let a = 1
@@ -96,6 +96,8 @@ class WhenDiagnosticsTest {
             //    ^^^^^^^^^^^^^^^ error: conditional compilation 'debug' not support this op '=='
             @When[feature] let g = 1
             //    ^^^^^^^ error: conditional compilation not support this expression
+            @When[os == "linux" || os == "Linux"] let h = 1
+            //    ^^^^^^^^^^^^^ error: builtin condition 'os' do not support 'linux', supported listed: 'Windows Linux macOS iOS'
             "#)
     }
 
@@ -199,6 +201,20 @@ class WhenResolutionTest {
                 let x = 2
                 $0x
             }
+            "#)
+    }
+
+    @TestCase
+    func aTwinWhoseConditionCjcRejectsIsOutAsInCjc() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m cfg=os:Linux
+            package m
+            @When[os == "linux"]
+            func f(): Int64 { 1 }
+            @When[os == "Linux"]
+            func f(): Int64 { 2 }
+            //   ^ def
+            func g() { $0f() }
             "#)
     }
 

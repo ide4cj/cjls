@@ -22,8 +22,8 @@ public let FLAG_SET = "true"
 
 /**
  * The condition of a `@When`, lowered from its expression with nothing of the tree: what cjc
- * evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, and its code is
- * active, as R1's `CfgExpr::Invalid` (#149).
+ * evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc
+ * evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
  */
 @Derive[Equatable]
 public enum CfgExpr {
@@ -36,9 +36,9 @@ public enum CfgExpr {
     | CfgInvalid
 
     /**
-     * Whether it holds under `cfg`; `None` when that cannot be told: a condition `cfg` has no value
-     * of, or one cjc rejects. `&&` and `||` are Kleene's: unknown only when the side known does not
-     * decide.
+     * Whether it holds under `cfg`; `None` when that cannot be told, a condition `cfg` has no value
+     * of. One cjc rejects is false, as cjc has it. `&&` and `||` are Kleene's: unknown only when the
+     * side known does not decide.
      */
     public func evaluate(cfg: Cfg): ?Bool {
         match (this) {
@@ -61,7 +61,7 @@ public enum CfgExpr {
                 case (Some(false), Some(false)) => Some(false)
                 case _ => None
             }
-            case CfgInvalid => None
+            case CfgInvalid => Some(false)
         }
     }
 
@@ -456,7 +456,8 @@ public struct InactiveCode {
 /**
  * What the `@When`s of a file say: the code they leave out, outermost only (nothing inside it is
  * checked, as cjc checks nothing there), and what cjc rejects in them whatever the build, as it says
- * it. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see
+ * it. Code that a condition cjc rejects leaves out is not reported as left out: the error on the
+ * condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see
  * may set it (#297), and its code is active.
  */
 @Derive[Equatable]
@@ -479,7 +480,9 @@ public func whenDiagnostics(db: AnalysisDatabase, file: SourceFile): WhenDiagnos
             errors.add(all: lowering.errors)
             let known = filter.cfg()
             if (!condition.isActive(known)) {
-                inactive.add(InactiveCode(node.textRange, condition.whyFalse(known)))
+                if (lowering.errors.isEmpty()) {
+                    inactive.add(InactiveCode(node.textRange, condition.whyFalse(known)))
+                }
                 return
             }
         }
