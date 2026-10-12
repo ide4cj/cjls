@@ -73,12 +73,12 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
         try {
             let now = storage.runtime.revision
             let durability = storage.queryDurability
-            let id = table(storage.runtime).intern(fields, durability, now)
+            let slot = table(storage.runtime).intern(fields, durability, now)
             if (let (Some(_), Some(current)) <- (revisions, durability)) {
                 // the query's own durability: `Low` would make every query that interns `Low`
-                storage.reportRead(DatabaseKey(index, id), current, now)
+                storage.reportRead(DatabaseKey(index, slot.id), slot, current, now)
             }
-            id
+            slot.id
         } finally {
             storage.endOperation(outermost)
         }
@@ -123,9 +123,31 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
 /**
  * One value in an `InternTable`: its fields, the last revision it was used in, and the highest
  * durability a query interning it had then.
+ *
+ * The edge of a memo that interned it: a value used in this revision already is not collected
+ * before the next, and verifying the memo need not use it again, since its first use in a revision
+ * is what orders the candidates for collection. A value collected is never used again, so its edge
+ * goes to the table, which finds it gone.
  */
-class InternSlot<K> {
-    InternSlot(let fields: K, var lastUsed: Int64, var durability: Durability) {}
+class InternSlot<K> <: Edge {
+    let lastUsed: AtomicInt64
+
+    /**
+     * Its slot, given as it goes into the table, before any other handle can find it.
+     */
+    var id = Id(0)
+
+    InternSlot(lastUsed: Int64, let fields: K, var durability: Durability) {
+        this.lastUsed = AtomicInt64(lastUsed)
+    }
+
+    public func changedAfter(_: Int64, now: Int64): EdgeAnswer {
+        if (lastUsed.load() == now) {
+            EdgeUnchanged
+        } else {
+            EdgeUnknown
+        }
+    }
 }
 
 /**
@@ -173,10 +195,10 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
     InternTable(let ingredient: InternedIngredient<K>) {}
 
     /**
-     * The `Id` of `fields`, interned by a query of `durability` so far, `None` outside any query.
+     * The slot of `fields`, interned by a query of `durability` so far, `None` outside any query.
      */
     @Frozen
-    func intern(fields: K, durability: ?Durability, now: Int64): Id {
+    func intern(fields: K, durability: ?Durability, now: Int64): InternSlot<K> {
         // outside a query, no memo depends on the value, and nothing would learn it is gone
         let atLeast = durability ?? Durability.High
         synchronized(lock) {
@@ -185,13 +207,13 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
                     let slot = values.get(id).getOrThrow()
                     slot.durability = max(slot.durability, atLeast)
                     use(id, slot, now)
-                    id
+                    slot
                 case None =>
-                    let slot = InternSlot(fields, now, atLeast)
-                    let id = values.insert(slot)
-                    ids.add(fields, id)
-                    use(id, slot, now)
-                    id
+                    let slot = InternSlot(now, fields, atLeast)
+                    slot.id = values.insert(slot)
+                    ids.add(fields, slot.id)
+                    use(slot.id, slot, now)
+                    slot
             }
         }
     }
@@ -223,7 +245,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
             case Some(count) => count
             case None => return
         }
-        slot.lastUsed = now
+        slot.lastUsed.store(now)
         if (active.isEmpty() || active[active.size - 1] != now) {
             active.add(now)
             if (active.size > revisions) {
@@ -284,7 +306,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
         let collected = ArrayList<Id>()
         while (let Some(candidate) <- lowValues.oldestId) {
             let (id, slot) = values.getAt(candidate.index).getOrThrow()
-            if (slot.lastUsed >= oldest) {
+            if (slot.lastUsed.load() >= oldest) {
                 break
             }
             lowValues.remove(candidate)

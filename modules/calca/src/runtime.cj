@@ -43,6 +43,59 @@ interface Ingredient {
     func newRevision(): Unit {}
 }
 
+/**
+ * What an `Edge` knows of the value it leads to without asking its ingredient.
+ */
+enum EdgeAnswer {
+    | EdgeChanged
+    | EdgeUnchanged
+    | EdgeUnknown
+}
+
+/**
+ * The object a dependency was read from, kept with it: the memo's entry, the interned value's slot.
+ * Verifying a memo asks each of its dependencies whether it changed, and most of them answer from
+ * their object alone, with no lock taken and no table searched — a memo verified in this revision
+ * already, an interned value used in it already — so only the others go to their ingredient.
+ */
+interface Edge {
+    /**
+     * Whether the value changed after `revision`, if it can tell in revision `now` by itself.
+     */
+    func changedAfter(revision: Int64, now: Int64): EdgeAnswer
+}
+
+/**
+ * The edge of a value that cannot tell by itself, an input's: its ingredient answers.
+ */
+class AskTheIngredient <: Edge {
+    public func changedAfter(_: Int64, _: Int64): EdgeAnswer {
+        EdgeUnknown
+    }
+}
+
+let ASK_THE_INGREDIENT = AskTheIngredient()
+
+/**
+ * One value a query read, and the edge to it.
+ */
+struct Dependency {
+    Dependency(let key: DatabaseKey, let edge: Edge) {}
+
+    /**
+     * Whether the value may have changed after `revision`: by its edge if it can tell, else by its
+     * ingredient, which may verify or execute it on `db`.
+     */
+    @Frozen
+    func maybeChangedAfter(db: Database, runtime: Runtime, revision: Int64): Bool {
+        match (edge.changedAfter(revision, runtime.revision)) {
+            case EdgeChanged => true
+            case EdgeUnchanged => false
+            case EdgeUnknown => runtime.ingredientAt(key.ingredient).maybeChangedAfter(db, key.id, revision)
+        }
+    }
+}
+
 class IngredientTable {
     IngredientTable(let entries: Array<?Ingredient>) {}
 }
