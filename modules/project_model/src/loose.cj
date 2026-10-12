@@ -4,7 +4,7 @@ import std.collection.*
 import std.fs.*
 import std.sort.*
 import loupe.db.*
-import loupe.vfs.{isCangjieFile, isScanned, VfsPath}
+import loupe.vfs.{isCangjieFile, isScanned, isWorkspaceFile, VfsPath}
 import cjsyntax.{SyntaxKind, tokenize}
 
 /**
@@ -21,7 +21,9 @@ const DEFAULT_PACKAGE = "default"
  * The project of the `*.cj` under `root`, as `readRoots` walks them, with no manifest to say how
  * they are built: a package per name the files' `package` lines give (`default` without one), in
  * the directory of its first file, and a module per root package, rooted at `root`, with `std`
- * alone to import. At most `budget` bytes of files are taken, as a load would read no more.
+ * alone to import. At most `budget` bytes of files are taken, as a load would read no more: the
+ * directories of the documents `open` under `root` first, those documents whatever their size, then
+ * the rest in walk order (D80). The load says whether any file was left out (`partial`).
  *
  * Files without a `package` line two or more of which declare `main` are programs compiled one by
  * one (D67): each that does is a module `default` of its own, rooted at the file, its package
@@ -29,9 +31,10 @@ const DEFAULT_PACKAGE = "default"
  * the other directories stay the module `default` of `root`.
  */
 public func looseProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg(),
-    budget!: Int64 = Int64.Max): ProjectLoad {
+    budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): ProjectLoad {
     let loading = Loading(env, cfg)
-    let walk = LooseWalk(budget)
+    let walk = LooseWalk(budget, HashSet<VfsPath>(open.filter {path => isWorkspaceFile(path, [root])}))
+    walk.walkOpen()
     walk.walk(root)
     let programs = programsOf(walk)
     let names = walk.byPackage.keys().toArray()
@@ -57,7 +60,7 @@ public func looseProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = h
     // the programs after the `default` of the root, the modules in the order of their names
     sort(models, stable: true, by: {a: ModuleModel, b: ModuleModel => a.name.compare(b.name)})
     let model = ProjectModel(cfg, models, binaries: binaries.toArray())
-    ProjectLoad(model, LooseFiles(root), loading.problems.toArray())
+    ProjectLoad(model, LooseFiles(root), loading.problems.toArray(), partial: walk.truncated)
 }
 
 /**
@@ -105,34 +108,60 @@ private class LooseWalk {
      */
     let mains = ArrayList<VfsPath>()
     var truncated = false
+    /**
+     * The directories whose files were taken before the walk: those of the documents open.
+     */
+    private let walked = HashSet<VfsPath>()
 
-    LooseWalk(private var budget: Int64) {}
+    LooseWalk(private var budget: Int64, private let open: HashSet<VfsPath>) {}
+
+    /**
+     * Takes the files of the directories of the documents open, before any other.
+     */
+    func walkOpen(): Unit {
+        for (file in open) {
+            let dir = file.parent ?? continue
+            if (walked.add(dir)) {
+                for (entry in entriesOf(dir) where !entry.isSymbolicLink() && !entry.isDirectory()) {
+                    take(entry)
+                }
+            }
+        }
+    }
 
     func walk(dir: VfsPath): Unit {
-        let path = dir.filePath ?? return ()
-        let entries = try {
-            Directory.readFrom(path)
-        } catch (_: FSException) {
-            return
-        }
-        for (entry in entries where !entry.isSymbolicLink()) {
+        let skipFiles = walked.contains(dir)
+        for (entry in entriesOf(dir) where !entry.isSymbolicLink()) {
             if (entry.isDirectory()) {
                 if (isScanned(entry.name)) {
                     walk(VfsPath.file(entry.path))
                 }
-            } else if (entry.isRegular() && isCangjieFile(entry.name)) {
-                if (entry.size > budget) {
-                    truncated = true
-                    continue
-                }
-                budget -= entry.size
-                let file = VfsPath.file(entry.path)
-                match (headerOf(entry.path)) {
-                    case Named(name) => add(name, file)
-                    case Unnamed(true) => mains.add(file)
-                    case Unnamed(false) => add(DEFAULT_PACKAGE, file)
-                }
+            } else if (!skipFiles) {
+                take(entry)
             }
+        }
+    }
+
+    /**
+     * Takes the file of `entry` if it is a Cangjie file within the budget, or one open, whatever its
+     * size: the editor holds its text already.
+     */
+    private func take(entry: FileInfo): Unit {
+        if (!entry.isRegular() || !isCangjieFile(entry.name)) {
+            return
+        }
+        let file = VfsPath.file(entry.path)
+        if (!open.contains(file)) {
+            if (entry.size > budget) {
+                truncated = true
+                return
+            }
+            budget -= entry.size
+        }
+        match (headerOf(entry.path)) {
+            case Named(name) => add(name, file)
+            case Unnamed(true) => mains.add(file)
+            case Unnamed(false) => add(DEFAULT_PACKAGE, file)
         }
     }
 
