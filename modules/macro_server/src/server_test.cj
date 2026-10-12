@@ -1,43 +1,15 @@
 package macro_server
 
-import std.ast.{cangjieLex, getTokenKind}
-import std.collection.*
 import std.env.getVariable
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 
 /**
- * cjc's number of each token kind by its name, as std.ast numbers them (`getTokenKind`).
- */
-let KIND_NUMBERS: HashMap<String, UInt8> = {
-    =>
-    let numbers = HashMap<String, UInt8>()
-    for (n in 0..256) {
-        try {
-            numbers.addIfAbsent(getTokenKind(UInt16(n)).toString(), UInt8(n))
-        } catch (_: Exception) {
-            ()
-        }
-    }
-    numbers
-}()
-
-/**
  * The tokens of `code` as a call sends them, of file 1, `code` starting at line 1, column `column`.
  */
 func tokensOf(code: String, column: Int64): Array<TokenData> {
-    let tokens = ArrayList<TokenData>()
-    for (t in cangjieLex(code)) {
-        tokens.add(TokenData(
-            kind: KIND_NUMBERS[t.kind.toString()],
-            value: t.value,
-            begin: PositionData(fileId: 1, line: t.pos.line, column: t.pos.column + Int32(column - 1)),
-            end: PositionData(fileId: 1, line: t.pos.line, column: t.pos.column + Int32(column - 1 + t.value.size)),
-            delimiterNum: UInt32(t.delimiterNum)
-        ))
-    }
-    tokens.toArray()
+    macroTokens(code, sdkNumbers(), PositionData(fileId: 1, line: 1, column: Int32(column)))
 }
 
 /** What a shared library ends with on each platform. */
