@@ -308,3 +308,75 @@ class WorkspaceMacroExpansionTest {
         @Expect(written.map {pair => pair[1].start}, Some(anchor))
     }
 }
+
+/**
+ * What changes a request besides its text, and what the macros report (#176's step 3).
+ */
+@Test
+class WorkspaceMacroLibraryTest {
+    @TestCase
+    func aNewLibraryOfTheMacroMakesTheRequestNew() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @A class C {}
+            "#)
+        let request = macroRequests(db, file)[0]
+        setMacroOutputs(db, [(request.call, writtenOutput(request, "class C {}"))])
+
+        // act
+        request.definition.pkg.setMacroLibrary(db).to(7)
+
+        // assert
+        @Expect(pendingMacroRequests(db, file).map {one => one.definition.name}, ["A"])
+    }
+
+    @TestCase
+    func whatAMacroReportsIsWhereItsOriginIsInTheSourceElseOnTheCall() {
+        // arrange
+        let (db, file, parsed) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @M[x]
+            class C {}
+            "#)
+        let request = macroRequests(db, file)[0]
+        let output = MacroOutput(request.fingerprint, None, [], [
+            MacroDiagnostic(MacroSeverity.MacroError, SpanOrigin.FromSource(TextRange(12, 13)), "bad name", "rename it"),
+            MacroDiagnostic(MacroSeverity.MacroWarning, None, "odd", "")
+        ])
+        setMacroOutputs(db, [(request.call, output)])
+        let source = parsed.file("/main.cj").text
+        let anchor = source.indexOf("@M").getOrThrow()
+
+        // act
+        let found = macroDiagnostics(db, file)
+
+        // assert
+        let c = source.indexOf("C {}").getOrThrow()
+        @Expect(found, [
+            MacroCallDiagnostic(TextRange(c, c + 1), MacroSeverity.MacroError, "bad name: rename it"),
+            MacroCallDiagnostic(TextRange(anchor, anchor + 5), MacroSeverity.MacroWarning, "odd")
+        ])
+    }
+
+    @TestCase
+    func anOutputForAnOlderRequestReportsNothing() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @A class C {}
+            "#)
+        let request = macroRequests(db, file)[0]
+        let output = MacroOutput(request.fingerprint + 1, None, [],
+            [MacroDiagnostic(MacroSeverity.MacroError, None, "stale", "")])
+
+        // act
+        setMacroOutputs(db, [(request.call, output)])
+
+        // assert
+        @Expect(macroDiagnostics(db, file).size, 0)
+    }
+}

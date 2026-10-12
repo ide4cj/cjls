@@ -212,6 +212,59 @@ func isReplacedByWorkspaceExpansion(db: AnalysisDatabase, def: DefId): Bool {
 }
 
 /**
+ * What a macro reported running a call of a file, where in the file: what its origin names in the source, else the
+ * head of the call (`@` to the end of its attribute).
+ */
+@Derive[Equatable]
+public struct MacroCallDiagnostic {
+    public MacroCallDiagnostic(public let range: TextRange, public let severity: MacroSeverity,
+        public let message: String) {}
+}
+
+/**
+ * What the macros of the workspace reported running the calls of `file`, for the outputs that answered the request
+ * as it stands: an older one's ranges may no longer be where its call is.
+ */
+@CalcaTracked
+public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<MacroCallDiagnostic> {
+    if (file.macroOutputs(db).size == 0) {
+        return []
+    }
+    let root = parse(db, file).syntaxNode()
+    let ids = itemIdMap(db, file)
+    let size = file.text(db).size
+    let current = HashSet<MacroCallId>()
+    for (request in macroRequests(db, file) where request.current) {
+        current.add(request.call)
+    }
+    let found = ArrayList<MacroCallDiagnostic>()
+    for (one in workspaceCalls(db, file) where current.contains(one.call)) {
+        let output = macroOutputOf(db, one.call) ?? continue
+        if (output.diagnostics.isEmpty()) {
+            continue
+        }
+        let node = ids.node(one.call.item(db), root) ?? continue
+        let call = macroCallsOf(node).get(one.call.index(db)) ?? continue
+        let head = macroHeadOf(call)
+        let anchor = anchorOf(ids, root, one.top) ?? continue
+        for (diagnostic in output.diagnostics) {
+            let range = match (diagnostic.origin) {
+                case Some(FromSource(range)) where anchor + range.end <= size => TextRange(anchor + range.start,
+                    anchor + range.end)
+                case _ => head
+            }
+            let message = if (diagnostic.hint.isEmpty()) {
+                diagnostic.message
+            } else {
+                "${diagnostic.message}: ${diagnostic.hint}"
+            }
+            found.add(MacroCallDiagnostic(range, diagnostic.severity, message))
+        }
+    }
+    found.toArray()
+}
+
+/**
  * Where the top-level item `top` of `root` starts: its outermost macro call's `@`, which the origins of its macro
  * calls' text are relative to.
  */
@@ -334,7 +387,8 @@ class MacroInputComposer {
         }
         let input = builder.build()
         let parents = parentsOf(call.top, item, index)
-        let fingerprint = fingerprintOf(call.definition, attrs, input, parents, children)
+        let fingerprint = fingerprintOf(call.definition, call.definition.pkg.macroLibrary(db), attrs, input, parents,
+            children)
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
         MacroRequest(call.call, call.definition, attrs, input, parents, children.toArray(), fingerprint, current)
     }
@@ -425,12 +479,14 @@ func lastSegmentOf(path: String): String {
 }
 
 /**
- * What tells one request from another: everything the macro reads.
+ * What tells one request from another: everything the macro reads, and the library it runs from.
  */
-func fingerprintOf(definition: WorkspaceMacro, attrs: ?MappedText, input: MappedText, parents: Array<String>,
-    children: ArrayList<MacroChild>): Int64 {
+func fingerprintOf(definition: WorkspaceMacro, library: Int64, attrs: ?MappedText, input: MappedText,
+    parents: Array<String>, children: ArrayList<MacroChild>): Int64 {
     let text = StringBuilder()
     text.append(definition.name)
+    text.append("\u{0}")
+    text.append(library)
     text.append("\u{0}")
     text.append(attrs.map {one => "[${one.text}]"} ?? "")
     text.append("\u{0}")

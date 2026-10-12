@@ -7,7 +7,7 @@ import ginkgo.TextRange
 import cjsyntax.{CjSyntaxNode, message}
 import cjsyntax.ast.{AnyHasName, CallExpr, ImportDecl, ImportTree, TrailingLambdaExpr}
 import loupe.vfs.FileId
-import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 
@@ -32,11 +32,12 @@ public struct Diagnostic {
 
 /**
  * What is wrong in a file, in the order of the text: what the lexer and the parser found, what its
- * `@When`s say (the code they leave out, what cjc rejects in them), what is wrong with its scope, and
- * what inference found in its bodies. Empty for a file the database does not know.
+ * `@When`s say (the code they leave out, what cjc rejects in them), what is wrong with its scope, what
+ * the workspace's macros reported running its calls, and what inference found in its bodies. Empty for a file the
+ * database does not know.
  *
  * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `scopeDiagnostics`,
- * `inferBody`), remembered there, and this only collects their results (A11).
+ * `macroDiagnostics`, `inferBody`), remembered there, and this only collects their results (A11).
  */
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
@@ -50,6 +51,14 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
     })
     let root = parse(db, file).syntaxNode()
     result.add(all: scopeDiagnosticsOf(db, file, root))
+    result.add(all: macroDiagnostics(db, file).map {
+        one =>
+        let severity = match (one.severity) {
+            case MacroError => Severity.Error
+            case MacroWarning => Severity.Warning
+        }
+        Diagnostic(one.range, severity, one.message)
+    })
     for (def in bodiesOf(db, file)) {
         result.add(all: inferenceDiagnostics(db, def, root))
     }
