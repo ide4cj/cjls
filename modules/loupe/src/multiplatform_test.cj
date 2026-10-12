@@ -178,6 +178,27 @@ class MultiplatformDiagnosticsTest {
     }
 
     @TestCase
+    func aFileOfASourceSetTheBuildLeavesOutIsAllInactiveAndNotChecked() {
+        checkDiagnostics(#"
+            //- /plat/common/plat.cj module=plat package=plat
+            @NonProduct
+            features {}
+            package plat
+
+            public common func separator(): Rune
+            //- /plat/posix/posix.cj module=plat package=plat
+            @NonProduct
+            features { user.plat.posix }
+            package plat
+
+            public specific func separator(): Rune { r'/' }
+            //- /plat/windows/windows.cj module=plat package=plat inactive=windows
+              public specific func separator(): Rune { undefined }
+            //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive: source set `windows` is left out
+            "#)
+    }
+
+    @TestCase
     func aCommonOfNoBodyAndNoSpecificIsAnError() {
         // as cjc 1.3.0-alpha.20261002 reports them, at the declaration's name
         checkDiagnostics(#"
