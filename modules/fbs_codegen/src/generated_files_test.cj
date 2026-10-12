@@ -6,7 +6,7 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 
-let CONFIGS = ["modules/cjo/cjo_format.toml"]
+let CONFIGS = ["modules/cjo/cjo_format.toml", "modules/macro_server/macro_msg_format.toml"]
 
 /**
  * A change to a schema, its config or the generator that was not generated fails here, and with it

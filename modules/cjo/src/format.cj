@@ -2,6 +2,8 @@
 
 package cjo
 
+import fbs.*
+
 /**
  * Using 'uint32' as type of 'SemaTy/Decl/Expr' 's table index.
  * 0 is invalid index, valid index start from 1, which is the offset of table plus 1.

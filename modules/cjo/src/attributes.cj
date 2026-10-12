@@ -1,5 +1,7 @@
 package cjo
 
+import fbs.FbVector
+
 /**
  * What cjc marks a declaration with: `Attribute` of `include/cangjie/AST/AttributePack.h`, by the bit each is
  * stored at, mirrored by hand at the schema's commit (`cjo_format.toml`). An attribute is bit `n % 64` of word
