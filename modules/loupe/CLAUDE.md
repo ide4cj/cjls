@@ -6,7 +6,7 @@ The rules are in `docs/design/`, not here: the layers and what each knows ([00-l
 
 - A `Context` handler only changes inputs, never queries; a `readonly` one reads everything from its snapshot, text for positions included (S1, S2).
 - Handlers only translate (`handlers/from_proto.cj`, `handlers/to_proto.cj`); logic goes to `loupe`, which knows no LSP (S3, A8).
-- Diagnostics are in the queries' results (`Parse.errors`), never accumulated (A11); `loupe.diagnostics` only collects and sorts them. A client that pulls is never pushed to (S8).
+- Diagnostics are in the queries' results (`Parse.errors`, `scopeDiagnostics`, `InferenceResult.diagnostics` by expression, A32), never accumulated (A11); `loupe.diagnostics` only collects them, finds their ranges and sorts them. A client that pulls is never pushed to (S8).
 - Queries take `AnalysisDatabase` itself (A1), are keyed by entities, never positions (A2), and return `Equatable` values (A10).
 - Lines break at `\n` only; offsets are UTF-8 bytes on character boundaries (A6, A7).
 - A `.cjo`'s bytes are never in the `Vfs` (D38), and its views (`cjo.Decl`) never in a tracked result: an item keeps its `BinaryItem`, `binaryDecl` reads the decl again. Tests of `loupe.hir` and `loupe.vfs` read the SDK's std (`CANGJIE_HOME`), as `cjo`'s do; those of go to definition into std its sources too, in `.corpora/` at the nightly's commit (`stdWithSources`, D65).

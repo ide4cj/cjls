@@ -6,6 +6,7 @@ members = [
     "modules/cjo",
     "modules/cjsyntax",
     "modules/fbs_codegen",
+    "modules/fbs",
     "modules/fjson",
     "modules/fnum",
     "modules/ftoml",
@@ -14,6 +15,7 @@ members = [
     "modules/jsonrpc",
     "modules/lsp_codegen",
     "modules/loupe",
+    "modules/macro_server",
     "modules/project_model",
     "modules/rope",
     "modules/stdxx",
@@ -37,6 +39,11 @@ incremental = true
 # in its `catch (e: E)`, unreachable for any `E` not `open`, three warnings a case
 [profile.test.build]
 compile-option = "-Woff unused"
+
+# the diagnostics gate infers every body of the workspace in one database, as the server does with
+# the heap it starts itself with (D31)
+[profile.test.env]
+cjHeapSize = { value = "2GB", splice-type = "replace" }
 
 # stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
 [target.aarch64-apple-darwin.bin-dependencies]

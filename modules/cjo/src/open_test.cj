@@ -4,6 +4,7 @@ import std.env.getVariable
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import fbs.*
 
 /**
  * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.
@@ -51,10 +52,6 @@ func versionThrownBy(bytes: Array<Byte>): ?UInt8 {
     }
 }
 
-func writeUInt16(bytes: Array<Byte>, pos: Int64, value: UInt16): Unit {
-    bytes[pos] = UInt8(value & 0xff)
-    bytes[pos + 1] = UInt8(value >> 8)
-}
 
 @Test
 class OpenCjoTest {
@@ -173,7 +170,7 @@ class OpenCjoTest {
 
     @TestCase
     func aValueAClosedEnumDoesNotHaveThrows() {
-        @AssertThrows[CjoException](AccessLevel.fromValue(200))
+        @AssertThrows[FbException](AccessLevel.fromValue(200))
     }
 
     @TestCase
@@ -186,7 +183,7 @@ class OpenCjoTest {
         writeUInt16(bytes, at + 2, 0x7fff)
 
         // act, assert
-        @AssertThrows[CjoException](openCjo(bytes).allFiles)
+        @AssertThrows[FbException](openCjo(bytes).allFiles)
     }
 }
 

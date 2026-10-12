@@ -27,6 +27,11 @@ let CANGJIE_SRC = Setting<?String>("cangjieSrc",
     "The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`.",
     optionalPathSchema(), Option<String>.None, readOptionalPath)
 
+let NEW_FILE_PACKAGE = Setting<Bool>("newFilePackage",
+    "Whether a new file starts with its package line: a document opened blank in a package's directory, or in a directory a module names its packages after, is given the line `package <name>` once the project is loaded.",
+    JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
+    true, readBool)
+
 /**
  * What the user sets for the server: what `initializationOptions` holds at first, then the client's
  * section `cjls` each time the server is told it changed (D79). Every setting is optional.
@@ -45,7 +50,11 @@ public struct Settings {
         /**
          * The sources of the SDK, the first place they are looked for (D65).
          */
-        public let cangjieSrc!: ?String = CANGJIE_SRC.default
+        public let cangjieSrc!: ?String = CANGJIE_SRC.default,
+        /**
+         * Whether a new file is given its `package` line (#294).
+         */
+        public let newFilePackage!: Bool = NEW_FILE_PACKAGE.default
     ) {}
 
     /**
@@ -57,7 +66,8 @@ public struct Settings {
         Settings(
             linkedProjects: LINKED_PROJECTS.read(json, problems),
             cangjieHome: CANGJIE_HOME.read(json, problems),
-            cangjieSrc: CANGJIE_SRC.read(json, problems)
+            cangjieSrc: CANGJIE_SRC.read(json, problems),
+            newFilePackage: NEW_FILE_PACKAGE.read(json, problems)
         )
     }
 }
@@ -68,7 +78,8 @@ public struct Settings {
  * setting, its type, default and description.
  */
 public func settingsSchema(): JsonValue {
-    let properties = [LINKED_PROJECTS.property(), CANGJIE_HOME.property(), CANGJIE_SRC.property()]
+    let properties = [LINKED_PROJECTS.property(), CANGJIE_HOME.property(), CANGJIE_SRC.property(),
+        NEW_FILE_PACKAGE.property()]
     JsonValue.JsonObject([
         ("$schema", JsonValue.JsonString("http://json-schema.org/draft-07/schema#")),
         ("title", JsonValue.JsonString("cjls")),
@@ -114,6 +125,7 @@ class Setting<T> {
     private func typeOf(): String {
         match (schema.get("type")) {
             case Some(JsonValue.JsonString("array")) => "a list of absolute paths or `file:` URIs"
+            case Some(JsonValue.JsonString("boolean")) => "`true` or `false`"
             case _ => "an absolute path or a `file:` URI"
         }
     }
@@ -122,6 +134,16 @@ class Setting<T> {
 func optionalPathSchema(): JsonValue {
     JsonValue.JsonObject([("type", JsonValue.JsonArray([JsonValue.JsonString("string"), JsonValue.JsonString("null")])),
         ("default", JsonValue.JsonNull)])
+}
+
+/**
+ * `value` if it is `true` or `false`; `None` for anything else.
+ */
+func readBool(_: String, value: JsonValue, _: ArrayList<String>): ?Bool {
+    match (value) {
+        case JsonValue.JsonBool(flag) => flag
+        case _ => None
+    }
 }
 
 /**

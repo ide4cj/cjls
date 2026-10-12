@@ -243,3 +243,4 @@ class InferenceCensusTest {
         @Expect(wrongNoValue.toArray(), Array<String>())
     }
 }
+

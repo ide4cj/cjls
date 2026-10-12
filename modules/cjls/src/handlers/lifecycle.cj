@@ -11,7 +11,7 @@ import cjls.macros.LspHandler
 /**
  * The server's version, as `modules/cjls/cjpm.toml` has it: `cog bump` rewrites both.
  */
-const VERSION = "0.4.0"
+const VERSION = "0.5.0"
 
 @LspHandler
 func handleInitialize(state: ServerState, client: Client, logger: Logger, params: InitializeParams): InitializeResult {
@@ -35,6 +35,10 @@ func handleInitialize(state: ServerState, client: Client, logger: Logger, params
     let watching = workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
     state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
     state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
+    state.appliesEdits = workspace.flatMap {workspace => workspace.applyEdit} ?? false
+    state.versionedEdits = workspace.flatMap {workspace => workspace.workspaceEdit}.flatMap {
+        it => it.documentChanges
+    } ?? false
     state.workDoneProgress = params.capabilities.window.flatMap {window => window.workDoneProgress} ?? false
     InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
 }

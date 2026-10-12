@@ -15,12 +15,38 @@ struct Config {
         let output!: String,
         @Serde[rename: "package"] let packageName!: String,
         // enums whose reader takes a value it does not know as `Unknown(value)`; the others throw on one
-        let open!: Array<String> = [],
+        @Serde[rename: "open"] let openEnums!: ?Array<String> = None,
         // Cangjie names for declarations (`Generic`) or enum members (`TypeKind.Generic`) of the schema
-        let rename!: HashMap<String, String> = HashMap<String, String>(),
+        @Serde[rename: "rename"] let renames!: ?HashMap<String, String> = None,
         // fields (`Decl.attributes`) read through a hand-written type, whose constructor takes the field's value
-        let wrap!: HashMap<String, String> = HashMap<String, String>()
+        @Serde[rename: "wrap"] let wraps!: ?HashMap<String, String> = None,
+        // a `<Name>Data` to write for each declaration but an enum, besides the views
+        let write!: ?Bool = None
     ) {}
+
+    prop open: Array<String> {
+        get() {
+            openEnums ?? []
+        }
+    }
+
+    prop rename: HashMap<String, String> {
+        get() {
+            renames ?? HashMap<String, String>()
+        }
+    }
+
+    prop wrap: HashMap<String, String> {
+        get() {
+            wraps ?? HashMap<String, String>()
+        }
+    }
+
+    prop writes: Bool {
+        get() {
+            write ?? false
+        }
+    }
 }
 
 class ConfigException <: Exception {

@@ -332,7 +332,7 @@ class UnknownTest {
     }
 
     @TestCase
-    func aCallOfOverloadsByNameIsNotMatchedYet() {
+    func aCallOfOverloadsByNameIsMatchedByName() {
         checkUnknowns(#"
             package m
             class C {
@@ -341,8 +341,6 @@ class UnknownTest {
             }
             func f(c: C): Unit {
                 let x = c.r(at: 1)
-            //          ^^^ todo(arg matching)
-            //          ^^^^^^^^^^ todo(arg matching)
             }
             "#)
     }

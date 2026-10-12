@@ -328,8 +328,8 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
         loaded += read.files.size
         progress.report(to, wanted.size, "${to}/${wanted.size} files")
     }
-    // `Some(None)`: the load ended, with nothing to tell
-    let warning = loop.write {
+    // `Some((None, _))`: the load ended, with nothing to tell
+    let ended = loop.write {
         state: ServerState =>
         if (state.endLoad(request.load)) {
             // a document opened since the project was found, among the files it left out or of a project of its own
@@ -337,11 +337,15 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
             if (opened.any {path => findsProjectAgain(state, path)}) {
                 startLoad(loop, client, logger)
             }
-            Some(sdkWarning(state, home))
+            Some((sdkWarning(state, home), packageLinesAfterLoad(state)))
         } else {
-            Option<?String>.None
+            Option<(?String, Array<ApplyWorkspaceEditParams>)>.None
         }
     } ?? return None
+    let (warning, packageLines) = ended
+    for (edit in packageLines) {
+        applyEdit(loop, client, logger, edit)
+    }
     logger.info("loaded the workspace", [("roots", request.roots.size), ("files", loaded),
         ("cjo", binaries.files.size), ("took", MonoTime.now() - start)])
     if (binaries.truncated) {

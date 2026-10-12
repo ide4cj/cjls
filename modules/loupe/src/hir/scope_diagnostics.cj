@@ -32,11 +32,32 @@ public enum ScopeProblem <: ToString {
     | SubPackage(String, String)
 
     public func toString(): String {
+        if (isWarning()) {
+            "warning: ${message()}"
+        } else {
+            "error: ${message()}"
+        }
+    }
+
+    /**
+     * Whether cjc reports it as a warning, not an error.
+     */
+    public func isWarning(): Bool {
         match (this) {
-            case ImportFailed(error) => "error: ${error}"
-            case Shadowed(name) => "warning: imported decl '${name}' is shadowed"
-            case Conflicted(name) => "warning: imported decl '${name}' is conflicted with other import"
-            case SubPackage(name, pkg) => "error: top-level declaration '${name}' is conflicted with possible sub-package '${pkg}'"
+            case Shadowed(_) | Conflicted(_) => true
+            case _ => false
+        }
+    }
+
+    /**
+     * What cjc says of it.
+     */
+    public func message(): String {
+        match (this) {
+            case ImportFailed(error) => error.toString()
+            case Shadowed(name) => "imported decl '${name}' is shadowed, it will be ignored by compiler"
+            case Conflicted(name) => "imported decl '${name}' is conflicted with other import"
+            case SubPackage(name, pkg) => "top-level declaration '${name}' is conflicted with possible sub-package '${pkg}'"
         }
     }
 }

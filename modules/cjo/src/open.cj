@@ -1,5 +1,23 @@
 package cjo
 
+// a view's vectors, and what it throws on a file broken inside
+public import fbs.{FbException, FbVector}
+import fbs.readUInt32
+
+/**
+ * A file `openCjo` does not open: not a `.cjo`, or one of a format this reader does not know. A file opened and
+ * broken inside throws an `FbException` when a view reads it.
+ */
+public open class CjoException <: FbException {
+    public init(message: String) {
+        super(message)
+    }
+
+    protected open override func getClassName(): String {
+        "CjoException"
+    }
+}
+
 /**
  * The major of the format this reader knows (`CJO_MAJOR_VERSION` of `include/cangjie/Modules/CjoVersion.h`):
  * a file of another major is laid out otherwise, and is not read.
@@ -40,7 +58,7 @@ public class CjoVersionException <: CjoException {
 
 /**
  * The package `bytes` hold: its identifier and the major of its version are checked, nothing else is until it
- * is read (`CjoException`).
+ * is read (`FbException`).
  *
  * @throws NotCjoException - if `bytes` are not a `.cjo`
  * @throws CjoVersionException - if they are one of another major, or of none
