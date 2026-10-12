@@ -8,6 +8,7 @@ import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 /**
  * The `common` declarations `def`, a `specific` one, completes (#318): of its package, its name and
@@ -210,4 +211,20 @@ func messageOf(item: Item, around: ?ItemKind, owner: String): String {
         case _ => "declaration '${name}'"
     }
     "'common' ${what} can not find 'specific' match"
+}
+
+/**
+ * Why the build leaves `file` out, `None` if it does not: it is among a module's inactive files, of a
+ * source set the target does not take (#318).
+ */
+@CalcaTracked
+public func inactiveReasonOf(db: AnalysisDatabase, file: SourceFile): ?String {
+    let project = db.project() ?? return None
+    let fileId = file.fileId(db)
+    for (module in project.modules(db)) {
+        for (one in module.inactive(db) where one.fileId == fileId) {
+            return one.reason
+        }
+    }
+    None
 }

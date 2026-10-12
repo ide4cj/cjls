@@ -16,7 +16,8 @@ const BUILD_SCRIPT = "build.cj"
 /**
  * The project of the `cjpm.toml` at `file`, `None` if there is no such file: a module per package
  * of the workspace, and one per path dependency, reached from them, which is no member; and one
- * per `build.cj`. A
+ * per `build.cj`. A multiplatform module's packages are those of the chain of source sets the
+ * target of `cfg` takes, the files of the others inactive (#318). A
  * dependency of another kind (git, a version) is not there before `cjpm update` and is told in the
  * problems, not guessed.
  *
@@ -141,27 +142,63 @@ class CjpmLowering {
             deps.add(all: workspaceBinaries)
         }
         deps.add(all: binaryDeps(manifest, dir))
-        let srcDir = match (pkg.srcDir) {
-            case Some(src) where !src.trimAscii().isEmpty() => src.trimAscii()
-            case _ => "src"
-        }
-        let sources = loading.resolve(dir, srcDir)
         let unique = ArrayList<String>()
         for (dep in deps where !unique.contains(dep)) {
             unique.add(dep)
         }
         // under `src-dir = "."` the build script is beside the sources, and cjpm leaves it out of them
         let script = dir.join(BUILD_SCRIPT)
+        let (sources, found, inactive) = sourcesOf(name, dir, manifest, pkg)
         let packages = ArrayList<PackageModel>()
-        for (pkg in packagesUnder(name, sources)) {
+        for (pkg in found) {
             let files = pkg.files.filter {file => file != script}
             if (!files.isEmpty()) {
                 packages.add(PackageModel(pkg.name, pkg.dir, files, noPrelude: pkg.noPrelude, isMacro: pkg.isMacro))
             }
         }
-        modules.add(ModuleModel(name, sources, packages.toArray(), deps: unique.toArray(), member: member))
+        modules.add(ModuleModel(name, sources, packages.toArray(), deps: unique.toArray(), member: member,
+            inactive: inactive.filter {file => file.path != script}))
         buildScript(dir, manifest, member)
         name
+    }
+
+    /**
+     * Where the packages of the module `name` in `dir` are, and they themselves, and the files the
+     * build leaves out. Its `src-dir`, if it has no source sets; else the chain of those the target
+     * takes, its first set's directory the root, a package the files of each set of the chain,
+     * named after its directory under the set's, in the directory of the first (#318). The files of
+     * the sets left out are inactive, each with why.
+     */
+    private func sourcesOf(name: String, dir: VfsPath, manifest: Manifest, pkg: ManifestPackage): (VfsPath,
+        Array<PackageModel>, Array<InactiveFile>) {
+        let sets = manifest.sourceSets ?? []
+        if (sets.isEmpty()) {
+            let srcDir = match (pkg.srcDir) {
+                case Some(src) where !src.trimAscii().isEmpty() => src.trimAscii()
+                case _ => "src"
+            }
+            let sources = loading.resolve(dir, srcDir)
+            return (sources, packagesUnder(name, sources), [])
+        }
+        let picked = sourceSetChain(sets, manifest.featureTables ?? [], loading.cfg)
+        loading.problems.add(all: picked.problems)
+        let merged = ArrayList<(String, VfsPath, ArrayList<VfsPath>)>()
+        for (set in picked.chain) {
+            for (one in packagesUnder(name, loading.resolve(dir, set.srcDir))) {
+                match (merged.iterator().filter {kept => kept[0] == one.name}.next()) {
+                    case Some((_, _, files)) => files.add(all: one.files)
+                    case None => merged.add((one.name, one.dir, ArrayList<VfsPath>(one.files)))
+                }
+            }
+        }
+        let inactive = ArrayList<InactiveFile>()
+        for ((set, reason) in picked.left) {
+            for (one in packagesUnder(name, loading.resolve(dir, set.srcDir))) {
+                inactive.add(all: one.files.map {file => InactiveFile(file, reason)})
+            }
+        }
+        let root = picked.chain.get(0).map {set => loading.resolve(dir, set.srcDir)} ?? dir
+        (root, merged.toArray().map {one => PackageModel(one[0], one[1], one[2].toArray())}, inactive.toArray())
     }
 
     /**
@@ -271,7 +308,10 @@ struct Manifest {
         let dependencies!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "test-dependencies"] let testDependencies!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "script-dependencies"] let scriptDependencies!: ?HashMap<String, Dependency> = None,
-        let target!: ?HashMap<String, Target> = None
+        let target!: ?HashMap<String, Target> = None,
+        @Serde[rename: "source-set"] let sourceSets!: ?Array<SourceSet> = None,
+        // not `features`: see `SourceSet.featureNames`
+        @Serde[rename: "feature"] let featureTables!: ?Array<Feature> = None
     ) {}
 }
 

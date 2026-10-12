@@ -3,7 +3,7 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import std.sort.*
-import ginkgo.TextRange
+import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
 import cjsyntax.ast.{AnyHasName, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
 import loupe.vfs.FileId
@@ -33,7 +33,8 @@ public struct Diagnostic {
 /**
  * What is wrong in a file, in the order of the text: what the lexer and the parser found, what its
  * `@When`s say (the code they leave out, what cjc rejects in them), what is wrong with its scope, and
- * what inference found in its bodies. Empty for a file the database does not know.
+ * what inference found in its bodies; for a file the build leaves out (#318), what the parser found
+ * and that it is inactive. Empty for a file the database does not know.
  *
  * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `scopeDiagnostics`,
  * `inferBody`), remembered there, and this only collects their results (A11).
@@ -42,6 +43,12 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
     let file = db.sourceFile(fileId) ?? return []
     let result = ArrayList<Diagnostic>()
     result.add(all: parse(db, file).errors.map {error => Diagnostic(error.range, Severity.Error, message(error.error))})
+    // a file the build leaves out is all inactive, and nothing in it is checked
+    if (let Some(reason) <- inactiveReasonOf(db, file)) {
+        result.add(Diagnostic(codeRange(parse(db, file).syntaxNode()), Severity.Hint, "code is inactive: ${reason}",
+            unnecessary: true))
+        return result.toArray()
+    }
     let conditional = whenDiagnostics(db, file)
     result.add(all: conditional.errors.map {error => Diagnostic(error.range, Severity.Error, error.message)})
     result.add(all: conditional.inactive.map {
@@ -180,6 +187,24 @@ func scopeDiagnosticsOf(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNo
         found.add(Diagnostic(range, severity, one.problem.message()))
     }
     found.toArray()
+}
+
+/**
+ * The range of `root` from its first token that is no trivia to its last, empty at its start if it
+ * has none.
+ */
+func codeRange(root: CjSyntaxNode): TextRange {
+    var start: ?Int64 = None
+    var end = root.textRange.start
+    for (element in root.descendantsWithTokens()) {
+        if (let SyntaxElement.Token(token) <- element && !token.kind.isTrivia()) {
+            if (start.isNone()) {
+                start = token.textRange.start
+            }
+            end = token.textRange.end
+        }
+    }
+    TextRange(start ?? end, end)
 }
 
 /**
