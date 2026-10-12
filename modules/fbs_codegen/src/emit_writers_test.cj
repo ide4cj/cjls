@@ -61,6 +61,21 @@ class EmitWritersTest {
     }
 
     @TestCase
+    func aStructsEnumAndStructFieldsAndARequiredStructOrUnionAreWritten() {
+        // act
+        let sut = writersOf(
+            "enum E : short { A } struct P { x: int; } struct S { e: E; p: P; } table C {} union U { C } " +
+                "table T { es: [E]; s: S (required); u: U (required); }")
+
+        // assert
+        @Expect(sut.contains("writeInt16(buf, pos + 0, e.value)\np.writeTo(buf, pos + 4)"))
+        @Expect(sut.contains("b.addInt16(es[i].value)"))
+        @Expect(sut.contains("b.addStruct(s.toBytes(), SData.ALIGNMENT)\nb.slot(1)"))
+        @Expect(sut.contains("let uOffset = u.pack(b)"))
+        @Expect(sut.contains("b.addUInt8(u.tag)\nb.slot(2)\nb.addOffset(uOffset)\nb.slot(3)"))
+    }
+
+    @TestCase
     func aUnionsWriterKnowsItsTagAndBuildsAStructAlone() {
         // act
         let sut = writersOf("struct S { x: long; } table C {} union U { C, s: S, t: string }")

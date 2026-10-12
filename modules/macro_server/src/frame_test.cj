@@ -46,4 +46,14 @@ class FrameTest {
         // act, assert
         @AssertThrows[MacroServerException](readMessage(pipe))
     }
+
+    @TestCase
+    func aMessageOfNoBytesThrows(): Unit {
+        // arrange
+        let pipe = ByteBuffer()
+        pipe.write(Array<Byte>(8, repeat: 0))
+
+        // act, assert
+        @AssertThrows[MacroServerException](readMessage(pipe))
+    }
 }

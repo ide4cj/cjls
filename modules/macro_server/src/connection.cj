@@ -47,7 +47,7 @@ public class MacroConnection {
                 case Some(MsgContent.AsMacroResult(r)) => r
                 case _ => throw MacroServerException("the server answered with no MacroResult")
             }
-        } catch (e: FbException) {
+        } catch (e: FbException | IndexOutOfBoundsException) {
             throw MacroServerException("the server's answer is broken: ${e.message}")
         }
         writeMessage(output, exitTask(false))
