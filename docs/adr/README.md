@@ -115,4 +115,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0094](0094-a-release-supports-a-window-of-sdks.md) | One cjls release supports a window of SDKs: the latest LTS, the latest STS and the pinned nightly, told apart by `cjc --version` | accepted |
 | [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
+| [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
