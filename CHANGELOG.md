@@ -2,6 +2,60 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.5.0](https://github.com/ide4cj/cjls/compare/326917edeee72edeba9216d1357c1a4deb626cb6..v0.5.0) - 2026-10-12
+#### Features
+- (**cjls**) an open document in no loaded package finds its own project (#265) (#291) - ([c4d0eb9](https://github.com/ide4cj/cjls/commit/c4d0eb9950d1fbbf7097f28c097148da88004dff)) - FilaCo
+- (**cjls**) a document opened among the files a loose root left out is analyzed (#213) (#260) - ([13932ce](https://github.com/ide4cj/cjls/commit/13932ce9d85ec2d7e984e54f84fe77d288d9fc67)) - FilaCo
+- (**cjls**) settings from initializationOptions, workspace/configuration and didChangeConfiguration, their schema by cjls --config-schema (#259) - ([cab89e0](https://github.com/ide4cj/cjls/commit/cab89e0d35b68de961e7418954bd472ad340cbde)) - FilaCo
+- (**cjls**) on Windows, the server's child dies with its parent (#258) - ([ba0a7ad](https://github.com/ide4cj/cjls/commit/ba0a7adc3777bc6ebacd9a045bcbb3161485a25e)) - FilaCo
+- (**cjls**) textDocument/rangeFormatting, the whole file's edits on the lines a range covers (#237) - ([d80bb3b](https://github.com/ide4cj/cjls/commit/d80bb3b17b420980bffe69725fdd4fb077ff9198)) - FilaCo
+- (**cjls**) `cjls fetch-src` puts std's sources of the SDK's nightly into its src (#210) (#224) - ([29817ea](https://github.com/ide4cj/cjls/commit/29817eaa03028b7a02f8e6cc2af24b478a7daa1e)) - FilaCo
+- (**cjls**) the .cjo of the binaries are watched, and an update read without a restart (#141) (#220) - ([c09d4fa](https://github.com/ide4cj/cjls/commit/c09d4fa5b65cb5a0a7ffb796da0a722cb5fd4bdb)) - FilaCo
+- (**loupe**) an extend of a type alias extends the type it expands to (#277) (#290) - ([e774a31](https://github.com/ide4cj/cjls/commit/e774a314f8fdd3c93d44d45a8751074e4d70b4d8)) - FilaCo
+- (**loupe**) a type a macro not read is called on may have any supertype (#175) (#288) - ([2bfb758](https://github.com/ide4cj/cjls/commit/2bfb758f3dd057d22a10cce3d25894e03bec0c3d)) - FilaCo
+- (**loupe**) what std.unittest's macros declare, as expansions (#175) (#264) - ([95e3f8c](https://github.com/ide4cj/cjls/commit/95e3f8c1f2e67c419889b9809585b4279cb2f0b0)) - FilaCo
+- (**loupe**) semantic tokens tell names at their use by what they mean (#229) - ([10ec426](https://github.com/ide4cj/cjls/commit/10ec4266df3444915452dcfd913cd768fb0e7b2f)) - FilaCo
+- (**loupe**) a type not known is an error or what the analysis cannot find, a qualifier no value (#53) (#257) - ([955b329](https://github.com/ide4cj/cjls/commit/955b3291a1bd66fdf5b0bc3cde62f65aefed61aa)) - FilaCo
+- (**loupe**) optional chains lowered into the matches cjc desugars them to, Some and None lang items (D70) (#228) - ([b1ce907](https://github.com/ide4cj/cjls/commit/b1ce907578997f008324303bad055720e221ea41)) - FilaCo
+- (**loupe**) document highlight, the names of a file meaning what one does (#200) (#223) - ([72f6307](https://github.com/ide4cj/cjls/commit/72f630744b2b99d05a7900f03955ed3ba344c4f7)) - FilaCo
+- (**loupe**) hover shows a declaration's signature and docs, a value's inferred type (#199) (#222) - ([3b37855](https://github.com/ide4cj/cjls/commit/3b378558cb2ca528ef5bd1e9f671c5c2450489e3)) - FilaCo
+- (**loupe**) what std's @Derive adds, an expansion read as any file (#175) (#221) - ([5c48668](https://github.com/ide4cj/cjls/commit/5c4866889e0f690a2ab649a38b91d5a252c55b83)) - FilaCo
+- (**loupe**) coalescing, pipelines and compositions typed as cjc desugars them, std.core named through lang items (D66) (#48) (#217) - ([6a675b7](https://github.com/ide4cj/cjls/commit/6a675b78e3ef3fab4652f58dbffcca9971248e8b)) - FilaCo
+- (**loupe**) go to definition into std's sources, at the positions of its .cjo (#210) (#215) - ([e6afb9a](https://github.com/ide4cj/cjls/commit/e6afb9adeec8ffcd4f18cc0570b6e03a1b24d84c)) - FilaCo
+- (**loupe**) an operator of a type is a call of its member, the language's own tried first (D64) (#48) (#198) - ([a093cb1](https://github.com/ide4cj/cjls/commit/a093cb1d42cfa9d8fa66ca1251128a7135cf5f30)) - FilaCo
+- (**loupe**) macro names resolved through imports (#175) (#197) - ([d36f454](https://github.com/ide4cj/cjls/commit/d36f454132604cce2ecd8fa7072bae035e8958cf)) - FilaCo
+- (**lsp_codegen**) codecs for the requests the server sends, and registrations typed per method (#208) - ([a33cf12](https://github.com/ide4cj/cjls/commit/a33cf12cd5464b0dafb85d1ca20e8a4557bf109c)) - FilaCo
+- (**project_model**) loose files with a main each are programs of their own (#211) (#219) - ([9a05b43](https://github.com/ide4cj/cjls/commit/9a05b43aebcdc8ea8a06ada4cec778e734f57010)) - FilaCo
+#### Bug Fixes
+- (**calca**) an input created in a batch is stamped with the revision before it, and an appended declaration runs no body again (#262) (#289) - ([fc3aa06](https://github.com/ide4cj/cjls/commit/fc3aa060b8ecdc683442c11d040bd17ce97f4c88)) - FilaCo
+- (**calca**) a write that changes no input opens no revision (#233) - ([f612d76](https://github.com/ide4cj/cjls/commit/f612d76807a3d0807ab0bdaf1d22759263c2fa5d)) - FilaCo
+- (**cjformat**) a body's `{` on a line of its own joins the line before (#252) - ([bc98a04](https://github.com/ide4cj/cjls/commit/bc98a049013e00c3edfceb4467aa070ad66faf69)) - FilaCo
+- (**cjls**) the load-progress test sets std's sources through Settings (#274) - ([a75fc17](https://github.com/ide4cj/cjls/commit/a75fc17e63e40beec4f4e0d1d3d08cdcbb52467b)) - FilaCo
+- (**cjls**) a change of workspace folders is one revision (S12) (#207) - ([87ec1be](https://github.com/ide4cj/cjls/commit/87ec1bef2c00a76c4ca939c09d747393de2b301b)) - FilaCo
+- (**cjsyntax**) a declaration in macro calls has the comments before them as its docs (#231) - ([5cdb4c3](https://github.com/ide4cj/cjls/commit/5cdb4c34792942e7443707b68b71572f7feecedc)) - FilaCo
+- (**docs**) an open pull request clashes only by the ADRs it adds, not by master's (#232) - ([9e41b01](https://github.com/ide4cj/cjls/commit/9e41b015479748fdc8a7957a86dcb4da621ad113)) - FilaCo
+- (**loupe**) a member named through its type or alone is the one cjc takes (#266) - ([5b78194](https://github.com/ide4cj/cjls/commit/5b78194e208b53e5cee971de4a8d3174df2b25c6)) - FilaCo
+- (**loupe**) a type parameter's hover shows its bounds, or nothing (#236) - ([960c881](https://github.com/ide4cj/cjls/commit/960c8815697cab3131a238d545f5c4671c954d20)) - FilaCo
+- (**project_model**) cjsdk's default toolchain is found through its link, a cjc with no SDK around it is passed over (#194) - ([326917e](https://github.com/ide4cj/cjls/commit/326917edeee72edeba9216d1357c1a4deb626cb6)) - FilaCo
+#### Performance Improvements
+- (**calca**) a dependency keeps its memo's entry or interned slot, and answers from it without a lock (#269) - ([2df0749](https://github.com/ide4cj/cjls/commit/2df074900f7cffd1395d49399a78fd796a8dc7d2)) - FilaCo
+- (**fjson**) a union reads its value on the rewound reader, no slice and no second reader (#225) - ([ac29c7c](https://github.com/ide4cj/cjls/commit/ac29c7c24c25258d03ce9ef8a28e443978ae809a)) - FilaCo
+- (**jsonrpc**) params are read in place when the method came first, by the route's own reader (D73) (#230) - ([9568779](https://github.com/ide4cj/cjls/commit/95687793726fb8a86818e4d976544649b5ef0efa)) - FilaCo
+#### Documentation
+- (**adr**) the workspace's macros run in the SDK's LSPMacroServer (D87) (#284) - ([6b9b99a](https://github.com/ide4cj/cjls/commit/6b9b99ad004d4f916785a3f839e72443b6dc0623)) - FilaCo
+- (**adr**) JSON is read by the pull reader, not through a tape index (D86) (#270) - ([75d160c](https://github.com/ide4cj/cjls/commit/75d160c7ea9e4c2630ab96642982bdf61d72ab1a)) - FilaCo
+- (**adr**) what a name means is kept where it was resolved (D84) (#267) - ([afbc02a](https://github.com/ide4cj/cjls/commit/afbc02a2c7e10e9afd8361099a22455128612cb4)) - FilaCo
+- (**prior-art**) cjls's column as master has it, calca's accumulators decided against (#286) - ([605d5c0](https://github.com/ide4cj/cjls/commit/605d5c0f1c108b1d86d8b7c4f10fbe9dafc2b556)) - FilaCo
+- (**prior-art**) how R1, R2, R3, R6 and R7 report semantic errors and keep them from cascading (#238) - ([9fff4cd](https://github.com/ide4cj/cjls/commit/9fff4cd1e0b9fa54807d07670aebd0da54da4cca)) - FilaCo
+#### Tests
+- (**cjls**) the runtime's used heap is not held to its limit (#234) - ([2e04993](https://github.com/ide4cj/cjls/commit/2e0499373d63db2000d5d711a39f9a139356c99b)) - FilaCo
+- (**perf**) scenarios for definition, hover and completion, and a threshold on queries executed (#261) - ([0c2ca52](https://github.com/ide4cj/cjls/commit/0c2ca52c0aa34f8763327b6d02d4f0a04804039f)) - FilaCo
+- (**perf**) cjls is ready when its load's progress ends, not at its initialize answer (#209) - ([26df290](https://github.com/ide4cj/cjls/commit/26df29052af17b69070659c9f9ee7f3f72f1cb89)) - FilaCo
+#### Refactoring
+- (**loupe**) inference looks a value's members up on its type (#275) - ([54b01a5](https://github.com/ide4cj/cjls/commit/54b01a5880031a1b7211797a3e1e54582a158bb5)) - FilaCo
+
+- - -
+
 ## [v0.4.0](https://github.com/ide4cj/cjls/compare/30584a34c189f21d29921d1badf83077a8bf36c1..v0.4.0) - 2026-10-08
 #### Features
 - (**cjformat**) a formatter of our own on the syntax tree, as textDocument/formatting and cjls fmt (#184) - ([d779a48](https://github.com/ide4cj/cjls/commit/d779a48f70f39605dd22a36d166a5978d45aa1cb)) - FilaCo
