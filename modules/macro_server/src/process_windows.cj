@@ -109,9 +109,6 @@ const STARTF_USESTDHANDLES: UInt32 = 0x100
 @When[os == "Windows"]
 const INFINITE: UInt32 = 0xFFFF_FFFF
 
-@When[os == "Windows"]
-const ERROR_BROKEN_PIPE: UInt32 = 109
-
 /** `JobObjectExtendedLimitInformation` of `JOBOBJECTINFOCLASS`. */
 @When[os == "Windows"]
 const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: Int32 = 9
@@ -241,7 +238,9 @@ class HandleInputStream <: InputStream {
     HandleInputStream(let handle: CPointer<Unit>) {}
 
     /**
-     * @throws IOException - if the pipe fails otherwise than by the server having closed it (0 bytes, EOF)
+     * What `ReadFile` reads; 0, EOF, when it fails. A read of this end fails when the server has closed its
+     * own, which is how its exit shows: `GetLastError`, a call of its own, does not tell why, as the runtime
+     * may have set the thread's last error between the two (0 on CI's Windows, not `ERROR_BROKEN_PIPE`).
      */
     public func read(buffer: Array<Byte>): Int64 {
         if (buffer.isEmpty()) {
@@ -252,15 +251,15 @@ class HandleInputStream <: InputStream {
             let memory = LibC.malloc<UInt8>(count: size)
             var read: UInt32 = 0
             let ok = ReadFile(handle, memory, UInt32(size), inout read, CPointer())
-            let error = GetLastError()
             for (i in 0..Int64(read)) {
                 buffer[i] = memory.read(i)
             }
             LibC.free(memory)
-            if (ok == 0 && error != ERROR_BROKEN_PIPE) {
-                throw IOException("ReadFile failed with error ${error}")
+            if (ok == 0) {
+                0
+            } else {
+                Int64(read)
             }
-            Int64(read)
         }
     }
 }

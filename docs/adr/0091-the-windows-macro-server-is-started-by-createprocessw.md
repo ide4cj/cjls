@@ -23,6 +23,7 @@ Amends ADR-0087: Windows is not left opaque
 - **It is assigned to a kill-on-close job of its own before it is resumed**: it dies with this process even in a macro that loops and never reads. If Windows gives no job, it runs without one and exits at its next read, at EOF.
 - This process closes the server's ends as soon as it has started: the server's exit is then EOF on the pipe this process reads.
 - The pipes are read and written with `ReadFile`/`WriteFile` into memory of their own (`LibC.malloc`), never through `acquireArrayRawData`: a read blocks while the server works (C5).
+- **A failed `ReadFile` is EOF.** The read end fails only when the server has closed its own. `GetLastError`, a foreign call of its own, does not tell why: on CI's Windows it gave 0 where `ERROR_BROKEN_PIPE` was due, because the runtime may set the thread's last error between the two calls.
 
 ## Consequences
 
