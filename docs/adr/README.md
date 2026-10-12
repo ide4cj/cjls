@@ -101,5 +101,6 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0080](0080-an-open-document-is-in-the-project.md) | A document open is in the project: loose files take the open documents and their directories first, those documents past the budget, and one opened among the files left out finds the project again | accepted |
 | [0081](0081-the-perf-threshold-is-on-queries-executed.md) | The perf threshold is on queries executed, not on time | accepted |
 | [0083](0083-members-named-through-a-type-are-filtered-by-its-type.md) | A member named through a type or alone is filtered by the type the names give, in the lookup | proposed |
-| [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed |
+| [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed; a memo verified in this revision answers a dependent through its entry, not its table, by D85 |
+| [0085](0085-a-dependency-keeps-its-edge.md) | A dependency keeps the object it was read from, which answers for it without a lock when it can | proposed |
 | [0086](0086-json-is-read-without-a-tape.md) | JSON is read by the pull reader, not through a tape index | accepted |
