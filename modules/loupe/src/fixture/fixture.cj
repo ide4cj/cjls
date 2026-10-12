@@ -250,16 +250,19 @@ public class Fixture {
     /**
      * A database of the project and the texts of the files, with the packages compiled already of
      * `binaries`, and the binaries `models` with the texts of their sources, as the disk has them.
+     * The files are created in a batch of their own after the project, as the server's load does.
      */
     public func database(binaries!: Array<CjoFileRead> = [], models!: Array<BinaryModel> = []): AnalysisDatabase {
         let db = AnalysisDatabase()
         let model = ProjectModel(Cfg([]), projectModel().modules, binaries: models)
         db.setProject(model, paths, binaries: binaries)
-        for (file in files) {
-            db.setFileText(file.fileId, Rope(file.text))
-        }
-        for (path in model.binarySourceFiles()) {
-            db.setFileText(paths.intern(path), readFile(path) ?? throw FixtureException("${path} cannot be read"))
+        db.batch {
+            for (file in files) {
+                db.setFileText(file.fileId, Rope(file.text))
+            }
+            for (path in model.binarySourceFiles()) {
+                db.setFileText(paths.intern(path), readFile(path) ?? throw FixtureException("${path} cannot be read"))
+            }
         }
         db
     }

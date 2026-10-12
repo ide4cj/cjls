@@ -10,7 +10,8 @@ import cjls.macros.LspHandler
 /**
  * From now until `didClose`, the file holds what the editor's buffer does. A document among the
  * files a root's loose project left out, past the load budget, finds the project again, which
- * takes it and its directory first (D80); a load running does that at its end.
+ * takes it and its directory first (D80); one in no package, below a manifest of a project not
+ * loaded, finds the project again with that one too (#265); a load running does that at its end.
  */
 @LspHandler
 func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTextDocumentParams): Unit {
@@ -19,7 +20,7 @@ func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTe
     let path = VfsPath.fromUri(document.uri)
     state.openDocuments.add(path, document.version)
     state.setFileContents(path, Rope(document.text))
-    if (!state.loading && state.leftOut(path)) {
+    if (!state.loading && findsProjectAgain(state, path)) {
         startLoad(loop, client, logger)
     }
 }

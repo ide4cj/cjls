@@ -500,6 +500,50 @@ class InferTest {
     }
 
     @TestCase
+    func anExtendOfAnAliasExtendsTheTypeItExpandsTo() {
+        // compiled with cjc 1.3.0-alpha.20261002
+        checkInference(#"
+            package m
+            type Small = Int16
+            extend Small {
+                func twice(): Int16 { this * 2 }
+            }
+            class Box<T> {
+                let v: T
+                init(v: T) { this.v = v }
+            //       ^ T
+            }
+            type IntBox = Box<Int64>
+            extend IntBox {
+                func get(): Int64 { v }
+            }
+            type Same<T> = Box<T>
+            extend<T> Same<T> {
+                func back(): T { v }
+            }
+            func f(b: UInt8, n: Int16, i: Box<Int64>, s: Box<String>): Unit {
+            //     ^ UInt8
+            //               ^ Int16
+            //                         ^ Box<Int64>
+            //                                        ^ Box<String>
+                let up = b.isAsciiUpperCase()
+            //      ^^ Bool
+                let t = n.twice()
+            //      ^ Int16
+                let x = i.get()
+            //      ^ Int64
+                let y = s.back()
+            //      ^ String
+                // cjc: 'get' is not a member of class 'Box<Struct-String>'
+                let z = s.get()
+            //      ^ {unknown}
+                let m = Byte.Max
+            //      ^ UInt8
+            }
+            "#)
+    }
+
+    @TestCase
     func aLambdaTakesItsParametersFromTheFunctionTypeExpected() {
         checkInference(#"
             package m
@@ -2134,5 +2178,38 @@ class InferTest {
 
         // assert
         @Expect(inferenceReaderRuns.load(), before)
+    }
+
+    @TestCase
+    func aDeclarationAppendedRunsNoBodyQueryOfAnotherAgain() {
+        // arrange: `f` binds a name, which may be a constructor of the package, and calls `g`
+        let parsed = Fixture.parse(#"
+            package m
+            enum E { | A | B }
+            func f(e: E): Int64 {
+                let a = g()
+                match (e) {
+                    case A => a
+                    case B => 0
+                }
+            }
+            func g(): Int64 { 1 }
+            "#)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
+        let item = itemTree(db, source).items.iterator().filter {one => one.names.contains("f")}.next().getOrThrow()
+        let def = DefId(db, ItemFile.Source(source), item.id)
+        exprTyCount(db, def)
+        let queries = ["body", "exprScopes", "signature", "signatureTypes", "inferBody", "declaredTyOf"]
+        let before = queries.map {name => db.storage.executionsOf(name)}
+        let readers = inferenceReaderRuns.load()
+
+        // act
+        source.setText(db).to(Rope(source.text(db).toString() + "func appended(x: Int64): Int64 { x }\n"))
+        exprTyCount(db, def)
+
+        // assert
+        @Expect(queries.map {name => db.storage.executionsOf(name)}, before)
+        @Expect(inferenceReaderRuns.load(), readers)
     }
 }

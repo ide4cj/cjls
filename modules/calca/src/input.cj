@@ -19,8 +19,9 @@ public class InputIngredient {
 
     /**
      * Adds a row, which `fill` gives a value in every column, in order. No revision begins: nothing
-     * computed so far can have read the row. Except a singleton's, which a query may have looked
-     * for: that one is added in a revision of its own.
+     * computed so far can have read the row, so its fields are stamped with the revision current
+     * before, even inside a batch, which may open none. Except a singleton's, which a query may have
+     * looked for: that one is added in a revision of its own.
      *
      * @throws IllegalStateException - if the handle is a snapshot, or is inside a query, or the
      * singleton is there already
@@ -29,17 +30,18 @@ public class InputIngredient {
         let storage = db.storage
         storage.checkWritable("create")
         if (!singleton) {
-            if (storage.batching.isSome()) {
-                // the batch holds the gate
-                return add(storage.runtime, durability, fill)
+            if (let Some(revision) <- storage.batching) {
+                // the batch holds the gate; stamped with its own revision, the row would have
+                // changed in one the batch rolls back if it sets nothing, and so in the next
+                return add(storage.runtime, durability, fill, revision - 1)
             }
             return storage.read {
-                add(storage.runtime, durability, fill)
+                add(storage.runtime, durability, fill, storage.runtime.revision)
             }
         }
         storage.write {
             revision =>
-            let id = add(storage.runtime, durability, fill)
+            let id = add(storage.runtime, durability, fill, revision)
             let table = table(storage.runtime)
             synchronized(table.lock) {
                 table.createdAt = revision
@@ -50,14 +52,14 @@ public class InputIngredient {
         }
     }
 
-    private func add(runtime: Runtime, durability: Durability, fill: (InputRow) -> Unit): Id {
+    private func add(runtime: Runtime, durability: Durability, fill: (InputRow) -> Unit, createdAt: Int64): Id {
         let table = table(runtime)
         synchronized(table.lock) {
             if (singleton && table.rows > 0) {
                 throw IllegalStateException("${name} is a singleton, and there is one already")
             }
             let id = Id(table.rows)
-            fill(InputRow(this, runtime, id, durability))
+            fill(InputRow(this, runtime, id, durability, createdAt))
             table.rows++
             id
         }
@@ -129,10 +131,10 @@ public class InputIngredient {
  */
 public class InputRow {
     InputRow(private let ingredient: InputIngredient, private let runtime: Runtime, private let id: Id,
-        private let durability: Durability) {}
+        private let durability: Durability, private let createdAt: Int64) {}
 
     public func put<T>(field: Int64, value: T): Unit {
-        ingredient.column<T>(runtime, field).push(id, Stamp(value, runtime.revision, durability))
+        ingredient.column<T>(runtime, field).push(id, Stamp(value, createdAt, durability))
     }
 }
 

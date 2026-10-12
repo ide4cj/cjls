@@ -24,31 +24,38 @@ public enum ExtendedType <: ToString {
 }
 
 /**
- * The type the `extend` `def` extends, its path resolved in its scope, or as its `.cjo` has it;
- * `None` for one that does not resolve to a type.
+ * The type the `extend` `def` extends, its path resolved in its scope, or as its `.cjo` has it, an
+ * alias expanded (`extend Byte` is `UInt8`'s, #277); `None` for one that does not resolve to a type.
  */
 public func extendedTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
-    if (let Binary(pkg, index) <- def.file(db)) {
+    let named: ?ExtendedType = if (let Binary(pkg, index) <- def.file(db)) {
         if (def.item(db).kind != ItemKind.Extend) {
             return None
         }
-        return binaryExtendedType(db, pkg, BinaryItem(index, def.item(db)))
+        binaryExtendedType(db, pkg, BinaryItem(index, def.item(db)))
+    } else {
+        let sig = signature(db, def)
+        let ty = sig.ty ?? return None
+        match (sig[ty]) {
+            case PathRef(segments) => typeOfPath(db, def, segments).map {id => ExtendedType.DeclType(id)}
+            case PrimRef(name) => ExtendedType.PrimType(name)
+            case _ => None
+        }
     }
-    let sig = signature(db, def)
-    let ty = sig.ty ?? return None
-    match (sig[ty]) {
-        case PathRef(segments) =>
-            let id = typeOfPath(db, def, segments) ?? return None
-            if (id.item(db).kind != ItemKind.TypeAlias) {
-                return ExtendedType.DeclType(id)
-            }
-            // of an alias, the type it stands for, as the `extend`'s type is lowered (A24, N148)
-            match ((signatureTypes(db, def).ty ?? return None).kind(db)) {
-                case DeclTy(target, _) => ExtendedType.DeclType(target)
-                case PrimTy(name) => ExtendedType.PrimType(name)
-                case _ => None
-            }
-        case PrimRef(name) => ExtendedType.PrimType(name)
+    match (named) {
+        case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias => aliasedTypeOf(db, id)
+        case _ => named
+    }
+}
+
+/**
+ * The type the alias `id` expands to, through the aliases it names, as cjc extends it: a
+ * declaration, or a type of the language; `None` for any other.
+ */
+func aliasedTypeOf(db: AnalysisDatabase, id: DefId): ?ExtendedType {
+    match (signatureTypes(db, id).ty.map {ty => ty.kind(db)}) {
+        case Some(DeclTy(head, _)) => ExtendedType.DeclType(head)
+        case Some(PrimTy(name)) => ExtendedType.PrimType(name)
         case _ => None
     }
 }

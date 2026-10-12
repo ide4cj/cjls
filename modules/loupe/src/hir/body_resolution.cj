@@ -2,6 +2,8 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
+import calca.*
+import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
@@ -71,8 +73,10 @@ func sourceOf(db: AnalysisDatabase, def: DefId): ?(Package, SourceFile) {
 
 /**
  * The constructors named `name` a pattern of `pkg` may mean: those of the enums of the package, and
- * of those any of its files imports (N72, N73).
+ * of those any of its files imports (N72, N73). A query, as `lookUp` is: every binding of a body asks
+ * it, and a declaration added to the package runs again only what read a name it changes.
  */
+@CalcaTracked
 public func ctorsNamed(db: AnalysisDatabase, pkg: Package, name: String): Array<DefId> {
     let found = ArrayList<DefId>()
     for (def in defMap(db, PackageRef.Source(pkg)).ctors.get(name) ?? []) {

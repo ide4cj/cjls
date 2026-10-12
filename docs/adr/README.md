@@ -99,10 +99,12 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0078](0078-the-windows-child-dies-with-its-parent.md) | On Windows the server puts itself in a kill-on-close job before it starts its child | proposed |
 | [0079](0079-settings-are-r1s.md) | The settings are one typed model whose schema the server prints, read as R1 reads them | proposed |
 | [0080](0080-an-open-document-is-in-the-project.md) | A document open is in the project: loose files take the open documents and their directories first, those documents past the budget, and one opened among the files left out finds the project again | accepted |
-| [0081](0081-the-perf-threshold-is-on-queries-executed.md) | The perf threshold is on queries executed, not on time | accepted |
+| [0081](0081-the-perf-threshold-is-on-queries-executed.md) | The perf threshold is on queries executed, not on time | accepted; the count is also per function by D89 |
 | [0082](0082-a-macros-name-is-looked-up-in-what-the-files-write.md) | A macro's name is looked up in what the files write, never in what macros add | proposed |
 | [0083](0083-members-named-through-a-type-are-filtered-by-its-type.md) | A member named through a type or alone is filtered by the type the names give, in the lookup | proposed |
 | [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed; a memo verified in this revision answers a dependent through its entry, not its table, by D85 |
 | [0085](0085-a-dependency-keeps-its-edge.md) | A dependency keeps the object it was read from, which answers for it without a lock when it can | proposed |
 | [0086](0086-json-is-read-without-a-tape.md) | JSON is read by the pull reader, not through a tape index | accepted |
 | [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed |
+| [0088](0088-a-document-in-no-package-finds-its-own-project.md) | A document open in no package finds its own project from its path, as R1 does on open, and that project stays loaded with the roots' | proposed |
+| [0089](0089-calca-counts-executions-per-function.md) | calca counts the executions of each tracked function, and keeps no trace | accepted |

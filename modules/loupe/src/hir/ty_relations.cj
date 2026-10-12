@@ -126,12 +126,29 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
             bound => bound.ty == sub && bound.bounds.iterator().any {one => isSubtype(db, one, sup, from)}
         }
         // of an interface implemented as several instances (`K<Int64> & K<String>`), any (N143)
-        case (_, DeclTy(id, _)) => allSupertypes(db, sub, from).iterator().any {
-            one => match (one.kind(db)) {
-                case DeclTy(other, _) where other == id => isAlike(db, one, sup)
-                case _ => false
+        case (_, DeclTy(id, _)) =>
+            let instances = allSupertypes(db, sub, from).filter {
+                one => match (one.kind(db)) {
+                    case DeclTy(other, _) => other == id
+                    case _ => false
+                }
             }
-        }
+            if (instances.isEmpty()) {
+                isSupertypeKind(db, id) && hasMacroSupertypes(db, sub, from)
+            } else {
+                instances.iterator().any {one => isAlike(db, one, sup)}
+            }
+        case _ => false
+    }
+}
+
+/**
+ * Whether `id` is a type another may be a subtype of by its declaration or an `extend`: a class or
+ * an interface.
+ */
+func isSupertypeKind(db: AnalysisDatabase, id: DefId): Bool {
+    match (id.item(db).kind) {
+        case Class | Interface => true
         case _ => false
     }
 }
@@ -149,6 +166,20 @@ func optionArgOf(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): ?Ty {
         arg
     } else {
         None
+    }
+}
+
+/**
+ * Whether `ty` may have supertypes the analysis does not see: a macro whose expansion is not read
+ * is called on its declaration, or on one of its supertypes', and may declare it a subtype of
+ * anything, or add an `extend` that does (#175, #176). Unknown, not wrong.
+ */
+func hasMacroSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Bool {
+    allSupertypes(db, ty, from).iterator().any {
+        one => match (one.kind(db)) {
+            case DeclTy(id, _) => hasUnreadMacros(db, id)
+            case _ => false
+        }
     }
 }
 
@@ -228,6 +259,10 @@ func joinTys(db: AnalysisDatabase, tys: Array<Ty>, from: ?SourceFile): Ty {
         if (real.iterator().all {other => other == one || isSubtype(db, other, inner, from)}) {
             return one
         }
+    }
+    // of a branch whose supertypes a macro may add to, the common one is not known (#175)
+    if (real.iterator().any {one => hasMacroSupertypes(db, one, from)}) {
+        return Ty(db, TodoTy(Todo.MacroMember))
     }
     let common = allSupertypes(db, first, from).filter {
         candidate => real.iterator().all {one => isSubtype(db, one, candidate, from)}

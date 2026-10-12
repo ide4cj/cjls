@@ -146,6 +146,40 @@ class UnknownTest {
     }
 
     @TestCase
+    func aTypeAMacroIsCalledOnMayHaveSupertypesNotSeen() {
+        checkUnknowns(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.a.{C, D, E}
+            func g<T>(x: T): T where T <: Hashable { x }
+            func k(c: C, d: D, e: E, h: Hashable): Unit {
+                // `M` may add `extend C <: Hashable`
+                let a = g(c)
+                // cjc: unable to infer generic argument of this function
+                let b = g(d)
+            //          ^^^^ error
+                // a subclass of `C` too
+                let f = g(e)
+                // cjc: `Hashable` if `M` adds `extend C <: Hashable`
+                let j = if (true) { c } else { h }
+            //          ^^^^^^^^^^^^^^^^^^^^^^^^^^ todo(macro member)
+                let z = 0
+            }
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            import m.ms.M
+            @M
+            public open class C {}
+            public class D {}
+            public class E <: C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#)
+    }
+
+    @TestCase
     func aMemberOfATypeAMacroIsCalledOnMayBeTheMacros() {
         checkUnknowns(#"
             //- /main.cj module=m package=m
