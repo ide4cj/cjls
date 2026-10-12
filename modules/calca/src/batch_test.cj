@@ -82,6 +82,25 @@ class BatchTest {
     }
 
     @TestCase
+    func anInputCreatedInABatchThatChangesNothingIsNotChangedByTheNextWrite(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let a = SourceFile(db, "a.cj", "a")
+        let created = db.storage.batch {
+            SourceFile(db, "b.cj", "bb")
+        }
+        @Expect(length(db, created), 2)
+        db.events.take()
+
+        // act
+        a.setText(db).to("aa")
+
+        // assert
+        @Expect(length(db, created), 2)
+        @Expect(db.events.take(), Array<String>())
+    }
+
+    @TestCase
     func aBatchReadsNothing(): Unit {
         // arrange
         let db = TestDatabase()
