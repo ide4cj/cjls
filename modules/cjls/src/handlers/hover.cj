@@ -9,10 +9,15 @@ import cjls.macros.LspHandler
 /**
  * What the name at the position stands for: its declaration, or its type, and its doc comment, as
  * Markdown to a client that takes it, plain text otherwise; over the name's range. `null` for no
- * name, one nothing resolves, or a document the server does not know.
+ * name, one nothing resolves, or a document the server does not know. In an expanded file, through its
+ * view (`expandedViewOf`).
  */
 @LspHandler[readonly]
 func handleHover(snap: ServerSnapshot, params: HoverParams): Nullable<Hover> {
+    if (isExpandedDocument(params.textDocument.uri)) {
+        let view = expandedViewOf(snap, params.textDocument.uri) ?? return Nullable.Null
+        return hoverInView(snap, view, params.position)
+    }
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let hover = hoverAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position)) ??
         return Nullable.Null

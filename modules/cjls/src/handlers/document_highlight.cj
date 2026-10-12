@@ -12,6 +12,10 @@ import cjls.macros.LspHandler
  */
 @LspHandler[readonly]
 func handleDocumentHighlight(snap: ServerSnapshot, params: DocumentHighlightParams): Nullable<Array<DocumentHighlight>> {
+    if (isExpandedDocument(params.textDocument.uri)) {
+        let view = expandedViewOf(snap, params.textDocument.uri) ?? return Nullable.Null
+        return highlightsInView(snap, view, params.position)
+    }
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let found = highlightRelated(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position))
     if (found.isEmpty()) {

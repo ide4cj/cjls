@@ -42,6 +42,11 @@ func handleInitialize(state: ServerState, client: Client, logger: Logger, params
         it => it.documentChanges
     } ?? false
     state.workDoneProgress = params.capabilities.window.flatMap {window => window.workDoneProgress} ?? false
+    state.showsDocuments = params.capabilities.window.flatMap {window => window.showDocument}.map {
+        it => it.support
+    } ?? false
+    state.codeActionLiterals = params.capabilities.textDocument.flatMap {textDocument => textDocument.codeAction}
+        .flatMap {codeAction => codeAction.codeActionLiteralSupport}.isSome()
     InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
 }
 
