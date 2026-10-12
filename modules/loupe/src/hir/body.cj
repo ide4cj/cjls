@@ -2,10 +2,10 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.SyntaxNodePtr
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr,
-    MacroExpandExpr, MatchCase, Name, ParamList, PathSegment, Pattern, ResourceDecl, Type}
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
+import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr, MacroAttr,
+    MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern, ResourceDecl, Type, identText}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -253,10 +253,29 @@ public enum Expr {
     | LangExpr(LangItem)
     | BlockExpr(Array<Stmt>)
     /**
-     * A `quote` or a macro call: what it expands to is not known here. A macro call's arguments when they parse as
-     * an argument list, lowered so the names in them resolve; the macro sees them as tokens all the same.
+     * `quote(…)`: its tokens are what it builds, not code run here; an `std.ast.Tokens` (N136).
      */
-    | MacroExpr(Array<CallArg>)
+    | QuoteExpr
+    /**
+     * A macro call: what it expands to is not known here.
+     */
+    | MacroExpr(MacroCall)
+}
+
+/**
+ * A macro called in a body, `@M[a](b, c)`: the path it names, the macro outermost of those nested
+ * (`@A @B(x)`); the types its `[…]` lists, if it has one, each an identifier, those between `|`
+ * (`@AssertThrows[A | B]`, N136), none of one of anything else; its arguments when they parse as
+ * an argument list, the innermost's, lowered so the names in them resolve: the macro sees them as
+ * tokens all the same.
+ */
+@Derive[Equatable]
+public struct MacroCall {
+    public MacroCall(
+        public let path: Array<String>,
+        public let attr: ?Array<TypeRefId>,
+        public let args: Array<CallArg>
+    ) {}
 }
 
 /**
@@ -333,46 +352,96 @@ public struct Body {
 }
 
 /**
- * Where each expression, pattern, local and type of a body is written: a local by its name.
+ * Where each expression, pattern, local and type of a body is written: a local by its name; and the
+ * other way round, by hash, for what asks of every name of a file.
  */
-@Derive[Equatable]
-public struct BodySourceMap {
-    public BodySourceMap(
-        public let exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        public let pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        public let locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        public let types!: Array<?SyntaxNodePtr<SyntaxKind>> = []
-    ) {}
+public struct BodySourceMap <: Equatable<BodySourceMap> {
+    public let exprs: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let pats: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let locals: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let types: Array<?SyntaxNodePtr<SyntaxKind>>
+    private let exprIndex: PtrIndex
+    private let patIndex: PtrIndex
+    private let localIndex: PtrIndex
+    private let typeIndex: PtrIndex
+
+    public init(exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [], pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
+        locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [], types!: Array<?SyntaxNodePtr<SyntaxKind>> = []) {
+        this.exprs = exprs
+        this.pats = pats
+        this.locals = locals
+        this.types = types
+        exprIndex = PtrIndex(exprs)
+        patIndex = PtrIndex(pats)
+        localIndex = PtrIndex(locals)
+        typeIndex = PtrIndex(types)
+    }
 
     /**
      * The expression of the node `ptr` as written: of a node desugared, the first of those of the
      * node, the `match`es it is desugared into after it (A29).
      */
     public func exprAt(ptr: SyntaxNodePtr<SyntaxKind>): ?ExprId {
-        indexOf(exprs, ptr).map {i => ExprId(i)}
+        match (exprIndex.get(ptr)) {
+            case Some(i) => ExprId(i)
+            case None => None
+        }
     }
 
     public func patAt(ptr: SyntaxNodePtr<SyntaxKind>): ?PatId {
-        indexOf(pats, ptr).map {i => PatId(i)}
+        match (patIndex.get(ptr)) {
+            case Some(i) => PatId(i)
+            case None => None
+        }
     }
 
     /**
      * The local whose name `ptr` points to.
      */
     public func localAt(ptr: SyntaxNodePtr<SyntaxKind>): ?LocalId {
-        indexOf(locals, ptr).map {i => LocalId(i)}
+        match (localIndex.get(ptr)) {
+            case Some(i) => LocalId(i)
+            case None => None
+        }
     }
 
     public func typeAt(ptr: SyntaxNodePtr<SyntaxKind>): ?TypeRefId {
-        indexOf(types, ptr).map {i => TypeRefId(i)}
+        match (typeIndex.get(ptr)) {
+            case Some(i) => TypeRefId(i)
+            case None => None
+        }
+    }
+
+    /**
+     * Field by field, but the indexes, which the arrays make.
+     */
+    public operator func ==(other: BodySourceMap): Bool {
+        exprs == other.exprs && pats == other.pats && locals == other.locals && types == other.types
+    }
+
+    public operator func !=(other: BodySourceMap): Bool {
+        !(this == other)
     }
 }
 
-func indexOf(ptrs: Array<?SyntaxNodePtr<SyntaxKind>>, ptr: SyntaxNodePtr<SyntaxKind>): ?Int64 {
-    for (i in 0..ptrs.size where ptrs[i] == ptr) {
-        return i
+/**
+ * The first index of each pointer of an array.
+ */
+class PtrIndex {
+    private let first: HashMap<SyntaxNodePtr<SyntaxKind>, Int64>
+
+    init(ptrs: Array<?SyntaxNodePtr<SyntaxKind>>) {
+        first = HashMap<SyntaxNodePtr<SyntaxKind>, Int64>(ptrs.size)
+        for (i in 0..ptrs.size) {
+            if (let Some(ptr) <- ptrs[i] && !first.contains(ptr)) {
+                first.add(ptr, i)
+            }
+        }
     }
-    None
+
+    func get(ptr: SyntaxNodePtr<SyntaxKind>): ?Int64 {
+        first.get(ptr)
+    }
 }
 
 @Derive[Equatable]
@@ -630,8 +699,11 @@ class BodyLowering {
                 let callee = linkOf(it.callee())
                 let lambda = lambdaOf(it.lambda())
                 match (this.exprs[callee.index]) {
-                    // `f(a) {…}` is `f(a, {…})`
-                    case Expr.CallExpr(inner, args) => Expr.CallExpr(inner, args.concat([CallArg(None, lambda)]))
+                    // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
+                    case Expr.CallExpr(inner, args) =>
+                        this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda)]))
+                        exprPtrs[callee.index] = SyntaxNodePtr(it.syntax)
+                        return callee
                     case _ => Expr.CallExpr(callee, [CallArg(None, lambda)])
                 }
             case AstExpr.AsIndexExpr(it) => Expr.IndexExpr(linkOf(it.base()), it.indices() |> map {one => expr(one)} |> collectArray)
@@ -718,10 +790,13 @@ class BodyLowering {
             case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
             case AstExpr.AsVArrayExpr(it) =>
                 Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
-            // no arguments: a quote's tokens are what it builds, not code run here, and a macro call on a declaration
-            // (`var f = @M func g() {}`) is given the declaration, not values
-            case AstExpr.AsQuoteExpr(_) | AstExpr.AsMacroExpandDecl(_) => Expr.MacroExpr([])
-            case AstExpr.AsMacroExpandExpr(it) => Expr.MacroExpr(macroArgs(it))
+            case AstExpr.AsQuoteExpr(_) => Expr.QuoteExpr
+            // no arguments: a macro call on a declaration (`var f = @M func g() {}`) is given the declaration, not
+            // values
+            case AstExpr.AsMacroExpandDecl(it) => Expr.MacroExpr(MacroCall(macroName(it).split("."), None, []))
+            case AstExpr.AsMacroExpandExpr(it) =>
+                let path = it.nameRefs() |> map {name: NameRef => name.text()} |> collectArray
+                Expr.MacroExpr(MacroCall(path, it.macroAttr().map {attr => attrTypes(attr)}, macroArgs(it)))
         }
         add(lowered, node.syntax)
     }
@@ -745,6 +820,34 @@ class BodyLowering {
             case Some(it) => it |> map {one: Type => types.lower(one)} |> collectArray
             case None => Array<TypeRefId>()
         }
+    }
+
+    /**
+     * The types `attr`, a macro call's `[…]`, lists: identifiers between `|`; none if it holds anything else.
+     */
+    private func attrTypes(attr: MacroAttr): Array<TypeRefId> {
+        let tokens = ArrayList<CjSyntaxToken>()
+        for (element in attr.syntax.descendantsWithTokens()) {
+            if (let SyntaxElement.Token(token) <- element && !token.kind.isTrivia() && token.kind != SyntaxKind.LBracket &&
+                token.kind != SyntaxKind.RBracket) {
+                tokens.add(token)
+            }
+        }
+        // `A`, `A | B`: an identifier at each even place, a `|` at each odd one
+        for (i in 0..tokens.size) {
+            let wanted = if (i % 2 == 0) {
+                SyntaxKind.Ident
+            } else {
+                SyntaxKind.Pipe
+            }
+            if (tokens[i].kind != wanted) {
+                return []
+            }
+        }
+        if (tokens.size % 2 == 0) {
+            return []
+        }
+        tokens.toArray().filter {token => token.kind == SyntaxKind.Ident}.map {token => types.named(identText(token))}
     }
 
     /**

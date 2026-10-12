@@ -108,8 +108,10 @@ public func typeScopeOf(db: AnalysisDatabase, def: DefId): ?TypeScope {
 }
 
 /**
- * The type or `extend` `def` is a member of, an enum its constructor's.
+ * The type or `extend` `def` is a member of, an enum its constructor's. A query: what reads it, a
+ * name of a body resolved or highlighted, asks it of every name, and the search is over the file.
  */
+@CalcaTracked
 public func parentOf(db: AnalysisDatabase, def: DefId): ?DefId {
     let file = def.file(db)
     let id = def.item(db)

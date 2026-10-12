@@ -1,5 +1,6 @@
 package loupe.hir
 
+import std.deriving.*
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
@@ -15,7 +16,7 @@ public struct Ty {
 
     /**
      * The type as cjc writes it in a message: `Array<Int64>`, `(Int64) -> Unit`, `{unknown}` for
-     * an error.
+     * an error and for one the analysis cannot find alike.
      */
     public func text(db: AnalysisDatabase): String {
         let list = {tys: Array<Ty> => String.join(tys.map {one => one.text(db)}, delimiter: ", ")}
@@ -34,15 +35,15 @@ public struct Ty {
             case VArrayTy(element, size) => "VArray<${element.text(db)}, $${size}>"
             case ParamTy(owner, index) => genericsOf(db, owner).get(index) ?? "{unknown}"
             case ThisTy => "This"
-            case ErrorTy => "{unknown}"
+            case ErrorTy | TodoTy(_) => "{unknown}"
             case InferTy(index) => "{var ${index}}"
         }
     }
 }
 
 /**
- * What a `Ty` is: cjc's `TypeKind`s a signature can write, an error, and a variable of the type
- * arguments of a call being inferred.
+ * What a `Ty` is: cjc's `TypeKind`s a signature can write; an error, or a type the analysis cannot
+ * find; and a variable of the type arguments of a call being inferred.
  */
 public enum TyKind <: Hashable & Equatable<TyKind> {
     /**
@@ -72,9 +73,17 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      */
     | ThisTy
     /**
-     * A type that does not resolve, or is not allowed where it is written: cjc's `InvalidTy`.
+     * An error the user made, which cjc reports, and what is made of it: a type that does not
+     * resolve or is not allowed where it is written, a value that is not, a call that fits none;
+     * cjc's `InvalidTy`, ty's `Unknown` (D77). It fits any type, as each of a check of it would be
+     * an error cjc does not report.
      */
     | ErrorTy
+    /**
+     * A type the analysis cannot find, why, and what is made of it, where cjc may well find one:
+     * ty's `Todo` (D77). It fits any type, as an error does, and is never an error itself.
+     */
+    | TodoTy(Todo)
     /**
      * A type argument of a call not written, while the call is inferred (D57): cjc's placeholder
      * `TyVar`. Never in an `InferenceResult`: what is not solved is an error type.
@@ -113,6 +122,9 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
             case InferTy(index) =>
                 hasher.write(8)
                 hasher.write(index)
+            case TodoTy(why) =>
+                hasher.write(9)
+                hasher.write(why.hashCode())
         }
         hasher.finish()
     }
@@ -127,6 +139,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
             case (ParamTy(a, aIndex), ParamTy(b, bIndex)) => a == b && aIndex == bIndex
             case (ThisTy, ThisTy) => true
             case (ErrorTy, ErrorTy) => true
+            case (TodoTy(a), TodoTy(b)) => a == b
             case (InferTy(a), InferTy(b)) => a == b
             case _ => false
         }
@@ -134,6 +147,67 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
 
     public operator func !=(other: TyKind): Bool {
         !(this == other)
+    }
+}
+
+/**
+ * Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
+ */
+@Derive[Equatable, Hashable]
+public enum Todo <: ToString {
+    /**
+     * The value of a call of a macro whose expansion is not read: a user's (#176), std's not known
+     * (N136), or one not found, which `--test` may make visible (#255).
+     */
+    | MacroCall
+    /**
+     * A member of a type a macro is called on, or a name a file's macros may declare: what the
+     * expansion would add is not read (D47, #176).
+     */
+    | MacroMember
+    /**
+     * A type of a `.cjo` that is not read: of a format newer than the one vendored, or of a file
+     * cjc wrote broken (D38).
+     */
+    | BinaryType
+    /**
+     * A type the language means of std's (`String`, `Array`, `Option`, D66) where no std is found.
+     */
+    | NoStd
+    /**
+     * A type parameter of a local function: not lowered to a `Ty` yet (D55).
+     */
+    | LocalGeneric
+    /**
+     * A call that fits none of the overloads it names, by name, of a default value or variadic:
+     * arguments are matched to parameters by their count and place alone yet (#254).
+     */
+    | ArgMatching
+    /**
+     * An expression inference does not reach.
+     */
+    | NotInferred
+
+    public func toString(): String {
+        match (this) {
+            case MacroCall => "macro call"
+            case MacroMember => "macro member"
+            case BinaryType => "binary type"
+            case NoStd => "no std"
+            case LocalGeneric => "local generic"
+            case ArgMatching => "arg matching"
+            case NotInferred => "not inferred"
+        }
+    }
+}
+
+/**
+ * Whether `ty` is of no type known: an error, or a type the analysis cannot find.
+ */
+public func isUnknown(db: AnalysisDatabase, ty: Ty): Bool {
+    match (ty.kind(db)) {
+        case ErrorTy | TodoTy(_) => true
+        case _ => false
     }
 }
 

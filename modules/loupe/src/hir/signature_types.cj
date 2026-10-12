@@ -3,6 +3,7 @@ package loupe.hir
 import std.collection.*
 import std.convert.Parsable
 import std.deriving.*
+import std.sort.sort
 import calca.*
 import calca.macros.*
 import cjo.{CjoException, DeclInfo, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
@@ -74,6 +75,19 @@ public struct TyError {
  * A declaration's signature as types (D54): what `Signature` writes, each `TypeRef` lowered to a
  * `Ty`, or what a `.cjo` resolved. One query of each declaration, as `signature` is.
  */
+/**
+ * What each segment of the path of a type names, as lowering it resolved it: what highlighting and go to definition
+ * read, not resolving it again.
+ */
+@Derive[Equatable]
+public struct TypePathTarget <: ByIndex {
+    public TypePathTarget(public let ty: TypeRefId, public let resolution: Array<PathResolution>) {}
+
+    public func keyIndex(): Int64 {
+        ty.index
+    }
+}
+
 @Derive[Equatable]
 public struct SignatureTypes {
     public SignatureTypes(
@@ -109,8 +123,22 @@ public struct SignatureTypes {
         /**
          * The types of its source that are errors; none of a `.cjo`, which cjc checked.
          */
-        public let errors!: Array<TyError> = []
+        public let errors!: Array<TyError> = [],
+        /**
+         * What each segment of each path of its types names, by the type; none of a `.cjo`.
+         */
+        public let typePaths!: Array<TypePathTarget> = []
     ) {}
+
+    /**
+     * What each segment of the path of the type `ty` of the signature names, if it is one.
+     */
+    public func pathOf(ty: TypeRefId): ?Array<PathResolution> {
+        match (findByIndex(typePaths, ty.index)) {
+            case Some(one) => one.resolution
+            case None => None
+        }
+    }
 
     /**
      * The signature as a declaration of `kind` reads, for a test or a hover: `<T>(T, Int64) ->
@@ -259,8 +287,10 @@ func binaryGenericsOf(db: AnalysisDatabase, pkg: BinaryPackageFile, item: Binary
 }
 
 /**
- * The item of `def`, a member of a type or an `extend` as well as a declaration of a file.
+ * The item of `def`, a member of a type or an `extend` as well as a declaration of a file. A query,
+ * as `itemOf`: an enum's constructors are searched among hundreds.
  */
+@CalcaTracked
 public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
     if (let Some(item) <- itemOf(db, def)) {
         return item
@@ -299,6 +329,8 @@ class SourceTyLowering {
      */
     private let cycle: ?Array<DefId>
     private let errors = ArrayList<TyError>()
+    // by type: what each segment of a path names, as lowering resolved it
+    private let paths = HashMap<Int64, Array<PathResolution>>()
 
     SourceTyLowering(private let db: AnalysisDatabase, private let def: DefId) {
         sig = signature(db, def)
@@ -354,10 +386,21 @@ class SourceTyLowering {
         let bounds = sig.bounds.map {bound => TyBound(lowerAt(bound.ty), bound.bounds.map {id => lowerAt(id)})}
         if (let Some(names) <- cycle && let Some(at) <- sig.ty) {
             errors.add(TyError(at, TyErrorKind.TypeCycle(names.map {id => aliasName(db, id)})))
-            return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray())
+            return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray(),
+                typePaths: typePaths())
         }
         SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, ty: ty, supers: supers,
-            bounds: bounds, errors: errors.toArray())
+            bounds: bounds, errors: errors.toArray(), typePaths: typePaths())
+    }
+
+    /**
+     * What each segment of each path lowered so far names, sorted by the type.
+     */
+    func typePaths(): Array<TypePathTarget> {
+        let found = paths |> map {entry: (Int64, Array<PathResolution>) => TypePathTarget(TypeRefId(entry[0]), entry[1])} |>
+            collectArray
+        sort(found, by: {a: TypePathTarget, b: TypePathTarget => a.ty.index.compare(b.ty.index)})
+        found
     }
 
     /**
@@ -391,7 +434,7 @@ class SourceTyLowering {
                 let element = lowerAt(inner)
                 match (optionDecl()) {
                     case Some(option) => DeclTy(option, [element])
-                    case None => ErrorTy
+                    case None => TodoTy(Todo.NoStd)
                 }
             case ThisRef => thisAt(id)
             case VArrayRef(element, size) =>
@@ -436,6 +479,7 @@ class SourceTyLowering {
         } else {
             resolveTypePath(db, typeScope, names)
         }
+        paths.add(id.index, resolved)
         match (resolved.get(resolved.size - 1)) {
             // an alias does not see its own name in its type (N93)
             case Some(Resolved(TypeOf(target))) where target == def && target.item(db).kind == ItemKind.TypeAlias =>
@@ -450,8 +494,9 @@ class SourceTyLowering {
             case Some(UnresolvedPath) =>
                 unresolved(id, typeScope, segments, resolved)
                 Ty(db, ErrorTy)
-            // a type ambiguous, packages conflicting: errors of names; a local function's type
-            // parameter: no `Ty` yet (8c)
+            // a local function's type parameter: no `Ty` yet (8c)
+            case Some(Resolved(LocalGenericOf(_, _, _))) => Ty(db, TodoTy(Todo.LocalGeneric))
+            // a type ambiguous, packages conflicting: errors of names
             case _ => Ty(db, ErrorTy)
         }
     }
@@ -620,7 +665,7 @@ class BinaryTyLowering {
             case Some(semaTy) where semaTy.kind == TypeKind.Func && isCallable(def.item(db).kind) =>
                 let ret = match (semaTy.info) {
                     case Some(SemaTyInfo.AsFuncTyInfo(info)) => lowerAt(info.retType)
-                    case _ => Ty(db, ErrorTy)
+                    case _ => Ty(db, TodoTy(Todo.BinaryType))
                 }
                 (semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}, ret)
             case _ => (Array<Ty>(), lowerAt(declared))
@@ -660,7 +705,7 @@ class BinaryTyLowering {
     private func lowerAt(index: UInt32): Ty {
         // a type inside itself is a broken file's (D38)
         if (!lowering.add(index)) {
-            return Ty(db, ErrorTy)
+            return Ty(db, TodoTy(Todo.BinaryType))
         }
         try {
             lowerSemaTy(index)
@@ -670,13 +715,13 @@ class BinaryTyLowering {
     }
 
     private func lowerSemaTy(index: UInt32): Ty {
-        let semaTy = semaTyOf(index) ?? return Ty(db, ErrorTy)
+        let semaTy = semaTyOf(index) ?? return Ty(db, TodoTy(Todo.BinaryType))
         let args = semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}
         let kind = match (semaTy.kind) {
             case TypeKind.Tuple => TupleTy(args)
             case TypeKind.Func => match (semaTy.info) {
                 case Some(SemaTyInfo.AsFuncTyInfo(info)) => FuncTy(args, lowerAt(info.retType), info.isC)
-                case _ => ErrorTy
+                case _ => TodoTy(Todo.BinaryType)
             }
             case TypeKind.Enum | TypeKind.Struct | TypeKind.Class | TypeKind.Interface => match (semaTy.info) {
                 case Some(SemaTyInfo.AsCompositeTyInfo(info)) where info.isThisTy => ThisTy
@@ -686,18 +731,18 @@ class BinaryTyLowering {
             case TypeKind.Array => return rawArrayOf(args, dimsOf(semaTy.info))
             case TypeKind.`VArray` => match (args.get(0)) {
                 case Some(element) => VArrayTy(element, dimsOf(semaTy.info))
-                case None => ErrorTy
+                case None => TodoTy(Todo.BinaryType)
             }
             case TypeKind.Generic => match (semaTy.info) {
                 case Some(SemaTyInfo.AsGenericTyInfo(info)) => paramOf(info.declPtr)
-                case _ => ErrorTy
+                case _ => TodoTy(Todo.BinaryType)
             }
             // an alias, which cjc keeps in the types it writes: `Array<Byte>`
             case TypeKind.Type => return aliasOf(binaryTypeRef(cjo, imports, index), args)
             // `Unit` to `Bool`: the types of the language
             case kind where kind.value >= 1 && kind.value <= 17 => PrimTy(kind.toString())
             // an invalid one, one a newer format added
-            case _ => ErrorTy
+            case _ => TodoTy(Todo.BinaryType)
         }
         Ty(db, kind)
     }
@@ -714,7 +759,7 @@ class BinaryTyLowering {
     private func declTyOf(ref: ?BinaryTypeRef, args: Array<Ty>): TyKind {
         match (ref.flatMap {one => resolveBinaryType(db, pkg, one)}) {
             case Some(DeclType(id)) => DeclTy(id, args)
-            case _ => ErrorTy
+            case _ => TodoTy(Todo.BinaryType)
         }
     }
 
@@ -724,8 +769,8 @@ class BinaryTyLowering {
     private func aliasOf(ref: ?BinaryTypeRef, args: Array<Ty>): Ty {
         match (ref.flatMap {one => resolveBinaryType(db, pkg, one)}) {
             case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias =>
-                substitute(db, signatureTypes(db, id).ty ?? Ty(db, ErrorTy), id, args)
-            case _ => Ty(db, ErrorTy)
+                substitute(db, signatureTypes(db, id).ty ?? Ty(db, TodoTy(Todo.BinaryType)), id, args)
+            case _ => Ty(db, TodoTy(Todo.BinaryType))
         }
     }
 
@@ -735,12 +780,12 @@ class BinaryTyLowering {
      */
     private func rawArrayOf(args: Array<Ty>, dims: Int64): Ty {
         if (dims > maxRawArrayDims) {
-            return Ty(db, ErrorTy)
+            return Ty(db, TodoTy(Todo.BinaryType))
         }
-        let element = args.get(0) ?? return Ty(db, ErrorTy)
+        let element = args.get(0) ?? return Ty(db, TodoTy(Todo.BinaryType))
         let rawArray = match (resolveBinaryType(db, pkg, BinaryTypeRef.BuiltInRef("RawArray"))) {
             case Some(DeclType(id)) => id
-            case _ => return Ty(db, ErrorTy)
+            case _ => return Ty(db, TodoTy(Todo.BinaryType))
         }
         var ty = element
         for (_ in 0..max(dims, 1)) {
@@ -753,16 +798,16 @@ class BinaryTyLowering {
      * The type parameter `ptr` points to, of the declaration or of its parent.
      */
     private func paramOf(ptr: ?FullId): TyKind {
-        let at = ptr ?? return ErrorTy
+        let at = ptr ?? return TodoTy(Todo.BinaryType)
         if (at.pkgId != -2) {
-            return ErrorTy
+            return TodoTy(Todo.BinaryType)
         }
         for ((owner, params) in owners) {
             for (i in 0..params.size where params[i] == at.index) {
                 return ParamTy(owner, i)
             }
         }
-        ErrorTy
+        TodoTy(Todo.BinaryType)
     }
 }
 

@@ -3,6 +3,9 @@ package cjls
 import std.argopt.ArgumentParseException
 import std.env.getWorkingDirectory
 import std.fs.Path
+import std.io.{ByteBuffer, readToEnd}
+import fjson.{fromJsonBytes, JsonValue}
+import cjls.server.settingsSchema
 
 @Test
 class CommandTest {
@@ -64,6 +67,25 @@ class CommandTest {
     }
 
     @TestCase
+    func configSchemaPrintsTheSchemaOfTheSettingsAsJson() {
+        // arrange
+        let out = ByteBuffer()
+
+        // act
+        let command = parseCommand(["--config-schema"])
+        let exitCode = printConfigSchema(out)
+
+        // assert
+        @Expect(match (command) {
+            case PrintConfigSchema => true
+            case _ => false
+        })
+        @Expect(exitCode, 0)
+        let printed = fromJsonBytes<JsonValue>(readToEnd(out))
+        @Expect(printed, settingsSchema())
+    }
+
+    @TestCase
     func anUnknownCommandOrOptionIsAUsageError() {
         // act, assert
         @AssertThrows[ArgumentParseException](parseCommand(["frob"]))
@@ -75,6 +97,7 @@ class CommandTest {
         @AssertThrows[ArgumentParseException](parseCommand(["fetch-src", "src"]))
         @AssertThrows[ArgumentParseException](parseCommand(["fetch-src", "--dir="]))
         @AssertThrows[ArgumentParseException](parseCommand(["fmt", "--frob", "a"]))
+        @AssertThrows[ArgumentParseException](parseCommand(["--config-schema", "x"]))
     }
 }
 
