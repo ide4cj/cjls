@@ -22,6 +22,7 @@ public func router(): Router {
         .route(InitializedNotificationSpec(), handleInitialized)
         .route(DidChangeWatchedFilesNotificationSpec(), handleDidChangeWatchedFiles)
         .route(DidChangeWorkspaceFoldersNotificationSpec(), handleDidChangeWorkspaceFolders)
+        .route(DidChangeConfigurationNotificationSpec(), handleDidChangeConfiguration)
         .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(DefinitionRequestSpec(), handleDefinition)

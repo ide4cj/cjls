@@ -1,6 +1,8 @@
 package loupe.hir
 
 import std.collection.*
+import calca.*
+import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 
 /**
@@ -72,4 +74,34 @@ public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
         let path = name.split(".")
         resolveMacroPath(db, pkg, file, path)[path.size - 1]
     }
+}
+
+/**
+ * Whether a macro whose expansion is not read, any but std's `@Derive` (#175), is called on `def` or on one of its
+ * members: what it adds to them is not known (#176).
+ */
+public func hasUnreadMacros(db: AnalysisDatabase, def: DefId): Bool {
+    if (macrosOf(db, def).iterator().any {one => !isStdDerive(db, one)}) {
+        return true
+    }
+    let item = declItemOf(db, def) ?? return false
+    let file = def.file(db)
+    item.members.iterator().any {member => !member.macros.isEmpty() && hasUnreadMacros(db, DefId(db, file, member.id))}
+}
+
+/**
+ * Whether a macro whose expansion is not read is called on a declaration of `pkg`: a name of its files' scope may be
+ * one it declares (#176). A query of its own, so that a body reading it is not invalidated by every edit of the
+ * package.
+ */
+@CalcaTracked
+public func packageHasUnreadMacros(db: AnalysisDatabase, pkg: Package): Bool {
+    for (file in filesOf(db, PackageRef.Source(pkg))) {
+        for (item in itemTreeOf(db, file).items where !item.macros.isEmpty() || !item.members.isEmpty()) {
+            if (hasUnreadMacros(db, DefId(db, file, item.id))) {
+                return true
+            }
+        }
+    }
+    false
 }

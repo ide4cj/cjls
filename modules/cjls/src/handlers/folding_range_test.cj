@@ -2,6 +2,7 @@ package cjls.handlers
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import stdx.log.NoopLogger
 import stdxx.Nullable
 import rope.{Encoding, Rope}
 import loupe.{Fold, FoldKind, TextRange}
@@ -128,8 +129,9 @@ class FoldingRangeTest {
     @TestCase
     func foldingIsAdvertised() {
         // act
-        let result = handleInitialize(ServerState(), InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: ClientCapabilities()))
+        let result = handleInitialize(ServerState(), Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: ClientCapabilities()))
 
         // assert
         match (result.capabilities.foldingRangeProvider) {
@@ -149,8 +151,9 @@ class FoldingRangeTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: capabilities))
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
 
         // assert
         @Expect(state.lineFoldingOnly, lineFoldingOnly)

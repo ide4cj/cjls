@@ -157,8 +157,9 @@ class DefinitionTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: capabilities))
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
 
         // assert
         @Expect(state.locationLinks, links)

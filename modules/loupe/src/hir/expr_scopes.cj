@@ -282,7 +282,11 @@ class ScopesBuilder {
             case VArrayExpr(ty, args) =>
                 typeIn(ty, scope)
                 walkAll(args.map {arg => arg.expr}, scope)
-            case MacroExpr(args) => walkAll(args.map {arg => arg.expr}, scope)
+            case MacroExpr(call) =>
+                for (ty in call.attr ?? []) {
+                    typeIn(ty, scope)
+                }
+                walkAll(call.args.map {arg => arg.expr}, scope)
             case _ => ()
         }
     }
