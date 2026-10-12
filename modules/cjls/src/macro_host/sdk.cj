@@ -102,7 +102,7 @@ main(): Int64 {
 "##
 
 /**
- * How the SDK numbers cjc's token kinds (D103): as its `Tokens.inc` lists them, else as `std.ast` names them,
+ * How the SDK numbers cjc's token kinds (D104): as its `Tokens.inc` lists them, else as `std.ast` names them,
  * printed by a program `toolchain` builds once into `out`, which keeps them. `None` if neither works: no macro is
  * expanded then.
  */

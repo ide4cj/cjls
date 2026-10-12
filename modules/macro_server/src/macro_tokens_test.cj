@@ -105,7 +105,7 @@ class TokenNumbersTest {
     @TestCase
     func theNamesStdAstGivesNumberTheKindsAsTheSdksTokensIncDoes(): Unit {
         // arrange
-        // what the program cjls builds for an SDK without Tokens.inc prints (D103): past the last kind, std.ast names
+        // what the program cjls builds for an SDK without Tokens.inc prints (D104): past the last kind, std.ast names
         // one again
         let names = ArrayList<String>()
         for (n in 0..256) {

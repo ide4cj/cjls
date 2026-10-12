@@ -54,7 +54,7 @@ public class TokenNumbers {
 
     /**
      * The numbers of kinds named by `names`, each name at its number, as `std.ast`'s `getTokenKind(n).toString()`
-     * gives them for an SDK without `Tokens.inc` (D103), up to the first it names again: `AT_EXCLAMATION` is
+     * gives them for an SDK without `Tokens.inc` (D104), up to the first it names again: `AT_EXCLAMATION` is
      * `AT_EXCL`. `None` as for `parse`.
      */
     public static func ofNames(names: Array<String>): ?TokenNumbers {

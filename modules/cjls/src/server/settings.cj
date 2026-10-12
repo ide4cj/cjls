@@ -67,11 +67,11 @@ public struct Settings {
          */
         public let newFilePackage!: Bool = NEW_FILE_PACKAGE.default,
         /**
-         * Whether the workspace's macros are run (#176, D103).
+         * Whether the workspace's macros are run (#176, D104).
          */
         public let macroExpansion!: Bool = MACRO_EXPANSION.default,
         /**
-         * How many seconds a macro call may run (D103).
+         * How many seconds a macro call may run (D104).
          */
         public let macroCallTimeout!: Int64 = MACRO_CALL_TIMEOUT.default
     ) {}

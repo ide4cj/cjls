@@ -1,7 +1,7 @@
 package cjls.server
 
 /**
- * What runs the workspace's macros on a thread of its own (`cjls.macro_host`, D103), as the server tells it there
+ * What runs the workspace's macros on a thread of its own (`cjls.macro_host`, D104), as the server tells it there
  * is work: neither call waits for the work to be done.
  */
 public interface MacroWork {

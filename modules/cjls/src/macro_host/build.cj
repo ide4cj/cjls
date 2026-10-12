@@ -56,7 +56,7 @@ public interface Toolchain {
 }
 
 /**
- * Builds the macro packages of the workspace and the source packages they link into `out` (D103): `<out>/<module>`
+ * Builds the macro packages of the workspace and the source packages they link into `out` (D104): `<out>/<module>`
  * holds each package's `.cjo` and its library, `lib-macro_<pkg>` for a macro package, `lib<pkg>.a` for another,
  * and the stamp of what it was built of; a package whose stamp did not change is not built again. As cjpm does it,
  * with `--compile-macro` for a macro package, without its `build.cj` and without any other package.

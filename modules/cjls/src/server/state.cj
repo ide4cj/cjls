@@ -114,7 +114,7 @@ public class ServerState <: FromContext<ServerState> {
     public var workDoneProgress = false
 
     /**
-     * What runs the workspace's macros, once the workspace is loaded the first time (D103); woken after every
+     * What runs the workspace's macros, once the workspace is loaded the first time (D104); woken after every
      * write that changes the files.
      */
     public var macroWork: ?MacroWork = None
@@ -414,7 +414,7 @@ public class ServerState <: FromContext<ServerState> {
     }
 
     /**
-     * Sets the stamp of each macro package's library cjls built (D103): every call of its macros is asked again.
+     * Sets the stamp of each macro package's library cjls built (D104): every call of its macros is asked again.
      * Changes what the files say, as an edit does.
      */
     public func setMacroLibraries(stamps: Array<(Package, Int64)>): Unit {

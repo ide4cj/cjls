@@ -57,7 +57,7 @@ func cjpmTriple(cfg: Cfg): ?String {
  * The directory of the SDK's `modules` for the target `cfg` builds for, `darwin_aarch64_cjnative`,
  * `None` for one it has no name for.
  */
-func sdkTarget(cfg: Cfg): ?String {
+public func sdkTarget(cfg: Cfg): ?String {
     let arch = cfg.get("arch") ?? return None
     let os = match (cfg.get("os")) {
         case Some("macOS") => "darwin"
