@@ -95,6 +95,7 @@ public func follow(buf: Array<Byte>, pos: Int64): Int64 {
 /**
  * The string whose offset is stored at `pos`: a length, then its UTF-8 bytes.
  */
+@Frozen
 public func readString(buf: Array<Byte>, pos: Int64): String {
     let at = follow(buf, pos)
     let size = Int64(readUInt32(buf, at))
@@ -121,6 +122,7 @@ public struct FbTable {
     /**
      * The table whose offset is stored at `pos`.
      */
+    @Frozen
     public static func at(buf: Array<Byte>, pos: Int64): FbTable {
         FbTable(buf, follow(buf, pos))
     }
@@ -147,11 +149,13 @@ public struct FbTable {
         if (o == 0) { default } else { read(buf, pos + o) }
     }
 
+    @Frozen
     public func string(id: Int64): ?String {
         let o = offset(id)
         if (o == 0) { Option<String>.None } else { readString(buf, pos + o) }
     }
 
+    @Frozen
     public func table(id: Int64): ?FbTable {
         let o = offset(id)
         if (o == 0) { Option<FbTable>.None } else { FbTable.at(buf, pos + o) }
@@ -160,6 +164,7 @@ public struct FbTable {
     /**
      * Where the struct of field `id` starts: a struct is stored in the table itself.
      */
+    @Frozen
     public func structAt(id: Int64): ?Int64 {
         let o = offset(id)
         if (o == 0) { Option<Int64>.None } else { pos + o }
@@ -169,6 +174,7 @@ public struct FbTable {
      * The vector of field `id`, of elements `stride` bytes apart that `read` reads where each starts; an absent
      * vector is an empty one.
      */
+    @Frozen
     public func vector<T>(id: Int64, stride: Int64, read: (Array<Byte>, Int64) -> T): FbVector<T> {
         let o = offset(id)
         if (o == 0) {
@@ -207,6 +213,7 @@ public struct FbVector<T> <: Collection<T> {
      *
      * @throws FbException - if its elements would run past the end of the buffer
      */
+    @Frozen
     public static func at(buf: Array<Byte>, pos: Int64, stride: Int64, read: (Array<Byte>, Int64) -> T): FbVector<T> {
         let at = follow(buf, pos)
         let count = Int64(readUInt32(buf, at))
