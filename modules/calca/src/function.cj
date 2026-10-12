@@ -171,6 +171,7 @@ class MemoEntry<K, V> <: Edge {
 class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K <: Hashable & Equatable<K> {
     private let lock = Mutex()
     let entries = Slab<MemoEntry<K, V>>()
+    private let executions = AtomicInt64(0)
     private let byKey = ConcurrentHashMap<K, MemoEntry<K, V>>()
 
     /**
@@ -499,6 +500,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     private func execute(db: D, storage: Storage, databaseKey: DatabaseKey, key: K, old: ?Memo<V>,
         unchanged!: Bool): (V, Memo<V>) {
         storage.runtime.executions.fetchAdd(1)
+        executions.fetchAdd(1)
         let frame = storage.push(databaseKey)
         let value = try {
             let computed = body(db, key)
@@ -640,6 +642,14 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
 
     public func describe(id: Id): String {
         "${function.name}(${id})"
+    }
+
+    public func executionsOf(name: String): Int64 {
+        if (function.name == name) {
+            executions.load()
+        } else {
+            0
+        }
     }
 
     /**

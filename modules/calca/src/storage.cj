@@ -97,6 +97,14 @@ public class Storage {
     }
 
     /**
+     * `executions` of the tracked function named `name` alone (a method's `Type.method`, overloads
+     * together): which work an answer took, for a test to say what it must not run again.
+     */
+    public func executionsOf(name: String): Int64 {
+        runtime.executionsOf(name)
+    }
+
+    /**
      * @throws CancelledException - if a write is pending, this is a snapshot of a revision gone by,
      * or it was asked to stop
      */

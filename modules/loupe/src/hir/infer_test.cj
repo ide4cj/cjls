@@ -2180,4 +2180,37 @@ class InferTest {
         // assert
         @Expect(inferenceReaderRuns.load(), before)
     }
+
+    @TestCase
+    func aDeclarationAppendedRunsNoBodyQueryOfAnotherAgain() {
+        // arrange: `f` binds a name, which may be a constructor of the package, and calls `g`
+        let parsed = Fixture.parse(#"
+            package m
+            enum E { | A | B }
+            func f(e: E): Int64 {
+                let a = g()
+                match (e) {
+                    case A => a
+                    case B => 0
+                }
+            }
+            func g(): Int64 { 1 }
+            "#)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
+        let item = itemTree(db, source).items.iterator().filter {one => one.names.contains("f")}.next().getOrThrow()
+        let def = DefId(db, ItemFile.Source(source), item.id)
+        exprTyCount(db, def)
+        let queries = ["body", "exprScopes", "signature", "signatureTypes", "inferBody", "declaredTyOf"]
+        let before = queries.map {name => db.storage.executionsOf(name)}
+        let readers = inferenceReaderRuns.load()
+
+        // act
+        source.setText(db).to(Rope(source.text(db).toString() + "func appended(x: Int64): Int64 { x }\n"))
+        exprTyCount(db, def)
+
+        // assert
+        @Expect(queries.map {name => db.storage.executionsOf(name)}, before)
+        @Expect(inferenceReaderRuns.load(), readers)
+    }
 }
