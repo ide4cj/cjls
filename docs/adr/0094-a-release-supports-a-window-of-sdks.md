@@ -2,7 +2,7 @@
 
 Status: accepted, 2026-10-12
 Amends ADR-0087: the token table is one per SDK of the window, not the pin's alone
-Amends ADR-0069: a release SDK's sources are `cangjie_runtime` at the tag `v<version>`
+Amends ADR-0069: a release SDK's sources are `cangjie_runtime` at the tag `v<version>`; any SDK's come from the GitHub mirror first, then gitcode
 
 ## Context
 
@@ -18,6 +18,7 @@ Amends ADR-0069: a release SDK's sources are `cangjie_runtime` at the tag `v<ver
 - **The window is the newest LTS, the newest STS and the pinned nightly**, named in `.cangjie-window`, each with the sha256 of its archives as `.cangjie-sha256` pins the nightly's (D62). A release's notes name it (D21).
 - **One release, no branches**: what differs by SDK is data chosen by its version, which `project_model` reads with the SDK (D40) from `cjc --version`: the token table (D87), where std's sources come from (D69). A field an older `.cjo` lacks reads as absent; no code path per version.
 - **The analysis follows the pin** (R3 is the pin's cjc): its language and diagnostics, over the std of whichever SDK is found. A rule cjc changed between releases is not told apart by version until an issue asks for it.
+- **std's sources come from the GitHub mirror first, then gitcode**, for every SDK, as the toolchain does (D62): gitcode's archives ask for a login, its git does not, so there it is `git fetch --depth 1` of the tag, or of the commit whose short sha gitcode's API resolves (checked: `5d555bcc34d6` and `v1.0.5`, without a login).
 - **An SDK out of the window still works**: `.cjo` of the same major is read, macros are off, and the user is told once, with D40's message.
 - **cjls is built on the pin alone** (D11); CI runs the tests that read the SDK's std, and the end-to-end tests, on Linux x64 against each SDK of the window. A release SDK comes from cangjie-lang.cn, its stdx from `cangjie_stdx`'s `v<version>.1`.
 - **The window moves with Cangjie**: a new STS or LTS replaces the old in one change with its sha256, its token table and its CI job, as a nightly bump moves `.cangjie-version`.
@@ -26,6 +27,7 @@ Amends ADR-0069: a release SDK's sources are `cangjie_runtime` at the tag `v<ver
 
 - An LTS user gets what an STS user does, but the bounds of an `extend` of a binary package: those of its type show among its own.
 - D87's question of which SDKs expand macros is closed: those of the window, by their table, which the tests check against each one's `std.ast.getTokenKind`.
+- `cjls fetch-src` falls back to gitcode only where `git` is on the host; the mirror alone needs `curl` and `tar` (D69).
 - CI downloads two more SDKs (about 0.5 GB) on a cache miss, and a red job names the SDK.
 - cangjie-lang.cn serves a release by an `objectKey` of its download page, with no published sha256: a key that moves fails the pin, not the build.
 - Not yet: what the analysis says that a release's cjc would not (its diagnostics), a `.cjo` of a major other than 0.
