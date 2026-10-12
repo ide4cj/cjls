@@ -83,7 +83,12 @@ public struct PackageModel {
         /**
          * Whether it is a `macro package`, `None` to read it from its files.
          */
-        public let isMacro!: ?Bool = None
+        public let isMacro!: ?Bool = None,
+        /**
+         * The conditions of its own, those of a `cfg.toml` in its directory, in place of its module's
+         * of the same key; `None` for none.
+         */
+        public let cfg!: ?Cfg = None
     ) {}
 }
 
@@ -316,7 +321,7 @@ extend ModuleModel {
                     let files = ArrayList<VfsPath>(kept.files)
                     files.add(all: pkg.files.filter {file => !kept.files.contains(file)})
                     merged[index] = PackageModel(kept.name, kept.dir, files.toArray(), noPrelude: kept.noPrelude,
-                        isMacro: kept.isMacro)
+                        isMacro: kept.isMacro, cfg: kept.cfg)
                 case None => merged.add(pkg)
             }
         }
@@ -378,6 +383,7 @@ public struct Package {
     public var files: Array<FileId>
     public var noPrelude: Bool
     public var isMacro: ?Bool
+    public var cfg: ?Cfg
 }
 
 /**

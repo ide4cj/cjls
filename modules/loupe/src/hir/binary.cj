@@ -23,11 +23,12 @@ public enum ItemFile {
 }
 
 /**
- * The item tree of `file`; an empty one for a file a package compiled already does not have.
+ * The item tree of `file`, what a false `@When` is on left out of a source file's (`activeItemTree`);
+ * an empty one for a file a package compiled already does not have.
  */
 public func itemTreeOf(db: AnalysisDatabase, file: ItemFile): ItemTree {
     match (file) {
-        case Source(source) => itemTree(db, source)
+        case Source(source) => activeItemTree(db, source)
         case Expansion(call) => expansionItemTree(db, call)
         case Binary(pkg, index) =>
             let trees = binaryItemTrees(db, pkg)

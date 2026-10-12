@@ -891,7 +891,7 @@ class Inference {
      */
     private func quoteTy(): Ty {
         let file = from ?? return todo(Todo.NoStd)
-        let imported = itemTree(db, file).imports.iterator().any {
+        let imported = activeItemTree(db, file).imports.iterator().any {
             item => item.paths.iterator().any {
                 path => path.segments.size >= 2 && path.segments[0] == "std" && path.segments[1] == "ast"
             }

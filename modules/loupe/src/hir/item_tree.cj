@@ -114,7 +114,11 @@ public struct ImportItem {
     public ImportItem(
         public let id: ItemId,
         public let modifiers: Array<Modifier>,
-        public let paths: Array<ImportPath>
+        public let paths: Array<ImportPath>,
+        /**
+         * Its `@When`'s, `None` for none.
+         */
+        public let condition!: ?CfgExpr = None
     ) {}
 }
 
@@ -143,7 +147,12 @@ public struct Item {
         /**
          * A type's members, an enum's constructors.
          */
-        public let members: Array<Item>
+        public let members: Array<Item>,
+        /**
+         * The `@When` before it, or before the outermost macro call on it, `None` for none: whether
+         * it is in a build is the cfg's to say (`activeItemTree`).
+         */
+        public let condition!: ?CfgExpr = None
     ) {}
 
     public prop kind: ItemKind {
@@ -188,7 +197,8 @@ public struct ItemTree {
             if (let Some(tree) <- decl.importTree()) {
                 lowerImportTree(tree, [], paths)
             }
-            ImportItem(idOf(ids, decl.syntax), modifiersOf([decl.modifiers()]), paths.toArray())
+            ImportItem(idOf(ids, decl.syntax), modifiersOf([decl.modifiers()]), paths.toArray(),
+                condition: conditionOf(decl.syntax))
         } |> collectArray
         ItemTree(packageHeader: packageHeader, imports: imports, items: lowerItems(root.decls(), ids))
     }
@@ -212,7 +222,9 @@ private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
             case Decl.AsMacroExpandDecl(call) => macros.concat([macroName(call)])
             case _ => macros
         }
-        Item(idOf(ids, item.decl.syntax), namesOf(item.decl), modifiers, macrosOfItem, lowerItems(item.members(), ids))
+        let outermost = item.macroCalls.get(0).map {call => call.syntax} ?? item.decl.syntax
+        Item(idOf(ids, item.decl.syntax), namesOf(item.decl), modifiers, macrosOfItem, lowerItems(item.members(), ids),
+            condition: conditionOf(outermost))
     }
 }
 

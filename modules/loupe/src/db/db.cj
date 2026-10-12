@@ -250,11 +250,14 @@ public class AnalysisDatabase <: Database {
                 if (old.isMacro != model.isMacro || moved) {
                     pkg.setIsMacro(this).withDurability(durability).to(model.isMacro)
                 }
+                if (old.cfg != model.cfg || moved) {
+                    pkg.setCfg(this).withDurability(durability).to(model.cfg)
+                }
                 projects.packages.add(key, (pkg, model, durability))
                 pkg
             case None =>
                 let pkg = Package(this, model.name, model.dir, files, model.noPrelude, model.isMacro,
-                    durability: durability)
+                    model.cfg, durability: durability)
                 projects.packages.add(key, (pkg, model, durability))
                 pkg
         }

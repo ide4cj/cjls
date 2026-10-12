@@ -174,7 +174,7 @@ public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): I
 @CalcaTracked
 public func fileImportsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stage: ScopeStage): ImportedNames {
     let own = ItemFile.Source(file)
-    let imports = itemTree(db, file).imports.filter {item => importLevelOf(item) == Visibility.Private}.map {
+    let imports = activeItemTree(db, file).imports.filter {item => importLevelOf(item) == Visibility.Private}.map {
         item => (own, item)
     }
     collectImports(db, PackageRef.Source(pkg), imports, preludeOf(db, pkg), stage)

@@ -11,8 +11,8 @@ import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
-import project_model.{CangjieHome, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON, ProjectLoad,
-    projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc}
+import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON, ProjectLoad,
+    projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -121,7 +121,7 @@ func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>)
     let path = VfsPath.fromUri(event.uri)
     match (event.`type`) {
         case _ where state.binaryWatch?.covers(path) ?? false => true
-        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON => true
+        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON || path.name == CFG_TOML => true
         case FileChangeType.Changed => false
         case _ where isCangjieFile(path.name) => true
         // what is gone cannot be told a directory or a file, but one holding no file known leaves none to drop
@@ -278,7 +278,11 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
             logger.warn(problem)
         }
     }
-    let model = ProjectModel.merge(loads.map {load => load.model}, hostCfg())
+    let cfgProblems = ArrayList<String>()
+    let model = withPackageCfgs(ProjectModel.merge(loads.map {load => load.model}, hostCfg()), cfgProblems)
+    for (problem in cfgProblems) {
+        logger.warn(problem)
+    }
     // `std` is what every file resolves against: the binaries go first
     let cjoFiles = model.cjoFiles()
     let stamps = loop.write {
@@ -564,7 +568,7 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
 func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registration {
     let comeOrGone = WatchKind(WatchKind.CREATE.value | WatchKind.DELETE.value)
     let watched = [("**/*", comeOrGone), ("**/*.cj", WatchKind.CHANGE), ("**/cjpm.toml", WatchKind.CHANGE),
-        ("**/${PROJECT_JSON}", WatchKind.CHANGE)]
+        ("**/${PROJECT_JSON}", WatchKind.CHANGE), ("**/${CFG_TOML}", WatchKind.CHANGE)]
     let watchers = watched.map {
         globAndKind =>
         let (glob, kind) = globAndKind

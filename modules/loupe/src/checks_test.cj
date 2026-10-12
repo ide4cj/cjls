@@ -17,6 +17,7 @@ func checkDiagnostics(fixture: String, binaries!: Array<String> = []): Unit {
             let severity = match (diagnostic.severity) {
                 case Error => "error"
                 case Warning => "warning"
+                case Hint => "hint"
             }
             Annotation(file.fileId, diagnostic.range, "${severity}: ${diagnostic.message}")
         })

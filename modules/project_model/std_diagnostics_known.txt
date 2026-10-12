@@ -1,18 +1,9 @@
 # What the diagnostics gate (#48's 8c′b, `DiagnosticsGateTest`) finds on std's sources, which cjc
 # compiles with none: each a gap of the analysis, its issue named, or of the corpus. A line not found
 # any more fails the gate as a new one does, so the list only shrinks.
+# std is analyzed as on Linux x86_64 whatever the host (`STD_GATE_CFG`), `@When` picking its twins.
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=DiagnosticsGateTest.*'` writes it.
 ast/ffi.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
 ast/tokens.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
-process/process.cj:587: mismatched types: expected 'ProcessStartInfo', found 'ProcessStartInfo'  # #149: @When's twins, both declared
-process/sub_process.cj:134: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:139: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:144: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:151: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:158: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:165: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:170: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:174: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
-process/sub_process.cj:178: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
 runtime/runtime_signal.cj:141: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
 runtime/runtime_signal.cj:39: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared

@@ -458,7 +458,7 @@ public func bodyWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredBody {
     if (let Source(file) <- def.file(db)) {
         let root = parse(db, file).syntaxNode()
         if (let Some(decl) <- itemIdMap(db, file).node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
-            return lowerBody(decl)
+            return lowerBody(decl, active: ActiveFilter.of(db, file))
         }
     }
     LoweredBody(Body(), BodySourceMap())
@@ -474,10 +474,11 @@ public func body(db: AnalysisDatabase, def: DefId): Body {
 }
 
 /**
- * The body of `decl`.
+ * The body of `decl`, what `active` leaves out of the build left out: parameters, declarations of
+ * its blocks, accessors.
  */
-func lowerBody(decl: Decl): LoweredBody {
-    let lowering = BodyLowering()
+func lowerBody(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredBody {
+    let lowering = BodyLowering(active)
     var params = Array<BodyParam>()
     var value: ?ExprId = None
     var accessors = Array<ExprId>()
@@ -491,7 +492,7 @@ func lowerBody(decl: Decl): LoweredBody {
             (params, value) = (lowering.params(it.paramLists(), primary: true), lowering.blockOf(it.block()))
         case Decl.AsVarDecl(it) => value = it.expr().map {one => lowering.expr(one)}
         case Decl.AsPropDecl(it) => if (let Some(propBody) <- it.propBody()) {
-            accessors = propBody.propAccessors() |> map {
+            accessors = propBody.propAccessors() |> filter {accessor => active.isActive(accessor.syntax)} |> map {
                 accessor =>
                 let accessorParams = lowering.params(accessor.paramLists())
                 lowering.add(Expr.LambdaExpr(accessorParams, lowering.block(accessor.block())), accessor.syntax)
@@ -506,7 +507,8 @@ func lowerBody(decl: Decl): LoweredBody {
  * One body as it is lowered: its arrays and where each element is written.
  */
 class BodyLowering {
-    let types = SignatureLowering()
+    let active: ActiveFilter
+    let types: SignatureLowering
     let exprs = ArrayList<Expr>()
     let exprPtrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
     let pats = ArrayList<Pat>()
@@ -517,6 +519,11 @@ class BodyLowering {
     // the `?`s of the optional chains being lowered, innermost last: what each is applied to, and the
     // local its value is bound to
     private let quests = ArrayList<(ExprId, LocalId)>()
+
+    init(active: ActiveFilter) {
+        this.active = active
+        this.types = SignatureLowering(active: active)
+    }
 
     func finish(params: Array<BodyParam>, value: ?ExprId, accessors: Array<ExprId>): LoweredBody {
         LoweredBody(
@@ -534,7 +541,7 @@ class BodyLowering {
     func params(lists: Iterator<ParamList>, primary!: Bool = false): Array<BodyParam> {
         let lowered = ArrayList<BodyParam>()
         for (list in lists) {
-            for (param in list.params()) {
+            for (param in list.params() where active.isActive(param.syntax)) {
                 lowered.add(paramOf(param, primary))
             }
         }
@@ -583,6 +590,7 @@ class BodyLowering {
         for (node in nodes) {
             match (node) {
                 case AstStmt.ExprStmt(one) => lowered.add(Stmt.ExprStmt(expr(one)))
+                case AstStmt.DeclStmt(decl) where !active.isActive(decl.syntax) => ()
                 case AstStmt.DeclStmt(decl) => if (let Some(one) <- stmtOf(decl)) {
                     lowered.add(one)
                 }

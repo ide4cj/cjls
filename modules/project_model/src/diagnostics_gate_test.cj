@@ -6,8 +6,8 @@ import std.fs.*
 import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.diagnostics
-import loupe.db.{AnalysisDatabase, BinaryModel, BinaryPackage, ModuleModel, PackageModel, ProjectModel}
+import loupe.{diagnostics, Severity}
+import loupe.db.{AnalysisDatabase, BinaryModel, BinaryPackage, Cfg, ModuleModel, PackageModel, ProjectModel}
 import loupe.fixture.{stdSourcesDir, UPDATE_EXPECT}
 import loupe.vfs.{isCangjieFile, PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
 
@@ -23,7 +23,7 @@ func diagnosticsOf(db: AnalysisDatabase, paths: PathInterner, files: Array<VfsPa
         let file = db.sourceFile(fileId) ?? continue
         let text = file.text(db).toString()
         let name = path.toString().replace("\\", "/").removePrefix(prefix)
-        for (one in diagnostics(db, fileId)) {
+        for (one in diagnostics(db, fileId) where one.severity != Severity.Hint) {
             let line = text[..one.range.start].count("\n") + 1
             found.add("${name}:${line}: ${one.message}")
         }
@@ -52,6 +52,12 @@ func declaredPackageOf(file: Path): ?String {
  * them but `std.core`, read from the SDK's `.cjo` while the compiler's own types are not types of
  * the analysis's (#218).
  */
+/**
+ * What std's sources are analyzed under by the gate on every host, as `std_diagnostics_known.txt` is
+ * written: Linux on x86_64. `@When` picks which of std's twins are read.
+ */
+let STD_GATE_CFG = Cfg([("os", "Linux"), ("arch", "x86_64"), ("env", "gnu"), ("backend", "cjnative"), ("test", "true")])
+
 func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
     let dir = stdSourcesDir()
     let byPackage = HashMap<String, ArrayList<VfsPath>>()
@@ -76,8 +82,8 @@ func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
     let home = getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
     let target = Directory.readFrom(Path(home).join("modules")).filter {info => info.isDirectory()}[0].name
     let core = VfsPath.file(Path(home).join("modules").join(target).join("std").join("std.core.cjo"))
-    let model = ProjectModel(findProject(workspaceRoot(), env: {name => getVariable(name)}).model.cfg,
-        [ModuleModel("std", dir, packages)], binaries: [BinaryModel("std", [], packages: [BinaryPackage("std.core", core)])])
+    let model = ProjectModel(STD_GATE_CFG, [ModuleModel("std", dir, packages)],
+        binaries: [BinaryModel("std", [], packages: [BinaryPackage("std.core", core)])])
     let db = AnalysisDatabase()
     let vfs = Vfs()
     db.setProject(model, vfs.paths, binaries: readCjoFiles(model.cjoFiles()).files)
