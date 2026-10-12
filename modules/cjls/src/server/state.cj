@@ -150,6 +150,12 @@ public class ServerState <: FromContext<ServerState> {
     public var partialRoots: Array<VfsPath> = []
 
     /**
+     * The directories of the projects found from a document opened in no package (#265): loaded
+     * with the roots' from then on, until the last root they are under is removed.
+     */
+    public var foundProjects: Array<VfsPath> = []
+
+    /**
      * The files of the project, as last set: made anew each time, for a set built from an array
      * takes a third of the time `clear` and `add(all:)` do.
      */
