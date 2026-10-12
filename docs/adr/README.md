@@ -90,7 +90,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0069](0069-std-sources-fetched-by-cjls.md) | The sources of std are fetched by `cjls fetch-src`, from `cangjie_runtime` at the commit the nightly's release notes name, into the SDK's `src` | proposed |
 | [0070](0070-an-optional-chain-is-lowered-into-matches.md) | An optional chain is lowered into the matches cjc desugars it to, Some and None lang items | proposed |
 | [0071](0071-a-union-reads-its-value-on-the-rewound-reader.md) | A union reads its value on the reader itself, rewound to the value's start between attempts | accepted |
-| [0072](0072-names-are-highlighted-by-what-they-mean.md) | Semantic tokens tell a name at its use by what it means, through a Definition shared with go to definition | accepted |
+| [0072](0072-names-are-highlighted-by-what-they-mean.md) | Semantic tokens tell a name at its use by what it means, through a Definition shared with go to definition | accepted; semantic tokens read what inference and lowering resolved; `lookUp` is a query by D84 |
 | [0073](0073-params-are-read-in-place-when-the-method-came-first.md) | Params are read in place, on the read loop, by the route's reader when `method` came before them; a reader that fails leaves them bytes | accepted |
 | [0074](0074-range-formatting.md) | A range is formatted by the whole file's edits on the lines it covers | proposed |
 | [0075](0075-a-write-that-changes-nothing-opens-no-revision.md) | A write that changes no input opens no revision | proposed |
@@ -99,3 +99,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0078](0078-the-windows-child-dies-with-its-parent.md) | On Windows the server puts itself in a kill-on-close job before it starts its child | proposed |
 | [0079](0079-settings-are-r1s.md) | The settings are one typed model whose schema the server prints, read as R1 reads them | proposed |
 | [0080](0080-an-open-document-is-in-the-project.md) | A document open is in the project: loose files take the open documents and their directories first, those documents past the budget, and one opened among the files left out finds the project again | accepted |
+| [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed |
