@@ -270,10 +270,11 @@ let MEMBER_LEVEL = 1 << 32
 struct Callable {
     Callable(let params: Array<Ty>, let ret: Ty, let open!: ?DefId = None, let decl!: ?DefId = None,
         let level!: Int64 = 0, let names!: Array<?String> = [], let isC!: Bool = false,
-        let defaults!: Array<Bool> = []) {}
+        let defaults!: Array<Bool> = [], let isCVariadic!: Bool = false) {}
 
     func at(level: Int64): Callable {
-        Callable(params, ret, open: open, decl: decl, level: level, names: names, isC: isC, defaults: defaults)
+        Callable(params, ret, open: open, decl: decl, level: level, names: names, isC: isC, defaults: defaults,
+            isCVariadic: isCVariadic)
     }
 
     /**
@@ -304,15 +305,18 @@ struct Callable {
     }
 
     /**
-     * Whether a call of `args` may take it: as many in order as it takes so, each by name one of
-     * its parameters by name, each of those not passed of a default value (N149).
+     * Whether a call of `args` may take it: as many in order as it takes so, or more of a `foreign`
+     * function's `...`, each by name one of its parameters by name, each of those not passed of a
+     * default value (N149).
      */
     func takes(args: Array<CallArg>): Bool {
         let passed = args.filter {arg => arg.name.isSome()}.map {arg => arg.name}
         let missing = (0..names.size).iterator().any {
             i => names[i].isSome() && !passed.contains(names[i]) && !(defaults.get(i) ?? true)
         }
-        args.size - passed.size == positional() && !missing && passed.iterator().all {name => names.contains(name)}
+        let inOrder = args.size - passed.size
+        let counts = inOrder == positional() || isCVariadic && inOrder > positional()
+        counts && !missing && passed.iterator().all {name => names.contains(name)}
     }
 
     /**
@@ -1492,10 +1496,14 @@ class Inference {
     /**
      * What `op`, one of the language's, gives between its types `left` and `right`: a comparison
      * `Bool`, an arithmetic of numbers the left's type, `==` and `!=` of tuples `Bool`; `None`
-     * between others.
+     * between others. A right not known may be the one it takes: what it gives is not known either,
+     * and no operator a type declares is tried in its place.
      */
     private func builtinTy(op: String, left: Ty, right: Ty): ?Ty {
         let isComparison = COMPARISONS.contains(op)
+        if ((isPrim(left) || isTuple(left)) && isUnknown(db, right)) {
+            return right
+        }
         match ((left.kind(db), right.kind(db))) {
             case (PrimTy(_), PrimTy(_)) where isComparison => prim("Bool")
             case (PrimTy(name), PrimTy(_)) where INTEGER_TYPES.contains(name) || FLOAT_TYPES.contains(name) => left
@@ -2017,7 +2025,7 @@ class Inference {
             case None => false
         }
         Callable(sig.params.map {one => seen(one)}, seen(valueOf(id)), open: open, decl: id, names: sig.paramNames,
-            isC: isC, defaults: sig.paramDefaults)
+            isC: isC, defaults: sig.paramDefaults, isCVariadic: sig.isCVariadic)
     }
 
     /**
@@ -2235,7 +2243,8 @@ class Inference {
     /**
      * Checks the call `call` of the one function `callable` passes it as many arguments as it takes
      * (cjc's "missing argument", "extra argument", N152): any number from its last parameter on if that is
-     * an `Array`, a variadic one. Arguments by name, of default values, are matched by name (#254).
+     * an `Array`, a variadic one; more of a `foreign` function's `...`. Arguments by name, of
+     * default values, are matched by name (#254).
      */
     private func checkArgCount(call: ExprId, callable: Callable, args: Array<CallArg>): Unit {
         if (args.iterator().any {arg => arg.name.isSome()} ||
@@ -2256,7 +2265,7 @@ class Inference {
             return
         }
         let (taken, given) = (callable.params.size, args.size)
-        if (given == taken || isVariadic(callable) && given >= taken - 1) {
+        if (given == taken || isVariadic(callable) && given >= taken - 1 || callable.isCVariadic && given > taken) {
             return
         }
         mismatches++
@@ -2300,7 +2309,8 @@ class Inference {
      * The one of `candidates`, each of as many parameters as `args`, a call takes, as cjc's
      * `MatchFunctionForCall`: level by level from the nearest (N117), each candidate tried; the first
      * level where any fits deciding (N115); of several there, the most specific (N119). `None` if
-     * none fits, or no one of those is most specific, or they are enum constructors (N120).
+     * none fits, or no one of those is most specific, or they are enum constructors (N120), or an
+     * argument not known is why several fit.
      */
     private func chooseOverload(callee: ExprId, candidates: Array<Callable>, args: Array<CallArg>,
         expected: ?Ty): ?Callable {
@@ -2322,11 +2332,23 @@ class Inference {
         var last: ?Int64 = None
         for (level in levels where last != Some(level)) {
             last = level
-            let fit = candidates.filter {one => one.level == level && fitsCall(callee, one, args, expected)}
+            let fit = ArrayList<Callable>()
+            var isUnknownArg = false
+            for (one in candidates where one.level == level) {
+                let (fits, unknownArg) = tryCall(callee, one, args, expected)
+                if (fits) {
+                    fit.add(one)
+                    isUnknownArg = isUnknownArg || unknownArg
+                }
+            }
             if (fit.size == 1) {
                 return fit[0]
             }
             if (fit.size > 1) {
+                // an argument not known fits each: none is taken for it, not the most specific
+                if (isUnknownArg) {
+                    return None
+                }
                 if (fit.iterator().any {one => one.decl.map {id => id.item(db).kind} == Some(ItemKind.EnumCtor)}) {
                     return None
                 }
@@ -2395,8 +2417,9 @@ class Inference {
      * Whether a call of `callable` fits (N115): its arguments checked against its parameters, its
      * type arguments not written solved, its return type one `expected` takes; what that writes
      * undone, as cjc tries a candidate with its diagnostics suppressed and its constraints reset.
+     * And whether an argument of it was of a type not known, which fits any parameter.
      */
-    private func fitsCall(callee: ExprId, callable: Callable, args: Array<CallArg>, expected: ?Ty): Bool {
+    private func tryCall(callee: ExprId, callable: Callable, args: Array<CallArg>, expected: ?Ty): (Bool, Bool) {
         let mark = undo.size
         let before = mismatches
         let vars = nextVar
@@ -2407,10 +2430,18 @@ class Inference {
             case Some(one) => fits(ret, one)
             case None => true
         }
+        let unknownArg = args.iterator().any {
+            arg =>
+            let ty = match (known.get(arg.expr.index)) {
+                case Some(one) => one
+                case None => inferredTyOf(arg.expr) ?? return false
+            }
+            isUnknown(db, ty)
+        }
         rollBack(mark)
         mismatches = before
         nextVar = vars
-        fit
+        (fit, unknownArg)
     }
 
     /**
@@ -2758,10 +2789,10 @@ class Inference {
                 case Some(decl) => declCallables(decl, [], expected)
                 case None => []
             }
-            // `super(…)` and `this(…)` in a constructor
+            // `super(…)` and `this(…)` in a constructor, its parameters by name as the constructor's
             case SuperExpr | ThisExpr => match (infer(callee, None).kind(db)) {
                 case DeclTy(id, args) => initCallables(id, args).map {
-                    one => Callable(one.params, prim("Unit"), decl: one.decl)
+                    one => Callable(one.params, prim("Unit"), decl: one.decl, names: one.names, defaults: one.defaults)
                 }
                 case _ => []
             }
