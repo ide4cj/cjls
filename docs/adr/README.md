@@ -105,6 +105,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed; a memo verified in this revision answers a dependent through its entry, not its table, by D85 |
 | [0085](0085-a-dependency-keeps-its-edge.md) | A dependency keeps the object it was read from, which answers for it without a lock when it can | proposed |
 | [0086](0086-json-is-read-without-a-tape.md) | JSON is read by the pull reader, not through a tape index | accepted |
-| [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed |
+| [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed; Windows is not left opaque by D91 |
 | [0088](0088-a-document-in-no-package-finds-its-own-project.md) | A document open in no package finds its own project from its path, as R1 does on open, and that project stays loaded with the roots' | proposed |
 | [0089](0089-calca-counts-executions-per-function.md) | calca counts the executions of each tracked function, and keeps no trace | accepted |
+| [0091](0091-the-windows-macro-server-is-started-by-createprocessw.md) | On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone | proposed |
