@@ -124,4 +124,36 @@ class ArgumentMatchingTest {
             }
             "#)
     }
+
+    @TestCase
+    func aVariadicFunctionOfACjoTakesTheElementsOfItsArray() {
+        checkInference(#"
+            package m
+            import std.collection.ArrayList
+            func g(s: String): Unit {
+            //     ^ String
+                let a = String.fromUtf8(97u8, 98u8)
+            //      ^ String
+                let b = String.fromUtf8()
+            //      ^ String
+                let c = String.fromUtf8([97u8])
+            //      ^ String
+                let d = Float64.max(1.0, 2.0)
+            //      ^ Float64
+                let e = Float64.max(1.0, 2.0, 3.0, 4.0)
+            //      ^ Float64
+                // cjc: ArrayList<Int64>, its type argument solved from the elements
+                let f = ArrayList.of(1, 2, 3)
+            //      ^ ArrayList<{unknown}>
+                let h = ArrayList<Int64>.of()
+            //      ^ ArrayList<Int64>
+                // cjc: String, of `trimStart(set: Array<Rune>)` among its three overloads (#254)
+                let t = s.trimStart(r'a', r'b')
+            //      ^ {unknown}
+                // cjc: String, the same one
+                let u = s.trimStart(r'a')
+            //      ^ {unknown}
+            }
+            "#)
+    }
 }
