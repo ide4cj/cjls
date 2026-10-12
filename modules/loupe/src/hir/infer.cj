@@ -1566,13 +1566,13 @@ class Inference {
                 case _ => continue
             }
             let found = ArrayList<Callable>()
-            for (target in memberLookup(db, [start], op, from: from) where isMemberOf(target, head)) {
+            for (target in memberLookup(db, [start], op, from: from, on: head)) {
                 if (let MemberDecl(decl) <- target && decl.item(db).kind == ItemKind.Func) {
                     found.add(funcCallable(decl, [], head))
                 }
             }
             if (!found.isEmpty()) {
-                return overriding(found.toArray())
+                return found.toArray()
             }
         }
         []
@@ -2629,8 +2629,8 @@ class Inference {
 
     /**
      * The members named `name` of a value of the type `ty`, recorded for `expr`, and the type they
-     * are seen on: `ty`, or the bound of a type parameter that has them; but those of an `extend`
-     * `ty` is no instance of (N86).
+     * are seen on: `ty`, or the bound of a type parameter that has them, as `memberLookup` finds them
+     * on it (N86, N107).
      */
     private func valueMembers(expr: ExprId, ty: Ty, name: String): (Array<MemberTarget>, Ty) {
         for (head in headsOf(ty)) {
@@ -2639,35 +2639,13 @@ class Inference {
                 case PrimTy(prim) => ExtendedType.PrimType(prim)
                 case _ => continue
             }
-            let targets = notOverridden(memberLookup(db, [start], name, from: from).filter {
-                target => isMemberOf(target, head)
-            }, head)
+            let targets = memberLookup(db, [start], name, from: from, on: head)
             if (!targets.isEmpty()) {
                 setField(expr, FieldTargets(expr, targets))
                 return (targets, head)
             }
         }
         (Array<MemberTarget>(), ty)
-    }
-
-    /**
-     * `targets`, the nearest first, but the functions whose parameters, seen on `recv`, a nearer one
-     * has: those it overrides or implements (N107).
-     */
-    private func notOverridden(targets: Array<MemberTarget>, recv: Ty): Array<MemberTarget> {
-        let kept = ArrayList<MemberTarget>()
-        let params = ArrayList<Array<Ty>>()
-        for (target in targets) {
-            if (let MemberDecl(id) <- target && id.item(db).kind == ItemKind.Func) {
-                let own = funcCallable(id, [], recv).erasedParams(db)
-                if (params.iterator().any {one => one == own}) {
-                    continue
-                }
-                params.add(own)
-            }
-            kept.add(target)
-        }
-        kept.toArray()
     }
 
     /**
@@ -2682,20 +2660,6 @@ class Inference {
                 }
                 found.toArray()
             case _ => [ty]
-        }
-    }
-
-    /**
-     * Whether `target` is a member of a value of the type `recv`: not one of an `extend` of another
-     * instance of its type (N86).
-     */
-    private func isMemberOf(target: MemberTarget, recv: Ty): Bool {
-        match (target) {
-            case MemberDecl(id) => match (parentOf(db, id)) {
-                case Some(owner) where owner.item(db).kind == ItemKind.Extend => ownerArgs(db, owner, recv, from).isSome()
-                case _ => true
-            }
-            case MemberParam(_, _) => true
         }
     }
 
