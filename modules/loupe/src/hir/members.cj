@@ -37,7 +37,17 @@ public func extendedTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
     let sig = signature(db, def)
     let ty = sig.ty ?? return None
     match (sig[ty]) {
-        case PathRef(segments) => typeOfPath(db, def, segments).map {id => ExtendedType.DeclType(id)}
+        case PathRef(segments) =>
+            let id = typeOfPath(db, def, segments) ?? return None
+            if (id.item(db).kind != ItemKind.TypeAlias) {
+                return ExtendedType.DeclType(id)
+            }
+            // of an alias, the type it stands for, as the `extend`'s type is lowered (A24, N148)
+            match ((signatureTypes(db, def).ty ?? return None).kind(db)) {
+                case DeclTy(target, _) => ExtendedType.DeclType(target)
+                case PrimTy(name) => ExtendedType.PrimType(name)
+                case _ => None
+            }
         case PrimRef(name) => ExtendedType.PrimType(name)
         case _ => None
     }

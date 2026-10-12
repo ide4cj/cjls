@@ -688,6 +688,8 @@ class BodyLowering {
     private func link(node: AstExpr): ExprId {
         let lowered = match (node) {
             case AstExpr.AsLiteral(it) => Expr.LitExpr(it.value()?.text() ?? "")
+            // of one character, a `Rune` or a `Byte` where one is expected: a literal as a number is
+            case AstExpr.AsStringLit(it) where isOneChar(it.syntax.text()) => Expr.LitExpr(it.syntax.text())
             case AstExpr.AsStringLit(it) => Expr.StrExpr(it.interpolations() |> map {
                 one: Interpolation => add(Expr.BlockExpr(stmts(one.stmts())), one.syntax)
             } |> collectArray)

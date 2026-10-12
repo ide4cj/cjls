@@ -91,6 +91,10 @@ public struct Signature {
          */
         public let paramNames!: Array<?String> = [],
         /**
+         * Whether each of its parameters has a default value; as many as `paramNames`.
+         */
+        public let paramDefaults!: Array<Bool> = [],
+        /**
          * Its declared type: a function's return type, a variable's or property's type, what an
          * alias names, the type an `extend` extends.
          */
@@ -219,7 +223,7 @@ func lowerSignature(decl: Decl): LoweredSignature {
         case None => Array<TypeBound>()
     }
     LoweredSignature(
-        Signature(generics: generics, types: lowering.types.toArray(), params: params, paramNames: lowering.names, ty: ty,
+        Signature(generics: generics, types: lowering.types.toArray(), params: params, paramNames: lowering.names, paramDefaults: lowering.defaults, ty: ty,
             supers: supers, bounds: bounds),
         SignatureSourceMap(lowering.ptrs.toArray())
     )
@@ -233,12 +237,16 @@ class SignatureLowering {
     let ptrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
     // of the parameters `params` lowered, the name of each passed by name
     var names = Array<?String>()
+    // and whether each has a default value, as many
+    var defaults = Array<Bool>()
 
     func params(lists: Iterator<ParamList>): Array<TypeRefId> {
         let ids = ArrayList<TypeRefId>()
         let found = ArrayList<?String>()
+        let withDefault = ArrayList<Bool>()
         for (list in lists) {
             for (param in list.params()) {
+                withDefault.add(param.eqToken().isSome())
                 ids.add(lower(param.ty()))
                 found.add(if (param.bangToken().isSome()) {
                     param.name()?.text()
@@ -249,6 +257,7 @@ class SignatureLowering {
         }
         if (found.iterator().any {one => one.isSome()}) {
             names = found.toArray()
+            defaults = withDefault.toArray()
         }
         ids.toArray()
     }

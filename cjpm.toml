@@ -38,6 +38,11 @@ incremental = true
 [profile.test.build]
 compile-option = "-Woff unused"
 
+# the diagnostics gate infers every body of the workspace in one database, as the server does with
+# the heap it starts itself with (D31)
+[profile.test.env]
+cjHeapSize = { value = "2GB", splice-type = "replace" }
+
 # stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
 [target.aarch64-apple-darwin.bin-dependencies]
 path-option = [

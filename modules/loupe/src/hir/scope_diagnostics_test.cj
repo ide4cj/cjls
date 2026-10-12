@@ -82,7 +82,7 @@ class ScopeDiagnosticsTest {
             //- /main.cj module=m package=m
             package m
             import m.a.Foo
-            //     ^^^^^^^ warning: imported decl 'Foo' is shadowed
+            //     ^^^^^^^ warning: imported decl 'Foo' is shadowed, it will be ignored by compiler
             class Foo {}
             "#)
     }

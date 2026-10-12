@@ -105,6 +105,10 @@ public struct SignatureTypes {
          */
         public let paramNames!: Array<?String> = [],
         /**
+         * Whether each of its parameters has a default value; as many as `paramNames`.
+         */
+        public let paramDefaults!: Array<Bool> = [],
+        /**
          * What a declaration is a value or a type of: a function's return type, a variable's or
          * property's type, the type an `extend` extends, what an alias expands to; a type's own,
          * its parameters its arguments (`C<T>`); a constructor's, an `init`'s or an enum
@@ -389,7 +393,7 @@ class SourceTyLowering {
             return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray(),
                 typePaths: typePaths())
         }
-        SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, ty: ty, supers: supers,
+        SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, paramDefaults: sig.paramDefaults, ty: ty, supers: supers,
             bounds: bounds, errors: errors.toArray(), typePaths: typePaths())
     }
 
@@ -670,13 +674,37 @@ class BinaryTyLowering {
                 (semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}, ret)
             case _ => (Array<Ty>(), lowerAt(declared))
         }
-        SignatureTypes(generics: generics, params: params, paramNames: paramNames(), ty: ty, supers: supers,
+        SignatureTypes(generics: generics, params: params, paramNames: paramNames(), paramDefaults: paramDefaults(), ty: ty, supers: supers,
             bounds: bounds)
     }
 
     /**
      * Of a function's parameters, the name of each passed by name; none if none is.
      */
+    private func paramDefaults(): Array<Bool> {
+        let lists = match (decl.info) {
+            case Some(DeclInfo.AsFuncInfo(it)) => (it.funcBody ?? return []).paramLists.toArray()
+            case _ => return []
+        }
+        let found = ArrayList<Bool>()
+        var isNamed = false
+        for (list in lists) {
+            for (param in list.params) {
+                match (cjo.allDecls[Int64(param) - 1].info) {
+                    case Some(DeclInfo.AsParamInfo(it)) =>
+                        isNamed = isNamed || it.isNamedParam
+                        found.add(it.defaultVal != 0)
+                    case _ => found.add(false)
+                }
+            }
+        }
+        if (isNamed) {
+            found.toArray()
+        } else {
+            []
+        }
+    }
+
     private func paramNames(): Array<?String> {
         let lists = match (decl.info) {
             case Some(DeclInfo.AsFuncInfo(it)) => (it.funcBody ?? return []).paramLists.toArray()

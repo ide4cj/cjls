@@ -5,16 +5,18 @@ import loupe.fixture.*
 
 /**
  * Checks the diagnostics of every file of `fixture` are its annotations, `//^^^ error: message`.
+ * `binaries` are the packages of std's of the project.
  */
-func checkDiagnostics(fixture: String): Unit {
+func checkDiagnostics(fixture: String, binaries!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database()
+    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
     let actual = ArrayList<Annotation>()
     for (file in parsed.files) {
         actual.add(all: diagnostics(db, file.fileId).map {
             diagnostic =>
             let severity = match (diagnostic.severity) {
                 case Error => "error"
+                case Warning => "warning"
             }
             Annotation(file.fileId, diagnostic.range, "${severity}: ${diagnostic.message}")
         })

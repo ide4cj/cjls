@@ -110,7 +110,7 @@ func allSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Array<Ty> {
  * return type covariant (N116); a type parameter is a subtype of what its bounds are.
  */
 func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool {
-    if (sub == sup) {
+    if (sub == sup || isAny(db, sup, from)) {
         return true
     }
     match ((sub.kind(db), sup.kind(db))) {
@@ -125,12 +125,44 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
         case (ParamTy(owner, _), _) => signatureTypes(db, owner).bounds.iterator().any {
             bound => bound.ty == sub && bound.bounds.iterator().any {one => isSubtype(db, one, sup, from)}
         }
-        case (_, DeclTy(id, _)) => match (asInstanceOf(db, sub, id, from)) {
-            case Some(one) => isAlike(db, one, sup)
-            case None => false
+        // of an interface implemented as several instances (`K<Int64> & K<String>`), any (N143)
+        case (_, DeclTy(id, _)) => allSupertypes(db, sub, from).iterator().any {
+            one => match (one.kind(db)) {
+                case DeclTy(other, _) where other == id => isAlike(db, one, sup)
+                case _ => false
+            }
         }
         case _ => false
     }
+}
+
+/**
+ * `T` of `ty`, `std.core`'s `Option<T>`; `None` of any other type.
+ */
+func optionArgOf(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): ?Ty {
+    let (id, arg) = match (ty.kind(db)) {
+        case DeclTy(id, args) where args.size == 1 && isNamed(db, id, "Option") => (id, args[0])
+        case _ => return None
+    }
+    let pkg = packageOfFile(db, from ?? return None) ?? return None
+    if (langItem(db, PackageRef.Source(pkg), LangItem.OptionEnum) == Some(id)) {
+        arg
+    } else {
+        None
+    }
+}
+
+/**
+ * Whether `ty` is `std.core`'s `Any`, which every type implements (N142).
+ */
+func isAny(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Bool {
+    let id = match (ty.kind(db)) {
+        case DeclTy(id, args) where args.isEmpty() && isNamed(db, id, "Any") => id
+        case _ => return false
+    }
+    let file = from ?? return false
+    let pkg = packageOfFile(db, file) ?? return false
+    langItem(db, PackageRef.Source(pkg), LangItem.AnyInterface) == Some(id)
 }
 
 /**
@@ -189,6 +221,13 @@ func joinTys(db: AnalysisDatabase, tys: Array<Ty>, from: ?SourceFile): Ty {
     }
     if (real.iterator().all {one => one == first}) {
         return first
+    }
+    // `?T` and what is a `T`: `?T`, the others boxed (N144, #249)
+    for (one in real) {
+        let inner = optionArgOf(db, one, from) ?? continue
+        if (real.iterator().all {other => other == one || isSubtype(db, other, inner, from)}) {
+            return one
+        }
     }
     let common = allSupertypes(db, first, from).filter {
         candidate => real.iterator().all {one => isSubtype(db, one, candidate, from)}
