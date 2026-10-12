@@ -11,15 +11,17 @@ func namesOf(
     text: String,
     open!: Array<String> = [],
     rename!: Array<(String, String)> = [],
-    wrap!: Array<(String, String)> = []
+    wrap!: Array<(String, String)> = [],
+    write!: Bool = false
 ): Names {
     let config = Config(
         schema: "s.fbs",
         output: "out.cj",
         packageName: "p",
-        open: open,
-        rename: HashMap<String, String>(rename),
-        wrap: HashMap<String, String>(wrap)
+        openEnums: open,
+        renames: HashMap<String, String>(rename),
+        wraps: HashMap<String, String>(wrap),
+        write: write
     )
     Names(parseSchema(text), config)
 }

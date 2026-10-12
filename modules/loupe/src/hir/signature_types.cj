@@ -6,7 +6,7 @@ import std.deriving.*
 import std.sort.sort
 import calca.*
 import calca.macros.*
-import cjo.{CjoException, DeclInfo, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
+import cjo.{DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile}
@@ -279,7 +279,7 @@ func binaryGenericsOf(db: AnalysisDatabase, pkg: BinaryPackageFile, item: Binary
     try {
         let cjo = openCjo(bytes)
         genericDeclsOf(cjo.allDecls[index]).map {param => cjo.allDecls[Int64(param) - 1].identifier ?? ""}
-    } catch (_: CjoException) {
+    } catch (_: FbException) {
         []
     } catch (_: IndexOutOfBoundsException) {
         []
@@ -600,7 +600,7 @@ func lowerBinarySignature(db: AnalysisDatabase, def: DefId, pkg: BinaryPackageFi
     // what the bytes throw alone: a calca call under it unwinds through (A21)
     try {
         BinaryTyLowering(index, parent, parentIndex, db, pkg, openCjo(bytes), def).lower()
-    } catch (_: CjoException) {
+    } catch (_: FbException) {
         SignatureTypes()
     } catch (_: IndexOutOfBoundsException) {
         SignatureTypes()

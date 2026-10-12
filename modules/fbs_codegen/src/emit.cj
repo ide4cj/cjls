@@ -19,9 +19,9 @@ let KEYWORDS: HashSet<String> = HashSet<String>(
 )
 
 /**
- * What the runtime the views are generated against declares in their package: a view cannot be named so.
+ * What the runtime the views are generated against (`fbs`) declares: a view cannot be named so.
  */
-let RUNTIME_TYPES = ["FbTable", "FbVector", "FbVectorIterator"]
+let RUNTIME_TYPES = ["FbBuilder", "FbException", "FbOffset", "FbTable", "FbVector"]
 
 /**
  * The names the views of `schema` take, as `config` renames them, and where their fields are.
@@ -32,6 +32,11 @@ class Names {
     /** The Cangjie name of declaration `name` of the schema. */
     func typeName(name: String): String {
         config.rename.get(name) ?? name
+    }
+
+    /** The name of the writer of declaration `name` of the schema. */
+    func dataName(name: String): String {
+        "${typeName(name)}Data"
     }
 
     /** The Cangjie name of member `member` of enum `owner`, as it is written in code. */
@@ -90,6 +95,11 @@ class Names {
                 throw ConfigException("two declarations are named `${typeName(d.name)}`")
             }
         }
+        if (config.writes) {
+            for (d in schema.decls where d.kind != EnumDecl && !types.add(dataName(d.name))) {
+                throw ConfigException("`${dataName(d.name)}` is both a declaration and the writer of `${d.name}`")
+            }
+        }
         for (name in config.open) {
             if (!(decl(name).kind == EnumDecl)) {
                 throw ConfigException("`${name}` in `open` is not an enum")
@@ -114,7 +124,7 @@ class Names {
                 constructors.add(config.rename.get("${d.name}.${m.name}") ?? m.name)
             }
             for (m in d.unionMembers) {
-                constructors.add("As${m.name}")
+                constructors.add(unionConstructor(m))
             }
             for (c in constructors where types.contains(c)) {
                 throw ConfigException(
@@ -219,6 +229,8 @@ func emitViews(names: Names, header: String, packageName: String): String {
     w.line(header)
     w.blank()
     w.line("package ${packageName}")
+    w.blank()
+    w.line("import fbs.*")
     for (d in names.schema.decls) {
         w.blank()
         match (d.kind) {
@@ -227,6 +239,9 @@ func emitViews(names: Names, header: String, packageName: String): String {
             case StructDecl => emitStruct(w, names, d)
             case TableDecl => emitTable(w, names, d)
         }
+    }
+    if (names.config.writes) {
+        emitWriters(w, names)
     }
     w.toString()
 }
@@ -308,7 +323,7 @@ func emitUnion(w: CodeWriter, names: Names, d: Decl): Unit {
     w.block("public enum ${name}") {
         for (m in d.unionMembers) {
             w.doc(m.doc)
-            w.line("| As${m.name}(${unionMemberType(names, m)})")
+            w.line("| ${unionConstructor(m)}(${unionMemberType(names, m)})")
         }
         w.doc(["A member this version of the schema does not have, by its type."])
         w.line("| Unknown(UInt8)")
@@ -341,13 +356,25 @@ func emitUnion(w: CodeWriter, names: Names, d: Decl): Unit {
             w.block("match (tag)") {
                 var tag = 1
                 for (m in d.unionMembers) {
-                    w.line("case ${tag} => ${name}.As${m.name}(${unionMemberRead(names, m)})")
+                    w.line("case ${tag} => ${name}.${unionConstructor(m)}(${unionMemberRead(names, m)})")
                     tag++
                 }
                 w.line("case _ => ${name}.Unknown(tag)")
             }
         }
     }
+}
+
+/**
+ * The constructor of union member `m`: `As` and its name, the first letter upper-cased (`multiCalls` is
+ * `AsMultiCalls`).
+ */
+func unionConstructor(m: UnionMember): String {
+    let name = m.name
+    if (name.isEmpty()) {
+        return "As"
+    }
+    "As${name[0..1].toAsciiUpper()}${name[1..]}"
 }
 
 func unionMemberType(names: Names, m: UnionMember): String {

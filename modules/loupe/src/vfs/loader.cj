@@ -5,7 +5,7 @@ import std.deriving.*
 import std.fs.*
 import std.sort.*
 import std.time.DateTime
-import cjo.{CjoException, openCjo}
+import cjo.{FbException, openCjo}
 import rope.Rope
 
 /**
@@ -291,7 +291,7 @@ func cjoProblem(bytes: Array<Byte>): ?String {
     try {
         openCjo(bytes)
         None
-    } catch (e: CjoException) {
+    } catch (e: FbException) {
         e.message
     }
 }

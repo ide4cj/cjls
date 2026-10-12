@@ -1,0 +1,6 @@
+# `fbs` — the runtime of what `fbs_codegen` generates
+
+- **Reading** (`src/read.cj`): `FbTable` reads a field by its id (a union takes two: its type, then its value); `FbVector<T>` reads an element when it is asked for, and refuses a length that runs past the buffer when it is made. Nothing is verified up front: a broken buffer throws `FbException` where it is read (D37).
+- **Building** (`src/builder.cj`): `FbBuilder` writes back to front, as flatbuffers' own builders: children before their parent, a table's fields between `startTable` and `endTable` each followed by its `slot(id)`, a vector's elements last to first. An object is an `FbOffset`, its distance from the end, which does not move as the buffer grows. Every value is aligned to its size from the buffer's start, which flatbuffers' verifier checks (cjc's `LSPMacroServer` drops a message it refuses); each table gets a vtable of its own, none shared.
+- Not named `flatbuffers`: std.ast depends on a package of that name, and a package that imports std.ast (a test of `macro_server`) fails to load both.
+- The generated code imports `fbs.*` and names the runtime unqualified: a view or a writer is never named like what this package declares (`RUNTIME_TYPES` of `fbs_codegen`).

@@ -22,7 +22,7 @@ cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
   │
   └────> loupe ──> calca
            ├─────> cjformat
-           ├─────> cjo
+           ├─────> cjo ──> fbs
            ├─────> cjsyntax ──> ginkgo
            ├─────> index_map
            └─────> rope
@@ -34,9 +34,11 @@ Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `lou
 
 `cjformat` (D60) formats on `cjsyntax`'s tree alone: the server through `loupe.formatting`, `cjls fmt` on a file's text.
 
-`cjo` (D37) depends on nothing: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
+`cjo` (D37) depends on `fbs` alone, the runtime of what `fbs_codegen` generates: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
 
-Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
+`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. Nothing uses it yet (#176).
+
+Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37; `macro_server`'s views and writers, D87), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
 
 ## Layers of a request
 
