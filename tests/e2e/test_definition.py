@@ -21,7 +21,7 @@ class K {
     func f(): Int64 { 1 }
 }
 func g(n: Int64): Int64 { n }
-func g(s: String): Int64 { 0 }
+func g(b: Bool): Int64 { 0 }
 func main(): Int64 {
     let k: K = K()
     k.f() + g(1)
@@ -73,7 +73,9 @@ async def test_a_name_goes_to_its_declarations(server: LanguageClient, tmp_path,
     assert targets(await definition(6, 11)) == [(file, 0, 6)]
     assert targets(await definition(7, 4)) == [(file, 6, 8)]
     assert targets(await definition(7, 6)) == [(file, 1, 9)]
-    assert targets(await definition(7, 12)) == [(file, 3, 5), (file, 4, 5)]
+    # its parameters of built-in types: one picked with std's `.cjo` or without (a server finds an SDK
+    # where the shell has one, not in CI)
+    assert targets(await definition(7, 12)) == [(file, 3, 5)]
     # `Int64` is built in: nothing to go to
     assert await definition(3, 10) is None
     # a link where the client takes one
