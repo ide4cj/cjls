@@ -35,8 +35,8 @@ Looked at, not references:
 | Incrementality | queries (calca, salsa's model) | queries (salsa) | queries (salsa, fine-grained: per scope, per definition) | the compiler's pipeline over the package (it links cjc's `IncrementalCompilation`; how much it reuses is not checked) | per package, keyed, export data cached on disk | immutable snapshots, lazy compilations, incremental reparse | PSI modification trackers, lazy resolve phases | preamble (headers) kept, the main file reparsed | a PSI snapshot per open document; the analysis session invalidated on a change |
 | Concurrency | read loop writes; a `spawn` per `readonly` request on a snapshot | main loop writes; a pool reads snapshots | same as R1 | a worker per file (`ArkASTWorker`) | a snapshot per change | snapshots, async | read/write actions | a worker per file (`ASTWorker`) | one worker thread, every request in turn |
 | Cancellation | a write cancels in-flight queries (D8) | same (salsa) | same (salsa) | not checked | context per snapshot | cancellation tokens | read action restarted | per request | none: a queued request runs |
-| Project model | none yet (#12) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` | a module per workspace folder; `cjpm.toml` not read |
-| Macros | not expanded (#47); an expression macro's arguments parsed when they parse as an argument list (D59) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
+| Project model | `cj-project.json`, `cjpm.toml` or loose files (`project_model`, D33) | `cargo metadata` → crate graph | `pyproject.toml` / `ty.toml`, search paths | `cjpm.toml` (`CompilerCangjieProject`) | `go list` (`go/packages`) | MSBuild | Gradle / Maven import | `compile_commands.json` | a module per workspace folder; `cjpm.toml` not read |
+| Macros | std's expanded by its own code: `@Derive` and std.unittest's (#175); an expression macro's arguments parsed when they parse as an argument list (D59); the workspace's to run in R4's `LSPMacroServer` (D87, #176) | `macro_rules!` expanded by its own code; proc macros in a separate process (`proc-macro-srv`) running the compiled dylibs | — | a separate process (`LSPMacroServer`) | — | source generators, in-process | compiler plugins | the preprocessor, in the compiler | R4's `LSPMacroServer` as a child process, flatbuffers over pipes |
 | Cache between sessions | none (#50) | none: every start analyzes again ([#4712](https://github.com/rust-lang/rust-analyzer/issues/4712), open since 2020) | none ([ty#471](https://github.com/astral-sh/ty/issues/471)) | its index | export data and xrefs per package | its index | IntelliJ's indexes | its background index | not checked |
 | Index | none | in memory, per crate (fst) | none | background index on disk (SQLite, flatbuffers) | file cache on disk | SQLite on disk | IntelliJ stub indexes on disk | in memory for open files, background on disk | IntelliJ stubs |
 | Diagnostics | syntax: pull, push for clients without it (#17); semantic: #53 | pull for its own, push for `cargo check`'s on save | pull, push for clients without it | push, the compiler's | push | pull | — | push | push (pull written, off by default) |
@@ -50,7 +50,7 @@ Looked at, not references:
 | Lossless trees | R1 ← R6 | rowan | `ginkgo` |
 | Parser, events, typed views from an ungrammar | R1 | `parser`, `syntax`, `sourcegen` | `ginkgo.parsing`, `cjsyntax`, D10 |
 | What the grammar accepts | R3 | `src/Parse` | the parser test harness (CLAUDE.md) |
-| Incremental engine | salsa, R2 | salsa's current API; R2 uses it natively, R1 through `query-group-macro` | `calca`; what is missing: #13, #14 |
+| Incremental engine | salsa, R2 | salsa's current API; R2 uses it natively, R1 through `query-group-macro` | `calca`; what is missing: GC of memo keys not interned (#124); no accumulators (D14) |
 | Cancellation on write | R1 | salsa's `Cancelled` | D8 |
 | Diagnostics delivery | R1, R2 | pull, push only for clients without it | #17 |
 | Semantic tokens | R1 | `syntax_highlighting` over the tree, refined by `hir` through `Definition` | #16, #201 (D72) |
@@ -100,19 +100,20 @@ Features:
 | Diagnostics | the compiler's, all of them; push | its checkers; push | syntax (#17); semantic: #53 |
 | Semantic tokens | `full` | `full`, `range` | #16, #201: names at their use by what they mean; `full`, `range`, `refresh` |
 | Document symbols | yes | yes | yes |
-| Workspace symbols | yes | yes | #12 |
-| Definition | yes | yes | yes; not into a compiled package (#50) |
+| Workspace symbols | yes | yes | yes (#12) |
+| Definition | yes | yes | yes; into a binary's sources at its `.cjo`'s positions (D65), std's fetched by `cjls fetch-src` (D69) |
 | Hover | yes | yes | yes |
-| References, document highlight, rename | yes | yes | after #48 |
-| Completion, signature help | yes | yes | after #48 |
+| Document highlight | yes | yes | yes (#200) |
+| References, rename | yes | yes | #205 |
+| Completion, signature help | yes | yes | #203, #204 |
 | Type definition, implementation | — | yes | after #48 |
 | Call and type hierarchy | yes | — | after #48 |
 | Folding | — | yes | yes (syntactic) |
 | Selection range | — | yes | yes |
 | Formatting | — | yes | yes, ranges too (D60, D74) |
 | Code actions, code lens, document links | yes | code actions | — |
-| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | arguments parsed, not expanded (D59); #47 |
-| `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | #49 |
+| Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | std's expanded by its own code (#175); arguments parsed (D59); the workspace's: D87, #176 |
+| `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | `.cjo`, read as flatbuffers (D37, D38); their sources for definition (D65) |
 | Extensions of its own (`crossLanguageDefinition`, `extendPublishDiagnostics`, `breakpoints`, …) | for DevEco Studio, in place of standard ones | — | only where LSP has nothing, under `cjls/` (D15) |
 
 R4's column is the methods its binary answers (its strings, SDK of 2025-07); R9's is what its `AnalysisApiCangjieAnalysisFacade` declares, not what worked when tried (above).
