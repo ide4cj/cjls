@@ -45,7 +45,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0024](0024-fjson-conformance.md) | fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep | accepted; `readFloat64` rounded correctly by D25; the suite fetched by D26 |
 | [0025](0025-toml-through-serde.md) | TOML is read and written by ftoml, TOML 1.1 of our own, through `ToToml`/`FromToml` derived from the same `@Serde` model | accepted |
 | [0026](0026-test-suites-are-fetched.md) | Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored | accepted |
-| [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28 |
+| [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28; what CI caches, and in which job, by D96 |
 | [0028](0028-ci-stamps-a-package.md) | CI stamps a package's files with one mtime, made of the whole directory | accepted |
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | superseded by D35 |
 | [0030](0030-workspace-loader.md) | The workspace is loaded on the read loop in one revision, under a budget of text, watched by the client; symbols are searched through a per-file index | accepted; what is loaded is the project's files by D33; what is watched, and which event finds the project again, by D58; the load on the read loop, in one revision, by D61 |
@@ -114,6 +114,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0093](0093-when-is-evaluated-on-an-active-item-tree.md) | @When is evaluated on an active item tree and in lowering, against the package's cfg | proposed |
 | [0094](0094-a-release-supports-a-window-of-sdks.md) | One cjls release supports a window of SDKs: the latest LTS, the latest STS and the pinned nightly, told apart by `cjc --version` | accepted |
 | [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed |
+| [0096](0096-build-and-tests-are-jobs-of-their-own.md) | CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
 | [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
