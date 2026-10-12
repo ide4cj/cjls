@@ -115,4 +115,25 @@ class InitializeTest {
         // assert
         @Expect(state.pushesDiagnostics, pushed)
     }
+
+    @TestCase[row in [
+        (ClientCapabilities(workspace: WorkspaceClientCapabilities(diagnostics: DiagnosticWorkspaceClientCapabilities(
+            refreshSupport: true))), true),
+        (ClientCapabilities(workspace: WorkspaceClientCapabilities(diagnostics: DiagnosticWorkspaceClientCapabilities())),
+            false),
+        (ClientCapabilities(), false)
+    ]]
+    func diagnosticsAreRefreshedOnlyForAClientThatSaysItPullsAgain(row: (ClientCapabilities, Bool)) {
+        // arrange
+        let (capabilities, refreshes) = row
+        let state = ServerState()
+
+        // act
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
+
+        // assert
+        @Expect(state.refreshesDiagnostics, refreshes)
+    }
 }
