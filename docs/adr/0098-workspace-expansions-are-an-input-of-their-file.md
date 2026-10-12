@@ -1,4 +1,4 @@
-# ADR-0096: The macro server's answers are an input of the source file, their origins relative to the top-level item
+# ADR-0098: The macro server's answers are an input of the source file, their origins relative to the top-level item
 
 Status: proposed
 
