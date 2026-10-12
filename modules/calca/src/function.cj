@@ -481,6 +481,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      */
     private func execute(db: D, storage: Storage, databaseKey: DatabaseKey, key: K, old: ?Memo<V>,
         unchanged!: Bool): (V, Memo<V>) {
+        storage.runtime.executions.fetchAdd(1)
         let frame = storage.push(databaseKey)
         let value = try {
             let computed = body(db, key)
