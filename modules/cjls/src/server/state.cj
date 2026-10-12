@@ -166,6 +166,24 @@ public class ServerState <: FromContext<ServerState> {
      */
     private var binarySourceFiles = HashSet<VfsPath>()
 
+    /**
+     * The project, as last set: what names the package of a file new.
+     */
+    private var model = ProjectModel(Cfg([]), [])
+
+    /**
+     * Whether the client applies a `workspace/applyEdit`, and takes an edit of a document with the
+     * version it was made for (`documentChanges`), as agreed on at `initialize`.
+     */
+    public var appliesEdits = false
+    public var versionedEdits = false
+
+    /**
+     * The blank documents opened while a load ran: each is given its `package` line once the load
+     * ends, with the project that names its package (#294).
+     */
+    public let blankDuringLoad = HashSet<VfsPath>()
+
     private var filesChanged = false
     private var registrations = 0
 
@@ -331,6 +349,7 @@ public class ServerState <: FromContext<ServerState> {
             // after the project: a file gone takes the durability the new project gives it
             apply(gone)
         }
+        this.model = model
         projectFiles = HashSet<VfsPath>(model.files())
         binarySourceFiles = HashSet<VfsPath>(model.binarySourceFiles())
         files = None
@@ -342,6 +361,14 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func binaryStamp(file: CjoFile): ?FileStamp {
         analysis.binaryStamp(file)
+    }
+
+    /**
+     * The package a file new at `path` is in, as the project last set names it; `None` if it names
+     * none (`ProjectModel.packageOfNewFile`).
+     */
+    public func packageOfNewFile(path: VfsPath): ?String {
+        model.packageOfNewFile(path)
     }
 
     /**

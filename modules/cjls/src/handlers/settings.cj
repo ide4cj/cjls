@@ -89,8 +89,8 @@ func pullSettings(loop: Loop, client: Client, logger: Logger): Unit {
 }
 
 /**
- * Takes the section `cjls` of the client's configuration as the settings (`settingsOf`); settings
- * that changed find the project again, as every setting there is says where it or the SDK is.
+ * Takes the section `cjls` of the client's configuration as the settings (`settingsOf`); a change
+ * of where a project, the SDK or its sources are finds the project again.
  */
 func changeSettings(loop: Loop, client: Client, logger: Logger, section: JsonValue): Unit {
     let problems = ArrayList<String>()
@@ -99,9 +99,13 @@ func changeSettings(loop: Loop, client: Client, logger: Logger, section: JsonVal
     let state = loop.state
     match (settings) {
         case Some(settings) where settings != state.settings =>
+            let before = state.settings
             state.settings = settings
             logger.info("the settings changed")
-            startLoad(loop, client, logger)
+            if (settings.linkedProjects != before.linkedProjects || settings.cangjieHome != before.cangjieHome ||
+                settings.cangjieSrc != before.cangjieSrc) {
+                startLoad(loop, client, logger)
+            }
         case _ => ()
     }
 }

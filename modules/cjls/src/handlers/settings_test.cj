@@ -283,6 +283,23 @@ class PushedSettingsTest {
         remove(linked, recursive: true)
     }
 
+    @TestCase
+    func aChangeOfASettingOfNoProjectFindsNoProjectAgain() {
+        // arrange
+        let root = workspaceOf([("a.cj", "a")])
+        let loop = initializedWithSettings(root, Option<JsonValue>.None)
+
+        // act
+        handleDidChangeConfiguration(loop, Client(), NoopLogger(), DidChangeConfigurationParams(
+            settings: JsonValue.JsonObject([("cjls", JsonValue.JsonObject([("newFilePackage", JsonValue.JsonBool(false))]))])))
+        loop.join()
+
+        // assert
+        @Expect(!loop.state.settings.newFilePackage)
+        @Expect(textAt(loop.state, root.join("a.cj")), None<String>)
+        remove(root, recursive: true)
+    }
+
     @TestCase[settings in [JsonValue.JsonNull, JsonValue.JsonObject([("other", JsonValue.JsonObject([]))]),
         JsonValue.JsonObject([("cjls", JsonValue.JsonString("x"))])]]
     func pushedSettingsWithoutTheSectionCjlsAsAnObjectChangeNothing(settings: JsonValue) {

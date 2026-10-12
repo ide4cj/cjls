@@ -216,4 +216,75 @@ class ProjectTest {
         // assert
         @Expect(db.project().getOrThrow().binarySources(db).isEmpty())
     }
+
+    @TestCase
+    func aNewFileIsInThePackageOfItsDirectory() {
+        // arrange
+        let model = appProject()
+
+        // act
+        let named = [model.packageOfNewFile(at("app/src/util/new.cj")), model.packageOfNewFile(at("app/src/new.cj"))]
+
+        // assert
+        @Expect(named, [Some("app.util"), Some("app")])
+    }
+
+    @TestCase
+    func aNewFileInADirectoryOfNoPackageIsNamedAfterTheDirectoriesUnderItsModule() {
+        // arrange
+        let model = ProjectModel(Cfg([]), [
+            ModuleModel("app", at("app/src"), [PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])]),
+            ModuleModel("org::lib", at("lib/src"), [])
+        ])
+
+        // act
+        let named = [model.packageOfNewFile(at("app/src/net/http/new.cj")), model.packageOfNewFile(at("app/src/new.cj")),
+            model.packageOfNewFile(at("lib/src/x/new.cj"))]
+
+        // assert
+        @Expect(named, [Some("app.net.http"), Some("app"), Some("org::lib.x")])
+    }
+
+    @TestCase
+    func aNewFileIsInTheNearestModuleAroundIt() {
+        // arrange
+        let model = ProjectModel(Cfg([]), [
+            ModuleModel("outer", at("w/src"), []),
+            ModuleModel("inner", at("w/src/inner/src"), [])
+        ])
+
+        // act
+        let named = model.packageOfNewFile(at("w/src/inner/src/x/new.cj"))
+
+        // assert
+        @Expect(named, Some("inner.x"))
+    }
+
+    @TestCase
+    func aModuleNamingItsPackagesOtherwiseThanByDirectoryNamesNoNewOne() {
+        // arrange: loose files, the package `app` in `w/one`
+        let model = ProjectModel(Cfg([]), [ModuleModel("app", at("w"), [PackageModel("app", at("w/one"), [at("w/one/a.cj")])])])
+
+        // act
+        let named = [model.packageOfNewFile(at("w/one/new.cj")), model.packageOfNewFile(at("w/two/new.cj"))]
+
+        // assert
+        @Expect(named, [Some("app"), None])
+    }
+
+    @TestCase
+    func aNewFileOfTheDefaultPackageOrOfADirectoryNotAnIdentifierOrOfNoModuleHasNoPackageLine() {
+        // arrange: a build script beside `src`
+        let model = ProjectModel(Cfg([]), [
+            ModuleModel("app", at("app/src"), [PackageModel("app", at("app/src"), [at("app/src/a.cj")])]),
+            ModuleModel("default", at("app"), [PackageModel("default", at("app"), [at("app/build.cj")])])
+        ])
+
+        // act
+        let named = [model.packageOfNewFile(at("app/new.cj")), model.packageOfNewFile(at("app/src/my-dir/new.cj")),
+            model.packageOfNewFile(at("app/src/1x/new.cj")), model.packageOfNewFile(at("elsewhere/new.cj"))]
+
+        // assert
+        @Expect(named, [None, None, None, None])
+    }
 }

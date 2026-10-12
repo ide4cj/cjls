@@ -12,6 +12,7 @@ import cjls.macros.LspHandler
  * files a root's loose project left out, past the load budget, finds the project again, which
  * takes it and its directory first (D80); one in no package, below a manifest of a project not
  * loaded, finds the project again with that one too (#265); a load running does that at its end.
+ * A document opened blank is given its `package` line (D90).
  */
 @LspHandler
 func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTextDocumentParams): Unit {
@@ -23,6 +24,7 @@ func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTe
     if (!state.loading && findsProjectAgain(state, path)) {
         startLoad(loop, client, logger)
     }
+    packageLineOnOpen(loop, client, logger, path)
 }
 
 /**
