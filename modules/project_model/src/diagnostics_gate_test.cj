@@ -101,6 +101,7 @@ func knownOfStd(): Path {
  * fails it, named. A cold pass over every body of each.
  */
 @Test
+@Tag[Gate]
 class DiagnosticsGateTest {
     @TestCase
     func thisRepositoryHasNoDiagnostic() {

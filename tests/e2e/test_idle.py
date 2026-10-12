@@ -16,6 +16,12 @@ async def test_a_server_waiting_for_input_uses_no_cpu(client: LanguageClient):
     for i in range(FILES):
         open_document(client, f"untitled:{i}", TEXT)
         assert await outline(client, f"untitled:{i}")
+    # to a client that does not pull them the server pushes each document's diagnostics, inferring its
+    # bodies, after it answered (S8): work too, waited for
+    can_pull = client.capabilities.text_document is not None and client.capabilities.text_document.diagnostic is not None
+    if not can_pull:
+        while sum(uri.startswith("untitled:") for uri in client.diagnostics) < FILES:
+            await client.wait_for_notification(types.TEXT_DOCUMENT_PUBLISH_DIAGNOSTICS)
     process = psutil.Process(client._server.pid)
 
     # act: this measures being idle, so it can only take time

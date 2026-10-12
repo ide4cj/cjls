@@ -31,7 +31,7 @@ jobs:
       - uses: ./.github/actions/setup-cangjie
       - run: python tests/corpora/fetch.py
       # `-g`: `-O2` is in the release sections alone, and cjc warns of `--coverage` with it (D51)
-      - run: cjpm test --coverage -g --no-progress --timeout-each=2m --target-dir target/cov
+      - run: cjpm test --coverage -g --no-progress --timeout-each=2m --exclude-tags=Gate --target-dir target/cov
       # the report of a run whose tests failed too
       - name: Report
         if: ${{ !cancelled() }}
