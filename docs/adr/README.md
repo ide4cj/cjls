@@ -41,7 +41,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0020](0020-no-lto.md) | The Linux binary is not linked with LTO: cjc miscompiles the stack maps under it | accepted |
 | [0021](0021-weekly-releases.md) | A release every week from a green master; the first one by hand, its changelog written; versions of cjls's own | accepted; a nightly by D32 |
 | [0022](0022-json-codec.md) | The wire is read and written with fjson, through serde's derives `ToJson`/`FromJson` and one `@Serde` marker | accepted |
-| [0023](0023-performance-is-measured-over-stdio.md) | Speed and memory are measured over stdio, by one driver for every server | accepted |
+| [0023](0023-performance-is-measured-over-stdio.md) | Speed and memory are measured over stdio, by one driver for every server | accepted; no threshold by D81 |
 | [0024](0024-fjson-conformance.md) | fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep | accepted; `readFloat64` rounded correctly by D25; the suite fetched by D26 |
 | [0025](0025-toml-through-serde.md) | TOML is read and written by ftoml, TOML 1.1 of our own, through `ToToml`/`FromToml` derived from the same `@Serde` model | accepted |
 | [0026](0026-test-suites-are-fetched.md) | Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored | accepted |
@@ -99,5 +99,6 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0078](0078-the-windows-child-dies-with-its-parent.md) | On Windows the server puts itself in a kill-on-close job before it starts its child | proposed |
 | [0079](0079-settings-are-r1s.md) | The settings are one typed model whose schema the server prints, read as R1 reads them | proposed |
 | [0080](0080-an-open-document-is-in-the-project.md) | A document open is in the project: loose files take the open documents and their directories first, those documents past the budget, and one opened among the files left out finds the project again | accepted |
+| [0081](0081-the-perf-threshold-is-on-queries-executed.md) | The perf threshold is on queries executed, not on time | accepted |
 | [0083](0083-members-named-through-a-type-are-filtered-by-its-type.md) | A member named through a type or alone is filtered by the type the names give, in the lookup | proposed |
 | [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed |

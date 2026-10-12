@@ -147,7 +147,8 @@ jobs:
         run: uv run --project tests/e2e --locked pytest tests/e2e
         shell: bash
 
-  # a report per commit, kept as an artifact; shared runners are too noisy for a threshold (D23)
+  # a report per commit, kept as an artifact; the times are only reported, shared runners are too
+  # noisy to fail on (D23), the queries executed are held to tests/perf/thresholds.toml (D81)
   perf:
     name: Performance (ubuntu-latest)
     needs: build
@@ -167,6 +168,10 @@ jobs:
         run: |
           uv run --project tests/perf --locked cjls-perf run --server cjls -o perf.json
           uv run --project tests/perf --locked cjls-perf compare perf.json >> "$GITHUB_STEP_SUMMARY"
+      - name: thresholds
+        run: |
+          set -o pipefail
+          uv run --project tests/perf --locked cjls-perf check perf.json | tee -a "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
