@@ -59,7 +59,7 @@ Looked at, not references:
 | Name resolution | R1 | `ItemTree` (a file's items, stable under edits in bodies) → `DefMap`, per package rather than per crate: Cangjie's unit of namespace; imports per file | D44, #48 |
 | Types, overloads, class hierarchies, `extend` | R3, R6, R7 | R1 has no overloading and no subclassing: Roslyn's and K2's overload resolution, cjc's Sema as the specification | #48 |
 | Semantic diagnostics, no cascades | R1, R2, R7 | in the inference result, not accumulated; an error type fits anything; a limitation of the analysis told from an error of the user (R2); none on a desugared node (R3, R7) | [below](#semantic-diagnostics), #53 |
-| Macros | R1, R4 | expand out of process, by running the compiled macro package | #47 |
+| Macros | R1, R4 | expand out of process, by running the compiled macro package in R4's `LSPMacroServer` | #47, D87 |
 | Workspace symbols, references | R6, R7, R8 | R1 searches the text, then resolves; the others keep an index. In memory first; on disk only when measured to be needed | #12, #50 |
 | LSP extensions | R1 | `lsp-extensions.md`: methods of its own where LSP has none, under a prefix, in `experimental` | D15 |
 | Test fixtures | R1 | `$0` cursors, `//- /path` multi-file fixtures, `//^^^` annotations, expect-test's `UPDATE_EXPECT` | D43 |
