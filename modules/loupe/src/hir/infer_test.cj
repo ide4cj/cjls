@@ -500,6 +500,50 @@ class InferTest {
     }
 
     @TestCase
+    func anExtendOfAnAliasExtendsTheTypeItExpandsTo() {
+        // compiled with cjc 1.3.0-alpha.20261002
+        checkInference(#"
+            package m
+            type Small = Int16
+            extend Small {
+                func twice(): Int16 { this * 2 }
+            }
+            class Box<T> {
+                let v: T
+                init(v: T) { this.v = v }
+            //       ^ T
+            }
+            type IntBox = Box<Int64>
+            extend IntBox {
+                func get(): Int64 { v }
+            }
+            type Same<T> = Box<T>
+            extend<T> Same<T> {
+                func back(): T { v }
+            }
+            func f(b: UInt8, n: Int16, i: Box<Int64>, s: Box<String>): Unit {
+            //     ^ UInt8
+            //               ^ Int16
+            //                         ^ Box<Int64>
+            //                                        ^ Box<String>
+                let up = b.isAsciiUpperCase()
+            //      ^^ Bool
+                let t = n.twice()
+            //      ^ Int16
+                let x = i.get()
+            //      ^ Int64
+                let y = s.back()
+            //      ^ String
+                // cjc: 'get' is not a member of class 'Box<Struct-String>'
+                let z = s.get()
+            //      ^ {unknown}
+                let m = Byte.Max
+            //      ^ UInt8
+            }
+            "#)
+    }
+
+    @TestCase
     func aLambdaTakesItsParametersFromTheFunctionTypeExpected() {
         checkInference(#"
             package m
