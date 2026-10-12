@@ -88,13 +88,22 @@ func plainStruct(input: Tokens, macroName: String): ?StructDecl {
  * The fields of a type whose fields live in the database, and the rest of its members, kept as they
  * are. `None` once a field that cannot be one was reported.
  */
-func storedFields(decl: StructDecl, macroName: String): ?(ArrayList<VarDecl>, Tokens) {
+func storedFields(decl: StructDecl, macroName: String, initializers!: Bool = false): ?(ArrayList<VarDecl>, Tokens) {
     let fields = ArrayList<VarDecl>()
     var kept = Tokens()
+    var initialized = false
     for (member in decl.body.decls) {
         match (member) {
             case field: VarDecl =>
-                if (!isFieldValid(field, macroName)) {
+                if (!isFieldValid(field, macroName, initializers)) {
+                    return None
+                }
+                if (hasInitializer(field)) {
+                    initialized = true
+                } else if (initialized) {
+                    diagReport(DiagReportLevel.ERROR, field.toTokens(),
+                        "a `@${macroName}` field with an initializer is after those without one",
+                        "its value is a named parameter of the constructor")
                     return None
                 }
                 fields.add(field)
@@ -104,8 +113,15 @@ func storedFields(decl: StructDecl, macroName: String): ?(ArrayList<VarDecl>, To
     (fields, kept)
 }
 
-private func isFieldValid(field: VarDecl, macroName: String): Bool {
-    if (isPresent {=> field.expr}) {
+/**
+ * Whether `field` is declared with a value.
+ */
+func hasInitializer(field: VarDecl): Bool {
+    isPresent {=> field.expr}
+}
+
+private func isFieldValid(field: VarDecl, macroName: String, initializers: Bool): Bool {
+    if (!initializers && hasInitializer(field)) {
         diagReport(DiagReportLevel.ERROR, field.toTokens(), "a `@${macroName}` field has no initializer",
             "its value is given to the constructor")
         return false

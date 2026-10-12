@@ -8,7 +8,7 @@ import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
 import cjsyntax.parse as parseText
 import calca.*
 import calca.macros.*
-import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigin}
 import loupe.syntax.parse
 
 /**
@@ -49,14 +49,17 @@ public enum ExpansionOrigin {
 /**
  * What a macro call adds after its item, as text cjsyntax parses: declarations, signatures alone, their bodies empty;
  * for each item of it in order, what written in the call it comes from; and whether it replaces the item the call is
- * on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let` it becomes).
+ * on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let` it becomes). A
+ * workspace macro's, which the macro server ran (#176), is its whole output, replacing the item, and says where each
+ * of its tokens comes from by `spans` instead of `origins`.
  */
 @Derive[Equatable]
 public struct Expansion {
     public Expansion(
         public let text: String,
         public let origins: Array<ExpansionOrigin>,
-        public let replaces!: Bool = false
+        public let replaces!: Bool = false,
+        public let spans!: Array<MappedSpan> = []
     ) {}
 }
 
@@ -138,20 +141,9 @@ enum StdMacro {
  * `None` if it is not one macro.
  */
 func macroPathOf(db: AnalysisDatabase, resolution: Resolution): ?(String, String) {
-    let ids = match (resolution) {
-        case Found(ids) where !ids.isEmpty() => ids
-        case Ambiguous(targets) =>
-            let decls = targets |> filterMap {
-                one: ScopeTarget => match (one) {
-                    case OfDecl(id) => Some(id)
-                    case OfPackage(_) => None<DefId>
-                }
-            } |> collectArray
-            if (decls.size != targets.size) {
-                return None
-            }
-            decls
-        case _ => return None
+    let ids = macroDeclsOf(resolution)
+    if (ids.isEmpty()) {
+        return None
     }
     let paths = ids.map {
         id => match ((packageRefOf(db, id), (itemOf(db, id)?.names ?? []).get(0))) {
@@ -170,6 +162,29 @@ func macroPathOf(db: AnalysisDatabase, resolution: Resolution): ?(String, String
         first
     } else {
         None
+    }
+}
+
+/**
+ * The declarations `resolution`, of a macro's name, finds: one, or the two of a macro with and without an attribute;
+ * none if it finds something else than declarations.
+ */
+func macroDeclsOf(resolution: Resolution): Array<DefId> {
+    match (resolution) {
+        case Found(ids) => ids
+        case Ambiguous(targets) =>
+            let decls = targets |> filterMap {
+                one: ScopeTarget => match (one) {
+                    case OfDecl(id) => Some(id)
+                    case OfPackage(_) => None<DefId>
+                }
+            } |> collectArray
+            if (decls.size == targets.size) {
+                decls
+            } else {
+                []
+            }
+        case _ => []
     }
 }
 
@@ -221,11 +236,12 @@ func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, Std
 }
 
 /**
- * The macro calls on the items of `file` the analysis expands (`stdCallsOf`), in their order.
+ * The macro calls on the items of `file` whose expansions the analysis reads: those of std it expands (`stdCallsOf`),
+ * in their order, then those of workspace macros the macro server expanded (`workspaceCalls`, #176).
  */
 @CalcaTracked
 public func expandedCalls(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
-    stdCallsOf(db, file).map {pair => pair[0]}
+    stdCallsOf(db, file).map {pair => pair[0]}.concat(readWorkspaceCallsOf(db, file))
 }
 
 /**
@@ -252,7 +268,8 @@ func replacedItemsOf(db: AnalysisDatabase, files: Array<ItemFile>): Array<ItemId
 }
 
 /**
- * The `Expansion` of `call`; an empty one for a call the analysis does not expand, or on an item no longer there.
+ * The `Expansion` of `call`; an empty one for a call the analysis does not expand, or on an item no longer there. A
+ * workspace macro's is the macro server's last that succeeded (#176).
  */
 @CalcaTracked
 public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
@@ -261,6 +278,9 @@ public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
     let item = call.item(db)
     if (!expandedCalls(db, file).contains(call)) {
         return empty
+    }
+    if (let Some(expansion) <- workspaceExpansionOf(db, call)) {
+        return expansion
     }
     let resolution = macrosOf(db, DefId(db, ItemFile.Source(file), item)).get(call.index(db)) ?? return empty
     let stdMacro = stdMacroOf(db, resolution) ?? return empty
@@ -333,6 +353,10 @@ public func scopeFileOf(db: AnalysisDatabase, file: ItemFile): ?SourceFile {
  * comes from (`ExpansionOrigin`), and around it the call or the declaration; `None` if the call is no longer there.
  */
 public func expansionOrigin(db: AnalysisDatabase, call: MacroCallId, item: ItemId): ?(TextRange, TextRange) {
+    let expansion = macroExpansion(db, call)
+    if (!expansion.spans.isEmpty()) {
+        return mappedOrigin(db, call, item, expansion)
+    }
     let items = expansionItemTree(db, call).items
     let declares = {one: Item => one.id == item || one.members.iterator().any {member => member.id == item}}
     let index = (items.enumerate() |> filter {pair: (Int64, Item) => declares(pair[1])} |> first).map {pair: (Int64, Item) => pair[0]} ??
@@ -359,6 +383,31 @@ public func expansionOrigin(db: AnalysisDatabase, call: MacroCallId, item: ItemI
             let args = macroCall.macroArgs() ?? return None
             let token = optionNameOf(args)?[0] ?? return None
             (token.textRange, args.syntax.textRange)
+    }
+}
+
+/**
+ * Where the name of `item`, of the expansion of `call` by the macro server, comes from: the source it was copied from,
+ * or the head of the call (`macroHeadOf`) for a name the macro wrote; and around it the top-level item the call is
+ * under.
+ */
+func mappedOrigin(db: AnalysisDatabase, call: MacroCallId, item: ItemId, expansion: Expansion): ?(TextRange, TextRange) {
+    let expanded = expansionIdMap(db, call).node(item, expansionParse(db, call).syntaxNode()) ?? return None
+    let name = AnyHasName.cast(expanded).flatMap {it => it.name()} ?? return None
+    let file = call.file(db)
+    let root = parse(db, file).syntaxNode()
+    let ids = itemIdMap(db, file)
+    let top = (workspaceCalls(db, file).iterator().filter {one => one.call == call}.next() ?? return None).top
+    let anchor = anchorOf(ids, root, top) ?? return None
+    let topNode = ids.node(top, root) ?? return None
+    let full = (macroCallsOf(topNode).get(0)?.syntax ?? topNode).textRange
+    match (MappedText(expansion.text, expansion.spans).originOf(name.syntax.textRange)) {
+        case Some(FromSource(range)) => (TextRange(range.start + anchor, range.end + anchor), full)
+        case Some(FromCall) =>
+            let node = ids.node(call.item(db), root) ?? return None
+            let macroCall = macroCallsOf(node).get(call.index(db)) ?? return None
+            (macroHeadOf(macroCall), full)
+        case None => None
     }
 }
 
