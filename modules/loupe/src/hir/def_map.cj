@@ -101,15 +101,17 @@ public struct Redefinition <: ToString {
 
 /**
  * What a package declares, all its files together (D44), and nothing it imports: the names of its
- * declarations, each a set (overloads, N21); under them those of its enums' constructors (N24); and
- * the redefinitions among them.
+ * declarations, each a set (overloads, N21); under them those of its enums' constructors (N24); the
+ * redefinitions among them; and the `common` declarations a `specific` one of the same name and kind
+ * completes, which the name stands for no longer (#318).
  */
 @Derive[Equatable]
 public struct DefMap {
     public DefMap(
         public let names: IndexMap<String, Array<Def>>,
         public let ctors: IndexMap<String, Array<Def>>,
-        public let errors: Array<Redefinition>
+        public let errors: Array<Redefinition>,
+        public let commons!: IndexMap<String, Array<Def>> = IndexMap<String, Array<Def>>()
     ) {}
 
     /**
@@ -130,16 +132,30 @@ public struct DefMap {
 /**
  * The `DefMap` of the files of a package, each with its item tree, in the package's order. A name
  * gathers every declaration of it; one that is not a function, or that comes after one that is
- * not, redefines it.
+ * not, redefines it. A `common` declaration of a name and kind a `specific` one has too is put
+ * aside, among `commons`: the two are one declaration, the `specific` (#318).
  */
 public func collectDefMap(db: AnalysisDatabase, files: Array<(ItemFile, ItemTree)>): DefMap {
+    let specifics = HashSet<String>()
+    for ((_, tree) in files) {
+        for (item in tree.items where item.has(Modifier.Specific)) {
+            for (name in item.names) {
+                specifics.add(platformKey(name, item.kind))
+            }
+        }
+    }
     let names = IndexMap<String, ArrayList<(Def, ItemKind)>>()
     let ctors = IndexMap<String, ArrayList<Def>>()
+    let commons = IndexMap<String, ArrayList<Def>>()
     let errors = ArrayList<Redefinition>()
     for ((file, tree) in files) {
         for (item in tree.items) {
             let def = Def(DefId(db, file, item.id), visibilityOf(item))
             for (name in item.names) {
+                if (item.has(Modifier.Common) && specifics.contains(platformKey(name, item.kind))) {
+                    entryOf(commons, name).add(def)
+                    continue
+                }
                 let taken = entryOf(names, name)
                 if (!taken.isEmpty() && (item.kind != ItemKind.Func || taken.iterator().any {t => t[1] != ItemKind.Func})) {
                     errors.add(Redefinition(def.id, name))
@@ -147,14 +163,24 @@ public func collectDefMap(db: AnalysisDatabase, files: Array<(ItemFile, ItemTree
                 taken.add((def, item.kind))
             }
             // an enum's constructors are seen as the enum is: they take no modifiers of their own
-            for (ctor in item.members where ctor.kind == ItemKind.EnumCtor) {
+            let completed = item.has(Modifier.Common) &&
+                item.names.iterator().any {name => specifics.contains(platformKey(name, item.kind))}
+            for (ctor in item.members where ctor.kind == ItemKind.EnumCtor && !completed) {
                 for (name in ctor.names) {
                     entryOf(ctors, name).add(Def(DefId(db, file, ctor.id), def.visibility))
                 }
             }
         }
     }
-    DefMap(frozen(names) {taken => taken.toArray().map {t => t[0]}}, frozen(ctors) {defs => defs.toArray()}, errors.toArray())
+    DefMap(frozen(names) {taken => taken.toArray().map {t => t[0]}}, frozen(ctors) {defs => defs.toArray()}, errors.toArray(),
+        commons: frozen(commons) {defs => defs.toArray()})
+}
+
+/**
+ * What pairs a `common` declaration with a `specific` one: its name and its kind.
+ */
+func platformKey(name: String, kind: ItemKind): String {
+    "${kind} ${name}"
 }
 
 /**
