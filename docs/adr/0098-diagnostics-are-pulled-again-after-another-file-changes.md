@@ -1,4 +1,4 @@
-# ADR-0097: Diagnostics depend on other files: pulled again after any change
+# ADR-0098: Diagnostics depend on other files: pulled again after any change
 
 Status: accepted, 2026-10-12
 Amends ADR-0014: `interFileDependencies: true`; `workspace/diagnostic/refresh` is sent

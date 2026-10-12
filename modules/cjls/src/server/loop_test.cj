@@ -53,7 +53,7 @@ class LoopTest {
 
     @TestCase[row in [(true, true, 1), (true, false, 0), (false, true, 0)]]
     func aWriteChangingTheFilesAsksAClientThatCanForItsDiagnosticsAgain(row: (Bool, Bool, Int64)) {
-        // arrange - a document's diagnostics may change with another file (D97)
+        // arrange - a document's diagnostics may change with another file (D98)
         let (refreshes, changes, asked) = row
         let state = stateWith("a")
         state.refreshesDiagnostics = refreshes

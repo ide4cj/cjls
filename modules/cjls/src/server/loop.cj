@@ -27,7 +27,7 @@ public class Loop <: FromContext<Loop> {
 
     /**
      * `refreshTokens` asks the client for the semantic tokens of its documents again (D72),
-     * `refreshDiagnostics` for their diagnostics (D97).
+     * `refreshDiagnostics` for their diagnostics (D98).
      */
     Loop(public let state: ServerState, private let push: ?DiagnosticsPush, private let refreshTokens!: ?() -> Unit = None,
         private let refreshDiagnostics!: ?() -> Unit = None) {}
