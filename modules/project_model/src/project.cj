@@ -112,8 +112,22 @@ class Loading {
 public func findProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg(),
     budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): ProjectLoad {
     let problems = ArrayList<String>()
-    for (load in [{=> loadProjectJson(root.join(PROJECT_JSON), env: env, cfg: cfg)},
-        {=> loadCjpmProject(root.join("cjpm.toml"), env: env, cfg: cfg)}]) {
+    if (let Some(found) <- manifestProject(root, env, cfg, problems)) {
+        return found
+    }
+    let loose = looseProject(root, env: env, cfg: cfg, budget: budget, open: open)
+    problems.add(all: loose.problems)
+    ProjectLoad(loose.model, loose.source, problems.toArray(), partial: loose.partial)
+}
+
+/**
+ * The project of the manifest in `dir`, its `cj-project.json` or else its `cjpm.toml`, the
+ * problems of those that cannot be read added to `problems`; `None` if neither is there or can be
+ * read.
+ */
+func manifestProject(dir: VfsPath, env: (String) -> ?String, cfg: Cfg, problems: ArrayList<String>): ?ProjectLoad {
+    for (load in [{=> loadProjectJson(dir.join(PROJECT_JSON), env: env, cfg: cfg)},
+        {=> loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cfg)}]) {
         try {
             if (let Some(found) <- load()) {
                 problems.add(all: found.problems)
@@ -123,9 +137,66 @@ public func findProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = ho
             problems.add(e.message)
         }
     }
-    let loose = looseProject(root, env: env, cfg: cfg, budget: budget, open: open)
-    problems.add(all: loose.problems)
-    ProjectLoad(loose.model, loose.source, problems.toArray(), partial: loose.partial)
+    None
+}
+
+/**
+ * The directory of the project the file at `path` is of, as found from the file itself (#265):
+ * the nearest above it, up to `root`, holding a `cj-project.json` or a `cjpm.toml`; for a
+ * `cjpm.toml` that a `cjpm.toml` above it, up to `root`, lists among its workspace's `members`,
+ * that workspace's. `None` if `path` is not under `root`, or there is no manifest up to it.
+ *
+ * Hidden directories and `target` are gone through: a checkout of its own may be in one.
+ */
+public func projectDirOf(path: VfsPath, root: VfsPath, env!: (String) -> ?String): ?VfsPath {
+    if (!path.isUnder(root)) {
+        return None
+    }
+    var dir = path.parent
+    while (let Some(at) <- dir) {
+        if (hasManifest(at)) {
+            return workspaceOf(at, root, env)
+        }
+        if (at == root) {
+            return None
+        }
+        dir = at.parent
+    }
+    None
+}
+
+private func hasManifest(dir: VfsPath): Bool {
+    [PROJECT_JSON, "cjpm.toml"].iterator().any {name => dir.join(name).filePath.map {file => isFile(file)} ?? false}
+}
+
+/**
+ * The directory of the workspace whose `members` list `dir`, the nearest up to `root`; `dir`
+ * itself if none does.
+ */
+private func workspaceOf(dir: VfsPath, root: VfsPath, env: (String) -> ?String): VfsPath {
+    if (dir == root) {
+        return dir
+    }
+    var above = dir.parent
+    while (let Some(at) <- above) {
+        let manifest = at.join("cjpm.toml")
+        if (manifest.filePath.map {file => isFile(file)} ?? false) {
+            let members = try {
+                readManifest(manifest).workspace.flatMap {workspace => workspace.members} ?? []
+            } catch (_: ProjectException) {
+                Array<String>()
+            }
+            let loading = Loading(env, hostCfg())
+            if (members.iterator().any {member => loading.resolve(at, member) == dir}) {
+                return at
+            }
+        }
+        if (at == root) {
+            break
+        }
+        above = at.parent
+    }
+    dir
 }
 
 /**
@@ -349,10 +420,13 @@ func entriesOf(dir: VfsPath): Array<FileInfo> {
  * The projects of `roots`, each the first there is: the `cj-project.json` in it, the projects of
  * `linked` under it, its `cjpm.toml`, its loose files. A project of `linked` (a `cj-project.json`,
  * or a directory to find one in) under no root is there too. Loose files take the documents `open`
- * first, and those whatever the budget.
+ * first, and those whatever the budget. Then the projects of the directories `found`, each the
+ * manifest in it, found from a document opened (`projectDirOf`, #265); one whose manifest is gone
+ * is no project.
  */
 public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (String) -> ?String,
-    cfg!: Cfg = hostCfg(), budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): Array<ProjectLoad> {
+    cfg!: Cfg = hostCfg(), budget!: Int64 = Int64.Max, open!: Array<VfsPath> = [],
+    found!: Array<VfsPath> = []): Array<ProjectLoad> {
     let loads = ArrayList<ProjectLoad>()
     for (root in roots) {
         let under = linked.filter {path => path.isUnder(root)}
@@ -364,6 +438,15 @@ public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (S
     }
     for (path in linked where !roots.iterator().any {root => path.isUnder(root)}) {
         loads.add(linkedProject(path, env, cfg, budget, open))
+    }
+    for (dir in found) {
+        let problems = ArrayList<String>()
+        match (manifestProject(dir, env, cfg, problems)) {
+            case Some(load) => loads.add(load)
+            case None where !problems.isEmpty() =>
+                loads.add(ProjectLoad(ProjectModel(cfg, []), CjpmManifest(dir.join("cjpm.toml")), problems.toArray()))
+            case None => ()
+        }
     }
     loads.toArray()
 }

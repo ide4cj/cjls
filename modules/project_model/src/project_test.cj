@@ -519,3 +519,75 @@ class FindProjectTest {
         @Expect(load.model.modules.map {module => module.root}, [dir, dir])
     }
 }
+
+@Test
+class ProjectDirOfTest {
+    @TestCase
+    func aFileIsOfTheNearestManifestAboveIt() {
+        // arrange - the root lists neither; a checkout of its own in a hidden directory
+        let dir = tree([("cjpm.toml", "[package]\nname = \"root\"\n"), ("tools/demo/cjpm.toml", "[package]\nname = \"demo\"\n"),
+            ("tools/demo/src/a/b.cj", ""), (".claude/w/${PROJECT_JSON}", "{}"), (".claude/w/src/c.cj", ""),
+            ("src/d.cj", "")])
+
+        // act
+        let demo = projectDirOf(dir.join("tools/demo/src/a/b.cj"), dir, env: noEnv)
+        let hidden = projectDirOf(dir.join(".claude/w/src/c.cj"), dir, env: noEnv)
+        let own = projectDirOf(dir.join("src/d.cj"), dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(demo, Some(dir.join("tools/demo")))
+        @Expect(hidden, Some(dir.join(".claude/w")))
+        @Expect(own, Some(dir))
+    }
+
+    @TestCase
+    func aMemberIsOfTheWorkspaceListingIt() {
+        // arrange - the workspace below the root, which lists neither it nor its member
+        let dir = tree([("cjpm.toml", "[package]\nname = \"root\"\n"),
+            ("sub/cjpm.toml", "[workspace]\nmembers = [\"./m\"]\n"), ("sub/m/cjpm.toml", "[package]\nname = \"m\"\n"),
+            ("sub/m/src/a.cj", ""), ("sub/other/cjpm.toml", "[package]\nname = \"o\"\n"), ("sub/other/src/b.cj", "")])
+
+        // act
+        let member = projectDirOf(dir.join("sub/m/src/a.cj"), dir, env: noEnv)
+        let notListed = projectDirOf(dir.join("sub/other/src/b.cj"), dir, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(member, Some(dir.join("sub")))
+        @Expect(notListed, Some(dir.join("sub/other")))
+    }
+
+    @TestCase
+    func aFileWithNoManifestUpToTheRootOrOutsideItIsOfNone() {
+        // arrange - a manifest above the root is not looked at
+        let dir = tree([("a/b.cj", ""), ("cjpm.toml", "[package]\nname = \"above\"\n")])
+        let root = dir.join("a")
+
+        // act
+        let loose = projectDirOf(root.join("b.cj"), root, env: noEnv)
+        let outside = projectDirOf(dir.join("c.cj"), root, env: noEnv)
+        removeTree(dir)
+
+        // assert
+        @Expect(loose, None<VfsPath>)
+        @Expect(outside, None<VfsPath>)
+    }
+}
+
+@Test
+class FoundProjectsTest {
+    @TestCase
+    func aDirectoryFoundIsTheProjectOfItsManifestAndOneWithoutNone() {
+        // arrange
+        let dir = tree([("demo/cjpm.toml", "[package]\nname = \"demo\"\n"), ("demo/src/a.cj", ""), ("gone/src/b.cj", "")])
+
+        // act
+        let loads = findProjects([], [], env: noEnv, cfg: LINUX, found: [dir.join("demo"), dir.join("gone")])
+        removeTree(dir)
+
+        // assert
+        @Expect(loads.map {load => load.source.toString()}, ["cjpm.toml at ${dir.join("demo/cjpm.toml")}"])
+        @Expect(packagesOf(loads[0].model, dir), ["demo: demo=demo/src/a.cj"])
+    }
+}
