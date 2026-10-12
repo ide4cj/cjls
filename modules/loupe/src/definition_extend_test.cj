@@ -106,7 +106,6 @@ class ExtendDefinitionTest {
     @TestCase
     func anExtendOfAnInterfacesPackageThroughTheInterfaceImported() {
         // N82
-        // the interface's `e` too: an implementation is not told from what it implements (step 8)
         checkDefinition(#"
             //- /a/a.cj module=m package=m.a
             package m.a
@@ -116,7 +115,6 @@ class ExtendDefinitionTest {
             import m.a.C
             public interface I {
                 static func e(): Int64
-            //              ^ def
             }
             extend C <: I {
                 public static func e(): Int64 { 1 }
@@ -133,7 +131,6 @@ class ExtendDefinitionTest {
     @TestCase
     func anExtendOfAnInterfacesPackageThroughAGlob() {
         // N82
-        // the interface's `e` too: an implementation is not told from what it implements (step 8)
         checkDefinition(#"
             //- /a/a.cj module=m package=m.a
             package m.a
@@ -143,7 +140,6 @@ class ExtendDefinitionTest {
             import m.a.C
             public interface I {
                 static func e(): Int64
-            //              ^ def
             }
             extend C <: I {
                 public static func e(): Int64 { 1 }
@@ -160,7 +156,6 @@ class ExtendDefinitionTest {
     @TestCase
     func anExtendOfAnInterfacesPackageThroughAnAlias() {
         // N82
-        // the interface's `e` too: an implementation is not told from what it implements (step 8)
         checkDefinition(#"
             //- /a/a.cj module=m package=m.a
             package m.a
@@ -170,7 +165,6 @@ class ExtendDefinitionTest {
             import m.a.C
             public interface I {
                 static func e(): Int64
-            //              ^ def
             }
             extend C <: I {
                 public static func e(): Int64 { 1 }
@@ -187,7 +181,6 @@ class ExtendDefinitionTest {
     @TestCase
     func anExtendOfAnInterfacesPackageThroughAPublicImportOfAnotherFile() {
         // N82: a re-export is seen in every file of the package (N11)
-        // the interface's `e` too: an implementation is not told from what it implements (step 8)
         checkDefinition(#"
             //- /a/a.cj module=m package=m.a
             package m.a
@@ -197,7 +190,6 @@ class ExtendDefinitionTest {
             import m.a.C
             public interface I {
                 static func e(): Int64
-            //              ^ def
             }
             extend C <: I {
                 public static func e(): Int64 { 1 }
@@ -366,7 +358,6 @@ class ExtendDefinitionTest {
     @TestCase
     func anExtendOfASuperclassSeenThroughAnInterfaceByThis() {
         // N82, N79: `this` sees the extends of its supertypes the file sees
-        // the interface's `e` too: an implementation is not told from what it implements (step 8)
         checkDefinition(#"
             //- /a/a.cj module=m package=m.a
             package m.a
@@ -376,7 +367,6 @@ class ExtendDefinitionTest {
             import m.a.C
             public interface I {
                 func e(): Int64
-            //       ^ def
             }
             extend C <: I {
                 public func e(): Int64 { 1 }
