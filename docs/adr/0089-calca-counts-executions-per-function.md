@@ -1,4 +1,4 @@
-# ADR-0087: calca counts the executions of each tracked function, and keeps no trace
+# ADR-0089: calca counts the executions of each tracked function, and keeps no trace
 
 Status: accepted, 2026-10-12
 Amends ADR-0081: the count is also per function
