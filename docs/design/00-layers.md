@@ -36,7 +36,7 @@ Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `lou
 
 `cjo` (D37) depends on `fbs` alone, the runtime of what `fbs_codegen` generates: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
 
-`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. Nothing uses it yet (#176).
+`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. It also depends on `cjsyntax`, whose tokens it turns into cjc's (D95). Nothing uses it yet (#176).
 
 Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37; `macro_server`'s views and writers, D87), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
 
