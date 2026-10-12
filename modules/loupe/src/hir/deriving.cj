@@ -3,8 +3,8 @@ package loupe.hir
 import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, TextRange}
-import cjsyntax.{CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, Decl, MacroAttr, MacroExpandDecl, TypeParam, identText}
+import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.{AnyHasName, Decl, MacroAttr, MacroExpandDecl, identText}
 
 /**
  * An interface `@Derive[...]` lists: the last segment of its path, where that is written, and the bounds of its
@@ -93,25 +93,21 @@ enum Derivable {
  */
 func deriveExpansion(decl: Decl, call: MacroExpandDecl): ?Expansion {
     let name = AnyHasName.cast(decl.syntax).flatMap {it => it.name()}.flatMap {name => name.identToken()} ?? return None
-    let generics = match (AnyHasTypeParams.cast(decl.syntax).flatMap {it => it.typeParamList()}) {
-        case Some(list) => list.typeParams() |> filterMap {param: TypeParam => param.name().flatMap {name => name.identToken()}} |>
-            map {token: CjSyntaxToken => token.text()} |> collectArray
-        case None => Array<String>()
-    }
+    let generics = genericsOf(decl)
     let entries = match (call.macroAttr()) {
         case Some(attr) => deriveEntries(attr)
         case None => Array<DeriveEntry>()
     }
     let listsEquatable = entries.iterator().any {entry => entry.name == "Equatable"}
     let text = StringBuilder()
-    let origins = ArrayList<Int64>()
+    let origins = ArrayList<ExpansionOrigin>()
     for (i in 0..entries.size) {
         let derivable = Derivable.named(entries[i].name) ?? continue
         appendExtend(text, name.text(), generics, derivable, entries[i].bounds)
-        origins.add(i)
+        origins.add(ExpansionOrigin.OfEntry(i))
         if (derivable == Derivable.DeriveComparable && !listsEquatable) {
             appendExtend(text, name.text(), generics, Derivable.DeriveEquatable, [])
-            origins.add(i)
+            origins.add(ExpansionOrigin.OfEntry(i))
         }
     }
     Expansion(text.toString(), origins.toArray())
@@ -166,30 +162,59 @@ func identName(ident: String): String {
 }
 
 /**
- * The interfaces `attr`, the `[...]` of `@Derive`, lists, read as std's `DeriveInputParser` does: comma-separated
- * paths, each maybe followed by `where` and constraints, a comma followed by `T <:` one more constraint, else the
- * next interface. What is neither is skipped up to the next comma.
+ * `tokens` as written, one space where anything was between two.
  */
-func deriveEntries(attr: MacroAttr): Array<DeriveEntry> {
+func tokensText(tokens: Array<CjSyntaxToken>): String {
+    let text = StringBuilder()
+    for (i in 0..tokens.size) {
+        if (i > 0 && tokens[i - 1].textRange.end != tokens[i].textRange.start) {
+            text.append(" ")
+        }
+        text.append(tokens[i].text())
+    }
+    text.toString()
+}
+
+/**
+ * The tokens of `node` but whitespace and comments, in order.
+ */
+func tokensOf(node: CjSyntaxNode): Array<CjSyntaxToken> {
     let tokens = ArrayList<CjSyntaxToken>()
-    for (element in attr.syntax.descendantsWithTokens()) {
+    for (element in node.descendantsWithTokens()) {
         if (let SyntaxElement.Token(token) <- element) {
             if (!token.kind.isTrivia()) {
                 tokens.add(token)
             }
         }
     }
-    let start = if (tokens.size > 0 && tokens[0].kind == SyntaxKind.LBracket) {
+    tokens.toArray()
+}
+
+/**
+ * The tokens of `node`, a `[...]` or a `(...)`, inside its brackets.
+ */
+func tokensInside(node: CjSyntaxNode, open: SyntaxKind, close: SyntaxKind): Array<CjSyntaxToken> {
+    let tokens = tokensOf(node)
+    let start = if (tokens.size > 0 && tokens[0].kind == open) {
         1
     } else {
         0
     }
-    let end = if (tokens.size > start && tokens[tokens.size - 1].kind == SyntaxKind.RBracket) {
+    let end = if (tokens.size > start && tokens[tokens.size - 1].kind == close) {
         tokens.size - 1
     } else {
         tokens.size
     }
-    DeriveAttrParser(tokens.toArray()[start..end]).entries()
+    tokens[start..end]
+}
+
+/**
+ * The interfaces `attr`, the `[...]` of `@Derive`, lists, read as std's `DeriveInputParser` does: comma-separated
+ * paths, each maybe followed by `where` and constraints, a comma followed by `T <:` one more constraint, else the
+ * next interface. What is neither is skipped up to the next comma.
+ */
+func deriveEntries(attr: MacroAttr): Array<DeriveEntry> {
+    DeriveAttrParser(tokensInside(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket)).entries()
 }
 
 /**
@@ -219,7 +244,7 @@ class DeriveAttrParser {
                 while (let Some(from) <- boundsAt(pos)) {
                     let param = tokens[pos].text()
                     let to = constraintEnd(from)
-                    bounds.add((param, textOf(from, to)))
+                    bounds.add((param, tokensText(tokens[from..to])))
                     pos = to
                     if (at(pos, SyntaxKind.Comma) && boundsAt(pos + 1).isSome()) {
                         pos++
@@ -232,20 +257,6 @@ class DeriveAttrParser {
             skipPastComma()
         }
         found.toArray()
-    }
-
-    /**
-     * The tokens from `from` up to `to` as written, one space where anything was between two.
-     */
-    private func textOf(from: Int64, to: Int64): String {
-        let text = StringBuilder()
-        for (i in from..to) {
-            if (i > from && tokens[i - 1].textRange.end != tokens[i].textRange.start) {
-                text.append(" ")
-            }
-            text.append(tokens[i].text())
-        }
-        text.toString()
     }
 
     private func at(index: Int64, kind: SyntaxKind): Bool {

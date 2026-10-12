@@ -20,7 +20,7 @@ public func resolveMacroPath(db: AnalysisDatabase, pkg: Package, file: SourceFil
         return [lookUp(db, pkg, file, path[0], Namespace.Macros)]
     }
     let found = ArrayList<Resolution>()
-    let qualifier = match (qualifierNamed(db, TypeScope([], pkg, file), path[0])) {
+    let qualifier = match (qualifierNamed(db, TypeScope([], pkg, file), path[0], stage: ScopeStage.Written)) {
         case Some(Resolved(QualifierOf(one))) =>
             found.add(Resolution.FoundPackage(one))
             Some(one)
@@ -46,7 +46,7 @@ public func resolveMacroPath(db: AnalysisDatabase, pkg: Package, file: SourceFil
  */
 func macroOfPackage(db: AnalysisDatabase, pkg: Package, target: PackageRef, name: String): Resolution {
     let relation = relationOf(pkg.name(db), nameOf(db, target))
-    let ids = visibleOf(packageExports(db, target).names.get(name) ?? [], relation, Visibility.Private).filter {
+    let ids = visibleOf(exportsAt(db, target, ScopeStage.Written).names.get(name) ?? [], relation, Visibility.Private).filter {
         id => isIn(id.item(db).kind, Namespace.Macros)
     }
     match (ids.size) {
@@ -77,11 +77,12 @@ public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
 }
 
 /**
- * Whether a macro whose expansion is not read, any but std's `@Derive` (#175), is called on `def` or on one of its
- * members: what it adds to them is not known (#176).
+ * Whether a macro whose expansion is not read (`isReadMacro`) is called on `def` or on one of its members: what it
+ * adds to them is not known (#176).
  */
 public func hasUnreadMacros(db: AnalysisDatabase, def: DefId): Bool {
-    if (macrosOf(db, def).iterator().any {one => !isStdDerive(db, one)}) {
+    let onMember = parentOf(db, def).isSome()
+    if (macrosOf(db, def).iterator().any {one => !isReadMacro(db, one, onMember: onMember)}) {
         return true
     }
     let item = declItemOf(db, def) ?? return false

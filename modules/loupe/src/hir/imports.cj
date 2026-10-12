@@ -306,8 +306,8 @@ public func visibleOf(defs: Array<Def>, relation: PackageRelation, level: Visibi
  * them, or the one `name` under its alias.
  */
 func namesOf(db: AnalysisDatabase, from: PackageRef, target: PackageRef, targetName: String, level: Visibility,
-    name: ?(String, ?String)): ImportResolution {
-    let exports = packageExports(db, target)
+    name: ?(String, ?String), stage!: ScopeStage = ScopeStage.Expanded): ImportResolution {
+    let exports = exportsAt(db, target, stage)
     if (exports.cyclic) {
         return ImportResolution.Unresolved(ImportError.Cycle(targetName))
     }
@@ -347,19 +347,29 @@ public struct PackageExports {
 }
 
 /**
- * The `PackageExports` of `pkg`, on those of the packages it re-exports from: a chain of queries
- * down the packages, no fixed point (D44), for an import names a package by its full name and
- * packages import one another in no cycle.
+ * The `PackageExports` of `pkg`, what the macros called in it add included: `exportsAt` `Expanded`.
+ */
+public func packageExports(db: AnalysisDatabase, pkg: PackageRef): PackageExports {
+    exportsAt(db, pkg, ScopeStage.Expanded)
+}
+
+/**
+ * The `PackageExports` of `pkg` at `stage`, on those of the packages it re-exports from: a chain
+ * of queries down the packages, no fixed point (D44), for an import names a package by its full
+ * name and packages import one another in no cycle.
  */
 @CalcaTracked[cycleResult: exportsOnCycle]
-public func packageExports(db: AnalysisDatabase, pkg: PackageRef): PackageExports {
+public func exportsAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): PackageExports {
+    if (let Binary(_) <- pkg && stage == ScopeStage.Written) {
+        return exportsAt(db, pkg, ScopeStage.Expanded)
+    }
     let names = IndexMap<String, ArrayList<Def>>()
-    for ((name, defs) in defMap(db, pkg).names) {
+    for ((name, defs) in defMapAt(db, pkg, stage).names) {
         for (def in defs where def.visibility != Visibility.Private) {
             addOnce(entryOf(names, name), def)
         }
     }
-    let reExported = packageImports(db, pkg)
+    let reExported = packageImportsAt(db, pkg, stage)
     for ((name, imported) in reExported.names) {
         let entry = entryOf(names, name)
         for (one in imported) {
@@ -369,7 +379,7 @@ public func packageExports(db: AnalysisDatabase, pkg: PackageRef): PackageExport
         }
     }
     for (glob in reExported.globs) {
-        let exports = packageExports(db, glob.pkg)
+        let exports = exportsAt(db, glob.pkg, stage)
         for ((name, defs) in exports.names) {
             let ids = visibleOf(defs, glob.relation, glob.level)
             if (!ids.isEmpty()) {
@@ -394,7 +404,7 @@ public func packageExports(db: AnalysisDatabase, pkg: PackageRef): PackageExport
 /**
  * Exports met again on a cycle of re-exports: none, and the cycle told.
  */
-func exportsOnCycle(_: AnalysisDatabase, _: PackageRef): PackageExports {
+func exportsOnCycle(_: AnalysisDatabase, _: PackageRef, _: ScopeStage): PackageExports {
     PackageExports(IndexMap<String, Array<Def>>(), cyclic: true)
 }
 
