@@ -6,6 +6,7 @@ import ginkgo.TextRange
 import rope.Rope
 import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
+import loupe.fixture.*
 
 func diagnosticsOf(text: String): Array<Diagnostic> {
     let db = AnalysisDatabase()
@@ -261,6 +262,25 @@ class InferenceDiagnosticsTest {
                 let u = s.trimStart(r'a')
             }
             "#, binaries: ["std.core", "std.collection"])
+    }
+
+    @TestCase
+    func aFileOfNoPackageCallsAVariadicFunctionOfStdCoreWithItsArraysElements() {
+        // arrange - a project with the SDK's std, and a file in none of its packages: one under
+        // `target`, or above the root
+        let fixture = Fixture.parse(#"
+            //- /m/m.cj module=m package=m
+            package m
+            "#)
+        let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let loose = FileId(fixture.files.size)
+        db.setFileText(loose, Rope("func g(): Unit {\n    let d = Float64.max(1.0, 2.0)\n    let e = Float64.max(1.0, 2.0, 3.0, 4.0)\n}\n"))
+
+        // act
+        let result = diagnostics(db, loose).map {one => one.message}
+
+        // assert - cjc: none, `others` taking any number of elements
+        @Expect(result, Array<String>())
     }
 }
 
