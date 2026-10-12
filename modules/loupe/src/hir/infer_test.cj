@@ -2007,10 +2007,9 @@ class InferTest {
             //      ^^^^^^^^^^^ Option<String>
                 let lambdaOfChain = {=> a?.b}
             //      ^^^^^^^^^^^^^ () -> Option<Int64>
-                // not yet: an `Option<Int64>` to cjc, the `Int64` boxed, as of `if (c) { o } else { 1 }`;
-                // branches are joined unboxed here
+                // an `Option<Int64>`, the `Int64` boxed, as of `if (c) { o } else { 1 }` (#249)
                 let joined = if (true) { a?.b } else { 1 }
-            //      ^^^^^^ {unknown}
+            //      ^^^^^^ Option<Int64>
             }
             "#)
     }

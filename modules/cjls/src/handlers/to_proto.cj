@@ -221,6 +221,7 @@ func diagnostic(text: Rope, diagnostic: LoupeDiagnostic, encoding: Encoding): Di
 func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
     match (severity) {
         case Severity.Error => DiagnosticSeverity.Error
+        case Severity.Warning => DiagnosticSeverity.Warning
     }
 }
 

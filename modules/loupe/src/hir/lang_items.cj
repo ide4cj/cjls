@@ -57,6 +57,10 @@ public enum LangItem {
      * `std.ast`'s `Tokens`: `quote(…)` (N136).
      */
     | TokensClass
+    /**
+     * `Any`: what every type implements.
+     */
+    | AnyInterface
 
     public func name(): String {
         match (this) {
@@ -72,6 +76,7 @@ public enum LangItem {
             case ArrayStruct => "Array"
             case ExceptionClass => "Exception"
             case TokensClass => "Tokens"
+            case AnyInterface => "Any"
         }
     }
 
@@ -82,7 +87,7 @@ public enum LangItem {
             case CompositionFunc => ItemKind.Func
             case ObjectClass | FutureClass | ExceptionClass | TokensClass => ItemKind.Class
             case StringStruct | RangeStruct | ArrayStruct => ItemKind.Struct
-            case IterableInterface => ItemKind.Interface
+            case IterableInterface | AnyInterface => ItemKind.Interface
         }
     }
 
