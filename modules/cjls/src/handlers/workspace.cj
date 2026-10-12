@@ -12,7 +12,7 @@ import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
 import project_model.{CangjieHome, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON, ProjectLoad,
-    ProjectSource, withCangjieHome, withCangjieSrc}
+    projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -86,6 +86,8 @@ func handleDidChangeWorkspaceFolders(loop: Loop, client: Client, logger: Logger,
     state.roots.removeIf {root => removed.contains(root)}
     let added = rootsOf(params.event.added).filter {root => !state.roots.contains(root)}
     state.roots.add(all: added)
+    // a project found from a document goes with the last root it was under
+    state.foundProjects = state.foundProjects.filter {dir => state.roots.iterator().any {root => dir.isUnder(root)}}
     unwatch(state, client, logger, removed)
     watch(state, client, logger, added)
 
@@ -160,9 +162,14 @@ struct LoadRequest {
          */
         let budget: Int64,
         /**
-         * The documents open: loose files take them, and their directories, first (D80).
+         * The documents open: loose files take them, and their directories, first (D80); one in
+         * no package of the projects found finds its own (#265).
          */
-        let open: Array<VfsPath>
+        let open: Array<VfsPath>,
+        /**
+         * The directories of the projects found from documents opened before (#265).
+         */
+        let found!: Array<VfsPath> = []
     ) {}
 }
 
@@ -205,7 +212,8 @@ func loadRequest(state: ServerState): ?LoadRequest {
         return None
     }
     LoadRequest(state.beginLoad(), state.roots.toArray(), settings.linkedProjects, settings.cangjieHome,
-        settings.cangjieSrc, state.workDoneProgress, state.loadBudget, collectArray(state.openDocuments.keys()))
+        settings.cangjieSrc, state.workDoneProgress, state.loadBudget, collectArray(state.openDocuments.keys()),
+        found: state.foundProjects)
 }
 
 /**
@@ -252,7 +260,18 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
         logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
     }
     let env = withCangjieSrc(withHome, src)
-    let loads = findProjects(request.roots, request.linkedProjects, env: env, budget: budget, open: request.open)
+    let found = findProjects(request.roots, request.linkedProjects, env: env, budget: budget, open: request.open,
+        found: request.found)
+    // a document open in none of their packages finds its own project, as R1 does on open (#265)
+    let known = HashSet<VfsPath>(ProjectModel.merge(found.map {load => load.model}, hostCfg()).files())
+    let more = ArrayList<VfsPath>()
+    for (path in request.open where !known.contains(path)) {
+        let loaded = request.found.concat(more.toArray())
+        if (let Some(dir) <- newProjectOf(path, request.roots, request.linkedProjects, loaded)) {
+            more.add(dir)
+        }
+    }
+    let loads = found.concat(findProjects([], [], env: env, found: more.toArray()))
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {
@@ -282,6 +301,7 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
         if (state.isLoading(request.load)) {
             state.setProject(model, binaries: binaries.files)
             state.partialRoots = partialRootsOf(loads)
+            state.foundProjects = request.found.concat(more.toArray())
             watchBinaries(state, client, logger, model)
             Some(openFirst(model.files().concat(model.binarySourceFiles()).filter {
                 path => !state.openDocuments.contains(path) && !state.knows(path)
@@ -308,9 +328,9 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
     let warning = loop.write {
         state: ServerState =>
         if (state.endLoad(request.load)) {
-            // a document opened since the project was found, among the files it left out
+            // a document opened since the project was found, among the files it left out or of a project of its own
             let opened = state.openDocuments.keys().iterator().filter {path => !request.open.contains(path)}
-            if (opened.any {path => state.leftOut(path)}) {
+            if (opened.any {path => findsProjectAgain(state, path)}) {
                 startLoad(loop, client, logger)
             }
             Some(sdkWarning(state, home))
@@ -329,6 +349,37 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
             [("budget", budget), ("roots", String.join(request.roots.map {root => root.toString()}, delimiter: ", "))])
     }
     warning
+}
+
+/**
+ * Whether the document at `path`, open, finds the project again: it is among the files a loose
+ * root left out (D80), or in no package, of a project not loaded yet (#265).
+ */
+func findsProjectAgain(state: ServerState, path: VfsPath): Bool {
+    state.leftOut(path) || !state.inProject(path) &&
+        newProjectOf(path, state.roots.toArray(), state.settings.linkedProjects, state.foundProjects).isSome()
+}
+
+/**
+ * The directory of the project the Cangjie file at `path` is of, found from the file up to the root
+ * it is under (`projectDirOf`), if that is none loaded: no root, none of `linked`, none of `found`.
+ * `None` for a file of a project loaded, or of none.
+ */
+func newProjectOf(path: VfsPath, roots: Array<VfsPath>, linked: Array<VfsPath>, found: Array<VfsPath>): ?VfsPath {
+    if (!isCangjieFile(path.name)) {
+        return None
+    }
+    for (root in roots) {
+        let dir = projectDirOf(path, root, env: {name => getVariable(name)}) ?? continue
+        let loaded = roots.contains(dir) || found.contains(dir) ||
+            linked.iterator().any {project => project == dir || project == dir.join(PROJECT_JSON)}
+        return if (loaded) {
+            None
+        } else {
+            dir
+        }
+    }
+    None
 }
 
 /**

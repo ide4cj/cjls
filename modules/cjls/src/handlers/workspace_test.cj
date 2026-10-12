@@ -682,6 +682,138 @@ class LeftOutDocumentTest {
     }
 }
 
+let DEMO_MAIN = "package demo\n\nimport util.*\n\nmain() {\n    helper()\n    local()\n}\n"
+
+/**
+ * A root whose `cjpm.toml` lists none of the two projects below it: `tools/demo`, which depends on
+ * `tools/util` by its path (#265).
+ */
+func nestedProjects(): Path {
+    workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/app.cj", "package app\n"),
+        ("tools/demo/cjpm.toml", "[package]\nname = \"demo\"\n[dependencies]\nutil = { path = \"../util\" }\n"),
+        ("tools/demo/src/main.cj", DEMO_MAIN), ("tools/demo/src/local.cj", "package demo\n\nfunc local() {}\n"),
+        ("tools/util/cjpm.toml", "[package]\nname = \"util\"\n"),
+        ("tools/util/src/util.cj", "package util\n\npublic func helper() {}\n")])
+}
+
+/**
+ * A state with the root `dir` loaded, answering definitions with links.
+ */
+func loadedRoot(dir: Path): Loop {
+    let loop = initializedWith([dir], watches: false)
+    loop.state.locationLinks = true
+    initialized(loop, Client(), NoopLogger(), InitializedParams())
+    loop
+}
+
+@Test
+class ProjectOnOpenTest {
+    @TestCase
+    func aDocumentBelowAManifestTheRootDoesNotListFindsItsOwnProject() {
+        // arrange
+        let dir = nestedProjects()
+        let loop = loadedRoot(dir)
+        let state = loop.state
+        let program = dir.join("tools/demo/src/main.cj")
+        let before = state.inProject(VfsPath.file(program))
+
+        // act
+        handleDidOpen(loop, Client(), NoopLogger(), opening(program, DEMO_MAIN))
+        loop.join()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(!before)
+        @Expect(state.inProject(VfsPath.file(program)))
+        @Expect(state.inProject(VfsPath.file(dir.join("src/app.cj"))))
+        let dependency = linksOf(definitionOf(state, program, 5, 4))
+        @Expect(dependency.map {link => link.targetUri}, [uriOf(dir.join("tools/util/src/util.cj"))])
+        let own = linksOf(definitionOf(state, program, 6, 4))
+        @Expect(own.map {link => link.targetUri}, [uriOf(dir.join("tools/demo/src/local.cj"))])
+    }
+
+    @TestCase
+    func aDocumentOpenedBeforeTheLoadFindsItsProjectInThatLoad() {
+        // arrange
+        let dir = nestedProjects()
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        let program = dir.join("tools/demo/src/main.cj")
+        openIn(state, program, DEMO_MAIN)
+
+        // act
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(state.inProject(VfsPath.file(program)))
+        @Expect(state.foundProjects, [VfsPath.file(dir.join("tools/demo"))])
+    }
+
+    @TestCase
+    func aProjectFoundStaysLoadedOnceItsDocumentIsClosedAndTheProjectFoundAgain() {
+        // arrange
+        let dir = nestedProjects()
+        let loop = loadedRoot(dir)
+        let state = loop.state
+        let program = dir.join("tools/demo/src/main.cj")
+        handleDidOpen(loop, Client(), NoopLogger(), opening(program, DEMO_MAIN))
+        loop.join()
+
+        // act
+        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uriOf(program))))
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("cjpm.toml"), FileChangeType.Changed)]))
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(state.inProject(VfsPath.file(program)))
+        @Expect(textAt(state, dir.join("tools/util/src/util.cj")), Some("package util\n\npublic func helper() {}\n"))
+    }
+
+    @TestCase
+    func aDocumentOfTheRootsProjectInNoPackageFindsNoProjectAgain() {
+        // arrange - below the root's manifest, outside its sources, and no manifest of its own
+        let dir = nestedProjects()
+        let loop = loadedRoot(dir)
+        let outside = dir.join("tests/x.cj")
+
+        // act
+        handleDidOpen(loop, Client(), NoopLogger(), opening(outside, "func x() {}"))
+        let loading = loop.state.loading
+        loop.join()
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(!loading)
+        @Expect(loop.state.foundProjects.isEmpty())
+    }
+
+    @TestCase
+    func aFolderRemovedTakesTheProjectsFoundUnderIt() {
+        // arrange
+        let dir = nestedProjects()
+        let other = workspaceOf([("b.cj", "func b() {}")])
+        let loop = loadedRoot(dir)
+        let state = loop.state
+        handleDidOpen(loop, Client(), NoopLogger(), opening(dir.join("tools/demo/src/main.cj"), DEMO_MAIN))
+        loop.join()
+        let found = state.foundProjects
+
+        // act
+        foldersChanged(loop, Client(), NoopLogger(), DidChangeWorkspaceFoldersParams(
+            event: WorkspaceFoldersChangeEvent(added: [WorkspaceFolder(uri: uriOf(other), name: "b")],
+                removed: [WorkspaceFolder(uri: uriOf(dir), name: "ws")])))
+        remove(dir, recursive: true)
+        remove(other, recursive: true)
+
+        // assert
+        @Expect(found, [VfsPath.file(dir.join("tools/demo"))])
+        @Expect(state.foundProjects.isEmpty())
+        @Expect(!state.inProject(VfsPath.file(dir.join("tools/util/src/util.cj"))))
+    }
+}
+
 @Test
 class DidChangeWorkspaceFoldersTest {
     @TestCase

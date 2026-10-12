@@ -22,7 +22,7 @@
 | `binaryItemTrees`, `binaryExports` | `loupe.hir` | a `.cjo` in the same model: an `ItemTree` per file of the package, its re-exports its imports; an `exportId` to its item, an item back to its `Decl` (`binaryDecl`). `ItemFile` is either kind of file (D38) |
 | `expandedCalls`, `macroExpansion` | `loupe.hir` | the macro calls the analysis expands, std's `@Derive` and what of `std.unittest.testmacro` declares (`@Test`, `@TestTemplate`, `@TestBuilder`, `@Strategy`, `@UnittestOption`; the name resolved to std's), each a `MacroCallId` (file, item, macro); its output as text, signatures with empty bodies, parsed by cjsyntax as the file `ItemFile.Expansion`, its names in the scope of the call's file, its declarations in `defMap` after the file's (the item it replaces left out, `@Strategy`'s), its `extend`s among `packageExtends` ([#175](https://github.com/ide4cj/cjls/issues/175)) |
 | loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFiles`, `readFile`, `isWorkspaceFile`; `cjoFilesIn`, `readCjoFiles` (by stamp, header checked): the disk, nothing else (D30, D38) |
-| project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33); the SDK (`findCangjieHome`, D40) and its sources (`findCangjieSrc`, D65) |
+| project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33) and per project found from a document in no package (`projectDirOf`, D88); the SDK (`findCangjieHome`, D40) and its sources (`findCangjieSrc`, D65) |
 | API | `loupe` | a file per feature (`fileStructure`, …): plain functions over queries, speaking `FileId`, `TextRange` and loupe's own types (A3, A8) |
 
 ## Rules
