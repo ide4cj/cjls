@@ -40,6 +40,9 @@ func tokensOf(code: String, column: Int64): Array<TokenData> {
     tokens.toArray()
 }
 
+/** What a shared library ends with on each platform. */
+let LIBRARY_SUFFIXES = [".so", ".dylib", ".dll"]
+
 /**
  * The SDK the tests run on, and the directory of its runtime for this host: the one that has std.ast.
  */
@@ -47,7 +50,7 @@ func sdkPaths(): MacroServerPaths {
     let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
     for (dir in Directory.readFrom(home.join("runtime").join("lib")) where dir.isDirectory()) {
         let name = dir.path.fileName
-        if (exists(dir.path.join("libcangjie-std-ast.so")) || exists(dir.path.join("libcangjie-std-ast.dylib"))) {
+        if (LIBRARY_SUFFIXES.iterator().any {suffix => exists(dir.path.join("libcangjie-std-ast${suffix}"))}) {
             return MacroServerPaths.inSdk(home, name)
         }
     }
@@ -55,12 +58,13 @@ func sdkPaths(): MacroServerPaths {
 }
 
 func derivingLibrary(paths: MacroServerPaths): String {
-    let so = paths.runtimeLib.join("libcangjie-std-deriving.so")
-    if (exists(so)) {
-        so.toString()
-    } else {
-        paths.runtimeLib.join("libcangjie-std-deriving.dylib").toString()
+    for (suffix in LIBRARY_SUFFIXES) {
+        let library = paths.runtimeLib.join("libcangjie-std-deriving${suffix}")
+        if (exists(library)) {
+            return library.toString()
+        }
     }
+    throw IllegalStateException("no libcangjie-std-deriving in ${paths.runtimeLib}")
 }
 
 /**
@@ -88,7 +92,6 @@ func valuesOf(result: MacroResult): Array<String> {
 /**
  * The SDK's own server, run on std's `@Derive`: its library ships with the SDK, nothing is built.
  */
-@When[os != "Windows"]
 @Test
 class MacroServerTest {
     @TestCase

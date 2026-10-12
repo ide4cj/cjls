@@ -1,7 +1,9 @@
 package macro_server
 
+@When[os != "Windows"]
 import std.env.getProcessId
 import std.fs.*
+@When[os != "Windows"]
 import std.process.*
 
 /**
@@ -29,31 +31,54 @@ public struct MacroServerPaths {
 }
 
 /**
+ * The server's process, as each platform starts it.
+ */
+interface ServerChild {
+    /** Waits until it has exited, and lets go of what it held. */
+    func wait(): Unit
+
+    /** Ends it at once. */
+    func kill(): Unit
+}
+
+/**
  * An `LSPMacroServer` running: its process and the connection to it.
  */
 public class MacroServerProcess {
-    MacroServerProcess(let process: SubProcess, public let connection: MacroConnection) {}
+    MacroServerProcess(let child: ServerChild, public let connection: MacroConnection) {}
 
     /**
-     * Asks the server to exit, and waits until it has; ends it if it does not answer.
+     * Asks the server to exit, and waits until it has; ends it if it cannot be asked.
      */
     public func close(): Unit {
         try {
             connection.close()
         } catch (_: Exception) {
-            process.terminate(force: true)
+            child.kill()
         }
-        process.wait()
-        ()
+        child.wait()
     }
 
     /**
      * Ends the server at once: a macro that loops is never answered.
      */
     public func kill(): Unit {
-        process.terminate(force: true)
+        child.kill()
+        child.wait()
+    }
+}
+
+@When[os != "Windows"]
+class PosixChild <: ServerChild {
+    PosixChild(let process: SubProcess) {}
+
+    public func wait(): Unit {
         process.wait()
         ()
+    }
+
+    public func kill(): Unit {
+        process.terminate(force: true)
     }
 }
 
@@ -65,9 +90,11 @@ public class MacroServerProcess {
 const POSIX_LAUNCH = ##"lib="$1"; shift; LD_LIBRARY_PATH="$lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" DYLD_LIBRARY_PATH="$lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" exec "$@" 3<&0 4>&1 0</dev/null 1>&2"##
 
 /**
- * Starts the server of `paths`: serial, watching this process, which it outlives by about 4 s at most.
+ * Starts the server of `paths`, serial: on POSIX through `/bin/sh`, watching this process, which it outlives
+ * by about 4 s at most; on Windows (`process_windows.cj`) in a job that ends it with this process.
  *
- * @throws ProcessException - if it cannot be started
+ * @throws ProcessException - if it cannot be started on POSIX
+ * @throws MacroServerException - if it cannot be started on Windows
  */
 @When[os != "Windows"]
 public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
@@ -89,15 +116,5 @@ public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
         stdOut: ProcessRedirect.Pipe,
         stdErr: ProcessRedirect.Inherit
     )
-    MacroServerProcess(process, MacroConnection(process.stdOutPipe, process.stdInPipe))
-}
-
-/**
- * Windows has no way to pass the server two pipe handles through `std.process` (D87, #86).
- *
- * @throws UnsupportedException - always
- */
-@When[os == "Windows"]
-public func startMacroServer(_: MacroServerPaths): MacroServerProcess {
-    throw UnsupportedException("the macro server is not started on Windows")
+    MacroServerProcess(PosixChild(process), MacroConnection(process.stdOutPipe, process.stdInPipe))
 }

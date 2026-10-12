@@ -61,7 +61,7 @@ Members of the root `cjpm.toml`. A module is a library that knows nothing of the
 | `cjo` | the `.cjo` files cjc writes for a package: `openCjo` and the views of the vendored `CjoFormat.fbs`, generated ([D37](docs/adr/0037-cjo-files-are-read-by-generated-views.md)) |
 | `fbs` | the runtime of what `fbs_codegen` generates: `FbTable`/`FbVector`, a flatbuffer read in place; `FbBuilder`, one built back to front |
 | `fbs_codegen` | executable: generates views of a flatbuffers schema, and with `write` its writers (`<Name>Data`) |
-| `macro_server` | Cangjie macros run in the SDK's `LSPMacroServer`: the messages of the vendored `MacroMsgFormat.fbs`, generated, the connection and the process ([D87](docs/adr/0087-workspace-macros-run-in-the-sdks-macro-server.md)) |
+| `macro_server` | Cangjie macros run in the SDK's `LSPMacroServer`: the messages of the vendored `MacroMsgFormat.fbs`, generated, the connection and the process, on Windows through `CreateProcessW` ([D87](docs/adr/0087-workspace-macros-run-in-the-sdks-macro-server.md), [D91](docs/adr/0091-the-windows-macro-server-is-started-by-createprocessw.md)) |
 | `project_model` | how files make a project: `cj-project.json`, `cjpm.toml` or loose files, lowered to `loupe.db`'s `ProjectModel` ([D33](docs/adr/0033-project-model.md)); where the SDK is ([D40](docs/adr/0040-the-sdk-is-found-without-cangjie-home.md)) |
 | `cjls` | executable: the server — handlers, framework, `@LspHandler`, generated `cjls.lsp_types`, hand-written `cjls.lsp_ext` (methods beyond LSP, [lsp-extensions.md](docs/lsp-extensions.md)) |
 | `lsp_codegen` | executable: generates `cjls.lsp_types` from `metaModel.json` (checked in, never hand-edited) |
