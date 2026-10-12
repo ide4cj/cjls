@@ -97,3 +97,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0076](0076-a-bodys-brace-joins-the-line-before.md) | A body's `{` on a line of its own joins the line before | proposed |
 | [0077](0077-an-unknown-type-is-an-error-or-a-gap.md) | A type not known is an error the user made or one the analysis cannot find, and why; a type or package before a dot is no value | proposed |
 | [0078](0078-the-windows-child-dies-with-its-parent.md) | On Windows the server puts itself in a kill-on-close job before it starts its child | proposed |
+| [0079](0079-settings-are-r1s.md) | The settings are one typed model whose schema the server prints, read as R1 reads them | proposed |
