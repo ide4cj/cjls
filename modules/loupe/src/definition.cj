@@ -28,7 +28,7 @@ public struct NavigationTarget {
 /**
  * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
  * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
- * call names (#175). Nothing for a package, nor for a declaration of a package compiled already whose binary's
+ * call names (#175); after a `specific` declaration, the `common` ones it completes (#318). Nothing for a package, nor for a declaration of a package compiled already whose binary's
  * sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
@@ -36,7 +36,17 @@ public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): A
     let root = parse(db, file).syntaxNode()
     let token = tokenAt(root, offset) ?? return []
     let defs = classifyName(db, file, itemAround(db, file, token.parent), token) ?? return []
-    defs |> filterMap {one: Definition => targetOfDefinition(db, one)} |> collectArray
+    let targets = ArrayList<NavigationTarget>()
+    for (one in defs) {
+        if (let Some(target) <- targetOfDefinition(db, one)) {
+            targets.add(target)
+        }
+        // a `specific` declaration, then the `common` ones it completes, as Kotlin's actual and expect (#318)
+        if (let DeclDef(id) <- one) {
+            targets.add(all: commonsOf(db, id) |> filterMap {common: DefId => declTarget(db, common)} |> collectArray)
+        }
+    }
+    targets.toArray()
 }
 
 /**
