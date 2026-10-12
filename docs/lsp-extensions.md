@@ -1,19 +1,13 @@
-<!-- cjls.lsp_ext hash: 062e3d097216c4f3 -->
+<!-- cjls.lsp_ext hash: 8d091e9afa5b937b -->
 # LSP extensions
 
 Methods cjls answers beyond LSP (D15). Each is under `cjls/`, advertised as `true` under its name in the `experimental` server capabilities, and optional: every client works without it.
 
 This file is the editor clients' contract (D32): its first line is the hash of `cjls.lsp_ext`, and `LspExtensionsDocTest` fails until a change there is described here and the hash moved.
 
-## Initialization options
+## Settings
 
-What a client may pass in `initialize`'s `initializationOptions`; all optional.
-
-| Option | |
-|---|---|
-| `linkedProjects: string[]` | projects to load, as R1's: each an absolute path or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides (D33). |
-| `cangjieHome: string` | the Cangjie SDK, an absolute path or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`; `std` is taken from it, and `${CANGJIE_HOME}` in a project's paths expands to it (D40). |
-| `cangjieSrc: string` | the sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`; go to definition on a declaration of `std` goes there (D65). `cjls fetch-src` puts them in the SDK's `src` (D69). |
+What `cjls --config-schema` prints, a JSON Schema with each setting's type, default and description; all optional (D79). A client passes them as `initializationOptions` and keeps them under the section `cjls` of its configuration: the server asks for that section (`workspace/configuration`) once initialized and on each `workspace/didChangeConfiguration`, or, from a client that cannot be asked, reads it in that notification's `settings.cjls`. `null` or `{}` leaves the settings as they were; any other object replaces them whole. Today: `linkedProjects` (D33), `cangjieHome` (D40), `cangjieSrc` (D65).
 
 ## `cjls/memoryUsage`
 
@@ -35,3 +29,13 @@ No `heapDump` on Windows: `RequestFailed`, before any collection. There `dumpHea
 | `threads` | `getThreadCount` | Cangjie threads |
 
 The collector runs on a timer (~150 ms), not on allocation, so between collections `allocatedHeap` and the process's RSS grow with the garbage of the interval (#22): what the server holds is `allocatedHeap` after `collect`.
+
+## `cjls/analysisStats`
+
+The work the analysis has done, counted rather than timed: read before and after a request, the difference is what that request cost, the same on every machine and every run (`tests/perf` sets its threshold on it, D81). A request, client to server, without params; capability `experimental.analysisStats`.
+
+| Result | |
+|---|---|
+| `queriesExecuted` | how many times a query was computed since the server started, rather than taken from what the analysis remembered (calca's `Storage.executions`), on every thread |
+
+A request's count is its own only while nothing else runs: a client pulling diagnostics, after the workspace has loaded, and one request at a time.

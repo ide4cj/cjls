@@ -75,6 +75,11 @@ async def client(request, lsp_client: LanguageClient):
 
     `position_encoding` holds the encoding the two agreed on.
     """
+
+    @lsp_client.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def register(params: types.RegistrationParams):
+        pass
+
     answers_refreshes(lsp_client)
     result = await lsp_client.initialize_session(
         types.InitializeParams(capabilities=capabilities(request.param))

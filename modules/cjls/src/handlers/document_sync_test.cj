@@ -15,7 +15,7 @@ let URI = "file:///nowhere/a.cj"
 
 func opened(text: String, uri!: String = URI): ServerState {
     let state = ServerState()
-    handleDidOpen(state, DidOpenTextDocumentParams(
+    handleDidOpen(Loop(state), Client(), NoopLogger(), DidOpenTextDocumentParams(
         textDocument: TextDocumentItem(uri: uri, languageId: LanguageKind("cangjie"), version: 1, text: text)))
     state
 }
