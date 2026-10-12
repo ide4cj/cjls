@@ -78,6 +78,8 @@ class FlakeProbeTest {
     @TestCase
     func aNodeHeldByTheTestKeepsItsTreeAliveRepeated() {
         var treeFreed = 0
+        var corrupt = 0
+        let descendantsWhole = wholeDescendants()
         for (_ in 0..300) {
             let (db, file, other) = probeDb()
             let tree = weakTree(db, file)
@@ -86,10 +88,14 @@ class FlakeProbeTest {
 
             if (isFreed(tree)) {
                 treeFreed++
+                churn()
+                if (node.text() != file.text(db).toString() || countDescendants(node) != descendantsWhole) {
+                    corrupt++
+                }
             }
             @Expect(node.text(), file.text(db).toString())
         }
-        println("PROBE2 treeFreed=${treeFreed}")
+        println("PROBE2 treeFreed=${treeFreed} corrupt=${corrupt}")
         @Expect(treeFreed, 0)
     }
 
@@ -113,4 +119,73 @@ class FlakeProbeTest {
         println("PROBE3 treeFreed=${treeFreed}")
         @Expect(treeFreed, 0)
     }
+
+    /**
+     * std alone, no calca, no loupe: an object a local holds and uses after, a weak reference to it.
+     */
+    @TestCase
+    func aHeldObjectsWeakReferenceStaysRepeated() {
+        var cleared = 0
+        var corrupt = 0
+        for (i in 0..300) {
+            let payload = Payload(4096, i)
+            let weak = WeakRef(payload, CleanupPolicy.EAGER)
+            churn()
+            if (isFreed(weak)) {
+                cleared++
+                churn()
+                if (!payload.intact(i)) {
+                    corrupt++
+                }
+            }
+            @Expect(payload.intact(i))
+        }
+        println("PROBE4 cleared=${cleared} corrupt=${corrupt}")
+        @Expect(cleared, 0)
+    }
+}
+
+class Payload {
+    let data: Array<Int64>
+
+    init(size: Int64, seed: Int64) {
+        data = Array<Int64>(size) {j => seed * 7919 + j}
+    }
+
+    func intact(seed: Int64): Bool {
+        var ok = true
+        for (j in 0..data.size) {
+            if (data[j] != seed * 7919 + j) {
+                ok = false
+            }
+        }
+        ok
+    }
+}
+
+/**
+ * Allocates enough garbage for the GC to reuse what it freed.
+ */
+func churn(): Unit {
+    var sum = 0
+    for (k in 0..2000) {
+        let garbage = Array<Int64>(1024) {j => j + k}
+        sum += garbage[k % 1024]
+    }
+    if (sum == -1) {
+        println(sum)
+    }
+}
+
+func countDescendants(node: CjSyntaxNode): Int64 {
+    var n = 0
+    for (_ in node.descendants()) {
+        n++
+    }
+    n
+}
+
+func wholeDescendants(): Int64 {
+    let (db, file, _) = probeDb()
+    countDescendants(rootOf(db, file))
 }

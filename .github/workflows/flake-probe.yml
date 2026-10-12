@@ -10,23 +10,21 @@ permissions:
 
 jobs:
   probe:
-    name: ParseLru probe (${{ matrix.os }})
+    name: WeakRef probe (${{ matrix.os }}, ${{ matrix.nightly }})
     strategy:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest]
+        nightly: ['1.3.0-alpha.20261002001050', '1.3.0-alpha.20261012001050']
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
+      - run: echo '${{ matrix.nightly }}' > .cangjie-version
+        shell: bash
       - uses: ./.github/actions/setup-cangjie
       - uses: ./.github/actions/build-cache
         with:
           target-dir: target/test
-      - run: cjpm test --no-progress --target-dir target/test '--filter=FlakeProbeTest.*' --show-all-output
-        shell: bash
-      - run: |
-          for i in $(seq 1 30); do
-            cjpm test --skip-build --no-progress --target-dir target/test '--filter=ParseLruTest.*' > out.txt 2>&1 || { echo "run $i failed"; grep -E "FAILED|Expect" out.txt; }
-          done
+      - run: cjpm test --no-progress --target-dir target/test '--filter=FlakeProbeTest.*' --show-all-output | grep -E "PROBE|CASE|Expect|left:|right:|error"
         shell: bash
