@@ -30,6 +30,14 @@ interface Ingredient {
     func describe(id: Id): String
 
     /**
+     * How many times the body of the tracked function named `name` ran in this database, if this is
+     * its memos; 0 for any other ingredient.
+     */
+    func executionsOf(name: String): Int64 {
+        0
+    }
+
+    /**
      * Whether a value on a cycle can be replaced by a fallback: a tracked function's `cycle` option.
      */
     func hasFallback(): Bool {
@@ -200,6 +208,14 @@ class Runtime {
             case Some(ingredient) => ingredient as I
             case None => None
         }
+    }
+
+    func executionsOf(name: String): Int64 {
+        var count = 0
+        for (ingredient in table.load().entries) {
+            count += ingredient?.executionsOf(name) ?? 0
+        }
+        count
     }
 
     func ingredientAt(index: Int64): Ingredient {

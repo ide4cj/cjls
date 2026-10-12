@@ -304,6 +304,24 @@ class CalcaTest {
     }
 
     @TestCase
+    func executionsOfAFunctionCountItsBodiesAlone(): Unit {
+        // arrange
+        let db = TestDatabase()
+        let file = SourceFile(db, "a.cj", "hello world")
+        firstWordLength(db, file)
+        let (before, all) = (db.storage.executionsOf("isLong"), db.storage.executions)
+
+        // act
+        isLong(db.snapshot(), file)
+        isLong(db, file)
+
+        // assert: `isLong` once, and `length` under it
+        @Expect(db.storage.executionsOf("isLong") - before, 1)
+        @Expect(db.storage.executions - all, 2)
+        @Expect(db.storage.executionsOf("noSuchFunction"), 0)
+    }
+
+    @TestCase
     func aTrackedFunctionWithoutArgumentsIsRememberedToo(): Unit {
         // arrange
         let db = TestDatabase()
