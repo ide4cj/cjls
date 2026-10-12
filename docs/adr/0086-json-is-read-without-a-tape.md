@@ -1,4 +1,4 @@
-# ADR-0085: JSON is read by the pull reader, not through a tape index
+# ADR-0086: JSON is read by the pull reader, not through a tape index
 
 Status: accepted, 2026-10-11
 
