@@ -16,6 +16,6 @@ Amends ADR-0027: what CI caches, and in which job
 
 ## Consequences
 
-- A PR's wall-clock is the longer of the tests and the build followed by e2e, not their sum; e2e and perf start once the binary is built. The checkout and the SDK are set up in one more job per platform.
+- A PR's wall-clock is the longer of the tests and the build followed by e2e, not their sum; e2e and perf start once the binary is built. From the first job's start to the last one's end: v0.5.0, built clean the old way, 11 min 30 s, its e2e starting after 9.7 min; PRs restoring master's build 7.5–9.7 min, e2e after 7.2–8; this change's own PR, restoring nothing, 7 min 9 s, e2e after 3.8 min. The checkout and the SDK are set up in one more job per platform.
 - The first master build after this restores nothing: the keys are new.
 - The tests' own compilation stays outside any cache, as long as cjpm compiles test packages again on every run.
