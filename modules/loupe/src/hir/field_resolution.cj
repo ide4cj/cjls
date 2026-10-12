@@ -184,7 +184,7 @@ func namedTyOf(db: AnalysisDatabase, def: DefId, id: DefId, args: Array<TypeRefI
 func receiverOfDecl(db: AnalysisDatabase, id: DefId): Receiver {
     match (id.item(db).kind) {
         case Class | Interface | Struct | Enum | BuiltIn => TypesReceiver([DeclType(id)])
-        case TypeAlias => match (extendedTypeOf(db, id)) {
+        case TypeAlias => match (aliasedTypeOf(db, id)) {
             case Some(ty) => TypesReceiver([ty])
             case None => NoReceiver
         }
