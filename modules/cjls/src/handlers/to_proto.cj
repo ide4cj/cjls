@@ -214,13 +214,19 @@ func diagnostic(text: Rope, diagnostic: LoupeDiagnostic, encoding: Encoding): Di
         range: lspRange(text, diagnostic.range.start, diagnostic.range.end, encoding),
         severity: diagnosticSeverity(diagnostic.severity),
         source: "cjls",
-        message: StringOrMarkupContent.AsString(diagnostic.message)
+        message: StringOrMarkupContent.AsString(diagnostic.message),
+        tags: if (diagnostic.unnecessary) {
+            Some([DiagnosticTag.Unnecessary])
+        } else {
+            None
+        }
     )
 }
 
 func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
     match (severity) {
         case Severity.Error => DiagnosticSeverity.Error
+        case Severity.Hint => DiagnosticSeverity.Hint
     }
 }
 

@@ -205,7 +205,7 @@ public func isReadMacro(db: AnalysisDatabase, resolution: Resolution, onMember!:
  */
 func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, StdMacro)> {
     let found = ArrayList<(MacroCallId, StdMacro)>()
-    for (item in itemTree(db, file).items where !item.macros.isEmpty()) {
+    for (item in activeItemTree(db, file).items where !item.macros.isEmpty()) {
         let macros = macrosOf(db, DefId(db, ItemFile.Source(file), item.id))
         var driven = false
         for (i in 0..macros.size) {

@@ -45,7 +45,7 @@ func noEnv(_: String): ?String {
     None
 }
 
-let LINUX = Cfg([("os", "Linux"), ("arch", "x86_64"), ("backend", "cjnative")])
+let LINUX = Cfg([("os", "Linux"), ("arch", "x86_64"), ("env", "gnu"), ("backend", "cjnative"), ("test", "true")])
 
 /**
  * Every package of `model` as `module: package=file,file`, its files relative to `dir`.

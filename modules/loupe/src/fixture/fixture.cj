@@ -34,6 +34,10 @@ public class FixtureFile {
         public let module: String,
         public let pkg: String,
         public let deps: Array<String>,
+        /**
+         * The conditions of its package, as a `cfg.toml` sets them, `None` if it sets none.
+         */
+        public let cfg: ?Cfg,
         public let text: String,
         /**
          * Its header as written, `None` for the one file of a fixture of no header.
@@ -142,9 +146,10 @@ public struct FileRange {
  * - The text is indented as a test writes it: a first empty line is left out, as is the indent of
  *   every line and the spaces of a last line of no more.
  * - A header `//- /path key=value…` starts a file: its path from the root of the fixture,
- *   `module` (`default` if not given), `package` (the module's name if not given) and `deps`
- *   (the modules it may import, by commas; a module's are those of all its files). A text of no
- *   header is the one file `/main.cj`.
+ *   `module` (`default` if not given), `package` (the module's name if not given), `deps`
+ *   (the modules it may import, by commas; a module's are those of all its files) and `cfg` (the
+ *   conditions of its package for `@When`, `os:Linux,test:true`; a package's are those of all its
+ *   files). A text of no header is the one file `/main.cj`.
  * - `$0` is a place, two of them in one file a range: the `cursor`, the `selection`.
  * - A line `//` and carets is an annotation: `//^^^ text` is about the range of the carets in the
  *   line above it that is not one, `//| text` about the empty range before the bar. Columns are as
@@ -362,7 +367,14 @@ public class Fixture {
         ModuleModel(name, root, packages.toArray().map {
             pkg =>
             let ofPackage = ofModule.filter {file => file.pkg == pkg}
-            PackageModel(pkg, ofPackage[0].path.parent.getOrThrow(), ofPackage.map {file => file.path})
+            let options = ofPackage |> flatMap {file: FixtureFile => file.cfg?.options ?? []} |>
+                map {option: CfgOption => (option.key, option.value)} |> collectArray
+            let cfg = if (options.isEmpty()) {
+                None<Cfg>
+            } else {
+                Some(Cfg(options))
+            }
+            PackageModel(pkg, ofPackage[0].path.parent.getOrThrow(), ofPackage.map {file => file.path}, cfg: cfg)
         }, deps: deps.toArray())
     }
 }
@@ -417,6 +429,7 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
     var module = "default"
     var pkg: ?String = None
     var deps = Array<String>()
+    var cfg: ?Cfg = None
     if (let Some(line) <- header) {
         let words = line[3..].split(" ", removeEmpty: true)
         if (words.size == 0) {
@@ -432,7 +445,15 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
                 case "module" => module = pair[1]
                 case "package" => pkg = pair[1]
                 case "deps" => deps = pair[1].split(",", removeEmpty: true)
-                case key => throw FixtureException("an unknown key `${key}` in ${line}: module, package, deps")
+                case "cfg" => cfg = Cfg(pair[1].split(",", removeEmpty: true).map {
+                    option =>
+                    let keyValue = option.split(":", 2)
+                    if (keyValue.size != 2) {
+                        throw FixtureException("not a `key:value`: ${option} in ${line}")
+                    }
+                    (keyValue[0], keyValue[1])
+                })
+                case key => throw FixtureException("an unknown key `${key}` in ${line}: module, package, deps, cfg")
             }
         }
     }
@@ -476,7 +497,7 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
         }
         lines.add(FixtureLine(line, start, columns.toArray()))
     }
-    FixtureFile(fileId, vfsPath, module, pkg ?? module, deps, text.toString(), header, lines.toArray())
+    FixtureFile(fileId, vfsPath, module, pkg ?? module, deps, cfg, text.toString(), header, lines.toArray())
 }
 
 /**

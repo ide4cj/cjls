@@ -36,6 +36,29 @@ class DocumentDiagnosticTest {
     }
 
     @TestCase
+    func inactiveCodeIsAHintTaggedUnnecessary() {
+        // arrange - no project: `test` is not set
+        let state = opened("@When[test] let a = 1")
+
+        // act
+        let items = pulled(state.snapshot())
+
+        // assert
+        @Expect(items.size, 1)
+        @Expect(match (items[0].severity) {
+            case Some(DiagnosticSeverity.Hint) => true
+            case _ => false
+        })
+        @Expect(match (items[0].tags) {
+            case Some(tags) => tags.size == 1 && match (tags[0]) {
+                case DiagnosticTag.Unnecessary => true
+                case _ => false
+            }
+            case None => false
+        })
+    }
+
+    @TestCase
     func aDocumentTheServerDoesNotKnowHasNothingWrong() {
         // act
         let items = pulled(ServerState().snapshot())

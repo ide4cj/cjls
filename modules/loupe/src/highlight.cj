@@ -369,7 +369,7 @@ func callsMacrosOfItsOwn(db: AnalysisDatabase, pkg: Package): Bool {
             case Source(file) => file
             case _ => continue
         }
-        for (item in itemTree(db, file).items) {
+        for (item in activeItemTree(db, file).items) {
             for (name in item.macros where !isCompiledMacro(db, pkg, file, name)) {
                 return true
             }

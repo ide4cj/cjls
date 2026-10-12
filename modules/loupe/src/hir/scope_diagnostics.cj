@@ -101,7 +101,7 @@ public func scopeDiagnostics(db: AnalysisDatabase, pkg: Package, file: SourceFil
     let cyclic = onImportCycle(db, from)
     let found = ArrayList<ScopeDiagnostic>()
     let brought = HashSet<String>()
-    let tree = itemTree(db, file)
+    let tree = activeItemTree(db, file)
     for (item in tree.imports) {
         let level = importLevelOf(item)
         for (i in 0..item.paths.size) {

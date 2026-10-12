@@ -168,7 +168,11 @@ public struct LoweredSignature {
 public func signatureWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredSignature {
     if (let Some((root, ids)) <- syntaxOf(db, def.file(db))) {
         if (let Some(decl) <- ids.node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
-            return lowerSignature(decl)
+            let active = match (def.file(db)) {
+                case Source(file) => ActiveFilter.of(db, file)
+                case _ => ALL_ACTIVE
+            }
+            return lowerSignature(decl, active: active)
         }
     }
     LoweredSignature(Signature(), SignatureSourceMap([]))
@@ -184,10 +188,10 @@ public func signature(db: AnalysisDatabase, def: DefId): Signature {
 }
 
 /**
- * The signature of `decl`.
+ * The signature of `decl`, the parameters `active` leaves out of the build left out.
  */
-func lowerSignature(decl: Decl): LoweredSignature {
-    let lowering = SignatureLowering()
+func lowerSignature(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredSignature {
+    let lowering = SignatureLowering(active: active)
     let generics = match (AnyHasTypeParams.cast(decl.syntax).flatMap {it => it.typeParamList()}) {
         case Some(list) => list.typeParams() |> map {param: TypeParam => param.name()?.text() ?? ""} |> collectArray
         case None => Array<String>()
@@ -229,6 +233,8 @@ func lowerSignature(decl: Decl): LoweredSignature {
  * The types of one signature as they are lowered, and their nodes.
  */
 class SignatureLowering {
+    SignatureLowering(let active!: ActiveFilter = ALL_ACTIVE) {}
+
     let types = ArrayList<TypeRef>()
     let ptrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
     // of the parameters `params` lowered, the name of each passed by name
@@ -238,7 +244,7 @@ class SignatureLowering {
         let ids = ArrayList<TypeRefId>()
         let found = ArrayList<?String>()
         for (list in lists) {
-            for (param in list.params()) {
+            for (param in list.params() where active.isActive(param.syntax)) {
                 ids.add(lower(param.ty()))
                 found.add(if (param.bangToken().isSome()) {
                     param.name()?.text()
