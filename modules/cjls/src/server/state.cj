@@ -71,7 +71,7 @@ public class ServerState <: FromContext<ServerState> {
 
     /**
      * Whether the client pulls the diagnostics of its documents again when told to, as agreed on at
-     * `initialize`: it is, after a change of the files, which may change any document's (D98).
+     * `initialize`: it is, after a change of the files, which may change any document's (D100).
      */
     public var refreshesDiagnostics = false
 
