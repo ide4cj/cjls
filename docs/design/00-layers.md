@@ -20,6 +20,8 @@ cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
   │
   ├────> cjformat ──> cjsyntax
   │
+  ├────> macro_server ──> fbs, cjsyntax
+  │
   └────> loupe ──> calca
            ├─────> cjformat
            ├─────> cjo ──> fbs
@@ -28,7 +30,7 @@ cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
            └─────> rope
 ```
 
-Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `loupe → hir → syntax → db → vfs`.
+Inside `cjls`: `handlers → server`, `handlers → loupe`, `handlers → macro_host → server`. Inside `loupe`: `loupe → hir → syntax → db → vfs`.
 
 `loupe`'s packages are layers, never features: a package depends only on those under it, so a query of `loupe.syntax` never sees the API. A feature (`fileStructure`, `diagnostics`, `highlight`, later `hover`) is a file of the API package `loupe`, free to call the others and every query under it. What two features share is a query of a layer below (a resolved name, a type), not a call from one to the other; a layer gets its own package when queries need one (`loupe.hir`), not when a feature appears.
 
@@ -36,7 +38,7 @@ Inside `cjls`: `handlers → server`, `handlers → loupe`. Inside `loupe`: `lou
 
 `cjo` (D37) depends on `fbs` alone, the runtime of what `fbs_codegen` generates: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
 
-`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. It also depends on `cjsyntax`, whose tokens it turns into cjc's (D95). Nothing uses it yet (#176).
+`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. It also depends on `cjsyntax`, whose tokens it turns into cjc's (D95). `cjls` drives it (`cjls.macro_host`, D103).
 
 Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37; `macro_server`'s views and writers, D87), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
 

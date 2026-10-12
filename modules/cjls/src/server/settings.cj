@@ -32,6 +32,17 @@ let NEW_FILE_PACKAGE = Setting<Bool>("newFilePackage",
     JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
     true, readBool)
 
+let MACRO_EXPANSION = Setting<Bool>("macroExpansion",
+    "Whether the workspace's macros are run: cjls builds its macro packages with the SDK's `cjc` into `.cjls/macros` and expands their calls in the SDK's `LSPMacroServer`, which runs the workspace's code. Off, an item under a macro of the workspace is read as written.",
+    JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
+    true, readBool)
+
+let MACRO_CALL_TIMEOUT = Setting<Int64>("macroCallTimeout",
+    "How many seconds a macro call may run: past it, the macro server is ended, and the call reported as failed until its input or its macro changes.",
+    JsonValue.JsonObject([("type", JsonValue.JsonString("integer")), ("minimum", JsonValue.JsonInteger(1)),
+        ("default", JsonValue.JsonInteger(10))]),
+    10, readPositive)
+
 /**
  * What the user sets for the server: what `initializationOptions` holds at first, then the client's
  * section `cjls` each time the server is told it changed (D79). Every setting is optional.
@@ -54,7 +65,15 @@ public struct Settings {
         /**
          * Whether a new file is given its `package` line (#294).
          */
-        public let newFilePackage!: Bool = NEW_FILE_PACKAGE.default
+        public let newFilePackage!: Bool = NEW_FILE_PACKAGE.default,
+        /**
+         * Whether the workspace's macros are run (#176, D103).
+         */
+        public let macroExpansion!: Bool = MACRO_EXPANSION.default,
+        /**
+         * How many seconds a macro call may run (D103).
+         */
+        public let macroCallTimeout!: Int64 = MACRO_CALL_TIMEOUT.default
     ) {}
 
     /**
@@ -67,7 +86,9 @@ public struct Settings {
             linkedProjects: LINKED_PROJECTS.read(json, problems),
             cangjieHome: CANGJIE_HOME.read(json, problems),
             cangjieSrc: CANGJIE_SRC.read(json, problems),
-            newFilePackage: NEW_FILE_PACKAGE.read(json, problems)
+            newFilePackage: NEW_FILE_PACKAGE.read(json, problems),
+            macroExpansion: MACRO_EXPANSION.read(json, problems),
+            macroCallTimeout: MACRO_CALL_TIMEOUT.read(json, problems)
         )
     }
 }
@@ -79,7 +100,7 @@ public struct Settings {
  */
 public func settingsSchema(): JsonValue {
     let properties = [LINKED_PROJECTS.property(), CANGJIE_HOME.property(), CANGJIE_SRC.property(),
-        NEW_FILE_PACKAGE.property()]
+        NEW_FILE_PACKAGE.property(), MACRO_EXPANSION.property(), MACRO_CALL_TIMEOUT.property()]
     JsonValue.JsonObject([
         ("$schema", JsonValue.JsonString("http://json-schema.org/draft-07/schema#")),
         ("title", JsonValue.JsonString("cjls")),
@@ -126,6 +147,7 @@ class Setting<T> {
         match (schema.get("type")) {
             case Some(JsonValue.JsonString("array")) => "a list of absolute paths or `file:` URIs"
             case Some(JsonValue.JsonString("boolean")) => "`true` or `false`"
+            case Some(JsonValue.JsonString("integer")) => "a whole number above 0"
             case _ => "an absolute path or a `file:` URI"
         }
     }
@@ -142,6 +164,16 @@ func optionalPathSchema(): JsonValue {
 func readBool(_: String, value: JsonValue, _: ArrayList<String>): ?Bool {
     match (value) {
         case JsonValue.JsonBool(flag) => flag
+        case _ => None
+    }
+}
+
+/**
+ * `value` if it is a whole number above 0; `None` for anything else.
+ */
+func readPositive(_: String, value: JsonValue, _: ArrayList<String>): ?Int64 {
+    match (value) {
+        case JsonValue.JsonInteger(n) where n > 0 => n
         case _ => None
     }
 }

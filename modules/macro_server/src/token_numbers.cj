@@ -49,10 +49,31 @@ public class TokenNumbers {
             }
             names.add(args[..(args.indexOf(",") ?? return None)].trimAscii())
         }
-        if (names.size > Int64(UInt8.Max) + 1) {
+        ofNames(names.toArray())
+    }
+
+    /**
+     * The numbers of kinds named by `names`, each name at its number, as `std.ast`'s `getTokenKind(n).toString()`
+     * gives them for an SDK without `Tokens.inc` (D103), up to the first it names again: `AT_EXCLAMATION` is
+     * `AT_EXCL`. `None` as for `parse`.
+     */
+    public static func ofNames(names: Array<String>): ?TokenNumbers {
+        let kinds = ArrayList<String>()
+        for (name in names) {
+            let kind = if (name == "AT_EXCLAMATION") {
+                "AT_EXCL"
+            } else {
+                name
+            }
+            if (kinds.contains(kind)) {
+                break
+            }
+            kinds.add(kind)
+        }
+        if (kinds.size > Int64(UInt8.Max) + 1) {
             return None
         }
-        let numbers = TokenNumbers(names.toArray())
+        let numbers = TokenNumbers(kinds.toArray())
         if (SENT_KINDS.iterator().any {name => !numbers.numbers.contains(name)}) {
             return None
         }

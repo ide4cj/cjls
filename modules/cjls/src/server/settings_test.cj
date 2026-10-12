@@ -91,7 +91,8 @@ class SettingsTest {
             @Expect(problems.size, 1)
             @Expect(problems[0].contains("`${key}`"))
         }
-        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "newFilePackage"])
+        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "newFilePackage",
+            "macroExpansion", "macroCallTimeout"])
     }
 
     @TestCase

@@ -5,6 +5,7 @@ import std.runtime.getMaxHeapSize
 import rope.{Encoding, Rope}
 import loupe.vfs.*
 import loupe.db.*
+import loupe.hir.setMacroOutputsByKey
 
 /**
  * The `.cjo` of a project's binaries (D38), as an event reports them: every one in the
@@ -111,6 +112,12 @@ public class ServerState <: FromContext<ServerState> {
      * Whether the client shows the progress of work the server begins, as agreed on at `initialize`.
      */
     public var workDoneProgress = false
+
+    /**
+     * What runs the workspace's macros, once the workspace is loaded the first time (D103); woken after every
+     * write that changes the files.
+     */
+    public var macroWork: ?MacroWork = None
 
     /**
      * The id each root's watcher was registered with, to unregister it by.
@@ -404,6 +411,28 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func filesUnder(dir: VfsPath): Array<VfsPath> {
         vfs.files().map {id => vfs.filePath(id)}.filter {path => path.isUnder(dir)}
+    }
+
+    /**
+     * Sets the stamp of each macro package's library cjls built (D103): every call of its macros is asked again.
+     * Changes what the files say, as an edit does.
+     */
+    public func setMacroLibraries(stamps: Array<(Package, Int64)>): Unit {
+        analysis.batch {
+            for ((pkg, stamp) in stamps where pkg.macroLibrary(analysis) != stamp) {
+                pkg.setMacroLibrary(analysis).to(stamp)
+            }
+        }
+        filesChanged = true
+    }
+
+    /**
+     * Sets what the macro server answered for calls of the files, in one revision (D98). Changes what the files
+     * say, as an edit does.
+     */
+    public func setMacroOutputs(answers: Array<(SourceFile, MacroCallKey, MacroOutput)>): Unit {
+        setMacroOutputsByKey(analysis, answers)
+        filesChanged = true
     }
 
     /**

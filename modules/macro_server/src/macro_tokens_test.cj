@@ -103,6 +103,31 @@ class TokenNumbersTest {
     }
 
     @TestCase
+    func theNamesStdAstGivesNumberTheKindsAsTheSdksTokensIncDoes(): Unit {
+        // arrange
+        // what the program cjls builds for an SDK without Tokens.inc prints (D103): past the last kind, std.ast names
+        // one again
+        let names = ArrayList<String>()
+        for (n in 0..256) {
+            let name = try {
+                getTokenKind(UInt16(n)).toString()
+            } catch (_: Exception) {
+                break
+            }
+            if (names.contains(name)) {
+                break
+            }
+            names.add(name)
+        }
+
+        // act
+        let numbers = TokenNumbers.ofNames(names.toArray()).getOrThrow()
+
+        // assert
+        @Expect(numbers.names, sdkNumbers().names)
+    }
+
+    @TestCase
     func aTokensIncLackingAKindSentIsRefused(): Unit {
         // arrange
         let text = String.fromUtf8(File.readFrom(sdkPaths().tokensInc))

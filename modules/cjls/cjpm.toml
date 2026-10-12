@@ -21,6 +21,7 @@ cjformat = { path = "../cjformat" }
 fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
 loupe = { path = "../loupe" }
+macro_server = { path = "../macro_server" }
 project_model = { path = "../project_model" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }

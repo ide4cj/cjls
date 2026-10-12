@@ -83,7 +83,7 @@ func addWorkspaceCalls(db: AnalysisDatabase, file: SourceFile, item: Item, top: 
 /**
  * How `call` is keyed among the outputs of its file.
  */
-func macroCallKeyOf(db: AnalysisDatabase, call: MacroCallId): MacroCallKey {
+public func macroCallKeyOf(db: AnalysisDatabase, call: MacroCallId): MacroCallKey {
     MacroCallKey(call.item(db).toString(), call.index(db))
 }
 
@@ -108,11 +108,20 @@ func serverExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?MappedText {
  * @throws IllegalStateException - if `db` is a snapshot, or a query is running on it
  */
 public func setMacroOutputs(db: AnalysisDatabase, answers: Array<(MacroCallId, MacroOutput)>): Unit {
+    setMacroOutputsByKey(db, answers.map {answer => (answer[0].file(db), macroCallKeyOf(db, answer[0]), answer[1])})
+}
+
+/**
+ * `setMacroOutputs` of calls by their file and key, which a thread holding them across revisions keeps instead of a
+ * `MacroCallId` (D18): what it answered is set even if the call is gone, and read by nothing then.
+ *
+ * @throws IllegalStateException - if `db` is a snapshot, or a query is running on it
+ */
+public func setMacroOutputsByKey(db: AnalysisDatabase, answers: Array<(SourceFile, MacroCallKey, MacroOutput)>): Unit {
     let byFile = HashMap<SourceFile, MacroOutputs>()
-    for ((call, output) in answers) {
-        let file = call.file(db)
+    for ((file, key, output) in answers) {
         let outputs = byFile.get(file) ?? file.macroOutputs(db)
-        byFile[file] = outputs.withOutput(macroCallKeyOf(db, call), output)
+        byFile[file] = outputs.withOutput(key, output)
     }
     db.batch {
         for ((file, outputs) in byFile) {

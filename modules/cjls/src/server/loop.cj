@@ -59,9 +59,10 @@ public class Loop <: FromContext<Loop> {
     }
 
     /**
-     * The state as it is between two messages, for a handler running on a thread of its own.
+     * The state as it is between two messages, for a handler running on a thread of its own, or work `start`
+     * started.
      */
-    func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
+    public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
         synchronized(lock) {
             state.snapshot(cancelledBy: cancelledBy)
         }
@@ -116,6 +117,9 @@ public class Loop <: FromContext<Loop> {
         }
         if (let Some(refresh) <- refreshDiagnostics && filesChanged && state.refreshesDiagnostics) {
             refresh()
+        }
+        if (let Some(work) <- state.macroWork && filesChanged) {
+            work.wake(false)
         }
         let push = push ?? return ()
         if (!state.pushesDiagnostics) {
