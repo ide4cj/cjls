@@ -1,0 +1,32 @@
+name: Flake probe
+
+# temporary: an experiment branch's, never merged
+on:
+  push:
+    branches: ['exp/**']
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: ParseLru probe (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      - uses: ./.github/actions/build-cache
+        with:
+          target-dir: target/test
+      - run: cjpm test --no-progress --target-dir target/test '--filter=FlakeProbeTest.*' --show-all-output
+        shell: bash
+      - run: |
+          for i in $(seq 1 30); do
+            cjpm test --skip-build --no-progress --target-dir target/test '--filter=ParseLruTest.*' > out.txt 2>&1 || { echo "run $i failed"; grep -E "FAILED|Expect" out.txt; }
+          done
+        shell: bash
