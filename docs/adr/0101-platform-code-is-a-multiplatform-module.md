@@ -1,4 +1,4 @@
-# ADR-0100: What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations
+# ADR-0101: What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations
 
 Status: proposed
 
@@ -19,7 +19,7 @@ Status: proposed
 ## Consequences
 
 - `cjpm build -m modules/platform --no-feature-deduce --enable-features=os.windows` (`os.darwin`) type-checks another platform's code locally.
-- The module builds `-O1` (D101), and the workspace is `experimental` (cjpm wants it of the root as well).
+- The module builds `-O1` (D102), and the workspace is `experimental` (cjpm wants it of the root as well).
 - `cjpm test` of a module on `platform` neither imports nor links it from the product set's directory, where `cjpm build` does: the module's `build.cj` copies `libplatform.a` and `platform.cjo` up to where the test looks, after each build under `target` (a `--target-dir` elsewhere is not seen to).
 - A `common` variable needs its `specific` in the very next set (`posix`), a function or a class anywhere down the chain: constants are functions (`hostOs()`). A `specific` function warns of a parameter it does not use, where a plain one does not.
 - cjls does not yet read source sets (#318): `import platform` is unresolved in the editor, and a file of a set is analysed as a package of its own directory.

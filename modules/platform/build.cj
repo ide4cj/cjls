@@ -3,7 +3,7 @@
 // `cjpm build` looks for them and `cjpm test` does not: it neither imports nor links a dependency
 // from there (cangjie_tools 3009d063, `test.cj:579`, `:681`), and a test of a module using
 // `platform` fails. After each build both are copied up to `<target>/<profile>/platform/`, where
-// it does (D100). cjpm tells a script no target directory: every one under `target` is seen to.
+// it does (D101). cjpm tells a script no target directory: every one under `target` is seen to.
 import std.env.*
 import std.fs.*
 

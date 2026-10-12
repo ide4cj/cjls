@@ -14,7 +14,7 @@ package-configuration = {}
 
 [dependencies]
 
-# Cangjie multiplatform: one package over source sets, chosen by the host's `os.*` (D100)
+# Cangjie multiplatform: one package over source sets, chosen by the host's `os.*` (D101)
 [profile]
 experimental = true
 
@@ -57,7 +57,7 @@ src-dir = "./src/windows"
 features = ["os.windows"]
 
 # `-O1`, not `-O2`: the common part at `-O2` puts std functions into the library, which then fails to
-# link (D101); `-g` (the coverage's) builds unoptimized, D51
+# link (D102); `-g` (the coverage's) builds unoptimized, D51
 [target.aarch64-apple-darwin.release]
 compile-option = "-O1"
 
