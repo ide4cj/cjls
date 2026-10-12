@@ -4,10 +4,6 @@
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=DiagnosticsGateTest.*'` writes it.
 ast/ffi.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
 ast/tokens.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
-posix/file_dir.cj:322: mismatched types: expected 'String', found 'CString'  # #287
-posix/file_dir.cj:360: mismatched types: expected 'String', found 'CString'  # #287
-posix/file_dir.cj:399: mismatched types: expected 'String', found 'CString'  # #287
-posix/file_dir.cj:438: mismatched types: expected 'String', found 'CString'  # #287
 process/process.cj:587: mismatched types: expected 'ProcessStartInfo', found 'ProcessStartInfo'  # #149: @When's twins, both declared
 process/sub_process.cj:134: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
 process/sub_process.cj:139: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
@@ -20,9 +16,3 @@ process/sub_process.cj:174: mismatched types: expected 'SubProcess', found 'SubP
 process/sub_process.cj:178: mismatched types: expected 'SubProcess', found 'SubProcess'  # #149: @When's twins, both declared
 runtime/runtime_signal.cj:141: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
 runtime/runtime_signal.cj:39: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
-unittest/bench_executor.cj:592: mismatched types: expected 'Int64', found 'Float64'  # #287
-unittest/bench_executor.cj:594: mismatched types: expected 'UInt32', found 'Float64'  # #287
-unittest/delta_float.cj:221: mismatched types: expected 'UInt8', found 'Float32'  # #287
-unittest/delta_float.cj:239: mismatched types: expected 'UInt8', found 'Duration'  # #287
-unittest/delta_float.cj:239: mismatched types: expected 'UInt8', found 'Float64'  # #287
-unittest/pretty_console.cj:96: mismatched types: expected 'Configuration', found 'Bool'  # #287

@@ -95,6 +95,11 @@ public struct Signature {
          */
         public let paramDefaults!: Array<Bool> = [],
         /**
+         * Whether, a `foreign` function's, it takes any number of arguments more after its
+         * parameters: its `...`, none of `params`.
+         */
+        public let isCVariadic!: Bool = false,
+        /**
          * Its declared type: a function's return type, a variable's or property's type, what an
          * alias names, the type an `extend` extends.
          */
@@ -223,8 +228,8 @@ func lowerSignature(decl: Decl): LoweredSignature {
         case None => Array<TypeBound>()
     }
     LoweredSignature(
-        Signature(generics: generics, types: lowering.types.toArray(), params: params, paramNames: lowering.names, paramDefaults: lowering.defaults, ty: ty,
-            supers: supers, bounds: bounds),
+        Signature(generics: generics, types: lowering.types.toArray(), params: params, paramNames: lowering.names, paramDefaults: lowering.defaults,
+            isCVariadic: lowering.isCVariadic, ty: ty, supers: supers, bounds: bounds),
         SignatureSourceMap(lowering.ptrs.toArray())
     )
 }
@@ -239,6 +244,8 @@ class SignatureLowering {
     var names = Array<?String>()
     // and whether each has a default value, as many
     var defaults = Array<Bool>()
+    // and whether the last is a `foreign` function's `...`, no parameter of a type
+    var isCVariadic = false
 
     func params(lists: Iterator<ParamList>): Array<TypeRefId> {
         let ids = ArrayList<TypeRefId>()
@@ -246,6 +253,10 @@ class SignatureLowering {
         let withDefault = ArrayList<Bool>()
         for (list in lists) {
             for (param in list.params()) {
+                if (param.dotDotDotToken().isSome()) {
+                    isCVariadic = true
+                    continue
+                }
                 withDefault.add(param.eqToken().isSome())
                 ids.add(lower(param.ty()))
                 found.add(if (param.bangToken().isSome()) {

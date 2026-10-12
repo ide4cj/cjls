@@ -243,3 +243,75 @@ class InferenceDiagnosticsTest {
             "#, binaries: ["std.core"])
     }
 }
+
+/**
+ * What the gate of std's sources found where cjc finds nothing (#287), each case of std's code
+ * compiled with cjc 1.3.0-alpha.20261002 first; a name not known (`nope`) stands for a gap of the
+ * analysis there (the variadic `max` of #254), which nothing around it is reported for.
+ */
+@Test
+class StdFalseMismatchesTest {
+    @TestCase
+    func theDotsOfAForeignFunctionTakeAnyArgumentsMoreAfterItsParameters() {
+        checkDiagnostics(#"
+            //- /native.cj module=m package=m
+            package m
+            foreign func open(pathname: CString, flags: Int32, ...): Int32
+            foreign func cv(pathname: CString, flags: Int32, ...): Int32
+            //- /file_dir.cj module=m package=m
+            package m
+            private func withPath(path: String, action: (CString) -> Int32): Int32 { 0 }
+            public func `open`(path: String, oflag: Int32, flag: UInt32): Int32 {
+                return withPath(path) {p: CString => unsafe { open(p, oflag, flag) }}
+            }
+            public func `open`(path: String, oflag: Int32): Int32 {
+                return withPath(path) {p: CString => unsafe { open(p, oflag) }}
+            }
+            func h(p: CString): Unit {
+                let k: Int32 = unsafe { open(p, 1, 2, 3) }
+                unsafe { cv(p) }
+            //             ^^^ error: missing argument for parameter list '(CString, Int32)' in call: expected 2 arguments, found 1
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func anOperandNotKnownLeavesTheLanguagesOperatorNotAnotherDeclared() {
+        checkDiagnostics(#"
+            package m
+            extend Float64 {
+                operator func +(arg: UInt8): Float64 { this }
+            }
+            func g(a: Float64, b: Float64): Unit {
+                let s = a + b * nope
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func anArgumentNotKnownTakesNoneOfSeveralOverloads() {
+        checkDiagnostics(#"
+            package m
+            func abs(x: Int64): Int64 { x }
+            func abs(x: Float64): Float64 { x }
+            func g(): Unit {
+                let x = nope
+                if (abs(x) > 0.5) {}
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func thisCallsAPrimaryConstructorOfAParameterByNameWithItsDefault() {
+        checkDiagnostics(#"
+            package m
+            class Configuration {}
+            class Printer {
+                Printer(isColored: Bool, isOther!: Bool = true) {}
+                init(configuration: Configuration) {
+                    this(!false)
+                }
+            }
+            "#, binaries: ["std.core"])
+    }
+}
