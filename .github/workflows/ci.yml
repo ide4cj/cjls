@@ -53,7 +53,42 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
         run: python3 scripts/docs.py check ${PR:+--open-prs "$PR"}
 
+  # the binary, for e2e and perf, beside the tests rather than before them: neither waits for the
+  # other, and each keeps its own target directory and cache (D27, D96)
   build:
+    name: Build (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      # incremental from what master last built; a release, on a tag, is built clean (D27)
+      - id: cache
+        if: github.ref_type != 'tag'
+        uses: ./.github/actions/build-cache
+        with:
+          target-dir: target/release
+      - run: cjpm build
+        shell: bash
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cjls-${{ runner.os }}
+          path: target/release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
+          if-no-files-found: error
+      # master's alone, so a PR never starts from another PR's build
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+        uses: actions/cache/save@v6
+        with:
+          path: ${{ steps.cache.outputs.path }}
+          key: ${{ steps.cache.outputs.key }}
+
+  # the name the ruleset requires; `cjpm test` compiles the libraries again, for tests, in a target
+  # directory of its own: in the build's, each would undo the other's incremental cache
+  test:
     name: Build and test (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -65,30 +100,20 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-cangjie
-      # incremental from what master last built; a release, on a tag, is built clean (D27)
       - id: cache
         if: github.ref_type != 'tag'
         uses: ./.github/actions/build-cache
-      - run: cjpm build
-        shell: bash
+        with:
+          target-dir: target/test
       - run: python tests/corpora/fetch.py
         shell: bash
-      # beside the build's, not over it: each would undo the other's incremental cache
       - run: cjpm test --no-progress --timeout-each=2m --target-dir target/test
         shell: bash
-      # master's alone, so a PR never starts from another PR's build
       - if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/cache/save@v6
         with:
-          path: |
-            target
-            build-script-cache
+          path: ${{ steps.cache.outputs.path }}
           key: ${{ steps.cache.outputs.key }}
-      - uses: actions/upload-artifact@v7
-        with:
-          name: cjls-${{ runner.os }}
-          path: target/release/bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}
-          if-no-files-found: error
 
   # the coverage-guided fuzzers with the comparisons fjson and jsonrpc make fed back to them, in a
   # target dir of their own; the heap is for cjc's instrumentation, which leaks on every match of
