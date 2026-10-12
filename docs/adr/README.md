@@ -111,4 +111,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0090](0090-what-inference-finds-wrong-is-reported.md) | What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources | proposed |
 | [0091](0091-the-windows-macro-server-is-started-by-createprocessw.md) | On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone | proposed |
 | [0092](0092-a-new-file-is-given-its-package-line.md) | A document opened blank is given its package line | proposed |
+| [0093](0093-when-is-evaluated-on-an-active-item-tree.md) | @When is evaluated on an active item tree and in lowering, against the package's cfg | proposed |
 | [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed |
