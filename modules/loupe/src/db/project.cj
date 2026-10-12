@@ -8,6 +8,11 @@ import calca.macros.*
 import loupe.vfs.*
 
 /**
+ * The package of a file with no `package` line, as cjc names it.
+ */
+const DEFAULT_PACKAGE = "default"
+
+/**
  * One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
  */
 @Derive[Equatable]
@@ -235,6 +240,34 @@ public struct ProjectModel {
     }
 
     /**
+     * The package a file new at `file` is in, as its `package` line names it: that of a package in
+     * its directory; else, under the nearest module that names each of its packages after its
+     * directory, as cjpm does, the module's name and the directories down to the file's. `None` for
+     * `default`, which no line names, outside every module, and for a directory whose name is not an
+     * identifier.
+     */
+    public func packageOfNewFile(file: VfsPath): ?String {
+        let dir = file.parent ?? return None
+        for (module in modules) {
+            for (pkg in module.packages where pkg.dir == dir && pkg.name != DEFAULT_PACKAGE) {
+                return pkg.name
+            }
+        }
+        var nearest: ?(String, Array<String>) = None
+        for (module in modules where module.name != DEFAULT_PACKAGE && module.namesPackagesByDirectory()) {
+            let segments = dir.segmentsUnder(module.root) ?? continue
+            if (nearest.map {kept => segments.size < kept[1].size} ?? true) {
+                nearest = (module.name, segments)
+            }
+        }
+        match (nearest) {
+            case Some((name, segments)) where segments.iterator().all {segment => isIdentifier(segment)} =>
+                String.join([name].concat(segments), delimiter: ".")
+            case _ => None
+        }
+    }
+
+    /**
      * The `.cjo` of every package of the binaries, as the disk lists them: every one in a directory
      * of a binary, then those it names one by one.
      */
@@ -257,6 +290,18 @@ extend ModuleModel {
     prop key: ModuleKey {
         get() {
             ModuleKey(root, name)
+        }
+    }
+
+    /**
+     * Whether each of its packages is named as its directory under the root: `a.b.c` in `<root>/b/c`.
+     */
+    func namesPackagesByDirectory(): Bool {
+        packages.iterator().all {
+            pkg => match (pkg.dir.segmentsUnder(root)) {
+                case Some(segments) => pkg.name == String.join([name].concat(segments), delimiter: ".")
+                case None => false
+            }
         }
     }
 
@@ -393,4 +438,16 @@ struct ModuleKey {
 @Derive[Hashable, Equatable]
 struct PackageKey {
     PackageKey(let module: ModuleKey, let name: String) {}
+}
+
+/**
+ * Whether `name` is an identifier: ASCII letters, `_`, digits but first, and any character beyond
+ * ASCII (Cangjie takes Unicode identifiers).
+ */
+func isIdentifier(name: String): Bool {
+    !name.isEmpty() && name.toArray().iterator().enumerate().all {
+        at => let byte = at[1]
+        (byte >= b'a' && byte <= b'z') || (byte >= b'A' && byte <= b'Z') || byte == b'_' || byte >= 0x80 ||
+            (at[0] > 0 && byte >= b'0' && byte <= b'9')
+    }
 }
