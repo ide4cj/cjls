@@ -87,7 +87,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0066](0066-sugar-is-typed-as-cjc-desugars-it.md) | Coalescing, pipelines and compositions are typed as what cjc desugars them to, std.core named through lang items | proposed |
 | [0067](0067-loose-mains-are-programs.md) | Loose files without a package line, two or more of which declare main, are a program per main, each with the main-less files of its directory | accepted |
 | [0068](0068-binaries-are-watched-from-their-directories.md) | The `.cjo` of the binaries are watched from the directories they are in, by a registration of their own, and an event on one finds the project again | accepted |
-| [0069](0069-std-sources-fetched-by-cjls.md) | The sources of std are fetched by `cjls fetch-src`, from `cangjie_runtime` at the commit the nightly's release notes name, into the SDK's `src` | proposed |
+| [0069](0069-std-sources-fetched-by-cjls.md) | The sources of std are fetched by `cjls fetch-src`, from `cangjie_runtime` at the commit the nightly's release notes name, into the SDK's `src` | proposed; a release SDK's sources are `cangjie_runtime` at the tag `v<version>`; any SDK's come from the GitHub mirror first, then gitcode, by D94 |
 | [0070](0070-an-optional-chain-is-lowered-into-matches.md) | An optional chain is lowered into the matches cjc desugars it to, Some and None lang items | proposed |
 | [0071](0071-a-union-reads-its-value-on-the-rewound-reader.md) | A union reads its value on the reader itself, rewound to the value's start between attempts | accepted |
 | [0072](0072-names-are-highlighted-by-what-they-mean.md) | Semantic tokens tell a name at its use by what it means, through a Definition shared with go to definition | accepted; semantic tokens read what inference and lowering resolved; `lookUp` is a query by D84 |
@@ -105,11 +105,12 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed; a memo verified in this revision answers a dependent through its entry, not its table, by D85 |
 | [0085](0085-a-dependency-keeps-its-edge.md) | A dependency keeps the object it was read from, which answers for it without a lock when it can | proposed |
 | [0086](0086-json-is-read-without-a-tape.md) | JSON is read by the pull reader, not through a tape index | accepted |
-| [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed; Windows is not left opaque by D91; no table is generated, and no SDK version is required, by D95 |
+| [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed; Windows is not left opaque by D91; the token table is one per SDK of the window, not the pin's alone, by D94; no table is generated, and no SDK version is required, by D95 |
 | [0088](0088-a-document-in-no-package-finds-its-own-project.md) | A document open in no package finds its own project from its path, as R1 does on open, and that project stays loaded with the roots' | proposed |
 | [0089](0089-calca-counts-executions-per-function.md) | calca counts the executions of each tracked function, and keeps no trace | accepted |
 | [0090](0090-what-inference-finds-wrong-is-reported.md) | What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources | proposed |
 | [0091](0091-the-windows-macro-server-is-started-by-createprocessw.md) | On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone | proposed |
 | [0092](0092-a-new-file-is-given-its-package-line.md) | A document opened blank is given its package line | proposed |
 | [0093](0093-when-is-evaluated-on-an-active-item-tree.md) | @When is evaluated on an active item tree and in lowering, against the package's cfg | proposed |
+| [0094](0094-a-release-supports-a-window-of-sdks.md) | One cjls release supports a window of SDKs: the latest LTS, the latest STS and the pinned nightly, told apart by `cjc --version` | accepted |
 | [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed |
