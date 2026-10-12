@@ -55,10 +55,9 @@ func quoteWindowsArg(arg: String): String {
 /**
  * The command line of the server on Windows (`src/main-macrosrv.cpp`): the pipe handle it reads, the one it
  * writes, `0` for serial, and `cjc`, whose directory it finds the runtime by. There is no parent's pid: a job
- * ends it with this process. `protected`, as `windowsEnvironment`: only Windows calls it, and an `internal`
- * function would be warned unused everywhere else.
+ * ends it with this process.
  */
-protected func windowsCommandLine(paths: MacroServerPaths, readHandle: UInt64, writeHandle: UInt64): String {
+func windowsCommandLine(paths: MacroServerPaths, readHandle: UInt64, writeHandle: UInt64): String {
     let args = [paths.server.toString(), "${readHandle}", "${writeHandle}", "0", paths.cjc.toString()]
     String.join(args.map {a => quoteWindowsArg(a)}, delimiter: " ")
 }
@@ -68,7 +67,7 @@ protected func windowsCommandLine(paths: MacroServerPaths, readHandle: UInt64, w
  * where Windows looks for the DLLs a macro's library needs; sorted by name ignoring case, as Windows keeps
  * one; each `name=value` ended by a 0, the block by another.
  */
-protected func windowsEnvironment(variables: Array<(String, String)>, runtimeLib: String): Array<UInt16> {
+func windowsEnvironment(variables: Array<(String, String)>, runtimeLib: String): Array<UInt16> {
     let entries = ArrayList<(String, String)>()
     var path: ?String = None
     for ((name, value) in variables) {
