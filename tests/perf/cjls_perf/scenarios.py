@@ -83,6 +83,48 @@ async def open_document(session: Session, options: Options) -> dict[str, float]:
     }
 
 
+@scenario("tokens")
+async def tokens(session: Session, options: Options) -> dict[str, float]:
+    """The subject's semantic tokens, all of it: first when it is opened, which reads every body it
+    has, then after each character typed at its end, as an editor asks again after an edit."""
+    await start(session)
+    if not session.supports("semantic_tokens_provider"):
+        raise Skipped("no semanticTokensProvider")
+    text = session.workspace.subject_text
+    began = time.perf_counter()
+    uri = session.open(session.workspace.subject, text)
+    data = await session.semantic_tokens(uri)
+    first = (time.perf_counter() - began) * 1000
+    before = session.usage()
+    session.sampler.reset_peak()
+
+    lines = text.split("\n")
+    line, character = len(lines) - 1, column(lines[-1], session.encoding)
+    typed = "\nfunc typed(x: Int64): Int64 {\n    x + 1\n}\n"
+    latencies = []
+    version = 1
+    for i in range(options.keystrokes):
+        char = typed[i % len(typed)]
+        version += 1
+        began = time.perf_counter()
+        session.insert(uri, version, line, character, char)
+        await session.semantic_tokens(uri)
+        latencies.append((time.perf_counter() - began) * 1000)
+        line, character = (line + 1, 0) if char == "\n" else (line, character + 1)
+
+    after = session.usage()
+    return {
+        "open_to_tokens_ms": first,
+        "tokens": len(data) // 5,
+        "keystroke_p50_ms": statistics.median(latencies),
+        "keystroke_p95_ms": percentile(latencies, 95),
+        "keystroke_max_ms": max(latencies),
+        "rss_mb": after.rss_mb,
+        "peak_rss_mb": after.peak_rss_mb,
+        "cpu_s": after.cpu_s - before.cpu_s,
+    }
+
+
 @scenario("typing")
 async def typing(session: Session, options: Options) -> dict[str, float]:
     """A declaration typed at the end of the subject, a character at a time, the outline asked for

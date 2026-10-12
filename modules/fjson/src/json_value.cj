@@ -126,6 +126,16 @@ extend JsonValue <: ToJson & FromJson<JsonValue> & ToString {
         String.fromUtf8(w.bytes())
     }
 
+    /**
+     * The value as JSON a person reads: each item and member on a line of its own, indented by two
+     * spaces a level; an empty array or object, and everything else, as `toString` writes it.
+     */
+    public func toPrettyString(): String {
+        let out = StringBuilder()
+        pretty(this, 0, out)
+        out.toString()
+    }
+
     public func toJson(w: FjWriter): Unit {
         match (this) {
             case JsonNull => w.null()
@@ -199,5 +209,30 @@ private func readJsonValue(r: FjReader, depth: Int64): JsonValue {
                     JsonFloat(FjReader(number).readFloat64())
                 }
             }
+    }
+}
+
+private func pretty(value: JsonValue, depth: Int64, out: StringBuilder): Unit {
+    let inner = "  " * (depth + 1)
+    match (value) {
+        case JsonArray(items) where !items.isEmpty() =>
+            out.append("[\n")
+            for (i in 0..items.size) {
+                out.append(inner)
+                pretty(items[i], depth + 1, out)
+                out.append(if (i + 1 < items.size) { ",\n" } else { "\n" })
+            }
+            out.append("  " * depth + "]")
+        case JsonObject(members) where !members.isEmpty() =>
+            out.append("{\n")
+            for (i in 0..members.size) {
+                out.append(inner)
+                out.append(JsonString(members[i][0]).toString())
+                out.append(": ")
+                pretty(members[i][1], depth + 1, out)
+                out.append(if (i + 1 < members.size) { ",\n" } else { "\n" })
+            }
+            out.append("  " * depth + "}")
+        case _ => out.append(value.toString())
     }
 }

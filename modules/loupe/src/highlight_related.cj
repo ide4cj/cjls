@@ -58,23 +58,31 @@ public func highlightRelated(db: AnalysisDatabase, fileId: FileId, offset: Int64
     root.descendantsWithTokens() |> filterMap {element: SyntaxElement<SyntaxKind> => element.asToken()} |> filter {
         one: CjSyntaxToken => one.kind == SyntaxKind.Ident && identText(one) == name
     } |> filter {
-        one: CjSyntaxToken => meaningsAt(db, file, one).any {symbol: Symbol => meant.contains(symbol)}
+        one: CjSyntaxToken => meaningsAt(db, file, one).any {definition: Definition => meant.contains(definition)}
     } |> map {one: CjSyntaxToken => RelatedHighlight(one.textRange, accessOf(one))} |> collectArray
 }
 
 /**
- * What the name `token` means: the item it is the name of at its declaration, what `definitionAt` goes to anywhere
- * else.
+ * What the name `token` means: the item it is the name of at its declaration, what `classifyName` says anywhere
+ * else; a parameter of a primary constructor as the local it is in the constructor's body, whether named as that or
+ * as a member, and a package as nothing.
  */
-func meaningsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): Array<Symbol> {
+func meaningsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): Array<Definition> {
     if (let Some(name) <- Name.cast(token.parent)) {
         let decl = name.syntax.parent ?? return []
         if (let Some(item) <- itemIdMap(db, file).idOf(SyntaxNodePtr(decl)) &&
             (AnyHasName.cast(decl).flatMap {it => it.name()}.map {it => it.syntax == name.syntax} ?? false)) {
-            return [DeclSymbol(DefId(db, ItemFile.Source(file), item))]
+            return [Definition.DeclDef(DefId(db, ItemFile.Source(file), item))]
         }
     }
-    symbolsAt(db, file, token)
+    let defs = classifyName(db, file, itemAround(db, file, token.parent), token) ?? return []
+    defs |> filterMap {
+        definition: Definition => match (definition) {
+            case MemberParamDef(ctor, local) => Some(Definition.LocalDef(ctor, local))
+            case PackageDef(_) => None
+            case _ => Some(definition)
+        }
+    } |> collectArray
 }
 
 /**

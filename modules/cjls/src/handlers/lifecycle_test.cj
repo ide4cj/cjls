@@ -87,8 +87,9 @@ class InitializeTest {
         let state = ServerState()
 
         // act
-        let result = handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: capabilities))
+        let result = handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
 
         // assert
         @Expect(state.encoding, expected)
@@ -107,8 +108,9 @@ class InitializeTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-            capabilities: capabilities))
+        handleInitialize(state, Client(), NoopLogger(),
+            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
+                capabilities: capabilities))
 
         // assert
         @Expect(state.pushesDiagnostics, pushed)

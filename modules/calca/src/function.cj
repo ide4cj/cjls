@@ -538,8 +538,27 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * value that is not current is computed again, so backdating can tell whether it changed. An
      * evicted one never is: if nothing it read changed, neither did it; else it may have, and
      * whoever fetches it computes it. A memo dropped with its key is changed.
+     *
+     * A memo with a value verified in this revision is answered at once, as a hit of `fetchValue`
+     * is: nothing works on it, and every edge of every memo verified after it ends there, in the
+     * code shared by every instance of this class.
      */
     public func maybeChangedAfter(db: Database, id: Id, revision: Int64): Bool {
+        let now = db.storage.runtime.revision
+        // the revision the memo last changed in if it is verified now, else -1: no generic tuple or
+        // option made on the way, each a type looked up at run time here
+        let changedAt = synchronized(lock) {
+            match (entries.get(id)) {
+                case Some(entry) => match (entry.memo.load()) {
+                    case Some(memo) where memo.verifiedAt.load() == now && memo.value.isSome() => memo.changedAt
+                    case _ => -1
+                }
+                case None => -1
+            }
+        }
+        if (changedAt >= 0) {
+            return changedAt > revision
+        }
         let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
         let storage = db.storage
         let databaseKey = DatabaseKey(function.index, id)

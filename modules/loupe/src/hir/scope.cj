@@ -245,7 +245,7 @@ public func importsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stag
  * see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive`
  * leaves `@Derive` the imported macro).
  */
-@Derive[Equatable]
+@Derive[Equatable, Hashable]
 public enum Namespace {
     | Types
     | Values
@@ -423,8 +423,10 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
 }
 
 /**
- * What `name`, used in `ns`, means in `file` of `pkg`.
+ * What `name`, used in `ns`, means in `file` of `pkg`. A query: inference and highlighting ask it of
+ * every name, and a declaration added to the package runs again only what read a name it changes.
  */
+@CalcaTracked
 public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String, ns: Namespace): Resolution {
     // a macro's name among what the files write: what is expanded depends on it (#175)
     let stage = if (ns == Namespace.Macros) {
