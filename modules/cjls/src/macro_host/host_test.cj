@@ -14,7 +14,6 @@ import loupe.fixture.*
 import loupe.hir.{macroOutputOf, macroRequests, pendingMacroRequests, setMacroOutputsByKey}
 import macro_server.*
 import project_model.{hostCfg, sdkTarget}
-import loupe.vfs.VfsPath
 import rope.Rope
 
 /**
@@ -76,13 +75,6 @@ func macroFixture(text: String): (AnalysisDatabase, SourceFile, String) {
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow(), parsed.file("/main.cj").text)
 }
 
-/**
- * `library` as the library of the macro package of the first call of `file`.
- */
-func libraryOf(db: AnalysisDatabase, file: SourceFile, library: MacroLibrary): HashMap<VfsPath, MacroLibrary> {
-    HashMap<VfsPath, MacroLibrary>([(macroRequests(db, file)[0].definition.pkg.dir(db), library)])
-}
-
 let MAIN = #"
         package m
         import m.ms.*
@@ -96,7 +88,7 @@ class MacroRoundTest {
     func aCallIsSentAsItsMacroAndItsLibraryAndWhatItAnswersEndsItsRequest() {
         // arrange
         let (db, file, _) = macroFixture(MAIN)
-        let libraries = libraryOf(db, file, MacroLibrary("/lib-macro_m.ms.so", 0))
+        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib-macro_m.ms.so", 0))])
         let expander = FakeExpander()
 
         // act
@@ -117,7 +109,7 @@ class MacroRoundTest {
     func whatTheMacroGivesBackComesFromWhereTheSourceWroteIt() {
         // arrange
         let (db, file, source) = macroFixture(MAIN)
-        let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
+        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))])
         let request = macroRequests(db, file)[0]
 
         // act
@@ -137,7 +129,7 @@ class MacroRoundTest {
         let (db, file, _) = macroFixture(MAIN)
 
         // act
-        let requests = sendableRequests(db, [file], HashMap<VfsPath, MacroLibrary>())
+        let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>())
 
         // assert
         @Expect(requests.size, 0)
@@ -147,7 +139,7 @@ class MacroRoundTest {
     func aCallIsNotSentUntilTheAnalysisHasTheStampOfItsLibrary() {
         // arrange
         let (db, file, _) = macroFixture(MAIN)
-        let libraries = libraryOf(db, file, MacroLibrary("/lib", 5))
+        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 5))])
 
         // act
         let before = sendableRequests(db, [file], libraries).size
@@ -344,7 +336,7 @@ let USES = #"
 /**
  * `/a.cj` and `/b.cj` of package `m`, each holding `USES`, with the workspace macro package `m.ms` built.
  */
-func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<VfsPath, MacroLibrary>) {
+func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<String, MacroLibrary>) {
     let parsed = Fixture.parse(#"
         //- /a.cj module=m package=m
         "# + USES + #"
@@ -356,8 +348,8 @@ func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<VfsPa
         public macro M(input: Tokens): Tokens { input }
         "#)
     let db = parsed.database()
-    let a = db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow()
-    (db, a, db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(), libraryOf(db, a, MacroLibrary("/lib", 0)))
+    (db, db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow(), db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(),
+        HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))]))
 }
 
 @Test
