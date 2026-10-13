@@ -323,6 +323,29 @@ func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
 }
 
 /**
+ * The SDK's `std.core`: a binary one, not a package of the project named so, which the index lists
+ * first. What a `.cjo`, compiled against it, sees, and a source file of no package (#319).
+ */
+func sdkCore(db: AnalysisDatabase): ?PackageRef {
+    packageIndex(db).packages.get("std.core").flatMap {
+        all => all.iterator().filter {
+            one => match (one.pkg) {
+                case Binary(_) => true
+                case Source(_) => false
+            }
+        }.next()
+    }.map {one => one.pkg}
+}
+
+/**
+ * The package whose std `def` sees: its own, or the SDK's `std.core` for a declaration of a source
+ * file of no package, as its `extend`s of a type of the language are found there (#319).
+ */
+func stdViewerOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
+    packageRefOf(db, def) ?? sdkCore(db)
+}
+
+/**
  * The `extend`s of `ty` the file `from` sees, looked for where one may be (D53): in the type's
  * package, `std.core` for a type of the language, in the file's, and among the `extend`s of other
  * types the packages of its interfaces hold (`interfaceExtendsOf`).
@@ -333,16 +356,7 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
         case DeclType(id) => packageRefOf(db, id)
         case PrimType(_) => match (viewer) {
             case Some((pkg, _)) => packageIndex(db).find("std.core", from: PackageRef.Source(pkg))
-            // a lookup from a `.cjo`, compiled against the SDK's `std.core`: a binary one, not a
-            // package of the project named so, which the index lists first
-            case None => packageIndex(db).packages.get("std.core").flatMap {
-                all => all.iterator().filter {
-                    one => match (one.pkg) {
-                        case Binary(_) => true
-                        case Source(_) => false
-                    }
-                }.next()
-            }.map {one => one.pkg}
+            case None => sdkCore(db)
         }
     }
     let found = ArrayList<DefId>()

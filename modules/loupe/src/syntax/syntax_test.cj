@@ -52,6 +52,10 @@ func weakTree(db: AnalysisDatabase, file: SourceFile): WeakRef<GreenNode<SyntaxK
  * Whether the runtime frees what `ref` refers to. `gc` returns before weak references are cleared (measured,
  * 1.3.0-alpha: still set right after `gc(heavy: true)`, however many times, and cleared a millisecond later), so
  * this waits a little after each collection, a bounded number of times.
+ *
+ * Never that something is kept: on macOS the runtime now and then clears a weak reference whose referent a variable
+ * still holds (1.3.0-alpha.20261002, macOS arm64 runners: 13 times in 300, none on Linux). That something is freed
+ * is told on Linux; on macOS a case asserting it may pass on a leak, never fail on a tree kept.
  */
 func isFreed<T>(ref: WeakRef<T>): Bool where T <: Object {
     for (_ in 0..20) {
@@ -97,21 +101,28 @@ class ParseLruTest {
         keepAlive(db, file)
     }
 
+    /**
+     * Told by what the result holds, not by a weak reference (see `isFreed`): the very tree parsed first, which
+     * `parse` itself no longer has.
+     */
     @TestCase
     func aResultHoldingANodeKeepsAnEvictedTreeAlive() {
         // arrange
         let db = AnalysisDatabase()
         let (file, other) = files(db)
-        let tree = weakTree(db, file)
+        let first = parse(db, file).green
         rootOf(db, file)
         parseOthers(db)
+        db.setFileText(other, Rope("changed"))
+        let runs = db.storage.executionsOf("rootOf")
 
         // act
-        db.setFileText(other, Rope("changed"))
+        let root = rootOf(db, file)
 
         // assert
-        @Expect(!isFreed(tree))
-        keepAlive(db, file)
+        @Expect(db.storage.executionsOf("rootOf"), runs)
+        @Expect(refEq(root.green, first))
+        @Expect(!refEq(parse(db, file).green, first))
     }
 
     @TestCase

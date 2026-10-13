@@ -78,9 +78,13 @@ public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
 
 /**
  * Whether a macro whose expansion is not read (`isReadMacro`) is called on `def` or on one of its members: what it
- * adds to them is not known (#176).
+ * adds to them is not known (#176). None is under a top-level item a workspace macro's expansion replaces, which says
+ * what they add.
  */
 public func hasUnreadMacros(db: AnalysisDatabase, def: DefId): Bool {
+    if (isReplacedByWorkspaceExpansion(db, def)) {
+        return false
+    }
     let onMember = parentOf(db, def).isSome()
     if (macrosOf(db, def).iterator().any {one => !isReadMacro(db, one, onMember: onMember)}) {
         return true
