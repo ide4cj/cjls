@@ -8,13 +8,15 @@ import rope.Rope
 import loupe.vfs.*
 
 /**
- * One file's text as the analysis sees it. The database keeps one per `FileId`, made the first time
- * the file is set, and never drops it: a file deleted is an empty text (A5).
+ * One file's text as the analysis sees it, and what the macro server answered for its macro calls
+ * (#176). The database keeps one per `FileId`, made the first time the file is set, and never drops
+ * it: a file deleted is an empty text (A5).
  */
 @CalcaInput
 public struct SourceFile {
     public let fileId: FileId
     public var text: Rope
+    public var macroOutputs: MacroOutputs = MacroOutputs()
 }
 
 /**

@@ -38,7 +38,29 @@ class LoopTest {
         // what setting the state up changed
         state.takeFilesChanged()
         let refreshed = ArrayList<Bool>()
-        let loop = Loop(state, Option<DiagnosticsPush>.None, refresh: {=> refreshed.add(true)})
+        let loop = Loop(state, Option<DiagnosticsPush>.None, refreshTokens: {=> refreshed.add(true)})
+
+        // act
+        loop.write {
+            state: ServerState => if (changes) {
+                state.setFileContents(PUSHED_PATH, Rope("written"))
+            }
+        }
+
+        // assert
+        @Expect(refreshed.size, asked)
+    }
+
+    @TestCase[row in [(true, true, 1), (true, false, 0), (false, true, 0)]]
+    func aWriteChangingTheFilesAsksAClientThatCanForItsDiagnosticsAgain(row: (Bool, Bool, Int64)) {
+        // arrange - a document's diagnostics may change with another file (D100)
+        let (refreshes, changes, asked) = row
+        let state = stateWith("a")
+        state.refreshesDiagnostics = refreshes
+        // what setting the state up changed
+        state.takeFilesChanged()
+        let refreshed = ArrayList<Bool>()
+        let loop = Loop(state, Option<DiagnosticsPush>.None, refreshDiagnostics: {=> refreshed.add(true)})
 
         // act
         loop.write {

@@ -394,4 +394,38 @@ class UnknownTest {
             }
             "#, binaries: ["std.core", "std.unittest", "std.unittest.testmacro"])
     }
+
+    @TestCase
+    func aVariadicFunctionOfACjoIsKnownAloneNotAmongOverloads() {
+        checkUnknowns(#"
+            package m
+            import std.collection.ArrayList
+            // cjc: each of a type known
+            func g(s: String): Unit {
+                let a = String.fromUtf8(97u8, 98u8)
+            //          ^^^^^^ no value
+                let b = String.fromUtf8()
+            //          ^^^^^^ no value
+                let c = String.fromUtf8([97u8])
+            //          ^^^^^^ no value
+                let d = Float64.max(1.0, 2.0)
+            //          ^^^^^^^ no value
+                let e = Float64.max(1.0, 2.0, 3.0, 4.0)
+            //          ^^^^^^^ no value
+                let f = ArrayList.of(1, 2, 3)
+            //          ^^^^^^^^^ no value
+                let h = ArrayList<Int64>.of()
+            //          ^^^^^^^^^^^^^^^^ no value
+                // of three overloads, none of two parameters: matched by their count alone (#254)
+                let t = s.trimStart(r'a', r'b')
+            //          ^^^^^^^^^^^ todo(arg matching)
+            //          ^^^^^^^^^^^^^^^^^^^^^^^ todo(arg matching)
+                // each of one parameter, none taking a `Rune` as such: an error, not a gap, as
+                // `byMatching` looks at names alone (#254)
+                let u = s.trimStart(r'a')
+            //          ^^^^^^^^^^^ error
+            //          ^^^^^^^^^^^^^^^^^ error
+            }
+            "#, binaries: ["std.core", "std.collection"])
+    }
 }

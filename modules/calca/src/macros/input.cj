@@ -21,9 +21,10 @@ import std.collection.*
  * ```
  *
  * Every field gets a getter, recorded as read by the query that calls it; a `var` one also gets a
- * setter, which starts a new revision. Fields take the visibility they are declared with, and have
- * no initializer. Member functions are kept as they are. The type is `Hashable` and `Equatable` by
- * its `Id`.
+ * setter, which starts a new revision. Fields take the visibility they are declared with. A field
+ * with an initializer is a named parameter of the constructor, its initializer the default; such
+ * fields come after the others. Member functions are kept as they are. The type is `Hashable` and
+ * `Equatable` by its `Id`.
  *
  * `@CalcaInput[singleton]` has at most one value per database, created as any other (a second one
  * throws), and found with `get` and `tryGet`, which a query records as read:
@@ -47,7 +48,7 @@ public macro CalcaInput(attrs: Tokens, input: Tokens): Tokens {
 
 private func calcaInput(input: Tokens, singleton: Bool): Tokens {
     let decl = plainStruct(input, "CalcaInput") ?? return input
-    let (fields, kept) = storedFields(decl, "CalcaInput") ?? return input
+    let (fields, kept) = storedFields(decl, "CalcaInput", initializers: true) ?? return input
 
     let name = decl.identifier
     var fieldNames = Tokens()
@@ -62,7 +63,11 @@ private func calcaInput(input: Tokens, singleton: Bool): Tokens {
         let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
         fieldNames += nameLiteral(ident)
         fieldNames += Token(TokenKind.COMMA)
-        params += quote($ident: $fieldType, )
+        if (hasInitializer(field)) {
+            params += quote($ident!: $fieldType = $(field.expr), )
+        } else {
+            params += quote($ident: $fieldType, )
+        }
         puts += quote(row.put<$fieldType>($index, $ident)
         )
         accessors += quote(

@@ -95,6 +95,12 @@ struct Mode {
     var cyclic: Bool
 }
 
+@CalcaInput
+struct Layout {
+    let name: String
+    var width: Int64 = 80
+}
+
 @CalcaInterned
 struct Name {
     let text: String
@@ -238,6 +244,21 @@ class CalcaTest {
         @Expect(file.path(db), "a.cj")
         @Expect(file.text(db), "hello")
         @Expect(file.toString(), "SourceFile(0)")
+    }
+
+    @TestCase
+    func aFieldWithAnInitializerIsANamedParameterOfTheConstructor(): Unit {
+        // arrange
+        let db = TestDatabase()
+
+        // act
+        let defaulted = Layout(db, "a")
+        let given = Layout(db, "b", width: 100)
+        defaulted.setWidth(db).to(120)
+
+        // assert
+        @Expect(defaulted.width(db), 120)
+        @Expect(given.width(db), 100)
     }
 
     @TestCase
