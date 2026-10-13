@@ -30,13 +30,8 @@ func sdkPaths(): MacroServerPaths {
 }
 
 func derivingLibrary(paths: MacroServerPaths): String {
-    for (suffix in LIBRARY_SUFFIXES) {
-        let library = paths.runtimeLib.join("libcangjie-std-deriving${suffix}")
-        if (exists(library)) {
-            return library.toString()
-        }
-    }
-    throw IllegalStateException("no libcangjie-std-deriving in ${paths.runtimeLib}")
+    (paths.stdMacroLibrary("std.deriving") ?? throw IllegalStateException(
+        "no libcangjie-std-deriving in ${paths.runtimeLib}")).toString()
 }
 
 /**
@@ -66,6 +61,20 @@ func valuesOf(result: MacroResult): Array<String> {
  */
 @Test
 class MacroServerTest {
+    @TestCase
+    func theLibraryOfAPackageOfStdIsFoundByItsNameAndNoneOfOneWithout(): Unit {
+        // arrange
+        let paths = sdkPaths()
+
+        // act
+        let testmacro = paths.stdMacroLibrary("std.unittest.testmacro")
+        let none = paths.stdMacroLibrary("std.nothing")
+
+        // assert
+        @Expect(testmacro.map {path => path.fileName.startsWith("libcangjie-std-unittest.testmacro.")}, Some(true))
+        @Expect(none.isNone())
+    }
+
     @TestCase
     func aDeriveIsExpandedIntoItsExtend(): Unit {
         // arrange

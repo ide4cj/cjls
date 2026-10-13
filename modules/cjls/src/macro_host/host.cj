@@ -9,7 +9,7 @@ import stdx.log.Logger
 import calca.CancelledException
 import jsonrpc.ErrorLogValue
 import loupe.db.*
-import loupe.hir.{MacroBuildUnit, MacroRequest, macroBuildPlan, macroCallKeyOf, pendingMacroRequests}
+import loupe.hir.{MacroBuildUnit, MacroPackage, MacroRequest, macroBuildPlan, macroCallKeyOf, pendingMacroRequests}
 import loupe.vfs.{FileId, VfsPath}
 import macro_server.*
 import project_model.{findCangjieHome, hostCfg, sdkTarget}
@@ -23,18 +23,31 @@ public struct MacroLibrary {
 }
 
 /**
- * The requests of `files` to send: those not answered yet whose macro package has a library built at the stamp the
- * analysis has for it (D87: a call whose library is not there is never sent), each with that library; those of the
- * files `isOpen` says the editor shows first, then the others, each in their order.
+ * The requests of `files` to send: those not answered yet whose macro has a library (D87: a call whose library is not
+ * there is never sent), each with it: a macro package of the workspace one built at the stamp the analysis has for
+ * it, a package of std the one `stdLibrary` finds of its name in the SDK; those of the files `isOpen` says the editor
+ * shows first, then the others, each in their order.
  */
 public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>,
-    isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile, MacroRequest, MacroLibrary)> {
+    stdLibrary!: (String) -> ?String = {_ => None}, isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile,
+    MacroRequest, MacroLibrary)> {
     let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
     for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
         for (request in pendingMacroRequests(db, file)) {
-            let pkg = request.definition.pkg
-            if (let Some(library) <- libraries.get(pkg.name(db)) && library.stamp == pkg.macroLibrary(db)) {
-                found.add((file, request, library))
+            let library = match (request.definition.pkg) {
+                case MacroPackage.WorkspacePackage(pkg) => libraries.get(pkg.name(db)).flatMap {
+                    one => if (one.stamp == pkg.macroLibrary(db)) {
+                        one
+                    } else {
+                        None<MacroLibrary>
+                    }
+                }
+                case MacroPackage.StdPackage(binary) => stdLibrary(binary.name(db)).map {
+                    path => MacroLibrary(path, request.definition.libraryStamp(db))
+                }
+            }
+            if (let Some(one) <- library) {
+                found.add((file, request, one))
             }
         }
     }
@@ -55,7 +68,7 @@ public func expandAll(db: AnalysisDatabase, requests: Array<(SourceFile, MacroRe
     let calls = requests.map {
         one =>
         let (file, request, library) = one
-        let (call, layout) = callDataOf(request, request.definition.pkg.name(db), library.path, numbers)
+        let (call, layout) = callDataOf(request, request.definition.pkgName(db), library.path, numbers)
         (file, request, macroCallKeyOf(db, request.call), call, layout)
     }
     let answers = ArrayList<(SourceFile, MacroCallKey, MacroOutput)>()
@@ -198,7 +211,7 @@ public class GuardedServer <: Expander {
             process = None
             killQuietly(server)
             if (inTime) {
-                logger.warn("the macro server exited", [("cause", e)])
+                logger.warn("the macro server exited", [("macro", call.methodName ?? ""), ("cause", e)])
                 Unanswered("the macro server exited")
             } else {
                 Unanswered(pastDeadline())
@@ -233,6 +246,48 @@ public class GuardedServer <: Expander {
     }
 }
 
+/**
+ * Two servers, one running std's macros, the other the workspace's (D109): a process that loads std's library of
+ * `@Derive` after one of the workspace's libraries ran may abort (SIGABRT in the runtime, 1.3.0-alpha.20261002), and
+ * a rebuilt library of the workspace restarts only its own server.
+ */
+public class MacroServers <: Expander {
+    let std: GuardedServer
+    let workspace: GuardedServer
+
+    public MacroServers(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
+        std = GuardedServer(paths, timeout, logger)
+        workspace = GuardedServer(paths, timeout, logger)
+    }
+
+    public func expand(call: MacroCallData): CallOutcome {
+        if (isStdCall(call)) {
+            std.expand(call)
+        } else {
+            workspace.expand(call)
+        }
+    }
+
+    /**
+     * Ends the server of the workspace's macros, which keeps its libraries loaded.
+     */
+    public func restartWorkspace(): Unit {
+        workspace.restart()
+    }
+
+    public func close(): Unit {
+        std.close()
+        workspace.close()
+    }
+}
+
+/**
+ * Whether `call` runs a macro of std: one of a package of std (`ServerMacro.isStd`), which a workspace cannot name.
+ */
+func isStdCall(call: MacroCallData): Bool {
+    call.packageName.map {pkg => pkg.startsWith("std.")} ?? false
+}
+
 func killQuietly(server: MacroServerProcess): Unit {
     try {
         server.kill()
@@ -251,11 +306,27 @@ class MacroSdk {
         let toolchain: SdkToolchain,
         let version: String
     ) {}
+
+    // the library of each package of std asked for, `None` for one the SDK has none of
+    private let stdLibraries = HashMap<String, ?String>()
+
+    /**
+     * The library of the macros of std's package `pkg` the SDK ships, if it does.
+     */
+    func stdLibrary(pkg: String): ?String {
+        if (let Some(found) <- stdLibraries.get(pkg)) {
+            return found
+        }
+        let found = paths.stdMacroLibrary(pkg).map {path => path.toString()}
+        stdLibraries[pkg] = found
+        found
+    }
 }
 
 /**
- * Runs the workspace's macros (#176, D104) on a thread of its own: once woken, builds the macro packages when the
- * files on disk changed, sets the stamps of their libraries, then asks the server every request that can be sent,
+ * Runs the workspace's macros and std's (#176, D104) on a thread of its own: once woken, builds the macro packages
+ * when the files on disk changed, sets the stamps of their libraries, then asks the server every request that can be
+ * sent,
  * those of the open documents first, round after round, each round's answers set in one write, until none is left. An
  * edit ends a round: the answers before it are set, and the next round asks again what it changed.
  */
@@ -268,7 +339,7 @@ public class MacroHost <: MacroWork {
     private var stopped = false
 
     // the host's thread alone
-    private var server: ?GuardedServer = None
+    private var servers: ?MacroServers = None
     private var timeout = Duration.Zero
     private var sdk: ?MacroSdk = None
     private var sdkOf = ""
@@ -345,7 +416,7 @@ public class MacroHost <: MacroWork {
                 logger.warn("the macros were not expanded", [("cause", e)])
             }
         }
-        server?.close()
+        servers?.close()
     }
 
     private func cycle(build: Bool): Unit {
@@ -353,42 +424,66 @@ public class MacroHost <: MacroWork {
             state: ServerState => (state.settings, state.roots.toArray(), state.cacheDirs)
         }
         if (!settings.macroExpansion) {
-            server?.close()
-            server = None
+            servers?.close()
+            servers = None
             return
         }
         if (build) {
             buildLibraries(settings, roots, cacheDirs)
         }
-        let sdk = this.sdk ?? return ()
-        if (libraries.isEmpty()) {
-            return
-        }
-        let wanted = Duration.second * settings.macroCallTimeout
-        if (server.isNone() || timeout != wanted) {
-            server?.close()
-            server = GuardedServer(sdk.paths, wanted, logger)
-            timeout = wanted
-        }
-        let expander = server.getOrThrow()
+        let started = MonoTime.now()
+        var sent = 0
+        var ofStd = 0
+        var failed = 0
         while (!isStopped()) {
             let (snapshot, open) = loop.write {
                 state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
             }
-            let files = snapshot.files |> filterMap {id: FileId => snapshot.analysis.sourceFile(id)} |>
-                collectArray
-            let requests = sendableRequests(snapshot.analysis, files, libraries,
-                isOpen: {file => open.contains(snapshot.path(file.fileId(snapshot.analysis)))})
+            let db = snapshot.analysis
+            let files = snapshot.files |> filterMap {id: FileId => db.sourceFile(id)} |> collectArray
+            // nothing to ask, nothing to look for: std's macros need no build, but the SDK
+            if (files.iterator().all {file => pendingMacroRequests(db, file).isEmpty()}) {
+                break
+            }
+            let sdk = sdkFor(settings) ?? break
+            let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
+            let requests = sendableRequests(db, files, libraries, stdLibrary: {pkg => sdk.stdLibrary(pkg)},
+                isOpen: {file => open.contains(snapshot.path(file.fileId(db)))})
             if (requests.isEmpty()) {
-                return
+                break
             }
             logger.debug("expanding macro calls", [("calls", requests.size)])
             // an edit midway ends the round: what came before it is set, and the next round asks what it changed
-            let answers = expandAll(snapshot.analysis, requests, sdk.numbers, expander, stopped: {=> isStopped()})
+            let answers = expandAll(db, requests, sdk.numbers, expander, stopped: {=> isStopped()})
+            sent += answers.size
+            ofStd += requests[..answers.size].iterator().filter {one => one[1].definition.isStd}.count()
+            for ((file, key, output) in answers where output.expansion.isNone()) {
+                failed++
+                logger.debug("a macro call was not expanded", [("file", snapshot.path(file.fileId(db)).toString()),
+                    ("call", key.toString()), ("why", output.diagnostics.get(0)?.message ?? "")])
+            }
             if (!answers.isEmpty()) {
                 loop.write {state: ServerState => state.setMacroOutputs(answers)}
             }
         }
+        if (sent > 0) {
+            logger.info("expanded macro calls", [("calls", sent), ("std", ofStd), ("failed", failed),
+                ("ms", (MonoTime.now() - started).toMilliseconds())])
+        }
+    }
+
+    /**
+     * The servers of `sdk` whose calls have the deadline `wanted`: those running, else new ones.
+     */
+    private func serversOf(sdk: MacroSdk, wanted: Duration): MacroServers {
+        if (let Some(running) <- servers && timeout == wanted) {
+            return running
+        }
+        servers?.close()
+        let started = MacroServers(sdk.paths, wanted, logger)
+        servers = started
+        timeout = wanted
+        started
     }
 
     /**
@@ -450,7 +545,7 @@ public class MacroHost <: MacroWork {
             }
         }
         if (changed) {
-            server?.restart()
+            servers?.restartWorkspace()
         }
         loop.write {state: ServerState => state.setMacroLibraries(stamps.toArray())}
     }

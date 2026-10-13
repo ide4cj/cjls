@@ -78,7 +78,7 @@ class WorkspaceMacroRequestTest {
             "#)
 
         // act
-        let calls = workspaceCalls(db, file)
+        let calls = serverCalls(db, file)
 
         // assert
         @Expect(calls.map {one => "${one.definition.name}${one.call.index(db)}${if (one.read) {"!"} else {""}}"},
@@ -199,7 +199,7 @@ class WorkspaceMacroRequestTest {
     }
 
     @TestCase
-    func aCallWhoseInnerCallsMacroIsOfStdKeepsItsText() {
+    func anInnerCallOfAMacroNothingRunsKeepsItsText() {
         // arrange
         let (db, file, _) = workspaceMacroDatabase(#"
             package m
@@ -359,7 +359,9 @@ class WorkspaceMacroLibraryTest {
         setMacroOutputs(db, [(request.call, writtenOutput(request, "class C {}"))])
 
         // act
-        request.definition.pkg.setMacroLibrary(db).to(7)
+        if (let WorkspacePackage(pkg) <- request.definition.pkg) {
+            pkg.setMacroLibrary(db).to(7)
+        }
 
         // assert
         @Expect(pendingMacroRequests(db, file).map {one => one.definition.name}, ["A"])
@@ -411,5 +413,133 @@ class WorkspaceMacroLibraryTest {
 
         // assert
         @Expect(macroDiagnostics(db, file).size, 0)
+    }
+}
+
+/**
+ * The database of `text`, the text of `/main.cj` in package `m`, with the macros of `WORKSPACE_MACROS` and std's
+ * `std.deriving`, and its file.
+ */
+func stdMacroDatabase(text: String): (AnalysisDatabase, SourceFile) {
+    let indented = trimIndent(text).split("\n").map {line => "    " + line}
+    let parsed = Fixture.parse("\n    //- /main.cj module=m package=m\n" + String.join(indented, delimiter: "\n") +
+        "\n" + WORKSPACE_MACROS)
+    let db = databaseWithDerive(parsed)
+    (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow())
+}
+
+/**
+ * std's macros, which the macro server runs from the SDK's libraries as it runs the workspace's (#176's step 4).
+ */
+@Test
+class StdServerMacroTest {
+    @TestCase
+    func aCallOfStdIsAskedOfTheServerAsAMacroOfItsPackage() {
+        // arrange
+        let (db, file) = stdMacroDatabase(#"
+            package m
+            import std.deriving.*
+            @Derive[Hashable] class X {}
+            "#)
+
+        // act
+        let requests = macroRequests(db, file)
+
+        // assert
+        @Expect(requests.map {request => describe(request)}, ["Derive[Hashable] <class X {}> parents= children="])
+        @Expect(requests[0].definition.isStd, true)
+        @Expect(requests[0].definition.pkgName(db), "std.deriving")
+        @Expect(requests[0].definition.libraryStamp(db) != 0, true)
+    }
+
+    @TestCase
+    func theAnalysissOwnExpansionStandsUntilTheServersOutputReplacesTheItemUnderTheSameCall() {
+        // arrange
+        let (db, file) = stdMacroDatabase(#"
+            package m
+            import std.deriving.*
+            @Derive[Hashable] class X {}
+            "#)
+        let request = macroRequests(db, file)[0]
+        let output = "class X {}\nextend X <: Hashable { public func hashCode(): Int64 { 0 } }"
+
+        // act
+        let before = expandedCalls(db, file)
+        let own = macroExpansion(db, request.call)
+        setMacroOutputs(db, [(request.call, writtenOutput(request, output))])
+        let after = expandedCalls(db, file)
+        let served = macroExpansion(db, request.call)
+
+        // assert
+        @Expect(before, [request.call])
+        @Expect(own.replaces, false)
+        @Expect(own.text.contains("extend X <: Hashable"), true)
+        @Expect(after, [request.call])
+        @Expect(served.replaces, true)
+        @Expect(served.text, output)
+    }
+
+    @TestCase
+    func aRunThatFailsWithNoExpansionBeforeLeavesTheAnalysissOwnAndReportsWhatTheMacroSaid() {
+        // arrange
+        let (db, file) = stdMacroDatabase(#"
+            package m
+            import std.deriving.*
+            @Derive[Hashable] open class X {}
+            "#)
+        let request = macroRequests(db, file)[0]
+        let failure = MacroOutput(request.fingerprint, None, [],
+            [MacroDiagnostic(MacroSeverity.MacroError, None, "cannot derive for an open class", "")])
+
+        // act
+        setMacroOutputs(db, [(request.call, failure)])
+
+        // assert
+        @Expect(macroExpansion(db, request.call).replaces, false)
+        @Expect(macroExpansion(db, request.call).text.contains("extend X <: Hashable"), true)
+        @Expect(macroDiagnostics(db, file).map {one => one.message}, ["cannot derive for an open class"])
+    }
+
+    @TestCase
+    func aCallOfTheWorkspaceAroundOneOfStdWaitsForItsOutputAndReadsIt() {
+        // arrange
+        let (db, file) = stdMacroDatabase(#"
+            package m
+            import m.ms.*
+            import std.deriving.*
+            @A @Derive[Hashable] class X {}
+            "#)
+        let derive = requestNamed(db, file, "Derive")
+
+        // act
+        let before = macroRequests(db, file).map {request => describe(request)}
+        setMacroOutputs(db, [(derive.call, writtenOutput(derive, "class X {}\nextend X <: Hashable {}"))])
+        let after = macroRequests(db, file).map {request => describe(request)}
+
+        // assert
+        @Expect(before, ["Derive[Hashable] <class X {}> parents=A children="])
+        @Expect(after, ["Derive[Hashable] <class X {}> parents=A children=",
+            "A <class X {}\nextend X <: Hashable {}> parents= children=Derive[]"])
+    }
+
+    @TestCase
+    func aCallOfStdOnAMemberIsAskedOnlyUnderAnItemWithACallOfTheServer() {
+        // arrange
+        let (db, file) = stdMacroDatabase(#"
+            package m
+            import std.deriving.*
+            @Derive[ToString] class X {
+                @DeriveExclude let a: Int64 = 0
+            }
+            class Y {
+                @DeriveExclude let b: Int64 = 0
+            }
+            "#)
+
+        // act
+        let calls = serverCalls(db, file).map {one => "${one.definition.name} read=${one.read}"}
+
+        // assert
+        @Expect(calls, ["DeriveExclude read=false", "Derive read=true"])
     }
 }

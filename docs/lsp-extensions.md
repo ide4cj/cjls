@@ -52,12 +52,12 @@ What the macro call at a position expands to, as rust-analyzer's `rust-analyzer/
 |---|---|
 | `name: string` | the macro as the call writes it: `@Derive`, `@m.M` |
 | `expansion: string` | the expansion, formatted as `cjls fmt` formats (D60) |
-| `kind: string` | `workspace`: the macro server's output for a macro of the workspace; `cjls`: cjls's own for one of std, signatures only, after a comment line saying so |
+| `kind: string` | `server`: the macro server's output, for a macro of the workspace or of std (D109); `cjls`: cjls's own for one of std the server has not expanded, signatures only, after a comment line saying so |
 
 A call inside the input of another (D98) answers the expansion of that one, the call read.
 
 ## Command `cjls.expandMacro`
 
-The code action "Expand macro" (no `kind`) is offered on a call head with an expansion, to a client that takes `window/showDocument` and asks for no kind in particular (`context.only`). Its command, which `workspace/executeCommand` runs (`executeCommandProvider.commands`), takes one argument, the `TextDocumentPositionParams` of the call. It writes `<project>/.cache/cjls/expanded/<path under the project>.macrocall`, read-only, in the server's directory of the document's project (D106). The file is the document with each item a workspace call replaces swapped for its expansion, and each expansion of std after its item, each after a comment naming the call. The command then sends `window/showDocument` (`takeFocus`, the call's expansion selected) and answers `null`. To a client without `window/showDocument` it is `RequestFailed`.
+The code action "Expand macro" (no `kind`) is offered on a call head with an expansion, to a client that takes `window/showDocument` and asks for no kind in particular (`context.only`). Its command, which `workspace/executeCommand` runs (`executeCommandProvider.commands`), takes one argument, the `TextDocumentPositionParams` of the call. It writes `<project>/.cache/cjls/expanded/<path under the project>.macrocall`, read-only, in the server's directory of the document's project (D106). The file is the document with each item a call the server ran replaces swapped for its expansion, and each of cjls's own expansions of std after its item, each after a comment naming the call. The command then sends `window/showDocument` (`takeFocus`, the call's expansion selected) and answers `null`. To a client without `window/showDocument` it is `RequestFailed`.
 
 In that file, while it is what the server would write now, `textDocument/hover`, `textDocument/definition` and `textDocument/documentHighlight` answer as in the source for what was copied from it, and as in the expansion for an expansion. Once the source or an expansion changed, they answer `null` until the command writes the file again. The file has no diagnostics. A client gives `*.cj.macrocall` the Cangjie language, or it never asks.

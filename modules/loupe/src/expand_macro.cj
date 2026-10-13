@@ -15,8 +15,8 @@ public struct MacroCallAt {
     public MacroCallAt(
         /**
          * The call whose expansion the analysis reads that shows what the call at the position adds (`readCallOf`):
-         * that call itself, or the outermost call of a workspace macro on its top-level item, whose input the call at
-         * the position is in, as cjc expands one into the other (D98).
+         * that call itself, or the outermost call the macro server runs on its top-level item, whose input the call
+         * at the position is in, as cjc expands one into the other (D98).
          */
         public let call: MacroCallId,
         /**
@@ -37,18 +37,19 @@ public struct MacroCallAt {
 @Derive[Equatable]
 public enum ExpansionKind <: ToString {
     /**
-     * The macro server, running a macro of the workspace: its whole output, bodies included (#176).
+     * The macro server, running a macro of the workspace or of std: its whole output, bodies included (#176).
      */
-    | WorkspaceExpansion
+    | ServerExpansion
     /**
-     * The analysis, for a macro of std (#175): what it declares, signatures only, every body empty.
+     * The analysis, for a macro of std the server has not expanded (#175): what it declares, signatures only, every
+     * body empty.
      */
-    | StdExpansion
+    | OwnExpansion
 
     public func toString(): String {
         match (this) {
-            case WorkspaceExpansion => "WorkspaceExpansion"
-            case StdExpansion => "StdExpansion"
+            case ServerExpansion => "ServerExpansion"
+            case OwnExpansion => "OwnExpansion"
         }
     }
 }
@@ -79,8 +80,8 @@ public struct ExpandedMacro {
 /**
  * The macro call whose head (`@` to the end of its attribute, or of its name, the end included) is at `offset` of the
  * file, as `MacroCallAt` gives it; `None` off any head, on a call in a body, and on a call nothing expands: a macro
- * the analysis does not know (`@DeriveExclude`, an unresolved name), or a call of the workspace on a member whose type
- * has no call of the workspace (D98's consequence).
+ * the analysis does not know (an unresolved name), or a call of the workspace on a member whose type has no call the
+ * server runs (D98's consequence).
  */
 public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?MacroCallAt {
     let file = db.sourceFile(fileId) ?? return None
@@ -95,9 +96,9 @@ public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?M
 }
 
 /**
- * What `call` expands to: the macro server's last output that succeeded for a call of the workspace, read
- * (`WorkspaceCall.read`); the analysis's own for one of std. `None` for a call whose expansion the analysis does not
- * read: not answered yet, not the call read on its item, or no longer there.
+ * What `call` expands to: the macro server's last output that succeeded for a call it runs, read (`ServerCall.read`);
+ * else the analysis's own for one of std. `None` for a call whose expansion the analysis does not read: not answered
+ * yet, not the call read on its item, or no longer there.
  */
 public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMacro {
     let file = call.file(db)
@@ -105,10 +106,12 @@ public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMac
         return None
     }
     let (name, range) = macroCallHeadOf(db, call) ?? return None
-    let kind = if (workspaceCalls(db, file).iterator().any {one => one.call == call}) {
-        ExpansionKind.WorkspaceExpansion
+    let answered = serverCalls(db, file).iterator().any {one => one.read && one.call == call} &&
+        macroOutputOf(db, call).flatMap {output => output.expansion}.isSome()
+    let kind = if (answered) {
+        ExpansionKind.ServerExpansion
     } else {
-        ExpansionKind.StdExpansion
+        ExpansionKind.OwnExpansion
     }
     ExpandedMacro(name, range, macroExpansion(db, call).text, kind)
 }

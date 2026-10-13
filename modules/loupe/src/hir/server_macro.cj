@@ -11,73 +11,139 @@ import loupe.db.*
 import loupe.syntax.parse
 
 /**
- * A macro declared in a package of the workspace, which the macro server runs (#176): the package and the macro's
- * name.
+ * Where a macro the macro server runs is declared (#176): a source package of the workspace, whose library cjls builds
+ * (D104), or a package of std, whose library the SDK ships.
  */
 @Derive[Equatable]
-public struct WorkspaceMacro {
-    public WorkspaceMacro(public let pkg: Package, public let name: String) {}
+public enum MacroPackage {
+    | WorkspacePackage(Package)
+    | StdPackage(BinaryPackageFile)
 }
 
 /**
- * The macro of the workspace `resolution`, of a macro's name, is: one declared in a source package.
+ * A macro the macro server runs: its package and its name.
  */
-func workspaceMacroOf(db: AnalysisDatabase, resolution: Resolution): ?WorkspaceMacro {
+@Derive[Equatable]
+public struct ServerMacro {
+    public ServerMacro(public let pkg: MacroPackage, public let name: String) {}
+
+    /**
+     * The name of its package, which cjc names the macro's function by.
+     */
+    public func pkgName(db: AnalysisDatabase): String {
+        match (pkg) {
+            case WorkspacePackage(source) => source.name(db)
+            case StdPackage(binary) => binary.name(db)
+        }
+    }
+
+    /**
+     * The stamp of the library it runs from: of the one cjls built, 0 for none yet (`Package.macroLibrary`); of std's,
+     * its `.cjo`'s, which another SDK changes.
+     */
+    public func libraryStamp(db: AnalysisDatabase): Int64 {
+        match (pkg) {
+            case WorkspacePackage(source) => source.macroLibrary(db)
+            case StdPackage(binary) => binaryStamp(db, binary)
+        }
+    }
+
+    /**
+     * Whether it is a macro of std.
+     */
+    public prop isStd: Bool {
+        get() {
+            match (pkg) {
+                case StdPackage(_) => true
+                case WorkspacePackage(_) => false
+            }
+        }
+    }
+}
+
+/**
+ * A hash of the bytes of `binary`.
+ */
+@CalcaTracked
+func binaryStamp(db: AnalysisDatabase, binary: BinaryPackageFile): Int64 {
+    var hasher = DefaultHasher()
+    for (byte in binary.bytes(db)) {
+        hasher.write(byte)
+    }
+    hasher.finish()
+}
+
+/**
+ * The macro the server runs that `resolution`, of a macro's name, is: one declared in a source package, or in a
+ * package of std.
+ */
+func serverMacroOf(db: AnalysisDatabase, resolution: Resolution): ?ServerMacro {
     let (_, name) = macroPathOf(db, resolution) ?? return None
     let decl = macroDeclsOf(resolution).get(0) ?? return None
     match (packageRefOf(db, decl)) {
-        case Some(Source(pkg)) => WorkspaceMacro(pkg, name)
+        case Some(Source(pkg)) => ServerMacro(WorkspacePackage(pkg), name)
+        case Some(Binary(binary)) where binary.binary(db) == "std" => ServerMacro(StdPackage(binary), name)
         case _ => None
     }
 }
 
 /**
- * A call of a workspace macro in a file: the call, its macro, the top-level item it is under, and whether its
+ * A call the macro server runs in a file: the call, its macro, the top-level item it is under, and whether its
  * expansion is the one the analysis reads: the outermost such call on a top-level item, whose output replaces it as
  * cjc's does. The others are expanded only into the input of the calls around them.
  */
 @Derive[Equatable]
-public struct WorkspaceCall {
-    public WorkspaceCall(
+public struct ServerCall {
+    public ServerCall(
         public let call: MacroCallId,
-        public let definition: WorkspaceMacro,
+        public let definition: ServerMacro,
         public let top: ItemId,
         public let read: Bool
     ) {}
 }
 
 /**
- * The calls of workspace macros in `file`, in the order cjc expands them: under a top-level item, its members' calls,
- * then its own, each item's innermost call first. A call on a member whose type has no workspace macro is expanded
- * and read by nothing (#176).
+ * The calls the macro server runs in `file`, in the order cjc expands them: under a top-level item, its members'
+ * calls, then its own, each item's innermost call first. A call of std on a member is one only under an item with a
+ * call the server runs, whose input it is part of; a call of the workspace on a member of a type with none is
+ * expanded and read by nothing (#176).
  */
 @CalcaTracked
-public func workspaceCalls(db: AnalysisDatabase, file: SourceFile): Array<WorkspaceCall> {
-    let found = ArrayList<WorkspaceCall>()
+public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCall> {
+    let found = ArrayList<ServerCall>()
     for (item in itemTree(db, file).items) {
+        let own: Array<ServerCall> = if (item.macros.isEmpty()) {
+            []
+        } else {
+            serverCallsOn(db, file, item, item.id, true)
+        }
         for (member in item.members where !member.macros.isEmpty()) {
-            addWorkspaceCalls(db, file, member, item.id, false, found)
+            found.add(all: serverCallsOn(db, file, member, item.id, false).filter {
+                one => !own.isEmpty() || !one.definition.isStd
+            })
         }
-        if (!item.macros.isEmpty()) {
-            addWorkspaceCalls(db, file, item, item.id, true, found)
-        }
+        found.add(all: own)
     }
     found.toArray()
 }
 
-func addWorkspaceCalls(db: AnalysisDatabase, file: SourceFile, item: Item, top: ItemId, isTop: Bool,
-    found: ArrayList<WorkspaceCall>): Unit {
+/**
+ * The calls the server runs on `item`, under the top-level item `top`, innermost first.
+ */
+func serverCallsOn(db: AnalysisDatabase, file: SourceFile, item: Item, top: ItemId, isTop: Bool): Array<ServerCall> {
     let resolutions = macrosOf(db, DefId(db, ItemFile.Source(file), item.id))
-    let calls = ArrayList<(Int64, WorkspaceMacro)>()
+    let calls = ArrayList<(Int64, ServerMacro)>()
     for (i in 0..resolutions.size) {
-        if (let Some(definition) <- workspaceMacroOf(db, resolutions[i])) {
+        if (let Some(definition) <- serverMacroOf(db, resolutions[i])) {
             calls.add((i, definition))
         }
     }
+    let found = ArrayList<ServerCall>()
     for (j in calls.size - 1..=0 : -1) {
         let (index, definition) = calls[j]
-        found.add(WorkspaceCall(MacroCallId(db, file, item.id, index), definition, top, isTop && j == 0))
+        found.add(ServerCall(MacroCallId(db, file, item.id, index), definition, top, isTop && j == 0))
     }
+    found.toArray()
 }
 
 /**
@@ -140,7 +206,7 @@ public struct MacroChild {
 }
 
 /**
- * What the macro server is asked to expand a call of a workspace macro with (#176): the macro; the text of its
+ * What the macro server is asked to expand a call with (#176): the macro; the text of its
  * attribute (`None` for a macro called without one) and of its input, where the calls nested in it are their outputs,
  * as cjc expands them innermost first; the names of the macro calls around it, outermost first; what the calls nested
  * in it set; the fingerprint of all of it; and whether the output stored for the call answered this request.
@@ -149,7 +215,7 @@ public struct MacroChild {
 public struct MacroRequest {
     public MacroRequest(
         public let call: MacroCallId,
-        public let definition: WorkspaceMacro,
+        public let definition: ServerMacro,
         public let attrs: ?MappedText,
         public let input: MappedText,
         public let parents: Array<String>,
@@ -160,17 +226,17 @@ public struct MacroRequest {
 }
 
 /**
- * The requests for the calls of workspace macros in `file` (`workspaceCalls`), in their order: those whose input can
+ * The requests for the calls the macro server runs in `file` (`serverCalls`), in their order: those whose input can
  * be written, each call nested in it having an expansion.
  */
 @CalcaTracked
 public func macroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRequest> {
-    let calls = workspaceCalls(db, file)
+    let calls = serverCalls(db, file)
     if (calls.isEmpty()) {
         return []
     }
     let composer = MacroInputComposer(calls, db, file)
-    calls |> filterMap {call: WorkspaceCall => composer.request(call)} |> collectArray
+    calls |> filterMap {call: ServerCall => composer.request(call)} |> collectArray
 }
 
 /**
@@ -181,22 +247,22 @@ public func pendingMacroRequests(db: AnalysisDatabase, file: SourceFile): Array<
 }
 
 /**
- * The calls of workspace macros in `file` whose expansion the analysis reads, and have one. A file the macro server
+ * The calls the macro server runs in `file` whose expansion the analysis reads, and have one. A file the macro server
  * answered nothing for runs no query for it.
  */
-func readWorkspaceCallsOf(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
+func readServerCallsOf(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
     if (file.macroOutputs(db).size == 0) {
         return []
     }
-    workspaceCalls(db, file) |> filter {one: WorkspaceCall => one.read} |> map {one: WorkspaceCall => one.call} |>
+    serverCalls(db, file) |> filter {one: ServerCall => one.read} |> map {one: ServerCall => one.call} |>
         filter {call: MacroCallId => serverExpansionOf(db, call).isSome()} |> collectArray
 }
 
 /**
- * The expansion of `call` if it is a call of a workspace macro the analysis reads, which replaces its item.
+ * The expansion of `call` if it is a call the macro server ran that the analysis reads, which replaces its item.
  */
-func workspaceExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?Expansion {
-    if (!workspaceCalls(db, call.file(db)).iterator().any {one => one.read && one.call == call}) {
+func serverCallExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?Expansion {
+    if (!serverCalls(db, call.file(db)).iterator().any {one => one.read && one.call == call}) {
         return None
     }
     let output = serverExpansionOf(db, call) ?? return None
@@ -204,10 +270,10 @@ func workspaceExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?Expansion {
 }
 
 /**
- * Whether `def`, a declaration of a source file or a member of one, is under a top-level item a call of a workspace
- * macro the analysis reads replaces: what its macros add is read from that expansion.
+ * Whether `def`, a declaration of a source file or a member of one, is under a top-level item the output of a call
+ * the server ran replaces, read by the analysis: what its macros add is read from that expansion.
  */
-func isReplacedByWorkspaceExpansion(db: AnalysisDatabase, def: DefId): Bool {
+func isReplacedByServerExpansion(db: AnalysisDatabase, def: DefId): Bool {
     let file = match (def.file(db)) {
         case Source(file) => file
         case _ => return false
@@ -216,7 +282,7 @@ func isReplacedByWorkspaceExpansion(db: AnalysisDatabase, def: DefId): Bool {
         return false
     }
     let top = (parentOf(db, def) ?? def).item(db)
-    workspaceCalls(db, file).iterator().any {
+    serverCalls(db, file).iterator().any {
         one => one.read && one.top == top && serverExpansionOf(db, one.call).isSome()
     }
 }
@@ -255,7 +321,7 @@ public struct MacroCallDiagnostic {
 }
 
 /**
- * What the macros of the workspace reported running the calls of `file`, for the outputs that answered the request
+ * What the macros the server ran reported running the calls of `file`, for the outputs that answered the request
  * as it stands: an older one's ranges may no longer be where its call is.
  */
 @CalcaTracked
@@ -271,7 +337,7 @@ public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Macr
         current.add(request.call)
     }
     let found = ArrayList<MacroCallDiagnostic>()
-    for (one in workspaceCalls(db, file) where current.contains(one.call)) {
+    for (one in serverCalls(db, file) where current.contains(one.call)) {
         let output = macroOutputOf(db, one.call) ?? continue
         if (output.diagnostics.isEmpty()) {
             continue
@@ -379,7 +445,7 @@ func innerRangeOf(node: CjSyntaxNode, open: SyntaxKind, close: SyntaxKind): Text
 }
 
 /**
- * Writes the requests of a file's calls of workspace macros: their input is the text of the source, where each call
+ * Writes the requests of the calls the server runs in a file: their input is the text of the source, where each call
  * nested in it is its output (the last that succeeded).
  */
 class MacroInputComposer {
@@ -387,22 +453,22 @@ class MacroInputComposer {
     private let ids: ItemIdMap
     private let tree: ItemTree
     private let source: String
-    private let workspace = HashMap<MacroCallKey, WorkspaceCall>()
+    private let served = HashMap<MacroCallKey, ServerCall>()
 
-    MacroInputComposer(calls: Array<WorkspaceCall>, private let db: AnalysisDatabase, private let file: SourceFile) {
+    MacroInputComposer(calls: Array<ServerCall>, private let db: AnalysisDatabase, private let file: SourceFile) {
         root = parse(db, file).syntaxNode()
         ids = itemIdMap(db, file)
         tree = itemTree(db, file)
         source = file.text(db).toString()
         for (one in calls) {
-            workspace[macroCallKeyOf(db, one.call)] = one
+            served[macroCallKeyOf(db, one.call)] = one
         }
     }
 
     /**
      * The request for `call`; `None` if a call nested in its input has no expansion, or its item is not there.
      */
-    func request(call: WorkspaceCall): ?MacroRequest {
+    func request(call: ServerCall): ?MacroRequest {
         let item = call.call.item(db)
         let index = call.call.index(db)
         let anchor = anchorOf(ids, root, call.top) ?? return None
@@ -432,22 +498,23 @@ class MacroInputComposer {
         }
         let input = builder.build()
         let parents = parentsOf(call.top, item, index)
-        let fingerprint = fingerprintOf(call.definition, call.definition.pkg.macroLibrary(db), attrs, input, parents,
+        let fingerprint = fingerprintOf(call.definition, call.definition.libraryStamp(db), attrs, input, parents,
             children)
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
         MacroRequest(call.call, call.definition, attrs, input, parents, children.toArray(), fingerprint, current)
     }
 
     /**
-     * Writes the calls `chain` from `from` on, on `item`, and its declaration: up to the first call of a workspace
-     * macro the text of the source (a macro of std is not expanded here, #176), then that call's output.
+     * Writes the calls `chain` from `from` on, on `item`, and its declaration: up to the first call the server runs
+     * the text of the source (a macro neither of the workspace nor of std, which nothing expands), then that call's
+     * output.
      */
     private func chainFrom(item: ItemId, chain: Array<MacroExpandDecl>, from: Int64, builder: MappedTextBuilder,
         children: ArrayList<MacroChild>): Bool {
         let start = chain[from].syntax.textRange.start
         for (i in from..chain.size) {
             let key = MacroCallKey(item.toString(), i)
-            if (let Some(inner) <- workspace.get(key)) {
+            if (let Some(inner) <- served.get(key)) {
                 builder.copy(TextRange(start, chain[i].syntax.textRange.start))
                 let output = macroOutputOf(db, inner.call) ?? return false
                 let expansion = output.expansion ?? return false
@@ -526,7 +593,7 @@ func lastSegmentOf(path: String): String {
 /**
  * What tells one request from another: everything the macro reads, and the library it runs from.
  */
-func fingerprintOf(definition: WorkspaceMacro, library: Int64, attrs: ?MappedText, input: MappedText,
+func fingerprintOf(definition: ServerMacro, library: Int64, attrs: ?MappedText, input: MappedText,
     parents: Array<String>, children: ArrayList<MacroChild>): Int64 {
     let text = StringBuilder()
     text.append(definition.name)
