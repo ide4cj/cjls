@@ -243,6 +243,13 @@ public func macroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRe
  * The requests of `file` whose call has no output for them yet: what to send to the macro server.
  */
 public func pendingMacroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRequest> {
+    // a file with no macro call, most of them, runs no query of its own: the host asks after every edit
+    let calls = itemTree(db, file).items.iterator().any {
+        item => !item.macros.isEmpty() || item.members.iterator().any {member => !member.macros.isEmpty()}
+    }
+    if (!calls) {
+        return []
+    }
     macroRequests(db, file).filter {request => !request.current}
 }
 
