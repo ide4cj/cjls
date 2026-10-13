@@ -58,7 +58,23 @@ public struct ModuleJson {
         /**
          * Over the project's.
          */
-        public let cfg!: ?HashMap<String, String> = None
+        public let cfg!: ?HashMap<String, String> = None,
+        /**
+         * Its files the build leaves out, of a source set the target does not take (#318).
+         */
+        public let inactive!: ?Array<InactiveFileJson> = None
+    ) {}
+}
+
+@DeriveExt[ToJson, FromJson]
+@Serde[skipNone]
+public struct InactiveFileJson {
+    public InactiveFileJson(
+        /**
+         * Relative to the file.
+         */
+        public let file!: String,
+        public let reason!: String
     ) {}
 }
 
@@ -72,7 +88,7 @@ public struct PackageJson {
          */
         public let dir!: ?String = None,
         /**
-         * Relative to `dir`; every `*.cj` in it without them.
+         * Relative to `dir`, `..` going up; every `*.cj` in it without them.
          */
         public let files!: ?Array<String> = None,
         public let noPrelude!: ?Bool = None,

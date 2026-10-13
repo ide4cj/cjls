@@ -2,41 +2,14 @@ package project_model
 
 import std.collection.*
 import loupe.db.Cfg
-
-/**
- * The platform the server runs on, as `@When` names it.
- */
-@When[os == "Windows"]
-const HOST_OS = "Windows"
-
-@When[os == "macOS"]
-const HOST_OS = "macOS"
-
-@When[os == "Linux"]
-const HOST_OS = "Linux"
-
-/**
- * The environment of the targets cjls is built for, as cjc names it: `gnu` on Linux and on Windows
- * (`mingw32`), none on macOS.
- */
-@When[os == "macOS"]
-const HOST_ENV = ""
-
-@When[os != "macOS"]
-const HOST_ENV = "gnu"
-
-@When[arch == "aarch64"]
-const HOST_ARCH = "aarch64"
-
-@When[arch == "x86_64"]
-const HOST_ARCH = "x86_64"
+import platform.{hostArch, hostEnv, hostOs}
 
 /**
  * What `@When` is evaluated against when nothing says otherwise: the host's, with cjc's own backend,
  * and `test` set, for a package's tests are among its files (#149, as R1's `cfg.setTest`).
  */
 public func hostCfg(): Cfg {
-    Cfg([("os", HOST_OS), ("arch", HOST_ARCH), ("env", HOST_ENV), ("backend", "cjnative"), ("test", "true")])
+    Cfg([("os", hostOs()), ("arch", hostArch()), ("env", hostEnv()), ("backend", "cjnative"), ("test", "true")])
 }
 
 /**

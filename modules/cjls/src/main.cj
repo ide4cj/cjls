@@ -5,6 +5,7 @@ import std.env.{getStdErr, getStdOut}
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
 import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
+import platform.{StdinStream, useBinaryStdio}
 import cjls.server.serve
 import cjls.handlers.router
 

@@ -65,6 +65,12 @@ public class ServerState <: FromContext<ServerState> {
     public var multilineTokens = false
 
     /**
+     * Whether the client lays semantic tokens over a highlighting of its own, as agreed on at
+     * `initialize`: it gets no token its grammar names as well (D105).
+     */
+    public var augmentsSyntaxTokens = false
+
+    /**
      * Whether the client asks for the semantic tokens of its documents again when told to, as agreed
      * on at `initialize`: it is, after a change of the files, which may change any document's (D72).
      */
@@ -454,7 +460,7 @@ public class ServerState <: FromContext<ServerState> {
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
         let files = this.files ?? vfs.files().filter {id => !binarySourceFiles.contains(vfs.filePath(id))}
         this.files = files
-        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
+        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens, augmentsSyntaxTokens,
             locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown)
     }
 
@@ -493,7 +499,7 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * Every file with contents, in the order of their ids.
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64,
+        public let augmentsSyntaxTokens: Bool, public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64,
         public let hoverMarkdown: Bool) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {

@@ -40,6 +40,8 @@ Inside `cjls`: `handlers → server`, `handlers → loupe`, `handlers → macro_
 
 `macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. It also depends on `cjsyntax`, whose tokens it turns into cjc's (D95). `cjls` drives it (`cjls.macro_host`, D104).
 
+`platform` (D101) is under every module with code that differs between platforms (`cjls`, `loupe`, `project_model`, `macro_server`), on std alone: one package over a source set per platform, its API the `common` declarations.
+
 Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37; `macro_server`'s views and writers, D87), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
 
 ## Layers of a request

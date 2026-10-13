@@ -93,6 +93,15 @@ public struct PackageModel {
 }
 
 /**
+ * A file of a module that the build leaves out, and why: one of a source set the target does not
+ * take (#318).
+ */
+@Derive[Equatable]
+public struct InactiveFile {
+    public InactiveFile(public let path: VfsPath, public let reason: String) {}
+}
+
+/**
  * A module of a project: a root on disk and the packages under it, what it may import, and how it
  * is built. A module is its root package to cjc (`protected` stops at the first segment of a
  * package's name); this is the unit of the build, named after its root package.
@@ -114,7 +123,12 @@ public struct ModuleModel {
         /**
          * What `@When` is evaluated against in it, `None` for the project's.
          */
-        public let cfg!: ?Cfg = None
+        public let cfg!: ?Cfg = None,
+        /**
+         * Its files the build leaves out, of no package: analyzed as inactive when opened, never
+         * read for the project.
+         */
+        public let inactive!: Array<InactiveFile> = []
     ) {}
 
     /**
@@ -325,7 +339,7 @@ extend ModuleModel {
                 case None => merged.add(pkg)
             }
         }
-        ModuleModel(name, root, merged.toArray(), deps: deps, member: member, cfg: cfg)
+        ModuleModel(name, root, merged.toArray(), deps: deps, member: member, cfg: cfg, inactive: inactive)
     }
 }
 
@@ -369,6 +383,18 @@ public struct Module {
     public var deps: Array<String>
     public var member: Bool
     public var cfg: ?Cfg
+    /**
+     * Its files the build leaves out (`ModuleModel.inactive`).
+     */
+    public var inactive: Array<InactiveSourceFile>
+}
+
+/**
+ * A file of a module the build leaves out, by its id, and why.
+ */
+@Derive[Equatable]
+public struct InactiveSourceFile {
+    public InactiveSourceFile(public let fileId: FileId, public let reason: String) {}
 }
 
 /**

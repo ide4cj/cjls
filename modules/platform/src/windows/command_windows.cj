@@ -1,10 +1,11 @@
-package macro_server
+features { os.windows }
+package platform
 
 import std.collection.*
 import std.sort.sort
 
-// What `CreateProcessW` is given to start the server on Windows, built as text here, on every platform, where
-// the tests reach it: the command line, the environment block, both UTF-16.
+// What `CreateProcessW` is given to start a child, built as text: the command line, the environment block, both
+// UTF-16.
 
 /**
  * `s` in UTF-16, as Windows takes text.
@@ -53,21 +54,18 @@ func quoteWindowsArg(arg: String): String {
 }
 
 /**
- * The command line of the server on Windows (`src/main-macrosrv.cpp`): the pipe handle it reads, the one it
- * writes, `0` for serial, and `cjc`, whose directory it finds the runtime by. There is no parent's pid: a job
- * ends it with this process.
+ * The command line of `args`, the program first, each quoted as `CommandLineToArgvW` reads it back.
  */
-func windowsCommandLine(paths: MacroServerPaths, readHandle: UInt64, writeHandle: UInt64): String {
-    let args = [paths.server.toString(), "${readHandle}", "${writeHandle}", "0", paths.cjc.toString()]
+func windowsCommandLine(args: Array<String>): String {
     String.join(args.map {a => quoteWindowsArg(a)}, delimiter: " ")
 }
 
 /**
- * The environment block of the server: `variables` with `runtimeLib` first on `PATH` (whatever its case),
- * where Windows looks for the DLLs a macro's library needs; sorted by name ignoring case, as Windows keeps
- * one; each `name=value` ended by a 0, the block by another.
+ * The environment block of a child: `variables` with `libDir` first on `PATH` (whatever its case), where
+ * Windows looks for the DLLs it loads; sorted by name ignoring case, as Windows keeps one; each `name=value`
+ * ended by a 0, the block by another.
  */
-func windowsEnvironment(variables: Array<(String, String)>, runtimeLib: String): Array<UInt16> {
+func windowsEnvironment(variables: Array<(String, String)>, libDir: String): Array<UInt16> {
     let entries = ArrayList<(String, String)>()
     var path: ?String = None
     for ((name, value) in variables) {
@@ -78,8 +76,8 @@ func windowsEnvironment(variables: Array<(String, String)>, runtimeLib: String):
         }
     }
     entries.add(("PATH", match (path) {
-        case Some(p) where !p.isEmpty() => "${runtimeLib};${p}"
-        case _ => runtimeLib
+        case Some(p) where !p.isEmpty() => "${libDir};${p}"
+        case _ => libDir
     }))
     sort(entries, by: {a, b => a[0].toAsciiUpper().compare(b[0].toAsciiUpper())}, stable: true)
     let block = ArrayList<UInt16>()

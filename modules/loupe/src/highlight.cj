@@ -72,7 +72,7 @@ public enum HighlightModifier <: ToString {
     | Static
     // declared with `@Deprecated`
     | Deprecated
-    // of `std`, or a type of the language itself
+    // of `std`, or of the language itself: a type, `this`, `super`
     | DefaultLibrary
     // declared with `var`, or a `mut` property
     | Mutable
@@ -559,6 +559,9 @@ func classify(token: CjSyntaxToken, inError: Bool): ?Highlight {
         kind == SyntaxKind.Tilde && parent.kind == SyntaxKind.FinalizerDecl)) {
         // `get` and `set`, and the `~` of `~init`
         tagged(HighlightTag.Keyword)
+    } else if (kind == SyntaxKind.ThisKw || kind == SyntaxKind.SuperKw) {
+        // the value a body is on, which the language declares (D105)
+        (HighlightTag.Symbol(StructureKind.Variable), HighlightModifiers.NONE.plus(HighlightModifier.DefaultLibrary))
     } else if (kind.isKeyword()) {
         tagged(HighlightTag.Keyword)
     } else if (kind.isPunctuation() && !NOT_OPERATORS.contains(kind) && (inError ||
@@ -594,14 +597,16 @@ func declaredName(name: CjSyntaxNode): ?Highlight {
 }
 
 /**
- * A parameter of a primary constructor declared `let` or `var` is a member variable as well.
+ * A parameter of a primary constructor declared `let` or `var` is a member variable as well: a
+ * parameter where it is declared, as the editors' grammars have it, a field where it is used as a
+ * member (D105).
  */
 func parameter(param: CjSyntaxNode): ?Highlight {
     let modifiers = HighlightModifiers.NONE.plus(HighlightModifier.Declaration)
     if (hasToken(param, SyntaxKind.LetKw)) {
-        (HighlightTag.Symbol(StructureKind.Field), modifiers.plus(HighlightModifier.Readonly))
+        (HighlightTag.Parameter, modifiers.plus(HighlightModifier.Readonly))
     } else if (hasToken(param, SyntaxKind.VarKw)) {
-        (HighlightTag.Symbol(StructureKind.Field), modifiers.plus(HighlightModifier.Mutable))
+        (HighlightTag.Parameter, modifiers.plus(HighlightModifier.Mutable))
     } else {
         (HighlightTag.Parameter, modifiers)
     }

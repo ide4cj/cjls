@@ -210,6 +210,12 @@ public class AnalysisDatabase <: Database {
             }
             setPackage(model.key, pkg, files, durability)
         }
+        let inactive = model.inactive.map {
+            file =>
+            let fileId = paths.intern(file.path)
+            durabilities.add(fileId, durability)
+            InactiveSourceFile(fileId, file.reason)
+        }
         match (projects.modules.get(model.key)) {
             case Some((module, old)) =>
                 // a package is the input of its name in this module: the same names are the same inputs
@@ -225,10 +231,13 @@ public class AnalysisDatabase <: Database {
                 if (old.cfg != model.cfg || old.durability != durability) {
                     module.setCfg(this).withDurability(durability).to(model.cfg)
                 }
+                if (old.inactive != model.inactive || old.durability != durability) {
+                    module.setInactive(this).withDurability(durability).to(inactive)
+                }
                 projects.modules.add(model.key, (module, model))
                 module
             case None =>
-                let module = Module(this, model.root, model.name, packages, model.deps, model.member, model.cfg,
+                let module = Module(this, model.root, model.name, packages, model.deps, model.member, model.cfg, inactive,
                     durability: durability)
                 projects.modules.add(model.key, (module, model))
                 module
