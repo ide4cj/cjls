@@ -157,6 +157,88 @@ class CjpmSourceSetTest {
     }
 
     @TestCase
+    func aFeatureDeclaredByNamesMapsNothingAsInCjpm() {
+        // arrange
+        let dir = tree([
+            ("cjpm.toml",
+                #"
+                [package]
+                name = "m"
+                [profile]
+                experimental = true
+                [[feature]]
+                names = ["user.m.x", "user.m.posix"]
+                mapping = ["user.m.posix"]
+                [[feature]]
+                name = "os.linux"
+                mapping = ["user.m.x"]
+                [[source-set]]
+                name = "common"
+                src-dir = "./src/common"
+                features = []
+                [[source-set]]
+                name = "x"
+                src-dir = "./src/x"
+                features = ["user.m.x"]
+                [[source-set]]
+                name = "posix"
+                src-dir = "./src/posix"
+                features = ["user.m.posix"]
+                "#),
+            ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+            ("src/x/b.cj", "features { user.m.x }\npackage m\n"),
+            ("src/posix/c.cj", "features { user.m.posix }\npackage m\n")
+        ])
+
+        // act
+        let model = loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
+        removeTree(dir)
+
+        // assert - `user.m.x` mapping no `user.m.posix`, the chain cjpm builds
+        @Expect(packagesOf(model, dir), ["m: m=src/common/a.cj,src/x/b.cj"])
+        @Expect(model.modules[0].inactive.map {file => file.reason},
+            ["source set `posix` needs user.m.posix, which the target does not enable (it enables os.linux, user.m.x)"])
+    }
+
+    @TestCase
+    func anAlwaysEnabledFeatureAndThoseItMapsTakeTheirSet() {
+        // arrange
+        let dir = tree([
+            ("cjpm.toml",
+                #"
+                [package]
+                name = "m"
+                always-enabled-features = ["user.m.nightly"]
+                [profile]
+                experimental = true
+                [[feature]]
+                name = "user.m.nightly"
+                mapping = ["user.m.x11"]
+                [[feature]]
+                name = "user.m.x11"
+                [[source-set]]
+                name = "common"
+                src-dir = "./src/common"
+                features = []
+                [[source-set]]
+                name = "nightly"
+                src-dir = "./src/nightly"
+                features = ["user.m.nightly", "user.m.x11"]
+                "#),
+            ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+            ("src/nightly/b.cj", "features { user.m.nightly, user.m.x11 }\npackage m\n")
+        ])
+
+        // act
+        let model = loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
+        removeTree(dir)
+
+        // assert - as cjpm, which builds `nightly` on every target
+        @Expect(packagesOf(model, dir), ["m: m=src/common/a.cj,src/nightly/b.cj"])
+        @Expect(model.modules[0].inactive.size, 0)
+    }
+
+    @TestCase
     func aDependentModulesReferenceToACommonClassGoesToItsSpecificOnTheHost() {
         // arrange
         let dir = platWorkspace()
