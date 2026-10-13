@@ -303,6 +303,21 @@ class AstTest {
     }
 
     @TestCase
+    func anEnumConstructorHasTheCommentsBeforeItsPipe() {
+        // arrange
+        let decl = declsOf("enum E {\n    /** a */\n    | A\n    // b\n    | /* c */ B(Int64)\n\n    // not\n\n    | C\n}\n")[0]
+
+        // act
+        let sut = EnumDecl.cast(decl.syntax).getOrThrow().syntax.descendants() |>
+            filter {node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.EnumCtor} |>
+            map {node: SyntaxNode<SyntaxKind> => AnyHasDocComment.cast(node).getOrThrow().docComments().map {t => t.text()}} |>
+            collectArray
+
+        // assert
+        @Expect(sut, [["/** a */"], ["// b", "/* c */"], Array<String>()])
+    }
+
+    @TestCase
     func aDeclarationInMacroCallsHasTheCommentsBeforeTheCallsToo() {
         // arrange
         let call = declsOf("/** outer */\n@A\n// inner\n@B[x]\nclass C {}\n")[0]

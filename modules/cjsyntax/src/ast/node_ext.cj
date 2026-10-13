@@ -104,7 +104,8 @@ extend Modifiers {
 
 /**
  * The comments the parser gave `node` as its documentation, among the trivia it starts with, after
- * those of the macro calls around it, outermost first: before `@M class C`, they go to the call.
+ * those of the macro calls around it, outermost first: before `@M class C`, they go to the call. An
+ * enum constructor's are also those before the `|` it follows, which stay in the enum's body.
  */
 func docCommentsOf(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>> {
     let calls = ArrayList<SyntaxNode<SyntaxKind>>()
@@ -118,7 +119,37 @@ func docCommentsOf(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>>
     for (call in calls) {
         comments.add(all: leadingComments(call))
     }
+    if (node.kind == SyntaxKind.EnumCtor) {
+        comments.add(all: commentsBeforePipe(node))
+    }
     comments.add(all: leadingComments(node))
+    comments.toArray()
+}
+
+/**
+ * The comments right before the `|` `ctor`, an enum constructor, follows, as `CangjieTrivia` would attach them to a
+ * declaration: back to a blank line.
+ */
+private func commentsBeforePipe(ctor: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>> {
+    var element = ctor.prevSiblingOrToken()
+    while (let Some(SyntaxElement.Token(token)) <- element && token.kind.isTrivia()) {
+        element = token.prevSiblingOrToken()
+    }
+    match (element) {
+        case Some(SyntaxElement.Token(token)) where token.kind == SyntaxKind.Pipe => element = token.prevSiblingOrToken()
+        case _ => return []
+    }
+    let comments = ArrayList<SyntaxToken<SyntaxKind>>()
+    while (let Some(SyntaxElement.Token(token)) <- element && token.kind.isTrivia()) {
+        if (token.kind == SyntaxKind.Newline && token.text().count("\n") > 1) {
+            break
+        }
+        if (token.kind == SyntaxKind.LineComment || token.kind == SyntaxKind.BlockComment) {
+            comments.add(token)
+        }
+        element = token.prevSiblingOrToken()
+    }
+    comments.reverse()
     comments.toArray()
 }
 

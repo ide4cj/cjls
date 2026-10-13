@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
 import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.MacroExpandDecl
+import cjsyntax.ast.{AnyHasName, MacroExpandDecl}
 import calca.*
 import calca.macros.*
 import loupe.db.*
@@ -219,6 +219,29 @@ func isReplacedByWorkspaceExpansion(db: AnalysisDatabase, def: DefId): Bool {
     workspaceCalls(db, file).iterator().any {
         one => one.read && one.top == top && serverExpansionOf(db, one.call).isSome()
     }
+}
+
+/**
+ * What `def`, a declaration of a source file or a member of one under a top-level item a workspace macro's expansion
+ * replaces, became in that expansion: its declaration whose name the macro copied from `def`'s (#176). `None` if no
+ * expansion the analysis reads replaces it, or the macro dropped or renamed it.
+ */
+public func expandedDeclOf(db: AnalysisDatabase, def: DefId): ?DefId {
+    if (!isReplacedByWorkspaceExpansion(db, def)) {
+        return None
+    }
+    let file = match (def.file(db)) {
+        case Source(file) => file
+        case _ => return None
+    }
+    let top = (parentOf(db, def) ?? def).item(db)
+    let call = (workspaceCalls(db, file).iterator().filter {one => one.read && one.top == top}.next() ?? return None).call
+    let node = itemIdMap(db, file).node(def.item(db), parse(db, file).syntaxNode()) ?? return None
+    let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? return None
+    let items = expansionItemTree(db, call).items |> flatMap {item: Item => [item].concat(item.members)} |>
+        map {item: Item => item.id} |> collectArray
+    let item = (items |> filter {id: ItemId => expansionOrigin(db, call, id).map {origin => origin[0]} == name} |> first) ?? return None
+    DefId(db, ItemFile.Expansion(call), item)
 }
 
 /**
