@@ -105,6 +105,49 @@ public enum InferenceDiagnostic {
      * "missing argument", "extra argument").
      */
     | ArgCount(ExprId, Array<Ty>, Int64)
+    /**
+     * An argument of a call of one function passed by a name where none or another is wanted, or
+     * by none where one is: the call, the argument's place among its arguments, what is wrong.
+     */
+    | ArgName(ExprId, Int64, ArgNameError)
+}
+
+/**
+ * What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156).
+ */
+@Derive[Equatable]
+public enum ArgNameError {
+    /**
+     * A name none of the parameters passed by name has (cjc: "unknown named argument").
+     */
+    | UnknownName(String)
+    /**
+     * A name an argument before it is passed by (cjc: "cannot appeared more than once").
+     */
+    | NameTwice(String)
+    /**
+     * None, where the parameter is passed by name: the names of those from there on no argument
+     * after it is passed by (cjc: "missing argument prefix").
+     */
+    | NeedsName(Array<String>)
+    /**
+     * A name, to a value of a function type, whose parameters have none (cjc: "named argument
+     * cannot be used in variable function call").
+     */
+    | NameOfValue
+}
+
+/**
+ * Where each argument of a call goes, by its callee: the place of its parameter among those of
+ * what the call takes (#254).
+ */
+@Derive[Equatable]
+public struct ArgTarget <: ByIndex {
+    public ArgTarget(public let expr: ExprId, public let params: Array<Int64>) {}
+
+    public func keyIndex(): Int64 {
+        expr.index
+    }
 }
 
 /**
@@ -124,6 +167,10 @@ public struct InferenceResult {
         public let locals!: Array<Ty> = [],
         public let fields!: Array<FieldTargets> = [],
         public let callees!: Array<CalleeTarget> = [],
+        /**
+         * Where each argument of each call goes, by its callee.
+         */
+        public let args!: Array<ArgTarget> = [],
         /**
          * What each name used as a value means, by its expression.
          */
@@ -183,6 +230,18 @@ public struct InferenceResult {
     public func calleeOf(expr: ExprId): ?DefId {
         match (findByIndex(callees, expr.index)) {
             case Some(one) => one.decl
+            case None => None
+        }
+    }
+
+    /**
+     * For each argument of the call whose callee is `expr`, or of the operator `expr`, the place of
+     * the parameter it goes to among those of what the call takes: of a variadic one for each
+     * element of its tail (N155); past them all, an extra one of a `foreign` function's `...`.
+     */
+    public func paramsOf(expr: ExprId): ?Array<Int64> {
+        match (findByIndex(args, expr.index)) {
+            case Some(one) => one.params
             case None => None
         }
     }
@@ -259,21 +318,64 @@ func declaredTyOnCycle(db: AnalysisDatabase, _: DefId): Ty {
 let MEMBER_LEVEL = 1 << 32
 
 /**
+ * Where each argument of a call goes among a candidate's parameters, matched before it is tried
+ * (cjc's `CheckArgsWithParamName`, N154): the place of each one's parameter, in the arguments'
+ * order, past them all for an extra one of a `foreign` function's `...`; `packed`, the place of
+ * the variadic parameter whose elements those that go to it are (N155).
+ */
+struct ArgMatch {
+    ArgMatch(let params: Array<Int64>, let packed!: ?Int64 = None) {}
+
+    /**
+     * Each of `count` arguments to the parameter in its place.
+     */
+    static func inOrder(count: Int64): ArgMatch {
+        ArgMatch(Array(count) {i => i})
+    }
+}
+
+/**
+ * Why the arguments of a call match not a candidate's parameters: their count, the name of one, or
+ * one in order after one by name, which the parser reports.
+ */
+enum ArgFailure {
+    | WrongCount
+    | WrongName(Int64, ArgNameError)
+    | Unordered
+}
+
+enum Matched {
+    | Fits(ArgMatch)
+    | Fails(ArgFailure)
+}
+
+/**
+ * What a call takes of its candidates tried: one, with where its arguments go; several, none
+ * more specific than the others; none.
+ */
+enum Choice {
+    | Chose(Callable, ArgMatch)
+    | Tied
+    | NoFit
+}
+
+/**
  * What a call may call: the types of its parameters and what it returns, as seen on what it is
  * called on; `open`, the declaration whose type parameters in them are the call's to infer (8c);
  * the declaration it is, if one; how far it is from the call, cjc's scope level counted the other
  * way: a local function by the scopes out to its own, then `MEMBER_LEVEL` for a member of the type
  * around the body, one more for a declaration of the package, two for one imported (N117); the
- * name each parameter is passed by, as its signature says.
+ * name each parameter is passed by, as its signature says; `isValue`, a value of a function type,
+ * whose parameters have no names.
  */
 struct Callable {
     Callable(let params: Array<Ty>, let ret: Ty, let open!: ?DefId = None, let decl!: ?DefId = None,
         let level!: Int64 = 0, let names!: Array<?String> = [], let isC!: Bool = false,
-        let defaults!: Array<Bool> = [], let isCVariadic!: Bool = false) {}
+        let defaults!: Array<Bool> = [], let isCVariadic!: Bool = false, let isValue!: Bool = false) {}
 
     func at(level: Int64): Callable {
         Callable(params, ret, open: open, decl: decl, level: level, names: names, isC: isC, defaults: defaults,
-            isCVariadic: isCVariadic)
+            isCVariadic: isCVariadic, isValue: isValue)
     }
 
     /**
@@ -294,28 +396,30 @@ struct Callable {
     }
 
     /**
-     * The parameter of the name `name`, by its place.
+     * The place of its parameter passed by the name `name`.
      */
-    func paramNamed(name: String): ?Ty {
+    func paramNamed(name: String): ?Int64 {
         for (i in 0..names.size where names[i] == Some(name)) {
-            return params.get(i)
+            return i
         }
         None
     }
 
     /**
-     * Whether a call of `args` may take it: as many in order as it takes so, or more of a `foreign`
-     * function's `...`, each by name one of its parameters by name, each of those not passed of a
-     * default value (N149).
+     * The name its parameter at `place` is passed by, if by one.
      */
-    func takes(args: Array<CallArg>): Bool {
-        let passed = args.filter {arg => arg.name.isSome()}.map {arg => arg.name}
-        let missing = (0..names.size).iterator().any {
-            i => names[i].isSome() && !passed.contains(names[i]) && !(defaults.get(i) ?? true)
+    func nameAt(place: Int64): ?String {
+        if (place < 0) {
+            return None
         }
-        let inOrder = args.size - passed.size
-        let counts = inOrder == positional() || isCVariadic && inOrder > positional()
-        counts && !missing && passed.iterator().all {name => names.contains(name)}
+        names.get(place) ?? None
+    }
+
+    /**
+     * Whether its parameter at `place` has a default value.
+     */
+    func hasDefault(place: Int64): Bool {
+        defaults.get(place) ?? false
     }
 
     /**
@@ -356,6 +460,7 @@ enum Undo {
     | LocalWas(LocalId, Ty)
     | FieldWas(ExprId, ?FieldTargets)
     | CalleeWas(ExprId, ?CalleeTarget)
+    | ArgsWas(ExprId, ?ArgTarget)
     | Returned(Frame)
     | Reported
 }
@@ -381,6 +486,8 @@ class Inference {
     private let fields = HashMap<Int64, FieldTargets>()
     // by callee: an argument inferred again replaces what it found
     private let callees = HashMap<Int64, CalleeTarget>()
+    // by callee: where the arguments of the call it takes go
+    private let argTargets = HashMap<Int64, ArgTarget>()
     // by expression: what each name used as a value means, resolved once
     private let names = HashMap<Int64, BodyResolution>()
     // by expression: what the name after each `.` means, resolved once
@@ -445,14 +552,16 @@ class Inference {
         sort(found, by: {a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index)})
         let chosen = callees.values().toArray()
         sort(chosen, by: {a: CalleeTarget, b: CalleeTarget => a.expr.index.compare(b.expr.index)})
+        let passed = argTargets.values().toArray()
+        sort(passed, by: {a: ArgTarget, b: ArgTarget => a.expr.index.compare(b.expr.index)})
         let resolved = names |> map {entry: (Int64, BodyResolution) => NameTarget(ExprId(entry[0]), entry[1])} |>
             collectArray
         sort(resolved, by: {a: NameTarget, b: NameTarget => a.expr.index.compare(b.expr.index)})
         let accessed = access |> map {entry: (Int64, FieldResolution) => AccessTarget(ExprId(entry[0]), entry[1])} |>
             collectArray
         sort(accessed, by: {a: AccessTarget, b: AccessTarget => a.expr.index.compare(b.expr.index)})
-        InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, callees: chosen, names: resolved,
-            accesses: accessed, typePaths: lowering.typePaths(), ty: ty, diagnostics: reported.toArray())
+        InferenceResult(exprs: exprs, pats: pats, locals: locals, fields: found, callees: chosen, args: passed,
+            names: resolved, accesses: accessed, typePaths: lowering.typePaths(), ty: ty, diagnostics: reported.toArray())
     }
 
     /**
@@ -567,6 +676,13 @@ class Inference {
         callees[expr.index] = CalleeTarget(expr, decl)
     }
 
+    private func setArgs(callee: ExprId, matched: ArgMatch): Unit {
+        if (trying > 0) {
+            undo.add(ArgsWas(callee, argTargets.get(callee.index)))
+        }
+        argTargets[callee.index] = ArgTarget(callee, matched.params)
+    }
+
     private func report(diagnostic: InferenceDiagnostic): Unit {
         if (trying > 0) {
             undo.add(Reported)
@@ -609,6 +725,8 @@ class Inference {
                 case FieldWas(expr, None) => fields.remove(expr.index)
                 case CalleeWas(expr, Some(was)) => callees[expr.index] = was
                 case CalleeWas(expr, None) => callees.remove(expr.index)
+                case ArgsWas(expr, Some(was)) => argTargets[expr.index] = was
+                case ArgsWas(expr, None) => argTargets.remove(expr.index)
                 case Returned(frame) => frame.returns.remove(at: frame.returns.size - 1)
                 case Reported => reported.remove(at: reported.size - 1)
             }
@@ -1482,7 +1600,8 @@ class Inference {
         let composition = langId(LangItem.CompositionFunc)
         match (composition) {
             case Some(decl) where !isUntypedLambda(lhs) && !isUntypedLambda(rhs) =>
-                callWith(id, funcCallable(decl, [], None), [CallArg(None, lhs), CallArg(None, rhs)], expected)
+                callWith(id, funcCallable(decl, [], None), ArgMatch.inOrder(2), [CallArg(None, lhs), CallArg(None, rhs)],
+                    expected)
             case _ =>
                 // cjc: "parameters of this lambda expression must have type annotations"
                 mismatches++
@@ -1609,8 +1728,13 @@ class Inference {
         let candidates = operatorCallables(recv, op).filter {
             one => one.params.size == args.size && one.takesValue() == setter
         }
-        let chosen = if (candidates.size > 1) {
-            chooseOverload(id, candidates, args, expected)
+        // the operands in order, the value of a `[]` set too (N124)
+        let inOrder = ArgMatch.inOrder(args.size)
+        let chosen: ?Callable = if (candidates.size > 1) {
+            match (chooseOverload(id, candidates.map {one => (one, inOrder)}, args, expected)) {
+                case Chose(one, _) => one
+                case _ => None
+            }
         } else {
             candidates.get(0)
         }
@@ -1619,7 +1743,7 @@ class Inference {
                 if (let Some(decl) <- callable.decl) {
                     setCallee(id, decl)
                 }
-                (callWith(id, callable, args, expected), callable)
+                (callWith(id, callable, inOrder, args, expected), callable)
             case None =>
                 // as a call's: candidates of which none fits, or no one most specific
                 if (!candidates.isEmpty()) {
@@ -2090,11 +2214,25 @@ class Inference {
     }
 
     /**
+     * What the local `local` called means: a local function, its parameters passed by the names and
+     * of the default values its declaration gives; else a value of a function type.
+     */
+    private func localCallables(local: LocalId): Array<Callable> {
+        let callables = valueCallables(locals[local.index])
+        for (fn in hir.funcs where fn.local == local) {
+            let names = fn.params.map {param => param.passedBy}
+            let defaults = fn.params.map {param => param.defaultValue.isSome()}
+            return callables.map {one => Callable(one.params, one.ret, open: one.open, names: names, defaults: defaults)}
+        }
+        callables
+    }
+
+    /**
      * What a value of the type `ty` calls.
      */
     private func valueCallables(ty: Ty): Array<Callable> {
         match (ty.kind(db)) {
-            case FuncTy(params, ret, _) => [Callable(params, ret)]
+            case FuncTy(params, ret, _) => [Callable(params, ret, isValue: true)]
             case ErrorTy | TodoTy(_) => []
             // of another type, its `operator func ()` (N130): what is called is the value, not
             // the operator a name of it goes to
@@ -2145,62 +2283,55 @@ class Inference {
     }
 
     /**
-     * A call: what its callee means, the one of as many parameters as it has arguments if it means
-     * several, and of those the one `chooseOverload` takes; its arguments checked against that
-     * one's parameters in order, a named one inferred alone.
+     * A call: what its callee means, and of several the one `choose` takes, its arguments checked
+     * against the parameters they go to. One function whose arguments match not is taken still,
+     * what is wrong reported, its arguments checked quietly against the parameters they would go to.
      */
     private func callTy(callee: ExprId, args: Array<CallArg>, expected: ?Ty, call!: ?ExprId = None): Ty {
-        let all = overriding(callablesOf(callee, expected))
-        let fitting = if (all.size > 1) {
-            all.filter {one => one.takes(args)}
-        } else {
-            all
+        let all = byLambdas(overriding(callablesOf(callee, expected)), args)
+        // what a call returns called: of a generic call, its type arguments solved alone (N131)
+        let isOfCall = match (hir[callee]) {
+            case CallExpr(_, _) => true
+            case _ => false
         }
-        let chosen = if (fitting.size > 1) {
-            chooseOverload(callee, fitting, args, expected)
-        } else {
-            fitting.get(0)
-        }
-        match (chosen) {
-            case Some(callable) =>
+        match (choose(callee, all, args, expected)) {
+            case Chose(callable, matched) =>
                 // a type's name called goes to the type, not to the constructor taken
                 if (all.size > 1 && let Some(decl) <- callable.decl && decl.item(db).kind != ItemKind.Init &&
                     decl.item(db).kind != ItemKind.PrimaryInit) {
                     setCallee(callee, decl)
                 }
-                // what a call returns called: of a generic call, its type arguments solved alone (N131)
-                let isOfCall = match (hir[callee]) {
-                    case CallExpr(_, _) => true
-                    case _ => false
-                }
                 if (isOfCall) {
                     quiet++
-                } else if (all.size == 1 && let Some(at) <- call) {
-                    checkArgCount(at, callable, args)
                 }
-                let ty = callWith(callee, callable, args, expected)
+                let ty = callWith(callee, callable, matched, args, expected)
                 if (isOfCall) {
                     quiet--
                 }
                 ty
-            case None =>
+            case _ where all.size == 1 =>
+                let callable = all[0]
+                if (!isOfCall && let Some(at) <- call) {
+                    reportFailure(at, callable, args)
+                }
+                mismatches++
+                quiet++
+                let ty = callWith(callee, callable, looseMatch(callable, args), args, expected)
+                quiet--
+                ty
+            case _ =>
                 // candidates of which none fits, or no one most specific, fail a candidate around
                 // (cjc's "no matching function", "ambiguous match")
                 if (!all.isEmpty()) {
                     mismatches++
                 }
                 let argTys = args.map {arg => infer(arg.expr, None)}
-                // an argument not known fits any candidate: of several, none is taken for it; arguments
-                // by name, of default values or variadic are matched by their count alone yet (#254); a
+                // an argument not known fits any candidate: of several, none is taken for it; a
                 // macro whose expansion is not read may declare the one that fits
-                let byMatching = fitting.isEmpty() || args.iterator().any {arg => arg.name.isSome()} ||
-                    all.iterator().any {one => one.names.iterator().any {name => name.isSome()}}
                 let failure = if (all.isEmpty()) {
                     calleeFailure(callee)
                 } else if (let Some(unknown) <- unknownOf(db, argTys.concat(listOf(expected)))) {
                     unknown
-                } else if (byMatching) {
-                    todo(Todo.ArgMatching)
                 } else {
                     macroFailure(callee)
                 }
@@ -2213,43 +2344,282 @@ class Inference {
     }
 
     /**
-     * Whether `callable` may take any number of arguments from its last parameter on, an `Array`:
-     * its elements, or the array itself (N151).
+     * Those of `all` the lambdas among `args` may go to, as cjc's `SyntaxFilterCandidates` ranks
+     * them (N157): none whose last parameter is no function type if a trailing lambda is passed,
+     * nor of fewer parameters than a lambda's place; then those each of whose lambdas goes to a
+     * function type, `Any` or a type parameter, an `Option` of one too; the best of these that is
+     * not empty.
      */
-    private func isVariadic(callable: Callable): Bool {
-        match (callable.params.get(callable.params.size - 1).map {one => one.kind(db)}) {
-            case Some(DeclTy(id, _)) => Some(id) == langId(LangItem.ArrayStruct)
+    private func byLambdas(all: Array<Callable>, args: Array<CallArg>): Array<Callable> {
+        let lambdas = (0..args.size).iterator().filter {
+            i => match (hir[args[i].expr]) {
+                case LambdaExpr(_, _) => true
+                case _ => false
+            }
+        } |> collectArray
+        if (lambdas.isEmpty()) {
+            return all
+        }
+        let matched = ArrayList<Callable>()
+        let mismatched = ArrayList<Callable>()
+        let excluded = ArrayList<Callable>()
+        for (one in all) {
+            var isMismatched = false
+            var isExcluded = false
+            for (i in lambdas) {
+                let arg = args[i]
+                if (arg.isTrailing) {
+                    isExcluded = match (one.params.get(one.params.size - 1).map {ty => ty.kind(db)}) {
+                        case Some(FuncTy(_, _, _)) => false
+                        case _ => true
+                    }
+                    break
+                }
+                if (arg.name.isNone() && one.params.size <= i) {
+                    isExcluded = true
+                    break
+                }
+                let param = match (arg.name) {
+                    case Some(name) => one.paramNamed(name).flatMap {j => one.params.get(j)}
+                    case None => one.params.get(i)
+                }
+                let takesLambda = match (param.map {ty => unboxed(ty).kind(db)}) {
+                    case Some(FuncTy(_, _, _)) | Some(ParamTy(_, _)) => true
+                    case Some(_) => isAny(db, unboxed(param.getOrThrow()), from)
+                    case None => false
+                }
+                isMismatched = isMismatched || !takesLambda
+            }
+            if (isExcluded) {
+                excluded.add(one)
+            } else if (isMismatched) {
+                mismatched.add(one)
+            } else {
+                matched.add(one)
+            }
+        }
+        if (!matched.isEmpty()) {
+            matched.toArray()
+        } else if (!mismatched.isEmpty()) {
+            mismatched.toArray()
+        } else {
+            excluded.toArray()
+        }
+    }
+
+    /**
+     * The one of `all` a call of `args` takes, and where its arguments go, as cjc's `ChkCallExpr`:
+     * of those whose arguments match (N154), the one `chooseOverload` takes, or one alone taken
+     * untried if no other may be variadic; failing any, of those that may be variadic, their tail
+     * packed (N155). If none fits either way, the one whose arguments match is taken, what fails in
+     * it reported, as cjc reports what its first try found.
+     */
+    private func choose(callee: ExprId, all: Array<Callable>, args: Array<CallArg>, expected: ?Ty): Choice {
+        let direct = ArrayList<(Callable, ArgMatch)>()
+        for (one in all) {
+            if (let Fits(matched) <- matchArgs(one, args)) {
+                direct.add((one, matched))
+            }
+        }
+        let variadic = all.filter {one => isPossibleVariadic(one, args)}
+        if (direct.size == 1 && variadic.isEmpty()) {
+            return Chose(direct[0][0], direct[0][1])
+        }
+        match (chooseOverload(callee, direct.toArray(), args, expected)) {
+            case NoFit => ()
+            case first => return first
+        }
+        match (choosePacked(callee, variadic, args, expected)) {
+            case NoFit where direct.size == 1 => Chose(direct[0][0], direct[0][1])
+            case packed => packed
+        }
+    }
+
+    /**
+     * Of `variadic`, those that may take the tail of `args` as the elements of their variadic
+     * parameter, the one a call takes, as cjc's `ChkVariadicCallExpr`: grouped by how many
+     * parameters come before that one, the one `chooseOverload` takes in each; the call ambiguous if
+     * several groups give one (N155).
+     */
+    private func choosePacked(callee: ExprId, variadic: Array<Callable>, args: Array<CallArg>, expected: ?Ty): Choice {
+        let matched = ArrayList<(Int64, Callable, ArgMatch)>()
+        for (one in variadic) {
+            let fixed = one.positional() - 1
+            if (let Fits(packed) <- matchArgs(one, args, packed: fixed)) {
+                matched.add((fixed, one, packed))
+            }
+        }
+        let arities = matched |> map {one: (Int64, Callable, ArgMatch) => one[0]} |> collectHashSet |> collectArray
+        sort(arities)
+        let chosen = ArrayList<(Callable, ArgMatch)>()
+        for (fixed in arities) {
+            let group = matched |> filter {one: (Int64, Callable, ArgMatch) => one[0] == fixed} |>
+                map {one: (Int64, Callable, ArgMatch) => (one[1], one[2])} |> collectArray
+            if (let Chose(one, packed) <- chooseOverload(callee, group, args, expected)) {
+                chosen.add((one, packed))
+            }
+        }
+        match (chosen.size) {
+            case 0 => NoFit
+            case 1 => Chose(chosen[0][0], chosen[0][1])
+            case _ => Tied
+        }
+    }
+
+    /**
+     * Whether `callable` may take the tail of `args` as the elements of its variadic parameter, as
+     * cjc's `IsPossibleVariadicFunction`: its last parameter passed in order an `Array`, of no enum
+     * constructor nor a `foreign` function's `...`; `args` as many in order as those before it, or
+     * more (N155).
+     */
+    private func isPossibleVariadic(callable: Callable, args: Array<CallArg>): Bool {
+        let last = callable.positional() - 1
+        if (last < 0 || callable.isCVariadic || isEnumCtor(callable)) {
+            return false
+        }
+        let isArray = match (callable.params[last].kind(db)) {
+            case DeclTy(id, _) => Some(id) == langId(LangItem.ArrayStruct)
             case _ => false
         }
+        isArray && positionalArgs(callable, args) >= last
+    }
+
+    private func isEnumCtor(callable: Callable): Bool {
+        callable.decl.map {id => id.item(db).kind} == Some(ItemKind.EnumCtor)
     }
 
     /**
-     * Whether a call of `callable` with `args` passes some in other places than in order: by name
-     * in place of a parameter by name, `inout` as a `CPointer`, or to a variadic parameter, its
-     * elements or itself. Its checks are not reported yet: they are matched as the count alone (#254).
+     * The name the argument `arg` is passed by to `callable`: a trailing lambda's, that of its last
+     * parameter if passed by name (cjc's `GetArgName`).
      */
-    private func isUnmatched(callable: Callable, args: Array<CallArg>): Bool {
-        var positional = 0
-        for (arg in args where arg.name.isNone()) {
-            if (arg.isInout || (callable.names.get(positional) ?? None).isSome()) {
-                return true
+    private func argName(callable: Callable, arg: CallArg): ?String {
+        if (arg.isTrailing) {
+            return callable.nameAt(callable.params.size - 1)
+        }
+        arg.name
+    }
+
+    /**
+     * How many of `args` come in order before the first passed by name to `callable`.
+     */
+    private func positionalArgs(callable: Callable, args: Array<CallArg>): Int64 {
+        var count = 0
+        for (arg in args) {
+            if (argName(callable, arg).isSome()) {
+                break
             }
-            positional++
+            count++
         }
-        isVariadic(callable)
+        count
     }
 
     /**
-     * Checks the call `call` of the one function `callable` passes it as many arguments as it takes
-     * (cjc's "missing argument", "extra argument", N152): any number from its last parameter on if that is
-     * an `Array`, a variadic one; more of a `foreign` function's `...`. Arguments by name, of
-     * default values, are matched by name (#254).
+     * Where each of `args` goes among the parameters of `callable`, before a type is looked at, as
+     * cjc's `CheckCandidate` up to `GetParamTysInArgsOrder` (N154): as many in order as it takes
+     * so, each to the next parameter in order; each by name to its parameter of that name, none
+     * twice; each parameter not passed of a default value; a value of a function type none by name.
+     * With `packed`, the place of its variadic parameter, those in order from there go to it, none
+     * or several (N155). Not `counted`, the names only, as cjc names what is wrong of one function.
      */
-    private func checkArgCount(call: ExprId, callable: Callable, args: Array<CallArg>): Unit {
-        if (args.iterator().any {arg => arg.name.isSome()} ||
-            callable.names.iterator().any {name => name.isSome()}) {
-            return
+    private func matchArgs(callable: Callable, args: Array<CallArg>, packed!: ?Int64 = None,
+        counted!: Bool = true): Matched {
+        let size = callable.params.size
+        if (counted && packed.isNone() && !callable.isCVariadic && size != args.size &&
+            positionalArgs(callable, args) != callable.positional()) {
+            return Fails(WrongCount)
         }
+        let filled = Array(size) {j => callable.hasDefault(j)}
+        let byName = Array(size, repeat: false)
+        let params = Array(args.size, repeat: 0)
+        var place = 0
+        var isNamed = false
+        for (i in 0..args.size) {
+            match (argName(callable, args[i])) {
+                case None =>
+                    // the parser reports one in order after one by name
+                    if (isNamed) {
+                        return Fails(Unordered)
+                    }
+                    if (let Some(variadic) <- packed && place >= variadic) {
+                        params[i] = variadic
+                        continue
+                    }
+                    if (callable.nameAt(place).isSome()) {
+                        return Fails(WrongName(i, NeedsName(namesLeft(callable, args, place, i))))
+                    }
+                    params[i] = place
+                    if (place < size) {
+                        filled[place] = true
+                    }
+                    place++
+                case Some(name) =>
+                    isNamed = true
+                    if (callable.isValue) {
+                        return Fails(WrongName(i, NameOfValue))
+                    }
+                    let j = callable.paramNamed(name) ?? return Fails(WrongName(i, UnknownName(name)))
+                    if (byName[j]) {
+                        return Fails(WrongName(i, NameTwice(name)))
+                    }
+                    byName[j] = true
+                    filled[j] = true
+                    params[i] = j
+            }
+        }
+        if (let Some(variadic) <- packed) {
+            filled[variadic] = true
+        }
+        if (filled.iterator().any {one => !one}) {
+            return Fails(WrongCount)
+        }
+        Fits(ArgMatch(params, packed: packed))
+    }
+
+    /**
+     * The names of the parameters of `callable` from the place `place` on passed by name, but those
+     * the arguments after `args[at]` are passed by: what cjc's "missing argument prefix" lists.
+     */
+    private func namesLeft(callable: Callable, args: Array<CallArg>, place: Int64, at: Int64): Array<String> {
+        let passed = HashSet<String>()
+        for (arg in args[(at + 1)..]) {
+            if (let Some(name) <- argName(callable, arg)) {
+                passed.add(name)
+            }
+        }
+        let left = ArrayList<String>()
+        for (j in place..callable.names.size) {
+            if (let Some(name) <- callable.names[j] && !passed.contains(name)) {
+                left.add(name)
+            }
+        }
+        left.toArray()
+    }
+
+    /**
+     * Where each of `args` would go among the parameters of `callable`, matched or not: in order to
+     * the next, by name to its parameter of that name, else past them all.
+     */
+    private func looseMatch(callable: Callable, args: Array<CallArg>): ArgMatch {
+        let params = Array(args.size, repeat: callable.params.size)
+        var place = 0
+        for (i in 0..args.size) {
+            match (argName(callable, args[i])) {
+                case Some(name) => params[i] = callable.paramNamed(name) ?? callable.params.size
+                case None =>
+                    params[i] = place
+                    place++
+            }
+        }
+        ArgMatch(params)
+    }
+
+    /**
+     * Reports why the arguments of the call `call` of the one function `callable` match not, as cjc
+     * picks it (N156): of one that may be variadic, what its first try found; of another, a name
+     * wrong if their count may be right, else their count (cjc's `FilterIncompatibleCandidatesForCall`):
+     * "missing argument", "extra argument" (N152), and those of names.
+     */
+    private func reportFailure(call: ExprId, callable: Callable, args: Array<CallArg>): Unit {
         // a macro whose expansion is not read may change the function, or declare the constructors (#176)
         let isMacros = callable.decl.map {id => hasUnreadMacros(db, id)} ?? false
         let isInit = match (callable.decl.map {id => id.item(db).kind}) {
@@ -2263,12 +2633,23 @@ class Inference {
         if (isMacros || isMacroInit) {
             return
         }
-        let (taken, given) = (callable.params.size, args.size)
-        if (given == taken || isVariadic(callable) && given >= taken - 1 || callable.isCVariadic && given > taken) {
-            return
+        let size = callable.params.size
+        let defaulted = (0..size).iterator().filter {j => callable.nameAt(j).isSome() && callable.hasDefault(j)}.count()
+        let isVariadic = isPossibleVariadic(callable, args)
+        let failure = if (isVariadic || args.size >= size - defaulted && args.size <= size) {
+            match (matchArgs(callable, args, counted: isVariadic)) {
+                case Fails(why) => why
+                case Fits(_) => return
+            }
+        } else {
+            WrongCount
         }
-        mismatches++
-        report(ArgCount(call, callable.params, given))
+        match (failure) {
+            case WrongCount where args.size != size => report(ArgCount(call, callable.params, args.size))
+            case WrongCount => ()
+            case WrongName(at, why) => report(ArgName(call, at, why))
+            case Unordered => ()
+        }
     }
 
     /**
@@ -2303,16 +2684,15 @@ class Inference {
         }
     }
 
-
     /**
-     * The one of `candidates`, each of as many parameters as `args`, a call takes, as cjc's
+     * The one of `candidates`, each with where the arguments `args` go, a call takes, as cjc's
      * `MatchFunctionForCall`: level by level from the nearest (N117), each candidate tried; the first
-     * level where any fits deciding (N115); of several there, the most specific (N119). `None` if
-     * none fits, or no one of those is most specific, or they are enum constructors (N120), or an
-     * argument not known is why several fit.
+     * level where any fits deciding (N115); of several there, the most specific (N119). Tied if no
+     * one of those is most specific, or they are enum constructors (N120), or an argument not known
+     * is why several fit.
      */
-    private func chooseOverload(callee: ExprId, candidates: Array<Callable>, args: Array<CallArg>,
-        expected: ?Ty): ?Callable {
+    private func chooseOverload(callee: ExprId, candidates: Array<(Callable, ArgMatch)>, args: Array<CallArg>,
+        expected: ?Ty): Choice {
         let own = args.filter {arg => isSelfTyped(arg.expr) && !known.contains(arg.expr.index)}
         for (arg in own) {
             known[arg.expr.index] = infer(arg.expr, None)
@@ -2324,32 +2704,32 @@ class Inference {
         chosen
     }
 
-    private func mostSpecificFitting(callee: ExprId, candidates: Array<Callable>, args: Array<CallArg>,
-        expected: ?Ty): ?Callable {
-        let levels = candidates.map {one => one.level}
+    private func mostSpecificFitting(callee: ExprId, candidates: Array<(Callable, ArgMatch)>, args: Array<CallArg>,
+        expected: ?Ty): Choice {
+        let levels = candidates.map {one => one[0].level}
         sort(levels)
         var last: ?Int64 = None
         for (level in levels where last != Some(level)) {
             last = level
-            let fit = ArrayList<Callable>()
+            let fit = ArrayList<(Callable, ArgMatch)>()
             var isUnknownArg = false
-            for (one in candidates where one.level == level) {
-                let (fits, unknownArg) = tryCall(callee, one, args, expected)
+            for (one in candidates where one[0].level == level) {
+                let (fits, unknownArg) = tryCall(callee, one[0], one[1], args, expected)
                 if (fits) {
                     fit.add(one)
                     isUnknownArg = isUnknownArg || unknownArg
                 }
             }
             if (fit.size == 1) {
-                return fit[0]
+                return Chose(fit[0][0], fit[0][1])
             }
             if (fit.size > 1) {
                 // an argument not known fits each: none is taken for it, not the most specific
                 if (isUnknownArg) {
-                    return None
+                    return Tied
                 }
-                if (fit.iterator().any {one => one.decl.map {id => id.item(db).kind} == Some(ItemKind.EnumCtor)}) {
-                    return None
+                if (fit.iterator().any {one => isEnumCtor(one[0])}) {
+                    return Tied
                 }
                 // those no other is more specific than, and not the other way too: two as specific as
                 // each other (`g(Int8)`, `g(Int16)`) both stay, and the call is ambiguous, as in cjc
@@ -2359,13 +2739,13 @@ class Inference {
                     }
                 }
                 return if (best.size == 1) {
-                    fit[best[0]]
+                    Chose(fit[best[0]][0], fit[best[0]][1])
                 } else {
-                    None
+                    Tied
                 }
             }
         }
-        None
+        NoFit
     }
 
     /**
@@ -2418,12 +2798,13 @@ class Inference {
      * undone, as cjc tries a candidate with its diagnostics suppressed and its constraints reset.
      * And whether an argument of it was of a type not known, which fits any parameter.
      */
-    private func tryCall(callee: ExprId, callable: Callable, args: Array<CallArg>, expected: ?Ty): (Bool, Bool) {
+    private func tryCall(callee: ExprId, callable: Callable, matched: ArgMatch, args: Array<CallArg>,
+        expected: ?Ty): (Bool, Bool) {
         let mark = undo.size
         let before = mismatches
         let vars = nextVar
         trying++
-        let ret = callWith(callee, callable, args, expected)
+        let ret = callWith(callee, callable, matched, args, expected)
         trying--
         let fit = mismatches == before && match (expected) {
             case Some(one) => fits(ret, one)
@@ -2444,39 +2825,63 @@ class Inference {
     }
 
     /**
-     * Whether `one` is as specific as `other`, of as many parameters in order (cjc's `CompareFuncCandidates`,
-     * N119): each of its parameters a subtype of `other`'s, but of two numbers `Int64` first among
-     * the integers, any integer before a float, `Float64` first among the floats; for `other`
-     * generic, its type arguments inferred from `one`'s parameters passed to it.
+     * Whether `one` is as specific as `other`, each with where the arguments go (cjc's
+     * `CompareFuncCandidates`, N119): each of the parameters its arguments go to a subtype of
+     * `other`'s, in the arguments' order, but of two numbers `Int64` first among the integers, any
+     * integer before a float, `Float64` first among the floats; for `other` generic, its type
+     * arguments inferred from `one`'s parameters passed to it.
      */
-    private func isMoreSpecific(one: Callable, other: Callable): Bool {
-        // those passed in order: both take as many so (N149)
-        let count = min(one.positional(), other.positional())
+    private func isMoreSpecific(one: (Callable, ArgMatch), other: (Callable, ArgMatch)): Bool {
+        let mine = compared(one[0], one[1])
+        let them = compared(other[0], other[1])
+        let count = min(mine.size, them.size)
         for (i in 0..count) {
-            if (let Some(order) <- numberOrder(one.params[i], other.params[i]) && order > 0) {
+            if (let Some(order) <- numberOrder(mine[i], them[i]) && order > 0) {
                 return false
             }
         }
-        let theirs = match (other.open) {
+        let theirs = match (other[0].open) {
             case Some(owner) =>
                 let generics = genericsOf(db, owner).size
                 let vars = Array(generics) {i => Ty(db, InferTy(nextVar + i))}
-                let open = other.params.map {ty => substitute(db, ty, owner, vars)}
+                let open = them.map {ty => substitute(db, ty, owner, vars)}
                 let solver = TypeArgSolver(db, nextVar, generics, from, option)
                 solver.boundedBy(owner, vars)
                 for (i in 0..count) {
-                    solver.constrain(one.params[i], open[i])
+                    solver.constrain(mine[i], open[i])
                 }
                 let solved = solver.solve()
                 if (solved.iterator().any {ty => ty.isNone()}) {
                     return false
                 }
                 open.map {ty => replaceVars(db, ty, nextVar, solved)}
-            case None => other.params
+            case None => them
         }
         (0..count).iterator().all {
-            i => numberOrder(one.params[i], theirs[i]).isSome() || isSubtype(db, one.params[i], theirs[i], from)
+            i => numberOrder(mine[i], theirs[i]).isSome() || isSubtype(db, mine[i], theirs[i], from)
         }
+    }
+
+    /**
+     * The parameters of `callable` its arguments go to, in their order, as cjc compares candidates
+     * (`tysInArgOrder`): a variadic one once, where its tail is packed (N155).
+     */
+    private func compared(callable: Callable, matched: ArgMatch): Array<Ty> {
+        let tys = ArrayList<Ty>()
+        var isPacked = false
+        for (j in matched.params where j < callable.params.size) {
+            if (Some(j) == matched.packed) {
+                if (isPacked) {
+                    continue
+                }
+                isPacked = true
+            }
+            tys.add(callable.params[j])
+        }
+        if (let Some(variadic) <- matched.packed && !isPacked) {
+            tys.add(callable.params[variadic], at: variadic)
+        }
+        tys.toArray()
     }
 
     /**
@@ -2500,31 +2905,58 @@ class Inference {
     }
 
     /**
-     * A call of `callable`, of the parameters and return type it says, or whose type arguments are
-     * inferred if it has them open.
+     * A call of `callable`, its arguments going where `matched` says, of the parameters and return
+     * type it says, or whose type arguments are inferred if it has them open.
      */
-    private func callWith(callee: ExprId, callable: Callable, args: Array<CallArg>, expected: ?Ty): Ty {
+    private func callWith(callee: ExprId, callable: Callable, matched: ArgMatch, args: Array<CallArg>,
+        expected: ?Ty): Ty {
+        setArgs(callee, matched)
         if (let Some(owner) <- callable.open) {
-            return genericCallTy(callee, callable, owner, args, expected)
+            return genericCallTy(callee, callable, matched, owner, args, expected)
         }
         setExpr(callee, callable.ty(db))
-        let unmatched = isUnmatched(callable, args)
-        if (unmatched) {
+        let targets = argTys(callable.params, matched)
+        let isInout = passesInout(args)
+        if (isInout) {
             quiet++
         }
-        var positional = 0
-        for (arg in args) {
-            match (arg.name) {
-                case Some(name) => checkArg(arg.expr, callable.paramNamed(name))
-                case None =>
-                    checkArg(arg.expr, callable.params.get(positional))
-                    positional++
-            }
+        for (i in 0..args.size) {
+            checkArg(args[i].expr, targets[i])
         }
-        if (unmatched) {
+        if (isInout) {
             quiet--
         }
         callable.ret
+    }
+
+    /**
+     * The type each argument goes to where `matched` says among `params`: its parameter's, of a
+     * variadic one's an element's; none for an extra one of a `foreign` function's `...`.
+     */
+    private func argTys(params: Array<Ty>, matched: ArgMatch): Array<?Ty> {
+        matched.params.map {
+            j => match (params.get(j)) {
+                case Some(ty) where Some(j) == matched.packed => elementOf(ty)
+                case one => one
+            }
+        }
+    }
+
+    /**
+     * The type of the elements of `array`, an `Array`.
+     */
+    private func elementOf(array: Ty): Ty {
+        match (array.kind(db)) {
+            case DeclTy(_, args) where args.size == 1 => args[0]
+            case _ => error
+        }
+    }
+
+    /**
+     * Whether a call passes an argument `inout`, as a `CPointer`: not checked yet.
+     */
+    private func passesInout(args: Array<CallArg>): Bool {
+        args.iterator().any {arg => arg.isInout}
     }
 
     /**
@@ -2537,21 +2969,21 @@ class Inference {
      * unknown an error type, which bounds again; until a round solves nothing new. Then each that
      * waited, and each literal, is checked against its parameter solved.
      */
-    private func genericCallTy(callee: ExprId, callable: Callable, owner: DefId, args: Array<CallArg>,
-        expected: ?Ty): Ty {
-        let unmatched = isUnmatched(callable, args)
-        if (unmatched) {
+    private func genericCallTy(callee: ExprId, callable: Callable, matched: ArgMatch, owner: DefId,
+        args: Array<CallArg>, expected: ?Ty): Ty {
+        let isInout = passesInout(args)
+        if (isInout) {
             quiet++
         }
-        let ty = genericCallOf(callee, callable, owner, args, expected)
-        if (unmatched) {
+        let ty = genericCallOf(callee, callable, matched, owner, args, expected)
+        if (isInout) {
             quiet--
         }
         ty
     }
 
-    private func genericCallOf(callee: ExprId, callable: Callable, owner: DefId, args: Array<CallArg>,
-        expected: ?Ty): Ty {
+    private func genericCallOf(callee: ExprId, callable: Callable, matched: ArgMatch, owner: DefId,
+        args: Array<CallArg>, expected: ?Ty): Ty {
         let base = nextVar
         let count = genericsOf(db, owner).size
         nextVar += count
@@ -2559,20 +2991,7 @@ class Inference {
         let open = {ty: Ty => substitute(db, ty, owner, vars)}
         let params = callable.params.map(open)
         let ret = open(callable.ret)
-        // the parameter of each argument, in order or by name
-        let targets = Array<?Ty>(args.size, repeat: None)
-        var positional = 0
-        for (i in 0..args.size) {
-            match (args[i].name) {
-                case Some(name) =>
-                    for (j in 0..callable.names.size where callable.names[j] == Some(name)) {
-                        targets[i] = params.get(j)
-                    }
-                case None =>
-                    targets[i] = params.get(positional)
-                    positional++
-            }
-        }
+        let targets = argTys(params, matched)
         let synthesized = Array<?Ty>(args.size, repeat: None)
         let ideal = Array<?Bool>(args.size, repeat: None)
         let waiting = ArrayList<Int64>()
@@ -2640,20 +3059,21 @@ class Inference {
         // a type argument not solved for an argument not known is not known as it is, else an error
         // (cjc: "can not infer")
         let inferred = args |> filterMap {arg: CallArg => inferredTyOf(arg.expr)} |> collectArray
-        // an argument by name puts those after it out of place yet (#254)
-        let unsolvedTy = match (unknownOf(db, inferred.concat(listOf(expected)))) {
-            case Some(unknown) => unknown
-            case None where args.iterator().any {arg => arg.name.isSome()} => todo(Todo.ArgMatching)
-            case None => error
-        }
+        let unsolvedTy = unknownOf(db, inferred.concat(listOf(expected))) ?? error
         let final = {ty: Ty => replaceVars(db, ty, base, solution, unsolved: unsolvedTy)}
         // a call not solved fits not, nor what synthesized a type its parameter solved takes not (8d)
         if (unsolved > 0) {
             mismatches++
         }
+        // a lambda checked again against its parameter solved, as cjc's `ReInferCallArgs`: its body
+        // boxed into an `Option` the parameter returns (N158)
         for (i in 0..args.size) {
             let target = targets[i] ?? continue
-            if (ideal[i].isSome() || waiting.contains(i) || isUntypedLambda(args[i].expr)) {
+            let isLambda = match (hir[args[i].expr]) {
+                case LambdaExpr(_, _) => true
+                case _ => false
+            }
+            if (ideal[i].isSome() || waiting.contains(i) || isLambda) {
                 infer(args[i].expr, final(target))
             } else if (let Some(ty) <- synthesized[i] && !fits(ty, final(target))) {
                 mismatch(args[i].expr, final(target), ty)
@@ -2714,7 +3134,9 @@ class Inference {
      */
     private func overriding(callables: Array<Callable>): Array<Callable> {
         let kept = ArrayList<Callable>()
-        for (one in callables where kept.iterator().all {other => other.erasedParams(db) != one.erasedParams(db)}) {
+        for (one in callables where kept.iterator().all {
+            other => other.erasedParams(db) != one.erasedParams(db) || other.names != one.names
+        }) {
             kept.add(one)
         }
         kept.toArray()
@@ -2761,7 +3183,7 @@ class Inference {
                             match (target) {
                                 case LocalOf(local) =>
                                     let level = localLevel(callee, local)
-                                    found.add(all: valueCallables(locals[local.index]).map {one => one.at(level)})
+                                    found.add(all: localCallables(local).map {one => one.at(level)})
                                 case MemberOf(member) => found.add(all: memberCallables(member, thisTy(), explicit,
                                     expected).map {one => one.at(MEMBER_LEVEL)})
                                 case DeclOf(id) => found.add(all: declCallables(id, explicit, expected).map {
