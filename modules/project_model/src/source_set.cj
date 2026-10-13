@@ -30,14 +30,14 @@ struct SourceSet {
 }
 
 /**
- * `[[feature]]`: a feature declared, `name` or several `names`, and those it enables, `mapping`
- * (`os.linux` mapping `user.plat.posix`).
+ * `[[feature]]`: a feature declared, `name`, and those it enables, `mapping` (`os.linux` mapping
+ * `user.plat.posix`). Its `names` declares several features at once and maps none of them:
+ * cjpm 1.3.0-alpha.20261002 ignores the `mapping` beside it, and so do we.
  */
 @DeriveExt[FromToml]
 struct Feature {
     Feature(
         let name!: ?String = None,
-        let names!: ?Array<String> = None,
         let mapping!: ?Array<String> = None
     ) {}
 }
