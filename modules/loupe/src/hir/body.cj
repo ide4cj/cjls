@@ -477,7 +477,7 @@ public func body(db: AnalysisDatabase, def: DefId): Body {
  * The body of `decl`, what `active` leaves out of the build left out: parameters, declarations of
  * its blocks, accessors.
  */
-func lowerBody(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredBody {
+public func lowerBody(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredBody {
     let lowering = BodyLowering(active)
     var params = Array<BodyParam>()
     var value: ?ExprId = None

@@ -107,10 +107,11 @@ func isDeclaredName(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Boo
 }
 
 /**
- * The items one hover finds, for the name `token` in the item `def`.
+ * The items one hover finds, for the name `token` in the item `def`; with no token, what
+ * completion asks of a declaration's detail (`completionDetail`), `def` the item at the cursor.
  */
 class Hovers {
-    Hovers(let db: AnalysisDatabase, let def: DefId, let token: CjSyntaxToken) {}
+    Hovers(let db: AnalysisDatabase, let def: DefId, let token: ?CjSyntaxToken) {}
 
     private prop from: ?SourceFile {
         get() {
@@ -162,6 +163,7 @@ class Hovers {
      * member of a value as a member of its type.
      */
     func ofBody(): Array<HoverItem> {
+        let token = this.token ?? return []
         let name = token.parent
         let node = name.parent ?? return []
         let lowered = bodyWithSourceMap(db, def)
@@ -279,7 +281,7 @@ class Hovers {
      * The local `local` of the body of `owner` and its type: `let x: Int64`, `x: Int64` for a
      * parameter or a binding of a pattern, a local function as a declaration.
      */
-    private func localItem(owner: DefId, local: LocalId): ?HoverItem {
+    func localItem(owner: DefId, local: LocalId): ?HoverItem {
         let lowered = bodyWithSourceMap(db, owner)
         let declared = lowered.body.locals.get(local.index) ?? return None
         let ty = inferBody(db, owner)[local] ?? Ty(db, ErrorTy)
@@ -334,7 +336,7 @@ class Hovers {
      * A `let` or `var` parameter of the primary constructor `ctor`, a member of its type, as a
      * member of a value of the type `recv` if one's.
      */
-    private func memberParamItem(ctor: DefId, local: LocalId, recv: ?Ty): ?HoverItem {
+    func memberParamItem(ctor: DefId, local: LocalId, recv: ?Ty): ?HoverItem {
         let params = body(db, ctor).params
         let index = (0..params.size |> filter {i: Int64 => params[i].local == Some(local)} |> first) ?? return None
         let ty = seen(signatureTypes(db, ctor).params.get(index) ?? return None, ctor, recv)
@@ -356,15 +358,14 @@ class Hovers {
      * The declaration `id`, a member as a member of a value of the type `recv` if one's: its
      * signature, its path, its doc comment.
      */
-    private func declItem(id: DefId, recv: ?Ty): ?HoverItem {
+    func declItem(id: DefId, recv: ?Ty): ?HoverItem {
         let item = declItemOf(db, id) ?? return None
         let sig = signatureTypes(db, id)
         let ty = {one: Ty => seen(one, id, recv).text(db)}
         let names = item.names
-        let name = if (names.contains(token.text())) {
-            token.text()
-        } else {
-            names.get(0) ?? "_"
+        let name = match (token) {
+            case Some(one) where names.contains(one.text()) => one.text()
+            case _ => names.get(0) ?? "_"
         }
         let generics = genericList(sig.generics)
         let params = {=> "(${String.join(paramsOf(id, sig, ty), delimiter: ", ")})"}

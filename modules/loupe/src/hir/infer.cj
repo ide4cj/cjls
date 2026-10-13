@@ -2303,7 +2303,6 @@ class Inference {
         }
     }
 
-
     /**
      * The one of `candidates`, each of as many parameters as `args`, a call takes, as cjc's
      * `MatchFunctionForCall`: level by level from the nearest (N117), each candidate tried; the first
@@ -2888,15 +2887,7 @@ class Inference {
      * The types whose members a value of the type `ty` has: itself, or a type parameter's bounds.
      */
     private func headsOf(ty: Ty): Array<Ty> {
-        match (ty.kind(db)) {
-            case ParamTy(owner, _) =>
-                let found = ArrayList<Ty>()
-                for (bound in signatureTypes(db, owner).bounds where bound.ty == ty) {
-                    found.add(all: bound.bounds)
-                }
-                found.toArray()
-            case _ => [ty]
-        }
+        headTysOf(db, ty)
     }
 
     /**
@@ -3034,4 +3025,20 @@ func isOneChar(text: String): Bool {
         return inner.size == 2 || inner.startsWith("\\u{") && inner.endsWith("}") && !inner.contains("}{")
     }
     inner.runes().count() == 1
+}
+
+/**
+ * The types whose members a value of the type `ty` has: a type parameter's are its bounds', any
+ * other's its own.
+ */
+public func headTysOf(db: AnalysisDatabase, ty: Ty): Array<Ty> {
+    match (ty.kind(db)) {
+        case ParamTy(owner, _) =>
+            let found = ArrayList<Ty>()
+            for (bound in signatureTypes(db, owner).bounds where bound.ty == ty) {
+                found.add(all: bound.bounds)
+            }
+            found.toArray()
+        case _ => [ty]
+    }
 }

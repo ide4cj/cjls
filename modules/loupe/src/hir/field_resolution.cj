@@ -139,7 +139,7 @@ public func receiverOf(db: AnalysisDatabase, def: DefId, expr: ExprId): Receiver
  * type or an alias, its type arguments those written, else unknown (`Box.make()`, which cjc
  * infers); `None` for a type parameter, whose members are its bounds'.
  */
-func receiverTyOf(db: AnalysisDatabase, def: DefId, expr: ExprId): ?Ty {
+public func receiverTyOf(db: AnalysisDatabase, def: DefId, expr: ExprId): ?Ty {
     match (body(db, def)[expr]) {
         case ThisExpr => selfTyAround(db, def)
         case SuperExpr => match ((superclassOf(db, def), selfTyAround(db, def))) {

@@ -84,6 +84,14 @@ public func exprScopes(db: AnalysisDatabase, def: DefId): ExprScopes {
 }
 
 /**
+ * The scopes of `body`, one lowered outside the database: completion's, of the file with a name
+ * inserted at the cursor (D110).
+ */
+public func scopesOf(body: Body): ExprScopes {
+    ScopesBuilder(body).build()
+}
+
+/**
  * The scopes of one body as they are built.
  */
 class ScopesBuilder {
