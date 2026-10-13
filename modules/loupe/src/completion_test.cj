@@ -96,6 +96,23 @@ class CompletionTest {
     }
 
     @TestCase
+    func aDotOnThisListsTheInstanceMembersAndNotTheStaticOnes() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            class Counter {
+                var count = 0
+                func bump(): Unit {
+                    this.$0
+            //          ^ 080 bump | CompletionKind.FuncItem | func bump(): Unit
+            //          ^ 080 count | CompletionKind.VarItem | var count: Int64
+                }
+                static func zero(): Counter { Counter() }
+            }
+            "#)
+    }
+
+    @TestCase
     func aDotOnAnEnumListsItsConstructorsAndStaticMembers() {
         checkCompletion(#"
             //- /main.cj module=m package=m

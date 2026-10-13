@@ -190,11 +190,17 @@ func dotCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRoot
     let real = realNodeAt(realRoot, receiver.textRange, receiver.kind) ?? return []
     let expr = bodyWithSourceMap(db, def).sourceMap.exprAt(SyntaxNodePtr(real)) ?? return []
     let from = scopeFileOf(db, ItemFile.Source(file))
+    // `this` and `super` name the type around (N79) but are values of it: its instance members
+    let isObject = match (body(db, def)[expr]) {
+        case ThisExpr | SuperExpr => true
+        case _ => false
+    }
     match (receiverOf(db, def, expr)) {
         case PackageReceiver(pkg) => packageMembers(db, file, pkg)
         case TypesReceiver(types) =>
             let on = receiverTyOf(db, def, expr)
-            allMembers(db, types, from: from, on: on) |> filter {target: MemberTarget => isStaticMember(db, target)} |>
+            allMembers(db, types, from: from, on: on) |>
+                filter {target: MemberTarget => isStaticMember(db, target) != isObject} |>
                 filterMap {target: MemberTarget => memberItem(db, def, target, on, 80)} |> collectArray
         case ValueReceiver =>
             let ty = inferBody(db, def)[expr] ?? return []
