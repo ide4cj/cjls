@@ -122,4 +122,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
 | [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
 | [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
+| [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | proposed |
 | [0107](0107-settings-follow-the-pin.md) | A client's settings are made again when its pin moves, never checked against the cjls under test | proposed |
