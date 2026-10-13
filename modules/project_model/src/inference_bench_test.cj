@@ -155,10 +155,106 @@ func textOf(ws: BenchWorkspace, file: SourceFile, def: DefId, id: ExprId): Strin
 }
 
 /**
+ * A root of an error type of a body of the workspace: what it is (`rootKindOf`), and where.
+ */
+struct ErrorRoot {
+    ErrorRoot(let kind: String, let file: SourceFile, let def: DefId, let id: ExprId) {}
+}
+
+/**
+ * The expressions of the workspace's bodies of no type known, by why and, a root, by what it is; the
+ * roots of an error type; those of no value that are no qualifier before a `.`.
+ */
+class Census {
+    var total = 0
+    var unknown = 0
+    var noValue = 0
+    let counts = HashMap<String, Int64>()
+    let errorRoots = ArrayList<ErrorRoot>()
+    let wrongNoValue = ArrayList<String>()
+
+    func add(key: String): Unit {
+        counts[key] = (counts.get(key) ?? 0) + 1
+    }
+}
+
+/**
+ * The census of every body of `ws`, a cold pass the first time. `CJLS_CENSUS_SAMPLES=<prefix>` prints
+ * the first expressions of each key it begins.
+ */
+func censusOf(ws: BenchWorkspace): Census {
+    let db = ws.db
+    let census = Census()
+    for ((_, file, _) in ws.files) {
+        for (def in defsOf(ws, file)) {
+            let hir = body(db, def)
+            let result = inferBody(db, def)
+            census.total += hir.exprs.size
+            // the receivers before a `.` that names a type's or a package's members, and those before them
+            let qualifiers = HashSet<Int64>()
+            for (i in 0..hir.exprs.size) {
+                if (let FieldExpr(receiver, _, _) <- hir[ExprId(i)]) {
+                    match (resolveField(db, def, ExprId(i))) {
+                        case PackageMembers(_) | TypeMembers(_) => qualifiers.add(receiver.index)
+                        case NoField => match (receiverOf(db, def, receiver)) {
+                            case PackageReceiver(_) | TypesReceiver(_) => qualifiers.add(receiver.index)
+                            case _ => ()
+                        }
+                        case _ => ()
+                    }
+                }
+            }
+            let isUnknownAt = {id: ExprId => match (result[id]) {
+                case Some(ty) => isUnknown(db, ty)
+                case None => false
+            }}
+            for (i in 0..hir.exprs.size) {
+                let id = ExprId(i)
+                let ty = match (result[id]) {
+                    case Some(one) => one
+                    case None =>
+                        census.noValue++
+                        if (!qualifiers.contains(i)) {
+                            census.wrongNoValue.add("${def}: ${i}")
+                        }
+                        continue
+                }
+                if (!isUnknown(db, ty)) {
+                    continue
+                }
+                census.unknown++
+                let kind = match (ty.kind(db)) {
+                    case TodoTy(why) => "todo(${why})"
+                    case _ => "error"
+                }
+                let isCascade = childrenOf(hir, id).iterator().any {one => isUnknownAt(one)}
+                let key = if (isCascade) {
+                    "${kind} cascade"
+                } else {
+                    let rootKind = rootKindOf(db, def, hir, result, id)
+                    if (kind == "error") {
+                        census.errorRoots.add(ErrorRoot(rootKind, file, def, id))
+                    }
+                    "${kind} root ${rootKind}"
+                }
+                census.add(key)
+                if (let Some(prefix) <- getVariable("CJLS_CENSUS_SAMPLES") && key.startsWith(prefix) &&
+                    census.counts[key] <= 12) {
+                    println("sample [${key}] ${textOf(ws, file, def, id)}")
+                }
+                census.add(kind)
+            }
+        }
+    }
+    census
+}
+
+/**
  * Each expression of the workspace's bodies: whether it is of no type known, why, and what it was
  * before the error type was split (D77). A cold pass over every body, 2 GB of heap: run with
  * `CJLS_CENSUS=1 cjHeapSize=2GB cjpm test --show-all-output --target-dir target/test
- * '--filter=InferenceCensusTest.*'`, else it passes doing nothing.
+ * '--filter=InferenceCensusTest.*'`, else it passes doing nothing. `DiagnosticsGateTest` holds its
+ * error roots.
  */
 @Test
 class InferenceCensusTest {
@@ -167,80 +263,15 @@ class InferenceCensusTest {
         if (getVariable("CJLS_CENSUS").isNone()) {
             return
         }
-        let ws = workspace()
-        let db = ws.db
-        let counts = HashMap<String, Int64>()
-        let add = {key: String => counts[key] = (counts.get(key) ?? 0) + 1}
-        var total = 0
-        var unknown = 0
-        var noValue = 0
-        let wrongNoValue = ArrayList<String>()
-        for ((_, file, _) in ws.files) {
-            for (def in defsOf(ws, file)) {
-                let hir = body(db, def)
-                let result = inferBody(db, def)
-                total += hir.exprs.size
-                // the receivers before a `.` that names a type's or a package's members, and those before them
-                let qualifiers = HashSet<Int64>()
-                for (i in 0..hir.exprs.size) {
-                    if (let FieldExpr(receiver, _, _) <- hir[ExprId(i)]) {
-                        match (resolveField(db, def, ExprId(i))) {
-                            case PackageMembers(_) | TypeMembers(_) => qualifiers.add(receiver.index)
-                            case NoField => match (receiverOf(db, def, receiver)) {
-                                case PackageReceiver(_) | TypesReceiver(_) => qualifiers.add(receiver.index)
-                                case _ => ()
-                            }
-                            case _ => ()
-                        }
-                    }
-                }
-                let isUnknownAt = {id: ExprId => match (result[id]) {
-                    case Some(ty) => isUnknown(db, ty)
-                    case None => false
-                }}
-                for (i in 0..hir.exprs.size) {
-                    let id = ExprId(i)
-                    let ty = match (result[id]) {
-                        case Some(one) => one
-                        case None =>
-                            noValue++
-                            if (!qualifiers.contains(i)) {
-                                wrongNoValue.add("${def}: ${i}")
-                            }
-                            continue
-                    }
-                    if (!isUnknown(db, ty)) {
-                        continue
-                    }
-                    unknown++
-                    let kind = match (ty.kind(db)) {
-                        case TodoTy(why) => "todo(${why})"
-                        case _ => "error"
-                    }
-                    let isCascade = childrenOf(hir, id).iterator().any {one => isUnknownAt(one)}
-                    let key = if (isCascade) {
-                        "${kind} cascade"
-                    } else {
-                        "${kind} root ${rootKindOf(db, def, hir, result, id)}"
-                    }
-                    add(key)
-                    // `CJLS_CENSUS_SAMPLES=<prefix>` prints the first of those of each key it begins
-                    if (let Some(prefix) <- getVariable("CJLS_CENSUS_SAMPLES") && key.startsWith(prefix) &&
-                        counts[key] <= 12) {
-                        println("sample [${key}] ${textOf(ws, file, def, id)}")
-                    }
-                    add("${kind}")
-                }
-            }
-        }
-        println("census: ${total} expressions, ${unknown} of no type known, ${noValue} no value")
-        let keys = counts.keys().toArray()
+        let census = censusOf(workspace())
+        println("census: ${census.total} expressions, ${census.unknown} of no type known, ${census.noValue} no value")
+        let keys = census.counts.keys().toArray()
         sort(keys, by: {a: String, b: String => a.compare(b)})
         for (key in keys) {
-            println("census: ${key}: ${counts[key]}")
+            println("census: ${key}: ${census.counts[key]}")
         }
-        @Expect(counts.get("todo(not inferred)"), None)
-        @Expect(wrongNoValue.toArray(), Array<String>())
+        @Expect(census.counts.get("todo(not inferred)"), None)
+        @Expect(census.wrongNoValue.toArray(), Array<String>())
     }
 }
 
