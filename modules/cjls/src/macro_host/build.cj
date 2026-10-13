@@ -41,18 +41,13 @@ public enum BuiltLibrary {
 }
 
 /**
- * Runs the SDK's `cjc`, and what it built: a test's is a fake.
+ * Runs the SDK's `cjc`: a test's is a fake.
  */
 public interface Toolchain {
     /**
      * Runs `cjc` with `arguments`: its exit code and what it wrote to stderr and stdout.
      */
     func compile(arguments: Array<String>): (Int64, String)
-
-    /**
-     * What `program`, which `cjc` built, prints, `None` if it fails.
-     */
-    func execute(program: Path): ?String
 }
 
 /**

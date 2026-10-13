@@ -103,28 +103,32 @@ class TokenNumbersTest {
     }
 
     @TestCase
-    func theNamesStdAstGivesNumberTheKindsAsTheSdksTokensIncDoes(): Unit {
-        // arrange
-        // what the program cjls builds for an SDK without Tokens.inc prints (D104): past the last kind, std.ast names
-        // one again
-        let names = ArrayList<String>()
-        for (n in 0..256) {
-            let name = try {
-                getTokenKind(UInt16(n)).toString()
-            } catch (_: Exception) {
-                break
-            }
-            if (names.contains(name)) {
-                break
-            }
-            names.add(name)
-        }
-
-        // act
-        let numbers = TokenNumbers.ofNames(names.toArray()).getOrThrow()
+    func cjlssOwnTableNumbersTheKindsAsTheSdksTokensIncDoes(): Unit {
+        // act: the pinned nightly's, whatever its version (D104)
+        let numbers = TokenNumbers.builtin("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)").getOrThrow()
 
         // assert
         @Expect(numbers.names, sdkNumbers().names)
+    }
+
+    @TestCase
+    func a1Point0SdkHasTheFirstKindsAndItsIllegalAndReadsTheKeywordsItLacksAsIdentifiers(): Unit {
+        // act: as cangjie_compiler's v1.0.5 numbers them
+        let numbers = TokenNumbers.builtin("Cangjie Compiler: 1.0.5 (cjnative)\nTarget: x86_64-unknown-linux-gnu").getOrThrow()
+
+        // assert
+        @Expect(numbers.names.size, 157)
+        @Expect(numbers.names[..156], sdkNumbers().names[..156])
+        @Expect(numbers.numberOf("ILLEGAL"), 156)
+        @Expect(numbers.numberOf("COMMON"), numbers.numberOf("IDENTIFIER"))
+        @Expect(numbers.numberOf("DOUBLE_COLON"), numbers.numberOf("IDENTIFIER"))
+    }
+
+    @TestCase
+    func aVersionBefore1Point0OrOfNoNumbersHasNoTable(): Unit {
+        // act, assert
+        @Expect(TokenNumbers.builtin("Cangjie Compiler: 0.53.13 (cjnative)").isNone())
+        @Expect(TokenNumbers.builtin("not a compiler").isNone())
     }
 
     @TestCase

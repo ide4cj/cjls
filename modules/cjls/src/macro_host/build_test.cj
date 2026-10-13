@@ -31,10 +31,6 @@ class FakeToolchain <: Toolchain {
         (0, "")
     }
 
-    public func execute(_: Path): ?String {
-        None
-    }
-
     func names(): Array<String> {
         calls.toArray().map {call => Path(call[1]).fileName}
     }

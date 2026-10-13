@@ -2,7 +2,6 @@ package cjls.macro_host
 
 import std.collection.*
 import std.env.getVariables
-import std.fs.*
 import std.process.{ProcessException, executeWithOutput}
 import macro_server.{MacroServerPaths, TokenNumbers}
 
@@ -21,38 +20,23 @@ const PATH_SEPARATOR = ";"
 @When[os != "Windows"]
 const PATH_SEPARATOR = ":"
 
-@When[os == "Windows"]
-const EXE = ".exe"
-
-@When[os != "Windows"]
-const EXE = ""
-
 /**
  * The SDK's `cjc`, run with its runtime on the library path, as its `envsetup` sets it: what cjc loads a macro
- * library a package uses with, and what a program it built needs.
+ * library a package uses with.
  */
 public class SdkToolchain <: Toolchain {
     public SdkToolchain(private let paths: MacroServerPaths) {}
 
     public func compile(arguments: Array<String>): (Int64, String) {
-        let (code, out, err) = run(paths.cjc.toString(), arguments)
+        let (code, out, err) = run(arguments)
         (code, err + out)
-    }
-
-    public func execute(program: Path): ?String {
-        let (code, out, _) = run(program.toString(), [])
-        if (code == 0) {
-            out
-        } else {
-            None
-        }
     }
 
     /**
      * What `cjc --version` prints, `None` if it does not run.
      */
     public func version(): ?String {
-        let (code, out, _) = run(paths.cjc.toString(), ["--version"])
+        let (code, out, _) = run(["--version"])
         if (code == 0) {
             out.trimAscii()
         } else {
@@ -60,7 +44,7 @@ public class SdkToolchain <: Toolchain {
         }
     }
 
-    private func run(command: String, arguments: Array<String>): (Int64, String, String) {
+    private func run(arguments: Array<String>): (Int64, String, String) {
         let env = HashMap<String, String>(getVariables())
         let lib = paths.runtimeLib.toString()
         env[LIBRARY_PATH] = match (env.get(LIBRARY_PATH)) {
@@ -68,7 +52,7 @@ public class SdkToolchain <: Toolchain {
             case _ => lib
         }
         try {
-            let (code, out, err) = executeWithOutput(command, arguments, environment: env)
+            let (code, out, err) = executeWithOutput(paths.cjc.toString(), arguments, environment: env)
             (code, String.fromUtf8(out), String.fromUtf8(err))
         } catch (e: ProcessException) {
             (-1, "", e.message)
@@ -77,78 +61,9 @@ public class SdkToolchain <: Toolchain {
 }
 
 /**
- * A program printing the name of each token kind by its number, as `std.ast` has them.
+ * How the SDK whose `cjc --version` printed `version` numbers cjc's token kinds (D104): as its `Tokens.inc` lists
+ * them, else as cjls's own table does for its version. `None` if neither can: no macro is expanded then.
  */
-const TOKEN_KINDS_PROGRAM = ##"
-import std.ast.getTokenKind
-import std.collection.HashSet
-
-main(): Int64 {
-    let seen = HashSet<String>()
-    for (n in 0..256) {
-        let name = try {
-            getTokenKind(UInt16(n)).toString()
-        } catch (_: Exception) {
-            break
-        }
-        // past the last kind it names one again
-        if (!seen.add(name)) {
-            break
-        }
-        println(name)
-    }
-    0
-}
-"##
-
-/**
- * How the SDK numbers cjc's token kinds (D104): as its `Tokens.inc` lists them, else as `std.ast` names them,
- * printed by a program `toolchain` builds once into `out`, which keeps them. `None` if neither works: no macro is
- * expanded then.
- */
-public func tokenNumbersOf(paths: MacroServerPaths, out: Path, toolchain: Toolchain): ?TokenNumbers {
-    if (let Some(numbers) <- TokenNumbers.read(paths.tokensInc)) {
-        return numbers
-    }
-    let kept = out.join("token-kinds.txt")
-    if (let Some(numbers) <- namesIn(kept).flatMap {names => TokenNumbers.ofNames(names)}) {
-        return numbers
-    }
-    let dir = out.join("token-kinds")
-    let source = dir.join("main.cj")
-    let program = dir.join("token-kinds${EXE}")
-    try {
-        Directory.create(dir, recursive: true)
-        File.writeTo(source, TOKEN_KINDS_PROGRAM.toArray())
-    } catch (_: Exception) {
-        return None
-    }
-    let (code, _) = toolchain.compile([source.toString(), "-o", program.toString()])
-    if (code != 0) {
-        return None
-    }
-    let printed = toolchain.execute(program) ?? return None
-    let numbers = TokenNumbers.ofNames(namesOf(printed)) ?? return None
-    try {
-        File.writeTo(kept, printed.toArray())
-    } catch (_: Exception) {
-        ()
-    }
-    numbers
-}
-
-func namesIn(file: Path): ?Array<String> {
-    try {
-        namesOf(String.fromUtf8(File.readFrom(file)))
-    } catch (_: Exception) {
-        None
-    }
-}
-
-/**
- * The names `text` holds, one a line.
- */
-func namesOf(text: String): Array<String> {
-    text.lines() |> map {line: String => line.trimAscii()} |> filter {line: String => !line.isEmpty()} |>
-        collectArray
+public func tokenNumbersOf(paths: MacroServerPaths, version: String): ?TokenNumbers {
+    TokenNumbers.read(paths.tokensInc) ?? TokenNumbers.builtin(version)
 }

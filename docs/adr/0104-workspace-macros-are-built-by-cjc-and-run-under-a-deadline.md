@@ -2,8 +2,8 @@
 
 Status: proposed
 Amends ADR-0087: how the macro packages are built, and the guard's deadline
-Amends ADR-0094: macros are on for any SDK whose token numbers cjls can read
-Amends ADR-0095: the numbers come from `std.ast` when the SDK has no `Tokens.inc`
+Amends ADR-0094: macros are on for any SDK since 1.0, by a table of cjls's own where the SDK ships no `Tokens.inc`
+Amends ADR-0095: the numbers come from that table when the SDK has no `Tokens.inc`
 
 ## Context
 
@@ -16,7 +16,9 @@ Amends ADR-0095: the numbers come from `std.ast` when the SDK has no `Tokens.inc
   - R1 runs `cargo check` again when a proc-macro crate's file is saved.
   - None of R1, R4 and R9 has a deadline on a call. A macro that loops hangs R4's whole compile.
 - `LSPMacroServer` never unloads a library: `dlopen` of a rebuilt file at the same path returns the old handle.
-- `Tokens.inc` is not in every SDK. D95 checked only nightly archives. Of the release archives of 1.0.5 and 1.2.0, only Linux x64 1.2.0 ships `include/`. All six ship `tools/bin/LSPMacroServer`. `std.ast.getTokenKind` names every kind by its number in any SDK.
+- `Tokens.inc` is not in every SDK. D95 checked only nightly archives. Of the release archives of 1.0.5 and 1.2.0, only Linux x64 1.2.0 ships `include/`. All six ship `tools/bin/LSPMacroServer`.
+- cjc only adds token kinds, which cangjie_compiler keeps to. Its `Tokens.inc` at the tags v1.1.0 and v1.2.0, and in the nightlies 20260716 and 20261002, lists the same 165 kinds in one order. At v1.0.5 it lists the first 156 of them and then `ILLEGAL`: 1.1 added kinds before `ILLEGAL` and after it. `ILLEGAL` is only received, in an answer that failed.
+- The kinds cannot be read from `std.ast` without running it. A kind's number is its place in `PATTERNS` (`getTokenID`), whose body no `.cjo` holds, and the order of `TokenKind`'s constructors differs from it past 156.
 
 ## Decision
 
@@ -24,11 +26,15 @@ Amends ADR-0095: the numbers come from `std.ast` when the SDK has no `Tokens.inc
 - **They go to `.cjls/macros/<cjc --version>/<module>/`** under the workspace root. cjls writes a `.cjls/.gitignore` of `*`. The user's `target` is never touched (D87), a `cjpm clean` leaves the directory alone, and a new compiler starts from scratch, since cjpm's stamps ignore it.
 - **A package is built again when its stamp changes.** The stamp hashes cjc's version, the names, sizes and times of the package's files, and the stamps of what it links. A macro package's stamp is `Package.macroLibrary`, part of every request's fingerprint. A new library therefore makes its calls pending again, and the server, which kept the old one, is restarted. A build runs when the project is loaded, and when a file of a package in the plan is saved or changes on disk. A package that fails keeps its last library: cjc writes nothing on an error.
 - **A call has a deadline**, 10 s by default (the `macros.callTimeout` setting). Past it the server is killed, and the call is answered as failed, with a diagnostic on the call. The answer has the request's fingerprint, so the call is not sent again until its input or library changes. A server that exits is started again for the next call, which costs only the call in flight. A call whose macro package has no library is never sent (D87).
-- **Macros are on for any SDK whose token numbers cjls can read.** These are its `Tokens.inc`, else what `std.ast.getTokenKind` names (D95). For the second, cjls compiles a program printing them with the SDK's cjc, once per `cjc --version`, into `.cjls/macros/<version>/`.
+- **The token numbers are the SDK's `Tokens.inc`, else a table of cjls's own** (`TokenNumbers.builtin`), chosen by the version `cjc --version` prints:
+  - the pinned nightly's for 1.1 on, which `TokenNumbersTest` holds to the SDK the tests run on;
+  - its first 156 and `ILLEGAL` for 1.0, sending the contextual keywords 1.0 lacks (`common`, `specific`, `features`, `::`) as the identifiers it reads them as;
+  - none before 1.0. Macros are off then.
 - **Every file of the workspace with calls of workspace macros is expanded**, not only the open ones: what the macros declare is seen from other packages.
 
 ## Consequences
 
+- The table moves with `.cangjie-version`. A nightly that renumbers kinds instead of adding them fails `TokenNumbersTest` before any release ships it. A release newer than the table numbers the kinds it knows the same, and what it adds past them is read as `ILLEGAL`.
 - An edit to a macro package costs its own compile and those of what it imports and changed, about 3 s each here, but never a compile of its users.
 - What cjpm does beyond cjc's arguments is not repeated: a `build.cj`'s generated sources, `compile-option`, cfgs and features. A macro package that needs them builds otherwise than cjpm builds it, or fails, and its calls stay opaque.
 - A macro package importing stdx is linked against stdx's static libraries by name (`-l<pkg>`). Whatever else stdx's libraries need is not added.

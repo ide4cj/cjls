@@ -446,8 +446,8 @@ public class MacroHost <: MacroWork {
         } catch (e: Exception) {
             return none("${out} cannot be made: ${e.message}")
         }
-        let numbers = tokenNumbersOf(paths, out, toolchain) ?? return none(
-            "the SDK's token kinds cannot be read: macros are not expanded")
+        let numbers = tokenNumbersOf(paths, version) ?? return none(
+            "the SDK numbers its token kinds in a way cjls does not know: macros are not expanded")
         let found = MacroSdk(paths, numbers, toolchain, version, out)
         sdk = found
         found
