@@ -410,6 +410,11 @@ public struct Package {
     public var noPrelude: Bool
     public var isMacro: ?Bool
     public var cfg: ?Cfg
+    /**
+     * The stamp of the library cjls built of this macro package, which the macro server runs (#176): 0 for none.
+     * The project model never sets it; a new one makes every request for the package's macros new.
+     */
+    public var macroLibrary: Int64 = 0
 }
 
 /**

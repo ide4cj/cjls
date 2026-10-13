@@ -103,6 +103,35 @@ class TokenNumbersTest {
     }
 
     @TestCase
+    func cjlssOwnTableNumbersTheKindsAsTheSdksTokensIncDoes(): Unit {
+        // act: the pinned nightly's, whatever its version (D104)
+        let numbers = TokenNumbers.builtin("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)").getOrThrow()
+
+        // assert
+        @Expect(numbers.names, sdkNumbers().names)
+    }
+
+    @TestCase
+    func a1Point0SdkHasTheFirstKindsAndItsIllegalAndReadsTheKeywordsItLacksAsIdentifiers(): Unit {
+        // act: as cangjie_compiler's v1.0.5 numbers them
+        let numbers = TokenNumbers.builtin("Cangjie Compiler: 1.0.5 (cjnative)\nTarget: x86_64-unknown-linux-gnu").getOrThrow()
+
+        // assert
+        @Expect(numbers.names.size, 157)
+        @Expect(numbers.names[..156], sdkNumbers().names[..156])
+        @Expect(numbers.numberOf("ILLEGAL"), 156)
+        @Expect(numbers.numberOf("COMMON"), numbers.numberOf("IDENTIFIER"))
+        @Expect(numbers.numberOf("DOUBLE_COLON"), numbers.numberOf("IDENTIFIER"))
+    }
+
+    @TestCase
+    func aVersionBefore1Point0OrOfNoNumbersHasNoTable(): Unit {
+        // act, assert
+        @Expect(TokenNumbers.builtin("Cangjie Compiler: 0.53.13 (cjnative)").isNone())
+        @Expect(TokenNumbers.builtin("not a compiler").isNone())
+    }
+
+    @TestCase
     func aTokensIncLackingAKindSentIsRefused(): Unit {
         // arrange
         let text = String.fromUtf8(File.readFrom(sdkPaths().tokensInc))
