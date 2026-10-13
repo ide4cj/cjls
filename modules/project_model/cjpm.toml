@@ -17,6 +17,7 @@ cjsyntax = { path = "../cjsyntax" }
 fjson = { path = "../fjson" }
 ftoml = { path = "../ftoml" }
 loupe = { path = "../loupe" }
+platform = { path = "../platform" }
 stdxx = { path = "../stdxx" }
 
 [test-dependencies]
