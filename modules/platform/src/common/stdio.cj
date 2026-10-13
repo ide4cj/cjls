@@ -28,6 +28,11 @@ public class StdinStream <: InputStream {
             return 0
         }
         while (true) {
+            // A workaround of the runtime's scheduler (#324): a thread `spawn`ed from here, just before
+            // the read blocks in C, may never start while it blocks — it waits on this thread's run queue,
+            // and no idle worker wakes to take it — so a hover could wait for the next message forever.
+            // Giving way here first runs what this thread spawned or woke. To go once the SDK is fixed.
+            sleep(Duration.Zero)
             let n = unsafe {
                 let raw = acquireArrayRawData(buffer)
                 let n = readStdin(raw.pointer, buffer.size)
