@@ -262,20 +262,24 @@ class SemanticTokensTest {
     }
 
     @TestCase
-    func aConstructorAndAConstantGoByTheTypesTheGrammarsName() {
+    func aConstructorAndAConstantAreToldByAModifierOfTheirType() {
         // arrange
         let state = opened("class A {\n    A() {}\n}\nconst K = 1")
         state.augmentsSyntaxTokens = true
         let legend = semanticTokensLegend()
+        let modifiers = {bits: UInt32 =>
+            Array<Int64>(legend.tokenModifiers.size, {i => i}).filter {i => ((bits >> UInt32(i)) & 1) == 1}
+                .map {i => legend.tokenModifiers[i]}}
 
         // act
         let data = semanticTokensData(state, URI).getOrThrow()
 
         // assert - `class A`, then the constructor `A`, then `K`
         @Expect(data.size, 15)
-        @Expect(legend.tokenTypes[Int64(data[8])], "constructor")
-        @Expect(legend.tokenTypes[Int64(data[13])], "constant")
-        @Expect(data[14], DECLARATION | READONLY)
+        @Expect(legend.tokenTypes[Int64(data[8])], "method")
+        @Expect(modifiers(data[9]), ["declaration", "constructor"])
+        @Expect(legend.tokenTypes[Int64(data[13])], "variable")
+        @Expect(modifiers(data[14]), ["declaration", "readonly", "constant"])
     }
 
     @TestCase[row in [

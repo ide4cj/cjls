@@ -237,15 +237,8 @@ func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
 let UNRESOLVED_REFERENCE = SemanticTokenTypes("unresolvedReference")
 
 /**
- * A constructor and a constant, which LSP has no type for, by the names the editors' grammars give
- * them, rather than as a method and a `readonly` variable (D105).
- */
-let CONSTRUCTOR = SemanticTokenTypes("constructor")
-let CONSTANT = SemanticTokenTypes("constant")
-
-/**
- * The token types the server sends, LSP's own but `unresolvedReference` (D19, D72), `constructor` and
- * `constant` (D105); a token's type is its index here.
+ * The token types the server sends, LSP's own but one, `unresolvedReference` (D19, D72); a token's
+ * type is its index here.
  */
 let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,
     SemanticTokenTypes.NUMBER, SemanticTokenTypes.OPERATOR, SemanticTokenTypes.DECORATOR,
@@ -253,7 +246,7 @@ let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, Seman
     SemanticTokenTypes.INTERFACE, SemanticTokenTypes.STRUCT, SemanticTokenTypes.ENUM,
     SemanticTokenTypes.ENUM_MEMBER, SemanticTokenTypes.TYPE_PARAMETER, SemanticTokenTypes.FUNCTION,
     SemanticTokenTypes.METHOD, SemanticTokenTypes.PROPERTY, SemanticTokenTypes.VARIABLE,
-    SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE, CONSTRUCTOR, CONSTANT]
+    SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE]
 
 /**
  * The modifiers, LSP's own but one, `mutable` (D72); a token's modifiers are bits by their index here.
@@ -266,13 +259,23 @@ let TOKEN_MODIFIERS = [(SemanticTokenModifiers.DECLARATION, HighlightModifier.De
     (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary),
     (SemanticTokenModifiers("mutable"), HighlightModifier.Mutable)]
 
+/**
+ * The modifiers a kind of symbol adds to its type, which LSP has none of: a constructor, a `method`,
+ * and a constant, a `readonly` `variable`, by what the editors' grammars name them (D105). Their bits
+ * follow those of `TOKEN_MODIFIERS`.
+ */
+let KIND_MODIFIERS = [(SemanticTokenModifiers("constructor"), StructureKind.Constructor),
+    (SemanticTokenModifiers("constant"), StructureKind.Constant)]
+
 func semanticTokensLegend(): SemanticTokensLegend {
     SemanticTokensLegend(tokenTypes: TOKEN_TYPES.map {it => it.value},
-        tokenModifiers: TOKEN_MODIFIERS.map {it => it[0].value})
+        tokenModifiers: TOKEN_MODIFIERS.map {it => it[0].value}.concat(KIND_MODIFIERS.map {it => it[0].value}))
 }
 
 /**
- * LSP has no type for a field: it goes as a property, as LSP's own documentation has it.
+ * LSP has no type for a constructor, a field or a constant: they go as a method, a property and a
+ * `readonly` variable, as LSP's own documentation has it, the first and the last told by a modifier
+ * (`KIND_MODIFIERS`).
  */
 func tokenType(tag: HighlightTag): SemanticTokenTypes {
     match (tag) {
@@ -296,12 +299,11 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
             case StructureKind.EnumConstructor => SemanticTokenTypes.ENUM_MEMBER
             case StructureKind.Extension | StructureKind.TypeAlias => SemanticTokenTypes.TYPE
             case StructureKind.Function | StructureKind.Main => SemanticTokenTypes.FUNCTION
-            case StructureKind.Method | StructureKind.Finalizer => SemanticTokenTypes.METHOD
-            case StructureKind.Constructor => CONSTRUCTOR
+            case StructureKind.Method | StructureKind.Constructor | StructureKind.Finalizer =>
+                SemanticTokenTypes.METHOD
             case StructureKind.Macro => SemanticTokenTypes.MACRO
             case StructureKind.Property | StructureKind.Field => SemanticTokenTypes.PROPERTY
-            case StructureKind.Variable => SemanticTokenTypes.VARIABLE
-            case StructureKind.Constant => CONSTANT
+            case StructureKind.Variable | StructureKind.Constant => SemanticTokenTypes.VARIABLE
         }
     }
 }
@@ -332,10 +334,15 @@ func tokenTypeIndex(tag: HighlightTag): UInt32 {
     UInt32(index)
 }
 
-func tokenModifierBits(modifiers: HighlightModifiers): UInt32 {
+func tokenModifierBits(tag: HighlightTag, modifiers: HighlightModifiers): UInt32 {
     var bits: UInt32 = 0
     for (i in 0..TOKEN_MODIFIERS.size where modifiers.contains(TOKEN_MODIFIERS[i][1])) {
         bits |= 1 << UInt32(i)
+    }
+    if (let HighlightTag.Symbol(kind) <- tag) {
+        for (i in 0..KIND_MODIFIERS.size where KIND_MODIFIERS[i][1] == kind) {
+            bits |= 1 << UInt32(TOKEN_MODIFIERS.size + i)
+        }
     }
     bits
 }
@@ -349,7 +356,7 @@ func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encod
     let data = SemanticTokensData()
     for (token in tokens) {
         let tokenKind = tokenTypeIndex(token.tag)
-        let modifiers = tokenModifierBits(token.modifiers)
+        let modifiers = tokenModifierBits(token.tag, token.modifiers)
         let start = text.positionOf(token.range.start, encoding)
         let end = text.positionOf(token.range.end, encoding)
         if (start.line == end.line) {
