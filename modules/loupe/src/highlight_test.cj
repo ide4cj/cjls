@@ -66,7 +66,7 @@ class HighlightTest {
             "NumberLiteral@39..40 1",
             "Constructor[Declaration]@45..46 A",
             "Keyword@47..50 let",
-            "Field[Declaration, Readonly]@51..52 y",
+            "Parameter[Declaration, Readonly]@51..52 y",
             "BuiltinType[DefaultLibrary]@54..59 Int64",
             "Parameter[Declaration]@61..62 z",
             "BuiltinType[DefaultLibrary]@64..68 Bool",

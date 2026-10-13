@@ -237,8 +237,15 @@ func diagnosticSeverity(severity: Severity): DiagnosticSeverity {
 let UNRESOLVED_REFERENCE = SemanticTokenTypes("unresolvedReference")
 
 /**
- * The token types the server sends, LSP's own but one, `unresolvedReference` (D19, D72); a token's
- * type is its index here.
+ * A constructor and a constant, which LSP has no type for, by the names the editors' grammars give
+ * them, rather than as a method and a `readonly` variable (D105).
+ */
+let CONSTRUCTOR = SemanticTokenTypes("constructor")
+let CONSTANT = SemanticTokenTypes("constant")
+
+/**
+ * The token types the server sends, LSP's own but `unresolvedReference` (D19, D72), `constructor` and
+ * `constant` (D105); a token's type is its index here.
  */
 let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,
     SemanticTokenTypes.NUMBER, SemanticTokenTypes.OPERATOR, SemanticTokenTypes.DECORATOR,
@@ -246,7 +253,7 @@ let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, Seman
     SemanticTokenTypes.INTERFACE, SemanticTokenTypes.STRUCT, SemanticTokenTypes.ENUM,
     SemanticTokenTypes.ENUM_MEMBER, SemanticTokenTypes.TYPE_PARAMETER, SemanticTokenTypes.FUNCTION,
     SemanticTokenTypes.METHOD, SemanticTokenTypes.PROPERTY, SemanticTokenTypes.VARIABLE,
-    SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE]
+    SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE, CONSTRUCTOR, CONSTANT]
 
 /**
  * The modifiers, LSP's own but one, `mutable` (D72); a token's modifiers are bits by their index here.
@@ -265,8 +272,7 @@ func semanticTokensLegend(): SemanticTokensLegend {
 }
 
 /**
- * LSP has no type for a constructor, a field or a constant: they go as a method, a property and a
- * `readonly` variable, as LSP's own documentation has it.
+ * LSP has no type for a field: it goes as a property, as LSP's own documentation has it.
  */
 func tokenType(tag: HighlightTag): SemanticTokenTypes {
     match (tag) {
@@ -290,11 +296,12 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
             case StructureKind.EnumConstructor => SemanticTokenTypes.ENUM_MEMBER
             case StructureKind.Extension | StructureKind.TypeAlias => SemanticTokenTypes.TYPE
             case StructureKind.Function | StructureKind.Main => SemanticTokenTypes.FUNCTION
-            case StructureKind.Method | StructureKind.Constructor | StructureKind.Finalizer =>
-                SemanticTokenTypes.METHOD
+            case StructureKind.Method | StructureKind.Finalizer => SemanticTokenTypes.METHOD
+            case StructureKind.Constructor => CONSTRUCTOR
             case StructureKind.Macro => SemanticTokenTypes.MACRO
             case StructureKind.Property | StructureKind.Field => SemanticTokenTypes.PROPERTY
-            case StructureKind.Variable | StructureKind.Constant => SemanticTokenTypes.VARIABLE
+            case StructureKind.Variable => SemanticTokenTypes.VARIABLE
+            case StructureKind.Constant => CONSTANT
         }
     }
 }

@@ -597,14 +597,16 @@ func declaredName(name: CjSyntaxNode): ?Highlight {
 }
 
 /**
- * A parameter of a primary constructor declared `let` or `var` is a member variable as well.
+ * A parameter of a primary constructor declared `let` or `var` is a member variable as well: a
+ * parameter where it is declared, as the editors' grammars have it, a field where it is used as a
+ * member (D105).
  */
 func parameter(param: CjSyntaxNode): ?Highlight {
     let modifiers = HighlightModifiers.NONE.plus(HighlightModifier.Declaration)
     if (hasToken(param, SyntaxKind.LetKw)) {
-        (HighlightTag.Symbol(StructureKind.Field), modifiers.plus(HighlightModifier.Readonly))
+        (HighlightTag.Parameter, modifiers.plus(HighlightModifier.Readonly))
     } else if (hasToken(param, SyntaxKind.VarKw)) {
-        (HighlightTag.Symbol(StructureKind.Field), modifiers.plus(HighlightModifier.Mutable))
+        (HighlightTag.Parameter, modifiers.plus(HighlightModifier.Mutable))
     } else {
         (HighlightTag.Parameter, modifiers)
     }

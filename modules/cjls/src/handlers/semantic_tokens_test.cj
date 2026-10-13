@@ -261,6 +261,23 @@ class SemanticTokensTest {
         @Expect(data, [0, 6, 1, CLASS, DECLARATION])
     }
 
+    @TestCase
+    func aConstructorAndAConstantGoByTheTypesTheGrammarsName() {
+        // arrange
+        let state = opened("class A {\n    A() {}\n}\nconst K = 1")
+        state.augmentsSyntaxTokens = true
+        let legend = semanticTokensLegend()
+
+        // act
+        let data = semanticTokensData(state, URI).getOrThrow()
+
+        // assert - `class A`, then the constructor `A`, then `K`
+        @Expect(data.size, 15)
+        @Expect(legend.tokenTypes[Int64(data[8])], "constructor")
+        @Expect(legend.tokenTypes[Int64(data[13])], "constant")
+        @Expect(data[14], DECLARATION | READONLY)
+    }
+
     @TestCase[row in [
         (ClientCapabilities(workspace: WorkspaceClientCapabilities(semanticTokens: SemanticTokensWorkspaceClientCapabilities(
             refreshSupport: true))), true),
