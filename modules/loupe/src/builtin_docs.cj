@@ -81,8 +81,7 @@ let BUILTIN_TYPE_DOCS: Array<BuiltinDoc> = [
 ]
 
 /**
- * The annotations the compiler knows (`BuiltinAnnotationName` in `cjsyntax`) that the Cangjie docs tell of; not
- * `@Intrinsic`, `@ConstSafe` and `@NonProduct`, std's own.
+ * The annotations the compiler knows, each that `cjsyntax` takes as one (`BuiltinAnnotationName`).
  */
 let BUILTIN_ANNOTATION_DOCS: Array<BuiltinDoc> = [
     BuiltinDoc("Frozen", "@Frozen",
@@ -140,7 +139,18 @@ let BUILTIN_ANNOTATION_DOCS: Array<BuiltinDoc> = [
     BuiltinDoc("ForeignGetterName", "@ForeignGetterName[\"name\"]",
         "The name of a mirrored Objective-C property's getter, where it is not the default."),
     BuiltinDoc("ForeignSetterName", "@ForeignSetterName[\"name\"]",
-        "The name of a mirrored Objective-C property's setter, where it is not the default.")
+        "The name of a mirrored Objective-C property's setter, where it is not the default."),
+    BuiltinDoc("Intrinsic", "@Intrinsic",
+        "A function the compiler implements itself: declared without a body, at the top level of a few std " +
+            "packages (`std.core`, `std.math`, `std.sync`, …). Each call becomes the compiler's own operation, found " +
+            "by the package and the function's name; the function can only be called, never taken as a value."),
+    BuiltinDoc("ConstSafe", "@ConstSafe",
+        "Only in std: the const checker skips the declaration and everything in it, so a `const`, a `const` " +
+            "function or a `const init` in it may use what is not const, such as a foreign call. Outside std it is " +
+            "no annotation but a macro call."),
+    BuiltinDoc("NonProduct", "@NonProduct",
+        "On a file's `features {}`, in every file of a package or in none: the package is of a source set that " +
+            "is not the product of a multiplatform build (`\"product\": false` in what cjc tells cjpm of it).")
 ]
 
 /**

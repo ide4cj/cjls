@@ -1,5 +1,6 @@
 package loupe
 
+import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import loupe.fixture.*
@@ -420,7 +421,7 @@ class HoverBinaryTest {
 @Test
 class BuiltinHoverTest {
     @TestCase
-    func aTypeThatIsAKeywordShowsWhatTheDocsSayOfIt() {
+    func aTypeThatIsAKeywordShowsWhatItIs() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
@@ -452,7 +453,7 @@ class BuiltinHoverTest {
     }
 
     @TestCase
-    func aTypeOfTheCompilersOwnShowsWhatTheDocsSayOfIt() {
+    func aTypeOfTheCompilersOwnShowsWhatItIs() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
@@ -524,12 +525,19 @@ class BuiltinHoverTest {
             "#)
     }
 
+    /**
+     * The names `cjsyntax` takes as an annotation of the compiler's, as its `contextualKind` lists them.
+     */
+    let parserAnnotations = ["JavaMirror", "JavaImpl", "JavaHasDefault", "ObjCMirror", "ObjCImpl", "ForeignGetterName",
+        "ForeignSetterName", "ObjCInit", "ObjCOptional", "ForeignName", "CallingConv", "C", "Attribute", "Intrinsic",
+        "OverflowThrowing", "OverflowWrapping", "OverflowSaturating", "When", "FastNative", "Annotation", "ConstSafe",
+        "Deprecated", "Frozen", "EnsurePreparedToMock", "NonProduct"]
+
     @TestCase
-    func everyAnnotationToldIsOneTheParserTakesAsTheCompilers() {
-        for (doc in BUILTIN_ANNOTATION_DOCS) {
+    func everyAnnotationOfTheCompilersIsTold() {
+        for (name in parserAnnotations) {
             // arrange
-            let source = "package m\n@${doc.name} func f(): Unit {}\n"
-            let fixture = Fixture.parse("//- /main.cj module=m package=m\n${source}")
+            let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\n@${name} func f(): Unit {}\n")
             let db = fixture.database()
             let fileId = fixture.file("/main.cj").fileId
 
@@ -537,8 +545,20 @@ class BuiltinHoverTest {
             let hover = hoverAt(db, fileId, "package m\n@".size)
 
             // assert
-            @Expect(hover.map {one => one.items.map {item => item.code}}, Some([doc.code]))
+            @Expect(builtinAnnotationDoc(name).isSome())
+            @Expect(hover.map {one => one.items.map {item => item.code}},
+                builtinAnnotationDoc(name).map {doc => [doc.code]})
         }
+    }
+
+    @TestCase
+    func everyAnnotationToldIsOneOfTheCompilers() {
+        // act
+        let unknown = BUILTIN_ANNOTATION_DOCS |> filter {doc: BuiltinDoc => !parserAnnotations.contains(doc.name)} |>
+            map {doc: BuiltinDoc => doc.name} |> collectArray
+
+        // assert
+        @Expect(unknown, Array<String>())
     }
 
     @TestCase

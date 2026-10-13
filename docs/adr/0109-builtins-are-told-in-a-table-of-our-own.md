@@ -16,5 +16,6 @@ Hover tells a declaration by its signature and doc comment (#199). What the lang
 
 ## Consequences
 
-- A type, annotation or macro the compiler adds is a row of the table, an annotation also a name of `contextualKind`; `BuiltinHoverTest` holds each row's annotation to the parser.
+- A type, annotation or macro the compiler adds is a row of the table, an annotation also a name of `contextualKind`; `BuiltinHoverTest` holds the table to those names, a copy of the list.
+- The texts follow cjc, not the parser: `@ConstSafe`'s says it is std's alone, which `cjsyntax` does not check.
 - The texts are ours to keep true: a cjc that changes a built-in changes its row.
