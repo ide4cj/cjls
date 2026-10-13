@@ -201,6 +201,44 @@ class CjpmSourceSetTest {
     }
 
     @TestCase
+    func anAlwaysEnabledFeatureAndThoseItMapsTakeTheirSet() {
+        // arrange
+        let dir = tree([
+            ("cjpm.toml",
+                #"
+                [package]
+                name = "m"
+                always-enabled-features = ["user.m.nightly"]
+                [profile]
+                experimental = true
+                [[feature]]
+                name = "user.m.nightly"
+                mapping = ["user.m.x11"]
+                [[feature]]
+                name = "user.m.x11"
+                [[source-set]]
+                name = "common"
+                src-dir = "./src/common"
+                features = []
+                [[source-set]]
+                name = "nightly"
+                src-dir = "./src/nightly"
+                features = ["user.m.nightly", "user.m.x11"]
+                "#),
+            ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+            ("src/nightly/b.cj", "features { user.m.nightly, user.m.x11 }\npackage m\n")
+        ])
+
+        // act
+        let model = loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
+        removeTree(dir)
+
+        // assert - as cjpm, which builds `nightly` on every target
+        @Expect(packagesOf(model, dir), ["m: m=src/common/a.cj,src/nightly/b.cj"])
+        @Expect(model.modules[0].inactive.size, 0)
+    }
+
+    @TestCase
     func aDependentModulesReferenceToACommonClassGoesToItsSpecificOnTheHost() {
         // arrange
         let dir = platWorkspace()

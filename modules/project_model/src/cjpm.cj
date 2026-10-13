@@ -180,7 +180,7 @@ class CjpmLowering {
             let sources = loading.resolve(dir, srcDir)
             return (sources, packagesUnder(name, sources), [])
         }
-        let picked = sourceSetChain(sets, manifest.featureTables ?? [], loading.cfg)
+        let picked = sourceSetChain(sets, manifest.featureTables ?? [], loading.cfg, always: pkg.alwaysEnabledFeatures ?? [])
         loading.problems.add(all: picked.problems)
         let merged = ArrayList<(String, VfsPath, ArrayList<VfsPath>)>()
         for (set in picked.chain) {
@@ -320,7 +320,8 @@ struct ManifestPackage {
     ManifestPackage(
         let name!: String,
         let organization!: ?String = None,
-        @Serde[rename: "src-dir"] let srcDir!: ?String = None
+        @Serde[rename: "src-dir"] let srcDir!: ?String = None,
+        @Serde[rename: "always-enabled-features"] let alwaysEnabledFeatures!: ?Array<String> = None
     ) {}
 }
 
