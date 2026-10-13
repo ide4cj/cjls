@@ -28,3 +28,10 @@ edit_queries = 885
 cold_queries = 1980
 warm_queries = 0
 edit_queries = 1065
+
+# measured with #203 (D111), nightly 1.3.0-alpha.20261002001050: 1979 / 0 / 1147, 50 of 50 places answered
+# (R4 answers 28, prior-art.md)
+[cjls.completion]
+cold_queries = 2500
+warm_queries = 0
+edit_queries = 1450

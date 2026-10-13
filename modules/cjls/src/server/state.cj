@@ -96,6 +96,11 @@ public class ServerState <: FromContext<ServerState> {
     public var hoverMarkdown = false
 
     /**
+     * Whether the client takes Markdown in a completion item's documentation.
+     */
+    public var completionMarkdown = false
+
+    /**
      * Whether the client folds whole lines only, and how many folds of a document it takes at most,
      * as agreed on at `initialize`.
      */
@@ -479,7 +484,8 @@ public class ServerState <: FromContext<ServerState> {
         }
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
-            augmentsSyntaxTokens, locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, roots.toArray(),
+            augmentsSyntaxTokens, locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, completionMarkdown,
+            roots.toArray(),
             showsDocuments, codeActionLiterals, cacheDirs)
     }
 
@@ -519,7 +525,7 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
         public let augmentsSyntaxTokens: Bool, public let locationLinks: Bool, public let lineFoldingOnly: Bool,
-        public let foldingRangeLimit: ?Int64, public let hoverMarkdown: Bool,
+        public let foldingRangeLimit: ?Int64, public let hoverMarkdown: Bool, public let completionMarkdown: Bool,
         /**
          * The roots of the workspace, as the state had them.
          */
