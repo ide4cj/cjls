@@ -38,6 +38,13 @@ SUITES = {
         "5d555bcc34d656a064b904ecc61e0575b98dddab",
         ["/LICENSE", "/stdlib/libs/std/"],
     ),
+    # the language guide hover tells of what the language builds in from, and links to (D109): the commit
+    # CANGJIE_DOCS_COMMIT in modules/loupe/src/builtin_docs.cj names
+    "cangjie_docs": (
+        "https://github.com/cangjielanguage/cangjie_docs",
+        "fc561c3ff9127a92c53e120426bdc914317cea6e",
+        ["/LICENSE", "/docs/dev-guide/source_en/"],
+    ),
 }
 
 

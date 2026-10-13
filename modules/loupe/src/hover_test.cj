@@ -7,7 +7,8 @@ import loupe.syntax.parse
 
 /**
  * Checks what hovering the name at the cursor of `fixture` shows is its annotations: `//^ code in
- * path — doc` under the name for each thing it stands for, the lines of its doc joined by ` / `;
+ * path — doc <page#anchor>` under the name for each thing it stands for, the lines of its doc joined
+ * by ` / `, the link to the Cangjie docs of a built-in relative to the guide;
  * `//^ no hover` if it shows nothing. With std's packages `std` read from the SDK, and their sources
  * from `.corpora/` if `sources`.
  */
@@ -34,7 +35,8 @@ func checkHover(fixture: String, std!: Array<String> = [], sources!: Bool = fals
 func hoverText(item: HoverItem): String {
     let path = item.path.map {one => " in ${one}"} ?? ""
     let doc = item.doc.map {one => " — ${one.replace("\n", " / ")}"} ?? ""
-    "${item.code}${path}${doc}"
+    let link = item.link.map {one => " <${one.removePrefix(CANGJIE_DOCS)}>"} ?? ""
+    "${item.code}${path}${doc}${link}"
 }
 
 @Test
@@ -414,5 +416,148 @@ class HoverBinaryTest {
             //    ^^^^^ public func sleep(dur: Duration): Unit in std.core — Sleep current thread for @p dur interval. / If @p dur is less than or equal to Duration.Zero, current thread will relinquish the run right. /  / @param dur Sleeping duration.
             }
             "#, std: ["std.core"], sources: true)
+    }
+}
+
+@Test
+class BuiltinHoverTest {
+    @TestCase
+    func aTypeThatIsAKeywordShowsWhatTheDocsSayOfIt() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            func twice(n: $0Int64): Int64 { n * 2 }
+            //              ^^^^^ type Int64 — A 64-bit signed integer, from -2^63 to 2^63-1: the integer type preferred, which an integer literal is where nothing gives it another. A literal of this type is suffixed `i64`: `1i64`. <basic_data_type/integer.md#integer-types>
+            "#)
+    }
+
+    @TestCase
+    func aTypeThatIsAKeywordInABody() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            main() {
+                let x = $0Float64(1)
+            //            ^^^^^^^ type Float64 — A 64-bit floating-point number, binary64 (IEEE 754), about 15 significant decimal digits. A literal of this type is suffixed `f64`: `1.5f64`. <basic_data_type/float.md#floating-point-types>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aValueArray() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            func f(a: $0VArray<Int64, $3>): Unit {}
+            //          ^^^^^^ type VArray<T, $N> — An array that is a value, of `$N` elements of type `T`, its length an `Int64` literal part of its type: `VArray<Int64, $3>`. Made by `VArray<T, $N>({i => ...})` or `VArray<T, $N>(repeat: v)`; it has `[]` and `size`. An element is no reference type, enum, lambda (but a `CFunc`) or generic type. <basic_data_type/array.md#varray>
+            "#)
+    }
+
+    @TestCase
+    func aTypeOfTheCompilersOwnShowsWhatTheDocsSayOfIt() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            func f(p: $0CPointer<Int64>): Unit {}
+            //          ^^^^^^^^ public type CPointer<T> where T <: CType in std.core — A C pointer to a `T` that is a `CType`: read, written, moved by arithmetic, compared to null and turned into an integer; reading, writing and arithmetic in `unsafe` only. <FFI/cangjie-c.md#pointers>
+            "#, std: ["std.core"])
+    }
+
+    @TestCase
+    func anAnnotationOfTheCompilers() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+              package m
+              @$0Frozen
+            //   ^^^^^^ @Frozen — The function or property will not change in later versions: neither its signature nor its body, so the same compiler with the same options builds the same code of it. On any function but a local one, and on a property. <Macro/builtin_compilation_flags.md#frozen>
+              public func f(): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func anAnnotationWithArguments() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+              package m
+              @$0When[os == "Linux"]
+            //   ^^^^ @When[condition] — Conditional compilation: the import or declaration is compiled only where the condition holds, of `os`, `arch`, `env`, `backend`, `cjc_version`, `debug`, `test` and the variables `--cfg` sets: `@When[os == "Linux" && !debug]`. <compile_and_build/conditional_compilation.md#conditional-compilation-for-imports-and-declarations>
+              func f(): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func anAnnotationOnALambda() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            main() {
+                let add = @$0OverflowWrapping { a: Int64, b: Int64 => a + b }
+            //               ^^^^^^^^^^^^^^^^ @OverflowWrapping — An integer operation or conversion in the function that overflows wraps around: the bits beyond the type are dropped. <reflect_and_annotation/anno.md#built-in-compilation-markers-for-integer-overflow-handling-strategies>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aMacroOfTheCompilers() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            main() {
+                let line = @$0sourceLine()
+            //                ^^^^^^^^^^ @sourceLine(): Int64 — The line it is written on, as an `Int64` literal. <Macro/builtin_compilation_flags.md#source-location>
+            }
+            "#)
+    }
+
+    @TestCase
+    func aMacroOfTheWorkspaceNamedAsOneOfTheCompilersIsNotIt() {
+        checkHover(#"
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro sourceLine(input: Tokens): Tokens { input }
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.sourceLine
+            main() {
+                let line = @$0sourceLine()
+            //                ^^^^^^^^^^ no hover
+            }
+            "#)
+    }
+
+    @TestCase
+    func everyAnnotationToldIsOneTheParserTakesAsTheCompilers() {
+        for (doc in BUILTIN_ANNOTATION_DOCS) {
+            // arrange
+            let source = "package m\n@${doc.name} func f(): Unit {}\n"
+            let fixture = Fixture.parse("//- /main.cj module=m package=m\n${source}")
+            let db = fixture.database()
+            let fileId = fixture.file("/main.cj").fileId
+
+            // act
+            let hover = hoverAt(db, fileId, "package m\n@".size)
+
+            // assert
+            @Expect(hover.map {one => one.items.map {item => item.code}}, Some([doc.code]))
+        }
+    }
+
+    @TestCase
+    func everyTypeThatIsAKeywordToldIsOne() {
+        let keywords = ["Int8", "Int16", "Int32", "Int64", "IntNative", "UInt8", "UInt16", "UInt32", "UInt64",
+            "UIntNative", "Float16", "Float32", "Float64", "Bool", "Rune", "Unit", "Nothing", "VArray"]
+        for (name in keywords) {
+            // arrange
+            let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\ntype A = ${name}\n")
+            let db = fixture.database()
+            let fileId = fixture.file("/main.cj").fileId
+
+            // act
+            let hover = hoverAt(db, fileId, "package m\ntype A = ".size)
+
+            // assert
+            @Expect(hover.flatMap {one => one.items.get(0)}.map {item => item.code.startsWith("type ${name}")}, true)
+        }
     }
 }
