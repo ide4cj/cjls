@@ -121,6 +121,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
 | [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
 | [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
+| [0103](0103-an-expansion-is-shown-as-a-request-and-as-a-read-only-file.md) | An expansion is shown as cjls/expandMacro and as a read-only .cache/cjls/expanded/<file>.macrocall the server navigates | proposed |
 | [0104](0104-workspace-macros-are-built-by-cjc-and-run-under-a-deadline.md) | The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline | proposed |
 | [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
 | [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | proposed |
