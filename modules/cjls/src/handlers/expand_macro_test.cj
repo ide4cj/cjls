@@ -120,7 +120,7 @@ class ExpandMacroTest {
         match (answer) {
             case Nullable.Value(expansion) =>
                 @Expect(expansion.name, "@M")
-                @Expect(expansion.kind, "workspace")
+                @Expect(expansion.kind, "server")
                 @Expect(expansion.expansion, MACRO_OUTPUT)
             case _ => @Fail("no expansion")
         }

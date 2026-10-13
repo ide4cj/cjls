@@ -49,8 +49,8 @@ public enum ExpansionOrigin {
 /**
  * What a macro call adds after its item, as text cjsyntax parses: declarations, signatures alone, their bodies empty;
  * for each item of it in order, what written in the call it comes from; and whether it replaces the item the call is
- * on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let` it becomes). A
- * workspace macro's, which the macro server ran (#176), is its whole output, replacing the item, and says where each
+ * on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let` it becomes). One
+ * the macro server ran (#176), of the workspace or of std, is its whole output, replacing the item, and says where each
  * of its tokens comes from by `spans` instead of `origins`.
  */
 @Derive[Equatable]
@@ -237,11 +237,15 @@ func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, Std
 
 /**
  * The macro calls on the items of `file` whose expansions the analysis reads: those of std it expands (`stdCallsOf`),
- * in their order, then those of workspace macros the macro server expanded (`workspaceCalls`, #176).
+ * in their order, then those the macro server expanded (`serverCalls`, #176). An item the server's output replaces
+ * has none of the first: that output is what std's macros made of it, and the analysis's own stands until there is
+ * one, and whenever the server cannot give it.
  */
 @CalcaTracked
 public func expandedCalls(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
-    stdCallsOf(db, file).map {pair => pair[0]}.concat(readWorkspaceCallsOf(db, file))
+    let read = readServerCallsOf(db, file)
+    let replaced = HashSet<ItemId>(read.map {call => call.item(db)})
+    stdCallsOf(db, file).map {pair => pair[0]}.filter {call => !replaced.contains(call.item(db))}.concat(read)
 }
 
 /**
@@ -269,7 +273,7 @@ func replacedItemsOf(db: AnalysisDatabase, files: Array<ItemFile>): Array<ItemId
 
 /**
  * The `Expansion` of `call`; an empty one for a call the analysis does not expand, or on an item no longer there. A
- * workspace macro's is the macro server's last that succeeded (#176).
+ * call the macro server ran has its last output that succeeded (#176), else one of std the analysis's own.
  */
 @CalcaTracked
 public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
@@ -279,7 +283,7 @@ public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
     if (!expandedCalls(db, file).contains(call)) {
         return empty
     }
-    if (let Some(expansion) <- workspaceExpansionOf(db, call)) {
+    if (let Some(expansion) <- serverCallExpansionOf(db, call)) {
         return expansion
     }
     let resolution = macrosOf(db, DefId(db, ItemFile.Source(file), item)).get(call.index(db)) ?? return empty
@@ -397,7 +401,7 @@ func mappedOrigin(db: AnalysisDatabase, call: MacroCallId, item: ItemId, expansi
     let file = call.file(db)
     let root = parse(db, file).syntaxNode()
     let ids = itemIdMap(db, file)
-    let top = (workspaceCalls(db, file).iterator().filter {one => one.call == call}.next() ?? return None).top
+    let top = (serverCalls(db, file).iterator().filter {one => one.call == call}.next() ?? return None).top
     let anchor = anchorOf(ids, root, top) ?? return None
     let topNode = ids.node(top, root) ?? return None
     let full = (macroCallsOf(topNode).get(0)?.syntax ?? topNode).textRange

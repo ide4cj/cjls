@@ -205,8 +205,8 @@ public class ExpandedFile {
 
 /**
  * The file `fileId` with what its macro calls expand to (`expandedMacro`), each shown (`ShownExpansion`) after a line
- * naming its call, `header` and a line break first: an item whose call of the workspace the analysis reads is replaced
- * by its expansion, from that call on, as cjc replaces it; one of std's macros is followed by what the analysis
+ * naming its call, `header` and a line break first: an item whose call the macro server ran the analysis reads is
+ * replaced by its expansion, from that call on, as cjc replaces it; one of std's macros is followed by what the analysis
  * adds for it. `None` for a file the database does not know, or one with no expansion.
  */
 public func expandFile(db: AnalysisDatabase, fileId: FileId, header: String): ?ExpandedFile {
@@ -238,7 +238,7 @@ public func expandFile(db: AnalysisDatabase, fileId: FileId, header: String): ?E
     var at = 0
     for ((range, calls) in sorted) {
         let replacing = calls |> filter {
-            one: (MacroCallId, ExpandedMacro) => one[1].kind == ExpansionKind.WorkspaceExpansion &&
+            one: (MacroCallId, ExpandedMacro) => one[1].kind == ExpansionKind.ServerExpansion &&
                 macroExpansion(db, one[0]).replaces
         } |> first
         if (let Some((call, expanded)) <- replacing) {
@@ -249,7 +249,7 @@ public func expandFile(db: AnalysisDatabase, fileId: FileId, header: String): ?E
             builder.copy(source, at, range.end)
         }
         at = range.end
-        let added = calls.toArray().filter {one => one[1].kind == ExpansionKind.StdExpansion}
+        let added = calls.toArray().filter {one => one[1].kind == ExpansionKind.OwnExpansion}
         sort(added, key: {one: (MacroCallId, ExpandedMacro) => one[1].range.start})
         for ((call, expanded) in added) {
             builder.write("\n\n// ${callText(source, expanded)} expanded by cjls: its own, signatures only, no bodies\n")

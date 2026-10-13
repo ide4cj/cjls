@@ -70,9 +70,9 @@ public func macroCallHeadOf(db: AnalysisDatabase, call: MacroCallId): ?(String, 
 }
 
 /**
- * The call whose expansion the analysis reads that shows what `call` adds: the call of a workspace macro read on its
+ * The call whose expansion the analysis reads that shows what `call` adds: the call the macro server runs read on its
  * top-level item, answered, if `call` is in its input (on a member, or within it on the item); else `call` itself if
- * it is expanded (`expandedCalls`); else that call of a workspace macro not answered yet. `None` for a call nothing
+ * it is expanded (`expandedCalls`); else that call of the server not answered yet. `None` for a call nothing
  * expands.
  */
 public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
@@ -82,8 +82,8 @@ public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
     let top = (itemTree(db, file).items |> filter {
         one: Item => one.id == item || one.members.iterator().any {member => member.id == item}
     } |> map {one: Item => one.id} |> first) ?? return None
-    let read = (workspaceCalls(db, file) |> filter {one: WorkspaceCall => one.read && one.top == top} |>
-        map {one: WorkspaceCall => one.call} |> first).flatMap {
+    let read = (serverCalls(db, file) |> filter {one: ServerCall => one.read && one.top == top} |>
+        map {one: ServerCall => one.call} |> first).flatMap {
         one: MacroCallId => if (item != top || call.index(db) >= one.index(db)) {
             Some(one)
         } else {
@@ -98,12 +98,12 @@ public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
 }
 
 /**
- * The anchor of the spans of the expansion of `call`, a call of a workspace macro the analysis reads: the start of its
+ * The anchor of the spans of the expansion of `call`, a call the macro server ran the analysis reads: the start of its
  * top-level item (`anchorOf`).
  */
 func anchorOfCall(db: AnalysisDatabase, call: MacroCallId): ?Int64 {
     let file = call.file(db)
-    let top = (workspaceCalls(db, file) |> filter {one: WorkspaceCall => one.call == call} |> first)?.top ??
+    let top = (serverCalls(db, file) |> filter {one: ServerCall => one.call == call} |> first)?.top ??
         return None
     anchorOf(itemIdMap(db, file), parse(db, file).syntaxNode(), top)
 }
