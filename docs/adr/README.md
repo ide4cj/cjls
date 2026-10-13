@@ -117,5 +117,8 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0096](0096-build-and-tests-are-jobs-of-their-own.md) | CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
 | [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed |
+| [0099](0099-source-sets-are-a-chain-and-common-is-its-specific.md) | A multiplatform module's packages are the files of the target's chain of source sets, and a common declaration is its specific one | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
+| [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
+| [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
 | [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
