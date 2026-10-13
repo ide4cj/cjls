@@ -38,6 +38,10 @@ public class FixtureFile {
          * The conditions of its package, as a `cfg.toml` sets them, `None` if it sets none.
          */
         public let cfg: ?Cfg,
+        /**
+         * The source set it is of, which the build leaves out, `None` for a file the build takes.
+         */
+        public let inactive: ?String,
         public let text: String,
         /**
          * Its header as written, `None` for the one file of a fixture of no header.
@@ -149,7 +153,8 @@ public struct FileRange {
  *   `module` (`default` if not given), `package` (the module's name if not given), `deps`
  *   (the modules it may import, by commas; a module's are those of all its files) and `cfg` (the
  *   conditions of its package for `@When`, `os:Linux,test:true`; a package's are those of all its
- *   files). A text of no header is the one file `/main.cj`.
+ *   files) and `inactive` (the source set of a file the build leaves out, in no package: `source set
+ *   `<set>` is left out`, #318). A text of no header is the one file `/main.cj`.
  * - `$0` is a place, two of them in one file a range: the `cursor`, the `selection`.
  * - A line `//` and carets is an annotation: `//^^^ text` is about the range of the carets in the
  *   line above it that is not one, `//| text` about the empty range before the bar. Columns are as
@@ -350,7 +355,7 @@ public class Fixture {
         let ofModule = files.filter {file => file.module == name}
         let packages = ArrayList<String>()
         let deps = ArrayList<String>()
-        for (file in ofModule) {
+        for (file in ofModule where file.inactive.isNone()) {
             if (!packages.contains(file.pkg)) {
                 packages.add(file.pkg)
             }
@@ -366,7 +371,7 @@ public class Fixture {
         }
         ModuleModel(name, root, packages.toArray().map {
             pkg =>
-            let ofPackage = ofModule.filter {file => file.pkg == pkg}
+            let ofPackage = ofModule.filter {file => file.pkg == pkg && file.inactive.isNone()}
             let options = ofPackage |> flatMap {file: FixtureFile => file.cfg?.options ?? []} |>
                 map {option: CfgOption => (option.key, option.value)} |> collectArray
             let cfg = if (options.isEmpty()) {
@@ -375,7 +380,9 @@ public class Fixture {
                 Some(Cfg(options))
             }
             PackageModel(pkg, ofPackage[0].path.parent.getOrThrow(), ofPackage.map {file => file.path}, cfg: cfg)
-        }, deps: deps.toArray())
+        }, deps: deps.toArray(), inactive: ofModule |> filterMap {
+            file: FixtureFile => file.inactive.map {set => InactiveFile(file.path, "source set `${set}` is left out")}
+        } |> collectArray)
     }
 }
 
@@ -430,6 +437,7 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
     var pkg: ?String = None
     var deps = Array<String>()
     var cfg: ?Cfg = None
+    var inactive: ?String = None
     if (let Some(line) <- header) {
         let words = line[3..].split(" ", removeEmpty: true)
         if (words.size == 0) {
@@ -453,7 +461,9 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
                     }
                     (keyValue[0], keyValue[1])
                 })
-                case key => throw FixtureException("an unknown key `${key}` in ${line}: module, package, deps, cfg")
+                case "inactive" => inactive = pair[1]
+                case key => throw FixtureException(
+                    "an unknown key `${key}` in ${line}: module, package, deps, cfg, inactive")
             }
         }
     }
@@ -497,7 +507,7 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
         }
         lines.add(FixtureLine(line, start, columns.toArray()))
     }
-    FixtureFile(fileId, vfsPath, module, pkg ?? module, deps, cfg, text.toString(), header, lines.toArray())
+    FixtureFile(fileId, vfsPath, module, pkg ?? module, deps, cfg, inactive, text.toString(), header, lines.toArray())
 }
 
 /**

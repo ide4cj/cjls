@@ -311,11 +311,13 @@ public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
 }
 
 /**
- * The self type of `def`, a type: itself, its type parameters its arguments (`C<T>`).
+ * The self type of `def`, a type: itself, its type parameters its arguments (`C<T>`); for a `common`
+ * type a `specific` one completes, that one, of the `common` one's parameters (#318).
  */
 func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
     let count = genericsOf(db, def).size
-    Ty(db, DeclTy(def, Array(count) {i => Ty(db, ParamTy(def, i))}))
+    let head = specificOf(db, def) ?? def
+    Ty(db, DeclTy(head, Array(count) {i => Ty(db, ParamTy(def, i))}))
 }
 
 /**

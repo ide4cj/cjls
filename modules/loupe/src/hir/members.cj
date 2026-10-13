@@ -135,7 +135,8 @@ public enum MemberTarget <: ToString {
  * `memberLookup` from that type, on its self type (`selfTyAround`).
  */
 public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<MemberTarget> {
-    let start = enclosingTypeOf(db, def) ?? return []
+    // in a `common` type, the type a build has: its `specific` one (#318)
+    let start = completedType(db, enclosingTypeOf(db, def) ?? return [])
     lookUpMembers(db, [start], name, sourceFileOf(db, def), LookupTy({=> selfTyAround(db, def)}))
 }
 
@@ -552,6 +553,7 @@ func membersOfItem(db: AnalysisDatabase, id: DefId, name: String): Array<MemberT
             }
         }
     }
+    found.add(all: commonMembersNamed(db, id, item, name))
     found.toArray()
 }
 

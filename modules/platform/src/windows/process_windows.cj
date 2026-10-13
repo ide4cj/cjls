@@ -1,125 +1,75 @@
-package macro_server
+features { os.windows }
+package platform
 
-@When[os == "Windows"]
 import std.env.getVariables
-@When[os == "Windows"]
+import std.fs.Path
 import std.io.{InputStream, IOException, OutputStream}
 
-// The server on Windows (D87): it reads and writes two pipe handles it inherits, named by number on its
+// A piped child on Windows (D87, D91): it reads and writes two pipe handles it inherits, named by number on its
 // command line, which `std.process` cannot pass, so it is started by `CreateProcessW` as cjc's own client starts
-// it (`MacroEvaluationClient.cpp`), with two differences: it inherits those two handles and stderr alone
-// (`PROC_THREAD_ATTRIBUTE_HANDLE_LIST`), never another child's pipe, which would keep it from seeing EOF; and it
-// starts suspended, put in a kill-on-close job first, so it dies with this process even in a macro that loops.
-// What a macro prints goes to stderr. None of these functions is `@FastNative`: `ReadFile` and
+// the macro server (`MacroEvaluationClient.cpp`), with two differences: it inherits those two handles and stderr
+// alone (`PROC_THREAD_ATTRIBUTE_HANDLE_LIST`), never another child's pipe, which would keep it from seeing EOF; and
+// it starts suspended, put in a kill-on-close job first, so it dies with this process even in a macro that loops.
+// What it prints goes to stderr. None of these functions is `@FastNative`: `ReadFile` and
 // `WaitForSingleObject` block (C5).
 
-@When[os == "Windows"]
 foreign func CreatePipe(read: CPointer<CPointer<Unit>>, write: CPointer<CPointer<Unit>>, attributes: CPointer<Unit>,
     size: UInt32): Int32
 
-@When[os == "Windows"]
 foreign func SetHandleInformation(handle: CPointer<Unit>, mask: UInt32, flags: UInt32): Int32
 
-@When[os == "Windows"]
 foreign func GetStdHandle(which: UInt32): CPointer<Unit>
 
-@When[os == "Windows"]
-foreign func GetCurrentProcess(): CPointer<Unit>
-
-@When[os == "Windows"]
 foreign func DuplicateHandle(sourceProcess: CPointer<Unit>, source: CPointer<Unit>, targetProcess: CPointer<Unit>,
     target: CPointer<CPointer<Unit>>, access: UInt32, inherit: Int32, options: UInt32): Int32
 
-@When[os == "Windows"]
 foreign func InitializeProcThreadAttributeList(list: CPointer<Unit>, count: UInt32, flags: UInt32,
     size: CPointer<UIntNative>): Int32
 
-@When[os == "Windows"]
 foreign func UpdateProcThreadAttribute(list: CPointer<Unit>, flags: UInt32, attribute: UIntNative,
     value: CPointer<CPointer<Unit>>, size: UIntNative, previous: CPointer<Unit>, returned: CPointer<UIntNative>): Int32
 
-@When[os == "Windows"]
 foreign func DeleteProcThreadAttributeList(list: CPointer<Unit>): Unit
 
-@When[os == "Windows"]
 foreign func CreateProcessW(application: CPointer<UInt16>, commandLine: CPointer<UInt16>, processAttributes: CPointer<Unit>,
     threadAttributes: CPointer<Unit>, inheritHandles: Int32, flags: UInt32, environment: CPointer<UInt16>,
     directory: CPointer<UInt16>, startup: CPointer<StartupInfoEx>, information: CPointer<ProcessInformation>): Int32
 
-@When[os == "Windows"]
 foreign func ResumeThread(thread: CPointer<Unit>): UInt32
 
-@When[os == "Windows"]
 foreign func TerminateProcess(process: CPointer<Unit>, code: UInt32): Int32
 
-@When[os == "Windows"]
 foreign func WaitForSingleObject(handle: CPointer<Unit>, milliseconds: UInt32): UInt32
 
-@When[os == "Windows"]
 foreign func ReadFile(file: CPointer<Unit>, buffer: CPointer<UInt8>, size: UInt32, read: CPointer<UInt32>,
     overlapped: CPointer<Unit>): Int32
 
-@When[os == "Windows"]
 foreign func WriteFile(file: CPointer<Unit>, buffer: CPointer<UInt8>, size: UInt32, written: CPointer<UInt32>,
     overlapped: CPointer<Unit>): Int32
 
-@When[os == "Windows"]
-foreign func CloseHandle(handle: CPointer<Unit>): Int32
-
-@When[os == "Windows"]
-foreign func GetLastError(): UInt32
-
-@When[os == "Windows"]
-foreign func CreateJobObjectW(attributes: CPointer<Unit>, name: CPointer<UInt16>): CPointer<Unit>
-
-@When[os == "Windows"]
-foreign func SetInformationJobObject(job: CPointer<Unit>, infoClass: Int32, info: CPointer<JobExtendedLimits>,
-    size: UInt32): Int32
-
-@When[os == "Windows"]
-foreign func AssignProcessToJobObject(job: CPointer<Unit>, process: CPointer<Unit>): Int32
-
-@When[os == "Windows"]
 const HANDLE_FLAG_INHERIT: UInt32 = 0x1
 
-@When[os == "Windows"]
 const STD_ERROR_HANDLE: UInt32 = 0xFFFF_FFF4
 
-@When[os == "Windows"]
 const DUPLICATE_SAME_ACCESS: UInt32 = 0x2
 
-@When[os == "Windows"]
 const PROC_THREAD_ATTRIBUTE_HANDLE_LIST: UIntNative = 0x20002
 
-@When[os == "Windows"]
 const CREATE_SUSPENDED: UInt32 = 0x4
 
-@When[os == "Windows"]
 const CREATE_UNICODE_ENVIRONMENT: UInt32 = 0x400
 
-@When[os == "Windows"]
 const EXTENDED_STARTUPINFO_PRESENT: UInt32 = 0x8_0000
 
-@When[os == "Windows"]
 const CREATE_NO_WINDOW: UInt32 = 0x800_0000
 
-@When[os == "Windows"]
 const STARTF_USESTDHANDLES: UInt32 = 0x100
 
-@When[os == "Windows"]
 const INFINITE: UInt32 = 0xFFFF_FFFF
-
-/** `JobObjectExtendedLimitInformation` of `JOBOBJECTINFOCLASS`. */
-@When[os == "Windows"]
-const JOB_OBJECT_EXTENDED_LIMIT_INFORMATION: Int32 = 9
-
-@When[os == "Windows"]
-const JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE: UInt32 = 0x2000
 
 /**
  * `STARTUPINFOEXW`: `STARTUPINFOW` and the attribute list.
  */
-@When[os == "Windows"]
 @C
 struct StartupInfoEx {
     var cb: UInt32 = 0
@@ -144,7 +94,6 @@ struct StartupInfoEx {
 }
 
 /** `PROCESS_INFORMATION`. */
-@When[os == "Windows"]
 @C
 struct ProcessInformation {
     var process: CPointer<Unit> = CPointer()
@@ -153,61 +102,9 @@ struct ProcessInformation {
     var threadId: UInt32 = 0
 }
 
-/** `JOBOBJECT_BASIC_LIMIT_INFORMATION`, nothing but `limitFlags` set. */
-@When[os == "Windows"]
-@C
-struct JobBasicLimits {
-    var perProcessUserTimeLimit: Int64 = 0
-    var perJobUserTimeLimit: Int64 = 0
-    var limitFlags: UInt32 = JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE
-    var minimumWorkingSetSize: UIntNative = 0
-    var maximumWorkingSetSize: UIntNative = 0
-    var activeProcessLimit: UInt32 = 0
-    var affinity: UIntNative = 0
-    var priorityClass: UInt32 = 0
-    var schedulingClass: UInt32 = 0
-}
-
-/** `IO_COUNTERS`, which a limit leaves at zero. */
-@When[os == "Windows"]
-@C
-struct IoCounters {
-    var readOperationCount: UInt64 = 0
-    var writeOperationCount: UInt64 = 0
-    var otherOperationCount: UInt64 = 0
-    var readTransferCount: UInt64 = 0
-    var writeTransferCount: UInt64 = 0
-    var otherTransferCount: UInt64 = 0
-}
-
-/** `JOBOBJECT_EXTENDED_LIMIT_INFORMATION` with `JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE`. */
-@When[os == "Windows"]
-@C
-struct JobExtendedLimits {
-    var basicLimits: JobBasicLimits = JobBasicLimits()
-    var ioInfo: IoCounters = IoCounters()
-    var processMemoryLimit: UIntNative = 0
-    var jobMemoryLimit: UIntNative = 0
-    var peakProcessMemoryUsed: UIntNative = 0
-    var peakJobMemoryUsed: UIntNative = 0
-}
-
-@When[os == "Windows"]
-func windowsError(what: String): MacroServerException {
-    MacroServerException("${what} failed with error ${unsafe { GetLastError() }}")
-}
-
-@When[os == "Windows"]
-func closeHandle(handle: CPointer<Unit>): Unit {
-    if (!handle.isNull()) {
-        unsafe { CloseHandle(handle) }
-    }
-}
-
 /**
  * A pipe: its read end, its write end, neither inherited.
  */
-@When[os == "Windows"]
 func createPipe(): (CPointer<Unit>, CPointer<Unit>) {
     var read = CPointer<Unit>()
     var write = CPointer<Unit>()
@@ -220,7 +117,6 @@ func createPipe(): (CPointer<Unit>, CPointer<Unit>) {
 /**
  * `units` and a 0, in memory of its own the caller frees.
  */
-@When[os == "Windows"]
 unsafe func wideString(units: Array<UInt16>): CPointer<UInt16> {
     let p = LibC.malloc<UInt16>(count: units.size + 1)
     for (i in 0..units.size) {
@@ -233,7 +129,6 @@ unsafe func wideString(units: Array<UInt16>): CPointer<UInt16> {
 /**
  * What the server writes, read from the end of its pipe this process holds.
  */
-@When[os == "Windows"]
 class HandleInputStream <: InputStream {
     HandleInputStream(let handle: CPointer<Unit>) {}
 
@@ -267,7 +162,6 @@ class HandleInputStream <: InputStream {
 /**
  * What the server reads, written to the end of its pipe this process holds.
  */
-@When[os == "Windows"]
 class HandleOutputStream <: OutputStream {
     HandleOutputStream(let handle: CPointer<Unit>) {}
 
@@ -299,24 +193,35 @@ class HandleOutputStream <: OutputStream {
 }
 
 /**
- * The server's process, its job, and the ends of its pipes this process holds, all let go of once it has
+ * The child's process, its job, and the ends of its pipes this process holds, all let go of once it has
  * exited.
  */
-@When[os == "Windows"]
-class WindowsChild <: ServerChild {
+class WindowsChild <: PipedChild {
     WindowsChild(
         let process: CPointer<Unit>,
-        let job: CPointer<Unit>,
+        let job: ?KillOnCloseJob,
         let ownRead: CPointer<Unit>,
         let ownWrite: CPointer<Unit>
     ) {}
+
+    public prop fromChild: InputStream {
+        get() {
+            HandleInputStream(ownRead)
+        }
+    }
+
+    public prop toChild: OutputStream {
+        get() {
+            HandleOutputStream(ownWrite)
+        }
+    }
 
     public func wait(): Unit {
         unsafe { WaitForSingleObject(process, INFINITE) }
         closeHandle(ownRead)
         closeHandle(ownWrite)
         closeHandle(process)
-        closeHandle(job)
+        job?.close()
     }
 
     public func kill(): Unit {
@@ -325,35 +230,31 @@ class WindowsChild <: ServerChild {
 }
 
 /**
- * A job that ends the processes in it when its handle, which no child inherits, closes; null if Windows gives
- * none, and the server then exits only when it next reads, at EOF.
+ * A job `process` is in, which ends it when the job's handle, which no child inherits, closes; `None` if
+ * Windows gives none, and the child then exits only when it next reads, at EOF.
  */
-@When[os == "Windows"]
-func killOnCloseJob(): CPointer<Unit> {
-    let job = unsafe { CreateJobObjectW(CPointer(), CPointer()) }
-    if (job.isNull()) {
-        return job
+func jobFor(process: CPointer<Unit>): ?KillOnCloseJob {
+    let job = try {
+        KillOnCloseJob()
+    } catch (_: ProcessStartException) {
+        return None
     }
-    var limits = JobExtendedLimits()
-    if (unsafe { SetInformationJobObject(job, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, inout limits,
-        UInt32(sizeOf<JobExtendedLimits>())) } == 0) {
-        closeHandle(job)
-        return CPointer()
-    }
+    try {
+        job.assign(process)
+    } catch (_: ProcessStartException) {}
     job
 }
 
-@When[os == "Windows"]
-public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
-    // the server reads `childRead` and writes `childWrite`; this process the other ends
+public specific func startPiped(program: Path, libDir: Path, args: (ChildPipes) -> Array<String>): PipedChild {
+    // the child reads `childRead` and writes `childWrite`; this process the other ends
     let (childRead, ownWrite) = createPipe()
     let (ownRead, childWrite) = createPipe()
     try {
-        let information = createServerProcess(paths, childRead, childWrite)
-        let job = killOnCloseJob()
-        if (!job.isNull()) {
-            unsafe { AssignProcessToJobObject(job, information.process) }
-        }
+        let pipes = ChildPipes(read: "${childRead.toUIntNative()}", write: "${childWrite.toUIntNative()}",
+            parent: None)
+        let information = createChildProcess(windowsCommandLine([program.toString()].concat(args(pipes))),
+            windowsEnvironment(getVariables(), libDir.toString()), childRead, childWrite)
+        let job = jobFor(information.process)
         let resumed = unsafe { ResumeThread(information.thread) }
         closeHandle(information.thread)
         let child = WindowsChild(information.process, job, ownRead, ownWrite)
@@ -363,13 +264,13 @@ public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
             child.wait()
             throw e
         }
-        MacroServerProcess(child, MacroConnection(HandleInputStream(ownRead), HandleOutputStream(ownWrite)))
+        child
     } catch (e: Exception) {
         closeHandle(ownRead)
         closeHandle(ownWrite)
         throw e
     } finally {
-        // the server has its own: with these closed, its exit is EOF here
+        // the child has its own: with these closed, its exit is EOF here
         closeHandle(childRead)
         closeHandle(childWrite)
     }
@@ -378,7 +279,6 @@ public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
 /**
  * This process's stderr, duplicated so that a child may inherit it; null if there is none.
  */
-@When[os == "Windows"]
 func inheritableStderr(): CPointer<Unit> {
     unsafe {
         let stderr = GetStdHandle(STD_ERROR_HANDLE)
@@ -396,10 +296,11 @@ func inheritableStderr(): CPointer<Unit> {
 }
 
 /**
- * The server, started suspended on `childRead` and `childWrite`, inheriting them and stderr alone.
+ * A child of `commandLine` and `environment`, started suspended on `childRead` and `childWrite`, inheriting
+ * them and stderr alone.
  */
-@When[os == "Windows"]
-func createServerProcess(paths: MacroServerPaths, childRead: CPointer<Unit>, childWrite: CPointer<Unit>): ProcessInformation {
+func createChildProcess(commandLine: String, environment: Array<UInt16>, childRead: CPointer<Unit>,
+    childWrite: CPointer<Unit>): ProcessInformation {
     for (h in [childRead, childWrite]) {
         if (unsafe { SetHandleInformation(h, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT) } == 0) {
             throw windowsError("SetHandleInformation")
@@ -420,9 +321,8 @@ func createServerProcess(paths: MacroServerPaths, childRead: CPointer<Unit>, chi
         InitializeProcThreadAttributeList(CPointer(), 1, 0, inout listSize)
         let listMemory = LibC.malloc<UInt8>(count: Int64(listSize))
         let list = CPointer<Unit>(listMemory)
-        let command = wideString(
-            utf16(windowsCommandLine(paths, UInt64(childRead.toUIntNative()), UInt64(childWrite.toUIntNative()))))
-        let environment = wideString(windowsEnvironment(getVariables(), paths.runtimeLib.toString()))
+        let command = wideString(utf16(commandLine))
+        let environmentBlock = wideString(environment)
         try {
             if (InitializeProcThreadAttributeList(list, 1, 0, inout listSize) == 0) {
                 throw windowsError("InitializeProcThreadAttributeList")
@@ -441,7 +341,7 @@ func createServerProcess(paths: MacroServerPaths, childRead: CPointer<Unit>, chi
                 var information = ProcessInformation()
                 if (CreateProcessW(CPointer(), command, CPointer(), CPointer(), 1,
                     CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW,
-                    environment, CPointer(), inout startup, inout information) == 0) {
+                    environmentBlock, CPointer(), inout startup, inout information) == 0) {
                     throw windowsError("CreateProcessW")
                 }
                 information
@@ -453,7 +353,7 @@ func createServerProcess(paths: MacroServerPaths, childRead: CPointer<Unit>, chi
             LibC.free(handles)
             LibC.free(listMemory)
             LibC.free(command)
-            LibC.free(environment)
+            LibC.free(environmentBlock)
         }
     }
 }

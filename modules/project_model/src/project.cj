@@ -251,7 +251,8 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
             case None => packagesUnder(module.name, root)
         }
         ModuleModel(module.name, root, packages, deps: module.deps ?? [], member: module.member ?? true,
-            cfg: module.cfg.map {own => cfg.overriddenBy(cfgOf(own))})
+            cfg: module.cfg.map {own => cfg.overriddenBy(cfgOf(own))},
+            inactive: (module.inactive ?? []).map {file => InactiveFile(loading.resolve(base, file.file), file.reason)})
     }
     let binaries = ArrayList<BinaryModel>()
     // `std` is a module of the project, or a binary it names, or else the SDK's
@@ -285,14 +286,19 @@ public func toProjectJson(model: ProjectModel, base: VfsPath): ProjectJson {
                 pkg => PackageJson(
                     name: pkg.name,
                     dir: relative(pkg.dir, base),
-                    files: pkg.files.map {file => relative(file, pkg.dir)},
+                    files: pkg.files.map {file => relativeUp(file, pkg.dir, base)},
                     noPrelude: pkg.noPrelude,
                     `macro`: pkg.isMacro
                 )
             },
             deps: module.deps,
             member: module.member,
-            cfg: module.cfg.map {cfg => jsonOf(cfg)}
+            cfg: module.cfg.map {cfg => jsonOf(cfg)},
+            inactive: if (module.inactive.isEmpty()) {
+                None
+            } else {
+                module.inactive.map {file => InactiveFileJson(file: relative(file.path, base), reason: file.reason)}
+            }
         )
     }
     let binaries = model.binaries.map {
@@ -315,6 +321,25 @@ func relative(path: VfsPath, base: VfsPath): String {
         case Some(segments) where segments.isEmpty() => "."
         case Some(segments) => String.join(segments, delimiter: "/")
         case None => path.toString()
+    }
+}
+
+/**
+ * `path` as a path relative to `dir`, `/`-separated, going up with `..` to a directory above both
+ * that is `base` or under it (the files of a package of source sets, in the directories of several,
+ * #318); as `relative` has it otherwise.
+ */
+func relativeUp(path: VfsPath, dir: VfsPath, base: VfsPath): String {
+    var above = dir
+    var ups = 0
+    while (!path.isUnder(above) && above != base && above.isUnder(base)) {
+        above = above.parent ?? break
+        ups++
+    }
+    match (path.segmentsUnder(above)) {
+        case Some(segments) where above.isUnder(base) || above == base =>
+            String.join(Array(ups) {_ => ".."}.concat(segments), delimiter: "/")
+        case _ => relative(path, dir)
     }
 }
 

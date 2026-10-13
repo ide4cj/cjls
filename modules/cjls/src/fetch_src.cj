@@ -3,6 +3,7 @@ package cjls
 import std.fs.{Directory, File, FileInfo, FSException, Path, exists, removeIfExists, rename}
 import std.io.OutputStream
 import std.process.{ProcessException, executeWithOutput}
+import platform.executableFile
 
 /**
  * Where a nightly's release notes are read, by its tag (the version `cjc --version` prints): the
@@ -24,15 +25,6 @@ const RUNTIME_ARCHIVE = "https://github.com/cangjie-bot/cangjie_runtime/archive/
  * from a directory of the user's, and a fetch already done.
  */
 const SRC_STAMP = "cangjie_runtime.commit"
-
-/**
- * The file of `cjc` in the SDK's `bin`.
- */
-@When[os == "Windows"]
-const CJC = "cjc.exe"
-
-@When[os != "Windows"]
-const CJC = "cjc"
 
 /**
  * What fetching the sources takes from outside the process: the network, `tar`, the SDK's `cjc`.
@@ -122,7 +114,7 @@ func fetchSrc(home: Path, dir: Path, host: SrcHost, out: OutputStream, err: Outp
 
 func fetchSrcTo(home: Path, dir: Path, host: SrcHost, err: OutputStream): Int64 {
     let say = {line: String => err.write("${line}\n".toArray())}
-    let cjc = home.join("bin").join(CJC)
+    let cjc = home.join("bin").join(executableFile("cjc"))
     let version = match (host.compilerVersion(cjc).flatMap {it => compilerVersionOf(it)}) {
         case Some(version) => version
         case None =>
