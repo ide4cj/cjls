@@ -33,6 +33,15 @@ func text<T>(item: ?T): ?String where T <: ToString {
     item.map {i => i.toString()}
 }
 
+/**
+ * The doc comments of each constructor of the enum `text` declares, in order.
+ */
+func enumCtorDocs(text: String): Array<Array<String>> {
+    parse(text).syntaxNode().descendants() |> filter {node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.EnumCtor} |>
+        map {node: SyntaxNode<SyntaxKind> => AnyHasDocComment.cast(node).getOrThrow().docComments().map {t => t.text()}} |>
+        collectArray
+}
+
 @Test
 class AstTest {
     @TestCase
@@ -305,16 +314,31 @@ class AstTest {
     @TestCase
     func anEnumConstructorHasTheCommentsBeforeItsPipe() {
         // arrange
-        let decl = declsOf("enum E {\n    /** a */\n    | A\n    // b\n    | /* c */ B(Int64)\n\n    // not\n\n    | C\n}\n")[0]
+        let text = "enum E {\n    /** a */\n    | A\n    // b\n    | /* c */ B(Int64)\n\n    // not\n\n    | C\n}\n"
 
         // act
-        let sut = EnumDecl.cast(decl.syntax).getOrThrow().syntax.descendants() |>
-            filter {node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.EnumCtor} |>
-            map {node: SyntaxNode<SyntaxKind> => AnyHasDocComment.cast(node).getOrThrow().docComments().map {t => t.text()}} |>
-            collectArray
+        let sut = enumCtorDocs(text)
 
         // assert
         @Expect(sut, [["/** a */"], ["// b", "/* c */"], Array<String>()])
+    }
+
+    @TestCase
+    func anEnumConstructorOfOneLineHasTheCommentRightBeforeItAndNoneOfTheOneBefore() {
+        // act
+        let sut = enumCtorDocs("enum E { /* a */ A | B | /* c */ C }\n")
+
+        // assert
+        @Expect(sut, [["/* a */"], Array<String>(), ["/* c */"]])
+    }
+
+    @TestCase
+    func anEnumConstructorWithAnAnnotationOrInAMacroCallHasTheCommentsBeforeItsPipe() {
+        // act
+        let sut = enumCtorDocs("enum E {\n    // a\n    | @Deprecated A\n    // b\n    | @M B\n    // c\n    | @M[x] @N C\n}\n")
+
+        // assert
+        @Expect(sut, [["// a"], ["// b"], ["// c"]])
     }
 
     @TestCase

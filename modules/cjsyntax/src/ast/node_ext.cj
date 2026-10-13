@@ -116,19 +116,20 @@ func docCommentsOf(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>>
     }
     calls.reverse()
     let comments = ArrayList<SyntaxToken<SyntaxKind>>()
+    if (node.kind == SyntaxKind.EnumCtor) {
+        // `| @M A`: the `|` is before the outermost call
+        comments.add(all: commentsBeforePipe(calls.get(0) ?? node))
+    }
     for (call in calls) {
         comments.add(all: leadingComments(call))
-    }
-    if (node.kind == SyntaxKind.EnumCtor) {
-        comments.add(all: commentsBeforePipe(node))
     }
     comments.add(all: leadingComments(node))
     comments.toArray()
 }
 
 /**
- * The comments right before the `|` `ctor`, an enum constructor, follows, as `CangjieTrivia` would attach them to a
- * declaration: back to a blank line.
+ * The comments right before the `|` `ctor`, an enum constructor or the outermost macro call on one, follows, as
+ * `CangjieTrivia` would attach them to a declaration: back to a blank line.
  */
 private func commentsBeforePipe(ctor: SyntaxNode<SyntaxKind>): Array<SyntaxToken<SyntaxKind>> {
     var element = ctor.prevSiblingOrToken()
