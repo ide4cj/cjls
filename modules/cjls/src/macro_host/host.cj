@@ -24,16 +24,17 @@ public struct MacroLibrary {
 
 /**
  * The requests of `files` to send: those not answered yet whose macro package has a library built at the stamp the
- * analysis has for it (D87: a call whose library is not there is never sent), each with that library; those of the
+ * analysis has for it (D87: a call whose library is not there is never sent), each with that library, `libraries`
+ * keyed by the package's directory; those of the
  * files `isOpen` says the editor shows first, then the others, each in their order.
  */
-public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>,
+public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<VfsPath, MacroLibrary>,
     isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile, MacroRequest, MacroLibrary)> {
     let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
     for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
         for (request in pendingMacroRequests(db, file)) {
             let pkg = request.definition.pkg
-            if (let Some(library) <- libraries.get(pkg.name(db)) && library.stamp == pkg.macroLibrary(db)) {
+            if (let Some(library) <- libraries.get(pkg.dir(db)) && library.stamp == pkg.macroLibrary(db)) {
                 found.add((file, request, library))
             }
         }
@@ -268,7 +269,8 @@ public class MacroHost <: MacroWork {
     private var timeout = Duration.Zero
     private var sdk: ?MacroSdk = None
     private var sdkOf = ""
-    private let libraries = HashMap<String, MacroLibrary>()
+    // by the package's directory: two projects may name their packages alike
+    private let libraries = HashMap<VfsPath, MacroLibrary>()
     private let reported = HashSet<String>()
 
     public MacroHost(private let loop: Loop, private let logger: Logger) {}
@@ -360,10 +362,10 @@ public class MacroHost <: MacroWork {
     }
 
     /**
-     * Builds what the macros need, as the snapshot's project says (D104), into `macro-build/<cjc --version>` of the
-     * cache directory of its first macro package's project (D106), and sets the stamps of the libraries; a new
-     * library ends the server, which keeps the old one loaded. `false`, nothing built, while another server builds
-     * there: the host tries again later.
+     * Builds what the macros need, as the snapshot's project says (D104), each macro package with what it links into
+     * `macro-build/<cjc --version>` of its own project's cache directory (D106), and sets the stamps of the
+     * libraries; a new library ends the server, which keeps the old one loaded. `false` if another server held the
+     * lock of a directory, which is left as it was: the host tries again later.
      */
     private func buildLibraries(settings: Settings, roots: Array<VfsPath>, cacheDirs: CacheDirs): Bool {
         let snapshot = loop.snapshot()
@@ -373,57 +375,48 @@ public class MacroHost <: MacroWork {
             return true
         }
         let sdk = sdkFor(settings) ?? return true
-        let file = plan.iterator().filter {unit => unit.isMacro}.map {unit => unit.pkg.files(db)}.filter {
-            files => !files.isEmpty()
-        }.next().flatMap {files => files.get(0)}
-        let cacheDir = match (file.flatMap {id => cacheDirs.of(snapshot.path(id), roots)}) {
-            case Some(dir) => dir
-            case None =>
-                report("no directory the macros can be built in: they are not expanded")
-                return true
+        let name = dirNameOf(sdk.version)
+        let outOf = {
+            pkg: Package =>
+            let file = pkg.files(db).get(0) ?? return None<Path>
+            let cacheDir = match (cacheDirs.of(snapshot.path(file), roots)) {
+                case Some(dir) => dir
+                case None =>
+                    report("no directory ${pkg.name(db)} can be built in: its macros are not expanded")
+                    return None<Path>
+            }
+            try {
+                cacheDir.macroBuild(name)
+            } catch (e: FSException) {
+                report("${cacheDir.path} cannot be written: ${e.message}")
+                None<Path>
+            }
         }
-        let out = try {
-            cacheDir.macroBuild(dirNameOf(sdk.version))
-        } catch (e: FSException) {
-            report("${cacheDir.path} cannot be written: ${e.message}")
-            return true
-        }
-        let modules = HashMap<Package, String>()
-        for (unit in plan) {
-            modules[unit.pkg] = unit.module
-        }
-        let units = ArrayList<BuildUnit>()
-        for (unit in plan) {
-            let dir = unit.pkg.dir(db).filePath ?? continue
-            units.add(BuildUnit(unit.pkg.name(db), unit.module, dir, unit.isMacro,
-                unit.deps.map {dep => (modules.get(dep) ?? unit.module, dep.name(db))},
-                unit.binaries |> filterMap {cjo: VfsPath => cjo.filePath} |> collectArray))
-        }
-        let built = match (MacroBuilder(out, sdk.version, sdk.toolchain).build(units.toArray())) {
-            case Some(built) => built
-            case None =>
-                logger.info("another server builds the macros", [("directory", out.toString())])
-                return false
+        let (built, all) = buildPlan(db, plan, outOf, sdk.version, sdk.toolchain)
+        if (!all) {
+            logger.info("another server builds some of the macros")
         }
         var changed = false
-        for ((name, result) in built) {
-            match (result) {
+        for ((dir, result) in built) {
+            let key = dir.toString()
+            match (result.library) {
                 case Built(path, stamp) =>
-                    if (libraries.get(name)?.stamp != Some(stamp)) {
+                    if (libraries.get(dir)?.stamp != Some(stamp)) {
                         changed = true
-                        logger.info("built a macro package", [("package", name), ("library", path.toString())])
+                        logger.info("built a macro package",
+                            [("package", result.name), ("library", path.toString())])
                     }
-                    libraries[name] = MacroLibrary(path.toString(), stamp)
-                    reported.remove(name)
-                case NotBuilt(reason) => if (reported.add(name)) {
+                    libraries[dir] = MacroLibrary(path.toString(), stamp)
+                    reported.remove(key)
+                case NotBuilt(reason) => if (reported.add(key)) {
                     // the last library stands: cjc wrote nothing
-                    logger.warn("a macro package did not build", [("package", name), ("reason", reason)])
+                    logger.warn("a macro package did not build", [("package", result.name), ("reason", reason)])
                 }
             }
         }
         let stamps = ArrayList<(Package, Int64)>()
         for (unit in plan where unit.isMacro) {
-            if (let Some(library) <- libraries.get(unit.pkg.name(db))) {
+            if (let Some(library) <- libraries.get(unit.pkg.dir(db))) {
                 stamps.add((unit.pkg, library.stamp))
             }
         }
@@ -431,7 +424,7 @@ public class MacroHost <: MacroWork {
             server?.restart()
         }
         loop.write {state: ServerState => state.setMacroLibraries(stamps.toArray())}
-        true
+        all
     }
 
     /**
