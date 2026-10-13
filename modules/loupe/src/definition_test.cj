@@ -181,17 +181,103 @@ class DefinitionTest {
     }
 
     @TestCase
-    func aPackageQualifierHasNoDefinition() {
+    func aPackageQualifierIsTheHeaderOfItsFiles() {
         // N51
         checkDefinition(#"
             //- /a/a.cj module=m package=m.a
             package m.a
+            //      ^^^ def
             public class C {}
             //- /main.cj module=m package=m.b
             package m.b
             import m.a
             func f(x: $0a.C): Unit {}
-            //          ^ no definition
+            "#)
+    }
+
+    @TestCase
+    func theNameAnImportBringsIsTheDeclarationItImports() {
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public class C {}
+            //           ^ def
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.a.$0C
+            "#)
+    }
+
+    @TestCase
+    func aNameInBracesAndAnAliasAreEachDeclarationTheyImport() {
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public class C {}
+            public func f(): Unit {}
+            //          ^ def
+            public func f(x: Int64): Unit {}
+            //          ^ def
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.a.{C as D, $0f}
+            "#)
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public class C {}
+            //           ^ def
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.a.{C as $0D}
+            "#)
+    }
+
+    @TestCase
+    func aPackageAnImportNamesIsTheHeaderOfEachOfItsFiles() {
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            //      ^^^ def
+            public class C {}
+            //- /a/b.cj module=m package=m.a
+            package m.a
+            //      ^^^ def
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.$0a.C
+            "#)
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            //      ^^^ def
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.{$0a.*}
+            "#)
+    }
+
+    @TestCase
+    func aPackageQualifyingAName() {
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            //      ^^^ def
+            public class C {}
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.a as z
+            func f(x: $0z.C): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func aNameOfAnImportOfNothing() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m.b
+            package m.b
+            import m.nowhere.$0C
+            //               ^ no definition
             "#)
     }
 

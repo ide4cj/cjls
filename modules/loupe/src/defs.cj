@@ -59,6 +59,9 @@ func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: C
     if (let Some(ofMacro) <- macroDefinitions(db, file, token)) {
         return ofMacro
     }
+    if (let Some(ofImport) <- importDefinitions(db, file, token)) {
+        return ofImport
+    }
     let def = item ?? return None
     if (let Some((typeNode, segment)) <- typeAt(token)) {
         return typeDefinitions(db, def, typeNode, segment)
@@ -83,6 +86,28 @@ func macroDefinitions(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxTok
     let segment = names.map {one => one.syntax.textRange}.indexOf(name.syntax.textRange) ?? return Some(None)
     let resolved = resolveMacroPath(db, pkg, file, names.map {one => one.text()})
     Some(fileDefinitions(resolved[segment]))
+}
+
+/**
+ * What a name of an `import` means, if `token` is one: the name a leaf brings (its last, or its alias), what the leaf
+ * imports, each declaration of the name or the package (N5–N10); a name before it, the package the path names up to
+ * it, if one.
+ */
+func importDefinitions(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ??Array<Definition> {
+    let (path, isLeaf) = importPathTo(token.parent) ?? return None
+    let from = PackageRef.Source(packageOfFile(db, file) ?? return Some([]))
+    if (isLeaf) {
+        return match (resolveImport(db, from, path, Visibility.Private)) {
+            case ToPackage(_, target) => [Definition.PackageDef(target)]
+            case ToNames(_, names) => names.values() |> flatMap {ids: Array<DefId> => ids} |>
+                map {id: DefId => Definition.DeclDef(id)} |> collectArray
+            case Unresolved(_) => []
+        }
+    }
+    match (packageIndex(db).find(String.join(path.segments, delimiter: "."), from: from)) {
+        case Some(target) => [Definition.PackageDef(target)]
+        case None => []
+    }
 }
 
 /**
