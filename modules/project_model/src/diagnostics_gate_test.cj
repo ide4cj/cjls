@@ -1,6 +1,7 @@
 package project_model
 
 import std.collection.*
+import std.convert.Parsable
 import std.env.getVariable
 import std.fs.*
 import std.sort.sort
@@ -9,6 +10,8 @@ import std.unittest.testmacro.*
 import loupe.{diagnostics, Severity}
 import loupe.db.{AnalysisDatabase, BinaryModel, BinaryPackage, Cfg, ModuleModel, PackageModel, ProjectModel}
 import loupe.fixture.{stdSourcesDir, UPDATE_EXPECT}
+import loupe.hir.bodyWithSourceMap
+import loupe.syntax.parse
 import loupe.vfs.{isCangjieFile, PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
 
 /**
@@ -17,12 +20,11 @@ import loupe.vfs.{isCangjieFile, PathInterner, readCjoFiles, readFiles, Vfs, Vfs
  */
 func diagnosticsOf(db: AnalysisDatabase, paths: PathInterner, files: Array<VfsPath>, root: VfsPath): Array<String> {
     let found = ArrayList<String>()
-    let prefix = root.toString().replace("\\", "/") + "/"
     for (path in files) {
         let fileId = paths.lookup(path) ?? continue
         let file = db.sourceFile(fileId) ?? continue
         let text = file.text(db).toString()
-        let name = path.toString().replace("\\", "/").removePrefix(prefix)
+        let name = relativeName(path, root)
         for (one in diagnostics(db, fileId) where one.severity != Severity.Hint) {
             let line = text[..one.range.start].count("\n") + 1
             found.add("${name}:${line}: ${one.message}")
@@ -142,4 +144,92 @@ class DiagnosticsGateTest {
         sort(known)
         @Expect(found, known)
     }
+}
+
+/**
+ * This repository's roots of an error type (`InferenceCensusTest`'s), as many in each file of each
+ * kind as `error_roots_known.txt` says: each a false error of the analysis on a source cjc accepts,
+ * which no diagnostic need show. Linux's alone: the target picks which files of a source set are read
+ * (D99). The pass after `DiagnosticsGateTest`'s reads what it inferred (D108).
+ */
+@When[os == "Linux"]
+@Test
+@Timeout[Duration.minute * 5]
+class ErrorRootsGateTest {
+    /**
+     * A count grown fails with where each root of it is; one shrunk until `UPDATE_EXPECT=1` writes it,
+     * so the file only shrinks.
+     */
+    @TestCase
+    func thisRepositoryHasOnlyTheErrorRootsOfKnownGaps() {
+        let ws = workspace()
+        let byLine = HashMap<String, ArrayList<ErrorRoot>>()
+        for (root in censusOf(ws).errorRoots) {
+            let line = "${relativeName(ws.paths.path(root.file.fileId(ws.db)), workspaceRoot())}: ${root.kind}"
+            let roots = byLine.get(line) ?? ArrayList<ErrorRoot>()
+            roots.add(root)
+            byLine[line] = roots
+        }
+        let found = HashMap<String, Int64>()
+        for ((line, roots) in byLine) {
+            found[line] = roots.size
+        }
+        let lines = String.fromUtf8(File.readFrom(knownErrorRoots())).replace("\r\n", "\n").split("\n")
+        if (getVariable(UPDATE_EXPECT).isSome()) {
+            let written = found.keys().toArray().map {line => "${line}: ${found[line]}"}
+            sort(written)
+            let header = lines.filter {line => line.startsWith("#")}
+            File.writeTo(knownErrorRoots(), (String.join(header.concat(written), delimiter: "\n") + "\n").toArray())
+            return
+        }
+        let known = HashMap<String, Int64>()
+        for (line in lines where !line.startsWith("#") && !line.isEmpty()) {
+            let at = line.lastIndexOf(": ").getOrThrow()
+            known[line[..at]] = Int64.parse(line[at + 2..])
+        }
+        let changed = ArrayList<String>()
+        for ((line, count) in found where count > (known.get(line) ?? 0)) {
+            let roots = byLine[line].toArray().map {root => whereIs(ws, root)}
+            changed.add("${line}: ${known.get(line) ?? 0} known, ${count} found: ${String.join(roots, delimiter: "; ")}")
+        }
+        for ((line, count) in known where count > (found.get(line) ?? 0)) {
+            changed.add("${line}: ${count} known, ${found.get(line) ?? 0} found: a gap closed, `UPDATE_EXPECT=1` takes it off")
+        }
+        let sorted = changed.toArray()
+        sort(sorted)
+        // a text, not an array: an array's `@Expect` of another size tells the sizes alone
+        @Expect(String.join(sorted, delimiter: "\n"), "")
+    }
+}
+
+/**
+ * The file of this repository's roots of an error type, a line `path: kind: count` each.
+ */
+func knownErrorRoots(): Path {
+    workspaceRoot().filePath.getOrThrow().join("modules").join("project_model").join("error_roots_known.txt")
+}
+
+/**
+ * `path` relative to `root`, with `/`s.
+ */
+func relativeName(path: VfsPath, root: VfsPath): String {
+    path.toString().replace("\\", "/").removePrefix(root.toString().replace("\\", "/") + "/")
+}
+
+/**
+ * The line of `root` and the start of its text.
+ */
+func whereIs(ws: BenchWorkspace, root: ErrorRoot): String {
+    let db = ws.db
+    let tree = parse(db, root.file).syntaxNode()
+    let ptr = bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
+    let node = (ptr ?? return "no node").tryToNode(tree) ?? return "no node"
+    let line = root.file.text(db).toString()[..node.textRange.start].count("\n") + 1
+    let runes = node.text().replace("\n", " ").toRuneArray()
+    let text = if (runes.size > 60) {
+        String(runes[..60]) + "…"
+    } else {
+        String(runes)
+    }
+    "line ${line} `${text}`"
 }
