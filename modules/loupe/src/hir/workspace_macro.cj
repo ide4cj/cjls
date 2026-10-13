@@ -3,7 +3,7 @@ package loupe.hir
 import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
-import cjsyntax.CjSyntaxNode
+import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, MacroExpandDecl}
 import calca.*
 import calca.macros.*
@@ -363,6 +363,22 @@ class MappedTextBuilder {
 }
 
 /**
+ * What is between the brackets of `node`, `@M[…]`'s or `@M(…)`'s: after its first token if it is `open`, up to its
+ * last if it is `close`. Not the first `close` among its tokens, which may be one nested in it (`@M[a: [1]]`).
+ */
+func innerRangeOf(node: CjSyntaxNode, open: SyntaxKind, close: SyntaxKind): TextRange {
+    let start = match (node.firstToken()) {
+        case Some(first) where first.kind == open => first.textRange.end
+        case _ => node.textRange.start
+    }
+    let end = match (node.lastToken()) {
+        case Some(last) where last.kind == close && last.textRange.start >= start => last.textRange.start
+        case _ => node.textRange.end
+    }
+    TextRange(start, end)
+}
+
+/**
  * Writes the requests of a file's calls of workspace macros: their input is the text of the source, where each call
  * nested in it is its output (the last that succeeded).
  */
@@ -396,9 +412,7 @@ class MacroInputComposer {
         let attrs = macroCall.macroAttr().map {
             attr =>
             let builder = MappedTextBuilder(source, anchor)
-            let open = attr.lBracketToken()?.textRange.end ?? attr.syntax.textRange.start
-            let close = attr.rBracketToken()?.textRange.start ?? attr.syntax.textRange.end
-            builder.copy(TextRange(open, close))
+            builder.copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
             builder.build()
         }
         let builder = MappedTextBuilder(source, anchor)
@@ -408,9 +422,7 @@ class MacroInputComposer {
         } else if (let Some(decl) <- macroCall.decl()) {
             declaration(item, decl.syntax, builder, children)
         } else if (let Some(args) <- macroCall.macroArgs()) {
-            let open = args.lParenToken()?.textRange.end ?? args.syntax.textRange.start
-            let close = args.rParenToken()?.textRange.start ?? args.syntax.textRange.end
-            builder.copy(TextRange(open, close))
+            builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
             true
         } else {
             true
