@@ -81,7 +81,8 @@ func addWorkspaceCalls(db: AnalysisDatabase, file: SourceFile, item: Item, top: 
 }
 
 /**
- * How `call` is keyed among the outputs of its file.
+ * How `call` is keyed among the outputs of its file: what names it across revisions, where a `MacroCallId` may be
+ * collected (D18); `macroCallOf` goes back.
  */
 public func macroCallKeyOf(db: AnalysisDatabase, call: MacroCallId): MacroCallKey {
     MacroCallKey(call.item(db).toString(), call.index(db))

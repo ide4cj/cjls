@@ -129,10 +129,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     let node = name.parent ?? return None
     let lowered = bodyWithSourceMap(db, def)
     let sourceMap = lowered.sourceMap
-    let pkg = match (def.file(db)) {
-        case Source(file) => packageOfFile(db, file) ?? return None
-        case _ => return None
-    }
+    let pkg = packageOfFile(db, scopeFileOf(db, def.file(db)) ?? return None) ?? return None
     // an operator: the operator function it calls (8e)
     if (isOperator(token)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return None

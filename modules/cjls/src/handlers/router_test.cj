@@ -61,6 +61,12 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
         case "hoverProvider" => methods.add(HoverRequestSpec.METHOD)
         case "selectionRangeProvider" => methods.add(SelectionRangeRequestSpec.METHOD)
         case "workspaceSymbolProvider" => methods.add(WorkspaceSymbolRequestSpec.METHOD)
+        case "codeActionProvider" =>
+            methods.add(CodeActionRequestSpec.METHOD)
+            if (isOn(value.get("resolveProvider"))) {
+                methods.add(CodeActionResolveRequestSpec.METHOD)
+            }
+        case "executeCommandProvider" => methods.add(ExecuteCommandRequestSpec.METHOD)
         case "diagnosticProvider" =>
             methods.add(DocumentDiagnosticRequestSpec.METHOD)
             if (isOn(value.get("workspaceDiagnostics"))) {

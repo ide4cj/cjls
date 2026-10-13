@@ -3,7 +3,7 @@ package cjls.handlers
 import fjson.JsonValue
 import rope.Encoding
 import cjls.lsp_types.*
-import cjls.lsp_ext.{AnalysisStatsRequestSpec, MemoryUsageRequestSpec}
+import cjls.lsp_ext.{AnalysisStatsRequestSpec, EXPAND_MACRO_COMMAND, ExpandMacroRequestSpec, MemoryUsageRequestSpec}
 import cjls.server.*
 
 /**
@@ -41,6 +41,9 @@ public func router(): Router {
         .route(FoldingRangeRequestSpec(), handleFoldingRange)
         .route(MemoryUsageRequestSpec(), handleMemoryUsage)
         .route(AnalysisStatsRequestSpec(), handleAnalysisStats)
+        .route(ExpandMacroRequestSpec(), handleExpandMacro)
+        .route(CodeActionRequestSpec(), handleCodeAction)
+        .route(ExecuteCommandRequestSpec(), handleExecuteCommand)
         .publishDiagnostics(documentDiagnostics)
 }
 
@@ -70,10 +73,13 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         // a file's folds are its own: no `workspace/foldingRange/refresh`
         foldingRangeProvider: BooleanOrFoldingRangeOptionsOrFoldingRangeRegistrationOptions.AsBoolean(true),
         workspaceSymbolProvider: BooleanOrWorkspaceSymbolOptions.AsBoolean(true),
+        // "Expand macro", of no kind, and its command (D103)
+        codeActionProvider: BooleanOrCodeActionOptions.AsBoolean(true),
+        executeCommandProvider: ExecuteCommandOptions(commands: [EXPAND_MACRO_COMMAND]),
         workspace: WorkspaceOptions(workspaceFolders: WorkspaceFoldersServerCapabilities(supported: true,
             changeNotifications: StringOrBoolean.AsBoolean(true))),
         // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
         experimental: JsonValue.JsonObject([("memoryUsage", JsonValue.JsonBool(true)),
-            ("analysisStats", JsonValue.JsonBool(true))])
+            ("analysisStats", JsonValue.JsonBool(true)), ("expandMacro", JsonValue.JsonBool(true))])
     )
 }

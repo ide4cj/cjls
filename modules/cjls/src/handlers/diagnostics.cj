@@ -19,9 +19,13 @@ func handleDocumentDiagnostic(snap: ServerSnapshot, params: DocumentDiagnosticPa
 
 /**
  * The diagnostics of the document at `path`, as the snapshot has it: what a pull answers, and what
- * the server pushes to a client that cannot pull.
+ * the server pushes to a client that cannot pull; none for an expanded file (`sourceOfExpanded`).
  */
 func documentDiagnostics(snap: ServerSnapshot, path: VfsPath): Array<Diagnostic> {
+    // an expanded file is no file of the workspace: what its names would mean there is no error of the user's
+    if (isExpandedFile(path)) {
+        return []
+    }
     let file = snap.sourceFile(path) ?? return []
     let text = file.text(snap.analysis)
     diagnostics(snap.analysis, file.fileId(snap.analysis)).map {it => diagnostic(text, it, snap.encoding)}

@@ -14,14 +14,17 @@ import loupe.vfs.FileId
 
 /**
  * A declaration a request goes to: its file, its whole node, and its name, what an editor selects;
- * rust-analyzer's `NavigationTarget`.
+ * rust-analyzer's `NavigationTarget`. One a macro wrote, which a request in an expansion goes to
+ * (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are
+ * of `expandedMacro`'s text, `fileId` the call's file.
  */
 @Derive[Equatable]
 public struct NavigationTarget {
     public NavigationTarget(
         public let fileId: FileId,
         public let fullRange: TextRange,
-        public let focusRange: TextRange
+        public let focusRange: TextRange,
+        public let expansion!: ?MacroCallId = None
     ) {}
 }
 
@@ -33,12 +36,35 @@ public struct NavigationTarget {
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
-    let root = parse(db, file).syntaxNode()
+    definitionIn(db, ItemFile.Source(file), offset)
+}
+
+/**
+ * Where the name at `offset` of the text of the expansion of `call` (`expandedMacro`) is declared, as `definitionAt`
+ * finds it in a file, the names of the expansion in the scope of the call's file: a declaration whose name the macro
+ * copied from the source, there; one the macro or the analysis wrote, in its expansion (`NavigationTarget.expansion`).
+ * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`).
+ */
+public func definitionInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: Int64): Array<NavigationTarget> {
+    definitionIn(db, ItemFile.Expansion(call), offset)
+}
+
+/**
+ * Where the name at `offset` of `file`, a source file or an expansion, is declared; into expansions from an expansion
+ * only, a request from a source file going where the call writes what it adds.
+ */
+func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<NavigationTarget> {
+    let scope = scopeFileOf(db, file) ?? return []
+    let (root, _) = syntaxOf(db, file) ?? return []
     let token = tokenAt(root, offset) ?? return []
-    let defs = classifyName(db, file, itemAround(db, file, token.parent), token) ?? return []
+    let defs = classifyName(db, scope, itemAround(db, file, token.parent), token) ?? return []
+    let intoExpansions = match (file) {
+        case Expansion(_) => true
+        case _ => false
+    }
     let targets = ArrayList<NavigationTarget>()
     for (one in defs) {
-        if (let Some(target) <- targetOfDefinition(db, one)) {
+        if (let Some(target) <- targetOfDefinition(db, one, intoExpansions: intoExpansions)) {
             targets.add(target)
         }
         // a `specific` declaration, then the `common` ones it completes, as Kotlin's actual and expect (#318)
@@ -50,23 +76,24 @@ public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): A
 }
 
 /**
- * The innermost item `node` is in, or is.
+ * The innermost item `node`, of the tree of `file`, is in, or is.
  */
-func itemAround(db: AnalysisDatabase, file: SourceFile, node: CjSyntaxNode): ?DefId {
-    let ids = itemIdMap(db, file)
+func itemAround(db: AnalysisDatabase, file: ItemFile, node: CjSyntaxNode): ?DefId {
+    let (_, ids) = syntaxOf(db, file) ?? return None
     let item = node.ancestors() |> filterMap {one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one))} |> first
-    DefId(db, ItemFile.Source(file), item ?? return None)
+    DefId(db, file, item ?? return None)
 }
 
 /**
- * Where `definition` is declared; `None` for a package.
+ * Where `definition` is declared; `None` for a package. A declaration of an expansion there if `intoExpansions`
+ * (`declTarget`).
  */
-func targetOfDefinition(db: AnalysisDatabase, definition: Definition): ?NavigationTarget {
+func targetOfDefinition(db: AnalysisDatabase, definition: Definition, intoExpansions!: Bool = false): ?NavigationTarget {
     match (definition) {
-        case DeclDef(id) => declTarget(db, id)
+        case DeclDef(id) => declTarget(db, id, intoExpansions: intoExpansions)
         case LocalDef(def, local) => localTarget(db, def, local)
         case MemberParamDef(ctor, local) => localTarget(db, ctor, local)
-        case TypeParamDef(target) => targetOf(db, target)
+        case TypeParamDef(target) => targetOf(db, target, intoExpansions)
         case PackageDef(_) => None
     }
 }
@@ -146,10 +173,14 @@ func typeAt(token: CjSyntaxToken): ?(CjSyntaxNode, Int64) {
 /**
  * Where `target` is declared; `None` for a package, or a declaration with no source.
  */
-func targetOf(db: AnalysisDatabase, target: TypeTarget): ?NavigationTarget {
+func targetOf(db: AnalysisDatabase, target: TypeTarget, intoExpansions: Bool): ?NavigationTarget {
     match (target) {
-        case TypeOf(id) => declTarget(db, id)
+        case TypeOf(id) => declTarget(db, id, intoExpansions: intoExpansions)
         case GenericOf(owner, index) =>
+            if (let Expansion(call) <- owner.file(db)) {
+                let (full, focus) = genericRanges(itemNodeOf(db, owner) ?? return None, index) ?? return None
+                return expansionTarget(db, call, full, focus)
+            }
             let (file, node) = nodeOf(db, owner) ?? return None
             genericTarget(db, file, node, index)
         case LocalGenericOf(owner, localFunc, index) =>
@@ -170,22 +201,56 @@ func targetOf(db: AnalysisDatabase, target: TypeTarget): ?NavigationTarget {
  * The type parameter at `index` of the declaration `node`.
  */
 func genericTarget(db: AnalysisDatabase, file: SourceFile, node: CjSyntaxNode, index: Int64): ?NavigationTarget {
+    let (full, focus) = genericRanges(node, index) ?? return None
+    NavigationTarget(file.fileId(db), full, focus)
+}
+
+/**
+ * The type parameter at `index` of the declaration `node`, and its name.
+ */
+func genericRanges(node: CjSyntaxNode, index: Int64): ?(TextRange, TextRange) {
     let params = AnyHasTypeParams.cast(node).flatMap {it => it.typeParamList()} ?? return None
     let param = (params.typeParams() |> skip(index) |> first) ?? return None
-    let name = param.name()?.syntax.textRange ?? param.syntax.textRange
-    NavigationTarget(file.fileId(db), param.syntax.textRange, name)
+    (param.syntax.textRange, param.name()?.syntax.textRange ?? param.syntax.textRange)
+}
+
+/**
+ * `full` and `focus`, ranges of the text of the expansion of `call`: in the call's file if the macro copied `focus`
+ * from there (`sourceRangeOf`), `full` too if it copied it whole; in the expansion if it wrote it.
+ */
+func expansionTarget(db: AnalysisDatabase, call: MacroCallId, full: TextRange, focus: TextRange): NavigationTarget {
+    let fileId = call.file(db).fileId(db)
+    match (sourceRangeOf(db, call, focus)) {
+        case Some(source) =>
+            let around = sourceRangeOf(db, call, full).flatMap {
+                one: TextRange => if (one.containsRange(source)) {
+                    Some(one)
+                } else {
+                    None<TextRange>
+                }
+            }
+            NavigationTarget(fileId, around ?? source, source)
+        case None => NavigationTarget(fileId, full, focus, expansion: call)
+    }
 }
 
 /**
  * Where the declaration `id` is: its node and its name; for one of a package compiled already, where
  * its `.cjo` says it is in the sources of its binary; for one a macro call adds, what in the call
- * adds it, the interface of `@Derive[...]`.
+ * adds it, the interface of `@Derive[...]`; but if `intoExpansions` where its expansion declares
+ * it, unless the macro copied its name from the source.
  */
-func declTarget(db: AnalysisDatabase, id: DefId): ?NavigationTarget {
+func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false): ?NavigationTarget {
     match (id.file(db)) {
         case Binary(pkg, file) => return binaryTarget(db, pkg, file, id.item(db))
         // what a macro call adds: where the call writes it (#175)
         case Expansion(call) =>
+            if (intoExpansions && let Some(node) <- itemNodeOf(db, id)) {
+                let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? node.textRange
+                if (sourceRangeOf(db, call, name).isNone()) {
+                    return NavigationTarget(call.file(db).fileId(db), node.textRange, name, expansion: call)
+                }
+            }
             let (focus, full) = expansionOrigin(db, call, id.item(db)) ?? return None
             return NavigationTarget(call.file(db).fileId(db), full, focus)
         case Source(_) => ()
@@ -259,6 +324,14 @@ func findItem(items: Array<Item>, id: ItemId): ?Item {
  */
 func writes(text: Rope, offset: Int64, written: String): Bool {
     offset + written.size <= text.size && text.slice(offset..offset + written.size).toString() == written
+}
+
+/**
+ * The node of `id`, in a source file or an expansion, if it is there still.
+ */
+func itemNodeOf(db: AnalysisDatabase, id: DefId): ?CjSyntaxNode {
+    let (root, ids) = syntaxOf(db, id.file(db)) ?? return None
+    ids.node(id.item(db), root)
 }
 
 /**

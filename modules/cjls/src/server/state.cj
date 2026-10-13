@@ -121,6 +121,13 @@ public class ServerState <: FromContext<ServerState> {
     public var workDoneProgress = false
 
     /**
+     * Whether the client shows a document the server asks it to (`window/showDocument`), and takes a
+     * code action as a literal rather than a bare command, as agreed on at `initialize`.
+     */
+    public var showsDocuments = false
+    public var codeActionLiterals = false
+
+    /**
      * What runs the workspace's macros, once the workspace is loaded the first time (D104); woken after every
      * write that changes the files.
      */
@@ -464,10 +471,16 @@ public class ServerState <: FromContext<ServerState> {
      * `CancelledException`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
     public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
-        let files = this.files ?? vfs.files().filter {id => !binarySourceFiles.contains(vfs.filePath(id))}
+        // an expanded file the editor opened is no file of the workspace
+        let files = this.files ?? vfs.files().filter {
+            id =>
+            let path = vfs.filePath(id)
+            !binarySourceFiles.contains(path) && !isExpandedFile(path)
+        }
         this.files = files
-        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens, augmentsSyntaxTokens,
-            locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown)
+        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
+            augmentsSyntaxTokens, locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, roots.toArray(),
+            showsDocuments, codeActionLiterals, cacheDirs)
     }
 
     /**
@@ -505,8 +518,13 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * Every file with contents, in the order of their ids.
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let augmentsSyntaxTokens: Bool, public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64,
-        public let hoverMarkdown: Bool) {}
+        public let augmentsSyntaxTokens: Bool, public let locationLinks: Bool, public let lineFoldingOnly: Bool,
+        public let foldingRangeLimit: ?Int64, public let hoverMarkdown: Bool,
+        /**
+         * The roots of the workspace, as the state had them.
+         */
+        public let roots: Array<VfsPath>, public let showsDocuments: Bool, public let codeActionLiterals: Bool,
+        public let cacheDirs: CacheDirs) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot
