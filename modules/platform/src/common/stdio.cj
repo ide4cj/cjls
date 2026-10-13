@@ -1,36 +1,8 @@
-package cjls
+@NonProduct
+features {}
+package platform
 
 import std.io.{InputStream, IOException}
-
-// Not `read`: see `readStdin`.
-@When[os != "Windows"]
-foreign func readv(fd: Int32, iov: CPointer<IoVec>, iovcnt: Int32): IntNative
-
-@When[os == "macOS"]
-foreign func __error(): CPointer<Int32>
-
-@When[os == "Linux"]
-foreign func __errno_location(): CPointer<Int32>
-
-@When[os == "Windows"]
-foreign func _read(fd: Int32, buf: CPointer<Byte>, count: UInt32): Int32
-
-@When[os == "Windows"]
-foreign func _setmode(fd: Int32, mode: Int32): Int32
-
-@When[os == "Windows"]
-foreign func _errno(): CPointer<Int32>
-
-@When[os != "Windows"]
-@C
-struct IoVec {
-    var base: CPointer<Byte>
-    var len: UIntNative
-    init(base: CPointer<Byte>, len: UIntNative) {
-        this.base = base
-        this.len = len
-    }
-}
 
 const STDIN_FILENO: Int32 = 0
 const STDOUT_FILENO: Int32 = 1
@@ -47,7 +19,7 @@ const EINTR: Int32 = 4
  * @note The read blocks in C for as long as the editor is idle, which is only harmless because
  * the call goes through the runtime's switch to native code (C5, D13).
  */
-class StdinStream <: InputStream {
+public class StdinStream <: InputStream {
     /**
      * @throws IOException - if the read fails with anything but `EINTR`
      */
@@ -84,51 +56,17 @@ class StdinStream <: InputStream {
  * mode, which turns every `\n` written into `\r\n` and every `\r\n` read into `\n` - and a frame's
  * `Content-Length` counts the bytes before that. Elsewhere there is no such mode.
  */
-@When[os == "Windows"]
-func useBinaryStdio(): Unit {
-    // _O_BINARY
-    let binary: Int32 = 0x8000
-    unsafe {
-        _setmode(STDIN_FILENO, binary)
-        _setmode(STDOUT_FILENO, binary)
-    }
-}
-
-@When[os != "Windows"]
-func useBinaryStdio(): Unit {}
+public common func useBinaryStdio(): Unit
 
 /**
- * `read(2)` as `readv` of one buffer. cjc compiles a foreign function named like a C library
- * function LLVM knows (`read`, `write`, `open`, `getchar`, ...) as `@FastNative`, without switching
- * the thread to native code, so while it blocks the garbage collector waits for it at full CPU and
- * every other thread stops at its next allocation; `readv` is not one of those names (C5, D13).
+ * `read(2)` of stdin, through a foreign function that is not `@FastNative`: one named like a C
+ * library function LLVM knows (`read`, `write`, `open`, `getchar`, ...) is compiled as one, without
+ * switching the thread to native code, so while it blocks the garbage collector waits for it at
+ * full CPU and every other thread stops at its next allocation (C5, D13).
  */
-@When[os != "Windows"]
-unsafe func readStdin(buf: CPointer<Byte>, count: Int64): Int64 {
-    var iov = IoVec(buf, UIntNative(count))
-    Int64(readv(STDIN_FILENO, inout iov, 1))
-}
+common unsafe func readStdin(buf: CPointer<Byte>, count: Int64): Int64
 
 /**
- * `_read` is not a name LLVM knows, so it can block (D13).
+ * The C runtime's `errno` of this thread.
  */
-@When[os == "Windows"]
-unsafe func readStdin(buf: CPointer<Byte>, count: Int64): Int64 {
-    // `_read` takes an unsigned int, and a buffer is never near 4 GiB
-    Int64(_read(STDIN_FILENO, buf, UInt32(count)))
-}
-
-@When[os == "macOS"]
-func lastErrno(): Int32 {
-    unsafe { __error().read() }
-}
-
-@When[os == "Linux"]
-func lastErrno(): Int32 {
-    unsafe { __errno_location().read() }
-}
-
-@When[os == "Windows"]
-func lastErrno(): Int32 {
-    unsafe { _errno().read() }
-}
+common func lastErrno(): Int32

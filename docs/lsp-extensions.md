@@ -1,4 +1,4 @@
-<!-- cjls.lsp_ext hash: 870b998012fabdba -->
+<!-- cjls.lsp_ext hash: b6fcc4b15b5cfd61 -->
 # LSP extensions
 
 Methods cjls answers beyond LSP (D15). Each is under `cjls/`, advertised as `true` under its name in the `experimental` server capabilities, and optional: every client works without it.
@@ -58,6 +58,6 @@ A call inside the input of another (D98) answers the expansion of that one, the 
 
 ## Command `cjls.expandMacro`
 
-The code action "Expand macro" (no `kind`) is offered on a call head with an expansion, to a client that takes `window/showDocument` and asks for no kind in particular (`context.only`). Its command, which `workspace/executeCommand` runs (`executeCommandProvider.commands`), takes one argument, the `TextDocumentPositionParams` of the call. It writes `<root>/.cjls/expanded/<path under the root>.macrocall`, read-only, and `.cjls/.gitignore` (`*`) if there is none. The file is the document with each item a workspace call replaces swapped for its expansion, and each expansion of std after its item, each after a comment naming the call. The command then sends `window/showDocument` (`takeFocus`, the call's expansion selected) and answers `null`. To a client without `window/showDocument` it is `RequestFailed`.
+The code action "Expand macro" (no `kind`) is offered on a call head with an expansion, to a client that takes `window/showDocument` and asks for no kind in particular (`context.only`). Its command, which `workspace/executeCommand` runs (`executeCommandProvider.commands`), takes one argument, the `TextDocumentPositionParams` of the call. It writes `<project>/.cache/cjls/expanded/<path under the project>.macrocall`, read-only, in the server's directory of the document's project (D106). The file is the document with each item a workspace call replaces swapped for its expansion, and each expansion of std after its item, each after a comment naming the call. The command then sends `window/showDocument` (`takeFocus`, the call's expansion selected) and answers `null`. To a client without `window/showDocument` it is `RequestFailed`.
 
 In that file, while it is what the server would write now, `textDocument/hover`, `textDocument/definition` and `textDocument/documentHighlight` answer as in the source for what was copied from it, and as in the expansion for an expansion. Once the source or an expansion changed, they answer `null` until the command writes the file again. The file has no diagnostics. A client gives `*.cj.macrocall` the Cangjie language, or it never asks.

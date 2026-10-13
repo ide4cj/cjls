@@ -8,21 +8,12 @@ import cjls.lsp_types.*
 import cjls.lsp_ext.*
 import cjls.server.*
 import cjls.macros.LspHandler
+import platform.dumpsHeap as runtimeDumpsHeap
 
 /**
  * How long `collect` waits for the collection it asked for.
  */
 let COLLECT_TIMEOUT = Duration.second * 5
-
-/**
- * Whether the runtime here dumps its heap: on Windows `dumpHeapData` never returns, with the
- * nightlies of 2026-09-18 and 09-29 alike, while `gc(heavy: true)` does (#64).
- */
-@When[os == "Windows"]
-let DUMPS_HEAP = false
-
-@When[os != "Windows"]
-let DUMPS_HEAP = true
 
 @LspHandler[readonly]
 func handleMemoryUsage(params: MemoryUsageParams): MemoryUsage {
@@ -103,7 +94,7 @@ interface HeapRuntime {
 class StdHeapRuntime <: HeapRuntime {
     public prop dumpsHeap: Bool {
         get() {
-            DUMPS_HEAP
+            runtimeDumpsHeap()
         }
     }
 

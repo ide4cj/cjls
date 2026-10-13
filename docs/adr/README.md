@@ -37,7 +37,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0016](0016-editor-integrations-are-repositories.md) | Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim | accepted; how server and clients change together, and who tests which, by D32 |
 | [0017](0017-lru-of-memo-values.md) | calca evicts memo values by LRU; a query result keeps pointers, never nodes | accepted; interned values by D18; eviction within a revision by D36 |
 | [0018](0018-gc-of-interned-values.md) | calca collects unused interned values, and the memos keyed by them | accepted; interned values by D75 |
-| [0019](0019-syntactic-highlighting.md) | Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types | accepted; a name at its use is told; the legend has `namespace`, and two types and modifiers of its own; `refresh` is sent, by D72 |
+| [0019](0019-syntactic-highlighting.md) | Semantic tokens from the syntax tree first, in a fixed legend of LSP's own types | accepted; a name at its use is told; the legend has `namespace`, and two types and modifiers of its own; `refresh` is sent, by D72; a client that augments its grammar gets no token the grammar names as well; `this` and `super` are variables; a constructor and a constant are told by modifiers of their own by D105 |
 | [0020](0020-no-lto.md) | The Linux binary is not linked with LTO: cjc miscompiles the stack maps under it | accepted |
 | [0021](0021-weekly-releases.md) | A release every week from a green master; the first one by hand, its changelog written; versions of cjls's own | accepted; a nightly by D32 |
 | [0022](0022-json-codec.md) | The wire is read and written with fjson, through serde's derives `ToJson`/`FromJson` and one `@Serde` marker | accepted |
@@ -117,4 +117,10 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0096](0096-build-and-tests-are-jobs-of-their-own.md) | CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
 | [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed |
+| [0099](0099-source-sets-are-a-chain-and-common-is-its-specific.md) | A multiplatform module's packages are the files of the target's chain of source sets, and a common declaration is its specific one | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
+| [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
+| [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
+| [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
+| [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | proposed |
+| [0107](0107-settings-follow-the-pin.md) | A client's settings are made again when its pin moves, never checked against the cjls under test | proposed |

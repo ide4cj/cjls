@@ -1,6 +1,7 @@
 package project_model
 
 import std.fs.*
+import platform.{executableFile, pathListSeparator}
 
 /**
  * A Cangjie SDK found, and where from: `std` is in it, and `${CANGJIE_HOME}` expands to it.
@@ -126,18 +127,8 @@ public func withCangjieSrc(env: (String) -> ?String, src: ?CangjieSrc): (String)
  * `cjc` in the first directory of `path` that has it, its links followed, `None` if none has.
  */
 func cjcOnPath(path: String): ?Path {
-    let separator = if (HOST_OS == "Windows") {
-        ";"
-    } else {
-        ":"
-    }
-    let name = if (HOST_OS == "Windows") {
-        "cjc.exe"
-    } else {
-        "cjc"
-    }
-    for (dir in path.split(separator) where !dir.isEmpty() && Path(dir).isAbsolute()) {
-        let cjc = Path(dir).join(name)
+    for (dir in path.split(pathListSeparator()) where !dir.isEmpty() && Path(dir).isAbsolute()) {
+        let cjc = Path(dir).join(executableFile("cjc"))
         try {
             if (exists(cjc)) {
                 return canonicalize(cjc)

@@ -2,15 +2,7 @@ package loupe.vfs
 
 import std.fs.Path
 import stdx.encoding.url.{URL, UrlSyntaxException}
-
-/**
- * What separates the names of a path as `VfsPath` keeps it.
- */
-@When[os == "Windows"]
-const SEPARATOR = "\\"
-
-@When[os != "Windows"]
-const SEPARATOR = "/"
+import platform.{canonicalPath, fileUriPathOf, pathOfFileUriPath, pathSeparator}
 
 /**
  * Where a file is: a normalized absolute path on disk, or, for a document that has none (an
@@ -37,7 +29,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
         if (!path.isAbsolute()) {
             throw IllegalArgumentException("not an absolute path: ${path}")
         }
-        VfsPath(true, canonical(path.normalize()).toString())
+        VfsPath(true, canonicalPath(path.normalize()).toString())
     }
 
     /**
@@ -68,7 +60,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
         if (url.scheme != "file" || !local || url.path.isEmpty()) {
             return virtual(uri)
         }
-        let path = Path(pathOfUriPath(url.path))
+        let path = Path(pathOfFileUriPath(url.path))
         if (path.isAbsolute()) {
             file(path)
         } else {
@@ -95,7 +87,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      */
     public func toUri(): String {
         if (onDisk) {
-            URL(scheme: "file", hostName: "", path: uriPathOf(Path(text))).toString()
+            URL(scheme: "file", hostName: "", path: fileUriPathOf(Path(text))).toString()
         } else {
             text
         }
@@ -122,7 +114,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
             if (parent.isEmpty() || parent.toString() == text) {
                 None
             } else {
-                VfsPath(true, canonical(parent).toString())
+                VfsPath(true, canonicalPath(parent).toString())
             }
         }
     }
@@ -171,10 +163,11 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
             return Array<String>()
         }
         // a root (`/`, a drive's `c:\`) ends with its separator; no other directory does
-        if (!dir.text.endsWith(SEPARATOR) && !rest.startsWith(SEPARATOR)) {
+        let separator = pathSeparator()
+        if (!dir.text.endsWith(separator) && !rest.startsWith(separator)) {
             return None
         }
-        rest.split(SEPARATOR, removeEmpty: true)
+        rest.split(separator, removeEmpty: true)
     }
 
     public func hashCode(): Int64 {
@@ -195,52 +188,4 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
     public func toString(): String {
         text
     }
-}
-
-/**
- * A normalized path as `VfsPath` keeps it: on Windows with `\` and a lowercase drive letter.
- */
-@When[os == "Windows"]
-func canonical(path: Path): Path {
-    let text = path.toString().replace("/", "\\")
-    if (text.size >= 2 && text[1] == b':') {
-        Path(text[..1].toAsciiLower() + text[1..])
-    } else {
-        Path(text)
-    }
-}
-
-@When[os != "Windows"]
-func canonical(path: Path): Path {
-    path
-}
-
-/**
- * The path of a `file:` URI's path: in `/c:/src` the drive is the first segment (RFC 8089).
- */
-@When[os == "Windows"]
-func pathOfUriPath(uriPath: String): String {
-    if (uriPath.size >= 3 && uriPath[2] == b':') {
-        uriPath[1..]
-    } else {
-        uriPath
-    }
-}
-
-@When[os != "Windows"]
-func pathOfUriPath(uriPath: String): String {
-    uriPath
-}
-
-/**
- * The path of a `file:` URI for `path`: a drive goes in as a first segment, `/c:/src`.
- */
-@When[os == "Windows"]
-func uriPathOf(path: Path): String {
-    "/" + path.toString().replace("\\", "/")
-}
-
-@When[os != "Windows"]
-func uriPathOf(path: Path): String {
-    path.toString()
 }

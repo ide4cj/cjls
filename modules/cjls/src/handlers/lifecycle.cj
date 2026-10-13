@@ -18,6 +18,8 @@ func handleInitialize(state: ServerState, client: Client, logger: Logger, params
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
+    state.augmentsSyntaxTokens = params.capabilities.textDocument.flatMap {textDocument => textDocument.semanticTokens}
+        .flatMap {semanticTokens => semanticTokens.augmentsSyntaxTokens} ?? false
     state.refreshesSemanticTokens = params.capabilities.workspace.flatMap {workspace => workspace.semanticTokens}
         .flatMap {semanticTokens => semanticTokens.refreshSupport} ?? false
     state.refreshesDiagnostics = params.capabilities.workspace.flatMap {workspace => workspace.diagnostics}

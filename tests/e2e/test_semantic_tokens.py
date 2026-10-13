@@ -16,9 +16,14 @@ async def test_a_document_is_highlighted_from_its_start(client: LanguageClient):
         types.SemanticTokensParams(text_document=types.TextDocumentIdentifier(uri=uri))
     )
 
-    # assert: five numbers a token; `class` first, a keyword, the legend's first type
+    # assert: five numbers a token; `class` first, a keyword, the legend's first type, unless the
+    # editor's grammar names it, and `A` is first (D105)
     assert tokens is not None
     assert len(tokens.data) % 5 == 0
-    assert list(tokens.data[:5]) == [0, 0, 5, 0, 0]
+    semantic_tokens = client.capabilities.text_document.semantic_tokens
+    if semantic_tokens.augments_syntax_tokens:
+        assert list(tokens.data[:3]) == [0, 6, 1]
+    else:
+        assert list(tokens.data[:5]) == [0, 0, 5, 0, 0]
     # `let` starts the next line
     assert [tokens.data[i] for i in range(0, len(tokens.data), 5)].count(1) == 1

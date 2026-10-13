@@ -4,6 +4,7 @@ import std.collection.{ArrayList, HashMap}
 import std.env.getTempDirectory
 import std.fs.{Directory, File, Path, exists}
 import std.io.ByteBuffer
+import platform.executableFile
 
 const NOTES = """
 {"tag_name":"1.3.0-alpha.20261002001050","body":"## Cangjie Nightly Build Version: **1.3.0-alpha.20261002001050**\\n\\n## Commit IDs / 构建提交ID\\n\\n- **cangjie_compiler**: `514a5a209e42`\\n- **cangjie_runtime**: `5d555bcc34d6`\\n- **cangjie_tools**: `3009d063056e`\\n"}
@@ -107,7 +108,7 @@ class FetchSrcTest {
         @Expect(!exists(Path("${dir}.part")))
         @Expect(written(out), "${dir}\n")
         @Expect(host.asked.toArray(), [
-            "cjc ${CJC}",
+            "cjc ${executableFile("cjc")}",
             "get ${GITHUB_NOTES}",
             "download https://github.com/cangjie-bot/cangjie_runtime/archive/5d555bcc34d6.tar.gz",
             "unpack"

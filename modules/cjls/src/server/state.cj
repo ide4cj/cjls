@@ -1,6 +1,7 @@
 package cjls.server
 
 import std.collection.{ArrayList, HashMap, HashSet}
+import std.env.getVariable
 import std.runtime.getMaxHeapSize
 import rope.{Encoding, Rope}
 import loupe.vfs.*
@@ -64,6 +65,12 @@ public class ServerState <: FromContext<ServerState> {
     public var multilineTokens = false
 
     /**
+     * Whether the client lays semantic tokens over a highlighting of its own, as agreed on at
+     * `initialize`: it gets no token its grammar names as well (D105).
+     */
+    public var augmentsSyntaxTokens = false
+
+    /**
      * Whether the client asks for the semantic tokens of its documents again when told to, as agreed
      * on at `initialize`: it is, after a change of the files, which may change any document's (D72).
      */
@@ -118,6 +125,11 @@ public class ServerState <: FromContext<ServerState> {
      */
     public var showsDocuments = false
     public var codeActionLiterals = false
+
+    /**
+     * The server's directories beside its projects (D106), each opened once by this server.
+     */
+    public let cacheDirs = CacheDirs({name => getVariable(name)})
 
     /**
      * The id each root's watcher was registered with, to unregister it by.
@@ -436,8 +448,8 @@ public class ServerState <: FromContext<ServerState> {
         }
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
-            locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, roots.toArray(), showsDocuments,
-            codeActionLiterals)
+            augmentsSyntaxTokens, locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, roots.toArray(),
+            showsDocuments, codeActionLiterals, cacheDirs)
     }
 
     /**
@@ -475,12 +487,13 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * Every file with contents, in the order of their ids.
          */
         public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let locationLinks: Bool, public let lineFoldingOnly: Bool, public let foldingRangeLimit: ?Int64,
-        public let hoverMarkdown: Bool,
+        public let augmentsSyntaxTokens: Bool, public let locationLinks: Bool, public let lineFoldingOnly: Bool,
+        public let foldingRangeLimit: ?Int64, public let hoverMarkdown: Bool,
         /**
          * The roots of the workspace, as the state had them.
          */
-        public let roots: Array<VfsPath>, public let showsDocuments: Bool, public let codeActionLiterals: Bool) {}
+        public let roots: Array<VfsPath>, public let showsDocuments: Bool, public let codeActionLiterals: Bool,
+        public let cacheDirs: CacheDirs) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot

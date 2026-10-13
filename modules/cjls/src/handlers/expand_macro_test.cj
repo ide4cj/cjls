@@ -1,7 +1,6 @@
 package cjls.handlers
 
 import std.collection.ArrayList
-import std.env.getTempDirectory
 import std.fs.{exists, File, FileInfo, Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -54,7 +53,7 @@ func mainOf(dir: Path): Path {
 }
 
 func expandedOf(dir: Path): Path {
-    dir.join(".cjls").join("expanded").join("src").join("main.cj.macrocall")
+    dir.join(".cache").join("cjls").join("expanded").join("src").join("main.cj.macrocall")
 }
 
 func positionIn(path: Path, line: UInt32, character: UInt32): TextDocumentPositionParams {
@@ -189,7 +188,7 @@ class ExpandMacroTest {
         let path = expandedOf(dir)
         let text = String.fromUtf8(File.readFrom(path))
         let readOnly = !FileInfo(path).canWrite()
-        let ignore = String.fromUtf8(File.readFrom(dir.join(".cjls").join(".gitignore")))
+        let ignore = String.fromUtf8(File.readFrom(dir.join(".cache").join("cjls").join(".gitignore")))
         let shown = shownDocuments(transport)
         client.close()
         remove(dir, recursive: true)
@@ -343,11 +342,11 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aLoadReadsNothingOfCjls() {
+    func aLoadReadsNothingOfTheCacheDirectory() {
         // arrange
         let (state, dir) = macroWorkspace()
         handleExecuteCommand(state.snapshot(), Client(), NoopLogger(), expandCommand(mainOf(dir), 2, 1))
-        writeFile(dir, ".cjls/a.cj", "package app\n")
+        writeFile(dir, ".cache/cjls/a.cj", "package app\n")
 
         // act
         let loop = initializedWith([dir], watches: false)
@@ -355,7 +354,7 @@ class ExpandedFileNavigationTest {
 
         // assert
         let knowsExpanded = loop.state.knows(VfsPath.file(expandedOf(dir)))
-        let knowsHidden = loop.state.knows(VfsPath.file(dir.join(".cjls").join("a.cj")))
+        let knowsHidden = loop.state.knows(VfsPath.file(dir.join(".cache").join("cjls").join("a.cj")))
         let knowsMain = loop.state.knows(VfsPath.file(mainOf(dir)))
         remove(dir, recursive: true)
         @Expect(!knowsExpanded)
@@ -365,47 +364,7 @@ class ExpandedFileNavigationTest {
 }
 
 @Test
-class ExpandedPathTest {
-    @TestCase
-    func aSourceUnderARootIsExpandedUnderItsCjlsAndBack() {
-        // arrange
-        let root = VfsPath.file(getTempDirectory().join("ws"))
-        let source = root.join("src/a/b.cj")
-
-        // act
-        let (path, relative, dir) = expandedFileOf(source, [VfsPath.file(getTempDirectory()), root]).getOrThrow()
-
-        // assert
-        @Expect(path, root.join(".cjls/expanded/src/a/b.cj.macrocall"))
-        @Expect(relative, "src/a/b.cj")
-        @Expect(dir, root.join(".cjls"))
-        @Expect(sourceOfExpanded(path), Some(source))
-    }
-
-    @TestCase
-    func aSourceUnderNoRootIsExpandedBesideIt() {
-        // arrange
-        let source = VfsPath.file(getTempDirectory().join("loose").join("a.cj"))
-
-        // act
-        let (path, relative, _) = expandedFileOf(source, []).getOrThrow()
-
-        // assert
-        @Expect(path, VfsPath.file(getTempDirectory().join("loose").join(".cjls/expanded/a.cj.macrocall")))
-        @Expect(relative, "a.cj")
-    }
-
-    @TestCase
-    func aFileElsewhereIsNoExpandedFile() {
-        // arrange
-        let root = VfsPath.file(getTempDirectory())
-
-        // act, assert
-        @Expect(sourceOfExpanded(root.join("a.cj.macrocall")), None<VfsPath>)
-        @Expect(sourceOfExpanded(root.join(".cjls/expanded/a.cj")), None<VfsPath>)
-        @Expect(sourceOfExpanded(root.join("expanded/a.cj.macrocall")), None<VfsPath>)
-    }
-
+class ShowsDocumentsTest {
     @TestCase[row in [
         (ClientCapabilities(window: WindowClientCapabilities(showDocument: ShowDocumentClientCapabilities(support: true))),
             true),

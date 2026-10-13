@@ -16,6 +16,7 @@ members = [
     "modules/lsp_codegen",
     "modules/loupe",
     "modules/macro_server",
+    "modules/platform",
     "modules/project_model",
     "modules/rope",
     "modules/stdxx",
@@ -30,6 +31,10 @@ target-dir = ""
 script-dir = ""
 
 [dependencies]
+
+# Cangjie multiplatform, which `platform` is (D101): cjpm wants it of the workspace as well as the module
+[profile]
+experimental = true
 
 # `-i` on every build and test; cjpm's cache knows nothing of the SDK, hence build.cj (D27)
 [profile.build]
@@ -55,13 +60,3 @@ path-option = [
 path-option = [
     "${CANGJIE_HOME}/third_party/stdx/windows_x86_64_cjnative/static/stdx",
 ]
-
-# `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
-[target.aarch64-apple-darwin.release]
-compile-option = "-O2"
-
-[target.x86_64-unknown-linux-gnu.release]
-compile-option = "-O2"
-
-[target.x86_64-w64-mingw32.release]
-compile-option = "-O2"

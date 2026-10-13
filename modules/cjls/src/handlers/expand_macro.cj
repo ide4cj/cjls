@@ -131,31 +131,32 @@ func expandedHeader(relative: String): String {
 }
 
 /**
- * The expanded file of `file`, at `path`, as the snapshot has it (`loupe.expandFile`): where it goes
- * (`expandedFileOf`), and what it holds. `None` for a virtual path, or a file with no expansion.
+ * The expanded file of the source file at `path` in `cache` (`CacheDir.expandedFileOf`), and what it holds as the
+ * snapshot has it (`loupe.expandFile`). `None` for a file outside the directory's project, or with no expansion.
  */
-func expandedFileFor(snap: ServerSnapshot, path: VfsPath, file: SourceFile): ?(VfsPath, ExpandedFile, VfsPath) {
-    let (target, relative, dir) = expandedFileOf(path, snap.roots) ?? return None
+func expandedFileIn(snap: ServerSnapshot, cache: CacheDir, path: VfsPath, file: SourceFile): ?(VfsPath, ExpandedFile) {
+    let target = cache.expandedFileOf(path) ?? return None
+    let relative = String.join(path.segmentsUnder(cache.base) ?? return None, delimiter: "/")
     let expanded = expandFile(snap.analysis, file.fileId(snap.analysis), expandedHeader(relative)) ?? return None
-    (target, expanded, dir)
+    (target, expanded)
 }
 
 /**
- * Writes the expanded file of `file`, at `path`, read-only, as cjc's `--debug-macro` writes a `.cj.macrocall`, and
- * `.cjls/.gitignore` ignoring all of `.cjls/` if there is none; a file that holds it already is left as it is.
+ * Writes the expanded file of `file`, at `path`, read-only, as cjc's `--debug-macro` writes a `.cj.macrocall`, in the
+ * cache directory of its project (D106). `None` for a virtual path, or a file with no expansion.
  *
  * @throws RpcException - `REQUEST_FAILED`, if it cannot be written
  */
 func writeExpandedFile(snap: ServerSnapshot, path: VfsPath, file: SourceFile): ?(VfsPath, ExpandedFile) {
-    let (target, expanded, dir) = expandedFileFor(snap, path, file) ?? return None
+    if (path.filePath.isNone()) {
+        return None
+    }
+    let cache = snap.cacheDirs.of(path, snap.roots) ??
+        throw RpcException(ErrorCode.REQUEST_FAILED, "no cache directory can be written for ${path}")
+    let (target, expanded) = expandedFileIn(snap, cache, path, file) ?? return None
     let targetPath = target.filePath ?? return None
-    let dirPath = dir.filePath ?? return None
     try {
         writeReadOnly(targetPath, expanded.text)
-        let ignore = dirPath.join(".gitignore")
-        if (!exists(ignore)) {
-            File.writeTo(ignore, "*\n".toArray())
-        }
     } catch (e: FSException) {
         throw RpcException(ErrorCode.REQUEST_FAILED, "${targetPath} cannot be written: ${e.message}")
     }
@@ -205,14 +206,19 @@ class ExpandedView {
 
 /**
  * The view of the document at `uri`, if it is an expanded file the snapshot would write as the editor has it: `None`
- * once its source file changed since it was written, or the expansions in it (D103).
+ * once its source file changed since it was written, or the expansions in it, or it is no longer where the server
+ * would write it (D103).
  */
 func expandedViewOf(snap: ServerSnapshot, uri: DocumentUri): ?ExpandedView {
     let path = VfsPath.fromUri(uri)
     let sourcePath = sourceOfExpanded(path) ?? return None
     let document = snap.sourceFile(path) ?? return None
     let source = snap.sourceFile(sourcePath) ?? return None
-    let (_, expanded, _) = expandedFileFor(snap, sourcePath, source) ?? return None
+    let cache = snap.cacheDirs.of(sourcePath, snap.roots) ?? return None
+    let (target, expanded) = expandedFileIn(snap, cache, sourcePath, source) ?? return None
+    if (target != path) {
+        return None
+    }
     let text = document.text(snap.analysis)
     if (text.toString() != expanded.text) {
         return None

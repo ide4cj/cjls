@@ -25,7 +25,7 @@ public func withPackageCfgs(model: ProjectModel, problems: ArrayList<String>): P
                     isMacro: pkg.isMacro, cfg: cfg)
                 case None => pkg
             }
-        }, deps: module.deps, member: module.member, cfg: module.cfg)
+        }, deps: module.deps, member: module.member, cfg: module.cfg, inactive: module.inactive)
     }
     ProjectModel(model.cfg, modules, binaries: model.binaries)
 }

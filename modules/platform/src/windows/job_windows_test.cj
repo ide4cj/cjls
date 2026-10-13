@@ -1,13 +1,10 @@
-package cjls
+features { os.windows }
+package platform
 
-@When[os == "Windows"]
 import std.unittest.*
-@When[os == "Windows"]
 import std.unittest.testmacro.*
-@When[os == "Windows"]
 import std.process.{launch, ProcessRedirect}
 
-@When[os == "Windows"]
 @Test
 class JobExtendedLimitsTest {
     @TestCase
@@ -38,16 +35,12 @@ class JobExtendedLimitsTest {
     }
 }
 
-@When[os == "Windows"]
 foreign func OpenProcess(access: UInt32, inheritHandle: Int32, processId: UInt32): CPointer<Unit>
 
-@When[os == "Windows"]
 const PROCESS_TERMINATE: UInt32 = 0x0001
 
-@When[os == "Windows"]
 const PROCESS_SET_QUOTA: UInt32 = 0x0100
 
-@When[os == "Windows"]
 @Test
 class KillOnCloseJobTest {
     @TestCase

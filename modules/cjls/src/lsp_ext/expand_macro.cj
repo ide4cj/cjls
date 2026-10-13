@@ -80,7 +80,7 @@ public struct MacroExpansion {
 
 /**
  * The command of the code action "Expand macro": its one argument the `TextDocumentPositionParams` of the call, it
- * writes the file with the macro calls expanded under `.cjls/expanded/` and asks the client to show it
+ * writes the file with the macro calls expanded under `.cache/cjls/expanded/` and asks the client to show it
  * (`window/showDocument`).
  */
 public const EXPAND_MACRO_COMMAND = "cjls.expandMacro"
