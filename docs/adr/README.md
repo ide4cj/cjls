@@ -105,15 +105,15 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0084](0084-what-was-resolved-is-kept.md) | What a name means is kept where it was resolved, not resolved again by what reads it | proposed; a memo verified in this revision answers a dependent through its entry, not its table, by D85 |
 | [0085](0085-a-dependency-keeps-its-edge.md) | A dependency keeps the object it was read from, which answers for it without a lock when it can | proposed |
 | [0086](0086-json-is-read-without-a-tape.md) | JSON is read by the pull reader, not through a tape index | accepted |
-| [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed; Windows is not left opaque by D91; the token table is one per SDK of the window, not the pin's alone, by D94; no table is generated, and no SDK version is required, by D95 |
+| [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed; Windows is not left opaque by D91; the token table is one per SDK of the window, not the pin's alone, by D94; no table is generated, and no SDK version is required, by D95; how the macro packages are built, and the guard's deadline, by D104 |
 | [0088](0088-a-document-in-no-package-finds-its-own-project.md) | A document open in no package finds its own project from its path, as R1 does on open, and that project stays loaded with the roots' | proposed |
 | [0089](0089-calca-counts-executions-per-function.md) | calca counts the executions of each tracked function, and keeps no trace | accepted |
 | [0090](0090-what-inference-finds-wrong-is-reported.md) | What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources | proposed |
 | [0091](0091-the-windows-macro-server-is-started-by-createprocessw.md) | On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone | proposed |
 | [0092](0092-a-new-file-is-given-its-package-line.md) | A document opened blank is given its package line | proposed |
 | [0093](0093-when-is-evaluated-on-an-active-item-tree.md) | @When is evaluated on an active item tree and in lowering, against the package's cfg | proposed |
-| [0094](0094-a-release-supports-a-window-of-sdks.md) | One cjls release supports a window of SDKs: the latest LTS, the latest STS and the pinned nightly, told apart by `cjc --version` | accepted |
-| [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed |
+| [0094](0094-a-release-supports-a-window-of-sdks.md) | One cjls release supports a window of SDKs: the latest LTS, the latest STS and the pinned nightly, told apart by `cjc --version` | accepted; macros are on for any SDK since 1.0, by a table of cjls's own where the SDK ships no `Tokens.inc`, by D104 |
+| [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed; the numbers come from that table when the SDK has no `Tokens.inc` by D104 |
 | [0096](0096-build-and-tests-are-jobs-of-their-own.md) | CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
 | [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed |
@@ -121,6 +121,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
 | [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
 | [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
+| [0104](0104-workspace-macros-are-built-by-cjc-and-run-under-a-deadline.md) | The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline | proposed |
 | [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
 | [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | proposed |
 | [0107](0107-settings-follow-the-pin.md) | A client's settings are made again when its pin moves, never checked against the cjls under test | proposed |
