@@ -222,6 +222,74 @@ class MacroNameDefinitionTest {
     }
 
     @TestCase
+    func aCallWithAnAttributeGoesToTheMacroThatTakesOne() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.*
+            @$0M[1]
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aCallWithoutAnAttributeGoesToTheMacroThatTakesNone() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms
+            @ms.$0M
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aCallInABodyWithAnAttributeGoesToTheMacroThatTakesOne() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            func f(): Int64 {
+                @$0M[2](1)
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
+    func aCallOfAnAttributeNoMacroTakesGoesToAllOfThem() {
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            @$0M[1]
+            class C {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            //           ^ def
+            "#)
+    }
+
+    @TestCase
     func aMacroNotImportedHasNoDefinition() {
         checkDefinition(#"
             //- /main.cj module=m package=m

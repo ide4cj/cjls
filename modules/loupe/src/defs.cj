@@ -6,7 +6,7 @@ import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{BindPat, EnumPat, MacroExpandDecl, MacroExpandExpr, MemberAccessExpr, NameRef, PathSegment,
     RefExpr}
-import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 
 /**
@@ -76,16 +76,58 @@ func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: C
 func macroDefinitions(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ??Array<Definition> {
     let name = NameRef.cast(token.parent) ?? return None
     let call = name.syntax.parent ?? return None
-    let names = match ((MacroExpandDecl.cast(call), MacroExpandExpr.cast(call))) {
-        case (Some(decl), _) => decl.nameRefs() |> collectArray
-        case (_, Some(expr)) => expr.nameRefs() |> collectArray
+    let (names, hasAttr, onDecl) = match ((MacroExpandDecl.cast(call), MacroExpandExpr.cast(call))) {
+        case (Some(decl), _) => (decl.nameRefs() |> collectArray, decl.macroAttr().isSome(), true)
+        case (_, Some(expr)) => (expr.nameRefs() |> collectArray, expr.macroAttr().isSome(), false)
         case _ => return None
     }
     // A segment of a macro's name is nothing else: a file of no package leaves it unknown, not to the lookups below.
     let pkg = packageOfFile(db, file) ?? return Some(None)
     let segment = names.map {one => one.syntax.textRange}.indexOf(name.syntax.textRange) ?? return Some(None)
-    let resolved = resolveMacroPath(db, pkg, file, names.map {one => one.text()})
-    Some(fileDefinitions(resolved[segment]))
+    let path = names.map {one => one.text()}
+    let resolved = fileDefinitions(resolveMacroPath(db, pkg, file, path)[segment])
+    if (segment < names.size - 1) {
+        return Some(resolved)
+    }
+    if (resolved.isEmpty() && onDecl) {
+        return Some(annotationDefinitions(db, pkg, file, path))
+    }
+    Some(macrosCalled(db, resolved, hasAttr))
+}
+
+/**
+ * The class a call of no macro on a declaration names: an annotation of its own (`@A[1]` of an `@Annotation class
+ * A`), which the parser does not tell from a macro call, going, as `A(1)` does, to the class. Nothing if `path`'s
+ * last segment names no class.
+ */
+func annotationDefinitions(db: AnalysisDatabase, pkg: Package, file: SourceFile, path: Array<String>): Array<Definition> {
+    match (resolveTypePath(db, TypeScope([], pkg, file), path).get(path.size - 1)) {
+        case Some(Resolved(TypeOf(id))) where id.item(db).kind == ItemKind.Class => [Definition.DeclDef(id)]
+        case _ => []
+    }
+}
+
+/**
+ * Of the macros `defs` of one name, those a call runs: one with an attribute the macro of two parameters, one
+ * without the macro of one, as cjc's `macroCall_a_` and `macroCall_c_`; all of them if none is.
+ */
+func macrosCalled(db: AnalysisDatabase, defs: Array<Definition>, hasAttr: Bool): Array<Definition> {
+    let params = if (hasAttr) {
+        2
+    } else {
+        1
+    }
+    let called = defs.filter {
+        one => match (one) {
+            case DeclDef(id) => signatureTypes(db, id).params.size == params
+            case _ => false
+        }
+    }
+    if (called.isEmpty()) {
+        defs
+    } else {
+        called
+    }
 }
 
 /**
