@@ -34,7 +34,8 @@ class CacheDirTest {
         let cache = CacheDirs(cacheEnv([])).open(VfsPath.file(base)).getOrThrow()
 
         // assert
-        @Expect(cache.path, base.join(".cache").join("cjls"))
+        // as the server spells it: a drive's letter lower on Windows (D12)
+        @Expect(VfsPath.file(cache.path), VfsPath.file(base.join(".cache").join("cjls")))
         @Expect(textOf(cache.path.join(".gitignore")), "*\n")
         @Expect(textOf(cache.path.join("CACHEDIR.TAG")).startsWith("Signature: 8a477f597d28d172789f06886806bc55"))
         @Expect(textOf(cache.path.join("LAYOUT")), CACHE_LAYOUT)
