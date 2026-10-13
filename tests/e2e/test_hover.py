@@ -62,7 +62,6 @@ async def test_a_name_shows_its_declaration_or_its_type(server: LanguageClient, 
                                      end=types.Position(line=3, character=17))
     assert "let k: Int64" in local.contents.value
     assert "type Int64" in builtin.contents.value
-    assert "github.com/cangjielanguage/cangjie_docs" in builtin.contents.value
     assert nothing is None
 
     await server.shutdown_session()

@@ -61,7 +61,7 @@ class HoverHandlerTest {
     }
 
     @TestCase
-    func whatTheLanguageBuildsInLinksToTheDocs() {
+    func whatTheLanguageBuildsInShowsOurWordsOfIt() {
         // arrange
         let (state, dir) = loaded([("a.cj", file)])
         state.hoverMarkdown = true
@@ -70,8 +70,7 @@ class HoverHandlerTest {
         let (content, range) = markupOf(hoverOf(state, dir.join("a.cj"), 1, 15))
 
         // assert
-        @Expect(content.value.startsWith("```cangjie\ntype Int64\n```\n\n---\n\nA 64-bit signed integer"))
-        @Expect(content.value.endsWith("\n\n[Cangjie docs](${builtinTypeDoc("Int64").getOrThrow().link})"))
+        @Expect(content.value, "```cangjie\ntype Int64\n```\n\n---\n\n${builtinTypeDoc("Int64").getOrThrow().summary}")
         @Expect(range, "1:14-1:19")
     }
 

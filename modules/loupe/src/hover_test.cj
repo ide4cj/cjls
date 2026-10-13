@@ -7,8 +7,7 @@ import loupe.syntax.parse
 
 /**
  * Checks what hovering the name at the cursor of `fixture` shows is its annotations: `//^ code in
- * path — doc <page#anchor>` under the name for each thing it stands for, the lines of its doc joined
- * by ` / `, the link to the Cangjie docs of a built-in relative to the guide;
+ * path — doc` under the name for each thing it stands for, the lines of its doc joined by ` / `;
  * `//^ no hover` if it shows nothing. With std's packages `std` read from the SDK, and their sources
  * from `.corpora/` if `sources`.
  */
@@ -35,8 +34,7 @@ func checkHover(fixture: String, std!: Array<String> = [], sources!: Bool = fals
 func hoverText(item: HoverItem): String {
     let path = item.path.map {one => " in ${one}"} ?? ""
     let doc = item.doc.map {one => " — ${one.replace("\n", " / ")}"} ?? ""
-    let link = item.link.map {one => " <${one.removePrefix(CANGJIE_DOCS)}>"} ?? ""
-    "${item.code}${path}${doc}${link}"
+    "${item.code}${path}${doc}"
 }
 
 @Test
@@ -427,7 +425,7 @@ class BuiltinHoverTest {
             //- /main.cj module=m package=m
             package m
             func twice(n: $0Int64): Int64 { n * 2 }
-            //              ^^^^^ type Int64 — A 64-bit signed integer, from -2^63 to 2^63-1: the integer type preferred, which an integer literal is where nothing gives it another. A literal of this type is suffixed `i64`: `1i64`. <basic_data_type/integer.md#integer-types>
+            //              ^^^^^ type Int64 — A 64-bit signed integer, from -2^63 to 2^63-1: the integer type preferred, which an integer literal is where nothing gives it another. A literal of this type is suffixed `i64`: `1i64`.
             "#)
     }
 
@@ -438,7 +436,7 @@ class BuiltinHoverTest {
             package m
             main() {
                 let x = $0Float64(1)
-            //            ^^^^^^^ type Float64 — A 64-bit floating-point number, binary64 (IEEE 754), about 15 significant decimal digits. A literal of this type is suffixed `f64`: `1.5f64`. <basic_data_type/float.md#floating-point-types>
+            //            ^^^^^^^ type Float64 — A 64-bit floating-point number, binary64 (IEEE 754), about 15 significant decimal digits. A literal of this type is suffixed `f64`: `1.5f64`.
             }
             "#)
     }
@@ -449,7 +447,7 @@ class BuiltinHoverTest {
             //- /main.cj module=m package=m
             package m
             func f(a: $0VArray<Int64, $3>): Unit {}
-            //          ^^^^^^ type VArray<T, $N> — An array that is a value, of `$N` elements of type `T`, its length an `Int64` literal part of its type: `VArray<Int64, $3>`. Made by `VArray<T, $N>({i => ...})` or `VArray<T, $N>(repeat: v)`; it has `[]` and `size`. An element is no reference type, enum, lambda (but a `CFunc`) or generic type. <basic_data_type/array.md#varray>
+            //          ^^^^^^ type VArray<T, $N> — An array that is a value, of `$N` elements of type `T`, its length an `Int64` literal part of its type: `VArray<Int64, $3>`. Made by `VArray<T, $N>({i => ...})` or `VArray<T, $N>(repeat: v)`; it has `[]` and `size`. An element is no reference type, enum, lambda (but a `CFunc`) or generic type.
             "#)
     }
 
@@ -459,7 +457,7 @@ class BuiltinHoverTest {
             //- /main.cj module=m package=m
             package m
             func f(p: $0CPointer<Int64>): Unit {}
-            //          ^^^^^^^^ public type CPointer<T> where T <: CType in std.core — A C pointer to a `T` that is a `CType`: read, written, moved by arithmetic, compared to null and turned into an integer; reading, writing and arithmetic in `unsafe` only. <FFI/cangjie-c.md#pointers>
+            //          ^^^^^^^^ public type CPointer<T> where T <: CType in std.core — A C pointer to a `T` that is a `CType`: read, written, moved by arithmetic, compared to null and turned into an integer; reading, writing and arithmetic in `unsafe` only.
             "#, std: ["std.core"])
     }
 
@@ -469,7 +467,7 @@ class BuiltinHoverTest {
             //- /main.cj module=m package=m
               package m
               @$0Frozen
-            //   ^^^^^^ @Frozen — The function or property will not change in later versions: neither its signature nor its body, so the same compiler with the same options builds the same code of it. On any function but a local one, and on a property. <Macro/builtin_compilation_flags.md#frozen>
+            //   ^^^^^^ @Frozen — The function or property will not change in later versions: neither its signature nor its body, so the same compiler with the same options builds the same code of it. On any function but a local one, and on a property.
               public func f(): Unit {}
             "#)
     }
@@ -480,7 +478,7 @@ class BuiltinHoverTest {
             //- /main.cj module=m package=m
               package m
               @$0When[os == "Linux"]
-            //   ^^^^ @When[condition] — Conditional compilation: the import or declaration is compiled only where the condition holds, of `os`, `arch`, `env`, `backend`, `cjc_version`, `debug`, `test` and the variables `--cfg` sets: `@When[os == "Linux" && !debug]`. <compile_and_build/conditional_compilation.md#conditional-compilation-for-imports-and-declarations>
+            //   ^^^^ @When[condition] — Conditional compilation: the import or declaration is compiled only where the condition holds, of `os`, `arch`, `env`, `backend`, `cjc_version`, `debug`, `test` and the variables `--cfg` sets: `@When[os == "Linux" && !debug]`.
               func f(): Unit {}
             "#)
     }
@@ -492,7 +490,7 @@ class BuiltinHoverTest {
             package m
             main() {
                 let add = @$0OverflowWrapping { a: Int64, b: Int64 => a + b }
-            //               ^^^^^^^^^^^^^^^^ @OverflowWrapping — An integer operation or conversion in the function that overflows wraps around: the bits beyond the type are dropped. <reflect_and_annotation/anno.md#built-in-compilation-markers-for-integer-overflow-handling-strategies>
+            //               ^^^^^^^^^^^^^^^^ @OverflowWrapping — An integer operation or conversion in the function that overflows wraps around: the bits beyond the type are dropped.
             }
             "#)
     }
@@ -504,7 +502,7 @@ class BuiltinHoverTest {
             package m
             main() {
                 let line = @$0sourceLine()
-            //                ^^^^^^^^^^ @sourceLine(): Int64 — The line it is written on, as an `Int64` literal. <Macro/builtin_compilation_flags.md#source-location>
+            //                ^^^^^^^^^^ @sourceLine(): Int64 — The line it is written on, as an `Int64` literal.
             }
             "#)
     }

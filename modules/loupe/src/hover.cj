@@ -42,11 +42,7 @@ public struct HoverItem {
          * Its doc comment, its text as written, the comment's own markers taken off (`docText`); of what the
          * language builds in, our words of it (`BuiltinDoc`).
          */
-        public let doc!: ?String = None,
-        /**
-         * Where the Cangjie docs tell of what the language builds in (`BuiltinDoc.link`).
-         */
-        public let link!: ?String = None
+        public let doc!: ?String = None
     ) {}
 }
 
@@ -141,7 +137,7 @@ func builtinAnnotationAt(token: CjSyntaxToken): ?BuiltinDoc {
 }
 
 func builtinHover(token: CjSyntaxToken, doc: BuiltinDoc): HoverResult {
-    HoverResult(token.textRange, [HoverItem(doc.code, doc: doc.summary, link: doc.link)])
+    HoverResult(token.textRange, [HoverItem(doc.code, doc: doc.summary)])
 }
 
 /**
@@ -459,8 +455,7 @@ class Hovers {
         } else {
             Option<BuiltinDoc>.None
         }
-        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id) ?? builtin?.summary,
-            link: builtin?.link)
+        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id) ?? builtin?.summary)
     }
 
     /**

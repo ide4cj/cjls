@@ -97,8 +97,8 @@ func documentHighlight(text: Rope, highlight: RelatedHighlight, encoding: Encodi
 
 /**
  * What a hover found, each thing the name stands for apart, as rust-analyzer shows it: where it is
- * and its declaration as Cangjie code, then its doc comment as written, and a link to the Cangjie docs
- * for what the language builds in; to a client of plain text, the same lines.
+ * and its declaration as Cangjie code, then its doc comment as written; to a client of plain text,
+ * the same lines.
  */
 func hoverContent(hover: HoverResult, markdown: Bool): MarkupContent {
     let parts = hover.items.map {
@@ -113,13 +113,6 @@ func hoverContent(hover: HoverResult, markdown: Bool): MarkupContent {
                 "---\n\n${doc}"
             } else {
                 "\n${doc}"
-            })
-        }
-        if (let Some(link) <- item.link) {
-            lines.add(if (markdown) {
-                "[Cangjie docs](${link})"
-            } else {
-                link
             })
         }
         String.join(lines.toArray(), delimiter: if (markdown) {
