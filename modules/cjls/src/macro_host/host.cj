@@ -234,16 +234,12 @@ class MacroSdk {
 
 /**
  * Runs the workspace's macros (#176, D104) on a thread of its own: once woken, builds the macro packages when the
- * files on disk changed, sets the stamps of their libraries, then asks the server every request that can be sent,
- * round after round, each round's answers set in one write, until none is left.
+ * files on disk changed, or once a build another server held the lock of is due again (`Wakeups`), sets the stamps of
+ * their libraries, then asks the server every request that can be sent, round after round, each round's answers set
+ * in one write, until none is left.
  */
 public class MacroHost <: MacroWork {
-    private let lock = Mutex()
-    private let woken: Condition
-    // guarded by `lock`
-    private var work = false
-    private var build = false
-    private var stopped = false
+    private let wakeups = Wakeups()
 
     // the host's thread alone
     private var server: ?GuardedServer = None
@@ -253,12 +249,7 @@ public class MacroHost <: MacroWork {
     private let libraries = HashMap<String, MacroLibrary>()
     private let reported = HashSet<String>()
 
-    public MacroHost(private let loop: Loop, private let logger: Logger) {
-        // made under `lock`: `condition` throws otherwise
-        woken = synchronized(lock) {
-            lock.condition()
-        }
-    }
+    public MacroHost(private let loop: Loop, private let logger: Logger) {}
 
     /**
      * Starts the thread, which builds and expands at once.
@@ -277,43 +268,19 @@ public class MacroHost <: MacroWork {
     }
 
     public func wake(build: Bool): Unit {
-        synchronized(lock) {
-            work = true
-            this.build = this.build || build
-            woken.notifyAll()
-        }
+        wakeups.wake(build)
     }
 
     public func stop(): Unit {
-        synchronized(lock) {
-            stopped = true
-            woken.notifyAll()
-        }
+        wakeups.stop()
     }
 
     private func isStopped(): Bool {
-        synchronized(lock) {
-            stopped
-        }
-    }
-
-    private func next(): ?Bool {
-        synchronized(lock) {
-            while (!work && !stopped) {
-                woken.wait()
-            }
-            if (stopped) {
-                return None
-            }
-            let wanted = build
-            work = false
-            build = false
-            wanted
-        }
+        wakeups.isStopped()
     }
 
     private func run(): Unit {
-        while (let Some(build) <- next()) {
+        while (let Some(build) <- wakeups.next()) {
             try {
                 cycle(build)
             } catch (_: CancelledException) {
@@ -336,7 +303,8 @@ public class MacroHost <: MacroWork {
             return
         }
         if (build) {
-            buildLibraries(settings, roots, cacheDirs)
+            let ran = buildLibraries(settings, roots, cacheDirs)
+            wakeups.built(ran, MonoTime.now())
         }
         let sdk = this.sdk ?? return ()
         if (libraries.isEmpty()) {
@@ -366,25 +334,31 @@ public class MacroHost <: MacroWork {
     /**
      * Builds what the macros need, as the snapshot's project says (D104), into `macro-build/<cjc --version>` of the
      * cache directory of its first macro package's project (D106), and sets the stamps of the libraries; a new
-     * library ends the server, which keeps the old one loaded. Nothing is built while another server builds there.
+     * library ends the server, which keeps the old one loaded. `false`, nothing built, while another server builds
+     * there: the host tries again later.
      */
-    private func buildLibraries(settings: Settings, roots: Array<VfsPath>, cacheDirs: CacheDirs): Unit {
+    private func buildLibraries(settings: Settings, roots: Array<VfsPath>, cacheDirs: CacheDirs): Bool {
         let snapshot = loop.snapshot()
         let db = snapshot.analysis
         let plan = macroBuildPlan(db)
         if (plan.isEmpty()) {
-            return
+            return true
         }
-        let sdk = sdkFor(settings) ?? return ()
+        let sdk = sdkFor(settings) ?? return true
         let file = plan.iterator().filter {unit => unit.isMacro}.map {unit => unit.pkg.files(db)}.filter {
             files => !files.isEmpty()
         }.next().flatMap {files => files.get(0)}
-        let cacheDir = file.flatMap {id => cacheDirs.of(snapshot.path(id), roots)} ?? return report(
-            "no directory the macros can be built in: they are not expanded")
+        let cacheDir = match (file.flatMap {id => cacheDirs.of(snapshot.path(id), roots)}) {
+            case Some(dir) => dir
+            case None =>
+                report("no directory the macros can be built in: they are not expanded")
+                return true
+        }
         let out = try {
             cacheDir.macroBuild(dirNameOf(sdk.version))
         } catch (e: FSException) {
-            return report("${cacheDir.path} cannot be written: ${e.message}")
+            report("${cacheDir.path} cannot be written: ${e.message}")
+            return true
         }
         let modules = HashMap<Package, String>()
         for (unit in plan) {
@@ -397,8 +371,12 @@ public class MacroHost <: MacroWork {
                 unit.deps.map {dep => (modules.get(dep) ?? unit.module, dep.name(db))},
                 unit.binaries |> filterMap {cjo: VfsPath => cjo.filePath} |> collectArray))
         }
-        let built = MacroBuilder(out, sdk.version, sdk.toolchain).build(units.toArray()) ?? return logger.info(
-            "another server builds the macros", [("directory", out.toString())])
+        let built = match (MacroBuilder(out, sdk.version, sdk.toolchain).build(units.toArray())) {
+            case Some(built) => built
+            case None =>
+                logger.info("another server builds the macros", [("directory", out.toString())])
+                return false
+        }
         var changed = false
         for ((name, result) in built) {
             match (result) {
@@ -425,6 +403,7 @@ public class MacroHost <: MacroWork {
             server?.restart()
         }
         loop.write {state: ServerState => state.setMacroLibraries(stamps.toArray())}
+        true
     }
 
     /**
