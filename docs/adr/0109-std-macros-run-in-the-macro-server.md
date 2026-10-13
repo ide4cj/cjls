@@ -26,4 +26,4 @@ Amends ADR-0098: a call of std's macro is a call the server runs, nested or read
 - The first load of a workspace asks the server for every call of std, one round trip each (306 `@Derive` in this repository alone). #176's step 5 measures it.
 - The real output's bodies are read but their type errors are not reported (#53).
 - A workspace call around a call of std is not asked while the SDK has no library for it. Before, it was asked with the call of std left as written.
-- When std's macros generate other declarations than #175's expander, the server's win wherever it answered. Nothing yet says that cjls's expander is behind a nightly (#176's step 5).
+- When std's macros generate other declarations than #175's expander, the server's win wherever it answered. `StdExpansionDriftTest` holds every case #175 expands to what the SDK's std declares, header by header, annotations and the order of modifiers aside: a nightly that changes them fails it. Where cjls declares by design otherwise (`@Test` rewrites its class, which an expansion after the item cannot), the difference is listed, and the list only shrinks.
