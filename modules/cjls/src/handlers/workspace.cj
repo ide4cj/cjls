@@ -15,6 +15,7 @@ import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, fi
     projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
 import cjls.lsp_types.*
 import cjls.server.*
+import cjls.macro_host.MacroHost
 import cjls.macros.LspHandler
 
 /**
@@ -67,6 +68,10 @@ func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, par
         }
     }
     state.setFilesContents(files.filter {file => !state.openDocuments.contains(file[0])}.toArray())
+    // a file of a macro package saved, an open one too: what the build reads is the disk (D104)
+    if (!params.changes.isEmpty()) {
+        state.macroWork?.wake(true)
+    }
     if (reload) {
         startLoad(loop, client, logger)
     }
@@ -189,6 +194,20 @@ func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
         if (let Some(warning) <- load(loop, client, logger, request)) {
             showWarning(client, logger, warning)
         }
+    }
+}
+
+/**
+ * Starts running the workspace's macros once a load ended the first time, and builds them again after every later
+ * one (D104). Called inside a write.
+ */
+func startMacros(loop: Loop, logger: Logger): Unit {
+    match (loop.state.macroWork) {
+        case Some(work) => work.wake(true)
+        case None =>
+            let host = MacroHost(loop, logger)
+            loop.state.macroWork = host
+            host.start()
     }
 }
 
@@ -337,6 +356,7 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
             if (opened.any {path => findsProjectAgain(state, path)}) {
                 startLoad(loop, client, logger)
             }
+            startMacros(loop, logger)
             Some((sdkWarning(state, home), packageLinesAfterLoad(state)))
         } else {
             Option<(?String, Array<ApplyWorkspaceEditParams>)>.None

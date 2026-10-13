@@ -5,9 +5,31 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import rope.Rope
 import loupe.vfs.VfsPath
+import loupe.db.{Cfg, ModuleModel, PackageModel, ProjectModel}
 
 func pathOf(name: String): VfsPath {
     VfsPath.file(getTempDirectory().join(name))
+}
+
+@Test
+class MacroStateTest {
+    @TestCase
+    func aNewLibraryStampIsSetOnItsPackageAndChangesTheFiles() {
+        // arrange
+        let state = ServerState()
+        let root = pathOf("macros")
+        state.setProject(ProjectModel(Cfg([]), [ModuleModel("m", root, [PackageModel("m.ms", root.join("ms"), [])])]))
+        let db = state.analysis
+        let pkg = db.project().getOrThrow().modules(db)[0].packages(db)[0]
+        state.takeFilesChanged()
+
+        // act
+        state.setMacroLibraries([(pkg, 7)])
+
+        // assert
+        @Expect(pkg.macroLibrary(db), 7)
+        @Expect(state.takeFilesChanged())
+    }
 }
 
 @Test
