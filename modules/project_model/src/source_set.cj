@@ -68,11 +68,12 @@ func hostFeature(cfg: Cfg): ?String {
 }
 
 /**
- * The features the target `cfg` builds for enables: its own (`hostFeature`), and those `features`
- * maps each enabled one to, in turn; in the order of their names.
+ * The features the target `cfg` builds for enables: its own (`hostFeature`) and the module's
+ * `always` (`[package] always-enabled-features`), and those `features` maps each enabled one to,
+ * in turn; in the order of their names.
  */
-func enabledFeatures(features: Array<Feature>, cfg: Cfg): Array<String> {
-    let enabled = HashSet<String>()
+func enabledFeatures(features: Array<Feature>, cfg: Cfg, always!: Array<String> = []): Array<String> {
+    let enabled = HashSet<String>(always)
     if (let Some(host) <- hostFeature(cfg)) {
         enabled.add(host)
     }
@@ -92,12 +93,12 @@ func enabledFeatures(features: Array<Feature>, cfg: Cfg): Array<String> {
 
 /**
  * The chain of `sets` a build for `cfg` takes, as cjpm picks it: those whose features the target
- * enables (`enabledFeatures`), from the fewest features to the most, each of a set's features
+ * and `always` enable (`enabledFeatures`), from the fewest features to the most, each of a set's features
  * those of the one before it and more. A set the target enables that is not on the chain is left
  * out, and told: cjpm rejects a build of it.
  */
-func sourceSetChain(sets: Array<SourceSet>, features: Array<Feature>, cfg: Cfg): SourceSetChain {
-    let enabled = enabledFeatures(features, cfg)
+func sourceSetChain(sets: Array<SourceSet>, features: Array<Feature>, cfg: Cfg, always!: Array<String> = []): SourceSetChain {
+    let enabled = enabledFeatures(features, cfg, always: always)
     let taken = ArrayList<SourceSet>()
     let left = ArrayList<(SourceSet, String)>()
     for (set in sets) {
