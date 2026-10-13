@@ -30,7 +30,7 @@ Amends ADR-0095: the numbers come from that table when the SDK has no `Tokens.in
   - the pinned nightly's for 1.1 on, which `TokenNumbersTest` holds to the SDK the tests run on;
   - its first 156 and `ILLEGAL` for 1.0, sending the contextual keywords 1.0 lacks (`common`, `specific`, `features`, `::`) as the identifiers it reads them as;
   - none before 1.0. Macros are off then.
-- **Every file of the workspace with calls of workspace macros is expanded**, not only the open ones: what the macros declare is seen from other packages.
+- **Every file of the workspace with calls of workspace macros is expanded**, not only the open ones: what the macros declare is seen from other packages. The open ones are asked first. An edit ends a round between two calls: the answers before it are kept, each with its request's fingerprint, and the next round asks again only what the edit changed.
 
 ## Consequences
 

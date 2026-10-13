@@ -14,6 +14,7 @@ import loupe.fixture.*
 import loupe.hir.{macroOutputOf, macroRequests, pendingMacroRequests, setMacroOutputsByKey}
 import macro_server.*
 import project_model.{hostCfg, sdkTarget}
+import rope.Rope
 
 /**
  * The SDK the tests run on (`CANGJIE_HOME`).
@@ -305,5 +306,98 @@ class DirNameTest {
 
         // assert
         @Expect(name, "1.3.0-alpha.20261002001050-cjnative")
+    }
+}
+
+/**
+ * A server whose macros give back their input, which makes an edit on its first call.
+ */
+class EditingExpander <: Expander {
+    let calls = ArrayList<MacroCallData>()
+
+    EditingExpander(let edit: () -> Unit) {}
+
+    public func expand(call: MacroCallData): CallOutcome {
+        calls.add(call)
+        if (calls.size == 1) {
+            edit()
+        }
+        Answered(resultOf(MacroResultData(status: 1, tks: call.args)))
+    }
+}
+
+let USES = #"
+        package m
+        import m.ms.*
+        @M
+        class C { let a = 1 }
+"#
+
+/**
+ * `/a.cj` and `/b.cj` of package `m`, each holding `USES`, with the workspace macro package `m.ms` built.
+ */
+func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<String, MacroLibrary>) {
+    let parsed = Fixture.parse(#"
+        //- /a.cj module=m package=m
+        "# + USES + #"
+        //- /b.cj module=m package=m
+        "# + USES + #"
+        //- /ms/ms.cj module=m package=m.ms
+        macro package m.ms
+        import std.ast.*
+        public macro M(input: Tokens): Tokens { input }
+        "#)
+    let db = parsed.database()
+    (db, db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow(), db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(),
+        HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))]))
+}
+
+@Test
+class MacroRoundEditTest {
+    @TestCase
+    func anEditMidwayEndsTheRoundAndWhatWasAnsweredBeforeItIsKept() {
+        // arrange
+        let (db, a, b, libraries) = twoFilesFixture()
+        let snapshot = db.snapshot()
+        let requests = sendableRequests(snapshot, [a, b], libraries)
+        let expander = EditingExpander({=> db.setFileText(b.fileId(db), Rope(USES.replace("a = 1", "b = 2")))})
+
+        // act
+        let answers = expandAll(snapshot, requests, testNumbers(), expander)
+        setMacroOutputsByKey(db, answers)
+
+        // assert
+        @Expect(expander.calls.size, 1)
+        @Expect(pendingMacroRequests(db, a).size, 0)
+        @Expect(pendingMacroRequests(db, b).size, 1)
+    }
+
+    @TestCase
+    func anAnswerToARequestTheEditChangedIsAskedAgain() {
+        // arrange
+        let (db, a, b, libraries) = twoFilesFixture()
+        let snapshot = db.snapshot()
+        let requests = sendableRequests(snapshot, [a, b], libraries)
+        let expander = EditingExpander({=> db.setFileText(a.fileId(db), Rope(USES.replace("a = 1", "b = 2")))})
+
+        // act
+        let answers = expandAll(snapshot, requests, testNumbers(), expander)
+        setMacroOutputsByKey(db, answers)
+
+        // assert
+        @Expect(answers.size, 1)
+        @Expect(pendingMacroRequests(db, a).size, 1)
+    }
+
+    @TestCase
+    func theRequestsOfTheOpenFilesAreSentFirst() {
+        // arrange
+        let (db, a, b, libraries) = twoFilesFixture()
+
+        // act
+        let requests = sendableRequests(db, [a, b], libraries, isOpen: {file => file.fileId(db).index == b.fileId(db).index})
+
+        // assert
+        @Expect(requests.map {one => one[0].fileId(db).index}, [b.fileId(db).index, a.fileId(db).index])
     }
 }

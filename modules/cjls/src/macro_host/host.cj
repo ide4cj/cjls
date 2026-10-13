@@ -24,12 +24,13 @@ public struct MacroLibrary {
 
 /**
  * The requests of `files` to send: those not answered yet whose macro package has a library built at the stamp the
- * analysis has for it (D87: a call whose library is not there is never sent), each with that library.
+ * analysis has for it (D87: a call whose library is not there is never sent), each with that library; those of the
+ * files `isOpen` says the editor shows first, then the others, each in their order.
  */
-public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>): Array<(
-    SourceFile, MacroRequest, MacroLibrary)> {
+public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>,
+    isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile, MacroRequest, MacroLibrary)> {
     let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
-    for (file in files) {
+    for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
         for (request in pendingMacroRequests(db, file)) {
             let pkg = request.definition.pkg
             if (let Some(library) <- libraries.get(pkg.name(db)) && library.stamp == pkg.macroLibrary(db)) {
@@ -41,22 +42,42 @@ public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, lib
 }
 
 /**
- * Sends each of `requests` through `expander`, in their order, until `stopped`: what each got, keyed by its file
- * and call, which outlive the revision the requests are of (D18).
+ * Sends each of `requests` through `expander`, in their order, until `stopped` or the files change under `db`: what
+ * each sent got, keyed by its file and call, which outlive the revision the requests are of (D18). What the calls
+ * need of `db` is read before the first is sent, so a change midway loses no answer: each carries its request's
+ * fingerprint, and one whose input changed is asked again.
+ *
+ * @throws CancelledException - if the files change before the first call is sent
  */
 public func expandAll(db: AnalysisDatabase, requests: Array<(SourceFile, MacroRequest, MacroLibrary)>,
     numbers: TokenNumbers, expander: Expander, stopped!: () -> Bool = {=> false}): Array<(SourceFile, MacroCallKey,
     MacroOutput)> {
+    let calls = requests.map {
+        one =>
+        let (file, request, library) = one
+        let (call, layout) = callDataOf(request, request.definition.pkg.name(db), library.path, numbers)
+        (file, request, macroCallKeyOf(db, request.call), call, layout)
+    }
     let answers = ArrayList<(SourceFile, MacroCallKey, MacroOutput)>()
-    for ((file, request, library) in requests) {
-        if (stopped()) {
+    for ((file, request, key, call, layout) in calls) {
+        if (stopped() || isCancelled(db)) {
             break
         }
-        let (call, layout) = callDataOf(request, request.definition.pkg.name(db), library.path, numbers)
-        let output = outputOf(request, layout, expander.expand(call), numbers)
-        answers.add((file, macroCallKeyOf(db, request.call), output))
+        answers.add((file, key, outputOf(request, layout, expander.expand(call), numbers)))
     }
     answers.toArray()
+}
+
+/**
+ * Whether the files changed under `db`, a snapshot, or a write is waiting for them to.
+ */
+func isCancelled(db: AnalysisDatabase): Bool {
+    try {
+        db.unwindIfCancelled()
+        false
+    } catch (_: CancelledException) {
+        true
+    }
 }
 
 /**
@@ -235,8 +256,9 @@ class MacroSdk {
 /**
  * Runs the workspace's macros (#176, D104) on a thread of its own: once woken, builds the macro packages when the
  * files on disk changed, or once a build another server held the lock of is due again (`Wakeups`), sets the stamps of
- * their libraries, then asks the server every request that can be sent, round after round, each round's answers set
- * in one write, until none is left.
+ * their libraries, then asks the server every request that can be sent, those of the open documents first, round
+ * after round, each round's answers set in one write, until none is left. An edit ends a round: the answers before it
+ * are set, and the next round asks again what it changed.
  */
 public class MacroHost <: MacroWork {
     private let wakeups = Wakeups()
@@ -318,16 +340,22 @@ public class MacroHost <: MacroWork {
         }
         let expander = server.getOrThrow()
         while (!isStopped()) {
-            let snapshot = loop.snapshot()
+            let (snapshot, open) = loop.write {
+                state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
+            }
             let files = snapshot.files |> filterMap {id: FileId => snapshot.analysis.sourceFile(id)} |>
                 collectArray
-            let requests = sendableRequests(snapshot.analysis, files, libraries)
+            let requests = sendableRequests(snapshot.analysis, files, libraries,
+                isOpen: {file => open.contains(snapshot.path(file.fileId(snapshot.analysis)))})
             if (requests.isEmpty()) {
                 return
             }
             logger.debug("expanding macro calls", [("calls", requests.size)])
+            // an edit midway ends the round: what came before it is set, and the next round asks what it changed
             let answers = expandAll(snapshot.analysis, requests, sdk.numbers, expander, stopped: {=> isStopped()})
-            loop.write {state: ServerState => state.setMacroOutputs(answers)}
+            if (!answers.isEmpty()) {
+                loop.write {state: ServerState => state.setMacroOutputs(answers)}
+            }
         }
     }
 
