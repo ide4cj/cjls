@@ -259,14 +259,23 @@ let TOKEN_MODIFIERS = [(SemanticTokenModifiers.DECLARATION, HighlightModifier.De
     (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary),
     (SemanticTokenModifiers("mutable"), HighlightModifier.Mutable)]
 
+/**
+ * The modifiers a kind of symbol adds to its type, which LSP has none of: a constructor, a `method`,
+ * and a constant, a `readonly` `variable`, by what the editors' grammars name them (D105). Their bits
+ * follow those of `TOKEN_MODIFIERS`.
+ */
+let KIND_MODIFIERS = [(SemanticTokenModifiers("constructor"), StructureKind.Constructor),
+    (SemanticTokenModifiers("constant"), StructureKind.Constant)]
+
 func semanticTokensLegend(): SemanticTokensLegend {
     SemanticTokensLegend(tokenTypes: TOKEN_TYPES.map {it => it.value},
-        tokenModifiers: TOKEN_MODIFIERS.map {it => it[0].value})
+        tokenModifiers: TOKEN_MODIFIERS.map {it => it[0].value}.concat(KIND_MODIFIERS.map {it => it[0].value}))
 }
 
 /**
  * LSP has no type for a constructor, a field or a constant: they go as a method, a property and a
- * `readonly` variable, as LSP's own documentation has it.
+ * `readonly` variable, as LSP's own documentation has it, the first and the last told by a modifier
+ * (`KIND_MODIFIERS`).
  */
 func tokenType(tag: HighlightTag): SemanticTokenTypes {
     match (tag) {
@@ -299,6 +308,23 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
     }
 }
 
+/**
+ * `tokens`, less those a client laying them over a grammar of its own has from it: a keyword, a
+ * comment, a literal or an operator, unless a modifier tells what the grammar cannot (D105).
+ */
+func overSyntax(tokens: Array<HighlightedRange>, augments: Bool): Array<HighlightedRange> {
+    if (!augments) {
+        return tokens
+    }
+    tokens.filter {
+        token => !token.modifiers.isEmpty() || match (token.tag) {
+            case HighlightTag.Keyword | HighlightTag.Comment | HighlightTag.StringLiteral |
+                HighlightTag.NumberLiteral | HighlightTag.Operator => false
+            case _ => true
+        }
+    }
+}
+
 func tokenTypeIndex(tag: HighlightTag): UInt32 {
     let tokenKind = tokenType(tag)
     var index = 0
@@ -308,10 +334,15 @@ func tokenTypeIndex(tag: HighlightTag): UInt32 {
     UInt32(index)
 }
 
-func tokenModifierBits(modifiers: HighlightModifiers): UInt32 {
+func tokenModifierBits(tag: HighlightTag, modifiers: HighlightModifiers): UInt32 {
     var bits: UInt32 = 0
     for (i in 0..TOKEN_MODIFIERS.size where modifiers.contains(TOKEN_MODIFIERS[i][1])) {
         bits |= 1 << UInt32(i)
+    }
+    if (let HighlightTag.Symbol(kind) <- tag) {
+        for (i in 0..KIND_MODIFIERS.size where KIND_MODIFIERS[i][1] == kind) {
+            bits |= 1 << UInt32(TOKEN_MODIFIERS.size + i)
+        }
     }
     bits
 }
@@ -325,7 +356,7 @@ func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encod
     let data = SemanticTokensData()
     for (token in tokens) {
         let tokenKind = tokenTypeIndex(token.tag)
-        let modifiers = tokenModifierBits(token.modifiers)
+        let modifiers = tokenModifierBits(token.tag, token.modifiers)
         let start = text.positionOf(token.range.start, encoding)
         let end = text.positionOf(token.range.end, encoding)
         if (start.line == end.line) {
