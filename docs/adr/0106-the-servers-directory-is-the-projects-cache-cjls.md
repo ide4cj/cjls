@@ -10,7 +10,7 @@ Status: proposed
 
 ## Decision
 
-- **Where:** `<project>/.cache/cjls/`. `<project>` is the directory of the project a file is of, a `cjpm.toml` workspace or a `cj-project.json` (`projectDirOf`), up to the innermost root it is under, else that root. Under no root, it is the project above the file, else the file's own directory. When `<project>/.cache/cjls` cannot be written, it is `<user cache>/cjls/<name>-<hash of the path>/` (`$XDG_CACHE_HOME` or `~/.cache`, `~/Library/Caches`, `%LOCALAPPDATA%`), which names its project in `BASE`.
+- **Where:** `<project>/.cache/cjls/`. `<project>` is the directory of the project a file is of, a `cjpm.toml` workspace or a `cj-project.json` (`projectDirOf`), up to the innermost root it is under, else that root. Under no root, it is the project above the file, else the file's own directory. When `<project>/.cache/cjls` cannot be written, it is `<user cache>/cjls/<name>-<hash of the path>/` (`$XDG_CACHE_HOME` or `~/.cache`, `~/Library/Caches`, `%LOCALAPPDATA%`), which names its project in `BASE`. Which directory that is per OS is `platform`'s `userCacheDir` (D101).
 - **One owner:** `cjls.server`'s `CacheDirs` and `CacheDir` (`server/cache_dir.cj`). Nothing else names a path in it.
 - **Layout:**
 
@@ -26,7 +26,7 @@ Status: proposed
   - The directory is made, and set in order, when a server first opens it.
   - Opening it also empties `expanded/`, since the server remembers none of those files (D103).
   - It removes a `macro-build/<compiler>/` unused for a week, unless a build holds its lock.
-- **The lock** is the OS's own on the open file `lock` (`flock`, `LockFileEx`), never waited for. The OS releases it when the process dies, so no lock is left behind by a crash.
+- **The lock** is the OS's own on the open file `lock` (`platform`'s `tryLockFile`: `flock`, `LockFileEx`, D101), never waited for. The OS releases it when the process dies, so no lock is left behind by a crash.
 
 ## Consequences
 
