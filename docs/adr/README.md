@@ -108,7 +108,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0087](0087-workspace-macros-run-in-the-sdks-macro-server.md) | The workspace's macros run in the SDK's LSPMacroServer | proposed; Windows is not left opaque by D91; the token table is one per SDK of the window, not the pin's alone, by D94; no table is generated, and no SDK version is required, by D95; how the macro packages are built, and the guard's deadline, by D104 |
 | [0088](0088-a-document-in-no-package-finds-its-own-project.md) | A document open in no package finds its own project from its path, as R1 does on open, and that project stays loaded with the roots' | proposed |
 | [0089](0089-calca-counts-executions-per-function.md) | calca counts the executions of each tracked function, and keeps no trace | accepted |
-| [0090](0090-what-inference-finds-wrong-is-reported.md) | What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources | proposed |
+| [0090](0090-what-inference-finds-wrong-is-reported.md) | What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources | proposed; the gate also holds what no diagnostic shows by D108 |
 | [0091](0091-the-windows-macro-server-is-started-by-createprocessw.md) | On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone | proposed |
 | [0092](0092-a-new-file-is-given-its-package-line.md) | A document opened blank is given its package line | proposed |
 | [0093](0093-when-is-evaluated-on-an-active-item-tree.md) | @When is evaluated on an active item tree and in lowering, against the package's cfg | proposed |
@@ -125,3 +125,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
 | [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | proposed |
 | [0107](0107-settings-follow-the-pin.md) | A client's settings are made again when its pin moves, never checked against the cjls under test | proposed |
+| [0108](0108-error-roots-only-shrink.md) | This repository's roots of an error type are held to a checked-in count per file and kind that only shrinks | proposed |
