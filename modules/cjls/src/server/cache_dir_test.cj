@@ -5,6 +5,7 @@ import std.env.getTempDirectory
 import std.fs.{Directory, exists, File, Path}
 import std.time.DateTime
 import loupe.vfs.VfsPath
+import platform.userCacheDir
 
 let CACHE_NOW = DateTime.ofEpoch(second: 1_800_000_000, nanosecond: 0)
 
@@ -138,7 +139,7 @@ class CacheDirTest {
         let cache = CacheDirs(env).open(project).getOrThrow()
 
         // assert
-        @Expect(cache.path.parent, userCacheDirOf(hostOs(), env).getOrThrow().join("cjls"))
+        @Expect(cache.path.parent, userCacheDir(env).getOrThrow().join("cjls"))
         @Expect(cache.path.fileName, userCacheEntryOf(project))
         @Expect(textOf(cache.path.join("LAYOUT")), CACHE_LAYOUT)
         let source = project.join("src").join("a.cj")
@@ -173,23 +174,6 @@ class CacheDirTest {
         @Expect(!isExpandedFile(base.join("expanded").join("a.cj.macrocall")))
         @Expect(!isExpandedFile(base.join(".cache").join("cjls").join("expanded").join(".macrocall")))
         @Expect(!isExpandedFile(base.join(".cache").join("cjls").join("expanded").join("a.cj")))
-    }
-
-    @TestCase
-    func theUsersCacheDirectoryIsThePlatformsOwn() {
-        // arrange
-        let env = cacheEnv([("HOME", "/home/u"), ("XDG_CACHE_HOME", "relative"),
-            ("LOCALAPPDATA", "C:\\Users\\u\\AppData\\Local")])
-
-        // act, assert
-        @Expect(userCacheDirOf("Linux", env), Some(Path("/home/u").join(".cache")))
-        // absolute on every platform the test runs on
-        let absolute = getTempDirectory()
-        let xdg = cacheEnv([("HOME", "/home/u"), ("XDG_CACHE_HOME", absolute.toString())])
-        @Expect(userCacheDirOf("Linux", xdg), Some(absolute))
-        @Expect(userCacheDirOf("macOS", env), Some(Path("/home/u").join("Library").join("Caches")))
-        @Expect(userCacheDirOf("Windows", env), Some(Path("C:\\Users\\u\\AppData\\Local")))
-        @Expect(userCacheDirOf("Linux", cacheEnv([])), None<Path>)
     }
 }
 

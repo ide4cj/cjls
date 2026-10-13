@@ -6,6 +6,7 @@ import std.fs.{Directory, exists, File, FileInfo, FSException, OpenMode, Path, r
 import std.sync.Mutex
 import std.time.DateTime
 import loupe.vfs.VfsPath
+import platform.userCacheDir
 import project_model.projectDirOf
 
 // The directory the server writes, of its own, beside a project (D106, #333): `<project>/.cache/cjls`, as clangd
@@ -84,7 +85,7 @@ public class CacheDirs {
         if (prepare(inProject, base, inUserCache: false)) {
             return CacheDir(base, inProject)
         }
-        let user = userCacheDirOf(hostOs(), env) ?? return None
+        let user = userCacheDir(env) ?? return None
         let fallback = user.join("cjls").join(userCacheEntryOf(base))
         if (prepare(fallback, base, inUserCache: true)) {
             return CacheDir(base, fallback)
@@ -253,21 +254,6 @@ private func baseOfCacheDir(dir: VfsPath): ?VfsPath {
 }
 
 /**
- * The user's cache directory on `os` (`Linux`, `macOS`, `Windows`): `$XDG_CACHE_HOME`, if it is absolute, else
- * `~/.cache`; `~/Library/Caches`; `%LOCALAPPDATA%`. `None` if the environment names none.
- */
-func userCacheDirOf(os: String, env: (String) -> ?String): ?Path {
-    match (os) {
-        case "Windows" => env("LOCALAPPDATA").filter {dir => !dir.isEmpty()}.map {dir => Path(dir)}
-        case "macOS" => env("HOME").filter {dir => !dir.isEmpty()}.map {dir => Path(dir).join("Library").join("Caches")}
-        case _ => match (env("XDG_CACHE_HOME").filter {dir => !dir.isEmpty() && Path(dir).isAbsolute()}) {
-            case Some(dir) => Path(dir)
-            case None => env("HOME").filter {dir => !dir.isEmpty()}.map {dir => Path(dir).join(".cache")}
-        }
-    }
-}
-
-/**
  * The name of `base`'s directory in the user's cache: its own name and the hash of its path, which tells two
  * directories of one name apart.
  */
@@ -290,21 +276,6 @@ func hexOf(value: Int64): String {
         bits = bits >> 4
     }
     String.fromUtf8(text)
-}
-
-@When[os == "Windows"]
-func hostOs(): String {
-    "Windows"
-}
-
-@When[os == "macOS"]
-func hostOs(): String {
-    "macOS"
-}
-
-@When[os != "Windows" && os != "macOS"]
-func hostOs(): String {
-    "Linux"
 }
 
 /**
