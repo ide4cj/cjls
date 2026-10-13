@@ -33,7 +33,7 @@ let NEW_FILE_PACKAGE = Setting<Bool>("newFilePackage",
     true, readBool)
 
 let MACRO_EXPANSION = Setting<Bool>("macroExpansion",
-    "Whether the workspace's macros are run: cjls builds its macro packages with the SDK's `cjc` into `.cjls/macros` and expands their calls in the SDK's `LSPMacroServer`, which runs the workspace's code. Off, an item under a macro of the workspace is read as written.",
+    "Whether the workspace's macros are run: cjls builds its macro packages with the SDK's `cjc` into the project's `.cache/cjls/macro-build` and expands their calls in the SDK's `LSPMacroServer`, which runs the workspace's code. Off, an item under a macro of the workspace is read as written.",
     JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
     true, readBool)
 

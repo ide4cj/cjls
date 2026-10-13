@@ -1,6 +1,7 @@
 package cjls.server
 
 import std.collection.{ArrayList, HashMap, HashSet}
+import std.env.getVariable
 import std.runtime.getMaxHeapSize
 import rope.{Encoding, Rope}
 import loupe.vfs.*
@@ -124,6 +125,11 @@ public class ServerState <: FromContext<ServerState> {
      * write that changes the files.
      */
     public var macroWork: ?MacroWork = None
+
+    /**
+     * The server's directories beside the projects (D106), each set in order the first time it is opened.
+     */
+    public let cacheDirs = CacheDirs({name => getVariable(name)})
 
     /**
      * The id each root's watcher was registered with, to unregister it by.

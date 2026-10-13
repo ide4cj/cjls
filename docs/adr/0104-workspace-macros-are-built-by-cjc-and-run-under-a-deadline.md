@@ -1,4 +1,4 @@
-# ADR-0104: The workspace's macro packages are built by cjc into .cjls/macros, and run under a deadline
+# ADR-0104: The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline
 
 Status: proposed
 Amends ADR-0087: how the macro packages are built, and the guard's deadline
@@ -23,7 +23,7 @@ Amends ADR-0095: the numbers come from that table when the SDK has no `Tokens.in
 ## Decision
 
 - **cjls builds what the macros need with the SDK's cjc, package by package, with cjpm's own arguments** (`MacroBuilder`). That is the workspace's macro packages and the source packages they import, directly or not (`loupe`'s `macroBuildPlan`), each after what it imports. It does not run `build.cj` or build any other package.
-- **They go to `.cjls/macros/<cjc --version>/<module>/`** under the workspace root. cjls writes a `.cjls/.gitignore` of `*`. The user's `target` is never touched (D87), a `cjpm clean` leaves the directory alone, and a new compiler starts from scratch, since cjpm's stamps ignore it.
+- **They go to `.cache/cjls/macro-build/<cjc --version>/<module>/`**, the server's directory (D106) of the project of the first macro package. The user's `target` is never touched (D87), a `cjpm clean` leaves the directory alone, and a new compiler starts from scratch, since cjpm's stamps ignore it. A build holds the lock of `macro-build/<cjc --version>/`; a server that finds it taken builds nothing, and takes what the other built by its stamps on its next build.
 - **A package is built again when its stamp changes.** The stamp hashes cjc's version, the names, sizes and times of the package's files, and the stamps of what it links. A macro package's stamp is `Package.macroLibrary`, part of every request's fingerprint. A new library therefore makes its calls pending again, and the server, which kept the old one, is restarted. A build runs when the project is loaded, and when a file of a package in the plan is saved or changes on disk. A package that fails keeps its last library: cjc writes nothing on an error.
 - **A call has a deadline**, 10 s by default (the `macros.callTimeout` setting). Past it the server is killed, and the call is answered as failed, with a diagnostic on the call. The answer has the request's fingerprint, so the call is not sent again until its input or library changes. A server that exits is started again for the next call, which costs only the call in flight. A call whose macro package has no library is never sent (D87).
 - **The token numbers are the SDK's `Tokens.inc`, else a table of cjls's own** (`TokenNumbers.builtin`), chosen by the version `cjc --version` prints:
@@ -38,4 +38,4 @@ Amends ADR-0095: the numbers come from that table when the SDK has no `Tokens.in
 - An edit to a macro package costs its own compile and those of what it imports and changed, about 3 s each here, but never a compile of its users.
 - What cjpm does beyond cjc's arguments is not repeated: a `build.cj`'s generated sources, `compile-option`, cfgs and features. A macro package that needs them builds otherwise than cjpm builds it, or fails, and its calls stay opaque.
 - A macro package importing stdx is linked against stdx's static libraries by name (`-l<pkg>`). Whatever else stdx's libraries need is not added.
-- `.cjls/` is a directory of the user's project that cjls writes. Its `.gitignore` keeps it out of version control.
+- Macro packages of several projects are built into the directory of one of them.

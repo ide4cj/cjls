@@ -5,6 +5,7 @@ import std.convert.*
 import std.fs.*
 import std.sort.sort
 import std.time.DateTime
+import cjls.server.tryLockCacheDir
 
 @When[os == "Windows"]
 const LIBRARY_SUFFIX = ".dll"
@@ -54,16 +55,30 @@ public interface Toolchain {
  * Builds the macro packages of the workspace and the source packages they link into `out` (D104): `<out>/<module>`
  * holds each package's `.cjo` and its library, `lib-macro_<pkg>` for a macro package, `lib<pkg>.a` for another,
  * and the stamp of what it was built of; a package whose stamp did not change is not built again. As cjpm does it,
- * with `--compile-macro` for a macro package, without its `build.cj` and without any other package.
+ * with `--compile-macro` for a macro package, without its `build.cj` and without any other package. A build holds
+ * `out`'s lock (`tryLockCacheDir`, D106), so a second server on the project neither builds there at once nor
+ * removes it meanwhile.
  */
 public class MacroBuilder {
     public MacroBuilder(private let out: Path, private let version: String, private let toolchain: Toolchain) {}
 
     /**
      * Builds `units`, in their order: for each macro package, by name, its library, or why there is none. A package
-     * whose dependency did not build is not built either.
+     * whose dependency did not build is not built either. `None`, nothing built, while another holds `out`'s lock:
+     * what it builds is found by its stamps the next time.
+     *
+     * @throws FSException - if `out`'s lock file cannot be opened
      */
-    public func build(units: Array<BuildUnit>): HashMap<String, BuiltLibrary> {
+    public func build(units: Array<BuildUnit>): ?HashMap<String, BuiltLibrary> {
+        let lock = tryLockCacheDir(out) ?? return None
+        try {
+            buildAll(units)
+        } finally {
+            lock.close()
+        }
+    }
+
+    private func buildAll(units: Array<BuildUnit>): HashMap<String, BuiltLibrary> {
         let stamps = HashMap<String, Int64>()
         let failed = HashMap<String, String>()
         let built = HashMap<String, BuiltLibrary>()

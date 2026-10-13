@@ -221,16 +221,14 @@ func killQuietly(server: MacroServerProcess): Unit {
 }
 
 /**
- * What the host needs of the SDK: where its server is, how it numbers tokens, its `cjc`, its version, and where
- * the macro packages it builds go.
+ * What the host needs of the SDK: where its server is, how it numbers tokens, its `cjc` and its version.
  */
 class MacroSdk {
     MacroSdk(
         let paths: MacroServerPaths,
         let numbers: TokenNumbers,
         let toolchain: SdkToolchain,
-        let version: String,
-        let out: Path
+        let version: String
     ) {}
 }
 
@@ -329,14 +327,16 @@ public class MacroHost <: MacroWork {
     }
 
     private func cycle(build: Bool): Unit {
-        let (settings, roots) = loop.write {state: ServerState => (state.settings, state.roots.toArray())}
+        let (settings, roots, cacheDirs) = loop.write {
+            state: ServerState => (state.settings, state.roots.toArray(), state.cacheDirs)
+        }
         if (!settings.macroExpansion) {
             server?.close()
             server = None
             return
         }
         if (build) {
-            buildLibraries(settings, roots)
+            buildLibraries(settings, roots, cacheDirs)
         }
         let sdk = this.sdk ?? return ()
         if (libraries.isEmpty()) {
@@ -364,17 +364,28 @@ public class MacroHost <: MacroWork {
     }
 
     /**
-     * Builds what the macros need, as the snapshot's project says (D104), and sets the stamps of the libraries; a
-     * new library ends the server, which keeps the old one loaded.
+     * Builds what the macros need, as the snapshot's project says (D104), into `macro-build/<cjc --version>` of the
+     * cache directory of its first macro package's project (D106), and sets the stamps of the libraries; a new
+     * library ends the server, which keeps the old one loaded. Nothing is built while another server builds there.
      */
-    private func buildLibraries(settings: Settings, roots: Array<VfsPath>): Unit {
+    private func buildLibraries(settings: Settings, roots: Array<VfsPath>, cacheDirs: CacheDirs): Unit {
         let snapshot = loop.snapshot()
         let db = snapshot.analysis
         let plan = macroBuildPlan(db)
         if (plan.isEmpty()) {
             return
         }
-        let sdk = sdkFor(settings, roots, plan, db) ?? return ()
+        let sdk = sdkFor(settings) ?? return ()
+        let file = plan.iterator().filter {unit => unit.isMacro}.map {unit => unit.pkg.files(db)}.filter {
+            files => !files.isEmpty()
+        }.next().flatMap {files => files.get(0)}
+        let cacheDir = file.flatMap {id => cacheDirs.of(snapshot.path(id), roots)} ?? return report(
+            "no directory the macros can be built in: they are not expanded")
+        let out = try {
+            cacheDir.macroBuild(dirNameOf(sdk.version))
+        } catch (e: FSException) {
+            return report("${cacheDir.path} cannot be written: ${e.message}")
+        }
         let modules = HashMap<Package, String>()
         for (unit in plan) {
             modules[unit.pkg] = unit.module
@@ -386,7 +397,8 @@ public class MacroHost <: MacroWork {
                 unit.deps.map {dep => (modules.get(dep) ?? unit.module, dep.name(db))},
                 unit.binaries |> filterMap {cjo: VfsPath => cjo.filePath} |> collectArray))
         }
-        let built = MacroBuilder(sdk.out, sdk.version, sdk.toolchain).build(units.toArray())
+        let built = MacroBuilder(out, sdk.version, sdk.toolchain).build(units.toArray()) ?? return logger.info(
+            "another server builds the macros", [("directory", out.toString())])
         var changed = false
         for ((name, result) in built) {
             match (result) {
@@ -419,11 +431,10 @@ public class MacroHost <: MacroWork {
      * The SDK the settings name, else the one the environment does, as the load finds it (D40); `None`, logged
      * once, if there is none or it cannot number tokens.
      */
-    private func sdkFor(settings: Settings, roots: Array<VfsPath>, plan: Array<MacroBuildUnit>, db: AnalysisDatabase): ?MacroSdk {
+    private func sdkFor(settings: Settings): ?MacroSdk {
         let home = findCangjieHome(settings.cangjieHome, env: {name => getVariable(name)}) ?? return none(
             "no SDK: the workspace's macros are not expanded")
-        let base = roots.get(0).flatMap {root => root.filePath} ?? plan[0].pkg.dir(db).filePath ?? return None
-        let key = "${home.path}\u{0}${base}"
+        let key = home.path.toString()
         if (sdkOf == key) {
             return sdk
         }
@@ -433,31 +444,22 @@ public class MacroHost <: MacroWork {
         let paths = MacroServerPaths.inSdk(Path(home.path), target)
         let toolchain = SdkToolchain(paths)
         let version = toolchain.version() ?? return none("the SDK's cjc does not run: macros are not expanded")
-        let dotCjls = base.join(".cjls")
-        let out = dotCjls.join("macros").join(dirNameOf(version))
-        try {
-            if (!exists(out)) {
-                Directory.create(out, recursive: true)
-            }
-            let ignore = dotCjls.join(".gitignore")
-            if (!exists(ignore)) {
-                File.writeTo(ignore, "*\n".toArray())
-            }
-        } catch (e: Exception) {
-            return none("${out} cannot be made: ${e.message}")
-        }
         let numbers = tokenNumbersOf(paths, version) ?? return none(
             "the SDK numbers its token kinds in a way cjls does not know: macros are not expanded")
-        let found = MacroSdk(paths, numbers, toolchain, version, out)
+        let found = MacroSdk(paths, numbers, toolchain, version)
         sdk = found
         found
     }
 
     private func none(message: String): ?MacroSdk {
+        report(message)
+        None
+    }
+
+    private func report(message: String): Unit {
         if (reported.add(message)) {
             logger.warn(message)
         }
-        None
     }
 }
 

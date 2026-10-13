@@ -5,6 +5,7 @@ import std.env.getTempDirectory
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import cjls.server.tryLockCacheDir
 
 /**
  * A `cjc` that writes what a build of a package writes last, or fails on the packages named.
@@ -45,7 +46,7 @@ func sources(names: Array<String>): (Path, Path) {
         Directory.create(root.join("src").join(name), recursive: true)
         File.writeTo(root.join("src").join(name).join("${name}.cj"), "package m.${name}\n".toArray())
     }
-    (root.join("src"), root.join(".cjls").join("macros"))
+    (root.join("src"), root.join("macro-build"))
 }
 
 func unit(src: Path, name: String, isMacro!: Bool = false, deps!: Array<String> = []): BuildUnit {
@@ -62,7 +63,7 @@ class MacroBuilderTest {
         let builder = MacroBuilder(out, "cjc 1", toolchain)
 
         // act
-        let built = builder.build([unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])])
+        let built = builder.build([unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])]).getOrThrow()
 
         // assert
         @Expect(toolchain.names(), ["util", "ms"])
@@ -82,11 +83,11 @@ class MacroBuilderTest {
         // arrange
         let (src, out) = sources(["util", "ms"])
         let units = [unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])]
-        let first = MacroBuilder(out, "cjc 1", FakeToolchain()).build(units)
+        let first = MacroBuilder(out, "cjc 1", FakeToolchain()).build(units).getOrThrow()
         let toolchain = FakeToolchain()
 
         // act
-        let second = MacroBuilder(out, "cjc 1", toolchain).build(units)
+        let second = MacroBuilder(out, "cjc 1", toolchain).build(units).getOrThrow()
 
         // assert
         @Expect(toolchain.names().size, 0)
@@ -98,12 +99,12 @@ class MacroBuilderTest {
         // arrange
         let (src, out) = sources(["util", "ms"])
         let units = [unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])]
-        let first = MacroBuilder(out, "cjc 1", FakeToolchain()).build(units)
+        let first = MacroBuilder(out, "cjc 1", FakeToolchain()).build(units).getOrThrow()
         File.writeTo(src.join("util").join("util.cj"), "package m.util\nfunc f() {}\n".toArray())
         let toolchain = FakeToolchain()
 
         // act
-        let second = MacroBuilder(out, "cjc 1", toolchain).build(units)
+        let second = MacroBuilder(out, "cjc 1", toolchain).build(units).getOrThrow()
 
         // assert
         @Expect(toolchain.names(), ["util", "ms"])
@@ -115,11 +116,11 @@ class MacroBuilderTest {
         // arrange
         let (src, out) = sources(["ms"])
         let units = [unit(src, "ms", isMacro: true)]
-        MacroBuilder(out, "cjc 1", FakeToolchain()).build(units)
+        MacroBuilder(out, "cjc 1", FakeToolchain()).build(units).getOrThrow()
         let toolchain = FakeToolchain()
 
         // act
-        MacroBuilder(out, "cjc 2", toolchain).build(units)
+        MacroBuilder(out, "cjc 2", toolchain).build(units).getOrThrow()
 
         // assert
         @Expect(toolchain.names(), ["ms"])
@@ -133,7 +134,7 @@ class MacroBuilderTest {
 
         // act
         let built = MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "util"),
-            unit(src, "ms", isMacro: true, deps: ["util"])])
+            unit(src, "ms", isMacro: true, deps: ["util"])]).getOrThrow()
 
         // assert
         @Expect(toolchain.names(), ["util"])
@@ -141,6 +142,39 @@ class MacroBuilderTest {
             case Some(NotBuilt(reason)) => @Expect(reason, "m.util, which it imports, did not build")
             case _ => @Fail("m.ms was built")
         }
+    }
+
+    @TestCase
+    func nothingIsBuiltWhileAnotherHoldsTheLock() {
+        // arrange
+        let (src, out) = sources(["ms"])
+        let toolchain = FakeToolchain()
+        let held = tryLockCacheDir(out).getOrThrow()
+
+        // act
+        let built = try {
+            MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "ms", isMacro: true)])
+        } finally {
+            held.close()
+        }
+
+        // assert
+        @Expect(built.isNone())
+        @Expect(toolchain.names().size, 0)
+    }
+
+    @TestCase
+    func aBuildLeavesTheLockFree() {
+        // arrange
+        let (src, out) = sources(["ms"])
+        MacroBuilder(out, "cjc 1", FakeToolchain()).build([unit(src, "ms", isMacro: true)])
+
+        // act
+        let lock = tryLockCacheDir(out)
+
+        // assert
+        @Expect(lock.isSome())
+        lock?.close()
     }
 }
 

@@ -231,8 +231,8 @@ class GuardedServerTest {
         Directory.create(dir, recursive: true)
         File.writeTo(dir.join("ms.cj"), TOY_MACROS.toArray())
         let toolchain = SdkToolchain(paths)
-        let built = MacroBuilder(root.join(".cjls").join("macros"), toolchain.version().getOrThrow(), toolchain).build(
-            [BuildUnit("toy.ms", "toy", dir, true, [], [])])
+        let built = MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain).build(
+            [BuildUnit("toy.ms", "toy", dir, true, [], [])]).getOrThrow()
         match (built.get("toy.ms")) {
             case Some(Built(library, _)) => (paths, library.toString())
             case Some(NotBuilt(reason)) => throw IllegalStateException(reason)
