@@ -188,10 +188,12 @@ class PrintMacroTokensTest {
         let printed = printMacroTokens(result.tks, numbers)
 
         // assert
+        // a line break is printed as the server sent it: `\r\n` from the Windows SDK's std
+        let text = printed.text.replace("\r\n", "\n")
         @Expect(result.status != MACRO_FAILED)
         @Expect(printed.tokens.size, result.tks.size)
-        @Expect(printed.text.contains("extend A <: Equatable<A> {\npublic operator func ==(other: A): Bool {"))
-        @Expect(printed.text.contains("let _: Equatable<Int64> = x"))
+        @Expect(text.contains("extend A <: Equatable<A> {\npublic operator func ==(other: A): Bool {"))
+        @Expect(text.contains("let _: Equatable<Int64> = x"))
         @Expect(parse(printed.text).errors.map {e => e.toString()}, Array<String>())
     }
 }
