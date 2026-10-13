@@ -29,8 +29,10 @@ workspace = "project"
 
 [lsp-server.initialization-options]
 
-# R9, lin-qingying/cangjie on the JVM. No releases: build it (`./gradlew installDist`) and point
-# CANGJIE_KT_LS at the launcher script installDist writes.
+# R9, lin-qingying/cangjie on the JVM. No releases: build it (`sh ./gradlew :lsp:installDist`, on
+# JDK 21; the workarounds it needs are prior-art.md's) and point CANGJIE_KT_LS at a script that sets
+# JAVA_HOME to a JDK 21 and runs `lsp/build/install/lsp/bin/lsp`. It keeps cores busy, so
+# quiet-run.sh never calls its run quiet (#328).
 [cangjie-kt]
 command = ["{env:CANGJIE_KT_LS}"]
 ready = "progress"
