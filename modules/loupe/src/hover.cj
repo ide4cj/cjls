@@ -5,8 +5,8 @@ import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange}
 import cjo.{DeclInfo, openCjo}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasDocComment, AnyHasName, BindPat, EnumPat, MemberAccessExpr, Param, ParamList, PathSegment,
-    RefExpr, VarDecl}
+import cjsyntax.ast.{Annotation, AnyHasDocComment, AnyHasName, BindPat, EnumPat, MemberAccessExpr, NameRef, Param,
+    ParamList, PathSegment, RefExpr, VarDecl}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -39,7 +39,8 @@ public struct HoverItem {
          */
         public let path!: ?String = None,
         /**
-         * Its doc comment, its text as written, the comment's own markers taken off (`docText`).
+         * Its doc comment, its text as written, the comment's own markers taken off (`docText`); of what the
+         * language builds in, our words of it (`BuiltinDoc`).
          */
         public let doc!: ?String = None
     ) {}
@@ -70,10 +71,20 @@ public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: In
 func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult {
     let scope = scopeFileOf(db, file) ?? return None
     let (root, ids) = syntaxOf(db, file) ?? return None
+    if (let Some(builtin) <- builtinTypeAt(root, offset)) {
+        return builtin
+    }
     let token = tokenAt(root, offset) ?? return None
-    // a macro's: later, with its expansion (#175)
-    if (macroDefinitions(db, scope, token).isSome()) {
+    if (let Some(macros) <- macroDefinitions(db, scope, token)) {
+        // a macro of the compiler's, which no package declares
+        if ((macros ?? []).isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
+            return builtinHover(token, doc)
+        }
+        // a macro's: later, with its expansion (#175)
         return None
+    }
+    if (let Some(doc) <- builtinAnnotationAt(token)) {
+        return builtinHover(token, doc)
     }
     let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
     let def = DefId(db, file, item ?? return None)
@@ -88,6 +99,45 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         return None
     }
     HoverResult(token.textRange, items)
+}
+
+/**
+ * A type the language builds in at `offset` that the grammar has as a keyword (`Int64`, `Unit`, `VArray`).
+ */
+func builtinTypeAt(root: CjSyntaxNode, offset: Int64): ?HoverResult {
+    let doc = {
+        token: CjSyntaxToken => if (BUILTIN_TYPES.contains(token.kind)) {
+            builtinTypeDoc(token.text())
+        } else {
+            Option<BuiltinDoc>.None
+        }
+    }
+    match (root.tokenAtOffset(offset)) {
+        case Single(token) => doc(token).map {one => builtinHover(token, one)}
+        case Between(left, right) => match ((doc(left), doc(right))) {
+            case (_, Some(one)) => builtinHover(right, one)
+            case (Some(one), _) => builtinHover(left, one)
+            case _ => None
+        }
+        case _ => None
+    }
+}
+
+/**
+ * The annotation of the compiler's whose name `token` is, `Frozen` of `@Frozen`: the parser makes an `Annotation` of
+ * those alone, any other `@` a macro call.
+ */
+func builtinAnnotationAt(token: CjSyntaxToken): ?BuiltinDoc {
+    let name = NameRef.cast(token.parent) ?? return None
+    if (name.syntax.parent.map {one => Annotation.canCast(one.kind)} ?? false) {
+        builtinAnnotationDoc(token.text())
+    } else {
+        None
+    }
+}
+
+func builtinHover(token: CjSyntaxToken, doc: BuiltinDoc): HoverResult {
+    HoverResult(token.textRange, [HoverItem(doc.code, doc: doc.summary)])
 }
 
 /**
@@ -399,7 +449,13 @@ class Hovers {
             }, delimiter: ", ")
         }
         let modifiers = modifiersText(item)
-        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id))
+        // a type of the compiler's own has no doc comment: our words of it
+        let builtin = if (item.kind == ItemKind.BuiltIn) {
+            builtinTypeDoc(name)
+        } else {
+            Option<BuiltinDoc>.None
+        }
+        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id) ?? builtin?.summary)
     }
 
     /**

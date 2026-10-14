@@ -1,5 +1,6 @@
 package loupe
 
+import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import loupe.fixture.*
@@ -414,5 +415,167 @@ class HoverBinaryTest {
             //    ^^^^^ public func sleep(dur: Duration): Unit in std.core — Sleep current thread for @p dur interval. / If @p dur is less than or equal to Duration.Zero, current thread will relinquish the run right. /  / @param dur Sleeping duration.
             }
             "#, std: ["std.core"], sources: true)
+    }
+}
+
+@Test
+class BuiltinHoverTest {
+    @TestCase
+    func aTypeThatIsAKeywordShowsWhatItIs() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            func twice(n: $0Int64): Int64 { n * 2 }
+            //              ^^^^^ type Int64 — A 64-bit signed integer, from -2^63 to 2^63-1: the integer type preferred, which an integer literal is where nothing gives it another. A literal of this type is suffixed `i64`: `1i64`.
+            "#)
+    }
+
+    @TestCase
+    func aTypeThatIsAKeywordInABody() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            main() {
+                let x = $0Float64(1)
+            //            ^^^^^^^ type Float64 — A 64-bit floating-point number, binary64 (IEEE 754), about 15 significant decimal digits. A literal of this type is suffixed `f64`: `1.5f64`.
+            }
+            "#)
+    }
+
+    @TestCase
+    func aValueArray() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            func f(a: $0VArray<Int64, $3>): Unit {}
+            //          ^^^^^^ type VArray<T, $N> — An array that is a value, of `$N` elements of type `T`, its length an `Int64` literal part of its type: `VArray<Int64, $3>`. Made by `VArray<T, $N>({i => ...})` or `VArray<T, $N>(repeat: v)`; it has `[]` and `size`. An element is no reference type, enum, lambda (but a `CFunc`) or generic type.
+            "#)
+    }
+
+    @TestCase
+    func aTypeOfTheCompilersOwnShowsWhatItIs() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            func f(p: $0CPointer<Int64>): Unit {}
+            //          ^^^^^^^^ public type CPointer<T> where T <: CType in std.core — A C pointer to a `T` that is a `CType`: read, written, moved by arithmetic, compared to null and turned into an integer; reading, writing and arithmetic in `unsafe` only.
+            "#, std: ["std.core"])
+    }
+
+    @TestCase
+    func anAnnotationOfTheCompilers() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+              package m
+              @$0Frozen
+            //   ^^^^^^ @Frozen — The function or property will not change in later versions: neither its signature nor its body, so the same compiler with the same options builds the same code of it. On any function but a local one, and on a property.
+              public func f(): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func anAnnotationWithArguments() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+              package m
+              @$0When[os == "Linux"]
+            //   ^^^^ @When[condition] — Conditional compilation: the import or declaration is compiled only where the condition holds, of `os`, `arch`, `env`, `backend`, `cjc_version`, `debug`, `test` and the variables `--cfg` sets: `@When[os == "Linux" && !debug]`.
+              func f(): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func anAnnotationOnALambda() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            main() {
+                let add = @$0OverflowWrapping { a: Int64, b: Int64 => a + b }
+            //               ^^^^^^^^^^^^^^^^ @OverflowWrapping — An integer operation or conversion in the function that overflows wraps around: the bits beyond the type are dropped.
+            }
+            "#)
+    }
+
+    @TestCase
+    func aMacroOfTheCompilers() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            main() {
+                let line = @$0sourceLine()
+            //                ^^^^^^^^^^ @sourceLine(): Int64 — The line it is written on, as an `Int64` literal.
+            }
+            "#)
+    }
+
+    @TestCase
+    func aMacroOfTheWorkspaceNamedAsOneOfTheCompilersIsNotIt() {
+        checkHover(#"
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro sourceLine(input: Tokens): Tokens { input }
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.sourceLine
+            main() {
+                let line = @$0sourceLine()
+            //                ^^^^^^^^^^ no hover
+            }
+            "#)
+    }
+
+    /**
+     * The names `cjsyntax` takes as an annotation of the compiler's, as its `contextualKind` lists them.
+     */
+    let parserAnnotations = ["JavaMirror", "JavaImpl", "JavaHasDefault", "ObjCMirror", "ObjCImpl", "ForeignGetterName",
+        "ForeignSetterName", "ObjCInit", "ObjCOptional", "ForeignName", "CallingConv", "C", "Attribute", "Intrinsic",
+        "OverflowThrowing", "OverflowWrapping", "OverflowSaturating", "When", "FastNative", "Annotation", "ConstSafe",
+        "Deprecated", "Frozen", "EnsurePreparedToMock", "NonProduct"]
+
+    @TestCase
+    func everyAnnotationOfTheCompilersIsTold() {
+        for (name in parserAnnotations) {
+            // arrange
+            let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\n@${name} func f(): Unit {}\n")
+            let db = fixture.database()
+            let fileId = fixture.file("/main.cj").fileId
+
+            // act
+            let hover = hoverAt(db, fileId, "package m\n@".size)
+
+            // assert
+            @Expect(builtinAnnotationDoc(name).isSome())
+            @Expect(hover.map {one => one.items.map {item => item.code}},
+                builtinAnnotationDoc(name).map {doc => [doc.code]})
+        }
+    }
+
+    @TestCase
+    func everyAnnotationToldIsOneOfTheCompilers() {
+        // act
+        let unknown = BUILTIN_ANNOTATION_DOCS |> filter {doc: BuiltinDoc => !parserAnnotations.contains(doc.name)} |>
+            map {doc: BuiltinDoc => doc.name} |> collectArray
+
+        // assert
+        @Expect(unknown, Array<String>())
+    }
+
+    @TestCase
+    func everyTypeThatIsAKeywordToldIsOne() {
+        let keywords = ["Int8", "Int16", "Int32", "Int64", "IntNative", "UInt8", "UInt16", "UInt32", "UInt64",
+            "UIntNative", "Float16", "Float32", "Float64", "Bool", "Rune", "Unit", "Nothing", "VArray"]
+        for (name in keywords) {
+            // arrange
+            let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\ntype A = ${name}\n")
+            let db = fixture.database()
+            let fileId = fixture.file("/main.cj").fileId
+
+            // act
+            let hover = hoverAt(db, fileId, "package m\ntype A = ".size)
+
+            // assert
+            @Expect(hover.flatMap {one => one.items.get(0)}.map {item => item.code.startsWith("type ${name}")}, true)
+        }
     }
 }

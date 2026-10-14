@@ -5,6 +5,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import stdxx.Nullable
+import loupe.builtinTypeDoc
 import cjls.lsp_types.*
 import cjls.server.*
 
@@ -57,6 +58,20 @@ class HoverHandlerTest {
         // assert
         @Expect(content.kind, MarkupKind.PlainText)
         @Expect(content.value, "default\nfunc twice(n: Int64): Int64\n\nTwice `n`.")
+    }
+
+    @TestCase
+    func whatTheLanguageBuildsInShowsOurWordsOfIt() {
+        // arrange
+        let (state, dir) = loaded([("a.cj", file)])
+        state.hoverMarkdown = true
+
+        // act
+        let (content, range) = markupOf(hoverOf(state, dir.join("a.cj"), 1, 15))
+
+        // assert
+        @Expect(content.value, "```cangjie\ntype Int64\n```\n\n---\n\n${builtinTypeDoc("Int64").getOrThrow().summary}")
+        @Expect(range, "1:14-1:19")
     }
 
     @TestCase
