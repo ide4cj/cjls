@@ -237,11 +237,17 @@ func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, Std
 
 /**
  * The macro calls on the items of `file` whose expansions the analysis reads: those of std it expands (`stdCallsOf`),
- * in their order, then those of workspace macros the macro server expanded (`workspaceCalls`, #176).
+ * in their order, then those of workspace macros the macro server expanded (`workspaceCalls`, #176). A `@Derive` in
+ * the input of such a call is not: what it adds is in that call's output, as cjc gives it.
  */
 @CalcaTracked
 public func expandedCalls(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
-    stdCallsOf(db, file).map {pair => pair[0]}.concat(readWorkspaceCallsOf(db, file))
+    let read = readWorkspaceCallsOf(db, file)
+    let inInput = {
+        call: MacroCallId => read.iterator().any {one => one.item(db) == call.item(db) && one.index(db) < call.index(db)}
+    }
+    let std = stdCallsOf(db, file).filter {pair => pair[1] != StdMacro.DeriveMacro || !inInput(pair[0])}
+    std.map {pair => pair[0]}.concat(read)
 }
 
 /**

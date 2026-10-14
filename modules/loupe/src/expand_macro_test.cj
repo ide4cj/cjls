@@ -144,27 +144,80 @@ class MacroCallAtTest {
     }
 
     @TestCase
-    func aMacroTheAnalysisDoesNotExpandIsNoCall() {
+    func aMacroTheAnalysisDoesNotExpandIsTheCallOfTheItemAroundIt() {
         checkMacroCallAt(#"
+            //- /main.cj module=m package=m
+              package m
+              import std.deriving.*
+              @Derive[Hashable]
+            //^^^^^^^^^^^^^^^^^ call @Derive
+              struct S {
+                  @DeriveExc$0lude
+                  let x: Int64 = 0
+              }
+            "#)
+    }
+
+    @TestCase
+    func theDeclarationUnderACallIsTheCall() {
+        checkMacroCallAt(#"
+            //- /main.cj module=m package=m
+              package m
+              import std.deriving.*
+              @Derive[Hashable]
+            //^^^^^^^^^^^^^^^^^ call @Derive
+              struct $0S {}
+            "#)
+    }
+
+    @TestCase
+    func aBodyInTheItemIsItsCall() {
+        checkMacroCallAt(#"
+            //- /main.cj module=m package=m
+              package m
+              import std.deriving.*
+              @Derive[Hashable]
+            //^^^^^^^^^^^^^^^^^ call @Derive
+              struct S {
+                  func f(): Int64 { $01 }
+              }
+            "#)
+    }
+
+    @TestCase
+    func aBodyIsNoCallWhenBodiesAreLeftOut() {
+        // arrange
+        let fixture = #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Hashable]
             struct S {
-                @DeriveExc$0lude
-                let x: Int64 = 0
+                func f(): Int64 { 1 }
             }
-            "#)
+            "#
+        let parsed = Fixture.parse(fixture)
+        let db = deriveDatabase(parsed)
+        let file = parsed.file("/main.cj")
+
+        // act
+        let inBody = macroCallAt(db, file.fileId, offsetIn(file.text, "1 }"), inBody: false)
+        let onMember = macroCallAt(db, file.fileId, offsetIn(file.text, "f()"), inBody: false)
+
+        // assert
+        @Expect(inBody, None<MacroCallAt>)
+        @Expect(onMember.isSome())
     }
 
     @TestCase
-    func theDeclarationUnderACallIsNoCall() {
+    func outsideAnyItemWithACallIsNoCall() {
         checkMacroCallAt(#"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Hashable]
-            struct $0S {}
+            struct S {}
+            func $0f() {}
             "#)
     }
 
@@ -239,6 +292,7 @@ class MacroCallAtTest {
         @Expect(expanded.range, at.range)
         @Expect(expanded.text, macroExpansion(db, at.call).text)
         @Expect(expanded.text.contains("extend S <: Hashable"))
+        @Expect(expanded.declaration, Some("struct S {}"))
     }
 
     @TestCase
