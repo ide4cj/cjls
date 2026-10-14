@@ -81,10 +81,26 @@ func isCancelled(db: AnalysisDatabase): Bool {
 }
 
 /**
- * Ends what runs past its deadline: one thing at a time, armed before it starts and disarmed when it ends, on a
- * thread of its own.
+ * What ends a call past its deadline: one at a time, armed before it starts and disarmed when it ends.
  */
-class Watchdog {
+interface Deadlines {
+    /**
+     * Runs `fire` once `timeout` passed, unless disarmed before: the id to disarm it by.
+     */
+    func arm(timeout: Duration, fire: () -> Unit): Int64
+
+    /**
+     * Disarms `id`: `false` if it fired already.
+     */
+    func disarm(id: Int64): Bool
+
+    func stop(): Unit
+}
+
+/**
+ * The deadlines of the clock, kept on a thread of its own.
+ */
+class Watchdog <: Deadlines {
     private let lock = Mutex()
     // made under `lock`: `condition` throws otherwise
     private let changed: Condition
@@ -108,10 +124,7 @@ class Watchdog {
         }
     }
 
-    /**
-     * Runs `fire` once `timeout` passed, unless disarmed before: the id to disarm it by.
-     */
-    func arm(timeout: Duration, fire: () -> Unit): Int64 {
+    public func arm(timeout: Duration, fire: () -> Unit): Int64 {
         synchronized(lock) {
             count++
             armed = (count, MonoTime.now() + timeout, fire)
@@ -120,10 +133,7 @@ class Watchdog {
         }
     }
 
-    /**
-     * Disarms `id`: `false` if it fired already.
-     */
-    func disarm(id: Int64): Bool {
+    public func disarm(id: Int64): Bool {
         synchronized(lock) {
             match (armed) {
                 case Some((one, _, _)) where one == id =>
@@ -135,7 +145,7 @@ class Watchdog {
         }
     }
 
-    func stop(): Unit {
+    public func stop(): Unit {
         synchronized(lock) {
             stopped = true
             changed.notifyAll()
@@ -168,10 +178,20 @@ class Watchdog {
  */
 public class GuardedServer <: Expander {
     private var process: ?MacroServerProcess = None
-    private let watchdog: Watchdog
+    private let paths: MacroServerPaths
+    private let timeout: Duration
+    private let logger: Logger
+    private let deadlines: Deadlines
 
-    public GuardedServer(private let paths: MacroServerPaths, private let timeout: Duration, private let logger: Logger) {
-        watchdog = Watchdog(logger)
+    public init(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
+        this(paths, timeout, logger, Watchdog(logger))
+    }
+
+    init(paths: MacroServerPaths, timeout: Duration, logger: Logger, deadlines: Deadlines) {
+        this.paths = paths
+        this.timeout = timeout
+        this.logger = logger
+        this.deadlines = deadlines
     }
 
     public func expand(call: MacroCallData): CallOutcome {
@@ -185,16 +205,16 @@ public class GuardedServer <: Expander {
                 return Unanswered("the macro server did not start: ${e.message}")
             }
         }
-        let id = watchdog.arm(timeout) {=> killQuietly(server)}
+        let id = deadlines.arm(timeout) {=> killQuietly(server)}
         try {
             let result = server.connection.expand(call)
-            if (watchdog.disarm(id)) {
+            if (deadlines.disarm(id)) {
                 return Answered(result)
             }
             process = None
             Unanswered(pastDeadline())
         } catch (e: Exception) {
-            let inTime = watchdog.disarm(id)
+            let inTime = deadlines.disarm(id)
             process = None
             killQuietly(server)
             if (inTime) {
@@ -221,11 +241,11 @@ public class GuardedServer <: Expander {
     }
 
     /**
-     * Ends the server and the watchdog.
+     * Ends the server and the deadlines.
      */
     public func close(): Unit {
         restart()
-        watchdog.stop()
+        deadlines.stop()
     }
 
     private func pastDeadline(): String {
