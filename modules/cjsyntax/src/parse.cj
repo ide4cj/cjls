@@ -31,9 +31,15 @@ public func parse(text: String): Parse<SyntaxKind> {
  */
 func parseWithGrammar(text: String, grammar: (P) -> Unit): Parse<SyntaxKind> {
     let lexed = tokenize(text)
-    let input = lexed.toInput({k => k.isTrivia()}, {k => k == Newline}, contextual: {k, t => contextualKind(k, t)})
-    let p = Parser<SyntaxKind>(input, Eof, ErrorNode)
+    let p = Parser<SyntaxKind>(inputOf(lexed), Eof, ErrorNode)
     parseWith(lexed, p, CangjieTrivia(), SourceFile, grammar)
+}
+
+/**
+ * What the parser reads of `lexed`: its tokens but trivia, a newline being `Newline`, and the contextual kinds.
+ */
+func inputOf(lexed: Lexed<SyntaxKind>): Input<SyntaxKind> {
+    lexed.toInput({k => k.isTrivia()}, {k => k == Newline}, contextual: {k, t => contextualKind(k, t)})
 }
 
 /**

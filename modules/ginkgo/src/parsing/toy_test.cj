@@ -4,7 +4,7 @@ import std.deriving.*
 import ginkgo.*
 
 /**
- * A toy language for the tests: integers, `+`, `*` and `>>` over lines, `#` comments.
+ * A toy language for the tests: integers, `+`, `*` and `>>` over lines, `(...)` groups, `#` comments.
  */
 @Derive[Equatable, Hashable]
 enum Toy {
@@ -13,6 +13,8 @@ enum Toy {
     | Star
     | Gt
     | Shr
+    | LParen
+    | RParen
     | Ws
     | Newline
     | Comment
@@ -22,6 +24,7 @@ enum Toy {
     | Line
     | Bin
     | Lit
+    | Group
     | ErrorNode
 
     public func ordinal(): Int64 {
@@ -31,16 +34,19 @@ enum Toy {
             case Star => 2
             case Gt => 3
             case Shr => 4
-            case Ws => 5
-            case Newline => 6
-            case Comment => 7
-            case Bad => 8
-            case Eof => 9
-            case Root => 10
-            case Line => 11
-            case Bin => 12
-            case Lit => 13
-            case ErrorNode => 14
+            case LParen => 5
+            case RParen => 6
+            case Ws => 7
+            case Newline => 8
+            case Comment => 9
+            case Bad => 10
+            case Eof => 11
+            case Root => 12
+            case Line => 13
+            case Bin => 14
+            case Lit => 15
+            case Group => 16
+            case ErrorNode => 17
         }
     }
 
@@ -51,6 +57,8 @@ enum Toy {
             case Star => "Star"
             case Gt => "Gt"
             case Shr => "Shr"
+            case LParen => "LParen"
+            case RParen => "RParen"
             case Ws => "Ws"
             case Newline => "Newline"
             case Comment => "Comment"
@@ -60,6 +68,7 @@ enum Toy {
             case Line => "Line"
             case Bin => "Bin"
             case Lit => "Lit"
+            case Group => "Group"
             case ErrorNode => "ErrorNode"
         }
     }
@@ -127,6 +136,8 @@ func toyLex(text: String): Lexed<Toy> {
                 case b'+' => Plus
                 case b'*' => Star
                 case b'>' => Gt
+                case b'(' => LParen
+                case b')' => RParen
                 case _ => Bad
             }
         }
@@ -139,7 +150,8 @@ func toyLex(text: String): Lexed<Toy> {
 }
 
 /**
- * root: line*; line: expr, ended by a newline; expr: precedence climbing over `>>` < `+` < `*`.
+ * root: line*; line: expr, ended by a newline; expr: precedence climbing over `>>` < `+` < `*`, over numbers
+ * and groups in parentheses.
  */
 func toyParse(text: String): Parse<Toy> {
     let lexed = toyLex(text)
@@ -175,6 +187,8 @@ func toyExpr(p: Parser<Toy>, minPower: Int64): Unit {
         let m = p.start()
         p.bump(Num)
         m.complete(p, Lit)
+    } else if (p.at(LParen)) {
+        toyGroup(p)
     } else {
         p.errAndBump("expected a number")
         return
@@ -197,4 +211,31 @@ func toyExpr(p: Parser<Toy>, minPower: Int64): Unit {
         toyExpr(p, power)
         lhs = m.complete(p, Bin)
     }
+}
+
+/**
+ * `(` expr `)`: the block of the toy language, which `Reparser` parses on its own.
+ */
+func toyGroup(p: Parser<Toy>): CompletedMarker<Toy> {
+    let m = p.start()
+    p.bump(LParen)
+    toyExpr(p, 0)
+    p.expect(RParen)
+    m.complete(p, Group)
+}
+
+func toyGroupAlone(p: Parser<Toy>): Unit {
+    toyGroup(p)
+    return
+}
+
+func toyBlockGrammar(kind: Toy): ?((Parser<Toy>) -> Unit) {
+    match (kind) {
+        case Group => Some(toyGroupAlone)
+        case _ => None<(Parser<Toy>) -> Unit>
+    }
+}
+
+func toyReparser(): Reparser<Toy> {
+    Reparser<Toy>(toyLex, toyInput, ToyTrivia(), Eof, ErrorNode, LParen, RParen, toyBlockGrammar)
 }
