@@ -1075,21 +1075,25 @@ class Inference {
     }
 
     /**
-     * What a macro on the declaration takes as code in its `[...]`, if it is std.unittest's (#191), each part
-     * inferred alone: as cjc's expansion, `src` of `x in src` is evaluated outside the declaration, `v` of `k: v`
-     * set as the option `KeyK.k`.
+     * What a macro on the declaration takes as code in its `[...]`, if it is std.unittest's (#191): as cjc's
+     * expansion, `src` of `x in src` is evaluated outside the declaration, of a test or a strategy a
+     * `DataStrategy<T>` of `x`'s type `T`, checked quietly (a `DataStrategyProcessor` is one too); `v` of `k: v` set
+     * as the option `KeyK.k`, inferred alone.
      */
     private func declAttr(attr: DeclAttr): Unit {
-        if (unittestMacroOf(attr.path).isNone()) {
-            return
-        }
+        let name = unittestMacroOf(attr.path) ?? return
+        let takesStrategy = name == "Test" || name == "TestCase" || name == "Strategy"
         for (arg in attr.args) {
             match (arg) {
                 case DataArg(param, source) =>
-                    if (let Some(one) <- param) {
-                        infer(one, None)
+                    let paramTy = param.map {one => infer(one, None)}
+                    let expected = match (paramTy) {
+                        case Some(ty) where takesStrategy => dataStrategyOf(ty)
+                        case _ => None<Ty>
                     }
-                    infer(source, None)
+                    quiet++
+                    infer(source, expected)
+                    quiet--
                 case OptionArg(key, value) =>
                     infer(key, None)
                     infer(value, None)
@@ -1097,6 +1101,17 @@ class Inference {
                 case TypesArg(_, _) => ()
             }
         }
+    }
+
+    /**
+     * std.unittest.common's `DataStrategy<element>`, if the project has it.
+     */
+    private func dataStrategyOf(element: Ty): ?Ty {
+        let ref = stdViewerOf(db, def) ?? return None
+        let common = packageIndex(db).find("std.unittest.common", from: ref) ?? return None
+        let defs = packageExports(db, common).names.get("DataStrategy") ?? return None
+        let id = defs.iterator().filter {one => one.id.item(db).kind == ItemKind.Interface}.next()?.id ?? return None
+        Ty(db, DeclTy(id, [element]))
     }
 
     /**

@@ -2175,6 +2175,20 @@ class InferTest {
     }
 
     @TestCase
+    func theSourceOfADataArgIsADataStrategyOfTheParametersType() {
+        // cjc 1.3.0-alpha.20260918 (#191): `None` in the literal is told by `DataStrategy<(Int64, ?Int64)>`
+        checkInference(#"
+            package m
+            import std.unittest.*
+            import std.unittest.testmacro.*
+            @Test[row in [(1, Some(2)), (3, None)]]
+            //           ^^^^^^^^^^^^^^^^^^^^^^^^^ Array<(Int64, Option<Int64>)>
+            func g(row: (Int64, ?Int64)): Unit {}
+            //     ^^^ (Int64, Option<Int64>)
+            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.common", "std.unittest.testmacro"])
+    }
+
+    @TestCase
     func theSourceOfADataArgOfAMacroNotFoundIsNotInferred() {
         checkInference(#"
             package m
