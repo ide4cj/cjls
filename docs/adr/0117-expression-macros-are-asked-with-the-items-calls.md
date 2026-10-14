@@ -1,4 +1,4 @@
-# ADR-0116: A workspace macro called in an expression is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands
+# ADR-0117: A workspace macro called in an expression is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands
 
 Status: proposed
 Amends ADR-0098: a call in an expression is a call of the file, keyed and asked as one on an item
