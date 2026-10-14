@@ -31,15 +31,14 @@ class VfsPathTest {
         @Expect(path != inTemp("Untitled-1"))
     }
 
-    @TestCase
-    func aPathGoesToAUriAndBack() {
-        // arrange - `#` and `?` would start a fragment and a query unescaped
-        let paths = [inTemp("проект/a b.cj"), inTemp("y#z?.cj")]
+    // `#` and `?` would start a fragment and a query unescaped
+    @TestCase[name in ["проект/a b.cj", "y#z?.cj"]]
+    func aPathGoesToAUriAndBack(name: String) {
+        // arrange
+        let path = inTemp(name)
 
         // act, assert
-        for (path in paths) {
-            @Expect(VfsPath.fromUri(path.toUri()), path)
-        }
+        @Expect(VfsPath.fromUri(path.toUri()), path)
     }
 
     @TestCase
