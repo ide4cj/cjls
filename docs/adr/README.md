@@ -129,4 +129,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0108](0108-error-roots-only-shrink.md) | This repository's roots of an error type are held to a checked-in count per file and kind that only shrinks | proposed |
 | [0109](0109-builtins-are-told-in-a-table-of-our-own.md) | What the language builds in is told in our words, a table of our own | proposed |
 | [0110](0110-a-speculative-tree-reparses-the-block-around-the-cursor.md) | A speculative tree is built by reparsing the block around the cursor | proposed |
+| [0111](0111-completion-lists-from-the-speculative-tree-and-resolves-lazily.md) | Completion lists from the speculative tree, ranks by scope, and leaves the detail to a resolve | proposed |
 | [0112](0112-arguments-are-matched-before-a-candidate-is-tried.md) | A call's arguments are matched to each candidate's parameters before it is tried, as cjc | proposed |
