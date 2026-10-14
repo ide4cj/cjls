@@ -5,7 +5,7 @@ import std.deriving.*
 import std.sort.*
 import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.{AnyHasName, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import cjsyntax.ast.{AnyHasName, Arg, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
@@ -127,10 +127,11 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                 let node = nodeOf(call) ?? continue
                 let taken = params.size
                 let list = String.join(params.map {one => one.text(db)}, delimiter: ", ")
-                let what = if (given < taken) {
-                    "missing argument"
-                } else {
-                    "extra argument given"
+                let what = match ((given < taken, given - taken == 1 || taken - given == 1)) {
+                    case (true, true) => "missing argument"
+                    case (true, false) => "missing arguments"
+                    case (false, true) => "extra argument given"
+                    case (false, false) => "extra arguments given"
                 }
                 let plural = if (taken == 1) {
                     ""
@@ -139,9 +140,40 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                 }
                 found.add(Diagnostic(TextRange(argsStart(node), node.textRange.end), Severity.Error,
                     "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}"))
+            case ArgName(call, at, why) =>
+                let node = nodeOf(call) ?? continue
+                let range = argRange(node, at) ?? continue
+                let message = match (why) {
+                    case UnknownName(name) => "unknown named argument prefix '${name}:'"
+                    case NameTwice(name) => "named argument prefix '${name}:' cannot appeared more than once in call"
+                    case NeedsName(names) =>
+                        let prefixes = String.join(names.map {name => "'${name}:'"}, delimiter: " or ")
+                        "missing argument prefix ${prefixes} for named parameter"
+                    case NameOfValue => "named argument cannot be used in variable function call"
+                }
+                found.add(Diagnostic(range, Severity.Error, message))
         }
     }
     found.toArray()
+}
+
+/**
+ * Where the argument at `at` of the call `node` is: one in its parentheses, else its trailing lambda.
+ */
+func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
+    let trailing = TrailingLambdaExpr.cast(node)
+    let call = match (trailing) {
+        case Some(one) => one.callee().flatMap {callee => CallExpr.cast(callee.syntax)}
+        case None => CallExpr.cast(node)
+    }
+    let args: Array<Arg> = match (call?.argList()) {
+        case Some(Some(list)) => list.args() |> collectArray
+        case _ => []
+    }
+    match (args.get(at)) {
+        case Some(arg) => arg.syntax.textRange
+        case None => (trailing?.lambda()?.syntax.textRange)
+    }
 }
 
 /**

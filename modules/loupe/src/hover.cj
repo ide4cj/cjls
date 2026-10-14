@@ -5,8 +5,8 @@ import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange}
 import cjo.{DeclInfo, openCjo}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasDocComment, AnyHasName, BindPat, EnumPat, MemberAccessExpr, Param, ParamList, PathSegment,
-    RefExpr, VarDecl}
+import cjsyntax.ast.{Annotation, AnyHasDocComment, AnyHasName, BindPat, EnumPat, MemberAccessExpr, NameRef, Param,
+    ParamList, PathSegment, RefExpr, VarDecl}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -39,7 +39,8 @@ public struct HoverItem {
          */
         public let path!: ?String = None,
         /**
-         * Its doc comment, its text as written, the comment's own markers taken off (`docText`).
+         * Its doc comment, its text as written, the comment's own markers taken off (`docText`); of what the
+         * language builds in, our words of it (`BuiltinDoc`).
          */
         public let doc!: ?String = None
     ) {}
@@ -70,15 +71,26 @@ public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: In
 func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult {
     let scope = scopeFileOf(db, file) ?? return None
     let (root, ids) = syntaxOf(db, file) ?? return None
+    if (let Some(builtin) <- builtinTypeAt(root, offset)) {
+        return builtin
+    }
     let token = tokenAt(root, offset) ?? return None
-    // a macro's: later, with its expansion (#175)
-    if (macroDefinitions(db, scope, token).isSome()) {
+    if (let Some(macros) <- macroDefinitions(db, scope, token)) {
+        // a macro of the compiler's, which no package declares
+        if ((macros ?? []).isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
+            return builtinHover(token, doc)
+        }
+        // a macro's: later, with its expansion (#175)
         return None
+    }
+    if (let Some(doc) <- builtinAnnotationAt(token)) {
+        return builtinHover(token, doc)
     }
     let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
     let def = DefId(db, file, item ?? return None)
     let items = if (isDeclaredName(db, def, token)) {
-        Hovers(db, def, token).ofDecl(def)
+        // what a workspace macro's expansion made of it, the interfaces it added and all
+        Hovers(db, def, token).ofDecl(expandedDeclOf(db, def) ?? def)
     } else if (let Some((typeNode, segment)) <- typeAt(token)) {
         Hovers(db, def, token).ofType(typeNode, segment)
     } else {
@@ -88,6 +100,45 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         return None
     }
     HoverResult(token.textRange, items)
+}
+
+/**
+ * A type the language builds in at `offset` that the grammar has as a keyword (`Int64`, `Unit`, `VArray`).
+ */
+func builtinTypeAt(root: CjSyntaxNode, offset: Int64): ?HoverResult {
+    let doc = {
+        token: CjSyntaxToken => if (BUILTIN_TYPES.contains(token.kind)) {
+            builtinTypeDoc(token.text())
+        } else {
+            Option<BuiltinDoc>.None
+        }
+    }
+    match (root.tokenAtOffset(offset)) {
+        case Single(token) => doc(token).map {one => builtinHover(token, one)}
+        case Between(left, right) => match ((doc(left), doc(right))) {
+            case (_, Some(one)) => builtinHover(right, one)
+            case (Some(one), _) => builtinHover(left, one)
+            case _ => None
+        }
+        case _ => None
+    }
+}
+
+/**
+ * The annotation of the compiler's whose name `token` is, `Frozen` of `@Frozen`: the parser makes an `Annotation` of
+ * those alone, any other `@` a macro call.
+ */
+func builtinAnnotationAt(token: CjSyntaxToken): ?BuiltinDoc {
+    let name = NameRef.cast(token.parent) ?? return None
+    if (name.syntax.parent.map {one => Annotation.canCast(one.kind)} ?? false) {
+        builtinAnnotationDoc(token.text())
+    } else {
+        None
+    }
+}
+
+func builtinHover(token: CjSyntaxToken, doc: BuiltinDoc): HoverResult {
+    HoverResult(token.textRange, [HoverItem(doc.code, doc: doc.summary)])
 }
 
 /**
@@ -377,12 +428,12 @@ class Hovers {
             case Init => "init${generics}${params()}"
             case PrimaryInit => "${name}${params()}"
             case Finalizer => "~init()"
-            case Class => "class ${name}${generics}${supersOf(item, sig, ty)}"
-            case Interface => "interface ${name}${generics}${supersOf(item, sig, ty)}"
-            case Struct => "struct ${name}${generics}${supersOf(item, sig, ty)}"
-            case Enum => "enum ${name}${generics}${supersOf(item, sig, ty)}"
+            case Class => "class ${name}${generics}${supersOf(id, item, sig, ty)}"
+            case Interface => "interface ${name}${generics}${supersOf(id, item, sig, ty)}"
+            case Struct => "struct ${name}${generics}${supersOf(id, item, sig, ty)}"
+            case Enum => "enum ${name}${generics}${supersOf(id, item, sig, ty)}"
             case BuiltIn => "type ${name}${generics}"
-            case Extend => "extend${generics} ${sig.ty.map {one => ty(one)} ?? "_"}${supersOf(item, sig, ty)}"
+            case Extend => "extend${generics} ${sig.ty.map {one => ty(one)} ?? "_"}${supersOf(id, item, sig, ty)}"
             case TypeAlias => "type ${name}${generics} = ${sig.ty.map {one => ty(one)} ?? "_"}"
             case EnumCtor where sig.params.isEmpty() => name
             case EnumCtor => "${name}(${String.join(sig.params.map {one => ty(one)}, delimiter: ", ")})"
@@ -400,7 +451,13 @@ class Hovers {
             }, delimiter: ", ")
         }
         let modifiers = modifiersText(item)
-        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id))
+        // a type of the compiler's own has no doc comment: our words of it
+        let builtin = if (item.kind == ItemKind.BuiltIn) {
+            builtinTypeDoc(name)
+        } else {
+            Option<BuiltinDoc>.None
+        }
+        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id) ?? builtin?.summary)
     }
 
     /**
@@ -477,11 +534,15 @@ class Hovers {
     }
 
     /**
-     * ` <: A & B`, the types `item` inherits from; not the `Object` cjc gives a class of no
-     * superclass.
+     * ` <: A & B`, the types `item`, of `id`, inherits from, then for a type those the `extend`s of the macro calls
+     * on it add, `@Derive[...]`'s; not the `Object` cjc gives a class of no superclass.
      */
-    private func supersOf(item: Item, sig: SignatureTypes, ty: (Ty) -> String): String {
-        let written = sig.supers.map {one => ty(one)}
+    private func supersOf(id: DefId, item: Item, sig: SignatureTypes, ty: (Ty) -> String): String {
+        let added = match (item.kind) {
+            case Class | Struct | Enum => addedSupersOf(id)
+            case _ => Array<Ty>()
+        }
+        let written = sig.supers.concat(added).map {one => ty(one)}
         let shown = if (item.kind == ItemKind.Class && written.get(0) == Some("Object")) {
             written[1..]
         } else {
@@ -492,6 +553,23 @@ class Hovers {
         } else {
             " <: " + String.join(shown, delimiter: " & ")
         }
+    }
+
+    /**
+     * The interfaces the `extend`s in the expansions of the macro calls on `id`, a declaration of a source file, add.
+     */
+    private func addedSupersOf(id: DefId): Array<Ty> {
+        let file = match (id.file(db)) {
+            case Source(file) => file
+            case _ => return []
+        }
+        let supers = ArrayList<Ty>()
+        for (call in expandedCalls(db, file) where call.item(db) == id.item(db)) {
+            for (item in expansionItemTree(db, call).items where item.kind == ItemKind.Extend) {
+                supers.add(all: signatureTypes(db, DefId(db, ItemFile.Expansion(call), item.id)).supers)
+            }
+        }
+        supers.toArray()
     }
 
     /**
@@ -531,16 +609,16 @@ class Hovers {
             case Binary(pkg, file) =>
                 let target = binaryTarget(db, pkg, file, id.item(db)) ?? return None
                 let source = db.sourceFile(target.fileId) ?? return None
-                let root = parse(db, source).syntaxNode()
-                let at = match (root.tokenAtOffset(target.focusRange.start)) {
-                    case Single(one) => one
-                    case Between(_, right) => right
-                    case _ => return None
-                }
-                (at.parent.ancestors() |> filter {one: CjSyntaxNode => AnyHasDocComment.canCast(one.kind)} |> first) ??
+                documentedAt(parse(db, source).syntaxNode(), target.focusRange.start) ?? return None
+            // a declaration a workspace macro copied has the doc comment of the one it copied (#176); what a macro
+            // wrote has none (#175)
+            case Expansion(call) =>
+                let (name, _) = expansionOrigin(db, call, id.item(db)) ?? return None
+                let node = documentedAt(parse(db, call.file(db)).syntaxNode(), name.start) ?? return None
+                if (AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange != name) {
                     return None
-            // what a macro call adds is generated, with no doc comment (#175)
-            case Expansion(_) => return None
+                }
+                node
         }
         let comments = AnyHasDocComment.cast(node)?.docComments() ?? return None
         let doc = docText(comments.map {comment => comment.text()})
@@ -606,6 +684,18 @@ func modifiersText(item: Item): String {
     let shown = item.modifiers.filter {one => access.contains(one)}.concat(
         item.modifiers.filter {one => !access.contains(one) && one != Modifier.Common && one != Modifier.Specific})
     String.join(shown.map {one => "${one} "}, delimiter: "")
+}
+
+/**
+ * The declaration of the token at `offset` of `root` that can have a doc comment, the innermost.
+ */
+func documentedAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxNode {
+    let at = match (root.tokenAtOffset(offset)) {
+        case Single(one) => one
+        case Between(_, right) => right
+        case _ => return None
+    }
+    at.parent.ancestors() |> filter {one: CjSyntaxNode => AnyHasDocComment.canCast(one.kind)} |> first
 }
 
 /**

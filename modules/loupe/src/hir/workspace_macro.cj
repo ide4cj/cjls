@@ -3,8 +3,8 @@ package loupe.hir
 import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.MacroExpandDecl
+import cjsyntax.{CjSyntaxNode, SyntaxKind}
+import cjsyntax.ast.{AnyHasName, MacroExpandDecl}
 import calca.*
 import calca.macros.*
 import loupe.db.*
@@ -222,6 +222,29 @@ func isReplacedByWorkspaceExpansion(db: AnalysisDatabase, def: DefId): Bool {
 }
 
 /**
+ * What `def`, a declaration of a source file or a member of one under a top-level item a workspace macro's expansion
+ * replaces, became in that expansion: its declaration whose name the macro copied from `def`'s (#176). `None` if no
+ * expansion the analysis reads replaces it, or the macro dropped or renamed it.
+ */
+public func expandedDeclOf(db: AnalysisDatabase, def: DefId): ?DefId {
+    if (!isReplacedByWorkspaceExpansion(db, def)) {
+        return None
+    }
+    let file = match (def.file(db)) {
+        case Source(file) => file
+        case _ => return None
+    }
+    let top = (parentOf(db, def) ?? def).item(db)
+    let call = (workspaceCalls(db, file).iterator().filter {one => one.read && one.top == top}.next() ?? return None).call
+    let node = itemIdMap(db, file).node(def.item(db), parse(db, file).syntaxNode()) ?? return None
+    let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? return None
+    let items = expansionItemTree(db, call).items |> flatMap {item: Item => [item].concat(item.members)} |>
+        map {item: Item => item.id} |> collectArray
+    let item = (items |> filter {id: ItemId => expansionOrigin(db, call, id).map {origin => origin[0]} == name} |> first) ?? return None
+    DefId(db, ItemFile.Expansion(call), item)
+}
+
+/**
  * What a macro reported running a call of a file, where in the file: what its origin names in the source, else the
  * head of the call (`@` to the end of its attribute).
  */
@@ -340,6 +363,22 @@ class MappedTextBuilder {
 }
 
 /**
+ * What is between the brackets of `node`, `@M[…]`'s or `@M(…)`'s: after its first token if it is `open`, up to its
+ * last if it is `close`. Not the first `close` among its tokens, which may be one nested in it (`@M[a: [1]]`).
+ */
+func innerRangeOf(node: CjSyntaxNode, open: SyntaxKind, close: SyntaxKind): TextRange {
+    let start = match (node.firstToken()) {
+        case Some(first) where first.kind == open => first.textRange.end
+        case _ => node.textRange.start
+    }
+    let end = match (node.lastToken()) {
+        case Some(last) where last.kind == close && last.textRange.start >= start => last.textRange.start
+        case _ => node.textRange.end
+    }
+    TextRange(start, end)
+}
+
+/**
  * Writes the requests of a file's calls of workspace macros: their input is the text of the source, where each call
  * nested in it is its output (the last that succeeded).
  */
@@ -373,9 +412,7 @@ class MacroInputComposer {
         let attrs = macroCall.macroAttr().map {
             attr =>
             let builder = MappedTextBuilder(source, anchor)
-            let open = attr.lBracketToken()?.textRange.end ?? attr.syntax.textRange.start
-            let close = attr.rBracketToken()?.textRange.start ?? attr.syntax.textRange.end
-            builder.copy(TextRange(open, close))
+            builder.copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
             builder.build()
         }
         let builder = MappedTextBuilder(source, anchor)
@@ -385,9 +422,7 @@ class MacroInputComposer {
         } else if (let Some(decl) <- macroCall.decl()) {
             declaration(item, decl.syntax, builder, children)
         } else if (let Some(args) <- macroCall.macroArgs()) {
-            let open = args.lParenToken()?.textRange.end ?? args.syntax.textRange.start
-            let close = args.rParenToken()?.textRange.start ?? args.syntax.textRange.end
-            builder.copy(TextRange(open, close))
+            builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
             true
         } else {
             true

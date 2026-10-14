@@ -103,6 +103,39 @@ class WorkspaceMacroRequestTest {
     }
 
     @TestCase
+    func anAttributeHoldsTheBracketsNestedInIt() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @M[rename: "x", payload: ["key"]]
+            class C {}
+            "#)
+
+        // act
+        let requests = macroRequests(db, file).map {request => describe(request)}
+
+        // assert
+        @Expect(requests, [#"M[rename: "x", payload: ["key"]] <class C {}> parents= children="#])
+    }
+
+    @TestCase
+    func argumentsThatAreTokensHoldTheParenthesesNestedInThem() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @A(x y (z) w)
+            "#)
+
+        // act
+        let requests = macroRequests(db, file).map {request => describe(request)}
+
+        // assert
+        @Expect(requests, ["A <x y (z) w> parents= children="])
+    }
+
+    @TestCase
     func theInputComesFromTheSourceRelativeToTheTopLevelItem() {
         // arrange
         let (db, file, _) = workspaceMacroDatabase(#"

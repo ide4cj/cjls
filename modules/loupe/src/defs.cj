@@ -6,7 +6,7 @@ import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{BindPat, EnumPat, MacroExpandDecl, MacroExpandExpr, MemberAccessExpr, NameRef, PathSegment,
     RefExpr}
-import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 
 /**
@@ -59,6 +59,9 @@ func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: C
     if (let Some(ofMacro) <- macroDefinitions(db, file, token)) {
         return ofMacro
     }
+    if (let Some(ofImport) <- importDefinitions(db, file, token)) {
+        return ofImport
+    }
     let def = item ?? return None
     if (let Some((typeNode, segment)) <- typeAt(token)) {
         return typeDefinitions(db, def, typeNode, segment)
@@ -73,16 +76,80 @@ func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: C
 func macroDefinitions(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ??Array<Definition> {
     let name = NameRef.cast(token.parent) ?? return None
     let call = name.syntax.parent ?? return None
-    let names = match ((MacroExpandDecl.cast(call), MacroExpandExpr.cast(call))) {
-        case (Some(decl), _) => decl.nameRefs() |> collectArray
-        case (_, Some(expr)) => expr.nameRefs() |> collectArray
+    let (names, hasAttr, onDecl) = match ((MacroExpandDecl.cast(call), MacroExpandExpr.cast(call))) {
+        case (Some(decl), _) => (decl.nameRefs() |> collectArray, decl.macroAttr().isSome(), true)
+        case (_, Some(expr)) => (expr.nameRefs() |> collectArray, expr.macroAttr().isSome(), false)
         case _ => return None
     }
     // A segment of a macro's name is nothing else: a file of no package leaves it unknown, not to the lookups below.
     let pkg = packageOfFile(db, file) ?? return Some(None)
     let segment = names.map {one => one.syntax.textRange}.indexOf(name.syntax.textRange) ?? return Some(None)
-    let resolved = resolveMacroPath(db, pkg, file, names.map {one => one.text()})
-    Some(fileDefinitions(resolved[segment]))
+    let path = names.map {one => one.text()}
+    let resolved = fileDefinitions(resolveMacroPath(db, pkg, file, path)[segment])
+    if (segment < names.size - 1) {
+        return Some(resolved)
+    }
+    if (resolved.isEmpty() && onDecl) {
+        return Some(annotationDefinitions(db, pkg, file, path))
+    }
+    Some(macrosCalled(db, resolved, hasAttr))
+}
+
+/**
+ * The class a call of no macro on a declaration names: an annotation of its own (`@A[1]` of an `@Annotation class
+ * A`), which the parser does not tell from a macro call, going, as `A(1)` does, to the class. Nothing if `path`'s
+ * last segment names no class.
+ */
+func annotationDefinitions(db: AnalysisDatabase, pkg: Package, file: SourceFile, path: Array<String>): Array<Definition> {
+    match (resolveTypePath(db, TypeScope([], pkg, file), path).get(path.size - 1)) {
+        case Some(Resolved(TypeOf(id))) where id.item(db).kind == ItemKind.Class => [Definition.DeclDef(id)]
+        case _ => []
+    }
+}
+
+/**
+ * Of the macros `defs` of one name, those a call runs: one with an attribute the macro of two parameters, one
+ * without the macro of one, as cjc's `macroCall_a_` and `macroCall_c_`; all of them if none is.
+ */
+func macrosCalled(db: AnalysisDatabase, defs: Array<Definition>, hasAttr: Bool): Array<Definition> {
+    let params = if (hasAttr) {
+        2
+    } else {
+        1
+    }
+    let called = defs.filter {
+        one => match (one) {
+            case DeclDef(id) => signatureTypes(db, id).params.size == params
+            case _ => false
+        }
+    }
+    if (called.isEmpty()) {
+        defs
+    } else {
+        called
+    }
+}
+
+/**
+ * What a name of an `import` means, if `token` is one: the name a leaf brings (its last, or its alias), what the leaf
+ * imports, each declaration of the name or the package (N5–N10); a name before it, the package the path names up to
+ * it, if one.
+ */
+func importDefinitions(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): ??Array<Definition> {
+    let (path, isLeaf) = importPathTo(token.parent) ?? return None
+    let from = PackageRef.Source(packageOfFile(db, file) ?? return Some([]))
+    if (isLeaf) {
+        return match (resolveImport(db, from, path, Visibility.Private)) {
+            case ToPackage(_, target) => [Definition.PackageDef(target)]
+            case ToNames(_, names) => names.values() |> flatMap {ids: Array<DefId> => ids} |>
+                map {id: DefId => Definition.DeclDef(id)} |> collectArray
+            case Unresolved(_) => []
+        }
+    }
+    match (packageIndex(db).find(String.join(path.segments, delimiter: "."), from: from)) {
+        case Some(target) => [Definition.PackageDef(target)]
+        case None => []
+    }
 }
 
 /**

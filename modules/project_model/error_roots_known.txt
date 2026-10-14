@@ -33,12 +33,8 @@ modules/cjls/src/server/loop.cj: member found: 1
 modules/cjls/src/server/push.cj: member found: 6
 modules/cjls/src/server/server_test.cj: member found: 3
 modules/fbs_codegen/src/code_writer.cj: member found: 1
-modules/fjson/src/fuzz_test.cj: index: 1
-modules/fjson/src/fuzz_test.cj: local: 1
 modules/fnum/src/ryu.cj: local: 2
 modules/fnum/src/ryu.cj: operator |: 2
-modules/jsonrpc/src/body_fuzz_test.cj: index: 1
-modules/jsonrpc/src/body_fuzz_test.cj: local: 1
 modules/loupe/src/db/project_test.cj: local: 3
 modules/loupe/src/definition.cj: local: 4
 modules/loupe/src/definition.cj: operator ??: 1
@@ -54,7 +50,7 @@ modules/loupe/src/hir/def_map.cj: local: 2
 modules/loupe/src/hir/expansion.cj: index: 2
 modules/loupe/src/hir/expansion.cj: local: 3
 modules/loupe/src/hir/expansion.cj: operator ??: 1
-modules/loupe/src/hir/infer.cj: local: 5
+modules/loupe/src/hir/infer.cj: local: 1
 modules/loupe/src/hir/item_id.cj: local: 2
 modules/loupe/src/hir/item_tree.cj: local: 5
 modules/loupe/src/hir/macro_build.cj: local: 1
@@ -63,18 +59,10 @@ modules/loupe/src/hir/scope.cj: local: 14
 modules/loupe/src/hir/signature.cj: local: 2
 modules/loupe/src/hir/ty_relations.cj: local: 4
 modules/loupe/src/hir/workspace_macro.cj: local: 1
-modules/lsp_codegen/src/config_test.cj: call not solved: 8
-modules/lsp_codegen/src/config_test.cj: local: 10
 modules/lsp_codegen/src/main.cj: name not found: 1
 modules/platform/src/posix/relaunch_posix.cj: name found: 2
 modules/project_model/src/cjpm.cj: local: 3
 modules/project_model/src/project_test.cj: local: 4
 modules/project_model/src/source_set.cj: local: 2
 modules/rope/src/node.cj: local: 1
-modules/rope/src/rope_test.cj: name found: 1
-modules/stdxx/src/deriving/deriving_ext.cj: name found: 1
-modules/stdxx/src/deriving/serde_marker.cj: name found: 3
-modules/stdxx/src/deriving/serde_model.cj: name found: 1
-modules/stdxx/src/deriving/serde_to_toml.cj: name found: 3
-modules/stdxx/src/deriving/utils.cj: name found: 1
 modules/syntax_codegen/src/code_writer.cj: member found: 1

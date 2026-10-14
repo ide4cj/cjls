@@ -6,7 +6,8 @@ import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, PathSegment, PathType, UnaryExpr}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, UnaryExpr}
+import cjsyntax.ast.SourceFile as SourceFileNode
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -31,8 +32,9 @@ public struct NavigationTarget {
 /**
  * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
  * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
- * call names (#175); after a `specific` declaration, the `common` ones it completes (#318). Nothing for a package, nor for a declaration of a package compiled already whose binary's
- * sources are not there (D65).
+ * call names (#175); after a `specific` declaration, the `common` ones it completes (#318); a package in the headers
+ * of its files, a name of an `import` what it imports. Nothing for a package compiled already, nor for a declaration
+ * of one whose binary's sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
@@ -64,9 +66,7 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
     }
     let targets = ArrayList<NavigationTarget>()
     for (one in defs) {
-        if (let Some(target) <- targetOfDefinition(db, one, intoExpansions: intoExpansions)) {
-            targets.add(target)
-        }
+        targets.add(all: targetsOfDefinition(db, one, intoExpansions: intoExpansions))
         // a `specific` declaration, then the `common` ones it completes, as Kotlin's actual and expect (#318)
         if (let DeclDef(id) <- one) {
             targets.add(all: commonsOf(db, id) |> filterMap {common: DefId => declTarget(db, common)} |> collectArray)
@@ -85,17 +85,40 @@ func itemAround(db: AnalysisDatabase, file: ItemFile, node: CjSyntaxNode): ?DefI
 }
 
 /**
- * Where `definition` is declared; `None` for a package. A declaration of an expansion there if `intoExpansions`
- * (`declTarget`).
+ * Where `definition` is declared: a package in the header of each of its files. A declaration of an expansion there if
+ * `intoExpansions` (`declTarget`).
  */
-func targetOfDefinition(db: AnalysisDatabase, definition: Definition, intoExpansions!: Bool = false): ?NavigationTarget {
-    match (definition) {
+func targetsOfDefinition(db: AnalysisDatabase, definition: Definition, intoExpansions!: Bool = false): Array<NavigationTarget> {
+    let one = match (definition) {
         case DeclDef(id) => declTarget(db, id, intoExpansions: intoExpansions)
         case LocalDef(def, local) => localTarget(db, def, local)
         case MemberParamDef(ctor, local) => localTarget(db, ctor, local)
         case TypeParamDef(target) => targetOf(db, target, intoExpansions)
-        case PackageDef(_) => None
+        case PackageDef(pkg) => return packageTargets(db, pkg)
     }
+    match (one) {
+        case Some(target) => [target]
+        case None => []
+    }
+}
+
+/**
+ * The `package` headers of the files of `pkg`, at the path they name: a package has no node of its own. None for a
+ * package compiled already, nor for a file that writes none.
+ */
+func packageTargets(db: AnalysisDatabase, pkg: PackageRef): Array<NavigationTarget> {
+    let source = match (pkg) {
+        case Source(one) => one
+        case Binary(_) => return []
+    }
+    source.files(db) |> filterMap {fileId: FileId => db.sourceFile(fileId)} |> filterMap {
+        file: SourceFile =>
+        let header = SourceFileNode.cast(parse(db, file).syntaxNode()).flatMap {node => node.packageHeader()} ??
+            return None<NavigationTarget>
+        let names = header.nameRefs() |> map {name: NameRef => name.syntax.textRange} |> collectArray
+        let first = names.get(0) ?? return None<NavigationTarget>
+        NavigationTarget(file.fileId(db), header.syntax.textRange, TextRange(first.start, names[names.size - 1].end))
+    } |> collectArray
 }
 
 /**

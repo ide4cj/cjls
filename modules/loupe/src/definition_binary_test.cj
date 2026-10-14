@@ -36,6 +36,30 @@ func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Ar
 @Test
 class DefinitionBinaryTest {
     @TestCase
+    func aMacroOfStdCalledWithoutAnAttributeGoesToItsOverloadOfOneParameter() {
+        checkDefinitionInStd(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.unittest.testmacro.*
+            @$0Test
+            class C {}
+            "#, ["std.core", "std.ast", "std.unittest.testmacro"],
+            ["unittest/testmacro/test_macro.cj: Test in `public macro Test(input: Tokens): Tokens {`"])
+    }
+
+    @TestCase
+    func aMacroOfStdCalledWithAnAttributeGoesToItsOverloadOfTwo() {
+        checkDefinitionInStd(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.unittest.testmacro.*
+            @$0Test[x in [1]]
+            func f(x: Int64): Unit {}
+            "#, ["std.core", "std.ast", "std.unittest.testmacro"],
+            ["unittest/testmacro/test_macro.cj: Test in `public macro Test(dsl: Tokens, input: Tokens): Tokens {`"])
+    }
+
+    @TestCase
     func aTypeOfStdInASignatureGoesToItsSource() {
         checkDefinitionInStd(#"
             //- /main.cj module=m package=m

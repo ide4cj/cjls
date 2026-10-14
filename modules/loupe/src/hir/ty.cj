@@ -179,11 +179,6 @@ public enum Todo <: ToString {
      */
     | LocalGeneric
     /**
-     * A call that fits none of the overloads it names, by name, of a default value or variadic:
-     * arguments are matched to parameters by their count and place alone yet (#254).
-     */
-    | ArgMatching
-    /**
      * An expression inference does not reach.
      */
     | NotInferred
@@ -195,7 +190,6 @@ public enum Todo <: ToString {
             case BinaryType => "binary type"
             case NoStd => "no std"
             case LocalGeneric => "local generic"
-            case ArgMatching => "arg matching"
             case NotInferred => "not inferred"
         }
     }

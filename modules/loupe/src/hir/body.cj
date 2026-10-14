@@ -93,7 +93,11 @@ public struct BodyParam {
         /**
          * Whether it is a member as well, a `let` or `var` of a primary constructor (N69).
          */
-        public let isMember!: Bool = false
+        public let isMember!: Bool = false,
+        /**
+         * The name it is passed by, if by one: a local function's parameter after `!`.
+         */
+        public let passedBy!: ?String = None
     ) {}
 }
 
@@ -128,9 +132,14 @@ public enum Stmt {
     | FuncStmt(Int64)
 }
 
+/**
+ * An argument of a call: the name it is passed by, if any; whether it is a trailing lambda, passed
+ * by the name of the last parameter if that is passed by name (cjc's `GetArgName`).
+ */
 @Derive[Equatable]
 public struct CallArg {
-    public CallArg(public let name: ?String, public let expr: ExprId, public let isInout!: Bool = false) {}
+    public CallArg(public let name: ?String, public let expr: ExprId, public let isInout!: Bool = false,
+        public let isTrailing!: Bool = false) {}
 }
 
 /**
@@ -551,8 +560,14 @@ class BodyLowering {
     private func paramOf(param: AstParam, primary: Bool): BodyParam {
         // the default value first: it sees the parameters before this one, not this one (N67)
         let defaultValue = param.expr().map {one => expr(one)}
+        let passedBy: ?String = if (param.bangToken().isSome()) {
+            param.name()?.text()
+        } else {
+            None
+        }
         BodyParam(local(param.name(), LocalKind.ParamLocal), ty: param.ty().map {one => types.lower(one)},
-            defaultValue: defaultValue, isMember: primary && (param.letToken().isSome() || param.varToken().isSome()))
+            defaultValue: defaultValue, isMember: primary && (param.letToken().isSome() || param.varToken().isSome()),
+            passedBy: passedBy)
     }
 
     func local(name: ?Name, kind: LocalKind, lone!: Bool = false): ?LocalId {
@@ -711,10 +726,10 @@ class BodyLowering {
                 match (this.exprs[callee.index]) {
                     // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
                     case Expr.CallExpr(inner, args) =>
-                        this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda)]))
+                        this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda, isTrailing: true)]))
                         exprPtrs[callee.index] = SyntaxNodePtr(it.syntax)
                         return callee
-                    case _ => Expr.CallExpr(callee, [CallArg(None, lambda)])
+                    case _ => Expr.CallExpr(callee, [CallArg(None, lambda, isTrailing: true)])
                 }
             case AstExpr.AsIndexExpr(it) => Expr.IndexExpr(linkOf(it.base()), it.indices() |> map {one => expr(one)} |> collectArray)
             // `a?`: `$v`, bound to the value of `a` by the `match` the chain is desugared to

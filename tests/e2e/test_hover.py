@@ -49,9 +49,11 @@ async def test_a_name_shows_its_declaration_or_its_type(server: LanguageClient, 
     # act
     call = await hover(3, 12)
     local = await hover(4, 4)
-    nothing = await hover(2, 13)
+    builtin = await hover(2, 13)
+    nothing = await hover(2, 1)
 
-    # assert: a function called, its doc; a local, the type inferred for it; nothing on a keyword
+    # assert: a function called, its doc; a local, the type inferred for it; a type the language builds in, what the
+    # docs say of it; nothing on a keyword
     assert isinstance(call.contents, types.MarkupContent)
     assert call.contents.kind == (types.MarkupKind.Markdown if markdown else types.MarkupKind.PlainText)
     assert "func twice(n: Int64): Int64" in call.contents.value
@@ -59,6 +61,7 @@ async def test_a_name_shows_its_declaration_or_its_type(server: LanguageClient, 
     assert call.range == types.Range(start=types.Position(line=3, character=12),
                                      end=types.Position(line=3, character=17))
     assert "let k: Int64" in local.contents.value
+    assert "type Int64" in builtin.contents.value
     assert nothing is None
 
     await server.shutdown_session()

@@ -6,7 +6,7 @@ import std.deriving.*
 import std.sort.sort
 import calca.*
 import calca.macros.*
-import cjo.{DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
+import cjo.{Attribute, DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile}
@@ -687,7 +687,8 @@ class BinaryTyLowering {
     }
 
     /**
-     * Of a function's parameters, the name of each passed by name; none if none is.
+     * Of a function's parameters, whether each has a default value: cjc writes the value only if it
+     * is a constant, but marks each `HasInitial`; none if none is passed by name.
      */
     private func paramDefaults(): Array<Bool> {
         let lists = match (decl.info) {
@@ -698,10 +699,11 @@ class BinaryTyLowering {
         var isNamed = false
         for (list in lists) {
             for (param in list.params) {
-                match (cjo.allDecls[Int64(param) - 1].info) {
+                let one = cjo.allDecls[Int64(param) - 1]
+                match (one.info) {
                     case Some(DeclInfo.AsParamInfo(it)) =>
                         isNamed = isNamed || it.isNamedParam
-                        found.add(it.defaultVal != 0)
+                        found.add(it.defaultVal != 0 || one.attributes.has(Attribute.HasInitial))
                     case _ => found.add(false)
                 }
             }
