@@ -119,7 +119,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed; a call of std's macro nested in a workspace call's input stays as written; children deeper than one level not checked by D114 |
 | [0099](0099-source-sets-are-a-chain-and-common-is-its-specific.md) | A multiplatform module's packages are the files of the target's chain of source sets, and a common declaration is its specific one | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
-| [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
+| [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed; `cjls.macro_host`'s `@When` constants go to `platform`; what may keep a `@When` is named by D113 |
 | [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
 | [0103](0103-an-expansion-is-shown-as-a-request-and-as-a-read-only-file.md) | An expansion is shown as cjls/expandMacro and as a read-only .cache/cjls/expanded/<file>.macrocall the server navigates | proposed |
 | [0104](0104-workspace-macros-are-built-by-cjc-and-run-under-a-deadline.md) | The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline | proposed |
@@ -131,4 +131,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0110](0110-a-speculative-tree-reparses-the-block-around-the-cursor.md) | A speculative tree is built by reparsing the block around the cursor | proposed |
 | [0111](0111-completion-lists-from-the-speculative-tree-and-resolves-lazily.md) | Completion lists from the speculative tree, ranks by scope, and leaves the detail to a resolve | proposed |
 | [0112](0112-arguments-are-matched-before-a-candidate-is-tried.md) | A call's arguments are matched to each candidate's parameters before it is tried, as cjc | proposed |
+| [0113](0113-the-architecture-is-the-only-when.md) | `hostArch` is the one `@When` of this repository's code, and a set's files are named for what they hold | proposed |
 | [0114](0114-std-derive-is-expanded-in-a-workspace-macros-input.md) | A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child | proposed |
