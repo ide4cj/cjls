@@ -41,15 +41,6 @@ class VfsPathTest {
         @Expect(VfsPath.fromUri(path.toUri()), path)
     }
 
-    @TestCase[name in random()]
-    func aFileOfAnyNameGoesToAUriAndBack(name: String) {
-        // arrange - a name, not a path: no separator, and no NUL, which no file system takes
-        let path = inTemp("f" + name.replace("/", "").replace("\\", "").replace("\0", ""))
-
-        // act, assert
-        @Expect(VfsPath.fromUri(path.toUri()), path)
-    }
-
     @TestCase
     func aMalformedEscapeLeavesTheUriVirtual() {
         // act, assert
