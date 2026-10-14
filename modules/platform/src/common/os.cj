@@ -14,10 +14,18 @@ public common func hostOs(): String
 public common func hostEnv(): String
 
 /**
- * The architecture, as `@When` names it: what `uname` tells this process on Linux and macOS,
- * `x86_64` on Windows, the one cjls is built for there.
+ * The architecture, as `@When` names it: the only `@When` of this repository's code (D113), as cjpm
+ * deduces a feature of `os.*` alone and an OS may be built for more than one architecture.
  */
-public common func hostArch(): String
+@When[arch == "aarch64"]
+public func hostArch(): String {
+    "aarch64"
+}
+
+@When[arch == "x86_64"]
+public func hostArch(): String {
+    "x86_64"
+}
 
 /**
  * The file an executable named `name` is in: `name.exe` on Windows.

@@ -11,10 +11,6 @@ public specific func hostEnv(): String {
     "gnu"
 }
 
-public specific func hostArch(): String {
-    "x86_64"
-}
-
 public specific func sharedLibrarySuffix(): String {
     ".dll"
 }

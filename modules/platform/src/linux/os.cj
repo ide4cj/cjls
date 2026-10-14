@@ -11,10 +11,6 @@ public specific func hostEnv(): String {
     "gnu"
 }
 
-specific func utsnameFieldSize(): Int64 {
-    65
-}
-
 public specific func sharedLibrarySuffix(): String {
     ".so"
 }

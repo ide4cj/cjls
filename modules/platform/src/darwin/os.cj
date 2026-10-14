@@ -11,10 +11,6 @@ public specific func hostEnv(): String {
     ""
 }
 
-specific func utsnameFieldSize(): Int64 {
-    256
-}
-
 public specific func sharedLibrarySuffix(): String {
     ".dylib"
 }
