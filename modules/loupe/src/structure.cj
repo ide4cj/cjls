@@ -155,7 +155,7 @@ private func declaredIn(decl: Decl, inType: Bool): Array<StructureNode> {
 private func named(decl: Decl, name: ?Name, kind: StructureKind, children: Array<StructureNode>): Array<StructureNode> {
     match (name) {
         case Some(name) => [StructureNode(name.text(), kind, decl.syntax.textRange, name.syntax.textRange,
-                children)]
+            children)]
         case None => []
     }
 }

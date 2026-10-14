@@ -51,7 +51,7 @@ public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, lib
  */
 public func expandAll(db: AnalysisDatabase, requests: Array<(SourceFile, MacroRequest, MacroLibrary)>,
     numbers: TokenNumbers, expander: Expander, stopped!: () -> Bool = {=> false}): Array<(SourceFile, MacroCallKey,
-    MacroOutput)> {
+        MacroOutput)> {
     let calls = requests.map {
         one =>
         let (file, request, library) = one

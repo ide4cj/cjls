@@ -1,6 +1,5 @@
 package syntax_codegen
 
-
 let LINE_WIDTH = 120
 
 /**

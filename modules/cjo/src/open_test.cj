@@ -52,7 +52,6 @@ func versionThrownBy(bytes: Array<Byte>): ?UInt8 {
     }
 }
 
-
 @Test
 class OpenCjoTest {
     @TestCase

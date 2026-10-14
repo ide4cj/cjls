@@ -205,7 +205,7 @@ func scanDateTime(bytes: Array<Byte>, at: Int64, end: Int64): (FtData, Int64) {
     let (date, afterDate) = scanDate(bytes, at, end)
     let separated = afterDate < end &&
         (bytes[afterDate] == 0x54 || bytes[afterDate] == 0x74 ||
-        (bytes[afterDate] == 0x20 && isTimeAt(bytes, afterDate + 1, end)))
+            (bytes[afterDate] == 0x20 && isTimeAt(bytes, afterDate + 1, end)))
     if (!separated) {
         return (AsLocalDate(date), afterDate)
     }

@@ -59,8 +59,8 @@ private func checkUniquePaths(files: ArrayList<CjFile>): Unit {
 private func cjFileOf(cfg: Config, mm: MetaModel, ident: String, body: (CjEmitter) -> Unit): CjFile {
     let contents = emittedBy {
         emitter =>
-            emitter.emitPreamble(mm.metaData.version, Token(PACKAGE_IDENTIFIER, cfg.outputPackage), cfg.imports)
-            body(emitter)
+        emitter.emitPreamble(mm.metaData.version, Token(PACKAGE_IDENTIFIER, cfg.outputPackage), cfg.imports)
+        body(emitter)
     }
 
     CjFile(cfg.outputDir.join("${ident.toAsciiLowerSnakeCase()}.cj"), contents)

@@ -243,4 +243,3 @@ class ItemTreeTest {
         @Expect(quoted.items, plain.items)
     }
 }
-

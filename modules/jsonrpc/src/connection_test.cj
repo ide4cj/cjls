@@ -325,9 +325,9 @@ class ConnectionServeRequestTest {
         let handler = FakeHandler()
         handler.onRequestFn = {
             _, _, _ =>
-                started.add(true)
-                release.remove()
-                Result(RawJson.of(42))
+            started.add(true)
+            release.remove()
+            Result(RawJson.of(42))
         }
         let (_, transport) = serving(handler)
 
@@ -415,8 +415,8 @@ class ConnectionDeliveryOrderTest {
         handler.inPlace = true
         handler.onRequestFn = {
             method, _, _ =>
-                handler.notified.add(method)
-                Result(rawJson("null"))
+            handler.notified.add(method)
+            Result(rawJson("null"))
         }
         let (_, transport) = serving(handler)
         let methods = ["note1", "request1", "note2", "note3", "request2", "note4"]
@@ -566,9 +566,9 @@ class ConnectionCancelTest {
         let handler = FakeHandler()
         handler.onRequestFn = {
             _, _, cancel =>
-                started.add(true)
-                release.remove()
-                Result(RawJson.of(cancel.isCancelled))
+            started.add(true)
+            release.remove()
+            Result(RawJson.of(cancel.isCancelled))
         }
         let (connection, transport) = serving(handler)
 
@@ -764,8 +764,8 @@ class ConnectionCloseTest {
         let returned = LinkedBlockingQueue<Bool>()
         spawn {
             =>
-                connection.serve()
-                returned.add(true)
+            connection.serve()
+            returned.add(true)
         }
 
         // act
@@ -803,9 +803,9 @@ class ConnectionCloseTest {
         let handler = FakeHandler()
         handler.onRequestFn = {
             _, _, cancel =>
-                started.add(cancel)
-                release.remove()
-                Result(rawJson("null"))
+            started.add(cancel)
+            release.remove()
+            Result(rawJson("null"))
         }
         let (connection, transport) = serving(handler)
         transport.feed(RequestBody(Integer(7), "slow").enveloped())
@@ -827,9 +827,9 @@ class ConnectionCloseTest {
         let handler = FakeHandler()
         handler.onRequestFn = {
             _, _, cancel =>
-                started.add(cancel)
-                release.remove()
-                Result(rawJson("null"))
+            started.add(cancel)
+            release.remove()
+            Result(rawJson("null"))
         }
         let (connection, transport) = unserved(handler)
         transport.feed(RequestBody(Integer(7), "slow").enveloped())

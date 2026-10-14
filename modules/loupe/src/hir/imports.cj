@@ -218,7 +218,6 @@ public enum ImportResolution {
     | Unresolved(ImportError)
 }
 
-
 /**
  * What a path of an import names, before the names it brings are read: a package, every name of
  * one, or one name of one.

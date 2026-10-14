@@ -144,4 +144,3 @@ class StructureTest {
         @Expect(outline("class `C` {\n    func `f`() {}\n}\nextend `C` {}"), "Class C\n  Method f\nExtension C")
     }
 }
-

@@ -163,12 +163,12 @@ extend CjEmitter {
         emit(quote(public struct $enumIdent))
         blockln {
             =>
-                emitln(quote(public const $enumIdent(public let value: $enumBaseType) {}))
+            emitln(quote(public const $enumIdent(public let value: $enumBaseType) {}))
 
-                for (variant in openEnum.variants) {
-                    emitOpenEnumVariant(variant, enumIdent)
-                    nl()
-                }
+            for (variant in openEnum.variants) {
+                emitOpenEnumVariant(variant, enumIdent)
+                nl()
+            }
         }
     }
 
@@ -186,13 +186,13 @@ extend CjEmitter {
         emit(quote(public enum $enumIdent))
         blockln {
             =>
-                for (variant in closedEnum.variants) {
-                    emitClosedEnumVariant(variant)
-                    nl()
-                }
-                if (let Some(catchAll) <- closedEnum.catchAll) {
-                    emitCatchAllVariant(catchAll, closedEnum.base)
-                }
+            for (variant in closedEnum.variants) {
+                emitClosedEnumVariant(variant)
+                nl()
+            }
+            if (let Some(catchAll) <- closedEnum.catchAll) {
+                emitCatchAllVariant(catchAll, closedEnum.base)
+            }
         }
     }
 

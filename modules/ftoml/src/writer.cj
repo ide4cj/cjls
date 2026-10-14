@@ -352,4 +352,3 @@ public class FtWriter {
         put(0x22)
     }
 }
-
