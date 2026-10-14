@@ -11,8 +11,8 @@ public specific func hostEnv(): String {
     ""
 }
 
-public specific func hostArch(): String {
-    "aarch64"
+specific func utsnameFieldSize(): Int64 {
+    256
 }
 
 public specific func sharedLibrarySuffix(): String {

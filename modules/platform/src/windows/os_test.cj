@@ -8,8 +8,8 @@ import std.unittest.testmacro.*
 @Test
 class HostArchOnWindowsTest {
     /**
-     * The set names one architecture, its triple's: a build for another needs a set of its own. Windows
-     * tells a process the architecture it runs as, emulated or not, in `PROCESSOR_ARCHITECTURE`.
+     * The one cjls is built for on Windows: a build for another needs its own value. Windows tells a
+     * process the architecture it runs as, emulated or not, in `PROCESSOR_ARCHITECTURE`.
      */
     @TestCase
     func isTheMachineThisProcessRunsAs() {

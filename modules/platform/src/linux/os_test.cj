@@ -8,10 +8,10 @@ import std.unittest.testmacro.*
 @Test
 class HostArchOnLinuxTest {
     /**
-     * The set names one architecture, its triple's: a build for another needs a set of its own.
+     * `struct utsname`'s `machine`, as `uname -m` prints it.
      */
     @TestCase
-    func isTheMachineThisProcessRunsAs() {
+    func isWhatUnameTellsThisProcess() {
         // act
         let (code, out, _) = executeWithOutput("uname", ["-m"])
 

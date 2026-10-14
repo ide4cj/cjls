@@ -11,8 +11,8 @@ public specific func hostEnv(): String {
     "gnu"
 }
 
-public specific func hostArch(): String {
-    "x86_64"
+specific func utsnameFieldSize(): Int64 {
+    65
 }
 
 public specific func sharedLibrarySuffix(): String {

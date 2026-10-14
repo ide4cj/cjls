@@ -14,9 +14,8 @@ public common func hostOs(): String
 public common func hostEnv(): String
 
 /**
- * The architecture, as `@When` names it: each OS's set gives it, as the workspace is built for one
- * triple per OS, those it names stdx for. cjpm deduces a feature of the OS alone, and a set has one
- * set above it: the architecture can be no set of its own.
+ * The architecture, as `@When` names it: what `uname` tells this process on Linux and macOS,
+ * `x86_64` on Windows, the one cjls is built for there.
  */
 public common func hostArch(): String
 
