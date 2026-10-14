@@ -92,7 +92,7 @@ class CompletionHandlerTest {
         let resolved = handleCompletionResolve(state.snapshot(), stale)
 
         // assert
-        @Expect(resolved.detail, None<String>)
+        @Expect(resolved.detail.isNone())
         @Expect(resolved.label, "y")
     }
 
