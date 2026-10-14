@@ -145,7 +145,7 @@ public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<
  * parameters its arguments (`C<T>`), or the type its `extend` extends (`Box<String>`); `None`
  * outside a type.
  */
-func selfTyAround(db: AnalysisDatabase, def: DefId): ?Ty {
+public func selfTyAround(db: AnalysisDatabase, def: DefId): ?Ty {
     let parent = parentOf(db, def) ?? return None
     match (parent.item(db).kind) {
         case Extend => signatureTypes(db, parent).ty
@@ -586,4 +586,83 @@ public func supertypes(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
             one => ExtendedType.DeclType(one)
         }
     }
+}
+
+/**
+ * Every member of the types `start`, of their `extend`s the file `from` sees and of their
+ * supertypes, each as `memberLookup` finds it by its name: what completion lists after a `.`. The
+ * names are gathered level by level as the lookup walks, then each is looked up, so that what
+ * hides what is the lookup's, N80 included: a member is listed whatever its modifiers.
+ */
+public func allMembers(db: AnalysisDatabase, start: Array<ExtendedType>, from!: ?SourceFile,
+    on!: ?Ty = None): Array<MemberTarget> {
+    let lookupTy = LookupTy({=> on})
+    let found = ArrayList<MemberTarget>()
+    for (name in memberNames(db, start, from, lookupTy)) {
+        found.add(all: lookUpMembers(db, start, name, from, lookupTy))
+    }
+    found.toArray()
+}
+
+/**
+ * The names the members of `start`, of their `extend`s seen from `from` and of their supertypes
+ * have, each once, in the order the lookup meets them.
+ */
+func memberNames(db: AnalysisDatabase, start: Array<ExtendedType>, from: ?SourceFile, on: LookupTy): Array<String> {
+    let names = ArrayList<String>()
+    let known = HashSet<String>()
+    let add = {found: Array<String> => for (name in found where known.add(name)) {
+        names.add(name)
+    }}
+    let seen = HashSet<ExtendedType>(start)
+    var level = start
+    while (!level.isEmpty()) {
+        let next = ArrayList<ExtendedType>()
+        for (ty in level) {
+            let extends = extendsOn(db, ty, on, from)
+            if (let DeclType(id) <- ty) {
+                add(memberNamesOfItem(db, id))
+            }
+            for (ext in extends) {
+                add(memberNamesOfItem(db, ext))
+            }
+            for (one in supertypesOf(db, ty).concat(extends |> flatMap {ext: DefId => supertypes(db, ext)} |> collectArray)
+                where !seen.contains(one)) {
+                seen.add(one)
+                next.add(one)
+            }
+        }
+        level = next.toArray()
+    }
+    names.toArray()
+}
+
+/**
+ * The names of the members of the item `id`, as `membersOfItem` finds them: of its declarations
+ * but constructors, of the member parameters of its primary constructor, and of the `common`
+ * declarations a `specific` one completes.
+ */
+func memberNamesOfItem(db: AnalysisDatabase, id: DefId): Array<String> {
+    let item = itemOf(db, id) ?? return []
+    let file = id.file(db)
+    let names = ArrayList<String>()
+    for (member in item.members) {
+        match (member.kind) {
+            case Init | Finalizer | Extend | MacroCall => ()
+            case PrimaryInit =>
+                let lowered = body(db, DefId(db, file, member.id))
+                for (param in lowered.params where param.isMember) {
+                    if (let Some(local) <- param.local) {
+                        names.add(lowered[local].name)
+                    }
+                }
+            case _ => names.add(all: member.names)
+        }
+    }
+    if (item.has(Modifier.Specific)) {
+        for (common in commonsOf(db, id)) {
+            names.add(all: memberNamesOfItem(db, common))
+        }
+    }
+    names.toArray()
 }
