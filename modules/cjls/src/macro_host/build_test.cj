@@ -5,6 +5,7 @@ import std.env.getTempDirectory
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import platform.sharedLibrarySuffix
 import cjls.server.tryLockCacheDir
 
 /**
@@ -24,7 +25,7 @@ class FakeToolchain <: Toolchain {
             return (1, "error: ${name} does not compile")
         }
         let file = if (arguments.contains("--compile-macro")) {
-            "lib-macro_m.${name}${LIBRARY_SUFFIX}"
+            "lib-macro_m.${name}${sharedLibrarySuffix()}"
         } else {
             "libm.${name}.a"
         }
@@ -73,7 +74,7 @@ class MacroBuilderTest {
             "--output-dir=${out.join("m")}", "-L", out.join("m").toString(), "-lm.util", "--compile-macro"])
         @Expect(built.size, 1)
         match (built.get("m.ms")) {
-            case Some(Built(library, _)) => @Expect(library, out.join("m").join("lib-macro_m.ms${LIBRARY_SUFFIX}"))
+            case Some(Built(library, _)) => @Expect(library, out.join("m").join("lib-macro_m.ms${sharedLibrarySuffix()}"))
             case _ => @Fail("m.ms was not built")
         }
     }

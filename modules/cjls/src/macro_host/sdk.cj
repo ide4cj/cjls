@@ -4,21 +4,7 @@ import std.collection.*
 import std.env.getVariables
 import std.process.{ProcessException, executeWithOutput}
 import macro_server.{MacroServerPaths, TokenNumbers}
-
-@When[os == "Windows"]
-const LIBRARY_PATH = "PATH"
-
-@When[os == "macOS"]
-const LIBRARY_PATH = "DYLD_LIBRARY_PATH"
-
-@When[os != "Windows" && os != "macOS"]
-const LIBRARY_PATH = "LD_LIBRARY_PATH"
-
-@When[os == "Windows"]
-const PATH_SEPARATOR = ";"
-
-@When[os != "Windows"]
-const PATH_SEPARATOR = ":"
+import platform.{libraryPathVariable, pathListSeparator}
 
 /**
  * The SDK's `cjc`, run with its runtime on the library path, as its `envsetup` sets it: what cjc loads a macro
@@ -47,8 +33,9 @@ public class SdkToolchain <: Toolchain {
     private func run(arguments: Array<String>): (Int64, String, String) {
         let env = HashMap<String, String>(getVariables())
         let lib = paths.runtimeLib.toString()
-        env[LIBRARY_PATH] = match (env.get(LIBRARY_PATH)) {
-            case Some(old) where !old.isEmpty() => "${lib}${PATH_SEPARATOR}${old}"
+        let variable = libraryPathVariable()
+        env[variable] = match (env.get(variable)) {
+            case Some(old) where !old.isEmpty() => "${lib}${pathListSeparator()}${old}"
             case _ => lib
         }
         try {

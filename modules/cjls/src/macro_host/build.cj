@@ -5,16 +5,8 @@ import std.convert.*
 import std.fs.*
 import std.sort.sort
 import std.time.DateTime
+import platform.sharedLibrarySuffix
 import cjls.server.tryLockCacheDir
-
-@When[os == "Windows"]
-const LIBRARY_SUFFIX = ".dll"
-
-@When[os == "macOS"]
-const LIBRARY_SUFFIX = ".dylib"
-
-@When[os != "Windows" && os != "macOS"]
-const LIBRARY_SUFFIX = ".so"
 
 /**
  * A package cjls builds for the macro server (`loupe`'s `MacroBuildUnit`, as paths): its name, its module, the
@@ -186,7 +178,7 @@ public class MacroBuilder {
  */
 func outputName(unit: BuildUnit): String {
     if (unit.isMacro) {
-        "lib-macro_${unit.name}${LIBRARY_SUFFIX}"
+        "lib-macro_${unit.name}${sharedLibrarySuffix()}"
     } else {
         "lib${unit.name}.a"
     }
