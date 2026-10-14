@@ -147,13 +147,166 @@ class ArgumentMatchingTest {
             //      ^ ArrayList<{unknown}>
                 let h = ArrayList<Int64>.of()
             //      ^ ArrayList<Int64>
-                // cjc: String, of `trimStart(set: Array<Rune>)` among its three overloads (#254)
+                // of `trimStart(set: Array<Rune>)` among its three overloads, its elements packed (N155)
                 let t = s.trimStart(r'a', r'b')
-            //      ^ {unknown}
-                // cjc: String, the same one
+            //      ^ String
+                // the same one, of one element
                 let u = s.trimStart(r'a')
-            //      ^ {unknown}
+            //      ^ String
             }
             "#)
     }
+
+    @TestCase
+    func argumentsGoToTheirParametersByPlaceAndByNameBeforeACandidateIsTried() {
+        checkInference(#"
+            package m
+            class T {
+                init(words!: Array<Int64>) {}
+            //       ^^^^^ Array<Int64>
+                init(kinds: Array<String>) {}
+            //       ^^^^^ Array<String>
+            }
+            func w(a: Int64, b!: Int64): Int64 { a }
+            //     ^ Int64
+            //               ^ Int64
+            func w(a: Int64, c!: Int64): String { "" }
+            //     ^ Int64
+            //               ^ Int64
+            func k(a: Int64, h!: (Int64) -> Int64): Int64 { a }
+            //     ^ Int64
+            //               ^ (Int64) -> Int64
+            func k(a: String): String { a }
+            //     ^ String
+            func test(): Unit {
+                let t1 = T(words: [])
+            //      ^^ T
+                // two of the same types but other names are two overloads, not an override
+                let w1 = w(1, c: 2)
+            //      ^^ String
+                // a trailing lambda is passed by the name of the last parameter
+                let k1 = k(1) { x => x }
+            //      ^^ Int64
+            //                  ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aVariadicParameterTakesTheTailOnlyIfNoCandidateTakesTheArgumentsAsTheyAre() {
+        checkInference(#"
+            package m
+            func v(a: Int64, xs: Array<Int64>): Int64 { a }
+            //     ^ Int64
+            //               ^^ Array<Int64>
+            func v(a: String): String { a }
+            //     ^ String
+            func u(a: Int64, xs: Array<Int64>): Int64 { a }
+            //     ^ Int64
+            //               ^^ Array<Int64>
+            func u(a: Int64): String { "" }
+            //     ^ Int64
+            func e(a: Int64, xs: Array<Int64>): Int64 { a }
+            //     ^ Int64
+            //               ^^ Array<Int64>
+            func e(a: Int64, b: Int64, c: Int64): String { "" }
+            //     ^ Int64
+            //               ^ Int64
+            //                         ^ Int64
+            func h(xs: Array<Int64>, n!: Int64 = 1): Int64 { 1 }
+            //     ^^ Array<Int64>
+            //                       ^ Int64
+            func k(xs: Array<Int64>): Int64 { 1 }
+            //     ^^ Array<Int64>
+            func k(x: Int64): String { "" }
+            //     ^ Int64
+            func mx<T>(a: T, others: Array<T>): T { a }
+            //         ^ T
+            //               ^^^^^^ Array<T>
+            func test(arr: Array<Int64>): Unit {
+            //        ^^^ Array<Int64>
+                let v1 = v(1, 2, 3)
+            //      ^^ Int64
+                let v2 = v(1)
+            //      ^^ Int64
+                let v3 = v(1, arr)
+            //      ^^ Int64
+                // of no elements, and of three: one that takes them as they are first
+                let u1 = u(1)
+            //      ^^ String
+                let e1 = e(1, 2, 3)
+            //      ^^ String
+                let u2 = u(1, [2])
+            //      ^^ Int64
+                // a parameter by name after the variadic one
+                let h1 = h(1, 2, n: 3)
+            //      ^^ Int64
+                let h2 = h(n: 3)
+            //      ^^ Int64
+                let k1 = k(1)
+            //      ^^ String
+                let m1 = mx(1, 2, 3)
+            //      ^^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aParameterOfADefaultValueLeftOutGivesACandidateNoPriority() {
+        checkInference(#"
+            package m
+            func d(a: Int64, b!: Int64 = 0): Int64 { a }
+            //     ^ Int64
+            //               ^ Int64
+            func d(a: Int64): String { "" }
+            //     ^ Int64
+            func test(): Unit {
+                // cjc: ambiguous match for function call 'd'
+                let d1 = d(1)
+            //      ^^ {unknown}
+                let d2 = d(1, b: 2)
+            //      ^^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLambdaGoesToACandidateWhoseParameterThereIsAFunctionFirst() {
+        checkInference(#"
+            package m
+            struct Lazy<T> {
+                init(value: T) {}
+            //       ^^^^^ T
+                init(fun: () -> ?T) {}
+            //       ^^^ () -> Option<T>
+                init() {}
+            }
+            func test(): Unit {
+                // a trailing lambda only to a last parameter of a function type
+                let a = Lazy { 1 }
+            //      ^ Lazy<Int64>
+                let b = Array<Int64>(3) {i => i}
+            //      ^ Array<Int64>
+            //                           ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLocalFunctionTakesItsParametersByTheirNames() {
+        checkInference(#"
+            package m
+            func test(): Unit {
+                func g(a: Int64, b!: Int64 = 0): Int64 { a + b }
+            //       ^ (Int64, Int64) -> Int64
+            //         ^ Int64
+            //                   ^ Int64
+                let x = g(1, b: 2)
+            //      ^ Int64
+                let y = g(1)
+            //      ^ Int64
+            }
+            "#)
+    }
+
 }

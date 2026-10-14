@@ -416,15 +416,10 @@ class UnknownTest {
             //          ^^^^^^^^^ no value
                 let h = ArrayList<Int64>.of()
             //          ^^^^^^^^^^^^^^^^ no value
-                // of three overloads, none of two parameters: matched by their count alone (#254)
+                // of three overloads, `trimStart(set: Array<Rune>)` takes them as its elements (N155)
                 let t = s.trimStart(r'a', r'b')
-            //          ^^^^^^^^^^^ todo(arg matching)
-            //          ^^^^^^^^^^^^^^^^^^^^^^^ todo(arg matching)
-                // each of one parameter, none taking a `Rune` as such: an error, not a gap, as
-                // `byMatching` looks at names alone (#254)
+                // the same one, though each of one parameter
                 let u = s.trimStart(r'a')
-            //          ^^^^^^^^^^^ error
-            //          ^^^^^^^^^^^^^^^^^ error
             }
             "#, binaries: ["std.core", "std.collection"])
     }

@@ -165,6 +165,52 @@ class InferenceDiagnosticsTest {
     }
 
     @TestCase
+    func anArgumentPassedByAWrongNameOrByNoneIsReportedAtTheArgument() {
+        checkDiagnostics(#"
+            package m
+            func f(a: Int64, b!: Int64, c!: Int64 = 0): Int64 { a }
+            func g(a: Int64, xs: Array<Int64>): Int64 { a }
+            func k(a: Int64, h!: (Int64) -> Int64): Int64 { a }
+            func test(): Unit {
+                f(1, b: 2, z: 3)
+            //             ^^^^ error: unknown named argument prefix 'z:'
+                f(1, b: 2, b: 3)
+            //             ^^^^ error: named argument prefix 'b:' cannot appeared more than once in call
+                f(1, 2)
+            //       ^ error: missing argument prefix 'b:' or 'c:' for named parameter
+                f(1, 2, 3)
+            //       ^ error: missing argument prefix 'b:' or 'c:' for named parameter
+                f(1)
+            //   ^^^ error: missing arguments for parameter list '(Int64, Int64, Int64)' in call: expected 3 arguments, found 1
+                let h = {x: Int64 => x}
+                h(x: 1)
+            //    ^^^^ error: named argument cannot be used in variable function call
+                // a variadic one that fits not: what its arguments as they are found
+                g(1, 2, "s")
+            //   ^^^^^^^^^^^ error: extra argument given for parameter list '(Int64, Array<Int64>)' in call: expected 2 arguments, found 3
+                g(1, 2, b: 3)
+            //          ^^^^ error: unknown named argument prefix 'b:'
+                g()
+            //   ^^ error: missing arguments for parameter list '(Int64, Array<Int64>)' in call: expected 2 arguments, found 0
+                k(1, h: {x => x}) { x => x }
+            //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ error: extra argument given for parameter list '(Int64, (Int64) -> Int64)' in call: expected 2 arguments, found 3
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func aParameterOfABinaryWhoseDefaultIsNoConstantMayBeLeftOut() {
+        checkDiagnostics(#"
+            package m
+            import std.time.DateTime
+            func g(): Unit {
+                // `timeZone!: TimeZone = TimeZone.Local`, whose value the `.cjo` does not hold
+                let now = DateTime.now()
+            }
+            "#, binaries: ["std.core", "std.time"])
+    }
+
+    @TestCase
     func whatCjcAcceptsIsNoError() {
         checkDiagnostics(#"
             package m
@@ -287,7 +333,7 @@ class InferenceDiagnosticsTest {
 /**
  * What the gate of std's sources found where cjc finds nothing (#287), each case of std's code
  * compiled with cjc 1.3.0-alpha.20261002 first; a name not known (`nope`) stands for a gap of the
- * analysis there (the variadic `max` of #254), which nothing around it is reported for.
+ * analysis there (the variadic `max` was one before #254), which nothing around it is reported for.
  */
 @Test
 class StdFalseMismatchesTest {
