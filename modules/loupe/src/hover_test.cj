@@ -434,13 +434,48 @@ class HoverTest {
     }
 
     @TestCase
-    func aMacroCallShowsNothingYet() {
+    func aMacroCallShowsTheMacroItCallsAsItsDeclarationDoes() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
-            @$0M
-            // ^ no hover
+            @$0M[x]
+            // ^ public macro M(attrs: Tokens, input: Tokens) in m.ms — adds what `attrs` names
+            func f(): Unit {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            /** adds what `attrs` names */
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            "#, std: ["std.core", "std.ast"])
+    }
+
+    @TestCase
+    func aMacroCallInABodyShowsTheMacroItCalls() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            main() {
+                let x = @$0M(1)
+            //             ^ public macro M(input: Tokens) in m.ms
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#, std: ["std.core", "std.ast"])
+    }
+
+    @TestCase
+    func aPackageInAMacrosPathShowsNothing() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms
+            @$0ms.M
+            // ^^ no hover
             func f(): Unit {}
             //- /ms/ms.cj module=m package=m.ms
             macro package m.ms
@@ -582,7 +617,7 @@ class BuiltinHoverTest {
     }
 
     @TestCase
-    func aMacroOfTheWorkspaceNamedAsOneOfTheCompilersIsNotIt() {
+    func aMacroOfTheWorkspaceNamedAsOneOfTheCompilersIsItsOwn() {
         checkHover(#"
             //- /ms/ms.cj module=m package=m.ms
             macro package m.ms
@@ -593,9 +628,9 @@ class BuiltinHoverTest {
             import m.ms.sourceLine
             main() {
                 let line = @$0sourceLine()
-            //                ^^^^^^^^^^ no hover
+            //                ^^^^^^^^^^ public macro sourceLine(input: Tokens) in m.ms
             }
-            "#)
+            "#, std: ["std.core", "std.ast"])
     }
 
     /**

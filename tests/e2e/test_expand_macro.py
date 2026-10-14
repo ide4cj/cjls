@@ -65,7 +65,8 @@ async def test_expand_macro_answers_the_expansion_and_shows_the_expanded_file(se
     assert expansion.name == "@Derive"
     assert expansion.kind == "cjls"
     assert expansion.expansion.startswith("// cjls's own expansion of @Derive")
-    assert "extend P <: Equatable<P>" in expansion.expansion
+    # the declaration first, as cjc's output has it, then what `@Derive` adds after it
+    assert expansion.expansion.index("class P {") < expansion.expansion.index("extend P <: Equatable<P>")
     assert "public operator func ==(other: P): Bool {}" in expansion.expansion
 
     window = capabilities(editor).window

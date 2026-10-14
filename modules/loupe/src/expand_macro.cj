@@ -72,26 +72,39 @@ public struct ExpandedMacro {
          * `NavigationTarget.expansion` gives ranges of.
          */
         public let text: String,
-        public let kind: ExpansionKind
+        public let kind: ExpansionKind,
+        /**
+         * The declaration the call is on, as written after the call's head, for an expansion that adds after it
+         * rather than replaces it, which cjc's output starts with: one of std's but `@Strategy`'s. `None` otherwise.
+         */
+        public let declaration!: ?String = None
     ) {}
 }
 
 /**
- * The macro call whose head (`@` to the end of its attribute, or of its name, the end included) is at `offset` of the
- * file, as `MacroCallAt` gives it; `None` off any head, on a call in a body, and on a call nothing expands: a macro
- * the analysis does not know (`@DeriveExclude`, an unresolved name), or a call of the workspace on a member whose type
- * has no call of the workspace (D98's consequence).
+ * The macro call at `offset` of the file, as `MacroCallAt` gives it, as rust-analyzer finds one: the call whose head
+ * (`@` to the end of its attribute, or of its name, the end included) it is on; else the outermost call of the
+ * innermost item around it with one that expands, from anywhere in the item, or, unless `inBody`, anywhere but in its
+ * bodies. `None` where no call expands: in a body a call is on no item, and a call of a macro the analysis does not
+ * know (`@DeriveExclude`, an unresolved name), or of the workspace on a member whose type has no call of the workspace
+ * (D98's consequence), has no expansion.
  */
-public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?MacroCallAt {
+public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inBody!: Bool = true): ?MacroCallAt {
     let file = db.sourceFile(fileId) ?? return None
-    let (under, range) = macroCallUnder(db, file, offset) ?? return None
-    let call = readCallOf(db, under) ?? return None
-    let focus = if (call == under) {
-        None<TextRange>
-    } else {
-        expansionRangeOf(db, call, range)
+    let candidates = match (macroCallUnder(db, file, offset)) {
+        case Some(under) => [under]
+        case None => Array<(MacroCallId, TextRange)>()
     }
-    MacroCallAt(call, range, focus: focus)
+    for ((under, range) in candidates.concat(macroCallsAround(db, file, offset, inBody))) {
+        let call = readCallOf(db, under) ?? continue
+        let focus = if (call == under) {
+            None<TextRange>
+        } else {
+            expansionRangeOf(db, call, range)
+        }
+        return MacroCallAt(call, range, focus: focus)
+    }
+    None
 }
 
 /**
@@ -110,5 +123,11 @@ public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMac
     } else {
         ExpansionKind.StdExpansion
     }
-    ExpandedMacro(name, range, macroExpansion(db, call).text, kind)
+    let expansion = macroExpansion(db, call)
+    let declaration = if (expansion.replaces) {
+        None<String>
+    } else {
+        declarationUnder(db, call)
+    }
+    ExpandedMacro(name, range, expansion.text, kind, declaration: declaration)
 }
