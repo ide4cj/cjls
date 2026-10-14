@@ -32,6 +32,8 @@ public func router(): Router {
         .route(DefinitionRequestSpec(), handleDefinition)
         .route(DocumentHighlightRequestSpec(), handleDocumentHighlight)
         .route(HoverRequestSpec(), handleHover)
+        .route(CompletionRequestSpec(), handleCompletion)
+        .route(CompletionResolveRequestSpec(), handleCompletionResolve)
         .route(SelectionRangeRequestSpec(), handleSelectionRange)
         .route(DocumentFormattingRequestSpec(), handleFormatting)
         .route(DocumentRangeFormattingRequestSpec(), handleRangeFormatting)
@@ -59,6 +61,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
         documentHighlightProvider: BooleanOrDocumentHighlightOptions.AsBoolean(true),
         hoverProvider: BooleanOrHoverOptions.AsBoolean(true),
+        // the detail and the documentation on resolve, so the list executes no query per item (D81, D111)
+        completionProvider: CompletionOptions(triggerCharacters: ["."], resolveProvider: true),
         selectionRangeProvider: BooleanOrSelectionRangeOptionsOrSelectionRangeRegistrationOptions.AsBoolean(true),
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
         documentRangeFormattingProvider: BooleanOrDocumentRangeFormattingOptions.AsBoolean(true),

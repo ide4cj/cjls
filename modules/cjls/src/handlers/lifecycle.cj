@@ -29,6 +29,7 @@ func handleInitialize(state: ServerState, client: Client, logger: Logger, params
     state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}
     state.locationLinks = takesLocationLinks(params.capabilities)
     state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
+    state.completionMarkdown = takesCompletionMarkdown(params.capabilities)
     state.roots.add(all: workspaceRoots(params))
     state.settings = initialSettings(params.initializationOptions, client, logger)
     let workspace = params.capabilities.workspace
@@ -109,6 +110,13 @@ func takesHoverMarkdown(capabilities: ClientCapabilities): Bool {
     let formats = capabilities.textDocument.flatMap {textDocument => textDocument.hover}.flatMap {
         hover => hover.contentFormat
     } ?? []
+    formats.contains(MarkupKind.Markdown)
+}
+
+func takesCompletionMarkdown(capabilities: ClientCapabilities): Bool {
+    let formats = capabilities.textDocument.flatMap {textDocument => textDocument.completion}.flatMap {
+        completion => completion.completionItem
+    }.flatMap {item => item.documentationFormat} ?? []
     formats.contains(MarkupKind.Markdown)
 }
 
