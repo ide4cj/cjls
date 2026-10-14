@@ -295,12 +295,12 @@ func isReplacedByServerExpansion(db: AnalysisDatabase, def: DefId): Bool {
 }
 
 /**
- * What `def`, a declaration of a source file or a member of one under a top-level item a workspace macro's expansion
+ * What `def`, a declaration of a source file or a member of one under a top-level item an expansion the server made
  * replaces, became in that expansion: its declaration whose name the macro copied from `def`'s (#176). `None` if no
  * expansion the analysis reads replaces it, or the macro dropped or renamed it.
  */
 public func expandedDeclOf(db: AnalysisDatabase, def: DefId): ?DefId {
-    if (!isReplacedByWorkspaceExpansion(db, def)) {
+    if (!isReplacedByServerExpansion(db, def)) {
         return None
     }
     let file = match (def.file(db)) {
@@ -308,7 +308,7 @@ public func expandedDeclOf(db: AnalysisDatabase, def: DefId): ?DefId {
         case _ => return None
     }
     let top = (parentOf(db, def) ?? def).item(db)
-    let call = (workspaceCalls(db, file).iterator().filter {one => one.read && one.top == top}.next() ?? return None).call
+    let call = (serverCalls(db, file).iterator().filter {one => one.read && one.top == top}.next() ?? return None).call
     let node = itemIdMap(db, file).node(def.item(db), parse(db, file).syntaxNode()) ?? return None
     let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? return None
     let items = expansionItemTree(db, call).items |> flatMap {item: Item => [item].concat(item.members)} |>

@@ -30,7 +30,7 @@ public struct MacroLibrary {
  */
 public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>,
     stdLibrary!: (String) -> ?String = {_ => None}, isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile,
-    MacroRequest, MacroLibrary)> {
+        MacroRequest, MacroLibrary)> {
     let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
     for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
         for (request in pendingMacroRequests(db, file)) {
@@ -247,7 +247,7 @@ public class GuardedServer <: Expander {
 }
 
 /**
- * Two servers, one running std's macros, the other the workspace's (D109): a process that loads std's library of
+ * Two servers, one running std's macros, the other the workspace's (D115): a process that loads std's library of
  * `@Derive` after one of the workspace's libraries ran may abort (SIGABRT in the runtime, 1.3.0-alpha.20261002), and
  * a rebuilt library of the workspace restarts only its own server.
  */
