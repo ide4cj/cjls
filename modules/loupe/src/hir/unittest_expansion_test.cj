@@ -455,6 +455,7 @@ class UnittestInferenceTest {
             import std.unittest.*
             import std.unittest.testmacro.*
             @Strategy[x in [1, 2]]
+            //             ^^^^^^ Array<Int64>
             func strat(x: Int64): Int64 { x }
             //         ^ Int64
             func f(): Unit {

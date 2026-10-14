@@ -60,6 +60,16 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
                     actual.add(Annotation(fileId, node.textRange, result.locals[i].text(db)))
                 }
             }
+            // `src` of a macro's `x in src` on it (#191)
+            for (attr in lowered.body.attrs) {
+                for (arg in attr.args) {
+                    if (let DataArg(_, src) <- arg && let Some(Some(ptr)) <- lowered.sourceMap.exprs.get(src.index) &&
+                        let Some(node) <- ptr.tryToNode(root)) {
+                        let ty = result.exprs[src.index].map {one => one.text(db)} ?? "none"
+                        actual.add(Annotation(fileId, node.textRange, ty))
+                    }
+                }
+            }
         case _ => ()
     }
     for (member in item.members) {
@@ -2138,6 +2148,41 @@ class InferTest {
                 fl
             }
             "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"])
+    }
+
+    @TestCase
+    func theSourceOfADataArgIsInferredOutsideTheDeclaration() {
+        // cjc 1.3.0-alpha.20260918 (#191): `src` is evaluated in a lambda of the test class, a `DataStrategy<T>`
+        checkInference(#"
+            package m
+            import std.unittest.*
+            import std.unittest.testmacro.*
+            @Test
+            class C {
+                @TestCase[x in [1, 2], y in data()]
+            //                 ^^^^^^ Array<Int64>
+            //                              ^^^^^^ Array<String>
+                func f(x: Int64, y: String): Unit {}
+            //         ^ Int64
+            //                   ^ String
+                func data(): Array<String> { ["a"] }
+            }
+            @Test[x in ["a"]]
+            //         ^^^^^ Array<String>
+            func g(x: String): Unit {}
+            //     ^ String
+            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"])
+    }
+
+    @TestCase
+    func theSourceOfADataArgOfAMacroNotFoundIsNotInferred() {
+        checkInference(#"
+            package m
+            @Test[x in [1]]
+            //         ^^^ {unknown}
+            func g(x: Int64): Unit {}
+            //     ^ Int64
+            "#)
     }
 
     @TestCase

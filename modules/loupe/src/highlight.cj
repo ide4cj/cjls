@@ -215,7 +215,7 @@ class Highlighter {
         let inErrorNode = inError || node.kind == SyntaxKind.ErrorNode
         let here = match (ids) {
             case Some(ids) where Decl.canCast(node.kind) || node.kind == SyntaxKind.ImportDecl =>
-                match (ids.idOf(SyntaxNodePtr(node))) {
+                match (ids.idAround(node)) {
                     case Some(id) => DefId(db, ItemFile.Source(file), id)
                     case None => item
                 }
@@ -271,7 +271,7 @@ class Highlighter {
         if (declares && (syntactic.isSome() || owner.kind != SyntaxKind.BindPat)) {
             return None
         }
-        if (!declares && !RESOLVED_IN.contains(owner.kind)) {
+        if (!declares && !RESOLVED_IN.contains(owner.kind) && accessNodeOf(owner).isNone()) {
             return None
         }
         let defs = classifyName(db, file, item, token) ?? return None
@@ -283,7 +283,7 @@ class Highlighter {
             // a macro is known by its call, if not by its name
             case None where owner.kind == SyntaxKind.MacroExpandDecl || owner.kind == SyntaxKind.MacroExpandExpr => None
             // a member a macro called on its type may add, as `@Derive` does
-            case None where owner.kind == SyntaxKind.MemberAccessExpr => None
+            case None where accessNodeOf(owner).isSome() => None
             case None where macrosMayDeclare() => None
             case None => tagged(HighlightTag.UnresolvedReference)
         }

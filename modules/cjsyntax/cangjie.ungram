@@ -477,9 +477,18 @@ QuoteInterpolation =
 MacroExpandExpr =
   ('@' | '@!') NameRef ('.' NameRef)* MacroAttr? (MacroArgs | MacroExpandExpr)
 
-// `[...]` after a macro name
+// `[...]` after a macro name: std.unittest's attributes when the tokens parse as them
 MacroAttr =
-  '[' 'AnyToken'* ']'
+  '[' ((Arg | DataArg | TypesArg) (',' (Arg | DataArg | TypesArg))* ','?)? ']'
+| '[' 'AnyToken'* ']'
+
+// `x in src`, `config.x in src`: a parameter of a test and where its values come from
+DataArg =
+  param:Expr 'in' source:Expr
+
+// `T in <A, B>`: a type parameter of a test and the types it is run with
+TypesArg =
+  Type 'in' TypeArgList
 
 // `(...)` after a macro name: an argument list when the tokens parse as one, before any expansion
 MacroArgs =

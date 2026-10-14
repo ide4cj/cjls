@@ -58,6 +58,48 @@ func isUse(token: CjSyntaxToken): Bool {
 @Test
 class HighlightResolvedTest {
     @TestCase
+    func whatStdsTestMacrosTakeAsCodeByWhatItMeans() {
+        // #191: `x in src`'s `x` the parameter, `src` a name around it, `@Configure`'s option its key's property,
+        // `@Tag`'s identifiers nothing
+        let binaries = ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"].map {
+            name => stdCjoRead(name, stdCjo(name))
+        }
+        checkHighlight(#"
+            //- /main.cj module=m package=m
+              package m
+            //        ^ Namespace
+              import std.unittest.*
+            //       ^^^ Namespace
+            //           ^^^^^^^^ Namespace
+              import std.unittest.testmacro.*
+            //       ^^^ Namespace
+            //           ^^^^^^^^ Namespace
+            //                    ^^^^^^^^^ Namespace
+              @UnittestOption[Int64](zxc)
+            // ^^^^^^^^^^^^^^ Macro[DefaultLibrary]
+            //                       ^^^ none
+              func f(): Unit {}
+              @Test
+            // ^^^^ Macro[DefaultLibrary]
+              @Configure[zxc: 1]
+            // ^^^^^^^^^ Macro[DefaultLibrary]
+            //           ^^^ Property[Static]
+              class C {
+                  @TestCase[x in data()]
+            //     ^^^^^^^^ Macro[DefaultLibrary]
+            //              ^ Parameter
+            //                   ^^^^ Method
+                  @Tag[Slow]
+            //     ^^^ Macro[DefaultLibrary]
+            //         ^^^^ none
+                  func g(x: Int64): Unit {}
+                  func data(): Array<Int64> { [1, 2] }
+            //                 ^^^^^ Struct[DefaultLibrary]
+              }
+            "#, binaries: binaries)
+    }
+
+    @TestCase
     func localsAndParametersByWhatDeclaresThem() {
         checkHighlight(#"
             //- /main.cj module=m package=m
@@ -332,6 +374,7 @@ class HighlightStdTest {
             //           ^^^^^^^^ Namespace
               @Derive[Equatable]
             // ^^^^^^ Macro[DefaultLibrary]
+            //        ^^^^^^^^^ none
               class P {}
               func f(xs: Array<Int64>): Unit { missing }
             //           ^^^^^ Struct[DefaultLibrary]

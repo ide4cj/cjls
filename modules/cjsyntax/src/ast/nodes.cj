@@ -109,6 +109,10 @@ let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
         SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
         SyntaxKind.NothingKw, SyntaxKind.UnitKw])
 
+let DATA_ARG_PARAM_END = TokenSet<SyntaxKind>([SyntaxKind.InKw])
+
+let DATA_ARG_SOURCE_START = TokenSet<SyntaxKind>([SyntaxKind.InKw])
+
 /**
  * A node that declares a name.
  */
@@ -6362,7 +6366,7 @@ public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & ToString
 }
 
 /**
- * `[...]` after a macro name
+ * `[...]` after a macro name: std.unittest's attributes when the tokens parse as them
  */
 @Derive[Equatable, Hashable]
 public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & ToString {
@@ -6390,8 +6394,112 @@ public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & ToString {
         astToken(node, SyntaxKind.LBracket)
     }
 
+    public func args(): Iterator<Arg> {
+        astChildren<SyntaxKind, Arg>(node)
+    }
+
+    public func dataArgs(): Iterator<DataArg> {
+        astChildren<SyntaxKind, DataArg>(node)
+    }
+
+    public func typesArgs(): Iterator<TypesArg> {
+        astChildren<SyntaxKind, TypesArg>(node)
+    }
+
+    public func commaToken(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, SyntaxKind.Comma)
+    }
+
+    public func commaTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Comma)
+    }
+
     public func rBracketToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RBracket)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * `x in src`, `config.x in src`: a parameter of a test and where its values come from
+ */
+@Derive[Equatable, Hashable]
+public struct DataArg <: AstNode<SyntaxKind, DataArg> & ToString {
+    DataArg(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        kind == SyntaxKind.DataArg
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?DataArg {
+        if (canCast(node.kind)) {
+            DataArg(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func param(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, None, DATA_ARG_PARAM_END)
+    }
+
+    public func inToken(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, SyntaxKind.InKw)
+    }
+
+    public func source(): ?Expr {
+        astChildBetween<SyntaxKind, Expr>(node, DATA_ARG_SOURCE_START, None)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * `T in <A, B>`: a type parameter of a test and the types it is run with
+ */
+@Derive[Equatable, Hashable]
+public struct TypesArg <: AstNode<SyntaxKind, TypesArg> & ToString {
+    TypesArg(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        kind == SyntaxKind.TypesArg
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?TypesArg {
+        if (canCast(node.kind)) {
+            TypesArg(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func ty(): ?Type {
+        astChild<SyntaxKind, Type>(node)
+    }
+
+    public func inToken(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, SyntaxKind.InKw)
+    }
+
+    public func typeArgList(): ?TypeArgList {
+        astChild<SyntaxKind, TypeArgList>(node)
     }
 
     public func toString(): String {
