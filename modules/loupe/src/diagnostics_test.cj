@@ -124,6 +124,20 @@ class InferenceDiagnosticsTest {
     }
 
     @TestCase
+    func aQuoteIsCheckedInItsInterpolationsOnly() {
+        // #195: the rest is tokens, checked where the macro is expanded
+        checkDiagnostics(#"
+            package m
+            import std.ast.*
+            func f(a: Int64): Tokens { quote() }
+            func g(): Tokens {
+                quote(f("s") + $(f("s")))
+            //                     ^^^ error: mismatched types: expected 'Int64', found 'String'
+            }
+            "#, binaries: ["std.core", "std.ast"])
+    }
+
+    @TestCase
     func anIntegerLiteralWhereNoNumberIsExpectedCannotBeConverted() {
         checkDiagnostics(#"
             package m

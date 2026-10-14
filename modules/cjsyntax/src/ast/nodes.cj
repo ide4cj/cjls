@@ -819,7 +819,7 @@ public struct Name <: AstNode<SyntaxKind, Name> & ToString {
 }
 
 /**
- * a name being used
+ * a name being used; `$name` in a quote, the name `name` where the macro runs
  */
 @Derive[Equatable, Hashable]
 public struct NameRef <: AstNode<SyntaxKind, NameRef> & ToString {
@@ -845,6 +845,10 @@ public struct NameRef <: AstNode<SyntaxKind, NameRef> & ToString {
 
     public func identToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.Ident)
+    }
+
+    public func dollarIdentToken(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, SyntaxKind.DollarIdent)
     }
 
     public func toString(): String {
@@ -6257,7 +6261,7 @@ public struct QuoteExpr <: AstNode<SyntaxKind, QuoteExpr> & ToString {
 }
 
 /**
- * `$(expr)` in a quote
+ * `$(expr)` in a quote, or `$name`, a reference to `name`
  */
 @Derive[Equatable, Hashable]
 public struct QuoteInterpolation <: AstNode<SyntaxKind, QuoteInterpolation> & ToString {
@@ -6295,6 +6299,10 @@ public struct QuoteInterpolation <: AstNode<SyntaxKind, QuoteInterpolation> & To
 
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
+    }
+
+    public func refExpr(): ?RefExpr {
+        astChild<SyntaxKind, RefExpr>(node)
     }
 
     public func toString(): String {

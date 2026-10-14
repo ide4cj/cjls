@@ -26,25 +26,36 @@ extend Name {
 
 extend NameRef {
     /**
-     * The name used, without the backquotes of `` `foo` ``.
+     * The name used, without the backquotes of `` `foo` ``, and `$foo`'s without its `$`.
      */
     public func text(): String {
-        match (identToken()) {
-            case Some(ident) => unquoted(ident.text())
-            case None => ""
+        if (let Some(ident) <- identToken()) {
+            identText(ident)
+        } else if (let Some(ident) <- dollarIdentToken()) {
+            identText(ident)
+        } else {
+            ""
         }
     }
 }
 
 /**
- * The text of `token`; an identifier's without its backquotes, as a name is (A20).
+ * The text of `token`; an identifier's without its backquotes, as a name is (A20), and a quote's `$foo` without
+ * its `$`, the name `foo`.
  */
 public func identText(token: SyntaxToken<SyntaxKind>): String {
-    if (token.kind == SyntaxKind.Ident) {
-        unquoted(token.text())
-    } else {
-        token.text()
+    match (token.kind) {
+        case SyntaxKind.Ident => unquoted(token.text())
+        case SyntaxKind.DollarIdent => unquoted(token.text()[1..])
+        case _ => token.text()
     }
+}
+
+/**
+ * Whether `token` is a name: an identifier, or a quote's `$foo`, the name `foo`.
+ */
+public func isIdent(token: SyntaxToken<SyntaxKind>): Bool {
+    token.kind == SyntaxKind.Ident || token.kind == SyntaxKind.DollarIdent
 }
 
 /**

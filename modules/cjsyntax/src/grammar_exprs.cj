@@ -750,7 +750,8 @@ func varrayExpr(p: P): CompletedMarker<SyntaxKind> {
 }
 
 /**
- * `quote(tokens)`: the tokens are kept as they are, but for `$(expr)`, parsed; `\` escapes the token after it.
+ * `quote(tokens)`: the tokens are kept as they are, but for `$(expr)`, parsed, and `$name`, a reference to `name`; `\`
+ * escapes the token after it.
  */
 func quoteExpr(p: P): CompletedMarker<SyntaxKind> {
     let m = p.start()
@@ -761,6 +762,16 @@ func quoteExpr(p: P): CompletedMarker<SyntaxKind> {
             if (p.at(Backslash)) {
                 p.bumpAny()
                 p.bumpAny()
+                continue
+            }
+            if (p.at(DollarIdent)) {
+                let i = p.start()
+                let ref = p.start()
+                let name = p.start()
+                p.bump(DollarIdent)
+                name.complete(p, NameRef)
+                ref.complete(p, RefExpr)
+                i.complete(p, QuoteInterpolation)
                 continue
             }
             if (p.at(Dollar) && !p.nthAt(1, LParen)) {

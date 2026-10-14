@@ -201,4 +201,20 @@ class HighlightRelatedTest {
             }
             "#)
     }
+
+    @TestCase
+    func aParameterNamedInAQuoteIsHighlightedInItsInterpolationsOnly() {
+        // #195: `input` outside them is a token of what the macro builds
+        checkHighlightRelated(#"
+            //- /main.cj module=m package=m
+            macro package m
+            import std.ast.*
+            public macro M(input: Tokens): Tokens {
+            //             ^^^^^ text
+                quote(input + $input + $($0input))
+            //                ^^^^^^ read
+            //                             ^^^^^ read
+            }
+            "#)
+    }
 }
