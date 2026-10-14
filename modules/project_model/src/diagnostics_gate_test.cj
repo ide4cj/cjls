@@ -109,6 +109,7 @@ func knownOfStd(): Path {
  * fails it, named. A cold pass over every body of each.
  */
 @Test
+@Tag[gate]
 @Timeout[Duration.minute * 5]
 class DiagnosticsGateTest {
     @TestCase
@@ -125,6 +126,7 @@ class DiagnosticsGateTest {
      * written.
      */
     @TestCase
+    @Tag[stdgate]
     func stdsSourcesHaveOnlyTheDiagnosticsOfKnownGaps() {
         let (db, paths, files) = stdFromSources()
         let found = diagnosticsOf(db, paths, files, stdSourcesDir())
@@ -154,6 +156,7 @@ class DiagnosticsGateTest {
  */
 @When[os == "Linux"]
 @Test
+@Tag[gate]
 @Timeout[Duration.minute * 5]
 class ErrorRootsGateTest {
     /**
