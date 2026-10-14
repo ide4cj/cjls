@@ -2,7 +2,7 @@ package cjls.macro_host
 
 import std.collection.*
 import std.collection.concurrent.LinkedBlockingQueue
-import std.env.{getTempDirectory, getVariable}
+import std.env.{getTempDirectory, getVariable, getVariables}
 import std.fs.*
 import std.io.ByteBuffer
 import std.unittest.*
@@ -221,23 +221,51 @@ public macro Spin(input: Tokens): Tokens {
 "##
 
 /**
+ * `TOY_MACROS` as the package `toy.ms`, built by `toolchain` into a fresh directory.
+ */
+func buildToyMacros(toolchain: SdkToolchain): BuiltLibrary {
+    let root = Directory.createTemp(getTempDirectory())
+    let dir = root.join("src").join("ms")
+    Directory.create(dir, recursive: true)
+    File.writeTo(dir.join("ms.cj"), TOY_MACROS.toArray())
+    let built = MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain).build(
+        [BuildUnit("toy.ms", "toy", dir, true, [], [])]).getOrThrow()
+    built.get("toy.ms") ?? NotBuilt("nothing built")
+}
+
+/**
+ * What an editor starts the server under on macOS: not `envsetup`'s environment, so no `SDKROOT`.
+ */
+@When[os == "macOS"]
+@Test
+class SdkToolchainMacosTest {
+    @TestCase
+    func aMacroPackageIsLinkedWhereTheEnvironmentNamesNoSdkroot() {
+        // arrange
+        let variables = getVariables().filter {variable => variable[0] != "SDKROOT"}
+        let toolchain = SdkToolchain(testSdkPaths(), variables: variables)
+
+        // act
+        let built = buildToyMacros(toolchain)
+
+        // assert
+        match (built) {
+            case Built(library, _) => @Expect(exists(library))
+            case NotBuilt(reason) => @Fail(reason)
+        }
+    }
+}
+
+/**
  * A macro package built by the SDK's cjc, run in its server: what D104 wires together.
  */
 @Test
 class GuardedServerTest {
     func built(): (MacroServerPaths, String) {
         let paths = testSdkPaths()
-        let root = Directory.createTemp(getTempDirectory())
-        let dir = root.join("src").join("ms")
-        Directory.create(dir, recursive: true)
-        File.writeTo(dir.join("ms.cj"), TOY_MACROS.toArray())
-        let toolchain = SdkToolchain(paths)
-        let built = MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain).build(
-            [BuildUnit("toy.ms", "toy", dir, true, [], [])]).getOrThrow()
-        match (built.get("toy.ms")) {
-            case Some(Built(library, _)) => (paths, library.toString())
-            case Some(NotBuilt(reason)) => throw IllegalStateException(reason)
-            case None => throw IllegalStateException("nothing built")
+        match (buildToyMacros(SdkToolchain(paths))) {
+            case Built(library, _) => (paths, library.toString())
+            case NotBuilt(reason) => throw IllegalStateException(reason)
         }
     }
 
