@@ -1,4 +1,4 @@
-# ADR-0114: A quote's interpolations are code of the macro, the rest of it tokens
+# ADR-0116: A quote's interpolations are code of the macro, the rest of it tokens
 
 Status: proposed
 
