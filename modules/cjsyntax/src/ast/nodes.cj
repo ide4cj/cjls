@@ -11,19 +11,25 @@ let NAME_SYMBOL = TokenSet<SyntaxKind>(
         SyntaxKind.Bang, SyntaxKind.Plus, SyntaxKind.Minus, SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash,
         SyntaxKind.Percent, SyntaxKind.LtLt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.EqEq,
         SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.Tilde])
+
 let PRIM_TYPE_KEYWORD = TokenSet<SyntaxKind>(
     [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
         SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
         SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
         SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+
 let FUNC_TYPE_TYPES_END = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
+
 let FUNC_TYPE_RET_START = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
+
 let LITERAL_PAT_VALUE = TokenSet<SyntaxKind>(
     [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
         SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+
 let LITERAL_VALUE = TokenSet<SyntaxKind>(
     [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
         SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+
 let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
     [SyntaxKind.LambdaExpr, SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr,
         SyntaxKind.CallExpr, SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr,
@@ -35,9 +41,13 @@ let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
         SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr, SyntaxKind.TypeConvExpr,
         SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr, SyntaxKind.MacroExpandExpr,
         SyntaxKind.MacroExpandDecl])
+
 let INDEX_EXPR_BASE_END = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
+
 let INDEX_EXPR_INDICES_START = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
+
 let UNARY_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.Minus, SyntaxKind.Bang])
+
 let BIN_EXPR_LHS_END = TokenSet<SyntaxKind>(
     [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
         SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
@@ -46,6 +56,7 @@ let BIN_EXPR_LHS_END = TokenSet<SyntaxKind>(
         SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
         SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
         SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+
 let BIN_EXPR_OP = TokenSet<SyntaxKind>(
     [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
         SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
@@ -54,6 +65,7 @@ let BIN_EXPR_OP = TokenSet<SyntaxKind>(
         SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
         SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
         SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+
 let BIN_EXPR_RHS_START = TokenSet<SyntaxKind>(
     [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
         SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
@@ -62,20 +74,35 @@ let BIN_EXPR_RHS_START = TokenSet<SyntaxKind>(
         SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
         SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
         SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+
 let RANGE_EXPR_START_END = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
+
 let RANGE_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
+
 let RANGE_EXPR_END_START = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
+
 let RANGE_EXPR_END_END = TokenSet<SyntaxKind>([SyntaxKind.Colon])
+
 let RANGE_EXPR_STEP_START = TokenSet<SyntaxKind>([SyntaxKind.Colon])
+
 let POSTFIX_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.PlusPlus, SyntaxKind.MinusMinus])
+
 let IF_EXPR_CONDITION_END = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.ElseKw])
+
 let IF_EXPR_THEN_END = TokenSet<SyntaxKind>([SyntaxKind.ElseKw])
+
 let IF_EXPR_ELSE_BLOCK_START = TokenSet<SyntaxKind>([SyntaxKind.ElseKw])
+
 let IF_EXPR_ELSE_IF_START = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.ElseKw])
+
 let MATCH_CASE_CONDITION_END = TokenSet<SyntaxKind>([SyntaxKind.FatArrow])
+
 let MATCH_CASE_STMTS_START = TokenSet<SyntaxKind>([SyntaxKind.FatArrow])
+
 let SPAWN_EXPR_CONTEXT_START = TokenSet<SyntaxKind>([SyntaxKind.LParen])
+
 let SPAWN_EXPR_CONTEXT_END = TokenSet<SyntaxKind>([SyntaxKind.RParen])
+
 let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
     [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
         SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,

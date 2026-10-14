@@ -35,7 +35,7 @@ SUITES = {
     # cangjie_runtime the nightly in .cangjie-version was built from, as its release notes name it
     "cangjie_runtime": (
         "https://github.com/cangjie-bot/cangjie_runtime",
-        "5d555bcc34d656a064b904ecc61e0575b98dddab",
+        "36bf209cb6548c8b349a5738f4a657bdfb732fa8",
         ["/LICENSE", "/stdlib/libs/std/"],
     ),
 }
