@@ -14,18 +14,11 @@ public common func hostOs(): String
 public common func hostEnv(): String
 
 /**
- * The architecture, as `@When` names it. cjpm has no feature for it, only `os.*`: a source set
- * cannot tell it, `@When` can.
+ * The architecture, as `@When` names it: each OS's set gives it, as the workspace is built for one
+ * triple per OS, those it names stdx for. cjpm deduces a feature of the OS alone, and a set has one
+ * set above it: the architecture can be no set of its own.
  */
-@When[arch == "aarch64"]
-public func hostArch(): String {
-    "aarch64"
-}
-
-@When[arch == "x86_64"]
-public func hostArch(): String {
-    "x86_64"
-}
+public common func hostArch(): String
 
 /**
  * The file an executable named `name` is in: `name.exe` on Windows.
@@ -42,3 +35,15 @@ public common func pathListSeparator(): String
  * nightlies of 2026-09-18 and 09-29 alike, while `gc(heavy: true)` does (#64).
  */
 public common func dumpsHeap(): Bool
+
+/**
+ * What ends the name of a shared library, a macro package's as cjc writes it: `.dylib` on macOS,
+ * `.so` on Linux, `.dll` on Windows.
+ */
+public common func sharedLibrarySuffix(): String
+
+/**
+ * The variable of the environment the loader finds shared libraries by: `DYLD_LIBRARY_PATH` on
+ * macOS, `LD_LIBRARY_PATH` on Linux, `PATH` on Windows.
+ */
+public common func libraryPathVariable(): String

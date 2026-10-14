@@ -11,6 +11,18 @@ public specific func hostEnv(): String {
     "gnu"
 }
 
+public specific func hostArch(): String {
+    "x86_64"
+}
+
+public specific func sharedLibrarySuffix(): String {
+    ".so"
+}
+
+public specific func libraryPathVariable(): String {
+    "LD_LIBRARY_PATH"
+}
+
 specific func lastErrno(): Int32 {
     unsafe { __errno_location().read() }
 }

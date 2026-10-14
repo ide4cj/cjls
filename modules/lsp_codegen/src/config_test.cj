@@ -7,13 +7,10 @@ import std.unittest.testmacro.*
 import ftoml.FtException
 
 /**
- * The root of an absolute path: `/` is not one on Windows.
+ * An absolute directory, `/`-separated and ending in one (`C:/...` on Windows, where `/` is none),
+ * for a path to be written under: `${ROOT}base`.
  */
-@When[os == "Windows"]
-let ROOT = "C:/"
-
-@When[os != "Windows"]
-let ROOT = "/"
+let ROOT = getTempDirectory().toString().replace("\\", "/").trimEnd("/") + "/"
 
 /**
  * Runs `body` with the path of `cfg` written as `lsp_codegen.toml` into a throwaway directory, and
