@@ -5,6 +5,7 @@ import std.collection.concurrent.LinkedBlockingQueue
 import std.env.{getTempDirectory, getVariable, getVariables}
 import std.fs.*
 import std.io.ByteBuffer
+import std.sync.Mutex
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
@@ -202,6 +203,47 @@ class WatchdogTest {
     }
 }
 
+/**
+ * Deadlines a test fires by hand, whatever time passed: each armed one's id is put in `armed`.
+ */
+class HandFiredDeadlines <: Deadlines {
+    let armed = LinkedBlockingQueue<Int64>()
+    private let lock = Mutex()
+    // guarded by `lock`
+    private let pending = HashMap<Int64, () -> Unit>()
+    private var count = 0
+
+    public func arm(_: Duration, fire: () -> Unit): Int64 {
+        let id = synchronized(lock) {
+            count++
+            pending.add(count, fire)
+            count
+        }
+        armed.add(id)
+        id
+    }
+
+    public func disarm(id: Int64): Bool {
+        synchronized(lock) {
+            pending.remove(id).isSome()
+        }
+    }
+
+    public func stop(): Unit {}
+
+    /**
+     * Runs what `id` was armed with, unless disarmed: it cannot be disarmed after.
+     */
+    func fire(id: Int64): Unit {
+        let fire = synchronized(lock) {
+            pending.remove(id)
+        }
+        if (let Some(it) <- fire) {
+            it()
+        }
+    }
+}
+
 let TOY_MACROS = ##"
 macro package toy.ms
 
@@ -306,10 +348,13 @@ class GuardedServerTest {
         // arrange
         let (paths, library) = built()
         let numbers = testNumbers()
-        let server = GuardedServer(paths, Duration.second, NoopLogger())
+        let deadlines = HandFiredDeadlines()
+        let server = GuardedServer(paths, Duration.second, NoopLogger(), deadlines)
 
-        // act
-        let spun = server.expand(call("Spin", library, numbers))
+        // act - Spin's deadline fired while it runs, which it never stops doing; Same's never
+        let spinning = spawn {server.expand(call("Spin", library, numbers))}
+        deadlines.fire(deadlines.armed.remove())
+        let spun = spinning.get()
         let next = server.expand(call("Same", library, numbers))
         server.close()
 
