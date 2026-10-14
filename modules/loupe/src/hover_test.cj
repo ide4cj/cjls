@@ -3,6 +3,8 @@ package loupe
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import ginkgo.TextRange
+import loupe.db.{MappedSpan, SpanOrigin}
 import loupe.fixture.*
 import loupe.syntax.parse
 
@@ -336,6 +338,77 @@ class HoverTest {
             struct S {}
             func g(s: $0S): Unit {}
             //          ^ struct S in m — a struct
+            "#)
+    }
+
+    @TestCase
+    func aTypeShowsTheInterfacesItsDeriveAdds() {
+        // arrange
+        let parsed = Fixture.parse(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.deriving.*
+            /** a struct */
+            @Derive[Equatable, Hashable]
+            struct S <: ToString {
+                public func toString(): String { "" }
+            }
+            func g(s: $0S): Unit {}
+            "#)
+        let db = deriveDatabase(parsed)
+        let cursor = parsed.cursor.getOrThrow()
+
+        // act
+        let sut = hoverAt(db, cursor.fileId, cursor.offset)
+
+        // assert
+        @Expect(sut?.items.map {item => hoverText(item)}, Some(["struct S <: ToString & Equatable<S> & Hashable in m — a struct"]))
+    }
+
+    @TestCase
+    func aDeclarationAWorkspaceMacroCopiedShowsWhatItAddedAndTheDocBeforeTheCallAtItsUsesAndAtItself() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            /** a class */
+            @M[x]
+            class C {}
+            func f(c: C): Unit {}
+            "#)
+        let copied = match (requestFor(db, file, "M").input.spans[0].origin) {
+            case FromSource(range) => range
+            case _ => throw FixtureException("the input of @M is not its class")
+        }
+        let text = "class C <: I {}\ninterface I {}"
+        answer(db, file, "M", text, [
+            MappedSpan(TextRange(0, 7), SpanOrigin.FromSource(TextRange(copied.start, copied.start + 7))),
+            MappedSpan(TextRange(7, text.size), SpanOrigin.FromCall)
+        ])
+        let source = file.text(db).toString()
+
+        // act
+        let atUse = hoverAt(db, file.fileId(db), offsetIn(source, "C)"))
+        let atItself = hoverAt(db, file.fileId(db), offsetIn(source, "class C", plus: 6))
+
+        // assert
+        @Expect(atUse?.items.map {item => hoverText(item)}, Some(["class C <: I in m — a class"]))
+        @Expect(atItself?.items.map {item => hoverText(item)}, Some(["class C <: I in m — a class"]))
+    }
+
+    @TestCase
+    func anEnumConstructorShowsTheDocBeforeItsPipe() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            enum E {
+                /** the first */
+                | A
+                // the second
+                | B(Int64)
+            }
+            let e = E.$0B(1)
+            //        ^ B(Int64) in m.E — the second
             "#)
     }
 

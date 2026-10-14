@@ -317,15 +317,58 @@ private func lowerImportTree(tree: ImportTree, prefix: Array<String>, paths: Arr
 }
 
 /**
- * The names of a path that are children of `node`, in order: `a.b` two, `org::a.b` two as well,
- * `org::a` and `b`.
+ * The path of an import up to `name`, a name of its tree or the name of its alias, as `lowerImportTree` writes it: the
+ * segments up to the one `name` is in (`org::a` one), with the alias, a glob if the leaf is one; and whether `name`
+ * is the name a leaf brings, its last or its alias, the path then the leaf's. `None` for a name of no import.
  */
-private func pathSegments(node: CjSyntaxNode): Array<String> {
+public func importPathTo(name: CjSyntaxNode): ?(ImportPath, Bool) {
+    let parent = name.parent ?? return None
+    let (tree, upTo): (ImportTree, ?CjSyntaxNode) = if (let Some(one) <- ImportTree.cast(parent) &&
+        NameRef.canCast(name.kind)) {
+        (one, name)
+    } else if (parent.kind == SyntaxKind.ImportAlias && name.kind == SyntaxKind.Name) {
+        (ImportTree.cast(parent.parent ?? return None) ?? return None, None)
+    } else {
+        return None
+    }
+    let outers = ArrayList<ImportTree>()
+    outers.add(all: tree.syntax.ancestors() |> skip(1) |> filterMap {node: CjSyntaxNode => ImportTree.cast(node)} |>
+        collectArray)
+    outers.reverse()
+    let segments = ArrayList<String>()
+    for (outer in outers) {
+        segments.add(all: pathSegments(outer.syntax))
+    }
+    segments.add(all: pathSegments(tree.syntax, upTo: upTo))
+    var last: ?NameRef = None
+    for (one in tree.nameRefs()) {
+        last = one
+    }
+    let isLeaf = tree.importTreeList().isNone() && tree.starToken().isNone() &&
+        (upTo.isNone() || last.map {one => one.syntax.textRange} == Some(name.textRange))
+    let alias = if (isLeaf) {
+        tree.importAlias()?.name()?.text()
+    } else {
+        None<String>
+    }
+    (ImportPath(segments.toArray(), alias: alias, isGlob: upTo.isNone() && tree.starToken().isSome()), isLeaf)
+}
+
+/**
+ * The names of a path that are children of `node`, in order: `a.b` two, `org::a.b` two as well,
+ * `org::a` and `b`; up to the name `upTo`, if one, and the one it is joined to after it (`org` of
+ * `org::a` is `org::a`).
+ */
+private func pathSegments(node: CjSyntaxNode, upTo!: ?CjSyntaxNode = None): Array<String> {
     let segments = ArrayList<String>()
     var joinNext = false
+    var reached = false
     for (element in node.childrenWithTokens()) {
         match (element) {
             case SyntaxElement.Node(child) where NameRef.canCast(child.kind) =>
+                if (reached && !joinNext) {
+                    break
+                }
                 let name = NameRef.cast(child)?.text() ?? ""
                 if (joinNext && !segments.isEmpty()) {
                     let org = segments[segments.size - 1]
@@ -334,7 +377,9 @@ private func pathSegments(node: CjSyntaxNode): Array<String> {
                     segments.add(name)
                 }
                 joinNext = false
+                reached = reached || upTo.map {one => one.textRange} == Some(child.textRange)
             case SyntaxElement.Token(token) where token.kind == SyntaxKind.ColonColon => joinNext = true
+            case SyntaxElement.Token(token) where reached && !token.kind.isTrivia() => break
             case _ => ()
         }
     }
