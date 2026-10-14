@@ -210,15 +210,15 @@ func pushingServer(transport: WrittenTransport, pushes: Bool): Server {
         .withState(state)
         .route(DidOpenTextDocumentNotificationSpec()) {
             ctx: Context<DidOpenTextDocumentParams> =>
-                let path = VfsPath.fromUri(ctx.params.textDocument.uri)
-                ctx.state.openDocuments.add(path, ctx.params.textDocument.version)
-                ctx.state.setFileContents(path, Rope(ctx.params.textDocument.text))
+            let path = VfsPath.fromUri(ctx.params.textDocument.uri)
+            ctx.state.openDocuments.add(path, ctx.params.textDocument.version)
+            ctx.state.setFileContents(path, Rope(ctx.params.textDocument.text))
         }
         .route(DidCloseTextDocumentNotificationSpec()) {
             ctx: Context<DidCloseTextDocumentParams> =>
-                let path = VfsPath.fromUri(ctx.params.textDocument.uri)
-                ctx.state.openDocuments.remove(path)
-                ctx.state.setFileContents(path, Option<Rope>.None)
+            let path = VfsPath.fromUri(ctx.params.textDocument.uri)
+            ctx.state.openDocuments.remove(path)
+            ctx.state.setFileContents(path, Option<Rope>.None)
         }
         .publishDiagnostics(textAsDiagnostic), client: clientOn(transport))
 }

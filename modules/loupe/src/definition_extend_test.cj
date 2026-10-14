@@ -284,7 +284,6 @@ class ExtendDefinitionTest {
             "#)
     }
 
-
     @TestCase
     func aMemberOfNoInterfaceOfAnExtendSeenThroughOneIsFound() {
         // N82, N80: cjc finds it, then says it "is not a member": only its interfaces' members are

@@ -88,21 +88,21 @@ extend CjEmitter {
         emit(quote(public struct $structIdent))
         blockln {
             =>
-                if (structIr.fields.isEmpty()) {
-                    emitln(quote(public $structIdent() {}))
-                    return
-                }
+            if (structIr.fields.isEmpty()) {
+                emitln(quote(public $structIdent() {}))
+                return
+            }
 
-                emitln(quote(public $structIdent) + Tokens(Token(LPAREN)))
-                indented {
-                    => for ((i, field) in structIr.fields |> enumerate) {
-                        if (i > 0) {
-                            nl()
-                        }
-                        emitField(field, isLast: i == structIr.fields.size - 1)
+            emitln(quote(public $structIdent) + Tokens(Token(LPAREN)))
+            indented {
+                => for ((i, field) in structIr.fields |> enumerate) {
+                    if (i > 0) {
+                        nl()
                     }
+                    emitField(field, isLast: i == structIr.fields.size - 1)
                 }
-                emitln(Tokens(Token(RPAREN), Token(LCURL), Token(RCURL)))
+            }
+            emitln(Tokens(Token(RPAREN), Token(LCURL), Token(RCURL)))
         }
     }
 

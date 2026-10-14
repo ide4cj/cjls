@@ -274,4 +274,3 @@ class InferenceCensusTest {
         @Expect(census.wrongNoValue.toArray(), Array<String>())
     }
 }
-

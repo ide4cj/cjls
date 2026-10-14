@@ -108,22 +108,22 @@ func generateTree(random: RandomSource, depth: Int64): Tree {
 func generateString(random: RandomSource): String {
     let runes = Array(random.nextInt64(12)) {
         _: Int64 =>
-            let cp: UInt32 = match (random.nextInt64(7)) {
-                case 0 => random.nextUInt32(0x20)
-                case 1 => [0x22u32, 0x5Cu32, 0x2Fu32, 0x7Fu32][random.nextInt64(4)]
-                case 2 => 0x20 + random.nextUInt32(0x60)
-                case 3 => 0x80 + random.nextUInt32(0x780)
-                case 4 =>
-                    let c = 0x800 + random.nextUInt32(0xF800)
-                    if (c >= 0xD800 && c <= 0xDFFF) {
-                        0xFFFDu32
-                    } else {
-                        c
-                    }
-                case 5 => 0x10000 + random.nextUInt32(0x100000)
-                case _ => UInt32(random.suggestRune())
-            }
-            Rune(cp)
+        let cp: UInt32 = match (random.nextInt64(7)) {
+            case 0 => random.nextUInt32(0x20)
+            case 1 => [0x22u32, 0x5Cu32, 0x2Fu32, 0x7Fu32][random.nextInt64(4)]
+            case 2 => 0x20 + random.nextUInt32(0x60)
+            case 3 => 0x80 + random.nextUInt32(0x780)
+            case 4 =>
+                let c = 0x800 + random.nextUInt32(0xF800)
+                if (c >= 0xD800 && c <= 0xDFFF) {
+                    0xFFFDu32
+                } else {
+                    c
+                }
+            case 5 => 0x10000 + random.nextUInt32(0x100000)
+            case _ => UInt32(random.suggestRune())
+        }
+        Rune(cp)
     }
     String(runes)
 }

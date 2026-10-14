@@ -69,12 +69,12 @@ class ConfigLoadTest {
 
         withConfigDir(cfg, manifest: manifest) {
             cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
+            // act
+            let sut = Config.load(cfgPath)
 
-                // assert
-                @Expect("demo.lsp_types", sut.outputPackage)
-                @Expect(dir.join(expected).join("lsp_types").toString(), sut.outputDir.toString())
+            // assert
+            @Expect("demo.lsp_types", sut.outputPackage)
+            @Expect(dir.join(expected).join("lsp_types").toString(), sut.outputDir.toString())
         }
     }
 
@@ -85,11 +85,11 @@ class ConfigLoadTest {
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
-                // act
-                let sut = Config.load(cfgPath)
+            // act
+            let sut = Config.load(cfgPath)
 
-                // assert
-                @Expect(Path("${ROOT}tmp/elsewhere").normalize().join("lsp_types").toString(), sut.outputDir.toString())
+            // assert
+            @Expect(Path("${ROOT}tmp/elsewhere").normalize().join("lsp_types").toString(), sut.outputDir.toString())
         }
     }
 
@@ -100,12 +100,12 @@ class ConfigLoadTest {
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, dir =>
-                // act
-                let sut = Config.load(cfgPath)
+            // act
+            let sut = Config.load(cfgPath)
 
-                // assert
-                @Expect("demo.lsp.types", sut.outputPackage)
-                @Expect(dir.join("src").join("lsp").join("types").toString(), sut.outputDir.toString())
+            // assert
+            @Expect("demo.lsp.types", sut.outputPackage)
+            @Expect(dir.join("src").join("lsp").join("types").toString(), sut.outputDir.toString())
         }
     }
 
@@ -113,12 +113,12 @@ class ConfigLoadTest {
     func importsDefaultToNoneAndTypesToAnEmptyMap() {
         withConfigDir(LSP_TYPES_CONFIG, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
-                // act
-                let sut = Config.load(cfgPath)
+            // act
+            let sut = Config.load(cfgPath)
 
-                // assert
-                @Expect(sut.imports.isEmpty())
-                @Expect("SymbolKind", sut.typeMap.bind("SymbolKind").typeNameOf("SymbolKind") ?? "")
+            // assert
+            @Expect(sut.imports.isEmpty())
+            @Expect("SymbolKind", sut.typeMap.bind("SymbolKind").typeNameOf("SymbolKind") ?? "")
         }
     }
 
@@ -129,12 +129,12 @@ class ConfigLoadTest {
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
-                // act
-                let sut = Config.load(cfgPath)
+            // act
+            let sut = Config.load(cfgPath)
 
-                // assert
-                @PowerAssert(["jsonrpc.*"], sut.imports.toArray())
-                @Expect(sut.typeMap.bind("ErrorCodes").typeNameOf("ErrorCodes").isNone())
+            // assert
+            @PowerAssert(["jsonrpc.*"], sut.imports.toArray())
+            @Expect(sut.typeMap.bind("ErrorCodes").typeNameOf("ErrorCodes").isNone())
         }
     }
 
@@ -145,11 +145,11 @@ class ConfigLoadTest {
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
-                // act
-                let e = @AssertThrows[ConfigException](Config.load(cfgPath))
+            // act
+            let e = @AssertThrows[ConfigException](Config.load(cfgPath))
 
-                // assert
-                @Expect("`output-subpackage` must not be empty", e.message)
+            // assert
+            @Expect("`output-subpackage` must not be empty", e.message)
         }
     }
 
@@ -157,11 +157,11 @@ class ConfigLoadTest {
     func aMissingManifestThrowsBecauseTheRootPackageIsUnknown() {
         withConfigDir(LSP_TYPES_CONFIG) {
             cfgPath, _ =>
-                // act
-                let e = @AssertThrows[ConfigException](Config.load(cfgPath))
+            // act
+            let e = @AssertThrows[ConfigException](Config.load(cfgPath))
 
-                // assert
-                @Expect("cannot tell the root package of `lsp_types`", e.message)
+            // assert
+            @Expect("cannot tell the root package of `lsp_types`", e.message)
         }
     }
 
@@ -172,11 +172,11 @@ class ConfigLoadTest {
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>
-                // act
-                let e = @AssertThrows[FtException](Config.load(cfgPath))
+            // act
+            let e = @AssertThrows[FtException](Config.load(cfgPath))
 
-                // assert
-                @Expect("expected a string, found an integer at line 2, column 11", e.message)
+            // assert
+            @Expect("expected a string, found an integer at line 2, column 11", e.message)
         }
     }
 }

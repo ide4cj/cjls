@@ -172,6 +172,23 @@ jobs:
         run: uv run --project tests/e2e --locked pytest tests/e2e
         shell: bash
 
+  # every Cangjie file as `cjls fmt` leaves it (D60), with the binary the build made: no SDK, no
+  # compile of its own
+  format:
+    name: Format
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: cjls-Linux
+          path: bin
+      - run: chmod +x bin/cjls
+      - name: cjls fmt --check
+        run: bin/cjls fmt --check .
+
   # a report per commit, kept as an artifact; the times are only reported, shared runners are too
   # noisy to fail on (D23), the queries executed are held to tests/perf/thresholds.toml (D81)
   perf:

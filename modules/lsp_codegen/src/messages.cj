@@ -153,36 +153,36 @@ extend CjEmitter {
         emitln("public struct ${ident} <: ${supertypes} {")
         indented {
             =>
-                emitln("public static prop METHOD: String {")
-                indented {=> emitln("get() { \"${messageIr.method}\" }")}
-                emitln("}")
+            emitln("public static prop METHOD: String {")
+            indented {=> emitln("get() { \"${messageIr.method}\" }")}
+            emitln("}")
+            nl()
+            emitln("public static prop DIRECTION: MessageDirection {")
+            indented {=> emitln("get() { ${messageIr.direction} }")}
+            emitln("}")
+            nl()
+            emitln("public prop method: String {")
+            indented {=> emitln("get() { METHOD }")}
+            emitln("}")
+            if (messageIr.registrationOptions.isSome()) {
                 nl()
-                emitln("public static prop DIRECTION: MessageDirection {")
-                indented {=> emitln("get() { ${messageIr.direction} }")}
-                emitln("}")
-                nl()
-                emitln("public prop method: String {")
-                indented {=> emitln("get() { METHOD }")}
-                emitln("}")
-                if (messageIr.registrationOptions.isSome()) {
-                    nl()
-                    emitln("public prop registrationMethod: String {")
-                    indented {
-                        => match (messageIr.registrationMethod) {
-                            case Some(registrationMethod) => emitln("get() { \"${registrationMethod}\" }")
-                            case None => emitln("get() { METHOD }")
-                        }
+                emitln("public prop registrationMethod: String {")
+                indented {
+                    => match (messageIr.registrationMethod) {
+                        case Some(registrationMethod) => emitln("get() { \"${registrationMethod}\" }")
+                        case None => emitln("get() { METHOD }")
                     }
-                    emitln("}")
                 }
-                if (isInbound) {
-                    nl()
-                    emitInboundCodec(messageIr)
-                }
-                if (isOutbound) {
-                    nl()
-                    emitOutboundCodec(messageIr)
-                }
+                emitln("}")
+            }
+            if (isInbound) {
+                nl()
+                emitInboundCodec(messageIr)
+            }
+            if (isOutbound) {
+                nl()
+                emitOutboundCodec(messageIr)
+            }
         }
         emitln("}")
     }

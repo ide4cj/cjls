@@ -84,12 +84,12 @@ public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
     } |> map {one: Item => one.id} |> first) ?? return None
     let read = (workspaceCalls(db, file) |> filter {one: WorkspaceCall => one.read && one.top == top} |>
         map {one: WorkspaceCall => one.call} |> first).flatMap {
-        one: MacroCallId => if (item != top || call.index(db) >= one.index(db)) {
-            Some(one)
-        } else {
-            None<MacroCallId>
+            one: MacroCallId => if (item != top || call.index(db) >= one.index(db)) {
+                Some(one)
+            } else {
+                None<MacroCallId>
+            }
         }
-    }
     match (read) {
         case Some(one) where expanded.contains(one) => one
         case _ where expanded.contains(call) => call

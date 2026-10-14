@@ -629,7 +629,6 @@ class SignatureTypesTest {
     }
 }
 
-
 /**
  * The declarations of std's `.cjo`s as types: what cjc resolved, read back.
  */

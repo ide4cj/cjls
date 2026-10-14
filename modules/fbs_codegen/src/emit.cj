@@ -219,7 +219,6 @@ func isUnion(names: Names, t: FbType): Bool {
     }
 }
 
-
 /**
  * The views of the schema: a Cangjie file of package `packageName`, before `cjfmt` has had it.
  */

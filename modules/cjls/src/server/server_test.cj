@@ -115,14 +115,14 @@ func answerOfAQueryParkedUntil(method: String, interrupt: (ServerState, InboundR
         .withState(state)
         .route(HoverRequestSpec()) {
             ctx: ReadOnlyContext<HoverParams> =>
-                parked(ctx.snapshot)
-                Nullable<Hover>.Null
+            parked(ctx.snapshot)
+            Nullable<Hover>.Null
         }
         .route(DocumentDiagnosticRequestSpec()) {
             ctx: ReadOnlyContext<DocumentDiagnosticParams> =>
-                parked(ctx.snapshot)
-                DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
-                    RelatedFullDocumentDiagnosticReport(items: []))
+            parked(ctx.snapshot)
+            DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
+                RelatedFullDocumentDiagnosticReport(items: []))
         })
     let asked = Asked(method, params: hoverParams())
     server.onRequest(asked.request)
@@ -276,8 +276,8 @@ class ServerDispatchTest {
         let release = LinkedBlockingQueue<Bool>()
         let server = initialized(lifecycleRouter().route(HoverRequestSpec()) {
             _: ReadOnlyContext<HoverParams> =>
-                release.remove()
-                Nullable<Hover>.Null
+            release.remove()
+            Nullable<Hover>.Null
         })
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
