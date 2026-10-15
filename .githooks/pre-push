@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+# cjc behind CI's shim: cjpm's concurrent launches of cjc leak pipes into each other and can
+# wait on each other for good (#342); Windows looks for cjc.exe, not the shim
+export PATH="$(pwd)/.github/actions/setup-cangjie/shim:$PATH"
+
 # every Cangjie file as `cjls fmt` leaves it, as CI's Format job holds it (D60); first, failing fast
 cjpm build
 target/release/bin/cjls fmt --check .
