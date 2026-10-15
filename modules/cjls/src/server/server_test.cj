@@ -2,7 +2,7 @@ package cjls.server
 
 import std.collection.concurrent.LinkedBlockingQueue
 import std.env.getTempDirectory
-import std.sync.AtomicBool
+import std.sync.{AtomicBool, AtomicInt64}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
@@ -94,29 +94,35 @@ let PARKED_PATH = VfsPath.file(getTempDirectory().join("a.cj"))
 
 /**
  * The answer to a hover whose handler takes its snapshot, parks until `interrupt` has run, then
- * queries it.
+ * queries it — the text of the parked file as the hover's contents — and how many times the handler ran: one
+ * the files changed under runs again (D119).
  */
-func answerOfAQueryParkedUntil(interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
+func answerOfAQueryParkedUntil(interrupt: (ServerState, InboundRequest) -> Unit): (ResultOrError, Int64) {
     answerOfAQueryParkedUntil(HoverRequestSpec.METHOD, interrupt)
 }
 
 /**
  * The same for a request of `method`, a hover or a diagnostic pull.
  */
-func answerOfAQueryParkedUntil(method: String, interrupt: (ServerState, InboundRequest) -> Unit): ResultOrError {
+func answerOfAQueryParkedUntil(method: String, interrupt: (ServerState, InboundRequest) -> Unit): (ResultOrError, Int64) {
     let release = LinkedBlockingQueue<Bool>()
+    let runs = AtomicInt64(0)
     let state = ServerState()
     state.setFileContents(PARKED_PATH, Rope("a"))
+    // the first run parks until `interrupt` has run; a run again does not: the change it is run for has happened
     let parked = {snapshot: ServerSnapshot =>
-        release.remove()
+        if (runs.fetchAdd(1) == 0) {
+            release.remove()
+        }
         snapshot.sourceFile(PARKED_PATH).getOrThrow().text(snapshot.analysis)
     }
     let server = initialized(lifecycleRouter()
         .withState(state)
         .route(HoverRequestSpec()) {
             ctx: ReadOnlyContext<HoverParams> =>
-            parked(ctx.snapshot)
-            Nullable<Hover>.Null
+            let text = parked(ctx.snapshot)
+            Nullable.Value(Hover(contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+                MarkupContent(kind: MarkupKind.PlainText, value: text.toString()))))
         }
         .route(DocumentDiagnosticRequestSpec()) {
             ctx: ReadOnlyContext<DocumentDiagnosticParams> =>
@@ -129,7 +135,7 @@ func answerOfAQueryParkedUntil(method: String, interrupt: (ServerState, InboundR
 
     interrupt(state, asked.request)
     release.add(true)
-    asked.answer()
+    (asked.answer(), runs.load())
 }
 
 let describedClients = LinkedBlockingQueue<Client>()
@@ -291,45 +297,61 @@ class ServerDispatchTest {
     }
 
     @TestCase
-    func aQueryTheFilesChangedUnderIsAnsweredContentModified() {
+    func aQueryTheFilesChangedUnderRunsAgainOnTheFilesAsTheyAreThen() {
         // act
-        let answer = answerOfAQueryParkedUntil {state, _ => state.setFileContents(PARKED_PATH, Rope("b"))}
+        let (answer, runs) = answerOfAQueryParkedUntil {state, _ => state.setFileContents(PARKED_PATH, Rope("b"))}
 
         // assert
-        @Expect(ErrorCode.CONTENT_MODIFIED, answer.getErrorOrThrow().code)
+        @Expect(2, runs)
+        @Expect("b", treeOf(answer.getResultOrThrow())["contents"]["value"].asString())
     }
 
     @TestCase
-    func aPullTheFilesChangedUnderIsAnsweredServerCancelledToBeAskedAgain() {
+    func aPullTheFilesChangedUnderRunsAgainAndAnswersAReport() {
         // act
-        let answer = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
+        let (answer, runs) = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
             state, _ => state.setFileContents(PARKED_PATH, Rope("b"))
         }
 
         // assert
-        let error = answer.getErrorOrThrow()
-        @Expect(ErrorCode.SERVER_CANCELLED, error.code)
-        @Expect(error.data.getOrThrow().read<DiagnosticServerCancellationData>().retriggerRequest)
+        @Expect(2, runs)
+        @Expect(answer.isResult())
     }
 
     @TestCase
     func aPullTheClientCancelledIsAnsweredRequestCancelled() {
         // act
-        let answer = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
+        let (answer, runs) = answerOfAQueryParkedUntil(DocumentDiagnosticRequestSpec.METHOD) {
             _, request => request.cancellation.cancel()
         }
 
         // assert
         @Expect(ErrorCode.REQUEST_CANCELLED, answer.getErrorOrThrow().code)
+        @Expect(1, runs)
     }
 
     @TestCase
     func aQueryOfARequestTheClientCancelledStopsMidway() {
         // act
-        let answer = answerOfAQueryParkedUntil {_, request => request.cancellation.cancel()}
+        let (answer, runs) = answerOfAQueryParkedUntil {_, request => request.cancellation.cancel()}
 
         // assert
         @Expect(ErrorCode.REQUEST_CANCELLED, answer.getErrorOrThrow().code)
+        @Expect(1, runs)
+    }
+
+    @TestCase
+    func aQueryTheFilesChangedUnderAndTheClientCancelledIsNotRunAgain() {
+        // act
+        let (answer, runs) = answerOfAQueryParkedUntil {
+            state, request =>
+            state.setFileContents(PARKED_PATH, Rope("b"))
+            request.cancellation.cancel()
+        }
+
+        // assert
+        @Expect(ErrorCode.REQUEST_CANCELLED, answer.getErrorOrThrow().code)
+        @Expect(1, runs)
     }
 
     @TestCase

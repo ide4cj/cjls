@@ -70,10 +70,15 @@ class Server <: Handler {
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
                 let cancellation = request.cancellation
-                let snapshot = loop.snapshot(cancelledBy: {=> cancellation.isCancelled})
-                let parts = ReadOnlyParts(snapshot, client, cancellation, logger)
+                let cancelledBy = {=> cancellation.isCancelled}
+                let snapshot = loop.snapshot(cancelledBy: cancelledBy)
                 spawn {
-                    answer(request, logger) {handler(parts, request.params, request.decodedParams)}
+                    answer(request, logger) {
+                        runAgainOnAChange(snapshot, loop, cancelledBy, logger) {
+                            snapshot => handler(ReadOnlyParts(snapshot, client, cancellation, logger), request.params,
+                                request.decodedParams)
+                        }
+                    }
                 }
         }
     }
@@ -148,18 +153,34 @@ class Server <: Handler {
 }
 
 /**
+ * `query` of `first`, or of the state as it is then when the files changed under it: a stale snapshot throws
+ * `CancelledException`, and the request runs again rather than being answered `ContentModified` (D119). The write
+ * is often the server's own, the macro outputs of the very change the request came after (D98), and a client
+ * given `ContentModified` for a completion shows nothing and asks nothing more. A request the client cancelled
+ * is not run again: its `CancelledException` goes through, to `cancelledError`.
+ */
+private func runAgainOnAChange(first: ServerSnapshot, loop: Loop, cancelledBy: () -> Bool, logger: Logger,
+    query: (ServerSnapshot) -> RawJson): RawJson {
+    try {
+        query(first)
+    } catch (e: CancelledException) {
+        if (cancelledBy()) {
+            throw e
+        }
+        logger.debug("running again", [("reason", "the content was modified")])
+        runAgainOnAChange(loop.snapshot(cancelledBy: cancelledBy), loop, cancelledBy, logger, query)
+    }
+}
+
+/**
  * Why a query of `request` threw `CancelledException`: the client cancelled the request, or the files changed
- * under it, which the client may ask again for — and a diagnostic pull asks again at once, rather
- * than keep the diagnostics it had (D14).
+ * under a handler that is not run again — one on the loop, which S1 says runs no query (a read-only one runs
+ * again, `runAgainOnAChange`).
  */
 private func cancelledError(request: InboundRequest, logger: Logger): ResponseError {
     if (request.cancellation.isCancelled) {
         logger.debug("cancelled", [("reason", "the client cancelled it")])
         ResponseError(ErrorCode.REQUEST_CANCELLED, "the request was cancelled")
-    } else if (request.method == DocumentDiagnosticRequestSpec.METHOD) {
-        logger.debug("cancelled", [("reason", "the content was modified")])
-        ResponseError(ErrorCode.SERVER_CANCELLED, "the content was modified",
-            data: RawJson.of(DiagnosticServerCancellationData(retriggerRequest: true)))
     } else {
         logger.debug("cancelled", [("reason", "the content was modified")])
         ResponseError(ErrorCode.CONTENT_MODIFIED, "the content was modified")
