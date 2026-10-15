@@ -35,7 +35,8 @@ public class MacroHost <: MacroWork {
     private var timeout = Duration.Zero
     private var sdk: ?MacroSdk = None
     private var sdkOf = ""
-    private let libraries = HashMap<String, MacroLibrary>()
+    // by the package, not its name, which two projects may share
+    private let libraries = HashMap<Package, MacroLibrary>()
     private let reported = HashSet<String>()
 
     public MacroHost(private let loop: Loop, private let logger: Logger) {
@@ -214,9 +215,10 @@ public class MacroHost <: MacroWork {
     }
 
     /**
-     * Builds what the macros need, as the snapshot's project says (D104), into `macro-build/<cjc --version>` of the
-     * cache directory of its first macro package's project (D106), and sets the stamps of the libraries; a new
-     * library ends the server, which keeps the old one loaded. Nothing is built while another server builds there.
+     * Builds what the macros need, as the snapshot's project says (D104), each macro package with what it links into
+     * `macro-build/<cjc --version>` of the cache directory of its own project (D106), and sets the stamps of the
+     * libraries; a new library ends the server, which keeps the old one loaded. Nothing is built in a directory
+     * another server builds in.
      */
     private func buildLibraries(settings: Settings, roots: Array<VfsPath>, cacheDirs: CacheDirs): Unit {
         let snapshot = loop.snapshot()
@@ -226,48 +228,34 @@ public class MacroHost <: MacroWork {
             return
         }
         let sdk = sdkFor(settings) ?? return ()
-        let file = plan.iterator().filter {unit => unit.isMacro}.map {unit => unit.pkg.files(db)}.filter {
-            files => !files.isEmpty()
-        }.next().flatMap {files => files.get(0)}
-        let cacheDir = file.flatMap {id => cacheDirs.of(snapshot.path(id), roots)} ?? return report(
-            "no directory the macros can be built in: they are not expanded")
-        let out = try {
-            cacheDir.macroBuild(dirNameOf(sdk.version))
-        } catch (e: FSException) {
-            return report("${cacheDir.path} cannot be written: ${e.message}")
+        let name = dirNameOf(sdk.version)
+        let outs = HashMap<String, ?Path>()
+        let built = buildPlan(db, plan, {pkg => macroBuildOf(snapshot, pkg, roots, cacheDirs, name, outs)},
+            sdk.version, sdk.toolchain)
+        for (dir in built.held) {
+            logger.info("another server builds the macros", [("directory", dir.toString())])
         }
-        let modules = HashMap<Package, String>()
-        for (unit in plan) {
-            modules[unit.pkg] = unit.module
-        }
-        let units = ArrayList<BuildUnit>()
-        for (unit in plan) {
-            let dir = unit.pkg.dir(db).filePath ?? continue
-            units.add(BuildUnit(unit.pkg.name(db), unit.module, dir, unit.isMacro,
-                unit.deps.map {dep => (modules.get(dep) ?? unit.module, dep.name(db))},
-                unit.binaries |> filterMap {cjo: VfsPath => cjo.filePath} |> collectArray))
-        }
-        let built = MacroBuilder(out, sdk.version, sdk.toolchain).build(units.toArray()) ?? return logger.info(
-            "another server builds the macros", [("directory", out.toString())])
         var changed = false
-        for ((name, result) in built) {
+        for ((pkg, result) in built.libraries) {
+            let pkgName = pkg.name(db)
+            let key = pkg.dir(db).toString()
             match (result) {
                 case Built(path, stamp) =>
-                    if (libraries.get(name)?.stamp != Some(stamp)) {
+                    if (libraries.get(pkg)?.stamp != Some(stamp)) {
                         changed = true
-                        logger.info("built a macro package", [("package", name), ("library", path.toString())])
+                        logger.info("built a macro package", [("package", pkgName), ("library", path.toString())])
                     }
-                    libraries[name] = MacroLibrary(path.toString(), stamp)
-                    reported.remove(name)
-                case NotBuilt(reason) => if (reported.add(name)) {
+                    libraries[pkg] = MacroLibrary(path.toString(), stamp)
+                    reported.remove(key)
+                case NotBuilt(reason) => if (reported.add(key)) {
                     // the last library stands: cjc wrote nothing
-                    logger.warn("a macro package did not build", [("package", name), ("reason", reason)])
+                    logger.warn("a macro package did not build", [("package", pkgName), ("reason", reason)])
                 }
             }
         }
         let stamps = ArrayList<(Package, Int64)>()
         for (unit in plan where unit.isMacro) {
-            if (let Some(library) <- libraries.get(unit.pkg.name(db))) {
+            if (let Some(library) <- libraries.get(unit.pkg)) {
                 stamps.add((unit.pkg, library.stamp))
             }
         }
@@ -275,6 +263,35 @@ public class MacroHost <: MacroWork {
             servers?.restartWorkspace()
         }
         loop.write {state: ServerState => state.setMacroLibraries(stamps.toArray())}
+    }
+
+    /**
+     * Where the macro package `pkg` is built by the compiler `name`: `macro-build/<name>` of its project's cache
+     * directory, each directory's taken once a build, in `outs`, since taking it marks it used; `None`, logged once,
+     * if there is none.
+     */
+    private func macroBuildOf(snapshot: ServerSnapshot, pkg: Package, roots: Array<VfsPath>, cacheDirs: CacheDirs,
+        name: String, outs: HashMap<String, ?Path>): ?Path {
+        let db = snapshot.analysis
+        let file = pkg.files(db).get(0) ?? return None
+        let cacheDir = match (cacheDirs.of(snapshot.path(file), roots)) {
+            case Some(dir) => dir
+            case None =>
+                report("no directory ${pkg.name(db)} can be built in: its macros are not expanded")
+                return None
+        }
+        let key = cacheDir.path.toString()
+        if (let Some(out) <- outs.get(key)) {
+            return out
+        }
+        let out = try {
+            cacheDir.macroBuild(name)
+        } catch (e: FSException) {
+            report("${cacheDir.path} cannot be written: ${e.message}")
+            None<Path>
+        }
+        outs[key] = out
+        out
     }
 
     /**

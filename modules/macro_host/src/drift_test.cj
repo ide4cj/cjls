@@ -166,7 +166,7 @@ class StdExpansionDriftTest {
 
         // act
         while (!pendingMacroRequests(db, file).isEmpty()) {
-            let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>(),
+            let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>(),
                 stdLibrary: {pkg => paths.stdMacroLibrary(pkg).map {path => path.toString()}})
             setMacroOutputsByKey(db, expandAll(db, requests, testNumbers(), servers))
         }
