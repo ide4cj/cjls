@@ -154,14 +154,18 @@ public struct MacroOutput {
 
 /**
  * A macro call of a file as `MacroOutputs` keys it: its item (`loupe.hir`'s `ItemId`, as text, which an edit
- * elsewhere leaves alone) and its index among the macros called on it, outermost first.
+ * elsewhere leaves alone), and on it its index among the macros called on it, outermost first; in it, in a body or
+ * an initializer (D117), the macro's name as written (`inBody`) and its ordinal among the calls of that name there.
  */
 @Derive[Equatable, Hashable]
 public struct MacroCallKey <: ToString {
-    public MacroCallKey(public let item: String, public let index: Int64) {}
+    public MacroCallKey(public let item: String, public let index: Int64, public let inBody!: ?String = None) {}
 
     public func toString(): String {
-        "${item}@${index}"
+        match (inBody) {
+            case Some(name) => "${item}/@${name}#${index}"
+            case None => "${item}@${index}"
+        }
     }
 }
 
