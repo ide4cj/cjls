@@ -152,7 +152,12 @@ public struct Item {
          * The `@When` before it, or before the outermost macro call on it, `None` for none: whether
          * it is in a build is the cfg's to say (`activeItemTree`).
          */
-        public let condition!: ?CfgExpr = None
+        public let condition!: ?CfgExpr = None,
+        /**
+         * The macros called on each parameter of its own parameter lists that has any, in the
+         * parameters' order, each outermost first: `@M let x` of a primary constructor (D119).
+         */
+        public let paramMacros!: Array<Array<String>> = []
     ) {}
 
     public prop kind: ItemKind {
@@ -223,8 +228,9 @@ private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
             case _ => macros
         }
         let outermost = item.macroCalls.get(0).map {call => call.syntax} ?? item.decl.syntax
+        let paramMacros = paramMacroCallsOf(item.decl.syntax).map {chain => chain.map {call => macroName(call)}}
         Item(idOf(ids, item.decl.syntax), namesOf(item.decl), modifiers, macrosOfItem, lowerItems(item.members(), ids),
-            condition: conditionOf(outermost))
+            condition: conditionOf(outermost), paramMacros: paramMacros)
     }
 }
 
