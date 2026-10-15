@@ -141,4 +141,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0120](0120-the-gate-is-tagged-out-of-the-coverage-run.md) | The diagnostics gate is tagged `gate` and left out of the coverage run | accepted |
 | [0121](0121-the-error-roots-file-grows-with-a-known-gap-met-idiomatically.md) | A known gap met by new code grows the error roots file; the code stays idiomatic and the commit names the gap | proposed |
 | [0122](0122-a-request-the-files-changed-under-runs-again.md) | A read-only request the files changed under runs again on a fresh snapshot, not answered ContentModified | proposed |
+| [0124](0124-references-are-searched-per-request-where-the-declaration-is-visible.md) | References are searched per request in the files a declaration is visible from whose text names it, no index of uses kept | proposed |
 | [0125](0125-cjc-runs-behind-a-shim-in-ci.md) | cjc runs behind a shim that closes the descriptors it inherited | proposed |
