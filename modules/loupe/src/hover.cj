@@ -90,7 +90,7 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
     if (let Some(doc) <- builtinAnnotationAt(token)) {
         return builtinHover(token, doc)
     }
-    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
+    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idAround(node)} |> first
     let def = DefId(db, file, item ?? return None)
     let items = if (isDeclaredName(db, def, token)) {
         // what a workspace macro's expansion made of it, the interfaces it added and all
@@ -260,8 +260,8 @@ class Hovers {
                     collectArray
             }
         }
-        if (let Some(access) <- MemberAccessExpr.cast(node)) {
-            let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return []
+        if (let Some(access) <- accessNodeOf(node)) {
+            let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return []
             let inferred = inferBody(db, def)
             // the type of the value it is a member of, if it is one's
             let recv = match (lowered.body[expr]) {
