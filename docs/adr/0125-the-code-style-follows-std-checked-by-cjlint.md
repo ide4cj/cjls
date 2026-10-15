@@ -12,6 +12,7 @@ Status: accepted, 2026-10-15
 
 - **Where the compiler leaves a choice, the code writes it as std does**, and the guide's rule where std has none; a departure from either is a rule of `03-conventions.md`, saying why. The rules are C18–C31.
 - **`import pkg.*`** for std, stdx and the workspace's packages, against `G.PKG.01`: as std writes it, an import per name changes with every name a file starts using, and a clash is settled by an alias already (C8).
+- **An accessor is a property, not std's function** (`isEmpty`, `firstChild`, `parent` as `prop`): a read with no argument and no effect looks like one at the call, whatever it computes; only work that grows with the data, an effect or an exception makes it a function, and a std interface's own member keeps std's form.
 - **Bool names are predicates; a public type and a top-level function always have a doc comment, a member when its name and type do not say it all.**
 - **cjlint runs in CI with a rule list of the repository's own**, the rules above that hold here, not the SDK's default list; a finding inside a macro expansion or a generated file is dropped. It is turned on when the cleanup has brought those rules to zero, a job beside `Format`.
 
