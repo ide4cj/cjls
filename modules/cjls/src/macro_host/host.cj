@@ -464,40 +464,67 @@ public class MacroHost <: MacroWork {
         var ofStd = 0
         var failed = 0
         while (!isStopped()) {
-            let (snapshot, open) = loop.write {
-                state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
-            }
-            let db = snapshot.analysis
-            let files = snapshot.files |> filterMap {id: FileId => db.sourceFile(id)} |> collectArray
-            // nothing to ask, nothing to look for: std's macros need no build, but the SDK
-            if (files.iterator().all {file => pendingMacroRequests(db, file).isEmpty()}) {
-                break
-            }
-            let sdk = sdkFor(settings) ?? break
-            let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
-            let requests = sendableRequests(db, files, libraries, stdLibrary: {pkg => sdk.stdLibrary(pkg)},
-                isOpen: {file => open.contains(snapshot.path(file.fileId(db)))})
-            if (requests.isEmpty()) {
-                break
-            }
-            logger.debug("expanding macro calls", [("calls", requests.size)])
-            // an edit midway ends the round: what came before it is set, and the next round asks what it changed
-            let answers = expandAll(db, requests, sdk.numbers, expander, stopped: {=> isStopped()})
-            sent += answers.size
-            ofStd += requests[..answers.size].iterator().filter {one => one[1].definition.isStd}.count()
-            for ((file, key, output) in answers where output.expansion.isNone()) {
-                failed++
-                logger.debug("a macro call was not expanded", [("file", snapshot.path(file.fileId(db)).toString()),
-                    ("call", key.toString()), ("why", output.diagnostics.get(0)?.message ?? "")])
-            }
-            if (!answers.isEmpty()) {
-                loop.write {state: ServerState => state.setMacroOutputs(answers)}
-            }
+            let (answered, ofStdAnswered, notExpanded) = round(settings) ?? break
+            sent += answered
+            ofStd += ofStdAnswered
+            failed += notExpanded
         }
         if (sent > 0) {
             logger.info("expanded macro calls", [("calls", sent), ("std", ofStd), ("failed", failed),
                 ("ms", (MonoTime.now() - started).toMilliseconds())])
         }
+    }
+
+    /**
+     * One round on a snapshot of now: `None` once nothing is left to send; else how many calls were answered, of std
+     * among them, and not expanded.
+     */
+    private func round(settings: Settings): ?(Int64, Int64, Int64) {
+        let (snapshot, open) = loop.write {
+            state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
+        }
+        let db = snapshot.analysis
+        let files = snapshot.files |> filterMap {id: FileId => db.sourceFile(id)} |> collectArray
+        // nothing to ask, nothing to look for: std's macros need no build, but the SDK. A loop, and what is sent in a
+        // frame of its own: at -O2 a lambda here, or the references of a send, crashed the GC that scanned this
+        // thread while it parsed (SIGSEGV in `VisitStackRoots`, 1.3.0-alpha.20261014)
+        var pending = false
+        for (file in files where !pending) {
+            pending = !pendingMacroRequests(db, file).isEmpty()
+        }
+        if (!pending) {
+            return None
+        }
+        send(settings, snapshot, open, files)
+    }
+
+    /**
+     * Sends what `files` of `snapshot` have to send, those `open` first, and sets the answers.
+     */
+    private func send(settings: Settings, snapshot: ServerSnapshot, open: HashSet<VfsPath>, files: Array<SourceFile>):
+        ?(Int64, Int64, Int64) {
+        let db = snapshot.analysis
+        let sdk = sdkFor(settings) ?? return None
+        let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
+        let requests = sendableRequests(db, files, libraries, stdLibrary: {pkg => sdk.stdLibrary(pkg)},
+            isOpen: {file => open.contains(snapshot.path(file.fileId(db)))})
+        if (requests.isEmpty()) {
+            return None
+        }
+        logger.debug("expanding macro calls", [("calls", requests.size)])
+        // an edit midway ends the round: what came before it is set, and the next round asks what it changed
+        let answers = expandAll(db, requests, sdk.numbers, expander, stopped: {=> isStopped()})
+        let ofStd = requests[..answers.size].iterator().filter {one => one[1].definition.isStd}.count()
+        var failed = 0
+        for ((file, key, output) in answers where output.expansion.isNone()) {
+            failed++
+            logger.debug("a macro call was not expanded", [("file", snapshot.path(file.fileId(db)).toString()),
+                ("call", key.toString()), ("why", output.diagnostics.get(0)?.message ?? "")])
+        }
+        if (!answers.isEmpty()) {
+            loop.write {state: ServerState => state.setMacroOutputs(answers)}
+        }
+        (answers.size, ofStd, failed)
     }
 
     /**
