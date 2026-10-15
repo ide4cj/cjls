@@ -26,5 +26,11 @@ runs:
     - shell: bash
       run: python "$GITHUB_ACTION_PATH/setup.py" "${{ steps.version.outputs.tag }}" "${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}"
 
+    # cjpm's concurrent launches of cjc leak pipes into each other and can wait on each other
+    # for good: cjc runs behind a shim that closes what it inherited (#342)
+    - if: runner.os != 'Windows'
+      shell: bash
+      run: echo "$GITHUB_ACTION_PATH/shim" >> "$GITHUB_PATH"
+
     - shell: bash
       run: cjc --version

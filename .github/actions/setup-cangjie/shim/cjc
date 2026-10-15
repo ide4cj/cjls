@@ -1,0 +1,28 @@
+#!/usr/bin/env python3
+"""cjc with the descriptors it inherited closed (#342).
+
+std.process.launch makes its pipes without CLOEXEC, so a cjc that cjpm starts while
+another launch is under way inherits the other's pipe ends and holds them until it
+exits: that launch's reader never sees EOF, and with the output past a pipe's buffer
+(`--scan-dependency` of a big package) two of them wait on each other for good.
+Closing everything above stderr before the real cjc runs leaves nothing to wait on.
+"""
+
+import os
+import sys
+
+
+def real_cjc() -> str:
+    here = os.path.dirname(os.path.realpath(__file__))
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if not entry or os.path.realpath(entry) == here:
+            continue
+        candidate = os.path.join(entry, "cjc")
+        if os.path.isfile(candidate) and os.access(candidate, os.X_OK):
+            return candidate
+    sys.exit("cjc shim: no cjc on PATH after " + here)
+
+
+cjc = real_cjc()
+os.closerange(3, os.sysconf("SC_OPEN_MAX"))
+os.execv(cjc, [cjc] + sys.argv[1:])
