@@ -411,6 +411,11 @@ public struct Package {
     public var isMacro: ?Bool
     public var cfg: ?Cfg
     /**
+     * Those of `files` that are its tests, named `*_test.cj` (`testFilesOf`): cjc leaves them out of the package
+     * but under `--test`, which imports std.unittest and its macros in them with no line (D127).
+     */
+    public var testFiles: Array<FileId> = []
+    /**
      * The stamp of the library cjls built of this macro package, which the macro server runs (#176): 0 for none.
      * The project model never sets it; a new one makes every request for the package's macros new.
      */

@@ -255,6 +255,12 @@ public class AnalysisDatabase <: Database {
                 if (old.files != model.files || moved) {
                     pkg.setFiles(this).withDurability(durability).to(files)
                 }
+                let testsChanged = old.files.filter {file => isTestFile(file)} != model.files.filter {
+                    file => isTestFile(file)
+                }
+                if (testsChanged || moved) {
+                    pkg.setTestFiles(this).withDurability(durability).to(testFilesOf(model, files))
+                }
                 if (old.noPrelude != model.noPrelude || moved) {
                     pkg.setNoPrelude(this).withDurability(durability).to(model.noPrelude)
                 }
@@ -268,7 +274,7 @@ public class AnalysisDatabase <: Database {
                 pkg
             case None =>
                 let pkg = Package(this, model.name, model.dir, files, model.noPrelude, model.isMacro,
-                    model.cfg, durability: durability)
+                    model.cfg, testFiles: testFilesOf(model, files), durability: durability)
                 projects.packages.add(key, (pkg, model, durability))
                 pkg
         }
@@ -284,6 +290,25 @@ public class AnalysisDatabase <: Database {
     public func batch<T>(change: () -> T): T {
         storage_.batch(change)
     }
+}
+
+/**
+ * Those of `files`, the ids of `model`'s files, that are its tests: named `*_test.cj`, which cjc compiles of a
+ * package only under `--test` (D127).
+ */
+func testFilesOf(model: PackageModel, files: Array<FileId>): Array<FileId> {
+    let found = ArrayList<FileId>()
+    for (i in 0..model.files.size where isTestFile(model.files[i])) {
+        found.add(files[i])
+    }
+    found.toArray()
+}
+
+/**
+ * Whether the file at `path` is a test, by its name.
+ */
+func isTestFile(path: VfsPath): Bool {
+    path.name.endsWith("_test.cj")
 }
 
 /**

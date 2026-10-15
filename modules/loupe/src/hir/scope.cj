@@ -75,11 +75,11 @@ public struct ImportedNames {
 }
 
 /**
- * The `ImportedNames` of `imports`, each with its file, made in the package `from`; `prelude`
- * after the globs of their own.
+ * The `ImportedNames` of `imports`, each with its file, made in the package `from`; `implicit`, the globs no line
+ * writes (the prelude), after those of their own.
  */
-func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(ItemFile, ImportItem)>, prelude: ?Glob,
-    stage: ScopeStage): ImportedNames {
+func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(ItemFile, ImportItem)>,
+    implicit: Array<Glob>, stage: ScopeStage): ImportedNames {
     let names = IndexMap<String, ArrayList<Imported>>()
     let ctors = IndexMap<String, ArrayList<DefId>>()
     let globs = ArrayList<Glob>()
@@ -107,9 +107,7 @@ func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(Item
             }
         }
     }
-    if (let Some(glob) <- prelude) {
-        globs.add(glob)
-    }
+    globs.add(all: implicit)
     ImportedNames(frozen(names) {list => list.toArray()}, frozen(ctors) {list => list.toArray()}, globs.toArray())
 }
 
@@ -132,7 +130,7 @@ public func packageImportsAt(db: AnalysisDatabase, pkg: PackageRef, stage: Scope
             imports.add((file, item))
         }
     }
-    collectImports(db, pkg, imports.toArray(), None, stage)
+    collectImports(db, pkg, imports.toArray(), [], stage)
 }
 
 /**
@@ -159,9 +157,36 @@ public func preludeOf(db: AnalysisDatabase, pkg: Package): ?Glob {
 }
 
 /**
- * What the plain imports of `file`, of `pkg`, bring, the prelude among its globs; the package's
- * re-exports are `packageImports`'s. A glob is its package: what it brings is read at a lookup,
- * so a name added to a package leaves this alone. `fileImportsAt` `Expanded`.
+ * The packages a file compiled with `--test` imports with no line, as `cjc --test` does (`cjpm test`, D127):
+ * std.unittest's names, its re-exports among them, and std.unittest.testmacro's macros.
+ */
+let TEST_IMPORTS = ["std.unittest", "std.unittest.testmacro"]
+
+/**
+ * What a test of `pkg`, `file` one of its `testFiles`, imports with no line: a glob of each of `TEST_IMPORTS` there
+ * is (D127). None for any other file.
+ */
+public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<Glob> {
+    if (!pkg.testFiles(db).contains(file.fileId(db))) {
+        return []
+    }
+    let from = PackageRef.Source(pkg)
+    let name = pkg.name(db)
+    TEST_IMPORTS |> filterMap {
+        imported: String => packageIndex(db).find(imported, from: from).flatMap {
+            found => if (found == from) {
+                None<Glob>
+            } else {
+                Glob(found, relationOf(name, imported), Visibility.Private, None)
+            }
+        }
+    } |> collectArray
+}
+
+/**
+ * What the plain imports of `file`, of `pkg`, bring, the prelude among its globs, and std.unittest's in a test
+ * (`testImportsOf`); the package's re-exports are `packageImports`'s. A glob is its package: what it brings is
+ * read at a lookup, so a name added to a package leaves this alone. `fileImportsAt` `Expanded`.
  */
 public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): ImportedNames {
     fileImportsAt(db, pkg, file, ScopeStage.Expanded)
@@ -177,7 +202,8 @@ public func fileImportsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, 
     let imports = activeItemTree(db, file).imports.filter {item => importLevelOf(item) == Visibility.Private}.map {
         item => (own, item)
     }
-    collectImports(db, PackageRef.Source(pkg), imports, preludeOf(db, pkg), stage)
+    let prelude = preludeOf(db, pkg).map {glob => [glob]} ?? []
+    collectImports(db, PackageRef.Source(pkg), imports, prelude.concat(testImportsOf(db, pkg, file)), stage)
 }
 
 /**

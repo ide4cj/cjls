@@ -157,7 +157,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
 public enum Todo <: ToString {
     /**
      * The value of a call of a macro whose expansion is not read: a user's (#176), std's not known
-     * (N136), or one not found, which `--test` may make visible (#255).
+     * (N136), or one not found.
      */
     | MacroCall
     /**
