@@ -73,6 +73,7 @@ Editor integrations are repositories in the `ide4cj` organization ([D16](docs/ad
 
 ## Rules that cross modules
 
+- **Style is std's** where the compiler leaves a choice (D125): names, Bool predicates, prop or func, `Option`, collections, visibility, `pkg.*` imports, doc comments are C18–C31 in [03-conventions.md](docs/design/03-conventions.md).
 - **No `@When` in code**: what differs between platforms is `platform`'s `common`/`specific` (C17). The exceptions are `hostArch`'s `@When[arch]` and a test of another platform in a module that is not multiplatform; another is an ADR of its own (D113).
 - **Never print** in the server: stdout is the LSP wire. Loggers are passed down, never global.
 - **Never `await()` an outbound request from a read-loop callback** (a `Context` handler): its answer can only arrive through the loop the callback holds.
