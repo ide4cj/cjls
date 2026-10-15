@@ -6,7 +6,8 @@ import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, UnaryExpr}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, UnaryExpr,
+    isIdent}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
 import loupe.hir.*
@@ -146,7 +147,7 @@ func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, 
  * The identifier or `This` at `offset`, the one after it if it is between two.
  */
 func tokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
-    let isName = {token: CjSyntaxToken => token.kind == SyntaxKind.Ident || token.kind == SyntaxKind.ThisTypeKw}
+    let isName = {token: CjSyntaxToken => isIdent(token) || token.kind == SyntaxKind.ThisTypeKw}
     // a name before an operator it touches (`a|+b`)
     match (root.tokenAtOffset(offset)) {
         case Single(token) where isName(token) || isOperator(token) => token

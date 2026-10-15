@@ -77,7 +77,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0056](0056-the-adr-index-is-written-after-the-merge.md) | The ADR index is written after the merge by a bot; a number is taken when the ADR is started, and checked to be the only one | accepted |
 | [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted |
 | [0058](0058-folders-come-or-gone-are-watched.md) | Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest | accepted |
-| [0059](0059-macro-arguments-are-parsed-before-expansion.md) | An expression macro's arguments are parsed as an argument list when they parse as one, before any expansion | accepted |
+| [0059](0059-macro-arguments-are-parsed-before-expansion.md) | An expression macro's arguments are parsed as an argument list when they parse as one, before any expansion | accepted; a macro call's arguments lowered alone are read while no expansion of it is current by D117 |
 | [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted; the line breaks are the author's by D76 |
 | [0061](0061-the-workspace-is-loaded-on-a-spawn.md) | The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded | accepted |
 | [0062](0062-toolchain-from-the-github-mirror.md) | The toolchain is downloaded from the GitHub mirror, checked against sha256 pinned from gitcode | accepted |
@@ -116,10 +116,10 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed; the numbers come from that table when the SDK has no `Tokens.inc` by D104 |
 | [0096](0096-build-and-tests-are-jobs-of-their-own.md) | CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
-| [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed |
+| [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed; a call of std's macro nested in a workspace call's input stays as written; children deeper than one level not checked by D114; a call in an expression is a call of the file, keyed and asked as one on an item, by D117 |
 | [0099](0099-source-sets-are-a-chain-and-common-is-its-specific.md) | A multiplatform module's packages are the files of the target's chain of source sets, and a common declaration is its specific one | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
-| [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed |
+| [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed; `cjls.macro_host`'s `@When` constants go to `platform`; what may keep a `@When` is named by D113 |
 | [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | proposed |
 | [0103](0103-an-expansion-is-shown-as-a-request-and-as-a-read-only-file.md) | An expansion is shown as cjls/expandMacro and as a read-only .cache/cjls/expanded/<file>.macrocall the server navigates | proposed |
 | [0104](0104-workspace-macros-are-built-by-cjc-and-run-under-a-deadline.md) | The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline | proposed |
@@ -131,3 +131,8 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0110](0110-a-speculative-tree-reparses-the-block-around-the-cursor.md) | A speculative tree is built by reparsing the block around the cursor | proposed |
 | [0111](0111-completion-lists-from-the-speculative-tree-and-resolves-lazily.md) | Completion lists from the speculative tree, ranks by scope, and leaves the detail to a resolve | proposed |
 | [0112](0112-arguments-are-matched-before-a-candidate-is-tried.md) | A call's arguments are matched to each candidate's parameters before it is tried, as cjc | proposed |
+| [0113](0113-the-architecture-is-the-only-when.md) | `hostArch` is the one `@When` of this repository's code, and a set's files are named for what they hold | proposed |
+| [0114](0114-std-derive-is-expanded-in-a-workspace-macros-input.md) | A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child | proposed; the `extend`s an outer macro copies have bodies of a comment, not empty ones, by D118 |
+| [0116](0116-quote-interpolations-are-code-of-the-macro.md) | A quote's interpolations are code of the macro, the rest of it tokens | proposed |
+| [0117](0117-expression-macros-are-asked-with-the-items-calls.md) | A macro called in an expression, std.unittest's included, is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands while its answer is current | proposed |
+| [0118](0118-a-body-cjls-writes-itself-is-a-comment.md) | A body cjls writes in an expansion of its own is a comment naming the macro | proposed |

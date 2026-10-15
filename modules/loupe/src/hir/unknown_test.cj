@@ -423,4 +423,55 @@ class UnknownTest {
             }
             "#, binaries: ["std.core", "std.collection"])
     }
+
+    @TestCase
+    func aCallTheAnalysisCannotTypeInAnArgumentLeavesItsCandidateUndecided() {
+        // cjc: `M` gives back its input, so each call is of the overload of an `Int64` (#281)
+        checkUnknowns(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            func h(a: Int64): Int64 { a }
+            func h(a: String): String { a }
+            func k(a: Int64, b: Int64): Int64 { a }
+            func k(a: String, b: String): String { a }
+            func one(a: Int64): Int64 { a }
+            func t(): Unit {
+                // two candidates undecided: which one is not known, so neither the name nor the call
+                let x = h(@M(1))
+            //          ^ todo(macro call)
+            //            ^^^^^ todo(macro call)
+            //          ^^^^^^^^ todo(macro call)
+                // one undecided, the other a misfit by an argument known: the undecided one
+                let y = k(@M(1), 2)
+            //            ^^^^^ todo(macro call)
+                // one candidate, undecided: its return type
+                let z = h(one(@M(1)))
+            //                ^^^^^ todo(macro call)
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#)
+    }
+
+    @TestCase
+    func aCallTheAnalysisCannotTypeInAnIndexIsNotAnError() {
+        // cjc: an `ArrayList<UInt8>` slice and an `Array<UInt8>` (#281)
+        checkUnknowns(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.collection.*
+            import m.ms.M
+            func f(bytes: ArrayList<UInt8>, at: Int64): Unit {
+                let run = bytes[at..min(bytes.size, @M(at))].toArray()
+            //                                      ^^^^^^ todo(macro call)
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#, binaries: ["std.core", "std.collection"])
+    }
 }

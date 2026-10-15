@@ -5,6 +5,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.SyntaxElement
 import cjsyntax.{CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.isIdent
 import loupe.db.BinaryModel
 import loupe.vfs.CjoFileRead
 import loupe.fixture.*
@@ -48,7 +49,7 @@ func checkHighlight(fixture: String, binaries!: Array<CjoFileRead> = [], models!
 func isUse(token: CjSyntaxToken): Bool {
     let name = token.parent
     let owner = name.parent?.kind
-    token.kind == SyntaxKind.Ident && (name.kind == SyntaxKind.NameRef && owner != Some(SyntaxKind.Annotation) ||
+    isIdent(token) && (name.kind == SyntaxKind.NameRef && owner != Some(SyntaxKind.Annotation) ||
         name.kind == SyntaxKind.Name && owner == Some(SyntaxKind.BindPat))
 }
 
@@ -337,5 +338,25 @@ class HighlightStdTest {
             //           ^^^^^ Struct[DefaultLibrary]
             //                                 ^^^^^^^ UnresolvedReference
             "#, binaries: ["std.core", "std.deriving"].map {name => stdCjoRead(name, stdCjo(name))})
+    }
+
+    @TestCase
+    func aQuotesInterpolationsAreHighlightedByMeaningAndItsTokensAreNot() {
+        // #195
+        checkHighlight(#"
+            //- /main.cj module=m package=m
+            macro package m
+            //            ^ Namespace
+            import std.ast.*
+            //     ^^^ Namespace
+            //         ^^^ Namespace
+            public macro M(input: Tokens): Tokens {
+            //                    ^^^^^^ Class[DefaultLibrary]
+            //                             ^^^^^^ Class[DefaultLibrary]
+                quote(input + $input + $(input))
+            //                ^^^^^^ Parameter
+            //                           ^^^^^ Parameter
+            }
+            "#, binaries: ["std.core", "std.ast"].map {name => stdCjoRead(name, stdCjo(name))})
     }
 }

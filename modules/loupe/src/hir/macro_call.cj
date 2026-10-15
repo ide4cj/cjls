@@ -2,7 +2,7 @@ package loupe.hir
 
 import std.collection.*
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
-import cjsyntax.CjSyntaxNode
+import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.MacroExpandDecl
 import loupe.db.*
 import loupe.syntax.parse
@@ -46,6 +46,49 @@ public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64
         return (MacroCallId(db, file, item, index), headOf(call))
     }
     None
+}
+
+/**
+ * The outermost macro call of each item of `file` around `offset` that has any, the innermost item first, and its
+ * head; none of an item `offset` is in a body of (a `Block`, of the item or of a member) unless `inBody`.
+ */
+public func macroCallsAround(db: AnalysisDatabase, file: SourceFile, offset: Int64, inBody: Bool): Array<(MacroCallId,
+    TextRange)> {
+    let root = parse(db, file).syntaxNode()
+    let token = match (root.tokenAtOffset(offset)) {
+        case Single(token) => token
+        case Between(_, right) => right
+        case _ => return []
+    }
+    let ids = itemIdMap(db, file)
+    let found = ArrayList<(MacroCallId, TextRange)>()
+    var inBlock = false
+    for (node in token.parent.ancestors()) {
+        inBlock = inBlock || node.kind == SyntaxKind.Block
+        // the item: the declaration under every call on it
+        var decl = node
+        while (let Some(inner) <- MacroExpandDecl.cast(decl).flatMap {one => one.decl()}) {
+            decl = inner.syntax
+        }
+        let item = ids.idOf(SyntaxNodePtr(decl)) ?? continue
+        let calls = macroCallsOf(decl)
+        if (calls.isEmpty() || (inBlock && !inBody) || found.iterator().any {one => one[0].item(db) == item}) {
+            continue
+        }
+        found.add((MacroCallId(db, file, item, 0), headOf(calls[0])))
+    }
+    found.toArray()
+}
+
+/**
+ * The text of the declaration `call` is on, as written after its head: the calls inside it included. `None` if its
+ * item is no longer there.
+ */
+public func declarationUnder(db: AnalysisDatabase, call: MacroCallId): ?String {
+    let file = call.file(db)
+    let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
+    let decl = macroCallsOf(node).get(call.index(db)).flatMap {one => one.decl()} ?? return None
+    decl.syntax.toString()
 }
 
 /**

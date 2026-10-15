@@ -294,7 +294,7 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
     | ImportAlias
     /** a name being declared */
     | Name
-    /** a name being used */
+    /** a name being used; `$name` in a quote, the name `name` where the macro runs */
     | NameRef
     | Annotation
     | AnnotationArgList
@@ -416,7 +416,7 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
     | PrimTypeExpr
     | VArrayExpr
     | QuoteExpr
-    /** `$(expr)` in a quote */
+    /** `$(expr)` in a quote, or `$name`, a reference to `name` */
     | QuoteInterpolation
     | MacroExpandExpr
     /** `[...]` after a macro name */

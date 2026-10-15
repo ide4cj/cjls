@@ -52,13 +52,13 @@ class UnittestExpansionTest {
         // assert
         @Expect(texts, [
             "extend C <: TestClass {\n" +
-            "    public func asTestSuite(): TestSuite {}\n" +
+            "    public func asTestSuite(): TestSuite ${stubOf("@Test")}\n" +
             "}\n" +
             "interface TestPackageExtension_C {\n" +
             "    func registerC(): Unit\n" +
             "}\n" +
             "extend TestPackage <: TestPackageExtension_C {\n" +
-            "    public func registerC(): Unit {}\n" +
+            "    public func registerC(): Unit ${stubOf("@Test")}\n" +
             "}\n"])
     }
 
@@ -80,13 +80,13 @@ class UnittestExpansionTest {
         // assert
         @Expect(texts, [
             "extend<T> C<T> <: TestClass where T <: ToString {\n" +
-            "    public func asTestSuite(): TestSuite {}\n" +
+            "    public func asTestSuite(): TestSuite ${stubOf("@Test")}\n" +
             "}\n" +
             "interface TestPackageExtension_C {\n" +
             "    func registerC(): Unit\n" +
             "}\n" +
             "extend TestPackage <: TestPackageExtension_C {\n" +
-            "    public func registerC(): Unit {}\n" +
+            "    public func registerC(): Unit ${stubOf("@Test")}\n" +
             "}\n"])
     }
 
@@ -105,7 +105,7 @@ class UnittestExpansionTest {
             "#, 0)
 
         // assert
-        @Expect(texts, ["extend C <: TestClass {\n    public func asTestSuite(): TestSuite {}\n}\n"])
+        @Expect(texts, ["extend C <: TestClass {\n    public func asTestSuite(): TestSuite ${stubOf("@Test")}\n}\n"])
     }
 
     @TestCase
@@ -121,7 +121,7 @@ class UnittestExpansionTest {
             "#, 0)
 
         // assert
-        @Expect(texts, ["extend T <: TestClass {\n    public func asTestSuite(): TestSuite {}\n}\n"])
+        @Expect(texts, ["extend T <: TestClass {\n    public func asTestSuite(): TestSuite ${stubOf("@TestTemplate")}\n}\n"])
     }
 
     @TestCase
@@ -139,13 +139,13 @@ class UnittestExpansionTest {
         // assert
         @Expect(texts, [
             "class TestCase_f <: TestClass {\n" +
-            "    public func asTestSuite(): TestSuite {}\n" +
+            "    public func asTestSuite(): TestSuite ${stubOf("@Test")}\n" +
             "}\n" +
             "interface TestPackageExtension_TestCase_f {\n" +
             "    func registerTestCase_f(): Unit\n" +
             "}\n" +
             "extend TestPackage <: TestPackageExtension_TestCase_f {\n" +
-            "    public func registerTestCase_f(): Unit {}\n" +
+            "    public func registerTestCase_f(): Unit ${stubOf("@Test")}\n" +
             "}\n"])
     }
 
@@ -167,7 +167,7 @@ class UnittestExpansionTest {
             "    func register_b(): Unit\n" +
             "}\n" +
             "extend TestPackage <: TestPackageExtension_b {\n" +
-            "    public func register_b(): Unit {}\n" +
+            "    public func register_b(): Unit ${stubOf("@TestBuilder")}\n" +
             "}\n"])
     }
 
@@ -237,10 +237,10 @@ class UnittestExpansionTest {
         @Expect(texts, [
             "public struct KeyZxc <: KeyFor<Int64> & KeyFor<Array<String>> {\n" +
             "    public static prop zxc: KeyZxc {\n" +
-            "        get() {}\n" +
+            "        get() ${getterStubOf("@UnittestOption")}\n" +
             "    }\n" +
             "    public prop name: String {\n" +
-            "        get() {}\n" +
+            "        get() ${getterStubOf("@UnittestOption")}\n" +
             "    }\n" +
             "}\n"])
     }

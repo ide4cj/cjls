@@ -2,6 +2,7 @@
 
 Status: proposed
 Amends ADR-0098: a call of std's macro is a call the server runs, nested or read like a workspace macro's
+Amends ADR-0114: a std `@Derive` in a workspace call's input is the server's output, cjls's own only once its run failed
 ## Context
 
 - #176 decided that once the server runs, it runs std's macros as well. Its real output replaces cjls's own expansion (#175) under the same `MacroCallId`. Ours stands until the server answers, and whenever it cannot (#176's first comment, D87's last consequence).
@@ -15,6 +16,8 @@ Amends ADR-0098: a call of std's macro is a call the server runs, nested or read
 - **A call of a macro of std is a call the server runs** (`serverCalls`, `ServerMacro`), as a workspace macro's is: in cjc's order, innermost first, and the outermost one on a top-level item is read. A macro's package is a source package of the workspace or a package of std (`MacroPackage`).
   - A call of std on a member is the server's only under a top-level item with a call the server runs. Its output is then part of that call's input (`@DeriveExclude`, `@TestCase` under `@Derive`, `@Test`). On a member of any other item, nothing would read it.
   - A workspace call around a call of std waits for that call's output, as it waits for a nested workspace call's.
+    A run of std's `@Derive` that failed with no expansion before it is replaced in that input by cjls's own, as D114
+    writes it (`MacroInputComposer.chainFrom`), so the call around it is still asked.
 - **The output read replaces the analysis's own expansions on its item** (`expandedCalls`). Until there is one, and whenever a run failed with no expansion before it, #175's own expansions of the item stand. A macro's own errors come with the run (`macroDiagnostics`).
 - **std's macros run in a server of their own**, beside the workspace's (`MacroServers`), each guarded as D104 says. On this repository, the SDK's runtime aborts (SIGABRT) the process that loads `libcangjie-std-deriving.so` for the first time after one `@CalcaTracked` of `lib-macro_calca.macros.so` ran in it (the one on `parkedSize` in `calca/src/claim_test.cj`; the two calls replayed alone abort it every time, the library loaded first does not). Apart, a rebuilt library of the workspace restarts only its own server, and a workspace macro that ends its server costs std's calls nothing.
 - **std's library is the SDK's, found by the package's name** (`MacroServerPaths.stdMacroLibrary`). A call whose package has no library there is never sent (D87). Its stamp in the request's fingerprint is a hash of the package's `.cjo`, which another SDK changes.

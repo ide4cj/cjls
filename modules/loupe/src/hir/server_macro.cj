@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, MacroExpandDecl}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
 import calca.*
 import calca.macros.*
 import loupe.db.*
@@ -514,31 +514,71 @@ class MacroInputComposer {
     /**
      * Writes the calls `chain` from `from` on, on `item`, and its declaration: up to the first call the server runs
      * the text of the source (a macro neither of the workspace nor of std, which nothing expands), then that call's
-     * output.
+     * output. A call of std's `@Derive` the server has no expansion of, its run failed, is expanded as cjc expands it
+     * before the calls around it (D114): its head left out, the `extend`s it adds after what it is on
+     * (`deriveExpansion`, signatures only).
      */
     private func chainFrom(item: ItemId, chain: Array<MacroExpandDecl>, from: Int64, builder: MappedTextBuilder,
         children: ArrayList<MacroChild>): Bool {
-        let start = chain[from].syntax.textRange.start
+        var start = chain[from].syntax.textRange.start
+        let derived = ArrayList<(Expansion, TextRange)>()
+        let written = {
+            =>
+            for (i in 0..derived.size) {
+                let (expansion, head) = derived[derived.size - 1 - i]
+                builder.paste(MappedText("\n" + expansion.text, [MappedSpan(TextRange(0, expansion.text.size + 1),
+                    SpanOrigin.FromCall)]), head)
+            }
+            true
+        }
         for (i in from..chain.size) {
             let key = MacroCallKey(item.toString(), i)
             if (let Some(inner) <- served.get(key)) {
-                builder.copy(TextRange(start, chain[i].syntax.textRange.start))
                 let output = macroOutputOf(db, inner.call) ?? return false
-                let expansion = output.expansion ?? return false
-                builder.paste(expansion, macroHeadOf(chain[i]))
-                children.add(MacroChild(inner.definition.name, output.items))
-                return true
+                if (let Some(expansion) <- output.expansion) {
+                    builder.copy(TextRange(start, chain[i].syntax.textRange.start))
+                    builder.paste(expansion, macroHeadOf(chain[i]))
+                    // what the calls nested in it set as well, as cjc gives an outer call every call inside it
+                    children.add(all: request(inner).map {one => one.children} ?? [])
+                    children.add(MacroChild(inner.definition.name, output.items))
+                    return written()
+                }
+                // a run of std's macro that failed: cjls's own expansion stands in the input, as beside the item
+                if (!inner.definition.isStd) {
+                    return false
+                }
+            }
+            if (let Some(expansion) <- derivedBy(item, i, chain[i])) {
+                let head = headOf(chain[i])
+                builder.copy(TextRange(start, head.start))
+                derived.add((expansion, head))
+                // from what follows the head: the next call, or the declaration
+                start = chain.get(i + 1).map {next => next.syntax.textRange.start} ??
+                    chain[i].decl().map {decl => decl.syntax.textRange.start} ?? head.end
             }
         }
         let last = chain[chain.size - 1]
         match (last.decl()) {
             case Some(decl) =>
                 builder.copy(TextRange(start, decl.syntax.textRange.start))
-                declaration(item, decl.syntax, builder, children)
+                declaration(item, decl.syntax, builder, children) && written()
             case None =>
                 builder.copy(TextRange(start, last.syntax.textRange.end))
                 true
         }
+    }
+
+    /**
+     * What `call`, at `index` on `item`, adds after its declaration if it is std's `@Derive`.
+     */
+    private func derivedBy(item: ItemId, index: Int64, call: MacroExpandDecl): ?Expansion {
+        let resolution = macrosOf(db, DefId(db, ItemFile.Source(file), item)).get(index) ?? return None
+        match (stdMacroOf(db, resolution)) {
+            case Some(DeriveMacro) => ()
+            case _ => return None
+        }
+        let decl = ids.node(item, root).flatMap {node => Decl.cast(node)} ?? return None
+        deriveExpansion(decl, call)
     }
 
     /**

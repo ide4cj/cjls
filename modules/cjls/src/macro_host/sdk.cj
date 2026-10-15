@@ -4,28 +4,24 @@ import std.collection.*
 import std.env.getVariables
 import std.process.{ProcessException, executeWithOutput}
 import macro_server.{MacroServerPaths, TokenNumbers}
-
-@When[os == "Windows"]
-const LIBRARY_PATH = "PATH"
-
-@When[os == "macOS"]
-const LIBRARY_PATH = "DYLD_LIBRARY_PATH"
-
-@When[os != "Windows" && os != "macOS"]
-const LIBRARY_PATH = "LD_LIBRARY_PATH"
-
-@When[os == "Windows"]
-const PATH_SEPARATOR = ";"
-
-@When[os != "Windows"]
-const PATH_SEPARATOR = ":"
+import platform.sdkToolEnvironment
 
 /**
- * The SDK's `cjc`, run with its runtime on the library path, as its `envsetup` sets it: what cjc loads a macro
- * library a package uses with.
+ * The SDK's `cjc`, run under the environment its `envsetup` sets (`sdkToolEnvironment`): its runtime on the
+ * library path, what cjc loads a macro library a package uses with, and on macOS `SDKROOT`, which it links one
+ * against.
  */
 public class SdkToolchain <: Toolchain {
-    public SdkToolchain(private let paths: MacroServerPaths) {}
+    private let paths: MacroServerPaths
+    private let environment: HashMap<String, String>
+
+    /**
+     * The `cjc` of `paths`, run under `variables` and what `envsetup` would add to them.
+     */
+    public init(paths: MacroServerPaths, variables!: Array<(String, String)> = getVariables()) {
+        this.paths = paths
+        this.environment = sdkToolEnvironment(variables, paths.runtimeLib)
+    }
 
     public func compile(arguments: Array<String>): (Int64, String) {
         let (code, out, err) = run(arguments)
@@ -45,14 +41,8 @@ public class SdkToolchain <: Toolchain {
     }
 
     private func run(arguments: Array<String>): (Int64, String, String) {
-        let env = HashMap<String, String>(getVariables())
-        let lib = paths.runtimeLib.toString()
-        env[LIBRARY_PATH] = match (env.get(LIBRARY_PATH)) {
-            case Some(old) where !old.isEmpty() => "${lib}${PATH_SEPARATOR}${old}"
-            case _ => lib
-        }
         try {
-            let (code, out, err) = executeWithOutput(paths.cjc.toString(), arguments, environment: env)
+            let (code, out, err) = executeWithOutput(paths.cjc.toString(), arguments, environment: environment)
             (code, String.fromUtf8(out), String.fromUtf8(err))
         } catch (e: ProcessException) {
             (-1, "", e.message)

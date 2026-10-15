@@ -19,8 +19,9 @@ import cjls.server.*
 import cjls.macros.LspHandler
 
 /**
- * What the macro call at the position expands to, formatted (D60); one of std, which the server writes itself, after
- * a line saying so. `null` off a call, on one nothing expands, or in a document the server does not know.
+ * What the macro call at the position, or the item it is in (`macroCallAt`), expands to, formatted (D60); one of std,
+ * which the server writes itself, after a line saying so, and after the declaration it adds to. `null` off a call, on
+ * one nothing expands, or in a document the server does not know.
  */
 @LspHandler[readonly]
 func handleExpandMacro(snap: ServerSnapshot, params: TextDocumentPositionParams): Nullable<MacroExpansion> {
@@ -31,14 +32,18 @@ func handleExpandMacro(snap: ServerSnapshot, params: TextDocumentPositionParams)
     let shown = ShownExpansion.of(expanded.text).text
     Nullable.Value(match (expanded.kind) {
         case ServerExpansion => MacroExpansion(name: expanded.name, expansion: shown, kind: "server")
-        case OwnExpansion => MacroExpansion(name: expanded.name,
-            expansion: "// cjls's own expansion of ${expanded.name}: signatures only, no bodies\n${shown}", kind: "cjls")
+        case OwnExpansion =>
+            let declaration = expanded.declaration.map {one => one.trimAsciiEnd() + "\n\n"} ?? ""
+            MacroExpansion(name: expanded.name,
+                expansion: "// cjls's own expansion of ${expanded.name}: signatures only, no bodies\n${declaration}${shown}",
+                kind: "cjls")
     })
 }
 
 /**
- * "Expand macro" on a macro call that has an expansion, its command `cjls.expandMacro` at the start of the range: to a
- * client that shows a document the server asks it to, and that asks for no kind in particular (the action has none).
+ * "Expand macro" on a macro call that has an expansion, or in its item out of the item's bodies, where it would be
+ * offered at every line (`macroCallAt`), its command `cjls.expandMacro` at the start of the range: to a client that
+ * shows a document the server asks it to, and that asks for no kind in particular (the action has none).
  */
 @LspHandler[readonly]
 func handleCodeAction(snap: ServerSnapshot, params: CodeActionParams): Nullable<Array<CommandOrCodeAction>> {
@@ -46,8 +51,8 @@ func handleCodeAction(snap: ServerSnapshot, params: CodeActionParams): Nullable<
         return Nullable.Null
     }
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
-    let at = macroCallAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.range.start)) ??
-        return Nullable.Null
+    let at = macroCallAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.range.start),
+        inBody: false) ?? return Nullable.Null
     let expanded = expandedMacro(snap.analysis, at.call) ?? return Nullable.Null
     let argument = RawJson.of(TextDocumentPositionParams(textDocument: params.textDocument,
         position: params.range.start)).read<JsonValue>()

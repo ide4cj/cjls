@@ -73,6 +73,7 @@ Editor integrations are repositories in the `ide4cj` organization ([D16](docs/ad
 
 ## Rules that cross modules
 
+- **No `@When` in code**: what differs between platforms is `platform`'s `common`/`specific` (C17). The exceptions are `hostArch`'s `@When[arch]` and a test of another platform in a module that is not multiplatform; another is an ADR of its own (D113).
 - **Never print** in the server: stdout is the LSP wire. Loggers are passed down, never global.
 - **Never `await()` an outbound request from a read-loop callback** (a `Context` handler): its answer can only arrive through the loop the callback holds.
 - **A `spawn`ed thread that throws dumps its stack to stderr** even if nobody reads the future: every `spawn` boundary catches internally, an `Error` as well as an `Exception` (S13).
