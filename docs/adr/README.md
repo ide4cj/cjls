@@ -116,7 +116,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0095](0095-cjc-token-kinds-are-numbered-by-the-sdks-tokens-inc.md) | cjc's token kinds are numbered by the SDK's own Tokens.inc | proposed; the numbers come from that table when the SDK has no `Tokens.inc` by D104 |
 | [0096](0096-build-and-tests-are-jobs-of-their-own.md) | CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory | proposed |
 | [0097](0097-unused-warnings-are-off.md) | The unused warnings are off in every module | proposed |
-| [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed; a call of std's macro nested in a workspace call's input stays as written; children deeper than one level not checked by D114; a call in an expression is a call of the file, keyed and asked as one on an item, by D117 |
+| [0098](0098-workspace-expansions-are-an-input-of-their-file.md) | The macro server's answers are an input of the source file, their origins relative to the top-level item | proposed; a call of std's macro nested in a workspace call's input stays as written; children deeper than one level not checked by D114; a call in an expression is a call of the file, keyed and asked as one on an item, by D117; a `MacroCallId` is an item and an index among the calls on it; ADR-0114: a call on a primary constructor parameter is sent as written by D119 |
 | [0099](0099-source-sets-are-a-chain-and-common-is-its-specific.md) | A multiplatform module's packages are the files of the target's chain of source sets, and a common declaration is its specific one | proposed |
 | [0100](0100-diagnostics-are-pulled-again-after-another-file-changes.md) | Diagnostics depend on other files: pulled again after any change | accepted |
 | [0101](0101-platform-code-is-a-multiplatform-module.md) | What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations | proposed; `cjls.macro_host`'s `@When` constants go to `platform`; what may keep a `@When` is named by D113 |
@@ -126,7 +126,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | proposed |
 | [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | proposed |
 | [0107](0107-settings-follow-the-pin.md) | A client's settings are made again when its pin moves, never checked against the cjls under test | proposed |
-| [0108](0108-error-roots-only-shrink.md) | This repository's roots of an error type are held to a checked-in count per file and kind that only shrinks | proposed |
+| [0108](0108-error-roots-only-shrink.md) | This repository's roots of an error type are held to a checked-in count per file and kind that only shrinks | proposed; the file only shrinks by D121 |
 | [0109](0109-builtins-are-told-in-a-table-of-our-own.md) | What the language builds in is told in our words, a table of our own | proposed |
 | [0110](0110-a-speculative-tree-reparses-the-block-around-the-cursor.md) | A speculative tree is built by reparsing the block around the cursor | proposed |
 | [0111](0111-completion-lists-from-the-speculative-tree-and-resolves-lazily.md) | Completion lists from the speculative tree, ranks by scope, and leaves the detail to a resolve | proposed |
@@ -137,4 +137,6 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0116](0116-quote-interpolations-are-code-of-the-macro.md) | A quote's interpolations are code of the macro, the rest of it tokens | proposed |
 | [0117](0117-expression-macros-are-asked-with-the-items-calls.md) | A macro called in an expression, std.unittest's included, is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands while its answer is current | proposed |
 | [0118](0118-a-body-cjls-writes-itself-is-a-comment.md) | A body cjls writes in an expansion of its own is a comment naming the macro | proposed |
+| [0119](0119-a-macro-call-on-a-parameter-is-a-call-of-its-items-chain.md) | A macro call on a parameter is a macro call of the item whose parameter list holds it, indexed after the item's own | proposed |
 | [0120](0120-the-gate-is-tagged-out-of-the-coverage-run.md) | The diagnostics gate is tagged `gate` and left out of the coverage run | accepted |
+| [0121](0121-the-error-roots-file-grows-with-a-known-gap-met-idiomatically.md) | A known gap met by new code grows the error roots file; the code stays idiomatic and the commit names the gap | proposed |
