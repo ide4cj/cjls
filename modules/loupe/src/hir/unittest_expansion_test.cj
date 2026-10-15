@@ -429,7 +429,7 @@ class UnittestInferenceTest {
 
     @TestCase
     func aTestFileSeesStdUnittestAndItsMacrosUnimported() {
-        // cjc 1.3.0-alpha.20261014 (D128): `--test` imports `std.unittest.*` and `std.unittest.testmacro.*` in every
+        // cjc 1.3.0-alpha.20261014 (D129): `--test` imports `std.unittest.*` and `std.unittest.testmacro.*` in every
         // file, which only a `*_test.cj` is compiled with
         checkInferenceWithUnittest(#"
             //- /m/src/a_test.cj module=m package=m
@@ -460,7 +460,7 @@ class UnittestInferenceTest {
 
     @TestCase
     func aFileNotATestOfAPackageWithTestsSeesNoneOfStdUnittest() {
-        // cjc 1.3.0-alpha.20261014 (D128): `cjpm build` compiles it without `--test`: undeclared identifier 'Expect'
+        // cjc 1.3.0-alpha.20261014 (D129): `cjpm build` compiles it without `--test`: undeclared identifier 'Expect'
         checkInferenceWithUnittest(#"
             //- /m/src/a.cj module=m package=m
             package m
