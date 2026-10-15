@@ -1,7 +1,7 @@
 package loupe
 
 import std.collection.*
-import cjsyntax.ast.{ExtendDecl, Type, isIdent}
+import cjsyntax.ast.{ExtendDecl, isIdent}
 import loupe.db.AnalysisDatabase
 import loupe.hir.{DefId, ItemFile, ItemKind, overridingMembers, subtypesOf}
 import loupe.syntax.parse
@@ -47,12 +47,10 @@ func implementationTarget(db: AnalysisDatabase, id: DefId): ?NavigationTarget {
         return declTarget(db, id)
     }
     let target = declTarget(db, id) ?? return None
-    let ty: ?Type = match (id.file(db)) {
+    // of a source file's: a `.cjo`'s or an expansion's target is elsewhere than its node
+    let ty = match (id.file(db)) {
         case Source(_) => itemNodeOf(db, id).flatMap {node => ExtendDecl.cast(node)}.flatMap {decl => decl.ty()}
-        case _ => None
+        case _ => return target
     }
-    match (ty) {
-        case Some(one) => NavigationTarget(target.fileId, target.fullRange, one.syntax.textRange)
-        case None => target
-    }
+    NavigationTarget(target.fileId, target.fullRange, (ty ?? return target).syntax.textRange)
 }

@@ -9,11 +9,12 @@ import loupe.syntax.parse
 
 /**
  * Checks the hierarchy of the name at the `$0` of `fixture` is its annotations: `super` under each member it
- * overrides or implements (`overriddenMembers`), `impl` under each implementation `implementationsAt` finds.
+ * overrides or implements (`overriddenMembers`), `impl` under each implementation `implementationsAt` finds; the
+ * packages of std named by `binaries` read from the SDK.
  */
-func checkHierarchy(fixture: String): Unit {
+func checkHierarchy(fixture: String, binaries!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database()
+    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let file = db.sourceFile(cursor.fileId).getOrThrow()
     let token = tokenAt(parse(db, file).syntaxNode(), cursor.offset) ?? throw FixtureException("no name at $0")
@@ -320,6 +321,53 @@ class ImplementationTest {
                 public func id<U>(x: U): U { x }
             //              ^^ impl
             }
+            "#)
+    }
+
+    @TestCase
+    func aTypeBelowAnInterfaceOnTwoPathsIsFoundOnce() {
+        checkHierarchy(#"
+            //- /a.cj module=m package=m
+            package m
+            interface $0I {}
+            interface J <: I {}
+            //        ^ impl
+            interface K <: I {}
+            //        ^ impl
+            class C <: J & K {}
+            //    ^ impl
+            "#)
+    }
+
+    @TestCase
+    func theImplementationsOfAnInterfaceOfStdAreLookedForInTheProjectAndInStd() {
+        // std's own, whose sources are not read here, have nowhere to go
+        checkHierarchy(#"
+            //- /a.cj module=m package=m
+            package m
+            class C <: $0ToString {
+            //    ^ impl
+                public func toString(): String { "" }
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func aStructALocalAndAnOperatorHaveNoImplementations() {
+        checkHierarchy(#"
+            //- /a.cj module=m package=m
+            package m
+            struct $0S {}
+            "#)
+        checkHierarchy(#"
+            //- /a.cj module=m package=m
+            package m
+            func f(): Unit { let $0x = 1 }
+            "#)
+        checkHierarchy(#"
+            //- /a.cj module=m package=m
+            package m
+            func f(): Int64 { 1 $0+ 2 }
             "#)
     }
 

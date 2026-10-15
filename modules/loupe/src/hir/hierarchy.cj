@@ -18,15 +18,14 @@ public func packageSubtypes(db: AnalysisDatabase, pkg: PackageRef): IndexMap<Def
     for (file in files.concat(files |> flatMap {one: ItemFile => expansionsOf(db, one)} |> collectArray)) {
         for (item in itemTreeOf(db, file).items where isSubtypeItem(item.kind)) {
             let def = DefId(db, file, item.id)
+            // each a declaration: `supertypes` resolves no type of the language
             for (one in supertypes(db, def)) {
-                let sup = match (one) {
-                    case DeclType(id) => id
-                    case PrimType(_) => continue
-                }
-                if (let Some(list) <- found.get(sup)) {
-                    list.add(def)
-                } else {
-                    found[sup] = ArrayList<DefId>([def])
+                if (let DeclType(sup) <- one) {
+                    if (let Some(list) <- found.get(sup)) {
+                        list.add(def)
+                    } else {
+                        found[sup] = ArrayList<DefId>([def])
+                    }
                 }
             }
         }
@@ -55,15 +54,14 @@ public func overriddenMembers(db: AnalysisDatabase, member: DefId): Array<DefId>
     let from = sourceFileOf(db, member)
     let own = shape.paramsOn(db, member, recv, from)
     let found = ArrayList<DefId>()
+    // the supertypes but the type itself, each an instance of a declaration
     for (sup in allSupertypes(db, recv, from)[1..]) {
-        let id = match (sup.kind(db)) {
-            case DeclTy(id, _) => id
-            case _ => continue
-        }
-        for (candidate in membersOfItem(db, id, shape.name)) {
-            if (let MemberDecl(other) <- candidate && other != member && !found.contains(other) &&
-                shape.isAlike(db, other) && shape.paramsOn(db, other, recv, from) == own) {
-                found.add(other)
+        if (let DeclTy(id, _) <- sup.kind(db)) {
+            for (candidate in membersOfItem(db, id, shape.name)) {
+                if (let MemberDecl(other) <- candidate && other != member && !found.contains(other) &&
+                    shape.isAlike(db, other) && shape.paramsOn(db, other, recv, from) == own) {
+                    found.add(other)
+                }
             }
         }
     }
