@@ -1,4 +1,4 @@
-# ADR-0123: cjc runs behind a shim that closes the descriptors it inherited
+# ADR-0125: cjc runs behind a shim that closes the descriptors it inherited
 
 Status: proposed
 
