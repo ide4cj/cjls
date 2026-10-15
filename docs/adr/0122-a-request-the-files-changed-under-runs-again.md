@@ -1,4 +1,4 @@
-# ADR-0119: A read-only request the files changed under runs again on a fresh snapshot, not answered ContentModified
+# ADR-0122: A read-only request the files changed under runs again on a fresh snapshot, not answered ContentModified
 
 Status: proposed
 Amends ADR-0008: a stale snapshot's `CancelledException` runs the request again; `ContentModified` is answered by no read-only handler

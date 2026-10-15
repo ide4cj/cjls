@@ -154,7 +154,7 @@ class Server <: Handler {
 
 /**
  * `query` of `first`, or of the state as it is then when the files changed under it: a stale snapshot throws
- * `CancelledException`, and the request runs again rather than being answered `ContentModified` (D119). The write
+ * `CancelledException`, and the request runs again rather than being answered `ContentModified` (D122). The write
  * is often the server's own, the macro outputs of the very change the request came after (D98), and a client
  * given `ContentModified` for a completion shows nothing and asks nothing more. A request the client cancelled
  * is not run again: its `CancelledException` goes through, to `cancelledError`.

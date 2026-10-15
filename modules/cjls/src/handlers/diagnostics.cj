@@ -9,7 +9,7 @@ import cjls.macros.LspHandler
 /**
  * What is wrong in a document, all of it every time: no `resultId` yet (#51). A document the server
  * does not know has nothing wrong. The files changing under it is the server's to answer (S5): the handler runs
- * again on the files as they are then (D119).
+ * again on the files as they are then (D122).
  */
 @LspHandler[readonly]
 func handleDocumentDiagnostic(snap: ServerSnapshot, params: DocumentDiagnosticParams): DocumentDiagnosticReport {
