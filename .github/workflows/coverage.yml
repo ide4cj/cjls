@@ -32,7 +32,7 @@ jobs:
       - run: python tests/corpora/fetch.py
       # `-g`: `-O2` is in the release sections alone, and cjc warns of `--coverage` with it (D51).
       # Without the diagnostics gate, `@Tag[gate]`: it checks the analysis on this repository and
-      # std's sources, 9 of the 16 minutes of an instrumented run, and covers 0.3 pt (D119)
+      # std's sources, 9 of the 16 minutes of an instrumented run, and covers 0.3 pt (D120)
       - run: cjpm test --coverage -g --no-progress --timeout-each=2m --exclude-tags gate --target-dir target/cov
       # the report of a run whose tests failed too
       - name: Report

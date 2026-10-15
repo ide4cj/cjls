@@ -2230,7 +2230,7 @@ class InferTest {
     }
 
     // The cases below are the branches the diagnostics gate alone reached before it left the coverage
-    // run (D119): each a construct no fixture had.
+    // run (D120): each a construct no fixture had.
 
     @TestCase
     func synchronizedSpawnVArrayAndAConversionAreOfTheirBodiesAndTypes() {

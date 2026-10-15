@@ -1,4 +1,4 @@
-# ADR-0119: The diagnostics gate is tagged `gate` and left out of the coverage run
+# ADR-0120: The diagnostics gate is tagged `gate` and left out of the coverage run
 
 Status: accepted, 2026-10-15
 

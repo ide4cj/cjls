@@ -107,7 +107,7 @@ func knownOfStd(): Path {
 /**
  * No diagnostic on a source cjc compiles with none (#48's 8c′b gate): a false error of the analysis
  * fails it, named. A cold pass over every body of each. Tagged `gate`, as `ErrorRootsGateTest` is: the
- * coverage run leaves them out (D119).
+ * coverage run leaves them out (D120).
  */
 @Test
 @Tag[gate]
