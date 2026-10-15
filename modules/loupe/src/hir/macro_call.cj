@@ -15,15 +15,16 @@ public func macroCallOf(db: AnalysisDatabase, file: SourceFile, key: MacroCallKe
     let ids = itemIdMap(db, file)
     let item = (ids.all |> filter {id: ItemId => id.toString() == key.item} |> first) ?? return None
     let node = ids.node(item, parse(db, file).syntaxNode()) ?? return None
-    if (key.index < 0 || key.index >= macroCallsOf(node).size) {
+    if (key.index < 0 || key.index >= macroCallCountOf(node)) {
         return None
     }
     MacroCallId(db, file, item, key.index)
 }
 
 /**
- * The macro call on an item of `file` whose head (`@` to the end of its attribute, or of its name) `offset` is on, the
- * end included, and that head; `None` off any head, or on a call on no item (one in a body).
+ * The macro call on an item of `file`, or on a parameter of one (D119), whose head (`@` to the end of its attribute,
+ * or of its name) `offset` is on, the end included, and that head; `None` off any head, or on a call on no item (one
+ * in a body).
  */
 public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64): ?(MacroCallId, TextRange) {
     let root = parse(db, file).syntaxNode()
@@ -36,13 +37,19 @@ public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64
         let call = (token.parent.ancestors() |> filterMap {node: CjSyntaxNode => MacroExpandDecl.cast(node)} |> filter {
             one: MacroExpandDecl => headOf(one).containsInclusive(offset)
         } |> first) ?? continue
-        // the item: the declaration under every call on it, or the innermost call on no declaration
+        // the item: the declaration under every call on it, or the innermost call on no declaration; for a call on a
+        // parameter, the declaration whose parameter list holds it
         var node = call.syntax
         while (let Some(decl) <- MacroExpandDecl.cast(node).flatMap {one => one.decl()}) {
             node = decl.syntax
         }
-        let item = itemIdMap(db, file).idOf(SyntaxNodePtr(node)) ?? return None
-        let index = macroCallsOf(node).map {one => one.syntax.textRange}.indexOf(call.syntax.textRange) ?? return None
+        let ids = itemIdMap(db, file)
+        if (MacroExpandDecl.cast(node).flatMap {one => one.param()}.isSome()) {
+            node = (node.ancestors() |> filter {one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one)).isSome()} |> first) ??
+                return None
+        }
+        let item = ids.idOf(SyntaxNodePtr(node)) ?? return None
+        let index = macroCallIndexOf(node, call) ?? return None
         return (MacroCallId(db, file, item, index), headOf(call))
     }
     None
@@ -81,14 +88,14 @@ public func macroCallsAround(db: AnalysisDatabase, file: SourceFile, offset: Int
 }
 
 /**
- * The text of the declaration `call` is on, as written after its head: the calls inside it included. `None` if its
- * item is no longer there.
+ * The text of the declaration `call` is on, or of the parameter (D119), as written after its head: the calls inside
+ * it included. `None` if its item is no longer there.
  */
 public func declarationUnder(db: AnalysisDatabase, call: MacroCallId): ?String {
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
-    let decl = macroCallsOf(node).get(call.index(db)).flatMap {one => one.decl()} ?? return None
-    decl.syntax.toString()
+    let macroCall = macroCallAt(node, call.index(db)) ?? return None
+    macroCall.decl().map {decl => decl.syntax.toString()} ?? macroCall.param().map {param => param.syntax.toString()}
 }
 
 /**
@@ -107,7 +114,7 @@ func headOf(call: MacroExpandDecl): TextRange {
 public func macroCallHeadOf(db: AnalysisDatabase, call: MacroCallId): ?(String, TextRange) {
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
-    let macroCall = macroCallsOf(node).get(call.index(db)) ?? return None
+    let macroCall = macroCallAt(node, call.index(db)) ?? return None
     let names = macroCall.nameRefs() |> map {name => name.text()} |> collectArray
     ("@" + String.join(names, delimiter: "."), headOf(macroCall))
 }

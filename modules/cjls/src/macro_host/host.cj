@@ -267,7 +267,7 @@ public class GuardedServer <: Expander {
 }
 
 /**
- * Two servers, one running std's macros, the other the workspace's (D115): a process that loads std's library of
+ * Two servers, one running std's macros, the other the workspace's (D123): a process that loads std's library of
  * `@Derive` after one of the workspace's libraries ran may abort (SIGABRT in the runtime, 1.3.0-alpha.20261002), and
  * a rebuilt library of the workspace restarts only its own server.
  */

@@ -200,6 +200,78 @@ class WorkspaceMacroRequestTest {
     }
 
     @TestCase
+    func aCallOnAParameterOfAPrimaryConstructorIsAskedBeforeTheCallOnItsType() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @A
+            struct S {
+                S(@M[x] let a: Int64, @I let b: Int64) {}
+            }
+            "#)
+
+        // act
+        let calls = serverCalls(db, file)
+
+        // assert
+        @Expect(calls.map {one => "${one.definition.name}${one.call.index(db)}${if (one.read) {"!"} else {""}}"},
+            ["M0", "I1", "A0!"])
+    }
+
+    @TestCase
+    func aCallOnAParameterIsGivenTheParameterAndItsOutputReplacesItInTheInputOfTheCallOnItsType() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @A
+            struct S {
+                S(@M[x] let a: Int64, let b: Int64) {}
+            }
+            "#)
+
+        // act
+        let before = macroRequests(db, file).map {request => describe(request)}
+        let inner = requestNamed(db, file, "M")
+        setMacroOutputs(db, [(inner.call, writtenOutput(inner, "let a: Int64 = 0",
+            items: [MacroItem("field", MacroItemValue.StringItem("a"))]))])
+        let after = macroRequests(db, file).map {request => describe(request)}
+
+        // assert
+        @Expect(before, ["M[x] <let a: Int64> parents=A children="])
+        @Expect(after, ["M[x] <let a: Int64> parents=A children=",
+            "A <struct S {\n    S(let a: Int64 = 0, let b: Int64) {}\n}> parents= children=M[field=String(a)]"])
+    }
+
+    @TestCase
+    func aCallOnAParameterOfAConstructorInACallIsAskedFirstAndItsOutputIsInTheConstructorsInput() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            class C {
+                @B
+                C(/** a */ @A @M[x] let a: Int64) {}
+            }
+            "#)
+
+        // act
+        let calls = serverCalls(db, file).map {one => "${one.definition.name}${one.call.index(db)}"}
+        let inner = requestNamed(db, file, "M")
+        setMacroOutputs(db, [(inner.call, writtenOutput(inner, "let a: Int64 = 1"))])
+        let outer = requestNamed(db, file, "A")
+        setMacroOutputs(db, [(outer.call, writtenOutput(outer, "let a: Int64 = 2"))])
+        let requests = macroRequests(db, file).map {request => describe(request)}
+
+        // assert
+        @Expect(calls, ["M2", "A1", "B0"])
+        // the doc comment is the outer call's, as cjc gives a macro tokens and no comment
+        @Expect(requests, ["M[x] <let a: Int64> parents=B,A children=", "A <let a: Int64 = 1> parents=B children=M[]",
+            "B <C(let a: Int64 = 2) {}> parents= children=M[],A[]"])
+    }
+
+    @TestCase
     func anInnerCallOfAMacroNothingRunsKeepsItsText() {
         // arrange
         let (db, file, _) = workspaceMacroDatabase(#"

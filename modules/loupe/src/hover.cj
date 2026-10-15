@@ -80,22 +80,17 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         if ((macros ?? []).isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
             return builtinHover(token, doc)
         }
-        // the macro called, as at its name where it is declared; a class an annotation of its own names
-        let items = (macros ?? []) |> filterMap {
-            called: Definition => match (called) {
-                case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
-                case _ => None<HoverItem>
-            }
-        } |> collectArray
-        if (items.isEmpty()) {
-            return None
-        }
-        return HoverResult(token.textRange, items)
+        // the macro called, as at its name where it is declared; a class an annotation of its own names; a package
+        return hoverOfDefinitions(db, token, macros ?? [])
+    }
+    if (let Some(imported) <- importDefinitions(db, scope, token)) {
+        // what a leaf of an `import` brings, each overload of it; a package its path names
+        return hoverOfDefinitions(db, token, imported ?? [])
     }
     if (let Some(doc) <- builtinAnnotationAt(token)) {
         return builtinHover(token, doc)
     }
-    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idOf(SyntaxNodePtr(node))} |> first
+    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idAround(node)} |> first
     let def = DefId(db, file, item ?? return None)
     let items = if (isDeclaredName(db, def, token)) {
         // what a workspace macro's expansion made of it, the interfaces it added and all
@@ -105,6 +100,24 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
     } else {
         Hovers(db, def, token).ofBody()
     }
+    if (items.isEmpty()) {
+        return None
+    }
+    HoverResult(token.textRange, items)
+}
+
+/**
+ * The hover of `token` that means `defs`: a declaration as at its name, a package as its header names it (A36).
+ */
+func hoverOfDefinitions(db: AnalysisDatabase, token: CjSyntaxToken, defs: Array<Definition>): ?HoverResult {
+    let items = defs |> filterMap {
+        one: Definition => match (one) {
+            case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
+            case PackageDef(Source(pkg)) => HoverItem("package ${pkg.name(db)}")
+            case PackageDef(Binary(pkg)) => HoverItem("package ${pkg.name(db)}")
+            case _ => None<HoverItem>
+        }
+    } |> collectArray
     if (items.isEmpty()) {
         return None
     }
@@ -247,8 +260,8 @@ class Hovers {
                     collectArray
             }
         }
-        if (let Some(access) <- MemberAccessExpr.cast(node)) {
-            let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return []
+        if (let Some(access) <- accessNodeOf(node)) {
+            let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return []
             let inferred = inferBody(db, def)
             // the type of the value it is a member of, if it is one's
             let recv = match (lowered.body[expr]) {
@@ -343,6 +356,10 @@ class Hovers {
      */
     func localItem(owner: DefId, local: LocalId): ?HoverItem {
         let lowered = bodyWithSourceMap(db, owner)
+        // a member parameter is the member it declares, at its declaration as at its uses
+        if (lowered.body.params.iterator().any {param => param.local == Some(local) && param.isMember}) {
+            return memberParamItem(owner, local, None)
+        }
         let declared = lowered.body.locals.get(local.index) ?? return None
         let ty = inferBody(db, owner)[local] ?? Ty(db, ErrorTy)
         let code = match (declared.kind) {
@@ -358,12 +375,7 @@ class Hovers {
      * and a space.
      */
     private func varKeyword(owner: DefId, local: LocalId): String {
-        let file = match (owner.file(db)) {
-            case Source(file) => file
-            case _ => return ""
-        }
-        let ptr = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index) ?? return ""
-        let name = (ptr ?? return "").tryToNode(parse(db, file).syntaxNode()) ?? return ""
+        let name = nameNodeOf(owner, local) ?? return ""
         // a member parameter of a primary constructor
         if (let Some(param) <- name.parent.flatMap {node => Param.cast(node)}) {
             return if (param.varToken().isSome()) {
@@ -376,6 +388,18 @@ class Hovers {
         }
         let decl = (name.ancestors() |> filterMap {node: CjSyntaxNode => VarDecl.cast(node)} |> first) ?? return ""
         keywordOf(decl)
+    }
+
+    /**
+     * The name of `local` in the source of the body of `owner`, as written.
+     */
+    private func nameNodeOf(owner: DefId, local: LocalId): ?CjSyntaxNode {
+        let file = match (owner.file(db)) {
+            case Source(file) => file
+            case _ => return None
+        }
+        let ptr = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index) ?? return None
+        (ptr ?? return None).tryToNode(parse(db, file).syntaxNode())
     }
 
     private func localFuncCode(body: Body, local: LocalId, ty: Ty): String {
@@ -401,7 +425,9 @@ class Hovers {
         let index = (0..params.size |> filter {i: Int64 => params[i].local == Some(local)} |> first) ?? return None
         let ty = seen(signatureTypes(db, ctor).params.get(index) ?? return None, ctor, recv)
         let name = body(db, ctor).locals.get(local.index)?.name ?? return None
-        HoverItem("${varKeyword(ctor, local)}${name}: ${ty.text(db)}", path: pathOf(ctor))
+        // the doc comment before the parameter (#377)
+        let doc = nameNodeOf(ctor, local).flatMap {node => node.parent}.flatMap {param => docOfNode(param)}
+        HoverItem("${varKeyword(ctor, local)}${name}: ${ty.text(db)}", path: pathOf(ctor), doc: doc)
     }
 
     /**
@@ -629,6 +655,13 @@ class Hovers {
                 }
                 node
         }
+        docOfNode(node)
+    }
+
+    /**
+     * The doc comment of `node`, a declaration or a parameter: none for one with none, or that takes none.
+     */
+    private func docOfNode(node: CjSyntaxNode): ?String {
         let comments = AnyHasDocComment.cast(node)?.docComments() ?? return None
         let doc = docText(comments.map {comment => comment.text()})
         if (doc.isEmpty()) {

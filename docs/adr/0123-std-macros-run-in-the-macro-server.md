@@ -1,4 +1,4 @@
-# ADR-0115: std's macros run in the macro server from the SDK's libraries, under the calls cjls expands itself
+# ADR-0123: std's macros run in the macro server from the SDK's libraries, under the calls cjls expands itself
 
 Status: proposed
 Amends ADR-0098: a call of std's macro is a call the server runs, nested or read like a workspace macro's

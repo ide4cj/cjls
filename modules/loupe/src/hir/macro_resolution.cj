@@ -60,7 +60,9 @@ func macroOfPackage(db: AnalysisDatabase, pkg: Package, target: PackageRef, name
  * What each macro called on `def` names, outermost first: the last segment of its path (`resolveMacroPath`). None
  * for a declaration of a package compiled already, whose macros were expanded, of an expansion, or of a file of no
  * package. A name of `item.macros` is its segments joined by `.`, without spaces or backquotes (`macroName`), and
- * takes no type arguments (cjc: `expected declaration, found '<'`), so its segments are split back at `.`.
+ * takes no type arguments (cjc: `expected declaration, found '<'`), so its segments are split back at `.`. After
+ * those on the item come those on its parameters, chain after chain (`Item.paramMacros`, D119), so an index here is
+ * a `MacroCallId`'s.
  */
 public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
     let file = match (def.file(db)) {
@@ -69,7 +71,7 @@ public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
     }
     let pkg = packageOfFile(db, file) ?? return []
     let item = declItemOf(db, def) ?? return []
-    item.macros.map {
+    item.macros.concat(item.paramMacros.flatten()).map {
         name =>
         let path = name.split(".")
         resolveMacroPath(db, pkg, file, path)[path.size - 1]

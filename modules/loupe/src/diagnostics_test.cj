@@ -342,6 +342,38 @@ class InferenceDiagnosticsTest {
         // assert - cjc: none, `others` taking any number of elements
         @Expect(result, Array<String>())
     }
+
+    @TestCase
+    func aNamedParameterLeftOutIsMissingWithTheNamesPassedAfterIt() {
+        checkDiagnostics(#"
+            package m
+            func f(a!: Int64, b!: Int64, c!: Int64): Unit {}
+            func g(): Unit {
+                f(b: 1, c: 2)
+            //   ^^^^^^^^^^^^ error: missing argument for parameter list '(Int64, Int64, Int64)' in call: expected 3 arguments, found 2
+                // a positional argument where a name is needed, the names passed after it listed
+                f(1, c: 2)
+            //   ^^^^^^^^^ error: missing argument for parameter list '(Int64, Int64, Int64)' in call: expected 3 arguments, found 2
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    /**
+     * cjc: "no matching function" on both; not reported, a macro the analysis has not read may have
+     * made the member one (A32).
+     */
+    @TestCase
+    func aMemberNoFunctionAndATypesMemberNotFoundAreNotReported() {
+        checkDiagnostics(#"
+            package m
+            class A { let x = 1 }
+            func g(): Unit {
+                A.foo()
+                let a = A()
+                a.x()
+            }
+            "#, binaries: ["std.core"])
+    }
 }
 
 /**

@@ -40,9 +40,9 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
     let fileId = source.fileId(db)
     let def = DefId(db, ItemFile.Source(source), item.id)
     match (item.kind) {
-        case Func | Main | Var | Prop | Init | PrimaryInit =>
+        case Func | Main | Var | Prop | Init | PrimaryInit | Finalizer =>
             let isUnwritten = signatureTypes(db, def).ty.isNone() && item.kind != ItemKind.Init &&
-                item.kind != ItemKind.PrimaryInit
+                item.kind != ItemKind.PrimaryInit && item.kind != ItemKind.Finalizer
             if (isUnwritten && let Some(node) <- itemIdMap(db, source).node(item.id, root) &&
                 let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
                 actual.add(Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db)))
@@ -58,6 +58,16 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
                 }
                 if (let Some(Some(ptr)) <- lowered.sourceMap.locals.get(i) && let Some(node) <- ptr.tryToNode(root)) {
                     actual.add(Annotation(fileId, node.textRange, result.locals[i].text(db)))
+                }
+            }
+            // `src` of a macro's `x in src` on it (#191)
+            for (attr in lowered.body.attrs) {
+                for (arg in attr.args) {
+                    if (let DataArg(_, src) <- arg && let Some(Some(ptr)) <- lowered.sourceMap.exprs.get(src.index) &&
+                        let Some(node) <- ptr.tryToNode(root)) {
+                        let ty = result.exprs[src.index].map {one => one.text(db)} ?? "none"
+                        actual.add(Annotation(fileId, node.textRange, ty))
+                    }
                 }
             }
         case _ => ()
@@ -2141,6 +2151,55 @@ class InferTest {
     }
 
     @TestCase
+    func theSourceOfADataArgIsInferredOutsideTheDeclaration() {
+        // cjc 1.3.0-alpha.20260918 (#191): `src` is evaluated in a lambda of the test class, a `DataStrategy<T>`
+        checkInference(#"
+            package m
+            import std.unittest.*
+            import std.unittest.testmacro.*
+            @Test
+            class C {
+                @TestCase[x in [1, 2], y in data()]
+            //                 ^^^^^^ Array<Int64>
+            //                              ^^^^^^ Array<String>
+                func f(x: Int64, y: String): Unit {}
+            //         ^ Int64
+            //                   ^ String
+                func data(): Array<String> { ["a"] }
+            }
+            @Test[x in ["a"]]
+            //         ^^^^^ Array<String>
+            func g(x: String): Unit {}
+            //     ^ String
+            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"])
+    }
+
+    @TestCase
+    func theSourceOfADataArgIsADataStrategyOfTheParametersType() {
+        // cjc 1.3.0-alpha.20260918 (#191): `None` in the literal is told by `DataStrategy<(Int64, ?Int64)>`
+        checkInference(#"
+            package m
+            import std.unittest.*
+            import std.unittest.testmacro.*
+            @Test[row in [(1, Some(2)), (3, None)]]
+            //           ^^^^^^^^^^^^^^^^^^^^^^^^^ Array<(Int64, Option<Int64>)>
+            func g(row: (Int64, ?Int64)): Unit {}
+            //     ^^^ (Int64, Option<Int64>)
+            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.common", "std.unittest.testmacro"])
+    }
+
+    @TestCase
+    func theSourceOfADataArgOfAMacroNotFoundIsNotInferred() {
+        checkInference(#"
+            package m
+            @Test[x in [1]]
+            //         ^^^ {unknown}
+            func g(x: Int64): Unit {}
+            //     ^ Int64
+            "#)
+    }
+
+    @TestCase
     func aQuotesInterpolationIsInferred() {
         // #195: code run where the macro is, of the types it has there
         checkInference(#"
@@ -2227,5 +2286,195 @@ class InferTest {
         // assert
         @Expect(queries.map {name => db.storage.executionsOf(name)}, before)
         @Expect(inferenceReaderRuns.load(), readers)
+    }
+
+    // The cases below are the branches the diagnostics gate alone reached before it left the coverage
+    // run (D120): each a construct no fixture had.
+
+    @TestCase
+    func synchronizedSpawnVArrayAndAConversionAreOfTheirBodiesAndTypes() {
+        checkInference(#"
+            package m
+            class L {}
+            func f(l: L): Int64 {
+            //     ^ L
+                // a value dropped: its block's is too
+                synchronized (l) { 1 }
+                let a = synchronized (l) { 1 }
+            //      ^ Int64
+                let fut = spawn { a }
+            //      ^^^ Future<Int64>
+                let v = VArray<Int64, $2>(repeat: a)
+            //      ^ VArray<Int64, $2>
+                let b = UInt8(a)
+            //      ^ UInt8
+                // the function ends in a `synchronized`: its block is a tail
+                synchronized (l) { a }
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLoopsBreakAndContinueAreOfNothingAndARangeTakesAStep() {
+        checkInference(#"
+            package m
+            func f(): Unit {
+                for (i in 0..6 : 2) {
+            //       ^ Int64
+                    if (i == 2) { continue }
+                    let x = if (i == 4) { break } else { i }
+            //          ^ Int64
+                }
+                let y: Int8 = 1
+            //      ^ Int8
+                // a negative literal is a literal: of the other operand's type
+                let z = -1 + y
+            //      ^ Int8
+                // one character, escaped, is a `Rune` where one is expected
+                let r: Rune = '\n'
+            //      ^ Rune
+                let u: Rune = '\u{4e2d}'
+            //      ^ Rune
+                let s = r'\n'
+            //      ^ Rune
+                try { let t = 1 } finally { let c = 2 }
+            //            ^ Int64
+            //                                  ^ Int64
+                // a tuple pattern of a value not known types nothing
+                let (p, q) = nope
+            //       ^ {unknown}
+            //          ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aConstructorsNameOfTwoEnumsIsChosenByWhatIsExpectedAlone() {
+        checkInference(#"
+            package m
+            enum E1 { Red | Blue(Int64) }
+            enum E2 { Red | Blue(Int64) }
+            func p(x: E1): Int64 { 0 }
+            //     ^ E1
+            func p(x: String): String { "" }
+            //     ^ String
+            func f(): Unit {
+                let a = Red
+            //      ^ {unknown}
+                let b = Blue(1)
+            //      ^ {unknown}
+                let c: E1 = Red
+            //      ^ E1
+                // a member of a type as an argument is not of one type whatever is expected
+                let d = p(E1.Red)
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aConstructorAVariableAndANameNotFoundAsAReceiver() {
+        checkInference(#"
+            package m
+            enum E {
+                | Red | Blue(Int64)
+                func n(): Int64 { 1 }
+            }
+            class C {
+                let m = 1
+            //      ^ Int64
+                ~init() {
+                    let z = m
+            //          ^ Int64
+                }
+            }
+            let g = C()
+            //  ^ C
+            func p(x: E): Int64 { 0 }
+            //     ^ E
+            func p(x: String): String { "" }
+            //     ^ String
+            func f(e: E): Unit {
+            //     ^ E
+                let h = g.m
+            //      ^ Int64
+                let i = Red.n()
+            //      ^ Int64
+                let j = Nope.bar()
+            //      ^ {unknown}
+                // a constructor's name as an argument is not of one type whatever is expected
+                let k = p(Red)
+            //      ^ Int64
+                // a constructor's name as a pattern binds nothing: the one in the arm is the constructor
+                let l = match (e) {
+            //      ^ E
+                    case Red => Red
+                    case _ => Blue(1)
+                }
+            }
+            "#)
+    }
+
+    @TestCase
+    func anAliasIsCalledAsItsClassAnInterfaceAndATypeAreNoValues() {
+        checkInference(#"
+            package m
+            class C { C(x: Int64) {} }
+            //          ^ Int64
+            type A = C
+            interface I {}
+            func use(): Unit {
+                let c = A(1)
+            //      ^ C
+                let i = I()
+            //      ^ {unknown}
+                let t = C
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aGenericCandidateIsMoreSpecificThanOneItsParametersDoNotSolve() {
+        checkInference(#"
+            package m
+            func q<T>(x: Array<T>): Int64 { 0 }
+            //        ^ Array<T>
+            func q(x: Any): String { "" }
+            //     ^ Any
+            func f(): Unit {
+                let a = q([1])
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLambdaReturningACallIsTriedAndUndonePerCandidate() {
+        checkInference(#"
+            package m
+            func t(f: (Int64) -> Int64): Int64 { f(1) }
+            //     ^ (Int64) -> Int64
+            func t(f: (String) -> Int64): String { "" }
+            //     ^ (String) -> Int64
+            func h(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(): Unit {
+                let a = t({ x => return h(x) })
+            //      ^ Int64
+            //              ^ Int64
+            }
+            func s(x: Int64): Int64 { x }
+            //     ^ Int64
+            func s(x: String): String { x }
+            //     ^ String
+            // an argument with a `return` in it is inferred per candidate, the return undone
+            func g(c: Bool): Int64 {
+            //     ^ Bool
+                let b = s(if (c) { return 0 } else { 1 })
+            //      ^ Int64
+                b
+            }
+            "#)
     }
 }
