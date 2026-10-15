@@ -1,6 +1,9 @@
 #!/bin/sh
 set -e
 
+# cjc behind a guard: cjpm hangs on one whose stderr outgrows a pipe (#332)
+export PATH="$(pwd)/scripts/cjc-guard:$PATH"
+
 # every Cangjie file as `cjls fmt` leaves it, as CI's Format job holds it (D60); first, failing fast
 cjpm build
 target/release/bin/cjls fmt --check .

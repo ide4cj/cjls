@@ -1,0 +1,30 @@
+#!/usr/bin/env python3
+# cjc, first on PATH, around the next cjc on PATH. cjpm reads a child's stdout to its end
+# before its stderr, and std.process leaves the child more descriptors of both pipes than
+# 1 and 2: a cjc whose stderr outgrows a pipe hangs both (#332). This reads both at once,
+# hands on stdout, closes every descriptor of its pipe, and only then writes stderr. First
+# on PATH in pre-push; Windows looks for cjc.exe, not this.
+import os, shutil, subprocess, sys
+
+this = os.path.realpath(__file__)
+real = next((found for found in (shutil.which("cjc", path=p) for p in os.environ.get("PATH", "").split(os.pathsep) if p)
+             if found and os.path.realpath(found) != this), None)
+if real is None:
+    sys.exit("cjc guard: no cjc on PATH but " + this)
+done = subprocess.run([real] + sys.argv[1:], capture_output=True)
+sys.stdout.buffer.write(done.stdout)
+sys.stdout.buffer.flush()
+out = os.fstat(1)
+fds = "/proc/self/fd" if os.path.isdir("/proc/self/fd") else "/dev/fd"
+for fd in [int(name) for name in os.listdir(fds)]:
+    if fd == 2:
+        continue
+    try:
+        st = os.fstat(fd)
+    except OSError:
+        continue
+    if (st.st_dev, st.st_ino) == (out.st_dev, out.st_ino):
+        os.close(fd)
+sys.stderr.buffer.write(done.stderr)
+sys.stderr.buffer.flush()
+sys.exit(done.returncode)
