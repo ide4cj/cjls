@@ -9,9 +9,9 @@ import loupe.db.*
 import loupe.fixture.*
 
 /**
- * A call of `workspaceCalls` as a line: its macro, its ordinal, `/` if it is in its item (D117), `!` if it is read.
+ * A call of `serverCalls` as a line: its macro, its ordinal, `/` if it is in its item (D117), `!` if it is read.
  */
-func describeCall(db: AnalysisDatabase, one: WorkspaceCall): String {
+func describeCall(db: AnalysisDatabase, one: ServerCall): String {
     let inItem = if (one.call.inBody(db).isSome()) {
         "/"
     } else {
@@ -44,7 +44,7 @@ class BodyMacroCallTest {
             "#)
 
         // act
-        let calls = workspaceCalls(db, file).map {one => describeCall(db, one)}
+        let calls = serverCalls(db, file).map {one => describeCall(db, one)}
 
         // assert: `y`'s `@I` is the first of its own item
         @Expect(calls, ["I0/", "B0/", "I0/", "A0!"])
@@ -64,11 +64,11 @@ class BodyMacroCallTest {
             "#)
 
         // act
-        let keys = workspaceCalls(db, file).map {one => macroCallKeyOf(db, one.call)}
+        let keys = serverCalls(db, file).map {one => macroCallKeyOf(db, one.call)}
 
         // assert
         @Expect(keys.map {key => "${key.inBody ?? "-"}#${key.index}"}, ["B#0", "I#0", "B#1"])
-        @Expect(keys.map {key => macroCallOf(db, file, key)}, workspaceCalls(db, file).map {one => Some(one.call)})
+        @Expect(keys.map {key => macroCallOf(db, file, key)}, serverCalls(db, file).map {one => Some(one.call)})
     }
 
     @TestCase
@@ -81,7 +81,7 @@ class BodyMacroCallTest {
                 @B(1)
             }
             "#)
-        let call = workspaceCalls(db, file)[0].call
+        let call = serverCalls(db, file)[0].call
         let key = macroCallKeyOf(db, call)
 
         // act
@@ -163,7 +163,7 @@ class BodyMacroCallTest {
             "#, std: ["std.unittest", "std.unittest.testmacro"], cfg: "os:Linux")
 
         // act
-        let calls = workspaceCalls(db, file).map {one => describeCall(db, one)}
+        let calls = serverCalls(db, file).map {one => describeCall(db, one)}
 
         // assert
         @Expect(calls, ["I0/"])

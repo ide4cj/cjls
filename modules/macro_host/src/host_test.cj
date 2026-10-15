@@ -12,7 +12,8 @@ import stdx.log.*
 import loupe.TextRange
 import loupe.db.*
 import loupe.fixture.*
-import loupe.hir.{macroOutputOf, macroRequests, pendingMacroRequests, setMacroOutputsByKey}
+import loupe.hir.{expandedCalls, macroExpansion, macroOutputOf, MacroPackage, macroRequests, pendingMacroRequests,
+    setMacroOutputsByKey}
 import macro_server.*
 import project_model.{hostCfg, sdkTarget}
 import rope.Rope
@@ -169,12 +170,45 @@ class MacroRoundTest {
 
         // act
         let before = sendableRequests(db, [file], libraries).size
-        macroRequests(db, file)[0].definition.pkg.setMacroLibrary(db).to(5)
+        if (let MacroPackage.WorkspacePackage(pkg) <- macroRequests(db, file)[0].definition.pkg) {
+            pkg.setMacroLibrary(db).to(5)
+        }
         let after = sendableRequests(db, [file], libraries).size
 
         // assert
         @Expect(before, 0)
         @Expect(after, 1)
+    }
+
+    @TestCase
+    func aCallOfStdIsSentWithTheLibraryTheSdkShipsWhateverIsBuilt() {
+        // arrange
+        let (db, file) = deriveFixture()
+        let expander = FakeExpander()
+
+        // act
+        let answers = expandAll(db, sendableRequests(db, [file], HashMap<String, MacroLibrary>(),
+            stdLibrary: {pkg => "/sdk/libcangjie-${pkg}.so"}), testNumbers(), expander)
+
+        // assert
+        @Expect(expander.calls.size, 1)
+        let call = expander.calls[0]
+        @Expect(call.methodName, Some("macroCall_a_Derive_std_deriving"))
+        @Expect(call.packageName, Some("std.deriving"))
+        @Expect(call.libPath, Some("/sdk/libcangjie-std.deriving.so"))
+        @Expect(answers.size, 1)
+    }
+
+    @TestCase
+    func aCallOfStdWhoseLibraryTheSdkLacksIsNotSent() {
+        // arrange
+        let (db, file) = deriveFixture()
+
+        // act
+        let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>(), stdLibrary: {_ => None})
+
+        // assert
+        @Expect(requests.size, 0)
     }
 
     @TestCase
@@ -226,6 +260,22 @@ class WatchdogTest {
         @Expect(disarmed)
         watchdog.stop()
     }
+}
+
+/**
+ * `/main.cj` of package `m` deriving `Equatable` for a class with std's `@Derive`, std's `.cjo`s among the packages.
+ */
+func deriveFixture(): (AnalysisDatabase, SourceFile) {
+    let parsed = Fixture.parse(#"
+        //- /main.cj module=m package=m
+        package m
+        import std.deriving.*
+        @Derive[Equatable]
+        class A { let x: Int64 = 1 }
+        "#)
+    let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core")),
+        stdCjoRead("std.deriving", stdCjo("std.deriving"))])
+    (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow())
 }
 
 /**
@@ -366,6 +416,32 @@ class GuardedServerTest {
                 @Expect(printMacroTokens(result.tks, numbers).text, "class A { }")
             case Unanswered(reason) => @Fail(reason)
         }
+    }
+
+    @TestCase
+    func aDeriveOfStdIsExpandedFromTheSdksLibraryAndItsOutputWithBodiesReplacesTheAnalysissOwn() {
+        // arrange
+        let paths = testSdkPaths()
+        let numbers = testNumbers()
+        let (db, file) = deriveFixture()
+        let server = GuardedServer(paths, Duration.minute, NoopLogger())
+        let call = expandedCalls(db, file)[0]
+        let own = macroExpansion(db, call)
+
+        // act
+        let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>(),
+            stdLibrary: {pkg => paths.stdMacroLibrary(pkg).map {path => path.toString()}})
+        setMacroOutputsByKey(db, expandAll(db, requests, numbers, server))
+        server.close()
+        let served = macroExpansion(db, call)
+
+        // assert
+        @Expect(requests.size, 1)
+        @Expect(expandedCalls(db, file), [call])
+        @Expect(own.replaces, false)
+        @Expect(served.replaces, true)
+        @Expect(served.text.replace("\r\n", "\n").contains("public operator func ==(other: A): Bool {"), true)
+        @Expect(pendingMacroRequests(db, file).size, 0)
     }
 
     @TestCase

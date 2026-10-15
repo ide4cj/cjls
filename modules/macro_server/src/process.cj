@@ -28,6 +28,21 @@ public struct MacroServerPaths {
             tokensInc: home.join("include").join("cangjie").join("Lex").join("Tokens.inc")
         )
     }
+
+    /**
+     * The library of the macros of std's package `pkg` (`std.unittest.testmacro`) the SDK ships beside its runtime:
+     * `libcangjie-std-unittest.testmacro.so`, `.dylib` or `.dll`; `None` if there is none.
+     */
+    public func stdMacroLibrary(pkg: String): ?Path {
+        let name = "libcangjie-std-${pkg.removePrefix("std.")}"
+        for (suffix in [".so", ".dylib", ".dll"]) {
+            let library = runtimeLib.join(name + suffix)
+            if (exists(library)) {
+                return library
+            }
+        }
+        None
+    }
 }
 
 /**

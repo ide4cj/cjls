@@ -15,8 +15,8 @@ public struct MacroCallAt {
     public MacroCallAt(
         /**
          * The call whose expansion the analysis reads that shows what the call at the position adds (`readCallOf`):
-         * that call itself, or the outermost call of a workspace macro on its top-level item, whose input the call at
-         * the position is in, as cjc expands one into the other (D98).
+         * that call itself, or the outermost call the macro server runs on its top-level item, whose input the call
+         * at the position is in, as cjc expands one into the other (D98).
          */
         public let call: MacroCallId,
         /**
@@ -37,18 +37,19 @@ public struct MacroCallAt {
 @Derive[Equatable]
 public enum ExpansionKind <: ToString {
     /**
-     * The macro server, running a macro of the workspace: its whole output, bodies included (#176).
+     * The macro server, running a macro of the workspace or of std: its whole output, bodies included (#176).
      */
-    | WorkspaceExpansion
+    | ServerExpansion
     /**
-     * The analysis, for a macro of std (#175): what it declares, signatures only, every body a comment (D118).
+     * The analysis, for a macro of std the server has not expanded (#175): what it declares, signatures only, every
+     * body a comment (D118).
      */
-    | StdExpansion
+    | OwnExpansion
 
     public func toString(): String {
         match (this) {
-            case WorkspaceExpansion => "WorkspaceExpansion"
-            case StdExpansion => "StdExpansion"
+            case ServerExpansion => "ServerExpansion"
+            case OwnExpansion => "OwnExpansion"
         }
     }
 }
@@ -86,8 +87,8 @@ public struct ExpandedMacro {
  * (`@` to the end of its attribute, or of its name, the end included) it is on; else the outermost call of the
  * innermost item around it with one that expands, from anywhere in the item, or, unless `inBody`, anywhere but in its
  * bodies. A call in a body is one only from its head and if `inBody` (D117). `None` where no call expands: a call of a
- * macro the analysis does not know (`@DeriveExclude`, an unresolved name), or of the workspace on a member whose type
- * has no call of the workspace (D98's consequence), has no expansion.
+ * macro the analysis does not know (an unresolved name), or on a member whose type has no call the server runs
+ * (`@DeriveExclude` but under `@Derive`, D98's consequence), has no expansion.
  */
 public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inBody!: Bool = true): ?MacroCallAt {
     let file = db.sourceFile(fileId) ?? return None
@@ -108,28 +109,30 @@ public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inB
 }
 
 /**
- * What `call` expands to: the macro server's last output that succeeded for a call of the workspace, read
- * (`WorkspaceCall.read`), or a call of one in an item (D117); the analysis's own for one of std. `None` for a call whose
- * expansion the analysis does not read: not answered yet, not the call read on its item, or no longer there.
+ * What `call` expands to: the macro server's last output that succeeded for a call it runs, read (`ServerCall.read`),
+ * or one it runs in an item (D117); else the analysis's own for one of std. `None` for a call whose expansion the
+ * analysis does not read: not answered yet, not the call read on its item, or no longer there.
  */
 public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMacro {
     let file = call.file(db)
     if (call.inBody(db).isSome()) {
-        if (!workspaceCalls(db, file).iterator().any {one => one.call == call}) {
+        if (!serverCalls(db, file).iterator().any {one => one.call == call}) {
             return None
         }
         let output = macroOutputOf(db, call).flatMap {one => one.expansion} ?? return None
         let (name, range) = macroCallHeadOf(db, call) ?? return None
-        return ExpandedMacro(name, range, output.text, ExpansionKind.WorkspaceExpansion)
+        return ExpandedMacro(name, range, output.text, ExpansionKind.ServerExpansion)
     }
     if (!expandedCalls(db, file).contains(call)) {
         return None
     }
     let (name, range) = macroCallHeadOf(db, call) ?? return None
-    let kind = if (workspaceCalls(db, file).iterator().any {one => one.call == call}) {
-        ExpansionKind.WorkspaceExpansion
+    let answered = serverCalls(db, file).iterator().any {one => one.read && one.call == call} &&
+        macroOutputOf(db, call).flatMap {output => output.expansion}.isSome()
+    let kind = if (answered) {
+        ExpansionKind.ServerExpansion
     } else {
-        ExpansionKind.StdExpansion
+        ExpansionKind.OwnExpansion
     }
     let expansion = macroExpansion(db, call)
     let declaration = if (expansion.replaces) {

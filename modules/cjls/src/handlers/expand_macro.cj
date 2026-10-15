@@ -31,8 +31,8 @@ func handleExpandMacro(snap: ServerSnapshot, params: TextDocumentPositionParams)
     let expanded = expandedMacro(snap.analysis, at.call) ?? return Nullable.Null
     let shown = ShownExpansion.of(expanded.text).text
     Nullable.Value(match (expanded.kind) {
-        case WorkspaceExpansion => MacroExpansion(name: expanded.name, expansion: shown, kind: "workspace")
-        case StdExpansion =>
+        case ServerExpansion => MacroExpansion(name: expanded.name, expansion: shown, kind: "server")
+        case OwnExpansion =>
             let declaration = expanded.declaration.map {one => one.trimAsciiEnd() + "\n\n"} ?? ""
             MacroExpansion(name: expanded.name,
                 expansion: "// cjls's own expansion of ${expanded.name}: signatures only, no bodies\n${declaration}${shown}",

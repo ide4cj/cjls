@@ -144,15 +144,15 @@ class MacroCallAtTest {
     }
 
     @TestCase
-    func aMacroTheAnalysisDoesNotExpandIsTheCallOfTheItemAroundIt() {
+    func aCallOfStdOnAMemberIsTheCallReadOnItsItemWhoseInputItIsIn() {
         checkMacroCallAt(#"
             //- /main.cj module=m package=m
               package m
               import std.deriving.*
               @Derive[Hashable]
-            //^^^^^^^^^^^^^^^^^ call @Derive
               struct S {
                   @DeriveExc$0lude
+            //    ^^^^^^^^^^^^^^^^ call @Derive
                   let x: Int64 = 0
               }
             "#)
@@ -315,7 +315,7 @@ class MacroCallAtTest {
 
         // assert
         @Expect(expanded.name, "@Derive")
-        @Expect(expanded.kind, ExpansionKind.StdExpansion)
+        @Expect(expanded.kind, ExpansionKind.OwnExpansion)
         @Expect(expanded.range, at.range)
         @Expect(expanded.text, macroExpansion(db, at.call).text)
         @Expect(expanded.text.contains("extend S <: Hashable"))
@@ -332,7 +332,7 @@ class MacroCallAtTest {
 
         // assert
         @Expect(expanded.name, "@M")
-        @Expect(expanded.kind, ExpansionKind.WorkspaceExpansion)
+        @Expect(expanded.kind, ExpansionKind.ServerExpansion)
         @Expect(expanded.text, text)
         @Expect(file.text(db).toString()[expanded.range.start..expanded.range.end], "@M[x]")
     }
@@ -359,7 +359,7 @@ class MacroCallAtTest {
         @Expect(onHead.map {at => source[at.range.start..at.range.end]}, Some("@B"))
         let expanded = expandedMacro(db, call).getOrThrow()
         @Expect(expanded.name, "@B")
-        @Expect(expanded.kind, ExpansionKind.WorkspaceExpansion)
+        @Expect(expanded.kind, ExpansionKind.ServerExpansion)
         @Expect(expanded.text, "(1 + 2) * 10")
         @Expect(inArguments.map {at => at.call} == Some(call), false)
         @Expect(leavingBodiesOut.map {at => at.call} == Some(call), false)

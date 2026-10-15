@@ -4,21 +4,23 @@ import std.collection.*
 import std.env.getVariable
 import std.fs.*
 import std.sync.*
+import std.time.MonoTime
 import stdx.log.Logger
 import calca.CancelledException
 import jsonrpc.ErrorLogValue
 import loupe.db.*
-import loupe.hir.macroBuildPlan
+import loupe.hir.{macroBuildPlan, pendingMacroRequests}
 import loupe.vfs.{FileId, VfsPath}
 import macro_host.*
 import project_model.findCangjieHome
 import cjls.server.*
 
 /**
- * Runs the workspace's macros (#176, D104) on a thread of its own, through `macro_host`: once woken, builds the macro packages when the
- * files on disk changed, sets the stamps of their libraries, then asks the server every request that can be sent,
- * those of the open documents first, round after round, each round's answers set in one write, until none is left. An
- * edit ends a round: the answers before it are set, and the next round asks again what it changed.
+ * Runs the workspace's macros and std's (#176, D104) on a thread of its own, through `macro_host`: once woken, builds
+ * the macro packages when the files on disk changed, sets the stamps of their libraries, then asks the server every
+ * request that can be sent, those of the open documents first, round after round, each round's answers set in one
+ * write, until none is left. An edit ends a round: the answers before it are set, and the next round asks again what
+ * it changed.
  */
 public class MacroHost <: MacroWork {
     private let lock = Mutex()
@@ -29,7 +31,7 @@ public class MacroHost <: MacroWork {
     private var stopped = false
 
     // the host's thread alone
-    private var server: ?GuardedServer = None
+    private var servers: ?MacroServers = None
     private var timeout = Duration.Zero
     private var sdk: ?MacroSdk = None
     private var sdkOf = ""
@@ -106,7 +108,7 @@ public class MacroHost <: MacroWork {
                 logger.warn("the macros were not expanded", [("cause", e)])
             }
         }
-        server?.close()
+        servers?.close()
     }
 
     private func cycle(build: Bool): Unit {
@@ -114,42 +116,101 @@ public class MacroHost <: MacroWork {
             state: ServerState => (state.settings, state.roots.toArray(), state.cacheDirs)
         }
         if (!settings.macroExpansion) {
-            server?.close()
-            server = None
+            servers?.close()
+            servers = None
             return
         }
         if (build) {
             buildLibraries(settings, roots, cacheDirs)
         }
-        let sdk = this.sdk ?? return ()
-        if (libraries.isEmpty()) {
-            return
-        }
-        let wanted = Duration.second * settings.macroCallTimeout
-        if (server.isNone() || timeout != wanted) {
-            server?.close()
-            server = GuardedServer(sdk.paths, wanted, logger)
-            timeout = wanted
-        }
-        let expander = server.getOrThrow()
+        expandPending(settings)
+    }
+
+    /**
+     * Asks the server every request that can be sent, round after round, each round's answers set in one write, until
+     * none is left or the host stops.
+     */
+    private func expandPending(settings: Settings): Unit {
+        let started = MonoTime.now()
+        var sent = 0
+        var ofStd = 0
+        var failed = 0
         while (!isStopped()) {
-            let (snapshot, open) = loop.write {
-                state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
-            }
-            let files = snapshot.files |> filterMap {id: FileId => snapshot.analysis.sourceFile(id)} |>
-                collectArray
-            let requests = sendableRequests(snapshot.analysis, files, libraries,
-                isOpen: {file => open.contains(snapshot.path(file.fileId(snapshot.analysis)))})
-            if (requests.isEmpty()) {
-                return
-            }
-            logger.debug("expanding macro calls", [("calls", requests.size)])
-            // an edit midway ends the round: what came before it is set, and the next round asks what it changed
-            let answers = expandAll(snapshot.analysis, requests, sdk.numbers, expander, stopped: {=> isStopped()})
-            if (!answers.isEmpty()) {
-                loop.write {state: ServerState => state.setMacroOutputs(answers)}
-            }
+            let (answered, ofStdAnswered, notExpanded) = round(settings) ?? break
+            sent += answered
+            ofStd += ofStdAnswered
+            failed += notExpanded
         }
+        if (sent > 0) {
+            logger.info("expanded macro calls", [("calls", sent), ("std", ofStd), ("failed", failed),
+                ("ms", (MonoTime.now() - started).toMilliseconds())])
+        }
+    }
+
+    /**
+     * One round on a snapshot of now: `None` once nothing is left to send; else how many calls were answered, of std
+     * among them, and not expanded.
+     */
+    private func round(settings: Settings): ?(Int64, Int64, Int64) {
+        let (snapshot, open) = loop.write {
+            state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
+        }
+        let db = snapshot.analysis
+        let files = snapshot.files |> filterMap {id: FileId => db.sourceFile(id)} |> collectArray
+        // nothing to ask, nothing to look for: std's macros need no build, but the SDK. A loop, and what is sent in a
+        // frame of its own: at -O2 a lambda here, or the references of a send, crashed the GC that scanned this
+        // thread while it parsed (SIGSEGV in `VisitStackRoots`, 1.3.0-alpha.20261014)
+        var pending = false
+        for (file in files where !pending) {
+            pending = !pendingMacroRequests(db, file).isEmpty()
+        }
+        if (!pending) {
+            return None
+        }
+        send(settings, snapshot, open, files)
+    }
+
+    /**
+     * Sends what `files` of `snapshot` have to send, those `open` first, and sets the answers.
+     */
+    private func send(settings: Settings, snapshot: ServerSnapshot, open: HashSet<VfsPath>, files: Array<SourceFile>):
+        ?(Int64, Int64, Int64) {
+        let db = snapshot.analysis
+        let sdk = sdkFor(settings) ?? return None
+        let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
+        let requests = sendableRequests(db, files, libraries, stdLibrary: {pkg => sdk.stdLibrary(pkg)},
+            isOpen: {file => open.contains(snapshot.path(file.fileId(db)))})
+        if (requests.isEmpty()) {
+            return None
+        }
+        logger.debug("expanding macro calls", [("calls", requests.size)])
+        // an edit midway ends the round: what came before it is set, and the next round asks what it changed
+        let answers = expandAll(db, requests, sdk.numbers, expander, stopped: {=> isStopped()})
+        let ofStd = requests[..answers.size].iterator().filter {one => one[1].definition.isStd}.count()
+        var failed = 0
+        for ((file, key, output) in answers where output.expansion.isNone()) {
+            failed++
+            logger.debug("a macro call was not expanded", [("file", snapshot.path(file.fileId(db)).toString()),
+                ("call", key.toString()), ("why", output.diagnostics.get(0)?.message ?? "")])
+        }
+        if (!answers.isEmpty()) {
+            loop.write {state: ServerState => state.setMacroOutputs(answers)}
+        }
+        (answers.size, ofStd, failed)
+    }
+
+    /**
+     * The servers of `sdk` whose calls have the deadline `wanted`: those running, else new ones.
+     */
+    private func serversOf(sdk: MacroSdk, wanted: Duration): MacroServers {
+        if (let Some(running) <- servers && timeout == wanted) {
+            return running
+        }
+        servers?.close()
+        let started = MacroServers(sdk.paths, wanted, logger)
+        servers = started
+        timeout = wanted
+        started
     }
 
     /**
@@ -211,7 +272,7 @@ public class MacroHost <: MacroWork {
             }
         }
         if (changed) {
-            server?.restart()
+            servers?.restartWorkspace()
         }
         loop.write {state: ServerState => state.setMacroLibraries(stamps.toArray())}
     }

@@ -18,6 +18,21 @@ public class MacroSdk {
         public let toolchain: SdkToolchain,
         public let version: String
     ) {}
+
+    // the library of each package of std asked for, `None` for one the SDK has none of
+    private let stdLibraries = HashMap<String, ?String>()
+
+    /**
+     * The library of the macros of std's package `pkg` the SDK ships, if it does.
+     */
+    public func stdLibrary(pkg: String): ?String {
+        if (let Some(found) <- stdLibraries.get(pkg)) {
+            return found
+        }
+        let found = paths.stdMacroLibrary(pkg).map {path => path.toString()}
+        stdLibraries[pkg] = found
+        found
+    }
 }
 
 /**

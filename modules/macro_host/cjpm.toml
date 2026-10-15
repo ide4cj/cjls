@@ -21,6 +21,8 @@ platform = { path = "../platform" }
 project_model = { path = "../project_model" }
 
 [test-dependencies]
+cjsyntax = { path = "../cjsyntax" }
+ginkgo = { path = "../ginkgo" }
 rope = { path = "../rope" }
 
 # `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
