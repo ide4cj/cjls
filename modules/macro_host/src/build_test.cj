@@ -1,4 +1,4 @@
-package cjls.macro_host
+package macro_host
 
 import std.collection.*
 import std.env.getTempDirectory
@@ -6,7 +6,6 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import platform.sharedLibrarySuffix
-import cjls.server.tryLockCacheDir
 
 /**
  * A `cjc` that writes what a build of a package writes last, or fails on the packages named.

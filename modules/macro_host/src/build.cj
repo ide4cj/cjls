@@ -1,4 +1,4 @@
-package cjls.macro_host
+package macro_host
 
 import std.collection.*
 import std.convert.*
@@ -6,7 +6,6 @@ import std.fs.*
 import std.sort.sort
 import std.time.DateTime
 import platform.sharedLibrarySuffix
-import cjls.server.tryLockCacheDir
 
 /**
  * A package cjls builds for the macro server (`loupe`'s `MacroBuildUnit`, as paths): its name, its module, the
@@ -235,4 +234,25 @@ func stemOf(cjo: Path): String {
     } else {
         name
     }
+}
+
+/**
+ * A directory's name for the compiler `version` prints: its first line's version, `1.3.0-alpha.20261002001050`,
+ * with its backend.
+ */
+public func dirNameOf(version: String): String {
+    let first = version.lines().next() ?? version
+    let text = match (first.indexOf(": ")) {
+        case Some(at) => first[at + 2..]
+        case None => first
+    }
+    let name = StringBuilder()
+    for (r in text.runes()) {
+        if ((r >= r'a' && r <= r'z') || (r >= r'A' && r <= r'Z') || (r >= r'0' && r <= r'9') || r == r'.' || r == r'-') {
+            name.append(r)
+        } else if (r == r' ') {
+            name.append(r'-')
+        }
+    }
+    name.toString()
 }

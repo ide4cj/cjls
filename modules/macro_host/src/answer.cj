@@ -1,4 +1,4 @@
-package cjls.macro_host
+package macro_host
 
 import std.collection.*
 import loupe.db.*

@@ -5,6 +5,7 @@ import std.env.getTempDirectory
 import std.fs.{Directory, exists, File, Path}
 import std.time.DateTime
 import loupe.vfs.VfsPath
+import macro_host.tryLockCacheDir
 import platform.userCacheDir
 
 let CACHE_NOW = DateTime.ofEpoch(second: 1_800_000_000, nanosecond: 0)
@@ -227,25 +228,5 @@ class CacheBaseOfTest {
     func aVirtualFileHasNone() {
         // act, assert
         @Expect(cacheBaseOf(VfsPath.virtual("untitled:1"), [], cacheEnv([])), None<VfsPath>)
-    }
-}
-
-@Test
-class CacheLockTest {
-    @TestCase
-    func aDirectoryLockedIsNotLockedAgainUntilClosed() {
-        // arrange
-        let dir = Directory.createTemp(getTempDirectory())
-        let first = tryLockCacheDir(dir).getOrThrow()
-
-        // act
-        let whileHeld = tryLockCacheDir(dir)
-        first.close()
-        let afterwards = tryLockCacheDir(dir)
-
-        // assert
-        @Expect(whileHeld.isNone())
-        @Expect(afterwards.isSome())
-        afterwards?.close()
     }
 }

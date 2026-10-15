@@ -4,277 +4,18 @@ import std.collection.*
 import std.env.getVariable
 import std.fs.*
 import std.sync.*
-import std.time.MonoTime
 import stdx.log.Logger
 import calca.CancelledException
 import jsonrpc.ErrorLogValue
 import loupe.db.*
-import loupe.hir.{MacroBuildUnit, MacroRequest, macroBuildPlan, macroCallKeyOf, pendingMacroRequests}
+import loupe.hir.macroBuildPlan
 import loupe.vfs.{FileId, VfsPath}
-import macro_server.*
-import project_model.{findCangjieHome, hostCfg, sdkTarget}
+import macro_host.*
+import project_model.findCangjieHome
 import cjls.server.*
 
 /**
- * A macro package's library, built: its path and the stamp of what it was built of (`Package.macroLibrary`).
- */
-public struct MacroLibrary {
-    public MacroLibrary(public let path: String, public let stamp: Int64) {}
-}
-
-/**
- * The requests of `files` to send: those not answered yet whose macro package has a library built at the stamp the
- * analysis has for it (D87: a call whose library is not there is never sent), each with that library; those of the
- * files `isOpen` says the editor shows first, then the others, each in their order.
- */
-public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>,
-    isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile, MacroRequest, MacroLibrary)> {
-    let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
-    for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
-        for (request in pendingMacroRequests(db, file)) {
-            let pkg = request.definition.pkg
-            if (let Some(library) <- libraries.get(pkg.name(db)) && library.stamp == pkg.macroLibrary(db)) {
-                found.add((file, request, library))
-            }
-        }
-    }
-    found.toArray()
-}
-
-/**
- * Sends each of `requests` through `expander`, in their order, until `stopped` or the files change under `db`: what
- * each sent got, keyed by its file and call, which outlive the revision the requests are of (D18). What the calls
- * need of `db` is read before the first is sent, so a change midway loses no answer: each carries its request's
- * fingerprint, and one whose input changed is asked again.
- *
- * @throws CancelledException - if the files change before the first call is sent
- */
-public func expandAll(db: AnalysisDatabase, requests: Array<(SourceFile, MacroRequest, MacroLibrary)>,
-    numbers: TokenNumbers, expander: Expander, stopped!: () -> Bool = {=> false}): Array<(SourceFile, MacroCallKey,
-        MacroOutput)> {
-    let calls = requests.map {
-        one =>
-        let (file, request, library) = one
-        let (call, layout) = callDataOf(request, request.definition.pkg.name(db), library.path, numbers)
-        (file, request, macroCallKeyOf(db, request.call), call, layout)
-    }
-    let answers = ArrayList<(SourceFile, MacroCallKey, MacroOutput)>()
-    for ((file, request, key, call, layout) in calls) {
-        if (stopped() || isCancelled(db)) {
-            break
-        }
-        answers.add((file, key, outputOf(request, layout, expander.expand(call), numbers)))
-    }
-    answers.toArray()
-}
-
-/**
- * Whether the files changed under `db`, a snapshot, or a write is waiting for them to.
- */
-func isCancelled(db: AnalysisDatabase): Bool {
-    try {
-        db.unwindIfCancelled()
-        false
-    } catch (_: CancelledException) {
-        true
-    }
-}
-
-/**
- * What ends a call past its deadline: one at a time, armed before it starts and disarmed when it ends.
- */
-interface Deadlines {
-    /**
-     * Runs `fire` once `timeout` passed, unless disarmed before: the id to disarm it by.
-     */
-    func arm(timeout: Duration, fire: () -> Unit): Int64
-
-    /**
-     * Disarms `id`: `false` if it fired already.
-     */
-    func disarm(id: Int64): Bool
-
-    func stop(): Unit
-}
-
-/**
- * The deadlines of the clock, kept on a thread of its own.
- */
-class Watchdog <: Deadlines {
-    private let lock = Mutex()
-    // made under `lock`: `condition` throws otherwise
-    private let changed: Condition
-    // guarded by `lock`
-    private var armed: ?(Int64, MonoTime, () -> Unit) = None
-    private var count = 0
-    private var stopped = false
-
-    init(logger: Logger) {
-        changed = synchronized(lock) {
-            lock.condition()
-        }
-        spawn {
-            try {
-                run()
-            } catch (e: Exception) {
-                logger.error("the macro server's watchdog failed", [("cause", e)])
-            } catch (e: Error) {
-                logger.error("the macro server's watchdog failed", [("cause", ErrorLogValue(e))])
-            }
-        }
-    }
-
-    public func arm(timeout: Duration, fire: () -> Unit): Int64 {
-        synchronized(lock) {
-            count++
-            armed = (count, MonoTime.now() + timeout, fire)
-            changed.notifyAll()
-            count
-        }
-    }
-
-    public func disarm(id: Int64): Bool {
-        synchronized(lock) {
-            match (armed) {
-                case Some((one, _, _)) where one == id =>
-                    armed = None
-                    changed.notifyAll()
-                    true
-                case _ => false
-            }
-        }
-    }
-
-    public func stop(): Unit {
-        synchronized(lock) {
-            stopped = true
-            changed.notifyAll()
-        }
-    }
-
-    private func run(): Unit {
-        synchronized(lock) {
-            while (!stopped) {
-                match (armed) {
-                    case None => changed.wait()
-                    case Some((_, deadline, fire)) =>
-                        let left = deadline - MonoTime.now()
-                        if (left > Duration.Zero) {
-                            changed.wait(timeout: left)
-                        } else {
-                            armed = None
-                            fire()
-                        }
-                }
-            }
-        }
-    }
-}
-
-/**
- * An `LSPMacroServer` guarded as D87 says: started for the first call and again after it exits, which costs only
- * the call in flight; ended once a call runs past `timeout`, that call answered as failed. Its calls are made one at
- * a time.
- */
-public class GuardedServer <: Expander {
-    private var process: ?MacroServerProcess = None
-    private let paths: MacroServerPaths
-    private let timeout: Duration
-    private let logger: Logger
-    private let deadlines: Deadlines
-
-    public init(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
-        this(paths, timeout, logger, Watchdog(logger))
-    }
-
-    init(paths: MacroServerPaths, timeout: Duration, logger: Logger, deadlines: Deadlines) {
-        this.paths = paths
-        this.timeout = timeout
-        this.logger = logger
-        this.deadlines = deadlines
-    }
-
-    public func expand(call: MacroCallData): CallOutcome {
-        let server = match (process) {
-            case Some(running) => running
-            case None => try {
-                let started = startMacroServer(paths)
-                process = started
-                started
-            } catch (e: Exception) {
-                return Unanswered("the macro server did not start: ${e.message}")
-            }
-        }
-        let id = deadlines.arm(timeout) {=> killQuietly(server)}
-        try {
-            let result = server.connection.expand(call)
-            if (deadlines.disarm(id)) {
-                return Answered(result)
-            }
-            process = None
-            Unanswered(pastDeadline())
-        } catch (e: Exception) {
-            let inTime = deadlines.disarm(id)
-            process = None
-            killQuietly(server)
-            if (inTime) {
-                logger.warn("the macro server exited", [("cause", e)])
-                Unanswered("the macro server exited")
-            } else {
-                Unanswered(pastDeadline())
-            }
-        }
-    }
-
-    /**
-     * Ends the server, if one runs: the next call starts another, which loads the libraries anew.
-     */
-    public func restart(): Unit {
-        if (let Some(server) <- process) {
-            process = None
-            try {
-                server.close()
-            } catch (_: Exception) {
-                killQuietly(server)
-            }
-        }
-    }
-
-    /**
-     * Ends the server and the deadlines.
-     */
-    public func close(): Unit {
-        restart()
-        deadlines.stop()
-    }
-
-    private func pastDeadline(): String {
-        "it ran longer than ${timeout.toSeconds()} s"
-    }
-}
-
-func killQuietly(server: MacroServerProcess): Unit {
-    try {
-        server.kill()
-    } catch (_: Exception) {
-        ()
-    }
-}
-
-/**
- * What the host needs of the SDK: where its server is, how it numbers tokens, its `cjc` and its version.
- */
-class MacroSdk {
-    MacroSdk(
-        let paths: MacroServerPaths,
-        let numbers: TokenNumbers,
-        let toolchain: SdkToolchain,
-        let version: String
-    ) {}
-}
-
-/**
- * Runs the workspace's macros (#176, D104) on a thread of its own: once woken, builds the macro packages when the
+ * Runs the workspace's macros (#176, D104) on a thread of its own, through `macro_host`: once woken, builds the macro packages when the
  * files on disk changed, sets the stamps of their libraries, then asks the server every request that can be sent,
  * those of the open documents first, round after round, each round's answers set in one write, until none is left. An
  * edit ends a round: the answers before it are set, and the next round asks again what it changed.
@@ -488,13 +229,10 @@ public class MacroHost <: MacroWork {
         }
         sdkOf = key
         sdk = None
-        let target = sdkTarget(hostCfg()) ?? return none("no SDK target for this host")
-        let paths = MacroServerPaths.inSdk(Path(home.path), target)
-        let toolchain = SdkToolchain(paths)
-        let version = toolchain.version() ?? return none("the SDK's cjc does not run: macros are not expanded")
-        let numbers = tokenNumbersOf(paths, version) ?? return none(
-            "the SDK numbers its token kinds in a way cjls does not know: macros are not expanded")
-        let found = MacroSdk(paths, numbers, toolchain, version)
+        let found = match (macroSdkIn(Path(home.path))) {
+            case Usable(found) => found
+            case Unusable(reason) => return none(reason)
+        }
         sdk = found
         found
     }
@@ -509,25 +247,4 @@ public class MacroHost <: MacroWork {
             logger.warn(message)
         }
     }
-}
-
-/**
- * A directory's name for the compiler `version` prints: its first line's version, `1.3.0-alpha.20261002001050`,
- * with its backend.
- */
-func dirNameOf(version: String): String {
-    let first = version.lines().next() ?? version
-    let text = match (first.indexOf(": ")) {
-        case Some(at) => first[at + 2..]
-        case None => first
-    }
-    let name = StringBuilder()
-    for (r in text.runes()) {
-        if ((r >= r'a' && r <= r'z') || (r >= r'A' && r <= r'Z') || (r >= r'0' && r <= r'9') || r == r'.' || r == r'-') {
-            name.append(r)
-        } else if (r == r' ') {
-            name.append(r'-')
-        }
-    }
-    name.toString()
 }
