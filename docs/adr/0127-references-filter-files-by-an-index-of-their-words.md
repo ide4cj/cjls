@@ -17,7 +17,7 @@ Status: proposed
 
 ## Consequences
 
-- A request after the first reads no text, only an edited file's again: TBD (`references`, `cjls-perf`, quiet runs on the workstation).
-- A file is let through only for a whole word: `fooBar`, `sizeOf` and `reserved` no longer have a file parsed for `foo`, `size` and `reserve`.
-- The queries executed by the first request grow by one per file of the scope: `tests/perf/thresholds.toml` holds them for std's sources, where #387's scan executed 1143 for `ArrayList.reserve` and the index 46.
+- A request after the first reads no text, only an edited file's again. `cjls-perf`'s `references` on std's sources, medians of quiet runs: `ArrayList.reserve` after `size` 3383 → 224 ms, after an edit 3473 → 164 ms; `size`, the first request, 6481 → 6441 ms, the index made in it.
+- A file is let through only for a whole word: `fooBar`, `sizeOf` and `reserved` no longer have a file parsed for `foo`, `size` and `reserve`. Most of the time saved is this: a scan checking whole words, not built, would have saved it too, at no less than the substring scan's 1.1 ms a request on std's sources and no memory; the index makes up its 25.8 ms after about 25 searches, and its cost per request does not grow with the workspace's text.
+- The queries executed by the first request grow by one per file of the scope: `tests/perf/thresholds.toml` holds them for std's sources, where #387's scan executed 512 for `ArrayList.reserve` and the index 46.
 - `fileWords` is kept for every file a search read, as `fileSymbols` is for `workspace/symbol`: ~1.5 KB a file, under D31's budget for any workspace cjls opens.
