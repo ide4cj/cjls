@@ -21,15 +21,12 @@ cjformat = { path = "../cjformat" }
 fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
 loupe = { path = "../loupe" }
+macro_host = { path = "../macro_host" }
 macro_server = { path = "../macro_server" }
 platform = { path = "../platform" }
 project_model = { path = "../project_model" }
 rope = { path = "../rope" }
 stdxx = { path = "../stdxx" }
-
-[test-dependencies]
-cjsyntax = { path = "../cjsyntax" }
-ginkgo = { path = "../ginkgo" }
 
 # `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
 [target.aarch64-apple-darwin.release]

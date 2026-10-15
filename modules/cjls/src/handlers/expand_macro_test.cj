@@ -317,6 +317,27 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
+    func aNameCopiedFromTheSourceHasItsReferencesInTheFilesAndOneOfAnExpansionNone() {
+        // arrange
+        let (state, dir) = macroWorkspace()
+        expandAndOpen(state, dir)
+
+        // act - the parameter `c` of `use`, in `src/main.cj` on its fifth line
+        let copied = referencesOf(state, expandedOf(dir), 7, 9)
+        let written = referencesOf(state, expandedOf(dir), 6, 16)
+
+        // assert
+        removeWorkspace(dir)
+        match (copied) {
+            case Nullable.Value(found) => @Expect(found.map {
+                one => "${one.uri == uriOf(mainOf(dir))} ${at(one.range.start)}-${at(one.range.end)}"
+            }, ["true 4:9-4:10"])
+            case _ => @Fail("no references")
+        }
+        @Expect(written.isNull())
+    }
+
+    @TestCase
     func afterTheSourceChangedTheFileAnswersNothing() {
         // arrange
         let (state, dir) = macroWorkspace()

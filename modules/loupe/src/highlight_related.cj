@@ -53,13 +53,22 @@ public func highlightRelated(db: AnalysisDatabase, fileId: FileId, offset: Int64
     if (meant.isEmpty()) {
         return []
     }
-    // the names spelled as it, then those of them meaning it, as rust-analyzer's `FindUsages` searches
-    let name = identText(token)
+    namesMeaning(db, file, root, [identText(token)], meant).map {
+        one => RelatedHighlight(one.textRange, accessOf(one))
+    }
+}
+
+/**
+ * The names of `file`, whose tree is `root`, spelled as one of `names` and meaning any of `meant`, in the file's
+ * order: the names spelled so first, then those of them meaning it, as rust-analyzer's `FindUsages` searches.
+ */
+func namesMeaning(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode, names: Array<String>,
+    meant: Array<Definition>): Array<CjSyntaxToken> {
     root.descendantsWithTokens() |> filterMap {element: SyntaxElement<SyntaxKind> => element.asToken()} |> filter {
-        one: CjSyntaxToken => isIdent(one) && identText(one) == name
+        one: CjSyntaxToken => isIdent(one) && names.contains(identText(one))
     } |> filter {
         one: CjSyntaxToken => meaningsAt(db, file, one).any {definition: Definition => meant.contains(definition)}
-    } |> map {one: CjSyntaxToken => RelatedHighlight(one.textRange, accessOf(one))} |> collectArray
+    } |> collectArray
 }
 
 /**

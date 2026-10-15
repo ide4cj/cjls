@@ -5,7 +5,7 @@ import std.unittest.testmacro.*
 
 /**
  * A call's arguments matched to an overload's parameters in order and by name, a parameter by name
- * left out of a default value (#254, #240), and the other gaps #48's step 8c′b's gate found on
+ * left out of a default value (#254, #240), a trailing lambda to the last parameter (#280), and the other gaps #48's step 8c′b's gate found on
  * std's sources (#277, #249). Each case checked on cjc 1.3.0-alpha.20261002 first.
  */
 @Test
@@ -188,6 +188,29 @@ class ArgumentMatchingTest {
                 let k1 = k(1) { x => x }
             //      ^^ Int64
             //                  ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTrailingLambdaGoesToANamedLastParameterPastOnesOfADefaultValue() {
+        checkInference(#"
+            package m
+            func withConfig<T>(a: String, m!: ?String = None, body!: (String, Int64) -> T): T {
+            //                 ^ String
+            //                            ^ Option<String>
+            //                                                ^^^^ (String, Int64) -> T
+                body(a + (m ?? ""), a.size)
+            }
+            func f(): Unit {
+                // `m` left out of its default value (#280)
+                let r = withConfig("x") { s, n => s.size + n }
+            //      ^ Int64
+            //                            ^ String
+            //                               ^ Int64
+                let q = withConfig("x", m: "y") { s, _ => s }
+            //      ^ String
+            //                                    ^ String
             }
             "#)
     }
