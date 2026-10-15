@@ -105,7 +105,7 @@ Features:
 | Hover | yes | yes | yes |
 | Document highlight | yes | yes | yes (#200) |
 | References, rename | yes | yes | #205 |
-| Completion, signature help | yes | yes | #203, #204 |
+| Completion, signature help | yes | yes | completion: members after a dot, names in scope, detail and docs on resolve (#203, D111); signature help: #204 |
 | Type definition, implementation | — | yes | after #48 |
 | Call and type hierarchy | yes | — | after #48 |
 | Folding | — | yes | yes (syntactic) |

@@ -434,13 +434,48 @@ class HoverTest {
     }
 
     @TestCase
-    func aMacroCallShowsNothingYet() {
+    func aMacroCallShowsTheMacroItCallsAsItsDeclarationDoes() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
-            @$0M
-            // ^ no hover
+            @$0M[x]
+            // ^ public macro M(attrs: Tokens, input: Tokens) in m.ms — adds what `attrs` names
+            func f(): Unit {}
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            /** adds what `attrs` names */
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            "#, std: ["std.core", "std.ast"])
+    }
+
+    @TestCase
+    func aMacroCallInABodyShowsTheMacroItCalls() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            main() {
+                let x = @$0M(1)
+            //             ^ public macro M(input: Tokens) in m.ms
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#, std: ["std.core", "std.ast"])
+    }
+
+    @TestCase
+    func aPackageInAMacrosPathShowsNothing() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms
+            @$0ms.M
+            // ^^ no hover
             func f(): Unit {}
             //- /ms/ms.cj module=m package=m.ms
             macro package m.ms
@@ -490,6 +525,14 @@ class HoverBinaryTest {
             "#, std: ["std.core"], sources: true)
     }
 }
+
+/**
+ * The names `cjsyntax` takes as an annotation of the compiler's, as its `contextualKind` lists them.
+ */
+let PARSER_ANNOTATIONS = ["JavaMirror", "JavaImpl", "JavaHasDefault", "ObjCMirror", "ObjCImpl", "ForeignGetterName",
+    "ForeignSetterName", "ObjCInit", "ObjCOptional", "ForeignName", "CallingConv", "C", "Attribute", "Intrinsic",
+    "OverflowThrowing", "OverflowWrapping", "OverflowSaturating", "When", "FastNative", "Annotation", "ConstSafe",
+    "Deprecated", "Frozen", "EnsurePreparedToMock", "NonProduct"]
 
 @Test
 class BuiltinHoverTest {
@@ -582,7 +625,7 @@ class BuiltinHoverTest {
     }
 
     @TestCase
-    func aMacroOfTheWorkspaceNamedAsOneOfTheCompilersIsNotIt() {
+    func aMacroOfTheWorkspaceNamedAsOneOfTheCompilersIsItsOwn() {
         checkHover(#"
             //- /ms/ms.cj module=m package=m.ms
             macro package m.ms
@@ -593,62 +636,48 @@ class BuiltinHoverTest {
             import m.ms.sourceLine
             main() {
                 let line = @$0sourceLine()
-            //                ^^^^^^^^^^ no hover
+            //                ^^^^^^^^^^ public macro sourceLine(input: Tokens) in m.ms
             }
-            "#)
+            "#, std: ["std.core", "std.ast"])
     }
 
-    /**
-     * The names `cjsyntax` takes as an annotation of the compiler's, as its `contextualKind` lists them.
-     */
-    let parserAnnotations = ["JavaMirror", "JavaImpl", "JavaHasDefault", "ObjCMirror", "ObjCImpl", "ForeignGetterName",
-        "ForeignSetterName", "ObjCInit", "ObjCOptional", "ForeignName", "CallingConv", "C", "Attribute", "Intrinsic",
-        "OverflowThrowing", "OverflowWrapping", "OverflowSaturating", "When", "FastNative", "Annotation", "ConstSafe",
-        "Deprecated", "Frozen", "EnsurePreparedToMock", "NonProduct"]
+    @TestCase[name in PARSER_ANNOTATIONS]
+    func everyAnnotationOfTheCompilersIsTold(name: String) {
+        // arrange
+        let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\n@${name} func f(): Unit {}\n")
+        let db = fixture.database()
+        let fileId = fixture.file("/main.cj").fileId
 
-    @TestCase
-    func everyAnnotationOfTheCompilersIsTold() {
-        for (name in parserAnnotations) {
-            // arrange
-            let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\n@${name} func f(): Unit {}\n")
-            let db = fixture.database()
-            let fileId = fixture.file("/main.cj").fileId
+        // act
+        let hover = hoverAt(db, fileId, "package m\n@".size)
 
-            // act
-            let hover = hoverAt(db, fileId, "package m\n@".size)
-
-            // assert
-            @Expect(builtinAnnotationDoc(name).isSome())
-            @Expect(hover.map {one => one.items.map {item => item.code}},
-                builtinAnnotationDoc(name).map {doc => [doc.code]})
-        }
+        // assert
+        @Expect(builtinAnnotationDoc(name).isSome())
+        @Expect(hover.map {one => one.items.map {item => item.code}}, builtinAnnotationDoc(name).map {doc => [doc.code]})
     }
 
     @TestCase
     func everyAnnotationToldIsOneOfTheCompilers() {
         // act
-        let unknown = BUILTIN_ANNOTATION_DOCS |> filter {doc: BuiltinDoc => !parserAnnotations.contains(doc.name)} |>
+        let unknown = BUILTIN_ANNOTATION_DOCS |> filter {doc: BuiltinDoc => !PARSER_ANNOTATIONS.contains(doc.name)} |>
             map {doc: BuiltinDoc => doc.name} |> collectArray
 
         // assert
         @Expect(unknown, Array<String>())
     }
 
-    @TestCase
-    func everyTypeThatIsAKeywordToldIsOne() {
-        let keywords = ["Int8", "Int16", "Int32", "Int64", "IntNative", "UInt8", "UInt16", "UInt32", "UInt64",
-            "UIntNative", "Float16", "Float32", "Float64", "Bool", "Rune", "Unit", "Nothing", "VArray"]
-        for (name in keywords) {
-            // arrange
-            let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\ntype A = ${name}\n")
-            let db = fixture.database()
-            let fileId = fixture.file("/main.cj").fileId
+    @TestCase[name in ["Int8", "Int16", "Int32", "Int64", "IntNative", "UInt8", "UInt16", "UInt32", "UInt64",
+        "UIntNative", "Float16", "Float32", "Float64", "Bool", "Rune", "Unit", "Nothing", "VArray"]]
+    func everyTypeThatIsAKeywordToldIsOne(name: String) {
+        // arrange
+        let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m\ntype A = ${name}\n")
+        let db = fixture.database()
+        let fileId = fixture.file("/main.cj").fileId
 
-            // act
-            let hover = hoverAt(db, fileId, "package m\ntype A = ".size)
+        // act
+        let hover = hoverAt(db, fileId, "package m\ntype A = ".size)
 
-            // assert
-            @Expect(hover.flatMap {one => one.items.get(0)}.map {item => item.code.startsWith("type ${name}")}, true)
-        }
+        // assert
+        @Expect(hover.flatMap {one => one.items.get(0)}.map {item => item.code.startsWith("type ${name}")}, true)
     }
 }

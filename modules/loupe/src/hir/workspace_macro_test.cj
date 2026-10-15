@@ -22,13 +22,14 @@ let WORKSPACE_MACROS = #"
     "#
 
 /**
- * The database of `text`, the text of `/main.cj` in package `m`, with the macros of `WORKSPACE_MACROS`, and its file.
+ * The database of `text`, the text of `/main.cj` in package `m`, with the macros of `WORKSPACE_MACROS` and std's
+ * packages `std` read from the SDK, and its file.
  */
-func workspaceMacroDatabase(text: String): (AnalysisDatabase, SourceFile, Fixture) {
+func workspaceMacroDatabase(text: String, std!: Array<String> = []): (AnalysisDatabase, SourceFile, Fixture) {
     let indented = trimIndent(text).split("\n").map {line => "    " + line}
     let parsed = Fixture.parse("\n    //- /main.cj module=m package=m\n" + String.join(indented, delimiter: "\n") +
         "\n" + WORKSPACE_MACROS)
-    let db = parsed.database()
+    let db = parsed.database(binaries: std.map {name => stdCjoRead(name, stdCjo(name))})
     let file = db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow()
     (db, file, parsed)
 }
@@ -215,6 +216,51 @@ class WorkspaceMacroRequestTest {
     }
 
     @TestCase
+    func anOuterCallIsGivenWhatTheCallsNestedInItsInnerCallSet() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            @A
+            @B
+            class Y {
+                @I func f() {}
+            }
+            "#)
+        let member = requestNamed(db, file, "I")
+        setMacroOutputs(db, [(member.call, writtenOutput(member, "func f() {}",
+            items: [MacroItem("note", MacroItemValue.StringItem("from I"))]))])
+        let inner = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(inner.call, writtenOutput(inner, "class Y {}"))])
+
+        // act
+        let outer = describe(requestNamed(db, file, "A"))
+
+        // assert: as `@DeriveExt` reads `@Serde` of an enum's variants past `@Serde` on the enum
+        @Expect(outer, "A <class Y {}> parents= children=I[note=String(from I)],B[]")
+    }
+
+    @TestCase
+    func aDeriveOfStdInTheInputIsItsDeclarationAndTheExtendsItAddsAfterIt() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import std.deriving.*
+            import m.ms.*
+            @A
+            @Derive[Equatable]
+            class X {}
+            "#, std: ["std.core", "std.deriving"])
+
+        // act
+        let requests = macroRequests(db, file).map {request => describe(request)}
+
+        // assert
+        @Expect(requests, ["A <class X {}\nextend X <: Equatable<X> {\n    public operator func ==(other: X): Bool {}\n" +
+            "    public operator func !=(other: X): Bool {}\n}\n> parents= children="])
+    }
+
+    @TestCase
     func aRequestIsPendingUntilAnOutputAnswersItAndAgainOnceItsItemChanges() {
         // arrange
         let (db, file, _) = workspaceMacroDatabase(#"
@@ -267,6 +313,28 @@ class WorkspaceMacroExpansionTest {
         @Expect(names.contains("generated"), true)
         @Expect(cs.size, 1)
         @Expect(cs.iterator().all {def => def.id.file(db) == ItemFile.Expansion(request.call)}, true)
+    }
+
+    @TestCase
+    func aDeriveOfStdInTheInputOfAnAnsweredCallIsReadInItsOutputAlone() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import std.deriving.*
+            import m.ms.*
+            @A
+            @Derive[Equatable]
+            class X {}
+            "#, std: ["std.core", "std.deriving"])
+        let request = macroRequests(db, file)[0]
+
+        // act
+        let before = expandedCalls(db, file).size
+        setMacroOutputs(db, [(request.call, MacroOutput(request.fingerprint, request.input, [], []))])
+
+        // assert
+        @Expect(before, 1)
+        @Expect(expandedCalls(db, file), [request.call])
     }
 
     @TestCase

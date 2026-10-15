@@ -881,7 +881,11 @@ class Inference {
         }
         match (hir[id]) {
             case MissingExpr => error
-            case QuoteExpr => quoteTy()
+            case QuoteExpr(parts) =>
+                for (part in parts) {
+                    infer(part, None)
+                }
+                quoteTy()
             case MacroExpr(call) => macroTy(call)
             case LitExpr(text) => literalTy(text, expected)
             case StrExpr(parts) =>

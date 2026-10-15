@@ -209,6 +209,7 @@ class ScopesBuilder {
         match (body[expr]) {
             case BlockExpr(stmts) => block(stmts, scope)
             case StrExpr(parts) => walkAll(parts, scope)
+            case QuoteExpr(parts) => walkAll(parts, scope)
             case PathExpr(_, args) => for (arg in args) {
                 typeIn(arg, scope)
             }

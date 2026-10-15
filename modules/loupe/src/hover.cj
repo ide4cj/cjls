@@ -80,8 +80,17 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         if ((macros ?? []).isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
             return builtinHover(token, doc)
         }
-        // a macro's: later, with its expansion (#175)
-        return None
+        // the macro called, as at its name where it is declared; a class an annotation of its own names
+        let items = (macros ?? []) |> filterMap {
+            called: Definition => match (called) {
+                case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
+                case _ => None<HoverItem>
+            }
+        } |> collectArray
+        if (items.isEmpty()) {
+            return None
+        }
+        return HoverResult(token.textRange, items)
     }
     if (let Some(doc) <- builtinAnnotationAt(token)) {
         return builtinHover(token, doc)

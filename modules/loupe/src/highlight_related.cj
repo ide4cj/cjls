@@ -5,7 +5,7 @@ import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, BinExpr, MemberAccessExpr, Name, NameRef, Param, ParenExpr, Pattern, PostfixExpr,
-    RefExpr, TupleExpr, VarDecl, identText}
+    RefExpr, TupleExpr, VarDecl, identText, isIdent}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{DefId, ItemFile, itemIdMap}
 import loupe.syntax.parse
@@ -46,7 +46,7 @@ public func highlightRelated(db: AnalysisDatabase, fileId: FileId, offset: Int64
     let file = db.sourceFile(fileId) ?? return []
     let root = parse(db, file).syntaxNode()
     let token = tokenAt(root, offset) ?? return []
-    if (token.kind != SyntaxKind.Ident) {
+    if (!isIdent(token)) {
         return []
     }
     let meant = meaningsAt(db, file, token)
@@ -56,7 +56,7 @@ public func highlightRelated(db: AnalysisDatabase, fileId: FileId, offset: Int64
     // the names spelled as it, then those of them meaning it, as rust-analyzer's `FindUsages` searches
     let name = identText(token)
     root.descendantsWithTokens() |> filterMap {element: SyntaxElement<SyntaxKind> => element.asToken()} |> filter {
-        one: CjSyntaxToken => one.kind == SyntaxKind.Ident && identText(one) == name
+        one: CjSyntaxToken => isIdent(one) && identText(one) == name
     } |> filter {
         one: CjSyntaxToken => meaningsAt(db, file, one).any {definition: Definition => meant.contains(definition)}
     } |> map {one: CjSyntaxToken => RelatedHighlight(one.textRange, accessOf(one))} |> collectArray

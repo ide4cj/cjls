@@ -2200,6 +2200,22 @@ class InferTest {
     }
 
     @TestCase
+    func aQuotesInterpolationIsInferred() {
+        // #195: code run where the macro is, of the types it has there
+        checkInference(#"
+            package m
+            import std.ast.*
+            func f(x: Tokens, n: Int64): Tokens {
+            //     ^ Tokens
+            //                ^ Int64
+                quote(a + $(match (x) { case y => y }) + $(match (n) { case k => quote($k) }))
+            //                               ^ Tokens
+            //                                                              ^ Int64
+            }
+            "#, binaries: ["std.core", "std.ast"])
+    }
+
+    @TestCase
     func aStaticMemberOfATypeParameterIsSeenOnItsBound() {
         // cjc 1.3.0-alpha.20261002 (N139): `T.make()` of `T <: Make<T>` is a `T`
         checkInference(#"

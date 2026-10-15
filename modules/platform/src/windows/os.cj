@@ -11,6 +11,14 @@ public specific func hostEnv(): String {
     "gnu"
 }
 
+public specific func sharedLibrarySuffix(): String {
+    ".dll"
+}
+
+public specific func libraryPathVariable(): String {
+    "PATH"
+}
+
 public specific func executableFile(name: String): String {
     "${name}.exe"
 }
