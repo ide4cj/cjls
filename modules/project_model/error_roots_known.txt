@@ -58,6 +58,5 @@ modules/lsp_codegen/src/main.cj: name not found: 1
 modules/macro_host/src/host.cj: local: 1
 modules/macro_host/src/host.cj: member found: 2
 modules/platform/src/posix/relaunch.cj: name found: 2
-modules/project_model/src/cjpm.cj: local: 1
 modules/rope/src/node.cj: local: 1
 modules/syntax_codegen/src/code_writer.cj: member found: 1
