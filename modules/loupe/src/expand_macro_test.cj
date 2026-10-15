@@ -354,6 +354,30 @@ class MacroCallAtTest {
         // assert
         @Expect(at.call.inBody(db), Some("B"))
         @Expect(expandedMacro(db, at.call), None<ExpandedMacro>)
+        @Expect(declarationUnder(db, at.call), None<String>)
+    }
+
+    @TestCase
+    func aCallOfStdInABodyIsNoCallOfItsOwnButTheItemsAroundIt() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            import std.unittest.testmacro.*
+            @A
+            func f(): Unit { @Expect(1, 1) }
+            "#)
+        let source = file.text(db).toString()
+        let under = macroCallUnder(db, file, offsetIn(source, "@Expect")).getOrThrow()[0]
+
+        // act
+        let at = macroCallAt(db, file.fileId(db), offsetIn(source, "@Expect"))
+
+        // assert
+        @Expect(under.inBody(db), Some("Expect"))
+        @Expect(readCallOf(db, under), None<MacroCallId>)
+        @Expect(expandedMacro(db, under), None<ExpandedMacro>)
+        @Expect(at.map {one => one.call.inBody(db)}, Some(None<String>))
     }
 
     @TestCase
