@@ -132,6 +132,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0111](0111-completion-lists-from-the-speculative-tree-and-resolves-lazily.md) | Completion lists from the speculative tree, ranks by scope, and leaves the detail to a resolve | proposed |
 | [0112](0112-arguments-are-matched-before-a-candidate-is-tried.md) | A call's arguments are matched to each candidate's parameters before it is tried, as cjc | proposed |
 | [0113](0113-the-architecture-is-the-only-when.md) | `hostArch` is the one `@When` of this repository's code, and a set's files are named for what they hold | proposed |
-| [0114](0114-std-derive-is-expanded-in-a-workspace-macros-input.md) | A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child | proposed |
+| [0114](0114-std-derive-is-expanded-in-a-workspace-macros-input.md) | A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child | proposed; the `extend`s an outer macro copies have bodies of a comment, not empty ones, by D118 |
 | [0116](0116-quote-interpolations-are-code-of-the-macro.md) | A quote's interpolations are code of the macro, the rest of it tokens | proposed |
 | [0117](0117-expression-macros-are-asked-with-the-items-calls.md) | A macro called in an expression, std.unittest's included, is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands while its answer is current | proposed |
+| [0118](0118-a-body-cjls-writes-itself-is-a-comment.md) | A body cjls writes in an expansion of its own is a comment naming the macro | proposed |
