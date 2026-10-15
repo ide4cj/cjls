@@ -137,6 +137,24 @@ public class ItemIdMap <: Equatable<ItemIdMap> {
     }
 
     /**
+     * The id of the item `node` is, a macro call on a declaration being the declaration's: what its `[...]` writes
+     * is the declaration's code (#191). `None` if it is neither.
+     */
+    public func idAround(node: CjSyntaxNode): ?ItemId {
+        if (let Some(id) <- idOf(SyntaxNodePtr(node))) {
+            return id
+        }
+        var call = MacroExpandDecl.cast(node) ?? return None
+        while (let Some(inner) <- call.decl()) {
+            match (inner) {
+                case Decl.AsMacroExpandDecl(next) => call = next
+                case _ => return idOf(SyntaxNodePtr(inner.syntax))
+            }
+        }
+        None
+    }
+
+    /**
      * The node of `id` under `root`, the tree this was made of, `None` if no item has it.
      */
     public func node(id: ItemId, root: CjSyntaxNode): ?CjSyntaxNode {

@@ -113,6 +113,14 @@ class ScopesBuilder {
         for (accessor in body.accessors) {
             walk(accessor, root)
         }
+        // `x` of `x in src` names a parameter; `src` is evaluated outside the declaration, at the root (#191)
+        for (attr in body.attrs) {
+            for (arg in attr.args) {
+                if (let DataArg(Some(param), _) <- arg) {
+                    walk(param, inner)
+                }
+            }
+        }
         // what lowering wrote but no walk reached sees the root
         for (i in 0..exprScopes.size where exprScopes[i].isNone()) {
             exprScopes[i] = root

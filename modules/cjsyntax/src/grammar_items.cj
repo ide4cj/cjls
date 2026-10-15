@@ -898,11 +898,57 @@ func macroCallHead(p: P): Unit {
         nameRef(p)
     }
     if (p.at(LBracket)) {
-        let m = p.start()
+        macroAttr(p)
+    }
+}
+
+/**
+ * `[...]` after a macro name: tokens the macro is given, read as std.unittest's attributes when they parse as them,
+ * which no compiler does before expansion, so names inside resolve: between commas, `T in <A, B>` (`@Types`),
+ * `x in src` (`@TestCase`), `k: v` (`@Configure`), an expression. Any error, and they stay tokens.
+ */
+func macroAttr(p: P): Unit {
+    let m = p.start()
+    let snapshot = p.snapshot()
+    p.bump(LBracket)
+    while (!p.at(RBracket) && !p.atEof()) {
+        macroAttrArg(p)
+        if (!p.eat(Comma)) {
+            break
+        }
+    }
+    p.expect(RBracket)
+    if (p.hasErrorSince(snapshot)) {
+        p.rewind(snapshot)
         p.bump(LBracket)
         balancedTokens(p, LBracket, RBracket)
         p.expect(RBracket)
-        m.complete(p, MacroAttr)
+    }
+    m.complete(p, MacroAttr)
+}
+
+func macroAttrArg(p: P): Unit {
+    let m = p.start()
+    if (atName(p, 0) && p.nthAt(1, InKw) && p.nthAt(2, Lt)) {
+        typ(p)
+        p.bump(InKw)
+        typeArgList(p)
+        m.complete(p, TypesArg)
+        return
+    }
+    if (atName(p, 0) && p.nthAt(1, Colon)) {
+        nameRef(p)
+        p.bump(Colon)
+        exprOrError(p, Restrictions.commaList(RBracket))
+        m.complete(p, Arg)
+        return
+    }
+    exprOrError(p, Restrictions.commaList(RBracket))
+    if (p.eat(InKw)) {
+        exprOrError(p, Restrictions.commaList(RBracket))
+        m.complete(p, DataArg)
+    } else {
+        m.complete(p, Arg)
     }
 }
 

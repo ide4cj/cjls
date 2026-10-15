@@ -4,9 +4,9 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr, MacroAttr,
-    MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern, QuoteInterpolation, ResourceDecl, Type,
-    identText}
+import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, DataArg, Decl, GenericConstraint, Interpolation, LambdaExpr,
+    MacroAttr, MacroExpandDecl, MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern,
+    QuoteInterpolation, ResourceDecl, Type, TypesArg, identText}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -290,6 +290,45 @@ public struct MacroCall {
 }
 
 /**
+ * What a macro on a declaration, std.unittest's, takes in its `[...]` as code (#191).
+ */
+@Derive[Equatable]
+public enum AttrArg {
+    /**
+     * `x in src` of `@Test`, `@TestCase`, `@Bench`, `@Strategy`: `x`, a name in the scope of the declaration's
+     * parameters, none for `config.x`; `src`, an expression in the scope around them.
+     */
+    | DataArg(?ExprId, ExprId)
+    /**
+     * `k: v` of `@Configure`: `KeyK.k`, the option `k` names, and `v`.
+     */
+    | OptionArg(ExprId, ExprId)
+    /**
+     * `@Timeout[e]`, `@Measure[a, b]`: an expression.
+     */
+    | ValueArg(ExprId)
+    /**
+     * `T in <A, B>` of `@Types`: the type parameter, and the types it is run with.
+     */
+    | TypesArg(TypeRefId, Array<TypeRefId>)
+}
+
+/**
+ * A macro on a declaration that takes code in its `[...]`, by the name it is called by: the path it names, and
+ * the arguments, those of std.unittest's macros. Whether it is std's is inference's to find.
+ */
+@Derive[Equatable]
+public struct DeclAttr {
+    public DeclAttr(public let path: Array<String>, public let args: Array<AttrArg>) {}
+}
+
+/**
+ * The macros on a declaration whose `[...]` is code by their name, as std.unittest's (#191): what
+ * `@Tag` and `@Skip` list is none, nor is a user's macro's.
+ */
+let CODE_ATTRS = HashSet<String>(["Test", "TestCase", "Bench", "Strategy", "Configure", "Timeout", "Measure", "Types"])
+
+/**
  * A pattern as a body writes it.
  */
 @Derive[Equatable]
@@ -339,7 +378,11 @@ public struct Body {
         /**
          * A property's `get` and `set`, each a lambda.
          */
-        public let accessors!: Array<ExprId> = []
+        public let accessors!: Array<ExprId> = [],
+        /**
+         * What the macros on it take as code in their `[...]`, outermost first.
+         */
+        public let attrs!: Array<DeclAttr> = []
     ) {}
 
     public operator func [](id: ExprId): Expr {
@@ -511,7 +554,7 @@ public func lowerBody(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredBo
         }
         case _ => ()
     }
-    lowering.finish(params, value, accessors)
+    lowering.finish(params, value, accessors, attrs: lowering.declAttrs(decl))
 }
 
 /**
@@ -536,10 +579,10 @@ class BodyLowering {
         this.types = SignatureLowering(active: active)
     }
 
-    func finish(params: Array<BodyParam>, value: ?ExprId, accessors: Array<ExprId>): LoweredBody {
+    func finish(params: Array<BodyParam>, value: ?ExprId, accessors: Array<ExprId>, attrs!: Array<DeclAttr> = []): LoweredBody {
         LoweredBody(
             Body(exprs: exprs.toArray(), pats: pats.toArray(), locals: locals.toArray(), funcs: funcs.toArray(),
-                types: types.types.toArray(), params: params, value: value, accessors: accessors),
+                types: types.types.toArray(), params: params, value: value, accessors: accessors, attrs: attrs),
             BodySourceMap(exprs: exprPtrs.toArray(), pats: patPtrs.toArray(), locals: localPtrs.toArray(),
                 types: types.ptrs.toArray())
         )
@@ -877,6 +920,67 @@ class BodyLowering {
             return []
         }
         tokens.toArray().filter {token => token.kind == SyntaxKind.Ident}.map {token => types.named(identText(token))}
+    }
+
+    /**
+     * What the macros on `decl`, the calls around it, take as code in their `[...]`, those of `CODE_ATTRS`, outermost
+     * first.
+     */
+    func declAttrs(decl: Decl): Array<DeclAttr> {
+        let calls = ArrayList<MacroExpandDecl>()
+        var node = decl.syntax.parent
+        while (let Some(one) <- node && let Some(call) <- MacroExpandDecl.cast(one)) {
+            calls.add(call)
+            node = one.parent
+        }
+        calls.reverse()
+        let found = ArrayList<DeclAttr>()
+        for (call in calls) {
+            let path = call.nameRefs() |> map {name: NameRef => name.text()} |> collectArray
+            let attr = call.macroAttr() ?? continue
+            if (CODE_ATTRS.contains(path.get(path.size - 1) ?? "")) {
+                found.add(DeclAttr(path, attrArgs(attr)))
+            }
+        }
+        found.toArray()
+    }
+
+    /**
+     * The arguments of `attr` as they parsed: `x in src`, `T in <A, B>`, `k: v`, an expression; none if it stayed
+     * tokens.
+     */
+    private func attrArgs(attr: MacroAttr): Array<AttrArg> {
+        let found = ArrayList<AttrArg>()
+        for (child in attr.syntax.children()) {
+            if (let Some(it) <- DataArg.cast(child)) {
+                let param = match (it.param()) {
+                    case Some(one) where one.syntax.kind == SyntaxKind.RefExpr => Some(expr(one))
+                    case _ => None<ExprId>
+                }
+                found.add(AttrArg.DataArg(param, exprOf(it.source())))
+            } else if (let Some(it) <- TypesArg.cast(child)) {
+                let param = types.lower(it.ty())
+                found.add(AttrArg.TypesArg(param, typeArgs(it.typeArgList()?.types())))
+            } else if (let Some(it) <- Arg.cast(child)) {
+                match (it.nameRef()) {
+                    case Some(name) => found.add(AttrArg.OptionArg(optionKey(name.text(), it), exprOf(it.expr())))
+                    case None => found.add(AttrArg.ValueArg(exprOf(it.expr())))
+                }
+            }
+        }
+        found.toArray()
+    }
+
+    /**
+     * `KeyK.k`, what `k: v` of `@Configure` sets, as std.unittest's `createOptionFQName` writes it: the access at
+     * `arg`, where `k` is.
+     */
+    private func optionKey(name: String, arg: Arg): ExprId {
+        let runes = name.toRuneArray()
+        let key = "Key${String(runes[..1]).toAsciiUpper()}${String(runes[1..])}"
+        exprs.add(Expr.PathExpr(key, []))
+        exprPtrs.add(None)
+        add(Expr.FieldExpr(ExprId(exprs.size - 1), name, []), arg.syntax)
     }
 
     /**
