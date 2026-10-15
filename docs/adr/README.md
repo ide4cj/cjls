@@ -143,3 +143,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0122](0122-a-request-the-files-changed-under-runs-again.md) | A read-only request the files changed under runs again on a fresh snapshot, not answered ContentModified | proposed |
 | [0124](0124-references-are-searched-per-request-where-the-declaration-is-visible.md) | References are searched per request in the files a declaration is visible from whose text names it, no index of uses kept | proposed |
 | [0125](0125-cjc-runs-behind-a-shim-in-ci.md) | cjc runs behind a shim that closes the descriptors it inherited | proposed |
+| [0126](0126-the-code-style-follows-std-checked-by-cjlint.md) | The code style follows std where the compiler leaves a choice, and cjlint checks the official guide's rules that hold here | accepted |
