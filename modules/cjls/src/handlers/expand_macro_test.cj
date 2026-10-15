@@ -338,6 +338,24 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
+    func aClassCopiedFromTheSourceIsAskedForItsImplementationsInTheFiles() {
+        // arrange
+        let (state, dir) = macroWorkspace()
+        expandAndOpen(state, dir)
+
+        // act - `C` of the parameter of `use`, which nothing extends, and a name of an expansion
+        let copied = implementationsOf(state, expandedOf(dir), 7, 12)
+        let written = implementationsOf(state, expandedOf(dir), 6, 16)
+        let elsewhere = implementationsOf(state, expandedOf(dir).parent.join("other.cj.macrocall"), 0, 0)
+
+        // assert
+        removeWorkspace(dir)
+        @Expect(copied.isNull())
+        @Expect(written.isNull())
+        @Expect(elsewhere.isNull())
+    }
+
+    @TestCase
     func afterTheSourceChangedTheFileAnswersNothing() {
         // arrange
         let (state, dir) = macroWorkspace()
