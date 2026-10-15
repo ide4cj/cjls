@@ -4,7 +4,7 @@ import std.collection.ArrayList
 import rope.{Encoding, LineColumn, Rope}
 import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag,
     NavigationTarget, Severity, StructureKind, StructureNode, TextRange}
-import loupe.{HoverItem, HoverResult, RelatedHighlight, ReferenceAccess}
+import loupe.{HoverItem, HoverResult, Reference, RelatedHighlight, ReferenceAccess}
 import loupe.Diagnostic as LoupeDiagnostic
 import loupe.TextEdit as LoupeTextEdit
 import cjls.lsp_types.*
@@ -81,6 +81,13 @@ func locationLink(text: Rope, uri: DocumentUri, target: NavigationTarget, encodi
  */
 func location(text: Rope, uri: DocumentUri, target: NavigationTarget, encoding: Encoding): Location {
     Location(uri: uri, range: lspRange(text, target.focusRange.start, target.focusRange.end, encoding))
+}
+
+/**
+ * A name `reference` found, in the file at `uri` whose text is `text`.
+ */
+func location(text: Rope, uri: DocumentUri, reference: Reference, encoding: Encoding): Location {
+    Location(uri: uri, range: lspRange(text, reference.range.start, reference.range.end, encoding))
 }
 
 /**
