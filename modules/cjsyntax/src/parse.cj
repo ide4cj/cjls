@@ -71,7 +71,8 @@ func contextualKind(kind: SyntaxKind, text: String): ?SyntaxKind {
 }
 
 /**
- * Comments right before a declaration, with no blank line in between, are its documentation and go inside it.
+ * Comments right before a declaration, or a parameter (a field a primary constructor declares, #377), with no blank
+ * line in between, are its documentation and go inside it.
  */
 class CangjieTrivia <: TriviaRules<SyntaxKind> {
     public func isTrivia(kind: SyntaxKind): Bool {
@@ -101,7 +102,7 @@ func isDocumentable(kind: SyntaxKind): Bool {
     match (kind) {
         case FuncDecl | MainDecl | MacroDecl | ClassDecl | InterfaceDecl | StructDecl | EnumDecl | ExtendDecl |
             TypeAliasDecl | VarDecl | PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor |
-            MacroExpandDecl | PackageHeader => true
+            MacroExpandDecl | PackageHeader | Param => true
         case _ => false
     }
 }

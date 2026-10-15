@@ -3,8 +3,8 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import ginkgo.SyntaxNodePtr
-import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
-import cjsyntax.ast.{BindPat, EnumPat, MacroExpandDecl, MacroExpandExpr, MemberAccessExpr, NameRef, PathSegment,
+import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.{Arg, BindPat, EnumPat, MacroExpandDecl, MacroExpandExpr, MemberAccessExpr, NameRef, PathSegment,
     RefExpr}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
@@ -188,6 +188,20 @@ func typeDefinitions(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, s
 }
 
 /**
+ * The node of a name after a `.` whose parent `node` is: `a.b`, or `k: v` in a macro's `[...]`, `@Configure`'s option
+ * `KeyK.k` (#191).
+ */
+func accessNodeOf(node: CjSyntaxNode): ?CjSyntaxNode {
+    if (MemberAccessExpr.canCast(node.kind)) {
+        return node
+    }
+    if (Arg.canCast(node.kind) && node.parent.map {one => one.kind} == Some(SyntaxKind.MacroAttr)) {
+        return node
+    }
+    None
+}
+
+/**
  * What the name `token`, in the body of `def`, means: what a name used there means (N59–N71), what a name after a
  * `.` does (N75–N79), the constructor a pattern names (N72), a local itself at its declaration.
  */
@@ -219,8 +233,8 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
             case InFile(resolution) => fileDefinitions(resolution)
         }
     }
-    if (let Some(access) <- MemberAccessExpr.cast(node)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(access.syntax)) ?? return None
+    if (let Some(access) <- accessNodeOf(node)) {
+        let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return None
         let inferred = inferBody(db, def)
         if (let Some(decl) <- inferred.calleeOf(expr)) {
             return [Definition.DeclDef(decl)]

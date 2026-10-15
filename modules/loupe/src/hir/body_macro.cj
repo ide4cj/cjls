@@ -30,8 +30,8 @@ public struct BodyMacroCall {
 /**
  * The macros called in the items of `file`, out of a false `@When`, as cjc runs them: item by item, a top-level item
  * before its members, and in an item innermost first, then left to right. A call in the tokens of arguments that do not
- * parse (D59) is no node, so none; nor one on a parameter (#357), nor a top-level call on no declaration, whose
- * arguments are its own call's input (D98).
+ * parse (D59) is no node, so none; nor one on a parameter, a call on its item (D119), nor a top-level call on no
+ * declaration, whose arguments are its own call's input (D98).
  */
 @CalcaTracked
 public func bodyMacroCalls(db: AnalysisDatabase, file: SourceFile): Array<BodyMacroCall> {
@@ -205,7 +205,7 @@ struct FoundBodyCall {
 
 /**
  * Finds the macro calls in one item's node: not in another item (a member), nor under a false `@When`, nor on a
- * parameter (#357). Each gets its ordinal by the order of the `@`s, and is given after the calls in its input.
+ * parameter (D119). Each gets its ordinal by the order of the `@`s, and is given after the calls in its input.
  */
 class BodyCallWalker {
     private let ordinals = HashMap<String, Int64>()
@@ -255,7 +255,14 @@ class BodyCallWalker {
         }
     }
 
+    /**
+     * Whether `node` is a macro call on a parameter: the innermost of its chain on it (`@A @M let a: Int64`).
+     */
     private func isOnParam(node: CjSyntaxNode): Bool {
-        MacroExpandDecl.cast(node).flatMap {one => one.param()}.isSome()
+        var call = MacroExpandDecl.cast(node) ?? return false
+        while (let Some(inner) <- call.decl().flatMap {decl => MacroExpandDecl.cast(decl.syntax)}) {
+            call = inner
+        }
+        call.param().isSome()
     }
 }

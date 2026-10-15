@@ -358,6 +358,21 @@ class AstTest {
     }
 
     @TestCase
+    func aParameterHasTheCommentsRightBeforeItAsItsDocumentationAndThoseBeforeAMacroCallOnIt() {
+        // arrange
+        let text = "struct S {\n    S(\n        /** a */\n        let a: Int64,\n        // b\n        @M let b: Int64,\n\n" +
+            "        // not\n\n        c: Int64\n    ) {}\n}\n"
+
+        // act
+        let sut = parse(text).syntaxNode().descendants() |> filter {node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.Param} |>
+            map {node: SyntaxNode<SyntaxKind> => AnyHasDocComment.cast(node).getOrThrow().docComments().map {t => t.text()}} |>
+            collectArray
+
+        // assert
+        @Expect(sut, [["/** a */"], ["// b"], Array<String>()])
+    }
+
+    @TestCase
     func everyTokenOfAKindIsThereWhenTheGrammarAllowsSeveral() {
         // act
         let sut = declared<ImportTree>("import org::a.b.c\n")

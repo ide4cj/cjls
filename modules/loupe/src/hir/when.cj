@@ -383,7 +383,7 @@ private func activeItems(items: Array<Item>, cfg: Cfg): Array<Item> {
     items.filter {item => item.condition.map {it => it.isActive(cfg)} ?? true}.map {
         item => if (hasConditions(item.members)) {
             Item(item.id, item.names, item.modifiers, item.macros, activeItems(item.members, cfg),
-                condition: item.condition)
+                condition: item.condition, paramMacros: item.paramMacros)
         } else {
             item
         }

@@ -474,4 +474,53 @@ class UnknownTest {
             public macro M(input: Tokens): Tokens { input }
             "#, binaries: ["std.core", "std.collection"])
     }
+
+    @TestCase
+    func aLambdaPassedToACallNoCandidateIsTakenForHasParametersOfTheCallsType() {
+        // cjc: `[2, 1]` (#282)
+        checkUnknowns(#"
+            //- /main.cj module=m package=m
+            package m
+            func f(): Unit {
+                let sizes = "ab c".split(" ").map {line => line.size}
+            }
+            "#, binaries: ["std.core", "std.collection"])
+    }
+
+    @TestCase
+    func aLambdaPassedToACallTheAnalysisCannotDecideHasParametersOfWhyItCannot() {
+        // cjc: `M` gives back its input, so each call is of the overload of an `Int64` (#282)
+        checkUnknowns(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            func h(a: Int64, f: (Int64) -> Int64): Int64 { f(a) }
+            func h(a: String, f: (String) -> String): String { f(a) }
+            func t(): Unit {
+                // two candidates undecided: the lambda's parameter is of why
+                let x = h(@M(1), {v => v})
+            //          ^ todo(macro call)
+            //          ^^^^^^^^^^^^^^^^^^ todo(macro call)
+            //            ^^^^^ todo(macro call)
+            //                         ^ todo(macro call)
+                // a trailing lambda too
+                let y = h(@M(1)) {v => v}
+            //          ^ todo(macro call)
+            //          ^^^^^^^^^^^^^^^^^ todo(macro call)
+            //            ^^^^^ todo(macro call)
+            //                         ^ todo(macro call)
+                // the parameter's uses are of it, not new errors
+                let z = h(@M(1)) {v => let w = v; w}
+            //          ^ todo(macro call)
+            //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^ todo(macro call)
+            //            ^^^^^ todo(macro call)
+            //                                 ^ todo(macro call)
+            //                                    ^ todo(macro call)
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(input: Tokens): Tokens { input }
+            "#)
+    }
 }
