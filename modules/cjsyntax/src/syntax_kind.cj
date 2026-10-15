@@ -419,8 +419,12 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
     /** `$(expr)` in a quote, or `$name`, a reference to `name` */
     | QuoteInterpolation
     | MacroExpandExpr
-    /** `[...]` after a macro name */
+    /** `[...]` after a macro name: std.unittest's attributes when the tokens parse as them */
     | MacroAttr
+    /** `x in src`, `config.x in src`: a parameter of a test and where its values come from */
+    | DataArg
+    /** `T in <A, B>`: a type parameter of a test and the types it is run with */
+    | TypesArg
     /** `(...)` after a macro name: an argument list when the tokens parse as one, before any expansion */
     | MacroArgs
 
@@ -709,7 +713,9 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
             case QuoteInterpolation => 277
             case MacroExpandExpr => 278
             case MacroAttr => 279
-            case MacroArgs => 280
+            case DataArg => 280
+            case TypesArg => 281
+            case MacroArgs => 282
         }
     }
 
@@ -1007,6 +1013,8 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
             case QuoteInterpolation => "QuoteInterpolation"
             case MacroExpandExpr => "MacroExpandExpr"
             case MacroAttr => "MacroAttr"
+            case DataArg => "DataArg"
+            case TypesArg => "TypesArg"
             case MacroArgs => "MacroArgs"
         }
     }

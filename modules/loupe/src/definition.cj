@@ -81,7 +81,7 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
  */
 func itemAround(db: AnalysisDatabase, file: ItemFile, node: CjSyntaxNode): ?DefId {
     let (_, ids) = syntaxOf(db, file) ?? return None
-    let item = node.ancestors() |> filterMap {one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one))} |> first
+    let item = node.ancestors() |> filterMap {one: CjSyntaxNode => ids.idAround(one)} |> first
     DefId(db, file, item ?? return None)
 }
 

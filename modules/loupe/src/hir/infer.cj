@@ -548,6 +548,9 @@ class Inference {
             }
             infer(accessor, Ty(db, expected))
         }
+        for (attr in hir.attrs) {
+            declAttr(attr)
+        }
         let found = fields.values().toArray()
         sort(found, by: {a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index)})
         let chosen = callees.values().toArray()
@@ -1033,22 +1036,9 @@ class Inference {
         for (arg in call.args) {
             infer(arg.expr, None)
         }
-        let file = from ?? return todo(Todo.MacroCall)
-        let owner = pkg ?? return todo(Todo.MacroCall)
-        let decl = match (resolveMacroPath(db, owner, file, call.path).get(call.path.size - 1)) {
-            case Some(Found(ids)) where ids.size == 1 => ids[0]
-            // a macro of a `[…]` and one of none, of one name and package (`@Expect`, `@AssertThrows`): the
-            // call takes the one it fits
-            case Some(Ambiguous(targets)) => oneMacroOf(targets) ?? return todo(Todo.MacroCall)
-            // not found, where cjc may find it: `cjpm test` compiles a package with `--test`, its macros
-            // std.unittest.testmacro's unimported (N137, #255)
-            case _ => return todo(Todo.MacroCall)
-        }
-        if (packageRefOf(db, decl).map {one => nameOf(db, one)} != Some("std.unittest.testmacro")) {
-            return todo(Todo.MacroCall)
-        }
+        let name = unittestMacroOf(call.path) ?? return todo(Todo.MacroCall)
         let thrown = call.attr.map {tys => tys.map {one => typeAt(one)}}
-        match (itemOf(db, decl).flatMap {item => item.names.get(0)} ?? "") {
+        match (name) {
             case "Expect" | "Assert" | "PowerAssert" | "FailExpect" => prim("Unit")
             case "Fail" => prim("Nothing")
             // what it catches: `[A | B]` their join, as `catch (e: A | B)`'s
@@ -1065,6 +1055,67 @@ class Inference {
             }
             case _ => todo(Todo.MacroCall)
         }
+    }
+
+    /**
+     * The name of the macro `path` names if it is std.unittest.testmacro's.
+     */
+    private func unittestMacroOf(path: Array<String>): ?String {
+        let file = from ?? return None
+        let owner = pkg ?? return None
+        let decl = match (resolveMacroPath(db, owner, file, path).get(path.size - 1)) {
+            case Some(Found(ids)) where ids.size == 1 => ids[0]
+            // a macro of a `[…]` and one of none, of one name and package (`@Expect`, `@AssertThrows`): the
+            // call takes the one it fits
+            case Some(Ambiguous(targets)) => oneMacroOf(targets) ?? return None
+            // not found, where cjc may find it: `cjpm test` compiles a package with `--test`, its macros
+            // std.unittest.testmacro's unimported (N137, #255)
+            case _ => return None
+        }
+        if (packageRefOf(db, decl).map {one => nameOf(db, one)} != Some("std.unittest.testmacro")) {
+            return None
+        }
+        itemOf(db, decl).flatMap {item => item.names.get(0)}
+    }
+
+    /**
+     * What a macro on the declaration takes as code in its `[...]`, if it is std.unittest's (#191): as cjc's
+     * expansion, `src` of `x in src` is evaluated outside the declaration, of a test or a strategy a
+     * `DataStrategy<T>` of `x`'s type `T`, checked quietly (a `DataStrategyProcessor` is one too); `v` of `k: v` set
+     * as the option `KeyK.k`, inferred alone.
+     */
+    private func declAttr(attr: DeclAttr): Unit {
+        let name = unittestMacroOf(attr.path) ?? return
+        let takesStrategy = name == "Test" || name == "TestCase" || name == "Strategy"
+        for (arg in attr.args) {
+            match (arg) {
+                case DataArg(param, source) =>
+                    let paramTy = param.map {one => infer(one, None)}
+                    let expected = match (paramTy) {
+                        case Some(ty) where takesStrategy => dataStrategyOf(ty)
+                        case _ => None<Ty>
+                    }
+                    quiet++
+                    infer(source, expected)
+                    quiet--
+                case OptionArg(key, value) =>
+                    infer(key, None)
+                    infer(value, None)
+                case ValueArg(value) => infer(value, None)
+                case TypesArg(_, _) => ()
+            }
+        }
+    }
+
+    /**
+     * std.unittest.common's `DataStrategy<element>`, if the project has it.
+     */
+    private func dataStrategyOf(element: Ty): ?Ty {
+        let ref = stdViewerOf(db, def) ?? return None
+        let common = packageIndex(db).find("std.unittest.common", from: ref) ?? return None
+        let defs = packageExports(db, common).names.get("DataStrategy") ?? return None
+        let id = defs.iterator().filter {one => one.id.item(db).kind == ItemKind.Interface}.next()?.id ?? return None
+        Ty(db, DeclTy(id, [element]))
     }
 
     /**

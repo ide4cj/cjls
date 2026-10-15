@@ -3,7 +3,7 @@ package loupe.hir
 import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxNode}
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
 import cjsyntax.parse as parseText
 import calca.*
@@ -13,7 +13,8 @@ import loupe.syntax.parse
 
 /**
  * A macro called on an item of a source file (#175): the file, the item, and the macro among those called on it,
- * outermost first (its index in `Item.macros`), interned. What it adds is `ItemFile.Expansion` of it.
+ * outermost first (its index in `Item.macros`), or on one of its parameters, after those (`macroCallChainsOf`, D119),
+ * interned. What it adds is `ItemFile.Expansion` of it.
  */
 @CalcaInterned
 public struct MacroCallId {
@@ -233,7 +234,8 @@ func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, Std
     for (item in activeItemTree(db, file).items where !item.macros.isEmpty()) {
         let macros = macrosOf(db, DefId(db, ItemFile.Source(file), item.id))
         var driven = false
-        for (i in 0..macros.size) {
+        // those on the item: a call on one of its parameters (D119) is read through the call on the item alone
+        for (i in 0..item.macros.size) {
             let stdMacro = stdMacroOf(db, macros[i]) ?? continue
             if (!stdMacro.takes(item.kind) || (stdMacro.drivesTheItem && driven)) {
                 continue
@@ -421,7 +423,7 @@ func mappedOrigin(db: AnalysisDatabase, call: MacroCallId, item: ItemId, expansi
         case Some(FromSource(range)) => (TextRange(range.start + anchor, range.end + anchor), full)
         case Some(FromCall) =>
             let node = ids.node(call.item(db), root) ?? return None
-            let macroCall = macroCallsOf(node).get(call.index(db)) ?? return None
+            let macroCall = macroCallAt(node, call.index(db)) ?? return None
             (macroHeadOf(macroCall), full)
         case None => None
     }
@@ -445,4 +447,86 @@ func macroCallsOf(node: CjSyntaxNode): Array<MacroExpandDecl> {
     }
     calls.reverse()
     calls.toArray()
+}
+
+/**
+ * The macro calls on each parameter of the item of `node` that has any, in the parameters' order, each outermost
+ * first (D119): `@M let x` of a primary constructor, in the parameter lists of the declaration itself, not of a
+ * lambda in its body.
+ */
+func paramMacroCallsOf(node: CjSyntaxNode): Array<Array<MacroExpandDecl>> {
+    let chains = ArrayList<Array<MacroExpandDecl>>()
+    for (list in node.children() where list.kind == SyntaxKind.ParamList) {
+        for (child in list.children()) {
+            var call = MacroExpandDecl.cast(child) ?? continue
+            let chain = ArrayList<MacroExpandDecl>([call])
+            while (let Some(Decl.AsMacroExpandDecl(inner)) <- call.decl()) {
+                chain.add(inner)
+                call = inner
+            }
+            chains.add(chain.toArray())
+        }
+    }
+    chains.toArray()
+}
+
+/**
+ * A chain of macro calls of an item (D119): the calls, outermost first, and the index of its first among the item's
+ * (`macroCallChainsOf`).
+ */
+struct MacroCallChain {
+    MacroCallChain(let calls: Array<MacroExpandDecl>, let base: Int64, let onItem: Bool) {}
+}
+
+/**
+ * The macro calls of the item of `node` by index (D119): those on it (`macroCallsOf`), then those on each parameter of
+ * its own parameter lists that has any (`paramMacroCallsOf`), chain after chain. The first chain is the item's own, empty
+ * when it has none.
+ */
+func macroCallChainsOf(node: CjSyntaxNode): Array<MacroCallChain> {
+    let own = macroCallsOf(node)
+    let chains = ArrayList<MacroCallChain>([MacroCallChain(own, 0, true)])
+    var base = own.size
+    for (chain in paramMacroCallsOf(node)) {
+        chains.add(MacroCallChain(chain, base, false))
+        base += chain.size
+    }
+    chains.toArray()
+}
+
+/**
+ * How many macro calls the item of `node` has, on it and on its parameters (D119).
+ */
+func macroCallCountOf(node: CjSyntaxNode): Int64 {
+    // `b` is a root of an error type until #246: `fold(0)` is solved without the pipeline's left (D121)
+    macroCallChainsOf(node) |> map {chain: MacroCallChain => chain.calls.size} |> fold(0) {a, b => a + b}
+}
+
+/**
+ * The chain of the macro call at `index` of the item of `node`, and the call's position in it (D119).
+ */
+func macroCallChainAt(node: CjSyntaxNode, index: Int64): ?(MacroCallChain, Int64) {
+    for (chain in macroCallChainsOf(node) where index >= chain.base && index < chain.base + chain.calls.size) {
+        return (chain, index - chain.base)
+    }
+    None
+}
+
+/**
+ * The macro call at `index` of the item of `node` (D119).
+ */
+func macroCallAt(node: CjSyntaxNode, index: Int64): ?MacroExpandDecl {
+    macroCallChainAt(node, index).map {found => found[0].calls[found[1]]}
+}
+
+/**
+ * The index among the macro calls of the item of `node` of `call`, one of them (D119).
+ */
+func macroCallIndexOf(node: CjSyntaxNode, call: MacroExpandDecl): ?Int64 {
+    for (chain in macroCallChainsOf(node)) {
+        if (let Some(i) <- chain.calls.map {one => one.syntax.textRange}.indexOf(call.syntax.textRange)) {
+            return chain.base + i
+        }
+    }
+    None
 }

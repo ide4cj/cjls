@@ -16,6 +16,15 @@ class WhenDiagnosticsTest {
     }
 
     @TestCase
+    func aConditionInParenthesesOfAPackageWithoutACfgReadsTheProjects() {
+        checkDiagnostics(#"
+            //- /main.cj
+              @When[(os == "Windows")] func f() {}
+              @When[(os != "Windows")] func f() {}
+            "#)
+    }
+
+    @TestCase
     func eachConditionMakingItFalseIsAReason() {
         checkDiagnostics(#"
             //- /main.cj cfg=os:Linux,arch:x86_64
