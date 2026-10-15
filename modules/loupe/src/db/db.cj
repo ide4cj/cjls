@@ -294,7 +294,7 @@ public class AnalysisDatabase <: Database {
 
 /**
  * Those of `files`, the ids of `model`'s files, that are its tests: named `*_test.cj`, which cjc compiles of a
- * package only under `--test` (D127).
+ * package only under `--test` (D128).
  */
 func testFilesOf(model: PackageModel, files: Array<FileId>): Array<FileId> {
     let found = ArrayList<FileId>()

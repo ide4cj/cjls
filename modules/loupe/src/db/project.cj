@@ -412,7 +412,7 @@ public struct Package {
     public var cfg: ?Cfg
     /**
      * Those of `files` that are its tests, named `*_test.cj` (`testFilesOf`): cjc leaves them out of the package
-     * but under `--test`, which imports std.unittest and its macros in them with no line (D127).
+     * but under `--test`, which imports std.unittest and its macros in them with no line (D128).
      */
     public var testFiles: Array<FileId> = []
     /**

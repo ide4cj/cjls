@@ -157,14 +157,14 @@ public func preludeOf(db: AnalysisDatabase, pkg: Package): ?Glob {
 }
 
 /**
- * The packages a file compiled with `--test` imports with no line, as `cjc --test` does (`cjpm test`, D127):
+ * The packages a file compiled with `--test` imports with no line, as `cjc --test` does (`cjpm test`, D128):
  * std.unittest's names, its re-exports among them, and std.unittest.testmacro's macros.
  */
 let TEST_IMPORTS = ["std.unittest", "std.unittest.testmacro"]
 
 /**
  * What a test of `pkg`, `file` one of its `testFiles`, imports with no line: a glob of each of `TEST_IMPORTS` there
- * is (D127). None for any other file.
+ * is (D128). None for any other file.
  */
 public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<Glob> {
     if (!pkg.testFiles(db).contains(file.fileId(db))) {
