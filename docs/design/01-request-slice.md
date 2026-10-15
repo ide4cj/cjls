@@ -45,7 +45,7 @@ Only for a client that cannot pull (`initialize` found no `textDocument.diagnost
 
 | Cause | Mechanism | Answer |
 |---|---|---|
-| a file changed | `Runtime.write` cancels in-flight queries; a stale snapshot throws `CancelledException` | `ContentModified`; `ServerCancelled` with `retriggerRequest: true` for `textDocument/diagnostic` (D14) |
+| a file changed | `Runtime.write` cancels in-flight queries; a stale snapshot throws `CancelledException` | the handler runs again on a snapshot taken then, until it answers or the client cancels (D122); `ContentModified` only from a handler on the loop, which runs no query (S1) |
 | `$/cancelRequest` | token → snapshot's `cancelledBy` → next calca call throws `CancelledException` | `RequestCancelled` |
 | connection closed | every token cancelled | dropped |
 | a push overtaken by a write | its snapshot throws `CancelledException`, or its generation is no longer the latest | nothing sent |
