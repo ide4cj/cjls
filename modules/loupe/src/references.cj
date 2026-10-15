@@ -6,7 +6,7 @@ import rope.Rope
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{ImportAlias, Name, identText, isIdent}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
-import loupe.hir.{DefId, Item, ItemFile, PackageRef, Visibility, itemTreeOf, packageIndex, packageOfFile, parentOf, relationOf,
+import loupe.hir.{DefId, Item, ItemFile, ItemKind, PackageRef, Visibility, itemTreeOf, packageIndex, packageOfFile, parentOf, relationOf,
     scopeFileOf, visibilityOf}
 import loupe.syntax.parse
 import loupe.vfs.FileId
@@ -90,7 +90,8 @@ func aliasesIn(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode, names
 
 /**
  * The files a name meaning any of `meant`, asked about in `from`, may be in, rust-analyzer's
- * `Definition::search_scope` in Cangjie's terms: a local's file, a type parameter's; a `private` declaration's file,
+ * `Definition::search_scope` in Cangjie's terms: a local's file, a type parameter's, but every file for a parameter of
+ * a primary constructor, which may be a member; a `private` declaration's file,
  * a member's as a top-level one's (cjc sees neither in another file); a member of any other visibility, every file of
  * the project, as a value of its type goes anywhere; any other declaration, the files of the packages that see it
  * (`isSeen`) in the modules that may import its (`PackageIndex.scopes`). `from` among them in any case, then the
@@ -109,10 +110,14 @@ func searchScope(db: AnalysisDatabase, meant: Array<Definition>, from: SourceFil
     scope.add(from)
     for (definition in meant) {
         match (definition) {
+            // a parameter of a primary constructor may be a member, named through a value anywhere
+            case LocalDef(def, _) where def.item(db).kind == ItemKind.PrimaryInit => for ((pkg, _) in packages) {
+                scope.addPackage(pkg)
+            }
             case LocalDef(def, _) => scope.add(scopeFileOf(db, def.file(db)))
-            case MemberParamDef(def, _) => scope.add(scopeFileOf(db, def.file(db)))
             case DeclDef(id) => declScope(db, id, packages, scope)
-            case TypeParamDef(_) | PackageDef(_) => ()
+            // `meaningsAt` has a member parameter as the local it is
+            case MemberParamDef(_, _) | TypeParamDef(_) | PackageDef(_) => ()
         }
     }
     scope.files.toArray()
@@ -194,12 +199,8 @@ func mentions(text: Rope, name: String): Bool {
         if (!carry.isEmpty() && (carry + chunk[..boundaryAfter(chunk, name.size - 1)]).contains(name)) {
             return true
         }
-        carry = if (chunk.size >= name.size) {
-            chunk[boundaryAfter(chunk, chunk.size - name.size + 1)..]
-        } else {
-            // a chunk shorter than the name: a match may start in one before it
-            carry + chunk
-        }
+        // a chunk but a lone one is longer than a name (the rope's `MIN_CHUNK`, 256 bytes)
+        carry = chunk[boundaryAfter(chunk, chunk.size - name.size + 1)..]
     }
     false
 }

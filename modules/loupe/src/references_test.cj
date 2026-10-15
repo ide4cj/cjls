@@ -9,11 +9,12 @@ import loupe.syntax.parse
 
 /**
  * Checks the names `findReferences` finds at the `$0` of `fixture` are its annotations, each labeled with how it
- * reaches what it means, `text` for neither, and `decl` when it declares it.
+ * reaches what it means, `text` for neither, and `decl` when it declares it; the packages of std named by
+ * `binaries` read from the SDK.
  */
-func checkReferences(fixture: String): Unit {
+func checkReferences(fixture: String, binaries!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database()
+    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let found = findReferences(db, cursor.fileId, cursor.offset).map {
         one =>
@@ -160,6 +161,61 @@ class ReferencesTest {
                 c$0ount
             //  ^^^^^^^ read
             }
+            "#)
+    }
+
+    @TestCase
+    func aMemberParameterOfAPrimaryConstructorIsFoundInOtherFiles() {
+        checkReferences(#"
+            //- /a.cj module=m package=m
+            package m
+            public class C {
+                public C(public let si$0ze: Int64) {}
+            //                      ^^^^^^ text decl
+                public func twice(): Int64 { size * 2 }
+            //                               ^^^^ read
+            }
+            //- /b.cj module=m package=m
+            package m
+            func f(c: C): Int64 { c.size }
+            //                      ^^^^ read
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterIsFoundInItsDeclaration() {
+        checkReferences(#"
+            //- /a.cj module=m package=m
+            package m
+            func id<T>(x: $0T): T { x }
+            //              ^ text
+            //                  ^ text
+            //- /b.cj module=m package=m
+            package m
+            class T {}
+            "#)
+    }
+
+    @TestCase
+    func aFunctionOfStdIsFoundInEveryPackageAndNotDeclaredInTheWorkspace() {
+        checkReferences(#"
+            //- /a.cj module=m package=m
+            package m
+            func f(): Unit { print$0ln("a") }
+            //               ^^^^^^^^^ read
+            //- /b/b.cj module=n package=n
+            package n
+            func g(): Unit { println("b") }
+            //               ^^^^^^^ read
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func aKeywordHasNoReferences() {
+        checkReferences(#"
+            //- /a.cj module=m package=m
+            package m
+            fu$0nc f(): Int64 { 1 }
             "#)
     }
 
