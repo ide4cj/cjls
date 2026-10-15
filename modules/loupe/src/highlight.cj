@@ -7,7 +7,7 @@ import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TokenSet}
 // the API's ranges, for whoever asks for a part of a file
 public import ginkgo.TextRange
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{Annotation, Decl}
+import cjsyntax.ast.{Annotation, Decl, isIdent}
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
@@ -246,7 +246,7 @@ class Highlighter {
             db.unwindIfCancelled()
         }
         let syntactic = classify(token, inError)
-        let found = if (inError || ids.isNone() || token.kind != SyntaxKind.Ident) {
+        let found = if (inError || ids.isNone() || !isIdent(token)) {
             syntactic
         } else {
             match (resolved(token, item, syntactic)) {

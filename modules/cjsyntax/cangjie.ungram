@@ -42,9 +42,10 @@ Name =
 | symbol:( '[' ']' | '(' ')' | '>>' | '>='
          | '!' | '+' | '-' | '**' | '*' | '/' | '%' | '<<' | '<' | '<=' | '>' | '==' | '!=' | '&' | '^' | '|' | '~' )
 
-// a name being used
+// a name being used; `$name` in a quote, the name `name` where the macro runs
 NameRef =
   'Ident'
+| 'DollarIdent'
 
 Annotation =
   '@' NameRef AnnotationArgList?
@@ -470,9 +471,10 @@ VArrayExpr =
 QuoteExpr =
   'quote' '(' (QuoteInterpolation | 'AnyToken')* ')'
 
-// `$(expr)` in a quote
+// `$(expr)` in a quote, or `$name`, a reference to `name`
 QuoteInterpolation =
   '$' '(' Expr ')'
+| RefExpr
 
 MacroExpandExpr =
   ('@' | '@!') NameRef ('.' NameRef)* MacroAttr? (MacroArgs | MacroExpandExpr)

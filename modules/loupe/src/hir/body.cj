@@ -5,7 +5,8 @@ import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, Decl, GenericConstraint, Interpolation, LambdaExpr, MacroAttr,
-    MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern, ResourceDecl, Type, identText}
+    MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern, QuoteInterpolation, ResourceDecl, Type,
+    identText}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -262,9 +263,10 @@ public enum Expr {
     | LangExpr(LangItem)
     | BlockExpr(Array<Stmt>)
     /**
-     * `quote(…)`: its tokens are what it builds, not code run here; an `std.ast.Tokens` (N136).
+     * `quote(…)`: its tokens are what it builds, not code run here; an `std.ast.Tokens` (N136). Its interpolations,
+     * `$(e)` and `$x`, are: values of the macro, as a string's are of the code around it (#195).
      */
-    | QuoteExpr
+    | QuoteExpr(Array<ExprId>)
     /**
      * A macro call: what it expands to is not known here.
      */
@@ -815,7 +817,9 @@ class BodyLowering {
             case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
             case AstExpr.AsVArrayExpr(it) =>
                 Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
-            case AstExpr.AsQuoteExpr(_) => Expr.QuoteExpr
+            case AstExpr.AsQuoteExpr(it) => Expr.QuoteExpr(it.quoteInterpolations() |> map {
+                one: QuoteInterpolation => exprOf(one.expr())
+            } |> collectArray)
             // no arguments: a macro call on a declaration (`var f = @M func g() {}`) is given the declaration, not
             // values
             case AstExpr.AsMacroExpandDecl(it) => Expr.MacroExpr(MacroCall(macroName(it).split("."), None, []))

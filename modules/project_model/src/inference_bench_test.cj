@@ -62,6 +62,7 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
     }
     match (hir[id]) {
         case StrExpr(parts) => parts
+        case QuoteExpr(parts) => parts
         case FieldExpr(receiver, _, _) => [receiver]
         case CallExpr(callee, args) => [callee].concat(ofArgs(args))
         case IndexExpr(base, indices) => [base].concat(indices)
@@ -112,7 +113,7 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
 func rootKindOf(db: AnalysisDatabase, def: DefId, hir: Body, result: InferenceResult, id: ExprId): String {
     match (hir[id]) {
         case MacroExpr(_) => "macro call"
-        case QuoteExpr => "quote"
+        case QuoteExpr(_) => "quote"
         case PathExpr(name, _) => match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(id), name)) {
             case Values(targets) where targets.size == 1 => match (targets[0]) {
                 case LocalOf(_) => "local"
