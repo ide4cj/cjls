@@ -2073,12 +2073,16 @@ class Inference {
     /**
      * The function type of the one of `callables`, overloads named at `id` as a value, that takes
      * what a function of the parameters `params` is passed (cjc's `CollectValidFuncTys`, N121); an
-     * error if none does or several.
+     * error if none does or several. None is a mismatch: a candidate of a call it is passed to
+     * expecting such a function does not fit (#243).
      */
     private func overloadOfParams(id: ExprId, callables: Array<Callable>, params: Array<Ty>): Ty {
         let fit = callables.filter {
             one => one.open.isNone() && one.params.size == params.size &&
                 (0..params.size).iterator().all {i => isSubtype(db, params[i], one.params[i], from)}
+        }
+        if (fit.isEmpty()) {
+            mismatches++
         }
         if (fit.size != 1) {
             return error

@@ -1115,6 +1115,56 @@ class InferTest {
     }
 
     @TestCase
+    func anOverloadedFunctionPassedToOverloadsFitsOnlyThoseOfAParameterOneOfItTakes() {
+        checkInference(#"
+            package m
+            func h(a: Int64): Int64 { a }
+            //     ^ Int64
+            func h(a: String): String { a }
+            //     ^ String
+            func app2(f: (Rune) -> Rune): Rune { f(r'a') }
+            //        ^ (Rune) -> Rune
+            func app2(f: (String) -> String): String { f("") }
+            //        ^ (String) -> String
+            func app3(f: (Int64) -> Int64): Int64 { 1 }
+            //        ^ (Int64) -> Int64
+            func app3(f: (String) -> String): String { "" }
+            //        ^ (String) -> String
+            func app3(f: (Rune) -> Rune): Rune { r'a' }
+            //        ^ (Rune) -> Rune
+            func pair(f: (Int64) -> Int64, g: (String) -> String): Int64 { 1 }
+            //        ^ (Int64) -> Int64
+            //                             ^ (String) -> String
+            func pair(f: (String) -> String, g: (String) -> String): String { "" }
+            //        ^ (String) -> String
+            //                               ^ (String) -> String
+            func one(f: (Rune) -> Rune): Rune { r'a' }
+            //       ^ (Rune) -> Rune
+            func mix(f: (Int64) -> Int64, x: String): Int64 { 1 }
+            //       ^ (Int64) -> Int64
+            //                            ^ String
+            func mix(f: (String) -> String, x: Int64): String { "" }
+            //       ^ (String) -> String
+            //                              ^ Int64
+            func test(): Unit {
+                let a = app2(h)
+            //      ^ String
+                // cjc: ambiguous match for function call 'app3'
+                let b = app3(h)
+            //      ^ {unknown}
+                // cjc: ambiguous match for function call 'pair'
+                let p = pair(h, h)
+            //      ^ {unknown}
+                // cjc: no matching function declaration for function reference 'h'
+                let o = one(h)
+            //      ^ Rune
+                let m = mix(h, 1)
+            //      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
     func anOverloadedCallInAnArgumentIsTakenForEachCandidateTried() {
         // N115 nested: the inner call's overload by the type the outer candidate expects
         checkInference(#"
