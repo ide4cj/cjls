@@ -2329,15 +2329,26 @@ class Inference {
                 if (!all.isEmpty()) {
                     mismatches++
                 }
-                let argTys = args.map {arg => infer(arg.expr, None)}
+                // a lambda of a parameter whose type it does not write waits for why the call fails
+                let argTys = args.filter {arg => !isUntypedLambda(arg.expr)}.map {arg => infer(arg.expr, None)}
                 // an argument not known fits any candidate: of several, none is taken for it; a
                 // macro whose expansion is not read may declare the one that fits
-                let failure = if (all.isEmpty()) {
+                let why = if (all.isEmpty()) {
                     calleeFailure(callee)
                 } else if (let Some(unknown) <- unknownOf(db, argTys.concat(listOf(expected)))) {
                     unknown
                 } else {
                     macroFailure(callee)
+                }
+                // its parameters are of it: cjc checks no lambda of a call that fails, so their uses
+                // are no errors of their own (#282)
+                let lambdaTys = args.filter {arg => isUntypedLambda(arg.expr)}.map {
+                    arg => infer(arg.expr, failedLambda(arg.expr, why))
+                }
+                // a type the analysis cannot find in a lambda's body may be why too
+                let failure = match (unknownOf(db, lambdaTys)) {
+                    case Some(one) where !all.isEmpty() && !isTodo(db, why) && isTodo(db, one) => one
+                    case _ => why
                 }
                 match (hir[callee]) {
                     case PathExpr(_, _) | FieldExpr(_, _, _) | LangExpr(_) => setExpr(callee, failure)
@@ -3118,6 +3129,17 @@ class Inference {
                     lower.contains(".") || lower.contains("e")
                 })
             case UnaryExpr("-", inner) => idealLiteral(inner)
+            case _ => None
+        }
+    }
+
+    /**
+     * What a lambda `id` passed to a call that fails `why` is expected to be: a function of as many
+     * parameters, each of `why`, returning it.
+     */
+    private func failedLambda(id: ExprId, why: Ty): ?Ty {
+        match (hir[id]) {
+            case LambdaExpr(params, _) => Ty(db, FuncTy(Array(params.size) {_ => why}, why, false))
             case _ => None
         }
     }
