@@ -28,3 +28,12 @@ edit_queries = 885
 cold_queries = 1980
 warm_queries = 0
 edit_queries = 1065
+
+# measured with #388's index of words, nightly 1.3.0-alpha.20261014001050, on std's sources (the
+# scenario's own workspace, whatever the options, macros off): 45171 / 46 / 257 / 2789; #387's scan
+# of the texts asked 510 for `reserve`, every file parsed for the `reserve` of "All rights reserved"
+[cjls.references]
+common_queries = 56500
+rare_queries = 58
+edit_rare_queries = 320
+edit_common_queries = 3500

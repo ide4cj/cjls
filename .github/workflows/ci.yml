@@ -206,6 +206,8 @@ jobs:
           path: bin
       - run: chmod +x "$CJLS_BIN"
       - uses: astral-sh/setup-uv@v7
+      # std's sources, the workspace of the references scenario
+      - run: python3 tests/corpora/fetch.py cangjie_runtime
       - name: cjls-perf
         run: |
           uv run --project tests/perf --locked cjls-perf run --server cjls -o perf.json

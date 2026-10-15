@@ -1,7 +1,11 @@
 """What the servers are measured on: a cjpm project, generated or given."""
 
 import pathlib
-from dataclasses import dataclass
+import shutil
+from dataclasses import dataclass, field
+
+# std's sources at the nightly's commit, as `tests/corpora/fetch.py` fetches them (D65)
+STD_SOURCES = pathlib.Path(__file__).resolve().parents[3] / ".corpora" / "cangjie_runtime" / "stdlib" / "libs" / "std"
 
 MANIFEST = """\
 [package]
@@ -94,6 +98,8 @@ def text(lines: int) -> str:
 class Workspace:
     root: pathlib.Path
     subject: pathlib.Path  # the file the scenarios open and edit
+    # `initializationOptions` the workspace needs of a server, by its name, over servers.toml's
+    settings: dict[str, dict] = field(default_factory=dict)
 
     @property
     def subject_text(self) -> str:
@@ -119,3 +125,23 @@ def existing(root: pathlib.Path, subject: pathlib.Path | None) -> Workspace:
             raise ValueError(f"no .cj file under {root}")
         subject = max(files, key=lambda path: path.stat().st_size)
     return Workspace(root=root, subject=subject.resolve())
+
+
+def std_sources(directory: pathlib.Path) -> Workspace:
+    """std's sources as a cjpm project of their own, `std`, a large workspace of files that name one
+    another (about 500 files, 6 MB); the subject is `ArrayList`'s file. A copy: the server's
+    directory is its, whatever it writes there.
+
+    cjls runs no macro here: std's macro packages do not build from its sources (`std.ast` does
+    not), and the end of that build, a write, lands in the middle of the first request at another
+    point each run, which then counts a few hundred queries more or fewer (D81)."""
+    if not STD_SOURCES.is_dir():
+        raise FileNotFoundError(f"no {STD_SOURCES}: run python3 tests/corpora/fetch.py cangjie_runtime")
+    source = directory / "src"
+    shutil.copytree(STD_SOURCES, source)
+    (directory / "cjpm.toml").write_text(MANIFEST.replace('"bench"', '"std"').replace('"executable"', '"static"'), encoding="utf-8")
+    return Workspace(
+        root=directory,
+        subject=source / "collection" / "array_list.cj",
+        settings={"cjls": {"macroExpansion": False}},
+    )
