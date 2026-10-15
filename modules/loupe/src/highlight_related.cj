@@ -5,9 +5,9 @@ import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, BinExpr, MemberAccessExpr, Name, NameRef, Param, ParenExpr, Pattern, PostfixExpr,
-    RefExpr, TupleExpr, VarDecl, identText, isIdent}
+    RefExpr, TupleExpr, TypeParam, TypeParamList, VarDecl, identText, isIdent}
 import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.hir.{DefId, ItemFile, itemIdMap}
+import loupe.hir.{DefId, ItemFile, LocalFunc, TypeTarget, bodyWithSourceMap, itemIdMap}
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
@@ -72,13 +72,19 @@ func namesMeaning(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode, na
 }
 
 /**
- * What the name `token` means: the item it is the name of at its declaration, what `classifyName` says anywhere
- * else; a parameter of a primary constructor as the local it is in the constructor's body, whether named as that or
- * as a member, and a package as nothing.
+ * What the name `token` means: the item or type parameter it is the name of at its declaration, what `classifyName`
+ * says anywhere else; a parameter of a primary constructor as the local it is in the constructor's body, whether
+ * named as that or as a member, and a package as nothing.
  */
 func meaningsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): Array<Definition> {
     if (let Some(name) <- Name.cast(token.parent)) {
         let decl = name.syntax.parent ?? return []
+        if (let Some(param) <- TypeParam.cast(decl)) {
+            return match (typeParamTarget(db, file, param)) {
+                case Some(target) => [Definition.TypeParamDef(target)]
+                case None => []
+            }
+        }
         if (let Some(item) <- itemIdMap(db, file).idOf(SyntaxNodePtr(decl)) &&
             (AnyHasName.cast(decl).flatMap {it => it.name()}.map {it => it.syntax == name.syntax} ?? false)) {
             return [Definition.DeclDef(DefId(db, ItemFile.Source(file), item))]
@@ -92,6 +98,28 @@ func meaningsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): A
             case _ => Some(definition)
         }
     } |> collectArray
+}
+
+/**
+ * The type parameter `param` of `file` declares, as its uses name it: of the item it is of, or of a function a body
+ * declares (N68).
+ */
+func typeParamTarget(db: AnalysisDatabase, file: SourceFile, param: TypeParam): ?TypeTarget {
+    let list = param.syntax.parent.flatMap {node => TypeParamList.cast(node)} ?? return None
+    let decl = list.syntax.parent ?? return None
+    let index = (list.typeParams() |> enumerate |> filter {pair: (Int64, TypeParam) => pair[1] == param} |>
+        map {pair: (Int64, TypeParam) => pair[0]} |> first) ?? return None
+    if (let Some(item) <- itemIdMap(db, file).idOf(SyntaxNodePtr(decl))) {
+        return TypeTarget.GenericOf(DefId(db, ItemFile.Source(file), item), index)
+    }
+    let name = AnyHasName.cast(decl).flatMap {it => it.name()} ?? return None
+    let owner = itemAround(db, ItemFile.Source(file), decl) ?? return None
+    let lowered = bodyWithSourceMap(db, owner)
+    let ptr = SyntaxNodePtr(name.syntax)
+    let localFunc = (lowered.body.funcs |> enumerate |> filter {
+        pair: (Int64, LocalFunc) => (lowered.sourceMap.locals.get(pair[1].local.index) ?? None) == ptr
+    } |> map {pair: (Int64, LocalFunc) => pair[0]} |> first) ?? return None
+    TypeTarget.LocalGenericOf(owner, localFunc, index)
 }
 
 /**
