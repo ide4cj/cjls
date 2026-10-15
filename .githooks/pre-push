@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+# every Cangjie file as `cjls fmt` leaves it, as CI's Format job holds it (D60); first, failing fast
+cjpm build
+target/release/bin/cjls fmt --check .
+
 python3 tests/corpora/fetch.py
 # a directory of its own: tests and builds sharing one undo each other's incremental cache (D27)
 cjpm test --target-dir target/test

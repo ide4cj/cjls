@@ -80,17 +80,12 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         if ((macros ?? []).isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
             return builtinHover(token, doc)
         }
-        // the macro called, as at its name where it is declared; a class an annotation of its own names
-        let items = (macros ?? []) |> filterMap {
-            called: Definition => match (called) {
-                case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
-                case _ => None<HoverItem>
-            }
-        } |> collectArray
-        if (items.isEmpty()) {
-            return None
-        }
-        return HoverResult(token.textRange, items)
+        // the macro called, as at its name where it is declared; a class an annotation of its own names; a package
+        return hoverOfDefinitions(db, token, macros ?? [])
+    }
+    if (let Some(imported) <- importDefinitions(db, scope, token)) {
+        // what a leaf of an `import` brings, each overload of it; a package its path names
+        return hoverOfDefinitions(db, token, imported ?? [])
     }
     if (let Some(doc) <- builtinAnnotationAt(token)) {
         return builtinHover(token, doc)
@@ -105,6 +100,24 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
     } else {
         Hovers(db, def, token).ofBody()
     }
+    if (items.isEmpty()) {
+        return None
+    }
+    HoverResult(token.textRange, items)
+}
+
+/**
+ * The hover of `token` that means `defs`: a declaration as at its name, a package as its header names it (A36).
+ */
+func hoverOfDefinitions(db: AnalysisDatabase, token: CjSyntaxToken, defs: Array<Definition>): ?HoverResult {
+    let items = defs |> filterMap {
+        one: Definition => match (one) {
+            case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
+            case PackageDef(Source(pkg)) => HoverItem("package ${pkg.name(db)}")
+            case PackageDef(Binary(pkg)) => HoverItem("package ${pkg.name(db)}")
+            case _ => None<HoverItem>
+        }
+    } |> collectArray
     if (items.isEmpty()) {
         return None
     }

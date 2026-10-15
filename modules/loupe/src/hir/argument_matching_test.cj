@@ -309,4 +309,31 @@ class ArgumentMatchingTest {
             "#)
     }
 
+    @TestCase
+    func aLambdaArgumentExcludesTheCandidatesOfFewerParametersAndMismatchesThoseOfNoFunction() {
+        checkInference(#"
+            package m
+            func k(f: () -> Int64): Int64 { f() }
+            //     ^ () -> Int64
+            func k(f: () -> Int64, n: Int64): String { "" }
+            //     ^ () -> Int64
+            //                     ^ Int64
+            func k(n!: Int64): Bool { true }
+            //     ^ Int64
+            func f(): Unit {
+                // the first takes one argument: excluded; the third's `n` is no function: mismatched
+                let a = k({ => 1 }, 2)
+            //      ^ String
+                let b = k({ => 1 })
+            //      ^ Int64
+                // by name: the candidate without a `g` is mismatched
+                let c = j(g: { => 1 })
+            //      ^ String
+            }
+            func j(f!: () -> Int64): Int64 { f() }
+            //     ^ () -> Int64
+            func j(g!: () -> Int64): String { "" }
+            //     ^ () -> Int64
+            "#)
+    }
 }
