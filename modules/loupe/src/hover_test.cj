@@ -469,18 +469,123 @@ class HoverTest {
     }
 
     @TestCase
-    func aPackageInAMacrosPathShowsNothing() {
+    func aPackageInAMacrosPathShowsThePackage() {
         checkHover(#"
             //- /main.cj module=m package=m
             package m
             import m.ms
             @$0ms.M
-            // ^^ no hover
+            // ^^ package m.ms
             func f(): Unit {}
             //- /ms/ms.cj module=m package=m.ms
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
+            "#)
+    }
+}
+
+@Test
+class HoverImportTest {
+    @TestCase
+    func aNameAnImportBringsShowsItsDeclaration() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.a.$0f
+            //         ^ public func f(): Unit in m.a — does f
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            /** does f */
+            public func f(): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func aNameAnImportBringsShowsEachOverload() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.a.{$0f}
+            //          ^ public func f(): Unit in m.a
+            //          ^ public func f(x: Int64): Unit in m.a
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public func f(): Unit {}
+            public func f(x: Int64): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func anAliasShowsTheDeclarationItImports() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.a.C as $0D
+            //              ^ public class C in m.a
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public class C {}
+            "#)
+    }
+
+    @TestCase
+    func aNameBeforeTheLeafShowsThePackageThePathNamesUpToIt() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.$0a.b.*
+            //       ^ package m.a
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            //- /a/b/b.cj module=m package=m.a.b
+            package m.a.b
+            public func f(): Unit {}
+            "#)
+    }
+
+    @TestCase
+    func aLeafThatIsAPackageShowsThePackage() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.$0a
+            //       ^ package m.a
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            "#)
+    }
+
+    @TestCase
+    func aNameOfStdAnImportBringsShowsItsSignatureFromItsCjo() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.collection.$0ArrayList
+            //                      ^^^^^^^^^ public class ArrayList<T> <: List<T> in std.collection
+            "#, std: ["std.core", "std.collection"])
+    }
+
+    @TestCase
+    func aPackageOfStdInAnImportsPathShowsThePackage() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.$0collection.ArrayList
+            //           ^^^^^^^^^^ package std.collection
+            "#, std: ["std.core", "std.collection"])
+    }
+
+    @TestCase
+    func aNameAnImportCannotFindShowsNothing() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.a.$0g
+            //         ^ no hover
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public func f(): Unit {}
             "#)
     }
 }
