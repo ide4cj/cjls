@@ -35,12 +35,15 @@ class MacroServerArgsTest {
     @TestCase
     func theServerLoadsTheRuntimeThenItsOwnLibrariesBeforeAnyInherited(): Unit {
         // arrange
-        let paths = MacroServerPaths.inSdk(Path("/sdk"), "linux_x86_64_cjnative")
+        let sdk = Path("/sdk")
+        let paths = MacroServerPaths.inSdk(sdk, "linux_x86_64_cjnative")
 
         // act
         let dirs = macroServerLibraryDirs(paths)
 
-        // assert: as envsetup orders them, the second what the server's RUNPATH names ($ORIGIN/../lib)
-        @Expect(dirs.map {dir => dir.toString()}, ["/sdk/runtime/lib/linux_x86_64_cjnative", "/sdk/tools/lib"])
+        // assert: as envsetup orders them, the second what the server's RUNPATH names ($ORIGIN/../lib); spelled
+        // as the host joins paths (`\` on Windows)
+        @Expect(dirs.map {dir => dir.toString()},
+            [paths.runtimeLib.toString(), sdk.join("tools").join("lib").toString()])
     }
 }
