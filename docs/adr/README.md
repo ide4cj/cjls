@@ -133,3 +133,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0112](0112-arguments-are-matched-before-a-candidate-is-tried.md) | A call's arguments are matched to each candidate's parameters before it is tried, as cjc | proposed |
 | [0113](0113-the-architecture-is-the-only-when.md) | `hostArch` is the one `@When` of this repository's code, and a set's files are named for what they hold | proposed |
 | [0114](0114-std-derive-is-expanded-in-a-workspace-macros-input.md) | A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child | proposed |
+| [0116](0116-quote-interpolations-are-code-of-the-macro.md) | A quote's interpolations are code of the macro, the rest of it tokens | proposed |
