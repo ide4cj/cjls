@@ -471,6 +471,82 @@ public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & HasModifiers & Has
     }
 }
 
+/**
+ * What a macro called where an expression stands writes, as `parseExpr` reads it: one expression (D117).
+ */
+@Derive[Equatable, Hashable]
+public struct ExprFile <: AstNode<SyntaxKind, ExprFile> & ToString {
+    ExprFile(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        kind == SyntaxKind.ExprFile
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?ExprFile {
+        if (canCast(node.kind)) {
+            ExprFile(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func expr(): ?Expr {
+        astChild<SyntaxKind, Expr>(node)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
+/**
+ * What a macro called where a block's statement stands writes, as `parseStmts` reads it: statements (D117).
+ */
+@Derive[Equatable, Hashable]
+public struct StmtsFile <: AstNode<SyntaxKind, StmtsFile> & ToString {
+    StmtsFile(let node: SyntaxNode<SyntaxKind>) {}
+
+    public static func canCast(kind: SyntaxKind): Bool {
+        kind == SyntaxKind.StmtsFile
+    }
+
+    public static func cast(node: SyntaxNode<SyntaxKind>): ?StmtsFile {
+        if (canCast(node.kind)) {
+            StmtsFile(node)
+        } else {
+            None
+        }
+    }
+
+    public prop syntax: SyntaxNode<SyntaxKind> {
+        get() {
+            node
+        }
+    }
+
+    public func stmts(): Iterator<Stmt> {
+        astChildren<SyntaxKind, Stmt>(node)
+    }
+
+    public func semicolonToken(): ?SyntaxToken<SyntaxKind> {
+        astToken(node, SyntaxKind.Semicolon)
+    }
+
+    public func semicolonTokens(): Iterator<SyntaxToken<SyntaxKind>> {
+        astTokens(node, SyntaxKind.Semicolon)
+    }
+
+    public func toString(): String {
+        node.text()
+    }
+}
+
 @Derive[Equatable, Hashable]
 public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasModifiers & HasAnnotations & ToString {
     FeaturesDirective(let node: SyntaxNode<SyntaxKind>) {}

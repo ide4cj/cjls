@@ -59,7 +59,8 @@ public func hoverAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?Hover
 /**
  * What the name at `offset` of the text of the expansion of `call` (`expandedMacro`) stands for, as `hoverAt` finds
  * it in a file, the names of the expansion in the scope of the call's file; the range of the result is of that text.
- * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`).
+ * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`). In the expression or statements a
+ * call in an item expands to, a name as where the call stands (`callSiteNameOf`).
  */
 public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: Int64): ?HoverResult {
     hoverIn(db, ItemFile.Expansion(call), offset)
@@ -91,6 +92,10 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         return builtinHover(token, doc)
     }
     let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idAround(node)} |> first
+    if (let Expansion(call) <- file && item.isNone()) {
+        // an expression or statements a call in an item expands to (D117), read where the call stands
+        return hoverAtCallSite(db, call, token, offset)
+    }
     let def = DefId(db, file, item ?? return None)
     let items = if (isDeclaredName(db, def, token)) {
         // what a workspace macro's expansion made of it, the interfaces it added and all
@@ -253,12 +258,7 @@ class Hovers {
             if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
                 return ofDecl(decl)
             }
-            return match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())) {
-                case Values(targets) => targets |> filterMap {target: ValueTarget => valueItem(target, None)} |>
-                    collectArray
-                case InFile(resolution) => fileDecls(resolution) |> filterMap {id: DefId => declItem(id, None)} |>
-                    collectArray
-            }
+            return ofResolution(resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text()))
         }
         if (let Some(access) <- accessNodeOf(node)) {
             let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return []
@@ -303,6 +303,18 @@ class Hovers {
             return []
         }
         listOf(sourceMap.localAt(SyntaxNodePtr(name)).flatMap {local => localItem(def, local)})
+    }
+
+    /**
+     * What a plain name of the body of `def` stands for, as `resolution`, what it resolved to, says.
+     */
+    func ofResolution(resolution: BodyResolution): Array<HoverItem> {
+        match (resolution) {
+            case Values(targets) => targets |> filterMap {target: ValueTarget => valueItem(target, None)} |>
+                collectArray
+            case InFile(resolution) => fileDecls(resolution) |> filterMap {id: DefId => declItem(id, None)} |>
+                collectArray
+        }
     }
 
     /**

@@ -284,7 +284,7 @@ class ParseTest {
         let text = "func f() {}\n// end\n"
 
         // act
-        let parse = parseWithGrammar(text) {p => p.bump(Semicolon)}
+        let parse = parseWithGrammar(text, {p => p.bump(Semicolon)})
 
         // assert
         let sb = StringBuilder()
@@ -293,5 +293,69 @@ class ParseTest {
         @Expect(sb.toString(), "(SourceFile (ErrorNode func f ( ) { }))")
         @Expect(parse.errors.size, 1)
         @Expect(message(parse.errors[0].error).startsWith("the parser failed on this file, a bug in it: bump(Semicolon)"))
+    }
+}
+
+/**
+ * The tree of `parse` with its errors, as `sexp` shows a file's.
+ */
+func entrySexp(parse: CjParse): String {
+    let sb = StringBuilder()
+    writeSexp(sb, parse.syntaxNode())
+    for (e in parse.errors) {
+        sb.append(" !${e.range}: ${message(e.error)}")
+    }
+    sb.toString()
+}
+
+/**
+ * The entries a macro's output is parsed with by where its call stands (D117): an expression, a block's statements.
+ */
+@Test
+class EntryParseTest {
+    @TestCase
+    func anExpressionIsOneExpression() {
+        @Expect(entrySexp(parseExpr("(1 + 2) * x")),
+            "(ExprFile (BinExpr (ParenExpr ( (BinExpr (Literal 1) + (Literal 2)) )) * (RefExpr (NameRef x))))")
+    }
+
+    @TestCase
+    func anExpressionAnOperatorCarriesOverALineIsOne() {
+        @Expect(entrySexp(parseExpr("a +\n    b")), "(ExprFile (BinExpr (RefExpr (NameRef a)) + (RefExpr (NameRef b))))")
+    }
+
+    @TestCase
+    func aDeclarationIsNoExpression() {
+        @Expect(entrySexp(parseExpr("func local() {}\nlocal()")),
+            "(ExprFile (ErrorNode func local ( ) { } local ( ))) !0..0: expected an expression")
+    }
+
+    @TestCase
+    func whatFollowsTheExpressionIsAnError() {
+        @Expect(entrySexp(parseExpr("1\n2")),
+            "(ExprFile (Literal 1) (ErrorNode 2)) !2..2: expected the end of the expression")
+    }
+
+    @TestCase
+    func nothingIsNoExpression() {
+        @Expect(entrySexp(parseExpr("")), "(ExprFile) !0..0: expected an expression")
+    }
+
+    @TestCase
+    func statementsDeclareAndUse() {
+        @Expect(entrySexp(parseStmts("func local(): Int64 { 41 }\nlet x = local() + 1; x")),
+            "(StmtsFile (FuncDecl func (Name local) (ParamList ( )) (RetType : (PrimType Int64)) (Block { (Literal 41) })) (VarDecl let (Name x) = (BinExpr (CallExpr (RefExpr (NameRef local)) (ArgList ( ))) + (Literal 1))) ; (RefExpr (NameRef x)))")
+    }
+
+    @TestCase
+    func aStrayBraceInStatementsIsAnErrorNotTheEnd() {
+        @Expect(entrySexp(parseStmts("a }\nb")),
+            "(StmtsFile (RefExpr (NameRef a)) (ErrorNode }) (RefExpr (NameRef b))) !1..1: expected a newline or ';' !2..2: expected an expression or a declaration")
+    }
+
+    @TestCase[text in ["", "@", "1 +", "{", "class", ")", "}}"]]
+    func brokenOutputStillGivesATreeCoveringIt(text: String) {
+        @Expect(parseExpr(text).syntaxNode().text(), text)
+        @Expect(parseStmts(text).syntaxNode().text(), text)
     }
 }

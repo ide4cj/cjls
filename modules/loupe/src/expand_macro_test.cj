@@ -1,8 +1,10 @@
 package loupe
 
+import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
+import cjsyntax.message
 import rope.Rope
 import loupe.db.*
 import loupe.fixture.*
@@ -526,5 +528,168 @@ class InExpansionTest {
         let s = offsetIn(file.text, "S {}")
         @Expect(onS.map {one => placeOf(one)}, ["${file.fileId} ${TextRange(s, s + 1)}"])
         @Expect(hover?.items.map {item => item.code}, Some(["public func hashCode(): Int64"]))
+    }
+}
+
+/**
+ * The expansion of a macro called in an item (D117), parsed as where the call stands says, and hover and go to
+ * definition in it.
+ */
+@Test
+class ExpressionExpansionTest {
+    @TestCase
+    func whereTheCallStandsSaysWhatItsOutputIsParsedAs() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            let g = @B(0)
+            func f(): Unit {
+                let a = @B(1)
+                @B(2)
+                let l = { => @B(3) }
+                let s = "${@B(4)}"
+                match (1) {
+                    case _ => @B(5)
+                }
+                match {
+                    case @B(6) => ()
+                }
+                h(@B(7))
+            }
+            @A
+            func h(a: Int64): Unit {}
+            "#)
+
+        // act
+        let inItems = serverCalls(db, file) |> filter {one: ServerCall => one.call.inBody(db).isSome()} |>
+            map {one: ServerCall => "${one.call.index(db)} ${expandToOf(db, one.call)}"} |> collectArray
+        let onItem = expandToOf(db, requestFor(db, file, "A").call)
+
+        // assert
+        @Expect(inItems, ["0 ToExpr", "0 ToExpr", "1 ToStmts", "2 ToStmts", "3 ToStmts", "4 ToStmts", "5 ToExpr",
+            "6 ToExpr"])
+        @Expect(onItem, ExpandTo.ToItems)
+    }
+
+    @TestCase
+    func aNameTheMacroCopiedIsHoveredAndGoesAsInTheSource() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Int64 {
+                let x = 1
+                let y = @B(x + 1)
+                y
+            }
+            "#)
+        let source = file.text(db).toString()
+        let copied = offsetIn(source, "x + 1") - offsetIn(source, "func f")
+        let text = "(x + 1) * 2"
+        let call = answer(db, file, "B", text, [
+            MappedSpan(TextRange(0, 1), SpanOrigin.FromCall),
+            MappedSpan(TextRange(1, 6), SpanOrigin.FromSource(TextRange(copied, copied + 5))),
+            MappedSpan(TextRange(6, text.size), SpanOrigin.FromCall)
+        ])
+
+        // act
+        let hover = hoverInExpansion(db, call, offsetIn(text, "x"))
+        let targets = definitionInExpansion(db, call, offsetIn(text, "x"))
+
+        // assert
+        @Expect(expansionParse(db, call).errors.size, 0)
+        @Expect(hover?.range, Some(TextRange(1, 2)))
+        @Expect(hover?.items.map {item => item.code}, Some(["let x: Int64"]))
+        let x = offsetIn(source, "x = 1")
+        @Expect(targets.map {one => placeOf(one)}, ["${file.fileId(db)} ${TextRange(x, x + 1)}"])
+    }
+
+    @TestCase
+    func aNameTheMacroWroteIsReadWhereTheCallStands() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func twice(a: Int64): Int64 { a * 2 }
+            func f(): Int64 {
+                let x = 1
+                let y = @B(0)
+                let after = 2
+                y
+            }
+            "#)
+        let source = file.text(db).toString()
+        let text = "twice(x) + after"
+        let call = answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+
+        // act
+        let onTwice = hoverInExpansion(db, call, offsetIn(text, "twice"))
+        let onX = hoverInExpansion(db, call, offsetIn(text, "x"))
+        let onAfter = hoverInExpansion(db, call, offsetIn(text, "after"))
+        let toTwice = definitionInExpansion(db, call, offsetIn(text, "twice"))
+        let toX = definitionInExpansion(db, call, offsetIn(text, "x"))
+
+        // assert
+        @Expect(onTwice?.range, Some(TextRange(0, 5)))
+        @Expect(onTwice?.items.map {item => item.code}, Some(["func twice(a: Int64): Int64"]))
+        @Expect(onX?.items.map {item => item.code}, Some(["let x: Int64"]))
+        @Expect(onAfter.isNone())
+        let twice = offsetIn(source, "twice")
+        @Expect(toTwice.map {one => placeOf(one)}, ["${file.fileId(db)} ${TextRange(twice, twice + 5)}"])
+        let x = offsetIn(source, "x = 1")
+        @Expect(toX.map {one => placeOf(one)}, ["${file.fileId(db)} ${TextRange(x, x + 1)}"])
+    }
+
+    @TestCase
+    func aNameTheStatementsDeclareThemselvesIsNotReadWhereTheCallStands() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Int64 {
+                let x = 1
+                @B(0)
+            }
+            "#)
+        let text = "let x = 2\nx"
+        let call = answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+
+        // act
+        let hover = hoverInExpansion(db, call, offsetIn(text, "x", n: 1))
+        let targets = definitionInExpansion(db, call, offsetIn(text, "x", n: 1))
+
+        // assert
+        @Expect(expandToOf(db, call), ExpandTo.ToStmts)
+        @Expect(expansionParse(db, call).errors.size, 0)
+        @Expect(hover.isNone())
+        @Expect(targets.size, 0)
+    }
+
+    @TestCase
+    func anOutputThatIsNoExpressionIsAParseErrorOfItsFile() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func local(): Int64 { 0 }
+            func f(): Int64 {
+                let y = @B(0)
+                y
+            }
+            "#)
+        let text = "func local() {}\nlocal()"
+        let call = answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+
+        // act
+        let errors = expansionParse(db, call).errors.map {error => "${error.range} ${message(error.error)}"}
+        let hover = hoverInExpansion(db, call, offsetIn(text, "local", n: 1))
+        let targets = definitionInExpansion(db, call, offsetIn(text, "local", n: 1))
+
+        // assert
+        @Expect(errors, ["0..0 expected an expression"])
+        @Expect(expandedMacro(db, call)?.text, Some(text))
+        @Expect(hover.isNone())
+        @Expect(targets.size, 0)
     }
 }
