@@ -3,7 +3,6 @@
 # of the analysis, a gap to close. A count grown fails the gate with where each root is, one shrunk
 # until rewritten, so the file only shrinks; #48 is done with it empty (D108).
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=ErrorRootsGateTest.*'` writes it.
-modules/calca/src/interned_gc_test.cj: local: 1
 modules/cjls/src/command.cj: member found: 1
 modules/cjls/src/command.cj: name not found: 3
 modules/cjls/src/fetch_src.cj: other: 1
@@ -17,9 +16,7 @@ modules/cjls/src/handlers/settings.cj: member found: 4
 modules/cjls/src/handlers/settings_test.cj: name not found: 1
 modules/cjls/src/handlers/to_proto.cj: local: 3
 modules/cjls/src/handlers/to_proto.cj: name not found: 1
-modules/cjls/src/handlers/workspace.cj: local: 3
 modules/cjls/src/handlers/workspace.cj: member found: 7
-modules/cjls/src/handlers/workspace_test.cj: local: 4
 modules/cjls/src/handlers/workspace_test.cj: name not found: 17
 modules/cjls/src/heap.cj: member found: 2
 modules/cjls/src/logging.cj: member found: 1
@@ -35,13 +32,11 @@ modules/cjls/src/server/server_test.cj: member found: 3
 modules/fbs_codegen/src/code_writer.cj: member found: 1
 modules/fnum/src/ryu.cj: local: 2
 modules/fnum/src/ryu.cj: operator |: 2
-modules/loupe/src/db/project_test.cj: local: 3
 modules/loupe/src/definition.cj: local: 4
 modules/loupe/src/definition.cj: operator ??: 1
 modules/loupe/src/fixture/expect.cj: local: 8
 modules/loupe/src/fixture/expect.cj: member found: 1
 modules/loupe/src/fixture/fixture.cj: member found: 2
-modules/loupe/src/fixture/fixture_test.cj: local: 3
 modules/loupe/src/hir/binary.cj: local: 1
 modules/loupe/src/hir/body.cj: local: 16
 modules/loupe/src/hir/body_test.cj: index: 2
@@ -50,10 +45,8 @@ modules/loupe/src/hir/def_map.cj: local: 2
 modules/loupe/src/hir/expansion.cj: index: 2
 modules/loupe/src/hir/expansion.cj: local: 3
 modules/loupe/src/hir/expansion.cj: operator ??: 1
-modules/loupe/src/hir/infer.cj: local: 1
 modules/loupe/src/hir/item_id.cj: local: 2
 modules/loupe/src/hir/item_tree.cj: local: 5
-modules/loupe/src/hir/macro_build.cj: local: 1
 modules/loupe/src/hir/macro_call.cj: local: 1
 modules/loupe/src/hir/scope.cj: local: 14
 modules/loupe/src/hir/signature.cj: local: 2
@@ -61,8 +54,6 @@ modules/loupe/src/hir/ty_relations.cj: local: 4
 modules/loupe/src/hir/workspace_macro.cj: local: 1
 modules/lsp_codegen/src/main.cj: name not found: 1
 modules/platform/src/posix/relaunch.cj: name found: 2
-modules/project_model/src/cjpm.cj: local: 3
-modules/project_model/src/project_test.cj: local: 4
-modules/project_model/src/source_set.cj: local: 2
+modules/project_model/src/cjpm.cj: local: 1
 modules/rope/src/node.cj: local: 1
 modules/syntax_codegen/src/code_writer.cj: member found: 1
