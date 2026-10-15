@@ -8,6 +8,13 @@ import loupe.fixture.*
 import loupe.syntax.parse
 
 /**
+ * The body of every member cjls writes itself (`stubBody`, D118), at a member's indent, and at a getter's.
+ */
+let STUB_BODY = "{\n        throw UnsupportedException(\"cjls wrote no body\")\n    }"
+
+let GETTER_STUB_BODY = "{\n            throw UnsupportedException(\"cjls wrote no body\")\n        }"
+
+/**
  * The database of `parsed`, with std.core's and std.deriving's `.cjo`s among its packages.
  */
 func databaseWithDerive(parsed: Fixture): AnalysisDatabase {
@@ -50,10 +57,10 @@ class DeriveExpansionTest {
         // assert
         @Expect(texts, [
             "extend S <: Hashable {\n" +
-            "    public func hashCode(): Int64 {}\n" +
+            "    public func hashCode(): Int64 ${STUB_BODY}\n" +
             "}\n" +
             "extend S <: ToString {\n" +
-            "    public func toString(): String {}\n" +
+            "    public func toString(): String ${STUB_BODY}\n" +
             "}\n"])
     }
 
@@ -71,14 +78,14 @@ class DeriveExpansionTest {
         // assert
         @Expect(texts, [
             "extend<K, V> P<K, V> <: Equatable<P<K, V>> where K <: Equatable<K>, V <: Equatable<V> {\n" +
-            "    public operator func ==(other: P<K, V>): Bool {}\n" +
-            "    public operator func !=(other: P<K, V>): Bool {}\n" +
+            "    public operator func ==(other: P<K, V>): Bool ${STUB_BODY}\n" +
+            "    public operator func !=(other: P<K, V>): Bool ${STUB_BODY}\n" +
             "}\n" +
             "extend<K, V> P<K, V> <: Arbitrary<P<K, V>> where K <: Arbitrary<K>, V <: Arbitrary<V> {\n" +
-            "    public static func arbitrary(random: RandomSource): Generator<P<K, V>> {}\n" +
+            "    public static func arbitrary(random: RandomSource): Generator<P<K, V>> ${STUB_BODY}\n" +
             "}\n" +
             "extend<K, V> P<K, V> <: Shrink<P<K, V>> where K <: Shrink<K>, V <: Shrink<V> {\n" +
-            "    public func shrink(): Iterable<P<K, V>> {}\n" +
+            "    public func shrink(): Iterable<P<K, V>> ${STUB_BODY}\n" +
             "}\n"])
     }
 
@@ -98,10 +105,10 @@ class DeriveExpansionTest {
         // assert
         @Expect(texts, [
             "extend<K, V> E<K, V> <: Hashable where K <: Hashable & Equatable<K>, V <: Hashable {\n" +
-            "    public func hashCode(): Int64 {}\n" +
+            "    public func hashCode(): Int64 ${STUB_BODY}\n" +
             "}\n" +
             "extend<K, V> E<K, V> <: ToString where K <: ToString, V <: ToString {\n" +
-            "    public func toString(): String {}\n" +
+            "    public func toString(): String ${STUB_BODY}\n" +
             "}\n"])
     }
 
@@ -119,10 +126,10 @@ class DeriveExpansionTest {
         // assert
         @Expect(texts, [
             "extend<K, V> C<K, V> <: Hashable where K <: Hashable, V <: Hashable & ToString {\n" +
-            "    public func hashCode(): Int64 {}\n" +
+            "    public func hashCode(): Int64 ${STUB_BODY}\n" +
             "}\n" +
             "extend<K, V> C<K, V> <: ToString where K <: ToString, V <: ToString {\n" +
-            "    public func toString(): String {}\n" +
+            "    public func toString(): String ${STUB_BODY}\n" +
             "}\n"])
     }
 
@@ -140,15 +147,15 @@ class DeriveExpansionTest {
         // assert
         @Expect(texts, [
             "extend<T> R<T> <: Comparable<R<T>> where T <: Comparable<T> & ToString {\n" +
-            "    public func compare(other: R<T>): Ordering {}\n" +
-            "    public operator func <(other: R<T>): Bool {}\n" +
-            "    public operator func <=(other: R<T>): Bool {}\n" +
-            "    public operator func >(other: R<T>): Bool {}\n" +
-            "    public operator func >=(other: R<T>): Bool {}\n" +
+            "    public func compare(other: R<T>): Ordering ${STUB_BODY}\n" +
+            "    public operator func <(other: R<T>): Bool ${STUB_BODY}\n" +
+            "    public operator func <=(other: R<T>): Bool ${STUB_BODY}\n" +
+            "    public operator func >(other: R<T>): Bool ${STUB_BODY}\n" +
+            "    public operator func >=(other: R<T>): Bool ${STUB_BODY}\n" +
             "}\n" +
             "extend<T> R<T> <: Equatable<R<T>> where T <: Equatable<T> {\n" +
-            "    public operator func ==(other: R<T>): Bool {}\n" +
-            "    public operator func !=(other: R<T>): Bool {}\n" +
+            "    public operator func ==(other: R<T>): Bool ${STUB_BODY}\n" +
+            "    public operator func !=(other: R<T>): Bool ${STUB_BODY}\n" +
             "}\n"])
     }
 
@@ -181,7 +188,7 @@ class DeriveExpansionTest {
             "#, "S")
 
         // assert
-        @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 {}\n}\n"])
+        @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 ${STUB_BODY}\n}\n"])
     }
 
     @TestCase
@@ -197,8 +204,8 @@ class DeriveExpansionTest {
             "#, "S")
 
         // assert
-        @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 {}\n}\n",
-            "extend S <: ToString {\n    public func toString(): String {}\n}\n"])
+        @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 ${STUB_BODY}\n}\n",
+            "extend S <: ToString {\n    public func toString(): String ${STUB_BODY}\n}\n"])
     }
 
     @TestCase
@@ -213,7 +220,7 @@ class DeriveExpansionTest {
             "#, "S")
 
         // assert
-        @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 {}\n}\n"])
+        @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 ${STUB_BODY}\n}\n"])
     }
 
     @TestCase

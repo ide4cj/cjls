@@ -6,10 +6,10 @@ import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, ClassDecl, Decl, FuncDecl, Ma
     identText}
 
 // What `std.unittest.testmacro`'s macros declare (#175), read from cangjie_runtime's `testmacro` and checked with
-// `cjc --debug-macro` (1.3.0-alpha.20260918): the declarations a name can reach, their bodies empty. Left out: the
-// `private` helpers of a test class (`classConfiguration`, `inheritedFromClassAnnotatedByTestTemplate`), the
+// `cjc --debug-macro` (1.3.0-alpha.20260918): the declarations a name can reach, each body a throw (`stubBody`). Left
+// out: the `private` helpers of a test class (`classConfiguration`, `inheritedFromClassAnnotatedByTestTemplate`), the
 // constructor it adds when it has none (the default one cjc adds anyway), the registrations of `@UnittestOption`
-// (`let _ = ...`), and every body. The names they are written with resolve in the file of the call, as cjc's:
+// (`let _ = ...`), and what every body does. The names they are written with resolve in the file of the call, as cjc's:
 // `TestClass`, `TestSuite`, `TestPackage`, `DataStrategyProcessor`, `KeyFor` need the user's `import std.unittest.*`.
 
 /**
@@ -32,7 +32,7 @@ func testClassExpansion(decl: Decl, template!: Bool): ?Expansion {
     if (let Some(clause) <- cls.whereClause()) {
         text.append(" ${tokensText(tokensOf(clause.syntax))}")
     }
-    text.append(" {\n    public func asTestSuite(): TestSuite {}\n}\n")
+    text.append(" {\n    public func asTestSuite(): TestSuite ${stubBody("    ")}\n}\n")
     let origins = ArrayList<ExpansionOrigin>([ExpansionOrigin.OfMacro])
     if (!template && hasConstructorOfNoParameters(cls)) {
         appendRegistration(text, "TestPackageExtension_${name}", "register${name}")
@@ -51,7 +51,7 @@ func testFuncExpansion(decl: Decl): ?Expansion {
     }
     let name = "TestCase_${identText(nameTokenOf(decl) ?? return None)}"
     let text = StringBuilder()
-    text.append("class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite {}\n}\n")
+    text.append("class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite ${stubBody("    ")}\n}\n")
     appendRegistration(text, "TestPackageExtension_${name}", "register${name}")
     Expansion(text.toString(), Array(3, repeat: ExpansionOrigin.OfMacro))
 }
@@ -113,10 +113,10 @@ func optionExpansion(call: MacroExpandDecl): ?Expansion {
     }
     let text = "${access}struct ${key} <: ${String.join(types, delimiter: " & ")} {\n" +
         "    public static prop ${token.text()}: ${key} {\n" +
-        "        get() {}\n" +
+        "        get() ${stubBody("        ")}\n" +
         "    }\n" +
         "    public prop name: String {\n" +
-        "        get() {}\n" +
+        "        get() ${stubBody("        ")}\n" +
         "    }\n" +
         "}\n"
     Expansion(text, [ExpansionOrigin.OfOption])
@@ -147,7 +147,7 @@ func optionNameOf(args: MacroArgs): ?(CjSyntaxToken, Bool) {
  */
 func appendRegistration(text: StringBuilder, extension: String, register: String): Unit {
     text.append("interface ${extension} {\n    func ${register}(): Unit\n}\n")
-    text.append("extend TestPackage <: ${extension} {\n    public func ${register}(): Unit {}\n}\n")
+    text.append("extend TestPackage <: ${extension} {\n    public func ${register}(): Unit ${stubBody("    ")}\n}\n")
 }
 
 /**

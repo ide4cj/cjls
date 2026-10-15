@@ -67,7 +67,11 @@ async def test_expand_macro_answers_the_expansion_and_shows_the_expanded_file(se
     assert expansion.expansion.startswith("// cjls's own expansion of @Derive")
     # the declaration first, as cjc's output has it, then what `@Derive` adds after it
     assert expansion.expansion.index("class P {") < expansion.expansion.index("extend P <: Equatable<P>")
-    assert "public operator func ==(other: P): Bool {}" in expansion.expansion
+    # every body a throw, a block the editor folds (D118)
+    assert (
+        'public operator func ==(other: P): Bool {\n        throw UnsupportedException("cjls wrote no body")\n    }'
+        in expansion.expansion
+    )
 
     window = capabilities(editor).window
     if window is None or window.show_document is None or not window.show_document.support:

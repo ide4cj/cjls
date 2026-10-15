@@ -47,11 +47,11 @@ public enum ExpansionOrigin {
 }
 
 /**
- * What a macro call adds after its item, as text cjsyntax parses: declarations, signatures alone, their bodies empty;
- * for each item of it in order, what written in the call it comes from; and whether it replaces the item the call is
- * on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let` it becomes). A
- * workspace macro's, which the macro server ran (#176), is its whole output, replacing the item, and says where each
- * of its tokens comes from by `spans` instead of `origins`.
+ * What a macro call adds after its item, as text cjsyntax parses: declarations, signatures alone, each body a throw
+ * (`stubBody`); for each item of it in order, what written in the call it comes from; and whether it replaces the
+ * item the call is on, which then declares nothing (`@Strategy`'s function, whose body stays in a lambda of the `let`
+ * it becomes). A workspace macro's, which the macro server ran (#176), is its whole output, replacing the item, and
+ * says where each of its tokens comes from by `spans` instead of `origins`.
  */
 @Derive[Equatable]
 public struct Expansion {
@@ -61,6 +61,15 @@ public struct Expansion {
         public let replaces!: Bool = false,
         public let spans!: Array<MappedSpan> = []
     ) {}
+}
+
+/**
+ * The body of a member cjls writes itself, the member at `indent` (D118): a block, which the editor folds, of a throw,
+ * of type `Nothing`, so a body for any return type, where `{}` is one for `Unit` alone. The parser needs one in an
+ * `extend` or a `struct`, and so does a workspace macro the `extend` is sent to (D114).
+ */
+func stubBody(indent: String): String {
+    "{\n${indent}    throw UnsupportedException(\"cjls wrote no body\")\n${indent}}"
 }
 
 /**

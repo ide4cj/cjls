@@ -41,7 +41,7 @@ public enum ExpansionKind <: ToString {
      */
     | WorkspaceExpansion
     /**
-     * The analysis, for a macro of std (#175): what it declares, signatures only, every body empty.
+     * The analysis, for a macro of std (#175): what it declares, signatures only, every body a throw (D118).
      */
     | StdExpansion
 

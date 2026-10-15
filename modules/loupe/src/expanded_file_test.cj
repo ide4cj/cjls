@@ -135,7 +135,7 @@ class ExpandFileTest {
 
         // assert
         @Expect(text.startsWith(
-            "// header\npackage m\nimport std.deriving.*\n@Derive[Hashable]\nstruct S {}\n\n// @Derive[Hashable] expanded by cjls: its own, signatures only, no bodies\nextend S <: Hashable"))
+            "// header\npackage m\nimport std.deriving.*\n@Derive[Hashable]\nstruct S {}\n\n// @Derive[Hashable] expanded by cjls: its own, signatures only, every body throws\nextend S <: Hashable"))
         @Expect(text.endsWith("}\nfunc f() {}\n"))
         @Expect(describe(expanded.placeOf(offsetIn(text, "S <:"))).startsWith("expansion "))
         @Expect(describe(expanded.placeOf(offsetIn(text, "f()"))), "source ${offsetIn(file.text, "f()")}")

@@ -256,8 +256,8 @@ class WorkspaceMacroRequestTest {
         let requests = macroRequests(db, file).map {request => describe(request)}
 
         // assert
-        @Expect(requests, ["A <class X {}\nextend X <: Equatable<X> {\n    public operator func ==(other: X): Bool {}\n" +
-            "    public operator func !=(other: X): Bool {}\n}\n> parents= children="])
+        @Expect(requests, ["A <class X {}\nextend X <: Equatable<X> {\n    public operator func ==(other: X): Bool ${STUB_BODY}\n" +
+            "    public operator func !=(other: X): Bool ${STUB_BODY}\n}\n> parents= children="])
     }
 
     @TestCase
