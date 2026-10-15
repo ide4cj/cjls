@@ -380,4 +380,30 @@ class ExtendDefinitionTest {
             }
             "#)
     }
+
+    @TestCase
+    func anExtendThroughAnInterfaceOfAPackageImportedByItsName() {
+        // cjc's `IsDeclAccessible`: the interface's package imported as `import m.i`, the interface
+        // `i.I` seen through it (D53)
+        checkDefinition(#"
+            //- /a/a.cj module=m package=m.a
+            package m.a
+            public class C {}
+            //- /i/i.cj module=m package=m.i
+            package m.i
+            import m.a.C
+            public interface I {
+                func e(): Int64
+            }
+            extend C <: I {
+                public func e(): Int64 { 1 }
+            //              ^ def
+            }
+            //- /main.cj module=m package=m
+            package m
+            import m.a.C
+            import m.i
+            func g(c: C): Int64 { c.$0e() }
+            "#)
+    }
 }

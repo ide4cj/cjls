@@ -40,9 +40,9 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
     let fileId = source.fileId(db)
     let def = DefId(db, ItemFile.Source(source), item.id)
     match (item.kind) {
-        case Func | Main | Var | Prop | Init | PrimaryInit =>
+        case Func | Main | Var | Prop | Init | PrimaryInit | Finalizer =>
             let isUnwritten = signatureTypes(db, def).ty.isNone() && item.kind != ItemKind.Init &&
-                item.kind != ItemKind.PrimaryInit
+                item.kind != ItemKind.PrimaryInit && item.kind != ItemKind.Finalizer
             if (isUnwritten && let Some(node) <- itemIdMap(db, source).node(item.id, root) &&
                 let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
                 actual.add(Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db)))
@@ -2227,5 +2227,195 @@ class InferTest {
         // assert
         @Expect(queries.map {name => db.storage.executionsOf(name)}, before)
         @Expect(inferenceReaderRuns.load(), readers)
+    }
+
+    // The cases below are the branches the diagnostics gate alone reached before it left the coverage
+    // run (D120): each a construct no fixture had.
+
+    @TestCase
+    func synchronizedSpawnVArrayAndAConversionAreOfTheirBodiesAndTypes() {
+        checkInference(#"
+            package m
+            class L {}
+            func f(l: L): Int64 {
+            //     ^ L
+                // a value dropped: its block's is too
+                synchronized (l) { 1 }
+                let a = synchronized (l) { 1 }
+            //      ^ Int64
+                let fut = spawn { a }
+            //      ^^^ Future<Int64>
+                let v = VArray<Int64, $2>(repeat: a)
+            //      ^ VArray<Int64, $2>
+                let b = UInt8(a)
+            //      ^ UInt8
+                // the function ends in a `synchronized`: its block is a tail
+                synchronized (l) { a }
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLoopsBreakAndContinueAreOfNothingAndARangeTakesAStep() {
+        checkInference(#"
+            package m
+            func f(): Unit {
+                for (i in 0..6 : 2) {
+            //       ^ Int64
+                    if (i == 2) { continue }
+                    let x = if (i == 4) { break } else { i }
+            //          ^ Int64
+                }
+                let y: Int8 = 1
+            //      ^ Int8
+                // a negative literal is a literal: of the other operand's type
+                let z = -1 + y
+            //      ^ Int8
+                // one character, escaped, is a `Rune` where one is expected
+                let r: Rune = '\n'
+            //      ^ Rune
+                let u: Rune = '\u{4e2d}'
+            //      ^ Rune
+                let s = r'\n'
+            //      ^ Rune
+                try { let t = 1 } finally { let c = 2 }
+            //            ^ Int64
+            //                                  ^ Int64
+                // a tuple pattern of a value not known types nothing
+                let (p, q) = nope
+            //       ^ {unknown}
+            //          ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aConstructorsNameOfTwoEnumsIsChosenByWhatIsExpectedAlone() {
+        checkInference(#"
+            package m
+            enum E1 { Red | Blue(Int64) }
+            enum E2 { Red | Blue(Int64) }
+            func p(x: E1): Int64 { 0 }
+            //     ^ E1
+            func p(x: String): String { "" }
+            //     ^ String
+            func f(): Unit {
+                let a = Red
+            //      ^ {unknown}
+                let b = Blue(1)
+            //      ^ {unknown}
+                let c: E1 = Red
+            //      ^ E1
+                // a member of a type as an argument is not of one type whatever is expected
+                let d = p(E1.Red)
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aConstructorAVariableAndANameNotFoundAsAReceiver() {
+        checkInference(#"
+            package m
+            enum E {
+                | Red | Blue(Int64)
+                func n(): Int64 { 1 }
+            }
+            class C {
+                let m = 1
+            //      ^ Int64
+                ~init() {
+                    let z = m
+            //          ^ Int64
+                }
+            }
+            let g = C()
+            //  ^ C
+            func p(x: E): Int64 { 0 }
+            //     ^ E
+            func p(x: String): String { "" }
+            //     ^ String
+            func f(e: E): Unit {
+            //     ^ E
+                let h = g.m
+            //      ^ Int64
+                let i = Red.n()
+            //      ^ Int64
+                let j = Nope.bar()
+            //      ^ {unknown}
+                // a constructor's name as an argument is not of one type whatever is expected
+                let k = p(Red)
+            //      ^ Int64
+                // a constructor's name as a pattern binds nothing: the one in the arm is the constructor
+                let l = match (e) {
+            //      ^ E
+                    case Red => Red
+                    case _ => Blue(1)
+                }
+            }
+            "#)
+    }
+
+    @TestCase
+    func anAliasIsCalledAsItsClassAnInterfaceAndATypeAreNoValues() {
+        checkInference(#"
+            package m
+            class C { C(x: Int64) {} }
+            //          ^ Int64
+            type A = C
+            interface I {}
+            func use(): Unit {
+                let c = A(1)
+            //      ^ C
+                let i = I()
+            //      ^ {unknown}
+                let t = C
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aGenericCandidateIsMoreSpecificThanOneItsParametersDoNotSolve() {
+        checkInference(#"
+            package m
+            func q<T>(x: Array<T>): Int64 { 0 }
+            //        ^ Array<T>
+            func q(x: Any): String { "" }
+            //     ^ Any
+            func f(): Unit {
+                let a = q([1])
+            //      ^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
+    func aLambdaReturningACallIsTriedAndUndonePerCandidate() {
+        checkInference(#"
+            package m
+            func t(f: (Int64) -> Int64): Int64 { f(1) }
+            //     ^ (Int64) -> Int64
+            func t(f: (String) -> Int64): String { "" }
+            //     ^ (String) -> Int64
+            func h(x: Int64): Int64 { x }
+            //     ^ Int64
+            func f(): Unit {
+                let a = t({ x => return h(x) })
+            //      ^ Int64
+            //              ^ Int64
+            }
+            func s(x: Int64): Int64 { x }
+            //     ^ Int64
+            func s(x: String): String { x }
+            //     ^ String
+            // an argument with a `return` in it is inferred per candidate, the return undone
+            func g(c: Bool): Int64 {
+            //     ^ Bool
+                let b = s(if (c) { return 0 } else { 1 })
+            //      ^ Int64
+                b
+            }
+            "#)
     }
 }
