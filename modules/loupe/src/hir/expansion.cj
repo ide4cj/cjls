@@ -498,7 +498,11 @@ func macroCallChainsOf(node: CjSyntaxNode): Array<MacroCallChain> {
  * How many macro calls the item of `node` has, on it and on its parameters (D119).
  */
 func macroCallCountOf(node: CjSyntaxNode): Int64 {
-    macroCallChainsOf(node) |> map {chain: MacroCallChain => chain.calls.size} |> fold(0) {a, b => a + b}
+    var count = 0
+    for (chain in macroCallChainsOf(node)) {
+        count += chain.calls.size
+    }
+    count
 }
 
 /**
