@@ -1,4 +1,4 @@
-# ADR-0125: The code style follows std where the compiler leaves a choice, and cjlint checks the official guide's rules that hold here
+# ADR-0126: The code style follows std where the compiler leaves a choice, and cjlint checks the official guide's rules that hold here
 
 Status: accepted, 2026-10-15
 
