@@ -107,6 +107,31 @@ class MacroRoundTest {
     }
 
     @TestCase
+    func aCallInABodyIsSentWithItsArgumentsAndItsAnswerComesFromWhereTheyAre() {
+        // arrange
+        let (db, file, source) = macroFixture(#"
+        package m
+        import m.ms.*
+        func f(): Int64 { @M[x](1 + 2) }
+"#)
+        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))])
+        let expander = FakeExpander()
+        let request = macroRequests(db, file)[0]
+
+        // act
+        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander))
+
+        // assert
+        @Expect(expander.calls.size, 1)
+        @Expect(expander.calls[0].args.map {t => t.value ?? ""}, ["1", "+", "2"])
+        @Expect(pendingMacroRequests(db, file).size, 0)
+        let expansion = macroOutputOf(db, request.call).getOrThrow().expansion.getOrThrow()
+        let two = expansion.text.indexOf("2").getOrThrow()
+        let written = source.indexOf("2)").getOrThrow() - source.indexOf("func").getOrThrow()
+        @Expect(expansion.originOf(TextRange(two, two + 1)), Some(SpanOrigin.FromSource(TextRange(written, written + 1))))
+    }
+
+    @TestCase
     func whatTheMacroGivesBackComesFromWhereTheSourceWroteIt() {
         // arrange
         let (db, file, source) = macroFixture(MAIN)

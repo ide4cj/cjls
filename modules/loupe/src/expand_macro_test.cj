@@ -338,6 +338,76 @@ class MacroCallAtTest {
     }
 
     @TestCase
+    func aWorkspaceCallInABodyExpandsToTheServersOutputFromItsHead() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            @A
+            func f(): Int64 { @B(1 + 2) }
+            "#)
+        let call = answer(db, file, "B", "(1 + 2) * 10", [MappedSpan(TextRange(0, 12), SpanOrigin.FromCall)])
+        let source = file.text(db).toString()
+
+        // act
+        let onHead = macroCallAt(db, file.fileId(db), offsetIn(source, "B("))
+        let inArguments = macroCallAt(db, file.fileId(db), offsetIn(source, "2)"))
+        let leavingBodiesOut = macroCallAt(db, file.fileId(db), offsetIn(source, "B("), inBody: false)
+
+        // assert
+        @Expect(onHead.map {at => at.call}, Some(call))
+        @Expect(onHead.map {at => source[at.range.start..at.range.end]}, Some("@B"))
+        let expanded = expandedMacro(db, call).getOrThrow()
+        @Expect(expanded.name, "@B")
+        @Expect(expanded.kind, ExpansionKind.WorkspaceExpansion)
+        @Expect(expanded.text, "(1 + 2) * 10")
+        @Expect(inArguments.map {at => at.call} == Some(call), false)
+        @Expect(leavingBodiesOut.map {at => at.call} == Some(call), false)
+    }
+
+    @TestCase
+    func aWorkspaceCallInABodyNotAnsweredHasNoExpansion() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Int64 { @B(1) }
+            "#)
+        let source = file.text(db).toString()
+
+        // act
+        let at = macroCallAt(db, file.fileId(db), offsetIn(source, "@B")).getOrThrow()
+
+        // assert
+        @Expect(at.call.inBody(db), Some("B"))
+        @Expect(expandedMacro(db, at.call), None<ExpandedMacro>)
+        @Expect(declarationUnder(db, at.call), None<String>)
+    }
+
+    @TestCase
+    func aCallOfStdInABodyIsNoCallOfItsOwnButTheItemsAroundIt() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            import std.unittest.testmacro.*
+            @A
+            func f(): Unit { @Expect(1, 1) }
+            "#)
+        let source = file.text(db).toString()
+        let under = macroCallUnder(db, file, offsetIn(source, "@Expect")).getOrThrow()[0]
+
+        // act
+        let at = macroCallAt(db, file.fileId(db), offsetIn(source, "@Expect"))
+
+        // assert
+        @Expect(under.inBody(db), Some("Expect"))
+        @Expect(readCallOf(db, under), None<MacroCallId>)
+        @Expect(expandedMacro(db, under), None<ExpandedMacro>)
+        @Expect(at.map {one => one.call.inBody(db)}, Some(None<String>))
+    }
+
+    @TestCase
     func aKeyFindsItsCallAfterAnEditElsewhere() {
         // arrange
         let (db, file, call, _) = answeredM()
