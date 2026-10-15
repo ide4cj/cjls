@@ -26,13 +26,13 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0005](0005-loupe-knows-no-lsp.md) | The analysis API knows no LSP; handlers translate | accepted |
 | [0006](0006-handlers-are-not-queries.md) | Handlers are not queries; queries are keyed by entities | accepted |
 | [0007](0007-position-encoding.md) | UTF-8 columns when the client offers them | accepted |
-| [0008](0008-cancellation.md) | Two cancellations, two answers | accepted |
+| [0008](0008-cancellation.md) | Two cancellations, two answers | accepted; a stale snapshot's `CancelledException` runs the request again; `ContentModified` is answered by no read-only handler by D122 |
 | [0009](0009-names-of-state-and-database.md) | `ServerState` holds the `AnalysisDatabase`; only calca says `Database` | accepted |
 | [0010](0010-generated-syntax.md) | Syntax kinds and typed views are generated from an ungrammar | accepted; an accessor finds a child by the tokens around it by D41 |
 | [0011](0011-ci-and-releases.md) | A pinned nightly toolchain, CI on three platforms, releases from `cog bump` | accepted; no editor's tests in CI by D32; the nightly is downloaded from GitHub and checked against `.cangjie-sha256` by D62 |
 | [0012](0012-drive-paths.md) | Paths are `std.fs.Path`, URIs are stdx's `URL`; Windows drives are spelled one way | accepted |
 | [0013](0013-stdin-is-read-with-readv.md) | Stdin is read with `readv`, not `read`: cjc treats `read` as `@FastNative` | accepted |
-| [0014](0014-diagnostics-pull-first.md) | Diagnostics are pulled; pushed, by the server after a write, only to clients that cannot pull | accepted; `interFileDependencies: true`; `workspace/diagnostic/refresh` is sent by D100 |
+| [0014](0014-diagnostics-pull-first.md) | Diagnostics are pulled; pushed, by the server after a write, only to clients that cannot pull | accepted; `interFileDependencies: true`; `workspace/diagnostic/refresh` is sent by D100; a pull the files changed under is answered from the files as they are then, not `ServerCancelled` with `retriggerRequest`, by D122 |
 | [0015](0015-reference-implementations.md) | rust-analyzer is the model, salsa the model for calca, cjc the specification; LSPServer and lin-qingying/cangjie the competitors | accepted |
 | [0016](0016-editor-integrations-are-repositories.md) | Each editor integration is a repository of its own in ide4cj: `cangjie.nvim` for Neovim | accepted; how server and clients change together, and who tests which, by D32 |
 | [0017](0017-lru-of-memo-values.md) | calca evicts memo values by LRU; a query result keeps pointers, never nodes | accepted; interned values by D18; eviction within a revision by D36 |
@@ -140,3 +140,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0119](0119-a-macro-call-on-a-parameter-is-a-call-of-its-items-chain.md) | A macro call on a parameter is a macro call of the item whose parameter list holds it, indexed after the item's own | proposed |
 | [0120](0120-the-gate-is-tagged-out-of-the-coverage-run.md) | The diagnostics gate is tagged `gate` and left out of the coverage run | accepted |
 | [0121](0121-the-error-roots-file-grows-with-a-known-gap-met-idiomatically.md) | A known gap met by new code grows the error roots file; the code stays idiomatic and the commit names the gap | proposed |
+| [0122](0122-a-request-the-files-changed-under-runs-again.md) | A read-only request the files changed under runs again on a fresh snapshot, not answered ContentModified | proposed |
