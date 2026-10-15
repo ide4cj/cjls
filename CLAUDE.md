@@ -37,7 +37,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Commits
 
-Conventional Commits, enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`) on `commit-msg`: `type(scope): subject` (`feat(jsonrpc): ...`; `cog commit feat jsonrpc "subject"` writes one). Merge and `fixup!`/`squash!`/`amend!` pass; a `git revert` message must be reworded to `revert: ...`. Hooks are plain scripts in `.githooks/` (`commit-msg`: `cog verify`; `pre-push`: the fetch and the tests), activated per clone with `git config core.hooksPath .githooks`.
+Conventional Commits, enforced by [cocogitto](https://docs.cocogitto.io/) (`cog`) on `commit-msg`: `type(scope): subject` (`feat(jsonrpc): ...`; `cog commit feat jsonrpc "subject"` writes one). Merge and `fixup!`/`squash!`/`amend!` pass; a `git revert` message must be reworded to `revert: ...`. Hooks are plain scripts in `.githooks/` (`commit-msg`: `cog verify`; `pre-push`: `cjls fmt --check .`, the fetch and the tests), activated per clone with `git config core.hooksPath .githooks`.
 
 ## Workspace layout
 
