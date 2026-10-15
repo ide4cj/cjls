@@ -250,6 +250,33 @@ class MacroCallAtTest {
     }
 
     @TestCase
+    func aCallOnAParameterIsTheCallReadOnItsTypeAndTheDeclarationUnderItIsTheParameter() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            @A
+            struct S {
+                S(@M[x] let a: Int64) {}
+            }
+            "#)
+        let inner = answer(db, file, "M", "let a: Int64 = 0", [MappedSpan(TextRange(0, 16), SpanOrigin.FromCall)])
+        let text = "struct S {\n    S(let a: Int64 = 0) {}\n}"
+        let read = answer(db, file, "A", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+        let source = file.text(db).toString()
+        let m = offsetIn(source, "@M")
+
+        // act
+        let at = macroCallAt(db, file.fileId(db), m + 1)
+
+        // assert
+        @Expect(at?.call, Some(read))
+        @Expect(at?.range, Some(TextRange(m, m + 5)))
+        @Expect(declarationUnder(db, inner), Some("let a: Int64"))
+        @Expect(macroCallHeadOf(db, inner).map {one => one[0]}, Some("@M"))
+    }
+
+    @TestCase
     func aCallOfTheWorkspaceNotAnsweredIsReadButHasNoExpansion() {
         // arrange
         let (db, file) = expansionDatabase(#"

@@ -413,6 +413,41 @@ class HoverTest {
     }
 
     @TestCase
+    func aFieldAPrimaryConstructorDeclaresShowsTheDocBeforeItsParameter() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            struct Stats {
+                Stats(
+                    /**
+                     * How many were run.
+                     */
+                    let $0executed: Int64
+            //            ^^^^^^^^ let executed: Int64 in m.Stats — How many were run.
+                ) {}
+            }
+            "#)
+    }
+
+    @TestCase
+    func aFieldAPrimaryConstructorDeclaresShowsTheDocBeforeItsParameterAtAUse() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            struct Stats {
+                Stats(
+                    /** How many were run. */
+                    let executed: Int64
+                ) {}
+            }
+            func f(stats: Stats): Int64 {
+                stats.$0executed
+            //          ^^^^^^^^ let executed: Int64 in m.Stats — How many were run.
+            }
+            "#)
+    }
+
+    @TestCase
     func aDeclarationInCallsOfAnyMacroShowsTheDocBeforeThem() {
         checkHover(#"
             //- /main.cj module=m package=m
