@@ -451,6 +451,14 @@ public class MacroHost <: MacroWork {
         if (build) {
             buildLibraries(settings, roots, cacheDirs)
         }
+        expandPending(settings)
+    }
+
+    /**
+     * Asks the server every request that can be sent, round after round, each round's answers set in one write, until
+     * none is left or the host stops.
+     */
+    private func expandPending(settings: Settings): Unit {
         let started = MonoTime.now()
         var sent = 0
         var ofStd = 0
