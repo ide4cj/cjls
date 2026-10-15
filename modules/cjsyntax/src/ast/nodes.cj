@@ -384,7 +384,7 @@ public struct AnyHasDocComment <: AstNode<SyntaxKind, AnyHasDocComment> & HasDoc
                 | SyntaxKind.ClassDecl | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl
                 | SyntaxKind.ExtendDecl | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl
                 | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
-                | SyntaxKind.ForeignBlock | SyntaxKind.MacroExpandDecl => true
+                | SyntaxKind.ForeignBlock | SyntaxKind.MacroExpandDecl | SyntaxKind.Param => true
             case _ => false
         }
     }
@@ -2751,7 +2751,7 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct Param <: AstNode<SyntaxKind, Param> & HasName & HasModifiers & HasAnnotations & ToString {
+public struct Param <: AstNode<SyntaxKind, Param> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
     Param(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {

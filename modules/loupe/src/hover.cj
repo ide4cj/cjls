@@ -343,6 +343,10 @@ class Hovers {
      */
     func localItem(owner: DefId, local: LocalId): ?HoverItem {
         let lowered = bodyWithSourceMap(db, owner)
+        // a member parameter is the member it declares, at its declaration as at its uses
+        if (lowered.body.params.iterator().any {param => param.local == Some(local) && param.isMember}) {
+            return memberParamItem(owner, local, None)
+        }
         let declared = lowered.body.locals.get(local.index) ?? return None
         let ty = inferBody(db, owner)[local] ?? Ty(db, ErrorTy)
         let code = match (declared.kind) {
@@ -358,12 +362,7 @@ class Hovers {
      * and a space.
      */
     private func varKeyword(owner: DefId, local: LocalId): String {
-        let file = match (owner.file(db)) {
-            case Source(file) => file
-            case _ => return ""
-        }
-        let ptr = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index) ?? return ""
-        let name = (ptr ?? return "").tryToNode(parse(db, file).syntaxNode()) ?? return ""
+        let name = nameNodeOf(owner, local) ?? return ""
         // a member parameter of a primary constructor
         if (let Some(param) <- name.parent.flatMap {node => Param.cast(node)}) {
             return if (param.varToken().isSome()) {
@@ -376,6 +375,18 @@ class Hovers {
         }
         let decl = (name.ancestors() |> filterMap {node: CjSyntaxNode => VarDecl.cast(node)} |> first) ?? return ""
         keywordOf(decl)
+    }
+
+    /**
+     * The name of `local` in the source of the body of `owner`, as written.
+     */
+    private func nameNodeOf(owner: DefId, local: LocalId): ?CjSyntaxNode {
+        let file = match (owner.file(db)) {
+            case Source(file) => file
+            case _ => return None
+        }
+        let ptr = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index) ?? return None
+        (ptr ?? return None).tryToNode(parse(db, file).syntaxNode())
     }
 
     private func localFuncCode(body: Body, local: LocalId, ty: Ty): String {
@@ -401,7 +412,9 @@ class Hovers {
         let index = (0..params.size |> filter {i: Int64 => params[i].local == Some(local)} |> first) ?? return None
         let ty = seen(signatureTypes(db, ctor).params.get(index) ?? return None, ctor, recv)
         let name = body(db, ctor).locals.get(local.index)?.name ?? return None
-        HoverItem("${varKeyword(ctor, local)}${name}: ${ty.text(db)}", path: pathOf(ctor))
+        // the doc comment before the parameter (#377)
+        let doc = nameNodeOf(ctor, local).flatMap {node => node.parent}.flatMap {param => docOfNode(param)}
+        HoverItem("${varKeyword(ctor, local)}${name}: ${ty.text(db)}", path: pathOf(ctor), doc: doc)
     }
 
     /**
@@ -629,6 +642,13 @@ class Hovers {
                 }
                 node
         }
+        docOfNode(node)
+    }
+
+    /**
+     * The doc comment of `node`, a declaration or a parameter: none for one with none, or that takes none.
+     */
+    private func docOfNode(node: CjSyntaxNode): ?String {
         let comments = AnyHasDocComment.cast(node)?.docComments() ?? return None
         let doc = docText(comments.map {comment => comment.text()})
         if (doc.isEmpty()) {

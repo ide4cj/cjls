@@ -36,7 +36,7 @@ let INTERFACES: Array<InterfaceSpec> = [
             "Its documentation, in order: the comments before the macro calls around it, outermost first, then before the rest of it.",
             "func docComments(): Array<${TOKEN_TYPE}>",
             "docCommentsOf(syntax)",
-            ["Decl", "PackageHeader"]
+            ["Decl", "PackageHeader", "Param"]
         ))
 ]
 
