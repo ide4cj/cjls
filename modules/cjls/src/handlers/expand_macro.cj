@@ -35,7 +35,7 @@ func handleExpandMacro(snap: ServerSnapshot, params: TextDocumentPositionParams)
         case StdExpansion =>
             let declaration = expanded.declaration.map {one => one.trimAsciiEnd() + "\n\n"} ?? ""
             MacroExpansion(name: expanded.name,
-                expansion: "// cjls's own expansion of ${expanded.name}: signatures only, every body throws\n${declaration}${shown}",
+                expansion: "// cjls's own expansion of ${expanded.name}: signatures only, no bodies\n${declaration}${shown}",
                 kind: "cjls")
     })
 }

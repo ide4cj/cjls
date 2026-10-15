@@ -68,10 +68,10 @@ enum Derivable {
     }
 
     /**
-     * The members of the `extend` of `selfTy`, each body a throw (`stubBody`).
+     * The members of the `extend` of `selfTy`, each body a comment (`stubBody`).
      */
     func membersOf(selfTy: String): Array<String> {
-        let body = stubBody("    ")
+        let body = stubBody("    ", "@Derive")
         let operators = {ops: Array<String> => ops.map {op => "public operator func ${op}(other: ${selfTy}): Bool ${body}"}}
         match (this) {
             case DeriveEquatable => operators(["==", "!="])
@@ -90,7 +90,7 @@ enum Derivable {
  * one `extend` per interface it lists and knows, in their order, each type parameter bound by the interface unless
  * the interface's `where` bounds it; `Comparable`'s followed by `Equatable`'s, unless the call lists `Equatable`. An
  * interface it does not know adds nothing. Left out: the `private` `extend`s that check the fields, which nobody
- * names, and every body, each a throw (`stubBody`). `None` for a type whose name is not written yet.
+ * names, and every body, each a comment (`stubBody`). `None` for a type whose name is not written yet.
  */
 func deriveExpansion(decl: Decl, call: MacroExpandDecl): ?Expansion {
     let name = AnyHasName.cast(decl.syntax).flatMap {it => it.name()}.flatMap {name => name.identToken()} ?? return None
