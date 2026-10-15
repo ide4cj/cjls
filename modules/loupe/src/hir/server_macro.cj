@@ -105,13 +105,34 @@ public struct ServerCall {
 
 /**
  * The calls the macro server runs in `file`, in the order cjc expands them: under a top-level item, its members'
- * calls, then its own, each item's the calls on its parameters (D119) and then on itself, innermost first. A call of
- * std on a member is one only under an item with a call the server runs, whose input it is part of; a call of the
- * workspace on a member of a type with none, or on a parameter, is expanded and read by nothing of its own (#176).
+ * calls, then its own, each item's the calls in it (D117), then those on its parameters (D119) and then on itself,
+ * innermost first. A call of std on a member is one only under an item with a call the server runs, whose input it is
+ * part of, and in an item none so far; a call of the workspace on a member of a type with none, or on a parameter, is
+ * expanded and read by nothing of its own (#176), and so far one in an item too (#369).
  */
 @CalcaTracked
 public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCall> {
     let found = ArrayList<ServerCall>()
+    let inItems = HashMap<ItemId, ArrayList<BodyMacroCall>>()
+    for (one in bodyMacroCalls(db, file)) {
+        let calls = inItems.get(one.item) ?? ArrayList<BodyMacroCall>()
+        calls.add(one)
+        inItems[one.item] = calls
+    }
+    let pkg = packageOfFile(db, file)
+    let addInItem = {
+        item: ItemId, top: ItemId =>
+        for (one in inItems.get(item) ?? ArrayList<BodyMacroCall>()) {
+            let owner = pkg ?? break
+            let path = one.name.split(".")
+            let definition = serverMacroOf(db, resolveMacroPath(db, owner, file, path)[path.size - 1]) ?? continue
+            // std's, whose expansion nothing reads yet (#369), are not run
+            if (definition.isStd) {
+                continue
+            }
+            found.add(ServerCall(MacroCallId(db, file, item, one.index, Some(one.name)), definition, top, false))
+        }
+    }
     for (item in itemTree(db, file).items) {
         let own: Array<ServerCall> = if (hasMacroCalls(item)) {
             serverCallsOn(db, file, item, item.id, true)
@@ -120,11 +141,15 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
         }
         // a call on the item itself, whose input the members' calls are part of; not one on its parameters alone
         let read = own.iterator().any {one => one.read}
-        for (member in item.members where hasMacroCalls(member)) {
-            found.add(all: serverCallsOn(db, file, member, item.id, false).filter {
-                one => read || !one.definition.isStd
-            })
+        for (member in item.members) {
+            addInItem(member.id, item.id)
+            if (hasMacroCalls(member)) {
+                found.add(all: serverCallsOn(db, file, member, item.id, false).filter {
+                    one => read || !one.definition.isStd
+                })
+            }
         }
+        addInItem(item.id, item.id)
         found.add(all: own)
     }
     found.toArray()
@@ -163,7 +188,8 @@ func serverCallsOn(db: AnalysisDatabase, file: SourceFile, item: Item, top: Item
         }
         for (j in calls.size - 1..=0 : -1) {
             let (index, definition) = calls[j]
-            found.add(ServerCall(MacroCallId(db, file, item.id, index), definition, top, isTop && c == 0 && j == 0))
+            found.add(ServerCall(MacroCallId(db, file, item.id, index, None), definition, top,
+                isTop && c == 0 && j == 0))
         }
     }
     found.toArray()
@@ -174,7 +200,7 @@ func serverCallsOn(db: AnalysisDatabase, file: SourceFile, item: Item, top: Item
  * collected (D18); `macroCallOf` goes back.
  */
 public func macroCallKeyOf(db: AnalysisDatabase, call: MacroCallId): MacroCallKey {
-    MacroCallKey(call.item(db).toString(), call.index(db))
+    MacroCallKey(call.item(db).toString(), call.index(db), inBody: call.inBody(db))
 }
 
 /**
@@ -268,9 +294,10 @@ public func macroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRe
 public func pendingMacroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRequest> {
     // a file with no macro call, most of them, runs no query of its own: the host asks after every edit
     let calls = itemTree(db, file).items.iterator().any {
-        item => !item.macros.isEmpty() || item.members.iterator().any {member => !member.macros.isEmpty()}
+        item => hasMacroCalls(item) || item.members.iterator().any {member => hasMacroCalls(member)}
     }
-    if (!calls) {
+    // those in items (D117) found by their own walk, once the items have none
+    if (!calls && bodyMacroCalls(db, file).isEmpty()) {
         return []
     }
     macroRequests(db, file).filter {request => !request.current}
@@ -372,9 +399,12 @@ public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Macr
         if (output.diagnostics.isEmpty()) {
             continue
         }
-        let node = ids.node(one.call.item(db), root) ?? continue
-        let call = macroCallAt(node, one.call.index(db)) ?? continue
-        let head = macroHeadOf(call)
+        let head = if (one.call.inBody(db).isSome()) {
+            (bodyCallSyntaxOf(db, one.call) ?? continue).head()
+        } else {
+            let node = ids.node(one.call.item(db), root) ?? continue
+            macroHeadOf(macroCallAt(node, one.call.index(db)) ?? continue)
+        }
         let anchor = anchorOf(ids, root, one.top) ?? continue
         for (diagnostic in output.diagnostics) {
             let range = match (diagnostic.origin) {
@@ -500,6 +530,9 @@ class MacroInputComposer {
      * input of a call on a parameter (D119) is the parameter, as cjc gives it.
      */
     func request(call: ServerCall): ?MacroRequest {
+        if (call.call.inBody(db).isSome()) {
+            return requestInItem(call)
+        }
         let item = call.call.item(db)
         let index = call.call.index(db)
         let anchor = anchorOf(ids, root, call.top) ?? return None
@@ -536,6 +569,55 @@ class MacroInputComposer {
             children)
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
         MacroRequest(call.call, call.definition, attrs, input, parents, children.toArray(), fingerprint, current)
+    }
+
+    /**
+     * The request for `call`, a call in an item (D117): its input what is between its parentheses, or the local
+     * declaration it is on; its parents the macros on the items around it, then the calls in the item whose input it
+     * is in. `None` while another call is in its input, which cjc expands first (#371), or once it is gone.
+     */
+    private func requestInItem(call: ServerCall): ?MacroRequest {
+        let found = bodyMacroCallOf(db, call.call) ?? return None
+        if (found.holdsCalls) {
+            return None
+        }
+        let syntax = bodyCallSyntaxOf(db, call.call) ?? return None
+        let anchor = anchorOf(ids, root, call.top) ?? return None
+        let attrs = syntax.macroAttr().map {
+            attr =>
+            let builder = MappedTextBuilder(source, anchor)
+            builder.copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
+            builder.build()
+        }
+        let builder = MappedTextBuilder(source, anchor)
+        match ((syntax.macroArgs(), syntax.rest())) {
+            case (Some(args), _) => builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
+            case (None, Some(rest)) => builder.copy(rest.textRange)
+            case _ => ()
+        }
+        let input = builder.build()
+        let item = call.call.item(db)
+        let parents = parentsOf(call.top, item, macroCountOf(item)).concat(found.around)
+        let children = ArrayList<MacroChild>()
+        let fingerprint = fingerprintOf(call.definition, call.definition.libraryStamp(db), attrs, input, parents,
+            children)
+        let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
+        MacroRequest(call.call, call.definition, attrs, input, parents, [], fingerprint, current)
+    }
+
+    /**
+     * How many macros are called on `item`.
+     */
+    private func macroCountOf(item: ItemId): Int64 {
+        for (one in tree.items) {
+            if (one.id == item) {
+                return one.macros.size
+            }
+            for (member in one.members where member.id == item) {
+                return member.macros.size
+            }
+        }
+        0
     }
 
     /**

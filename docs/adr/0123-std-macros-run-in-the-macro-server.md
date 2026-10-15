@@ -15,6 +15,7 @@ Amends ADR-0114: a std `@Derive` in a workspace call's input is the server's out
 
 - **A call of a macro of std is a call the server runs** (`serverCalls`, `ServerMacro`), as a workspace macro's is: in cjc's order, innermost first, and the outermost one on a top-level item is read. A macro's package is a source package of the workspace or a package of std (`MacroPackage`).
   - A call of std on a member is the server's only under a top-level item with a call the server runs. Its output is then part of that call's input (`@DeriveExclude`, `@TestCase` under `@Derive`, `@Test`). On a member of any other item, nothing would read it.
+  - A call of std in an item (D117: `@Expect` in a test's body) is not the server's yet: nothing reads an expansion in an item (#369), and a test file would send one call per assertion.
   - A workspace call around a call of std waits for that call's output, as it waits for a nested workspace call's.
     A run of std's `@Derive` that failed with no expansion before it is replaced in that input by cjls's own, as D114
     writes it (`MacroInputComposer.chainFrom`), so the call around it is still asked.

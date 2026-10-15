@@ -12,15 +12,18 @@ import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigi
 import loupe.syntax.parse
 
 /**
- * A macro called on an item of a source file (#175): the file, the item, and the macro among those called on it,
- * outermost first (its index in `Item.macros`), or on one of its parameters, after those (`macroCallChainsOf`, D119),
- * interned. What it adds is `ItemFile.Expansion` of it.
+ * A macro called in a source file, interned: the file and the item, and which of its calls. On the item (#175), the
+ * macro among those called on it, outermost first (`index` in `Item.macros`), or on one of its parameters, after
+ * those (`macroCallChainsOf`, D119), `inBody` `None`. In it, in a body or an initializer (D117), the macro's name as
+ * written (`inBody`) and its ordinal among the calls of that name there (`index`), in the order their `@`s are
+ * written. What a call on an item adds is `ItemFile.Expansion` of it.
  */
 @CalcaInterned
 public struct MacroCallId {
     public let file: SourceFile
     public let item: ItemId
     public let index: Int64
+    public let inBody: ?String
 }
 
 /**
@@ -241,7 +244,7 @@ func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, Std
                 continue
             }
             driven = driven || stdMacro.drivesTheItem
-            found.add((MacroCallId(db, file, item.id, i), stdMacro))
+            found.add((MacroCallId(db, file, item.id, i, None), stdMacro))
         }
     }
     found.toArray()

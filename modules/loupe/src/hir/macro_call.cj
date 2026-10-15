@@ -14,19 +14,31 @@ import loupe.syntax.parse
 public func macroCallOf(db: AnalysisDatabase, file: SourceFile, key: MacroCallKey): ?MacroCallId {
     let ids = itemIdMap(db, file)
     let item = (ids.all |> filter {id: ItemId => id.toString() == key.item} |> first) ?? return None
+    if (let Some(name) <- key.inBody) {
+        let there = bodyMacroCalls(db, file).iterator().any {
+            one => one.item == item && one.name == name && one.index == key.index
+        }
+        if (!there) {
+            return None
+        }
+        return MacroCallId(db, file, item, key.index, Some(name))
+    }
     let node = ids.node(item, parse(db, file).syntaxNode()) ?? return None
     if (key.index < 0 || key.index >= macroCallCountOf(node)) {
         return None
     }
-    MacroCallId(db, file, item, key.index)
+    MacroCallId(db, file, item, key.index, None)
 }
 
 /**
- * The macro call on an item of `file`, or on a parameter of one (D119), whose head (`@` to the end of its attribute,
- * or of its name) `offset` is on, the end included, and that head; `None` off any head, or on a call on no item (one
- * in a body).
+ * The macro call of `file` whose head (`@` to the end of its attribute, or of its name) `offset` is on, the end
+ * included, and that head: one in an item (`bodyMacroCalls`, D117), else one on an item or on a parameter of one
+ * (D119); `None` off any head.
  */
 public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64): ?(MacroCallId, TextRange) {
+    if (let Some(inItem) <- bodyCallUnder(db, file, offset)) {
+        return inItem
+    }
     let root = parse(db, file).syntaxNode()
     let tokens = match (root.tokenAtOffset(offset)) {
         case Single(token) => [token]
@@ -50,7 +62,7 @@ public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64
         }
         let item = ids.idOf(SyntaxNodePtr(node)) ?? return None
         let index = macroCallIndexOf(node, call) ?? return None
-        return (MacroCallId(db, file, item, index), headOf(call))
+        return (MacroCallId(db, file, item, index, None), headOf(call))
     }
     None
 }
@@ -82,7 +94,7 @@ public func macroCallsAround(db: AnalysisDatabase, file: SourceFile, offset: Int
         if (calls.isEmpty() || (inBlock && !inBody) || found.iterator().any {one => one[0].item(db) == item}) {
             continue
         }
-        found.add((MacroCallId(db, file, item, 0), headOf(calls[0])))
+        found.add((MacroCallId(db, file, item, 0, None), headOf(calls[0])))
     }
     found.toArray()
 }
@@ -92,6 +104,9 @@ public func macroCallsAround(db: AnalysisDatabase, file: SourceFile, offset: Int
  * it included. `None` if its item is no longer there.
  */
 public func declarationUnder(db: AnalysisDatabase, call: MacroCallId): ?String {
+    if (call.inBody(db).isSome()) {
+        return None
+    }
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
     let macroCall = macroCallAt(node, call.index(db)) ?? return None
@@ -112,6 +127,10 @@ func headOf(call: MacroExpandDecl): TextRange {
  * head (`macroCallUnder`). `None` if its item is no longer there.
  */
 public func macroCallHeadOf(db: AnalysisDatabase, call: MacroCallId): ?(String, TextRange) {
+    if (call.inBody(db).isSome()) {
+        let syntax = bodyCallSyntaxOf(db, call) ?? return None
+        return ("@" + syntax.name, syntax.head())
+    }
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
     let macroCall = macroCallAt(node, call.index(db)) ?? return None
@@ -122,11 +141,17 @@ public func macroCallHeadOf(db: AnalysisDatabase, call: MacroCallId): ?(String, 
 /**
  * The call whose expansion the analysis reads that shows what `call` adds: the call the macro server runs read on its
  * top-level item, answered, if `call` is in its input (on a member, or within it on the item); else `call` itself if
- * it is expanded (`expandedCalls`); else that call of the server not answered yet. `None` for a call nothing
- * expands.
+ * it is expanded (`expandedCalls`); else that call of the server not answered yet. A call in an item (D117) shows its
+ * own, if the server runs it. `None` for a call nothing expands.
  */
 public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
     let file = call.file(db)
+    if (call.inBody(db).isSome()) {
+        if (serverCalls(db, file).iterator().any {one => one.call == call}) {
+            return call
+        }
+        return None
+    }
     let expanded = expandedCalls(db, file)
     let item = call.item(db)
     let top = (itemTree(db, file).items |> filter {

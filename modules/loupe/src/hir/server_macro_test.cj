@@ -22,13 +22,19 @@ let WORKSPACE_MACROS = #"
     "#
 
 /**
- * The database of `text`, the text of `/main.cj` in package `m`, with the macros of `WORKSPACE_MACROS` and std's
- * packages `std` read from the SDK, and its file.
+ * The database of `text`, the text of `/main.cj` in package `m` of the conditions `cfg` (`os:Linux`), with the macros
+ * of `WORKSPACE_MACROS` and std's packages `std` read from the SDK, and its file.
  */
-func workspaceMacroDatabase(text: String, std!: Array<String> = []): (AnalysisDatabase, SourceFile, Fixture) {
+func workspaceMacroDatabase(text: String, std!: Array<String> = [], cfg!: String = ""): (AnalysisDatabase, SourceFile,
+    Fixture) {
     let indented = trimIndent(text).split("\n").map {line => "    " + line}
-    let parsed = Fixture.parse("\n    //- /main.cj module=m package=m\n" + String.join(indented, delimiter: "\n") +
-        "\n" + WORKSPACE_MACROS)
+    let conditions = if (cfg.isEmpty()) {
+        ""
+    } else {
+        " cfg=${cfg}"
+    }
+    let parsed = Fixture.parse("\n    //- /main.cj module=m package=m${conditions}\n" +
+        String.join(indented, delimiter: "\n") + "\n" + WORKSPACE_MACROS)
     let db = parsed.database(binaries: std.map {name => stdCjoRead(name, stdCjo(name))})
     let file = db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow()
     (db, file, parsed)
@@ -578,6 +584,31 @@ func stdMacroDatabase(text: String): (AnalysisDatabase, SourceFile) {
  */
 @Test
 class StdServerMacroTest {
+    @TestCase
+    func aCallOfStdInAnItemIsNotAskedOfTheServerAsOneOfTheWorkspaceIs() {
+        // arrange
+        let parsed = Fixture.parse(#"
+    //- /main.cj module=m package=m
+    package m
+    import m.ms.*
+    import std.unittest.testmacro.*
+    func f(): Unit {
+        @Expect(1, 1)
+        @I(2)
+    }
+"# + WORKSPACE_MACROS)
+        let db = parsed.database(binaries: ["std.core", "std.unittest", "std.unittest.testmacro"].map {
+            name => stdCjoRead(name, stdCjo(name))
+        })
+        let file = db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow()
+
+        // act
+        let calls = serverCalls(db, file).map {one => one.definition.name}
+
+        // assert
+        @Expect(calls, ["I"])
+    }
+
     @TestCase
     func aCallOfStdIsAskedOfTheServerAsAMacroOfItsPackage() {
         // arrange

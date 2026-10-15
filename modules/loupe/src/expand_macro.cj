@@ -86,15 +86,15 @@ public struct ExpandedMacro {
  * The macro call at `offset` of the file, as `MacroCallAt` gives it, as rust-analyzer finds one: the call whose head
  * (`@` to the end of its attribute, or of its name, the end included) it is on; else the outermost call of the
  * innermost item around it with one that expands, from anywhere in the item, or, unless `inBody`, anywhere but in its
- * bodies. `None` where no call expands: in a body a call is on no item, and a call of a macro the analysis does not
- * know (an unresolved name), or on a member whose type has no call the server runs (`@DeriveExclude` but under
- * `@Derive`, D98's consequence), has no expansion.
+ * bodies. A call in a body is one only from its head and if `inBody` (D117). `None` where no call expands: a call of a
+ * macro the analysis does not know (an unresolved name), or on a member whose type has no call the server runs
+ * (`@DeriveExclude` but under `@Derive`, D98's consequence), has no expansion.
  */
 public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inBody!: Bool = true): ?MacroCallAt {
     let file = db.sourceFile(fileId) ?? return None
     let candidates = match (macroCallUnder(db, file, offset)) {
-        case Some(under) => [under]
-        case None => Array<(MacroCallId, TextRange)>()
+        case Some(under) where inBody || under[0].inBody(db).isNone() => [under]
+        case _ => Array<(MacroCallId, TextRange)>()
     }
     for ((under, range) in candidates.concat(macroCallsAround(db, file, offset, inBody))) {
         let call = readCallOf(db, under) ?? continue
@@ -109,12 +109,20 @@ public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inB
 }
 
 /**
- * What `call` expands to: the macro server's last output that succeeded for a call it runs, read (`ServerCall.read`);
- * else the analysis's own for one of std. `None` for a call whose expansion the analysis does not read: not answered
- * yet, not the call read on its item, or no longer there.
+ * What `call` expands to: the macro server's last output that succeeded for a call it runs, read (`ServerCall.read`),
+ * or one it runs in an item (D117); else the analysis's own for one of std. `None` for a call whose expansion the
+ * analysis does not read: not answered yet, not the call read on its item, or no longer there.
  */
 public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMacro {
     let file = call.file(db)
+    if (call.inBody(db).isSome()) {
+        if (!serverCalls(db, file).iterator().any {one => one.call == call}) {
+            return None
+        }
+        let output = macroOutputOf(db, call).flatMap {one => one.expansion} ?? return None
+        let (name, range) = macroCallHeadOf(db, call) ?? return None
+        return ExpandedMacro(name, range, output.text, ExpansionKind.ServerExpansion)
+    }
     if (!expandedCalls(db, file).contains(call)) {
         return None
     }

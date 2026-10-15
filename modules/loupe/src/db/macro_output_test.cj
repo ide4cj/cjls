@@ -51,4 +51,20 @@ class MappedTextTest {
         @Expect(after?.items.size, Some(1))
         @Expect(after?.diagnostics.size, Some(1))
     }
+
+    @TestCase
+    func aCallInAnItemIsKeptApartFromTheCallOnItOfTheSameIndex() {
+        // arrange
+        let onItem = MacroCallKey("Func#1/0", 0)
+        let inItem = MacroCallKey("Func#1/0", 0, inBody: "m.M")
+        let outputs = MacroOutputs().withOutput(onItem, MacroOutput(1, None, [], []))
+
+        // act
+        let found = outputs.get(inItem)
+
+        // assert
+        @Expect(found.isNone(), true)
+        @Expect(onItem.toString(), "Func#1/0@0")
+        @Expect(inItem.toString(), "Func#1/0/@m.M#0")
+    }
 }
