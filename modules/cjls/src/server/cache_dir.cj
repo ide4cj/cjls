@@ -6,6 +6,7 @@ import std.fs.{Directory, exists, File, FileInfo, FSException, OpenMode, Path, r
 import std.sync.Mutex
 import std.time.DateTime
 import loupe.vfs.VfsPath
+import macro_host.{LOCK_FILE, tryLockCacheDir}
 import platform.userCacheDir
 import project_model.projectDirOf
 

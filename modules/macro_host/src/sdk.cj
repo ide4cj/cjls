@@ -1,10 +1,46 @@
-package cjls.macro_host
+package macro_host
 
 import std.collection.*
 import std.env.getVariables
+import std.fs.Path
 import std.process.{ProcessException, executeWithOutput}
 import macro_server.{MacroServerPaths, TokenNumbers}
 import platform.sdkToolEnvironment
+import project_model.{hostCfg, sdkTarget}
+
+/**
+ * What the host needs of the SDK: where its server is, how it numbers tokens, its `cjc` and its version.
+ */
+public class MacroSdk {
+    public MacroSdk(
+        public let paths: MacroServerPaths,
+        public let numbers: TokenNumbers,
+        public let toolchain: SdkToolchain,
+        public let version: String
+    ) {}
+}
+
+/**
+ * The SDK at a directory, as the macros need it: the one there, or why it cannot run them.
+ */
+public enum MacroSdkLookup {
+    | Usable(MacroSdk)
+    | Unusable(String)
+}
+
+/**
+ * The SDK at `home` for the macros of this host: `Unusable` if it has no target for the host, its `cjc` does not
+ * run, or it numbers its token kinds in a way cjls does not know.
+ */
+public func macroSdkIn(home: Path): MacroSdkLookup {
+    let target = sdkTarget(hostCfg()) ?? return Unusable("no SDK target for this host")
+    let paths = MacroServerPaths.inSdk(home, target)
+    let toolchain = SdkToolchain(paths)
+    let version = toolchain.version() ?? return Unusable("the SDK's cjc does not run: macros are not expanded")
+    let numbers = tokenNumbersOf(paths, version) ?? return Unusable(
+        "the SDK numbers its token kinds in a way cjls does not know: macros are not expanded")
+    Usable(MacroSdk(paths, numbers, toolchain, version))
+}
 
 /**
  * The SDK's `cjc`, run under the environment its `envsetup` sets (`sdkToolEnvironment`): its runtime on the
