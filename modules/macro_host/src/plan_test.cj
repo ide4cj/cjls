@@ -37,10 +37,17 @@ class PlanToolchain <: Toolchain {
      * Where each build of the package of sources `dir` wrote.
      */
     func outputsOf(dir: Path): Array<String> {
-        calls.toArray().filter {call => call[1] == dir.toString()}.map {
+        calls.toArray().filter {call => call[1] == spelled(dir)}.map {
             call => argumentOf(call, "--output-dir=").getOrThrow()
         }
     }
+}
+
+/**
+ * `path` as the analysis spells it (`VfsPath.file`), as a build is given the directory of a package's sources.
+ */
+func spelled(path: Path): String {
+    VfsPath.file(path).filePath.getOrThrow().toString()
 }
 
 func argumentOf(arguments: Array<String>, prefix: String): ?String {
@@ -57,7 +64,9 @@ class Projects {
     private let paths = PathInterner()
     private let modules = ArrayList<ModuleModel>()
     private let texts = ArrayList<(FileId, String)>()
+    // by the directory of its sources as the analysis spells it, which a build is given
     let names = HashMap<String, String>()
+    private let projects = ArrayList<String>()
     // that of the last build: a package is an entity of one database
     private var built: ?AnalysisDatabase = None
 
@@ -68,11 +77,14 @@ class Projects {
     func module(project: String, name: String, packages: Array<(String, String, String)>, deps!: Array<String> = []):
         Projects {
         let at = root.join(project)
+        if (!projects.contains(project)) {
+            projects.add(project)
+        }
         let models = ArrayList<PackageModel>()
         for ((pkg, dir, text) in packages) {
             let file = VfsPath.file(at.join(dir).join("${dir}.cj"))
             texts.add((paths.intern(file), text))
-            names[at.join(dir).toString()] = pkg
+            names[spelled(at.join(dir))] = pkg
             models.add(PackageModel(pkg, VfsPath.file(at.join(dir)), [file]))
         }
         modules.add(ModuleModel(name, VfsPath.file(at), models.toArray(), deps: deps))
@@ -95,16 +107,14 @@ class Projects {
     }
 
     /**
-     * The directory the macros of a package are built into: its project's.
+     * The directory the macros of a package are built into: its project's. Through `VfsPath`, which spells a path
+     * as the analysis does: a drive, or a short name of Windows, as `root` may not.
      */
     func outs(db: AnalysisDatabase): (Package) -> ?Path {
         {
-            pkg: Package =>
-            var dir = pkg.dir(db).filePath.getOrThrow()
-            while (dir.parent.toString() != root.toString()) {
-                dir = dir.parent
-            }
-            Some(outOf(dir.fileName))
+            pkg: Package => projects.iterator().filter {
+                project => pkg.dir(db).isUnder(VfsPath.file(root.join(project)))
+            }.next().map {project => outOf(project)}
         }
     }
 
@@ -119,9 +129,9 @@ class Projects {
      */
     func libraryOf(result: BuiltPlan, project: String, dir: String): ?Path {
         let db = built.getOrThrow()
-        let wanted = root.join(project).join(dir).toString()
+        let wanted = VfsPath.file(root.join(project).join(dir))
         for ((pkg, library) in result.libraries) {
-            if (pkg.dir(db).filePath?.toString() == Some(wanted) && let Built(path, _) <- library) {
+            if (pkg.dir(db) == wanted && let Built(path, _) <- library) {
                 return path
             }
         }
