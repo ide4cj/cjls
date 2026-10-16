@@ -603,20 +603,33 @@ class Hovers {
     }
 
     /**
-     * The interfaces the `extend`s in the expansions of the macro calls on `id`, a declaration of a source file, add.
+     * The interfaces the `extend`s in the expansions of the macro calls on `id` add: of a declaration of a source file,
+     * those in the expansions of the calls on it; of one in an expansion, as the macro server's output that replaces
+     * its item, those of it beside it there.
      */
     private func addedSupersOf(id: DefId): Array<Ty> {
-        let file = match (id.file(db)) {
-            case Source(file) => file
-            case _ => return []
+        match (id.file(db)) {
+            case Source(file) => expandedCalls(db, file).filter {call => call.item(db) == id.item(db)}.map {
+                call => extendSupersIn(call, {_ => true})
+            }.flatten()
+            case Expansion(call) => extendSupersIn(call, {
+                extended => match (extended.kind(db)) {
+                    case DeclTy(of, _) => of == id
+                    case _ => false
+                }
+            })
+            case _ => []
         }
-        let supers = ArrayList<Ty>()
-        for (call in expandedCalls(db, file) where call.item(db) == id.item(db)) {
-            for (item in expansionItemTree(db, call).items where item.kind == ItemKind.Extend) {
-                supers.add(all: signatureTypes(db, DefId(db, ItemFile.Expansion(call), item.id)).supers)
-            }
-        }
-        supers.toArray()
+    }
+
+    /**
+     * The interfaces the `extend`s of the expansion of `call` whose type `takes` takes add.
+     */
+    private func extendSupersIn(call: MacroCallId, takes: (Ty) -> Bool): Array<Ty> {
+        let file = ItemFile.Expansion(call)
+        expansionItemTree(db, call).items.filter {item => item.kind == ItemKind.Extend}.map {
+            item => signatureTypes(db, DefId(db, file, item.id))
+        }.filter {sig => sig.ty.map {one => takes(one)} ?? false}.map {sig => sig.supers}.flatten()
     }
 
     /**
