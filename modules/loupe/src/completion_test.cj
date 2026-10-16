@@ -434,6 +434,60 @@ class CompletionTest {
     }
 
     @TestCase
+    func aNameOnALineOfItsOwnAfterAnEnumsConstructorsListsTheKeywordsStartingAMember() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            enum E {
+                | A | B
+                fu$0
+            //  ^^ 010 const | CompletionKind.KeywordItem
+            //  ^^ 010 func | CompletionKind.KeywordItem
+            //  ^^ 010 init | CompletionKind.KeywordItem
+            //  ^^ 010 internal | CompletionKind.KeywordItem
+            //  ^^ 010 let | CompletionKind.KeywordItem
+            //  ^^ 010 mut | CompletionKind.KeywordItem
+            //  ^^ 010 open | CompletionKind.KeywordItem
+            //  ^^ 010 operator | CompletionKind.KeywordItem
+            //  ^^ 010 override | CompletionKind.KeywordItem
+            //  ^^ 010 private | CompletionKind.KeywordItem
+            //  ^^ 010 prop | CompletionKind.KeywordItem
+            //  ^^ 010 protected | CompletionKind.KeywordItem
+            //  ^^ 010 public | CompletionKind.KeywordItem
+            //  ^^ 010 redef | CompletionKind.KeywordItem
+            //  ^^ 010 static | CompletionKind.KeywordItem
+            //  ^^ 010 unsafe | CompletionKind.KeywordItem
+            //  ^^ 010 var | CompletionKind.KeywordItem
+            }
+            "#)
+    }
+
+    @TestCase
+    func aNameAfterAPipeInAnEnumIsAConstructorAndCompletesNothing() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            enum E {
+                | A
+                | fu$0
+            //    ^^ no completion
+            }
+            "#)
+    }
+
+    @TestCase
+    func theFirstNameOfAnEnumWithoutAPipeIsAConstructorAndCompletesNothing() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            enum E {
+                fu$0
+            //  ^^ no completion
+            }
+            "#)
+    }
+
+    @TestCase
     func aCursorAtTheTopLevelListsTheKeywordsStartingADeclarationAndImportInThePreamble() {
         checkCompletion(#"
             //- /main.cj module=m package=m
