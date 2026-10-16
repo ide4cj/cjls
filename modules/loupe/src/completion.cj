@@ -298,16 +298,16 @@ func isStaticMember(db: AnalysisDatabase, target: MemberTarget): Bool {
 }
 
 /**
- * The member `target` as an item, seen on the type `recv` if one's, if the body of `def` may
- * access it (N80: what the lookup finds whatever its modifiers, the use checks): a `private`
- * member inside its type, a `protected` one in its package or a subtype, an `internal` one as
- * its package is seen.
+ * The member `target` as an item, seen on the type `recv` if one's, if it is no operator function
+ * (called by its operator, never by name) and the body of `def` may access it (N80: what the
+ * lookup finds whatever its modifiers, the use checks): a `private` member inside its type, a
+ * `protected` one in its package or a subtype, an `internal` one as its package is seen.
  */
 func memberItem(db: AnalysisDatabase, def: DefId, target: MemberTarget, recv: ?Ty, relevance: Int64): ?CompletionItem {
     match (target) {
         case MemberDecl(id) =>
             let item = declItemOf(db, id) ?? return None
-            if (!isAccessibleMember(db, def, id, item)) {
+            if (item.has(Modifier.Operator) || !isAccessibleMember(db, def, id, item)) {
                 return None
             }
             let kind = kindOfItem(item.kind) ?? return None

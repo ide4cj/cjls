@@ -113,6 +113,24 @@ class CompletionTest {
     }
 
     @TestCase
+    func anOperatorFunctionIsNotListedAfterADot() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            struct Money {
+                let cents = 0
+                operator func +(other: Money): Money { this }
+                operator func [](i: Int64): Int64 { i }
+                func twice(): Money {
+                    this.$0
+            //          ^ 080 cents | CompletionKind.VarItem | let cents: Int64
+            //          ^ 080 twice | CompletionKind.FuncItem | func twice(): Money
+                }
+            }
+            "#)
+    }
+
+    @TestCase
     func aDotOnAnEnumListsItsConstructorsAndStaticMembers() {
         checkCompletion(#"
             //- /main.cj module=m package=m
