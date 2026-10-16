@@ -49,6 +49,12 @@ public class ServerState <: FromContext<ServerState> {
     public let openDocuments = HashMap<VfsPath, Int32>()
 
     /**
+     * How many times a document was opened: a diagnostic report's `resultId` from before an
+     * opening never matches after it (#51).
+     */
+    public var openings = 0
+
+    /**
      * What a column counts, as agreed on at `initialize`: UTF-16 until then, as LSP has it.
      */
     public var encoding = Encoding.Utf16
@@ -486,7 +492,7 @@ public class ServerState <: FromContext<ServerState> {
         this.files = files
         ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
             augmentsSyntaxTokens, locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, completionMarkdown,
-            roots.toArray(), showsDocuments, codeActionLiterals, cacheDirs)
+            roots.toArray(), showsDocuments, codeActionLiterals, cacheDirs, openings)
     }
 
     /**
@@ -530,7 +536,11 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
          * The roots of the workspace, as the state had them.
          */
         public let roots: Array<VfsPath>, public let showsDocuments: Bool, public let codeActionLiterals: Bool,
-        public let cacheDirs: CacheDirs) {}
+        public let cacheDirs: CacheDirs,
+        /**
+         * How many times a document was opened, as the state had it.
+         */
+        public let openings: Int64) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot
