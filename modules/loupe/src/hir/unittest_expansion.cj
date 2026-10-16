@@ -10,7 +10,8 @@ import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, ClassDecl, Decl, FuncDecl, Ma
 // out: the `private` helpers of a test class (`classConfiguration`, `inheritedFromClassAnnotatedByTestTemplate`), the
 // constructor it adds when it has none (the default one cjc adds anyway), the registrations of `@UnittestOption`
 // (`let _ = ...`), and what every body does. The names they are written with resolve in the file of the call, as cjc's:
-// `TestClass`, `TestSuite`, `TestPackage`, `DataStrategyProcessor`, `KeyFor` need the user's `import std.unittest.*`.
+// `TestClass`, `TestSuite`, `TestPackage`, `DataStrategyProcessor`, `KeyFor` need the user's `import std.unittest.*`,
+// which a test file has with no line (D129).
 
 /**
  * What `@Test` (`template` false) or `@TestTemplate` adds to the class `decl`: its being a `TestClass`, with

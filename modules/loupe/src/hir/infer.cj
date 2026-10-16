@@ -1068,8 +1068,7 @@ class Inference {
             // a macro of a `[…]` and one of none, of one name and package (`@Expect`, `@AssertThrows`): the
             // call takes the one it fits
             case Some(Ambiguous(targets)) => oneMacroOf(targets) ?? return None
-            // not found, where cjc may find it: `cjpm test` compiles a package with `--test`, its macros
-            // std.unittest.testmacro's unimported (N137, #255)
+            // not found: in a test file, std.unittest.testmacro's are found unimported (D129)
             case _ => return None
         }
         if (packageRefOf(db, decl).map {one => nameOf(db, one)} != Some("std.unittest.testmacro")) {

@@ -111,6 +111,29 @@ class ProjectTest {
     }
 
     @TestCase
+    func theFilesOfAPackageNamedAsTestsAreItsTestFiles() {
+        // arrange
+        let db = AnalysisDatabase()
+        let paths = PathInterner()
+        let model = {
+            files: Array<String> => ProjectModel(Cfg([]), [
+                ModuleModel("app", at("app/src"), [
+                    PackageModel("app", at("app/src"), files.map {name => at("app/src/${name}")})])
+            ])
+        }
+        db.setProject(model(["a.cj", "a_test.cj", "test.cj"]), paths)
+        let app = packageNamed(db, "app")
+        let before = app.testFiles(db)
+
+        // act
+        db.setProject(model(["a.cj", "test.cj", "b_test.cj"]), paths)
+
+        // assert
+        @Expect(before, [paths.lookup(at("app/src/a_test.cj")).getOrThrow()])
+        @Expect(app.testFiles(db), [paths.lookup(at("app/src/b_test.cj")).getOrThrow()])
+    }
+
+    @TestCase
     func aModuleIsAsDurableAsItIsRarelyChanged() {
         // arrange
         let root = at("m")
