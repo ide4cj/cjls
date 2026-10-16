@@ -53,7 +53,7 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
             for (i in 0..lowered.body.locals.size) {
                 let local = lowered.body.locals[i]
                 // a pattern's lone name of a constructor is none (N72)
-                if (local.lone && !ctorsNamed(db, pkg, local.name).isEmpty()) {
+                if (local.lone && !ctorsNamed(db, pkg, source, local.name).isEmpty()) {
                     continue
                 }
                 if (let Some(Some(ptr)) <- lowered.sourceMap.locals.get(i) && let Some(node) <- ptr.tryToNode(root)) {

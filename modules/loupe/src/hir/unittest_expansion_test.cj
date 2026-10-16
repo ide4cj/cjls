@@ -452,6 +452,8 @@ class UnittestInferenceTest {
             //      ^ Base
                 let n = k.name
             //      ^ String
+                let m = AllocatedMemory
+            //      ^ RuntimeInfo
             }
             //- /m/src/a.cj module=m package=m
             package m
@@ -471,6 +473,8 @@ class UnittestInferenceTest {
                 let s = c.asTestSuite()
             //      ^ {unknown}
                 let e = @Expect(1, 1)
+            //      ^ {unknown}
+                let m = AllocatedMemory
             //      ^ {unknown}
             }
             //- /m/src/a_test.cj module=m package=m

@@ -2011,9 +2011,9 @@ class Inference {
     }
 
     private func isCtorName(name: String): Bool {
-        match (pkg) {
-            case Some(one) => !ctorsNamed(db, one, name).isEmpty()
-            case None => false
+        match ((pkg, from)) {
+            case (Some(one), Some(file)) => !ctorsNamed(db, one, file, name).isEmpty()
+            case _ => false
         }
     }
 
