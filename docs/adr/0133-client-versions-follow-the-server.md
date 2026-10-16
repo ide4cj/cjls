@@ -1,4 +1,4 @@
-# ADR-0132: A client's version is the major and minor of the cjls release it pins, with a patch of its own
+# ADR-0133: A client's version is the major and minor of the cjls release it pins, with a patch of its own
 
 Status: accepted, 2026-10-16. Amends ADR-0032: a client's version, the VS Code channels' minors.
 
