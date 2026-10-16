@@ -172,6 +172,30 @@ class HighlightRelatedTest {
     }
 
     @TestCase
+    func aTypeParameterIsHighlightedInItsDeclarationAndItsMembers() {
+        checkHighlightRelated(#"
+            //- /main.cj module=m package=m
+            package m
+            class Box<T> {
+            //        ^ text
+                var item: T
+            //            ^ text
+                init(item: $0T) {
+            //               ^ text
+                    this.item = item
+                }
+                func get(): T {
+            //              ^ text
+                    let one: T = item
+            //               ^ text
+                    one
+                }
+            }
+            func id<T>(x: T): T { x }
+            "#)
+    }
+
+    @TestCase
     func aParameterOfAPrimaryConstructorIsAMember() {
         checkHighlightRelated(#"
             //- /main.cj module=m package=m

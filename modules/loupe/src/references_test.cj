@@ -188,11 +188,31 @@ class ReferencesTest {
             //- /a.cj module=m package=m
             package m
             func id<T>(x: $0T): T { x }
+            //      ^ text decl
             //              ^ text
             //                  ^ text
             //- /b.cj module=m package=m
             package m
             class T {}
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterOfAFunctionABodyDeclaresIsFoundFromItsDeclaration() {
+        checkReferences(#"
+            //- /a.cj module=m package=m
+            package m
+            func f(): Unit {
+                func g<$0T>(x: T): T {
+            //           ^ text decl
+            //                 ^ text
+            //                     ^ text
+                    let y: T = x
+            //             ^ text
+                    y
+                }
+            }
+            func h<T>(x: T): T { x }
             "#)
     }
 
