@@ -62,9 +62,12 @@ let stdTexts = StdTexts()
 class FileWordsBench {
     @Bench
     func wordsOfEveryFileOfStd(): Int64 {
+        let hash = wordHash("size")
         var count = 0
         for (text in stdTexts.texts) {
-            count += wordsOf(text).hashes.size
+            if (wordsOf(text).has(hash)) {
+                count += 1
+            }
         }
         count
     }
@@ -90,4 +93,11 @@ class FileWordsBench {
     func aRareNameLookedUpInTheWordsOfEveryFileOfStd(): Int64 {
         let hash = wordHash("getRawArray")
         stdTexts.words.iterator().filter {words => words.has(hash)}.count()
-    }}
+    }
+
+    @Bench
+    func aCommonNameLookedUpInTheWordsOfEveryFileOfStd(): Int64 {
+        let hash = wordHash("size")
+        stdTexts.words.iterator().filter {words => words.has(hash)}.count()
+    }
+}

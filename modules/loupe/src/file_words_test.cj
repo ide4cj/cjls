@@ -54,7 +54,6 @@ class FileWordsTest {
     @TestCase
     func anEmptyTextHasNoWord() {
         // act, assert
-        @Expect(wordsOf(Rope("")).hashes.size, 0)
         @Expect(!wordsOf(Rope("")).has(wordHash("a")))
     }
 }
