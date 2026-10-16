@@ -476,17 +476,18 @@ class InExpansionTest {
     }
 
     @TestCase
-    func aNameInABodyOfAnExpansionIsNotResolved() {
+    func aNameInABodyOfTheServersOutputIsResolvedAsInAFile() {
         // arrange
-        let (db, _, call, text) = answeredM()
+        let (db, file, call, text) = answeredM()
 
         // act
         let targets = definitionInExpansion(db, call, offsetIn(text, "C()"))
         let hover = hoverInExpansion(db, call, offsetIn(text, "C()"))
 
         // assert
-        @Expect(targets.size, 0)
-        @Expect(hover.isNone())
+        let c = offsetIn(file.text(db).toString(), "C {}")
+        @Expect(targets.map {one => placeOf(one)}, ["${file.fileId(db)} ${TextRange(c, c + 1)}"])
+        @Expect(hover?.items.map {item => item.code}, Some(["class C"]))
     }
 
     @TestCase
