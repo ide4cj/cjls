@@ -30,8 +30,6 @@ modules/cjls/src/server/loop.cj: member found: 1
 modules/cjls/src/server/push.cj: member found: 6
 modules/cjls/src/server/server_test.cj: member found: 3
 modules/fbs_codegen/src/code_writer.cj: member found: 1
-modules/fnum/src/ryu.cj: local: 2
-modules/fnum/src/ryu.cj: operator |: 2
 modules/loupe/src/definition.cj: local: 4
 modules/loupe/src/definition.cj: operator ??: 1
 modules/loupe/src/fixture/expect.cj: local: 8

@@ -421,6 +421,34 @@ class StdFalseMismatchesTest {
     }
 
     @TestCase
+    func aBinaryOperatorNoCandidateFitsIsReportedAtTheOperator() {
+        // N168: by its operands' types, its operand not; a `[]` by its argument, as a call; a
+        // result the type expected takes not, as any value
+        checkDiagnostics(#"
+            package m
+            class T {
+                operator func +(r: Int64): Bool { true }
+                operator func +(r: Bool): Bool { true }
+                operator func [](i: Int64): Int64 { i }
+            }
+            func test(t: T): Unit {
+                let a = 3 * "s"
+            //            ^ error: invalid binary operator '*' on type 'Int64' and 'String'
+                let b = t + "s"
+            //            ^ error: invalid binary operator '+' on type 'T' and 'String'
+                let c = t - 1
+            //            ^ error: invalid binary operator '-' on type 'T' and 'Int64'
+                let d = t["x"]
+            //            ^^^ error: mismatched types: expected 'Int64', found 'String'
+                let e: String = t + 1
+            //                  ^^^^^ error: mismatched types: expected 'String', found 'Bool'
+                let f = 1 + true
+            //            ^ error: invalid binary operator '+' on type 'Int64' and 'Bool'
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
     func anArgumentNotKnownTakesNoneOfSeveralOverloads() {
         checkDiagnostics(#"
             package m
