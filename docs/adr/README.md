@@ -151,3 +151,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0130](0130-references-filter-files-by-an-index-of-their-words.md) | References read only the files whose words, a tracked bloom filter per file, name the name | proposed |
 | [0131](0131-a-diagnostic-reports-result-id-is-its-hash.md) | A diagnostic report's resultId is a hash of its items and of the openings so far | proposed |
 | [0132](0132-a-replaced-item-is-read-through-its-expansion.md) | An item a macro's output replaces is read through that output alone; its source maps to it by spans | proposed |
+| [0133](0133-client-versions-follow-the-server.md) | A client's version is the major and minor of the cjls release it pins, with a patch of its own | accepted |
