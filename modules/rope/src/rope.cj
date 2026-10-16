@@ -105,9 +105,7 @@ public struct Rope <: Equatable<Rope> & ToString {
      * @throws IndexOutOfBoundsException - if there is no such line
      */
     public func lineStart(line: Int64): Int64 {
-        if (line < 0 || line >= lineCount) {
-            throw IndexOutOfBoundsException("line ${line} of a text of ${lineCount}")
-        }
+        checkLine(line)
         if (line == 0) {
             0
         } else {
@@ -122,6 +120,7 @@ public struct Rope <: Equatable<Rope> & ToString {
      * @throws IndexOutOfBoundsException - if there is no such line
      */
     public func lineEnd(line: Int64): Int64 {
+        checkLine(line)
         if (line + 1 < lineCount) {
             let lineFeed = lineStart(line + 1) - 1
             if (lineFeed > 0 && byteAt(root, lineFeed - 1) == b'\r') {
@@ -130,7 +129,6 @@ public struct Rope <: Equatable<Rope> & ToString {
                 lineFeed
             }
         } else {
-            lineStart(line)
             size
         }
     }
@@ -271,6 +269,12 @@ public struct Rope <: Equatable<Rope> & ToString {
     private func checkBoundary(offset: Int64): Unit {
         if (!isCharBoundary(root, offset)) {
             throw IllegalArgumentException("offset ${offset} is inside a character")
+        }
+    }
+
+    private func checkLine(line: Int64): Unit {
+        if (line < 0 || line >= lineCount) {
+            throw IndexOutOfBoundsException("line ${line} of a text of ${lineCount}")
         }
     }
 }

@@ -266,6 +266,24 @@ class RopeTest {
         @Expect(slice.toString(), text[start..end])
         slice.checkInvariants()
     }
+
+    @TestCase[line in [-1, 2, 3, Int64.Max], text in ["", "a\nb"]]
+    func lineStartOfALineOutsideTheTextThrows(line: Int64, text: String) {
+        // arrange
+        let sut = Rope(text)
+
+        // act & assert
+        @AssertThrows[IndexOutOfBoundsException](sut.lineStart(line))
+    }
+
+    @TestCase[line in [-1, 2, 3, Int64.Max], text in ["", "a\nb"]]
+    func lineEndOfALineOutsideTheTextThrows(line: Int64, text: String) {
+        // arrange
+        let sut = Rope(text)
+
+        // act & assert
+        @AssertThrows[IndexOutOfBoundsException](sut.lineEnd(line))
+    }
 }
 
 extend Rope {
