@@ -3,7 +3,7 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import std.sort.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
+import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind, reparse}
 import cjsyntax.ast.{Decl, MemberAccessExpr, RefExpr}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
@@ -124,6 +124,8 @@ public func completionsAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): 
         nameRefCompletions(db, file, realRoot, offset, parent)
     } else if (parent.kind == SyntaxKind.ErrorNode) {
         keywordCompletions(parent, marker)
+    } else if (parent.kind == SyntaxKind.Name && (parent.parent?.kind ?? SyntaxKind.ErrorNode) == SyntaxKind.EnumCtor) {
+        strayCtorCompletions(parent.parent.getOrThrow(), marker)
     } else if (parent.kind == SyntaxKind.Name) {
         overrideCompletions(db, file, realRoot, offset, parent)
     } else {
@@ -691,8 +693,7 @@ func nextSegment(rest: String): String {
  * declaration, and `import` and `package` while only the preamble is before it.
  */
 func keywordCompletions(error: CjSyntaxNode, marker: CjSyntaxToken): ?Array<CompletionItem> {
-    if ((error.firstToken()?.textRange.start ?? -1) != marker.textRange.start ||
-        !marker.text().endsWith(COMPLETION_MARKER)) {
+    if (!isKeywordTyped(error, marker)) {
         return None
     }
     let container = error.parent ?? return None
@@ -704,6 +705,33 @@ func keywordCompletions(error: CjSyntaxNode, marker: CjSyntaxToken): ?Array<Comp
         return None
     }
     keywords.map {keyword => CompletionItem(keyword, KeywordItem, 10, NoSource)}
+}
+
+/**
+ * The keywords starting a member where `ctor`, an enum's constructor of the speculative tree, is
+ * the cursor's name after the constructors with no `|` before it, which cjc takes as a member
+ * ("expected declaration"); not the first, which needs no `|`: cjc starts an enum's body with a
+ * constructor.
+ */
+func strayCtorCompletions(ctor: CjSyntaxNode, marker: CjSyntaxToken): ?Array<CompletionItem> {
+    if (!isKeywordTyped(ctor, marker)) {
+        return None
+    }
+    let before = ctor.siblingsWithTokens(Direction.Prev) |> skip(1) |>
+        filter {element: SyntaxElement<SyntaxKind> => !element.kind.isTrivia()} |> first
+    match (before) {
+        case Some(element) where element.kind != SyntaxKind.Pipe && element.kind != SyntaxKind.LBrace =>
+            MEMBER_KEYWORDS.map {keyword => CompletionItem(keyword, KeywordItem, 10, NoSource)}
+        case _ => None
+    }
+}
+
+/**
+ * Whether `node` starts with the cursor's name and the cursor is at its end: inside a word,
+ * `str|uct`, it is no keyword typed.
+ */
+func isKeywordTyped(node: CjSyntaxNode, marker: CjSyntaxToken): Bool {
+    (node.firstToken()?.textRange.start ?? -1) == marker.textRange.start && marker.text().endsWith(COMPLETION_MARKER)
 }
 
 /**
