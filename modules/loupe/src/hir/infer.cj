@@ -110,6 +110,11 @@ public enum InferenceDiagnostic {
      * by none where one is: the call, the argument's place among its arguments, what is wrong.
      */
     | ArgName(ExprId, Int64, ArgNameError)
+    /**
+     * A binary operator of the language between neither, nor any its left's type has that fits
+     * the right: the expression, the left's type and the right's (cjc's "invalid binary operator").
+     */
+    | InvalidBinaryOperator(ExprId, Ty, Ty)
 }
 
 /**
@@ -1515,10 +1520,18 @@ class Inference {
         }
     }
 
+    /**
+     * Whether `id` is of a number's type as a literal of no suffix is, the type of the other side of
+     * an operator or of the type expected (N169): a number written, negated, an arithmetic
+     * of two such but a power, a shift of one.
+     */
     private func isNumericLiteral(id: ExprId): Bool {
         match (hir[id]) {
             case LitExpr(text) => isNumber(text)
             case UnaryExpr("-", inner) => isNumericLiteral(inner)
+            case BinaryExpr(op, lhs, _) where op == "<<" || op == ">>" => isNumericLiteral(lhs)
+            case BinaryExpr(op, lhs, rhs) where ARITHMETIC.contains(op) && op != "**" =>
+                isNumericLiteral(lhs) && isNumericLiteral(rhs)
             case _ => false
         }
     }
@@ -1774,8 +1787,12 @@ class Inference {
     /**
      * A call of the operator `op` of a value of the type `recv` with `args`: its members of that
      * name of as many parameters, `[]`'s taking `value` last if `setter` and the others if not,
-     * chosen among as a call's candidates are (N122); the one taken recorded as what `id` calls.
-     * What it returns, and the one taken.
+     * chosen among as a call's candidates are (N122): with the type expected, failing that without,
+     * the result then checked against it (N168). The one taken recorded as what `id` calls. One
+     * alone that fits not is taken still, as a call of one is (D55), but between the language's
+     * types, where the language's own operator is one more (`3 * "s"`). What it returns, and the one
+     * taken; of none, an error type. A binary operator none fits is reported by its operands' types,
+     * a `[]` by what fails in its arguments, as cjc's.
      */
     private func operatorCall(id: ExprId, recv: Ty, op: String, args: Array<CallArg>, expected: ?Ty,
         setter!: Bool = false): (Ty, ?Callable) {
@@ -1784,21 +1801,46 @@ class Inference {
         }
         // the operands in order, the value of a `[]` set too (N124)
         let inOrder = ArgMatch.inOrder(args.size)
-        let chosen: ?Callable = if (candidates.size > 1) {
-            match (chooseOverload(id, candidates.map {one => (one, inOrder)}, args, expected)) {
-                case Chose(one, _) => one
-                case _ => None
-            }
-        } else {
-            candidates.get(0)
+        let isOwnToo = (isPrim(recv) || isTuple(recv)) && (ARITHMETIC.contains(op) || COMPARISONS.contains(op))
+        // what the user wrote as an operator between two, not `x op= v` (#245) nor `[]`
+        let isBinary = match (hir[id]) {
+            case BinaryExpr(written, _, _) => written == op
+            case _ => false
         }
-        match (chosen) {
-            case Some(callable) =>
+        if (candidates.size == 1 && !isOwnToo) {
+            // taken untried, as a call of one is (D55), what fails in it reported
+            let callable = candidates[0]
+            if (let Some(decl) <- callable.decl) {
+                setCallee(id, decl)
+            }
+            if (!isBinary) {
+                return (callWith(id, callable, inOrder, args, expected), callable)
+            }
+            // cjc reports the operator, not its operand
+            quiet++
+            let ty = callWith(id, callable, inOrder, args, expected)
+            quiet--
+            if (let Some(right) <- inferredTyOf(args[0].expr) && !fits(right, callable.params[0])) {
+                invalidOperator(id, recv, right)
+            }
+            return (ty, callable)
+        }
+        let tried = candidates.map {one => (one, inOrder)}
+        let choice = if (candidates.isEmpty()) {
+            NoFit
+        } else {
+            match (chooseOverload(id, tried, args, expected)) {
+                case NoFit where expected.isSome() => chooseOverload(id, tried, args, None)
+                case one => one
+            }
+        }
+        match (choice) {
+            case Chose(callable, _) =>
                 if (let Some(decl) <- callable.decl) {
                     setCallee(id, decl)
                 }
                 (callWith(id, callable, inOrder, args, expected), callable)
-            case None =>
+            case _ =>
                 // as a call's: candidates of which none fits, or no one most specific
                 if (!candidates.isEmpty()) {
                     mismatches++
@@ -1810,7 +1852,38 @@ class Inference {
                 } else {
                     error
                 }
+                if (isBinary && let NoFit <- choice && !candidates.iterator().any {
+                    one => takesOperand(one.params[0], args[0].expr, argTys[0])
+                }) {
+                    invalidOperator(id, recv, argTys[0])
+                }
                 (unknownOf(db, [recv].concat(argTys)) ?? byMacro, None)
+        }
+    }
+
+    /**
+     * Whether a parameter of the type `param` takes the operand `expr` of the type `ty` synthesized
+     * alone: a number written any number; what a gap of the analysis is in, anything. A candidate
+     * that takes the operand's type failed for what is inside the operand, not for the operator.
+     */
+    private func takesOperand(param: Ty, expr: ExprId, ty: Ty): Bool {
+        if (hasUnknowns(db, param) || hasInferVars(db, param)) {
+            return true
+        }
+        if (isNumericLiteral(expr) && let PrimTy(name) <- param.kind(db)) {
+            return INTEGER_TYPES.contains(name) || FLOAT_TYPES.contains(name)
+        }
+        fits(ty, param)
+    }
+
+    /**
+     * The binary operator `id` none of whose candidates its operands `left` and `right` fit:
+     * reported if both are known wholly, and no macro whose expansion is not read may declare one.
+     */
+    private func invalidOperator(id: ExprId, left: Ty, right: Ty): Unit {
+        if (quiet == 0 && !isMacroTyped(left) && !hasUnknowns(db, left) && !hasUnknowns(db, right) &&
+            !hasInferVars(db, left) && !hasInferVars(db, right)) {
+            report(InvalidBinaryOperator(id, left, right))
         }
     }
 

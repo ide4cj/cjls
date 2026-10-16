@@ -1629,6 +1629,43 @@ class InferTest {
     }
 
     @TestCase
+    func anOperatorOfOneCandidateIsACallOfOneButBetweenTheLanguagesTypes() {
+        // N168: one `+` an operand fits not is taken still, as a call of one is; an `Int64`'s `*` is
+        // the language's too, and of two none fits
+        checkInference(#"
+            package m
+            class T {
+                operator func +(r: Int64): Bool { true }
+            //                  ^ Int64
+                operator func [](i: Int64): Int64 { i }
+            //                   ^ Int64
+            }
+            func one(a: Int64): Bool { true }
+            //       ^ Int64
+            func test(v: Duration, t: T): Unit {
+            //        ^ Duration
+            //                     ^ T
+                let a = 3 * v
+            //      ^ Duration
+                // cjc: invalid binary operator '*' on type 'Int64' and 'Struct-String'
+                let b = 3 * "s"
+            //      ^ {unknown}
+                // cjc: invalid binary operator '+' on type 'Class-T' and 'Struct-String'
+                let c = t + "s"
+            //      ^ Bool
+                // cjc: mismatched types, expected 'Int64', found 'Struct-String'
+                let d = one("s")
+            //      ^ Bool
+                let e = t["x"]
+            //      ^ Int64
+                // cjc: mismatched types, expected 'Struct-String', found 'Bool'
+                let f: String = t + 1
+            //      ^ String
+            }
+            "#)
+    }
+
+    @TestCase
     func anOperatorOfATypeParameterIsItsBoundsAndOfAGenericTypeItsArguments() {
         // N122
         checkInference(#"
@@ -1694,10 +1731,10 @@ class InferTest {
             func test(): Unit {
                 let v = V(1)
             //      ^ V
-                // cjc: invalid binary operator '*' on type 'Int64' and 'Struct-V'; of `Int64`'s one `*`,
-                // `*(Duration)`, its return type, as a call of one candidate's (D55)
+                // cjc: invalid binary operator '*' on type 'Int64' and 'Struct-V': `*(Duration)` and the
+                // language's fit it not (N168)
                 let l8 = 3 * v
-            //      ^^ Duration
+            //      ^^ {unknown}
                 let l64 = 3 - v
             //      ^^^ Bool
                 let a: Int8 = v + 1
@@ -1772,10 +1809,9 @@ class InferTest {
             func test(): Unit {
                 let n = 1
             //      ^ Int64
-                // cjc: invalid binary operator '*' on type 'Float64' and 'Int64'; of `Float64`'s one
-                // `*`, `*(Duration)`, its return type (D55)
+                // cjc: invalid binary operator '*' on type 'Float64' and 'Int64'
                 let fl = 1.5 * n
-            //      ^^ Duration
+            //      ^^ {unknown}
                 let ext = n + "s"
             //      ^^^ String
                 // cjc: invalid binary operator '&' on type 'Bool' and 'Bool'
@@ -1808,6 +1844,32 @@ class InferTest {
             //      ^^^^^^^^ String
                 // cjc: cannot convert a floating-point literal to type 'Int64'
                 let float = t3[1.5]
+            //      ^^^^^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
+    func numbersBetweenThemselvesAreOfTheTypeOfTheOtherSide() {
+        // N169: through arithmetic but a power, and the left of a shift
+        checkInference(#"
+            package m
+            func test(m: UInt64, k: Int64, f: Float32): Unit {
+            //        ^ UInt64
+            //                   ^ Int64
+            //                             ^ Float32
+                let shifted = (1 << UInt64(k)) | m
+            //      ^^^^^^^ UInt64
+                let added = (1 + 2) | m
+            //      ^^^^^ UInt64
+                let bits = (1 & 2) + m
+            //      ^^^^ UInt64
+                let float = (1.5 * 2.0) + f
+            //      ^^^^^ Float32
+                let nested = ((1 + 2) << k) | m
+            //      ^^^^^^ UInt64
+                // cjc: invalid binary operator '|' on type 'Int64' and 'UInt64'
+                let power = (2 ** 3u64) | m
             //      ^^^^^ {unknown}
             }
             "#)

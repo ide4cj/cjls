@@ -5,7 +5,7 @@ import std.deriving.*
 import std.sort.*
 import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.{AnyHasName, Arg, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import cjsyntax.ast.{AnyHasName, Arg, BinExpr, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
@@ -152,6 +152,12 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                     case NameOfValue => "named argument cannot be used in variable function call"
                 }
                 found.add(Diagnostic(range, Severity.Error, message))
+            case InvalidBinaryOperator(id, left, right) =>
+                let node = nodeOf(id) ?? continue
+                // at the operator, as cjc's
+                let op = (BinExpr.cast(node)?.op() ?? None) ?? continue
+                found.add(Diagnostic(op.textRange, Severity.Error,
+                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'"))
         }
     }
     found.toArray()
