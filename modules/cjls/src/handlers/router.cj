@@ -32,6 +32,7 @@ public func router(): Router {
         .route(DefinitionRequestSpec(), handleDefinition)
         .route(DocumentHighlightRequestSpec(), handleDocumentHighlight)
         .route(ReferencesRequestSpec(), handleReferences)
+        .route(ImplementationRequestSpec(), handleImplementation)
         .route(HoverRequestSpec(), handleHover)
         .route(CompletionRequestSpec(), handleCompletion)
         .route(CompletionResolveRequestSpec(), handleCompletionResolve)
@@ -62,6 +63,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
         documentHighlightProvider: BooleanOrDocumentHighlightOptions.AsBoolean(true),
         referencesProvider: BooleanOrReferenceOptions.AsBoolean(true),
+        implementationProvider: BooleanOrImplementationOptionsOrImplementationRegistrationOptions.AsBoolean(true),
         hoverProvider: BooleanOrHoverOptions.AsBoolean(true),
         // the detail and the documentation on resolve, so the list executes no query per item (D81, D111)
         completionProvider: CompletionOptions(triggerCharacters: ["."], resolveProvider: true),

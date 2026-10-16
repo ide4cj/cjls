@@ -59,6 +59,7 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
         case "definitionProvider" => methods.add(DefinitionRequestSpec.METHOD)
         case "documentHighlightProvider" => methods.add(DocumentHighlightRequestSpec.METHOD)
         case "referencesProvider" => methods.add(ReferencesRequestSpec.METHOD)
+        case "implementationProvider" => methods.add(ImplementationRequestSpec.METHOD)
         case "hoverProvider" => methods.add(HoverRequestSpec.METHOD)
         case "completionProvider" =>
             methods.add(CompletionRequestSpec.METHOD)
