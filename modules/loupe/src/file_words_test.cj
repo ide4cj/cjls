@@ -51,6 +51,24 @@ class FileWordsTest {
         @Expect(words.has(wordHash("last")))
     }
 
+    /**
+     * `(word, hash)`: rustc-hash 2.1.1's `FxHasher`, `write_u8` for each byte of the word, then `finish`.
+     */
+    @TestCase[row in [
+        ("a", 0xee4d894e95950e4au64),
+        ("size", 0xb0efaedfaeffb597u64),
+        ("getRawArray", 0x8519663407cee33au64),
+        ("数组", 0xd1956ca507ed3a59u64),
+        ("computeTheTypeArgumentsOfACallNotWrittenOut", 0x853011e4e92df95au64)
+    ]]
+    func aWordIsHashedAsRustcHash2HashesItByteByByte(row: (String, UInt64)) {
+        // arrange
+        let (word, hash) = row
+
+        // act, assert
+        @Expect(wordHash(word), hash)
+    }
+
     @TestCase
     func anEmptyTextHasNoWord() {
         // act, assert

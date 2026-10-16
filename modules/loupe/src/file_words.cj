@@ -70,7 +70,7 @@ struct FileWords {
     }
 
     /**
-     * splitmix64's finalizer: FxHash's low bits depend on its input's low bits alone.
+     * splitmix64's finalizer: the 13 probes' 117 bits drawn from one 64-bit hash, 63 at a time.
      */
     @OverflowWrapping
     private static func remix(hash: UInt64): UInt64 {
@@ -116,7 +116,7 @@ func wordsOf(text: Rope): FileWords {
                 }
                 inWord = true
             } else if (inWord) {
-                found.add(hash)
+                found.add(finishWord(hash))
                 hash = WORD_SEED
                 inWord = false
             }
@@ -124,7 +124,7 @@ func wordsOf(text: Rope): FileWords {
         }
     }
     if (inWord) {
-        found.add(hash)
+        found.add(finishWord(hash))
     }
     FileWords.of(found)
 }
@@ -137,17 +137,24 @@ func wordHash(name: String): UInt64 {
     for (b in name.toArray()) {
         hash = mixWord(hash, b)
     }
-    hash
+    finishWord(hash)
 }
 
 /**
- * rustc's `FxHasher` a byte at a time: a word's hash made as its bytes are read, across chunks, with nothing
- * allocated. Never kept beyond the process, so no hash of std's needs to be stable here; a collision only lets a
- * file through.
+ * rustc-hash 2's `FxHasher.write_u8`: a word's hash made as its bytes are read, across chunks, with nothing
+ * allocated; `finishWord` ends it. Byte by byte, not its `write(&[u8])`, so not the value rustc gives a `str`. Never
+ * kept beyond the process, so no hash of std's needs to be stable here; a collision only lets a file through.
  */
 @OverflowWrapping
 func mixWord(hash: UInt64, b: Byte): UInt64 {
-    (((hash << 5) | (hash >> 59)) ^ UInt64(b)) * 0x517cc1b727220a95
+    (hash + UInt64(b)) * 0xf1357aea2e62a9c5
+}
+
+/**
+ * rustc-hash 2's `FxHasher.finish`: the product's high bits, the best mixed, rotated into the low ones.
+ */
+func finishWord(hash: UInt64): UInt64 {
+    (hash << 26) | (hash >> 38)
 }
 
 func isAsciiWordByte(b: Byte): Bool {
