@@ -228,10 +228,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
         }
         let resolution = inferred.nameOf(expr) ?? resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr),
             token.text())
-        return match (resolution) {
-            case Values(targets) => targets.map {target => valueDefinition(def, target)}
-            case InFile(resolution) => fileDefinitions(resolution)
-        }
+        return resolutionDefinitions(def, resolution)
     }
     if (let Some(access) <- accessNodeOf(node)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return None
@@ -271,6 +268,16 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     }
     let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return None
     [Definition.LocalDef(def, local)]
+}
+
+/**
+ * What a plain name of the body of `def` means, as `resolution`, what it resolved to, says.
+ */
+func resolutionDefinitions(def: DefId, resolution: BodyResolution): Array<Definition> {
+    match (resolution) {
+        case Values(targets) => targets.map {target => valueDefinition(def, target)}
+        case InFile(resolution) => fileDefinitions(resolution)
+    }
 }
 
 func valueDefinition(def: DefId, target: ValueTarget): Definition {

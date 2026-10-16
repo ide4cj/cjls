@@ -3,8 +3,8 @@ package loupe.hir
 import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parseExpr, parseStmts}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
 import cjsyntax.parse as parseText
 import calca.*
 import calca.macros.*
@@ -288,13 +288,21 @@ func replacedItemsOf(db: AnalysisDatabase, files: Array<ItemFile>): Array<ItemId
 
 /**
  * The `Expansion` of `call`; an empty one for a call the analysis does not expand, or on an item no longer there. A
- * call the macro server ran has its last output that succeeded (#176), else one of std the analysis's own.
+ * call the macro server ran has its last output that succeeded (#176), else one of std the analysis's own. A call in an
+ * item (D117) has the server's, which takes the call's place, whether or not the body reads it (#369).
  */
 @CalcaTracked
 public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
     let empty = Expansion("", [])
     let file = call.file(db)
     let item = call.item(db)
+    if (call.inBody(db).isSome()) {
+        if (!serverCalls(db, file).iterator().any {one => one.call == call}) {
+            return empty
+        }
+        let output = serverExpansionOf(db, call) ?? return empty
+        return Expansion(output.text, [], replaces: true, spans: output.spans)
+    }
     if (!expandedCalls(db, file).contains(call)) {
         return empty
     }
@@ -320,11 +328,78 @@ public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
 }
 
 /**
- * The tree of the text of the expansion of `call`. As `parse`, only the last ones are kept.
+ * What the output of a macro call is parsed as, by where the call stands (D117): rust-analyzer's `ExpandTo`.
+ */
+@Derive[Equatable]
+public enum ExpandTo <: ToString {
+    /**
+     * Declarations, as a file holds them (`parse`): a call on an item.
+     */
+    | ToItems
+    /**
+     * One expression (`parseExpr`): a call in an item anywhere but where a block's statement stands.
+     */
+    | ToExpr
+    /**
+     * Statements, as a block holds them (`parseStmts`): a call in an item where a block's statement stands, in a
+     * block, a lambda, an interpolation, or a `match` case after its `=>`, each of which cjc reads as a block.
+     */
+    | ToStmts
+
+    public func toString(): String {
+        match (this) {
+            case ToItems => "ToItems"
+            case ToExpr => "ToExpr"
+            case ToStmts => "ToStmts"
+        }
+    }
+}
+
+/**
+ * What the output of `call` is parsed as (`ExpandTo`), read from where the call stands, as rust-analyzer's
+ * `ExpandTo::from_call_site`. A call in an item no longer there is read as an expression.
+ */
+@CalcaTracked
+public func expandToOf(db: AnalysisDatabase, call: MacroCallId): ExpandTo {
+    if (call.inBody(db).isNone()) {
+        return ExpandTo.ToItems
+    }
+    let syntax = bodyCallSyntaxOf(db, call) ?? return ExpandTo.ToExpr
+    if (isStatementPosition(syntax.syntax)) {
+        ExpandTo.ToStmts
+    } else {
+        ExpandTo.ToExpr
+    }
+}
+
+/**
+ * Whether `node` stands where a block's statement does: among the statements of a block, a lambda or an
+ * interpolation, or of a `match` case, after its `=>`.
+ */
+func isStatementPosition(node: CjSyntaxNode): Bool {
+    let parent = node.parent ?? return false
+    match (parent.kind) {
+        case SyntaxKind.Block | SyntaxKind.LambdaExpr | SyntaxKind.Interpolation => true
+        case SyntaxKind.MatchCase => match (MatchCase.cast(parent).flatMap {one => one.fatArrowToken()}) {
+            case Some(arrow) => arrow.textRange.end <= node.textRange.start
+            case None => false
+        }
+        case _ => false
+    }
+}
+
+/**
+ * The tree of the text of the expansion of `call`, parsed as where the call stands says (`expandToOf`). As `parse`,
+ * only the last ones are kept.
  */
 @CalcaTracked[lru: 128]
 public func expansionParse(db: AnalysisDatabase, call: MacroCallId): CjParse {
-    parseText(macroExpansion(db, call).text)
+    let text = macroExpansion(db, call).text
+    match (expandToOf(db, call)) {
+        case ToItems => parseText(text)
+        case ToExpr => parseExpr(text)
+        case ToStmts => parseStmts(text)
+    }
 }
 
 /**

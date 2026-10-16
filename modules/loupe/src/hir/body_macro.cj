@@ -64,6 +64,14 @@ func bodyCallSyntaxOf(db: AnalysisDatabase, call: MacroCallId): ?BodyCallSyntax 
 }
 
 /**
+ * The node of `call`, a call in a body (`MacroCallId.inBody`), in the tree of its file now: its `MacroExpandExpr`, or
+ * the `MacroExpandDecl` on a local declaration; `None` if it is no longer there.
+ */
+public func bodyCallNodeOf(db: AnalysisDatabase, call: MacroCallId): ?CjSyntaxNode {
+    bodyCallSyntaxOf(db, call).map {one => one.syntax}
+}
+
+/**
  * The call in an item of `file` (`bodyMacroCalls`) whose head `offset` is on, the end included, the innermost if
  * calls nest, and that head; `None` off any.
  */

@@ -16,6 +16,14 @@ SourceFile =
   ';'* FeaturesDirective? ';'* PackageHeader? (ImportDecl | ';')* (Decl | ';')*
   (Annotation* Modifiers?)
 
+// What a macro called where an expression stands writes, as `parseExpr` reads it: one expression (D117).
+ExprFile =
+  Expr
+
+// What a macro called where a block's statement stands writes, as `parseStmts` reads it: statements (D117).
+StmtsFile =
+  (Stmt | ';')*
+
 FeaturesDirective =
   Annotation* Modifiers? 'features' '{' (NameRef ('.' NameRef)* (',' NameRef ('.' NameRef)*)* ','?)? '}'
 
