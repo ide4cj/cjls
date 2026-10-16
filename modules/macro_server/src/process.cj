@@ -86,6 +86,18 @@ func macroServerArgs(paths: MacroServerPaths, pipes: ChildPipes): Array<String> 
 }
 
 /**
+ * Where the server's shared libraries are looked for first, as the SDK's `envsetup` orders them: the runtime a
+ * macro's library needs, then the directory of the server's own `libcangjie-lsp`, which its `RUNPATH` names
+ * (`$ORIGIN/../lib`) but an inherited library path comes before. One that names another SDK's `tools/lib` (the
+ * pinned nightly's, under the tests) has 1.0.5's server load that SDK's `libcangjie-lsp` and crash at its start
+ * (#310).
+ */
+func macroServerLibraryDirs(paths: MacroServerPaths): Array<Path> {
+    let toolsLib = paths.server.parent.parent.join("lib")
+    [paths.runtimeLib, toolsLib]
+}
+
+/**
  * Starts the server of `paths`, serial, through `startPiped`: on POSIX watching this process, which it outlives
  * by about 4 s at most; on Windows in a job that ends it with this process.
  *
@@ -93,6 +105,6 @@ func macroServerArgs(paths: MacroServerPaths, pipes: ChildPipes): Array<String> 
  * @throws ProcessStartException - if it cannot be started on Windows
  */
 public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
-    let child = startPiped(paths.server, paths.runtimeLib, {pipes => macroServerArgs(paths, pipes)})
+    let child = startPiped(paths.server, macroServerLibraryDirs(paths), {pipes => macroServerArgs(paths, pipes)})
     MacroServerProcess(child, MacroConnection(child.fromChild, child.toChild))
 }

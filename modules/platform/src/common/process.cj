@@ -55,12 +55,19 @@ public class ProcessStartException <: Exception {
 /**
  * Starts `program` with the arguments `args` makes of its pipe ends, serial: a pipe each way that
  * is neither its stdin nor its stdout, those going nowhere and to this process's stderr, as its
- * stderr does; `libDir` first where the platform looks for its shared libraries. On POSIX through
- * `/bin/sh`, which moves the pipes to fds 3 and 4; on Windows by `CreateProcessW`, inheriting the
- * two pipe handles and stderr alone, suspended until it is in a job that ends it with this process
- * (D91).
+ * stderr does; `libDirs` first, in their order, where the platform looks for its shared libraries,
+ * before any this process inherited, which may name another SDK's. On POSIX through `/bin/sh`,
+ * which moves the pipes to fds 3 and 4; on Windows by `CreateProcessW`, inheriting the two pipe
+ * handles and stderr alone, suspended until it is in a job that ends it with this process (D91).
  *
  * @throws ProcessException - if it cannot be started on POSIX
  * @throws ProcessStartException - if it cannot be started on Windows
  */
-public common func startPiped(program: Path, libDir: Path, args: (ChildPipes) -> Array<String>): PipedChild
+public common func startPiped(program: Path, libDirs: Array<Path>, args: (ChildPipes) -> Array<String>): PipedChild
+
+/**
+ * `dirs` as one list of the platform's, what `startPiped` puts first where shared libraries are looked for.
+ */
+func libraryPathOf(dirs: Array<Path>): String {
+    String.join(dirs.map {dir => dir.toString()}, delimiter: pathListSeparator())
+}

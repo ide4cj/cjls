@@ -10,7 +10,7 @@ import std.process.*
 /**
  * The script a child starts through: its pipes on fds 3 and 4 (the pipes `std.process` gives as
  * stdin and stdout, the only descriptors it passes), what it prints to stderr, never onto a pipe;
- * the library directory set in the script itself, where macOS does not strip it.
+ * the library directories, one list, set in the script itself, where macOS does not strip them.
  */
 const POSIX_LAUNCH = ##"lib="$1"; shift; LD_LIBRARY_PATH="$lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" DYLD_LIBRARY_PATH="$lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" exec "$@" 3<&0 4>&1 0</dev/null 1>&2"##
 
@@ -39,11 +39,11 @@ class PosixChild <: PipedChild {
     }
 }
 
-public specific func startPiped(program: Path, libDir: Path, args: (ChildPipes) -> Array<String>): PipedChild {
+public specific func startPiped(program: Path, libDirs: Array<Path>, args: (ChildPipes) -> Array<String>): PipedChild {
     let pipes = ChildPipes(read: "3", write: "4", parent: getProcessId())
     let process = launch(
         "/bin/sh",
-        ["-c", POSIX_LAUNCH, "sh", libDir.toString(), program.toString()].concat(args(pipes)),
+        ["-c", POSIX_LAUNCH, "sh", libraryPathOf(libDirs), program.toString()].concat(args(pipes)),
         stdIn: ProcessRedirect.Pipe,
         stdOut: ProcessRedirect.Pipe,
         stdErr: ProcessRedirect.Inherit

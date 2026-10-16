@@ -26,8 +26,13 @@ func testSdkPaths(): MacroServerPaths {
     MacroServerPaths.inSdk(Path(home), sdkTarget(hostCfg()).getOrThrow())
 }
 
+/**
+ * How the SDK the tests run on numbers its token kinds, found as the server finds it (`tokenNumbersOf`): an SDK of
+ * the window that ships no `Tokens.inc` (1.0.5) runs these tests too (#310).
+ */
 func testNumbers(): TokenNumbers {
-    TokenNumbers.read(testSdkPaths().tokensInc).getOrThrow()
+    let paths = testSdkPaths()
+    tokenNumbersOf(paths, SdkToolchain(paths).version().getOrThrow()).getOrThrow()
 }
 
 /**

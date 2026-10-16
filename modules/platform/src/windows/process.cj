@@ -245,7 +245,7 @@ func jobFor(process: CPointer<Unit>): ?KillOnCloseJob {
     job
 }
 
-public specific func startPiped(program: Path, libDir: Path, args: (ChildPipes) -> Array<String>): PipedChild {
+public specific func startPiped(program: Path, libDirs: Array<Path>, args: (ChildPipes) -> Array<String>): PipedChild {
     // the child reads `childRead` and writes `childWrite`; this process the other ends
     let (childRead, ownWrite) = createPipe()
     let (ownRead, childWrite) = createPipe()
@@ -253,7 +253,7 @@ public specific func startPiped(program: Path, libDir: Path, args: (ChildPipes) 
         let pipes = ChildPipes(read: "${childRead.toUIntNative()}", write: "${childWrite.toUIntNative()}",
             parent: None)
         let information = createChildProcess(windowsCommandLine([program.toString()].concat(args(pipes))),
-            windowsEnvironment(getVariables(), libDir.toString()), childRead, childWrite)
+            windowsEnvironment(getVariables(), libraryPathOf(libDirs)), childRead, childWrite)
         let job = jobFor(information.process)
         let resumed = unsafe { ResumeThread(information.thread) }
         closeHandle(information.thread)
