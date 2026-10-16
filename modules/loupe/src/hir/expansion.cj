@@ -237,9 +237,10 @@ func stdCallsOf(db: AnalysisDatabase, file: SourceFile): Array<(MacroCallId, Std
     for (item in activeItemTree(db, file).items where !item.macros.isEmpty()) {
         let macros = macrosOf(db, DefId(db, ItemFile.Source(file), item.id))
         var driven = false
-        // those on the item: a call on one of its parameters (D119) is read through the call on the item alone
+        // those on the item: a call on one of its parameters (D119) is read through the call on the item alone; none
+        // resolves in a file of no package, whose `macrosOf` is empty
         for (i in 0..item.macros.size) {
-            let stdMacro = stdMacroOf(db, macros[i]) ?? continue
+            let stdMacro = macros.get(i).flatMap {one => stdMacroOf(db, one)} ?? continue
             if (!stdMacro.takes(item.kind) || (stdMacro.drivesTheItem && driven)) {
                 continue
             }

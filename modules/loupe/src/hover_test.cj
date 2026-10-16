@@ -397,6 +397,36 @@ class HoverTest {
     }
 
     @TestCase
+    func aDeclarationAWorkspaceMacroReplacedShowsTheInterfacesTheExtendsBesideItAdd() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            @M[x]
+            class C {}
+            func f(c: C): Unit {}
+            "#)
+        let copied = match (requestFor(db, file, "M").input.spans[0].origin) {
+            case FromSource(range) => range
+            case _ => throw FixtureException("the input of @M is not its class")
+        }
+        let text = "class C {}\nclass D {}\nextend C <: I {}\nextend D <: J {}\ninterface I {}\ninterface J {}"
+        answer(db, file, "M", text, [
+            MappedSpan(TextRange(0, 10), SpanOrigin.FromSource(TextRange(copied.start, copied.start + 10))),
+            MappedSpan(TextRange(10, text.size), SpanOrigin.FromCall)
+        ])
+        let source = file.text(db).toString()
+
+        // act
+        let atUse = hoverAt(db, file.fileId(db), offsetIn(source, "C)"))
+        let atItself = hoverAt(db, file.fileId(db), offsetIn(source, "class C", plus: 6))
+
+        // assert
+        @Expect(atUse?.items.map {item => hoverText(item)}, Some(["class C <: I in m"]))
+        @Expect(atItself?.items.map {item => hoverText(item)}, Some(["class C <: I in m"]))
+    }
+
+    @TestCase
     func anEnumConstructorShowsTheDocBeforeItsPipe() {
         checkHover(#"
             //- /main.cj module=m package=m

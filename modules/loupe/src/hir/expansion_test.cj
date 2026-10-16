@@ -3,9 +3,11 @@ package loupe.hir
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
+import rope.Rope
 import loupe.db.AnalysisDatabase
 import loupe.fixture.*
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 /**
  * The body of every member cjls writes itself for `macroName` (`stubBody`, D118), at a member's indent.
@@ -48,6 +50,20 @@ func expansionsNamed(fixture: String, name: String): Array<String> {
  */
 @Test
 class DeriveExpansionTest {
+    @TestCase
+    func aFileOfNoPackageExpandsNothing() {
+        // arrange - a file no project has loaded yet, as before the workspace is
+        let db = AnalysisDatabase()
+        db.setFileText(FileId(0), Rope("@Derive[Equatable]\nstruct S {}\n"))
+        let file = db.sourceFile(FileId(0)).getOrThrow()
+
+        // act
+        let calls = expandedCalls(db, file)
+
+        // assert
+        @Expect(calls.size, 0)
+    }
+
     @TestCase
     func anExtendPerInterfaceOfATypeOfNoTypeParameters() {
         // act
