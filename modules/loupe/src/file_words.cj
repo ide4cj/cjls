@@ -2,7 +2,6 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import std.sort.sort
 import calca.*
 import calca.macros.*
 import rope.Rope
@@ -12,8 +11,11 @@ import loupe.db.{AnalysisDatabase, SourceFile}
 // the hash of no byte, which every word's starts from
 const WORD_SEED: UInt64 = 0
 
+// bits set per word: 13 at 19.17 bits a word, of 9 bits each, 7 from one remix
+const PROBES = 13
+
 /**
- * The words of a file's text, each by its `wordHash`, sorted and each once: what `findReferences` asks before it
+ * The words of a file's text, each by its `wordHash`, in a bloom filter: what `findReferences` asks before it
  * reads a file, a superset of the names the file spells.
  *
  * A word is a run of what a name is made of, cut where the lexer cuts one (`isIdentLike`), so a name the parser
@@ -22,23 +24,60 @@ const WORD_SEED: UInt64 = 0
  */
 @Derive[Equatable]
 struct FileWords {
-    FileWords(let hashes: Array<UInt64>) {}
+    FileWords(let bits: Array<UInt64>) {}
 
     /**
-     * Whether a word of the file has the hash `hash`; a false `true` only when two words' hashes are equal.
+     * A blocked bloom filter of `hashes` at a false positive rate of about 1e-4, Roslyn's: 19.17 bits a word, 13
+     * of them set per word, all in one block of 512 bits (a cache line) the word's hash chooses.
      */
-    func has(hash: UInt64): Bool {
-        var low = 0
-        var high = hashes.size
-        while (low < high) {
-            let middle = (low + high) / 2
-            if (hashes[middle] < hash) {
-                low = middle + 1
-            } else {
-                high = middle
+    static func of(hashes: Collection<UInt64>): FileWords {
+        let blocks = max(1, (hashes.size * 1917 / 100 + 511) / 512)
+        let bits = Array<UInt64>(blocks * 8, repeat: 0)
+        for (hash in hashes) {
+            let base = blockOf(hash, blocks)
+            var mixed = remix(hash)
+            for (i in 0..PROBES) {
+                if (i == 7) {
+                    mixed = remix(mixed)
+                }
+                let bit = (mixed >> UInt64((i % 7) * 9)) & 511
+                bits[base + Int64(bit >> 6)] |= 1 << (bit & 63)
             }
         }
-        low < hashes.size && hashes[low] == hash
+        FileWords(bits)
+    }
+
+    /**
+     * Whether a word of the file may have the hash `hash`: a false `true` about once in 10 000 words it lacks.
+     */
+    func has(hash: UInt64): Bool {
+        let base = blockOf(hash, bits.size / 8)
+        var mixed = remix(hash)
+        for (i in 0..PROBES) {
+            if (i == 7) {
+                mixed = remix(mixed)
+            }
+            let bit = (mixed >> UInt64((i % 7) * 9)) & 511
+            if ((bits[base + Int64(bit >> 6)] & (1 << (bit & 63))) == 0) {
+                return false
+            }
+        }
+        true
+    }
+
+    private static func blockOf(hash: UInt64, blocks: Int64): Int64 {
+        Int64((hash >> 32) % UInt64(blocks)) * 8
+    }
+
+    /**
+     * splitmix64's finalizer: FxHash's low bits depend on its input's low bits alone.
+     */
+    @OverflowWrapping
+    private static func remix(hash: UInt64): UInt64 {
+        var z = hash + 0x9e3779b97f4a7c15
+        z = (z ^ (z >> 30)) * 0xbf58476d1ce4e5b9
+        z = (z ^ (z >> 27)) * 0x94d049bb133111eb
+        z ^ (z >> 31)
     }
 }
 
@@ -87,9 +126,7 @@ func wordsOf(text: Rope): FileWords {
     if (inWord) {
         found.add(hash)
     }
-    let hashes = found.toArray()
-    sort(hashes)
-    FileWords(hashes)
+    FileWords.of(found)
 }
 
 /**
