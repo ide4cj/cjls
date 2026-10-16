@@ -20,17 +20,18 @@ public struct MacroLibrary {
 /**
  * The requests of `files` to send: those not answered yet whose macro has a library (D87: a call whose library is not
  * there is never sent), each with it: a macro package of the workspace one built at the stamp the analysis has for
- * it, a package of std the one `stdLibrary` finds of its name in the SDK; those of the files `isOpen` says the editor
- * shows first, then the others, each in their order.
+ * it in `libraries`, by the package, not its name, which two projects may share; a package of std the one
+ * `stdLibrary` finds of its name in the SDK; those of the files `isOpen` says the editor shows first, then the
+ * others, each in their order.
  */
-public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<String, MacroLibrary>,
+public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<Package, MacroLibrary>,
     stdLibrary!: (String) -> ?String = {_ => None}, isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile,
         MacroRequest, MacroLibrary)> {
     let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
     for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
         for (request in pendingMacroRequests(db, file)) {
             let library = match (request.definition.pkg) {
-                case MacroPackage.WorkspacePackage(pkg) => libraries.get(pkg.name(db)).flatMap {
+                case MacroPackage.WorkspacePackage(pkg) => libraries.get(pkg).flatMap {
                     one => if (one.stamp == pkg.macroLibrary(db)) {
                         one
                     } else {

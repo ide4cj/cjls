@@ -159,6 +159,38 @@ func sourceFile(p: P): Unit {
 }
 
 /**
+ * One expression, and nothing after it.
+ */
+func exprFile(p: P): Unit {
+    let m = p.start()
+    let found = expr(p, Restrictions.NONE)
+    if (!p.atEof()) {
+        let rest = p.start()
+        p.error(if (found) {
+            "expected the end of the expression"
+        } else {
+            "expected an expression"
+        })
+        while (!p.atEof()) {
+            p.bumpAny()
+        }
+        rest.complete(p, ErrorNode)
+    } else if (!found) {
+        p.error("expected an expression")
+    }
+    m.complete(p, ExprFile)
+}
+
+/**
+ * Statements, as a block holds them, up to the end.
+ */
+func stmtsFile(p: P): Unit {
+    let m = p.start()
+    statements(p, [])
+    m.complete(p, StmtsFile)
+}
+
+/**
  * Annotations, modifiers, then whatever declaration follows; an error node if none does.
  */
 func declaration(p: P, scope: Scope, preamble!: ?Preamble = None): Unit {

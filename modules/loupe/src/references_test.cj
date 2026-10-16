@@ -188,11 +188,31 @@ class ReferencesTest {
             //- /a.cj module=m package=m
             package m
             func id<T>(x: $0T): T { x }
+            //      ^ text decl
             //              ^ text
             //                  ^ text
             //- /b.cj module=m package=m
             package m
             class T {}
+            "#)
+    }
+
+    @TestCase
+    func aTypeParameterOfAFunctionABodyDeclaresIsFoundFromItsDeclaration() {
+        checkReferences(#"
+            //- /a.cj module=m package=m
+            package m
+            func f(): Unit {
+                func g<$0T>(x: T): T {
+            //           ^ text decl
+            //                 ^ text
+            //                     ^ text
+                    let y: T = x
+            //             ^ text
+                    y
+                }
+            }
+            func h<T>(x: T): T { x }
             "#)
     }
 
@@ -306,19 +326,57 @@ class ReferencesTest {
 }
 
 @Test
-class MentionsTest {
+class ReferencesSearchTest {
     @TestCase
-    func aNameIsFoundAtEveryOffsetAroundTheBoundaryOfTwoChunks() {
-        // arrange - a two-byte character before the name moves where a chunk may end
-        let filler = String.join(Array<String>(3000, repeat: "é"))
-        let first = Rope(filler).chunks().next().getOrThrow().size
-        for (at in first - 8..first + 8 where at >= 0 && at <= filler.size) {
-            let start = boundaryAfter(filler, at)
-            let text = Rope(filler[..start] + "needle" + filler[start..])
+    func aFileNamingTheNameOnlyInsideALongerWordIsNotParsed() {
+        // arrange - `b.cj` has `foo` in `fooBar` and in `food`, never as a word of its own
+        let parsed = Fixture.parse(#"
+            //- /a.cj module=m package=m
+            package m
+            public func f$0oo(): Int64 { 1 }
+            //- /b.cj module=m package=m
+            package m
+            public func fooBar(): Int64 { 2 } // food
+            "#)
+        let db = parsed.database()
+        let a = parsed.file("/a.cj").fileId
+        parse(db, db.sourceFile(a).getOrThrow())
+        let runs = db.storage.executionsOf("parse")
 
-            // act, assert
-            @Expect(mentions(text, "needle"))
-            @Expect(!mentions(text, "needles"))
-        }
+        // act
+        let found = findReferences(db, a, parsed.cursor.getOrThrow().offset)
+
+        // assert
+        @Expect(found.size, 1)
+        @Expect(db.storage.executionsOf("parse"), runs)
+    }
+
+    @TestCase
+    func anEditMakesTheWordsOfTheEditedFileAgainAndNoOthers() {
+        // arrange
+        let parsed = Fixture.parse(#"
+            //- /a.cj module=m package=m
+            package m
+            public func f$0oo(): Int64 { 1 }
+            //- /b.cj module=m package=m
+            package m
+            func g(): Int64 { foo() }
+            //- /c.cj module=m package=m
+            package m
+            func h(): Int64 { 3 }
+            "#)
+        let db = parsed.database()
+        let a = parsed.file("/a.cj").fileId
+        let offset = parsed.cursor.getOrThrow().offset
+        findReferences(db, a, offset)
+        let runs = db.storage.executionsOf("fileWords")
+        db.setFileText(parsed.file("/c.cj").fileId, Rope("package m\nfunc h(): Int64 { foo() }\n"))
+
+        // act
+        let found = findReferences(db, a, offset)
+
+        // assert
+        @Expect(db.storage.executionsOf("fileWords"), runs + 1)
+        @Expect(found.map {one => one.fileId}, [a, parsed.file("/b.cj").fileId, parsed.file("/c.cj").fileId])
     }
 }

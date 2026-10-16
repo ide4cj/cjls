@@ -1165,6 +1165,69 @@ class InferTest {
     }
 
     @TestCase
+    func aGenericCandidateIsSolvedOnceForEachOverloadOfAnArgument() {
+        checkInference(#"
+            package m
+            func h(a: Int64): Int64 { a }
+            //     ^ Int64
+            func h(a: String): String { a }
+            //     ^ String
+            func s(a: String): String { a }
+            //     ^ String
+            func j(a: String): String { a }
+            //     ^ String
+            func j(a: Rune): Rune { a }
+            //     ^ Rune
+            func k(a: Int64): Int64 { a }
+            //     ^ Int64
+            func k(a: Any): Any { a }
+            //     ^ Any
+            func gen1<T>(f: (T) -> T): Int64 { 1 }
+            //           ^ (T) -> T
+            func gen<T>(f: (T) -> T, x: T): T { x }
+            //          ^ (T) -> T
+            //                       ^ T
+            func ret<T>(f: (T) -> T): T { throw Exception() }
+            //          ^ (T) -> T
+            func two<T>(f: (T) -> T, g: (T) -> T): T { throw Exception() }
+            //          ^ (T) -> T
+            //                       ^ (T) -> T
+            func mixed(f: (String) -> String): String { "" }
+            //         ^ (String) -> String
+            func mixed<T>(f: (T) -> T, n: Int64): T { throw Exception() }
+            //            ^ (T) -> T
+            //                         ^ Int64
+            func test(): Unit {
+                let a = gen(h, 1)
+            //      ^ Int64
+                let b = gen(h, "s")
+            //      ^ String
+                let c = two(h, s)
+            //      ^ String
+                // of each combination of the two arguments' overloads, one solves
+                let cj = two(h, j)
+            //      ^^ String
+                // cjc: ambiguous arguments type in call expression
+                let ch = two(h, h)
+            //      ^^ {unknown}
+                let d = ret<String>(h)
+            //      ^ String
+                let e = mixed(h)
+            //      ^ String
+                // cjc: ambiguous arguments type in call expression
+                let f = mixed(h, 1)
+            //      ^ {unknown}
+                // cjc: ambiguous arguments type in call expression, the more specific not taken
+                let g = ret(k)
+            //      ^ {unknown}
+                // cjc: ambiguous arguments type in call expression
+                let i = gen1(h)
+            //      ^ {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
     func anOverloadedCallInAnArgumentIsTakenForEachCandidateTried() {
         // N115 nested: the inner call's overload by the type the outer candidate expects
         checkInference(#"

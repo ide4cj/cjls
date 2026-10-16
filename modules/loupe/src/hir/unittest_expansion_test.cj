@@ -428,6 +428,57 @@ class UnittestInferenceTest {
     }
 
     @TestCase
+    func aTestFileSeesStdUnittestAndItsMacrosUnimported() {
+        // cjc 1.3.0-alpha.20261014 (D129): `--test` imports `std.unittest.*` and `std.unittest.testmacro.*` in every
+        // file, which only a `*_test.cj` is compiled with
+        checkInferenceWithUnittest(#"
+            //- /m/src/a_test.cj module=m package=m
+            package m
+            open class Base <: Exception {}
+            @Test
+            class C {}
+            func id<T>(x: T): T where T <: TestClass { x }
+            //         ^ T
+            func f(c: C, k: KeyFor<Int64>): Unit {
+            //     ^ C
+            //           ^ KeyFor<Int64>
+                let s = c.asTestSuite()
+            //      ^ TestSuite
+                let i = id(c)
+            //      ^ C
+                let e = @Expect(1, 1)
+            //      ^ Unit
+                let a = @AssertThrows[Base](throw Base())
+            //      ^ Base
+                let n = k.name
+            //      ^ String
+            }
+            //- /m/src/a.cj module=m package=m
+            package m
+            "#)
+    }
+
+    @TestCase
+    func aFileNotATestOfAPackageWithTestsSeesNoneOfStdUnittest() {
+        // cjc 1.3.0-alpha.20261014 (D129): `cjpm build` compiles it without `--test`: undeclared identifier 'Expect'
+        checkInferenceWithUnittest(#"
+            //- /m/src/a.cj module=m package=m
+            package m
+            @Test
+            class C {}
+            func f(c: C): Unit {
+            //     ^ C
+                let s = c.asTestSuite()
+            //      ^ {unknown}
+                let e = @Expect(1, 1)
+            //      ^ {unknown}
+            }
+            //- /m/src/a_test.cj module=m package=m
+            package m
+            "#)
+    }
+
+    @TestCase
     func anOptionIsItsKey() {
         checkInferenceWithUnittest(#"
             //- /main.cj module=m package=m

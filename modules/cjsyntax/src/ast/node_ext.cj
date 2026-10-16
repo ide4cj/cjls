@@ -178,6 +178,30 @@ private func leadingComments(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<Sy
     comments.toArray()
 }
 
+extend ParamList {
+    /**
+     * The parameters as written, in order: those of the list and, of a macro call in it (`@M let x`), the parameter
+     * innermost in its calls. `params()` is the first alone.
+     */
+    public func writtenParams(): Array<Param> {
+        let found = ArrayList<Param>()
+        for (child in node.children()) {
+            if (let Some(param) <- Param.cast(child)) {
+                found.add(param)
+                continue
+            }
+            var call = MacroExpandDecl.cast(child) ?? continue
+            while (let Some(Decl.AsMacroExpandDecl(inner)) <- call.decl()) {
+                call = inner
+            }
+            if (let Some(param) <- call.param()) {
+                found.add(param)
+            }
+        }
+        found.toArray()
+    }
+}
+
 extend SpawnExpr {
     /**
      * The lambda the thread runs.

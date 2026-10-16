@@ -448,6 +448,47 @@ class HoverTest {
     }
 
     @TestCase
+    func aMemberParameterInAMacroCallShowsTheMemberAtItsUses() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            struct Stats {
+                Stats(
+                    @M[x] let executed!: Int64
+                ) {}
+            }
+            func f(stats: Stats): Int64 {
+                stats.$0executed
+            //          ^^^^^^^^ let executed: Int64 in m.Stats
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            "#)
+    }
+
+    @TestCase
+    func aMemberParameterInAMacroCallShowsTheMemberAtItself() {
+        checkHover(#"
+            //- /main.cj module=m package=m
+            package m
+            import m.ms.M
+            struct Stats {
+                Stats(
+                    @M[x] let $0executed!: Int64
+            //                  ^^^^^^^^ let executed: Int64 in m.Stats
+                ) {}
+            }
+            //- /ms/ms.cj module=m package=m.ms
+            macro package m.ms
+            import std.ast.*
+            public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            "#)
+    }
+
+    @TestCase
     func aDeclarationInCallsOfAnyMacroShowsTheDocBeforeThem() {
         checkHover(#"
             //- /main.cj module=m package=m

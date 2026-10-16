@@ -26,8 +26,13 @@ func testSdkPaths(): MacroServerPaths {
     MacroServerPaths.inSdk(Path(home), sdkTarget(hostCfg()).getOrThrow())
 }
 
+/**
+ * How the SDK the tests run on numbers its token kinds, found as the server finds it (`tokenNumbersOf`): an SDK of
+ * the window that ships no `Tokens.inc` (1.0.5) runs these tests too (#310).
+ */
 func testNumbers(): TokenNumbers {
-    TokenNumbers.read(testSdkPaths().tokensInc).getOrThrow()
+    let paths = testSdkPaths()
+    tokenNumbersOf(paths, SdkToolchain(paths).version().getOrThrow()).getOrThrow()
 }
 
 /**
@@ -77,6 +82,16 @@ func macroFixture(text: String): (AnalysisDatabase, SourceFile, String) {
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow(), parsed.file("/main.cj").text)
 }
 
+/**
+ * `library` as the library of the workspace macro package of the first call of `file`.
+ */
+func libraryOf(db: AnalysisDatabase, file: SourceFile, library: MacroLibrary): HashMap<Package, MacroLibrary> {
+    match (macroRequests(db, file)[0].definition.pkg) {
+        case MacroPackage.WorkspacePackage(pkg) => HashMap<Package, MacroLibrary>([(pkg, library)])
+        case _ => throw IllegalStateException("the first call of the file is not of a workspace macro")
+    }
+}
+
 let MAIN = #"
         package m
         import m.ms.*
@@ -90,7 +105,7 @@ class MacroRoundTest {
     func aCallIsSentAsItsMacroAndItsLibraryAndWhatItAnswersEndsItsRequest() {
         // arrange
         let (db, file, _) = macroFixture(MAIN)
-        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib-macro_m.ms.so", 0))])
+        let libraries = libraryOf(db, file, MacroLibrary("/lib-macro_m.ms.so", 0))
         let expander = FakeExpander()
 
         // act
@@ -115,7 +130,7 @@ class MacroRoundTest {
         import m.ms.*
         func f(): Int64 { @M[x](1 + 2) }
 "#)
-        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))])
+        let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let expander = FakeExpander()
         let request = macroRequests(db, file)[0]
 
@@ -136,7 +151,7 @@ class MacroRoundTest {
     func whatTheMacroGivesBackComesFromWhereTheSourceWroteIt() {
         // arrange
         let (db, file, source) = macroFixture(MAIN)
-        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))])
+        let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let request = macroRequests(db, file)[0]
 
         // act
@@ -156,7 +171,7 @@ class MacroRoundTest {
         let (db, file, _) = macroFixture(MAIN)
 
         // act
-        let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>())
+        let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>())
 
         // assert
         @Expect(requests.size, 0)
@@ -166,7 +181,7 @@ class MacroRoundTest {
     func aCallIsNotSentUntilTheAnalysisHasTheStampOfItsLibrary() {
         // arrange
         let (db, file, _) = macroFixture(MAIN)
-        let libraries = HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 5))])
+        let libraries = libraryOf(db, file, MacroLibrary("/lib", 5))
 
         // act
         let before = sendableRequests(db, [file], libraries).size
@@ -187,7 +202,7 @@ class MacroRoundTest {
         let expander = FakeExpander()
 
         // act
-        let answers = expandAll(db, sendableRequests(db, [file], HashMap<String, MacroLibrary>(),
+        let answers = expandAll(db, sendableRequests(db, [file], HashMap<Package, MacroLibrary>(),
             stdLibrary: {pkg => "/sdk/libcangjie-${pkg}.so"}), testNumbers(), expander)
 
         // assert
@@ -205,7 +220,7 @@ class MacroRoundTest {
         let (db, file) = deriveFixture()
 
         // act
-        let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>(), stdLibrary: {_ => None})
+        let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>(), stdLibrary: {_ => None})
 
         // assert
         @Expect(requests.size, 0)
@@ -429,7 +444,7 @@ class GuardedServerTest {
         let own = macroExpansion(db, call)
 
         // act
-        let requests = sendableRequests(db, [file], HashMap<String, MacroLibrary>(),
+        let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>(),
             stdLibrary: {pkg => paths.stdMacroLibrary(pkg).map {path => path.toString()}})
         setMacroOutputsByKey(db, expandAll(db, requests, numbers, server))
         server.close()
@@ -510,7 +525,7 @@ let USES = #"
 /**
  * `/a.cj` and `/b.cj` of package `m`, each holding `USES`, with the workspace macro package `m.ms` built.
  */
-func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<String, MacroLibrary>) {
+func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<Package, MacroLibrary>) {
     let parsed = Fixture.parse(#"
         //- /a.cj module=m package=m
         "# + USES + #"
@@ -522,8 +537,8 @@ func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<Strin
         public macro M(input: Tokens): Tokens { input }
         "#)
     let db = parsed.database()
-    (db, db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow(), db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(),
-        HashMap<String, MacroLibrary>([("m.ms", MacroLibrary("/lib", 0))]))
+    let a = db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow()
+    (db, a, db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(), libraryOf(db, a, MacroLibrary("/lib", 0)))
 }
 
 @Test

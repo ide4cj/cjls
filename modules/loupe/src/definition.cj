@@ -46,7 +46,8 @@ public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): A
  * Where the name at `offset` of the text of the expansion of `call` (`expandedMacro`) is declared, as `definitionAt`
  * finds it in a file, the names of the expansion in the scope of the call's file: a declaration whose name the macro
  * copied from the source, there; one the macro or the analysis wrote, in its expansion (`NavigationTarget.expansion`).
- * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`).
+ * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`). In the expression or statements a
+ * call in an item expands to, a name as where the call stands (`callSiteNameOf`).
  */
 public func definitionInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: Int64): Array<NavigationTarget> {
     definitionIn(db, ItemFile.Expansion(call), offset)
@@ -60,7 +61,17 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
     let scope = scopeFileOf(db, file) ?? return []
     let (root, _) = syntaxOf(db, file) ?? return []
     let token = tokenAt(root, offset) ?? return []
-    let defs = classifyName(db, scope, itemAround(db, file, token.parent), token) ?? return []
+    let item = itemAround(db, file, token.parent)
+    let defs = match ((classifyName(db, scope, item, token), file)) {
+        case (Some(defs), _) => defs
+        // an expression or statements a call in an item expands to (D117), read where the call stands
+        case (None, Expansion(call)) where item.isNone() => match (callSiteNameOf(db, call, token, offset)) {
+            case Some(AtSource(at)) => return definitionIn(db, ItemFile.Source(call.file(db)), at)
+            case Some(AtCall(def, resolution)) => resolutionDefinitions(def, resolution)
+            case None => return []
+        }
+        case _ => return []
+    }
     let intoExpansions = match (file) {
         case Expansion(_) => true
         case _ => false

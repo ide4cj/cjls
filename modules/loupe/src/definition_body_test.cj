@@ -857,6 +857,47 @@ class BodyDefinitionTest {
     }
 
     @TestCase
+    func overloadsPassedToOverloadsAreTheOneOfTheCandidateTaken() {
+        // #243
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class A {}
+            class S {}
+            class R {}
+            func h(a: A): A { a }
+            func h(a: S): S { a }
+            //   ^ def
+            func app2(f: (R) -> R): R { f(R()) }
+            func app2(f: (S) -> S): S { f(S()) }
+            func g(): Unit {
+                app2($0h)
+            }
+            "#)
+    }
+
+    @TestCase
+    func overloadsPassedToAGenericCallAreTheOnesOfItsOneSolution() {
+        // #243: cjc's `GetArgsCombination`
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class A {}
+            class S {}
+            class R {}
+            func h(a: A): A { a }
+            func h(a: S): S { a }
+            //   ^ def
+            func j(a: S): S { a }
+            func j(a: R): R { a }
+            func two<T>(f: (T) -> T, g: (T) -> T): T { g(f(throw Exception())) }
+            func g(): Unit {
+                two($0h, j)
+            }
+            "#)
+    }
+
+    @TestCase
     func anOperatorGoesToTheOperatorFunctionItCalls() {
         // N122
         checkDefinition(#"

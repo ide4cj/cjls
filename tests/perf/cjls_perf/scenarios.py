@@ -6,6 +6,8 @@ same things, and a missing feature is prior-art.md's business, not a number here
 """
 
 import asyncio
+import pathlib
+import re
 import statistics
 import time
 from collections.abc import Awaitable, Callable
@@ -13,7 +15,7 @@ from dataclasses import dataclass
 
 from pygls.exceptions import JsonRpcException
 
-from . import places
+from . import places, workspace
 from .session import Session, column
 
 CONTENT_MODIFIED = -32801
@@ -31,11 +33,15 @@ class Options:
 
 Scenario = Callable[[Session, Options], Awaitable[dict[str, float]]]
 SCENARIOS: dict[str, Scenario] = {}
+# a scenario measured on a workspace of its own rather than the run's: what makes it, in a directory
+WORKSPACES: dict[str, Callable[[pathlib.Path], workspace.Workspace]] = {}
 
 
-def scenario(name: str):
+def scenario(name: str, own_workspace: Callable[[pathlib.Path], workspace.Workspace] | None = None):
     def register(function: Scenario) -> Scenario:
         SCENARIOS[name] = function
+        if own_workspace:
+            WORKSPACES[name] = own_workspace
         return function
 
     return register
@@ -304,3 +310,52 @@ async def typing_hover(session: Session, options: Options) -> dict[str, float]:
         "rss_growth_mb": after.rss_mb - before.rss_mb,
         "cpu_s": after.cpu_s - before.cpu_s,
     }
+
+
+def declared(text: str, pattern: str, encoding: str) -> tuple[int, int]:
+    """Where the name `pattern`'s group declares is in `text`, as (line, column)."""
+    match = re.search(pattern, text)
+    if not match:
+        raise Skipped(f"no {pattern!r} in the subject")
+    start = text.rfind("\n", 0, match.start(1)) + 1
+    return text.count("\n", 0, match.start(1)), column(text[start : match.start(1)], encoding)
+
+
+@scenario("references", own_workspace=workspace.std_sources)
+async def references(session: Session, options: Options) -> dict[str, float]:
+    """References over std's sources (`workspace.std_sources`), each searched in every file, as a
+    public member's are: of a common name, `ArrayList.size`, named in about half of the files, then
+    of a rare one, `ArrayList.reserve`, named in 13; then both again after a declaration is added to
+    `ArrayList`'s file (`edit_`). What the files are filtered by before any is parsed is what tells
+    them apart: the first request pays for it whatever it is, the second shows what it saves, the
+    edit what it keeps. Queries executed per request, as `navigate` counts them (D81)."""
+    await start(session)
+    if not session.supports("references_provider"):
+        raise Skipped("no referencesProvider")
+    text = session.workspace.subject_text
+    common = declared(text, r"public prop (size)\b", session.encoding)
+    rare = declared(text, r"public func (reserve)\(", session.encoding)
+    uri = session.open(session.workspace.subject, text)
+    before = session.usage()
+    session.sampler.reset_peak()
+    metrics: dict[str, float] = {}
+
+    async def ask(label: str, at: tuple[int, int]):
+        queries = await session.queries_executed()
+        began = time.perf_counter()
+        found = await session.references(uri, *at)
+        metrics[f"{label}_ms"] = (time.perf_counter() - began) * 1000
+        metrics[f"{label}_found"] = len(found or [])
+        after = await session.queries_executed()
+        if queries is not None:
+            metrics[f"{label}_queries"] = after - queries
+
+    await ask("common", common)
+    await ask("rare", rare)
+    lines = text.split("\n")
+    session.insert(uri, 2, len(lines) - 1, column(lines[-1], session.encoding), EDIT)
+    await ask("edit_rare", rare)
+    await ask("edit_common", common)
+
+    after = session.usage()
+    return metrics | {"rss_mb": after.rss_mb, "peak_rss_mb": after.peak_rss_mb, "cpu_s": after.cpu_s - before.cpu_s}

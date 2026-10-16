@@ -90,6 +90,17 @@ async def warm_up(server: servers.Server, space: workspace.Workspace, logs: path
         pass  # the scenarios will say what is wrong
 
 
+def own_workspace(scenario: str, scratch: pathlib.Path, owned: dict) -> workspace.Workspace | None:
+    """The workspace `scenario` is measured on if it has one of its own (`scenarios.WORKSPACES`),
+    made once per run whatever the servers; `None` for the run's."""
+    make = scenarios.WORKSPACES.get(scenario)
+    if make is None:
+        return None
+    if scenario not in owned:
+        owned[scenario] = make(scratch / scenario)
+    return owned[scenario]
+
+
 def format_metrics(metrics: dict[str, float]) -> str:
     return ", ".join(f"{key}={value:.1f}" for key, value in metrics.items())
 
@@ -117,6 +128,7 @@ async def run(args) -> dict:
             "options": {"lines": args.lines, "keystrokes": args.keystrokes, "requests": args.requests, "repeat": args.repeat, "scenarios": chosen},
             "servers": {},
         }
+        owned: dict[str, workspace.Workspace] = {}
         for name in args.server:
             try:
                 server = servers.load(name)
@@ -127,7 +139,13 @@ async def run(args) -> dict:
             entry = {"status": "ok", "command": server.command, "info": None, "scenarios": {}}
             await warm_up(server, space, args.logs)
             for scenario in chosen:
-                result, info = await measure(server, space, scenario, options, args.logs, args.repeat)
+                try:
+                    own = own_workspace(scenario, pathlib.Path(scratch), owned)
+                except FileNotFoundError as missing:
+                    entry["scenarios"][scenario] = {"status": "skipped", "reason": str(missing)}
+                    print(f"  {name} {scenario}: skipped ({missing})", file=sys.stderr)
+                    continue
+                result, info = await measure(server, own or space, scenario, options, args.logs, args.repeat)
                 entry["info"] = entry["info"] or info
                 entry["scenarios"][scenario] = result
                 if result["status"] != "ok":
