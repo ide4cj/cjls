@@ -25,6 +25,7 @@ CAPABILITIES = types.ClientCapabilities(
         synchronization=types.TextDocumentSyncClientCapabilities(did_save=True),
         document_symbol=types.DocumentSymbolClientCapabilities(hierarchical_document_symbol_support=True),
         definition=types.DefinitionClientCapabilities(link_support=True),
+        references=types.ReferenceClientCapabilities(),
         hover=types.HoverClientCapabilities(content_format=[types.MarkupKind.Markdown, types.MarkupKind.PlainText]),
         completion=types.CompletionClientCapabilities(),
         publish_diagnostics=types.PublishDiagnosticsClientCapabilities(),
@@ -221,11 +222,18 @@ class Session:
             root_path=str(root),
             workspace_folders=[types.WorkspaceFolder(uri=root.as_uri(), name=root.name)],
             capabilities=CAPABILITIES,
-            initialization_options=self.server.initialization_options,
+            initialization_options=self.initialization_options(),
         )
         self.result = await asyncio.wait_for(self.client.initialize_async(params), self.timeout)
         self.client.initialized(types.InitializedParams())
         return self.result
+
+    def initialization_options(self):
+        """The server's, with what the workspace sets for it over them (`Workspace.settings`)."""
+        own = self.workspace.settings.get(self.server.name)
+        if not own:
+            return self.server.initialization_options
+        return {**(self.server.initialization_options or {}), **own}
 
     async def ready(self) -> float:
         """Waits until the server counts as started, as `servers.toml` says it does, and returns
@@ -329,6 +337,12 @@ class Session:
     async def completion(self, uri: str, line: int, character: int):
         params = types.CompletionParams(**self.position_params(uri, line, character))
         return await asyncio.wait_for(self.client.text_document_completion_async(params), self.timeout)
+
+    async def references(self, uri: str, line: int, character: int):
+        params = types.ReferenceParams(
+            **self.position_params(uri, line, character), context=types.ReferenceContext(include_declaration=True)
+        )
+        return await asyncio.wait_for(self.client.text_document_references_async(params), self.timeout)
 
     # counted work
 

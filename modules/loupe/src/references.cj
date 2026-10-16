@@ -2,7 +2,6 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import rope.Rope
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{ImportAlias, Name, identText, isIdent}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
@@ -24,8 +23,8 @@ public struct Reference {
 /**
  * Every name of the workspace meaning what the name at `offset` does, the declarations among them, by file as
  * `searchScope` has them and in each in the file's order: `highlightRelated` in the files a use may be in
- * (`searchScope`) whose text names it, rust-analyzer's `FindUsages`, no index of uses kept. Nothing for a name
- * meaning nothing, nor for a name a macro declares (#175).
+ * (`searchScope`) one of whose words (`fileWords`) is a name searched, rust-analyzer's `FindUsages`, no index of
+ * uses kept. Nothing for a name meaning nothing, nor for a name a macro declares (#175).
  */
 public func findReferences(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<Reference> {
     let file = db.sourceFile(fileId) ?? return []
@@ -38,9 +37,10 @@ public func findReferences(db: AnalysisDatabase, fileId: FileId, offset: Int64):
         return []
     }
     let names = searchedNames(db, identText(token), meant)
+    let hashes = names.map {name => wordHash(name)}
     searchScope(db, meant, file) |> filter {
-        one: SourceFile => let text = one.text(db)
-        names.iterator().any {name => mentions(text, name)}
+        one: SourceFile => let words = fileWords(db, one)
+        hashes.iterator().any {hash => words.has(hash)}
     } |> flatMap {
         one: SourceFile =>
         let id = one.fileId(db)
@@ -183,36 +183,4 @@ class FileScope {
             add(db.sourceFile(fileId))
         }
     }
-}
-
-/**
- * Whether `text` has `name` anywhere, a name across two of its chunks too: the files worth parsing for it, a
- * superset of those naming it (`size` is in `sizeOf`).
- */
-func mentions(text: Rope, name: String): Bool {
-    // the end of the chunk before, as much as a match across the two can start in
-    var carry = ""
-    for (chunk in text.chunks()) {
-        if (chunk.contains(name)) {
-            return true
-        }
-        if (!carry.isEmpty() && (carry + chunk[..boundaryAfter(chunk, name.size - 1)]).contains(name)) {
-            return true
-        }
-        // a chunk but a lone one is longer than a name (the rope's `MIN_CHUNK`, 256 bytes)
-        carry = chunk[boundaryAfter(chunk, chunk.size - name.size + 1)..]
-    }
-    false
-}
-
-/**
- * The first character boundary of `text` at `offset` or after it, `offset` kept within it.
- */
-func boundaryAfter(text: String, offset: Int64): Int64 {
-    var at = min(max(offset, 0), text.size)
-    // a byte 0b10xxxxxx continues a character
-    while (at < text.size && (text[at] & 0xC0) == 0x80) {
-        at++
-    }
-    at
 }

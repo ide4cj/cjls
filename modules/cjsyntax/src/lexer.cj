@@ -532,7 +532,7 @@ func isHexDigit(b: Byte): Bool {
  * uses: `std.unicode` has no general categories, and letters newer than its tables, combining marks and the like
  * must not break a name apart. So anything but white space, punctuation and symbols is taken.
  */
-func isIdentLike(r: Rune): Bool {
+public func isIdentLike(r: Rune): Bool {
     if (r.isLetter() || r.isNumber()) {
         return true
     }
