@@ -5,7 +5,7 @@ import std.unittest.testmacro.*
 import ginkgo.TextRange
 import rope.Rope
 import loupe.vfs.FileId
-import loupe.db.AnalysisDatabase
+import loupe.db.*
 import loupe.fixture.*
 
 func diagnosticsOf(text: String): Array<Diagnostic> {
@@ -373,6 +373,114 @@ class InferenceDiagnosticsTest {
                 a.x()
             }
             "#, binaries: ["std.core"])
+    }
+}
+
+/**
+ * The file `/main.cj` of `fixture` whose one `@Derive` the server answered: its output the type after the call,
+ * copied, then `written`, which the macro wrote; the database and the file.
+ */
+func derivedByServer(fixture: String, written: String): (AnalysisDatabase, SourceFile) {
+    let parsed = Fixture.parse(fixture)
+    let db = deriveDatabase(parsed)
+    let file = db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow()
+    let text = file.text(db).toString()
+    let anchor = offsetIn(text, "@Derive")
+    let start = text.indexOf("\n", anchor).getOrThrow() + 1
+    let copied = text[start..].trimAscii()
+    let output = copied + "\n" + written
+    answer(db, file, "Derive", output, [
+        MappedSpan(TextRange(0, copied.size),
+            SpanOrigin.FromSource(TextRange(start - anchor, start - anchor + copied.size))),
+        MappedSpan(TextRange(copied.size + 1, output.size), SpanOrigin.FromCall)
+    ])
+    (db, file)
+}
+
+/**
+ * The bodies of an item the macro server's output replaces are read in that output alone (D132, #431).
+ */
+@Test
+class ReplacedItemDiagnosticsTest {
+    @TestCase
+    func aTypeTheServersDeriveReplacedIsNotCheckedAgainstItsSourceTwin() {
+        // arrange
+        let (db, file) = derivedByServer(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.deriving.*
+            @Derive[Equatable]
+            enum E {
+                | A
+                | B
+
+                static func named(n: String): ?E {
+                    match (n) {
+                        case "a" => A
+                        case _ => None
+                    }
+                }
+            }
+            "#, "extend E <: Equatable<E> {\n    public operator func ==(that: E): Bool { true }\n" +
+            "    public operator func !=(that: E): Bool { false }\n}")
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => one.message}, Array<String>())
+    }
+
+    @TestCase
+    func aMismatchInCopiedTextIsWhereItWasCopiedFromAndInWrittenTextAtTheCallsHead() {
+        // arrange
+        let (db, file) = derivedByServer(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.deriving.*
+            @Derive[Equatable]
+            struct S {
+                func f(): Unit {
+                    let x: Int64 = "s"
+                }
+            }
+            "#, "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool {\n" +
+            "        let y: Bool = \"no\"\n        y\n    }\n    public operator func !=(that: S): Bool { false }\n}")
+        let text = file.text(db).toString()
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        let head = offsetIn(text, "@Derive")
+        let s = offsetIn(text, "\"s\"")
+        @Expect(result.map {one => "${one.range} ${one.message}"}, [
+            "${TextRange(head, head + "@Derive[Equatable]".size)} mismatched types: expected 'Bool', found 'String'",
+            "${TextRange(s, s + 3)} mismatched types: expected 'Int64', found 'String'"
+        ])
+    }
+
+    @TestCase
+    func anOutputOlderThanTheTextReportsNothingOfItsBodies() {
+        // arrange
+        let (db, file) = derivedByServer(#"
+            //- /main.cj module=m package=m
+            package m
+            import std.deriving.*
+            @Derive[Equatable]
+            struct S {
+                func f(): Int64 { "s" }
+            }
+            "#, "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool { true }\n" +
+            "    public operator func !=(that: S): Bool { false }\n}")
+        let text = file.text(db).toString()
+
+        // act
+        db.setFileText(file.fileId(db), Rope(text.replace("\"s\"", "\"t\"")))
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => one.message}, Array<String>())
     }
 }
 

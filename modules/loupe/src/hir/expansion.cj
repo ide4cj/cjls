@@ -70,7 +70,8 @@ public struct Expansion {
 /**
  * The body of a member cjls writes itself for the call of `macroName` (`@Derive`), the member at `indent` (D118): a
  * block, which the editor folds, of a comment saying whose the body is and nothing else. The analysis lowers no body
- * of an expansion (`bodyWithSourceMap`), so an empty one is typed by nothing and reported by nothing. The parser needs
+ * of an expansion it writes (`bodyWithSourceMap`, only the macro server's), so an empty one is typed by nothing and
+ * reported by nothing. The parser needs
  * one in an `extend` or a `struct`, and so does a workspace macro the `extend` is sent to (D114).
  */
 func stubBody(indent: String, macroName: String): String {

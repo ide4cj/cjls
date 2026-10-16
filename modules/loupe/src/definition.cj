@@ -46,7 +46,7 @@ public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): A
  * Where the name at `offset` of the text of the expansion of `call` (`expandedMacro`) is declared, as `definitionAt`
  * finds it in a file, the names of the expansion in the scope of the call's file: a declaration whose name the macro
  * copied from the source, there; one the macro or the analysis wrote, in its expansion (`NavigationTarget.expansion`).
- * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`). In the expression or statements a
+ * Nothing in a body of an expansion cjls writes itself, a comment (D118, `bodyWithSourceMap`). In the expression or statements a
  * call in an item expands to, a name as where the call stands (`callSiteNameOf`).
  */
 public func definitionInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: Int64): Array<NavigationTarget> {

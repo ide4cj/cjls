@@ -504,18 +504,22 @@ public struct LoweredBody {
 }
 
 /**
- * The `LoweredBody` of `def`: of its node in a source file; an empty one for a declaration with no
- * body, of a package compiled already, or no longer there.
+ * The `LoweredBody` of `def`: of its node in a source file, or in an output of the macro server (D132), whose spans
+ * say where it comes from; an empty one for a declaration with no body, of a package compiled already, of an expansion
+ * cjls writes itself, whose bodies are comments (D118), or no longer there.
  */
 @CalcaTracked
 public func bodyWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredBody {
-    if (let Source(file) <- def.file(db)) {
-        let root = parse(db, file).syntaxNode()
-        if (let Some(decl) <- itemIdMap(db, file).node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
-            return lowerBody(decl, active: ActiveFilter.of(db, file))
-        }
+    let (root, ids, file) = match (def.file(db)) {
+        case Source(file) => (parse(db, file).syntaxNode(), itemIdMap(db, file), file)
+        case Expansion(call) where !macroExpansion(db, call).spans.isEmpty() =>
+            (expansionParse(db, call).syntaxNode(), expansionIdMap(db, call), call.file(db))
+        case _ => return LoweredBody(Body(), BodySourceMap())
     }
-    LoweredBody(Body(), BodySourceMap())
+    match (ids.node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
+        case Some(decl) => lowerBody(decl, active: ActiveFilter.of(db, file))
+        case None => LoweredBody(Body(), BodySourceMap())
+    }
 }
 
 /**

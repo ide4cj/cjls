@@ -304,10 +304,10 @@ public func pendingMacroRequests(db: AnalysisDatabase, file: SourceFile): Array<
 }
 
 /**
- * The calls the macro server runs in `file` whose expansion the analysis reads, and have one. A file the macro server
- * answered nothing for runs no query for it.
+ * The calls the macro server runs in `file` whose expansion the analysis reads, and have one: each replaces its item,
+ * read through that output alone (D132). A file the macro server answered nothing for runs no query for it.
  */
-func readServerCallsOf(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
+public func readServerCallsOf(db: AnalysisDatabase, file: SourceFile): Array<MacroCallId> {
     if (file.macroOutputs(db).size == 0) {
         return []
     }

@@ -33,7 +33,8 @@ public struct Diagnostic {
 /**
  * What is wrong in a file, in the order of the text: what the lexer and the parser found, what its
  * `@When`s say (the code they leave out, what cjc rejects in them), what is wrong with its scope, what
- * the workspace's macros reported running its calls, and what inference found in its bodies; for a file
+ * the workspace's macros reported running its calls, and what inference found in its bodies, those of an item the
+ * macro server's output replaces in that output (D132); for a file
  * the build leaves out (#318), what the parser found and that it is inactive. Empty for a file the
  * database does not know.
  *
@@ -66,30 +67,60 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
         }
         Diagnostic(one.range, severity, one.message)
     })
-    for (def in bodiesOf(db, file)) {
+    let read = readServerCallsOf(db, file)
+    for (def in bodiesOf(db, ItemFile.Source(file), leavingOut: read.map {call => call.item(db)})) {
         result.add(all: inferenceDiagnostics(db, def, root))
     }
+    result.add(all: expansionDiagnostics(db, file, read))
     let sorted = result.toArray()
     sort(sorted, stable: true, by: {a: Diagnostic, b: Diagnostic => a.range.start.compare(b.range.start)})
     sorted
 }
 
 /**
- * The declarations of `file` that have a body, their members among them.
+ * The declarations of `file` that have a body, their members among them; none under the items `leavingOut`.
  */
-func bodiesOf(db: AnalysisDatabase, file: SourceFile): Array<DefId> {
+func bodiesOf(db: AnalysisDatabase, file: ItemFile, leavingOut!: Array<ItemId> = []): Array<DefId> {
     let found = ArrayList<DefId>()
+    let left = HashSet<ItemId>(leavingOut)
     func add(items: Array<Item>): Unit {
-        for (item in items) {
+        for (item in items where !left.contains(item.id)) {
             match (item.kind) {
                 case Func | Main | Macro | Var | Prop | Init | PrimaryInit | Finalizer =>
-                    found.add(DefId(db, ItemFile.Source(file), item.id))
+                    found.add(DefId(db, file, item.id))
                 case _ => ()
             }
             add(item.members)
         }
     }
-    add(activeItemTree(db, file).items)
+    add(itemTreeOf(db, file).items)
+    found.toArray()
+}
+
+/**
+ * What inference found wrong in the bodies of the outputs of the macro server `read`, the calls of `file` whose items
+ * are read through them (D132): in text an output copied, where it was copied from; in text the macro wrote, at the
+ * head of the call, as `macroDiagnostics` puts the macro's own. None of an output older than the text, whose spans may
+ * no longer say where the text is: its item has none until the server answers again.
+ */
+func expansionDiagnostics(db: AnalysisDatabase, file: SourceFile, read: Array<MacroCallId>): Array<Diagnostic> {
+    if (read.isEmpty()) {
+        return []
+    }
+    let current = HashSet<MacroCallId>()
+    for (request in macroRequests(db, file) where request.current) {
+        current.add(request.call)
+    }
+    let found = ArrayList<Diagnostic>()
+    for (call in read where current.contains(call)) {
+        let (_, head) = macroCallHeadOf(db, call) ?? continue
+        let root = expansionParse(db, call).syntaxNode()
+        for (def in bodiesOf(db, ItemFile.Expansion(call))) {
+            for (one in inferenceDiagnostics(db, def, root)) {
+                found.add(Diagnostic(sourceRangeOf(db, call, one.range) ?? head, one.severity, one.message))
+            }
+        }
+    }
     found.toArray()
 }
 
