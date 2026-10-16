@@ -595,7 +595,7 @@ class BodyLowering {
     func params(lists: Iterator<ParamList>, primary!: Bool = false): Array<BodyParam> {
         let lowered = ArrayList<BodyParam>()
         for (list in lists) {
-            for (param in list.params() where active.isActive(param.syntax)) {
+            for (param in list.writtenParams() where active.isActive(param.syntax)) {
                 lowered.add(paramOf(param, primary))
             }
         }

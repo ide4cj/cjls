@@ -258,7 +258,7 @@ class SignatureLowering {
         let found = ArrayList<?String>()
         let withDefault = ArrayList<Bool>()
         for (list in lists) {
-            for (param in list.params() where active.isActive(param.syntax)) {
+            for (param in list.writtenParams() where active.isActive(param.syntax)) {
                 if (param.dotDotDotToken().isSome()) {
                     isCVariadic = true
                     continue

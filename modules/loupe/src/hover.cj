@@ -520,7 +520,7 @@ class Hovers {
                 let (root, ids) = syntaxOf(db, file) ?? return []
                 let node = ids.node(id.item(db), root) ?? return []
                 node.children() |> filterMap {child: CjSyntaxNode => ParamList.cast(child)} |> flatMap {
-                    list: ParamList => list.params()
+                    list: ParamList => list.writtenParams()
                 } |> map {param: Param => param.name()?.text() ?? "_"} |> collectArray
         }
     }
