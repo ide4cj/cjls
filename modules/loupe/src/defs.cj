@@ -210,7 +210,8 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     let node = name.parent ?? return None
     let lowered = bodyWithSourceMap(db, def)
     let sourceMap = lowered.sourceMap
-    let pkg = packageOfFile(db, scopeFileOf(db, def.file(db)) ?? return None) ?? return None
+    let file = scopeFileOf(db, def.file(db)) ?? return None
+    let pkg = packageOfFile(db, file) ?? return None
     // an operator: the operator function it calls (8e)
     if (isOperator(token)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return None
@@ -249,7 +250,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     if (let Some(_) <- BindPat.cast(node)) {
         let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return None
         let ctors = if (lowered.body[local].lone) {
-            ctorsNamed(db, pkg, token.text())
+            ctorsNamed(db, pkg, file, token.text())
         } else {
             Array<DefId>()
         }
@@ -262,7 +263,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     if (let Some(segment) <- PathSegment.cast(node)) {
         let pat = segment.syntax.parent.flatMap {one => EnumPat.cast(one)} ?? return None
         if ((pat.pathSegments() |> collectArray).size == 1) {
-            return ctorsNamed(db, pkg, token.text()).map {id => Definition.DeclDef(id)}
+            return ctorsNamed(db, pkg, file, token.text()).map {id => Definition.DeclDef(id)}
         }
         return None
     }

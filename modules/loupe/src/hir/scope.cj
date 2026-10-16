@@ -6,6 +6,7 @@ import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import loupe.vfs.FileId
 
 /**
  * The path of an import a name came by: its file, its import, the path's index in it, and the
@@ -167,7 +168,7 @@ let TEST_IMPORTS = ["std.unittest", "std.unittest.testmacro"]
  * is (D129). None for any other file.
  */
 public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<Glob> {
-    if (!pkg.testFiles(db).contains(file.fileId(db))) {
+    if (!isTestOf(db, pkg, file)) {
         return []
     }
     let from = PackageRef.Source(pkg)
@@ -181,6 +182,13 @@ public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile):
             }
         }
     } |> collectArray
+}
+
+/**
+ * Whether `file` is one of the tests of `pkg`, which cjc compiles with the package only under `--test` (D129).
+ */
+public func isTestOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Bool {
+    pkg.testFiles(db).contains(file.fileId(db))
 }
 
 /**
@@ -345,7 +353,8 @@ func isFunc(target: ScopeTarget, db: AnalysisDatabase): Bool {
 /**
  * The constructors the imports of every file of a package bring, each seen in all of its files
  * (N73): those of the enums their paths name, and their globs, each glob once however many files
- * have it (the prelude is every file's).
+ * have it (the prelude is every file's). A file that is no test sees those of the files that are
+ * none alone, as `cjpm build` compiles them (N164, D129).
  */
 @Derive[Equatable]
 public struct CtorImports {
@@ -367,14 +376,25 @@ public struct CtorImports {
 }
 
 /**
- * The `CtorImports` of `pkg`: of its files' plain imports and of its re-exports.
+ * The `CtorImports` `file` of `pkg` sees: `packageCtorImports` as its tests or as its other files do.
+ */
+public func ctorImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): CtorImports {
+    packageCtorImports(db, pkg, isTestOf(db, pkg, file))
+}
+
+/**
+ * The `CtorImports` of `pkg`: of its files' plain imports and of its re-exports; with `ofTests` false, of the files
+ * that are no tests alone, which `cjpm build` compiles without the tests (N164).
  */
 @CalcaTracked
-public func packageCtorImports(db: AnalysisDatabase, pkg: Package): CtorImports {
+public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool): CtorImports {
     let ctors = IndexMap<String, ArrayList<DefId>>()
     let globs = ArrayList<Glob>()
-    let levels = (pkg.files(db) |> filterMap {fileId => db.sourceFile(fileId)} |> map {file => fileImports(db, pkg, file)} |>
-        collectArray).concat([packageImports(db, PackageRef.Source(pkg))])
+    let tests = pkg.testFiles(db)
+    let files = pkg.files(db) |> filter {fileId: FileId => ofTests || !tests.contains(fileId)} |>
+        filterMap {fileId => db.sourceFile(fileId)}
+    let levels = (files |> map {file => fileImports(db, pkg, file)} |> collectArray).concat(
+        [packageImports(db, PackageRef.Source(pkg))])
     for (names in levels) {
         for ((name, ids) in names.ctors) {
             let entry = entryOf(ctors, name)
@@ -462,7 +482,7 @@ public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: S
     }
     // constructors are values: a macro's lookup reads none
     let ctorImports = if (ns == Namespace.Values) {
-        packageCtorImports(db, pkg)
+        ctorImportsOf(db, pkg, file)
     } else {
         CtorImports(IndexMap<String, Array<DefId>>(), [])
     }

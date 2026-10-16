@@ -72,17 +72,25 @@ func sourceOf(db: AnalysisDatabase, def: DefId): ?(Package, SourceFile) {
 }
 
 /**
- * The constructors named `name` a pattern of `pkg` may mean: those of the enums of the package, and
- * of those any of its files imports (N72, N73). A query, as `lookUp` is: every binding of a body asks
- * it, and a declaration added to the package runs again only what read a name it changes.
+ * The constructors named `name` a pattern of `file` of `pkg` may mean: those of the enums of the
+ * package, and of those any of its files imports (N72, N73), as `file` sees them (`ctorImportsOf`).
+ */
+public func ctorsNamed(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String): Array<DefId> {
+    packageCtorsNamed(db, pkg, isTestOf(db, pkg, file), name)
+}
+
+/**
+ * The constructors named `name` a pattern of `pkg` may mean, of its tests with `ofTests` (`packageCtorImports`).
+ * A query, as `lookUp` is: every binding of a body asks it, and a declaration added to the package runs again
+ * only what read a name it changes.
  */
 @CalcaTracked
-public func ctorsNamed(db: AnalysisDatabase, pkg: Package, name: String): Array<DefId> {
+public func packageCtorsNamed(db: AnalysisDatabase, pkg: Package, ofTests: Bool, name: String): Array<DefId> {
     let found = ArrayList<DefId>()
     for (def in defMap(db, PackageRef.Source(pkg)).ctors.get(name) ?? []) {
         found.add(def.id)
     }
-    for (id in packageCtorImports(db, pkg).named(db, name) where !found.contains(id)) {
+    for (id in packageCtorImports(db, pkg, ofTests).named(db, name) where !found.contains(id)) {
         found.add(id)
     }
     found.toArray()
@@ -112,7 +120,7 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
     for (one in scopes.chain(scope)) {
         for (local in scopes[one].entries where lowered[local].name == name) {
             if (lowered[local].lone) {
-                let ctor = isCtor ?? !ctorsNamed(db, pkg, name).isEmpty()
+                let ctor = isCtor ?? !ctorsNamed(db, pkg, file, name).isEmpty()
                 isCtor = ctor
                 if (ctor) {
                     continue

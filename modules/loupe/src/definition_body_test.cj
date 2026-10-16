@@ -400,6 +400,65 @@ class BodyDefinitionTest {
     }
 
     @TestCase
+    func aConstructorOfAnEnumATestImportsIsNoneOfAFileThatIsNoTest() {
+        // N73 within what `cjpm build` compiles: it leaves the `*_test.cj` files out (N164, D129)
+        checkDefinition(#"
+            //- /p/e.cj module=m package=m.p
+            package m.p
+            public enum E { A(Int64) | B }
+            //- /a_test.cj module=m package=m
+            package m
+            import m.p.E
+            //- /b.cj module=m package=m
+            package m
+            func f(): Unit {
+                let x = $0A(1)
+            //          ^ no definition
+            }
+            "#)
+    }
+
+    @TestCase
+    func aPatternsLoneNameBindsInAFileThatIsNoTestThoughATestImportsAConstructorOfIt() {
+        // N72, N73 within what `cjpm build` compiles (N164, D129)
+        checkDefinition(#"
+            //- /p/e.cj module=m package=m.p
+            package m.p
+            public enum E { A(Int64) | B }
+            //- /a_test.cj module=m package=m
+            package m
+            import m.p.E
+            //- /b.cj module=m package=m
+            package m
+            func f(o: Int64): Int64 {
+                match (o) {
+                    case B => $0B
+            //           ^ def
+                }
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTestSeesTheConstructorsOfAnEnumAFileThatIsNoTestImports() {
+        // N73 under `--test`, which compiles the tests with the package's other files (N164)
+        checkDefinition(#"
+            //- /p/e.cj module=m package=m.p
+            package m.p
+            public enum E { A(Int64) | B }
+            //              ^ def
+            //- /a.cj module=m package=m
+            package m
+            import m.p.E
+            //- /b_test.cj module=m package=m
+            package m
+            func f(): Unit {
+                let x = $0A(1)
+            }
+            "#)
+    }
+
+    @TestCase
     func aTypeParameterAsAValue() {
         // N74
         checkDefinition(#"

@@ -326,6 +326,44 @@ class CompletionTest {
     }
 
     @TestCase
+    func aNameListsNoConstructorOfAnEnumOnlyATestImports() {
+        // N73 within what `cjpm build` compiles: it leaves the `*_test.cj` files out (N164, D129)
+        checkCompletion(#"
+            //- /lib.cj module=m package=m.lib
+            package m.lib
+            public enum Color { | Red | Green }
+            //- /main_test.cj module=m package=m deps=m.lib
+            package m
+            import m.lib.Color
+            //- /main.cj module=m package=m deps=m.lib
+            package m
+            main() {
+                Re$0
+            //  ^^ 010 break | CompletionKind.KeywordItem
+            //  ^^ 010 continue | CompletionKind.KeywordItem
+            //  ^^ 010 do | CompletionKind.KeywordItem
+            //  ^^ 010 false | CompletionKind.KeywordItem
+            //  ^^ 010 for | CompletionKind.KeywordItem
+            //  ^^ 010 func | CompletionKind.KeywordItem
+            //  ^^ 010 if | CompletionKind.KeywordItem
+            //  ^^ 010 let | CompletionKind.KeywordItem
+            //  ^^ 010 match | CompletionKind.KeywordItem
+            //  ^^ 010 return | CompletionKind.KeywordItem
+            //  ^^ 010 spawn | CompletionKind.KeywordItem
+            //  ^^ 010 super | CompletionKind.KeywordItem
+            //  ^^ 010 this | CompletionKind.KeywordItem
+            //  ^^ 010 throw | CompletionKind.KeywordItem
+            //  ^^ 010 true | CompletionKind.KeywordItem
+            //  ^^ 010 try | CompletionKind.KeywordItem
+            //  ^^ 010 unsafe | CompletionKind.KeywordItem
+            //  ^^ 010 var | CompletionKind.KeywordItem
+            //  ^^ 010 while | CompletionKind.KeywordItem
+            //  ^^ 060 main | CompletionKind.FuncItem | main(): {unknown}
+            }
+            "#)
+    }
+
+    @TestCase
     func aNameAfterAnImportListsTheImportedAndTheGlob() {
         checkCompletion(#"
             //- /lib.cj module=m package=m.lib

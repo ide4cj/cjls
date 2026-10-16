@@ -507,7 +507,7 @@ func fileScopeCompletions(db: AnalysisDatabase, file: SourceFile, found: ArrayLi
         }
     }
     // the constructors of the enums any file of the package imports (N73)
-    let ctorImports = packageCtorImports(db, pkg)
+    let ctorImports = ctorImportsOf(db, pkg, file)
     for ((name, ids) in ctorImports.ctors) {
         for (id in ids) {
             found.add(CompletionItem(name, CtorItem, 50, DeclSource(id, None)))

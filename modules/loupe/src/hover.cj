@@ -282,11 +282,11 @@ class Hovers {
                 case NoField => []
             }
         }
-        let pkg: ?Package = from.flatMap {file => packageOfFile(db, file)}
+        let place: ?(Package, SourceFile) = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
         if (let Some(_) <- BindPat.cast(node)) {
             let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return []
-            let ctors = match (pkg) {
-                case Some(one) where lowered.body[local].lone => ctorsNamed(db, one, token.text())
+            let ctors = match (place) {
+                case Some((pkg, file)) where lowered.body[local].lone => ctorsNamed(db, pkg, file, token.text())
                 case _ => Array<DefId>()
             }
             return if (ctors.isEmpty()) {
@@ -297,8 +297,8 @@ class Hovers {
         }
         if (let Some(segment) <- PathSegment.cast(node)) {
             let pat = segment.syntax.parent.flatMap {one => EnumPat.cast(one)} ?? return []
-            if ((pat.pathSegments() |> collectArray).size == 1 && let Some(one) <- pkg) {
-                return ctorsNamed(db, one, token.text()) |> filterMap {id: DefId => declItem(id, None)} |> collectArray
+            if ((pat.pathSegments() |> collectArray).size == 1 && let Some((pkg, file)) <- place) {
+                return ctorsNamed(db, pkg, file, token.text()) |> filterMap {id: DefId => declItem(id, None)} |> collectArray
             }
             return []
         }
