@@ -153,6 +153,45 @@ class CompletionTest {
     }
 
     @TestCase
+    func aDotListsTheMembersOfAnExtendTheFileImportsTheInterfaceOfAndNotOfAnother() {
+        checkCompletion(#"
+            //- /shapes.cj module=m package=m.shapes
+            package m.shapes
+            public class Point {
+                public func norm(): Int64 { 0 }
+            }
+            //- /named.cj module=m package=m.named
+            package m.named
+            import m.shapes.Point
+            public interface Named {
+                func name(): Int64
+            }
+            extend Point <: Named {
+                public func name(): Int64 { 1 }
+            }
+            //- /loud.cj module=m package=m.loud
+            package m.loud
+            import m.shapes.Point
+            public interface Loud {
+                func shout(): Int64
+            }
+            extend Point <: Loud {
+                public func shout(): Int64 { 2 }
+            }
+            //- /main.cj module=m package=m
+            package m
+            import m.shapes.Point
+            import m.named.Named
+            main() {
+                let p = Point()
+                p.$0
+            //   ^ 080 name | CompletionKind.FuncItem | public func name(): Int64
+            //   ^ 080 norm | CompletionKind.FuncItem | public func norm(): Int64
+            }
+            "#)
+    }
+
+    @TestCase
     func aPrivateMemberOfAnotherTypeIsNotListedAndOneOfTheTypeAroundIs() {
         checkCompletion(#"
             //- /main.cj module=m package=m
@@ -348,14 +387,258 @@ class CompletionTest {
     }
 
     @TestCase
-    func aCursorInATypeBodyOutsideAMemberCompletesNothing() {
+    func aCursorInATypeBodyOutsideAMemberListsTheKeywordsStartingAMember() {
         checkCompletion(#"
             //- /main.cj module=m package=m
             package m
             class Point {
                 let x = 1
-            //          ^ no completion
-                $0
+                pu$0
+            //  ^^ 010 const | CompletionKind.KeywordItem
+            //  ^^ 010 func | CompletionKind.KeywordItem
+            //  ^^ 010 init | CompletionKind.KeywordItem
+            //  ^^ 010 internal | CompletionKind.KeywordItem
+            //  ^^ 010 let | CompletionKind.KeywordItem
+            //  ^^ 010 mut | CompletionKind.KeywordItem
+            //  ^^ 010 open | CompletionKind.KeywordItem
+            //  ^^ 010 operator | CompletionKind.KeywordItem
+            //  ^^ 010 override | CompletionKind.KeywordItem
+            //  ^^ 010 private | CompletionKind.KeywordItem
+            //  ^^ 010 prop | CompletionKind.KeywordItem
+            //  ^^ 010 protected | CompletionKind.KeywordItem
+            //  ^^ 010 public | CompletionKind.KeywordItem
+            //  ^^ 010 redef | CompletionKind.KeywordItem
+            //  ^^ 010 static | CompletionKind.KeywordItem
+            //  ^^ 010 unsafe | CompletionKind.KeywordItem
+            //  ^^ 010 var | CompletionKind.KeywordItem
+            }
+            "#)
+    }
+
+    @TestCase
+    func aCursorAtTheTopLevelListsTheKeywordsStartingADeclarationAndImportInThePreamble() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+              package m
+              cl$0
+            //^^ 010 abstract | CompletionKind.KeywordItem
+            //^^ 010 class | CompletionKind.KeywordItem
+            //^^ 010 const | CompletionKind.KeywordItem
+            //^^ 010 enum | CompletionKind.KeywordItem
+            //^^ 010 extend | CompletionKind.KeywordItem
+            //^^ 010 foreign | CompletionKind.KeywordItem
+            //^^ 010 func | CompletionKind.KeywordItem
+            //^^ 010 import | CompletionKind.KeywordItem
+            //^^ 010 interface | CompletionKind.KeywordItem
+            //^^ 010 internal | CompletionKind.KeywordItem
+            //^^ 010 let | CompletionKind.KeywordItem
+            //^^ 010 macro | CompletionKind.KeywordItem
+            //^^ 010 main | CompletionKind.KeywordItem
+            //^^ 010 open | CompletionKind.KeywordItem
+            //^^ 010 private | CompletionKind.KeywordItem
+            //^^ 010 protected | CompletionKind.KeywordItem
+            //^^ 010 public | CompletionKind.KeywordItem
+            //^^ 010 sealed | CompletionKind.KeywordItem
+            //^^ 010 struct | CompletionKind.KeywordItem
+            //^^ 010 type | CompletionKind.KeywordItem
+            //^^ 010 unsafe | CompletionKind.KeywordItem
+            //^^ 010 var | CompletionKind.KeywordItem
+            "#)
+    }
+
+    @TestCase
+    func aCursorAtTheTopLevelAfterADeclarationListsNoImport() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+              package m
+              func f(): Unit {}
+              cl$0
+            //^^ 010 abstract | CompletionKind.KeywordItem
+            //^^ 010 class | CompletionKind.KeywordItem
+            //^^ 010 const | CompletionKind.KeywordItem
+            //^^ 010 enum | CompletionKind.KeywordItem
+            //^^ 010 extend | CompletionKind.KeywordItem
+            //^^ 010 foreign | CompletionKind.KeywordItem
+            //^^ 010 func | CompletionKind.KeywordItem
+            //^^ 010 interface | CompletionKind.KeywordItem
+            //^^ 010 internal | CompletionKind.KeywordItem
+            //^^ 010 let | CompletionKind.KeywordItem
+            //^^ 010 macro | CompletionKind.KeywordItem
+            //^^ 010 main | CompletionKind.KeywordItem
+            //^^ 010 open | CompletionKind.KeywordItem
+            //^^ 010 private | CompletionKind.KeywordItem
+            //^^ 010 protected | CompletionKind.KeywordItem
+            //^^ 010 public | CompletionKind.KeywordItem
+            //^^ 010 sealed | CompletionKind.KeywordItem
+            //^^ 010 struct | CompletionKind.KeywordItem
+            //^^ 010 type | CompletionKind.KeywordItem
+            //^^ 010 unsafe | CompletionKind.KeywordItem
+            //^^ 010 var | CompletionKind.KeywordItem
+            "#)
+    }
+
+    @TestCase
+    func aCursorInsideAWordAtTheTopLevelCompletesNothing() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+              package m
+              str$0uct Point {}
+            //^^^^^^^^ no completion
+            "#)
+    }
+
+    @TestCase
+    func aParameterTypeListsTheTypesInScopeAndNotTheValues() {
+        checkCompletion(#"
+            //- /lib.cj module=m package=m.lib
+            package m.lib
+            public class Remote {}
+            //- /main.cj module=m package=m
+            package m
+            import m.lib
+            class Shape {}
+            enum Color { | Red }
+            func helper(): Unit {}
+            let answer = 1
+            func area<T>(s: S$0) {}
+            //              ^ 020 Bool | CompletionKind.KeywordItem
+            //              ^ 020 Float16 | CompletionKind.KeywordItem
+            //              ^ 020 Float32 | CompletionKind.KeywordItem
+            //              ^ 020 Float64 | CompletionKind.KeywordItem
+            //              ^ 020 Int16 | CompletionKind.KeywordItem
+            //              ^ 020 Int32 | CompletionKind.KeywordItem
+            //              ^ 020 Int64 | CompletionKind.KeywordItem
+            //              ^ 020 Int8 | CompletionKind.KeywordItem
+            //              ^ 020 IntNative | CompletionKind.KeywordItem
+            //              ^ 020 Nothing | CompletionKind.KeywordItem
+            //              ^ 020 Rune | CompletionKind.KeywordItem
+            //              ^ 020 UInt16 | CompletionKind.KeywordItem
+            //              ^ 020 UInt32 | CompletionKind.KeywordItem
+            //              ^ 020 UInt64 | CompletionKind.KeywordItem
+            //              ^ 020 UInt8 | CompletionKind.KeywordItem
+            //              ^ 020 UIntNative | CompletionKind.KeywordItem
+            //              ^ 020 Unit | CompletionKind.KeywordItem
+            //              ^ 050 lib | CompletionKind.PkgItem
+            //              ^ 060 Color | CompletionKind.EnumItem | enum Color
+            //              ^ 060 Shape | CompletionKind.ClassItem | class Shape
+            //              ^ 085 T | CompletionKind.TypeParamItem
+            "#)
+    }
+
+    @TestCase
+    func aTypeAnnotationInABodyListsTheTypeParametersOfTheTypeAround() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            class Box<T> {
+                func put<U>(value: U): Unit {
+                    let x: B$0
+            //             ^ 020 Bool | CompletionKind.KeywordItem
+            //             ^ 020 Float16 | CompletionKind.KeywordItem
+            //             ^ 020 Float32 | CompletionKind.KeywordItem
+            //             ^ 020 Float64 | CompletionKind.KeywordItem
+            //             ^ 020 Int16 | CompletionKind.KeywordItem
+            //             ^ 020 Int32 | CompletionKind.KeywordItem
+            //             ^ 020 Int64 | CompletionKind.KeywordItem
+            //             ^ 020 Int8 | CompletionKind.KeywordItem
+            //             ^ 020 IntNative | CompletionKind.KeywordItem
+            //             ^ 020 Nothing | CompletionKind.KeywordItem
+            //             ^ 020 Rune | CompletionKind.KeywordItem
+            //             ^ 020 UInt16 | CompletionKind.KeywordItem
+            //             ^ 020 UInt32 | CompletionKind.KeywordItem
+            //             ^ 020 UInt64 | CompletionKind.KeywordItem
+            //             ^ 020 UInt8 | CompletionKind.KeywordItem
+            //             ^ 020 UIntNative | CompletionKind.KeywordItem
+            //             ^ 020 Unit | CompletionKind.KeywordItem
+            //             ^ 060 Box | CompletionKind.ClassItem | class Box<T>
+            //             ^ 075 T | CompletionKind.TypeParamItem
+            //             ^ 085 U | CompletionKind.TypeParamItem
+                }
+            }
+            "#)
+    }
+
+    @TestCase
+    func aTypeAfterAnImportedPackageListsTheTypesItExports() {
+        checkCompletion(#"
+            //- /lib.cj module=m package=m.lib
+            package m.lib
+            public class Remote {}
+            public interface Shown {}
+            public func notAType(): Unit {}
+            class Hidden {}
+            //- /main.cj module=m package=m
+            package m
+            import m.lib
+            main() {
+                let x: lib.$0
+            //            ^ 080 Remote | CompletionKind.ClassItem | public class Remote
+            //            ^ 080 Shown | CompletionKind.InterfaceItem | public interface Shown
+            }
+            "#)
+    }
+
+    @TestCase
+    func anImportListsTheNextSegmentOfThePackagesTheModuleSees() {
+        checkCompletion(#"
+            //- /lib.cj module=m package=m.lib
+            package m.lib
+            public func shown(): Unit {}
+            //- /deep.cj module=m package=m.lib.deep
+            package m.lib.deep
+            //- /util.cj module=m package=m.util
+            package m.util
+            //- /other.cj module=other package=other
+            package other
+            //- /main.cj module=m package=m
+            package m
+            import m.$0
+            //      ^ 070 lib | CompletionKind.PkgItem
+            //      ^ 070 util | CompletionKind.PkgItem
+            "#)
+    }
+
+    @TestCase
+    func anImportAfterAPackageListsItsSubpackagesAndWhatItExports() {
+        checkCompletion(#"
+            //- /lib.cj module=m package=m.lib
+            package m.lib
+            public func shown(): Unit {}
+            public class Shape {}
+            func hidden(): Unit {}
+            //- /deep.cj module=m package=m.lib.deep
+            package m.lib.deep
+            //- /main.cj module=m package=m
+            package m
+            import m.{lib.$0}
+            //           ^ 070 deep | CompletionKind.PkgItem
+            //           ^ 080 Shape | CompletionKind.ClassItem | public class Shape
+            //           ^ 080 shown | CompletionKind.FuncItem | public func shown(): Unit
+            "#)
+    }
+
+    @TestCase
+    func aFunctionNamedInATypeBodyListsTheMembersOfItsSupertypesItMayOverride() {
+        checkCompletion(#"
+            //- /main.cj module=m package=m
+            package m
+            interface Shape {
+                func area(): Int64
+                func name(): Int64
+                prop sides: Int64
+            }
+            open class Base {
+                public open func draw(): Unit {}
+                public func fixed(): Unit {}
+                private open func secret(): Unit {}
+                public static func make(): Unit {}
+            }
+            class Square <: Base & Shape {
+                public func name(): Int64 { 0 }
+                public prop sides: Int64 { get() { 4 } }
+                public override func $0
+            //                  ^^^^ 080 area | CompletionKind.FuncItem | func area(): Int64
+            //                  ^^^^ 080 draw | CompletionKind.FuncItem | public open func draw(): Unit
             }
             "#)
     }
