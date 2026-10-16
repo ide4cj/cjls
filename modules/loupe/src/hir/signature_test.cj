@@ -107,6 +107,16 @@ class SignatureTest {
     }
 
     @TestCase
+    func aParameterInMacroCallsIsAParameterAsWritten() {
+        @Expect(signaturesOf(#"
+            package m
+            struct S {
+                S(let a!: Int64, @M[x] let b!: String, @A @B c: Bool) {}
+            }
+            "#), ["Struct S:", "PrimaryInit S: (Int64, String, Bool)"])
+    }
+
+    @TestCase
     func aTypeNotWrittenIsMissingAndAVariableWithoutOneHasNone() {
         @Expect(signaturesOf(#"
             package m

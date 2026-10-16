@@ -1,6 +1,6 @@
 # `cjsyntax` — the Cangjie lexer and parser
 
-The Cangjie lexer and parser, on `ginkgo`: `tokenize(text)`, `parse(text)`, `reparse(before, delete, insert)` — the parse of an edited text, the `Block` around the edit parsed again where that equals a full parse and the whole text otherwise (D110) — and `SyntaxKind`; `cjsyntax.ast`, the typed views of the tree. `SyntaxKind` and the views are generated from `syntax_kinds.toml` and `cangjie.ungram` beside the manifest.
+The Cangjie lexer and parser, on `ginkgo`: `tokenize(text)`, `parse(text)`, `parseExpr(text)` and `parseStmts(text)` — a macro's output where its call stands, one expression or a block's statements (D117) —, `reparse(before, delete, insert)` — the parse of an edited text, the `Block` around the edit parsed again where that equals a full parse and the whole text otherwise (D110) — and `SyntaxKind`; `cjsyntax.ast`, the typed views of the tree. `SyntaxKind` and the views are generated from `syntax_kinds.toml` and `cangjie.ungram` beside the manifest.
 
 The generator, `modules/syntax_codegen` (`executable`): `syntax_codegen modules/cjsyntax/syntax_kinds.toml` writes `src/syntax_kind.cj` and `src/ast/nodes.cj` there, through `cjfmt`. On `ftoml` and `stdxx` only, so a broken output never stops it being rebuilt; its tests take `cjsyntax` as a `[test-dependencies]` entry, and fail when what is checked in is not what it makes.
 

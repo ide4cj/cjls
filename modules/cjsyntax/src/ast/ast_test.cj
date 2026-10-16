@@ -373,6 +373,19 @@ class AstTest {
     }
 
     @TestCase
+    func theParametersWrittenAreThoseOfTheListAndThoseInMacroCallsInOrder() {
+        // arrange
+        let list = declared<ParamList>("struct S {\n    S(let a: Int64, @M let b: Int64, @A[x] @B let c: Int64, d: Int64) {}\n}\n")
+
+        // act
+        let sut = list.writtenParams().map {param => param.name()?.text() ?? "_"}
+
+        // assert
+        @Expect(sut, ["a", "b", "c", "d"])
+        @Expect(collectArray(list.params()).size, 2)
+    }
+
+    @TestCase
     func everyTokenOfAKindIsThereWhenTheGrammarAllowsSeveral() {
         // act
         let sut = declared<ImportTree>("import org::a.b.c\n")

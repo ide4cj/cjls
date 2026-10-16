@@ -26,13 +26,31 @@ public func parse(text: String): Parse<SyntaxKind> {
 }
 
 /**
- * Parses `text` with `grammar` in place of a source file's. A grammar bug gives a tree of the text's tokens in an
- * `ErrorNode`, with an error saying so, rather than an exception (see `ginkgo.parsing.parseWith`).
+ * Parses `text` as one expression, an `ExprFile`: what a macro called where an expression stands writes (D117),
+ * rust-analyzer's `TopEntryPoint::Expr`. Text that starts no expression, or goes on after it, is an error, the rest in
+ * an `ErrorNode`. Never fails, as `parse`.
  */
-func parseWithGrammar(text: String, grammar: (P) -> Unit): Parse<SyntaxKind> {
+public func parseExpr(text: String): Parse<SyntaxKind> {
+    parseWithGrammar(text, exprFile, root: ExprFile)
+}
+
+/**
+ * Parses `text` as the statements of a block, a `StmtsFile`: what a macro called where a block's statement stands
+ * writes (D117), rust-analyzer's `TopEntryPoint::MacroStmts`. Never fails, as `parse`.
+ */
+public func parseStmts(text: String): Parse<SyntaxKind> {
+    parseWithGrammar(text, stmtsFile, root: StmtsFile)
+}
+
+/**
+ * Parses `text` with `grammar` in place of a source file's, which makes a node of `root` around it all. A grammar bug
+ * gives a tree of the text's tokens in an `ErrorNode` under `root`, with an error saying so, rather than an exception
+ * (see `ginkgo.parsing.parseWith`).
+ */
+func parseWithGrammar(text: String, grammar: (P) -> Unit, root!: SyntaxKind = SourceFile): Parse<SyntaxKind> {
     let lexed = tokenize(text)
     let p = Parser<SyntaxKind>(inputOf(lexed), Eof, ErrorNode)
-    parseWith(lexed, p, CangjieTrivia(), SourceFile, grammar)
+    parseWith(lexed, p, CangjieTrivia(), root, grammar)
 }
 
 /**

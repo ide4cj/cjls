@@ -24,6 +24,25 @@ let EXPRESSION_KEYWORDS = ["if", "match", "for", "while", "do", "let", "var", "f
     "this", "super", "true", "false", "spawn", "try", "throw", "unsafe"]
 
 /**
+ * The keywords that start a member of a type, its modifiers among them, offered between members.
+ */
+let MEMBER_KEYWORDS = ["func", "let", "var", "prop", "init", "operator", "const", "static", "public", "private",
+    "protected", "internal", "open", "override", "redef", "mut", "unsafe"]
+
+/**
+ * The keywords that start a declaration of a file, its modifiers among them; `import` and
+ * `package` where the file's preamble may still have one.
+ */
+let TOP_LEVEL_KEYWORDS = ["func", "class", "struct", "interface", "enum", "extend", "type", "let", "var", "const",
+    "main", "macro", "public", "private", "protected", "internal", "open", "abstract", "sealed", "foreign", "unsafe"]
+
+/**
+ * The primitive types, keywords offered where a type is.
+ */
+let PRIM_TYPE_NAMES = ["Int8", "Int16", "Int32", "Int64", "IntNative", "UInt8", "UInt16", "UInt32", "UInt64",
+    "UIntNative", "Float16", "Float32", "Float64", "Rune", "Bool", "Nothing", "Unit"]
+
+/**
  * What a completion item is, for the client to show it as one.
  */
 @Derive[Equatable, ToString]
@@ -99,21 +118,38 @@ public func completionsAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): 
     if (!marker.text().contains(COMPLETION_MARKER)) {
         return None
     }
-    let nameRef = marker.parent
-    if (nameRef.kind != SyntaxKind.NameRef) {
-        return None
-    }
-    let node = nameRef.parent ?? return None
     let realRoot = before.syntaxNode()
-    let def = defAround(db, file, realRoot, offset) ?? return None
-    let items = if (let Some(access) <- MemberAccessExpr.cast(node)) {
-        dotCompletions(db, file, def, realRoot, access)
-    } else if (RefExpr.canCast(node.kind)) {
-        scopeCompletions(db, file, def, realRoot, node)
+    let parent = marker.parent
+    let items = if (parent.kind == SyntaxKind.NameRef) {
+        nameRefCompletions(db, file, realRoot, offset, parent)
+    } else if (parent.kind == SyntaxKind.ErrorNode) {
+        keywordCompletions(parent, marker)
+    } else if (parent.kind == SyntaxKind.Name) {
+        overrideCompletions(db, file, realRoot, offset, parent)
     } else {
-        return None
+        None<Array<CompletionItem>>
     }
-    CompletionResult(TextRange(marker.textRange.start, offset), ranked(items))
+    CompletionResult(TextRange(marker.textRange.start, offset), ranked(items ?? return None))
+}
+
+/**
+ * The completions at the name `nameRef` of the speculative tree, by what it is the name of: a
+ * member after a `.`, a name of a body, a type, a segment of an import (#401).
+ */
+func nameRefCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSyntaxNode, offset: Int64,
+    nameRef: CjSyntaxNode): ?Array<CompletionItem> {
+    let node = nameRef.parent ?? return None
+    if (let Some(access) <- MemberAccessExpr.cast(node)) {
+        dotCompletions(db, file, defAround(db, file, realRoot, offset) ?? return None, realRoot, access)
+    } else if (RefExpr.canCast(node.kind)) {
+        scopeCompletions(db, file, defAround(db, file, realRoot, offset) ?? return None, realRoot, node)
+    } else if (node.kind == SyntaxKind.PathSegment && (node.parent?.kind ?? SyntaxKind.ErrorNode) == SyntaxKind.PathType) {
+        typeCompletions(db, file, defAround(db, file, realRoot, offset), node)
+    } else if (node.kind == SyntaxKind.ImportTree) {
+        importCompletions(db, file, nameRef, node)
+    } else {
+        None
+    }
 }
 
 /**
@@ -233,14 +269,14 @@ func valueMembers(db: AnalysisDatabase, file: SourceFile, def: DefId, ty: Ty): A
 
 /**
  * The declarations of `pkg` after its name and a `.`, those the file's package sees (N76): no
- * constructor, no package under it.
+ * constructor, no package under it; its types alone with `typesOnly`.
  */
-func packageMembers(db: AnalysisDatabase, file: SourceFile, pkg: PackageRef): Array<CompletionItem> {
+func packageMembers(db: AnalysisDatabase, file: SourceFile, pkg: PackageRef, typesOnly!: Bool = false): Array<CompletionItem> {
     let from = packageOfFile(db, file) ?? return []
     let relation = relationOf(from.name(db), nameOf(db, pkg))
     let found = ArrayList<CompletionItem>()
     for ((name, defs) in packageExports(db, pkg).names) {
-        for (id in visibleOf(defs, relation, Visibility.Private)) {
+        for (id in visibleOf(defs, relation, Visibility.Private) where !typesOnly || isTypeItem(id.item(db).kind)) {
             if (let Some(item) <- declCompletion(db, id, name, 80)) {
                 found.add(item)
             }
@@ -409,36 +445,42 @@ func scopeCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
             }
         }
     }
-    let pkg = packageOfFile(db, file) ?? return found.toArray()
+    fileScopeCompletions(db, file, found, typesOnly: false)
+    for (keyword in EXPRESSION_KEYWORDS) {
+        found.add(CompletionItem(keyword, KeywordItem, 10, NoSource))
+    }
+    found.toArray()
+}
+
+/**
+ * The file's scope as items, into `found`: its package's declarations, its imports, the
+ * constructors its package imports (N73), its globs' exports, the prelude's last. With `typesOnly`,
+ * the types and the packages it imports alone, what a type's path may start with.
+ */
+func fileScopeCompletions(db: AnalysisDatabase, file: SourceFile, found: ArrayList<CompletionItem>,
+    typesOnly!: Bool): Unit {
+    let own = ItemFile.Source(file)
+    let wanted = {id: DefId => !typesOnly || isTypeItem(id.item(db).kind)}
+    let pkg = packageOfFile(db, file) ?? return
     let declared = defMap(db, PackageRef.Source(pkg))
     for ((name, defs) in declared.names) {
-        for (one in defs where one.visibility != Visibility.Private || one.id.file(db) == own) {
+        for (one in defs where (one.visibility != Visibility.Private || one.id.file(db) == own) && wanted(one.id)) {
             if (let Some(item) <- declCompletion(db, one.id, name, 60)) {
                 found.add(item)
             }
-        }
-    }
-    for ((name, defs) in declared.ctors) {
-        for (one in defs where one.visibility != Visibility.Private || one.id.file(db) == own) {
-            found.add(CompletionItem(name, CtorItem, 60, DeclSource(one.id, None)))
         }
     }
     let imports = fileImports(db, pkg, file)
     for ((name, imported) in imports.names) {
         for (one in imported) {
             match (one.target) {
-                case OfDecl(id) => if (let Some(item) <- declCompletion(db, id, name, 50)) {
-                    found.add(item)
+                case OfDecl(id) => if (wanted(id)) {
+                    if (let Some(item) <- declCompletion(db, id, name, 50)) {
+                        found.add(item)
+                    }
                 }
                 case OfPackage(_) => found.add(CompletionItem(name, PkgItem, 50, NoSource))
             }
-        }
-    }
-    // the constructors of the enums any file of the package imports (N73)
-    let ctorImports = packageCtorImports(db, pkg)
-    for ((name, ids) in ctorImports.ctors) {
-        for (id in ids) {
-            found.add(CompletionItem(name, CtorItem, 50, DeclSource(id, None)))
         }
     }
     let prelude = preludeOf(db, pkg)
@@ -449,11 +491,26 @@ func scopeCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
     }}
     for (glob in imports.globs) {
         for ((name, defs) in packageExports(db, glob.pkg).names) {
-            for (id in visibleOf(defs, glob.relation, glob.level)) {
+            for (id in visibleOf(defs, glob.relation, glob.level) where wanted(id)) {
                 if (let Some(item) <- declCompletion(db, id, name, relevanceOf(glob))) {
                     found.add(item)
                 }
             }
+        }
+    }
+    if (typesOnly) {
+        return
+    }
+    for ((name, defs) in declared.ctors) {
+        for (one in defs where one.visibility != Visibility.Private || one.id.file(db) == own) {
+            found.add(CompletionItem(name, CtorItem, 60, DeclSource(one.id, None)))
+        }
+    }
+    // the constructors of the enums any file of the package imports (N73)
+    let ctorImports = packageCtorImports(db, pkg)
+    for ((name, ids) in ctorImports.ctors) {
+        for (id in ids) {
+            found.add(CompletionItem(name, CtorItem, 50, DeclSource(id, None)))
         }
     }
     for (glob in ctorImports.globs) {
@@ -463,10 +520,13 @@ func scopeCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
             }
         }
     }
-    for (keyword in EXPRESSION_KEYWORDS) {
-        found.add(CompletionItem(keyword, KeywordItem, 10, NoSource))
+}
+
+func isTypeItem(kind: ItemKind): Bool {
+    match (kind) {
+        case Class | Interface | Struct | Enum | TypeAlias | BuiltIn => true
+        case _ => false
     }
-    found.toArray()
 }
 
 /**
@@ -512,6 +572,244 @@ func localCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
             into.add(CompletionItem(generic, TypeParamItem, 90 - depth, NoSource))
         }
     }
+}
+
+/**
+ * The completions at the segment `segment` of a type's path of the speculative tree, in `def` if
+ * the cursor is in an item: the first, the type parameters of `def` and of the type around it, the
+ * types of the file's scope, the packages it imports, the primitive types; after a package's name
+ * and a `.`, the types it exports (N51, N52: a path's qualifier is an imported package).
+ */
+func typeCompletions(db: AnalysisDatabase, file: SourceFile, def: ?DefId, segment: CjSyntaxNode): ?Array<CompletionItem> {
+    let path = segment.parent ?? return None
+    let before = path.children() |> filter {
+        one: CjSyntaxNode => one.kind == SyntaxKind.PathSegment && one.textRange.end <= segment.textRange.start
+    } |> collectArray
+    let found = ArrayList<CompletionItem>()
+    if (before.size == 1) {
+        let qualifier = before[0].firstToken()?.text() ?? return None
+        let pkg = packageOfFile(db, file) ?? return None
+        for (one in fileImports(db, pkg, file).names.get(qualifier) ?? []) {
+            if (let OfPackage(ref) <- one.target) {
+                found.add(all: packageMembers(db, file, ref, typesOnly: true))
+            }
+        }
+        return found.toArray()
+    }
+    if (before.size > 1) {
+        return None
+    }
+    if (let Some(scope) <- def.flatMap {one => typeScopeOf(db, one)}) {
+        for (i in 0..scope.generics.size) {
+            for (name in scope.generics[i].names) {
+                found.add(CompletionItem(name, TypeParamItem, 85 - 10 * i, NoSource))
+            }
+        }
+    }
+    fileScopeCompletions(db, file, found, typesOnly: true)
+    for (name in PRIM_TYPE_NAMES) {
+        found.add(CompletionItem(name, KeywordItem, 20, NoSource))
+    }
+    found.toArray()
+}
+
+/**
+ * The completions at the name `nameRef` of the import tree `tree`, of the speculative tree: the
+ * next segment of each package the file's module may import (D46) whose name starts with what is
+ * written before it, and after a package's full name and a `.`, what that package exports.
+ */
+func importCompletions(db: AnalysisDatabase, file: SourceFile, nameRef: CjSyntaxNode, tree: CjSyntaxNode): ?Array<CompletionItem> {
+    let prefix = importPrefix(nameRef, tree)
+    let pkg = packageOfFile(db, file) ?? return None
+    let from = PackageRef.Source(pkg)
+    let index = packageIndex(db)
+    let scope = index.scopes.get(index.owners.get(from) ?? return None) ?? return None
+    let own = pkg.name(db)
+    let found = ArrayList<CompletionItem>()
+    for ((name, candidates) in index.packages where name != own && name.size > prefix.size && name.startsWith(prefix)) {
+        if (candidates.iterator().any {one => scope.contains(one.owner)}) {
+            found.add(CompletionItem(nextSegment(name[prefix.size..]), PkgItem, 70, NoSource))
+        }
+    }
+    if (prefix.endsWith(".")) {
+        if (let Some(ref) <- index.find(prefix[..prefix.size - 1], from: from) && ref != from) {
+            found.add(all: packageMembers(db, file, ref))
+        }
+    }
+    found.toArray()
+}
+
+/**
+ * What an import writes before `nameRef`, without trivia: the segments of `tree` before it, after
+ * those of the trees whose `{...}` it is in (`m.{lib.$0}` is `m.lib.`).
+ */
+func importPrefix(nameRef: CjSyntaxNode, tree: CjSyntaxNode): String {
+    var prefix = textBefore(tree, nameRef.textRange.start)
+    var inner = tree
+    while (let Some(list) <- inner.parent && list.kind == SyntaxKind.ImportTreeList) {
+        let outer = list.parent ?? break
+        prefix = "${textBefore(outer, list.textRange.start)}${prefix}"
+        inner = outer
+    }
+    prefix
+}
+
+/**
+ * The tokens of `node` before `end`, without trivia.
+ */
+func textBefore(node: CjSyntaxNode, end: Int64): String {
+    let parts = ArrayList<String>()
+    var token = node.firstToken()
+    while (let Some(one) <- token && one.textRange.end <= end) {
+        if (!one.kind.isTrivia()) {
+            parts.add(one.text())
+        }
+        token = one.nextToken()
+    }
+    String.join(parts.toArray())
+}
+
+/**
+ * The first segment of `rest`, a package's name past a prefix: up to a `.`, or an organization's
+ * `::`.
+ */
+func nextSegment(rest: String): String {
+    var end = rest.size
+    if (let Some(i) <- rest.indexOf(".")) {
+        end = i
+    }
+    if (let Some(i) <- rest.indexOf("::") && i < end) {
+        end = i
+    }
+    rest[..end]
+}
+
+/**
+ * The keywords where `error`, a line the parser could not take as a declaration, starts with the
+ * cursor's name and the cursor is at its end (inside a word, `str|uct`, it is no keyword typed):
+ * between the members of a type, those starting a member; at the top level, those starting a
+ * declaration, and `import` and `package` while only the preamble is before it.
+ */
+func keywordCompletions(error: CjSyntaxNode, marker: CjSyntaxToken): ?Array<CompletionItem> {
+    if ((error.firstToken()?.textRange.start ?? -1) != marker.textRange.start ||
+        !marker.text().endsWith(COMPLETION_MARKER)) {
+        return None
+    }
+    let container = error.parent ?? return None
+    let keywords = if (container.kind == SyntaxKind.DeclBody || container.kind == SyntaxKind.EnumBody) {
+        MEMBER_KEYWORDS
+    } else if (container.kind == SyntaxKind.SourceFile) {
+        TOP_LEVEL_KEYWORDS.concat(preambleKeywords(container, error))
+    } else {
+        return None
+    }
+    keywords.map {keyword => CompletionItem(keyword, KeywordItem, 10, NoSource)}
+}
+
+/**
+ * `import`, and `package` before any import, while what is before `error` in `file` is its
+ * preamble alone (cjc: a package header, then the imports, then the declarations).
+ */
+func preambleKeywords(file: CjSyntaxNode, error: CjSyntaxNode): Array<String> {
+    var started = false
+    var imported = false
+    for (one in file.children() where one.textRange.end <= error.textRange.start && one.kind != SyntaxKind.ErrorNode) {
+        if (one.kind == SyntaxKind.PackageHeader || one.kind == SyntaxKind.ImportDecl) {
+            imported = true
+        } else if (one.kind != SyntaxKind.FeaturesDirective) {
+            started = true
+        }
+    }
+    if (started) {
+        []
+    } else if (imported) {
+        ["import"]
+    } else {
+        ["import", "package"]
+    }
+}
+
+/**
+ * The completions at the name `name` of a function or a property declared in a type's body, of
+ * the speculative tree: the members of that kind of its supertypes a declaration there may
+ * override or redefine, static ones after `static`, and not one the type declares already.
+ */
+func overrideCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSyntaxNode, offset: Int64,
+    name: CjSyntaxNode): ?Array<CompletionItem> {
+    let decl = name.parent ?? return None
+    let kind = if (decl.kind == SyntaxKind.FuncDecl) {
+        ItemKind.Func
+    } else if (decl.kind == SyntaxKind.PropDecl) {
+        ItemKind.Prop
+    } else {
+        return None
+    }
+    if ((decl.parent?.kind ?? SyntaxKind.ErrorNode) != SyntaxKind.DeclBody) {
+        return None
+    }
+    let around = typeDefOf(db, defAround(db, file, realRoot, offset) ?? return None) ?? return None
+    let isStatic = hasModifier(decl, "static")
+    let declared = HashSet<String>()
+    for (member in declItemOf(db, around)?.members ?? [] where member.kind == kind) {
+        declared.add(all: member.names)
+    }
+    let from = scopeFileOf(db, ItemFile.Source(file))
+    let found = ArrayList<CompletionItem>()
+    for (target in allMembers(db, supertypes(db, around), from: from)) {
+        let id = match (target) {
+            case MemberDecl(id) => id
+            case MemberParam(_, _) => continue
+        }
+        let item = declItemOf(db, id) ?? continue
+        let label = item.names.get(0) ?? continue
+        if (item.kind != kind || item.has(Modifier.Static) != isStatic || declared.contains(label) ||
+            visibilityOf(item) == Visibility.Private || !isOverridable(db, id, item)) {
+            continue
+        }
+        found.add(CompletionItem(label, kindOfItem(kind) ?? continue, 80, DeclSource(id, None)))
+    }
+    found.toArray()
+}
+
+/**
+ * The type or `extend` `def` is, or is a member of.
+ */
+func typeDefOf(db: AnalysisDatabase, def: DefId): ?DefId {
+    match (def.item(db).kind) {
+        case Class | Interface | Struct | Enum | Extend => def
+        case _ => parentOf(db, def).flatMap {
+            parent => match (parent.item(db).kind) {
+                case Class | Interface | Struct | Enum | Extend => Some(parent)
+                case _ => None
+            }
+        }
+    }
+}
+
+/**
+ * Whether a subtype may override or redefine the member `id`: one of an interface, a static one,
+ * one `open` or `abstract`, or one of an `abstract` class, whose members without a body are open.
+ */
+func isOverridable(db: AnalysisDatabase, id: DefId, item: Item): Bool {
+    if (item.has(Modifier.Static) || item.has(Modifier.Open) || item.has(Modifier.Abstract)) {
+        return true
+    }
+    let owner = declItemOf(db, parentOf(db, id) ?? return false) ?? return false
+    owner.kind == ItemKind.Interface || owner.has(Modifier.Abstract)
+}
+
+/**
+ * Whether the declaration `decl` of the tree writes the modifier `text`.
+ */
+func hasModifier(decl: CjSyntaxNode, text: String): Bool {
+    for (child in decl.children() where child.kind == SyntaxKind.Modifiers) {
+        for (element in child.descendantsWithTokens()) {
+            if (let Some(token) <- element.asToken() && token.text() == text) {
+                return true
+            }
+        }
+    }
+    false
 }
 
 /**

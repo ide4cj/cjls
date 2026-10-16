@@ -179,7 +179,7 @@ func hasConstructorOfNoParameters(cls: ClassDecl): Bool {
             case _ => ()
         }
     }
-    paramLists.isEmpty() || paramLists.iterator().any {list => list.map {it => it.params().next().isNone()} ?? true}
+    paramLists.isEmpty() || paramLists.iterator().any {list => list.map {it => it.writtenParams().isEmpty()} ?? true}
 }
 
 /**
