@@ -1,5 +1,6 @@
 package cjls.handlers
 
+import fjson.toJsonBytes
 import loupe.diagnostics
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
@@ -7,14 +8,30 @@ import cjls.server.*
 import cjls.macros.LspHandler
 
 /**
- * What is wrong in a document, all of it every time: no `resultId` yet (#51). A document the server
- * does not know has nothing wrong. The files changing under it is the server's to answer (S5): the handler runs
- * again on the files as they are then (D122).
+ * What is wrong in a document, or `unchanged` when the client's `previousResultId` is the report's
+ * still (#51). A document the server does not know has nothing wrong. The files changing under it is
+ * the server's to answer (S5): the handler runs again on the files as they are then (D122).
  */
 @LspHandler[readonly]
 func handleDocumentDiagnostic(snap: ServerSnapshot, params: DocumentDiagnosticParams): DocumentDiagnosticReport {
+    let items = documentDiagnostics(snap, VfsPath.fromUri(params.textDocument.uri))
+    let resultId = resultIdOf(snap, items)
+    if (params.previousResultId == Some(resultId)) {
+        return DocumentDiagnosticReport.AsRelatedUnchangedDocumentDiagnosticReport(
+            RelatedUnchangedDocumentDiagnosticReport(resultId: resultId))
+    }
     DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
-        RelatedFullDocumentDiagnosticReport(items: documentDiagnostics(snap, VfsPath.fromUri(params.textDocument.uri))))
+        RelatedFullDocumentDiagnosticReport(resultId: resultId, items: items))
+}
+
+/**
+ * The `resultId` of a report of `items`: a hash of them as the client gets them, positions in its
+ * columns included, so nothing is kept between requests (as ty does). A client that dropped a
+ * document's diagnostics may still send its id (Neovim reopening a buffer), so the openings so far
+ * are part of it: an id from before a `didOpen` never matches after it.
+ */
+func resultIdOf(snap: ServerSnapshot, items: Array<Diagnostic>): String {
+    "${snap.openings}:${String.fromUtf8(toJsonBytes(items)).hashCode()}"
 }
 
 /**

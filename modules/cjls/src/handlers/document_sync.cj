@@ -20,6 +20,7 @@ func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTe
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
     state.openDocuments.add(path, document.version)
+    state.openings++
     state.setFileContents(path, Rope(document.text))
     if (!state.loading && findsProjectAgain(state, path)) {
         startLoad(loop, client, logger)
