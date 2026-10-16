@@ -3125,6 +3125,21 @@ class Inference {
             solved = next
             unsolved = left
         }
+        // those that wait naming overloads, each combination of theirs solved, as cjc's
+        // `GetArgsCombination`: of one solution, its; of several, none (cjc: "ambiguous arguments
+        // type in call expression"), not the most specific either
+        var isAmbiguous = false
+        if (unsolved > 0) {
+            let overloaded = waiting.toArray().map {i => (i, overloadsOf(args[i].expr))}.filter {
+                one => !one[1].isEmpty()
+            }
+            let solutions = combinationSolutions(overloaded, synthesized, solve)
+            if (solutions.size == 1) {
+                solved = solutions[0]
+                unsolved = 0
+            }
+            isAmbiguous = solutions.size > 1
+        }
         let solution = solved
         // a type argument not solved for an argument not known is not known as it is, else an error
         // (cjc: "can not infer")
@@ -3151,7 +3166,62 @@ class Inference {
         }
         nextVar = base
         setExpr(callee, Ty(db, FuncTy(params.map(final), final(ret), false)))
+        if (isAmbiguous) {
+            return error
+        }
         final(ret)
+    }
+
+    /**
+     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
+     * `GetArgTyPossibilities` tries for an argument; none otherwise.
+     */
+    private func overloadsOf(id: ExprId): Array<Callable> {
+        match (hir[id]) {
+            case PathExpr(_, typeArgs) where typeArgs.isEmpty() => ()
+            case _ => return []
+        }
+        let all = callablesOf(id, None)
+        if (all.size < 2) {
+            return []
+        }
+        all.filter {one => one.open.isNone() && !one.isValue}
+    }
+
+    /**
+     * The distinct solutions `solve` finds with each argument of `overloaded` of the type of one of
+     * its functions, each combination of them; a solution leaving a variable unsolved none.
+     */
+    private func combinationSolutions(overloaded: Array<(Int64, Array<Callable>)>, synthesized: Array<?Ty>,
+        solve: () -> Array<?Ty>): Array<Array<?Ty>> {
+        let solutions = ArrayList<Array<?Ty>>()
+        if (overloaded.isEmpty()) {
+            return []
+        }
+        let picks = Array(overloaded.size, repeat: 0)
+        while (true) {
+            for (j in 0..overloaded.size) {
+                synthesized[overloaded[j][0]] = overloaded[j][1][picks[j]].ty(db)
+            }
+            let next = solve()
+            if (next.iterator().all {one => one.isSome()} && !solutions.contains(next)) {
+                solutions.add(next)
+            }
+            // the next combination, the first argument's overload turning fastest
+            var j = 0
+            while (j < overloaded.size && picks[j] == overloaded[j][1].size - 1) {
+                picks[j] = 0
+                j++
+            }
+            if (j == overloaded.size) {
+                break
+            }
+            picks[j]++
+        }
+        for (one in overloaded) {
+            synthesized[one[0]] = None
+        }
+        solutions.toArray()
     }
 
     /**
