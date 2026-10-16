@@ -147,3 +147,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0126](0126-the-code-style-follows-std-checked-by-cjlint.md) | The code style follows std where the compiler leaves a choice, and cjlint checks the official guide's rules that hold here | accepted |
 | [0127](0127-completion-reads-the-position-by-the-markers-parent.md) | Completion outside a body reads the position by the marker's parent: a type's path, an import, a line no declaration took, a member's name | proposed |
 | [0129](0129-test-files-see-std-unittest-macros.md) | A `*_test.cj` file imports std.unittest and its macros with no line, as `cjc --test` does | proposed |
+| [0130](0130-references-filter-files-by-an-index-of-their-words.md) | References read only the files whose words, a tracked bloom filter per file, name the name | proposed |
