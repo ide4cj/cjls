@@ -2666,6 +2666,90 @@ class InferTest {
     }
 
     @TestCase
+    func aConstructorWrittenWithTypeArgumentsIsOfAnEnumTakingAsMany() {
+        // N172 (#278)
+        checkInference(#"
+            //- /kinds/kinds.cj module=m package=m.kinds
+            package m.kinds
+            public enum Kind { None | Full }
+            public enum Pair<A, B> { None | Both(A, B) }
+            //- /mine/mine.cj module=m package=m.mine
+            package m.mine
+            public enum Mine<T> { None | One(T) }
+            //- /main.cj module=m package=m
+            package m
+            import m.kinds.*
+            enum Own { None | Some }
+            func f(): Unit {
+                var x = None<String>
+            //      ^ Option<String>
+                x = Some("a")
+                // the package's own constructor takes no type argument: not before the prelude's
+                let y = None<Int64>
+            //      ^ Option<Int64>
+                let z = None<Int64, String>
+            //      ^ Pair<Int64, String>
+                // none written: the package's own (N46)
+                let w = None
+            //      ^ Own
+            }
+            //- /o/o.cj module=m package=m.o
+            package m.o
+            import m.mine.*
+            func g(): Unit {
+                // cjc: find multiple constructor 'None' of enum declaration
+                let a = None<String>
+            //      ^ {unknown}
+                let b: Mine<String> = None<String>
+            //      ^ Mine<String>
+            }
+            "#)
+    }
+
+    @TestCase
+    func anEnumsConstructorsOfOneNameAreOverloadsTheArgumentsChooseAmong() {
+        // N172 (#279)
+        checkInference(#"
+            //- /other/other.cj module=m package=m.other
+            package m.other
+            public enum Other { Full(String, Int64, Bool) | Part(String, Int64, Bool) }
+            //- /main.cj module=m package=m
+            package m
+            import m.other.*
+            enum Spec {
+                | Full(String)
+                | Full(String, Int64)
+                | Part(String, Int64, Int64)
+            }
+            enum A { | V(String) }
+            enum B { | V(Int64) }
+            func f(): Unit {
+                let a = Full("a")
+            //      ^ Spec
+                let b = Full("b", 2)
+            //      ^ Spec
+                // the package's own take no 3 arguments: the imported one does
+                let c = Full("c", 3, true)
+            //      ^ Other
+                // cjc: cannot convert a boolean literal to type 'Int64': the package's own of as
+                // many parameters is before the imported one, though it fits not
+                let d = Part("d", 4, true)
+            //      ^ Spec
+                let e = V(1)
+            //      ^ B
+                let g = V("g")
+            //      ^ A
+                let h = match (b) {
+            //      ^ Int64
+                    case Full(_, n) => n
+            //                   ^ Int64
+                    case _ => 0
+                }
+            }
+            "#)
+    }
+
+    @TestCase
     func aConstructorAVariableAndANameNotFoundAsAReceiver() {
         checkInference(#"
             package m

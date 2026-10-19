@@ -6,25 +6,18 @@
 # done with it empty.
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=ErrorRootsGateTest.*'` writes it.
 modules/cjls/src/command.cj: member found: 1
-modules/cjls/src/command.cj: name not found: 3
 modules/cjls/src/fetch_src.cj: other: 1
 modules/cjls/src/handlers/document_sync.cj: member found: 2
-modules/cjls/src/handlers/document_sync_test.cj: name not found: 2
 modules/cjls/src/handlers/expand_macro.cj: member found: 3
 modules/cjls/src/handlers/new_file.cj: member found: 3
 modules/cjls/src/handlers/progress.cj: member found: 4
 modules/cjls/src/handlers/router.cj: member found: 1
 modules/cjls/src/handlers/settings.cj: member found: 4
-modules/cjls/src/handlers/settings_test.cj: name not found: 1
-modules/cjls/src/handlers/to_proto.cj: local: 3
-modules/cjls/src/handlers/to_proto.cj: name not found: 1
 modules/cjls/src/handlers/workspace.cj: member found: 7
-modules/cjls/src/handlers/workspace_test.cj: name not found: 17
 modules/cjls/src/heap.cj: member found: 2
 modules/cjls/src/logging.cj: member found: 1
 modules/cjls/src/macro_host/host.cj: member found: 6
 modules/cjls/src/main.cj: member found: 3
-modules/cjls/src/server/cache_dir_test.cj: name not found: 2
 modules/cjls/src/server/context.cj: member found: 3
 modules/cjls/src/server/loop.cj: member found: 1
 modules/cjls/src/server/push.cj: member found: 6
@@ -46,7 +39,6 @@ modules/loupe/src/hir/scope.cj: local: 14
 modules/loupe/src/hir/server_macro.cj: local: 1
 modules/loupe/src/hir/signature.cj: local: 2
 modules/loupe/src/hir/ty_relations.cj: local: 4
-modules/lsp_codegen/src/main.cj: name not found: 1
 modules/macro_host/src/host.cj: local: 1
 modules/macro_host/src/host.cj: member found: 2
 modules/platform/src/posix/relaunch.cj: name found: 2
