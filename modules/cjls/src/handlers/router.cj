@@ -70,7 +70,7 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         selectionRangeProvider: BooleanOrSelectionRangeOptionsOrSelectionRangeRegistrationOptions.AsBoolean(true),
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
         documentRangeFormattingProvider: BooleanOrDocumentRangeFormattingOptions.AsBoolean(true),
-        // a file's diagnostics depend on other files, and nothing is reported for files not open (D14, D100)
+        // a file's diagnostics depend on other files, and nothing is reported for files not open (D14, D100, D135)
         diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
             DiagnosticOptions(interFileDependencies: true, workspaceDiagnostics: false)),
         // no `full/delta` until the server keeps what it sent (D19)
