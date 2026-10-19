@@ -3,6 +3,7 @@ package cjls.server
 import std.collection.{ArrayList, HashMap, HashSet}
 import std.env.getVariable
 import std.runtime.getMaxHeapSize
+import stdx.log.Logger
 import rope.{Encoding, Rope}
 import loupe.vfs.*
 import loupe.db.*
@@ -144,6 +145,12 @@ public class ServerState <: FromContext<ServerState> {
      * write that changes the files.
      */
     public var macroWork: ?MacroWork = None
+
+    /**
+     * What starts `macroWork` (D141): the server's runs `cjls.macro_host`'s `MacroHost`; `None`, as a state is made,
+     * runs no macros, so a test's thread holds no state to the end of the process.
+     */
+    public var startsMacros: ?(Loop, Logger) -> MacroWork = None
 
     /**
      * The server's directories beside the projects (D106), each set in order the first time it is opened.

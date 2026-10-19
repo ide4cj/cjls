@@ -103,3 +103,39 @@ async def test_expand_macro_answers_the_expansion_and_shows_the_expanded_file(se
     assert (tmp_path / ".cache" / "cjls" / ".gitignore").read_text() == "*\n"
 
     await server.shutdown_session()
+
+
+@pytest.mark.skipif(SDK is None, reason="no SDK (CJLS_E2E_SDK)")
+async def test_the_server_runs_stds_macro_once_the_workspace_is_loaded(server: LanguageClient, tmp_path):
+    # arrange
+    file = tmp_path / "a.cj"
+    file.write_text(SOURCE)
+
+    @server.feature(types.CLIENT_REGISTER_CAPABILITY)
+    def register(params: types.RegistrationParams):
+        pass
+
+    await server.initialize_session(
+        types.InitializeParams(
+            capabilities=capabilities("visual-studio-code"),
+            workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
+            initialization_options={"cangjieHome": pathlib.Path(SDK).resolve().as_uri()},
+        )
+    )
+    await loaded(server)
+
+    async def expansion():
+        return await server.protocol.send_request_async(
+            "cjls/expandMacro", {"textDocument": {"uri": file.as_uri()}, "position": {"line": 2, "character": 2}}
+        )
+
+    # act: asked again after every change of the files the server tells of, until the macro server's answer is set
+    # (D123): only the server's own state starts the macros (D141)
+    while (expanded := await expansion()).kind != "server":
+        await server.refreshes.get()
+
+    # assert
+    assert expanded.name == "@Derive"
+    assert "extend P <: Equatable<P>" in expanded.expansion
+
+    await server.shutdown_session()

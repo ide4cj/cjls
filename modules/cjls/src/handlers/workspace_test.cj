@@ -1184,6 +1184,64 @@ class LoadOffTheLoopTest {
 }
 
 /**
+ * Macro work that runs nothing: it counts the times it is started, and the builds it is woken for.
+ */
+class CountedMacroWork <: MacroWork {
+    var starts = 0
+    var builds = 0
+
+    func started(): MacroWork {
+        starts++
+        this
+    }
+
+    public func wake(build: Bool): Unit {
+        if (build) {
+            builds++
+        }
+    }
+
+    public func stop(): Unit {}
+}
+
+@Test
+class StartMacrosTest {
+    @TestCase
+    func aStateGivenNothingToStartTheMacrosByRunsNone() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let loop = initializedWith([dir], watches: false)
+
+        // act
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(loop.state.macroWork.isNone())
+    }
+
+    @TestCase
+    func theMacrosStartAtTheFirstLoadAndBuildAgainAfterTheNext() {
+        // arrange
+        let dir = workspaceOf([("a.cj", "a")])
+        let loop = initializedWith([dir], watches: false)
+        let work = CountedMacroWork()
+        loop.state.startsMacros = {_, _ => work.started()}
+
+        // act
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        let startsAtFirst = work.starts
+        load(loop, Client(), NoopLogger(), loadRequest(loop.state).getOrThrow())
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(startsAtFirst, 1)
+        @Expect(work.starts, 1)
+        @Expect(work.builds, 1)
+    }
+}
+
+/**
  * A root `ws` whose project names binaries outside it, in `libs`: `bin`, a directory of `.cjo`, and
  * `other.x`, a `.cjo` named; and `sdk`, an SDK of no `.cjo`, so the tests see no SDK of their own.
  */

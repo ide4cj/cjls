@@ -6,7 +6,8 @@ import std.runtime.getMaxHeapSize
 import stdx.log.Logger
 import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
 import platform.{StdinStream, useBinaryStdio}
-import cjls.server.serve
+import cjls.server.{serve, ServerState}
+import cjls.macro_host.MacroHost
 import cjls.handlers.router
 
 main(args: Array<String>): Int64 {
@@ -49,7 +50,15 @@ func runServer(logger: Logger): Int64 {
     useBinaryStdio()
     logger.info("started", [("heap", getMaxHeapSize())])
     // stdout is the wire: nothing else may write to it
-    let exitCode = serve(FramedJsonRpcTransport(StdinStream(), getStdOut(), logger), router(), logger)
+    let state = ServerState()
+    // the parameters are an error type to loupe, expected in an `Option` of their function type (#453)
+    state.startsMacros = {
+        loop, logger =>
+        let host = MacroHost(loop, logger)
+        host.start()
+        host
+    }
+    let exitCode = serve(FramedJsonRpcTransport(StdinStream(), getStdOut(), logger), router().withState(state), logger)
     logger.info("stopped", [("exitCode", exitCode)])
     exitCode
 }
