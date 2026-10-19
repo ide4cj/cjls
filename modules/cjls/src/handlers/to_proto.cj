@@ -1,7 +1,7 @@
 package cjls.handlers
 
 import std.collection.ArrayList
-import rope.{Encoding, LineColumn, Rope}
+import rope.{Encoding, LineColumn, PositionCursor, Rope}
 import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag,
     NavigationTarget, Severity, StructureKind, StructureNode, TextRange}
 import loupe.{HoverItem, HoverResult, Reference, RelatedHighlight, ReferenceAccess}
@@ -361,17 +361,19 @@ func tokenModifierBits(tag: HighlightTag, modifiers: HighlightModifiers): UInt32
  */
 func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encoding, multiline: Bool): SemanticTokens {
     let data = SemanticTokensData()
+    // the tokens come in the order of the text, none overlapping, and so do the line ends inside them
+    let positions = PositionCursor(text, encoding)
+    let lineEnds = PositionCursor(text, encoding)
     for (token in tokens) {
         let tokenKind = tokenTypeIndex(token.tag)
         let modifiers = tokenModifierBits(token.tag, token.modifiers)
-        let start = text.positionOf(token.range.start, encoding)
-        let end = text.positionOf(token.range.end, encoding)
+        let start = positions.positionOf(token.range.start)
+        let startUnits = positions.unitsBefore(token.range.start)
+        let end = positions.positionOf(token.range.end)
         if (start.line == end.line) {
             data.add(start, end.column - start.column, tokenKind, modifiers)
         } else if (multiline) {
-            let length = text.summaryBefore(token.range.end).measure(encoding) -
-                text.summaryBefore(token.range.start).measure(encoding)
-            data.add(start, length, tokenKind, modifiers)
+            data.add(start, positions.unitsBefore(token.range.end) - startUnits, tokenKind, modifiers)
         } else {
             for (line in start.line..=end.line) {
                 let from = if (line == start.line) {
@@ -382,7 +384,7 @@ func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encod
                 let to = if (line == end.line) {
                     end.column
                 } else {
-                    text.positionOf(text.lineEnd(line), encoding).column
+                    lineEnds.positionOf(text.lineEnd(line)).column
                 }
                 if (to > from) {
                     data.add(LineColumn(line, from), to - from, tokenKind, modifiers)
