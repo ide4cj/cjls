@@ -38,6 +38,12 @@ SUITES = {
         "c1e289a7d43cb2e5a05add8b58ee7306dcfcdc3b",
         ["/LICENSE", "/stdlib/libs/std/"],
     ),
+    # a workspace of others' written on its macros, which macro_host builds and expands as the server does
+    "Optics": (
+        "https://github.com/BonZirka/Optics",
+        "3f0cfdc02890c03eb97f194c7027890ef168e15f",
+        ["/LICENSE", "/cjpm.toml", "/core/", "/stdlib/", "/tests/"],
+    ),
 }
 
 
