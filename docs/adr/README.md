@@ -154,3 +154,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0133](0133-client-versions-follow-the-server.md) | A client's version is the major and minor of the cjls release it pins, with a patch of its own | accepted |
 | [0134](0134-an-operator-none-fits-is-reported.md) | An operator none of whose candidates fits is reported at the operator; of one declared candidate it is of its return type, as a call of one, and between the language's types an error | proposed |
 | [0135](0135-workspace-diagnostics-are-not-offered.md) | `workspace/diagnostic` is not offered: a file not open has no diagnostics | proposed |
+| [0136](0136-semantic-tokens-are-sent-whole.md) | Semantic tokens are sent whole: no full/delta | proposed |
