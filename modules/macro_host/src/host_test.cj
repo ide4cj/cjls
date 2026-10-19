@@ -147,6 +147,59 @@ class MacroRoundTest {
         @Expect(expansion.originOf(TextRange(two, two + 1)), Some(SpanOrigin.FromSource(TextRange(written, written + 1))))
     }
 
+    /**
+     * cjc gives a macro no line break before the first token of its attribute or of its input in parentheses, a
+     * comment's included, and those after the last (Optics's `@Optic[` fields on lines of their own).
+     */
+    @TestCase
+    func anAttributeAndArgumentsAreSentWithoutTheLineBreaksTheyStartWithAsCjcGivesThem() {
+        // arrange
+        let (db, file, _) = macroFixture(#"
+        package m
+        import m.ms.*
+        func f(): Int64 {
+            @M[ // the fields
+
+                x
+            ](
+
+                1
+            )
+        }
+"#)
+        let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
+        let expander = FakeExpander()
+
+        // act
+        expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander)
+
+        // assert
+        @Expect(expander.calls[0].attrs.map {t => t.value ?? ""}, ["x", "\n"])
+        @Expect(expander.calls[0].args.map {t => t.value ?? ""}, ["1", "\n"])
+    }
+
+    @TestCase
+    func aCallInABodyKeepsWhereItsArgumentsAreWhenTheyStartOnALineOfTheirOwn() {
+        // arrange
+        let (db, file, source) = macroFixture(#"
+        package m
+        import m.ms.*
+        func f(): Int64 { @M[x](
+            1 + 2) }
+"#)
+        let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
+        let request = macroRequests(db, file)[0]
+
+        // act
+        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), FakeExpander()))
+
+        // assert
+        let expansion = macroOutputOf(db, request.call).getOrThrow().expansion.getOrThrow()
+        let two = expansion.text.indexOf("2").getOrThrow()
+        let written = source.indexOf("2)").getOrThrow() - source.indexOf("func").getOrThrow()
+        @Expect(expansion.originOf(TextRange(two, two + 1)), Some(SpanOrigin.FromSource(TextRange(written, written + 1))))
+    }
+
     @TestCase
     func whatTheMacroGivesBackComesFromWhereTheSourceWroteIt() {
         // arrange
