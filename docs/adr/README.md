@@ -44,7 +44,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0023](0023-performance-is-measured-over-stdio.md) | Speed and memory are measured over stdio, by one driver for every server | accepted; no threshold by D81 |
 | [0024](0024-fjson-conformance.md) | fjson is held to JSONTestSuite, vendored, and fuzzed in `cjpm test`; a lone surrogate reads as U+FFFD; 512 containers deep | accepted; `readFloat64` rounded correctly by D25; the suite fetched by D26 |
 | [0025](0025-toml-through-serde.md) | TOML is read and written by ftoml, TOML 1.1 of our own, through `ToToml`/`FromToml` derived from the same `@Serde` model | accepted |
-| [0026](0026-test-suites-are-fetched.md) | Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored | accepted |
+| [0026](0026-test-suites-are-fetched.md) | Third-party test suites are fetched into `.corpora/` at a pinned commit, not vendored | accepted; the suites fetched by D137 |
 | [0027](0027-incremental-builds.md) | Builds are incremental, clean on a new compiler and for a release; tests in `target/test`; CI caches `target` from master | accepted; stamps by D28; what CI caches, and in which job, by D96 |
 | [0028](0028-ci-stamps-a-package.md) | CI stamps a package's files with one mtime, made of the whole directory | accepted |
 | [0029](0029-one-computation-per-memo.md) | One handle computes a memo, the others wait; a wait that closes a loop is a cycle | superseded by D35 |
@@ -155,3 +155,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0134](0134-an-operator-none-fits-is-reported.md) | An operator none of whose candidates fits is reported at the operator; of one declared candidate it is of its return type, as a call of one, and between the language's types an error | proposed |
 | [0135](0135-workspace-diagnostics-are-not-offered.md) | `workspace/diagnostic` is not offered: a file not open has no diagnostics | proposed |
 | [0136](0136-semantic-tokens-are-sent-whole.md) | Semantic tokens are sent whole: no full/delta | proposed |
+| [0137](0137-optics-is-the-gate-of-workspace-macros.md) | A workspace of others' on its own macros, Optics, is expanded and analyzed as a gate | proposed |
