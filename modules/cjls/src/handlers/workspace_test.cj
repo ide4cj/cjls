@@ -12,6 +12,7 @@ import stdxx.Nullable
 import fjson.RawJson
 import jsonrpc.*
 import rope.{Encoding, Rope}
+import loupe.fixture.stdSourcesDir
 import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.server.*
@@ -663,7 +664,7 @@ class LeftOutDocumentTest {
     }
 
     @TestCase
-    func aDocumentOfAWholeProjectFindsNoProjectAgain() {
+    func aDocumentOfNoPackageUnderAWholeLooseRootIsCompiledAlone() {
         // arrange - a document of no package, under a root whose files are all loaded
         let dir = workspaceOf([("a.cj", "func a() {}"), ("target/b.cj", "func b() {}")])
         let loop = initializedWith([dir], watches: false)
@@ -672,13 +673,12 @@ class LeftOutDocumentTest {
 
         // act
         handleDidOpen(loop, Client(), NoopLogger(), opening(outside, "func b() {}"))
-        let loading = loop.state.loading
         loop.join()
         remove(dir, recursive: true)
 
         // assert
-        @Expect(!loading)
         @Expect(loop.state.partialRoots.isEmpty())
+        @Expect(loop.state.inProject(VfsPath.file(outside)))
     }
 }
 
@@ -772,7 +772,7 @@ class ProjectOnOpenTest {
     }
 
     @TestCase
-    func aDocumentOfTheRootsProjectInNoPackageFindsNoProjectAgain() {
+    func aDocumentOfTheRootsProjectInNoPackageFindsNoProjectAndIsCompiledAlone() {
         // arrange - below the root's manifest, outside its sources, and no manifest of its own
         let dir = nestedProjects()
         let loop = loadedRoot(dir)
@@ -780,13 +780,13 @@ class ProjectOnOpenTest {
 
         // act
         handleDidOpen(loop, Client(), NoopLogger(), opening(outside, "func x() {}"))
-        let loading = loop.state.loading
         loop.join()
         remove(dir, recursive: true)
 
         // assert
-        @Expect(!loading)
         @Expect(loop.state.foundProjects.isEmpty())
+        @Expect(loop.state.inProject(VfsPath.file(outside)))
+        @Expect(loop.state.inProject(VfsPath.file(dir.join("src/app.cj"))))
     }
 
     @TestCase
@@ -811,6 +811,90 @@ class ProjectOnOpenTest {
         @Expect(found, [VfsPath.file(dir.join("tools/demo"))])
         @Expect(state.foundProjects.isEmpty())
         @Expect(!state.inProject(VfsPath.file(dir.join("tools/util/src/util.cj"))))
+    }
+}
+
+/**
+ * Stops the macros the load of `loop` started, whose thread holds the loop and its state with std's
+ * `.cjo`: the state of a test ended is freed, not kept to the end of the process.
+ */
+func stopMacros(loop: Loop): Unit {
+    loop.state.macroWork?.stop()
+}
+
+let ALONE = "import std.collection.ArrayList\n\nfunc own() {}\n\nmain() {\n    let list = ArrayList<Int64>()\n    own()\n}\n"
+
+@Test
+class FileAloneTest {
+    @TestCase
+    func aDocumentOpenedOutsideEveryRootIsCompiledAloneAndGoesToDefinitionIntoStd() {
+        // arrange - std's sources, and a root whose package declares `own` too
+        let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/app.cj", "package app\n\npublic func own() {}\n")])
+        let outside = Directory.createTemp(getTempDirectory())
+        let program = outside.join("x.cj")
+        let loop = initializedWith([dir], watches: false)
+        let state = loop.state
+        state.locationLinks = true
+        state.settings = Settings(cangjieSrc: stdSourcesDir().parent.getOrThrow().toString())
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+
+        // act
+        handleDidOpen(loop, Client(), NoopLogger(), opening(program, ALONE))
+        loop.join()
+        stopMacros(loop)
+        remove(dir, recursive: true)
+        remove(outside, recursive: true)
+
+        // assert
+        @Expect(state.inProject(VfsPath.file(program)))
+        let std = linksOf(definitionOf(state, program, 5, 15))
+        @Expect(std.map {link => link.targetUri.endsWith("/collection/array_list.cj")}, [true])
+        let own = linksOf(definitionOf(state, program, 6, 4))
+        @Expect(own.map {link => link.targetUri}, [uriOf(program)])
+    }
+
+    @TestCase
+    func aDocumentOpenedWithNoRootIsCompiledAlone() {
+        // arrange
+        let outside = Directory.createTemp(getTempDirectory())
+        let program = outside.join("x.cj")
+        let loop = initializedWith([], watches: false)
+        loop.state.locationLinks = true
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+
+        // act
+        handleDidOpen(loop, Client(), NoopLogger(), opening(program, ALONE))
+        loop.join()
+        stopMacros(loop)
+        remove(outside, recursive: true)
+
+        // assert
+        @Expect(loop.state.inProject(VfsPath.file(program)))
+        let own = linksOf(definitionOf(loop.state, program, 6, 4))
+        @Expect(own.map {link => link.targetUri}, [uriOf(program)])
+    }
+
+    @TestCase
+    func aDocumentAloneClosedIsNoneOfTheNextLoad() {
+        // arrange
+        let dir = nestedProjects()
+        let loop = loadedRoot(dir)
+        let state = loop.state
+        let outside = dir.join("tests/x.cj")
+        handleDidOpen(loop, Client(), NoopLogger(), opening(outside, "func x() {}"))
+        loop.join()
+        let opened = state.inProject(VfsPath.file(outside))
+
+        // act
+        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uriOf(outside))))
+        watchedFilesChanged(loop, NoopLogger(), DidChangeWatchedFilesParams(changes: [
+            fileEvent(dir.join("cjpm.toml"), FileChangeType.Changed)]))
+        stopMacros(loop)
+        remove(dir, recursive: true)
+
+        // assert
+        @Expect(opened)
+        @Expect(!state.inProject(VfsPath.file(outside)))
     }
 }
 
