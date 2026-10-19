@@ -238,7 +238,11 @@ class ScopesBuilder {
                 walkOpt(start, scope)
                 walkOpt(end, scope)
                 walkOpt(step, scope)
-            case PostfixExpr(inner, _) => walk(inner, scope)
+            case PostfixExpr(inner, _, value) =>
+                walk(inner, scope)
+                walkOpt(value, scope)
+            // its place is walked as the assignment's
+            case AssignedExpr(_, _, operand) => walk(operand, scope)
             case TupleExpr(elements) => walkAll(elements, scope)
             case ArrayExpr(elements) => walkAll(elements, scope)
             case IfExpr(condition, then, otherwise) =>

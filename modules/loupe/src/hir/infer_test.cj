@@ -1545,6 +1545,124 @@ class InferTest {
     }
 
     @TestCase
+    func aCompoundAssignmentToAnIndexCallsBothItsOperators() {
+        // #245: `a[i] op= v` is `a.[](i, value: a.[](i) op v)`, `a[i]++` `a[i] += 1` of an integer,
+        // `x++` of an integer alone
+        checkInference(#"
+            package m
+            class G {
+                operator func [](i: Int64): Int64 { i }
+            //                   ^ Int64
+            }
+            class S {
+                operator func [](i: Int64): Int64 { i }
+            //                   ^ Int64
+                operator func [](i: Int64, value!: Int64): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ Int64
+            }
+            func run(f: (String) -> Unit): Bool { true }
+            //       ^ (String) -> Unit
+            func run(f: (Int64) -> Unit): Int64 { 1 }
+            //       ^ (Int64) -> Unit
+            func idx(f: (G) -> Unit): Bool { true }
+            //       ^ (G) -> Unit
+            func idx(f: (S) -> Unit): Int64 { 1 }
+            //       ^ (S) -> Unit
+            func test(): Unit {
+                let e = run {x => x++}
+            //      ^ Int64
+            //               ^ Int64
+                let f = idx {a => a[0] += 1}
+            //      ^ Int64
+            //               ^ S
+                let g = idx {a => a[0]++}
+            //      ^ Int64
+            //               ^ S
+            }
+            "#)
+    }
+
+    @TestCase
+    func aValueAssignedToAnIndexIsCheckedAgainstTheOperatorTakingIt() {
+        // #245: what `a[i] op= v` gives `[](i, value!: T)` fits its `T`, of a generic `[]` too; `a[i]++`
+        // needs an integer read; a tuple's or a `VArray`'s element is the language's
+        checkInference(#"
+            package m
+            import std.collection.*
+            class S {
+                operator func [](i: Int64): Int64 { i }
+            //                   ^ Int64
+                operator func [](i: Int64, value!: Int64): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ Int64
+            }
+            class T {
+                operator func [](i: Int64): String { "" }
+            //                   ^ Int64
+                operator func [](i: Int64, value!: String): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ String
+            }
+            class W {
+                operator func [](i: Int64): Int64 { i }
+            //                   ^ Int64
+                operator func [](i: Int64, value!: Int8): Unit {}
+            //                   ^ Int64
+            //                             ^^^^^ Int8
+            }
+            func inc(f: (T) -> Unit): Bool { true }
+            //       ^ (T) -> Unit
+            func inc(f: (S) -> Unit): Int64 { 1 }
+            //       ^ (S) -> Unit
+            func wi(f: (W) -> Unit): Bool { true }
+            //      ^ (W) -> Unit
+            func wi(f: (S) -> Unit): Int64 { 1 }
+            //      ^ (S) -> Unit
+            func al(f: (ArrayList<String>) -> Unit): Bool { true }
+            //      ^ (ArrayList<String>) -> Unit
+            func al(f: (ArrayList<Int64>) -> Unit): Int64 { 1 }
+            //      ^ (ArrayList<Int64>) -> Unit
+            func run(f: (String) -> Unit): Bool { true }
+            //       ^ (String) -> Unit
+            func run(f: (Int64) -> Unit): Int64 { 1 }
+            //       ^ (Int64) -> Unit
+            func test(): Unit {
+                let h = inc {a => a[0]++}
+            //      ^ Int64
+            //               ^ S
+                // `S`'s `Int64 + "x"`: the language's `+` takes no `String`, and `Int64` declares none
+                let k = inc {a => a[0] += "x"}
+            //      ^ Bool
+            //               ^ T
+                let b = run {x => x + "s"; ()}
+            //      ^ Bool
+            //               ^ String
+                let c = run {x => var y = x; y += "s"}
+            //      ^ Bool
+            //               ^ String
+            //                        ^ String
+                // cjc: cannot assign to this subscript expression, of `W`
+                let z = wi {a => a[0] += 1}
+            //      ^ Int64
+            //              ^ S
+                let m = al {l => l[0] += 1}
+            //      ^ Int64
+            //              ^ ArrayList<Int64>
+                let n = al {l => l[0]++}
+            //      ^ Int64
+            //              ^ ArrayList<Int64>
+                var v: VArray<Int64, $2> = [1, 2]
+            //      ^ VArray<Int64, $2>
+                v[0] += 1
+                v[1]++
+                let r = (v[0] *= 2)
+            //      ^ Unit
+            }
+            "#)
+    }
+
+    @TestCase
     func anOperatorOfATypeIsACallOfItsMember() {
         // N122, N123: `a + b` is `a.+(b)`, `-a` `a.-()`, of its type's or an `extend`'s, chosen as a
         // call's: by the right, by the type expected; one not declared is none

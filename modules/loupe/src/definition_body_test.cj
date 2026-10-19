@@ -1022,6 +1022,44 @@ class BodyDefinitionTest {
     }
 
     @TestCase
+    func anIndexAssignedByAnOperatorGoesToBothItsOperators() {
+        // #245: `x[1] += 2` is `x.[](1, value: x.[](1) + 2)`
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Grid {
+                operator func [](i: Int64): Int64 { i }
+            //                ^^ def
+                operator func [](i: Int64, value!: Int64): Unit {}
+            //                ^^ def
+            }
+            func g(x: Grid): Unit {
+                x[$01] += 2
+            }
+            "#)
+    }
+
+    @TestCase
+    func theOperatorOfAnIndexAssignedByItIsTheAssignments() {
+        // #245
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            struct V {
+                operator func +(o: V): V { this }
+            //                ^ def
+            }
+            class Grid {
+                operator func [](i: Int64): V { V() }
+                operator func [](i: Int64, value!: V): Unit {}
+            }
+            func g(x: Grid): Unit {
+                x[0] $0+= V()
+            }
+            "#)
+    }
+
+    @TestCase
     func aCompoundAssignmentGoesToTheOperatorItCalls() {
         // N126
         checkDefinition(#"
