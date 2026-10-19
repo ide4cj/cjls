@@ -15,7 +15,6 @@ import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, fi
     packageHeader, PROJECT_JSON, ProjectLoad, projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
 import cjls.lsp_types.*
 import cjls.server.*
-import cjls.macro_host.MacroHost
 import cjls.macros.LspHandler
 
 /**
@@ -210,16 +209,14 @@ func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
 }
 
 /**
- * Starts running the workspace's macros once a load ended the first time, and builds them again after every later
- * one (D104). Called inside a write.
+ * Starts running the workspace's macros once a load ended the first time, if the state says what starts them (D141),
+ * and builds them again after every later one (D104). Called inside a write.
  */
 func startMacros(loop: Loop, logger: Logger): Unit {
-    match (loop.state.macroWork) {
-        case Some(work) => work.wake(true)
-        case None =>
-            let host = MacroHost(loop, logger)
-            loop.state.macroWork = host
-            host.start()
+    match ((loop.state.macroWork, loop.state.startsMacros)) {
+        case (Some(work), _) => work.wake(true)
+        case (None, Some(starts)) => loop.state.macroWork = starts(loop, logger)
+        case (None, None) => ()
     }
 }
 

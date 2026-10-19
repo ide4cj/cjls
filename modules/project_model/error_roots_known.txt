@@ -17,6 +17,7 @@ modules/cjls/src/handlers/workspace.cj: member found: 7
 modules/cjls/src/heap.cj: member found: 2
 modules/cjls/src/logging.cj: member found: 1
 modules/cjls/src/macro_host/host.cj: member found: 6
+modules/cjls/src/main.cj: local: 2
 modules/cjls/src/main.cj: member found: 3
 modules/cjls/src/server/context.cj: member found: 3
 modules/cjls/src/server/loop.cj: member found: 1
