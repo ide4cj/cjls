@@ -6,6 +6,7 @@ same things, and a missing feature is prior-art.md's business, not a number here
 """
 
 import asyncio
+import json
 import pathlib
 import re
 import statistics
@@ -115,13 +116,14 @@ async def tokens(session: Session, options: Options) -> dict[str, float]:
     line, character = len(lines) - 1, column(lines[-1], session.encoding)
     typed = "\nfunc typed(x: Int64): Int64 {\n    x + 1\n}\n"
     latencies = []
+    last = data
     version = 1
     for i in range(options.keystrokes):
         char = typed[i % len(typed)]
         version += 1
         began = time.perf_counter()
         session.insert(uri, version, line, character, char)
-        await session.semantic_tokens(uri)
+        last = await session.semantic_tokens(uri)
         latencies.append((time.perf_counter() - began) * 1000)
         line, character = (line + 1, 0) if char == "\n" else (line, character + 1)
 
@@ -129,6 +131,8 @@ async def tokens(session: Session, options: Options) -> dict[str, float]:
     return {
         "open_to_tokens_ms": first,
         "tokens": len(data) // 5,
+        # what `full` sends a keystroke, `data` as JSON: what `full/delta` would save (#56)
+        "response_kb": len(json.dumps(last, separators=(",", ":"))) / 1024,
         "keystroke_p50_ms": statistics.median(latencies),
         "keystroke_p95_ms": percentile(latencies, 95),
         "keystroke_max_ms": max(latencies),
