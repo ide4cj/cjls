@@ -11,7 +11,7 @@ import cjls.macros.LspHandler
 /**
  * The server's version, as `modules/cjls/cjpm.toml` has it: `cog bump` rewrites both.
  */
-const VERSION = "0.5.0"
+const VERSION = "0.6.0"
 
 @LspHandler
 func handleInitialize(state: ServerState, client: Client, logger: Logger, params: InitializeParams): InitializeResult {
