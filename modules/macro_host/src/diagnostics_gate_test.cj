@@ -9,80 +9,48 @@ import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import loupe.{diagnostics, Severity}
 import loupe.db.*
-import loupe.hir.{macroBuildPlan, setMacroOutputsByKey}
-import loupe.vfs.{PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
-import macro_server.MacroServerPaths
+import loupe.hir.{macroBuildPlan, macroCallHeadOf, macroOutputOf, serverCalls, setMacroOutputsByKey}
+import loupe.vfs.{readCjoFiles, readFiles, Vfs, VfsPath}
 import project_model.findProject
 
 /**
- * The root of this repository: the nearest directory above the tests' whose `cjpm.toml` is a workspace's.
+ * The workspace at `root` loaded as the server loads a project, its macro packages built by the SDK's cjc into a fresh directory and
+ * every call of its files expanded by the macro server, round by round until none is left to send, as `MacroHost`
+ * does (D104): what the gate finds, each diagnostic of its files as `path:line: message`, a failed call's among them,
+ * and each call the server runs that was never sent as `path:line: @name never sent`; a macro package cjc did not
+ * build as `package: not built: why`; sorted.
  */
-func repositoryRoot(): VfsPath {
-    var dir = VfsPath.file(getWorkingDirectory())
-    while (true) {
-        let manifest = dir.join("cjpm.toml").filePath.getOrThrow()
-        if (exists(manifest) && String.fromUtf8(File.readFrom(manifest)).contains("[workspace]")) {
-            return dir
-        }
-        dir = dir.parent ?? throw IllegalStateException("no workspace above ${getWorkingDirectory()}")
-    }
-    throw IllegalStateException("unreachable")
-}
-
-/**
- * This repository as the server loads it, and its members' files.
- */
-func repository(root: VfsPath): (AnalysisDatabase, PathInterner, Array<SourceFile>) {
+func gateFindings(root: VfsPath): Array<String> {
     let load = findProject(root, env: {name => getVariable(name)})
-    let vfs = Vfs()
     let db = AnalysisDatabase()
+    let vfs = Vfs()
     db.setProject(load.model, vfs.paths, binaries: readCjoFiles(load.model.cjoFiles()).files)
     for ((path, text) in readFiles(load.model.files()).files) {
         vfs.setFileContents(path, text)
     }
     db.applyChanges(vfs, vfs.takeChanges())
-    let files = ArrayList<SourceFile>()
-    for (module in db.project().getOrThrow().modules(db) where module.member(db)) {
-        for (pkg in module.packages(db)) {
-            for (fileId in pkg.files(db)) {
-                if (let Some(file) <- db.sourceFile(fileId)) {
-                    files.add(file)
-                }
-            }
-        }
-    }
-    (db, vfs.paths, files.toArray())
-}
+    let files = load.model.files() |> filterMap {path: VfsPath => vfs.paths.lookup(path).flatMap {id => db.sourceFile(id)}} |>
+        collectArray
 
-/**
- * Builds the macro packages of `db` with the SDK's cjc into a fresh directory, as the server does (D104), and sets
- * the stamps of their libraries: the libraries, and why each that did not build did not.
- */
-func buildMacros(db: AnalysisDatabase, paths: MacroServerPaths): (HashMap<Package, MacroLibrary>, Array<String>) {
+    let paths = testSdkPaths()
     let toolchain = SdkToolchain(paths)
+    let version = toolchain.version().getOrThrow()
     let out = Directory.createTemp(getTempDirectory()).join("macro-build")
-    let built = buildPlan(db, macroBuildPlan(db), {_ => out}, toolchain.version().getOrThrow(), toolchain)
+    let built = buildPlan(db, macroBuildPlan(db), {_ => out}, version, toolchain)
+    let found = ArrayList<String>()
     let libraries = HashMap<Package, MacroLibrary>()
-    let failed = ArrayList<String>()
-    db.batch {
-        for ((pkg, result) in built.libraries) {
-            match (result) {
-                case Built(path, stamp) =>
-                    libraries[pkg] = MacroLibrary(path.toString(), stamp)
-                    pkg.setMacroLibrary(db).to(stamp)
-                case NotBuilt(reason) => failed.add("${pkg.name(db)}: ${reason}")
-            }
+    for ((pkg, result) in built.libraries) {
+        match (result) {
+            case Built(library, stamp) => libraries[pkg] = MacroLibrary(library.toString(), stamp)
+            case NotBuilt(reason) => found.add("${pkg.name(db)}: not built: ${reason.split("\n")[0]}")
         }
     }
-    (libraries, failed.toArray())
-}
+    db.batch {
+        for ((pkg, library) in libraries) {
+            pkg.setMacroLibrary(db).to(library.stamp)
+        }
+    }
 
-/**
- * Asks the SDK's macro server every call of `files` it can be sent, std's and the workspace's of `libraries`, until
- * none is left: an outer call is sent once the calls inside it are answered, as the server's host does.
- */
-func expandAllCalls(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<Package, MacroLibrary>,
-    paths: MacroServerPaths): Unit {
     let servers = MacroServers(paths, Duration.minute, NoopLogger())
     try {
         while (true) {
@@ -96,44 +64,50 @@ func expandAllCalls(db: AnalysisDatabase, files: Array<SourceFile>, libraries: H
     } finally {
         servers.close()
     }
+    for (file in files) {
+        let text = file.text(db).toString()
+        let name = nameIn(vfs.paths.path(file.fileId(db)), root)
+        for (one in diagnostics(db, file.fileId(db)) where one.severity != Severity.Hint) {
+            found.add("${name}:${text[..one.range.start].count("\n") + 1}: ${one.message}")
+        }
+        // a call that failed has its diagnostic; one never sent has nothing to show it
+        for (call in serverCalls(db, file) where macroOutputOf(db, call.call).isNone()) {
+            let line = macroCallHeadOf(db, call.call).map {head => "${text[..head[1].start].count("\n") + 1}"} ?? "?"
+            found.add("${name}:${line}: @${call.definition.name} never sent")
+        }
+    }
+    let sorted = found.toArray()
+    sort(sorted)
+    sorted
+}
+
+/**
+ * `path` relative to `root`, with `/`s.
+ */
+func nameIn(path: VfsPath, root: VfsPath): String {
+    path.toString().replace("\\", "/").removePrefix(root.toString().replace("\\", "/") + "/")
 }
 
 /**
  * `project_model`'s `DiagnosticsGateTest` as an editor reads this repository (#434, D132): every call of a macro on
  * an item, std's (`@Derive`, `@Test`, `@TestCase`) and the workspace's (`@DeriveExt`), expanded by the SDK's macro
- * server, and every body inferred through its output. A false error of reading an output fails it, named: the bugs
- * of #430 and #431 hid while the gate read cjls's own expansions of std alone. What it costs beyond that gate is a
- * build of the macro packages and a round trip per call, a few seconds of the half minute the inference takes, so
- * the outputs are asked of the SDK each run, never recorded. Tagged `gate`: the coverage run leaves it out (D120).
+ * server, and every body inferred through its output, finds nothing. A false error of reading an output fails it,
+ * named: the bugs of #430 and #431 hid while the gate read cjls's own expansions of std alone. What it costs beyond
+ * that gate is a build of the macro packages and a round trip per call, a few seconds of the half minute the
+ * inference takes, so the outputs are asked of the SDK each run, never recorded. Tagged `gate`: the coverage run
+ * leaves it out (D120).
  */
 @Test
 @Tag[gate]
 @Timeout[Duration.minute * 10]
 class ServedDiagnosticsGateTest {
     @TestCase
-    func thisRepositoryHasNoDiagnosticWithItsMacrosExpandedByTheServer() {
-        // arrange
-        let root = repositoryRoot()
-        let (db, interner, files) = repository(root)
-        let paths = testSdkPaths()
-        let (libraries, failed) = buildMacros(db, paths)
-        @Assert(failed, Array<String>())
-
+    func thisRepositoryHasNoFindingWithItsMacrosExpandedByTheServer() {
         // act
-        expandAllCalls(db, files, libraries, paths)
+        let found = gateFindings(VfsPath.file(getWorkingDirectory()))
 
         // assert
-        let found = ArrayList<String>()
-        for (file in files) {
-            let text = file.text(db).toString()
-            let name = interner.path(file.fileId(db)).toString().replace("\\", "/").removePrefix(
-                root.toString().replace("\\", "/") + "/")
-            for (one in diagnostics(db, file.fileId(db)) where one.severity != Severity.Hint) {
-                found.add("${name}:${text[..one.range.start].count("\n") + 1}: ${one.message}")
-            }
-        }
-        let sorted = found.toArray()
-        sort(sorted)
-        @Expect(sorted, Array<String>())
+        // a text, not an array: an array's `@Expect` of another size tells the sizes alone
+        @Expect(String.join(found, delimiter: "\n"), "")
     }
 }

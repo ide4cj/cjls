@@ -71,7 +71,9 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
         case IsExpr(inner, _) => [inner]
         case AsExpr(inner, _) => [inner]
         case RangeExpr(start, end, step, _) => opt(start).concat(opt(end)).concat(opt(step))
-        case PostfixExpr(inner, _) => [inner]
+        case PostfixExpr(inner, _, value) => [inner].concat(opt(value))
+        // its place is the assignment's
+        case AssignedExpr(_, _, operand) => [operand]
         case TupleExpr(elements) => elements
         case ArrayExpr(elements) => elements
         case IfExpr(condition, then, otherwise) => [condition, then].concat(opt(otherwise))

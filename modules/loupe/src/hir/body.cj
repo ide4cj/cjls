@@ -206,7 +206,16 @@ public enum Expr {
      * Its start, end and step, and whether it includes its end.
      */
     | RangeExpr(?ExprId, ?ExprId, ?ExprId, Bool)
-    | PostfixExpr(ExprId, String)
+    /**
+     * `x++` or `x--`: its operand and operator, and of an `a[i]` what is assigned to it, an `AssignedExpr`.
+     */
+    | PostfixExpr(ExprId, String, ?ExprId)
+    /**
+     * What `a[i] op= v` and `a[i]++` assign to `a[i]`, as cjc desugars them into
+     * `a.[](i, value: a.[](i) op v)` (#245): the operator, the place, and `v` or the `1` of `++`. Never
+     * written: the place is the one of the assignment holding it, the right alone its own.
+     */
+    | AssignedExpr(String, ExprId, ExprId)
     | TupleExpr(Array<ExprId>)
     | ArrayExpr(Array<ExprId>)
     | UnitExpr
@@ -792,17 +801,33 @@ class BodyLowering {
             case AstExpr.AsBinExpr(it) =>
                 let op = it.op()?.text() ?? ""
                 // an assignment's left a link: `a?.b = x` is a chain (cjc's `ParseExprWithRightExprOrType`)
-                let lhs = if (ASSIGNMENTS.contains(op)) {
-                    linkOf(it.lhs())
+                if (ASSIGNMENTS.contains(op)) {
+                    let lhs = linkOf(it.lhs())
+                    let rhs = exprOf(it.rhs())
+                    // `a[i] op= v` assigns `a[i] op v` (#245)
+                    match (this.exprs[lhs.index]) {
+                        case Expr.IndexExpr(_, _) where op != "=" =>
+                            Expr.BinaryExpr(op, lhs, synthesized(Expr.AssignedExpr(op[0..op.size - 1], lhs, rhs)))
+                        case _ => Expr.BinaryExpr(op, lhs, rhs)
+                    }
                 } else {
-                    exprOf(it.lhs())
+                    Expr.BinaryExpr(op, exprOf(it.lhs()), exprOf(it.rhs()))
                 }
-                Expr.BinaryExpr(op, lhs, exprOf(it.rhs()))
             case AstExpr.AsIsExpr(it) => Expr.IsExpr(exprOf(it.expr()), types.lower(it.ty()))
             case AstExpr.AsAsExpr(it) => Expr.AsExpr(exprOf(it.expr()), types.lower(it.ty()))
             case AstExpr.AsRangeExpr(it) => Expr.RangeExpr(it.start().map {one => expr(one)}, it.end().map {one => expr(one)},
                 it.step().map {one => expr(one)}, it.op()?.kind == SyntaxKind.DotDotEq)
-            case AstExpr.AsPostfixExpr(it) => Expr.PostfixExpr(linkOf(it.expr()), it.op()?.text() ?? "")
+            case AstExpr.AsPostfixExpr(it) =>
+                let op = it.op()?.text() ?? ""
+                let inner = linkOf(it.expr())
+                // `a[i]++` is `a[i] += 1` (#245)
+                let value = match (this.exprs[inner.index]) {
+                    case Expr.IndexExpr(_, _) =>
+                        let one = synthesized(Expr.LitExpr("1"))
+                        Some(synthesized(Expr.AssignedExpr(if (op == "--") { "-" } else { "+" }, inner, one)))
+                    case _ => None<ExprId>
+                }
+                Expr.PostfixExpr(inner, op, value)
             case AstExpr.AsParenExpr(it) => return exprOf(it.expr())
             case AstExpr.AsTupleExpr(it) => Expr.TupleExpr(it.exprs() |> map {one => expr(one)} |> collectArray)
             case AstExpr.AsArrayExpr(it) => Expr.ArrayExpr(it.exprs() |> map {one => expr(one)} |> collectArray)

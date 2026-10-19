@@ -86,10 +86,12 @@ public func callDataOf(request: MacroRequest, pkg: String, library: String, numb
     let layout = WireLayout(request.attrs, request.input)
     let name = request.definition.name
     let attrs: Array<TokenData> = match (request.attrs) {
-        case Some(text) => macroTokens(text.text, numbers, PositionData(fileId: 1, line: layout.attrsLine, column: 1))
+        case Some(text) => withoutLeadingNewlines(
+            macroTokens(text.text, numbers, PositionData(fileId: 1, line: layout.attrsLine, column: 1)), numbers)
         case None => []
     }
-    let input = macroTokens(request.input.text, numbers, PositionData(fileId: 1, line: layout.inputLine, column: 1))
+    let input = withoutLeadingNewlines(
+        macroTokens(request.input.text, numbers, PositionData(fileId: 1, line: layout.inputLine, column: 1)), numbers)
     let call = MacroCallData(
         id: IdInfoData(name: name, pos: PositionData(fileId: 1, line: 1, column: 2)),
         hasAttrs: request.attrs.isSome(),
@@ -104,6 +106,19 @@ public func callDataOf(request: MacroRequest, pkg: String, library: String, numb
         end: endOf(input, layout)
     )
     (call, layout)
+}
+
+/**
+ * `tokens` from their first that is not an `NL`: cjc gives a macro no line break before the first token of its
+ * attribute or of its input in parentheses, and keeps those after the last.
+ */
+func withoutLeadingNewlines(tokens: Array<TokenData>, numbers: TokenNumbers): Array<TokenData> {
+    let nl = numbers.numberOf("NL")
+    var start = 0
+    while (start < tokens.size && tokens[start].kind == nl) {
+        start++
+    }
+    tokens[start..]
 }
 
 /**
