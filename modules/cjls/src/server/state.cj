@@ -200,6 +200,12 @@ public class ServerState <: FromContext<ServerState> {
     public var foundProjects: Array<VfsPath> = []
 
     /**
+     * Whether `initialized` came: before it no project is looked for, and a document opened in no
+     * package is compiled alone by none (#293).
+     */
+    public var initialized = false
+
+    /**
      * The files of the project, as last set: made anew each time, for a set built from an array
      * takes a third of the time `clear` and `add(all:)` do.
      */
@@ -428,6 +434,16 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func leftOut(path: VfsPath): Bool {
         !inProject(path) && isWorkspaceFile(path, partialRoots)
+    }
+
+    /**
+     * Whether the Cangjie file at `path` is nothing of the project last set: of no package, of no
+     * binary's sources, and none a module's build leaves out. A document open there finds the
+     * project again (D80, D88), or is compiled alone (#293).
+     */
+    public func inNoPackage(path: VfsPath): Bool {
+        isCangjieFile(path.name) && !projectFiles.contains(path) && !binarySourceFiles.contains(path) &&
+            !model.modules.iterator().any {module => module.inactive.iterator().any {file => file.path == path}}
     }
 
     /**
