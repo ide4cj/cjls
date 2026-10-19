@@ -23,12 +23,17 @@ public enum ProjectSource <: ToString {
      * Neither: the `*.cj` under this directory, a package per `package` line.
      */
     | LooseFiles(VfsPath)
+    /**
+     * None: the file at this path, of no package of the projects found, compiled alone (#293).
+     */
+    | LoneFile(VfsPath)
 
     public func toString(): String {
         match (this) {
             case ProjectFile(path) => "${PROJECT_JSON} at ${path}"
             case CjpmManifest(path) => "cjpm.toml at ${path}"
             case LooseFiles(path) => "loose files under ${path}"
+            case LoneFile(path) => "a file alone at ${path}"
         }
     }
 }
