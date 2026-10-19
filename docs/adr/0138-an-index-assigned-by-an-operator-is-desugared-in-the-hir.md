@@ -1,4 +1,4 @@
-# ADR-0136: `a[i] op= v` and `a[i]++` are desugared in the HIR into the value they give a `[]` taking it
+# ADR-0138: `a[i] op= v` and `a[i]++` are desugared in the HIR into the value they give a `[]` taking it
 
 Status: proposed
 
@@ -11,6 +11,11 @@ Status: proposed
 - cjc 1.3.0-alpha.20261014, checked in #245's PR:
   - N170: a lambda of `x++`, `a[0] += 1` or `a[0]++` fits only the candidate whose parameter makes it valid: of an `Int64` not a `String`, of a type with a `[](i, value!: Int64)` not one without, of an `ArrayList<Int64>` not an `ArrayList<String>`; a `[](i, value!: Int8)` of a `[]` reading an `Int64` takes no `a[0] += 1`.
   - N171: an operator of the language's types that the language's own does not take and the type declares none of, `x + "s"` or `y += "s"` of an `Int64`, makes a candidate a misfit too: `run {x => var y = x; y += "s"}` takes `(String) -> Unit`.
+- What go to definition gives of `a[i] += v`, where reading and writing are two functions, read in each server's source:
+  - rust-analyzer (R1): the brackets of a place written, `+=` included, one target, `IndexMut::index_mut` (`resolve_index_expr`, `infer/mutability.rs`, the test `goto_index_mut_op`); `+=` `add_assign`.
+  - Kotlin's Analysis API (K2): `a[i]` `get`, `+=` `[plus, set]`, `a[2]++`'s `a[2]` `get` (its test data `arrayAccess.symbol.txt`, `SetOperatorInc`). K1 gave both `get` and `set` of the brackets (`getTargetDescriptors`).
+  - The Cangjie language server (`cangjie_tools`, read, not run): the getter of a read `a[i]`, nothing of `a[i] = v`, `a[i] += v` or `a[i]++`, whose `SubscriptExpr` has no `desugarExpr` of its own.
+  - A C# indexer and a Swift subscript are one declaration of a getter and a setter.
 - loupe's HIR is a tree whose expressions all come from the syntax, but the `match`es an optional chain is lowered into (8g, A29); the outer call's last argument is an expression no syntax writes, and the candidates of the `[]` taking it are tried with it as any argument is.
 
 ## Decision
@@ -18,7 +23,7 @@ Status: proposed
 - **Desugared in the HIR** (option A of #245), as an optional chain is: `a[i] op= v` is `BinaryExpr(op=, a[i], AssignedExpr(op, a[i], v))`, `a[i]++` `PostfixExpr(a[i], ++, AssignedExpr(+, a[i], 1))`, the `AssignedExpr` and the `1` of no syntax. The place is the holder's child, not the value's: what walks a body walks it once. Option B, inference given an argument of a type and no expression, would have threaded a second kind of argument through every candidate tried, and checked `a[i] op v` without the type the candidate expects.
 - **Inference calls the `[]` taking a value with it**, the `[]` reading `a[i]` called inside it, once per candidate; a type of no such `[]`, known wholly, is a misfit, as cjc's error. A tuple's or a `VArray`'s element stays the language's.
 - **`x++` needs an integer**, read through the `[]` of `a[i]++`; another type, known wholly, is a misfit and an error type.
-- **The `[]` taking a value is a second callee of `a[i]`** (`InferenceResult.calleesOf`), the reading one `calleeOf`, the operator the assignment's: go to definition on the bracket offers both, on `+=` the operator.
+- **The `[]` taking a value is the assignment's, after its operator**, as K2's: the brackets of `a[i]` go to the `[]` reading it (`calleeOf`), `+=` to its operator and the `[]` taking a value (`InferenceResult.calleesOf`), the `++` of `a[i]++` to that `[]`. The user's choice over rust-analyzer's one writing target, which in Cangjie would hide the getter `a[i] += v` calls too, and over K1's both of the brackets.
 - **N171 holds for every operator**: the language's operator between its types, of none the type declares, that fails is a misfit, both sides known wholly.
 
 ## Consequences

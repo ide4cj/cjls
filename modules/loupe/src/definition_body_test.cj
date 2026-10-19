@@ -1022,8 +1022,8 @@ class BodyDefinitionTest {
     }
 
     @TestCase
-    func anIndexAssignedByAnOperatorGoesToBothItsOperators() {
-        // #245: `x[1] += 2` is `x.[](1, value: x.[](1) + 2)`
+    func anIndexAssignedByAnOperatorGoesToTheOperatorReadingIt() {
+        // #245: `x[1] += 2` is `x.[](1, value: x.[](1) + 2)`, its brackets the inner call, as Kotlin's K2
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
@@ -1031,7 +1031,6 @@ class BodyDefinitionTest {
                 operator func [](i: Int64): Int64 { i }
             //                ^^ def
                 operator func [](i: Int64, value!: Int64): Unit {}
-            //                ^^ def
             }
             func g(x: Grid): Unit {
                 x[$01] += 2
@@ -1040,8 +1039,8 @@ class BodyDefinitionTest {
     }
 
     @TestCase
-    func theOperatorOfAnIndexAssignedByItIsTheAssignments() {
-        // #245
+    func theOperatorOfAnIndexAssignedByItGoesToItAndTheOperatorTakingAValue() {
+        // #245: `+=` of `x[0] += v` calls `+` and `[](i, value!)`, as Kotlin's K2
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
@@ -1052,9 +1051,27 @@ class BodyDefinitionTest {
             class Grid {
                 operator func [](i: Int64): V { V() }
                 operator func [](i: Int64, value!: V): Unit {}
+            //                ^^ def
             }
             func g(x: Grid): Unit {
                 x[0] $0+= V()
+            }
+            "#)
+    }
+
+    @TestCase
+    func theIncrementOfAnIndexGoesToTheOperatorTakingAValue() {
+        // #245: `x[0]++` is `x[0] += 1`, of the language's `+`
+        checkDefinition(#"
+            //- /main.cj module=m package=m
+            package m
+            class Grid {
+                operator func [](i: Int64): Int64 { i }
+                operator func [](i: Int64, value!: Int64): Unit {}
+            //                ^^ def
+            }
+            func g(x: Grid): Unit {
+                x[0]$0++
             }
             "#)
     }

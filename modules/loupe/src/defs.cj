@@ -212,7 +212,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     let sourceMap = lowered.sourceMap
     let file = scopeFileOf(db, def.file(db)) ?? return None
     let pkg = packageOfFile(db, file) ?? return None
-    // an operator: the operator function it calls (8e); `a[i] op= v`'s `[]`s both (#245)
+    // an operator: the operator function it calls (8e); `+=` of `a[i] += v` its `+` and the `[]` taking a value (#245)
     if (isOperator(token)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return None
         return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}

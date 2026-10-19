@@ -6,8 +6,8 @@ import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, UnaryExpr,
-    isIdent}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, PostfixExpr,
+    UnaryExpr, isIdent}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
 import loupe.hir.*
@@ -178,7 +178,7 @@ func tokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
 }
 
 /**
- * Whether `token` is an operator: the operator of a binary or unary expression, or a bracket of an index.
+ * Whether `token` is an operator: the operator of a binary, unary or postfix expression, or a bracket of an index.
  */
 func isOperator(token: CjSyntaxToken): Bool {
     let parent = token.parent
@@ -186,7 +186,7 @@ func isOperator(token: CjSyntaxToken): Bool {
         return token.kind == SyntaxKind.LBracket || token.kind == SyntaxKind.RBracket
     }
     let op = BinExpr.cast(parent).flatMap {expr => expr.op()} ?? UnaryExpr.cast(parent).flatMap {expr => expr.op()} ??
-        return false
+        PostfixExpr.cast(parent).flatMap {expr => expr.op()} ?? return false
     op.textRange == token.textRange
 }
 

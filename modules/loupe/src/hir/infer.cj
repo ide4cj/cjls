@@ -173,8 +173,8 @@ public struct InferenceResult {
         public let fields!: Array<FieldTargets> = [],
         public let callees!: Array<CalleeTarget> = [],
         /**
-         * The `[]` taking a value `a[i] op= v` and `a[i]++` call, by `a[i]`, whose callee is the
-         * `[]` reading it (#245).
+         * The `[]` taking a value `a[i] op= v` and `a[i]++` call, by the assignment, whose callee is
+         * its operator: `a[i]`'s is the `[]` reading it (#245).
          */
         public let setters!: Array<CalleeTarget> = [],
         /**
@@ -245,8 +245,8 @@ public struct InferenceResult {
     }
 
     /**
-     * What `calleeOf` names, and the `[]` taking a value called alongside the one `a[i]` calls, of
-     * `a[i] op= v` and `a[i]++` (#245).
+     * What `calleeOf` names, and the `[]` taking a value the assignment `a[i] op= v` or `a[i]++`
+     * calls, after its operator (#245), as Kotlin's K2 resolves `+=`.
      */
     public func calleesOf(expr: ExprId): Array<DefId> {
         let setter = match (findByIndex(setters, expr.index)) {
@@ -512,7 +512,7 @@ class Inference {
     private let fields = HashMap<Int64, FieldTargets>()
     // by callee: an argument inferred again replaces what it found
     private let callees = HashMap<Int64, CalleeTarget>()
-    // by place: the `[]` taking a value called alongside the one reading it (#245)
+    // by assignment: the `[]` taking a value `a[i] op= v` calls, its operator its callee (#245)
     private let setters = HashMap<Int64, CalleeTarget>()
     // by callee: where the arguments of the call it takes go
     private let argTargets = HashMap<Int64, ArgTarget>()
@@ -710,21 +710,22 @@ class Inference {
     }
 
     /**
-     * The operator function the operator `id` takes: of a `[]` taking a value called alongside the
-     * one reading `a[i]`, the place's second (#245).
+     * The operator function the operator `id` takes: of a `[]` taking a value `a[i] op= v` calls,
+     * the assignment's second (#245).
      */
-    private func recordOperator(id: ExprId, decl: DefId, alongside: ?ExprId): Unit {
-        match (alongside) {
-            case Some(place) => setSetter(place, decl)
-            case None => setCallee(id, decl)
+    private func recordOperator(id: ExprId, decl: DefId, second: Bool): Unit {
+        if (second) {
+            setSetter(id, decl)
+        } else {
+            setCallee(id, decl)
         }
     }
 
-    private func setSetter(place: ExprId, decl: DefId): Unit {
+    private func setSetter(assignment: ExprId, decl: DefId): Unit {
         if (trying > 0) {
-            undo.add(SetterWas(place, setters.get(place.index)))
+            undo.add(SetterWas(assignment, setters.get(assignment.index)))
         }
-        setters[place.index] = CalleeTarget(place, decl)
+        setters[assignment.index] = CalleeTarget(assignment, decl)
     }
 
     private func setArgs(callee: ExprId, matched: ArgMatch): Unit {
@@ -1750,14 +1751,14 @@ class Inference {
         if (let IndexExpr(base, indices) <- hir[lhs]) {
             let baseTy = infer(base, None)
             if (!isIndexedByLanguage(baseTy) && op == "=") {
-                let (failure, chosen) = setIndex(lhs, lhs, baseTy, indices, rhs)
+                let (failure, chosen) = setIndex(lhs, baseTy, indices, rhs)
                 // `a[i]` is of what is assigned to it
                 let value = chosen.flatMap {one => one.params.get(one.params.size - 1)}
                 setExpr(lhs, value ?? failure)
                 return prim("Unit")
             }
             if (!isIndexedByLanguage(baseTy)) {
-                setIndex(id, lhs, baseTy, indices, rhs, alongside: true)
+                setIndex(id, baseTy, indices, rhs, second: true)
                 // the operator is the assignment's, as of `x op= v`
                 if (let Some(target) <- callees.get(rhs.index)) {
                     setCallee(id, target.decl)
@@ -1824,7 +1825,7 @@ class Inference {
                 if (isIndexedByLanguage(baseTy)) {
                     infer(inner, None)
                 } else {
-                    setIndex(id, inner, baseTy, indices, assigned, alongside: true)
+                    setIndex(id, baseTy, indices, assigned, second: true)
                     inferredTyOf(inner) ?? error
                 }
             case _ => infer(inner, None)
@@ -1840,20 +1841,15 @@ class Inference {
     }
 
     /**
-     * A call `call` of the `[](i, value!: T)` of `place`, `a[i]`, of a value of the type `baseTy`,
-     * with `value`: of `a[i] = v` the callee of `place` (N124), else called alongside the `[]`
-     * reading it (#245). A type of no such `[]` fits not ("cannot assign to this subscript
-     * expression"). What it returns, and the one taken.
+     * A call `call` of the `[](i, value!: T)` of a value of the type `baseTy` with `indices` and
+     * `value`: of `a[i] = v` `call` is `a[i]` (N124); of `a[i] op= v` and `a[i]++` the assignment,
+     * whose `second` it is, after its operator (#245). A type of no such `[]` fits not ("cannot
+     * assign to this subscript expression"). What it returns, and the one taken.
      */
-    private func setIndex(call: ExprId, place: ExprId, baseTy: Ty, indices: Array<ExprId>, value: ExprId,
-        alongside!: Bool = false): (Ty, ?Callable) {
+    private func setIndex(call: ExprId, baseTy: Ty, indices: Array<ExprId>, value: ExprId,
+        second!: Bool = false): (Ty, ?Callable) {
         let args = indices.map {one => CallArg(None, one)}.concat([CallArg(None, value)])
-        let alongsideOf = if (alongside) {
-            place
-        } else {
-            None<ExprId>
-        }
-        let (ty, chosen) = operatorCall(call, baseTy, "[]", args, None, setter: true, alongside: alongsideOf)
+        let (ty, chosen) = operatorCall(call, baseTy, "[]", args, None, setter: true, second: second)
         if (chosen.isNone() && !hasUnknowns(db, baseTy) && !hasInferVars(db, baseTy) && !isMacroTyped(baseTy) &&
             !operatorCallables(baseTy, "[]").iterator().any {one => one.takesValue()}) {
             mismatches++
@@ -1903,11 +1899,11 @@ class Inference {
      * alone that fits not is taken still, as a call of one is (D55), but between the language's
      * types, where the language's own operator is one more (`3 * "s"`). What it returns, and the one
      * taken; of none, an error type. A binary operator none fits is reported by its operands' types,
-     * a `[]` by what fails in its arguments, as cjc's. The one taken recorded `alongside` the `[]`
-     * reading that place instead, if one is given (#245).
+     * a `[]` by what fails in its arguments, as cjc's. The one taken recorded as `id`'s `second`, after
+     * its operator, if asked (#245).
      */
     private func operatorCall(id: ExprId, recv: Ty, op: String, args: Array<CallArg>, expected: ?Ty,
-        setter!: Bool = false, alongside!: ?ExprId = None): (Ty, ?Callable) {
+        setter!: Bool = false, second!: Bool = false): (Ty, ?Callable) {
         let candidates = operatorCallables(recv, op).filter {
             one => one.params.size == args.size && one.takesValue() == setter
         }
@@ -1923,7 +1919,7 @@ class Inference {
             // taken untried, as a call of one is (D55), what fails in it reported
             let callable = candidates[0]
             if (let Some(decl) <- callable.decl) {
-                recordOperator(id, decl, alongside)
+                recordOperator(id, decl, second)
             }
             if (!isBinary) {
                 return (callWith(id, callable, inOrder, args, expected), callable)
@@ -1949,7 +1945,7 @@ class Inference {
         match (choice) {
             case Chose(callable, _) =>
                 if (let Some(decl) <- callable.decl) {
-                    recordOperator(id, decl, alongside)
+                    recordOperator(id, decl, second)
                 }
                 (callWith(id, callable, inOrder, args, expected), callable)
             case _ =>
