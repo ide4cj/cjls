@@ -165,8 +165,13 @@ func printed(violations: Array<String>): Array<String> {
     violations
 }
 
+/**
+ * The grammar checked over this repository, a corpus: out of the coverage run, where it took about its timeout
+ * (D120).
+ */
 @Test
-class ConformanceTest {
+@Tag[gate]
+class RepositoryConformanceTest {
     @TestCase
     func everyFileOfThisRepositoryHasTheShapeTheGrammarSays() {
         // arrange
@@ -188,7 +193,10 @@ class ConformanceTest {
         @Expect(files.size > 100)
         @Expect(printed(violations.toArray()[..min(violations.size, 20)]), Array<String>())
     }
+}
 
+@Test
+class ConformanceTest {
     @TestCase
     func aNodeThatHoldsWhatItsRuleDoesNotAllowIsCaught() {
         // arrange
