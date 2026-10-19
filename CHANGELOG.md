@@ -2,6 +2,98 @@
 All notable changes to this project will be documented in this file. See [conventional commits](https://www.conventionalcommits.org/) for commit guidelines.
 
 - - -
+## [v0.6.0](https://github.com/ide4cj/cjls/compare/82b939bfa3b95d0ce807298c2b84d29b510b0301..v0.6.0) - 2026-10-19
+#### Features
+- (**cjls**) a diagnostic pull answers unchanged when the report is the same (#51, D131) (#428) - ([f61d6c6](https://github.com/ide4cj/cjls/commit/f61d6c62cc6bf9fc2a4e1a2ff35e0b77661df8b8)) - FilaCo
+- (**cjls**) textDocument/completion and completionItem/resolve (#203) (#362) - ([d5d5e5f](https://github.com/ide4cj/cjls/commit/d5d5e5fd74903a8c3dc87f0a18a6f42c38e92d49)) - FilaCo
+- (**cjls**) expand macro, as cjls/expandMacro and as a read-only .cj.macrocall (#325) (#327) - ([8e19341](https://github.com/ide4cj/cjls/commit/8e19341f0b25cded8b02482b14c4d8dfa14a3e79)) - FilaCo
+- (**cjls**) the workspace's macros built by cjc and run in the SDK's macro server (#176) (#326) - ([f5309a1](https://github.com/ide4cj/cjls/commit/f5309a1ddfa053d9441f0e5e85de6bc431f7cfa4)) - FilaCo
+- (**cjls**) the server's own directory, <project>/.cache/cjls, with a layout, a cleanup and a lock (#333) (#335) - ([12ea73e](https://github.com/ide4cj/cjls/commit/12ea73e13e5ddf8364c3b212d819595dc45deec6)) - FilaCo
+- (**cjls**) semantic tokens augment the client's grammar (D105) (#331) - ([8eb1515](https://github.com/ide4cj/cjls/commit/8eb1515199dbf1598c908ac5d115fc675f4fb4d6)) - FilaCo
+- (**cjls**) a document opened blank is given its package line (#294) (#301) - ([2434a60](https://github.com/ide4cj/cjls/commit/2434a60b5274d62a45e2e9af701b80df9ee18eab)) - FilaCo
+- (**cjsyntax**) reparse the block around an edit, for completion's marker (D110) (#350) - ([8d01b20](https://github.com/ide4cj/cjls/commit/8d01b2058cdeb86b9fa3dc1f5146a10d81c493e9)) - FilaCo
+- (**loupe**) an operator none of whose candidates fits is reported at the operator (#244, D134) (#438) - ([e13eb88](https://github.com/ide4cj/cjls/commit/e13eb88e8efd3720681299349a13fe226de233ce)) - FilaCo
+- (**loupe**) the members a member overrides or implements, and those overriding it (#389, D128) (#410) - ([260190e](https://github.com/ide4cj/cjls/commit/260190eb0c778047472a941ba68813aaba4112ec)) - FilaCo
+- (**loupe**) references read only the files whose words name the name (#415) - ([9d99921](https://github.com/ide4cj/cjls/commit/9d999219d6b102b79b7124195a19bfc0cb3d5f0b)) - FilaCo
+- (**loupe**) a test file sees std.unittest and its macros unimported, as cjc --test does (#255) (#412) - ([1a72fe1](https://github.com/ide4cj/cjls/commit/1a72fe116bdcdb28afdad98e68fa8b12c0980c3b)) - FilaCo
+- (**loupe**) a generic call is solved for each combination of the overloads its arguments name (#243) (#411) - ([5ba6ef9](https://github.com/ide4cj/cjls/commit/5ba6ef9937d0f532ac52d13550cffeb82d354439)) - FilaCo
+- (**loupe**) an expression macro's expansion is parsed by where its call stands and read as a file (#368) (#409) - ([5d41d84](https://github.com/ide4cj/cjls/commit/5d41d842fef7ce19dc36b2244d3b36e78063a826)) - FilaCo
+- (**loupe**) completion outside a body: types, imports, keywords, overrides (#401, D127) (#407) - ([34de89a](https://github.com/ide4cj/cjls/commit/34de89a83fb4bd0addbbc0c1916f9474e4afa968)) - FilaCo
+- (**loupe**) an overloaded function passed to overloads fits only those of a parameter one of it takes (#243) (#400) - ([a0bb4be](https://github.com/ide4cj/cjls/commit/a0bb4beb57a63a87dcbdf2d6a1b4f296988058cd)) - FilaCo
+- (**loupe**) std's macros run in the macro server, under the calls cjls expands itself (#176, D123) (#384) - ([6108442](https://github.com/ide4cj/cjls/commit/6108442b84e5957773aae0f83f26a3bcabbef537)) - FilaCo
+- (**loupe**) references across the workspace, searched where the declaration is visible (#387, D124) (#395) - ([1b86519](https://github.com/ide4cj/cjls/commit/1b86519d7f3cbdeec0c79b0da7cb4cda8ade71d0)) - FilaCo
+- (**loupe**) a workspace macro called in a body is asked of the macro server, and expand macro shows it (D117) (#383) - ([c68a12e](https://github.com/ide4cj/cjls/commit/c68a12e24e9caaddca8fb9a5c11bd4d2046431dc)) - FilaCo
+- (**loupe**) a lambda passed to a call that fails has parameters of why it fails (#282) (#382) - ([72f6cf0](https://github.com/ide4cj/cjls/commit/72f6cf0413a809d88583226fa3daa2de4f791d34)) - FilaCo
+- (**loupe**) std.unittest's attribute arguments read as code — x in src, @Configure, @Types (#191, D115) (#372) - ([3d3961a](https://github.com/ide4cj/cjls/commit/3d3961ae6c892785e7177b49ee21090ec06990fa)) - FilaCo
+- (**loupe**) hover on the names of an import and on a package (#379) - ([012af48](https://github.com/ide4cj/cjls/commit/012af4814921aeefe7225a1cf4c47127efe145b5)) - FilaCo
+- (**loupe**) a body cjls writes in an expansion of its own is a comment naming the macro (D118) (#376) - ([0ed05b6](https://github.com/ide4cj/cjls/commit/0ed05b6249f2932ba3acd3d98ce97ebf7145a74c)) - FilaCo
+- (**loupe**) a quote's interpolations read as code of the macro (#195, D116) (#366) - ([41b4fbb](https://github.com/ide4cj/cjls/commit/41b4fbb0ff1296d1d2bc5d74f57ba0f7089ec9f3)) - FilaCo
+- (**loupe**) expand macro in a whole declaration, hover on a macro call, @Derive in a workspace macro's input (D114) (#360) - ([1f26204](https://github.com/ide4cj/cjls/commit/1f262044f9fbc0bc35605478335044b9aa60051a)) - FilaCo
+- (**loupe**) completions at a cursor, members after a dot and names in scope (#203, D111) (#352) - ([d551ebe](https://github.com/ide4cj/cjls/commit/d551ebe15261556fa8749367c97ba342facd36ee)) - FilaCo
+- (**loupe**) a call's arguments matched to each candidate's parameters before it is tried (D110) (#254) (#351) - ([82acceb](https://github.com/ide4cj/cjls/commit/82acceb56f1116382b8fcbbd26e1d86116494c21)) - FilaCo
+- (**loupe**) go to definition on imports and packages; hover shows the docs and interfaces macros hide (#348) - ([8028633](https://github.com/ide4cj/cjls/commit/802863327434e627409798f1f3614b2fcc2e953b)) - FilaCo
+- (**loupe**) hover tells what the language builds in, from the Cangjie docs (#344) (#347) - ([86ef4dd](https://github.com/ide4cj/cjls/commit/86ef4ddb4db8ae25f64375d49a956dcdaeca340d)) - FilaCo
+- (**loupe**) the macro server's answers as an input, and the requests for them (#176) (#314) - ([d79aed1](https://github.com/ide4cj/cjls/commit/d79aed199badc77f2c8199a14fa67e2a01feb653)) - FilaCo
+- (**loupe**) @When evaluated against the package's cfg, inactive code greyed (#149) (#302) - ([ca1bf93](https://github.com/ide4cj/cjls/commit/ca1bf93c316f473aaa6af9522aba07ecfa329c6d)) - FilaCo
+- (**loupe**) mismatches and counts of arguments reported, the diagnostics gate (#53) (#296) - ([4d7a016](https://github.com/ide4cj/cjls/commit/4d7a01691bdd42831d17a57c410a9a79db9b06c4)) - FilaCo
+- (**macro_server**) cjsyntax's tokens as cjc's, numbered by the SDK's Tokens.inc (#176) (#305) - ([6718d6a](https://github.com/ide4cj/cjls/commit/6718d6ab2a329711b679f0dd2aa23e1db65ad097)) - FilaCo
+- (**macro_server**) the SDK's LSPMacroServer driven over its own protocol (#176) (#295) - ([82b939b](https://github.com/ide4cj/cjls/commit/82b939bfa3b95d0ce807298c2b84d29b510b0301)) - FilaCo
+- (**project_model**) multiplatform source sets and common/specific (#318) (#323) - ([90fa6b2](https://github.com/ide4cj/cjls/commit/90fa6b25209d535d2563cce808ec53eff894b275)) - FilaCo
+#### Bug Fixes
+- (**ci**) run cjc behind a shim that closes inherited descriptors (#342, D125) (#394) - ([78abaff](https://github.com/ide4cj/cjls/commit/78abaff3d0ff8336c2ed1ffd650ee56d6bd7025c)) - FilaCo
+- (**cjls**) a read-only request the files changed under runs again on a fresh snapshot (D122) (#381) - ([a1f088f](https://github.com/ide4cj/cjls/commit/a1f088fa5292cb1d04880773f1e006ea70c63406)) - FilaCo
+- (**cjls**) cjc links a macro library on macOS without envsetup's SDKROOT (#361) - ([36eef08](https://github.com/ide4cj/cjls/commit/36eef08a34d5165d4cce8313a93c49b0d22da047)) - FilaCo
+- (**cjls**) give way before stdin's read blocks, so a request's spawn starts (#324) (#330) - ([e18df1f](https://github.com/ide4cj/cjls/commit/e18df1f1a79d43ba7bc49abc8aa7f100ae20bf52)) - FilaCo
+- (**cjls**) diagnostics pulled again after another file changes (D100) (#317) - ([46a87a6](https://github.com/ide4cj/cjls/commit/46a87a6c10935f59ff758c341e94e4c0ceb531a6)) - FilaCo
+- (**loupe**) an item the macro server's output replaces is checked in that output alone (D132) (#439) - ([a8f8ddd](https://github.com/ide4cj/cjls/commit/a8f8ddd2fbd1f0e781cb5199807b1f38b3ca3d64)) - FilaCo
+- (**loupe**) hover shows what @Derive/@DeriveExt add once the macro server expanded them (#430) - ([40c3b50](https://github.com/ide4cj/cjls/commit/40c3b50adb08ec7cdad7a5c185661aa12d00602f)) - FilaCo
+- (**loupe**) a file that is no test sees no constructor only a test imports (#429) - ([b3d8d1c](https://github.com/ide4cj/cjls/commit/b3d8d1c27a0ccb186eb41cd1bdfc867a6f4b8eb8)) - FilaCo
+- (**loupe**) a name after an enum's constructors lists the member keywords (#427) - ([eebb59f](https://github.com/ide4cj/cjls/commit/eebb59f180abf7a50c0c24d3f1ce0c7be4262c3e)) - FilaCo
+- (**loupe**) completion lists no operator function as a member (#419) - ([b5e8e00](https://github.com/ide4cj/cjls/commit/b5e8e006b36c519e9ab098be4c327cfd353a066a)) - FilaCo
+- (**loupe**) a type parameter's declaring name means the type parameter (#398) (#416) - ([5488198](https://github.com/ide4cj/cjls/commit/54881981a25fbca979890b84c908bc4a69c32241)) - FilaCo
+- (**loupe**) a parameter in a macro call is a parameter of its declaration (#413) - ([5a2c198](https://github.com/ide4cj/cjls/commit/5a2c198936415f56d62383747d28e21bb65cd715)) - FilaCo
+- (**loupe**) doc comments and macro calls on primary constructor parameters (#377, #357) (#380) - ([b4bf468](https://github.com/ide4cj/cjls/commit/b4bf468fecc47ee8b77867eafd0b397cbd08160a)) - FilaCo
+- (**loupe**) macro attributes keep nested brackets; go to definition picks the macro overload a call runs (#349) - ([3d69914](https://github.com/ide4cj/cjls/commit/3d69914b8a824d575de0870ee2e273e479ed3f09)) - FilaCo
+- (**loupe**) a file of no package finds lang items in the SDK's std.core, as it finds a builtin type's extends (#319) (#321) - ([4d6cbc6](https://github.com/ide4cj/cjls/commit/4d6cbc6b3883e18150114bdd864d2a076a5cf6a0)) - FilaCo
+- (**loupe**) the false mismatches the gate found on std's sources (#287) (#303) - ([677e146](https://github.com/ide4cj/cjls/commit/677e146330c1b987ab813cf29f42943101123885)) - FilaCo
+- (**macro_host**) each macro package built into its own project's macro-build (#338) (#408) - ([2600250](https://github.com/ide4cj/cjls/commit/2600250c0b5abf20096c074d7993128dfcb58e99)) - FilaCo
+- (**macro_server**) the server loads its own SDK's libraries before inherited ones (#310) (#414) - ([af391d7](https://github.com/ide4cj/cjls/commit/af391d7dd11ffb64ade997f9b210f164a18ac563)) - FilaCo
+- (**project_model**) the macros' error roots held by D108's gate, which merged before them (#343) - ([4f9021a](https://github.com/ide4cj/cjls/commit/4f9021a0d9ee244d6f9583218fb2c151aa508ee5)) - FilaCo
+- (**rope**) lineStart and lineEnd throw for a line outside the text (#426) - ([60a490c](https://github.com/ide4cj/cjls/commit/60a490ceaa525dd8eb3a03a6e7c7305d4b0d2110)) - FilaCo
+#### Documentation
+- (**adr**) semantic tokens are sent whole, no full/delta (D136) (#442) - ([b369d97](https://github.com/ide4cj/cjls/commit/b369d9772051501276c8d5491027c1d5fdb756c4)) - FilaCo
+- (**adr**) workspace/diagnostic is not offered (D135) (#440) - ([9ca2d12](https://github.com/ide4cj/cjls/commit/9ca2d12d19119c15fb1f83ad3d0b6b38a3fa0736)) - FilaCo
+- (**adr**) a client's version is the pinned cjls's minor with a patch of its own (D133) (#436) - ([4f4d1b8](https://github.com/ide4cj/cjls/commit/4f4d1b8fdbc7fc12cb54a0292348b028c80c95bf)) - FilaCo
+- (**adr**) an item a macro's output replaces is read through that output alone (D132) (#435) - ([05d7115](https://github.com/ide4cj/cjls/commit/05d711536f538f8178d961c7bdbb2385e4306d82)) - FilaCo
+- (**adr**) expression macros, std.unittest's included, asked with the file's calls and read while current (D117) (#374) - ([86f6fc7](https://github.com/ide4cj/cjls/commit/86f6fc717240f08791c5cdcbfeef6629c0e8af8f)) - FilaCo
+- (**adr**) a client's settings are made again when its pin moves, never checked against the cjls under test (D107) (#336) - ([69c1f7f](https://github.com/ide4cj/cjls/commit/69c1f7f9ae767523d903b08274e05fd18081783b)) - FilaCo
+- (**adr**) one release supports a window of SDKs (D94) (#304) - ([e75c37a](https://github.com/ide4cj/cjls/commit/e75c37a8dffc9ea4dc0e685cf6d42db05802ddf0)) - FilaCo
+- (**prior-art**) R9 tried again: it builds and answers, slowly (#22) (#329) - ([5305006](https://github.com/ide4cj/cjls/commit/5305006bedaef6e3f3971dfecec8bd70d6057a3f)) - FilaCo
+- the code style follows std where the compiler leaves a choice, checked by cjlint (D126) (#396) - ([82f875c](https://github.com/ide4cj/cjls/commit/82f875c8054c1ba15b4e439ecff571b1fc3b2e13)) - FilaCo
+#### Tests
+- (**cjls**) a macro past its deadline is tested on deadlines fired by hand (#373) - ([e445b21](https://github.com/ide4cj/cjls/commit/e445b218cd14799aa82fbfc332714a041606490d)) - FilaCo
+- (**e2e**) the overload of go to definition picked with an SDK or without (#320) - ([a321ae5](https://github.com/ide4cj/cjls/commit/a321ae52bb619bd2c0fefcac459ce060018fef98)) - FilaCo
+- (**loupe**) a trailing lambda goes to a named last parameter past ones of a default value (#280) (#392) - ([4296ee3](https://github.com/ide4cj/cjls/commit/4296ee3e8d7295ea8d7a56079beabd44ae366d2a)) - FilaCo
+- (**loupe**) a call the analysis cannot type in an argument leaves its candidate undecided (#281) (#364) - ([245ae2d](https://github.com/ide4cj/cjls/commit/245ae2d1b5e8a0c423c783d30abd8faba0dfda3b)) - FilaCo
+- (**loupe**) cases over a list of inputs are parameterized (#363) - ([bbc288a](https://github.com/ide4cj/cjls/commit/bbc288acb748ede42ef6de86d68eaf441f2e333d)) - FilaCo
+- (**loupe**) a result keeping its evicted tree is told by the tree it holds, not by a weak reference (#316) - ([60b7ac0](https://github.com/ide4cj/cjls/commit/60b7ac0c89155851e41acdfd841705654af5cd37)) - FilaCo
+- (**loupe**) a variadic function of a .cjo, called with its array's elements (#315) - ([1f1be1e](https://github.com/ide4cj/cjls/commit/1f1be1ee9adbc818d56fe92f558f3b309a70dd08)) - FilaCo
+- (**project_model**) this repository's error roots held to a count that only shrinks (D108) (#341) - ([a9ee0ec](https://github.com/ide4cj/cjls/commit/a9ee0ec4282ef985eaf0c3f3754ba5ad5ded7683)) - FilaCo
+#### Build system
+- (**githooks**) pre-push runs cjc behind CI's shim (#342) (#399) - ([05dca1d](https://github.com/ide4cj/cjls/commit/05dca1da4261f2df82ff36bc0028f70b62004063)) - FilaCo
+- (**githooks**) pre-push checks the format as CI's Format job does (#378) - ([dfcd812](https://github.com/ide4cj/cjls/commit/dfcd81205744a707024b0963c1a386b8b05c7837)) - FilaCo
+- pin the 1.3.0-alpha.20261014001050 nightly (#355) - ([b25c503](https://github.com/ide4cj/cjls/commit/b25c503cffdfcc033783cc65a0519d257b0248ba)) - FilaCo
+- the unused warnings off in every module, the dead names they found removed (D97) (#313) - ([61cc934](https://github.com/ide4cj/cjls/commit/61cc934371e3ec9531a1d2f5c00ba535e03f85d0)) - FilaCo
+#### Continuous Integration
+- (**coverage**) the gate is tagged out of the coverage run, fixtures for what it alone reached (D120) (#385) - ([42958b8](https://github.com/ide4cj/cjls/commit/42958b8d63a70a9b8822e857698323eac785b432)) - FilaCo
+- hold every Cangjie file to cjls fmt (#356) - ([d956089](https://github.com/ide4cj/cjls/commit/d9560896302a50c10bbbed878e2d0c5af5b2551e)) - FilaCo
+- build the binary and run the tests in two jobs side by side, each with its own cache (D96) (#312) - ([eed2d7a](https://github.com/ide4cj/cjls/commit/eed2d7a3a41750beb567d74184740d3ce774bb45)) - FilaCo
+#### Refactoring
+- (**macro_host**) the macro host is a library module, cjls keeps only the thread that drives it (#393) - ([27d1513](https://github.com/ide4cj/cjls/commit/27d1513421f9a4ac69b1ec5ac37889d89f479d96)) - FilaCo
+- (**platform**) hostArch is the one @When of the code, files named for what they hold (D113) (#354) - ([ecaa70a](https://github.com/ide4cj/cjls/commit/ecaa70ad87291ae01b6f7eccaf37a4f792e614ea)) - FilaCo
+
+- - -
+
 ## [v0.5.0](https://github.com/ide4cj/cjls/compare/326917edeee72edeba9216d1357c1a4deb626cb6..v0.5.0) - 2026-10-12
 #### Features
 - (**cjls**) an open document in no loaded package finds its own project (#265) (#291) - ([c4d0eb9](https://github.com/ide4cj/cjls/commit/c4d0eb9950d1fbbf7097f28c097148da88004dff)) - FilaCo
