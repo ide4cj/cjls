@@ -18,23 +18,19 @@ is a complete feature list.
 | Task | Read |
 |---|---|
 | Set up a machine, build, test, inspect coverage or troubleshoot | [Development](docs/development.md) |
-| Find subsystem boundaries and code entry points | [Layers](docs/design/00-layers.md) |
-| Add/change a handler, cancellation or document synchronization | [Contributing](CONTRIBUTING.md), [request slice](docs/design/01-request-slice.md) |
-| Change analysis, queries, positions or diagnostics | [Analysis rules](docs/design/02-analysis.md) |
-| Write or review Cangjie code | [Conventions](docs/design/03-conventions.md) |
-| Change grammar, generators, macros or platform code | The affected `modules/<name>/CLAUDE.md`, if present, plus its referenced rules |
-| Understand a choice or record a new constraint | [Docs index](docs/README.md), [ADRs](docs/adr/README.md), [prior art](docs/prior-art.md) |
+| Find architecture, design rules and code conventions | [Documentation index](docs/README.md) |
+| Add or change a handler | [Contributing](CONTRIBUTING.md) |
+| Understand a design choice | [ADRs](docs/adr/README.md), [prior art](docs/prior-art.md) |
 
-Module `CLAUDE.md` files are transitional technical notes: read the affected
-module's note before changing it. They are not automatically discovered Codex
-instructions. Do not load all module notes or ADRs for every task. Documentation
-migration is tracked in [#455](https://github.com/ide4cj/cjls/issues/455).
+Read the affected module's instructions and technical notes before editing it.
+Follow links relevant to the task; do not load all module notes or ADRs for every
+change.
 
 ## Essential boundaries
 
 - stdout is the LSP wire; diagnostics/logging go through the supplied logger,
   never a global logger. Wire structures use `@Serde[skipNone]`; absent fields
-  and JSON `null` are distinct ([codec notes](modules/stdxx/CLAUDE.md)).
+  and JSON `null` are distinct.
 - Handlers translate; analysis belongs in `loupe`. Read handlers use their snapshot
   for all data, including text for positions. A read-loop handler changes inputs
   and never runs a query or awaits an outbound request (S1–S3, S10).
@@ -54,9 +50,9 @@ a regression case that demonstrates the failure. Concurrency tests coordinate
 events deterministically (C13); performance claims use benchmarks on a quiet,
 identified machine (C10).
 
-Keep current constraints in `docs/design/` and reasons in ADRs. Preserve rule IDs
-and historical decisions; add documentation when behavior or a constraint changes,
+Keep current constraints in the design documents listed by the documentation
+index and reasons in ADRs. Preserve rule IDs and historical decisions; add
+documentation when behavior or a constraint changes,
 not an inventory of functions. Start an ADR with `python3 scripts/docs.py new-adr`;
 the ADR index is generated after merge, not edited in a PR (D56). Code, tests and
-the documents they invalidate change together. Do not redesign test tiers or
-generator workflows as an incidental documentation cleanup.
+the documents they invalidate change together.
