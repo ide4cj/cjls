@@ -132,7 +132,7 @@ python3 tests/corpora/fetch.py
 cjpm test --no-progress --timeout-each=2m --target-dir target/test
 ```
 
-The fetch populates `.corpora/` (JSONTestSuite, toml-test, SDK sources and Optics).
+The fetch populates `.corpora/` with the external sources pinned in the script.
 It is needed once per worktree and when a pin changes; missing corpora fail the
 tests that need them. Fetching needs network access. Full test dependencies are
 recorded by [fetch.py](../tests/corpora/fetch.py).
