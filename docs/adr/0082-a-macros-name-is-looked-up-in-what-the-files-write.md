@@ -1,6 +1,6 @@
 # ADR-0082: A macro's name is looked up in what the files write, never in what macros add
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

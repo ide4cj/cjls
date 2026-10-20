@@ -1,6 +1,6 @@
 # ADR-0096: CI builds the binary and runs the tests in two jobs side by side, each with the cache of its own target directory
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0027: what CI caches, and in which job
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0127: Completion outside a body reads the position by the marker's parent: a type's path, an import, a line no declaration took, a member's name
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0097: The unused warnings are off in every module
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

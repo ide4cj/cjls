@@ -1,6 +1,6 @@
 # ADR-0077: A type not known is an error the user made or one the analysis cannot find, and why; a type or package before a dot is no value
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0110: A speculative tree is built by reparsing the block around the cursor
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

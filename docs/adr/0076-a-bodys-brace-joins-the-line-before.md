@@ -1,6 +1,6 @@
 # ADR-0076: A body's `{` on a line of its own joins the line before
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0060: the line breaks are the author's
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0105: Semantic tokens augment the editor's grammar, in token types they share
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0019: a client that augments its grammar gets no token the grammar names as well; `this` and `super` are variables; a constructor and a constant are told by modifiers of their own
 
 ## Context

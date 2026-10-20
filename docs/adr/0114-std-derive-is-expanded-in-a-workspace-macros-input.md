@@ -1,6 +1,6 @@
 # ADR-0114: A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0098: a call of std's macro nested in a workspace call's input stays as written; children deeper than one level not checked
 
 ## Context

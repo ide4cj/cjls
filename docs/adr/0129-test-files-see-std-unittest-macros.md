@@ -1,6 +1,6 @@
 # ADR-0129: A `*_test.cj` file imports std.unittest and its macros with no line, as `cjc --test` does
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

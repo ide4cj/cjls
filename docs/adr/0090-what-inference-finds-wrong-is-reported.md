@@ -1,6 +1,6 @@
 # ADR-0090: What inference finds wrong is reported by expression, only between types known wholly, held to zero on this repository and to a shrinking list on std's sources
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

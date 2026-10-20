@@ -1,6 +1,6 @@
 # ADR-0131: A diagnostic report's resultId is a hash of its items and of the openings so far
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0014: a pull answers `unchanged` when the client's `previousResultId` is the report's; closes Q13 (#51) for `textDocument/diagnostic`
 
 ## Context

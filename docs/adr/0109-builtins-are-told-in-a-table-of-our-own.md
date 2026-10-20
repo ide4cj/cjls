@@ -1,6 +1,6 @@
 # ADR-0109: What the language builds in is told in our words, a table of our own
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0111: Completion lists from the speculative tree, ranks by scope, and leaves the detail to a resolve
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 
