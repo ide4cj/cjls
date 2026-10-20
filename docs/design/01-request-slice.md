@@ -126,11 +126,16 @@ dropped before `notify`.
 
 ### S10: Outbound request boundaries
 
-An outbound request goes by its spec, never a method string: `Client.request(spec, params,
-logger)` sent from the handler, answered on a `spawn`, a failure logged; one whose result is
-read, `Client.request(spec, params)`, awaited on a `spawn` of its own.
+An outbound request goes by its spec, never a method string. When only failure logging is
+needed, `Client.request(spec, params, logger)` handles the response on a `spawn` (D30).
+When the result is needed, `Client.request(spec, params)` returns the pending response.
 
-A handler never awaits one (D30).
+A read-loop (`Context`) handler never awaits that response: the response can only arrive
+through the same loop, so waiting would deadlock. Await it on a separate `spawn` instead.
+A `readonly` handler runs on its own thread and does not hold the read loop, so this
+deadlock restriction does not apply. Waiting there must still account for client
+cancellation and retries on a fresh snapshot (D122); a retry must not duplicate an
+outbound effect that is unsafe to repeat.
 
 ### S11: Open buffers own their text
 

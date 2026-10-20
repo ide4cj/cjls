@@ -289,6 +289,10 @@ never after an `isSome()`, which is an `if let`.
 The type is `?T`, never `Option<T>`; `None` is bare where the type is known (`var x: ?T = None`,
 not `Option<T>.None`).
 
+On a hot path, use `match` instead of `map`/`flatMap` when measurements show that the
+lambda-inlining limitation described in [C11](#c11-cross-package-hot-paths) matters.
+Elsewhere, prefer the concise forms above.
+
 ### C23: Bindings and type annotations
 
 `let` unless the binding is assigned again (`G.VAR.01`).
