@@ -76,8 +76,8 @@ To enable repository Git hooks once per clone:
 git config core.hooksPath .githooks
 ```
 
-`commit-msg` requires `cog`; `pre-push` builds, checks formatting, fetches corpora
-and runs the full Cangjie suite. They are [plain scripts](../.githooks).
+`commit-msg` requires `cog`; `pre-push` checks formatting, fetches corpora and
+runs the full Cangjie suite, which builds the tested packages. They are [plain scripts](../.githooks).
 
 ## Build and run
 
