@@ -33,8 +33,9 @@ their existing notes until E accounts for them.
 
 ## Format and verification
 
-S, A and C rules use a compact ID/topic table followed by named sections and
-paragraphs. L0–L7 remain a small layer table. The original canonical files and
+S, A and C rules use a compact ID/topic/kind table followed by named sections and
+paragraphs. L0–L7 remain a small layer table, with the boundary kind identified.
+The original canonical files and
 all ID numbers remain stable; `scripts/docs.py check` can still discover each
 ID from a table row. Rule wording is preserved apart from replacing C15's
 module-specific `CLAUDE.md` reference with documentation in general, and correcting
@@ -58,6 +59,16 @@ S10 scopes the deadlock prohibition to read-loop handlers and calls out cancella
 and retry concerns for waiting in a readonly handler. C22 prefers `?.` and `??`
 where they express the operation, reserves `map`/`flatMap` for other transformations,
 and links lambda use to C11's measured hot-path exception for inlining.
+
+The indexes now identify boundaries, design choices, conventions, measured
+choices, language constraints and SDK constraints. The documentation index defines
+these kinds and the evidence for revising them; classification does not relax a
+rule. It also distinguishes current rules from historical decision context.
+Architecture adds state ownership and background result flows alongside the
+request layers, with the acceptance checks and source entry points for each task.
+The readonly/effects/retry contract is deferred to
+[#462](https://github.com/ide4cj/cjls/issues/462); this PR describes current behavior
+without choosing a replacement handler API.
 
 The former analysis "Pieces" API table is replaced by conceptual prose and source
 navigation in Architecture. The former layer dependency overview is moved there;

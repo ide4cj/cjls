@@ -52,22 +52,25 @@ Only for a client that cannot pull (`initialize` found no `textDocument.diagnost
 
 ## Rules
 
-| # | Topic |
-|---|---|
-| S1 | [Write handlers change inputs](#s1-write-handlers-change-inputs) |
-| S2 | [Read from one snapshot](#s2-read-from-one-snapshot) |
-| S3 | [Handlers translate](#s3-handlers-translate) |
-| S4 | [Unknown documents](#s4-unknown-documents) |
-| S5 | [Cancellation escapes handlers](#s5-cancellation-escapes-handlers) |
-| S6 | [Handlers are not queries](#s6-handlers-are-not-queries) |
-| S7 | [Schedule after writes](#s7-schedule-after-writes) |
-| S8 | [One diagnostics source](#s8-one-diagnostics-source) |
-| S9 | [Discard stale pushes](#s9-discard-stale-pushes) |
-| S10 | [Outbound request boundaries](#s10-outbound-request-boundaries) |
-| S11 | [Open buffers own their text](#s11-open-buffers-own-their-text) |
-| S12 | [Batch changes into revisions](#s12-batch-changes-into-revisions) |
-| S13 | [Catch failures at thread boundaries](#s13-catch-failures-at-thread-boundaries) |
-| S14 | [Background writes use the loop](#s14-background-writes-use-the-loop) |
+Constraint kinds and how to revise them are defined in the
+[documentation index](../README.md#kinds-of-constraints).
+
+| # | Topic | Kind |
+|---|---|---|
+| S1 | [Write handlers change inputs](#s1-write-handlers-change-inputs) | Boundary |
+| S2 | [Read from one snapshot](#s2-read-from-one-snapshot) | Boundary |
+| S3 | [Handlers translate](#s3-handlers-translate) | Boundary |
+| S4 | [Unknown documents](#s4-unknown-documents) | Design choice |
+| S5 | [Cancellation escapes handlers](#s5-cancellation-escapes-handlers) | Boundary |
+| S6 | [Handlers are not queries](#s6-handlers-are-not-queries) | Design choice |
+| S7 | [Schedule after writes](#s7-schedule-after-writes) | Boundary |
+| S8 | [One diagnostics source](#s8-one-diagnostics-source) | Design choice |
+| S9 | [Discard stale pushes](#s9-discard-stale-pushes) | Boundary |
+| S10 | [Outbound request boundaries](#s10-outbound-request-boundaries) | Boundary |
+| S11 | [Open buffers own their text](#s11-open-buffers-own-their-text) | Boundary |
+| S12 | [Batch changes into revisions](#s12-batch-changes-into-revisions) | Design choice |
+| S13 | [Catch failures at thread boundaries](#s13-catch-failures-at-thread-boundaries) | Boundary / SDK constraint |
+| S14 | [Background writes use the loop](#s14-background-writes-use-the-loop) | Boundary |
 
 ### S1: Write handlers change inputs
 
@@ -136,6 +139,9 @@ A `readonly` handler runs on its own thread and does not hold the read loop, so 
 deadlock restriction does not apply. Waiting there must still account for client
 cancellation and retries on a fresh snapshot (D122); a retry must not duplicate an
 outbound effect that is unsafe to repeat.
+
+The broader contract for readonly effects and retries is under review in
+[#462](https://github.com/ide4cj/cjls/issues/462).
 
 ### S11: Open buffers own their text
 

@@ -65,7 +65,10 @@ overwrite them. Background work returns changes through the loop's write boundar
 `ServerState` owns the VFS, open documents, encoding and root `AnalysisDatabase`.
 `ServerSnapshot` holds a snapshot of that database and the request's view of
 server data. Neither server type is itself a database. Distinct handler context
-types prevent a read handler from writing at compile time (D8, D9).
+types give a read handler a snapshot instead of mutable `ServerState` (D8, D9).
+They do not prohibit external effects such as file writes or requests to the
+client. The contract for such effects and automatic retries is tracked separately
+in [#462](https://github.com/ide4cj/cjls/issues/462).
 
 A write cancels queries in flight and waits for them before updating inputs. A
 stale read request runs again on a fresh snapshot; client cancellation ends it
@@ -74,6 +77,55 @@ cancellation inside a handler or query. Diagnostics pushes have their own snapsh
 and document generations, so an older push cannot overwrite a newer one. Clients
 that pull diagnostics never receive pushes. See [cancellation](design/01-request-slice.md#cancellation-d8)
 and [S1–S14](design/01-request-slice.md#rules).
+
+## State ownership and background work
+
+The request layers describe calls down into analysis. Execution also has feedback:
+workers produce new inputs, a write invalidates snapshots, and the server schedules
+work for the resulting state. The arrows below show execution and data flow, not
+module dependencies.
+
+```mermaid
+flowchart TD
+    editor[Editor messages] --> loop[Loop: serialize state access]
+    loop --> state[ServerState: VFS, open documents, root database]
+    state -->|snapshot| reads[Read request workers]
+    loop -->|start load| loader[Project and disk workers]
+    loader -->|Loop.write: project and file batches| loop
+    loop -->|wake after files change| macros[Macro host worker]
+    state -->|snapshot and analysis requests| macros
+    macros -->|Loop.write: libraries and outputs| loop
+    loop -->|schedule after writes| diagnostics[Diagnostics workers]
+    state -->|snapshot| diagnostics
+    reads -->|response| editor
+    diagnostics -->|publish if document generation is current| editor
+    state -->|input write| revision[calca: cancel readers, wait, update revision]
+    revision -.->|stale snapshot: retry request| reads
+    revision -.->|stale snapshot: drop push| diagnostics
+```
+
+`Loop` serializes mutable server access under one lock: both exclusive handlers
+and background `Loop.write` calls use it, and snapshots are taken under it.
+Background commits therefore happen between handled messages; they need not run
+on the read-loop thread. `ServerState` owns the mutable server data, and calca owns
+revision and dependency validity. Workers use snapshots or copied task inputs and
+return changes through this write boundary rather than mutating the VFS or root
+database directly ([S14](design/01-request-slice.md#s14-background-writes-use-the-loop)).
+
+| Work | Who starts it | Who accepts the result and checks freshness |
+|---|---|---|
+| Read request | `Server.onRequest`, with a snapshot and request token | Server answers; stale snapshots retry, client cancellation ends the request |
+| Project/disk load | Workspace handlers through `Loop.start` | Load commits use `Loop.write`; `ServerState` checks the load id and preserves open buffers |
+| Macro work | Workspace setup starts the host; `Loop.afterWrite` wakes it when files change | Host rounds read snapshots and commit outputs through `Loop.write`, matched by stable call keys; an edit ends a round and later rounds ask again |
+| Diagnostics push | `Loop.afterWrite`, for clients that cannot pull | `DiagnosticsPush` computes from a snapshot and checks the document's publish generation before sending |
+
+Freshness is specific to each task: a serialized write alone does not establish
+that a background result is current. The [request rules](design/01-request-slice.md)
+define cancellation and publication requirements. Start in
+[`Loop`](../modules/cjls/src/server/loop.cj),
+[`workspace loading`](../modules/cjls/src/handlers/workspace.cj),
+[`macro scheduling`](../modules/cjls/src/macro_host/host.cj) and
+[`diagnostics push`](../modules/cjls/src/server/push.cj) when changing these paths.
 
 ## Analysis and incremental state
 

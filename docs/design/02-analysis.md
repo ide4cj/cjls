@@ -6,44 +6,47 @@ constrain changes to that design; they are not a list of analysis features.
 
 ## Rules
 
-| # | Topic |
-|---|---|
-| A1 | [Concrete database handle](#a1-concrete-database-handle) |
-| A2 | [Entity query keys](#a2-entity-query-keys) |
-| A3 | [Position dependent API](#a3-position-dependent-api) |
-| A4 | [Write inputs on the root](#a4-write-inputs-on-the-root) |
-| A5 | [Deleted files retain identity](#a5-deleted-files-retain-identity) |
-| A6 | [UTF-8 byte offsets](#a6-utf-8-byte-offsets) |
-| A7 | [Line endings](#a7-line-endings) |
-| A8 | [Analysis knows no LSP](#a8-analysis-knows-no-lsp) |
-| A9 | [Interners and collected identities](#a9-interners-and-collected-identities) |
-| A10 | [Equatable query results](#a10-equatable-query-results) |
-| A11 | [Diagnostics belong to results](#a11-diagnostics-belong-to-results) |
-| A12 | [Preserve diagnostic ranges](#a12-preserve-diagnostic-ranges) |
-| A13 | [Do not retain syntax trees](#a13-do-not-retain-syntax-trees) |
-| A14 | [Meaningful cycle fallbacks](#a14-meaningful-cycle-fallbacks) |
-| A15 | [Bound syntax retention during sweeps](#a15-bound-syntax-retention-during-sweeps) |
-| A16 | [Bound disk loading](#a16-bound-disk-loading) |
-| A17 | [Input durability](#a17-input-durability) |
-| A18 | [Package membership and visibility](#a18-package-membership-and-visibility) |
-| A19 | [Stable item identity](#a19-stable-item-identity) |
-| A20 | [Canonical name text](#a20-canonical-name-text) |
-| A21 | [Do not swallow query unwinds](#a21-do-not-swallow-query-unwinds) |
-| A22 | [Resolution layers](#a22-resolution-layers) |
-| A23 | [Declaration identity](#a23-declaration-identity) |
-| A24 | [Signature type dependencies](#a24-signature-type-dependencies) |
-| A25 | [Local body inference](#a25-local-body-inference) |
-| A26 | [Call local type variables](#a26-call-local-type-variables) |
-| A27 | [Isolate overload candidates](#a27-isolate-overload-candidates) |
-| A28 | [Language items](#a28-language-items) |
-| A29 | [Source maps for desugaring](#a29-source-maps-for-desugaring) |
-| A30 | [Errors and analysis gaps](#a30-errors-and-analysis-gaps) |
-| A31 | [Written and expanded scopes](#a31-written-and-expanded-scopes) |
-| A32 | [Conservative diagnostics and gates](#a32-conservative-diagnostics-and-gates) |
-| A33 | [Conditional compilation](#a33-conditional-compilation) |
-| A34 | [Common and specific declarations](#a34-common-and-specific-declarations) |
-| A35 | [Reading macro expansions](#a35-reading-macro-expansions) |
-| A36 | [Package navigation](#a36-package-navigation) |
+Constraint kinds and how to revise them are defined in the
+[documentation index](../README.md#kinds-of-constraints).
+
+| # | Topic | Kind |
+|---|---|---|
+| A1 | [Concrete database handle](#a1-concrete-database-handle) | Design choice |
+| A2 | [Entity query keys](#a2-entity-query-keys) | Design choice |
+| A3 | [Position dependent API](#a3-position-dependent-api) | Design choice |
+| A4 | [Write inputs on the root](#a4-write-inputs-on-the-root) | Boundary |
+| A5 | [Deleted files retain identity](#a5-deleted-files-retain-identity) | Design choice |
+| A6 | [UTF-8 byte offsets](#a6-utf-8-byte-offsets) | Boundary |
+| A7 | [Line endings](#a7-line-endings) | Language constraint |
+| A8 | [Analysis knows no LSP](#a8-analysis-knows-no-lsp) | Boundary |
+| A9 | [Interners and collected identities](#a9-interners-and-collected-identities) | Design choice |
+| A10 | [Equatable query results](#a10-equatable-query-results) | Design choice |
+| A11 | [Diagnostics belong to results](#a11-diagnostics-belong-to-results) | Boundary |
+| A12 | [Preserve diagnostic ranges](#a12-preserve-diagnostic-ranges) | Boundary |
+| A13 | [Do not retain syntax trees](#a13-do-not-retain-syntax-trees) | Boundary |
+| A14 | [Meaningful cycle fallbacks](#a14-meaningful-cycle-fallbacks) | Design choice |
+| A15 | [Bound syntax retention during sweeps](#a15-bound-syntax-retention-during-sweeps) | Boundary |
+| A16 | [Bound disk loading](#a16-bound-disk-loading) | Design choice |
+| A17 | [Input durability](#a17-input-durability) | Design choice |
+| A18 | [Package membership and visibility](#a18-package-membership-and-visibility) | Language constraint / Design choice |
+| A19 | [Stable item identity](#a19-stable-item-identity) | Design choice |
+| A20 | [Canonical name text](#a20-canonical-name-text) | Language constraint |
+| A21 | [Do not swallow query unwinds](#a21-do-not-swallow-query-unwinds) | Boundary |
+| A22 | [Resolution layers](#a22-resolution-layers) | Boundary |
+| A23 | [Declaration identity](#a23-declaration-identity) | Design choice |
+| A24 | [Signature type dependencies](#a24-signature-type-dependencies) | Design choice |
+| A25 | [Local body inference](#a25-local-body-inference) | Design choice |
+| A26 | [Call local type variables](#a26-call-local-type-variables) | Boundary |
+| A27 | [Isolate overload candidates](#a27-isolate-overload-candidates) | Boundary |
+| A28 | [Language items](#a28-language-items) | Language constraint / Design choice |
+| A29 | [Source maps for desugaring](#a29-source-maps-for-desugaring) | Design choice |
+| A30 | [Errors and analysis gaps](#a30-errors-and-analysis-gaps) | Design choice |
+| A31 | [Written and expanded scopes](#a31-written-and-expanded-scopes) | Design choice |
+| A32 | [Conservative diagnostics and gates](#a32-conservative-diagnostics-and-gates) | Design choice |
+| A33 | [Conditional compilation](#a33-conditional-compilation) | Language constraint |
+| A34 | [Common and specific declarations](#a34-common-and-specific-declarations) | Language constraint |
+| A35 | [Reading macro expansions](#a35-reading-macro-expansions) | Design choice |
+| A36 | [Package navigation](#a36-package-navigation) | Design choice |
 
 ### A1: Concrete database handle
 

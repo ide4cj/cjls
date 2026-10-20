@@ -12,6 +12,40 @@
 How to set up, build, test and prepare a review: [Development](development.md).
 Agent working instructions: [AGENTS.md](../AGENTS.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
+## Current rules and decision history
+
+`design/` is the maintained source of current constraints. Architecture explains
+how the pieces fit together; ADRs preserve the context, alternatives and reasons
+at the time of a decision. An old ADR may contain a limitation that later work
+removed, even when its main decision still applies. For example, D6's handler/query
+boundary remains in S6, while D17 and D18 replaced its original no-LRU/no-GC premise.
+
+Use source and tests to verify implemented behavior. If they disagree with a rule,
+record and reconcile the mismatch; neither an old ADR nor existing code silently
+changes the intended contract. A `proposed` ADR is not an accepted requirement or
+proof of missing functionality. The [reconciliation queue](design/adr-status-review.md)
+records the outstanding status review; preserve historical ADRs and update current
+rules together with any accepted change of contract.
+
+## Kinds of constraints
+
+The design indexes identify each rule's basis. Every rule still applies within
+its stated scope; the kind explains what evidence a revision needs. A rule can
+have more than one basis.
+
+| Kind | Meaning | Reconsider when |
+|---|---|---|
+| Boundary | Ownership, protocol or correctness invariant | A design change preserves the invariant or explicitly replaces it, with tests |
+| Design choice | The current decomposition, policy or representation | Alternatives and consequences justify an architectural decision |
+| Convention | A consistent way to express code | A repository-wide convention or documented exception is agreed |
+| Measured choice | A choice supported by performance evidence | Relevant benchmarks on the identified platform/toolchain support a change |
+| Language constraint | Required by language or compiler semantics | The relevant language/toolchain behavior changes and is verified |
+| SDK constraint | A workaround or restriction of the supported SDK/runtime | A focused probe on the supported SDK shows the restriction no longer applies |
+
+Kinds do not turn timings into universal guarantees or SDK workarounds into
+permanent architecture. Keep measurements and affected versions with their
+evidence; keep the current requirement and its exceptions in the rule.
+
 ## When a change writes here
 
 Only when it tells the next reader something the docs and the code do not already say. A change that follows the rules written here writes nothing: a new read request along the slice (S1–S6), a new API function of `loupe`, a new query keyed by an entity.

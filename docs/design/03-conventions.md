@@ -3,39 +3,42 @@
 Use these with the [architecture overview](../architecture.md) and
 [development checks](../development.md). Each ID remains stable when a rule moves.
 
-| # | Topic |
-|---|---|
-| C1 | [Implicit constructors](#c1-implicit-constructors) |
-| C2 | [Primary constructors](#c2-primary-constructors) |
-| C3 | [Constructor fields](#c3-constructor-fields) |
-| C4 | [Parameter order](#c4-parameter-order) |
-| C5 | [Blocking foreign calls](#c5-blocking-foreign-calls) |
-| C6 | [URI and path handling](#c6-uri-and-path-handling) |
-| C7 | [Test pyramid](#c7-test-pyramid) |
-| C8 | [LSP imports and aliases](#c8-lsp-imports-and-aliases) |
-| C9 | [Shared maps and interners](#c9-shared-maps-and-interners) |
-| C10 | [Benchmark synchronization choices](#c10-benchmark-synchronization-choices) |
-| C11 | [Cross package hot paths](#c11-cross-package-hot-paths) |
-| C12 | [Hot enum comparisons](#c12-hot-enum-comparisons) |
-| C13 | [Deterministic concurrency tests](#c13-deterministic-concurrency-tests) |
-| C14 | [Exception class names](#c14-exception-class-names) |
-| C15 | [Explain behavior and reasons](#c15-explain-behavior-and-reasons) |
-| C16 | [Failures and answer values](#c16-failures-and-answer-values) |
-| C17 | [Platform source sets](#c17-platform-source-sets) |
-| C18 | [Style precedence](#c18-style-precedence) |
-| C19 | [Names](#c19-names) |
-| C20 | [Boolean names and arguments](#c20-boolean-names-and-arguments) |
-| C21 | [Accessors](#c21-accessors) |
-| C22 | [Option handling](#c22-option-handling) |
-| C23 | [Bindings and type annotations](#c23-bindings-and-type-annotations) |
-| C24 | [Collections](#c24-collections) |
-| C25 | [Text construction](#c25-text-construction) |
-| C26 | [Lambdas and named arguments](#c26-lambdas-and-named-arguments) |
-| C27 | [Visibility](#c27-visibility) |
-| C28 | [Imports](#c28-imports) |
-| C29 | [Documentation comments](#c29-documentation-comments) |
-| C30 | [Narrow exceptions](#c30-narrow-exceptions) |
-| C31 | [Types and function size](#c31-types-and-function-size) |
+Constraint kinds and how to revise them are defined in the
+[documentation index](../README.md#kinds-of-constraints).
+
+| # | Topic | Kind |
+|---|---|---|
+| C1 | [Implicit constructors](#c1-implicit-constructors) | Convention |
+| C2 | [Primary constructors](#c2-primary-constructors) | Convention |
+| C3 | [Constructor fields](#c3-constructor-fields) | Convention |
+| C4 | [Parameter order](#c4-parameter-order) | Language constraint |
+| C5 | [Blocking foreign calls](#c5-blocking-foreign-calls) | Boundary / SDK constraint |
+| C6 | [URI and path handling](#c6-uri-and-path-handling) | Design choice |
+| C7 | [Test pyramid](#c7-test-pyramid) | Design choice |
+| C8 | [LSP imports and aliases](#c8-lsp-imports-and-aliases) | Convention / Language constraint |
+| C9 | [Shared maps and interners](#c9-shared-maps-and-interners) | Measured choice |
+| C10 | [Benchmark synchronization choices](#c10-benchmark-synchronization-choices) | Measured choice |
+| C11 | [Cross package hot paths](#c11-cross-package-hot-paths) | Measured choice / SDK constraint |
+| C12 | [Hot enum comparisons](#c12-hot-enum-comparisons) | Measured choice |
+| C13 | [Deterministic concurrency tests](#c13-deterministic-concurrency-tests) | Design choice |
+| C14 | [Exception class names](#c14-exception-class-names) | SDK constraint |
+| C15 | [Explain behavior and reasons](#c15-explain-behavior-and-reasons) | Convention |
+| C16 | [Failures and answer values](#c16-failures-and-answer-values) | Design choice |
+| C17 | [Platform source sets](#c17-platform-source-sets) | Design choice |
+| C18 | [Style precedence](#c18-style-precedence) | Convention |
+| C19 | [Names](#c19-names) | Convention |
+| C20 | [Boolean names and arguments](#c20-boolean-names-and-arguments) | Convention |
+| C21 | [Accessors](#c21-accessors) | Convention |
+| C22 | [Option handling](#c22-option-handling) | Convention |
+| C23 | [Bindings and type annotations](#c23-bindings-and-type-annotations) | Convention |
+| C24 | [Collections](#c24-collections) | Convention |
+| C25 | [Text construction](#c25-text-construction) | Convention |
+| C26 | [Lambdas and named arguments](#c26-lambdas-and-named-arguments) | Convention |
+| C27 | [Visibility](#c27-visibility) | Convention |
+| C28 | [Imports](#c28-imports) | Convention |
+| C29 | [Documentation comments](#c29-documentation-comments) | Convention |
+| C30 | [Narrow exceptions](#c30-narrow-exceptions) | Convention |
+| C31 | [Types and function size](#c31-types-and-function-size) | Convention |
 
 ### C1: Implicit constructors
 
