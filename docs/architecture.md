@@ -1,12 +1,9 @@
 # Architecture
 
-cjls separates the editor protocol from reusable language analysis. Start with the
-flow below when changing a feature; read the linked rules before changing a
-boundary. [Development](development.md) covers setup and verification, and the
-[ADR archive](adr/README.md) records why choices were made. Current behavior is
-specified by the design rules and source; an ADR's historical status is not a
-feature availability flag. [Status reconciliation](design/adr-status-review.md)
-records implementation evidence where that status still says `proposed`.
+cjls separates the editor protocol from reusable language analysis. This overview
+connects the flows and source entry points; [design rules](README.md#design) hold
+the constraints, [ADRs](adr/README.md) their reasons, and
+[Development](development.md) setup and verification.
 
 ## Modules and boundaries
 
@@ -35,12 +32,9 @@ flowchart TD
     analysis --> text[rope and index_map: text and identities]
 ```
 
-This shows responsibility boundaries, not every manifest dependency. Read the
-module's `cjpm.toml` for its exact dependencies. `platform`, on std alone, supplies
-common declarations with OS-specific implementations for modules that need them
+Exact dependencies are in each module's `cjpm.toml`. `platform`, on std alone,
+supplies common declarations with OS-specific implementations
 ([C17](design/03-conventions.md#c17-platform-source-sets), D101).
-`jsonrpc` uses `stdxx` and its JSON support (`fjson`, `fnum`); project loading uses
-`ftoml`. These utilities do not know language analysis.
 
 The [layer map](design/00-layers.md) names L0–L7. Across the handler/analysis
 boundary, URIs, LSP positions and negotiated encodings become `FileId`, UTF-8 byte
@@ -49,12 +43,10 @@ snapshot as the answer ([D5](adr/0005-loupe-knows-no-lsp.md)).
 
 ## A read request and an edit
 
-For `textDocument/documentSymbol`, the connection frames a request and assigns a
-cancellation token. On the read loop, the server checks lifecycle and routing,
-then takes a snapshot linked to that token. A worker decodes the parameters,
-translates the URI, calls analysis, converts ranges using the snapshot's rope,
-and sends the result. The [request slice](design/01-request-slice.md) follows each
-step and gives the rules for failures, diagnostics and outbound requests.
+For `textDocument/documentSymbol`, the read loop checks lifecycle and routing and
+takes a snapshot linked to the request's cancellation token. A worker decodes the
+parameters, translates the URI, calls analysis and converts the result using the
+snapshot's rope. The [request slice](design/01-request-slice.md) gives each step.
 
 `textDocument/didChange` instead runs exclusively on the read loop, in arrival
 order. It applies edits to the open buffer in the negotiated encoding, folds VFS
@@ -70,20 +62,15 @@ They do not prohibit external effects such as file writes or requests to the
 client. The contract for such effects and automatic retries is tracked separately
 in [#462](https://github.com/ide4cj/cjls/issues/462).
 
-A write cancels queries in flight and waits for them before updating inputs. A
-stale read request runs again on a fresh snapshot; client cancellation ends it
-with `RequestCancelled`, and a closed connection drops the answer. Do not catch
-cancellation inside a handler or query. Diagnostics pushes have their own snapshot
-and document generations, so an older push cannot overwrite a newer one. Clients
-that pull diagnostics never receive pushes. See [cancellation](design/01-request-slice.md#cancellation-d8)
-and [S1–S14](design/01-request-slice.md#rules).
+A write cancels queries in flight and waits before updating inputs. A stale read
+request retries on a fresh snapshot; client cancellation ends it. Diagnostics
+pushes drop stale work instead. See [cancellation](design/01-request-slice.md#cancellation-d8)
+and the freshness checks below.
 
 ## State ownership and background work
 
-The request layers describe calls down into analysis. Execution also has feedback:
-workers produce new inputs, a write invalidates snapshots, and the server schedules
-work for the resulting state. The arrows below show execution and data flow, not
-module dependencies.
+Workers feed new inputs back into analysis; writes invalidate snapshots and
+schedule more work. These arrows show execution and data flow.
 
 ```mermaid
 flowchart TD
@@ -119,9 +106,7 @@ database directly ([S14](design/01-request-slice.md#s14-background-writes-use-th
 | Macro work | Workspace setup starts the host; `Loop.afterWrite` wakes it when files change | Host rounds read snapshots and commit outputs through `Loop.write`, matched by stable call keys; an edit ends a round and later rounds ask again |
 | Diagnostics push | `Loop.afterWrite`, for clients that cannot pull | `DiagnosticsPush` computes from a snapshot and checks the document's publish generation before sending |
 
-Freshness is specific to each task: a serialized write alone does not establish
-that a background result is current. The [request rules](design/01-request-slice.md)
-define cancellation and publication requirements. Start in
+Serializing a write does not by itself make its result current. Start in
 [`Loop`](../modules/cjls/src/server/loop.cj),
 [`workspace loading`](../modules/cjls/src/handlers/workspace.cj),
 [`macro scheduling`](../modules/cjls/src/macro_host/host.cj) and
@@ -130,18 +115,12 @@ define cancellation and publication requirements. Start in
 ## Analysis and incremental state
 
 Inside `loupe`, dependencies point down: API → HIR → syntax → database → VFS.
-Packages describe analysis layers; a feature is a file in the API package. Two
-features share a lower-level query rather than calling each other. The API offers
-plain functions over queries, including position-dependent questions; tracked
-queries are keyed by entities so arbitrary cursor positions do not become
-long-lived memo keys ([A1–A3](design/02-analysis.md#rules)).
+Features share lower-level queries. Position-dependent API functions stay plain;
+tracked queries use entity keys ([A1–A3](design/02-analysis.md#rules)).
 
-The VFS maps stable file identities to optional immutable ropes and folds pending
-changes. Its path interner is the thread-safe part. `SourceFile` inputs remain
-allocated when files disappear; deleted text becomes empty. Project loading
-normalizes different project formats into one model and lowers it into project,
-module and package inputs. Membership comes from the project, not a scan of file
-text. Input durability distinguishes workspace code, dependencies and std.
+The VFS folds text changes under stable file identities. Project loading lowers
+one normalized model into project, module and package inputs. File membership and
+durability come from that model ([A5, A17–A18](design/02-analysis.md#rules)).
 
 Binary packages are inputs of their `.cjo` bytes outside the VFS (D38); source
 files attached to a binary are navigation destinations and do not create a second
@@ -150,30 +129,23 @@ item model. Binary views borrow their input bytes: tracked results keep a stable
 binary item identity and reopen the declaration instead of retaining `cjo.Decl`.
 
 Resolution proceeds through file items, package scopes, signatures, bodies and
-inference. Item summaries omit bodies and ranges so editing a body does not
-invalidate package scope. Stable item and declaration IDs connect revisions;
-syntax pointers recover nodes only when needed. Equatable query results allow
-calca to backdate unchanged answers. Diagnostics are values in the query that
-finds them; the API collects, locates and sorts them, without side accumulation.
-The [analysis rules](design/02-analysis.md) cover memory bounds, cycle meanings,
-type inference, unknown types, configuration and macro expansion navigation.
+inference. Item summaries omit bodies and ranges so body edits can leave package
+scope unchanged; stable identities and equal query results limit recomputation.
+Diagnostics travel as query results, collected and located by the API. The
+[analysis rules](design/02-analysis.md) define these contracts.
 
 ## Syntax and generated code
 
-`ginkgo` supplies immutable green trees, syntax views, pointers and parsing
-infrastructure. `cjsyntax` supplies Cangjie's lexer and grammar, error recovery and
-typed AST views. Parsing preserves the whole text, including errors, so incomplete
-editor buffers remain usable. `loupe.syntax` makes parsing an incremental query
-with a bounded cache. Retaining a node retains its tree: other tracked results
-keep pointers or summaries, not syntax nodes ([A13](design/02-analysis.md#a13-do-not-retain-syntax-trees)).
+`ginkgo` supplies tree infrastructure; `cjsyntax` the lexer, grammar, recovery and
+typed views. Lossless parsing keeps incomplete buffers usable. `loupe.syntax`
+memoizes parsing with a bounded cache; other tracked results must not retain its
+trees ([A13](design/02-analysis.md#a13-do-not-retain-syntax-trees)).
 
 `cjformat` formats syntax without analysis; the server reaches it through `loupe`,
 and `cjls fmt` can use it on text. Generated syntax kinds and AST views come from
 `syntax_codegen` (D10), LSP types and adapters from `lsp_codegen`, and binary views
 and protocol writers from `fbs_codegen` (D37, D87). Change generator inputs and
-verify the consuming package; use the [generator procedures](development.md) and
-module notes for commands. Generated files are not a second place to maintain a
-schema or grammar.
+verify the consuming package; see [generator procedures](development.md).
 
 ## Macros and protocol isolation
 
@@ -213,6 +185,4 @@ document the additional client-facing contracts.
 | Macro input and output boundaries | [analysis requests](../modules/loupe/src/hir/server_macro.cj), [output values](../modules/loupe/src/db/macro_output.cj), [host](../modules/macro_host/src/), [SDK protocol](../modules/macro_server/src/) |
 | Analysis fixtures and SDK prerequisites | [analysis testing](design/02-analysis.md#analysis-tests), [fixture helpers](../modules/loupe/src/fixture/) |
 
-These are navigation points, not an API catalog. Find current symbols and behavior
-in the source and neighboring tests. The [loupe migration record](design/loupe-migration.md)
-accounts for the module-note pilot before the other module groups are migrated.
+Find current symbols and behavior in the source and neighboring tests.

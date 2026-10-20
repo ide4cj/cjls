@@ -14,18 +14,12 @@ Agent working instructions: [AGENTS.md](../AGENTS.md). How to add a handler: [CO
 
 ## Current rules and decision history
 
-`design/` is the maintained source of current constraints. Architecture explains
-how the pieces fit together; ADRs preserve the context, alternatives and reasons
-at the time of a decision. An old ADR may contain a limitation that later work
-removed, even when its main decision still applies. For example, D6's handler/query
-boundary remains in S6, while D17 and D18 replaced its original no-LRU/no-GC premise.
-
-Use source and tests to verify implemented behavior. If they disagree with a rule,
-record and reconcile the mismatch; neither an old ADR nor existing code silently
-changes the intended contract. A `proposed` ADR is not an accepted requirement or
-proof of missing functionality. The [reconciliation queue](design/adr-status-review.md)
-records the outstanding status review; preserve historical ADRs and update current
-rules together with any accepted change of contract.
+`design/` holds current constraints; ADRs record their reasons and original context.
+An old premise may no longer apply: S6 keeps D6's handler/query boundary, while
+D17 and D18 replaced its no-LRU/no-GC premise. Check behavior in source and tests;
+reconcile a mismatch with a rule explicitly. A `proposed` ADR is not an accepted
+requirement or proof of missing functionality. Record review evidence in the PR
+and unresolved work in issues, rather than maintaining a second decision queue.
 
 ## Kinds of constraints
 
