@@ -8,7 +8,8 @@
 | [prior-art.md](prior-art.md) | the servers cjls is measured against, and what comes from which | updated when a reference changes, or a part of cjls starts following one |
 | [lsp-extensions.md](lsp-extensions.md) | the methods under `cjls/`, beyond LSP (D15) | changed in the same PR as the method; what a client needs to call it |
 
-How to build, test and commit: [CLAUDE.md](../CLAUDE.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
+How to set up, build, test and prepare a review: [Development](development.md).
+Agent working instructions: [AGENTS.md](../AGENTS.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
 
 ## When a change writes here
 
@@ -22,7 +23,7 @@ Only when it tells the next reader something the docs and the code do not alread
 | nothing | the list of what exists (requests served, API functions, fields): that is the code (`handlers/router.cj`, `loupe`'s package) |
 | nothing | the story of the PR, its measurements included: the PR description, with the `@Bench` left beside the code; a rule or ADR cites the conclusion and the bench's name |
 
-One fact, one place: a rule is stated once, in `design/`; an ADR says why, CLAUDE.md and CONTRIBUTING.md link to both rather than repeat them.
+One fact, one place: a rule is stated once, in `design/`; an ADR says why, AGENTS.md and CONTRIBUTING.md link to both rather than repeat them.
 
 ## Design
 
