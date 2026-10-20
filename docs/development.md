@@ -263,7 +263,7 @@ a change. The future versioned SDK registry/probes are tracked in #332.
 
 | Constraint | Reason / reference |
 |---|---|
-| Libraries use static output and static stdx; `cjls` links `--static` | stdx extensions fail across shared-library boundaries; the server must run without SDK env |
+| `cjls` links `--static` | The server must run without SDK env |
 | Per-target release `-O2`, except `platform`'s `-O1` | `-g` builds must stay unoptimized; CJMP at `-O2` breaks linking (D51, D102) |
 | Keep module/root `-Woff unused`; other warnings remain enabled | Existing generated/macro warnings; `-m` reads module settings (D97) |
 | No LTO, `-dead_strip`, or `std.ast` reachable from runtime packages | Runtime failures or linking the compiler parser into the server (D20) |
@@ -286,7 +286,6 @@ building a consumer, not only the macro package. See
 | Tests fail naming a missing corpus | Run `tests/corpora/fetch.py` in this worktree |
 | Source changes appear ignored | cjpm tracks mtimes, not content; `cjpm clean` is needed after restoring old mtimes |
 | SDK change uses stale objects | Root `build.cj` detects compiler version changes (D27); check selected compiler |
-| Runtime abort says `F funcTable is nullptr` | Static output/linkage and stdx compatibility |
 
 `*.cj.macrocall` and `lib-macro_*.dylib` beside sources are build output: do not edit
 or commit them. Clean only the current worktree's outputs when needed.
