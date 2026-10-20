@@ -86,8 +86,11 @@ Conversion lives in `from_proto.cj` / `to_proto.cj`.
 
 ### S4: Unknown documents
 
-Unknown document → empty answer (`null`, `[]`, an empty report); `RpcException` only for bad
-params.
+An unknown document gets an empty answer (`null`, `[]`, an empty report).
+Malformed parameters use `RpcException` with `INVALID_PARAMS`; a valid request that
+cannot be fulfilled may use `REQUEST_FAILED`, as when `cjls.expandMacro` cannot write
+the expanded file or the client cannot show it. See
+[`handleExecuteCommand` and `writeExpandedFile`](../../modules/cjls/src/handlers/expand_macro.cj).
 
 ### S5: Cancellation escapes handlers
 

@@ -50,6 +50,10 @@ validation. D6's original no-LRU/no-GC rationale is historical; current retentio
 behavior is described by A2, D17 and D18. The rule and the historical ADR remain
 in place; no runtime behavior changes.
 
+S4 preserves empty answers for unknown documents while distinguishing malformed
+parameters (`INVALID_PARAMS`) from a valid request that cannot be fulfilled
+(`REQUEST_FAILED`), matching the existing macro-expansion command.
+
 The former analysis "Pieces" API table is replaced by conceptual prose and source
 navigation in Architecture. The former layer dependency overview is moved there;
 module manifests remain authoritative for the full graph. The
