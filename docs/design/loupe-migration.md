@@ -55,8 +55,9 @@ parameters (`INVALID_PARAMS`) from a valid request that cannot be fulfilled
 (`REQUEST_FAILED`), matching the existing macro-expansion command.
 
 S10 scopes the deadlock prohibition to read-loop handlers and calls out cancellation
-and retry concerns for waiting in a readonly handler. C22 links its usual Option
-style to C11's measured hot-path exception for lambda inlining.
+and retry concerns for waiting in a readonly handler. C22 prefers `?.` and `??`
+where they express the operation, reserves `map`/`flatMap` for other transformations,
+and links lambda use to C11's measured hot-path exception for inlining.
 
 The former analysis "Pieces" API table is replaced by conceptual prose and source
 navigation in Architecture. The former layer dependency overview is moved there;

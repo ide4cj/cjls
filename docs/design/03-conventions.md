@@ -279,11 +279,16 @@ A field read by other types as is is a `public let`, not a property over a priva
 
 ### C22: Option handling
 
-An `Option` is read the shortest way that says it: `?? return`/`continue`/`break`/`throw` to
-leave early, `?? default` for a default, `?.`/`.map`/`.flatMap` to transform (never `case
-Some(x) => Some(f(x))` / `case None => None`), `if (let Some(x) <- o)` (`while let`) for one
-branch, `match` when both branches do work. `getOrThrow()` only where `None` is a bug of this
-code, and then with the reason: `getOrThrow { IllegalStateException("…") }` or `?? throw …`;
+Prefer `?.` for member access through an `Option`, `?? default` for a default value,
+and `?? return`/`continue`/`break`/`throw` for an early exit. Use `map` for other
+transformations, and `flatMap` when the transformation itself returns an `Option`
+and the result should not be nested. Do not introduce a lambda where `?.` or `??`
+already expresses the operation.
+
+Use `if (let Some(x) <- o)` (`while let`) for one branch and `match` when both
+branches do work. A transformation alone does not need `case Some(x) => Some(f(x))` /
+`case None => None`. `getOrThrow()` is only for when `None` is a bug of this code,
+with the reason: `getOrThrow { IllegalStateException("…") }` or `?? throw …`;
 never after an `isSome()`, which is an `if let`.
 
 The type is `?T`, never `Option<T>`; `None` is bare where the type is known (`var x: ?T = None`,
