@@ -125,6 +125,19 @@ class SemanticTokensEncodingTest {
     }
 
     @TestCase
+    func tokensOverSeveralLinesInARowAreCutBeforeEachCarriageReturn() {
+        // arrange
+        let text = "/* a\r\nb */ x /* c\r\nd */"
+
+        // act
+        let result = semanticTokens(Rope(text), [HighlightedRange(TextRange(0, 10), HighlightTag.Comment),
+            HighlightedRange(TextRange(13, 23), HighlightTag.Comment)], Encoding.Utf16, false)
+
+        // assert
+        @Expect(result.data, [0, 0, 4, COMMENT, 0, 1, 0, 4, COMMENT, 0, 0, 7, 4, COMMENT, 0, 1, 0, 4, COMMENT, 0])
+    }
+
+    @TestCase
     func aClientTakingMultilineTokensGetsOneWhole() {
         // arrange
         let text = "/* a\n\nbc */ x"

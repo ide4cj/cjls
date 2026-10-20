@@ -235,6 +235,19 @@ public struct ProjectModel {
     }
 
     /**
+     * Whether `file` is any of the project's: of a package, of the sources of a binary, or one a
+     * module's build leaves out.
+     */
+    public func covers(file: VfsPath): Bool {
+        modules.iterator().any {
+            module => module.packages.iterator().any {pkg => pkg.files.contains(file)} ||
+                module.inactive.iterator().any {one => one.path == file}
+        } || binaries.iterator().any {
+            binary => (binary.sources?.packages ?? []).iterator().any {pkg => pkg.files.contains(file)}
+        }
+    }
+
+    /**
      * The projects as one, with the cfg of the first (`cfg` if there are none). A module of a root
      * and a name seen before adds its packages to that one, a package named as one before it its
      * files: a project opened from two roots has its modules twice. A binary named as one before it

@@ -11,11 +11,10 @@ import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
-import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, findProjects, hostCfg, PROJECT_JSON, ProjectLoad,
-    projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
+import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, findProjects, hostCfg, loneFileProjects,
+    packageHeader, PROJECT_JSON, ProjectLoad, projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
 import cjls.lsp_types.*
 import cjls.server.*
-import cjls.macro_host.MacroHost
 import cjls.macros.LspHandler
 
 /**
@@ -23,6 +22,12 @@ import cjls.macros.LspHandler
  * matches most of a workspace, and an editor shows a list to pick from, not thousands.
  */
 const WORKSPACE_SYMBOL_LIMIT = 128
+
+/**
+ * How much of a document is read for its `package` line, as of a loose file: a header comes first,
+ * after comments at most.
+ */
+const PACKAGE_LINE_BYTES = 4096
 
 /**
  * The files of every root are watched, then loaded: a change on disk between the two is reported,
@@ -35,6 +40,7 @@ func handleInitialized(loop: Loop, client: Client, logger: Logger, _: Initialize
         logger.info("the client cannot watch files: changes on disk are not seen")
     }
     watch(state, client, logger, state.roots.toArray())
+    state.initialized = true
     startLoad(loop, client, logger)
     // the load begins with `initializationOptions`, and begins again if the answer differs
     watchSettings(state, client, logger)
@@ -174,7 +180,12 @@ struct LoadRequest {
         /**
          * The directories of the projects found from documents opened before (#265).
          */
-        let found!: Array<VfsPath> = []
+        let found!: Array<VfsPath> = [],
+        /**
+         * The Cangjie documents open, each with the name its `package` line gives: one of no package
+         * of the projects found is compiled alone (#293).
+         */
+        let packageLines!: Array<(VfsPath, ?String)> = []
     ) {}
 }
 
@@ -198,16 +209,14 @@ func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
 }
 
 /**
- * Starts running the workspace's macros once a load ended the first time, and builds them again after every later
- * one (D104). Called inside a write.
+ * Starts running the workspace's macros once a load ended the first time, if the state says what starts them (D141),
+ * and builds them again after every later one (D104). Called inside a write.
  */
 func startMacros(loop: Loop, logger: Logger): Unit {
-    match (loop.state.macroWork) {
-        case Some(work) => work.wake(true)
-        case None =>
-            let host = MacroHost(loop, logger)
-            loop.state.macroWork = host
-            host.start()
+    match ((loop.state.macroWork, loop.state.startsMacros)) {
+        case (Some(work), _) => work.wake(true)
+        case (None, Some(starts)) => loop.state.macroWork = starts(loop, logger)
+        case (None, None) => ()
     }
 }
 
@@ -223,16 +232,36 @@ func showWarning(client: Client, logger: Logger, message: String): Unit {
 }
 
 /**
- * Begins a load of the roots and the linked projects of `state`; `None` if there are none.
+ * Begins a load of the roots, the linked projects and the Cangjie documents open of `state`; `None`
+ * if there are none.
  */
 func loadRequest(state: ServerState): ?LoadRequest {
     let settings = state.settings
-    if (state.roots.isEmpty() && settings.linkedProjects.isEmpty()) {
+    let open = collectArray(state.openDocuments.keys())
+    let packageLines = open.filter {path => isCangjieFile(path.name)}.map {
+        path => (path, state.fileContents(path).flatMap {text => packageLineOf(text)})
+    }
+    // with no root, a document is compiled alone (#293)
+    if (state.roots.isEmpty() && settings.linkedProjects.isEmpty() && packageLines.isEmpty()) {
         return None
     }
     LoadRequest(state.beginLoad(), state.roots.toArray(), settings.linkedProjects, settings.cangjieHome,
-        settings.cangjieSrc, state.workDoneProgress, state.loadBudget, collectArray(state.openDocuments.keys()),
-        found: state.foundProjects)
+        settings.cangjieSrc, state.workDoneProgress, state.loadBudget, open, found: state.foundProjects,
+        packageLines: packageLines)
+}
+
+/**
+ * The name the `package` line of `text` gives, read from its first `PACKAGE_LINE_BYTES` or so.
+ */
+func packageLineOf(text: Rope): ?String {
+    let prefix = ArrayList<Byte>()
+    for (chunk in text.chunks()) {
+        prefix.add(all: chunk.toArray())
+        if (prefix.size >= PACKAGE_LINE_BYTES) {
+            break
+        }
+    }
+    packageHeader(prefix.toArray())
 }
 
 /**
@@ -290,7 +319,10 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
             more.add(dir)
         }
     }
-    let loads = found.concat(findProjects([], [], env: env, found: more.toArray()))
+    let projects = found.concat(findProjects([], [], env: env, found: more.toArray()))
+    // a document open in no package of theirs either is compiled alone, as cjc compiles it (#293)
+    let loads = projects.concat(loneFileProjects(ProjectModel.merge(projects.map {load => load.model}, hostCfg()),
+        request.packageLines, env: env))
     for (load in loads) {
         logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
         for (problem in load.problems) {
@@ -381,11 +413,13 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
 
 /**
  * Whether the document at `path`, open, finds the project again: it is among the files a loose
- * root left out (D80), or in no package, of a project not loaded yet (#265).
+ * root left out (D80), or in no package, of a project not loaded yet (#265), or, once `initialized`
+ * came, of none, and compiled alone (#293).
  */
 func findsProjectAgain(state: ServerState, path: VfsPath): Bool {
     state.leftOut(path) || !state.inProject(path) &&
-        newProjectOf(path, state.roots.toArray(), state.settings.linkedProjects, state.foundProjects).isSome()
+        newProjectOf(path, state.roots.toArray(), state.settings.linkedProjects, state.foundProjects).isSome() ||
+        state.initialized && state.inNoPackage(path)
 }
 
 /**

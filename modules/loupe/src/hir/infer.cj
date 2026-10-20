@@ -2189,7 +2189,7 @@ class Inference {
                     bindPat(elements[i], tys.get(i) ?? failed([ty]))
                 }
             case EnumPat(path, args) =>
-                let params = ctorParamsOf(path, ty)
+                let params = ctorParamsOf(path, args.size, ty)
                 for (i in 0..args.size) {
                     bindPat(args[i], params.get(i) ?? failed([ty]))
                 }
@@ -2205,14 +2205,18 @@ class Inference {
     }
 
     /**
-     * The types of the parameters of the constructor `path` names in a pattern of the enum type `ty`,
-     * its arguments substituted.
+     * The types of the parameters of the constructor `path` names in a pattern of the enum type `ty`
+     * with `arity` patterns, its arguments substituted: of a name of several, the one of as many
+     * parameters (N172).
      */
-    private func ctorParamsOf(path: Array<String>, ty: Ty): Array<Ty> {
+    private func ctorParamsOf(path: Array<String>, arity: Int64, ty: Ty): Array<Ty> {
         let name = path.get(path.size - 1) ?? return []
         if (let DeclTy(id, args) <- ty.kind(db) && id.item(db).kind == ItemKind.Enum) {
             for (ctor in ctorsOf(id) where isNamed(db, ctor, name)) {
-                return signatureTypes(db, ctor).params.map {one => substitute(db, one, id, args)}
+                let params = signatureTypes(db, ctor).params
+                if (params.size == arity) {
+                    return params.map {one => substitute(db, one, id, args)}
+                }
             }
         }
         []
@@ -2240,11 +2244,15 @@ class Inference {
                 case TypeParamOf(_) => error
             }
             case InFile(Found(ids)) where ids.size == 1 => declValueTy(ids[0], explicit, expected)
-            // cjc: several constructors, none of the enum expected
-            case InFile(Ctors(own, all)) => match (chooseCtor(own, all, expected)) {
-                case Some(ctor) => declValueTy(ctor, explicit, expected)
-                case None => failed(listOf(expected))
-            }
+            // cjc: several constructors, none of the enum expected; of one enum, overloads as a value
+            case InFile(Ctors(own, imported)) =>
+                let ctors = ctorCandidates(own, imported, explicit, None, expected)
+                if (ctors.size == 1) {
+                    setCallee(id, ctors[0])
+                    declValueTy(ctors[0], explicit, expected)
+                } else {
+                    failed(listOf(expected))
+                }
             // functions overloading one another, as a value: the one of the parameters expected
             case Values(_) | InFile(Found(_)) => match (expected.map {one => one.kind(db)}) {
                 case Some(FuncTy(params, _, _)) => overloadOfParams(id, callablesOf(id, expected), params)
@@ -2280,25 +2288,31 @@ class Inference {
     }
 
     /**
-     * The constructor among `own` and `all` a name means: the one of the enum expected, else the one
-     * of the package (N46).
+     * The constructors among the package's `own` and the `imported` a name means, its type arguments
+     * `explicit` written, called with `arity` arguments if called (N172): those of an enum of as many
+     * type parameters as written, of as many parameters as passed; of these, the enum's expected if
+     * any, else the package's if any (N46), though they fit the arguments' types not. Several are
+     * overloads a call tries.
      */
-    private func chooseCtor(own: Array<DefId>, all: Array<DefId>, expected: ?Ty): ?DefId {
+    private func ctorCandidates(own: Array<DefId>, imported: Array<DefId>, explicit: Array<Ty>, arity: ?Int64,
+        expected: ?Ty): Array<DefId> {
+        let fits = {
+            ctor: DefId => (explicit.isEmpty() ||
+                parentOf(db, ctor).map {parent => genericsOf(db, parent).size} == Some(explicit.size)) &&
+                (arity.map {count => signatureTypes(db, ctor).params.size == count} ?? true)
+        }
+        let ownFit = own.filter(fits)
+        let importedFit = imported.filter(fits)
         if (let Some(one) <- expected && let DeclTy(id, _) <- one.kind(db)) {
-            let ofExpected = all.filter {ctor => parentOf(db, ctor) == Some(id)}
-            if (ofExpected.size == 1) {
-                return ofExpected[0]
+            let ofExpected = ownFit.concat(importedFit).filter {ctor => parentOf(db, ctor) == Some(id)}
+            if (!ofExpected.isEmpty()) {
+                return ofExpected
             }
         }
-        let candidates = if (own.isEmpty()) {
-            all
+        if (ownFit.isEmpty()) {
+            importedFit
         } else {
-            own
-        }
-        if (candidates.size == 1) {
-            candidates[0]
-        } else {
-            None
+            ownFit
         }
     }
 
@@ -2533,7 +2547,7 @@ class Inference {
      * what is wrong reported, its arguments checked quietly against the parameters they would go to.
      */
     private func callTy(callee: ExprId, args: Array<CallArg>, expected: ?Ty, call!: ?ExprId = None): Ty {
-        let all = byLambdas(overriding(callablesOf(callee, expected)), args)
+        let all = byLambdas(overriding(callablesOf(callee, expected, arity: args.size)), args)
         // what a call returns called: of a generic call, its type arguments solved alone (N131)
         let isOfCall = match (hir[callee]) {
             case CallExpr(_, _) => true
@@ -2541,8 +2555,10 @@ class Inference {
         }
         match (choose(callee, all, args, expected)) {
             case Chose(callable, matched) =>
-                // a type's name called goes to the type, not to the constructor taken
-                if (all.size > 1 && let Some(decl) <- callable.decl && decl.item(db).kind != ItemKind.Init &&
+                // a type's name called goes to the type, not to the constructor taken; a constructor's
+                // name to the enum's constructor taken, though of one
+                if ((all.size > 1 || isEnumCtor(callable)) && let Some(decl) <- callable.decl &&
+                    decl.item(db).kind != ItemKind.Init &&
                     decl.item(db).kind != ItemKind.PrimaryInit) {
                     setCallee(callee, decl)
                 }
@@ -3467,11 +3483,11 @@ class Inference {
 
     /**
      * `callables`, the nearest first, but those whose parameters a nearer one has: a member that
-     * overrides or implements another hides it (N107).
+     * overrides or implements another hides it (N107). Constructors of two enums hide none.
      */
     private func overriding(callables: Array<Callable>): Array<Callable> {
         let kept = ArrayList<Callable>()
-        for (one in callables where kept.iterator().all {
+        for (one in callables where isEnumCtor(one) || kept.iterator().all {
             other => other.erasedParams(db) != one.erasedParams(db) || other.names != one.names
         }) {
             kept.add(one)
@@ -3507,9 +3523,9 @@ class Inference {
     }
 
     /**
-     * What the callee `callee` may call.
+     * What the callee `callee` may call, with `arity` arguments if called.
      */
-    private func callablesOf(callee: ExprId, expected: ?Ty): Array<Callable> {
+    private func callablesOf(callee: ExprId, expected: ?Ty, arity!: ?Int64 = None): Array<Callable> {
         match (hir[callee]) {
             case PathExpr(name, args) =>
                 let explicit = args.map {one => typeAt(one)}
@@ -3536,10 +3552,17 @@ class Inference {
                             found.add(all: declCallables(id, explicit, expected).map {one => one.at(fileLevel(id))})
                         }
                         found.toArray()
-                    case InFile(Ctors(own, all)) => match (chooseCtor(own, all, expected)) {
-                        case Some(ctor) => declCallables(ctor, explicit, expected)
-                        case None => []
-                    }
+                    case InFile(Ctors(own, imported)) =>
+                        let ctors = ctorCandidates(own, imported, explicit, arity, expected)
+                        // not called, a name of several is no value (N172)
+                        if (arity.isNone() && ctors.size != 1) {
+                            return []
+                        }
+                        let found = ArrayList<Callable>()
+                        for (ctor in ctors) {
+                            found.add(all: declCallables(ctor, explicit, expected))
+                        }
+                        found.toArray()
                     case _ => []
                 }
             case FieldExpr(receiver, name, args) => fieldCallables(callee, receiver, name, args, expected)

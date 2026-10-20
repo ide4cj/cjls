@@ -74,7 +74,12 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db)) {
             let owner = module.name(db)
-            scopes[owner] = [owner].concat(module.deps(db)).concat(["std"])
+            // modules of one name (two checkouts, a file alone, #293) share a scope: each keeps its deps
+            let scope = ArrayList<String>(scopes.get(owner) ?? [owner, "std"])
+            for (dep in module.deps(db) where !scope.contains(dep)) {
+                scope.add(dep)
+            }
+            scopes[owner] = scope.toArray()
             for (pkg in module.packages(db)) {
                 let ref = PackageRef.Source(pkg)
                 entryOf(packages, pkg.name(db)).add(IndexedPackage(ref, owner))

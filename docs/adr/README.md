@@ -157,3 +157,6 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0136](0136-semantic-tokens-are-sent-whole.md) | Semantic tokens are sent whole: no full/delta | proposed |
 | [0137](0137-optics-is-the-gate-of-workspace-macros.md) | A workspace of others' on its own macros, Optics, is expanded and analyzed as a gate | proposed |
 | [0138](0138-an-index-assigned-by-an-operator-is-desugared-in-the-hir.md) | `a[i] op= v` and `a[i]++` are desugared in the HIR into the value they give a `[]` taking it | proposed |
+| [0139](0139-a-file-in-no-package-is-compiled-alone.md) | A document open in no package is compiled alone, as cjc compiles a file: a module of its own with std | proposed |
+| [0140](0140-an-enums-constructors-of-one-name-are-overloads.md) | An enum's constructors of one name are overloads, narrowed by arity and type arguments before a call tries them | proposed |
+| [0141](0141-a-tests-state-runs-no-macros.md) | A state runs no macros unless it is given what starts them | proposed |

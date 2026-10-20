@@ -22,10 +22,11 @@ func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTe
     state.openDocuments.add(path, document.version)
     state.openings++
     state.setFileContents(path, Rope(document.text))
+    // before a load it may begin: a blank document new in a module is given its line now (D92)
+    packageLineOnOpen(loop, client, logger, path)
     if (!state.loading && findsProjectAgain(state, path)) {
         startLoad(loop, client, logger)
     }
-    packageLineOnOpen(loop, client, logger, path)
 }
 
 /**

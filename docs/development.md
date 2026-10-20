@@ -154,7 +154,9 @@ Read the resulting diff. Diagnostics and error-root baselines are checks, not
 values to bless automatically: new roots require attribution to a known gap and
 idiomatic code stays idiomatic (D108, D121). See
 [analysis rules](design/02-analysis.md) and
-[testing conventions](design/03-conventions.md) for the contract.
+[testing conventions](design/03-conventions.md) for the contract. The full suite
+also checks analysis after SDK macro expansion; see the
+[macro host notes](../modules/macro_host/CLAUDE.md) for that gate.
 
 ### Formatting and documentation
 
@@ -187,7 +189,7 @@ python3 .github/scripts/coverage.py coverage/coverage.json
 ```
 
 `-g` disables release optimization; never benchmark that build. Coverage excludes
-the `gate`-tagged whole-corpus analysis checks; ordinary full tests retain them.
+the `gate`-tagged corpus checks; ordinary full tests retain them.
 The [coverage reporter](../.github/scripts/coverage.py) defines exclusions for
 generated, macro and test-support code. Its percentage is the project's measure.
 Read uncovered changed lines in `coverage/index.html`. Do not infer correctness

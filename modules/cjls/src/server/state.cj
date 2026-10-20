@@ -3,6 +3,7 @@ package cjls.server
 import std.collection.{ArrayList, HashMap, HashSet}
 import std.env.getVariable
 import std.runtime.getMaxHeapSize
+import stdx.log.Logger
 import rope.{Encoding, Rope}
 import loupe.vfs.*
 import loupe.db.*
@@ -146,6 +147,12 @@ public class ServerState <: FromContext<ServerState> {
     public var macroWork: ?MacroWork = None
 
     /**
+     * What starts `macroWork` (D141): the server's runs `cjls.macro_host`'s `MacroHost`; `None`, as a state is made,
+     * runs no macros, so a test's thread holds no state to the end of the process.
+     */
+    public var startsMacros: ?(Loop, Logger) -> MacroWork = None
+
+    /**
      * The server's directories beside the projects (D106), each set in order the first time it is opened.
      */
     public let cacheDirs = CacheDirs({name => getVariable(name)})
@@ -198,6 +205,12 @@ public class ServerState <: FromContext<ServerState> {
      * with the roots' from then on, until the last root they are under is removed.
      */
     public var foundProjects: Array<VfsPath> = []
+
+    /**
+     * Whether `initialized` came: before it no project is looked for, and a document opened in no
+     * package is compiled alone by none (#293).
+     */
+    public var initialized = false
 
     /**
      * The files of the project, as last set: made anew each time, for a set built from an array
@@ -428,6 +441,16 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func leftOut(path: VfsPath): Bool {
         !inProject(path) && isWorkspaceFile(path, partialRoots)
+    }
+
+    /**
+     * Whether the Cangjie file at `path` is nothing of the project last set: of no package, of no
+     * binary's sources, and none a module's build leaves out. A document open there finds the
+     * project again (D80, D88), or is compiled alone (#293).
+     */
+    public func inNoPackage(path: VfsPath): Bool {
+        isCangjieFile(path.name) && !projectFiles.contains(path) && !binarySourceFiles.contains(path) &&
+            !model.modules.iterator().any {module => module.inactive.iterator().any {file => file.path == path}}
     }
 
     /**

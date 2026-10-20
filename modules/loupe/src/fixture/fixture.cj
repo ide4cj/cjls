@@ -32,6 +32,11 @@ public class FixtureFile {
         public let fileId: FileId,
         public let path: VfsPath,
         public let module: String,
+        /**
+         * The root of its module as the header gives it, `None` for the deepest directory all the
+         * module's files are under.
+         */
+        public let root: ?VfsPath,
         public let pkg: String,
         public let deps: Array<String>,
         /**
@@ -154,7 +159,9 @@ public struct FileRange {
  *   (the modules it may import, by commas; a module's are those of all its files) and `cfg` (the
  *   conditions of its package for `@When`, `os:Linux,test:true`; a package's are those of all its
  *   files) and `inactive` (the source set of a file the build leaves out, in no package: `source set
- *   `<set>` is left out`, #318). A text of no header is the one file `/main.cj`.
+ *   `<set>` is left out`, #318) and `root` (the root of its module, which a module of the name with
+ *   another root is not: a file alone is its own, `root=/x.cj`, #293). A text of no header is the
+ *   one file `/main.cj`.
  * - `$0` is a place, two of them in one file a range: the `cursor`, the `selection`.
  * - A line `//` and carets is an annotation: `//^^^ text` is about the range of the carets in the
  *   line above it that is not one, `//| text` about the empty range before the bar. Columns are as
@@ -246,15 +253,15 @@ public class Fixture {
     }
 
     /**
-     * The modules and the packages of the files, each in the order it first comes in, a module's
-     * root the deepest directory all its files are under.
+     * The modules and the packages of the files, each in the order it first comes in, a module by
+     * its name and the root its headers give, else the deepest directory all its files are under.
      */
     public func projectModel(): ProjectModel {
-        let modules = ArrayList<String>()
-        for (file in files where !modules.contains(file.module)) {
-            modules.add(file.module)
+        let modules = ArrayList<(String, ?VfsPath)>()
+        for (file in files where !modules.iterator().any {it => it[0] == file.module && it[1] == file.root}) {
+            modules.add((file.module, file.root))
         }
-        ProjectModel(Cfg([]), modules.toArray().map {name => moduleModel(name)})
+        ProjectModel(Cfg([]), modules.toArray().map {module => moduleModel(module[0], module[1])})
     }
 
     /**
@@ -351,8 +358,8 @@ public class Fixture {
         out.toString()
     }
 
-    private func moduleModel(name: String): ModuleModel {
-        let ofModule = files.filter {file => file.module == name}
+    private func moduleModel(name: String, written: ?VfsPath): ModuleModel {
+        let ofModule = files.filter {file => file.module == name && file.root == written}
         let packages = ArrayList<String>()
         let deps = ArrayList<String>()
         for (file in ofModule where file.inactive.isNone()) {
@@ -363,8 +370,8 @@ public class Fixture {
                 deps.add(dep)
             }
         }
-        var root = ofModule[0].path.parent.getOrThrow()
-        for (file in ofModule) {
+        var root = written ?? ofModule[0].path.parent.getOrThrow()
+        for (file in ofModule where written.isNone()) {
             while (!file.path.isUnder(root)) {
                 root = root.parent.getOrThrow()
             }
@@ -438,6 +445,7 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
     var deps = Array<String>()
     var cfg: ?Cfg = None
     var inactive: ?String = None
+    var root: ?String = None
     if (let Some(line) <- header) {
         let words = line[3..].split(" ", removeEmpty: true)
         if (words.size == 0) {
@@ -462,8 +470,9 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
                     (keyValue[0], keyValue[1])
                 })
                 case "inactive" => inactive = pair[1]
+                case "root" => root = pair[1]
                 case key => throw FixtureException(
-                    "an unknown key `${key}` in ${line}: module, package, deps, cfg, inactive")
+                    "an unknown key `${key}` in ${line}: module, package, deps, cfg, inactive, root")
             }
         }
     }
@@ -507,7 +516,8 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
         }
         lines.add(FixtureLine(line, start, columns.toArray()))
     }
-    FixtureFile(fileId, vfsPath, module, pkg ?? module, deps, cfg, inactive, text.toString(), header, lines.toArray())
+    FixtureFile(fileId, vfsPath, module, root.map {written => pathOf(written)}, pkg ?? module, deps, cfg, inactive,
+        text.toString(), header, lines.toArray())
 }
 
 /**
