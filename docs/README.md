@@ -7,6 +7,7 @@
 | [issues](https://github.com/ide4cj/cjls/issues?q=is%3Aissue+label%3Aquestion) labeled `question` | open questions | a closed question becomes an ADR or a rule, which names the issue |
 | [prior-art.md](prior-art.md) | the servers cjls is measured against, and what comes from which | updated when a reference changes, or a part of cjls starts following one |
 | [lsp-extensions.md](lsp-extensions.md) | the methods under `cjls/`, beyond LSP (D15) | changed in the same PR as the method; what a client needs to call it |
+| [sdk-issues.md](sdk-issues.md) | SDK defects, evidence and current workarounds | version/platform evidence or explicit uncertainty; probes remain tracked in #332 |
 
 How to set up, build, test and prepare a review: [Development](development.md).
 Agent working instructions: [AGENTS.md](../AGENTS.md). How to add a handler: [CONTRIBUTING.md](../CONTRIBUTING.md).
@@ -43,6 +44,7 @@ One fact, one place: a rule is stated once, in `design/`; an ADR says why, AGENT
 | A# | rule of the analysis | [02-analysis.md](design/02-analysis.md) |
 | C# | code convention | [03-conventions.md](design/03-conventions.md) |
 | D# ≡ ADR-NNNN | decision | [adr/](adr/) |
+| K# | SDK issue | [sdk-issues.md](sdk-issues.md) |
 | #N | open question | its issue; an old `Q#` (in the ADRs) is found by searching the issues for it |
 | R# | reference implementation | [prior-art.md](prior-art.md) |
 
