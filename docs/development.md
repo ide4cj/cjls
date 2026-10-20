@@ -14,7 +14,8 @@ installation may be shared.
 
 When using worktrees, check for uncommitted/untracked work and active
 users/processes before removing one. Git index timestamps alone do not
-establish that it is idle.
+establish that it is idle. Follow the explicit [worktree lifecycle](procedures.md#worktree-lifecycle)
+for creation and cleanup.
 
 ### Prerequisites
 
@@ -195,6 +196,21 @@ generated, macro and test-support code. Its percentage is the project's measure.
 Read uncovered changed lines in `coverage/index.html`. Do not infer correctness
 from a percentage. `coverage/`, `cov_output/` and `*.gcda` are untracked outputs.
 
+For a provenance-checked report of added/modified files, use the repository
+procedure instead of generating raw coverage above:
+
+```bash
+python3 scripts/change_coverage.py run
+python3 scripts/change_coverage.py report --base origin/master
+```
+
+Fetch corpora first. The runner uses the same test/generation options shown above
+and records inputs only after successful generation; the report rejects missing
+or stale artifacts and shares CI's file-selection policy. `--base` chooses changed
+files relative to the merge-base, not baseline coverage. See the
+[coverage skill](../.agents/skills/change-coverage/SKILL.md) for interpretation and
+limits of the input fingerprint.
+
 ### End-to-end tests
 
 ```bash
@@ -236,8 +252,9 @@ uv run --project tests/perf --locked cjls-perf compare before.json perf.json
 Create `before.json` from the baseline revision before comparison. Scenario/server
 definitions are in that project; some require std's corpus sources. Query counts
 are gated by `thresholds.toml`; noisy CI timings are reports, not thresholds (D81).
-Benchmark locking and machine-specific helpers remain a migration task in #455;
-there is no checked-in portable replacement for the old private `quiet-run.sh` yet.
+Follow [benchmark isolation](procedures.md#benchmark-isolation) for coordinated
+measurement windows, required evidence and machine/load limitations. A portable
+automatic locking/monitoring runner is explicitly deferred.
 
 ## Generated code
 
