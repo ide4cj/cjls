@@ -5,23 +5,13 @@ cjls is a Cangjie language server, written in Cangjie. `cjls` handles LSP;
 current features in the router and source, rather than assuming an old overview
 is a complete feature list.
 
-## Working agreement
+## Before changing code
 
-- Respond in the user's language. Keep code, comments, commits and PR text English.
-- Explain the intended scope and verification before editing. For architectural
-  choices, present the tradeoffs and wait for the maintainer's decision; then
-  complete the agreed change. Discuss material scope changes before proceeding.
-- Work in small, reviewable steps. Explain the core algorithm and why the tests
-  support it so the maintainer can learn through review.
-- Treat questions and investigations as such; do not resume old work or publish
-  changes merely because the user asks about them. External writes, commits,
-  pushes and merges must stay within the user's explicitly requested scope.
-- Use a separate Git worktree for implementation. Keep its scratch files and
-  build outputs there. Coordinate changes to shared docs; do not delete another
-  session's worktree. Cleanup follows review/merge and an explicit activity check.
-- Check unfamiliar Cangjie/compiler behavior in source or a small probe. State
-  what was verified and what remains uncertain. Report changed behavior, checks
-  run and limitations at the end; do not claim unrun checks passed.
+- Read the task-relevant documents below and the affected module's notes.
+- Preserve the architectural boundaries and toolchain constraints they describe.
+- Check unfamiliar Cangjie/compiler behavior in source or a small probe.
+- Run checks appropriate to the change and report their results, including
+  limitations and assumptions that have not been verified.
 
 ## Start here
 

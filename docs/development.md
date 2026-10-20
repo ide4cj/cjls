@@ -7,12 +7,14 @@ quoted. Windows examples use PowerShell unless specified otherwise.
 
 ## Set up a checkout
 
-Use a separate Git worktree for each implementation branch. Each worktree has
-its own build directories and corpus checkout; do not share a mutable `target/`
-between worktrees or concurrently run commands that write the same build cache.
-The SDK installation may be shared. Remove a worktree after its PR is merged
-only after checking for uncommitted/untracked work and active users/processes.
-Git index timestamps alone do not establish that it is idle.
+A separate clone or Git worktree provides independent build directories and a
+corpus checkout for parallel work. Do not concurrently run commands that write
+the same build cache or share a mutable `target/` between checkouts. The SDK
+installation may be shared.
+
+When using worktrees, check for uncommitted/untracked work and active
+users/processes before removing one. Git index timestamps alone do not
+establish that it is idle.
 
 ### Prerequisites
 
@@ -292,8 +294,8 @@ or commit them. Clean only the current worktree's outputs when needed.
 Use Conventional Commits (`type(scope): subject`). `cog` checks commits and PR
 titles because PRs are squash-merged. Keep the change, its regression tests and
 invalidated docs together. Explain the problem, resulting behavior, key design
-choice, verification and remaining limitations; include a code walkthrough where
-it helps the maintainer understand the algorithm.
+choice, verification and remaining limitations. Explain non-obvious algorithms
+and tradeoffs so a reviewer can assess the change.
 
 Update docs for a new constraint or real decision; do not repeat API inventories.
 See [when to write docs](README.md#when-a-change-writes-here). Allocate an ADR with
