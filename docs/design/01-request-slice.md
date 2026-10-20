@@ -52,19 +52,93 @@ Only for a client that cannot pull (`initialize` found no `textDocument.diagnost
 
 ## Rules
 
-| # | Rule |
+| # | Topic |
 |---|---|
-| S1 | A `Context` handler never runs a query: it only changes inputs, and it is short. |
-| S2 | A `readonly` handler reads everything from its snapshot: `FileId`, text for positions (`file.text(snap.analysis)`, never the `Vfs`), encoding. |
-| S3 | Handlers only translate; logic goes to `loupe`. Conversion lives in `from_proto.cj` / `to_proto.cj`. |
-| S4 | Unknown document → empty answer (`null`, `[]`, an empty report); `RpcException` only for bad params. |
-| S5 | Never catch `CancelledException` in a handler; the server maps it (see table). |
-| S6 | Handlers are not `@CalcaTracked` (D6). |
-| S7 | Work after a write is scheduled by the server, not by a handler: it takes the snapshot on the read loop, after the `Context` handler returned, and runs the queries on a `spawn` (D14). |
-| S8 | One source of diagnostics per client: a client that pulls is never pushed to (D14). |
-| S9 | A push never overwrites a newer one: a publish whose generation is not its document's latest is dropped before `notify`. |
-| S10 | An outbound request goes by its spec, never a method string: `Client.request(spec, params, logger)` sent from the handler, answered on a `spawn`, a failure logged; one whose result is read, `Client.request(spec, params)`, awaited on a `spawn` of its own. A handler never awaits one (D30). |
-| S11 | An open document is the editor's: nothing read from disk (a load, a watched change, a folder removed) sets it; `didClose` hands it back to the disk (D30). |
-| S12 | The changes one handler makes to the files go in one revision (`ServerState.setFilesContents`). A load's are the project with the files of the folders removed gone in one (`ServerState.setProject`), then a revision per batch read, which only adds files (D61). |
-| S13 | Every `spawn` and the read loop catch `Error` (a stack overflow, out of memory) as well as `Exception`: a request is answered `InternalError`, the failure logged `ERROR` with its stack (`ErrorLogValue`: stdx.log takes no `Error`), and the server reads on. |
-| S14 | Work a handler leaves to a thread of its own (`Loop.start`, catching everything) changes the state through `Loop.write` alone; a `Context` handler holds the lock already and never calls `write` (D61). |
+| S1 | [Write handlers change inputs](#s1-write-handlers-change-inputs) |
+| S2 | [Read from one snapshot](#s2-read-from-one-snapshot) |
+| S3 | [Handlers translate](#s3-handlers-translate) |
+| S4 | [Unknown documents](#s4-unknown-documents) |
+| S5 | [Cancellation escapes handlers](#s5-cancellation-escapes-handlers) |
+| S6 | [Handlers are not queries](#s6-handlers-are-not-queries) |
+| S7 | [Schedule after writes](#s7-schedule-after-writes) |
+| S8 | [One diagnostics source](#s8-one-diagnostics-source) |
+| S9 | [Discard stale pushes](#s9-discard-stale-pushes) |
+| S10 | [Outbound request boundaries](#s10-outbound-request-boundaries) |
+| S11 | [Open buffers own their text](#s11-open-buffers-own-their-text) |
+| S12 | [Batch changes into revisions](#s12-batch-changes-into-revisions) |
+| S13 | [Catch failures at thread boundaries](#s13-catch-failures-at-thread-boundaries) |
+| S14 | [Background writes use the loop](#s14-background-writes-use-the-loop) |
+
+### S1: Write handlers change inputs
+
+A `Context` handler never runs a query: it only changes inputs, and it is short.
+
+### S2: Read from one snapshot
+
+A `readonly` handler reads everything from its snapshot: `FileId`, text for positions
+(`file.text(snap.analysis)`, never the `Vfs`), encoding.
+
+### S3: Handlers translate
+
+Handlers only translate; logic goes to `loupe`.
+
+Conversion lives in `from_proto.cj` / `to_proto.cj`.
+
+### S4: Unknown documents
+
+Unknown document → empty answer (`null`, `[]`, an empty report); `RpcException` only for bad
+params.
+
+### S5: Cancellation escapes handlers
+
+Never catch `CancelledException` in a handler; the server maps it (see table).
+
+### S6: Handlers are not queries
+
+Handlers are not `@CalcaTracked` (D6).
+
+### S7: Schedule after writes
+
+Work after a write is scheduled by the server, not by a handler: it takes the snapshot on the
+read loop, after the `Context` handler returned, and runs the queries on a `spawn` (D14).
+
+### S8: One diagnostics source
+
+One source of diagnostics per client: a client that pulls is never pushed to (D14).
+
+### S9: Discard stale pushes
+
+A push never overwrites a newer one: a publish whose generation is not its document's latest is
+dropped before `notify`.
+
+### S10: Outbound request boundaries
+
+An outbound request goes by its spec, never a method string: `Client.request(spec, params,
+logger)` sent from the handler, answered on a `spawn`, a failure logged; one whose result is
+read, `Client.request(spec, params)`, awaited on a `spawn` of its own.
+
+A handler never awaits one (D30).
+
+### S11: Open buffers own their text
+
+An open document is the editor's: nothing read from disk (a load, a watched change, a folder
+removed) sets it; `didClose` hands it back to the disk (D30).
+
+### S12: Batch changes into revisions
+
+The changes one handler makes to the files go in one revision (`ServerState.setFilesContents`).
+
+A load's are the project with the files of the folders removed gone in one
+(`ServerState.setProject`), then a revision per batch read, which only adds files (D61).
+
+### S13: Catch failures at thread boundaries
+
+Every `spawn` and the read loop catch `Error` (a stack overflow, out of memory) as well as
+`Exception`: a request is answered `InternalError`, the failure logged `ERROR` with its stack
+(`ErrorLogValue`: stdx.log takes no `Error`), and the server reads on.
+
+### S14: Background writes use the loop
+
+Work a handler leaves to a thread of its own (`Loop.start`, catching everything) changes the
+state through `Loop.write` alone; a `Context` handler holds the lock already and never calls
+`write` (D61).

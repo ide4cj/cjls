@@ -1,67 +1,352 @@
-# Analysis
+# Analysis design
 
-## Pieces
-
-| Piece | Where | Is |
-|---|---|---|
-| `Rope` | `rope` | immutable UTF-8 text, B-tree of chunks; edits share the rest (D1) |
-| `Vfs` | `loupe.vfs` | `FileId → ?Rope` + changes folded until `takeChanges` (D2) |
-| `PathInterner` | `loupe.vfs` | `FileId` = the path's index in the order seen, for good; a `ConcurrentIndexSet`, a lock only to give an id (C9); the only thread-safe part |
-| `SourceFile` | `loupe.db` | `@CalcaInput { fileId, text: Rope }`, one per `FileId`, never dropped |
-| `ProjectModel` | `loupe.db` | modules (named after their root package), packages and their files, binaries, `Cfg`: plain values, every way of finding a project comes down to it (D33) |
-| `Project`, `Module`, `Package` | `loupe.db` | the model as inputs: `Project` a singleton, a `Module` per root and name and a `Package` per name in it, never dropped; a package's files a field of its own |
-| `BinaryPackageFile` | `loupe.db` | `@CalcaInput { binary, name, path, bytes }`: a package compiled already, its `.cjo` as bytes, out of the `Vfs`; one per binary, package and path, never dropped, a gone one empty (D38) |
-| `BinarySourceFile` | `loupe.db` | a file of a binary's sources, `Project.binarySources`: its `FileId`, named as the binary's `.cjo` names it; in no package, so never resolved against, only gone to (D65) |
-| `AnalysisDatabase` | `loupe.db` | the database; root handle or snapshot (D4, D9) |
-| `parse` | `loupe.syntax` | `@CalcaTracked[lru: 128]`, backdated (`Parse` is `Equatable`); keeps the trees of the 128 files parsed last (D17) |
-| `SyntaxNodePtr`, `AstPtr` | `ginkgo` | a node as its kind and range, resolved against a root: what a result keeps of a tree (A13) |
-| `ItemId`, `itemIdMap` | `loupe.hir` | an item named so that edits elsewhere leave it, and the file's map of ids to pointers and back (D34) |
-| `itemTree` | `loupe.hir` | what a file declares: package, imports, items by `ItemId`, no ranges, no bodies; equal after an edit inside a body (D34) |
-| `defMap` | `loupe.hir` | a package's declarations by name, each a set with its visibility, its enums' constructors under them, its redefinitions; keyed by a `PackageRef`, either kind of package (D45) |
-| `packageExports`, `packageIndex`, `resolveImport` | `loupe.hir` | what a package shows its importers: its declarations but the `private` ones and its re-exports, each with its import's visibility, on the exports of the packages it re-exports from; the project's packages by full name and what each module may import from; one path of an import to a package, names, or an error (D46) |
-| `binaryItemTrees`, `binaryExports` | `loupe.hir` | a `.cjo` in the same model: an `ItemTree` per file of the package, its re-exports its imports; an `exportId` to its item, an item back to its `Decl` (`binaryDecl`). `ItemFile` is either kind of file (D38) |
-| `expandedCalls`, `macroExpansion` | `loupe.hir` | the macro calls the analysis expands, std's `@Derive` and what of `std.unittest.testmacro` declares (`@Test`, `@TestTemplate`, `@TestBuilder`, `@Strategy`, `@UnittestOption`; the name resolved to std's), each a `MacroCallId` (file, item, macro: an index through the calls on the item and then those on its parameters, D119); its output as text, signatures whose every body is a comment (`stubBody`, D118), parsed by cjsyntax as the file `ItemFile.Expansion`, its names in the scope of the call's file, its declarations in `defMap` after the file's (the item it replaces left out, `@Strategy`'s), its `extend`s among `packageExtends` ([#175](https://github.com/ide4cj/cjls/issues/175)) |
-| loader | `loupe.vfs` | `readRoots` (the `*.cj` under the roots, within a budget), `readFiles`, `readFile`, `isWorkspaceFile`; `cjoFilesIn`, `readCjoFiles` (by stamp, header checked): the disk, nothing else (D30, D38) |
-| project loaders | `project_model` | `cj-project.json`, `cjpm.toml`, loose files → `ProjectModel`; `findProjects` per root (D33) and per project found from a document in no package (`projectDirOf`, D88), else that document alone, a module of its own with std (`loneFileProjects`, D139); the SDK (`findCangjieHome`, D40) and its sources (`findCangjieSrc`, D65); a multiplatform module's packages the files of the chain of source sets the target takes, the others' `ModuleModel.inactive` (D99) |
-| API | `loupe` | a file per feature (`fileStructure`, …): plain functions over queries, speaking `FileId`, `TextRange` and loupe's own types (A3, A8) |
+The [architecture overview](../architecture.md#analysis-and-incremental-state)
+explains the input/query/API split and links to the source. The rules here
+constrain changes to that design; they are not a list of analysis features.
 
 ## Rules
 
-| # | Rule |
+| # | Topic |
 |---|---|
-| A1 | Every query takes `AnalysisDatabase` itself; no database interface (D4). |
-| A2 | A query is keyed by an entity (`SourceFile`, interned ids), never by a position (D6): memo values are evicted (`lru`, D17), and interned values unused for a while are collected with the memos keyed by them (D18), but other keys live as long as the database. |
-| A3 | Position-dependent API (`hover(db, position)`) is a plain function over queries. |
-| A4 | Inputs are created and set on the root handle only, outside queries (`IllegalStateException` otherwise). |
-| A5 | A deleted file is an empty text; its `FileId` and `SourceFile` stay. |
-| A6 | Offsets are UTF-8 bytes on character boundaries, as `TextRange` and `Rope`. |
-| A7 | Lines break at `\n` only, as the compiler's lexer; a line ends before the `\r` of `\r\n` (D1). |
-| A8 | `loupe` knows no LSP: no URIs, `Position`, encodings or LSP types (D5). |
-| A9 | Anything that interns (dense ids in first-seen order) is an `IndexSet`, or a `ConcurrentIndexSet` if shared between threads (`PathInterner`, C9; its `FileId`s are forever, A5), unless its values are collected: then a `Slab` of generations (calca's interned values and memo keys, D18). |
-| A10 | A value a query returns is `Equatable`, so it backdates; `[noEq]` only with a reason. |
-| A11 | Diagnostics are part of the results of the queries that find them (`Parse.errors`), never accumulated on the side (D14). |
-| A12 | A diagnostic's range is what its source gives, an empty one included ("expected `}`" at the end of a file); widening it for a client is translation. |
-| A13 | A tracked result holds no `SyntaxNode`, `SyntaxToken`, typed view, `GreenNode` or `Parse` (`parse` itself excepted), only `SyntaxNodePtr`/`AstPtr`: a node keeps its whole tree alive, and `lru` on `parse` frees nothing (D17). A handler holds nodes for the length of a request. |
-| A14 | A query has a fallback on a cycle (`@CalcaTracked[cycleResult: f]`) only where the language gives a cycle a meaning of its own (glob imports reaching each other, a recursive type alias), and the fallback is what the compiler reports there (an unresolved name, an error type); anywhere else a cycle is a bug, and `CycleException` says so. |
-| A15 | A question over every file holds no tree past the `lru` of `parse`, which evicts within a revision too (D36): what it keeps of a file is a summary with no node (`fileSymbols`, `itemTree`). One that needs no tree kept parses without `parse` (`fileSymbols`, D30), so a sweep does not push the open documents' trees out. |
-| A16 | What the server reads from disk is bounded: a load keeps at most its budget of text and `.cjo` (D30, D38), a sixteenth of the heap (D31). |
-| A17 | A file's input has its module's durability: `Low` for the user's, `Medium` for a dependency's, `High` for `std`; a file of no module `Low`; a `.cjo` its binary's, `High` for `std`, `Medium` for any other. The project is set before the files it names, so they are created with it (D33). |
-| A18 | Which files a package has is `Package.files`, never found from the texts: a file deleted is an empty text (A5). Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module is a unit of the build, cjc's is the first segment of a name (D33). |
-| A19 | What outlives an edit names an item by its `ItemId`, never by a pointer: a result holding a `SyntaxNodePtr` changes with every edit above it, and so does everything that read it. Items come from `itemTree`, nodes back through `itemIdMap` (D34). |
-| A20 | A name is its `Name.text()` or `NameRef.text()`, never the text of its node or token: `` `foo` `` is `foo`, a quote's `$foo` is `foo` (D116), and a name compared, hashed into an `ItemId` or shown keeps no backquotes. |
-| A21 | A query body never catches `Exception` around a calca call, only what it means to tolerate: calca unwinds with `Exception`s, and a body catching one stores nothing and throws it again (D42). A handler interns nothing the user types: interned outside a query, a value is `High`, kept forever (D18). |
-| A22 | Resolution is layered (D44): `itemTree` (a file) → `defMap` (a package) → signatures (an `ItemId`) → bodies and their scopes → inference (a body); a layer reads only those under it. A name in a scope is a set of definitions; a member, an overload or an `extend`'s member is found by inference, never by a `defMap`. |
-| A23 | A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair held apart; a query about one declaration is keyed by it (D45). |
-| A24 | Lowering a signature to types (`signatureTypes`) reads another declaration's lowered types only through an alias, its own expansion: a path's type parameters are counted from `signature` or a `.cjo`'s declaration, which lower nothing (`genericsOf`). A class whose supertype names another whose supertype names it (`A <: I<B>`, `B <: I<A>`) is no cycle. An alias on a cycle of aliases is found by a search of the aliases each names before any is expanded, and expands none of its cycle: `signatureTypes` itself never cycles, its fallback (A14) only for a cycle the search would miss (D54). |
-| A25 | Inference (`inferBody`) reads another declaration's body only for a type its signature does not write (`declaredTyOf`), never its own: a function calling itself of no return type is an error there, not a cycle; only declarations of unwritten types reading each other are one, each an error by its fallback (A14, D55). |
-| A26 | A type variable (`InferTy`) lives in the call that made it, while that call is inferred: an argument is checked only against a type of none, an unknown one an error type, and the call's type and its callee's hold none; none is ever in an `InferenceResult` or another query's result (D57). |
-| A27 | A candidate of a call is tried, never taken on trust: inference writes through a journal while one is, and undoes it after, whether it fits or not; the one taken is inferred again. Nothing a candidate wrote is ever in an `InferenceResult` (D63). |
-| A28 | A declaration of std.core the syntax means (`Option` of `?T`, `composition` of `~>`, `String` of a literal, `Iterable` of `for-in`) is `langItem`'s, whatever a file's scope names and whatever its visibility; nothing else looks one up by name. A type of the compiler's own (`CPointer`, `CString`) is no lang item: a file names it through its scope (D66). A source file of no package finds them, as the `extend`s of a type of the language, in the SDK's binary `std.core` (`sdkCore`, #319). |
-| A29 | A desugaring in the HIR (an optional chain into `QuestMatchExpr`s) adds its expressions after those it is made of, of the same node or of none, and names std.core only by `LangExpr` (A28): `BodySourceMap.exprAt` gives a node's expression as written, the link `$v.b` of `a?.b`, and the expressions after it of that node are what it is desugared into, the last its value (D70). |
-| A30 | A type not known is one of two (D77): `ErrorTy` only where cjc reports an error, as far as the analysis follows cjc; `TodoTy(why)` where the analysis cannot find a type cjc may well find (a macro, a `.cjo` not read, no std, a gap), its reason one of `Todo`'s. What is made of a type not known is that one, a `TodoTy` before an `ErrorTy` (`unknownOf`), never a new error: a failure of known types alone is an `ErrorTy`, unless a macro whose expansion is not read is called on the type or in the package looked in (a `TodoTy`). Such a type, or one of its supertypes so called on, may be a subtype of any class or interface (`hasMacroSupertypes`): a bound it does not seem to meet is met, and a join with it is a `TodoTy` (#175). A type or package before a `.` is no value: no type at all (`None` in `InferenceResult.exprs`), never an unknown one. A28's lang items include std.ast's `Tokens` of `quote`. |
-| A31 | A package's scope has two stages (`ScopeStage`): what its files write, and that with what the macro calls in them add (`defMapAt`, `exportsAt`, `fileImportsAt`). A macro's name is looked up at the first, and nothing on the way from an item to its expansions (`expandedCalls`) reads the second: what is expanded depends on it, so the second is a function of the first, never a cycle of queries (D82). |
-| A32 | Inference reports a diagnostic (`InferenceResult.diagnostics`, by expression) only between types known wholly (no `ErrorTy`, `TodoTy` or variable inside, A30), on an expression the user wrote (A29), and where it matches the arguments as cjc does; a check it cannot make yet is counted, so a candidate still fails, and not reported. A false error on code cjc accepts fails `DiagnosticsGateTest`: none on this repository, on std's sources none beyond `std_diagnostics_known.txt`, whose lines each name their gap and only go (D90). What no diagnostic shows, this repository's roots of an `ErrorTy`, `ErrorRootsGateTest` holds per file and kind to `error_roots_known.txt`, on Linux, which only shrinks (D108). On Optics, a workspace of others' on its own macros, built and expanded as the server does, `OpticsGateTest` holds the diagnostics and the calls never sent to `optics_diagnostics_known.txt` alike (D137). A test over a corpus like these carries `@Tag[gate]`: the coverage run leaves it out, and what it alone reaches is a fixture (D120). |
-| A33 | What reads a file's declarations as a build has them reads `itemTreeOf` (`activeItemTree` of a source file), never `itemTree`, which keeps what a false `@When` leaves out; and lowers a body or a signature through an `ActiveFilter`. `itemTree` is for what needs every item whatever the cfg (D93). |
-| A34 | A `common` declaration a `specific` one of its name and kind completes is that one: a scope never has it (`DefMap.commons` keeps it aside), its type is the specific's (`selfTyOf`), and the members of the specific type are the specific's own plus those only the common declares (`commonMembersNamed`). Only what shows a declaration to the user reads the common again (`commonsOf`). A file of a source set the target does not take is in no package, and nothing in it is checked (D99). |
-| A35 | An expansion is read as a file (`hoverInExpansion`, `definitionInExpansion`, offsets in `expandedMacro`'s text), its names in the scope of its call's file; its bodies are not lowered, so nothing in them resolves. Where a request in an expansion goes is in the source if the macro copied the name from there (`sourceRangeOf`), else in the expansion (`NavigationTarget.expansion`); a request from a source file never goes into an expansion. What outlives a revision names a call by its file and `MacroCallKey` (`macroCallKeyOf`, `macroCallOf`), never a `MacroCallId`, which may be collected (D18). A call inside the input of another (D98) shows in that one's expansion: `macroCallAt` gives the call read (`readCallOf`). A declaration a workspace macro copied is what its expansion declares, at its uses and at itself (`expandedDeclOf`), documented by the comments written before the call; a type's interfaces are also those its `@Derive` adds. The expansion of a call in an item is parsed as where the call stands says (`expandToOf`: an expression, or a block's statements, D117), so it has no item: until the body reads it (#369), a token the macro copied is read as at its place in the source, and a plain name it wrote in the scope where the call stands (`callSiteNameOf`), unless the expansion declares that name itself. |
-| A36 | A package has no node: where it is declared is the `package` header of each of its files, at the path it names (`packageTargets`); a package compiled already, nowhere. A name of an `import` means what its path names up to it (`importPathTo`): the name a leaf brings, what the leaf imports; a name before it, a package. Hover shows a package as `package` and its name, at an `import` and in a macro's path alike. |
+| A1 | [Concrete database handle](#a1-concrete-database-handle) |
+| A2 | [Entity query keys](#a2-entity-query-keys) |
+| A3 | [Position dependent API](#a3-position-dependent-api) |
+| A4 | [Write inputs on the root](#a4-write-inputs-on-the-root) |
+| A5 | [Deleted files retain identity](#a5-deleted-files-retain-identity) |
+| A6 | [UTF-8 byte offsets](#a6-utf-8-byte-offsets) |
+| A7 | [Line endings](#a7-line-endings) |
+| A8 | [Analysis knows no LSP](#a8-analysis-knows-no-lsp) |
+| A9 | [Interners and collected identities](#a9-interners-and-collected-identities) |
+| A10 | [Equatable query results](#a10-equatable-query-results) |
+| A11 | [Diagnostics belong to results](#a11-diagnostics-belong-to-results) |
+| A12 | [Preserve diagnostic ranges](#a12-preserve-diagnostic-ranges) |
+| A13 | [Do not retain syntax trees](#a13-do-not-retain-syntax-trees) |
+| A14 | [Meaningful cycle fallbacks](#a14-meaningful-cycle-fallbacks) |
+| A15 | [Bound syntax retention during sweeps](#a15-bound-syntax-retention-during-sweeps) |
+| A16 | [Bound disk loading](#a16-bound-disk-loading) |
+| A17 | [Input durability](#a17-input-durability) |
+| A18 | [Package membership and visibility](#a18-package-membership-and-visibility) |
+| A19 | [Stable item identity](#a19-stable-item-identity) |
+| A20 | [Canonical name text](#a20-canonical-name-text) |
+| A21 | [Do not swallow query unwinds](#a21-do-not-swallow-query-unwinds) |
+| A22 | [Resolution layers](#a22-resolution-layers) |
+| A23 | [Declaration identity](#a23-declaration-identity) |
+| A24 | [Signature type dependencies](#a24-signature-type-dependencies) |
+| A25 | [Local body inference](#a25-local-body-inference) |
+| A26 | [Call local type variables](#a26-call-local-type-variables) |
+| A27 | [Isolate overload candidates](#a27-isolate-overload-candidates) |
+| A28 | [Language items](#a28-language-items) |
+| A29 | [Source maps for desugaring](#a29-source-maps-for-desugaring) |
+| A30 | [Errors and analysis gaps](#a30-errors-and-analysis-gaps) |
+| A31 | [Written and expanded scopes](#a31-written-and-expanded-scopes) |
+| A32 | [Conservative diagnostics and gates](#a32-conservative-diagnostics-and-gates) |
+| A33 | [Conditional compilation](#a33-conditional-compilation) |
+| A34 | [Common and specific declarations](#a34-common-and-specific-declarations) |
+| A35 | [Reading macro expansions](#a35-reading-macro-expansions) |
+| A36 | [Package navigation](#a36-package-navigation) |
+
+### A1: Concrete database handle
+
+Every query takes `AnalysisDatabase` itself; no database interface (D4).
+
+### A2: Entity query keys
+
+A query is keyed by an entity (`SourceFile`, interned ids), never by a position (D6): memo
+values are evicted (`lru`, D17), and interned values unused for a while are collected with the
+memos keyed by them (D18), but other keys live as long as the database.
+
+### A3: Position dependent API
+
+Position-dependent API (`hover(db, position)`) is a plain function over queries.
+
+### A4: Write inputs on the root
+
+Inputs are created and set on the root handle only, outside queries (`IllegalStateException`
+otherwise).
+
+### A5: Deleted files retain identity
+
+A deleted file is an empty text; its `FileId` and `SourceFile` stay.
+
+### A6: UTF-8 byte offsets
+
+Offsets are UTF-8 bytes on character boundaries, as `TextRange` and `Rope`.
+
+### A7: Line endings
+
+Lines break at `\n` only, as the compiler's lexer; a line ends before the `\r` of `\r\n` (D1).
+
+### A8: Analysis knows no LSP
+
+`loupe` knows no LSP: no URIs, `Position`, encodings or LSP types (D5).
+
+### A9: Interners and collected identities
+
+Anything that interns (dense ids in first-seen order) is an `IndexSet`, or a
+`ConcurrentIndexSet` if shared between threads (`PathInterner`, C9; its `FileId`s are forever,
+A5), unless its values are collected: then a `Slab` of generations (calca's interned values and
+memo keys, D18).
+
+### A10: Equatable query results
+
+A value a query returns is `Equatable`, so it backdates; `[noEq]` only with a reason.
+
+### A11: Diagnostics belong to results
+
+Diagnostics are part of the results of the queries that find them (`Parse.errors`), never
+accumulated on the side (D14).
+
+### A12: Preserve diagnostic ranges
+
+A diagnostic's range is what its source gives, an empty one included ("expected `}`" at the end
+of a file); widening it for a client is translation.
+
+### A13: Do not retain syntax trees
+
+A tracked result holds no `SyntaxNode`, `SyntaxToken`, typed view, `GreenNode` or `Parse`
+(`parse` itself excepted), only `SyntaxNodePtr`/`AstPtr`: a node keeps its whole tree alive, and
+`lru` on `parse` frees nothing (D17).
+
+A handler holds nodes for the length of a request.
+
+### A14: Meaningful cycle fallbacks
+
+A query has a fallback on a cycle (`@CalcaTracked[cycleResult: f]`) only where the language
+gives a cycle a meaning of its own (glob imports reaching each other, a recursive type alias),
+and the fallback is what the compiler reports there (an unresolved name, an error type);
+anywhere else a cycle is a bug, and `CycleException` says so.
+
+### A15: Bound syntax retention during sweeps
+
+A question over every file holds no tree past the `lru` of `parse`, which evicts within a
+revision too (D36): what it keeps of a file is a summary with no node (`fileSymbols`,
+`itemTree`).
+
+One that needs no tree kept parses without `parse` (`fileSymbols`, D30), so a sweep does not
+push the open documents' trees out.
+
+### A16: Bound disk loading
+
+What the server reads from disk is bounded: a load keeps at most its budget of text and `.cjo`
+(D30, D38), a sixteenth of the heap (D31).
+
+### A17: Input durability
+
+A file's input has its module's durability: `Low` for the user's, `Medium` for a dependency's,
+`High` for `std`; a file of no module `Low`; a `.cjo` its binary's, `High` for `std`, `Medium`
+for any other.
+
+The project is set before the files it names, so they are created with it (D33).
+
+### A18: Package membership and visibility
+
+Which files a package has is `Package.files`, never found from the texts: a file deleted is an
+empty text (A5).
+
+Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module
+is a unit of the build, cjc's is the first segment of a name (D33).
+
+### A19: Stable item identity
+
+What outlives an edit names an item by its `ItemId`, never by a pointer: a result holding a
+`SyntaxNodePtr` changes with every edit above it, and so does everything that read it.
+
+Items come from `itemTree`, nodes back through `itemIdMap` (D34).
+
+### A20: Canonical name text
+
+A name is its `Name.text()` or `NameRef.text()`, never the text of its node or token: `` `foo`
+`` is `foo`, a quote's `$foo` is `foo` (D116), and a name compared, hashed into an `ItemId` or
+shown keeps no backquotes.
+
+### A21: Do not swallow query unwinds
+
+A query body never catches `Exception` around a calca call, only what it means to tolerate:
+calca unwinds with `Exception`s, and a body catching one stores nothing and throws it again
+(D42).
+
+A handler interns nothing the user types: interned outside a query, a value is `High`, kept
+forever (D18).
+
+### A22: Resolution layers
+
+Resolution is layered (D44): `itemTree` (a file) → `defMap` (a package) → signatures (an
+`ItemId`) → bodies and their scopes → inference (a body); a layer reads only those under it.
+
+A name in a scope is a set of definitions; a member, an overload or an `extend`'s member is
+found by inference, never by a `defMap`.
+
+### A23: Declaration identity
+
+A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair
+held apart; a query about one declaration is keyed by it (D45).
+
+### A24: Signature type dependencies
+
+Lowering a signature to types (`signatureTypes`) reads another declaration's lowered types only
+through an alias, its own expansion: a path's type parameters are counted from `signature` or a
+`.cjo`'s declaration, which lower nothing (`genericsOf`).
+
+A class whose supertype names another whose supertype names it (`A <: I<B>`, `B <: I<A>`) is no
+cycle.
+
+An alias on a cycle of aliases is found by a search of the aliases each names before any is
+expanded, and expands none of its cycle: `signatureTypes` itself never cycles, its fallback
+(A14) only for a cycle the search would miss (D54).
+
+### A25: Local body inference
+
+Inference (`inferBody`) reads another declaration's body only for a type its signature does not
+write (`declaredTyOf`), never its own: a function calling itself of no return type is an error
+there, not a cycle; only declarations of unwritten types reading each other are one, each an
+error by its fallback (A14, D55).
+
+### A26: Call local type variables
+
+A type variable (`InferTy`) lives in the call that made it, while that call is inferred: an
+argument is checked only against a type of none, an unknown one an error type, and the call's
+type and its callee's hold none; none is ever in an `InferenceResult` or another query's result
+(D57).
+
+### A27: Isolate overload candidates
+
+A candidate of a call is tried, never taken on trust: inference writes through a journal while
+one is, and undoes it after, whether it fits or not; the one taken is inferred again.
+
+Nothing a candidate wrote is ever in an `InferenceResult` (D63).
+
+### A28: Language items
+
+A declaration of std.core the syntax means (`Option` of `?T`, `composition` of `~>`, `String` of
+a literal, `Iterable` of `for-in`) is `langItem`'s, whatever a file's scope names and whatever
+its visibility; nothing else looks one up by name.
+
+A type of the compiler's own (`CPointer`, `CString`) is no lang item: a file names it through
+its scope (D66).
+
+A source file of no package finds them, as the `extend`s of a type of the language, in the SDK's
+binary `std.core` (`sdkCore`, #319).
+
+### A29: Source maps for desugaring
+
+A desugaring in the HIR (an optional chain into `QuestMatchExpr`s) adds its expressions after
+those it is made of, of the same node or of none, and names std.core only by `LangExpr` (A28):
+`BodySourceMap.exprAt` gives a node's expression as written, the link `$v.b` of `a?.b`, and the
+expressions after it of that node are what it is desugared into, the last its value (D70).
+
+### A30: Errors and analysis gaps
+
+A type not known is one of two (D77): `ErrorTy` only where cjc reports an error, as far as the
+analysis follows cjc; `TodoTy(why)` where the analysis cannot find a type cjc may well find (a
+macro, a `.cjo` not read, no std, a gap), its reason one of `Todo`'s.
+
+What is made of a type not known is that one, a `TodoTy` before an `ErrorTy` (`unknownOf`),
+never a new error: a failure of known types alone is an `ErrorTy`, unless a macro whose
+expansion is not read is called on the type or in the package looked in (a `TodoTy`).
+
+Such a type, or one of its supertypes so called on, may be a subtype of any class or interface
+(`hasMacroSupertypes`): a bound it does not seem to meet is met, and a join with it is a
+`TodoTy` (#175).
+
+A type or package before a `.` is no value: no type at all (`None` in `InferenceResult.exprs`),
+never an unknown one.
+
+A28's lang items include std.ast's `Tokens` of `quote`.
+
+### A31: Written and expanded scopes
+
+A package's scope has two stages (`ScopeStage`): what its files write, and that with what the
+macro calls in them add (`defMapAt`, `exportsAt`, `fileImportsAt`).
+
+A macro's name is looked up at the first, and nothing on the way from an item to its expansions
+(`expandedCalls`) reads the second: what is expanded depends on it, so the second is a function
+of the first, never a cycle of queries (D82).
+
+### A32: Conservative diagnostics and gates
+
+Inference reports a diagnostic (`InferenceResult.diagnostics`, by expression) only between types
+known wholly (no `ErrorTy`, `TodoTy` or variable inside, A30), on an expression the user wrote
+(A29), and where it matches the arguments as cjc does; a check it cannot make yet is counted, so
+a candidate still fails, and not reported.
+
+A false error on code cjc accepts fails `DiagnosticsGateTest`: none on this repository, on std's
+sources none beyond `std_diagnostics_known.txt`, whose lines each name their gap and only go
+(D90).
+
+What no diagnostic shows, this repository's roots of an `ErrorTy`, `ErrorRootsGateTest` holds
+per file and kind to `error_roots_known.txt`, on Linux, which only shrinks (D108).
+
+On Optics, a workspace of others' on its own macros, built and expanded as the server does,
+`OpticsGateTest` holds the diagnostics and the calls never sent to
+`optics_diagnostics_known.txt` alike (D137).
+
+A test over a corpus like these carries `@Tag[gate]`: the coverage run leaves it out, and what
+it alone reaches is a fixture (D120).
+
+### A33: Conditional compilation
+
+What reads a file's declarations as a build has them reads `itemTreeOf` (`activeItemTree` of a
+source file), never `itemTree`, which keeps what a false `@When` leaves out; and lowers a body
+or a signature through an `ActiveFilter`. `itemTree` is for what needs every item whatever the
+cfg (D93).
+
+### A34: Common and specific declarations
+
+A `common` declaration a `specific` one of its name and kind completes is that one: a scope
+never has it (`DefMap.commons` keeps it aside), its type is the specific's (`selfTyOf`), and the
+members of the specific type are the specific's own plus those only the common declares
+(`commonMembersNamed`).
+
+Only what shows a declaration to the user reads the common again (`commonsOf`).
+
+A file of a source set the target does not take is in no package, and nothing in it is checked
+(D99).
+
+### A35: Reading macro expansions
+
+An expansion is read as a file (`hoverInExpansion`, `definitionInExpansion`, offsets in
+`expandedMacro`'s text), its names in the scope of its call's file; bodies in mapped macro-server outputs are lowered and inferred (D132), while cjls's own stub bodies remain comments (D118).
+
+Where a request in an expansion goes is in the source if the macro copied the name from there
+(`sourceRangeOf`), else in the expansion (`NavigationTarget.expansion`); a request from a source
+file never goes into an expansion.
+
+What outlives a revision names a call by its file and `MacroCallKey` (`macroCallKeyOf`,
+`macroCallOf`), never a `MacroCallId`, which may be collected (D18).
+
+A call inside the input of another (D98) shows in that one's expansion: `macroCallAt` gives the
+call read (`readCallOf`).
+
+A declaration a workspace macro copied is what its expansion declares, at its uses and at itself
+(`expandedDeclOf`), documented by the comments written before the call; a type's interfaces are
+also those its `@Derive` adds.
+
+The expansion of a call in an item is parsed as where the call stands says (`expandToOf`: an
+expression, or a block's statements, D117), so it has no item: until the body reads it (#369), a
+token the macro copied is read as at its place in the source, and a plain name it wrote in the
+scope where the call stands (`callSiteNameOf`), unless the expansion declares that name itself.
+
+### A36: Package navigation
+
+A package has no node: where it is declared is the `package` header of each of its files, at the
+path it names (`packageTargets`); a package compiled already, nowhere.
+
+A name of an `import` means what its path names up to it (`importPathTo`): the name a leaf
+brings, what the leaf imports; a name before it, a package.
+
+Hover shows a package as `package` and its name, at an `import` and in a macro's path alike.
+
+## Analysis tests
+
+Analysis fixtures exercise loupe without LSP or a linked fixture library (D43).
+Start with a neighboring feature's `*_test.cj` and the
+[fixture helpers](../../modules/loupe/src/fixture/), and follow
+[Development](../development.md) for focused and required checks.
+
+Tests using std binary packages (HIR and VFS tests included) need the pinned SDK
+selected by `CANGJIE_HOME`, as `cjo` tests do. Tests navigating into std source
+also need `.corpora/` at the runtime commit matching the nightly:
+[`stdWithSources`](../../modules/loupe/src/fixture/sdk.cj) reads that corpus, not
+an arbitrary SDK source checkout (D65). Use the corpus fetch procedure in
+Development; missing SDK or corpus data is a prerequisite failure, not permission
+to silently skip a case.

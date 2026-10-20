@@ -1,49 +1,8 @@
 # Layers
 
-## Modules and packages (D3)
-
-| | When |
-|---|---|
-| module | a library that knows nothing of the server: own dependencies, own `output-type`, reusable without `cjls` |
-| package of `cjls` | everything only the server has |
-
-- A package is Cangjie's unit of compilation: a module buys no build parallelism.
-- A module boundary is what the compiler checks: `loupe` cannot import `cjls.lsp_types`, because it does not depend on `cjls`.
-- Nothing can depend on an executable module (`cjls`).
-
-## Dependencies
-
-```
-cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
-  │
-  ├────> project_model ──> stdxx, ftoml, loupe, cjsyntax
-  │
-  ├────> cjformat ──> cjsyntax
-  │
-  ├────> macro_host ──> macro_server, loupe, project_model, jsonrpc, calca
-  │          └─────> macro_server ──> fbs, cjsyntax
-  │
-  └────> loupe ──> calca
-           ├─────> cjformat
-           ├─────> cjo ──> fbs
-           ├─────> cjsyntax ──> ginkgo
-           ├─────> index_map
-           └─────> rope
-```
-
-Inside `cjls`: `handlers → server`, `handlers → loupe`, `handlers → macro_host → server`, `server → macro_host` (the module, for the cache directory's lock). Inside `loupe`: `loupe → hir → syntax → db → vfs`.
-
-`loupe`'s packages are layers, never features: a package depends only on those under it, so a query of `loupe.syntax` never sees the API. A feature (`fileStructure`, `diagnostics`, `highlight`, later `hover`) is a file of the API package `loupe`, free to call the others and every query under it. What two features share is a query of a layer below (a resolved name, a type), not a call from one to the other; a layer gets its own package when queries need one (`loupe.hir`), not when a feature appears.
-
-`cjformat` (D60) formats on `cjsyntax`'s tree alone: the server through `loupe.formatting`, `cjls fmt` on a file's text.
-
-`cjo` (D37) depends on `fbs` alone, the runtime of what `fbs_codegen` generates: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
-
-`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. It also depends on `cjsyntax`, whose tokens it turns into cjc's (D95). `macro_host` (D104) drives it with what `loupe` asks: it builds the macro packages, sends the calls under a deadline and turns the answers into `loupe.db`'s; the thread that runs it in the server, the `Loop`, the settings and the open documents are `cjls.macro_host`'s `MacroHost`.
-
-`platform` (D101) is under every module with code that differs between platforms (`cjls`, `loupe`, `project_model`, `macro_host`, `macro_server`), on std alone: one package over a source set per platform, its API the `common` declarations.
-
-Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37; `macro_server`'s views and writers, D87), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
+The [architecture overview](../architecture.md) explains module responsibilities,
+request and edit flow, syntax and macro boundaries. This is the stable L0–L7
+reference used by the rules and ADRs; the module manifests define dependencies.
 
 ## Layers of a request
 
