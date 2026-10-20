@@ -2,7 +2,8 @@
 
 | Where | What | Rule |
 |---|---|---|
-| [design/](design/) | living rules | tables and lists, no prose; changed in the same PR as the code they describe |
+| [architecture.md](architecture.md) | architecture, request/edit flow and code entry points | overview and navigation; detailed constraints stay in the design rules |
+| [design/](design/) | living rules | stable IDs, short rule indexes and readable explanations; changed in the same PR as the code they describe |
 | [adr/](adr/) | decisions taken | one decision per file, ≤ 1 page; never rewritten, superseded by a new one |
 | [issues](https://github.com/ide4cj/cjls/issues?q=is%3Aissue+label%3Aquestion) labeled `question` | open questions | a closed question becomes an ADR or a rule, which names the issue |
 | [prior-art.md](prior-art.md) | the servers cjls is measured against, and what comes from which | updated when a reference changes, or a part of cjls starts following one |

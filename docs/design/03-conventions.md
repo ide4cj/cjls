@@ -77,8 +77,6 @@ Take a sibling under another name (`readv` for `read`, as `StdinStream` does in
 A blocking call with the stub is harmless, an array pinned by `acquireArrayRawData` across it
 included.
 
-SDK defect evidence and removal criteria: [K2](../sdk-issues.md#k2).
-
 ### C6: URI and path handling
 
 A URI is a `stdx.encoding.url.URL` (`URL.parse`, `URL(scheme: …, path: …).toString()`), a path a
