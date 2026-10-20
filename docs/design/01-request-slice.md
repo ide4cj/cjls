@@ -95,7 +95,17 @@ Never catch `CancelledException` in a handler; the server maps it (see table).
 
 ### S6: Handlers are not queries
 
-Handlers are not `@CalcaTracked` (D6).
+LSP handlers stay ordinary functions; incremental memoization belongs in `loupe` queries
+keyed by analysis entities (D6, [A2–A3](02-analysis.md#a2-entity-query-keys)). A handler
+translates request parameters and analysis results, using its snapshot's client settings;
+any effects must run on each invocation rather than be skipped on a cache hit.
+
+This is an architectural boundary. [`@LspHandler`](../../modules/cjls/src/macros/lsp_handler.cj)
+only adds a context-extracting overload; it does not explicitly reject `@CalcaTracked`.
+D6's original claim that calca has no LRU or GC is historical: memo values can now be
+evicted (D17), and unused interned values are collected with the memos keyed by them
+(D18). Other keys still live as long as the database (A2), so these mechanisms do not
+bound a cache keyed by arbitrary request parameters.
 
 ### S7: Schedule after writes
 

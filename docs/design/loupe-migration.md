@@ -45,6 +45,11 @@ that behavior. A35 now distinguishes those bodies from cjls's comment stubs
 (D118). This reconciles the rule to implementation without accepting D132's
 remaining proposals; see the status review.
 
+S6 now explains the handler/query boundary and distinguishes it from macro
+validation. D6's original no-LRU/no-GC rationale is historical; current retention
+behavior is described by A2, D17 and D18. The rule and the historical ADR remain
+in place; no runtime behavior changes.
+
 The former analysis "Pieces" API table is replaced by conceptual prose and source
 navigation in Architecture. The former layer dependency overview is moved there;
 module manifests remain authoritative for the full graph. The
