@@ -25,18 +25,12 @@ VS Code and Zed extensions are planned.
 
 ## Build
 
-The toolchain is the Cangjie nightly named in [`.cangjie-version`](.cangjie-version), with its stdx, checked
-against [`.cangjie-sha256`](.cangjie-sha256):
+Use the pinned Cangjie SDK and matching stdx. [Development](docs/development.md)
+covers setup, building, testing and preparing a review.
 
-```sh
-python3 .github/actions/setup-cangjie/setup.py "$(cat .cangjie-version)" ~/.cangjie-nightly
-# then the exports it prints, and
-cjpm build          # target/release/bin/cjls
-cjpm test
-```
-
-How the code is laid out and why is in [`docs/`](docs/README.md); building, testing and commits in
-[CLAUDE.md](CLAUDE.md); adding a request in [CONTRIBUTING.md](CONTRIBUTING.md).
+The architecture and design rules are in [`docs/`](docs/README.md); adding a
+request in [CONTRIBUTING.md](CONTRIBUTING.md); agent working instructions in
+[AGENTS.md](AGENTS.md).
 
 ## License
 
