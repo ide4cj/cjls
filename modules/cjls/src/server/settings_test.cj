@@ -81,12 +81,15 @@ class SettingsTest {
 
     @TestCase
     func aParsedAbsenceIsAcceptedWithoutUsingTheDefaultOrReportingAProblem() {
+        // arrange
         let setting = Setting<?String>("path", "A path", optionalPathSchema(), Some("fallback"),
             {_: String, _: JsonValue, _: ArrayList<String> => ParsedSetting(Option<String>.None)})
         let problems = ArrayList<String>()
 
+        // act
         let value = setting.read(settingsJson([("path", text("none"))]), problems)
 
+        // assert
         @Expect(value.isNone())
         @Expect(problems.size, 0)
     }

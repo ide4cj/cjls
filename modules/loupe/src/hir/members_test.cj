@@ -8,20 +8,28 @@ import loupe.db.AnalysisDatabase
 class LookupTyTest {
     @TestCase
     func anAbsentReceiverIsComputedOnlyOnceAndOnlyWhenNeeded() {
+        // arrange
         let calls = [0]
         let lookup = LookupTy({=>
             calls[0]++
             Option<Ty>.None
         })
 
-        @Expect(calls[0], 0)
-        @Expect(lookup.get().isNone())
-        @Expect(lookup.get().isNone())
+        // act
+        let before = calls[0]
+        let first = lookup.get()
+        let second = lookup.get()
+
+        // assert
+        @Expect(before, 0)
+        @Expect(first.isNone())
+        @Expect(second.isNone())
         @Expect(calls[0], 1)
     }
 
     @TestCase
     func aKnownReceiverIsComputedOnlyOnce() {
+        // arrange
         let db = AnalysisDatabase()
         let ty = Ty(db, PrimTy("Int64"))
         let calls = [0]
@@ -30,9 +38,15 @@ class LookupTyTest {
             Some(ty)
         })
 
-        @Expect(calls[0], 0)
-        @Expect(lookup.get(), Some(ty))
-        @Expect(lookup.get(), Some(ty))
+        // act
+        let before = calls[0]
+        let first = lookup.get()
+        let second = lookup.get()
+
+        // assert
+        @Expect(before, 0)
+        @Expect(first, Some(ty))
+        @Expect(second, Some(ty))
         @Expect(calls[0], 1)
     }
 }
