@@ -147,7 +147,7 @@ recorded by [fetch.py](../tests/corpora/fetch.py).
 
 Keep build output in `target/release`, tests in `target/test`: build and test in
 the same target directory invalidate each other's cache (D27). `--no-progress`
-avoids a known progress-reporter stall; CI's timeout bounds a hung test, not a
+avoids the [reported progress-reporter stall](sdk-issues.md#k10); CI's timeout bounds a hung test, not a
 timing assertion in test code. Tests use the manifest's 2 GB heap setting.
 
 Unit tests sit beside code as `*_test.cj`. Analysis tests use
@@ -267,17 +267,20 @@ mode and formatting changes are tracked separately in #112 and #359.
 ## Toolchain constraints
 
 Preserve these existing constraints until evidence on the pinned SDK justifies
-a change. The future versioned SDK registry/probes are tracked in #332.
+a change. [SDK issues](sdk-issues.md) is the canonical record of defect evidence,
+observed versions/platforms and uncertainty; independent probes remain in #332.
+The table below identifies the constraints to preserve in this checkout.
 
 | Constraint | Reason / reference |
 |---|---|
 | `cjls` links `--static` | The server must run without SDK env |
 | Preserve the Linux release baseline and runtime-container check | System glibc/libstdc++ remain dynamic; C32, D142 |
-| Per-target release `-O2`, except `platform`'s `-O1` | `-g` builds must stay unoptimized; CJMP at `-O2` breaks linking (D51, D102) |
+| Per-target release `-O2`, except `platform`'s `-O1` | `-g` builds must stay unoptimized (D51); [K14](sdk-issues.md#k14), D102 |
 | Keep module/root `-Woff unused`; other warnings remain enabled | Existing generated/macro warnings; `-m` reads module settings (D97) |
-| No LTO, `-dead_strip`, or `std.ast` reachable from runtime packages | Runtime failures or linking the compiler parser into the server (D20) |
-| Read `list[i]` before removing a tuple/struct element | Known `-O2` miscompile of `list.remove(at: i)[1]` |
-| Blocking foreign functions are neither `@FastNative` nor named as known libc functions | Otherwise the GC can stall (C5, D13) |
+| No LTO or `-dead_strip` | [K5](sdk-issues.md#k5), [K6](sdk-issues.md#k6), D20 |
+| No `std.ast` reachable from runtime packages | Avoid linking the compiler parser into the server |
+| Read `list[i]` before removing a tuple/struct element | [K7](sdk-issues.md#k7) |
+| Blocking foreign functions are neither `@FastNative` nor named as known libc functions | [K2](sdk-issues.md#k2), C5, D13 |
 
 Macros generate unqualified names: their consumers must import the names used
 by expansions. Enum constructors leak into package scope; avoid collisions
@@ -291,7 +294,7 @@ building a consumer, not only the macro package. See
 | Symptom | Check first |
 |---|---|
 | `cjpm` found but stdx or runtime library missing | SDK selection, `CANGJIE_HOME`, stdx layout and SDK environment in this process |
-| Compiler processes hang | POSIX shim is ahead of the real cjc on PATH (#342) |
+| Compiler processes hang | POSIX shim is ahead of the real cjc on PATH ([K17](sdk-issues.md#k17)); distinguish the separate pipe-draining risk [K18](sdk-issues.md#k18) |
 | Tests fail naming a missing corpus | Run `tests/corpora/fetch.py` in this worktree |
 | Source changes appear ignored | cjpm tracks mtimes, not content; `cjpm clean` is needed after restoring old mtimes |
 | SDK change uses stale objects | Root `build.cj` detects compiler version changes (D27); check selected compiler |

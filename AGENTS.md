@@ -20,6 +20,7 @@ is a complete feature list.
 | Set up a machine, build, test, inspect coverage or troubleshoot | [Development](docs/development.md) |
 | Find architecture and code entry points | [Architecture](docs/architecture.md) |
 | Find design rules and code conventions | [Documentation index](docs/README.md) |
+| Check an SDK defect or workaround | [SDK issues](docs/sdk-issues.md) |
 | Add or change a handler | [Contributing](CONTRIBUTING.md) |
 | Understand a design choice | [ADRs](docs/adr/README.md), [prior art](docs/prior-art.md) |
 
