@@ -17,8 +17,10 @@ and starts it on `.cj` files.
 
 **Any other editor**: download the archive for your platform from the
 [latest release](https://github.com/ide4cj/cjls/releases/latest) — macOS arm64, Linux x64, Windows
-x64 — check it against `SHA256SUMS`, and put `cjls` on your `PATH`. The binary is static and needs no
-Cangjie SDK. Run it over stdio, with the nearest `cjpm.toml`'s directory as the root. `CJLS_LOG_LEVEL`
+x64 — check it against `SHA256SUMS`, and put `cjls` on your `PATH`. The Cangjie runtime is linked
+statically; no Cangjie SDK is needed. Linux releases target Ubuntu 22.04 or newer, with system
+glibc and an up-to-date `libstdc++6` package (`GLIBCXX_3.4.30`). Run it over stdio, with the nearest
+`cjpm.toml`'s directory as the root. `CJLS_LOG_LEVEL`
 (`OFF`, `ERROR`, `WARN`, `INFO` by default, `DEBUG`, `TRACE`) sets what it logs to stderr.
 
 VS Code and Zed extensions are planned.
