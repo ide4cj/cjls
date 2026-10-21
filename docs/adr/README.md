@@ -160,3 +160,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0139](0139-a-file-in-no-package-is-compiled-alone.md) | A document open in no package is compiled alone, as cjc compiles a file: a module of its own with std | proposed |
 | [0140](0140-an-enums-constructors-of-one-name-are-overloads.md) | An enum's constructors of one name are overloads, narrowed by arity and type arguments before a call tries them | proposed |
 | [0141](0141-a-tests-state-runs-no-macros.md) | A state runs no macros unless it is given what starts them | proposed |
+| [0142](0142-linux-glibc-baseline.md) | Build Linux releases on Ubuntu 22.04 and check them without the SDK | proposed |
