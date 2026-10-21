@@ -23,6 +23,12 @@ The maintainer files upstream reports. Preserve current workarounds unless focus
 evidence justifies retiring them on the relevant SDK/platform; K4 records a
 requirement already retired in master.
 
+Retired entries are struck through in the index and heading, with the verified
+SDK/platform scope and evidence retained below. Keep their IDs and anchors for
+existing references; never reuse an ID. Apply this convention to any entry once
+focused verification supports retiring its restriction. An implemented workaround
+or a passing ordinary test run alone does not establish an SDK fix.
+
 ## Index
 
 | ID | Problem | cjls response |
@@ -30,7 +36,7 @@ requirement already retired in master.
 | [K1](#k1) | Spawn immediately before blocking FFI may never start | Yield before stdin read |
 | [K2](#k2) | Known libc names implicitly become fast native calls | Use `readv`, preserve C5 |
 | [K3](#k3) | std stdin read waits for full buffer/EOF | Read stdin through platform FFI |
-| [K4](#k4) | Historical stdx extension funcTable failure across shared libraries | Original scenario passes on the pin on Linux x86_64; restriction retired |
+| ~~[K4](#k4)~~ | ~~stdx extension funcTable failure across shared libraries~~ | **Retired** — original scenario passes on the pin on Linux x86_64 (#457) |
 | [K5](#k5) | LTO produces bad GC stack maps | No LTO |
 | [K6](#k6) | `-dead_strip` aborts at runtime | Do not enable it |
 | [K7](#k7) | Tuple/struct taken from `ArrayList.remove` miscompiled | Read before removing |
@@ -90,7 +96,11 @@ unverified. Preserve descriptor-based stdin, subject to K1/K2; fake-transport un
 tests do not exercise the SDK's stdin implementation.
 
 <a id="k4"></a>
-### K4
+### ~~K4~~ — Retired
+
+**Status: retired.** The original scenario no longer reproduces on
+`1.3.0-alpha.20261014001050`, Linux x86_64; the static-library restriction was
+removed in [PR #457](https://github.com/ide4cj/cjls/pull/457).
 
 Historical stdx extensions on user types lost funcTables across a shared-library
 boundary: runtime SIGABRT, `F funcTable is nullptr`.
