@@ -294,6 +294,11 @@ branches do work. A transformation alone does not need `case Some(x) => Some(f(x
 with the reason: `getOrThrow { IllegalStateException("…") }` or `?? throw …`;
 never after an `isSome()`, which is an `if let`.
 
+Nested optional states in domain APIs or stored state use a dedicated type whose
+variants name the reasons for absence, rather than `??T`. Collection lookups and
+optional chaining may compose options; flatten them when only a present value
+matters.
+
 The type is `?T`, never `Option<T>`; `None` is bare where the type is known (`var x: ?T = None`,
 not `Option<T>.None`).
 

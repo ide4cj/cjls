@@ -59,7 +59,7 @@ func annotate(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode, item
         actual.add(Annotation(fileId, range, types.text(db, item.kind)))
     }
     for (error in types.errors) {
-        if (let Some(Some(ptr)) <- ptrs.get(error.at.index) && let Some(node) <- ptr.tryToNode(root)) {
+        if (let Some(ptr) <- ptrs.get(error.at.index).flatMap {one => one} && let Some(node) <- ptr.tryToNode(root)) {
             actual.add(Annotation(fileId, node.textRange, "error: ${error.message()}"))
         }
     }

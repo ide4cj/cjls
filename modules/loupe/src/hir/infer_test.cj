@@ -56,14 +56,16 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
                 if (local.lone && !ctorsNamed(db, pkg, source, local.name).isEmpty()) {
                     continue
                 }
-                if (let Some(Some(ptr)) <- lowered.sourceMap.locals.get(i) && let Some(node) <- ptr.tryToNode(root)) {
+                if (let Some(ptr) <- lowered.sourceMap.locals.get(i).flatMap {one => one} &&
+                    let Some(node) <- ptr.tryToNode(root)) {
                     actual.add(Annotation(fileId, node.textRange, result.locals[i].text(db)))
                 }
             }
             // `src` of a macro's `x in src` on it (#191)
             for (attr in lowered.body.attrs) {
                 for (arg in attr.args) {
-                    if (let DataArg(_, src) <- arg && let Some(Some(ptr)) <- lowered.sourceMap.exprs.get(src.index) &&
+                    if (let DataArg(_, src) <- arg &&
+                        let Some(ptr) <- lowered.sourceMap.exprs.get(src.index).flatMap {one => one} &&
                         let Some(node) <- ptr.tryToNode(root)) {
                         let ty = result.exprs[src.index].map {one => one.text(db)} ?? "none"
                         actual.add(Annotation(fileId, node.textRange, ty))

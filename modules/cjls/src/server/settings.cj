@@ -112,8 +112,17 @@ public func settingsSchema(): JsonValue {
 }
 
 /**
+ * Whether a setting value matches its schema. `ParsedSetting(None)` is a valid absent value
+ * when the setting's own type is optional; `InvalidSetting` requests a diagnostic and default.
+ */
+enum SettingParse<T> {
+    | ParsedSetting(T)
+    | InvalidSetting
+}
+
+/**
  * A setting: its key, what it means, its schema but for the description, its default, and how its
- * value is read, `None` for one that is not what the schema says.
+ * value is read, `InvalidSetting` for one that is not what the schema says.
  */
 class Setting<T> {
     Setting(
@@ -121,15 +130,15 @@ class Setting<T> {
         let description: String,
         let schema: JsonValue,
         let default: T,
-        let parse: (String, JsonValue, ArrayList<String>) -> ?T
+        let parse: (String, JsonValue, ArrayList<String>) -> SettingParse<T>
     ) {}
 
     func read(json: JsonValue, problems: ArrayList<String>): T {
         match (json.get(key)) {
             case None | Some(JsonValue.JsonNull) => default
             case Some(value) => match (parse(key, value, problems)) {
-                case Some(parsed) => parsed
-                case None =>
+                case ParsedSetting(parsed) => parsed
+                case InvalidSetting =>
                     problems.add("`${key}` is not ${typeOf()}: ${value}")
                     default
             }
@@ -159,22 +168,22 @@ func optionalPathSchema(): JsonValue {
 }
 
 /**
- * `value` if it is `true` or `false`; `None` for anything else.
+ * `value` if it is `true` or `false`; `InvalidSetting` for anything else.
  */
-func readBool(_: String, value: JsonValue, _: ArrayList<String>): ?Bool {
+func readBool(_: String, value: JsonValue, _: ArrayList<String>): SettingParse<Bool> {
     match (value) {
-        case JsonValue.JsonBool(flag) => flag
-        case _ => None
+        case JsonValue.JsonBool(flag) => ParsedSetting(flag)
+        case _ => InvalidSetting
     }
 }
 
 /**
- * `value` if it is a whole number above 0; `None` for anything else.
+ * `value` if it is a whole number above 0; `InvalidSetting` for anything else.
  */
-func readPositive(_: String, value: JsonValue, _: ArrayList<String>): ?Int64 {
+func readPositive(_: String, value: JsonValue, _: ArrayList<String>): SettingParse<Int64> {
     match (value) {
-        case JsonValue.JsonInteger(n) where n > 0 => n
-        case _ => None
+        case JsonValue.JsonInteger(n) where n > 0 => ParsedSetting(n)
+        case _ => InvalidSetting
     }
 }
 
@@ -194,18 +203,19 @@ func readPath(_: String, value: JsonValue, _: ArrayList<String>): ?String {
 /**
  * The path `value` names, as `readPath` reads it, for a setting that may be none.
  */
-func readOptionalPath(key: String, value: JsonValue, problems: ArrayList<String>): ??String {
-    readPath(key, value, problems).map {path => Some(path)}
+func readOptionalPath(key: String, value: JsonValue, problems: ArrayList<String>): SettingParse<?String> {
+    let path = readPath(key, value, problems) ?? return InvalidSetting
+    ParsedSetting(Some(path))
 }
 
 /**
  * The paths a list names, each an absolute path or a `file:` URI; an item that is neither is left
- * out, and `problems` told of it. `None` for anything but a list.
+ * out, and `problems` told of it. `InvalidSetting` for anything but a list.
  */
-func readPaths(key: String, value: JsonValue, problems: ArrayList<String>): ?Array<VfsPath> {
+func readPaths(key: String, value: JsonValue, problems: ArrayList<String>): SettingParse<Array<VfsPath>> {
     let items = match (value) {
         case JsonValue.JsonArray(items) => items
-        case _ => return None
+        case _ => return InvalidSetting
     }
     let paths = ArrayList<VfsPath>()
     for (item in items) {
@@ -214,5 +224,5 @@ func readPaths(key: String, value: JsonValue, problems: ArrayList<String>): ?Arr
             case None => problems.add("an item of `${key}` is not an absolute path or a `file:` URI: ${item}")
         }
     }
-    paths.toArray()
+    ParsedSetting(paths.toArray())
 }
