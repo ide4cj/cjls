@@ -28,6 +28,18 @@ Read the affected module's instructions and technical notes before editing it.
 Follow links relevant to the task; do not load all module notes or ADRs for every
 change.
 
+## Issues and board
+
+When creating or triaging an issue, follow
+[the organization's process](https://github.com/ide4cj/.github/blob/master/CONTRIBUTING.md#issues-and-labels).
+Set its GitHub issue type (Bug, Feature or Task) and relevant `A-` or `client:`
+labels. Add it to [the board](https://github.com/orgs/ide4cj/projects/1) and set
+Priority and Status in the same operation; new issues start in Backlog. Read
+the current priority definitions and goal in the shared process rather than
+relying on remembered milestones. Verify the saved issue and board fields
+before reporting completion; automatic board enrollment does not fill them.
+The p2cj repository is outside this board's scope.
+
 ## Essential boundaries
 
 - stdout is the LSP wire; diagnostics/logging go through the supplied logger,
