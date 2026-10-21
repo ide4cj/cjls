@@ -4,16 +4,14 @@
 under [`.agents/skills/`](../.agents/skills) add narrow procedures for
 [changed-file coverage](../.agents/skills/change-coverage/SKILL.md) and
 [benchmark evidence](../.agents/skills/benchmark/SKILL.md). Humans can follow these
-Markdown procedures too; no Claude session or private memory is required.
+Markdown procedures too; no agent session or private memory is required.
 
 ## SDK environment
 
 Use [Select the pinned SDK](development.md#select-the-pinned-sdk) in each shell or
 inherit that environment from the launcher. Worktrees share an installed SDK,
 not mutable `target/`, `.corpora/` or coverage outputs. `CANGJIE_HOME` and the
-matching static stdx layout matter as well as the compiler on PATH. The old
-Claude hook's `~/.cangjie` path is a machine-specific convenience, not a portable
-setup contract. There is no need to migrate it to another agent's startup hook.
+matching static stdx layout matter as well as the compiler on PATH.
 
 Coverage's `-g` build and release builds exercise different compiler/runtime
 behavior. Follow [toolchain constraints](development.md#toolchain-constraints)
@@ -77,19 +75,19 @@ PR's merged state, exact head commit and absence of subsequent local work before
 considering explicitly authorized forced branch deletion. Missing upstreams and
 reused branch names are not merge evidence. Do not fetch, publish, delete branches
 or write to GitHub merely because an old permission list allowed it. The former
-Claude startup cleanup hook is disabled; its compatibility entry point performs
-no cleanup. No automatic replacement infers inactivity from timestamps.
+startup cleanup hook has been removed. No automatic replacement infers inactivity
+from timestamps.
 
 ## Editor and LSP integration
 
 The server remains available to editors over stdio; build/run and e2e commands are
-in [Development](development.md#build-and-run). Claude's agent-facing LSP tool or
-plugin is not required to build, inspect or verify cjls. Use source search for
-navigation and the real-binary e2e suite for protocol behavior in a fresh session.
+in [Development](development.md#build-and-run). An agent-facing LSP tool or plugin
+is not required to build, inspect or verify cjls. Use source search for navigation
+and the real-binary e2e suite for protocol behavior in a fresh session.
 
 A Codex-specific LSP adapter is explicitly deferred: no repository-owned adapter
 or equivalent agent tool has been implemented or verified. Do not claim source
 search replaces semantic rename/references, or that e2e checks establish an editor
 plugin's integration. Test a configured editor when the requested change depends
-on it. Removal of remaining Claude configuration/module pointers belongs to the
-later integration work in [#455](https://github.com/ide4cj/cjls/issues/455).
+on it. Migration of the remaining module notes belongs to the later integration
+work in [#455](https://github.com/ide4cj/cjls/issues/455).

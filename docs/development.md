@@ -69,7 +69,7 @@ Confirm the compiler version matches the pin. `CANGJIE_HOME` must identify this
 SDK, with stdx under `third_party/stdx/<os>_<arch>_cjnative/static/stdx`, as the
 root [manifest](../cjpm.toml) specifies. Exported variables belong to the current
 shell: a new terminal or agent command process must load the environment again,
-or inherit it from its launcher. No Claude session hook is required.
+or inherit it from its launcher.
 
 To enable repository Git hooks once per clone:
 
