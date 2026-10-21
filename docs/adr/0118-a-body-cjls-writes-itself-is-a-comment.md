@@ -1,6 +1,6 @@
 # ADR-0118: A body cjls writes in an expansion of its own is a comment naming the macro
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0114: the `extend`s an outer macro copies have bodies of a comment, not empty ones
 
 ## Context

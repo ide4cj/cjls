@@ -1,6 +1,6 @@
 # ADR-0139: A document open in no package is compiled alone, as cjc compiles a file: a module of its own with std
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0088 (what a document in no package does on open)
 
 ## Context

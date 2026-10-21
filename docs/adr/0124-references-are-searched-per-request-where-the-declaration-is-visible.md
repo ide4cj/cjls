@@ -1,6 +1,6 @@
 # ADR-0124: References are searched per request in the files a declaration is visible from whose text names it, no index of uses kept
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

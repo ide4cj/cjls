@@ -1,6 +1,6 @@
 # ADR-0119: A macro call on a parameter is a macro call of the item whose parameter list holds it, indexed after the item's own
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0098: a `MacroCallId` is an item and an index among the calls on it; ADR-0114: a call on a primary constructor parameter is sent as written
 
 ## Context

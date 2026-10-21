@@ -1,6 +1,6 @@
 # ADR-0121: A known gap met by new code grows the error roots file; the code stays idiomatic and the commit names the gap
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0108: the file only shrinks
 
 ## Context

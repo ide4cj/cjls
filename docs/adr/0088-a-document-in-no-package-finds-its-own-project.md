@@ -1,6 +1,6 @@
 # ADR-0088: A document open in no package finds its own project from its path, as R1 does on open, and that project stays loaded with the roots'
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0033 (a project per root, and those found from documents) and ADR-0080 (its rediscovery is one case of this)
 
 ## Context

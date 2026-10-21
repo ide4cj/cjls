@@ -1,6 +1,6 @@
 # ADR-0104: The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0087: how the macro packages are built, and the guard's deadline
 Amends ADR-0094: macros are on for any SDK since 1.0, by a table of cjls's own where the SDK ships no `Tokens.inc`
 Amends ADR-0095: the numbers come from that table when the SDK has no `Tokens.inc`

@@ -1,6 +1,6 @@
 # ADR-0084: What a name means is kept where it was resolved, not resolved again by what reads it
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0072: semantic tokens read what inference and lowering resolved; `lookUp` is a query
 
 ## Context

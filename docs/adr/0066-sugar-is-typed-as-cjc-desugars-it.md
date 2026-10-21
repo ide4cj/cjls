@@ -1,6 +1,6 @@
 # ADR-0066: Coalescing, pipelines and compositions are typed as what cjc desugars them to, std.core named through lang items
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

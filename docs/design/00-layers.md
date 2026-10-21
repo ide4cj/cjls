@@ -1,61 +1,25 @@
 # Layers
 
-## Modules and packages (D3)
+The [architecture overview](../architecture.md) explains module responsibilities,
+request and edit flow, syntax and macro boundaries. This is the stable L0–L7
+reference used by the rules and ADRs; the module manifests define dependencies.
 
-| | When |
-|---|---|
-| module | a library that knows nothing of the server: own dependencies, own `output-type`, reusable without `cjls` |
-| package of `cjls` | everything only the server has |
-
-- A package is Cangjie's unit of compilation: a module buys no build parallelism.
-- A module boundary is what the compiler checks: `loupe` cannot import `cjls.lsp_types`, because it does not depend on `cjls`.
-- Nothing can depend on an executable module (`cjls`).
-
-## Dependencies
-
-```
-cjls ──> jsonrpc ──> stdxx ──> fjson ──> fnum
-  │
-  ├────> project_model ──> stdxx, ftoml, loupe, cjsyntax
-  │
-  ├────> cjformat ──> cjsyntax
-  │
-  ├────> macro_host ──> macro_server, loupe, project_model, jsonrpc, calca
-  │          └─────> macro_server ──> fbs, cjsyntax
-  │
-  └────> loupe ──> calca
-           ├─────> cjformat
-           ├─────> cjo ──> fbs
-           ├─────> cjsyntax ──> ginkgo
-           ├─────> index_map
-           └─────> rope
-```
-
-Inside `cjls`: `handlers → server`, `handlers → loupe`, `handlers → macro_host → server`, `server → macro_host` (the module, for the cache directory's lock). Inside `loupe`: `loupe → hir → syntax → db → vfs`.
-
-`loupe`'s packages are layers, never features: a package depends only on those under it, so a query of `loupe.syntax` never sees the API. A feature (`fileStructure`, `diagnostics`, `highlight`, later `hover`) is a file of the API package `loupe`, free to call the others and every query under it. What two features share is a query of a layer below (a resolved name, a type), not a call from one to the other; a layer gets its own package when queries need one (`loupe.hir`), not when a feature appears.
-
-`cjformat` (D60) formats on `cjsyntax`'s tree alone: the server through `loupe.formatting`, `cjls fmt` on a file's text.
-
-`cjo` (D37) depends on `fbs` alone, the runtime of what `fbs_codegen` generates: `loupe.vfs` checks a `.cjo` it reads through it, `loupe.hir` lowers one into the item model (D38).
-
-`macro_server` (D87) runs macros in the SDK's `LSPMacroServer`, on `fbs`: its messages, written and read, the connection and the process. It also depends on `cjsyntax`, whose tokens it turns into cjc's (D95). `macro_host` (D104) drives it with what `loupe` asks: it builds the macro packages, sends the calls under a deadline and turns the answers into `loupe.db`'s; the thread that runs it in the server, the `Loop`, the settings and the open documents are `cjls.macro_host`'s `MacroHost`.
-
-`platform` (D101) is under every module with code that differs between platforms (`cjls`, `loupe`, `project_model`, `macro_host`, `macro_server`), on std alone: one package over a source set per platform, its API the `common` declarations.
-
-Outside the chain, generators run by hand: `lsp_codegen` (`cjls.lsp_types`), `syntax_codegen` (`SyntaxKind`, `cjsyntax.ast`, D10) and `fbs_codegen` (`cjo`'s views, D37; `macro_server`'s views and writers, D87), on `stdxx` and `ftoml` (`ftoml ──> fnum`; and `fjson`, which reads the metaModel).
+L0–L7 describes the downward path of a request. It is not the scheduling model:
+background results feed inputs, invalidate snapshots and trigger further work.
+See [state ownership and background work](../architecture.md#state-ownership-and-background-work).
+Constraint kinds are defined in the [documentation index](../README.md#kinds-of-constraints).
 
 ## Layers of a request
 
-| # | Layer | Where | Knows | Down the boundary |
-|---|---|---|---|---|
-| L0 | transport | `jsonrpc` | bytes, `Content-Length` | `Body` |
-| L1 | connection | `jsonrpc.Connection` | ids, `CancellationToken` per request | `InboundRequest`, `(method, params)` |
-| L2 | server | `cjls.server` | lifecycle, handler mode, error codes | `Parts` + raw params |
-| L3 | route | `Router`, `*Spec` | message types | `Context<P>` / `ReadOnlyContext<P>` |
-| L4 | handler | `cjls.handlers` | LSP ⇄ loupe translation only | `FileId`, byte offsets, loupe types |
-| L5 | API | `loupe` | what an editor asks, no LSP | query calls |
-| L6 | queries | `loupe.syntax`, `loupe.hir` | `@CalcaTracked`, keyed by entities | input reads |
-| L7 | inputs | `loupe.db`, `loupe.vfs` | files, `SourceFile.text` | — |
+| # | Layer | Where | Knows | Down the boundary | Kind |
+|---|---|---|---|---|---|
+| L0 | transport | `jsonrpc` | bytes, `Content-Length` | `Body` | Boundary |
+| L1 | connection | `jsonrpc.Connection` | ids, `CancellationToken` per request | `InboundRequest`, `(method, params)` | Boundary |
+| L2 | server | `cjls.server` | lifecycle, handler mode, error codes | `Parts` + raw params | Boundary |
+| L3 | route | `Router`, `*Spec` | message types | `Context<P>` / `ReadOnlyContext<P>` | Boundary |
+| L4 | handler | `cjls.handlers` | LSP ⇄ loupe translation only | `FileId`, byte offsets, loupe types | Boundary |
+| L5 | API | `loupe` | what an editor asks, no LSP | query calls | Boundary |
+| L6 | queries | `loupe.syntax`, `loupe.hir` | `@CalcaTracked`, keyed by entities | input reads | Boundary |
+| L7 | inputs | `loupe.db`, `loupe.vfs` | files, `SourceFile.text` | — | Boundary |
 
 Above L4/L5: URIs, `Position`, encodings. Below: `FileId`, UTF-8 byte offsets, `TextRange` (D5).

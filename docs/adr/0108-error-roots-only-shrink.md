@@ -1,6 +1,6 @@
 # ADR-0108: This repository's roots of an error type are held to a checked-in count per file and kind that only shrinks
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0090: the gate also holds what no diagnostic shows
 
 ## Context

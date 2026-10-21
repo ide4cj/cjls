@@ -1,6 +1,6 @@
 # ADR-0099: A multiplatform module's packages are the files of the target's chain of source sets, and a common declaration is its specific one
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

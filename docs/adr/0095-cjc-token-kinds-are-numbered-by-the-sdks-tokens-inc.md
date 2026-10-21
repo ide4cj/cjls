@@ -1,6 +1,6 @@
 # ADR-0095: cjc's token kinds are numbered by the SDK's own Tokens.inc
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0087: no table is generated, and no SDK version is required
 
 ## Context

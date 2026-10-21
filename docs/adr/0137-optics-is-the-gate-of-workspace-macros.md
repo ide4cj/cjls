@@ -1,6 +1,6 @@
 # ADR-0137: A workspace of others' on its own macros, Optics, is expanded and analyzed as a gate
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0026: the suites fetched
 
 ## Context

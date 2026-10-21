@@ -1,6 +1,6 @@
 # ADR-0103: An expansion is shown as cjls/expandMacro and as a read-only .cache/cjls/expanded/<file>.macrocall the server navigates
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

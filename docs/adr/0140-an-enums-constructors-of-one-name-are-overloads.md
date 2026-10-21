@@ -1,6 +1,6 @@
 # ADR-0140: An enum's constructors of one name are overloads, narrowed by arity and type arguments before a call tries them
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

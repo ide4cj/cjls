@@ -1,6 +1,6 @@
 # ADR-0107: A client's settings are made again when its pin moves, never checked against the cjls under test
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0079 and ADR-0032: a client declares the settings of its pin, written by a bot in the PR that moves it; no CI fails on settings that differ
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0085: A dependency keeps the object it was read from, which answers for it without a lock when it can
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0084: a memo verified in this revision answers a dependent through its entry, not its table
 
 ## Context
