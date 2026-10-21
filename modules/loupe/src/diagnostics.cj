@@ -203,8 +203,8 @@ func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
         case Some(one) => one.callee().flatMap {callee => CallExpr.cast(callee.syntax)}
         case None => CallExpr.cast(node)
     }
-    let args: Array<Arg> = match (call?.argList()) {
-        case Some(Some(list)) => list.args() |> collectArray
+    let args: Array<Arg> = match (call.flatMap {one => one.argList()}) {
+        case Some(list) => list.args() |> collectArray
         case _ => []
     }
     match (args.get(at)) {

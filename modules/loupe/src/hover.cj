@@ -67,6 +67,16 @@ public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: In
 }
 
 /**
+ * A macro name's definitions, or documentation for a compiler macro no package declares.
+ */
+func hoverOfMacroName(db: AnalysisDatabase, token: CjSyntaxToken, defs: Array<Definition>): ?HoverResult {
+    if (defs.isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
+        return builtinHover(token, doc)
+    }
+    hoverOfDefinitions(db, token, defs)
+}
+
+/**
  * What the name at `offset` of `file`, a source file or an expansion, stands for.
  */
 func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult {
@@ -76,17 +86,15 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
         return builtin
     }
     let token = tokenAt(root, offset) ?? return None
-    if (let Some(macros) <- macroDefinitions(db, scope, token)) {
-        // a macro of the compiler's, which no package declares
-        if ((macros ?? []).isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
-            return builtinHover(token, doc)
-        }
-        // the macro called, as at its name where it is declared; a class an annotation of its own names; a package
-        return hoverOfDefinitions(db, token, macros ?? [])
+    match (macroDefinitions(db, scope, token)) {
+        case NotApplicable => ()
+        case UnknownMeaning => return hoverOfMacroName(db, token, [])
+        case NameDefinitions(defs) => return hoverOfMacroName(db, token, defs)
     }
-    if (let Some(imported) <- importDefinitions(db, scope, token)) {
-        // what a leaf of an `import` brings, each overload of it; a package its path names
-        return hoverOfDefinitions(db, token, imported ?? [])
+    match (importDefinitions(db, scope, token)) {
+        case NotApplicable => ()
+        case UnknownMeaning => return None
+        case NameDefinitions(defs) => return hoverOfDefinitions(db, token, defs)
     }
     if (let Some(doc) <- builtinAnnotationAt(token)) {
         return builtinHover(token, doc)
@@ -514,8 +522,8 @@ class Hovers {
         let names = paramNamesOf(id)
         Array(sig.params.size) {
             i =>
-            let byName = match (sig.paramNames.get(i)) {
-                case Some(Some(_)) => "!"
+            let byName = match (sig.paramNames.get(i).flatMap {one => one}) {
+                case Some(_) => "!"
                 case _ => ""
             }
             "${names.get(i) ?? "_"}${byName}: ${ty(sig.params[i])}"
