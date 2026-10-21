@@ -62,8 +62,14 @@ class CommandTest {
         let dir = parseCommand(["fetch-src", "--dir", "src"])
 
         // assert
-        @Expect(fetchSrcDirOf(none), Some(Option<Path>.None))
-        @Expect(fetchSrcDirOf(dir), Some(Some(getWorkingDirectory().join("src"))))
+        @Expect(match (none) {
+            case FetchSrc(path) => path.isNone()
+            case _ => false
+        })
+        @Expect(match (dir) {
+            case FetchSrc(path) => path == Some(getWorkingDirectory().join("src"))
+            case _ => false
+        })
     }
 
     @TestCase
@@ -112,12 +118,5 @@ func dirOf(command: Command): ?Path {
     match (command) {
         case PrintProject(dir) => dir
         case _ => Option<Path>.None
-    }
-}
-
-func fetchSrcDirOf(command: Command): ??Path {
-    match (command) {
-        case FetchSrc(dir) => Some(dir)
-        case _ => Option<?Path>.None
     }
 }

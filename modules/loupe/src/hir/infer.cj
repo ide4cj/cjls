@@ -407,10 +407,7 @@ struct Callable {
      * Whether it takes its last parameter by name: of an operator `[]`, the one assigned (N124).
      */
     func takesValue(): Bool {
-        match (names.get(names.size - 1)) {
-            case Some(Some(_)) => true
-            case _ => false
-        }
+        names.get(names.size - 1).flatMap {one => one}.isSome()
     }
 
     /**

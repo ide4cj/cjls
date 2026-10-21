@@ -80,6 +80,18 @@ class SettingsTest {
     }
 
     @TestCase
+    func aParsedAbsenceIsAcceptedWithoutUsingTheDefaultOrReportingAProblem() {
+        let setting = Setting<?String>("path", "A path", optionalPathSchema(), Some("fallback"),
+            {_: String, _: JsonValue, _: ArrayList<String> => ParsedSetting(Option<String>.None)})
+        let problems = ArrayList<String>()
+
+        let value = setting.read(settingsJson([("path", text("none"))]), problems)
+
+        @Expect(value.isNone())
+        @Expect(problems.size, 0)
+    }
+
+    @TestCase
     func everyPropertyOfTheSchemaIsASettingRead() {
         // arrange
         let properties = settingsSchema()["properties"].asObject()
