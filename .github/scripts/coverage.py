@@ -37,19 +37,20 @@ MACROS = (
 TEST_SUPPORT = ("modules/loupe/src/fixture/",)
 
 
+def included(filepath: str) -> bool:
+    """The shared CI and changed-file coverage selection policy."""
+    path = PurePosixPath(filepath.replace("\\", "/"))
+    parts = path.parts
+    return (
+        len(parts) >= 4 and parts[0] == "modules" and parts[2] == "src"
+        and not path.name.endswith("_test.cj")
+        and not str(path).startswith(GENERATED + MACROS + TEST_SUPPORT)
+    )
+
+
 def counts(report: dict) -> tuple[int, int]:
-    hit = total = 0
-    for file in report["fileLists"]:
-        # cjcov writes the platform's separator
-        path = PurePosixPath(file["filepath"].replace("\\", "/"))
-        parts = path.parts
-        if len(parts) < 4 or parts[0] != "modules" or parts[2] != "src":
-            continue
-        if path.name.endswith("_test.cj") or str(path).startswith(GENERATED + MACROS + TEST_SUPPORT):
-            continue
-        hit += len(file["hitLines"])
-        total += file["totalLines"]
-    return hit, total
+    files = [file for file in report["fileLists"] if included(file["filepath"])]
+    return sum(len(file["hitLines"]) for file in files), sum(file["totalLines"] for file in files)
 
 
 def color(percent: int) -> str:

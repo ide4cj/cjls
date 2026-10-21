@@ -11,12 +11,8 @@ target
 *.dylib
 *.cjo
 
-# Claude Code: the shared settings and what they name are checked in
-.claude/*
-!.claude/settings.json
-!.claude/hooks/
-!.claude/agents/
-!.claude/skills/
+# Local agent configuration and worktrees are not repository inputs.
+/.claude/
 
 # the third-party test suites, as tests/corpora/fetch.py puts them
 .corpora

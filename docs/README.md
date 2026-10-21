@@ -3,6 +3,7 @@
 | Where | What | Rule |
 |---|---|---|
 | [architecture.md](architecture.md) | architecture, request/edit flow and code entry points | overview and navigation; detailed constraints stay in the design rules |
+| [procedures.md](procedures.md) | verification skills, benchmark isolation, worktree lifecycle and agent LSP integration | explicit prerequisites and limits; check commands stay in Development |
 | [design/](design/) | living rules | stable IDs, short rule indexes and readable explanations; changed in the same PR as the code they describe |
 | [adr/](adr/) | decisions taken | one decision per file, ≤ 1 page; never rewritten, superseded by a new one |
 | [issues](https://github.com/ide4cj/cjls/issues?q=is%3Aissue+label%3Aquestion) labeled `question` | open questions | a closed question becomes an ADR or a rule, which names the issue |
