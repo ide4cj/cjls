@@ -1,6 +1,6 @@
 # ADR-0092: A document opened blank is given its package line
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

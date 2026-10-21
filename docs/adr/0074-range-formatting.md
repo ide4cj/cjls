@@ -1,6 +1,6 @@
 # ADR-0074: A range is formatted by the whole file's edits on the lines it covers
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

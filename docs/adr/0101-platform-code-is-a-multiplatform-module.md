@@ -1,6 +1,6 @@
 # ADR-0101: What differs between platforms is one multiplatform module, `platform`, of `common` and `specific` declarations
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

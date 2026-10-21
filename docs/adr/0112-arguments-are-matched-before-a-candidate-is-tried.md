@@ -1,6 +1,6 @@
 # ADR-0112: A call's arguments are matched to each candidate's parameters before it is tried, as cjc
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

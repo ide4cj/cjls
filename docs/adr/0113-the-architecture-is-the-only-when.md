@@ -1,6 +1,6 @@
 # ADR-0113: `hostArch` is the one `@When` of this repository's code, and a set's files are named for what they hold
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0101: `cjls.macro_host`'s `@When` constants go to `platform`; what may keep a `@When` is named
 
 ## Context

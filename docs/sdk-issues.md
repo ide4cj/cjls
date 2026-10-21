@@ -7,18 +7,21 @@ Historical ADRs retain their original observations and decisions.
 
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
-or declared fixed during this documentation audit.** A historical observation
+or declared fixed during this documentation audit; K4 includes verification
+recorded separately in PR #457.** A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
 or all platforms. Dates abbreviated as `20260918` refer to nightly build dates;
 exact build timestamps are unknown unless given.
 
-All entries are **open** (fix status unverified). An entry with no workaround or
-no known affected cjls path is retained as a reported SDK risk, not a new coding
-restriction. Upstream report URLs are **unrecorded for every entry**: repository
-issues and PRs below are local evidence, not upstream SDK reports. The maintainer
-files upstream reports. Preserve existing workarounds until a replacement is
-verified on the relevant SDK/platform.
+Entries are **open** (fix status unverified), except K4, whose original scenario
+no longer reproduces on the pinned SDK on Linux x86_64 (PR #457). An entry with no
+workaround or no known affected cjls path is retained as a reported SDK risk, not
+a new coding restriction. Upstream report URLs are **unrecorded for every entry**:
+repository issues and PRs below are local evidence, not upstream SDK reports.
+The maintainer files upstream reports. Preserve current workarounds unless focused
+evidence justifies retiring them on the relevant SDK/platform; K4 records a
+requirement already retired in master.
 
 ## Index
 
@@ -27,7 +30,7 @@ verified on the relevant SDK/platform.
 | [K1](#k1) | Spawn immediately before blocking FFI may never start | Yield before stdin read |
 | [K2](#k2) | Known libc names implicitly become fast native calls | Use `readv`, preserve C5 |
 | [K3](#k3) | std stdin read waits for full buffer/EOF | Read stdin through platform FFI |
-| [K4](#k4) | stdx extension funcTables lost across shared libraries | Static libraries and stdx |
+| [K4](#k4) | Historical stdx extension funcTable failure across shared libraries | Original scenario passes on the pin on Linux x86_64; restriction retired |
 | [K5](#k5) | LTO produces bad GC stack maps | No LTO |
 | [K6](#k6) | `-dead_strip` aborts at runtime | Do not enable it |
 | [K7](#k7) | Tuple/struct taken from `ArrayList.remove` miscompiled | Read before removing |
@@ -47,7 +50,7 @@ verified on the relevant SDK/platform.
 | [K21](#k21) | Short strings have systematic hash collisions | Word index uses its own hash |
 | [K22](#k22) | Optimized macro-host frame crashes GC | Avoid observed frame shape |
 | [K23](#k23) | Loading std deriving after workspace macro aborts | Separate macro servers |
-| [K24](#k24) | Two parameter marker macros crash compiler | Avoid stacking on constructor parameters |
+| [K24](#k24) | Two parameter marker macros crash compiler | No known affected cjls code |
 | [K25](#k25) | `genericConstraint.toTokens()` throws | Iterate constraints |
 
 ## Evidence and use
@@ -89,13 +92,23 @@ tests do not exercise the SDK's stdin implementation.
 <a id="k4"></a>
 ### K4
 
-stdx extensions on user types reportedly lose funcTables across a shared-library
+Historical stdx extensions on user types lost funcTables across a shared-library
 boundary: runtime SIGABRT, `F funcTable is nullptr`.
-[#332](https://github.com/ide4cj/cjls/issues/332) records the defect; exact nightly
-and platform remain unverified. All normal library manifests retain static output;
-the [workspace](../cjpm.toml) selects static stdx for each target.
-[`cjls`](../modules/cjls/cjpm.toml) links `--static`, also to run without SDK env.
-This restriction on normal libraries does not forbid SDK macro shared libraries.
+[#332](https://github.com/ide4cj/cjls/issues/332) records the defect;
+[PR #457](https://github.com/ide4cj/cjls/pull/457) identifies the original scenario
+as cjc `1.1.3` (original platform unrecorded) and verifies it no longer reproduces
+on `1.3.0-alpha.20261014001050`, Linux x86_64. A separate intermediate library
+exports generic `decode<T>` and `decodeArray<T>`; the executable round-trips
+`Request` arrays through stdx serialization. All four static/dynamic combinations
+of the intermediate library and stdx passed at both `-O0` and `-O2` (eight runs).
+This does not establish a first fixed version or status on other platforms.
+
+PR #457 retired the blanket static-library requirement and the corresponding
+troubleshooting advice. The manifests still select static library output and
+static stdx, but those settings are not evidence that K4 requires them.
+[`cjls`](../modules/cjls/cjpm.toml) retains `--static` so the server runs without
+an SDK environment. See [Development](development.md#toolchain-constraints) for
+current linking constraints, including the dynamic system-library baseline.
 
 <a id="k5"></a>
 ### K5
@@ -310,7 +323,7 @@ std deriving after executing a workspace `@CalcaTracked` in the same process;
 the isolated pair aborted every time, while loading the library first did not.
 Exact nightly/platform are unverified. Preserve separate std/workspace instances
 in [`MacroServers`](../modules/macro_host/src/host.cj). This is a loading-order
-failure distinct from K4's shared-library funcTables and K22's GC crash.
+failure distinct from K4's historical shared-library funcTables and K22's GC crash.
 
 <a id="k24"></a>
 ### K24
@@ -374,8 +387,9 @@ The following dispositions prevent old local guidance becoming competing rules:
 - Unrelated projects, personal preferences, private GitHub permissions and
   machine automation policies are outside this SDK migration.
 
-No workaround was removed in this audit. The exact-pin status, missing host/build
-metadata, missing upstream reports and missing independent probes remain explicit
-limitations. The next SDK bump needs evidence before retiring an entry; a passing
-ordinary build alone does not establish that a scheduling, GC or optimizer defect
-is fixed.
+This audit preserves the K4 retirement already accepted in PR #457 and removes no
+other workaround. Except for K4's scoped verification, exact-pin status remains
+unverified. Missing host/build metadata, upstream reports and independent probes
+remain explicit limitations. The next SDK bump needs evidence before retiring an
+entry; a passing ordinary build alone does not establish that a scheduling, GC or
+optimizer defect is fixed.

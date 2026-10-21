@@ -1,35 +1,399 @@
-# Conventions
+# Code conventions
 
-| # | Rule |
-|---|---|
-| C1 | No empty `public init() {}`: a type with no constructor has an implicit parameterless one, visible as the type is, across modules too. |
-| C2 | One constructor → it is the primary one. Several → one is primary, the rest delegate to it with `this(...)` (`Rope(root)`, `init(text) { this(rooted(chunked(text), 0)) }`). Exception: only where that hurts readability or performance, with a comment why. |
-| C3 | A field set from a parameter as is is declared in the primary constructor (`Parser(let input: Input<K>, let eof: K) {}`); other fields stay in the body, set there or by their initializers. |
-| C4 | Regular parameters come before field ones (the compiler refuses the other order); reorder the API for it: `GreenNode(children, kind)`. |
-| C5 | A foreign function that can block is never `@FastNative` — neither marked so, nor named like a C library function LLVM knows (`read`, `write`, `open`, `fgets`, `getchar`, …), which cjc compiles as `@FastNative` all the same (D13). While a thread blocks in a fast call the runtime cannot finish a garbage collection: the collector spins at full CPU, and every other thread stops at its next allocation. Take a sibling under another name (`readv` for `read`, as `StdinStream` does in `platform/src/posix/stdio.cj`), and check the call site goes through `_CJ_MCC_C2NStub` (`objdump -d`). A blocking call with the stub is harmless, an array pinned by `acquireArrayRawData` across it included. |
-| C6 | A URI is a `stdx.encoding.url.URL` (`URL.parse`, `URL(scheme: …, path: …).toString()`), a path a `std.fs.Path` (`join`, `normalize`, `isAbsolute`, `parent`): no percent codec, `split("/")` or `"${dir}/${name}"` of one's own. What neither knows — a Windows drive in a `file:` URI — stays in one place (`platform`'s `pathOfFileUriPath` and `fileUriPathOf`). A test needing an absolute path takes one under `getTempDirectory()`, which is absolute on every platform. |
-| C7 | Tests are a pyramid: most are unit tests beside the code (`*_test.cj`), a function called directly; fewer go through `Server` on a `FakeTransport`, for what only the server does (lifecycle, dispatch, threading, push); the fewest drive the binary (`tests/e2e`), one or two per feature, for what no unit test can see — stdio, a real client's capabilities, the pieces wired together; an editor client's own tests run in its CI, not here (D32). A case an e2e test could cover and a unit test can is a unit test: `cjpm test` runs in seconds, the e2e suite starts a process per test. |
-| C8 | The LSP types are imported whole, `import cjls.lsp_types.*`, and named bare. Imports are per file, so a clash is settled in the file that has one, by an alias for one of the two types: `import loupe.Diagnostic as LoupeDiagnostic` next to `cjls.lsp_types.*` (`to_proto.cj`), `import cjls.lsp_types.Range as LspRange` against `std.core.Range`. An alias is what settles it: cjc takes a plain `import a.X` next to `import b.*` exporting another `X` as ambiguous at every use, and two `*` imports clash only where the name is used. Neither side is renamed after the other (A8), and no file qualifies every type with its package. |
-| C9 | A map shared between threads is a `std.collection.concurrent.ConcurrentHashMap` (`Files` in `loupe.db`, the pending requests in `jsonrpc`'s `Connection`), and an interner shared between threads an `index_map.concurrent.ConcurrentIndexSet` (`PathInterner` in `loupe.vfs`); a lock goes only around what one operation of such a map cannot do, and readers never take it: `ConcurrentIndexSet` gives the next index under a `Mutex`, `indexOf` and `getAt` read without one. No `ReadWriteLock`: its read lock alone costs ~300–450 ns, more than its write lock, so it loses to a `Mutex` even on data only read (`FilesBench`, `InternerBench`: a `get` 11 ns on a `ConcurrentHashMap`, 320 under a `ReadWriteLock`). A write to a `ConcurrentHashMap` costs ~1.4 µs, so a `Mutex` wins where writes are as frequent as reads — not the case for anything interned. A new key is hashed three times, a lookup and then, under the lock, a lookup and an add: one `entryView` there instead of the two hashes it once less but inserts 3% slower, the hash ~1% of the insert (`ConcurrentIndexMapInsertBench`, linux x64). |
-| C10 | A synchronization primitive (a lock, a concurrent collection, an atomic) is chosen by a benchmark, not by what should be faster: a `@Bench` beside the code (`*_bench_test.cj`) with a case per operation the code does and one of several threads at once, run against each candidate. The table of medians, platform named, goes in the PR; the rule or decision it settles keeps the conclusion and the bench's name. The bench stays, so the choice can be measured again on another platform or nightly. |
-| C11 | A small function of a workspace library on a hot path of another package is `@Frozen`, and so is every private helper it calls: without it cjc never inlines a call across packages, which costs ~80–120 ns each. What it inlines is a generic body, instantiated in the caller: a non-generic method stays a call, `@Frozen` or not, even two lines long (`FjReader.keyIs` from `jsonrpc`, in the disassembly, #32) — there what speeds it up is fewer calls. Nor does it inline a lambda the callee passes on (`Option.map {…}`): such a body is a `match`. Measured in #36: `IndexSet<Int64>.indexOf` 120 → 1.8 ns, as fast as `HashMap.get`. Without it a generic body is not even specialized for the caller's type arguments: it runs as shared code that looks each generic type up at run time — ginkgo without it made a keystroke in `tests/perf` 2.2 times as slow (#22). A generic class's constructor is never inlined, `@Frozen` or not, so what it computes goes into a `@Frozen` function the caller reaches (`GreenNode.measure`). The promise `@Frozen` makes, a body that does not change between versions, costs nothing: the workspace is always built together (#28). |
-| C12 | An enum compared or hashed on a hot path has its `==`, `!=` and `hashCode` written by its ordinal, not `@Derive`d: the derived `==` of `SyntaxKind` took ~55 ns whatever the variants, the ordinal's ~1.2 ns, and it was a fifth of the server's CPU on typing (#22). `syntax_codegen` writes `SyntaxKind`'s so. |
-| C13 | No test waits for something to happen in time: what the runtime, the OS or another thread does when it will (a collection, a timer, a wake-up) comes to the code through an interface its test fakes, so the test decides when it happens and a fake clock moves only when the code waits (`HeapRuntime` for `cjls/memoryUsage`, `FakeTransport` for the wire). A wait bounded by a timeout, `sleep` or `MonoTime` in a test passes on one machine and fails or hangs on a slower one: #64's wait for a collection in 5 s passed on a laptop and failed on the macOS runner. A timeout belongs in CI only (`timeout-minutes`, `cjpm test --timeout-each`), to turn a hang into a failure naming the case. |
-| C14 | An exception class is named `…Exception` and overrides `getClassName` with that name, `override` or not: without it `toString` and a stack trace say plain `Exception: …`, whatever was thrown. An internal one that only unwinds to its catch (`CycleUnwindException` in calca) too — a bug lets it out. |
-| C15 | Code, its comments and a module's `CLAUDE.md` say what a thing does and why, never where it came from: no "as salsa does", "rowan's `AstNode`", "serde's `Serialize`". Which server or library a part follows is `prior-art.md`'s, a decision's reasons its ADR's. Another project is named only where the name is the reason — a format kept compatible (an ungrammar), code ported under its licence (`ryu_table.cj`), a competitor measured (`tests/perf`). |
-| C16 | A failure that leaves no answer is thrown, an exception of the module's own, a class per reason a caller tells apart (`NotCjoException`, `CjoVersionException`); no `Result` of our own, and no type named `…Error` for it: that is Cangjie's unrecoverable `Error` (`OutOfMemoryError`). An error is returned only when it is part of the answer: a tree with its syntax errors, a JSON-RPC response with its `ResponseError`, the problems of a loaded project. `None` is an answer of its own (no file on the disk), never a failure whose reason is dropped. |
-| C17 | What differs between platforms is a `common` declaration of `platform` and a `specific` one in each OS's source set, never `@When[os == …]` in another module's code; a test of another module keeps its `@When` class (D101). The one `@When` of the code is `hostArch`'s `@When[arch == …]`, in `platform/src/common/os.cj`: cjpm deduces no feature of the architecture. Another is a decision of its own (D113). Another platform's set is type-checked locally with `cjpm build -m modules/platform --no-feature-deduce --enable-features=os.windows` (`os.darwin`). |
-| C18 | Where the compiler leaves a choice the code writes it as std does, and as the official guide's rule (`G.…`, checked by `cjlint`) where std has none; a departure is a rule here (D126). C19–C31 are those rules. |
-| C19 | Names: a type, an enum constructor and a type parameter in `UpperCamelCase` (`G.NAM.03`), a function, property, field, parameter and local in `lowerCamelCase` (`G.NAM.04`), a `const` and a global or `static` `let` in `UPPER_SNAKE_CASE` (`G.NAM.05`: `MAX_DEPTH`, a test's `BENCH_TEXT` too), a package and a file in `lower_snake_case`, a file after the type it is about when it has one (`index_map.cj`) and after its subject when not (`green.cj`). An acronym is a word: `Json`, `Lsp`, `Uri`, `Id`, `Utf8`, `toJson`; the generated LSP types keep the metaModel's names (`LSPAny`). A test class is `…Test` or `…Bench`, a case a sentence with no `test` prefix (`closeWakesACallerWaitingForAnAnswer`). |
-| C20 | A Bool field, property or function reads as a question: `isOptional`, `hasBody`, `canRetry`, `isEmpty`, never `optional`, `truncated`, `multiline`. A Bool parameter of the workspace's own functions is named (`fromElement!: Bool`), so a call never passes a bare `true` (`open(parent, fromElement: true)`), and may be the adjective it sets. |
-| C21 | An accessor is a property, not a function, departing from std (D126): what takes no argument and changes nothing is `prop` — `size`, `kind`, `textRange`, `firstChild`, `parent`, `isEmpty` — computed or not. A function is what takes an argument, has an effect, may throw, or does work that grows with the data (a walk of a subtree, a copy of a collection); an override of a std interface keeps its form (`Collection.isEmpty()`, `toString()`). No `get` prefix but lookups by an argument (`getAt`, `getOrAdd`, std's `getOrThrow`) and an override (`getClassName`). A field read by other types as is is a `public let`, not a property over a private one. |
-| C22 | An `Option` is read the shortest way that says it: `?? return`/`continue`/`break`/`throw` to leave early, `?? default` for a default, `?.`/`.map`/`.flatMap` to transform (never `case Some(x) => Some(f(x))` / `case None => None`), `if (let Some(x) <- o)` (`while let`) for one branch, `match` when both branches do work. `getOrThrow()` only where `None` is a bug of this code, and then with the reason: `getOrThrow { IllegalStateException("…") }` or `?? throw …`; never after an `isSome()`, which is an `if let`. The type is `?T`, never `Option<T>`; `None` is bare where the type is known (`var x: ?T = None`, not `Option<T>.None`). |
-| C23 | `let` unless the binding is assigned again (`G.VAR.01`). A local's type is inferred unless the literal needs one (`let n: UInt32 = 0`, `var x: ?T = None`); a public declaration writes its type, a `const` and a `let` included (`G.DCL.02`), and every function its return type. `this.` only where a parameter hides the field (`this.x = x`). |
-| C24 | A collection is made by its own methods (`xs.filter {…}.map {…}`), a `std.collection` pipeline (`|> filter`, `|> collectArray`) where it has none, a `for` loop only when the body does more than map, filter or fold: leaves early, fills two outputs, needs the index. Never `ArrayList()`, a `for` of `add`s and `toArray()` for a map. A loop over elements is `for (x in xs)`, over indices only when the index is used; emptiness is `isEmpty`, never `size == 0`. Strings are joined by `String.join(xs, delimiter: …)`. |
-| C25 | Text is made by interpolation (`"${name}: ${ty}"`), never `+`; one value's text by `toString()`, never `"${v}"`; text grown piece by piece by a `StringBuilder`. |
-| C26 | A lambda passed last is trailing (`xs.map { x => … }`), its parameters untyped where they are inferred. A parameter whose argument is often a literal the reader cannot place at the call — a Bool (C20), an `Option`, a count — is named (`!`), with a default when one is usual. |
-| C27 | Visibility is as narrow as the uses: a top-level declaration is left at the default, `internal` (never written), when its package and subpackages alone use it, `protected` when other packages of its module do, `public` only when another module does (a macro's expansion there included). A member is `private` when its type alone uses it. An executable module (`cjls`, the generators) has nothing `public` but what a macro package needs. |
-| C28 | Imports name what the file uses, one `import pkg.{A, B}` per package (`G.PKG.01`): where a type comes from reads without a server, in a diff too, and an unused one shows. A whole package, `import pkg.*`, only where its names are not the file's choice: generated code (what a generator writes imports as it likes); a generated package read as a vocabulary, `cjls.lsp_types.*` (C8) and `cjsyntax.ast.*`; `std.ast.*` in a macro package; a test's `std.unittest.*` and `std.unittest.testmacro.*`; a package whose names a macro's expansion needs (`fjson.*` and `stdxx.deriving.*` under `@DeriveExt`). A clash is settled by an alias (C8): a name imported explicitly beside a `*` that also exports it is ambiguous at every use. A `public import` stays as it is. One group: std, then stdx, then the workspace, each in alphabetical order, none unused. |
-| C29 | A public type and a top-level function have a `/** … */` doc comment; a member has one when its name and type do not say all a caller needs. It says what and why (C15), and names every exception a caller sees: `@throws IndexOutOfBoundsException - if …` (`G.ERR.01`). A comment above a declaration is `/** … */`; `//` is for the inside of a body. |
-| C30 | A throw names a class of its reason (C14, C16); std's `IllegalArgumentException` and `IllegalStateException` say a caller's or this code's bug; never `throw Exception(…)`. A catch takes the narrowest class; `catch (_: Exception)` is only at a boundary that turns any failure into an answer — a response error, a log line, `None` for "could not" — and an `Error` too at a `spawn` (S13). |
-| C31 | A value without identity, small and immutable, is a `struct`; a `class` has identity, shared mutable state, a subtype, or a size that makes copies cost. A function stays within ~50 lines and four levels of nesting (`G.FUN.01`) unless it is one flat `match` over kinds; one over 80 is split where its parts have names. A file stays within ~1000 lines, split by subject beyond. |
+Use these with the [architecture overview](../architecture.md) and
+[development checks](../development.md). Each ID remains stable when a rule moves.
+
+Constraint kinds and how to revise them are defined in the
+[documentation index](../README.md#kinds-of-constraints).
+
+| # | Topic | Kind |
+|---|---|---|
+| C1 | [Implicit constructors](#c1-implicit-constructors) | Convention |
+| C2 | [Primary constructors](#c2-primary-constructors) | Convention |
+| C3 | [Constructor fields](#c3-constructor-fields) | Convention |
+| C4 | [Parameter order](#c4-parameter-order) | Language constraint |
+| C5 | [Blocking foreign calls](#c5-blocking-foreign-calls) | Boundary / SDK constraint |
+| C6 | [URI and path handling](#c6-uri-and-path-handling) | Design choice |
+| C7 | [Test pyramid](#c7-test-pyramid) | Design choice |
+| C8 | [LSP imports and aliases](#c8-lsp-imports-and-aliases) | Convention / Language constraint |
+| C9 | [Shared maps and interners](#c9-shared-maps-and-interners) | Measured choice |
+| C10 | [Benchmark synchronization choices](#c10-benchmark-synchronization-choices) | Measured choice |
+| C11 | [Cross package hot paths](#c11-cross-package-hot-paths) | Measured choice / SDK constraint |
+| C12 | [Hot enum comparisons](#c12-hot-enum-comparisons) | Measured choice |
+| C13 | [Deterministic concurrency tests](#c13-deterministic-concurrency-tests) | Design choice |
+| C14 | [Exception class names](#c14-exception-class-names) | SDK constraint |
+| C15 | [Explain behavior and reasons](#c15-explain-behavior-and-reasons) | Convention |
+| C16 | [Failures and answer values](#c16-failures-and-answer-values) | Design choice |
+| C17 | [Platform source sets](#c17-platform-source-sets) | Design choice |
+| C18 | [Style precedence](#c18-style-precedence) | Convention |
+| C19 | [Names](#c19-names) | Convention |
+| C20 | [Boolean names and arguments](#c20-boolean-names-and-arguments) | Convention |
+| C21 | [Accessors](#c21-accessors) | Convention |
+| C22 | [Option handling](#c22-option-handling) | Convention |
+| C23 | [Bindings and type annotations](#c23-bindings-and-type-annotations) | Convention |
+| C24 | [Collections](#c24-collections) | Convention |
+| C25 | [Text construction](#c25-text-construction) | Convention |
+| C26 | [Lambdas and named arguments](#c26-lambdas-and-named-arguments) | Convention |
+| C27 | [Visibility](#c27-visibility) | Convention |
+| C28 | [Imports](#c28-imports) | Convention |
+| C29 | [Documentation comments](#c29-documentation-comments) | Convention |
+| C30 | [Narrow exceptions](#c30-narrow-exceptions) | Convention |
+| C31 | [Types and function size](#c31-types-and-function-size) | Convention |
+
+### C1: Implicit constructors
+
+No empty `public init() {}`: a type with no constructor has an implicit parameterless one,
+visible as the type is, across modules too.
+
+### C2: Primary constructors
+
+One constructor → it is the primary one.
+
+Several → one is primary, the rest delegate to it with `this(...)` (`Rope(root)`, `init(text) {
+this(rooted(chunked(text), 0)) }`).
+
+Exception: only where that hurts readability or performance, with a comment why.
+
+### C3: Constructor fields
+
+A field set from a parameter as is is declared in the primary constructor (`Parser(let input:
+Input<K>, let eof: K) {}`); other fields stay in the body, set there or by their initializers.
+
+### C4: Parameter order
+
+Regular parameters come before field ones (the compiler refuses the other order); reorder the
+API for it: `GreenNode(children, kind)`.
+
+### C5: Blocking foreign calls
+
+A foreign function that can block is never `@FastNative` — neither marked so, nor named like a C
+library function LLVM knows (`read`, `write`, `open`, `fgets`, `getchar`, …), which cjc compiles
+as `@FastNative` all the same (D13).
+
+While a thread blocks in a fast call the runtime cannot finish a garbage collection: the
+collector spins at full CPU, and every other thread stops at its next allocation.
+
+Take a sibling under another name (`readv` for `read`, as `StdinStream` does in
+`platform/src/posix/stdio.cj`), and check the call site goes through `_CJ_MCC_C2NStub` (`objdump
+-d`).
+
+A blocking call with the stub is harmless, an array pinned by `acquireArrayRawData` across it
+included.
+
+### C6: URI and path handling
+
+A URI is a `stdx.encoding.url.URL` (`URL.parse`, `URL(scheme: …, path: …).toString()`), a path a
+`std.fs.Path` (`join`, `normalize`, `isAbsolute`, `parent`): no percent codec, `split("/")` or
+`"${dir}/${name}"` of one's own.
+
+What neither knows — a Windows drive in a `file:` URI — stays in one place (`platform`'s
+`pathOfFileUriPath` and `fileUriPathOf`).
+
+A test needing an absolute path takes one under `getTempDirectory()`, which is absolute on every
+platform.
+
+### C7: Test pyramid
+
+Tests are a pyramid: most are unit tests beside the code (`*_test.cj`), a function called
+directly; fewer go through `Server` on a `FakeTransport`, for what only the server does
+(lifecycle, dispatch, threading, push); the fewest drive the binary (`tests/e2e`), one or two
+per feature, for what no unit test can see — stdio, a real client's capabilities, the pieces
+wired together; an editor client's own tests run in its CI, not here (D32).
+
+A case an e2e test could cover and a unit test can is a unit test: `cjpm test` runs in seconds,
+the e2e suite starts a process per test.
+
+### C8: LSP imports and aliases
+
+The LSP types are imported whole, `import cjls.lsp_types.*`, and named bare.
+
+Imports are per file, so a clash is settled in the file that has one, by an alias for one of the
+two types: `import loupe.Diagnostic as LoupeDiagnostic` next to `cjls.lsp_types.*`
+(`to_proto.cj`), `import cjls.lsp_types.Range as LspRange` against `std.core.Range`.
+
+An alias is what settles it: cjc takes a plain `import a.X` next to `import b.*` exporting
+another `X` as ambiguous at every use, and two `*` imports clash only where the name is used.
+
+Neither side is renamed after the other (A8), and no file qualifies every type with its package.
+
+### C9: Shared maps and interners
+
+A map shared between threads is a `std.collection.concurrent.ConcurrentHashMap` (`Files` in
+`loupe.db`, the pending requests in `jsonrpc`'s `Connection`), and an interner shared between
+threads an `index_map.concurrent.ConcurrentIndexSet` (`PathInterner` in `loupe.vfs`); a lock
+goes only around what one operation of such a map cannot do, and readers never take it:
+`ConcurrentIndexSet` gives the next index under a `Mutex`, `indexOf` and `getAt` read without
+one.
+
+No `ReadWriteLock`: its read lock alone costs ~300–450 ns, more than its write lock, so it loses
+to a `Mutex` even on data only read (`FilesBench`, `InternerBench`: a `get` 11 ns on a
+`ConcurrentHashMap`, 320 under a `ReadWriteLock`).
+
+A write to a `ConcurrentHashMap` costs ~1.4 µs, so a `Mutex` wins where writes are as frequent
+as reads — not the case for anything interned.
+
+A new key is hashed three times, a lookup and then, under the lock, a lookup and an add: one
+`entryView` there instead of the two hashes it once less but inserts 3% slower, the hash ~1% of
+the insert (`ConcurrentIndexMapInsertBench`, linux x64).
+
+### C10: Benchmark synchronization choices
+
+A synchronization primitive (a lock, a concurrent collection, an atomic) is chosen by a
+benchmark, not by what should be faster: a `@Bench` beside the code (`*_bench_test.cj`) with a
+case per operation the code does and one of several threads at once, run against each candidate.
+
+The table of medians, platform named, goes in the PR; the rule or decision it settles keeps the
+conclusion and the bench's name.
+
+The bench stays, so the choice can be measured again on another platform or nightly.
+
+### C11: Cross package hot paths
+
+A small function of a workspace library on a hot path of another package is `@Frozen`, and so is
+every private helper it calls: without it cjc never inlines a call across packages, which costs
+~80–120 ns each.
+
+What it inlines is a generic body, instantiated in the caller: a non-generic method stays a
+call, `@Frozen` or not, even two lines long (`FjReader.keyIs` from `jsonrpc`, in the
+disassembly, #32) — there what speeds it up is fewer calls.
+
+Nor does it inline a lambda the callee passes on (`Option.map {…}`): such a body is a `match`.
+
+Measured in #36: `IndexSet<Int64>.indexOf` 120 → 1.8 ns, as fast as `HashMap.get`.
+
+Without it a generic body is not even specialized for the caller's type arguments: it runs as
+shared code that looks each generic type up at run time — ginkgo without it made a keystroke in
+`tests/perf` 2.2 times as slow (#22).
+
+A generic class's constructor is never inlined, `@Frozen` or not, so what it computes goes into
+a `@Frozen` function the caller reaches (`GreenNode.measure`).
+
+The promise `@Frozen` makes, a body that does not change between versions, costs nothing: the
+workspace is always built together (#28).
+
+### C12: Hot enum comparisons
+
+An enum compared or hashed on a hot path has its `==`, `!=` and `hashCode` written by its
+ordinal, not `@Derive`d: the derived `==` of `SyntaxKind` took ~55 ns whatever the variants, the
+ordinal's ~1.2 ns, and it was a fifth of the server's CPU on typing (#22). `syntax_codegen`
+writes `SyntaxKind`'s so.
+
+### C13: Deterministic concurrency tests
+
+No test waits for something to happen in time: what the runtime, the OS or another thread does
+when it will (a collection, a timer, a wake-up) comes to the code through an interface its test
+fakes, so the test decides when it happens and a fake clock moves only when the code waits
+(`HeapRuntime` for `cjls/memoryUsage`, `FakeTransport` for the wire).
+
+A wait bounded by a timeout, `sleep` or `MonoTime` in a test passes on one machine and fails or
+hangs on a slower one: #64's wait for a collection in 5 s passed on a laptop and failed on the
+macOS runner.
+
+A timeout belongs in CI only (`timeout-minutes`, `cjpm test --timeout-each`), to turn a hang
+into a failure naming the case.
+
+### C14: Exception class names
+
+An exception class is named `…Exception` and overrides `getClassName` with that name, `override`
+or not: without it `toString` and a stack trace say plain `Exception: …`, whatever was thrown.
+
+An internal one that only unwinds to its catch (`CycleUnwindException` in calca) too — a bug
+lets it out.
+
+### C15: Explain behavior and reasons
+
+Code, its comments and the documentation say what a thing does and why, never where it came
+from: no "as salsa does", "rowan's `AstNode`", "serde's `Serialize`".
+
+Which server or library a part follows is `prior-art.md`'s, a decision's reasons its ADR's.
+
+Another project is named only where the name is the reason — a format kept compatible (an
+ungrammar), code ported under its licence (`ryu_table.cj`), a competitor measured
+(`tests/perf`).
+
+### C16: Failures and answer values
+
+A failure that leaves no answer is thrown, an exception of the module's own, a class per reason
+a caller tells apart (`NotCjoException`, `CjoVersionException`); no `Result` of our own, and no
+type named `…Error` for it: that is Cangjie's unrecoverable `Error` (`OutOfMemoryError`).
+
+An error is returned only when it is part of the answer: a tree with its syntax errors, a
+JSON-RPC response with its `ResponseError`, the problems of a loaded project. `None` is an
+answer of its own (no file on the disk), never a failure whose reason is dropped.
+
+### C17: Platform source sets
+
+What differs between platforms is a `common` declaration of `platform` and a `specific` one in
+each OS's source set, never `@When[os == …]` in another module's code; a test of another module
+keeps its `@When` class (D101).
+
+The one `@When` of the code is `hostArch`'s `@When[arch == …]`, in `platform/src/common/os.cj`:
+cjpm deduces no feature of the architecture.
+
+Another is a decision of its own (D113).
+
+Another platform's set is type-checked locally with `cjpm build -m modules/platform
+--no-feature-deduce --enable-features=os.windows` (`os.darwin`).
+
+### C18: Style precedence
+
+Where the compiler leaves a choice the code writes it as std does, and as the official guide's
+rule (`G.…`, checked by `cjlint`) where std has none; a departure is a rule here (D126).
+
+C19–C31 are those rules.
+
+### C19: Names
+
+Names: a type, an enum constructor and a type parameter in `UpperCamelCase` (`G.NAM.03`), a
+function, property, field, parameter and local in `lowerCamelCase` (`G.NAM.04`), a `const` and a
+global or `static` `let` in `UPPER_SNAKE_CASE` (`G.NAM.05`: `MAX_DEPTH`, a test's `BENCH_TEXT`
+too), a package and a file in `lower_snake_case`, a file after the type it is about when it has
+one (`index_map.cj`) and after its subject when not (`green.cj`).
+
+An acronym is a word: `Json`, `Lsp`, `Uri`, `Id`, `Utf8`, `toJson`; the generated LSP types keep
+the metaModel's names (`LSPAny`).
+
+A test class is `…Test` or `…Bench`, a case a sentence with no `test` prefix
+(`closeWakesACallerWaitingForAnAnswer`).
+
+### C20: Boolean names and arguments
+
+A Bool field, property or function reads as a question: `isOptional`, `hasBody`, `canRetry`,
+`isEmpty`, never `optional`, `truncated`, `multiline`.
+
+A Bool parameter of the workspace's own functions is named (`fromElement!: Bool`), so a call
+never passes a bare `true` (`open(parent, fromElement: true)`), and may be the adjective it
+sets.
+
+### C21: Accessors
+
+An accessor is a property, not a function, departing from std (D126): what takes no argument and
+changes nothing is `prop` — `size`, `kind`, `textRange`, `firstChild`, `parent`, `isEmpty` —
+computed or not.
+
+A function is what takes an argument, has an effect, may throw, or does work that grows with the
+data (a walk of a subtree, a copy of a collection); an override of a std interface keeps its
+form (`Collection.isEmpty()`, `toString()`).
+
+No `get` prefix but lookups by an argument (`getAt`, `getOrAdd`, std's `getOrThrow`) and an
+override (`getClassName`).
+
+A field read by other types as is is a `public let`, not a property over a private one.
+
+### C22: Option handling
+
+Prefer `?.` for member access through an `Option`, `?? default` for a default value,
+and `?? return`/`continue`/`break`/`throw` for an early exit. Use `map` for other
+transformations, and `flatMap` when the transformation itself returns an `Option`
+and the result should not be nested. Do not introduce a lambda where `?.` or `??`
+already expresses the operation.
+
+Use `if (let Some(x) <- o)` (`while let`) for one branch and `match` when both
+branches do work. A transformation alone does not need `case Some(x) => Some(f(x))` /
+`case None => None`. `getOrThrow()` is only for when `None` is a bug of this code,
+with the reason: `getOrThrow { IllegalStateException("…") }` or `?? throw …`;
+never after an `isSome()`, which is an `if let`.
+
+Nested optional states in domain APIs or stored state use a dedicated type whose
+variants name the reasons for absence, rather than `??T`. Collection lookups and
+optional chaining may compose options; flatten them when only a present value
+matters.
+
+The type is `?T`, never `Option<T>`; `None` is bare where the type is known (`var x: ?T = None`,
+not `Option<T>.None`).
+
+On a hot path, use `match` instead of `map`/`flatMap` when measurements show that the
+lambda-inlining limitation described in [C11](#c11-cross-package-hot-paths) matters.
+Elsewhere, prefer the concise forms above.
+
+### C23: Bindings and type annotations
+
+`let` unless the binding is assigned again (`G.VAR.01`).
+
+A local's type is inferred unless the literal needs one (`let n: UInt32 = 0`, `var x: ?T =
+None`); a public declaration writes its type, a `const` and a `let` included (`G.DCL.02`), and
+every function its return type. `this.` only where a parameter hides the field (`this.x = x`).
+
+### C24: Collections
+
+A collection is made by its own methods (`xs.filter {…}.map {…}`), a `std.collection` pipeline
+(`|> filter`, `|> collectArray`) where it has none, a `for` loop only when the body does more
+than map, filter or fold: leaves early, fills two outputs, needs the index.
+
+Never `ArrayList()`, a `for` of `add`s and `toArray()` for a map.
+
+A loop over elements is `for (x in xs)`, over indices only when the index is used; emptiness is
+`isEmpty`, never `size == 0`.
+
+Strings are joined by `String.join(xs, delimiter: …)`.
+
+### C25: Text construction
+
+Text is made by interpolation (`"${name}: ${ty}"`), never `+`; one value's text by `toString()`,
+never `"${v}"`; text grown piece by piece by a `StringBuilder`.
+
+### C26: Lambdas and named arguments
+
+A lambda passed last is trailing (`xs.map { x => … }`), its parameters untyped where they are
+inferred.
+
+A parameter whose argument is often a literal the reader cannot place at the call — a Bool
+(C20), an `Option`, a count — is named (`!`), with a default when one is usual.
+
+### C27: Visibility
+
+Visibility is as narrow as the uses: a top-level declaration is left at the default, `internal`
+(never written), when its package and subpackages alone use it, `protected` when other packages
+of its module do, `public` only when another module does (a macro's expansion there included).
+
+A member is `private` when its type alone uses it.
+
+An executable module (`cjls`, the generators) has nothing `public` but what a macro package
+needs.
+
+### C28: Imports
+
+Imports name what the file uses, one `import pkg.{A, B}` per package (`G.PKG.01`): where a type
+comes from reads without a server, in a diff too, and an unused one shows.
+
+A whole package, `import pkg.*`, only where its names are not the file's choice: generated code
+(what a generator writes imports as it likes); a generated package read as a vocabulary,
+`cjls.lsp_types.*` (C8) and `cjsyntax.ast.*`; `std.ast.*` in a macro package; a test's
+`std.unittest.*` and `std.unittest.testmacro.*`; a package whose names a macro's expansion needs
+(`fjson.*` and `stdxx.deriving.*` under `@DeriveExt`).
+
+A clash is settled by an alias (C8): a name imported explicitly beside a `*` that also exports
+it is ambiguous at every use.
+
+A `public import` stays as it is.
+
+One group: std, then stdx, then the workspace, each in alphabetical order, none unused.
+
+### C29: Documentation comments
+
+A public type and a top-level function have a `/** … */` doc comment; a member has one when its
+name and type do not say all a caller needs.
+
+It says what and why (C15), and names every exception a caller sees: `@throws
+IndexOutOfBoundsException - if …` (`G.ERR.01`).
+
+A comment above a declaration is `/** … */`; `//` is for the inside of a body.
+
+### C30: Narrow exceptions
+
+A throw names a class of its reason (C14, C16); std's `IllegalArgumentException` and
+`IllegalStateException` say a caller's or this code's bug; never `throw Exception(…)`.
+
+A catch takes the narrowest class; `catch (_: Exception)` is only at a boundary that turns any
+failure into an answer — a response error, a log line, `None` for "could not" — and an `Error`
+too at a `spawn` (S13).
+
+### C31: Types and function size
+
+A value without identity, small and immutable, is a `struct`; a `class` has identity, shared
+mutable state, a subtype, or a size that makes copies cost.
+
+A function stays within ~50 lines and four levels of nesting (`G.FUN.01`) unless it is one flat
+`match` over kinds; one over 80 is split where its parts have names.
+
+A file stays within ~1000 lines, split by subject beyond.

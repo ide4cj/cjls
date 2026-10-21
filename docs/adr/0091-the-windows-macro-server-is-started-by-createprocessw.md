@@ -1,6 +1,6 @@
 # ADR-0091: On Windows the macro server is started by CreateProcessW, inheriting its two pipe handles alone
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0087: Windows is not left opaque
 
 ## Context

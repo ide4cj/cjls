@@ -1,6 +1,6 @@
 # ADR-0135: `workspace/diagnostic` is not offered: a file not open has no diagnostics
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0014: `workspaceDiagnostics: false` is a decision, no longer a gap; closes Q14 (#52)
 
 ## Context

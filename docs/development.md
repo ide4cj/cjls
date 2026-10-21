@@ -76,8 +76,8 @@ To enable repository Git hooks once per clone:
 git config core.hooksPath .githooks
 ```
 
-`commit-msg` requires `cog`; `pre-push` builds, checks formatting, fetches corpora
-and runs the full Cangjie suite. They are [plain scripts](../.githooks).
+`commit-msg` requires `cog`; `pre-push` checks formatting, fetches corpora and
+runs the full Cangjie suite, which builds the tested packages. They are [plain scripts](../.githooks).
 
 ## Build and run
 
@@ -98,8 +98,16 @@ inspection:
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
 
-The server is statically linked and runs without an SDK environment; generators
-still need the SDK because they invoke `cjfmt`.
+The Cangjie runtime is linked statically and the server runs without an SDK
+environment; generators still need the SDK because they invoke `cjfmt`. Linux
+executables still use system glibc and libstdc++. Release builds use Ubuntu 22.04
+and check the executable in a clean Ubuntu 22.04 container with `libstdc++6`
+installed; a local build on a newer system may require newer system libraries.
+To run the same compatibility check locally (requires Docker):
+
+```bash
+bash .github/scripts/check-linux-compat.sh target/release/bin/cjls
+```
 
 ## Choose checks for a change
 
@@ -265,7 +273,8 @@ The table below identifies the constraints to preserve in this checkout.
 
 | Constraint | Reason / reference |
 |---|---|
-| Libraries use static output and static stdx; `cjls` links `--static` | [K4](sdk-issues.md#k4); the server must run without SDK env |
+| `cjls` links `--static` | The server must run without SDK env |
+| Preserve the Linux release baseline and runtime-container check | System glibc/libstdc++ remain dynamic; C32, D142 |
 | Per-target release `-O2`, except `platform`'s `-O1` | `-g` builds must stay unoptimized (D51); [K14](sdk-issues.md#k14), D102 |
 | Keep module/root `-Woff unused`; other warnings remain enabled | Existing generated/macro warnings; `-m` reads module settings (D97) |
 | No LTO or `-dead_strip` | [K5](sdk-issues.md#k5), [K6](sdk-issues.md#k6), D20 |
@@ -289,7 +298,6 @@ building a consumer, not only the macro package. See
 | Tests fail naming a missing corpus | Run `tests/corpora/fetch.py` in this worktree |
 | Source changes appear ignored | cjpm tracks mtimes, not content; `cjpm clean` is needed after restoring old mtimes |
 | SDK change uses stale objects | Root `build.cj` detects compiler version changes (D27); check selected compiler |
-| Runtime abort says `F funcTable is nullptr` | Static output/linkage and stdx compatibility ([K4](sdk-issues.md#k4)) |
 
 `*.cj.macrocall` and `lib-macro_*.dylib` beside sources are build output: do not edit
 or commit them. Clean only the current worktree's outputs when needed.

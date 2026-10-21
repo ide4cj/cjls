@@ -5,6 +5,9 @@ description: >-
   workflow's call, under `key` and `path`.
 
 inputs:
+  runner-image:
+    description: The runner label; compiled objects must not cross Linux userspace versions.
+    required: true
   target-dir:
     description: The target directory, `target/release` for `cjpm build`, `target/test` for the tests.
     required: true
@@ -26,8 +29,8 @@ runs:
       env:
         DIR: ${{ inputs.target-dir }}
       run: |
-        echo "prefix=cjpm-${DIR//\//-}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.cangjie-version') }}-" >> "$GITHUB_OUTPUT"
-        echo "key=cjpm-${DIR//\//-}-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.cangjie-version') }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
+        echo "prefix=cjpm-${DIR//\//-}-${{ inputs.runner-image }}-${{ runner.arch }}-${{ hashFiles('.cangjie-version') }}-" >> "$GITHUB_OUTPUT"
+        echo "key=cjpm-${DIR//\//-}-${{ inputs.runner-image }}-${{ runner.arch }}-${{ hashFiles('.cangjie-version') }}-${{ github.sha }}" >> "$GITHUB_OUTPUT"
         # build.cj's stamp of the compiler goes with it: without it, the build forgets what it restored
         printf 'path<<EOF\n%s\ntarget/cjc-version\nbuild-script-cache\nEOF\n' "$DIR" >> "$GITHUB_OUTPUT"
 

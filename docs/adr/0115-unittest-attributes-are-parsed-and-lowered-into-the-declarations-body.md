@@ -1,6 +1,6 @@
 # ADR-0115: A macro attribute is parsed by its shape and std.unittest's are lowered into the body of the declaration they are on
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0059: `MacroAttr` is no longer tokens alone
 
 ## Context
