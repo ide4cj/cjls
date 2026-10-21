@@ -107,6 +107,25 @@ class CoverageTest(unittest.TestCase):
             self.generate(lambda: coverage.REPORT.write_text('{"fileLists": [1]}'))
         self.assertFalse(coverage.STAMP.exists())
 
+    def test_invalid_counts_cannot_receive_provenance(self):
+        for total, hits in [(True, [1]), (-1, []), (0, [1]), (1, [1, 2])]:
+            with self.subTest(total=total, hits=hits):
+                self.file.update(totalLines=total, hitLines=hits)
+
+                with self.assertRaisesRegex(ValueError, "malformed coverage report"):
+                    self.generate()
+
+                self.assertFalse(coverage.STAMP.exists())
+
+    def test_duplicate_paths_cannot_hide_a_file_entry(self):
+        duplicate = dict(self.file, filepath=self.file["filepath"].replace("/", "\\"), hitLines=[])
+        report = {"fileLists": [self.file, duplicate]}
+
+        with self.assertRaisesRegex(ValueError, "duplicate coverage path"):
+            self.generate(lambda: coverage.REPORT.write_text(json.dumps(report)))
+
+        self.assertFalse(coverage.STAMP.exists())
+
     def test_source_changes_make_report_stale_even_if_mtime_restored(self):
         self.generate()
         source = Path(self.file["filepath"])

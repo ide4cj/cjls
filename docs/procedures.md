@@ -15,6 +15,11 @@ matching static stdx layout matter as well as the compiler on PATH. The old
 Claude hook's `~/.cangjie` path is a machine-specific convenience, not a portable
 setup contract. There is no need to migrate it to another agent's startup hook.
 
+Coverage's `-g` build and release builds exercise different compiler/runtime
+behavior. Follow [toolchain constraints](development.md#toolchain-constraints)
+and their SDK evidence when interpreting results. Coverage cannot establish that
+a release-only failure is fixed, and a passing build does not retire a workaround.
+
 ## Benchmark isolation
 
 Use [the performance commands](development.md#fuzzing-and-performance). Compare

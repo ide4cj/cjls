@@ -44,11 +44,18 @@ def read_report():
     report = json.loads(REPORT.read_text())
     if not isinstance(report, dict) or not isinstance(report.get("fileLists"), list):
         raise ValueError("malformed coverage report: expected fileLists")
+    paths = set()
     for file in report["fileLists"]:
         if (not isinstance(file, dict) or not isinstance(file.get("filepath"), str)
                 or not isinstance(file.get("hitLines"), list)
-                or not isinstance(file.get("totalLines"), int) or file["totalLines"] < 0):
+                or type(file.get("totalLines")) is not int
+                or not 0 <= len(file["hitLines"]) <= file["totalLines"]):
             raise ValueError("malformed coverage report: invalid file entry")
+        # Reporting normalizes separators; duplicate entries would silently overwrite counts.
+        path = file["filepath"].replace("\\", "/")
+        if path in paths:
+            raise ValueError(f"malformed coverage report: duplicate coverage path {path}")
+        paths.add(path)
     if not Path("coverage/index.html").is_file():
         raise ValueError("missing coverage/index.html; rerun coverage generation")
     return report

@@ -19,6 +19,9 @@ must be available in this process. Keep the instrumented cache in `target/cov`.
    as an error branch. A hit count alone cannot establish that a case is tested.
    Identify cases needing e2e coverage separately (C7).
 
+For compiler/runtime limits of the `-g` build, follow the
+[SDK environment guidance](../../../docs/procedures.md#sdk-environment).
+
 `--base` selects files relative to the merge-base; it does **not** compare coverage
 with the base revision. If a before/after comparison is requested, generate a
 separate report in each revision's worktree using the same SDK and test selection.
