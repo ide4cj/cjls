@@ -49,7 +49,7 @@ Looked at, not references:
 | VFS, file ids, folded changes | R1 | `vfs` | D2 |
 | Lossless trees | R1 ← R6 | rowan | `ginkgo` |
 | Parser, events, typed views from an ungrammar | R1 | `parser`, `syntax`, `sourcegen` | `ginkgo.parsing`, `cjsyntax`, D10 |
-| What the grammar accepts | R3 | `src/Parse` | the parser test harness (CLAUDE.md) |
+| What the grammar accepts | R3 | `src/Parse` | [parser checks and compiler-oracle limits](../modules/cjsyntax/README.md#verification-limits) |
 | Incremental engine | salsa, R2 | salsa's current API; R2 uses it natively, R1 through `query-group-macro` | `calca`; what is missing: GC of memo keys not interned (#124); no accumulators (D14) |
 | Cancellation on write | R1 | salsa's `Cancelled` | D8 |
 | Diagnostics delivery | R1, R2 | pull, push only for clients without it | #17 |

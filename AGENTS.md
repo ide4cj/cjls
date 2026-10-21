@@ -24,7 +24,8 @@ is a complete feature list.
 | Add or change a handler | [Contributing](CONTRIBUTING.md) |
 | Understand a design choice | [ADRs](docs/adr/README.md), [prior art](docs/prior-art.md) |
 
-Read the affected module's instructions and technical notes before editing it.
+Read the affected module's `AGENTS.md`, where present, and its technical notes
+linked from the [module guide](docs/README.md#module-notes) before editing it.
 Follow links relevant to the task; do not load all module notes or ADRs for every
 change.
 
