@@ -1,6 +1,6 @@
 # ADR-0079: The settings are one typed model whose schema the server prints, read as R1 reads them
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

@@ -1,6 +1,7 @@
 # ADR-0134: An operator none of whose candidates fits is reported at the operator; of one declared candidate it is of its return type, as a call of one, and between the language's types an error
 
-Status: proposed. Supersedes D64's consequence of an operator of one candidate.
+Status: accepted, 2026-10-20
+Amends ADR-0064: an operator with one declared candidate keeps its return type; a failing built-in operator is an error
 
 ## Context
 

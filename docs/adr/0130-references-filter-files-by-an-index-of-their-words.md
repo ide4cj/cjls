@@ -1,6 +1,7 @@
 # ADR-0130: References read only the files whose words, a tracked bloom filter per file, name the name
 
-Status: proposed
+Status: accepted, 2026-10-20
+Amends ADR-0124: reference candidates are filtered by a per-file word index instead of a substring scan
 
 ## Context
 

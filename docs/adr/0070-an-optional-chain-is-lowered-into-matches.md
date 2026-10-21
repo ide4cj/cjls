@@ -1,6 +1,6 @@
 # ADR-0070: An optional chain is lowered into the matches cjc desugars it to, Some and None lang items
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

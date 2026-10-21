@@ -1,6 +1,6 @@
 # ADR-0078: On Windows the server puts itself in a kill-on-close job before it starts its child
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0031: on Windows the child dies with the parent
 
 ## Context

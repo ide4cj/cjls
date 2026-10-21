@@ -1,6 +1,6 @@
 # ADR-0122: A read-only request the files changed under runs again on a fresh snapshot, not answered ContentModified
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0008: a stale snapshot's `CancelledException` runs the request again; `ContentModified` is answered by no read-only handler
 Amends ADR-0014: a pull the files changed under is answered from the files as they are then, not `ServerCancelled` with `retriggerRequest`
 

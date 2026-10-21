@@ -195,20 +195,34 @@ public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name:
 }
 
 /**
+ * A lookup's cached receiver type, including a completed lookup that found no type.
+ */
+enum LookupTyState {
+    | TypeNotComputed
+    | NoReceiverType
+    | ReceiverType(Ty)
+}
+
+/**
  * The type a member lookup is on, found only once a filter needs it: most lookups meet no generic
  * type's `extend` and no function on two levels, and pay nothing for it.
  */
 class LookupTy {
-    private var found: ?Option<Ty> = None
+    private var found: LookupTyState = TypeNotComputed
 
     LookupTy(private let find: () -> ?Ty) {}
 
     func get(): ?Ty {
-        if (let Some(one) <- found) {
-            return one
+        match (found) {
+            case ReceiverType(ty) => return ty
+            case NoReceiverType => return None
+            case TypeNotComputed => ()
         }
         let one = find()
-        found = one
+        found = match (one) {
+            case Some(ty) => ReceiverType(ty)
+            case None => NoReceiverType
+        }
         one
     }
 }

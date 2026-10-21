@@ -1,6 +1,6 @@
 # ADR-0136: Semantic tokens are sent whole: no full/delta
 
-Status: proposed
+Status: accepted, 2026-10-20
 Closes Q19 (#56): ADR-0019's `full` and `range` stay, without `full/delta`
 
 ## Context

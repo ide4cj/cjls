@@ -1,6 +1,6 @@
 # ADR-0098: The macro server's answers are an input of the source file, their origins relative to the top-level item
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

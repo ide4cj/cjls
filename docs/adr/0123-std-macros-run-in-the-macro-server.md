@@ -1,6 +1,6 @@
 # ADR-0123: std's macros run in the macro server from the SDK's libraries, under the calls cjls expands itself
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0098: a call of std's macro is a call the server runs, nested or read like a workspace macro's
 Amends ADR-0114: a std `@Derive` in a workspace call's input is the server's output, cjls's own only once its run failed
 ## Context

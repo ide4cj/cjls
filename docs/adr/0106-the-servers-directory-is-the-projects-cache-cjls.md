@@ -1,6 +1,6 @@
 # ADR-0106: The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

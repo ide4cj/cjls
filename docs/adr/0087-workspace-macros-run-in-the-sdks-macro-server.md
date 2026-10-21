@@ -1,6 +1,6 @@
 # ADR-0087: The workspace's macros run in the SDK's LSPMacroServer
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

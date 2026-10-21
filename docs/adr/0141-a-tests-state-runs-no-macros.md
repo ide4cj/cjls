@@ -1,6 +1,6 @@
 # ADR-0141: A state runs no macros unless it is given what starts them
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

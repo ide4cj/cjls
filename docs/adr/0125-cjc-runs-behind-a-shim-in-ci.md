@@ -1,6 +1,6 @@
 # ADR-0125: cjc runs behind a shim that closes the descriptors it inherited
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

@@ -1,6 +1,6 @@
 # ADR-0138: `a[i] op= v` and `a[i]++` are desugared in the HIR into the value they give a `[]` taking it
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

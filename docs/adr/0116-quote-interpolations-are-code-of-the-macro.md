@@ -1,6 +1,6 @@
 # ADR-0116: A quote's interpolations are code of the macro, the rest of it tokens
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

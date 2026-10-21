@@ -1,6 +1,7 @@
 # ADR-0102: The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O`
 
-Status: proposed. Supersedes D51's sections in the root's `cjpm.toml`.
+Status: accepted, 2026-10-20
+Amends ADR-0051: the multiplatform module uses `-O1` and the workspace root names no optimization level
 
 ## Context
 

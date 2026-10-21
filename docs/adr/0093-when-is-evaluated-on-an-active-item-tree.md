@@ -1,6 +1,6 @@
 # ADR-0093: @When is evaluated on an active item tree and in lowering, against the package's cfg
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 

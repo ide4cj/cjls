@@ -1,6 +1,6 @@
 # ADR-0075: A write that changes no input opens no revision
 
-Status: proposed
+Status: accepted, 2026-10-20
 Amends ADR-0018: interned values
 
 ## Context

@@ -1,6 +1,6 @@
 # ADR-0128: A member's overrides are matched by name and parameters, found down through each package's subtype edges
 
-Status: proposed
+Status: accepted, 2026-10-20
 
 ## Context
 
