@@ -60,7 +60,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-latest, ubuntu-latest, windows-latest]
+        # Link against the oldest supported Linux userspace, not the moving latest runner.
+        os: [macos-latest, ubuntu-22.04, windows-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -72,8 +73,12 @@ jobs:
         uses: ./.github/actions/build-cache
         with:
           target-dir: target/release
+          runner-image: ${{ matrix.os }}
       - run: cjpm build
         shell: bash
+      - name: Linux runtime compatibility (Ubuntu 22.04)
+        if: runner.os == 'Linux'
+        run: bash .github/scripts/check-linux-compat.sh target/release/bin/cjls
       - uses: actions/upload-artifact@v7
         with:
           name: cjls-${{ runner.os }}
@@ -105,6 +110,7 @@ jobs:
         uses: ./.github/actions/build-cache
         with:
           target-dir: target/test
+          runner-image: ${{ matrix.os }}
       - run: python tests/corpora/fetch.py
         shell: bash
       - run: cjpm test --no-progress --timeout-each=2m --target-dir target/test
