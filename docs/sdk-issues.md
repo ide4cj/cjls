@@ -388,7 +388,8 @@ The following dispositions prevent old local guidance becoming competing rules:
   stay in [Development](development.md#toolchain-constraints),
   [C8](design/03-conventions.md) and affected module notes. Language semantics
   already modeled in source and tests stay there; compiler behavior is not
-  automatically an SDK defect. Module migration remains #455 E.
+  automatically an SDK defect. Migrated module notes are linked from the
+  [module guide](README.md#module-notes).
 - Private timing/layout/general optimization observations (`VArray` tables,
   `@Frozen`, closure allocation, pinning costs, GC plateaus) are not portable
   prescriptions. Existing source and benchmarks remain their evidence; no new
