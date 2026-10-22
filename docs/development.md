@@ -165,7 +165,7 @@ idiomatic code stays idiomatic (D108, D121). See
 [analysis rules](design/02-analysis.md) and
 [testing conventions](design/03-conventions.md) for the contract. The full suite
 also checks analysis after SDK macro expansion; see the
-[macro host notes](../modules/macro_host/CLAUDE.md) for that gate.
+[macro host notes](../modules/macro_host/README.md) for that gate.
 
 ### Formatting and documentation
 
@@ -272,9 +272,9 @@ does not prevent running the generator. Read the relevant module notes first.
 
 | Output | Inputs and procedure |
 |---|---|
-| `modules/cjsyntax/src/syntax_kind.cj`, `src/ast/nodes.cj` | `syntax_kinds.toml`, `cangjie.ungram`; [cjsyntax notes](../modules/cjsyntax/CLAUDE.md) |
-| `modules/cjls/src/lsp_types/` | `metaModel.json`, `lsp_codegen.toml`; [lsp_codegen notes](../modules/lsp_codegen/CLAUDE.md) |
-| `.cjo` and macro protocol flatbuffer views | schemas/configs; [cjo](../modules/cjo/CLAUDE.md), [macro_server](../modules/macro_server/CLAUDE.md), [fbs_codegen](../modules/fbs_codegen/CLAUDE.md) |
+| `modules/cjsyntax/src/syntax_kind.cj`, `src/ast/nodes.cj` | `syntax_kinds.toml`, `cangjie.ungram`; [cjsyntax notes](../modules/cjsyntax/README.md) |
+| `modules/cjls/src/lsp_types/` | `metaModel.json`, `lsp_codegen.toml`; [lsp_codegen notes](../modules/lsp_codegen/README.md) |
+| `.cjo` and macro protocol flatbuffer views | schemas/configs; [cjo](../modules/cjo/README.md), [macro_server](../modules/macro_server/README.md), [fbs_codegen](../modules/fbs_codegen/README.md) |
 
 Generator tests compare checked-in output; syntax conformance checks trees
 against the ungrammar. The compiler corpus/oracle harness is not fully checked
@@ -304,7 +304,7 @@ by expansions. Enum constructors leak into package scope; avoid collisions
 (e.g. `As<Member>` union variants). Macro-generated statics must not initialize
 through user code; package initialization order is undefined. Check changes by
 building a consumer, not only the macro package. See
-[stdxx notes](../modules/stdxx/CLAUDE.md) and affected module notes.
+[stdxx notes](../modules/stdxx/README.md) and affected module notes.
 
 ### Troubleshooting
 
@@ -340,5 +340,7 @@ never deleted (D39). A toolchain bump updates both pins, the corpus source commi
 and schema inputs as required; see D62/D65 and the affected generator notes.
 
 The [documentation migration plan](https://github.com/ide4cj/cjls/issues/455)
-tracks remaining module-note, SDK-knowledge and automation work. Historical ADRs
+tracks final integration and scenario acceptance, including explicitly deferred
+SDK probes and automation. Module notes are linked from the
+[documentation index](README.md#module-notes). Historical ADRs
 remain the record of why choices were made; current rules are in `docs/design/`.

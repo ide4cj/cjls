@@ -89,5 +89,5 @@ A Codex-specific LSP adapter is explicitly deferred: no repository-owned adapter
 or equivalent agent tool has been implemented or verified. Do not claim source
 search replaces semantic rename/references, or that e2e checks establish an editor
 plugin's integration. Test a configured editor when the requested change depends
-on it. Migration of the remaining module notes belongs to the later integration
-work in [#455](https://github.com/ide4cj/cjls/issues/455).
+on it. [Module notes](README.md#module-notes) explain local constraints; final
+cross-scenario acceptance remains tracked in [#455](https://github.com/ide4cj/cjls/issues/455).

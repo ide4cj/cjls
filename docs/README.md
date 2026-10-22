@@ -65,6 +65,23 @@ One fact, one place: a rule is stated once, in `design/`; an ADR says why, AGENT
 | [02-analysis.md](design/02-analysis.md) | the database, queries, files, positions |
 | [03-conventions.md](design/03-conventions.md) | how code is written, where the compiler leaves a choice |
 
+## Module notes
+
+Module READMEs explain local constraints and verification choices; local
+`AGENTS.md` files add special working instructions only where needed. Public API
+contracts and implementation details stay beside the source, and shared rules
+stay in `design/`.
+
+| Work | Notes |
+|---|---|
+| Incremental analysis and projects | [calca](../modules/calca/README.md), [loupe rules and fixtures](design/02-analysis.md), [project_model](../modules/project_model/README.md) |
+| Syntax and generation | [ginkgo](../modules/ginkgo/README.md), [cjsyntax](../modules/cjsyntax/README.md), [syntax_codegen](../modules/syntax_codegen/README.md) |
+| Protocol and serialization | [jsonrpc](../modules/jsonrpc/README.md), [stdxx](../modules/stdxx/README.md), [lsp_codegen](../modules/lsp_codegen/README.md), [cjls](../modules/cjls/README.md) |
+| Binary formats, macros and platforms | [fbs](../modules/fbs/README.md), [fbs_codegen](../modules/fbs_codegen/README.md), [cjo](../modules/cjo/README.md), [macro_server](../modules/macro_server/README.md), [macro_host](../modules/macro_host/README.md), [platform](../modules/platform/README.md) |
+
+Other modules keep their contracts in source comments and neighboring tests;
+absence from this table does not exempt them from shared rules or required checks.
+
 ## Identifiers
 
 | Prefix | What | Defined in |
