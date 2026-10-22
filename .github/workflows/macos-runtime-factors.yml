@@ -11,10 +11,10 @@ on:
   workflow_dispatch:
     inputs:
       factors:
-        description: Compare initial stack sizes or repeat earlier optimization/worker factors
+        description: Compare stack-setting scope or repeat earlier runtime factors
         type: choice
-        default: stack-size
-        options: [stack-size, worker-profile, all]
+        default: stack-scope
+        options: [stack-scope, stack-size, worker-profile, all]
 
 permissions:
   contents: read
@@ -28,12 +28,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON((github.event_name == 'push' || inputs.factors == 'stack-size') && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O2-stack8MB","optimization":"2","workers":"","stack":"8MB"},{"variant":"O0-stack8MB","optimization":"0","workers":"","stack":"8MB"}]' || inputs.factors == 'all' && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O0","optimization":"0","workers":"","stack":""},{"variant":"O1","optimization":"1","workers":"","stack":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]') }}
+        include: ${{ fromJSON((github.event_name == 'push' || inputs.factors == 'stack-scope') && '[{"variant":"O2-stack8MB-profile","optimization":"2","workers":"","stack":"8MB","stack_scope":"profile"},{"variant":"O2-stack8MB-command","optimization":"2","workers":"","stack":"8MB","stack_scope":"command"}]' || inputs.factors == 'stack-size' && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O2-stack8MB","optimization":"2","workers":"","stack":"8MB"},{"variant":"O0-stack8MB","optimization":"0","workers":"","stack":"8MB"}]' || inputs.factors == 'all' && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O0","optimization":"0","workers":"","stack":""},{"variant":"O1","optimization":"1","workers":"","stack":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]') }}
     env:
       PROBE_VARIANT: ${{ matrix.variant }}
       PROBE_OPTIMIZATION: ${{ matrix.optimization }}
       PROBE_WORKERS: ${{ matrix.workers }}
       PROBE_STACK_SIZE: ${{ matrix.stack }}
+      PROBE_STACK_SCOPE: ${{ matrix.stack_scope || 'profile' }}
       PROBE_GATE_TIMEOUT: "900"
       PROBE_FULL_TIMEOUT: "1800"
       PROBE_TIMEOUT_EACH: 10m

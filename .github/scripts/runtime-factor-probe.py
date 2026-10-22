@@ -52,12 +52,14 @@ def diagnostics(name, pid, elapsed):
         Path(f"{prefix}.diagnostic-error.txt").write_text(str(error))
 
 
-def configure_test_environment(workers, stack):
+def configure_test_environment(workers, stack, stack_scope="profile"):
     assert workers in {"", "1"}
     assert stack in {"", "8MB"}
+    assert stack_scope in {"profile", "command"}
     path = Path("cjpm.toml")
     text = path.read_text()
-    for name, value in (("cjProcessorNum", workers), ("cjStackSize", stack)):
+    for name, value in (("cjProcessorNum", workers),
+                        ("cjStackSize", stack if stack_scope == "profile" else "")):
         if not value:
             continue
         text, count = re.subn(
@@ -84,11 +86,12 @@ def prepare():
         path.write_text(text)
     workers = os.environ["PROBE_WORKERS"]
     stack = os.environ.get("PROBE_STACK_SIZE", "")
-    configure_test_environment(workers, stack)
+    stack_scope = os.environ.get("PROBE_STACK_SCOPE") or "profile"
+    configure_test_environment(workers, stack, stack_scope)
     (LOGS / "manifest-changes.patch").write_bytes(subprocess.check_output(["git", "diff"]))
     config = {"variant": os.environ["PROBE_VARIANT"], "optimization": level,
               "workers": workers, "worker_configuration": "profile.test.env",
-              "stack_size": stack or "default", "stack_configuration": "profile.test.env",
+              "stack_size": stack or "default", "stack_configuration": stack_scope,
               "sdk": Path(".cangjie-version").read_text().strip(),
               "gate_timeout_seconds": int(os.environ.get("PROBE_GATE_TIMEOUT", "900")),
               "full_timeout_seconds": int(os.environ.get("PROBE_FULL_TIMEOUT", "1800")),
@@ -130,11 +133,20 @@ def run_once(name, command, timeout):
     # Limit test binaries through cjpm's profile, leaving the package manager's
     # own scheduler unchanged; globally setting this variable can stall cjpm.
     env.pop("cjProcessorNum", None)
-    # Compare test/runtime stack settings without changing the cjpm launcher.
+    # Command scope matches #477's export before cjpm starts. Profile scope
+    # leaves its launcher untouched and lets cjpm configure test descendants.
     env.pop("cjStackSize", None)
+    stack_scope = env.get("PROBE_STACK_SCOPE") or "profile"
+    assert stack_scope in {"profile", "command"}
+    if stack_scope == "command":
+        stack = env.get("PROBE_STACK_SIZE", "")
+        assert stack == "8MB", "command stack experiment needs an explicit size"
+        env["cjStackSize"] = stack
     print(json.dumps({"event": "start", "run": name, "timeout": timeout,
                       "test_workers": env.get("PROBE_WORKERS") or "default",
                       "test_stack": env.get("PROBE_STACK_SIZE") or "default",
+                      "stack_scope": stack_scope,
+                      "cjpm_stack": env.get("cjStackSize") or "default",
                       "cjpm_workers": "default"}), flush=True)
     with (LOGS / f"{name}.txt").open("w") as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT,
@@ -166,6 +178,7 @@ def run_once(name, command, timeout):
                                   "log_bytes": (LOGS / f"{name}.txt").stat().st_size}), flush=True)
     row = {"run": name, "status": status, "seconds": round(time.monotonic() - started, 2),
            "timeout_seconds": timeout, "command": command,
+           "stack_scope": stack_scope, "cjpm_stack": env.get("cjStackSize"),
            "log_bytes": (LOGS / f"{name}.txt").stat().st_size}
     rows = json.loads(RESULTS.read_text()) if RESULTS.exists() else []
     assert all(r["run"] != name for r in rows), f"duplicate repetition {name}"

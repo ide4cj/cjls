@@ -51,8 +51,27 @@ class RuntimeProbeTest(unittest.TestCase):
 
     def test_launcher_does_not_inherit_stack_or_worker_overrides(self):
         command = [sys.executable, "-c", "import os; assert 'cjStackSize' not in os.environ; assert 'cjProcessorNum' not in os.environ"]
-        with patch.dict(os.environ, {"cjStackSize": "8MB", "cjProcessorNum": "1"}):
+        with patch.dict(os.environ, {"cjStackSize": "8MB", "cjProcessorNum": "1",
+                                     "PROBE_STACK_SCOPE": "profile"}):
             self.assertEqual(probe.run_once("isolated-launcher", command, 5), 0)
+
+    def test_command_stack_leaves_profile_unmodified(self):
+        manifest = '[profile.test.env]\ncjHeapSize = { value = "2GB", splice-type = "replace" }\n'
+        Path("cjpm.toml").write_text(manifest)
+        probe.configure_test_environment("", "8MB", "command")
+        self.assertEqual(Path("cjpm.toml").read_text(), manifest)
+
+    def test_command_stack_reaches_launcher_and_descendant(self):
+        child = "import os; assert os.environ['cjStackSize'] == '8MB'"
+        parent = ("import os, subprocess, sys; assert os.environ['cjStackSize'] == '8MB'; "
+                  "assert 'cjProcessorNum' not in os.environ; "
+                  f"subprocess.run([sys.executable, '-c', {child!r}], check=True)")
+        with patch.dict(os.environ, {"PROBE_STACK_SCOPE": "command", "PROBE_STACK_SIZE": "8MB",
+                                     "cjStackSize": "1MB", "cjProcessorNum": "1"}):
+            self.assertEqual(probe.run_once("command-stack", [sys.executable, "-c", parent], 5), 0)
+        row, = json.loads(probe.RESULTS.read_text())
+        self.assertEqual(row["cjpm_stack"], "8MB")
+        self.assertEqual(row["stack_scope"], "command")
 
     def test_timeout_kills_descendants_after_diagnostics(self):
         read_fd, write_fd = os.pipe()
