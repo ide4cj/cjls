@@ -5,6 +5,27 @@ cjls. Run commands from the repository/worktree root. POSIX examples use **Bash*
 start `bash` first if your interactive shell is fish. Keep wildcard test filters
 quoted. Windows examples use PowerShell unless specified otherwise.
 
+## Find a path through a change
+
+Start with one concrete behavior and follow the relevant row. Commands below
+remain the maintained verification recipes; module notes add local constraints.
+
+| Scenario | Read and inspect | Verification / review evidence |
+|---|---|---|
+| Set up a checkout | [Prerequisites](#prerequisites), [SDK selection](#select-the-pinned-sdk) | Run a focused test, then fetch corpora and run the full suite; record OS and SDK |
+| Reproduce a bug | [Check selection](#choose-checks-for-a-change), affected [module notes](README.md#module-notes), nearest existing test | Demonstrate the failure with a regression case before fixing it; retain its result after the fix |
+| Change analysis | [Architecture](architecture.md), [analysis rules and fixtures](design/02-analysis.md), [calca notes](../modules/calca/README.md) | Use an analysis fixture; check snapshots, cancellation and dependencies; run the full suite |
+| Change grammar or generated code | [Generation](#generated-code), affected generator and consumer notes | Regenerate from inputs, inspect the diff, build a consumer and run generation/conformance tests |
+| Propose an architectural choice | [Design index](README.md#design), [ADRs](adr/README.md), [prior art](prior-art.md) | Find the current rule and its rationale; explain alternatives and evidence in an ADR when a real choice is made |
+| Review a change | [Review preparation](#prepare-a-review), affected rules and tests | Explain the algorithm, observable behavior, verification and remaining uncertainty |
+
+A useful first contribution or agent task is a bounded regression: trace one
+input through the relevant layer, identify its invariant, and propose one test
+and the smallest fix. Review that reasoning and any missing context with the
+maintainer before expanding scope. New architectural constraints and retiring
+SDK workarounds need explicit review of the decision and its evidence. These are
+review points, not a requirement to seek permission for each local edit or check.
+
 ## Set up a checkout
 
 A separate clone or Git worktree provides independent build directories and a
@@ -339,8 +360,9 @@ separate workflow (D49). Weekly and nightly releases are maintained by the
 never deleted (D39). A toolchain bump updates both pins, the corpus source commit
 and schema inputs as required; see D62/D65 and the affected generator notes.
 
-The [documentation migration plan](https://github.com/ide4cj/cjls/issues/455)
-tracks final integration and scenario acceptance, including explicitly deferred
-SDK probes and automation. Module notes are linked from the
-[documentation index](README.md#module-notes). Historical ADRs
-remain the record of why choices were made; current rules are in `docs/design/`.
+The [documentation migration](https://github.com/ide4cj/cjls/issues/455) records
+acceptance evidence and limitations. SDK probes remain in
+[#332](https://github.com/ide4cj/cjls/issues/332); automation and editor integration
+limits are in [Procedures](procedures.md). Module notes are linked from the
+[documentation index](README.md#module-notes). Historical ADRs remain the record
+of why choices were made; current rules are in `docs/design/`.
