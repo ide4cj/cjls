@@ -356,7 +356,11 @@ ADR index. Open questions live in issues labeled `question`.
 
 CI runs builds/tests on its supported platforms, format/docs/commit checks,
 fuzzing, e2e and performance; [coverage](../.github/workflows/coverage.yml) is a
-separate workflow (D49). Weekly and nightly releases are maintained by the
+separate workflow (D49). macOS build, test and e2e jobs still run but temporarily
+do not fail the workflow while the SDK GC-root crash in [#466](https://github.com/ide4cj/cjls/issues/466)
+is unresolved; their test and e2e checks are also optional in the master ruleset.
+Restore both requirements after the SDK fix is revalidated. Release packaging
+still requires all platform binaries. Weekly and nightly releases are maintained by the
 [release workflows](../.github/workflows); `nightly-build` is updated in place,
 never deleted (D39). A toolchain bump updates both pins, the corpus source commit
 and schema inputs as required; see D62/D65 and the affected generator notes.
