@@ -86,6 +86,13 @@ jobs:
             sysctl -n hw.model hw.ncpu hw.memsize
             uptime
           } | tee probe-logs/environment.txt
+      - name: Adapt sealed matches for the release compiler
+        if: matrix.sdk == '1.2.0'
+        # 1.2 does not recognize the exhaustive Leaf/Branch cases of sealed Node.
+        # Keep this experiment-only change explicit in the downloaded evidence.
+        run: |
+          git apply .github/sdk-1.2-exhaustiveness.patch
+          git diff -- modules/rope/src/node.cj > probe-logs/compatibility.patch
       - run: python3 tests/corpora/fetch.py
       - name: Compile tests without running
         run: |
