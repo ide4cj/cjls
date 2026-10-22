@@ -4,6 +4,12 @@ on:
   push:
     branches: [test/macos-nightly-20261022]
   workflow_dispatch:
+    inputs:
+      sdk:
+        description: SDK series to probe
+        type: choice
+        default: 1.2.0
+        options: [1.2.0, nightlies]
 
 permissions:
   contents: read
@@ -16,17 +22,58 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        sdk: [1.3.0-alpha.20261014001050, 1.3.0-alpha.20261022001052]
+        sdk: ${{ fromJSON(inputs.sdk == 'nightlies' && '["1.3.0-alpha.20261014001050", "1.3.0-alpha.20261022001052"]' || '["1.2.0"]') }}
     steps:
       - uses: actions/checkout@v7
       # Keep the source and corpus identical; only the selected SDK/stdx changes.
       - name: Select probe SDK
+        if: matrix.sdk != '1.2.0'
         env:
           PROBE_SDK: ${{ matrix.sdk }}
         run: |
           printf '%s\n' "$PROBE_SDK" > .cangjie-version
           cat .github/macos-nightly.sha256 >> .cangjie-sha256
       - uses: ./.github/actions/setup-cangjie
+        if: matrix.sdk != '1.2.0'
+      - uses: actions/setup-python@v5
+        if: matrix.sdk == '1.2.0'
+        with:
+          python-version: "3.12"
+      - name: Install release SDK and matching stdx
+        if: matrix.sdk == '1.2.0'
+        shell: python
+        run: |
+          import json
+          import os
+          from pathlib import Path
+          import runpy
+          import sys
+
+          setup = runpy.run_path(".github/actions/setup-cangjie/setup.py")
+          dest = Path(os.environ["RUNNER_TEMP"]) / "release-sdk"
+          dest.mkdir()
+          home = dest / "cangjie"
+          for asset in json.loads(Path(".github/macos-release.json").read_text()):
+              archive = dest / asset["name"]
+              with archive.open("wb") as out:
+                  actual = setup["download"](asset["url"], out)
+              if actual != asset["sha256"]:
+                  raise SystemExit(f"checksum mismatch: {asset['name']}: {actual}")
+              target = dest / asset["dest"]
+              if archive.name == "Tokens.inc":
+                  # Release macOS SDKs omit include/. Tests need the matching
+                  # compiler token enum, not a nightly's different numbering.
+                  target.parent.mkdir(parents=True, exist_ok=True)
+                  archive.rename(target)
+              else:
+                  target.mkdir(parents=True, exist_ok=True)
+                  setup["unpack"](str(archive), str(target))
+                  archive.unlink()
+          # Reuse the installer's environment handling after staging the archives.
+          sys.argv = ["setup.py", "1.2.0", str(dest)]
+          setup["main"]()
+          with open(os.environ["GITHUB_PATH"], "a") as out:
+              out.write(str(Path(".github/actions/setup-cangjie/shim").resolve()) + "\n")
       - name: Record environment
         run: |
           mkdir -p probe-logs
