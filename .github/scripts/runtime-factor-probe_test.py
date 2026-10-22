@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import tomllib
 import unittest
 from unittest.mock import patch
 
@@ -33,6 +34,25 @@ class RuntimeProbeTest(unittest.TestCase):
         self.assertEqual(row["timeout_seconds"], 5)
         self.assertGreater(row["log_bytes"], 0)
         self.assertIn("child output", (probe.LOGS / "failure.txt").read_text())
+
+    def test_profile_sets_stack_and_workers_without_changing_heap(self):
+        Path("cjpm.toml").write_text('[profile.test.env]\ncjHeapSize = { value = "2GB", splice-type = "replace" }\n')
+        probe.configure_test_environment("1", "8MB")
+        env = tomllib.loads(Path("cjpm.toml").read_text())["profile"]["test"]["env"]
+        self.assertEqual(env["cjStackSize"], {"value": "8MB", "splice-type": "replace"})
+        self.assertEqual(env["cjProcessorNum"]["value"], "1")
+        self.assertEqual(env["cjHeapSize"]["value"], "2GB")
+
+    def test_control_preserves_default_test_environment(self):
+        manifest = '[profile.test.env]\ncjHeapSize = { value = "2GB", splice-type = "replace" }\n'
+        Path("cjpm.toml").write_text(manifest)
+        probe.configure_test_environment("", "")
+        self.assertEqual(Path("cjpm.toml").read_text(), manifest)
+
+    def test_launcher_does_not_inherit_stack_or_worker_overrides(self):
+        command = [sys.executable, "-c", "import os; assert 'cjStackSize' not in os.environ; assert 'cjProcessorNum' not in os.environ"]
+        with patch.dict(os.environ, {"cjStackSize": "8MB", "cjProcessorNum": "1"}):
+            self.assertEqual(probe.run_once("isolated-launcher", command, 5), 0)
 
     def test_timeout_kills_descendants_after_diagnostics(self):
         read_fd, write_fd = os.pipe()

@@ -52,6 +52,21 @@ def diagnostics(name, pid, elapsed):
         Path(f"{prefix}.diagnostic-error.txt").write_text(str(error))
 
 
+def configure_test_environment(workers, stack):
+    assert workers in {"", "1"}
+    assert stack in {"", "8MB"}
+    path = Path("cjpm.toml")
+    text = path.read_text()
+    for name, value in (("cjProcessorNum", workers), ("cjStackSize", stack)):
+        if not value:
+            continue
+        text, count = re.subn(
+            r'(\[profile.test.env\]\n)',
+            rf'\1{name} = {{ value = "{value}", splice-type = "replace" }}\n', text)
+        assert count == 1, "no unique test environment section"
+    path.write_text(text)
+
+
 def prepare():
     LOGS.mkdir(exist_ok=True)
     assert not Path("target/test").exists(), "factor builds must start without objects"
@@ -68,18 +83,12 @@ def prepare():
         assert count == 1, f"no unique Darwin optimization setting in {path}"
         path.write_text(text)
     workers = os.environ["PROBE_WORKERS"]
-    if workers:
-        assert workers == "1"
-        path = Path("cjpm.toml")
-        text, count = re.subn(
-            r'(\[profile.test.env\]\n)',
-            rf'\1cjProcessorNum = {{ value = "{workers}", splice-type = "replace" }}\n',
-            path.read_text())
-        assert count == 1, "no unique test environment section"
-        path.write_text(text)
+    stack = os.environ.get("PROBE_STACK_SIZE", "")
+    configure_test_environment(workers, stack)
     (LOGS / "manifest-changes.patch").write_bytes(subprocess.check_output(["git", "diff"]))
     config = {"variant": os.environ["PROBE_VARIANT"], "optimization": level,
               "workers": workers, "worker_configuration": "profile.test.env",
+              "stack_size": stack or "default", "stack_configuration": "profile.test.env",
               "sdk": Path(".cangjie-version").read_text().strip(),
               "gate_timeout_seconds": int(os.environ.get("PROBE_GATE_TIMEOUT", "900")),
               "full_timeout_seconds": int(os.environ.get("PROBE_FULL_TIMEOUT", "1800")),
@@ -121,8 +130,11 @@ def run_once(name, command, timeout):
     # Limit test binaries through cjpm's profile, leaving the package manager's
     # own scheduler unchanged; globally setting this variable can stall cjpm.
     env.pop("cjProcessorNum", None)
+    # Compare test/runtime stack settings without changing the cjpm launcher.
+    env.pop("cjStackSize", None)
     print(json.dumps({"event": "start", "run": name, "timeout": timeout,
                       "test_workers": env.get("PROBE_WORKERS") or "default",
+                      "test_stack": env.get("PROBE_STACK_SIZE") or "default",
                       "cjpm_workers": "default"}), flush=True)
     with (LOGS / f"{name}.txt").open("w") as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT,

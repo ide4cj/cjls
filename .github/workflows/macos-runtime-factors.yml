@@ -11,10 +11,10 @@ on:
   workflow_dispatch:
     inputs:
       factors:
-        description: Repeat all factors or isolate the one-worker test environment
+        description: Compare initial stack sizes or repeat earlier optimization/worker factors
         type: choice
-        default: all
-        options: [worker-profile, all]
+        default: stack-size
+        options: [stack-size, worker-profile, all]
 
 permissions:
   contents: read
@@ -28,11 +28,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON((github.event_name == 'push' || inputs.factors == 'all') && '[{"variant":"O2-control","optimization":"2","workers":""},{"variant":"O0","optimization":"0","workers":""},{"variant":"O1","optimization":"1","workers":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]') }}
+        include: ${{ fromJSON((github.event_name == 'push' || inputs.factors == 'stack-size') && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O2-stack8MB","optimization":"2","workers":"","stack":"8MB"},{"variant":"O0-stack8MB","optimization":"0","workers":"","stack":"8MB"}]' || inputs.factors == 'all' && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O0","optimization":"0","workers":"","stack":""},{"variant":"O1","optimization":"1","workers":"","stack":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]') }}
     env:
       PROBE_VARIANT: ${{ matrix.variant }}
       PROBE_OPTIMIZATION: ${{ matrix.optimization }}
       PROBE_WORKERS: ${{ matrix.workers }}
+      PROBE_STACK_SIZE: ${{ matrix.stack }}
       PROBE_GATE_TIMEOUT: "900"
       PROBE_FULL_TIMEOUT: "1800"
       PROBE_TIMEOUT_EACH: 10m
