@@ -9,7 +9,7 @@ import std.sync.Mutex
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.*
-import loupe.TextRange
+import loupe.{hoverAt, TextRange}
 import loupe.db.*
 import loupe.fixture.*
 import loupe.hir.{expandedCalls, macroExpansion, macroOutputOf, MacroPackage, macroRequests, pendingMacroRequests,
@@ -392,6 +392,11 @@ macro package toy.ms
 
 import std.ast.*
 
+public macro Id(baseType: Tokens, size: Tokens): Tokens {
+    let typeTokens = Token(IDENTIFIER, "${baseType}${size}").toTokens()
+    quote(func id(v: $typeTokens): $typeTokens { v })
+}
+
 public macro Same(input: Tokens): Tokens {
     input
 }
@@ -510,6 +515,38 @@ class GuardedServerTest {
         @Expect(served.replaces, true)
         @Expect(served.text.replace("\r\n", "\n").contains("public operator func ==(other: A): Bool {"), true)
         @Expect(pendingMacroRequests(db, file).size, 0)
+    }
+
+    @TestCase
+    func aBuiltKeywordIdentifierKeepsItsPrimitiveType() {
+        // arrange
+        let (paths, library) = built()
+        let fixture = Fixture.parse(trimIndent(#"
+            //- /main.cj module=toy package=toy
+            package toy
+            import toy.ms.*
+            @Id[Int](8)
+            main() {
+                let value = id(1)
+                $0value
+            }
+            //- /ms/ms.cj module=toy package=toy.ms
+            "#) + TOY_MACROS)
+        let db = fixture.database()
+        let file = db.sourceFile(fixture.file("/main.cj").fileId).getOrThrow()
+        let libraries = libraryOf(db, file, MacroLibrary(library, 0))
+        let server = GuardedServer(paths, Duration.minute, NoopLogger())
+
+        // act
+        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), server))
+        server.close()
+        let expansion = macroExpansion(db, expandedCalls(db, file)[0])
+        let cursor = fixture.cursor.getOrThrow()
+        let hover = hoverAt(db, cursor.fileId, cursor.offset).getOrThrow()
+
+        // assert
+        @Expect(expansion.text, "func id(v: Int8): Int8 { v }")
+        @Expect(hover.items.map {item => item.code}, ["let value: Int8"])
     }
 
     @TestCase

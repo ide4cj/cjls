@@ -58,9 +58,12 @@ compatibility evidence, not verification of future SDKs.
 Tokens must match cjc's lexer, including whole strings, `>=>` and `!in`.
 [MacroTokenWriter](src/macro_tokens.cj) records the differences from cjsyntax;
 `std.ast.cangjieLex` is the test oracle when compiler source and behavior differ.
-Printing an expansion must lex back to the same token kinds and values, with
-ranges in printed text alongside server positions. Literal quoting is checked
-by re-lexing; spaces are omitted only for pairs known not to glue.
+Printing an expansion preserves token kinds and values, with ranges in printed
+text alongside server positions, except for generated identifiers: cjc re-lexes
+their values in `ProcessCombinedToken`, so `Token(IDENTIFIER, "Int8")` becomes the
+primitive type keyword. Print the value unchanged; only backquotes already in it
+keep it an identifier. Literal quoting is checked by re-lexing; spaces are omitted
+only for pairs known not to glue.
 
 Tests need `CANGJIE_HOME`: they run the SDK server on its shipped `@Derive`
 library without building a workspace macro. Test support selects a runtime with

@@ -120,6 +120,19 @@ class PrintMacroTokensTest {
             "@Derive[ToString]\nextend <T> A<T> <: B<Array<T >> where T <: C { func f(x: T) { x.g(1)[0] + - 1 } }")
     }
 
+    @TestCase[value in ["Int8", "UInt64", "Float32", "Bool", "class", "true", "_", "`Int8`", "`class`"]]
+    func aBuiltIdentifierIsRelexedAsTheSdkDoes(value: String): Unit {
+        // arrange
+        let tokens = [tokenOf(numbers, "IDENTIFIER", value)]
+
+        // act
+        let printed = printMacroTokens(tokens, numbers)
+
+        // assert
+        @Expect(printed.text, value)
+        @Expect(describedOurs(printed.text, numbers), describedCjcs(value).getOrThrow())
+    }
+
     @TestCase
     func aLiteralAMacroBuiltIsPrintedSoThatItLexesBack(): Unit {
         // arrange
@@ -138,7 +151,7 @@ class PrintMacroTokensTest {
         let printed = printMacroTokens(tokens, numbers)
 
         // assert
-        @Expect(printed.text, "'a\"b' \"a\\nb\" '''\nx\"\"\"y''' ##\"q\"#\"## r\"'\" J\"j\" `class`\n")
+        @Expect(printed.text, "'a\"b' \"a\\nb\" '''\nx\"\"\"y''' ##\"q\"#\"## r\"'\" J\"j\" class\n")
     }
 
     /**

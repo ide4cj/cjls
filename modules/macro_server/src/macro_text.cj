@@ -2,7 +2,6 @@ package macro_server
 
 import std.collection.*
 import fbs.FbVector
-import cjsyntax.SyntaxKind
 import ginkgo.TextRange
 
 /**
@@ -27,8 +26,8 @@ public class PrintedTokens {
 }
 
 /**
- * The source text of the tokens `LSPMacroServer` answers (`MacroResult.tks`), which `macroTokens` cuts back into
- * the same kinds and values: the reverse of `macroTokens`.
+ * The source text of the tokens `LSPMacroServer` answers (`MacroResult.tks`), normalized as cjc reads an expansion.
+ * See the array overload for identifier re-lexing and literal quoting.
  */
 public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): PrintedTokens {
     let data = ArrayList<TokenData>(tokens.size)
@@ -41,7 +40,7 @@ public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): Pr
 }
 
 /**
- * The source text of `tokens`, which `macroTokens` cuts back into the same kinds and values.
+ * The source text of `tokens`, preserving kinds and values except for identifiers cjc re-lexes.
  *
  * A token is printed as its value, kinds known by their names in `numbers`, never by a number of ours:
  *
@@ -52,7 +51,8 @@ public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): Pr
  *   holding a line break, which a macro may build) is printed escaped: it parses, though to another value;
  * - a `RUNE_BYTE_LITERAL` as its value, which is all of `b'…'`;
  * - an `NL` as a line break;
- * - an `IDENTIFIER` spelled like a keyword between backquotes, as a macro may build one;
+ * - an `IDENTIFIER` as its value: cjc re-lexes generated identifiers (`ProcessCombinedToken`), so `Int8` becomes
+ *   a type keyword. Only backquotes already in the value keep it an identifier; adding them changes its meaning;
  * - two tokens are a space apart, but where none is needed: after `(` and `[`, before `)`, `]`, `,`, `;`, `(`
  *   and `[`, around a `.` between names, after `@`, before a `:` after a name or a bracket, and around a
  *   generic's `<` and `>` next to a type's name. A space is kept where the two would glue into another token
@@ -163,7 +163,6 @@ class MacroTextPrinter {
                 let hashes = "#" * Int64(max(t.delimiterNum, 1))
                 let candidates = ["${hashes}\"${value}\"${hashes}", "${hashes}'${value}'${hashes}"]
                 quoted(name, t, candidates) ?? candidates[0]
-            case "IDENTIFIER" where value != "_" && SyntaxKind.keyword(value).isSome() => "`${value}`"
             case _ => value
         }
     }
