@@ -48,12 +48,6 @@ fields through `@Serde[skipNone]`; see
 [LSP generation procedure](../lsp_codegen/README.md#regeneration). Hand-written
 extensions follow [the extension contract](../../docs/lsp-extensions.md).
 
-Pull and push diagnostics share `to_proto.cj`'s conversion. It replaces an empty
-message with `diagnostic reported without a message`, regardless of its source:
-VS Code rejects empty messages and its language client can stop updating the
-document's diagnostics after that exception. Nonempty text is preserved verbatim;
-the macro host provides a more specific fallback when it knows the macro's name.
-
 Stdio uses `platform.StdinStream`, never `std.env.getStdIn()`: buffering can stall
 an already-sent request. Blocking FFI must also permit GC; platform-specific
 `readv`/`_read` and Windows binary mode belong in `platform`, following

@@ -83,7 +83,7 @@ func diagnosticOf(diagnostic: Diagnostic, layout: WireLayout, name: String): Mac
     }
     var message = diagnostic.errorMessage ?? ""
     let hint = diagnostic.mainHint ?? ""
-    // An empty LSP message throws in VS Code and strands its diagnostic pull for this document.
+    // The macro's name is available here, unlike in the shared LSP conversion.
     if (message.isEmpty() && hint.isEmpty()) {
         message = if (severity == MacroSeverity.MacroError) {
             "@${name} reported an error"

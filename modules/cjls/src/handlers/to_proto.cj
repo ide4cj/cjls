@@ -217,7 +217,7 @@ func foldingRangeKind(kind: FoldKind): ?FoldingRangeKind {
 }
 
 func diagnostic(text: Rope, diagnostic: LoupeDiagnostic, encoding: Encoding): Diagnostic {
-    // Rejecting one empty message can strand a client's later diagnostic pulls for this document.
+    // VS Code rejects empty messages; vscode-languageclient then strands this document's diagnostic pull.
     let message = if (diagnostic.message.isEmpty()) {
         "diagnostic reported without a message"
     } else {
