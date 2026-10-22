@@ -1,6 +1,5 @@
 package project_model
 
-import std.collection.*
 import loupe.db.Cfg
 import platform.{hostArch, hostEnv, hostOs}
 
@@ -39,27 +38,4 @@ public func sdkTarget(cfg: Cfg): ?String {
         case _ => return None
     }
     "${os}_${arch}_${cfg.get("backend") ?? "cjnative"}"
-}
-
-/**
- * `text` with every `${VAR}` replaced by the variable's value, as cjpm does in its paths; a
- * variable `env` has no value for is left as it is, and told in `problems`.
- */
-func expandVariables(text: String, env: (String) -> ?String, problems: ArrayList<String>): String {
-    let out = StringBuilder()
-    var rest = text
-    while (let Some(start) <- rest.indexOf("\${")) {
-        let end = rest.indexOf("}", start) ?? break
-        let name = rest[start + 2..end]
-        out.append(rest[..start])
-        match (env(name)) {
-            case Some(value) => out.append(value)
-            case None =>
-                problems.add("`${name}` is not set: `${text}` is taken as it is")
-                out.append(rest[start..end + 1])
-        }
-        rest = rest[end + 1..]
-    }
-    out.append(rest)
-    out.toString()
 }

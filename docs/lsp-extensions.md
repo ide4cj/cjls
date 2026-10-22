@@ -9,6 +9,16 @@ This file is the editor clients' contract (D32): its first line is the hash of `
 
 What `cjls --config-schema` prints, a JSON Schema with each setting's type, default and description; all optional (D79). A client passes them as `initializationOptions` and keeps them under the section `cjls` of its configuration: the server asks for that section (`workspace/configuration`) once initialized and on each `workspace/didChangeConfiguration`, or, from a client that cannot be asked, reads it in that notification's `settings.cjls`. `null` or `{}` leaves the settings as they were; any other object replaces them whole. Today: `linkedProjects` (D33), `cangjieHome` (D40), `cangjieSrc` (D65), `newFilePackage` (D92).
 
+Path settings (`linkedProjects`, `cangjieHome`, `cangjieSrc`) accept `~` or a leading
+`~/` (`~\` on Windows) for the home directory (`HOME`, falling back to
+`USERPROFILE`), and `${VAR}` or `$VAR` for variables in the server process's
+environment. For example, `"cangjieHome": "~/.cjpm/toolchains/default"` or
+`"cangjieSrc": "${SDK_SOURCES}/stdlib/libs"`. Expansion happens once and must
+produce an absolute path. Missing variables are reported and the affected value
+is ignored. `file:` URIs are literal and are not expanded; `~user` and other shell
+expressions are not supported. Variables supplied by an editor (such as VS Code's
+`${workspaceFolder}`) must be resolved by that editor before sending settings.
+
 ## `cjls/memoryUsage`
 
 What the Cangjie runtime says of the server's heap, as numbers a driver can read, not a report in text. A request, client to server; capability `experimental.memoryUsage`.

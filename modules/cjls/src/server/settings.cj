@@ -3,8 +3,10 @@ package cjls.server
 import std.collection.ArrayList
 import std.deriving.Derive
 import std.fs.Path
+import std.env.getVariable
 import fjson.JsonValue
 import loupe.vfs.VfsPath
+import project_model.expandPath
 
 /**
  * The section of the client's configuration the settings are under (`cjls.linkedProjects`), the one
@@ -13,18 +15,18 @@ import loupe.vfs.VfsPath
 public const SETTINGS_SECTION = "cjls"
 
 let LINKED_PROJECTS = Setting<Array<VfsPath>>("linkedProjects",
-    "Projects to load, as rust-analyzer's: each an absolute path or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides.",
+    "Projects to load, as rust-analyzer's: each an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides.",
     JsonValue.JsonObject([("type", JsonValue.JsonString("array")),
         ("items", JsonValue.JsonObject([("type", JsonValue.JsonString("string"))])),
         ("default", JsonValue.JsonArray([]))]),
     [], readPaths)
 
 let CANGJIE_HOME = Setting<?String>("cangjieHome",
-    "The Cangjie SDK, an absolute path or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`. `std` is taken from it, and `\${CANGJIE_HOME}` in a project's paths expands to it.",
+    "The Cangjie SDK, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`. `std` is taken from it, and `\${CANGJIE_HOME}` in a project's paths expands to it.",
     optionalPathSchema(), Option<String>.None, readOptionalPath)
 
 let CANGJIE_SRC = Setting<?String>("cangjieSrc",
-    "The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`.",
+    "The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`.",
     optionalPathSchema(), Option<String>.None, readOptionalPath)
 
 let NEW_FILE_PACKAGE = Setting<Bool>("newFilePackage",
@@ -188,14 +190,25 @@ func readPositive(_: String, value: JsonValue, _: ArrayList<String>): SettingPar
 }
 
 /**
- * The path `value` names, an absolute path or a `file:` URI; `None` for anything else.
+ * The absolute path `value` names after home/environment expansion, or a literal `file:` URI.
+ * `None` for invalid paths or unresolved variables; expansion problems include the setting key.
  */
-func readPath(_: String, value: JsonValue, _: ArrayList<String>): ?String {
+func readPath(key: String, value: JsonValue, problems: ArrayList<String>): ?String {
     match (value) {
         case JsonValue.JsonString(text) where text.startsWith("file:") =>
             VfsPath.fromUri(text).filePath.map {path => path.toString()}
-        // `Path("")` throws
-        case JsonValue.JsonString(text) where !text.isEmpty() && Path(text).isAbsolute() => text
+        case JsonValue.JsonString(text) =>
+            let expansionProblems = ArrayList<String>()
+            let path = expandPath(text, getVariable, expansionProblems)
+            for (problem in expansionProblems) {
+                problems.add("`${key}`: ${problem}")
+            }
+            // A partial expansion must not silently select an unrelated absolute path.
+            if (expansionProblems.isEmpty() && !path.isEmpty() && Path(path).isAbsolute()) {
+                path
+            } else {
+                None
+            }
         case _ => None
     }
 }
