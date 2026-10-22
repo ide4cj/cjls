@@ -15,4 +15,23 @@ class GenericBoundsDiagnosticsTest {
             func g<T>(a: T): Comparable<T> where T <: R<T> { a }
             "#, binaries: ["std.core"])
     }
+
+    @TestCase
+    func incompleteBoundsDoNotProduceOperatorOrConversionDiagnostics() {
+        checkDiagnostics(#"
+            package m
+            interface Box<X> {}
+            interface R<A, B> where A <: R<A, Box<B>> {}
+            func make<T, U>(): T where T <: R<T, U> { throw Exception() }
+            func f<T, U>(x: T): Unit where T <: R<T, U> {
+                let sum = x + x
+                let member = x.missing
+                let call = x.missing()
+                let fromType = T.missing()
+                let made = make()
+                let value: Int64 = x
+                let nested: (Int64, Int64) = (x, x)
+            }
+            "#, binaries: ["std.core"])
+    }
 }

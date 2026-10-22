@@ -228,6 +228,7 @@ func censusOf(ws: BenchWorkspace): Census {
                 census.unknown++
                 let kind = match (ty.kind(db)) {
                     case TodoTy(why) => "todo(${why})"
+                    case UnknownTy(why) => "unknown(${why})"
                     case _ => "error"
                 }
                 let isCascade = childrenOf(hir, id).iterator().any {one => isUnknownAt(one)}

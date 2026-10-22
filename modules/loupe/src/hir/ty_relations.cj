@@ -5,38 +5,91 @@ import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, SourceFile}
 
+// A resource limit, not a language limit: overflow becomes UnknownTy, never a partial proof (A30).
+let GENERIC_BOUNDS_LIMIT = 256
+
 /**
  * The declaration's written bounds and those its bounding interfaces require of their arguments
  * (#437). Keep this separate from signature lowering: mutually referring signatures are valid.
+ * An expansion exceeding the budget returns unknown bounds for its parameters instead (A30).
  */
 @CalcaTracked
 func genericBounds(db: AnalysisDatabase, owner: DefId): Array<TyBound> {
-    let found = ArrayList<TyBound>()
-    let pending = ArrayList<(TyBound, Array<DefId>)>()
+    let pending = ArrayList<TyBound>()
+    let seen = HashMap<Ty, HashSet<Ty>>()
     for (bound in signatureTypes(db, owner).bounds) {
-        pending.add((bound, []))
+        for (upper in bound.bounds) {
+            if (!addGenericBound(db, pending, seen, bound.ty, upper)) {
+                return incompleteGenericBounds(db, owner, pending)
+            }
+        }
     }
     var at = 0
     while (at < pending.size) {
-        let (bound, path) = pending[at]
+        let bound = pending[at]
         at++
-        if (found.contains(bound)) {
-            continue
-        }
-        found.add(bound)
-        for (one in bound.bounds) {
-            if (let DeclTy(id, args) <- one.kind(db) && !path.contains(id)) {
-                // A malformed recursive bound may keep growing its arguments. Expand each
-                // declaration once along a path, while retaining separate interface instances.
-                for (required in signatureTypes(db, id).bounds) {
-                    pending.add((TyBound(substitute(db, required.ty, id, args), required.bounds.map {
-                        ty => substitute(db, ty, id, args)
-                    }), path.concat([id])))
+        if (let DeclTy(id, args) <- bound.bounds[0].kind(db)) {
+            for (required in signatureTypes(db, id).bounds) {
+                let subject = substitute(db, required.ty, id, args)
+                for (upper in required.bounds) {
+                    if (!addGenericBound(db, pending, seen, subject, substitute(db, upper, id, args))) {
+                        return incompleteGenericBounds(db, owner, pending)
+                    }
                 }
             }
         }
     }
-    found.toArray()
+    pending.toArray()
+}
+
+/**
+ * Records a new instantiated relation, as cjc's Assumption does. A concrete subject is a
+ * requirement to validate, not an assumption about a type parameter; it adds no further bounds.
+ */
+func addGenericBound(db: AnalysisDatabase, pending: ArrayList<TyBound>, seen: HashMap<Ty, HashSet<Ty>>,
+    subject: Ty, upper: Ty): Bool {
+    if (subject == upper) {
+        return true
+    }
+    match (subject.kind(db)) {
+        case ParamTy(_, _) => ()
+        case _ => return true
+    }
+    let bounds = seen.get(subject) ?? HashSet<Ty>()
+    if (bounds.contains(upper)) {
+        return true
+    }
+    if (pending.size >= GENERIC_BOUNDS_LIMIT) {
+        return false
+    }
+    bounds.add(upper)
+    seen[subject] = bounds
+    pending.add(TyBound(subject, [upper]))
+    true
+}
+
+func incompleteGenericBounds(db: AnalysisDatabase, owner: DefId, pending: ArrayList<TyBound>): Array<TyBound> {
+    let subjects = ArrayList<Ty>(Array(genericsOf(db, owner).size) {i => Ty(db, ParamTy(owner, i))})
+    for (bound in pending where !subjects.contains(bound.ty)) {
+        subjects.add(bound.ty)
+    }
+    let unknown = Ty(db, UnknownTy(UnknownReason.GenericBoundsLimit))
+    // Discard partial constraints: even a currently unique member may acquire another overload.
+    subjects.toArray().map {one => TyBound(one, [unknown])}
+}
+
+/**
+ * The reason a parameter's bounds are unknown after bounded expansion, if they are.
+ */
+func incompleteBoundsOf(db: AnalysisDatabase, ty: Ty): ?Ty {
+    if (let ParamTy(owner, _) <- ty.kind(db)) {
+        for (bound in genericBounds(db, owner) where bound.ty == ty) {
+            for (upper in bound.bounds where upper.kind(db) == UnknownTy(UnknownReason.GenericBoundsLimit)) {
+                return upper
+            }
+        }
+    }
+    None
 }
 
 /**
@@ -89,7 +142,7 @@ func matchTy(db: AnalysisDatabase, pattern: Ty, actual: Ty, owner: DefId, binds:
     let all = {patterns: Array<Ty>, actuals: Array<Ty> => patterns.size == actuals.size &&
         (0..patterns.size).iterator().all {i => matchTy(db, patterns[i], actuals[i], owner, binds)}}
     match ((pattern.kind(db), actual.kind(db))) {
-        case (_, ErrorTy) | (_, TodoTy(_)) => true
+        case (_, ErrorTy) | (_, TodoTy(_)) | (_, UnknownTy(_)) => true
         case (ParamTy(of, index), _) where of == owner && index < binds.size => match (binds[index]) {
             case Some(bound) => bound == actual
             case None =>
@@ -150,7 +203,7 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
         return true
     }
     match ((sub.kind(db), sup.kind(db))) {
-        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) => true
+        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) | (UnknownTy(_), _) | (_, UnknownTy(_)) => true
         case (PrimTy("Nothing"), _) => true
         case (TupleTy(subs), TupleTy(sups)) => subs.size == sups.size &&
             (0..subs.size).iterator().all {i => isSubtype(db, subs[i], sups[i], from)}
@@ -243,7 +296,7 @@ func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
     let all = {xs: Array<Ty>, ys: Array<Ty> => xs.size == ys.size &&
         (0..xs.size).iterator().all {i => isAlike(db, xs[i], ys[i])}}
     match ((a.kind(db), b.kind(db))) {
-        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) => true
+        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) | (UnknownTy(_), _) | (_, UnknownTy(_)) => true
         case (DeclTy(x, xs), DeclTy(y, ys)) => x == y && all(xs, ys)
         case (TupleTy(xs), TupleTy(ys)) => all(xs, ys)
         case (FuncTy(xs, x, xc), FuncTy(ys, y, yc)) => xc == yc && all(xs, ys) && isAlike(db, x, y)

@@ -35,7 +35,7 @@ public struct Ty {
             case VArrayTy(element, size) => "VArray<${element.text(db)}, $${size}>"
             case ParamTy(owner, index) => genericsOf(db, owner).get(index) ?? "{unknown}"
             case ThisTy => "This"
-            case ErrorTy | TodoTy(_) => "{unknown}"
+            case ErrorTy | TodoTy(_) | UnknownTy(_) => "{unknown}"
             case InferTy(index) => "{var ${index}}"
         }
     }
@@ -80,10 +80,15 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      */
     | ErrorTy
     /**
-     * A type the analysis cannot find, why, and what is made of it, where cjc may well find one:
-     * ty's `Todo` (D77). It fits any type, as an error does, and is never an error itself.
+     * A type requiring an unsupported analysis feature, and what is made of it: ty's `Todo`
+     * (D77). It fits any type and does not itself imply a user error.
      */
     | TodoTy(Todo)
+    /**
+     * A type unknown because inputs are missing or an analysis resource limit was reached
+     * (D143). It fits any type and does not itself imply a user error.
+     */
+    | UnknownTy(UnknownReason)
     /**
      * A type argument of a call not written, while the call is inferred (D57): cjc's placeholder
      * `TyVar`. Never in an `InferenceResult`: what is not solved is an error type.
@@ -125,6 +130,9 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
             case TodoTy(why) =>
                 hasher.write(9)
                 hasher.write(why.hashCode())
+            case UnknownTy(why) =>
+                hasher.write(10)
+                hasher.write(why.hashCode())
         }
         hasher.finish()
     }
@@ -140,6 +148,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
             case (ThisTy, ThisTy) => true
             case (ErrorTy, ErrorTy) => true
             case (TodoTy(a), TodoTy(b)) => a == b
+            case (UnknownTy(a), UnknownTy(b)) => a == b
             case (InferTy(a), InferTy(b)) => a == b
             case _ => false
         }
@@ -171,10 +180,6 @@ public enum Todo <: ToString {
      */
     | BinaryType
     /**
-     * A type the language means of std's (`String`, `Array`, `Option`, D66) where no std is found.
-     */
-    | NoStd
-    /**
      * A type parameter of a local function: not lowered to a `Ty` yet (D55).
      */
     | LocalGeneric
@@ -188,9 +193,30 @@ public enum Todo <: ToString {
             case MacroCall => "macro call"
             case MacroMember => "macro member"
             case BinaryType => "binary type"
-            case NoStd => "no std"
             case LocalGeneric => "local generic"
             case NotInferred => "not inferred"
+        }
+    }
+}
+
+/**
+ * Why supported analysis cannot determine a type with the available inputs and resources.
+ */
+@Derive[Equatable, Hashable]
+public enum UnknownReason <: ToString {
+    /**
+     * A type supplied by std (`String`, `Array`, `Option`, D66) where no std is found.
+     */
+    | NoStd
+    /**
+     * Implied generic bounds exceeded the expansion budget; their consequences are unknown.
+     */
+    | GenericBoundsLimit
+
+    public func toString(): String {
+        match (this) {
+            case NoStd => "no std"
+            case GenericBoundsLimit => "generic bounds limit"
         }
     }
 }
@@ -200,7 +226,7 @@ public enum Todo <: ToString {
  */
 public func isUnknown(db: AnalysisDatabase, ty: Ty): Bool {
     match (ty.kind(db)) {
-        case ErrorTy | TodoTy(_) => true
+        case ErrorTy | TodoTy(_) | UnknownTy(_) => true
         case _ => false
     }
 }

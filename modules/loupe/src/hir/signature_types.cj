@@ -446,7 +446,7 @@ class SourceTyLowering {
                 let element = lowerAt(inner)
                 match (optionDecl()) {
                     case Some(option) => DeclTy(option, [element])
-                    case None => TodoTy(Todo.NoStd)
+                    case None => UnknownTy(UnknownReason.NoStd)
                 }
             case ThisRef => thisAt(id)
             case VArrayRef(element, size) =>
