@@ -1,9 +1,10 @@
 package macro_server
 
-import std.env.getVariable
-import std.fs.*
+import std.env.{getTempDirectory, getVariable}
+import std.fs.{Directory, exists, File, Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
+import platform.{hostArch, sharedLibrarySuffix}
 
 /**
  * The tokens of `code` as a call sends them, of file 1, `code` starting at line 1, column `column`.
@@ -12,21 +13,58 @@ func tokensOf(code: String, column: Int64): Array<TokenData> {
     macroTokens(code, sdkNumbers(), PositionData(fileId: 1, line: 1, column: Int32(column)))
 }
 
-/** What a shared library ends with on each platform. */
-let LIBRARY_SUFFIXES = [".so", ".dylib", ".dll"]
-
 /**
  * The SDK the tests run on, and the directory of its runtime for this host: the one that has std.ast.
  */
 func sdkPaths(): MacroServerPaths {
     let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
-    for (dir in Directory.readFrom(home.join("runtime").join("lib")) where dir.isDirectory()) {
-        let name = dir.path.fileName
-        if (LIBRARY_SUFFIXES.iterator().any {suffix => exists(dir.path.join("libcangjie-std-ast${suffix}"))}) {
+    sdkPaths(home, Directory.readFrom(home.join("runtime").join("lib"))
+        .filter {dir => dir.isDirectory()}.map {dir => dir.path})
+}
+
+/** Selects a runtime with the host architecture and shared-library suffix. */
+func sdkPaths(home: Path, runtimes: Array<Path>): MacroServerPaths {
+    let targetSuffix = "_${hostArch()}_cjnative"
+    let library = "libcangjie-std-ast${sharedLibrarySuffix()}"
+    for (dir in runtimes) {
+        let name = dir.fileName
+        if (name.endsWith(targetSuffix) && exists(dir.join(library))) {
             return MacroServerPaths.inSdk(home, name)
         }
     }
-    throw IllegalStateException("no runtime under ${home}")
+    throw IllegalStateException("no runtime for ${hostArch()} (${sharedLibrarySuffix()}) under ${home}")
+}
+
+@Test
+class SdkPathsTest {
+    @TestCase
+    func foreignRuntimesAreIgnoredInEitherOrder(): Unit {
+        let home = Directory.createTemp(getTempDirectory())
+        try {
+            let runtimes = ["linux", "darwin", "windows"].flatMap {os =>
+                ["x86_64", "aarch64"].map {arch =>
+                    let dir = home.join("runtime").join("lib").join("${os}_${arch}_cjnative")
+                    Directory.create(dir, recursive: true)
+                    let suffix = match (os) {
+                        case "linux" => ".so"
+                        case "darwin" => ".dylib"
+                        case _ => ".dll"
+                    }
+                    File.writeTo(dir.join("libcangjie-std-ast${suffix}"), [])
+                    dir
+                }
+            }
+            let reversed = Array(runtimes.size) {i => runtimes[runtimes.size - 1 - i]}
+            for (candidates in [runtimes, reversed]) {
+                let paths = sdkPaths(home, candidates)
+                @Expect(paths.runtimeLib.fileName.endsWith("_${hostArch()}_cjnative"))
+                @Expect(exists(paths.runtimeLib.join("libcangjie-std-ast${sharedLibrarySuffix()}")))
+                @AssertThrows[IllegalStateException](sdkPaths(home, candidates.filter {dir => dir != paths.runtimeLib}))
+            }
+        } finally {
+            remove(home, recursive: true)
+        }
+    }
 }
 
 func derivingLibrary(paths: MacroServerPaths): String {
