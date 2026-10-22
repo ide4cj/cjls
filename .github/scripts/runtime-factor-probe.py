@@ -14,7 +14,42 @@ import tomllib
 LOGS = Path("probe-logs")
 RESULTS = LOGS / "results.json"
 BASE = ["cjpm", "test", "--skip-build", "--no-progress",
-        "--timeout-each=2m", "--target-dir", "target/test"]
+        f"--timeout-each={os.environ.get('PROBE_TIMEOUT_EACH', '10m')}",
+        "--target-dir", "target/test"]
+
+
+def diagnostics(name, pid, elapsed):
+    """Preserve native stacks before killing a slow invocation's process group."""
+    prefix = LOGS / f"{name}-{int(elapsed)}s"
+    deadline = time.monotonic() + 20
+    try:
+        snapshot = subprocess.run(
+            ["ps", "-axo", "pid=,ppid=,pgid=,etime=,time=,%cpu=,rss=,command="],
+            capture_output=True, text=True, timeout=10)
+        prefix.with_suffix(".processes.txt").write_text(snapshot.stdout + snapshot.stderr)
+        if sys.platform != "darwin":
+            return
+        members = []
+        for line in snapshot.stdout.splitlines():
+            fields = line.split(None, 7)
+            if len(fields) == 8 and fields[2] == str(pid):
+                members.append(int(fields[0]))
+        # The launcher may buffer all output while a child hangs. Sample children
+        # as well as cjpm; a launcher-only stack cannot locate a runtime stall.
+        for member in members:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                Path(f"{prefix}.diagnostic-error.txt").write_text(
+                    "Stack collection exceeded its 20-second budget; some processes were not sampled.")
+                break
+            with Path(f"{prefix}-pid-{member}.sample.txt").open("w") as out:
+                try:
+                    subprocess.run(["sample", str(member), "1", "1"],
+                                   stdout=out, stderr=subprocess.STDOUT, timeout=min(5, remaining))
+                except (OSError, subprocess.TimeoutExpired) as error:
+                    out.write(f"\nSample unavailable: {error}\n")
+    except (OSError, subprocess.TimeoutExpired) as error:
+        Path(f"{prefix}.diagnostic-error.txt").write_text(str(error))
 
 
 def prepare():
@@ -45,7 +80,10 @@ def prepare():
     (LOGS / "manifest-changes.patch").write_bytes(subprocess.check_output(["git", "diff"]))
     config = {"variant": os.environ["PROBE_VARIANT"], "optimization": level,
               "workers": workers, "worker_configuration": "profile.test.env",
-              "sdk": Path(".cangjie-version").read_text().strip()}
+              "sdk": Path(".cangjie-version").read_text().strip(),
+              "gate_timeout_seconds": int(os.environ.get("PROBE_GATE_TIMEOUT", "900")),
+              "full_timeout_seconds": int(os.environ.get("PROBE_FULL_TIMEOUT", "1800")),
+              "timeout_each": os.environ.get("PROBE_TIMEOUT_EACH", "10m")}
     (LOGS / "configuration.json").write_text(json.dumps(config, indent=2))
     shim = Path(os.environ["RUNNER_TEMP"]) / "factor-shim"
     shim.mkdir()
@@ -90,21 +128,33 @@ def run_once(name, command, timeout):
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT,
                                    env=env, start_new_session=True)
         status = None
+        next_snapshot = 60
         while status is None:
-            remaining = timeout - (time.monotonic() - started)
+            elapsed = time.monotonic() - started
+            remaining = timeout - elapsed
             if remaining <= 0:
+                diagnostics(name, process.pid, elapsed)
                 # Kill the test and its macro servers, not only their cjpm parent.
-                os.killpg(process.pid, signal.SIGKILL)
+                try:
+                    os.killpg(process.pid, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass  # The process can exit during native stack collection.
                 process.wait()
                 status = "timeout"
                 break
+            if elapsed >= next_snapshot:
+                diagnostics(name, process.pid, elapsed)
+                next_snapshot = (int(elapsed) // 300 + 1) * 300
+                continue
             try:
                 status = process.wait(timeout=min(30, remaining))
             except subprocess.TimeoutExpired:
                 print(json.dumps({"event": "running", "run": name,
                                   "seconds": round(time.monotonic() - started),
                                   "log_bytes": (LOGS / f"{name}.txt").stat().st_size}), flush=True)
-    row = {"run": name, "status": status, "seconds": round(time.monotonic() - started, 2)}
+    row = {"run": name, "status": status, "seconds": round(time.monotonic() - started, 2),
+           "timeout_seconds": timeout, "command": command,
+           "log_bytes": (LOGS / f"{name}.txt").stat().st_size}
     rows = json.loads(RESULTS.read_text()) if RESULTS.exists() else []
     assert all(r["run"] != name for r in rows), f"duplicate repetition {name}"
     rows.append(row)
@@ -132,7 +182,8 @@ def main():
     elif mode == "audit":
         audit()
     elif mode == "gate":
-        statuses = [run_once(f"gate-{n}", BASE + ["--filter=ServedDiagnosticsGateTest.*"], 300)
+        statuses = [run_once(f"gate-{n}", BASE + ["--filter=ServedDiagnosticsGateTest.*"],
+                             int(os.environ.get("PROBE_GATE_TIMEOUT", "900")))
                     for n in range(int(sys.argv[2]), int(sys.argv[3]) + 1)]
         if sys.argv[2:] == ["1", "5"] and "GITHUB_OUTPUT" in os.environ:
             # Repeating a wholly timed-out screening batch adds no completed cases.
@@ -141,7 +192,7 @@ def main():
                 out.write(f"proceed={str(proceed).lower()}\n")
         return all(status == 0 for status in statuses)
     elif mode == "full":
-        return run_once("full-1", BASE, 600) == 0
+        return run_once("full-1", BASE, int(os.environ.get("PROBE_FULL_TIMEOUT", "1800"))) == 0
     elif mode == "report":
         return report()
     else:

@@ -12,7 +12,7 @@ on:
       factors:
         description: Repeat all factors or isolate the one-worker test environment
         type: choice
-        default: worker-profile
+        default: all
         options: [worker-profile, all]
 
 permissions:
@@ -22,17 +22,23 @@ jobs:
   probe:
     name: Factor (${{ matrix.variant }})
     runs-on: macos-latest
-    timeout-minutes: 75
+    # Ten gates at 15 minutes plus a 30-minute suite, build and artifact upload.
+    timeout-minutes: 240
     strategy:
       fail-fast: false
       matrix:
-        include: ${{ fromJSON(inputs.factors == 'all' && '[{"variant":"O2-control","optimization":"2","workers":""},{"variant":"O0","optimization":"0","workers":""},{"variant":"O1","optimization":"1","workers":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]') }}
+        include: ${{ fromJSON((github.event_name == 'push' || inputs.factors == 'all') && '[{"variant":"O2-control","optimization":"2","workers":""},{"variant":"O0","optimization":"0","workers":""},{"variant":"O1","optimization":"1","workers":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]') }}
     env:
       PROBE_VARIANT: ${{ matrix.variant }}
       PROBE_OPTIMIZATION: ${{ matrix.optimization }}
       PROBE_WORKERS: ${{ matrix.workers }}
+      PROBE_GATE_TIMEOUT: "900"
+      PROBE_FULL_TIMEOUT: "1800"
+      PROBE_TIMEOUT_EACH: 10m
     steps:
       - uses: actions/checkout@v7
+      - name: Check probe orchestration
+        run: python3 .github/scripts/runtime-factor-probe_test.py
       - uses: ./.github/actions/setup-cangjie
       - name: Configure factor and compiler tracing
         run: python3 .github/scripts/runtime-factor-probe.py prepare
