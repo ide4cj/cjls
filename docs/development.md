@@ -334,6 +334,7 @@ building a consumer, not only the macro package. See
 | `cjpm` found but stdx or runtime library missing | SDK selection, `CANGJIE_HOME`, stdx layout and SDK environment in this process |
 | Compiler processes hang | POSIX shim is ahead of the real cjc on PATH ([K17](sdk-issues.md#k17)); distinguish the separate pipe-draining risk [K18](sdk-issues.md#k18) |
 | Tests fail naming a missing corpus | Run `tests/corpora/fetch.py` in this worktree |
+| Linux macro_server tests try to start `LSPMacroServer.exe` | A fresh SDK can contain foreign runtimes; the test helper can select the wrong one ([#474](https://github.com/ide4cj/cjls/issues/474)). Preserve the installed SDK and report this separately from missing SDK setup |
 | Source changes appear ignored | cjpm tracks mtimes, not content; `cjpm clean` is needed after restoring old mtimes |
 | SDK change uses stale objects | Root `build.cj` detects compiler version changes (D27); check selected compiler |
 
