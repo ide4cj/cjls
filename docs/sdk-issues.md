@@ -8,8 +8,8 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** K26 records a subsequent focused reproduction
-and workaround from PR #477. A historical observation
+recorded separately in PR #457.** K22 and K26 record subsequent observations
+and scoped workarounds from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
 or all platforms. Dates abbreviated as `20260918` refer to nightly build dates;
@@ -327,6 +327,14 @@ are unverified; the PR body does not contain these measurements. Preserve the
 current [`host.cj`](../modules/macro_host/src/host.cj) structure pending a minimized
 reproducer. Do not turn this observation into a general ban on iterator lambdas.
 
+[PR #477](https://github.com/ide4cj/cjls/pull/477) also observed repeated macOS
+arm64 GC stack-scanning SIGSEGVs on `1.3.0-alpha.20261014001050` in both macro-host
+gates ([job](https://github.com/ide4cj/cjls/actions/runs/39776281473/job/119816104990)).
+The shared `gateFindings` helper uses the same plain-loop pattern to collect
+source files before keeping its reference locals. The stack identifies `.cjo`
+lowering at different safepoints, not the origin of the bad reference; a shared
+root cause with the historical Linux crash is not established.
+
 <a id="k23"></a>
 ### K23
 
@@ -422,7 +430,7 @@ The following dispositions prevent old local guidance becoming competing rules:
   machine automation policies are outside this SDK migration.
 
 This audit preserves the K4 retirement already accepted in PR #457 and removes no
-other workaround. Except for K4's scoped verification and K26's subsequent focused observation,
+other workaround. Except for K4's scoped verification and K22/K26's subsequent observations,
 exact-pin status remains unverified. Missing host/build metadata, upstream reports and independent probes
 remain explicit limitations. The next SDK bump needs evidence before retiring an
 entry; a passing ordinary build alone does not establish that a scheduling, GC or
