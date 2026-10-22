@@ -119,6 +119,8 @@ def report():
         out.write("| Run | Exit status | Seconds |\n|---|---|---|\n")
         for row in rows:
             out.write(f"| {row['run']} | {row['status']} | {row['seconds']} |\n")
+        if len(rows) == 5 and all(row["status"] == "timeout" for row in rows):
+            out.write("\nStopped after five timeouts; later repetitions and the full suite were not run.\n")
     expected = {"full-1", *(f"gate-{n}" for n in range(1, 11))}
     return {r["run"] for r in rows} == expected and all(r["status"] == 0 for r in rows)
 
@@ -132,6 +134,11 @@ def main():
     elif mode == "gate":
         statuses = [run_once(f"gate-{n}", BASE + ["--filter=ServedDiagnosticsGateTest.*"], 300)
                     for n in range(int(sys.argv[2]), int(sys.argv[3]) + 1)]
+        if sys.argv[2:] == ["1", "5"] and "GITHUB_OUTPUT" in os.environ:
+            # Repeating a wholly timed-out screening batch adds no completed cases.
+            proceed = not all(status == "timeout" for status in statuses)
+            with open(os.environ["GITHUB_OUTPUT"], "a") as out:
+                out.write(f"proceed={str(proceed).lower()}\n")
         return all(status == 0 for status in statuses)
     elif mode == "full":
         return run_once("full-1", BASE, 600) == 0

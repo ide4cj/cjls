@@ -66,12 +66,12 @@ jobs:
           if-no-files-found: error
       - name: Gate repetitions 6 to 10
         id: second
-        if: success() || steps.first.outcome == 'failure'
+        if: ${{ !cancelled() && steps.first.outputs.proceed != 'false' && (success() || steps.first.outcome == 'failure') }}
         continue-on-error: true
         run: python3 .github/scripts/runtime-factor-probe.py gate 6 10
       - name: Full suite
         id: full
-        if: success() || steps.first.outcome == 'failure'
+        if: ${{ !cancelled() && steps.first.outputs.proceed != 'false' && (success() || steps.first.outcome == 'failure') }}
         continue-on-error: true
         run: python3 .github/scripts/runtime-factor-probe.py full
       - name: Summarize results
