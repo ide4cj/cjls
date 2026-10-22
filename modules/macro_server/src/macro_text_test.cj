@@ -138,7 +138,7 @@ class PrintMacroTokensTest {
         let printed = printMacroTokens(tokens, numbers)
 
         // assert
-        @Expect(printed.text, "'a\"b' \"a\\nb\" '''\nx\"\"\"y''' ##\"q\"#\"## r\"'\" J\"j\" `class`\n")
+        @Expect(printed.text, "'a\"b' \"a\\nb\" '''\nx\"\"\"y''' ##\"q\"#\"## r\"'\" J\"j\" class\n")
     }
 
     /**

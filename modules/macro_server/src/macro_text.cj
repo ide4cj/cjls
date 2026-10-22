@@ -2,7 +2,6 @@ package macro_server
 
 import std.collection.*
 import fbs.FbVector
-import cjsyntax.SyntaxKind
 import ginkgo.TextRange
 
 /**
@@ -12,23 +11,23 @@ public struct PrintedToken {
     public PrintedToken(
         /** The token's bytes in the text, a literal's quotes and `#`s included, an `NL`'s line break. */
         public let range: TextRange,
-        /** Where the token begins, as the server gave it. */
+        /** The server's position, advanced inside an identifier when it re-lexes into several tokens. */
         public let begin: ?PositionData,
-        /** Where the token ends, as the server gave it. */
+        /** The server's end position, or the end of a token re-lexed inside its value. */
         public let end: ?PositionData
     ) {}
 }
 
 /**
- * Cangjie source text printed from a macro's tokens, and where each token went in it, in the tokens' order.
+ * Cangjie source text printed from a macro's tokens, with spans in the order of the re-lexed tokens.
  */
 public class PrintedTokens {
     public PrintedTokens(public let text: String, public let tokens: Array<PrintedToken>) {}
 }
 
 /**
- * The source text of the tokens `LSPMacroServer` answers (`MacroResult.tks`), which `macroTokens` cuts back into
- * the same kinds and values: the reverse of `macroTokens`.
+ * The source text of the tokens `LSPMacroServer` answers (`MacroResult.tks`), normalized as cjc reads an expansion.
+ * See the array overload for identifier re-lexing and literal quoting.
  */
 public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): PrintedTokens {
     let data = ArrayList<TokenData>(tokens.size)
@@ -41,7 +40,7 @@ public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): Pr
 }
 
 /**
- * The source text of `tokens`, which `macroTokens` cuts back into the same kinds and values.
+ * The source text of `tokens`, re-lexing generated identifiers before choosing token spelling and spacing.
  *
  * A token is printed as its value, kinds known by their names in `numbers`, never by a number of ours:
  *
@@ -52,7 +51,8 @@ public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): Pr
  *   holding a line break, which a macro may build) is printed escaped: it parses, though to another value;
  * - a `RUNE_BYTE_LITERAL` as its value, which is all of `b'…'`;
  * - an `NL` as a line break;
- * - an `IDENTIFIER` spelled like a keyword between backquotes, as a macro may build one;
+ * - an `IDENTIFIER` re-lexed before printing and spacing, as cjc does in `ProcessCombinedToken`: `Int8` becomes
+ *   a type keyword, `1` a number, `a.b` three tokens. Only backquotes in the value keep a keyword an identifier;
  * - two tokens are a space apart, but where none is needed: after `(` and `[`, before `)`, `]`, `,`, `;`, `(`
  *   and `[`, around a `.` between names, after `@`, before a `:` after a name or a bracket, and around a
  *   generic's `<` and `>` next to a type's name. A space is kept where the two would glue into another token
@@ -93,7 +93,7 @@ class MacroTextPrinter {
 
     func run(tokens: Array<TokenData>): PrintedTokens {
         var previous = ""
-        for (t in tokens) {
+        for (t in tokens.flatMap(relexIdentifier)) {
             let name = nameOf(t.kind)
             if (!previous.isEmpty() && spaced(previous, name)) {
                 append(" ")
@@ -108,6 +108,26 @@ class MacroTextPrinter {
             append(" ")
         }
         PrintedTokens(out.toString(), printed.toArray())
+    }
+
+    /** Re-lex before choosing spaces: an identifier may become punctuation, a literal or several tokens. */
+    func relexIdentifier(token: TokenData): Array<TokenData> {
+        if (nameOf(token.kind) != "IDENTIFIER") {
+            return [token]
+        }
+        let lexed = macroTokens(token.value ?? "", numbers,
+            token.begin ?? PositionData(fileId: 0, line: 1, column: 1))
+        if (lexed.isEmpty()) {
+            return [token]
+        }
+        if (lexed.size == 1) {
+            let t = lexed[0]
+            return [TokenData(kind: t.kind, value: t.value, begin: token.begin, end: token.end,
+                delimiterNum: t.delimiterNum)]
+        }
+        lexed.map {t => TokenData(kind: t.kind, value: t.value,
+            begin: if (token.begin.isSome()) { t.begin } else { None },
+            end: if (token.end.isSome()) { t.end } else { None }, delimiterNum: t.delimiterNum)}
     }
 
     func append(piece: String): Unit {
@@ -134,6 +154,10 @@ class MacroTextPrinter {
             return false
         }
         match ((previous, next)) {
+            // The SDK accepts some numeric suffixes only immediately before a range; inserting a space
+            // there can turn a lexable macro value (`1.5x..`) into a lexer error.
+            case ("INTEGER_LITERAL", "RANGEOP") | ("INTEGER_LITERAL", "CLOSEDRANGEOP") |
+                ("FLOAT_LITERAL", "RANGEOP") | ("FLOAT_LITERAL", "CLOSEDRANGEOP") => false
             case (_, "DOT") => !NAME_LIKE.contains(previous)
             case ("DOT", _) => next != "IDENTIFIER"
             case ("AT", _) => next != "IDENTIFIER"
@@ -163,7 +187,6 @@ class MacroTextPrinter {
                 let hashes = "#" * Int64(max(t.delimiterNum, 1))
                 let candidates = ["${hashes}\"${value}\"${hashes}", "${hashes}'${value}'${hashes}"]
                 quoted(name, t, candidates) ?? candidates[0]
-            case "IDENTIFIER" where value != "_" && SyntaxKind.keyword(value).isSome() => "`${value}`"
             case _ => value
         }
     }

@@ -18,6 +18,9 @@ A red node retains its tree. Analysis results use kind/range pointers under
 against the tree they came from or one with the same text. Keep `AstPtr`'s
 handwritten equality/hash: [K8](../../docs/sdk-issues.md#k8) records the nested
 generic deriving compiler crash and the limits of the available evidence.
+Keep pointer resolution's recursion in `resolveSyntaxNode`, with kind/range as
+ordinary arguments: the recursive generic-struct receiver faults under the
+pinned SDK's coverage build ([K26](../../docs/sdk-issues.md#k26)).
 
 ## Lossless parsing
 

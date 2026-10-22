@@ -30,45 +30,54 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
      */
     @Frozen
     public func tryToNode(root: SyntaxNode<K>): ?SyntaxNode<K> {
-        if (!root.textRange.containsRange(range)) {
-            return None
-        }
-        var found = if (root.kind == kind && root.textRange == range) {
-            Some(root)
-        } else {
-            None<SyntaxNode<K>>
-        }
-        // the first child ending at the range's start or after it, by bisection: a node of hundreds of
-        // members is not walked from its first one for each
-        let green = root.green
-        var low = 0
-        var high = green.childCount
-        while (low < high) {
-            let middle = (low + high) / 2
-            if (root.offset + green.childOffset(middle) + green.child(middle).textLen < range.start) {
-                low = middle + 1
-            } else {
-                high = middle
-            }
-        }
-        // an empty range may be inside several children at once, the empty ones and the two around them
-        var i = low
-        while (i < green.childCount && root.offset + green.childOffset(i) <= range.start) {
-            let start = root.offset + green.childOffset(i)
-            if (let GreenElement.Node(child) <- green.child(i) && TextRange.at(start, child.textLen).containsRange(range)) {
-                if (let Some(inner) <- tryToNode(SyntaxNode(child, parent: root, indexInParent: i, offset: start))) {
-                    found = inner
-                }
-            }
-            i++
-        }
-        found
+        resolveSyntaxNode(kind, range, root)
     }
 
     @Frozen
     public func toString(): String {
         "${kind}@${range}"
     }
+}
+
+/**
+ * Keeps the recursive arguments out of the generic struct receiver: its range load faults under
+ * `--coverage -g` on the pinned SDK (K26). The pointer wrapper and search remain frozen across packages.
+ */
+@Frozen
+func resolveSyntaxNode<K>(kind: K, range: TextRange, root: SyntaxNode<K>): ?SyntaxNode<K> where K <: Kind<K> {
+    if (!root.textRange.containsRange(range)) {
+        return None
+    }
+    var found = if (root.kind == kind && root.textRange == range) {
+        Some(root)
+    } else {
+        None<SyntaxNode<K>>
+    }
+    // the first child ending at the range's start or after it, by bisection: a node of hundreds of
+    // members is not walked from its first one for each
+    let green = root.green
+    var low = 0
+    var high = green.childCount
+    while (low < high) {
+        let middle = (low + high) / 2
+        if (root.offset + green.childOffset(middle) + green.child(middle).textLen < range.start) {
+            low = middle + 1
+        } else {
+            high = middle
+        }
+    }
+    // an empty range may be inside several children at once, the empty ones and the two around them
+    var i = low
+    while (i < green.childCount && root.offset + green.childOffset(i) <= range.start) {
+        let start = root.offset + green.childOffset(i)
+        if (let GreenElement.Node(child) <- green.child(i) && TextRange.at(start, child.textLen).containsRange(range)) {
+            if (let Some(inner) <- resolveSyntaxNode(kind, range, SyntaxNode(child, parent: root, indexInParent: i, offset: start))) {
+                found = inner
+            }
+        }
+        i++
+    }
+    found
 }
 
 /**
