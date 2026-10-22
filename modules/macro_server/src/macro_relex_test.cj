@@ -1,14 +1,17 @@
 package macro_server
 
 import std.ast.{cangjieLex, getTokenKind, Token as SdkToken}
-import std.collection.ArrayList
+import std.collection.{ArrayList, map}
 import std.unittest.*
+import std.unittest.prop_test.*
 import std.unittest.testmacro.*
+
+let RELEX_NUMBERS = sdkNumbers()
 
 /** Lexable default spellings from this SDK, plus values a macro may put in an identifier. */
 func relexSources(): Array<String> {
     let sources = ArrayList<String>()
-    let numbers = sdkNumbers()
+    let numbers = RELEX_NUMBERS
     for (i in 0..numbers.names.size) {
         let value = SdkToken(getTokenKind(UInt16(i))).value
         if (value.isEmpty()) {
@@ -46,7 +49,7 @@ func sdkWireTokens(source: String): Array<TokenData> {
  */
 func sdkProcessed(tokens: Array<TokenData>, relexIdentifiers!: Bool): Array<String> {
     let out = ArrayList<String>()
-    let numbers = sdkNumbers()
+    let numbers = RELEX_NUMBERS
     for (t in tokens) {
         let name = numbers.names[Int64(t.kind)]
         if (relexIdentifiers && name == "IDENTIFIER") {
@@ -73,7 +76,7 @@ func sdkProcessed(tokens: Array<TokenData>, relexIdentifiers!: Bool): Array<Stri
 /** The printer's text must have the same parser tokens as independently processing its input with the SDK. */
 func relexDifference(tokens: Array<TokenData>): ?String {
     let expected = sdkProcessed(tokens, relexIdentifiers: true)
-    let printed = printMacroTokens(tokens, sdkNumbers()).text
+    let printed = printMacroTokens(tokens, RELEX_NUMBERS).text
     let actual = try {
         sdkProcessed(sdkWireTokens(printed), relexIdentifiers: false)
     } catch (_: Exception) {
@@ -84,7 +87,7 @@ func relexDifference(tokens: Array<TokenData>): ?String {
 
 /** Chooses ordinary SDK tokens or a constructed identifier containing their entire source. */
 func relexInput(picks: Array<UInt16>): Array<TokenData> {
-    let numbers = sdkNumbers()
+    let numbers = RELEX_NUMBERS
     let out = ArrayList<TokenData>()
     for (pick in picks) {
         let n = Int64(pick)
@@ -103,7 +106,7 @@ func relexInput(picks: Array<UInt16>): Array<TokenData> {
 class MacroRelexTest {
     @TestCase
     func everyRepresentableDefaultSdkTokenKeepsItsParserMeaning(): Unit {
-        let numbers = sdkNumbers()
+        let numbers = RELEX_NUMBERS
         for (i in 0..numbers.names.size) {
             let value = SdkToken(getTokenKind(UInt16(i))).value
             if (value.isEmpty()) {
@@ -126,12 +129,12 @@ class MacroRelexTest {
 
     @TestCase[source in RELEX_SOURCES]
     func aConstructedIdentifierCanBecomeAnyLexableSdkTokenOrSequence(source: String): Unit {
-        @Expect(relexDifference([tokenOf(sdkNumbers(), "IDENTIFIER", source)]), None<String>)
+        @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
     }
 
     @TestCase[source in RELEX_SOURCES]
     func relexingPreservesBoundariesWithNeighbouringTokens(source: String): Unit {
-        let token = tokenOf(sdkNumbers(), "IDENTIFIER", source)
+        let token = tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)
         for (neighbour in ["x", "1", ".", "(", "[", ">", "?", ":", ";", "!in ", "@", "$", "#\"x\"#"]) {
             let others = sdkWireTokens(neighbour)
             @Expect(relexDifference([token].concat(others)), None<String>)
@@ -141,15 +144,15 @@ class MacroRelexTest {
 
     @TestCase
     func relexedTokensKeepPositionsInsideTheOriginalValue(): Unit {
-        let token = TokenData(kind: sdkNumbers().numberOf("IDENTIFIER"), value: "a.b",
+        let token = TokenData(kind: RELEX_NUMBERS.numberOf("IDENTIFIER"), value: "a.b",
             begin: PositionData(fileId: 7, line: 3, column: 5), end: PositionData(fileId: 7, line: 3, column: 8))
-        let printed = printMacroTokens([token], sdkNumbers())
+        let printed = printMacroTokens([token], RELEX_NUMBERS)
         @Expect(printed.text, "a.b")
         @Expect(printed.tokens.map {t => printed.text[t.range.start..t.range.end]}, ["a", ".", "b"])
         @Expect(printed.tokens.map {t => t.begin.map {p => "${p.fileId} ${p.line}:${p.column}"}},
             [Some("7 3:5"), Some("7 3:6"), Some("7 3:7")])
         @Expect(printed.tokens.map {t => t.end.map {p => p.column.toString()}}, [Some("6"), Some("7"), Some("8")])
-        @Expect(printMacroTokens([tokenOf(sdkNumbers(), "IDENTIFIER", "a.b")], sdkNumbers()).tokens
+        @Expect(printMacroTokens([tokenOf(RELEX_NUMBERS, "IDENTIFIER", "a.b")], RELEX_NUMBERS).tokens
             .iterator().all {t => t.begin.isNone() && t.end.isNone()})
     }
 
@@ -161,15 +164,41 @@ class MacroRelexTest {
         } catch (_: Exception) {
             return
         }
-        @Expect(relexDifference([tokenOf(sdkNumbers(), "IDENTIFIER", source)]), None<String>)
+        @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
+    }
+}
+
+/**
+ * Bounds the work per generated stream: Array's default generator allows 4000 elements, and cjc's
+ * comparison instrumentation retains pinned memory on enum matches (D24). Each piece invokes the lexer.
+ */
+struct RelexChoices <: ToString {
+    RelexChoices(let picks: Array<UInt16>) {}
+
+    public func toString(): String {
+        "[${String.join(picks.map {pick => pick.toString()}, delimiter: ", ")}]"
+    }
+}
+
+extend RelexChoices <: Arbitrary<RelexChoices> {
+    public static func arbitrary(random: RandomSource): Generator<RelexChoices> {
+        Generators.generate {
+            RelexChoices(Array(random.nextInt64(33)) {_ => random.suggestUInt16()})
+        }
+    }
+}
+
+extend RelexChoices <: Shrink<RelexChoices> {
+    public func shrink(): Iterable<RelexChoices> {
+        picks.shrink() |> map {values: Array<UInt16> => RelexChoices(values)}
     }
 }
 
 @Test
 @Configure[coverageGuided: true, generationSteps: 2000]
 class MacroRelexCoverageGuidedTest {
-    @TestCase[picks in random()]
-    func arbitraryConstructedAndOrdinaryTokensMatchSdkPostprocessing(picks: Array<UInt16>): Unit {
-        @Expect(relexDifference(relexInput(picks)), None<String>)
+    @TestCase[choices in random()]
+    func arbitraryConstructedAndOrdinaryTokensMatchSdkPostprocessing(choices: RelexChoices): Unit {
+        @Expect(relexDifference(relexInput(choices.picks)), None<String>)
     }
 }

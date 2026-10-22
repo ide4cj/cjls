@@ -73,7 +73,10 @@ using the SDK lexer for identifier values and the four composite-operator splits
 from cjc's `ProcessCombinedToken`, then compares them with the SDK's tokens of
 the printed text. It covers every lexable default spelling in the selected SDK,
 synthetic literal and multi-token values, neighbouring tokens, and randomized
-values and mixed token streams with shrinking. It preserves composite-operator
+values and mixed token streams with shrinking. Coverage-guided streams contain
+at most 32 source pieces: cjc's comparison instrumentation retains pinned memory
+on enum matches (D24), so unbounded repeated lexing can exhaust the test heap.
+SDK token numbering is read once per test process. It preserves composite-operator
 adjacency in the comparison and treats `UNIT_LITERAL` and `()` as the same unit
 constant. Forced experimental kinds that the active SDK dialect only lexes as
 identifiers have no source representation and are excluded from the ordinary
