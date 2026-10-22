@@ -62,6 +62,8 @@ jobs:
       matrix:
         # Link against the oldest supported Linux userspace, not the moving latest runner.
         os: [macos-latest, ubuntu-22.04, windows-latest]
+    # Temporary until the SDK GC-root crash is fixed and revalidated (#466).
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -99,6 +101,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+    # Temporary until the SDK GC-root crash is fixed and revalidated (#466).
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     runs-on: ${{ matrix.os }}
     # a hang fails the job in minutes, not GitHub's six hours; the longest case takes seconds
     timeout-minutes: 45
@@ -144,6 +148,8 @@ jobs:
       fail-fast: false
       matrix:
         os: [macos-latest, ubuntu-latest, windows-latest]
+    # Temporary until the SDK GC-root crash is fixed and revalidated (#466).
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
     # no SDK in the environment: the binary has to run the way an editor starts it
