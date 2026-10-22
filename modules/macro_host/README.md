@@ -27,6 +27,12 @@ results attributable to their original inputs. [host.cj](src/host.cj) starts a
 server lazily, restarts after failure, and kills calls exceeding their deadlines.
 Unit-test deadlines are fired explicitly rather than depending on wall-clock races.
 
+A diagnostic whose message and hint are both absent or empty gets a message
+naming its macro and severity. VS Code rejects an empty diagnostic message;
+`vscode-languageclient` then leaves that document's pull request active and stops
+displaying later diagnostics until the client restarts. Preserve reported text
+when either field is nonempty.
+
 Preserve separate std/workspace server processes and the current separation of
 request selection and sending. Their SDK failure evidence and limits are
 canonical in [K23](../../docs/sdk-issues.md#k23) and
