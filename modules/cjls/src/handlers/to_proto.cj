@@ -217,11 +217,17 @@ func foldingRangeKind(kind: FoldKind): ?FoldingRangeKind {
 }
 
 func diagnostic(text: Rope, diagnostic: LoupeDiagnostic, encoding: Encoding): Diagnostic {
+    // Rejecting one empty message can strand a client's later diagnostic pulls for this document.
+    let message = if (diagnostic.message.isEmpty()) {
+        "diagnostic reported without a message"
+    } else {
+        diagnostic.message
+    }
     Diagnostic(
         range: lspRange(text, diagnostic.range.start, diagnostic.range.end, encoding),
         severity: diagnosticSeverity(diagnostic.severity),
         source: "cjls",
-        message: StringOrMarkupContent.AsString(diagnostic.message),
+        message: StringOrMarkupContent.AsString(message),
         tags: if (diagnostic.unnecessary) {
             Some([DiagnosticTag.Unnecessary])
         } else {
