@@ -63,7 +63,9 @@ ranges in printed text alongside server positions. Literal quoting is checked
 by re-lexing; spaces are omitted only for pairs known not to glue.
 
 Tests need `CANGJIE_HOME`: they run the SDK server on its shipped `@Derive`
-library without building a workspace macro. Lexer comparisons also need the std
+library without building a workspace macro. Test support selects a runtime with
+the host architecture and shared-library suffix, so foreign runtimes bundled in
+the SDK cannot affect selection. Lexer comparisons also need the std
 corpus in `.corpora/cangjie_runtime`; fetch it as described in
 [Development](../../docs/development.md#focused-and-full-cangjie-tests).
 Only tests import `std.ast`; runtime packages must keep it out of their dependency
