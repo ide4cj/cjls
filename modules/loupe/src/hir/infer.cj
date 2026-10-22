@@ -546,7 +546,7 @@ class Inference {
         from = sourceFileOf(db, def)
         pkg = packageOf(db, def)
         error = Ty(db, ErrorTy)
-        notInferred = Ty(db, TodoTy(Todo.NotInferred))
+        notInferred = Ty(db, UnknownTy(UnknownReason.NotInferred))
         exprs = Array<?Ty>(hir.exprs.size, repeat: notInferred)
         pats = Array<Ty>(hir.pats.size, repeat: error)
         locals = Array<Ty>(hir.locals.size, repeat: error)

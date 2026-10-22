@@ -241,8 +241,10 @@ expressions after it of that node are what it is desugared into, the last its va
 
 A type not known has three causes (D77, D143): `ErrorTy` only where cjc reports an error, as
 far as the analysis follows cjc; `TodoTy(why)` for an unsupported analysis feature (macro
-expansion, a binary format not read, local generics); `UnknownTy(why)` for missing inputs
-(`NoStd`) or an exhausted analysis resource budget (`GenericBoundsLimit`).
+expansion, local generics); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
+`BinaryType`), a type not inferred yet (`NotInferred`), or an exhausted analysis resource budget
+(`GenericBoundsLimit`). A malformed binary or an unresolved binary dependency alone does not
+establish an error in the user's source.
 
 What is made of a type not known is that one, a `TodoTy` or `UnknownTy` before an `ErrorTy`
 (`unknownOf`), never a new error: a failure of known types alone is an `ErrorTy`, unless a macro whose

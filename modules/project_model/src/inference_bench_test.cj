@@ -274,7 +274,7 @@ class InferenceCensusTest {
         for (key in keys) {
             println("census: ${key}: ${census.counts[key]}")
         }
-        @Expect(census.counts.get("todo(not inferred)"), None)
+        @Expect(census.counts.get("unknown(not inferred)"), None)
         @Expect(census.wrongNoValue.toArray(), Array<String>())
     }
 }

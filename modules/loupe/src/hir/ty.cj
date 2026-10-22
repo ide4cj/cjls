@@ -85,7 +85,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      */
     | TodoTy(Todo)
     /**
-     * A type unknown because inputs are missing or an analysis resource limit was reached
+     * A type unknown because inputs are unavailable, inference is unfinished or a resource limit was reached
      * (D143). It fits any type and does not itself imply a user error.
      */
     | UnknownTy(UnknownReason)
@@ -175,35 +175,33 @@ public enum Todo <: ToString {
      */
     | MacroMember
     /**
-     * A type of a `.cjo` that is not read: of a format newer than the one vendored, or of a file
-     * cjc wrote broken (D38).
-     */
-    | BinaryType
-    /**
      * A type parameter of a local function: not lowered to a `Ty` yet (D55).
      */
     | LocalGeneric
-    /**
-     * An expression inference does not reach.
-     */
-    | NotInferred
 
     public func toString(): String {
         match (this) {
             case MacroCall => "macro call"
             case MacroMember => "macro member"
-            case BinaryType => "binary type"
             case LocalGeneric => "local generic"
-            case NotInferred => "not inferred"
         }
     }
 }
 
 /**
- * Why supported analysis cannot determine a type with the available inputs and resources.
+ * Why a type is unknown given the available inputs, inference progress and resources.
  */
 @Derive[Equatable, Hashable]
 public enum UnknownReason <: ToString {
+    /**
+     * A type unavailable from a binary: missing dependencies, invalid records or an unreadable
+     * format (D38). This alone does not establish an error in the user's source.
+     */
+    | BinaryType
+    /**
+     * An expression inference has not reached.
+     */
+    | NotInferred
     /**
      * A type supplied by std (`String`, `Array`, `Option`, D66) where no std is found.
      */
@@ -215,6 +213,8 @@ public enum UnknownReason <: ToString {
 
     public func toString(): String {
         match (this) {
+            case BinaryType => "binary type"
+            case NotInferred => "not inferred"
             case NoStd => "no std"
             case GenericBoundsLimit => "generic bounds limit"
         }

@@ -726,6 +726,19 @@ class BinarySignatureTypesTest {
     }
 
     @TestCase
+    func aMissingImportedPackageLeavesABinaryTypeUnknown() {
+        // std.collection refers to std.core's Array, but std.core is unavailable here.
+        let (db, collection) = stdPackage("std.collection")
+        let list = exportOf(db, collection, "ArrayList")
+        let toArray = DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
+        let reason = signatureTypes(db, toArray).ty.map {ty => match (ty.kind(db)) {
+            case UnknownTy(why) => why.toString()
+            case _ => "not unknown"
+        }}
+        @Expect(reason, Some("binary type"))
+    }
+
+    @TestCase
     func aTypeOfAPackageItImports() {
         // arrange: `ArrayList.toArray` of std.collection, its `Array` std.core's
         let (db, collection) = stdPackage("std.collection", others: ["std.core"])

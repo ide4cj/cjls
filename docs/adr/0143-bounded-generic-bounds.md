@@ -34,8 +34,11 @@ belongs to that algorithm, not to traversal of instantiated relations.
   budget, not a language restriction. On overflow, discard partial results and
   give its parameters `UnknownTy(GenericBoundsLimit)` bounds, following A30.
 - Amend D77: reserve `TodoTy` for unsupported analysis features. Use `UnknownTy`
-  for missing inputs or exhausted resources; move `NoStd` from `Todo` to
-  `UnknownReason`. Both propagate ahead of `ErrorTy` and suppress diagnostics.
+  for missing or unreadable inputs, unfinished inference or exhausted resources;
+  move `NoStd`, `BinaryType` and `NotInferred` from `Todo` to `UnknownReason`.
+  An unreadable binary type alone is not evidence of an error in user source.
+  Both analysis uncertainty categories propagate ahead of `ErrorTy` and suppress
+  diagnostics.
 
 ## Consequences
 
