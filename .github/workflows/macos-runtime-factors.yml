@@ -8,6 +8,12 @@ on:
       - .github/scripts/runtime-factor-probe.py
       - .github/scripts/trace-probe-cjc.py
   workflow_dispatch:
+    inputs:
+      factors:
+        description: Repeat all factors or isolate the one-worker test environment
+        type: choice
+        default: worker-profile
+        options: [worker-profile, all]
 
 permissions:
   contents: read
@@ -20,11 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - {variant: O2-control, optimization: "2", workers: ""}
-          - {variant: O0, optimization: "0", workers: ""}
-          - {variant: O1, optimization: "1", workers: ""}
-          - {variant: O2-one-worker, optimization: "2", workers: "1"}
+        include: ${{ fromJSON(inputs.factors == 'all' && '[{"variant":"O2-control","optimization":"2","workers":""},{"variant":"O0","optimization":"0","workers":""},{"variant":"O1","optimization":"1","workers":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1"}]') }}
     env:
       PROBE_VARIANT: ${{ matrix.variant }}
       PROBE_OPTIMIZATION: ${{ matrix.optimization }}

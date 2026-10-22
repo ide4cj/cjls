@@ -32,9 +32,19 @@ def prepare():
             rf'\g<1>-O{selected}\2', path.read_text())
         assert count == 1, f"no unique Darwin optimization setting in {path}"
         path.write_text(text)
+    workers = os.environ["PROBE_WORKERS"]
+    if workers:
+        assert workers == "1"
+        path = Path("cjpm.toml")
+        text, count = re.subn(
+            r'(\[profile.test.env\]\n)',
+            rf'\1cjProcessorNum = {{ value = "{workers}", splice-type = "replace" }}\n',
+            path.read_text())
+        assert count == 1, "no unique test environment section"
+        path.write_text(text)
     (LOGS / "manifest-changes.patch").write_bytes(subprocess.check_output(["git", "diff"]))
     config = {"variant": os.environ["PROBE_VARIANT"], "optimization": level,
-              "workers": os.environ["PROBE_WORKERS"],
+              "workers": workers, "worker_configuration": "profile.test.env",
               "sdk": Path(".cangjie-version").read_text().strip()}
     (LOGS / "configuration.json").write_text(json.dumps(config, indent=2))
     shim = Path(os.environ["RUNNER_TEMP"]) / "factor-shim"
@@ -70,12 +80,12 @@ def run_once(name, command, timeout):
     LOGS.mkdir(exist_ok=True)
     started = time.monotonic()
     env = dict(os.environ)
-    if env.get("PROBE_WORKERS"):
-        env["cjProcessorNum"] = env["PROBE_WORKERS"]
-    else:
-        env.pop("cjProcessorNum", None)
+    # Limit test binaries through cjpm's profile, leaving the package manager's
+    # own scheduler unchanged; globally setting this variable can stall cjpm.
+    env.pop("cjProcessorNum", None)
     print(json.dumps({"event": "start", "run": name, "timeout": timeout,
-                      "cjProcessorNum": env.get("cjProcessorNum", "default")}), flush=True)
+                      "test_workers": env.get("PROBE_WORKERS") or "default",
+                      "cjpm_workers": "default"}), flush=True)
     with (LOGS / f"{name}.txt").open("w") as log:
         process = subprocess.Popen(command, stdout=log, stderr=subprocess.STDOUT,
                                    env=env, start_new_session=True)
