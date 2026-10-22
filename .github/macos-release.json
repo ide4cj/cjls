@@ -13,7 +13,7 @@
   },
   {
     "name": "Tokens.inc",
-    "url": "https://raw.gitcode.com/Cangjie/cangjie_compiler/raw/v1.2.0/include/cangjie/Lex/Tokens.inc",
+    "url": "https://raw.githubusercontent.com/cangjielanguage/cangjie_compiler/v1.2.0/include/cangjie/Lex/Tokens.inc",
     "sha256": "37cb52829ed95af83da051201e4d87c2ba296213dcd5850c6dea2a3fa473661d",
     "dest": "cangjie/include/cangjie/Lex/Tokens.inc"
   }
