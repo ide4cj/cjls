@@ -34,7 +34,7 @@ public func outputOf(request: MacroRequest, layout: WireLayout, outcome: CallOut
     }
     let diagnostics = ArrayList<MacroDiagnostic>()
     for (diagnostic in result.diags) {
-        diagnostics.add(diagnosticOf(diagnostic, layout))
+        diagnostics.add(diagnosticOf(diagnostic, layout, name))
     }
     if (result.status == MACRO_FAILED) {
         if (diagnostics.isEmpty()) {
@@ -66,7 +66,7 @@ func mappedTextOf(printed: PrintedTokens, layout: WireLayout): MappedText {
     MappedText(printed.text, spans.toArray())
 }
 
-func diagnosticOf(diagnostic: Diagnostic, layout: WireLayout): MacroDiagnostic {
+func diagnosticOf(diagnostic: Diagnostic, layout: WireLayout, name: String): MacroDiagnostic {
     // std.ast's `DiagReportLevel.ERROR.level()`
     let severity = if (diagnostic.diagSeverity == 0) {
         MacroSeverity.MacroError
@@ -81,7 +81,17 @@ func diagnosticOf(diagnostic: Diagnostic, layout: WireLayout): MacroDiagnostic {
         }
         layout.originOf(begin.line, begin.column, size)
     }
-    MacroDiagnostic(severity, origin, diagnostic.errorMessage ?? "", diagnostic.mainHint ?? "")
+    var message = diagnostic.errorMessage ?? ""
+    let hint = diagnostic.mainHint ?? ""
+    // The macro's name is available here, unlike in the shared LSP conversion.
+    if (message.isEmpty() && hint.isEmpty()) {
+        message = if (severity == MacroSeverity.MacroError) {
+            "@${name} reported an error"
+        } else {
+            "@${name} reported a warning"
+        }
+    }
+    MacroDiagnostic(severity, origin, message, hint)
 }
 
 func itemOf(item: ItemInfo, layout: WireLayout, numbers: TokenNumbers): ?MacroItem {

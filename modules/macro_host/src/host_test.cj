@@ -279,6 +279,25 @@ class MacroRoundTest {
         @Expect(requests.size, 0)
     }
 
+    @TestCase[text in [None<String>, Some("")], row in [
+        (0i32, MacroSeverity.MacroError, "@M reported an error"),
+        (1i32, MacroSeverity.MacroWarning, "@M reported a warning")
+    ]]
+    func anEmptyDiagnosticHasTheMacrosNameAndSeverityAsItsMessage(text: ?String, row: (Int32, MacroSeverity, String)) {
+        // arrange
+        let (level, severity, message) = row
+        let (db, file, _) = macroFixture(MAIN)
+        let request = macroRequests(db, file)[0]
+        let (_, layout) = callDataOf(request, "m.ms", "/lib", testNumbers())
+
+        // act
+        let output = outputOf(request, layout, Answered(resultOf(MacroResultData(status: 1,
+            diags: [DiagnosticData(diagSeverity: level, errorMessage: text, mainHint: text)]))), testNumbers())
+
+        // assert
+        @Expect(output.diagnostics, [MacroDiagnostic(severity, None, message, "")])
+    }
+
     @TestCase
     func aCallThatFailsKeepsNoExpansionAndSaysSoOnTheCall() {
         // arrange
