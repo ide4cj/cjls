@@ -35,15 +35,39 @@ class RuntimeProbeTest(unittest.TestCase):
         self.assertIn("child output", (probe.LOGS / "failure.txt").read_text())
 
     def test_timeout_kills_descendants_after_diagnostics(self):
-        child = "import time; from pathlib import Path; time.sleep(1); Path('survived').touch()"
-        parent = f"import subprocess, sys, time; subprocess.Popen([sys.executable, '-c', {child!r}]); time.sleep(30)"
-        with patch.object(probe, "diagnostics", wraps=probe.diagnostics) as capture:
-            status = probe.run_once("hang", [sys.executable, "-c", parent], 0.2)
+        read_fd, write_fd = os.pipe()
+        self.addCleanup(os.close, read_fd)
+        self.addCleanup(os.close, write_fd)
+        child = "import signal; print('ready', flush=True); signal.pause()"
+        parent = (f"import os, signal, subprocess, sys; child = subprocess.Popen("
+                  f"[sys.executable, '-c', {child!r}], stdout=subprocess.PIPE); "
+                  f"child.stdout.readline(); os.write({write_fd}, str(child.pid).encode()); signal.pause()")
+        popen = subprocess.Popen
+        launched = []
+
+        def start_ready(*args, **kwargs):
+            process = popen(*args, **kwargs, pass_fds=(write_fd,))
+            launched.append(process)
+            # The descendant is blocked before the invocation's timer can fire.
+            self.assertTrue(os.read(read_fd, 64).isdigit())
+            return process
+
+        with patch.object(probe.subprocess, "Popen", side_effect=start_ready), patch.object(
+                probe, "diagnostics") as capture:
+            status = probe.run_once("hang", [sys.executable, "-c", parent], 0.001)
         self.assertEqual(status, "timeout")
         capture.assert_called_once()
-        subprocess.run([sys.executable, "-c", "import time; time.sleep(1.1)"], check=True)
-        self.assertFalse(Path("survived").exists())
-        self.assertTrue(list(probe.LOGS.glob("hang-*.processes.txt")))
+        snapshot = subprocess.check_output(["ps", "-axo", "pgid=,state="], text=True)
+        for line in snapshot.splitlines():
+            group, state = line.split()
+            if group == str(launched[0].pid):
+                self.assertTrue(state.startswith("Z"), line)
+
+    def test_retains_process_table_without_native_sampler(self):
+        probe.LOGS.mkdir()
+        with patch.object(probe.sys, "platform", "linux"):
+            probe.diagnostics("full-1", os.getpid(), 60)
+        self.assertTrue((probe.LOGS / "full-1-60s.processes.txt").read_text())
 
     def test_samples_launcher_and_children_but_not_other_groups(self):
         probe.LOGS.mkdir()

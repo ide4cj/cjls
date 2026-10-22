@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/macos-runtime-factors.yml
       - .github/scripts/runtime-factor-probe.py
+      - .github/scripts/runtime-factor-probe_test.py
       - .github/scripts/trace-probe-cjc.py
   workflow_dispatch:
     inputs:
