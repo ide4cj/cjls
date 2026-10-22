@@ -58,12 +58,36 @@ compatibility evidence, not verification of future SDKs.
 Tokens must match cjc's lexer, including whole strings, `>=>` and `!in`.
 [MacroTokenWriter](src/macro_tokens.cj) records the differences from cjsyntax;
 `std.ast.cangjieLex` is the test oracle when compiler source and behavior differ.
-Printing an expansion preserves token kinds and values, with ranges in printed
-text alongside server positions, except for generated identifiers: cjc re-lexes
+Printing an expansion preserves its parser meaning, with ranges in printed text
+alongside server positions. For generated identifiers, cjc re-lexes
 their values in `ProcessCombinedToken`, so `Token(IDENTIFIER, "Int8")` becomes the
-primitive type keyword. Print the value unchanged; only backquotes already in it
-keep it an identifier. Literal quoting is checked by re-lexing; spaces are omitted
+primitive type keyword. Re-lex before choosing spaces: a generated `"."` next to a
+`DOT` must not become `..`, and a generated number needs separation from a dot.
+Only backquotes already in the value keep a keyword an identifier. An identifier
+that becomes several tokens gets one printed span per token, positioned within
+its original value. Literal quoting is checked by re-lexing; spaces are omitted
 only for pairs known not to glue.
+
+[MacroRelexTest](src/macro_relex_test.cj) independently processes input tokens
+using the SDK lexer for identifier values and the four composite-operator splits
+from cjc's `ProcessCombinedToken`, then compares them with the SDK's tokens of
+the printed text. It covers every lexable default spelling in the selected SDK,
+synthetic literal and multi-token values, neighbouring tokens, and randomized
+values and mixed token streams with shrinking. It preserves composite-operator
+adjacency in the comparison and treats `UNIT_LITERAL` and `()` as the same unit
+constant. Forced experimental kinds that the active SDK dialect only lexes as
+identifiers have no source representation and are excluded from the ordinary
+kind round-trip, while their spellings still exercise identifier re-lexing.
+This is not a differential test of the compiler's whole macro pipeline or of
+source positions. The real SDK `Id`/hover regression in macro_host separately
+checks the result reaches analysis.
+
+Run the generated cases normally or with comparison coverage in a separate cache:
+
+```bash
+cjpm test --no-progress --target-dir target/test '--filter=MacroRelex*.*'
+cjpm test --no-progress --fuzz --target-dir target/fuzz -m modules/macro_server '--filter=MacroRelexCoverageGuidedTest.*'
+```
 
 Tests need `CANGJIE_HOME`: they run the SDK server on its shipped `@Derive`
 library without building a workspace macro. Test support selects a runtime with

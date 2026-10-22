@@ -18,6 +18,10 @@ fbs = { path = "../fbs" }
 ginkgo = { path = "../ginkgo" }
 platform = { path = "../platform" }
 
+# Feed the re-lexing/printer fuzz test comparison coverage without instrumenting production builds.
+[profile.customized-option]
+fuzz = "--sanitizer-coverage-trace-compares"
+
 # `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
 [target.aarch64-apple-darwin.release]
 compile-option = "-O2"
