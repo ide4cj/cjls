@@ -8,7 +8,8 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** A historical observation
+recorded separately in PR #457.** K26 records a subsequent focused reproduction
+and workaround from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
 or all platforms. Dates abbreviated as `20260918` refer to nightly build dates;
@@ -58,6 +59,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K23](#k23) | Loading std deriving after workspace macro aborts | Separate macro servers |
 | [K24](#k24) | Two parameter marker macros crash compiler | No known affected cjls code |
 | [K25](#k25) | `genericConstraint.toTokens()` throws | Iterate constraints |
+| [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
 
 ## Evidence and use
 
@@ -357,6 +359,27 @@ constraints and emits their upper bounds individually; the old note's
 `modules/cjls/src/macros/utils.cj` path is obsolete. Keep constraint handling in
 source; no public minimized reproduction or general SDK fix is asserted.
 
+<a id="k26"></a>
+### K26
+
+[PR #477](https://github.com/ide4cj/cjls/pull/477) reproduced a worker-process
+SIGSEGV on Linux x86_64 with `1.3.0-alpha.20261014001050`, both in
+[CI coverage](https://github.com/ide4cj/cjls/actions/runs/39766821925/job/119784229016)
+and locally with:
+
+```bash
+cjpm test --coverage -g --no-progress --timeout-each=2m --exclude-tags gate --target-dir target/cov '--filter=BodyDefinitionTest.aFieldInALambdaOfAMethod'
+```
+
+The fault reads `SyntaxNodePtr<K>.range` inside recursive `tryToNode` calls.
+Running the test directly under a debugger, without the worker configuration,
+passed; the execution context matters. The same search algorithm passes the
+focused coverage check when its kind and range are ordinary arguments of a
+frozen helper, rather than fields read through a recursive generic-struct
+receiver. Keep the wrapper/helper split in [ptr.cj](../modules/ginkgo/src/ptr.cj).
+No standalone SDK-only reproduction, upstream root cause, or general restriction
+on generic recursion is established by this observation.
+
 ## Reconciliation and remaining work
 
 This registry starts #332's document, not its probe implementation. None of
@@ -399,8 +422,8 @@ The following dispositions prevent old local guidance becoming competing rules:
   machine automation policies are outside this SDK migration.
 
 This audit preserves the K4 retirement already accepted in PR #457 and removes no
-other workaround. Except for K4's scoped verification, exact-pin status remains
-unverified. Missing host/build metadata, upstream reports and independent probes
+other workaround. Except for K4's scoped verification and K26's subsequent focused observation,
+exact-pin status remains unverified. Missing host/build metadata, upstream reports and independent probes
 remain explicit limitations. The next SDK bump needs evidence before retiring an
 entry; a passing ordinary build alone does not establish that a scheduling, GC or
 optimizer defect is fixed.
