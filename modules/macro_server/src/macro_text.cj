@@ -154,6 +154,10 @@ class MacroTextPrinter {
             return false
         }
         match ((previous, next)) {
+            // The SDK accepts some numeric suffixes only immediately before a range; inserting a space
+            // there can turn a lexable macro value (`1.5x..`) into a lexer error.
+            case ("INTEGER_LITERAL", "RANGEOP") | ("INTEGER_LITERAL", "CLOSEDRANGEOP") |
+                ("FLOAT_LITERAL", "RANGEOP") | ("FLOAT_LITERAL", "CLOSEDRANGEOP") => false
             case (_, "DOT") => !NAME_LIKE.contains(previous)
             case ("DOT", _) => next != "IDENTIFIER"
             case ("AT", _) => next != "IDENTIFIER"

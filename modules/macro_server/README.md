@@ -66,7 +66,9 @@ primitive type keyword. Re-lex before choosing spaces: a generated `"."` next to
 Only backquotes already in the value keep a keyword an identifier. An identifier
 that becomes several tokens gets one printed span per token, positioned within
 its original value. Literal quoting is checked by re-lexing; spaces are omitted
-only for pairs known not to glue.
+only for pairs known not to glue. Keep numbers adjacent to range operators: the
+SDK accepts `1.5x..` but rejects `1.5x ..`, so inserting a space can itself
+introduce a lexer error. The minimized generated input is retained in the corpus.
 
 [MacroRelexTest](src/macro_relex_test.cj) independently processes input tokens
 using the SDK lexer for identifier values and the four composite-operator splits

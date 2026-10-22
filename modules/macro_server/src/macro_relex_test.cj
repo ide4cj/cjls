@@ -25,7 +25,7 @@ func relexSources(): Array<String> {
         }
     }
     sources.add(all: ["x", "é", "`Int8`", "`class`", "true", "false", "1", "1.5", "0xff", "2i8", "1e3",
-        "\"s\"", "'s'", "r'c'", "b'x'", "J\"j\"", "#\"raw\"#", "\"\"\"\ntext\"\"\"", "a.b", "a + b", "Array<Int8>", "!in "])
+        "\"s\"", "'s'", "r'c'", "b'x'", "J\"j\"", "#\"raw\"#", "\"\"\"\ntext\"\"\"", "a.b", "a + b", "Array<Int8>", "!in ", "1.5x..", "1.5x..=", "1.5x..2"])
     sources.toArray()
 }
 
@@ -80,7 +80,7 @@ func relexDifference(tokens: Array<TokenData>): ?String {
     let actual = try {
         sdkProcessed(sdkWireTokens(printed), relexIdentifiers: false)
     } catch (_: Exception) {
-        return "SDK rejected printed text: ${printed}"
+        return "SDK rejected printed text: ${printed}; expected ${expected}"
     }
     firstDifference(actual, expected).map {difference => "${printed}: ${difference}"}
 }
