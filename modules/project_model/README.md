@@ -46,6 +46,12 @@ project loading so `${CANGJIE_HOME}` and std agree with that selection.
 Missing std sources reduce navigation, not binary analysis. Runtime discovery is
 distinct from the build shell's [pinned SDK setup](../../docs/development.md#select-the-pinned-sdk).
 
+Paths in `cj-project.json` expand a leading `~` (HOME, else USERPROFILE), `${VAR}`
+and `$VAR` once through the loading environment; relative paths remain relative
+to the manifest. Missing variables remain literal and are reported with the
+other loading problems. This uses the same expansion as the server's path settings,
+which require the result to be absolute and reject unresolved references.
+
 ## Choosing checks
 
 Use [Development](../../docs/development.md#focused-and-full-cangjie-tests) for

@@ -1,7 +1,7 @@
 package cjls.server
 
 import std.collection.ArrayList
-import std.env.getTempDirectory
+import std.env.{getTempDirectory, getVariable}
 import std.unittest.*
 import std.unittest.testmacro.*
 import fjson.JsonValue
@@ -40,6 +40,36 @@ class SettingsTest {
         @Expect(settings.cangjieSrc, Some(src.toString()))
         @Expect(!settings.newFilePackage)
         @Expect(problems.size, 0)
+    }
+
+    @TestCase
+    func pathsExpandHomeAndEnvironmentInEverySetting() {
+        let home = getVariable("HOME") ?? getVariable("USERPROFILE").getOrThrow()
+        let variable = if (getVariable("HOME").isSome()) { "HOME" } else { "USERPROFILE" }
+        let problems = ArrayList<String>()
+        let settings = Settings.read(settingsJson([
+            ("linkedProjects", JsonValue.JsonArray([text("~/project"), text("\${${variable}}/other")])),
+            ("cangjieHome", text("~")),
+            ("cangjieSrc", text("$${variable}/src"))
+        ]), problems)
+
+        @Expect(settings.linkedProjects, [VfsPath.file(home).join("project"), VfsPath.file(home).join("other")])
+        @Expect(settings.cangjieHome, Some(home))
+        @Expect(settings.cangjieSrc.map {it => VfsPath.file(it)}, Some(VfsPath.file(home).join("src")))
+        @Expect(problems.size, 0)
+    }
+
+    @TestCase
+    func unresolvedVariablesAreRejectedEvenInAbsolutePathsAndUrisStayLiteral() {
+        let literal = VfsPath.file(getTempDirectory()).join("$HOME").join("~")
+        let problems = ArrayList<String>()
+        let value = Settings.read(settingsJson([
+            ("cangjieHome", text(getTempDirectory().join("\${CJLS_TEST_UNSET_PATH_8267}").toString())),
+            ("cangjieSrc", text(literal.toUri()))
+        ]), problems)
+        @Expect(value.cangjieHome.isNone())
+        @Expect(value.cangjieSrc, literal.filePath.map {it => it.toString()})
+        @Expect(problems.toArray().any {it => it.contains("CJLS_TEST_UNSET_PATH_8267")})
     }
 
     @TestCase

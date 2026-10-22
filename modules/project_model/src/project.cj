@@ -74,10 +74,10 @@ class Loading {
     Loading(let env: (String) -> ?String, let cfg: Cfg) {}
 
     /**
-     * The path `text` names, `${VAR}` expanded, relative to `base` unless absolute.
+     * The path `text` names, home and environment expanded, relative to `base` unless absolute.
      */
     func resolve(base: VfsPath, text: String): VfsPath {
-        let expanded = expandVariables(text, env, problems)
+        let expanded = expandPath(text, env, problems)
         if (Path(expanded).isAbsolute()) {
             VfsPath.file(expanded)
         } else {
