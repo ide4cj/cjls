@@ -113,7 +113,13 @@ jobs:
           runner-image: ${{ matrix.os }}
       - run: python tests/corpora/fetch.py
         shell: bash
-      - run: cjpm test --no-progress --timeout-each=2m --target-dir target/test
+      - run: |
+          # The pinned macOS runtime crashes while GC scans a relocated stack (K19).
+          # Reserve enough initial stack for the gates to avoid that expansion path.
+          if [[ "$RUNNER_OS" == macOS ]]; then
+            export cjStackSize=8MB
+          fi
+          cjpm test --no-progress --timeout-each=2m --target-dir target/test
         shell: bash
       - if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/cache/save@v6

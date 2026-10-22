@@ -29,14 +29,8 @@ func gateFindings(root: VfsPath): Array<String> {
         vfs.setFileContents(path, text)
     }
     db.applyChanges(vfs, vfs.takeChanges())
-    // Keep iterator closures out of the frame that holds the gate's reference locals (SDK K22).
-    let sourceFiles = ArrayList<SourceFile>()
-    for (path in load.model.files()) {
-        if (let Some(id) <- vfs.paths.lookup(path) && let Some(file) <- db.sourceFile(id)) {
-            sourceFiles.add(file)
-        }
-    }
-    let files = sourceFiles.toArray()
+    let files = load.model.files() |> filterMap {path: VfsPath => vfs.paths.lookup(path).flatMap {id => db.sourceFile(id)}} |>
+        collectArray
 
     let paths = testSdkPaths()
     let toolchain = SdkToolchain(paths)

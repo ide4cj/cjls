@@ -8,7 +8,7 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** K22 and K26 record subsequent observations
+recorded separately in PR #457.** K19 and K26 record subsequent observations
 and scoped workarounds from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
@@ -291,8 +291,20 @@ not make the two streams drain concurrently. The earlier attribution of #342's
 `1.3.0-alpha.20261014001050`, during
 [`NewFilePackageTest`](../modules/cjls/src/handlers/new_file_test.cj),
 [run 38779367435](https://github.com/ide4cj/cjls/actions/runs/38779367435).
-An unchanged rerun passed; it is not a fix. No minimized probe or workaround is
-recorded. A stale root/bad stack map is a hypothesis, not proof of K5 or K22.
+An unchanged rerun passed; it is not a fix. A stale root/bad stack map is a
+hypothesis, not proof of K5 or K22.
+
+[PR #477](https://github.com/ide4cj/cjls/pull/477) also records repeated macOS
+arm64 GC stack-scanning SIGSEGVs on `1.3.0-alpha.20261014001050` in both macro-host
+gates ([job](https://github.com/ide4cj/cjls/actions/runs/39778330777/job/119823116374)).
+The runtime frames include `StackGrowStackInfo::RecordStackPtrs`; the managed
+safepoint varies across `.cjo` lowering. Removing iterator temporaries from the
+gate did not prevent the crashes and was reverted. The macOS CI test step uses
+`cjStackSize=8MB` to avoid expanding the initial 1 MB stack during these gates.
+`CjScheduler.cpp::InitCoStackSize` in the pinned corpus accepts this environment
+variable and defines the macOS default. This is a scoped runtime workaround,
+not a minimized reproduction or proof of the upstream root cause; the release
+server and the other platforms keep their runtime defaults.
 
 <a id="k20"></a>
 ### K20
@@ -326,14 +338,6 @@ check and separating send work. Exact build timestamp and upstream root cause
 are unverified; the PR body does not contain these measurements. Preserve the
 current [`host.cj`](../modules/macro_host/src/host.cj) structure pending a minimized
 reproducer. Do not turn this observation into a general ban on iterator lambdas.
-
-[PR #477](https://github.com/ide4cj/cjls/pull/477) also observed repeated macOS
-arm64 GC stack-scanning SIGSEGVs on `1.3.0-alpha.20261014001050` in both macro-host
-gates ([job](https://github.com/ide4cj/cjls/actions/runs/39776281473/job/119816104990)).
-The shared `gateFindings` helper uses the same plain-loop pattern to collect
-source files before keeping its reference locals. The stack identifies `.cjo`
-lowering at different safepoints, not the origin of the bad reference; a shared
-root cause with the historical Linux crash is not established.
 
 <a id="k23"></a>
 ### K23
@@ -430,7 +434,7 @@ The following dispositions prevent old local guidance becoming competing rules:
   machine automation policies are outside this SDK migration.
 
 This audit preserves the K4 retirement already accepted in PR #457 and removes no
-other workaround. Except for K4's scoped verification and K22/K26's subsequent observations,
+other workaround. Except for K4's scoped verification and K19/K26's subsequent observations,
 exact-pin status remains unverified. Missing host/build metadata, upstream reports and independent probes
 remain explicit limitations. The next SDK bump needs evidence before retiring an
 entry; a passing ordinary build alone does not establish that a scheduling, GC or
