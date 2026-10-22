@@ -8,8 +8,8 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** K19 and K26 record subsequent observations
-and scoped workarounds from PR #477. A historical observation
+recorded separately in PR #457.** K19 records subsequent observations and K26
+a scoped workaround from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
 or all platforms. Dates abbreviated as `20260918` refer to nightly build dates;
@@ -297,14 +297,15 @@ hypothesis, not proof of K5 or K22.
 [PR #477](https://github.com/ide4cj/cjls/pull/477) also records repeated macOS
 arm64 GC stack-scanning SIGSEGVs on `1.3.0-alpha.20261014001050` in both macro-host
 gates ([job](https://github.com/ide4cj/cjls/actions/runs/39778330777/job/119823116374)).
-The runtime frames include `StackGrowStackInfo::RecordStackPtrs`; the managed
-safepoint varies across `.cjo` lowering. Removing iterator temporaries from the
-gate did not prevent the crashes and was reverted. The macOS CI test step uses
-`cjStackSize=8MB` to avoid expanding the initial 1 MB stack during these gates.
-`CjScheduler.cpp::InitCoStackSize` in the pinned corpus accepts this environment
-variable and defines the macOS default. This is a scoped runtime workaround,
-not a minimized reproduction or proof of the upstream root cause; the release
-server and the other platforms keep their runtime defaults.
+The reported runtime frames include `StackGrowStackInfo::RecordStackPtrs`; the
+managed safepoint varies across `.cjo` lowering. These frames alone do not establish
+that stack relocation caused the crash. An unchanged rerun passed before any stack
+setting changed. A later run with `cjStackSize=8MB` also passed, but there was no
+controlled comparison establishing an effect on the failure rate. The stack
+override was withdrawn; CI uses the runtime defaults. Removing iterator
+temporaries from the gate did not prevent the crashes and was also reverted.
+No minimized reproduction, confirmed workaround, or common root cause with the
+Linux observation is established.
 
 <a id="k20"></a>
 ### K20
