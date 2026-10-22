@@ -3815,7 +3815,7 @@ public func headTysOf(db: AnalysisDatabase, ty: Ty): Array<Ty> {
     match (ty.kind(db)) {
         case ParamTy(owner, _) =>
             let found = ArrayList<Ty>()
-            for (bound in signatureTypes(db, owner).bounds where bound.ty == ty) {
+            for (bound in genericBounds(db, owner) where bound.ty == ty) {
                 found.add(all: bound.bounds)
             }
             found.toArray()

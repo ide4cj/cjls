@@ -1,7 +1,43 @@
 package loupe.hir
 
 import std.collection.*
+import calca.*
+import calca.macros.*
 import loupe.db.{AnalysisDatabase, SourceFile}
+
+/**
+ * The declaration's written bounds and those its bounding interfaces require of their arguments
+ * (#437). Keep this separate from signature lowering: mutually referring signatures are valid.
+ */
+@CalcaTracked
+func genericBounds(db: AnalysisDatabase, owner: DefId): Array<TyBound> {
+    let found = ArrayList<TyBound>()
+    let pending = ArrayList<(TyBound, Array<DefId>)>()
+    for (bound in signatureTypes(db, owner).bounds) {
+        pending.add((bound, []))
+    }
+    var at = 0
+    while (at < pending.size) {
+        let (bound, path) = pending[at]
+        at++
+        if (found.contains(bound)) {
+            continue
+        }
+        found.add(bound)
+        for (one in bound.bounds) {
+            if (let DeclTy(id, args) <- one.kind(db) && !path.contains(id)) {
+                // A malformed recursive bound may keep growing its arguments. Expand each
+                // declaration once along a path, while retaining separate interface instances.
+                for (required in signatureTypes(db, id).bounds) {
+                    pending.add((TyBound(substitute(db, required.ty, id, args), required.bounds.map {
+                        ty => substitute(db, ty, id, args)
+                    }), path.concat([id])))
+                }
+            }
+        }
+    }
+    found.toArray()
+}
 
 /**
  * The supertypes of `ty` one level up, as the file `from` sees them: those its declaration names,
@@ -122,7 +158,7 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
             subParams.size == supParams.size &&
             (0..subParams.size).iterator().all {i => isSubtype(db, supParams[i], subParams[i], from)} &&
             isSubtype(db, subRet, supRet, from)
-        case (ParamTy(owner, _), _) => signatureTypes(db, owner).bounds.iterator().any {
+        case (ParamTy(owner, _), _) => genericBounds(db, owner).iterator().any {
             bound => bound.ty == sub && bound.bounds.iterator().any {one => isSubtype(db, one, sup, from)}
         }
         // of an interface implemented as several instances (`K<Int64> & K<String>`), any (N143)
@@ -310,7 +346,7 @@ func ownerArgs(db: AnalysisDatabase, owner: DefId, recv: Ty, from: ?SourceFile):
     }
     // of a type parameter, its bound's that is an instance of `owner` (`T <: FromJson<T>`'s `fromJson`)
     if (let ParamTy(param, _) <- recv.kind(db)) {
-        for (bound in signatureTypes(db, param).bounds where bound.ty == recv) {
+        for (bound in genericBounds(db, param) where bound.ty == recv) {
             for (one in bound.bounds) {
                 if (let Some(DeclTy(_, args)) <- asInstanceOf(db, one, owner, from).map {it => it.kind(db)}) {
                     return args
