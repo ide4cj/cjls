@@ -1,0 +1,20 @@
+[
+  {
+    "name": "cangjie-sdk-mac-aarch64-1.2.0.tar.gz",
+    "url": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-mac-aarch64-1.2.0.tar.gz&objectKey=6ab1e6451320215435b23d52",
+    "sha256": "de88d6ba2185c94979e0ab2fe8ac1d81535dfdff3fcb51fbba71e4b99d851f97",
+    "dest": "."
+  },
+  {
+    "name": "cangjie-stdx-mac-aarch64-1.2.0.1.zip",
+    "url": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.2.0.1/cangjie-stdx-mac-aarch64-1.2.0.1.zip",
+    "sha256": "9264fc3a5e2c3372059acccdbf72c42ab2b57d2eaede9342da0ffdc76354b7fd",
+    "dest": "cangjie/third_party/stdx"
+  },
+  {
+    "name": "Tokens.inc",
+    "url": "https://raw.githubusercontent.com/cangjielanguage/cangjie_compiler/v1.2.0/include/cangjie/Lex/Tokens.inc",
+    "sha256": "37cb52829ed95af83da051201e4d87c2ba296213dcd5850c6dea2a3fa473661d",
+    "dest": "cangjie/include/cangjie/Lex/Tokens.inc"
+  }
+]

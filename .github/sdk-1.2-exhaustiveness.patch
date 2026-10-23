@@ -1,0 +1,57 @@
+--- a/modules/rope/src/node.cj
++++ b/modules/rope/src/node.cj
+@@ -54,6 +54,7 @@
+             let old = leaf.text
+             chunked(old[..start] + text + old[end..])
+         case branch: Branch => editBranch(branch, start, end, text)
++        case _ => throw IllegalStateException("unreachable Node subtype")
+     }
+ }
+
+@@ -142,6 +143,7 @@
+     match (node) {
+         case leaf: Leaf => leaf.summary.bytes < MIN_CHUNK
+         case branch: Branch => branch.children.size < MIN_CHILDREN
++        case _ => throw IllegalStateException("unreachable Node subtype")
+     }
+ }
+
+@@ -211,6 +213,7 @@
+                 remaining -= child.summary.bytes
+             }
+             summary
++        case _ => throw IllegalStateException("unreachable Node subtype")
+     }
+ }
+
+@@ -260,6 +263,7 @@
+                     i++
+                 }
+                 current = children[i]
++            case _ => throw IllegalStateException("unreachable Node subtype")
+         }
+     }
+     None
+@@ -299,6 +303,7 @@
+                 offset += child.summary.bytes
+             }
+             throw IllegalStateException("fewer than ${n} line breaks in a branch")
++        case _ => throw IllegalStateException("unreachable Node subtype")
+     }
+ }
+
+@@ -334,6 +339,7 @@
+                 offset += child.summary.bytes
+             }
+             offset
++        case _ => throw IllegalStateException("unreachable Node subtype")
+     }
+ }
+
+@@ -370,5 +376,6 @@
+                 remaining -= child.summary.bytes
+             }
+             leafAt(children[children.size - 1], remaining)
++        case _ => throw IllegalStateException("unreachable Node subtype")
+     }
+ }

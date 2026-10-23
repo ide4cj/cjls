@@ -1,0 +1,95 @@
+name: macOS runtime factors
+
+on:
+  push:
+    branches: [test/macos-nightly-20261022]
+    paths:
+      - .github/workflows/macos-runtime-factors.yml
+      - .github/scripts/runtime-factor-probe.py
+      - .github/scripts/runtime-factor-probe_test.py
+      - .github/scripts/trace-probe-cjc.py
+  workflow_dispatch:
+    inputs:
+      factors:
+        description: Repeat O1 on independent runners or compare earlier runtime factors
+        type: choice
+        default: o1-repeat
+        options: [o1-repeat, stack-scope, stack-size, worker-profile, all]
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    name: Factor (${{ matrix.variant }})
+    runs-on: macos-latest
+    # Ten gates at 15 minutes plus a 30-minute suite, build and artifact upload.
+    timeout-minutes: 240
+    # Each O1 replica rebuilds and runs ten gates plus a full suite on its own VM.
+    strategy:
+      fail-fast: false
+      matrix:
+        include: ${{ fromJSON((github.event_name == 'push' || inputs.factors == 'o1-repeat') && '[{"variant":"O1-repeat-1","optimization":"1","workers":"","stack":""},{"variant":"O1-repeat-2","optimization":"1","workers":"","stack":""},{"variant":"O1-repeat-3","optimization":"1","workers":"","stack":""}]' || inputs.factors == 'stack-scope' && '[{"variant":"O2-stack8MB-profile","optimization":"2","workers":"","stack":"8MB","stack_scope":"profile"},{"variant":"O2-stack8MB-command","optimization":"2","workers":"","stack":"8MB","stack_scope":"command"}]' || inputs.factors == 'stack-size' && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O2-stack8MB","optimization":"2","workers":"","stack":"8MB"},{"variant":"O0-stack8MB","optimization":"0","workers":"","stack":"8MB"}]' || inputs.factors == 'all' && '[{"variant":"O2-control","optimization":"2","workers":"","stack":""},{"variant":"O0","optimization":"0","workers":"","stack":""},{"variant":"O1","optimization":"1","workers":"","stack":""},{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]' || '[{"variant":"O2-one-worker-test-env","optimization":"2","workers":"1","stack":""}]') }}
+    env:
+      PROBE_VARIANT: ${{ matrix.variant }}
+      PROBE_OPTIMIZATION: ${{ matrix.optimization }}
+      PROBE_WORKERS: ${{ matrix.workers }}
+      PROBE_STACK_SIZE: ${{ matrix.stack }}
+      PROBE_STACK_SCOPE: ${{ matrix.stack_scope || 'profile' }}
+      PROBE_GATE_TIMEOUT: "900"
+      PROBE_FULL_TIMEOUT: "1800"
+      PROBE_TIMEOUT_EACH: 10m
+    steps:
+      - uses: actions/checkout@v7
+      - name: Check probe orchestration
+        run: python3 .github/scripts/runtime-factor-probe_test.py
+      - uses: ./.github/actions/setup-cangjie
+      - name: Configure factor and compiler tracing
+        run: python3 .github/scripts/runtime-factor-probe.py prepare
+      - name: Record environment
+        run: |
+          {
+            git rev-parse HEAD
+            sw_vers
+            uname -a
+            cjc --version
+            cjpm --version
+            sysctl -n hw.model hw.ncpu hw.memsize
+            uptime
+          } | tee probe-logs/environment.txt
+      - run: python3 tests/corpora/fetch.py
+      - name: Compile tests from scratch
+        run: |
+          set -o pipefail
+          cjpm test --no-run --no-progress -V --target-dir target/test 2>&1 | tee probe-logs/build.txt
+      - name: Audit compiler optimization flags
+        run: python3 .github/scripts/runtime-factor-probe.py audit
+      - name: Gate repetitions 1 to 5
+        id: first
+        continue-on-error: true
+        run: python3 .github/scripts/runtime-factor-probe.py gate 1 5
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macos-factor-${{ matrix.variant }}-first5
+          path: probe-logs
+          if-no-files-found: error
+      - name: Gate repetitions 6 to 10
+        id: second
+        if: ${{ !cancelled() && steps.first.outputs.proceed != 'false' && (success() || steps.first.outcome == 'failure') }}
+        continue-on-error: true
+        run: python3 .github/scripts/runtime-factor-probe.py gate 6 10
+      - name: Full suite
+        id: full
+        if: ${{ !cancelled() && steps.first.outputs.proceed != 'false' && (success() || steps.first.outcome == 'failure') }}
+        continue-on-error: true
+        run: python3 .github/scripts/runtime-factor-probe.py full
+      - name: Summarize results
+        if: always()
+        run: python3 .github/scripts/runtime-factor-probe.py report
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: macos-factor-${{ matrix.variant }}-complete
+          path: probe-logs
+          if-no-files-found: error
