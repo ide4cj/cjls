@@ -140,7 +140,10 @@ public func missingKey(table: FtValue, typeName: String, key: String): FtExcepti
  * The entries of a table written in the order TOML wants: `write` of each whose value is written on
  * its key's line, then of each that is a table or an array of tables; nothing for an omitted one.
  */
-public func writeEntries<K, V>(w: FtWriter, entries: Iterable<(K, V)>): Unit where K <: TomlKey<K>, V <: ToToml {
+public func writeEntries<K, V>(
+    w: FtWriter,
+    entries: Iterable<(K, V)>
+): Unit where K <: TomlKey<K>, V <: ToToml {
     for ((key, value) in entries) {
         let shape = value.tomlShape
         if (!shape.isBlock && !shape.isOmitted) {
@@ -277,10 +280,11 @@ extend LocalTime <: ToToml & FromToml<LocalTime> {
 /** An array of tables is `[[key]]`s when it has any, `[]` when it has none. */
 extend<T> Array<T> <: ToToml where T <: ToToml {
     public func toToml(w: FtWriter): Unit {
-        let tables = match (tomlShape) {
-            case TableArray => true
-            case _ => false
-        }
+        let tables =
+            match (tomlShape) {
+                case TableArray => true
+                case _ => false
+            }
         if (tables) {
             w.beginTableArray()
         } else {
@@ -301,10 +305,18 @@ extend<T> Array<T> <: ToToml where T <: ToToml {
 
     public prop tomlShape: FtShape {
         get() {
-            if (!isEmpty() && this.iterator().all {item => match (item.tomlShape) {
-                case Table => true
-                case _ => false
-            }}) {
+            if (
+                !isEmpty() &&
+                    this
+                        .iterator()
+                        .all {
+                            item =>
+                            match (item.tomlShape) {
+                                case Table => true
+                                case _ => false
+                            }
+                        }
+            ) {
                 TableArray
             } else {
                 Inline
@@ -316,7 +328,7 @@ extend<T> Array<T> <: ToToml where T <: ToToml {
 extend<T> Array<T> <: FromToml<Array<T>> where T <: FromToml<T> {
     public static func fromToml(v: FtValue): Array<T> {
         let array = v.asArray()
-        Array<T>(array.size) {i => T.fromToml(array[i])}
+        Array<T>(array.size) { i => T.fromToml(array[i]) }
     }
 }
 
@@ -363,7 +375,11 @@ extend<K, V> HashMap<K, V> <: ToToml where K <: TomlKey<K>, V <: ToToml {
     }
 }
 
-extend<K, V> HashMap<K, V> <: FromToml<HashMap<K, V>> where K <: TomlKey<K> & Hashable & Equatable<K>, V <: FromToml<V> {
+extend<K, V> HashMap<K, V> <: FromToml<HashMap<K, V>> where K <:
+            TomlKey<K> &
+            Hashable &
+            Equatable<K>,
+    V <: FromToml<V> {
     public static func fromToml(v: FtValue): HashMap<K, V> {
         let map = HashMap<K, V>()
         for ((key, value) in v.asTable()) {

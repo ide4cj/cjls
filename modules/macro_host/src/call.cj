@@ -33,10 +33,12 @@ public class WireLayout {
         }
         if (line < inputLine) {
             let text = attrs ?? return None
-            let start = offsetOf(attrsStarts, text.text, Int64(line - attrsLine), column) ?? return None
+            let start =
+                offsetOf(attrsStarts, text.text, Int64(line - attrsLine), column) ?? return None
             return text.originOf(TextRange(start, min(start + size, text.text.size)))
         }
-        let start = offsetOf(inputStarts, input.text, Int64(line - inputLine), column) ?? return None
+        let start =
+            offsetOf(inputStarts, input.text, Int64(line - inputLine), column) ?? return None
         input.originOf(TextRange(start, min(start + size, input.text.size)))
     }
 }
@@ -70,41 +72,62 @@ func offsetOf(starts: Array<Int64>, text: String, line: Int64, column: Int32): ?
  * attribute, `_c_` without, the package's `.` as `_` and an organization's `::` as `__`.
  */
 public func methodNameOf(name: String, pkg: String, hasAttrs: Bool): String {
-    let kind = if (hasAttrs) {
-        "a"
-    } else {
-        "c"
-    }
+    let kind =
+        if (hasAttrs) {
+            "a"
+        } else {
+            "c"
+        }
     "macroCall_${kind}_${name}_${pkg.replace("::", "__").replace(".", "_")}"
 }
 
 /**
  * What `request` asks the macro server, the macro run from `library` of `pkg`, and where its texts are on the wire.
  */
-public func callDataOf(request: MacroRequest, pkg: String, library: String, numbers: TokenNumbers): (MacroCallData,
-    WireLayout) {
+public func callDataOf(
+    request: MacroRequest,
+    pkg: String,
+    library: String,
+    numbers: TokenNumbers
+): (MacroCallData, WireLayout) {
     let layout = WireLayout(request.attrs, request.input)
     let name = request.definition.name
-    let attrs: Array<TokenData> = match (request.attrs) {
-        case Some(text) => withoutLeadingNewlines(
-            macroTokens(text.text, numbers, PositionData(fileId: 1, line: layout.attrsLine, column: 1)), numbers)
-        case None => []
-    }
-    let input = withoutLeadingNewlines(
-        macroTokens(request.input.text, numbers, PositionData(fileId: 1, line: layout.inputLine, column: 1)), numbers)
-    let call = MacroCallData(
-        id: IdInfoData(name: name, pos: PositionData(fileId: 1, line: 1, column: 2)),
-        hasAttrs: request.attrs.isSome(),
-        args: input,
-        attrs: attrs,
-        parentNames: request.parents,
-        childMsges: request.children.map {child => childOf(child, numbers)},
-        methodName: methodNameOf(name, pkg, request.attrs.isSome()),
-        packageName: pkg,
-        libPath: library,
-        begin: PositionData(fileId: 1, line: 1, column: 1),
-        end: endOf(input, layout)
-    )
+    let attrs: Array<TokenData> =
+        match (request.attrs) {
+            case Some(text) =>
+                withoutLeadingNewlines(
+                    macroTokens(
+                        text.text,
+                        numbers,
+                        PositionData(fileId: 1, line: layout.attrsLine, column: 1)
+                    ),
+                    numbers
+                )
+            case None => []
+        }
+    let input =
+        withoutLeadingNewlines(
+            macroTokens(
+                request.input.text,
+                numbers,
+                PositionData(fileId: 1, line: layout.inputLine, column: 1)
+            ),
+            numbers
+        )
+    let call =
+        MacroCallData(
+            id: IdInfoData(name: name, pos: PositionData(fileId: 1, line: 1, column: 2)),
+            hasAttrs: request.attrs.isSome(),
+            args: input,
+            attrs: attrs,
+            parentNames: request.parents,
+            childMsges: request.children.map { child => childOf(child, numbers) },
+            methodName: methodNameOf(name, pkg, request.attrs.isSome()),
+            packageName: pkg,
+            libPath: library,
+            begin: PositionData(fileId: 1, line: 1, column: 1),
+            end: endOf(input, layout)
+        )
     (call, layout)
 }
 
@@ -125,23 +148,33 @@ func withoutLeadingNewlines(tokens: Array<TokenData>, numbers: TokenNumbers): Ar
  * Where the input ends: after its last token, or where it starts for none.
  */
 func endOf(input: Array<TokenData>, layout: WireLayout): PositionData {
-    match (input.get(input.size - 1).flatMap {last => last.end}) {
+    match (input.get(input.size - 1).flatMap { last => last.end }) {
         case Some(end) => end
         case None => PositionData(fileId: 1, line: layout.inputLine, column: 1)
     }
 }
 
 func childOf(child: MacroChild, numbers: TokenNumbers): ChildMsgData {
-    ChildMsgData(childName: child.name, items: child.items.map {item => itemOf(item, numbers)})
+    ChildMsgData(childName: child.name, items: child.items.map { item => itemOf(item, numbers) })
 }
 
 func itemOf(item: MacroItem, numbers: TokenNumbers): ItemInfoData {
-    let value = match (item.value) {
-        case StringItem(text) => OptionValueData.AsSValue(text)
-        case IntItem(n) => OptionValueData.AsIValue(IntValueData(val: n))
-        case BoolItem(flag) => OptionValueData.AsBValue(BoolValueData(val: flag))
-        case TokensItem(text) => OptionValueData.AsTValue(TokensValueData(val: macroTokens(text.text, numbers,
-            PositionData(fileId: 1, line: 1, column: 1))))
-    }
+    let value =
+        match (item.value) {
+            case StringItem(text) => OptionValueData.AsSValue(text)
+            case IntItem(n) => OptionValueData.AsIValue(IntValueData(val: n))
+            case BoolItem(flag) => OptionValueData.AsBValue(BoolValueData(val: flag))
+            case TokensItem(text) =>
+                OptionValueData
+                    .AsTValue(
+                        TokensValueData(
+                            val: macroTokens(
+                                text.text,
+                                numbers,
+                                PositionData(fileId: 1, line: 1, column: 1)
+                            )
+                        )
+                    )
+        }
     ItemInfoData(key: item.key, value: value)
 }

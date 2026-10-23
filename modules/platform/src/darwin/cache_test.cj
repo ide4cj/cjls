@@ -1,4 +1,4 @@
-features { user.platform.posix, os.darwin }
+features {user.platform.posix, os.darwin}
 package platform
 
 import std.collection.HashMap
@@ -8,7 +8,7 @@ import std.unittest.testmacro.*
 
 func cacheEnvOf(vars: Array<(String, String)>): (String) -> ?String {
     let map = HashMap<String, String>(vars)
-    {name => map.get(name)}
+    { name => map.get(name) }
 }
 
 @Test

@@ -12,7 +12,7 @@ private let RESULT = FjName("result")
 private let ERROR = FjName("error")
 
 /** No method's params read in place: they all stay bytes. */
-let NO_PARAMS_READER: (String) -> Option<(FjReader) -> Any> = {_ => None}
+let NO_PARAMS_READER: (String) -> Option<(FjReader) -> Any> = { _ => None }
 
 /**
  * One message. JSON-RPC has no discriminator field, so the shape is the discriminator: `id`,
@@ -43,7 +43,10 @@ public enum Body <: ToJson & FromJson<Body> {
      * @throws RpcException - if the protocol invariants are not met
      * @throws FjException - if the JSON is not a message's
      */
-    public static func read(r: FjReader, paramsReader: (String) -> Option<(FjReader) -> Any>): (Body, ?Any) {
+    public static func read(
+        r: FjReader,
+        paramsReader: (String) -> Option<(FjReader) -> Any>
+    ): (Body, ?Any) {
         var version: ?String = None
         var id: ?Nullable<RequestId> = None
         var method: ?String = None
@@ -55,21 +58,23 @@ public enum Body <: ToJson & FromJson<Body> {
         r.beginObject()
         while (r.nextKey()) {
             if (r.keyIs("jsonrpc")) {
-                version = match (r.peekKind()) {
-                    case FjKind.FjString => r.readString()
-                    case _ =>
-                        r.skipValue()
-                        ""
-                }
+                version =
+                    match (r.peekKind()) {
+                        case FjKind.FjString => r.readString()
+                        case _ =>
+                            r.skipValue()
+                            ""
+                    }
             } else if (r.keyIs("id")) {
                 id = Nullable<RequestId>.fromJson(r)
             } else if (r.keyIs("method")) {
                 method = r.readString()
             } else if (r.keyIs("params")) {
-                let reader = match (method) {
-                    case Some(name) => paramsReader(name)
-                    case None => Option<(FjReader) -> Any>.None
-                }
+                let reader =
+                    match (method) {
+                        case Some(name) => paramsReader(name)
+                        case None => Option<(FjReader) -> Any>.None
+                    }
                 match (reader) {
                     case Some(readInPlace) =>
                         let mark = r.mark()
@@ -95,20 +100,44 @@ public enum Body <: ToJson & FromJson<Body> {
         if (version != Some("2.0")) {
             throw RpcException(ErrorCode.INVALID_REQUEST, "invalid \"jsonrpc\" field value")
         }
-        let someId = id ?? return (Notification(
-            NotificationBody(method ?? throw missingField("Notification", "method"), params: params)), decoded)
-        let body = match ((result, error)) {
-            case (Some(_), Some(_)) => throw RpcException(ErrorCode.INVALID_REQUEST,
-                "a response carries both \"result\" and \"error\"")
-            case (Some(value), None) => Response(ResponseBody(someId, Result(value)))
-            case (None, Some(err)) => Response(ResponseBody(someId, ResultOrError.Error(err)))
-            case _ =>
-                let requestId = match (someId) {
-                    case Value(value) => value
-                    case Null => throw RpcException(ErrorCode.INVALID_REQUEST, "a request's \"id\" is null")
-                }
-                Request(RequestBody(requestId, method ?? throw missingField("Request", "method"), params: params))
-        }
+        let someId =
+            id ??
+                return (
+                    Notification(
+                        NotificationBody(
+                            method ?? throw missingField("Notification", "method"),
+                            params: params
+                        )
+                    ),
+                    decoded
+                )
+        let body =
+            match ((result, error)) {
+                case (Some(_), Some(_)) =>
+                    throw RpcException(
+                        ErrorCode.INVALID_REQUEST,
+                        "a response carries both \"result\" and \"error\""
+                    )
+                case (Some(value), None) => Response(ResponseBody(someId, Result(value)))
+                case (None, Some(err)) => Response(ResponseBody(someId, ResultOrError.Error(err)))
+                case _ =>
+                    let requestId =
+                        match (someId) {
+                            case Value(value) => value
+                            case Null =>
+                                throw RpcException(
+                                    ErrorCode.INVALID_REQUEST,
+                                    "a request's \"id\" is null"
+                                )
+                        }
+                    Request(
+                        RequestBody(
+                            requestId,
+                            method ?? throw missingField("Request", "method"),
+                            params: params
+                        )
+                    )
+            }
         (body, decoded)
     }
 
@@ -171,7 +200,11 @@ private func paramsOf(r: FjReader): ?RawJson {
         case FjKind.FjNull =>
             r.readNull()
             None
-        case _ => throw RpcException(ErrorCode.INVALID_REQUEST, "\"params\" has to be an array or an object")
+        case _ =>
+            throw RpcException(
+                ErrorCode.INVALID_REQUEST,
+                "\"params\" has to be an array or an object"
+            )
     }
 }
 
@@ -203,7 +236,10 @@ public struct ResponseBody <: ToJson {
     /**
      * @param id - `Null` when the request it answers could not be read far enough to have one
      */
-    public ResponseBody(public let id: Nullable<RequestId>, public let resultOrError: ResultOrError) {}
+    public ResponseBody(
+        public let id: Nullable<RequestId>,
+        public let resultOrError: ResultOrError
+    ) {}
 
     public func enveloped(): Body {
         Response(this)

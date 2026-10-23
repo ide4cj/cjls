@@ -21,7 +21,7 @@ import project_model.findProject
  * build as `package: not built: why`; sorted.
  */
 func gateFindings(root: VfsPath): Array<String> {
-    let load = findProject(root, env: {name => getVariable(name)})
+    let load = findProject(root, env: { name => getVariable(name) })
     let db = AnalysisDatabase()
     let vfs = Vfs()
     db.setProject(load.model, vfs.paths, binaries: readCjoFiles(load.model.cjoFiles()).files)
@@ -29,33 +29,48 @@ func gateFindings(root: VfsPath): Array<String> {
         vfs.setFileContents(path, text)
     }
     db.applyChanges(vfs, vfs.takeChanges())
-    let files = load.model.files() |> filterMap {path: VfsPath => vfs.paths.lookup(path).flatMap {id => db.sourceFile(id)}} |>
-        collectArray
+    let files =
+        load.model.files() |>
+            filterMap {
+                path: VfsPath =>
+                vfs.paths.lookup(path).flatMap { id => db.sourceFile(id) }
+            } |>
+            collectArray
 
     let paths = testSdkPaths()
     let toolchain = SdkToolchain(paths)
     let version = toolchain.version().getOrThrow()
     let out = Directory.createTemp(getTempDirectory()).join("macro-build")
-    let built = buildPlan(db, macroBuildPlan(db), {_ => out}, version, toolchain)
+    let built = buildPlan(db, macroBuildPlan(db), { _ => out }, version, toolchain)
     let found = ArrayList<String>()
     let libraries = HashMap<Package, MacroLibrary>()
     for ((pkg, result) in built.libraries) {
         match (result) {
             case Built(library, stamp) => libraries[pkg] = MacroLibrary(library.toString(), stamp)
-            case NotBuilt(reason) => found.add("${pkg.name(db)}: not built: ${reason.split("\n")[0]}")
+            case NotBuilt(reason) =>
+                found.add("${pkg.name(db)}: not built: ${reason.split("\n")[0]}")
         }
     }
-    db.batch {
-        for ((pkg, library) in libraries) {
-            pkg.setMacroLibrary(db).to(library.stamp)
+    db
+        .batch {
+            for ((pkg, library) in libraries) {
+                pkg.setMacroLibrary(db).to(library.stamp)
+            }
         }
-    }
 
     let servers = MacroServers(paths, Duration.minute, NoopLogger())
     try {
         while (true) {
-            let requests = sendableRequests(db, files, libraries,
-                stdLibrary: {pkg => paths.stdMacroLibrary(pkg).map {path => path.toString()}})
+            let requests =
+                sendableRequests(
+                    db,
+                    files,
+                    libraries,
+                    stdLibrary: {
+                        pkg =>
+                        paths.stdMacroLibrary(pkg).map { path => path.toString() }
+                    }
+                )
             if (requests.isEmpty()) {
                 break
             }
@@ -72,7 +87,10 @@ func gateFindings(root: VfsPath): Array<String> {
         }
         // a call that failed has its diagnostic; one never sent has nothing to show it
         for (call in serverCalls(db, file) where macroOutputOf(db, call.call).isNone()) {
-            let line = macroCallHeadOf(db, call.call).map {head => "${text[..head[1].start].count("\n") + 1}"} ?? "?"
+            let line =
+                macroCallHeadOf(db, call.call)
+                    .map { head => "${text[..head[1].start].count("\n") + 1}" } ??
+                    "?"
             found.add("${name}:${line}: @${call.definition.name} never sent")
         }
     }

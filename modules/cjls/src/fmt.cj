@@ -22,7 +22,7 @@ func formatPaths(
     check: Bool,
     out: OutputStream,
     err: OutputStream,
-    write!: (Path, Array<Byte>) -> Unit = {path, bytes => File.writeTo(path, bytes)}
+    write!: (Path, Array<Byte>) -> Unit = { path, bytes => File.writeTo(path, bytes) }
 ): Int64 {
     var failed = false
     for (path in paths where !exists(path)) {
@@ -53,19 +53,23 @@ func formatPaths(
     }
     out.flush()
     err.flush()
-    if (failed) { 1 } else { 0 }
+    if (failed) {
+        1
+    } else {
+        0
+    }
 }
 
 /**
  * The files at `paths`, a directory's read as the server reads it, in the order of their paths.
  */
 func sourcesAt(paths: Array<Path>): Array<(VfsPath, Rope)> {
-    let directories = paths.filter {path => isDirectory(path)}.map {path => VfsPath.file(path)}
-    let files = paths.filter {path => !isDirectory(path)}.map {path => VfsPath.file(path)}
+    let directories = paths.filter { path => isDirectory(path) }.map { path => VfsPath.file(path) }
+    let files = paths.filter { path => !isDirectory(path) }.map { path => VfsPath.file(path) }
     let read = ArrayList<(VfsPath, Rope)>(readRoots(directories).files)
     read.add(all: readFiles(files).files)
     let sources = read.toArray()
-    sort(sources, by: {a, b => a[0].toString().compare(b[0].toString())})
+    sort(sources, by: { a, b => a[0].toString().compare(b[0].toString()) })
     sources
 }
 

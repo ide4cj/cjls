@@ -14,8 +14,13 @@ import cjls.server.*
  * A cjpm module `app`, with the packages `app` and `app.util`.
  */
 func appModule(): Path {
-    workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "package app\nmain() {}"),
-        ("src/util/u.cj", "package app.util")])
+    workspaceOf(
+        [
+            ("cjpm.toml", "[package]\nname = \"app\"\n"),
+            ("src/main.cj", "package app\nmain() {}"),
+            ("src/util/u.cj", "package app.util")
+        ]
+    )
 }
 
 /**
@@ -33,8 +38,19 @@ func editableWith(root: Path, versioned!: Bool = false, loaded!: Bool = true): L
 }
 
 func openBlank(loop: Loop, client: Client, path: Path, text!: String = "\n"): Unit {
-    handleDidOpen(loop, client, NoopLogger(), DidOpenTextDocumentParams(
-        textDocument: TextDocumentItem(uri: uriOf(path), languageId: LanguageKind("cangjie"), version: 3, text: text)))
+    handleDidOpen(
+        loop,
+        client,
+        NoopLogger(),
+        DidOpenTextDocumentParams(
+            textDocument: TextDocumentItem(
+                uri: uriOf(path),
+                languageId: LanguageKind("cangjie"),
+                version: 3,
+                text: text
+            )
+        )
+    )
 }
 
 /**
@@ -152,10 +168,19 @@ class NewFilePackageTest {
         openBlank(loop, client, path)
 
         // act
-        handleDidChange(loop.state, NoopLogger(), DidChangeTextDocumentParams(
-            textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
-            contentChanges: [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
-                TextDocumentContentChangeWholeDocument(text: "class A {}"))]))
+        handleDidChange(
+            loop.state,
+            NoopLogger(),
+            DidChangeTextDocumentParams(
+                textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
+                contentChanges: [
+                    TextDocumentContentChangeEvent
+                        .AsTextDocumentContentChangeWholeDocument(
+                            TextDocumentContentChangeWholeDocument(text: "class A {}")
+                        )
+                ]
+            )
+        )
         load(loop, client, NoopLogger(), request)
         client.close()
         remove(root, recursive: true)
@@ -176,10 +201,19 @@ class NewFilePackageTest {
         openBlank(loop, client, path)
 
         // act: a line typed and taken back, or Neovim's change of a line it is about to type on
-        handleDidChange(loop.state, NoopLogger(), DidChangeTextDocumentParams(
-            textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
-            contentChanges: [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
-                TextDocumentContentChangeWholeDocument(text: "\n\n"))]))
+        handleDidChange(
+            loop.state,
+            NoopLogger(),
+            DidChangeTextDocumentParams(
+                textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
+                contentChanges: [
+                    TextDocumentContentChangeEvent
+                        .AsTextDocumentContentChangeWholeDocument(
+                            TextDocumentContentChangeWholeDocument(text: "\n\n")
+                        )
+                ]
+            )
+        )
         load(loop, client, NoopLogger(), request)
         client.close()
         remove(root, recursive: true)

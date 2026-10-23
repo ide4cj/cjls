@@ -10,7 +10,8 @@ import std.unittest.testmacro.*
  * `cjpm bench '--filter=FtomlBench*'`
  */
 
-let MANIFEST: Array<Byte> = #"
+let MANIFEST: Array<Byte> =
+    #"
 [package]
 cjc-version = "1.3.0"
 name = "demo"
@@ -48,22 +49,33 @@ path-option = ["${CANGJIE_STDX_PATH}"]
 no-color = false
 timeout-each = "4m"
 parallel = 8
-"#.toArray()
+"#
+        .toArray()
 
-let LARGE: Array<Byte> = {
-    =>
-    let sb = StringBuilder()
-    var i = 0
-    while (sb.size < 1024 * 1024) {
-        sb.append("[[server]]\nname = \"server-${i}\"\nhost = \"10.0.${i % 256}.${i / 256 % 256}\"\n")
-        sb.append("ports = [ 8000, 8001, 8002 ]\nweight = ${i}.25\nenabled = ${i % 2 == 0}\n")
-        sb.append("started = 1979-05-27T07:32:00.${i % 1000}Z\nlabels = { zone = \"eu-${i % 3}\", tier = 'gold' }\n")
-        sb.append("description = \"\"\"\nA server named \\\"${i}\\\", with a note\tthat spans\nlines.\"\"\"\n\n")
-        sb.append("[server.limits]\ncpu = 0x2A\nmemory = 1_024\n\n")
-        i++
-    }
-    sb.toString().toArray()
-}()
+let LARGE: Array<Byte> =
+    {
+        =>
+        let sb = StringBuilder()
+        var i = 0
+        while (sb.size < 1024 * 1024) {
+            sb
+                .append(
+                    "[[server]]\nname = \"server-${i}\"\nhost = \"10.0.${i % 256}.${i / 256 % 256}\"\n"
+                )
+            sb.append("ports = [ 8000, 8001, 8002 ]\nweight = ${i}.25\nenabled = ${i % 2 == 0}\n")
+            sb
+                .append(
+                    "started = 1979-05-27T07:32:00.${i % 1000}Z\nlabels = { zone = \"eu-${i % 3}\", tier = 'gold' }\n"
+                )
+            sb
+                .append(
+                    "description = \"\"\"\nA server named \\\"${i}\\\", with a note\tthat spans\nlines.\"\"\"\n\n"
+                )
+            sb.append("[server.limits]\ncpu = 0x2A\nmemory = 1_024\n\n")
+            i++
+        }
+        sb.toString().toArray()
+    }()
 
 let MANIFEST_DOCUMENT: FtDocument = parseToml(MANIFEST)
 

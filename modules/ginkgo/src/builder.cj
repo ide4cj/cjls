@@ -48,7 +48,8 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
         let start = parentStarts[last]
         parentKinds.remove(at: last)
         parentStarts.remove(at: last)
-        let nodeChildren = Array<GreenElement<K>>(children.size - start) {i => children[start + i]}
+        let nodeChildren =
+            Array<GreenElement<K>>(children.size - start) { i => children[start + i] }
         children.remove(start..children.size)
         children.add(GreenElement.Node(cache.node(kind, nodeChildren)))
     }
@@ -69,8 +70,13 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
         if (checkpoint.depth != parentKinds.size) {
             throw IllegalStateException("startNodeAt a checkpoint taken at another depth")
         }
-        if (checkpoint.childIndex > children.size ||
-            (!parentStarts.isEmpty() && checkpoint.childIndex < parentStarts[parentStarts.size - 1])) {
+        if (
+            checkpoint.childIndex > children.size ||
+                (
+                    !parentStarts.isEmpty() &&
+                        checkpoint.childIndex < parentStarts[parentStarts.size - 1]
+                )
+        ) {
             throw IllegalStateException("startNodeAt a checkpoint outside the open node")
         }
         parentKinds.add(kind)
@@ -88,11 +94,14 @@ public class GreenNodeBuilder<K> where K <: Kind<K> {
             throw IllegalStateException("finish with ${parentKinds.size} node(s) still open")
         }
         if (children.size != 1) {
-            throw IllegalStateException("finish with ${children.size} root elements instead of one node")
+            throw IllegalStateException(
+                "finish with ${children.size} root elements instead of one node"
+            )
         }
         match (children[0]) {
             case GreenElement.Node(node) => node
-            case GreenElement.Token(_) => throw IllegalStateException("finish with a token at the root")
+            case GreenElement.Token(_) =>
+                throw IllegalStateException("finish with a token at the root")
         }
     }
 }

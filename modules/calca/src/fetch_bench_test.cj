@@ -13,14 +13,17 @@ func benchWords(db: TestDb, file: SourceFile): Int64 {
     file.text(db).split(" ").size
 }
 
-let FETCH_BENCH_DB = {=>
-    let db = TestDatabase()
-    let files = Array<SourceFile>(FETCH_BENCH_FILES) {i => SourceFile(db, "${i}.cj", "text of ${i}")}
-    for (file in files) {
-        benchWords(db, file)
-    }
-    (db, files)
-}()
+let FETCH_BENCH_DB =
+    {
+        =>
+        let db = TestDatabase()
+        let files =
+            Array<SourceFile>(FETCH_BENCH_FILES) { i => SourceFile(db, "${i}.cj", "text of ${i}") }
+        for (file in files) {
+            benchWords(db, file)
+        }
+        (db, files)
+    }()
 
 /**
  * Every file's memo once, on `db`: all of them hit.
@@ -49,14 +52,13 @@ class ParallelFetchBench {
     @Bench
     func severalSnapshotsAtOnce(): Int64 {
         let (db, files) = FETCH_BENCH_DB
-        let readers = Array(FETCH_BENCH_READERS) {
-            _ =>
-            let snapshot = db.snapshot()
-            spawn {
-                fetchEveryFile(snapshot, files)
+        let readers =
+            Array(FETCH_BENCH_READERS) {
+                _ =>
+                let snapshot = db.snapshot()
+                spawn { fetchEveryFile(snapshot, files) }
             }
-        }
-        readers.iterator().fold(0) {sum, reader => sum + reader.get()}
+        readers.iterator().fold(0) { sum, reader => sum + reader.get() }
     }
 
     /**
@@ -69,9 +71,7 @@ class ParallelFetchBench {
         var sum = 0
         for (_ in 0..FETCH_BENCH_READERS) {
             let snapshot = db.snapshot()
-            sum += spawn {
-                fetchEveryFile(snapshot, files)
-            }.get()
+            sum += spawn { fetchEveryFile(snapshot, files) }.get()
         }
         sum
     }

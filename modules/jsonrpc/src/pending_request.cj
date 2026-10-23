@@ -38,7 +38,7 @@ public struct PendingRequest<R> where R <: FromJson<R> {
         abandon()
 
         // the answer may have landed between the timeout and `abandon`; nothing can after it
-        slot.tryRemove().map {resultOrError => decode(resultOrError)}
+        slot.tryRemove().map { resultOrError => decode(resultOrError) }
     }
 
     /**

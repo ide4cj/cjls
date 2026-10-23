@@ -13,11 +13,13 @@ import loupe.syntax.parse
  */
 public func macroCallOf(db: AnalysisDatabase, file: SourceFile, key: MacroCallKey): ?MacroCallId {
     let ids = itemIdMap(db, file)
-    let item = (ids.all |> filter {id: ItemId => id.toString() == key.item} |> first) ?? return None
+    let item =
+        (ids.all |> filter { id: ItemId => id.toString() == key.item } |> first) ?? return None
     if (let Some(name) <- key.inBody) {
-        let there = bodyMacroCalls(db, file).iterator().any {
-            one => one.item == item && one.name == name && one.index == key.index
-        }
+        let there =
+            bodyMacroCalls(db, file)
+                .iterator()
+                .any { one => one.item == item && one.name == name && one.index == key.index }
         if (!there) {
             return None
         }
@@ -35,30 +37,45 @@ public func macroCallOf(db: AnalysisDatabase, file: SourceFile, key: MacroCallKe
  * included, and that head: one in an item (`bodyMacroCalls`, D117), else one on an item or on a parameter of one
  * (D119); `None` off any head.
  */
-public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64): ?(MacroCallId, TextRange) {
+public func macroCallUnder(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    offset: Int64
+): ?(MacroCallId, TextRange) {
     if (let Some(inItem) <- bodyCallUnder(db, file, offset)) {
         return inItem
     }
     let root = parse(db, file).syntaxNode()
-    let tokens = match (root.tokenAtOffset(offset)) {
-        case Single(token) => [token]
-        case Between(left, right) => [right, left]
-        case _ => return None
-    }
+    let tokens =
+        match (root.tokenAtOffset(offset)) {
+            case Single(token) => [token]
+            case Between(left, right) => [right, left]
+            case _ => return None
+        }
     for (token in tokens) {
-        let call = (token.parent.ancestors() |> filterMap {node: CjSyntaxNode => MacroExpandDecl.cast(node)} |> filter {
-            one: MacroExpandDecl => headOf(one).containsInclusive(offset)
-        } |> first) ?? continue
+        let call =
+            (
+                token.parent.ancestors() |>
+                    filterMap { node: CjSyntaxNode => MacroExpandDecl.cast(node) } |>
+                    filter { one: MacroExpandDecl => headOf(one).containsInclusive(offset) } |>
+                    first
+            ) ??
+                continue
         // the item: the declaration under every call on it, or the innermost call on no declaration; for a call on a
         // parameter, the declaration whose parameter list holds it
         var node = call.syntax
-        while (let Some(decl) <- MacroExpandDecl.cast(node).flatMap {one => one.decl()}) {
+        while (let Some(decl) <- MacroExpandDecl.cast(node).flatMap { one => one.decl() }) {
             node = decl.syntax
         }
         let ids = itemIdMap(db, file)
-        if (MacroExpandDecl.cast(node).flatMap {one => one.param()}.isSome()) {
-            node = (node.ancestors() |> filter {one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one)).isSome()} |> first) ??
-                return None
+        if (MacroExpandDecl.cast(node).flatMap { one => one.param() }.isSome()) {
+            node =
+                (
+                    node.ancestors() |>
+                        filter { one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one)).isSome() } |>
+                        first
+                ) ??
+                    return None
         }
         let item = ids.idOf(SyntaxNodePtr(node)) ?? return None
         let index = macroCallIndexOf(node, call) ?? return None
@@ -71,14 +88,19 @@ public func macroCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64
  * The outermost macro call of each item of `file` around `offset` that has any, the innermost item first, and its
  * head; none of an item `offset` is in a body of (a `Block`, of the item or of a member) unless `inBody`.
  */
-public func macroCallsAround(db: AnalysisDatabase, file: SourceFile, offset: Int64, inBody: Bool): Array<(MacroCallId,
-    TextRange)> {
+public func macroCallsAround(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    offset: Int64,
+    inBody: Bool
+): Array<(MacroCallId, TextRange)> {
     let root = parse(db, file).syntaxNode()
-    let token = match (root.tokenAtOffset(offset)) {
-        case Single(token) => token
-        case Between(_, right) => right
-        case _ => return []
-    }
+    let token =
+        match (root.tokenAtOffset(offset)) {
+            case Single(token) => token
+            case Between(_, right) => right
+            case _ => return []
+        }
     let ids = itemIdMap(db, file)
     let found = ArrayList<(MacroCallId, TextRange)>()
     var inBlock = false
@@ -86,12 +108,15 @@ public func macroCallsAround(db: AnalysisDatabase, file: SourceFile, offset: Int
         inBlock = inBlock || node.kind == SyntaxKind.Block
         // the item: the declaration under every call on it
         var decl = node
-        while (let Some(inner) <- MacroExpandDecl.cast(decl).flatMap {one => one.decl()}) {
+        while (let Some(inner) <- MacroExpandDecl.cast(decl).flatMap { one => one.decl() }) {
             decl = inner.syntax
         }
         let item = ids.idOf(SyntaxNodePtr(decl)) ?? continue
         let calls = macroCallsOf(decl)
-        if (calls.isEmpty() || (inBlock && !inBody) || found.iterator().any {one => one[0].item(db) == item}) {
+        if (
+            calls.isEmpty() || (inBlock && !inBody) ||
+                found.iterator().any { one => one[0].item(db) == item }
+        ) {
             continue
         }
         found.add((MacroCallId(db, file, item, 0, None), headOf(calls[0])))
@@ -110,7 +135,8 @@ public func declarationUnder(db: AnalysisDatabase, call: MacroCallId): ?String {
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
     let macroCall = macroCallAt(node, call.index(db)) ?? return None
-    macroCall.decl().map {decl => decl.syntax.toString()} ?? macroCall.param().map {param => param.syntax.toString()}
+    macroCall.decl().map { decl => decl.syntax.toString() } ??
+        macroCall.param().map { param => param.syntax.toString() }
 }
 
 /**
@@ -134,7 +160,7 @@ public func macroCallHeadOf(db: AnalysisDatabase, call: MacroCallId): ?(String, 
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
     let macroCall = macroCallAt(node, call.index(db)) ?? return None
-    let names = macroCall.nameRefs() |> map {name => name.text()} |> collectArray
+    let names = macroCall.nameRefs() |> map { name => name.text() } |> collectArray
     ("@" + String.join(names, delimiter: "."), headOf(macroCall))
 }
 
@@ -147,24 +173,38 @@ public func macroCallHeadOf(db: AnalysisDatabase, call: MacroCallId): ?(String, 
 public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
     let file = call.file(db)
     if (call.inBody(db).isSome()) {
-        if (serverCalls(db, file).iterator().any {one => one.call == call}) {
+        if (serverCalls(db, file).iterator().any { one => one.call == call }) {
             return call
         }
         return None
     }
     let expanded = expandedCalls(db, file)
     let item = call.item(db)
-    let top = (itemTree(db, file).items |> filter {
-        one: Item => one.id == item || one.members.iterator().any {member => member.id == item}
-    } |> map {one: Item => one.id} |> first) ?? return None
-    let read = (serverCalls(db, file) |> filter {one: ServerCall => one.read && one.top == top} |>
-        map {one: ServerCall => one.call} |> first).flatMap {
-            one: MacroCallId => if (item != top || call.index(db) >= one.index(db)) {
-                Some(one)
-            } else {
-                None<MacroCallId>
+    let top =
+        (
+            itemTree(db, file).items |>
+                filter {
+                    one: Item =>
+                    one.id == item || one.members.iterator().any { member => member.id == item }
+                } |>
+                map { one: Item => one.id } |>
+                first
+        ) ??
+            return None
+    let read =
+        (
+            serverCalls(db, file) |> filter { one: ServerCall => one.read && one.top == top } |>
+                map { one: ServerCall => one.call } |>
+                first
+        )
+            .flatMap {
+                one: MacroCallId =>
+                if (item != top || call.index(db) >= one.index(db)) {
+                    Some(one)
+                } else {
+                    None<MacroCallId>
+                }
             }
-        }
     match (read) {
         case Some(one) where expanded.contains(one) => one
         case _ where expanded.contains(call) => call
@@ -178,8 +218,9 @@ public func readCallOf(db: AnalysisDatabase, call: MacroCallId): ?MacroCallId {
  */
 func anchorOfCall(db: AnalysisDatabase, call: MacroCallId): ?Int64 {
     let file = call.file(db)
-    let top = (serverCalls(db, file) |> filter {one: ServerCall => one.call == call} |> first)?.top ??
-        return None
+    let top =
+        (serverCalls(db, file) |> filter { one: ServerCall => one.call == call } |> first)?.top ??
+            return None
     anchorOf(itemIdMap(db, file), parse(db, file).syntaxNode(), top)
 }
 
@@ -203,7 +244,11 @@ public func sourceRangeOf(db: AnalysisDatabase, call: MacroCallId, range: TextRa
  * origin meets it to the last, the part copied of a span copied whole; what a call nested in its input added comes
  * from that call's head. `None` if none does, and for an expansion of std's macro.
  */
-public func expansionRangeOf(db: AnalysisDatabase, call: MacroCallId, range: TextRange): ?TextRange {
+public func expansionRangeOf(
+    db: AnalysisDatabase,
+    call: MacroCallId,
+    range: TextRange
+): ?TextRange {
     let expansion = macroExpansion(db, call)
     if (expansion.spans.isEmpty()) {
         return None
@@ -211,20 +256,25 @@ public func expansionRangeOf(db: AnalysisDatabase, call: MacroCallId, range: Tex
     let wanted = range.shift(-(anchorOfCall(db, call) ?? return None))
     var found: ?TextRange = None
     for (span in expansion.spans) {
-        let source = match (span.origin) {
-            case FromSource(source) => source
-            case FromCall => continue
-        }
+        let source =
+            match (span.origin) {
+                case FromSource(source) => source
+                case FromCall => continue
+            }
         let common = source.intersect(wanted) ?? continue
         if (common.isEmpty() && !(source.isEmpty() || wanted.isEmpty())) {
             continue
         }
-        let part = if (source.len == span.range.len) {
-            TextRange(span.range.start + common.start - source.start, span.range.start + common.end - source.start)
-        } else {
-            span.range
-        }
-        found = found.map {one => one.cover(part)} ?? part
+        let part =
+            if (source.len == span.range.len) {
+                TextRange(
+                    span.range.start + common.start - source.start,
+                    span.range.start + common.end - source.start
+                )
+            } else {
+                span.range
+            }
+        found = found.map { one => one.cover(part) } ?? part
     }
     found
 }

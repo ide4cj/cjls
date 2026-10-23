@@ -14,9 +14,11 @@ import loupe.db.Cfg
 struct SourceSet {
     SourceSet(
         let name!: ?String = None,
-        @Serde[rename: "src-dir"] let srcDir!: String,
+        @Serde[rename: "src-dir"]
+        let srcDir!: String,
         // not `features`: cjc 1.3.0-alpha.20261002 drops a field of that name from `@DeriveExt`'s input (a CJMP keyword)
-        @Serde[rename: "features"] let featureNames!: ?Array<String> = None
+        @Serde[rename: "features"]
+        let featureNames!: ?Array<String> = None
     ) {}
 
     /**
@@ -36,10 +38,7 @@ struct SourceSet {
  */
 @DeriveExt[FromToml]
 struct Feature {
-    Feature(
-        let name!: ?String = None,
-        let mapping!: ?Array<String> = None
-    ) {}
+    Feature(let name!: ?String = None, let mapping!: ?Array<String> = None) {}
 }
 
 /**
@@ -72,7 +71,11 @@ func hostFeature(cfg: Cfg): ?String {
  * `always` (`[package] always-enabled-features`), and those `features` maps each enabled one to,
  * in turn; in the order of their names.
  */
-func enabledFeatures(features: Array<Feature>, cfg: Cfg, always!: Array<String> = []): Array<String> {
+func enabledFeatures(
+    features: Array<Feature>,
+    cfg: Cfg,
+    always!: Array<String> = []
+): Array<String> {
     let enabled = HashSet<String>(always)
     if (let Some(host) <- hostFeature(cfg)) {
         enabled.add(host)
@@ -80,7 +83,9 @@ func enabledFeatures(features: Array<Feature>, cfg: Cfg, always!: Array<String> 
     var grown = true
     while (grown) {
         grown = false
-        for (feature in features where feature.name.map {name => enabled.contains(name)} ?? false) {
+        for (
+            feature in features where feature.name.map { name => enabled.contains(name) } ?? false
+        ) {
             for (mapped in feature.mapping ?? [] where enabled.add(mapped)) {
                 grown = true
             }
@@ -97,43 +102,71 @@ func enabledFeatures(features: Array<Feature>, cfg: Cfg, always!: Array<String> 
  * those of the one before it and more. A set the target enables that is not on the chain is left
  * out, and told: cjpm rejects a build of it.
  */
-func sourceSetChain(sets: Array<SourceSet>, features: Array<Feature>, cfg: Cfg, always!: Array<String> = []): SourceSetChain {
+func sourceSetChain(
+    sets: Array<SourceSet>,
+    features: Array<Feature>,
+    cfg: Cfg,
+    always!: Array<String> = []
+): SourceSetChain {
     let enabled = enabledFeatures(features, cfg, always: always)
     let taken = ArrayList<SourceSet>()
     let left = ArrayList<(SourceSet, String)>()
     for (set in sets) {
-        let missing = (set.featureNames ?? []).filter {feature => !enabled.contains(feature)}
+        let missing = (set.featureNames ?? []).filter { feature => !enabled.contains(feature) }
         if (missing.isEmpty()) {
             taken.add(set)
         } else {
-            let target = if (enabled.isEmpty()) {
-                "none"
-            } else {
-                String.join(enabled, delimiter: ", ")
-            }
-            left.add((set,
-                "source set `${set.label}` needs ${String.join(missing, delimiter: ", ")}, which the target does not enable (it enables ${target})"))
+            let target =
+                if (enabled.isEmpty()) {
+                    "none"
+                } else {
+                    String.join(enabled, delimiter: ", ")
+                }
+            left
+                .add(
+                    (
+                        set,
+                        "source set `${set.label}` needs ${String.join(missing, delimiter: ", ")}, which the target does not enable (it enables ${target})"
+                    )
+                )
         }
     }
     let ordered = taken.toArray()
-    sort(ordered, stable: true, by: {a: SourceSet, b: SourceSet => (a.featureNames ?? []).size.compare((b.featureNames ?? []).size)})
+    sort(
+        ordered,
+        stable: true,
+        by: {
+            a: SourceSet, b: SourceSet =>
+            (a.featureNames ?? []).size.compare((b.featureNames ?? []).size)
+        }
+    )
     let chain = ArrayList<SourceSet>()
     let problems = ArrayList<String>()
     for (set in ordered) {
         let own = set.featureNames ?? []
-        let extends = if (chain.isEmpty()) {
-            true
-        } else {
-            let parent = chain[chain.size - 1].featureNames ?? []
-            own.size > parent.size && parent.iterator().all {feature => own.contains(feature)}
-        }
+        let extends =
+            if (chain.isEmpty()) {
+                true
+            } else {
+                let parent = chain[chain.size - 1].featureNames ?? []
+                own.size > parent.size && parent.iterator().all { feature => own.contains(feature) }
+            }
         if (extends) {
             chain.add(set)
         } else {
-            let names = String.join(chain.toArray().map {one => "`${one.label}`"}, delimiter: ", ")
-            left.add((set, "source set `${set.label}` is not on the chain of ${names} the target takes"))
-            problems.add(
-                "source set `${set.label}` is left out: cjpm cannot compile multiple source sets without common parent source set")
+            let names =
+                String.join(chain.toArray().map { one => "`${one.label}`" }, delimiter: ", ")
+            left
+                .add(
+                    (
+                        set,
+                        "source set `${set.label}` is not on the chain of ${names} the target takes"
+                    )
+                )
+            problems
+                .add(
+                    "source set `${set.label}` is left out: cjpm cannot compile multiple source sets without common parent source set"
+                )
         }
     }
     SourceSetChain(chain.toArray(), left.toArray(), problems.toArray())

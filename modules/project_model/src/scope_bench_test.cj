@@ -28,7 +28,7 @@ class BenchWorkspace {
 
     init() {
         let root = workspaceRoot()
-        let load = findProject(root, env: {name => getVariable(name)})
+        let load = findProject(root, env: { name => getVariable(name) })
         let vfs = Vfs()
         paths = vfs.paths
         let binaries = readCjoFiles(load.model.cjoFiles())
@@ -72,7 +72,18 @@ class BenchWorkspace {
             let imports = importsOf(db, pkg, file)
             let ctorImports = ctorImportsOf(db, pkg, file)
             for (name in names) {
-                if (lookUpIn(db, defs, ItemFile.Source(file), imports, name, Namespace.Values, ctorImports: ctorImports) != Resolution.NotFound) {
+                if (
+                    lookUpIn(
+                        db,
+                        defs,
+                        ItemFile.Source(file),
+                        imports,
+                        name,
+                        Namespace.Values,
+                        ctorImports: ctorImports
+                    ) !=
+                        Resolution.NotFound
+                ) {
                     found++
                 }
             }
@@ -94,7 +105,7 @@ class BenchWorkspace {
         }
         var best: ?(Package, Int64) = None
         for ((pkg, count) in counts) {
-            if (best.map {it => it[1] < count} ?? true) {
+            if (best.map { it => it[1] < count } ?? true) {
                 best = (pkg, count)
             }
         }
@@ -113,7 +124,8 @@ func workspaceRoot(): VfsPath {
         if (exists(manifest) && String.fromUtf8(File.readFrom(manifest)).contains("[workspace]")) {
             return dir
         }
-        dir = dir.parent ?? throw IllegalStateException("no workspace above ${getWorkingDirectory()}")
+        dir =
+            dir.parent ?? throw IllegalStateException("no workspace above ${getWorkingDirectory()}")
     }
     throw IllegalStateException("unreachable")
 }
@@ -142,11 +154,12 @@ func toggle(ws: BenchWorkspace): Unit {
     let file = ws.db.sourceFile(fileId).getOrThrow()
     let text = file.text(ws.db).toString()
     let added = "\npublic func scopeBenchAdded() {}\n"
-    let next = if (toggled) {
-        text.replace(added, "")
-    } else {
-        text + added
-    }
+    let next =
+        if (toggled) {
+            text.replace(added, "")
+        } else {
+            text + added
+        }
     toggled = !toggled
     ws.db.setFileText(fileId, Rope(next))
 }

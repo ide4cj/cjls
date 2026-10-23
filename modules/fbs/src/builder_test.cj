@@ -140,7 +140,7 @@ class FbBuilderTest {
     func aBufferThatGrowsKeepsWhatWasWritten(): Unit {
         // arrange
         let b = FbBuilder(capacity: 16)
-        let words = Array<String>(100) {i => "word ${i}"}
+        let words = Array<String>(100) { i => "word ${i}" }
 
         // act
         let vector = b.createStringVector(words)

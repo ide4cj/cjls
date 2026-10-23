@@ -10,54 +10,73 @@ import std.unittest.testmacro.*
  * cjc's number of each token kind by its name, as std.ast numbers them (`getTokenKind`). std.ast
  * tells a single-quoted string from a double-quoted one, which cjc's numbering and the wire do not.
  */
-let KIND_NUMBERS: HashMap<String, UInt8> = {
-    =>
-    let numbers = HashMap<String, UInt8>()
-    for (n in 0..256) {
-        try {
-            numbers.addIfAbsent(getTokenKind(UInt16(n)).toString(), UInt8(n))
-        } catch (_: Exception) {
-            ()
+let KIND_NUMBERS: HashMap<String, UInt8> =
+    {
+        =>
+        let numbers = HashMap<String, UInt8>()
+        for (n in 0..256) {
+            try {
+                numbers.addIfAbsent(getTokenKind(UInt16(n)).toString(), UInt8(n))
+            } catch (_: Exception) {
+                ()
+            }
         }
-    }
-    numbers.add("SINGLE_QUOTED_STRING_LITERAL", numbers["STRING_LITERAL"])
-    numbers
-}()
+        numbers.add("SINGLE_QUOTED_STRING_LITERAL", numbers["STRING_LITERAL"])
+        numbers
+    }()
 
 /**
  * The numbers of the SDK the tests run on.
  */
 func sdkNumbers(): TokenNumbers {
-    TokenNumbers.read(sdkPaths().tokensInc) ?? throw IllegalStateException("the SDK's Tokens.inc is not usable")
+    TokenNumbers.read(sdkPaths().tokensInc) ??
+        throw IllegalStateException("the SDK's Tokens.inc is not usable")
 }
 
 /**
  * A token as the tests compare them: its kind's number, where it starts, its `#`s and its value.
  */
-func described(kind: UInt8, line: Int32, column: Int32, delimiterNum: UInt32, value: String): String {
+func described(
+    kind: UInt8,
+    line: Int32,
+    column: Int32,
+    delimiterNum: UInt32,
+    value: String
+): String {
     "${kind} ${line}:${column} #${delimiterNum} |${value}|"
 }
 
 func describedOurs(text: String, numbers: TokenNumbers): Array<String> {
-    macroTokens(text, numbers, PositionData(fileId: 1, line: 1, column: 1)).map {
-        t =>
-        let begin = t.begin.getOrThrow()
-        described(t.kind, begin.line, begin.column, t.delimiterNum, t.value ?? "")
-    }
+    macroTokens(text, numbers, PositionData(fileId: 1, line: 1, column: 1))
+        .map {
+            t =>
+            let begin = t.begin.getOrThrow()
+            described(t.kind, begin.line, begin.column, t.delimiterNum, t.value ?? "")
+        }
 }
 
 /**
  * The tokens cjc's lexer makes of `text` but its comments, or `None` if it rejects `text`.
  */
 func describedCjcs(text: String): ?Array<String> {
-    let tokens = try {
-        cangjieLex(text)
-    } catch (_: Exception) {
-        return None
-    }
+    let tokens =
+        try {
+            cangjieLex(text)
+        } catch (_: Exception) {
+            return None
+        }
     let cjcs = ArrayList<String>()
     for (t in tokens where t.kind.toString() != "COMMENT") {
-        cjcs.add(described(KIND_NUMBERS[t.kind.toString()], t.pos.line, t.pos.column, UInt32(t.delimiterNum), t.value))
+        cjcs
+            .add(
+                described(
+                    KIND_NUMBERS[t.kind.toString()],
+                    t.pos.line,
+                    t.pos.column,
+                    UInt32(t.delimiterNum),
+                    t.value
+                )
+            )
     }
     cjcs.toArray()
 }
@@ -67,8 +86,18 @@ func describedCjcs(text: String): ?Array<String> {
  */
 func firstDifference(ours: Array<String>, cjcs: Array<String>): ?String {
     for (i in 0..max(ours.size, cjcs.size)) {
-        let a = if (i < ours.size) { ours[i] } else { "(none)" }
-        let b = if (i < cjcs.size) { cjcs[i] } else { "(none)" }
+        let a =
+            if (i < ours.size) {
+                ours[i]
+            } else {
+                "(none)"
+            }
+        let b =
+            if (i < cjcs.size) {
+                cjcs[i]
+            } else {
+                "(none)"
+            }
         if (a != b) {
             return "token ${i}: ours ${a}, cjc's ${b}"
         }
@@ -105,7 +134,10 @@ class TokenNumbersTest {
     @TestCase
     func cjlssOwnTableNumbersTheKindsAsTheSdksTokensIncDoes(): Unit {
         // act: the pinned nightly's, whatever its version (D104)
-        let numbers = TokenNumbers.builtin("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)").getOrThrow()
+        let numbers =
+            TokenNumbers
+                .builtin("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)")
+                .getOrThrow()
 
         // assert
         @Expect(numbers.names, sdkNumbers().names)
@@ -114,7 +146,10 @@ class TokenNumbersTest {
     @TestCase
     func a1Point0SdkHasTheFirstKindsAndItsIllegalAndReadsTheKeywordsItLacksAsIdentifiers(): Unit {
         // act: as cangjie_compiler's v1.0.5 numbers them
-        let numbers = TokenNumbers.builtin("Cangjie Compiler: 1.0.5 (cjnative)\nTarget: x86_64-unknown-linux-gnu").getOrThrow()
+        let numbers =
+            TokenNumbers
+                .builtin("Cangjie Compiler: 1.0.5 (cjnative)\nTarget: x86_64-unknown-linux-gnu")
+                .getOrThrow()
 
         // assert
         @Expect(numbers.names.size, 157)
@@ -182,7 +217,8 @@ class MacroTokensTest {
         let tokens = macroTokens("ab cd\nef", numbers, PositionData(fileId: 7, line: 3, column: 5))
 
         // assert
-        let placed = {p: ?PositionData => p.map {q => "${q.fileId} ${q.line}:${q.column}"} ?? ""}
+        let placed =
+            { p: ?PositionData => p.map { q => "${q.fileId} ${q.line}:${q.column}" } ?? "" }
         @Expect(tokens.map {t => placed(t.begin)}, ["7 3:5", "7 3:8", "7 3:10", "7 4:1"])
         @Expect(placed(tokens[1].end), "7 3:10")
     }
@@ -195,7 +231,9 @@ class MacroTokensTest {
         // arrange
         let std = Path(".corpora/cangjie_runtime/stdlib")
         if (!exists(std)) {
-            throw IllegalStateException("cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+            throw IllegalStateException(
+                "cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`"
+            )
         }
         let files = ArrayList<Path>()
         cjFilesUnder(Path("modules"), files)

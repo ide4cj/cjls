@@ -8,10 +8,20 @@ import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 
-func completionOf(state: ServerState, path: Path, line: UInt32, character: UInt32): Array<CompletionItem> {
-    let answer = handleCompletion(state.snapshot(),
-        CompletionParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-            position: Position(line: line, character: character)))
+func completionOf(
+    state: ServerState,
+    path: Path,
+    line: UInt32,
+    character: UInt32
+): Array<CompletionItem> {
+    let answer =
+        handleCompletion(
+            state.snapshot(),
+            CompletionParams(
+                textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+                position: Position(line: line, character: character)
+            )
+        )
     match (answer) {
         case Nullable.Value(CompletionItemsOrCompletionList.AsCompletionList(list)) =>
             @Assert(!list.isIncomplete)
@@ -25,15 +35,18 @@ func completionOf(state: ServerState, path: Path, line: UInt32, character: UInt3
  * An item as `label kind sortText range`.
  */
 func summaryOf(item: CompletionItem): String {
-    let range = match (item.textEdit) {
-        case Some(TextEditOrInsertReplaceEdit.AsTextEdit(edit)) => "${at(edit.range.start)}-${at(edit.range.end)}"
-        case _ => "no edit"
-    }
-    let kind = match (item.kind) {
-        case Some(CompletionItemKind.Function) => "function"
-        case Some(CompletionItemKind.Variable) => "variable"
-        case _ => "other"
-    }
+    let range =
+        match (item.textEdit) {
+            case Some(TextEditOrInsertReplaceEdit.AsTextEdit(edit)) =>
+                "${at(edit.range.start)}-${at(edit.range.end)}"
+            case _ => "no edit"
+        }
+    let kind =
+        match (item.kind) {
+            case Some(CompletionItemKind.Function) => "function"
+            case Some(CompletionItemKind.Variable) => "variable"
+            case _ => "other"
+        }
     "${item.label} ${kind} ${item.sortText ?? "-"} ${range}"
 }
 
@@ -46,7 +59,8 @@ func itemNamed(items: Array<CompletionItem>, label: String): CompletionItem {
 
 @Test
 class CompletionHandlerTest {
-    let file = "struct Point {\n    /** How far right. */\n    public let x: Int64 = 1\n    public func norm(): Int64 { x }\n}\nfunc f() {\n    let p = Point()\n    p.n\n}\n"
+    let file =
+        "struct Point {\n    /** How far right. */\n    public let x: Int64 = 1\n    public func norm(): Int64 { x }\n}\nfunc f() {\n    let p = Point()\n    p.n\n}\n"
 
     @TestCase
     func aDotListsTheMembersReplacingTheNameTypedInTheirOrder() {
@@ -123,8 +137,16 @@ class CompletionHandlerTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null, capabilities: capabilities))
+        handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
+            )
+        )
 
         // assert
         @Expect(state.completionMarkdown, markdown)

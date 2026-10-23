@@ -17,23 +17,25 @@ class FakeToolchain <: Toolchain {
 
     public func compile(arguments: Array<String>): (Int64, String) {
         calls.add(arguments)
-        let dir = arguments.iterator().filter {a => a.startsWith("--output-dir=")}.next().getOrThrow()
+        let dir =
+            arguments.iterator().filter { a => a.startsWith("--output-dir=") }.next().getOrThrow()
         let out = Path(dir["--output-dir=".size..])
         let name = Path(arguments[1]).fileName
         if (failing.contains(name)) {
             return (1, "error: ${name} does not compile")
         }
-        let file = if (arguments.contains("--compile-macro")) {
-            "lib-macro_m.${name}${sharedLibrarySuffix()}"
-        } else {
-            "libm.${name}.a"
-        }
+        let file =
+            if (arguments.contains("--compile-macro")) {
+                "lib-macro_m.${name}${sharedLibrarySuffix()}"
+            } else {
+                "libm.${name}.a"
+            }
         File.writeTo(out.join(file), [])
         (0, "")
     }
 
     func names(): Array<String> {
-        calls.toArray().map {call => Path(call[1]).fileName}
+        calls.toArray().map { call => Path(call[1]).fileName }
     }
 }
 
@@ -44,13 +46,17 @@ func sources(names: Array<String>): (Path, Path) {
     let root = Directory.createTemp(getTempDirectory())
     for (name in names) {
         Directory.create(root.join("src").join(name), recursive: true)
-        File.writeTo(root.join("src").join(name).join("${name}.cj"), "package m.${name}\n".toArray())
+        File
+            .writeTo(
+                root.join("src").join(name).join("${name}.cj"),
+                "package m.${name}\n".toArray()
+            )
     }
     (root.join("src"), root.join("macro-build"))
 }
 
 func unit(src: Path, name: String, isMacro!: Bool = false, deps!: Array<String> = []): BuildUnit {
-    BuildUnit("m.${name}", "m", src.join(name), isMacro, deps.map {dep => ("m", "m.${dep}")}, [])
+    BuildUnit("m.${name}", "m", src.join(name), isMacro, deps.map { dep => ("m", "m.${dep}") }, [])
 }
 
 @Test
@@ -63,7 +69,10 @@ class MacroBuilderTest {
         let builder = MacroBuilder(out, "cjc 1", toolchain)
 
         // act
-        let built = builder.build([unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])]).getOrThrow()
+        let built =
+            builder
+                .build([unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])])
+                .getOrThrow()
 
         // assert
         @Expect(toolchain.names(), ["util", "ms"])
@@ -73,7 +82,8 @@ class MacroBuilderTest {
             "--output-dir=${out.join("m")}", "-L", out.join("m").toString(), "-lm.util", "--compile-macro"])
         @Expect(built.size, 1)
         match (built.get("m.ms")) {
-            case Some(Built(library, _)) => @Expect(library, out.join("m").join("lib-macro_m.ms${sharedLibrarySuffix()}"))
+            case Some(Built(library, _)) =>
+                @Expect(library, out.join("m").join("lib-macro_m.ms${sharedLibrarySuffix()}"))
             case _ => @Fail("m.ms was not built")
         }
     }
@@ -133,13 +143,16 @@ class MacroBuilderTest {
         let toolchain = FakeToolchain(failing: ["util"])
 
         // act
-        let built = MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "util"),
-            unit(src, "ms", isMacro: true, deps: ["util"])]).getOrThrow()
+        let built =
+            MacroBuilder(out, "cjc 1", toolchain)
+                .build([unit(src, "util"), unit(src, "ms", isMacro: true, deps: ["util"])])
+                .getOrThrow()
 
         // assert
         @Expect(toolchain.names(), ["util"])
         match (built.get("m.ms")) {
-            case Some(NotBuilt(reason)) => @Expect(reason, "m.util, which it imports, did not build")
+            case Some(NotBuilt(reason)) =>
+                @Expect(reason, "m.util, which it imports, did not build")
             case _ => @Fail("m.ms was built")
         }
     }
@@ -152,11 +165,12 @@ class MacroBuilderTest {
         let held = tryLockCacheDir(out).getOrThrow()
 
         // act
-        let built = try {
-            MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "ms", isMacro: true)])
-        } finally {
-            held.close()
-        }
+        let built =
+            try {
+                MacroBuilder(out, "cjc 1", toolchain).build([unit(src, "ms", isMacro: true)])
+            } finally {
+                held.close()
+            }
 
         // assert
         @Expect(built.isNone())

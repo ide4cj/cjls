@@ -1,4 +1,4 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 import std.fs.Path

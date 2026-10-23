@@ -14,21 +14,22 @@ class FtWriterTest {
     @TestCase
     func plainKeysGoOnTheirLinesAndTablesUnderHeaders() {
         // act
-        let text = writtenBy {
-            w =>
-            w.beginTable()
-            w.key("name")
-            w.string("demo")
-            w.key("dependencies")
-            w.beginTable()
-            w.key("fjson")
-            w.beginTable()
-            w.key("path")
-            w.string("../fjson")
-            w.endTable()
-            w.endTable()
-            w.endTable()
-        }
+        let text =
+            writtenBy {
+                w =>
+                w.beginTable()
+                w.key("name")
+                w.string("demo")
+                w.key("dependencies")
+                w.beginTable()
+                w.key("fjson")
+                w.beginTable()
+                w.key("path")
+                w.string("../fjson")
+                w.endTable()
+                w.endTable()
+                w.endTable()
+            }
 
         // assert
         @Expect(text, "name = \"demo\"\n\n[dependencies]\n\n[dependencies.fjson]\npath = \"../fjson\"\n")
@@ -37,20 +38,21 @@ class FtWriterTest {
     @TestCase
     func anArrayOfTablesIsAHeaderPerTable() {
         // act
-        let text = writtenBy {
-            w =>
-            w.beginTable()
-            w.key("bin")
-            w.beginTableArray()
-            for (name in ["a", "b"]) {
+        let text =
+            writtenBy {
+                w =>
                 w.beginTable()
-                w.key("name")
-                w.string(name)
+                w.key("bin")
+                w.beginTableArray()
+                for (name in ["a", "b"]) {
+                    w.beginTable()
+                    w.key("name")
+                    w.string(name)
+                    w.endTable()
+                }
+                w.endTableArray()
                 w.endTable()
             }
-            w.endTableArray()
-            w.endTable()
-        }
 
         // assert
         @Expect(text, "[[bin]]\nname = \"a\"\n\n[[bin]]\nname = \"b\"\n")
@@ -59,24 +61,25 @@ class FtWriterTest {
     @TestCase
     func insideAValueTablesAreInline() {
         // act
-        let text = writtenBy {
-            w =>
-            w.beginTable()
-            w.key("points")
-            w.beginArray()
-            w.beginTable()
-            w.key("x")
-            w.int64(1)
-            w.key("tags")
-            w.beginTableArray()
-            w.beginTable()
-            w.endTable()
-            w.endTableArray()
-            w.endTable()
-            w.float64(2.0)
-            w.endArray()
-            w.endTable()
-        }
+        let text =
+            writtenBy {
+                w =>
+                w.beginTable()
+                w.key("points")
+                w.beginArray()
+                w.beginTable()
+                w.key("x")
+                w.int64(1)
+                w.key("tags")
+                w.beginTableArray()
+                w.beginTable()
+                w.endTable()
+                w.endTableArray()
+                w.endTable()
+                w.float64(2.0)
+                w.endArray()
+                w.endTable()
+            }
 
         // assert
         @Expect(text, "points = [{x = 1, tags = [{}]}, 2.0]\n")
@@ -85,20 +88,21 @@ class FtWriterTest {
     @TestCase
     func aKeyIsQuotedOnlyWhenItHasToBe() {
         // act
-        let text = writtenBy {
-            w =>
-            w.beginTable()
-            w.key("bare-key_1")
-            w.bool(true)
-            w.key("a.b")
-            w.bool(false)
-            w.key("")
-            w.int64(0)
-            w.key("t t")
-            w.beginTable()
-            w.endTable()
-            w.endTable()
-        }
+        let text =
+            writtenBy {
+                w =>
+                w.beginTable()
+                w.key("bare-key_1")
+                w.bool(true)
+                w.key("a.b")
+                w.bool(false)
+                w.key("")
+                w.int64(0)
+                w.key("t t")
+                w.beginTable()
+                w.endTable()
+                w.endTable()
+            }
 
         // assert
         @Expect(text, "bare-key_1 = true\n\"a.b\" = false\n\"\" = 0\n\n[\"t t\"]\n")
@@ -107,13 +111,14 @@ class FtWriterTest {
     @TestCase
     func stringsEscapeControlCharactersAsTomlOneOneDoes() {
         // act
-        let text = writtenBy {
-            w =>
-            w.beginTable()
-            w.key("s")
-            w.string("q\" b\\ \t\n\u{1B}\u{7F} é")
-            w.endTable()
-        }
+        let text =
+            writtenBy {
+                w =>
+                w.beginTable()
+                w.key("s")
+                w.string("q\" b\\ \t\n\u{1B}\u{7F} é")
+                w.endTable()
+            }
 
         // assert
         @Expect(text, #"s = "q\" b\\ \t\n\e\x7F é""# + "\n")
@@ -122,17 +127,18 @@ class FtWriterTest {
     @TestCase
     func floatsAreShortestAndSpelledAsTomlSpellsThem() {
         // act
-        let text = writtenBy {
-            w =>
-            w.beginTable()
-            w.key("a")
-            w.beginArray()
-            for (v in [0.1, 100.0, 1e30, Float64.Inf, -Float64.Inf, Float64.NaN]) {
-                w.float64(v)
+        let text =
+            writtenBy {
+                w =>
+                w.beginTable()
+                w.key("a")
+                w.beginArray()
+                for (v in [0.1, 100.0, 1e30, Float64.Inf, -Float64.Inf, Float64.NaN]) {
+                    w.float64(v)
+                }
+                w.endArray()
+                w.endTable()
             }
-            w.endArray()
-            w.endTable()
-        }
 
         // assert
         @Expect(text, "a = [0.1, 100.0, 1e30, inf, -inf, nan]\n")
@@ -174,7 +180,8 @@ class FtWriterTest {
     @TestCase
     func whatIsWrittenReadsBackEqual() {
         // arrange
-        let text = "s = \"x\"\nd = 1979-05-27T07:32:00Z\nl = 07:32:00.5\n[a.\"b c\"]\nz = [1, [2.5, \"w\"]]\n[[a.q]]\n[[a.q]]\nk = true\n"
+        let text =
+            "s = \"x\"\nd = 1979-05-27T07:32:00Z\nl = 07:32:00.5\n[a.\"b c\"]\nz = [1, [2.5, \"w\"]]\n[[a.q]]\n[[a.q]]\nk = true\n"
 
         // act
         let written = toTomlString(parseToml(text).root)

@@ -86,7 +86,7 @@ func structureOfTree(tree: CjParse): Array<StructureNode> {
  * The outline of `decls`; `inType` when they are a type's members.
  */
 private func structureOf(decls: Iterator<Decl>, inType: Bool): Array<StructureNode> {
-    decls |> flatMap {decl: Decl => declarationsOf(decl, inType)} |> collectArray
+    decls |> flatMap { decl: Decl => declarationsOf(decl, inType) } |> collectArray
 }
 
 private func declarationsOf(decl: Decl, inType: Bool): Array<StructureNode> {
@@ -97,7 +97,13 @@ private func declarationsOf(decl: Decl, inType: Bool): Array<StructureNode> {
         case Decl.AsInitDecl(it) => byKeyword(decl, "init", kind, it.initToken())
         case Decl.AsFinalizerDecl(it) => byKeyword(decl, "~init", kind, it.initToken())
         case Decl.AsVarDecl(it) => variables(it, kind)
-        case _ => named(decl, AnyHasName.cast(decl.syntax).flatMap {it => it.name()}, kind, members(decl))
+        case _ =>
+            named(
+                decl,
+                AnyHasName.cast(decl.syntax).flatMap { it => it.name() },
+                kind,
+                members(decl)
+            )
     }
 }
 
@@ -113,24 +119,26 @@ func declarationKind(decl: Decl, inType: Bool): ?StructureKind {
         case Decl.AsEnumDecl(_) => StructureKind.Enum
         case Decl.AsEnumCtor(_) => StructureKind.EnumConstructor
         case Decl.AsExtendDecl(_) => StructureKind.Extension
-        case Decl.AsFuncDecl(_) => if (inType) {
-            StructureKind.Method
-        } else {
-            StructureKind.Function
-        }
+        case Decl.AsFuncDecl(_) =>
+            if (inType) {
+                StructureKind.Method
+            } else {
+                StructureKind.Function
+            }
         case Decl.AsMacroDecl(_) => StructureKind.Macro
         case Decl.AsPrimaryInitDecl(_) | Decl.AsInitDecl(_) => StructureKind.Constructor
         case Decl.AsPropDecl(_) => StructureKind.Property
         case Decl.AsTypeAliasDecl(_) => StructureKind.TypeAlias
         case Decl.AsMainDecl(_) => StructureKind.Main
         case Decl.AsFinalizerDecl(_) => StructureKind.Finalizer
-        case Decl.AsVarDecl(it) => if (it.modifiers()?.isConst() ?? false) {
-            StructureKind.Constant
-        } else if (inType) {
-            StructureKind.Field
-        } else {
-            StructureKind.Variable
-        }
+        case Decl.AsVarDecl(it) =>
+            if (it.modifiers()?.isConst() ?? false) {
+                StructureKind.Constant
+            } else if (inType) {
+                StructureKind.Field
+            } else {
+                StructureKind.Variable
+            }
         case Decl.AsMacroExpandDecl(_) | Decl.AsForeignBlock(_) => None
     }
 }
@@ -140,10 +148,11 @@ func declarationKind(decl: Decl, inType: Bool): ?StructureKind {
  */
 private func declaredIn(decl: Decl, inType: Bool): Array<StructureNode> {
     match (decl) {
-        case Decl.AsMacroExpandDecl(it) => match (it.decl()) {
-            case Some(inner) => declarationsOf(inner, inType)
-            case None => []
-        }
+        case Decl.AsMacroExpandDecl(it) =>
+            match (it.decl()) {
+                case Some(inner) => declarationsOf(inner, inType)
+                case None => []
+            }
         case Decl.AsForeignBlock(it) => structureOf(it.decls(), inType)
         case _ => []
     }
@@ -152,10 +161,23 @@ private func declaredIn(decl: Decl, inType: Bool): Array<StructureNode> {
 /**
  * A declaration named by its `Name`; none if it has none yet, as while it is being typed.
  */
-private func named(decl: Decl, name: ?Name, kind: StructureKind, children: Array<StructureNode>): Array<StructureNode> {
+private func named(
+    decl: Decl,
+    name: ?Name,
+    kind: StructureKind,
+    children: Array<StructureNode>
+): Array<StructureNode> {
     match (name) {
-        case Some(name) => [StructureNode(name.text(), kind, decl.syntax.textRange, name.syntax.textRange,
-            children)]
+        case Some(name) =>
+            [
+                StructureNode(
+                    name.text(),
+                    kind,
+                    decl.syntax.textRange,
+                    name.syntax.textRange,
+                    children
+                )
+            ]
         case None => []
     }
 }
@@ -163,7 +185,12 @@ private func named(decl: Decl, name: ?Name, kind: StructureKind, children: Array
 /**
  * `main`, `init`, `~init`: named by a keyword, which is what is selected.
  */
-private func byKeyword(decl: Decl, name: String, kind: StructureKind, keyword: ?CjSyntaxToken): Array<StructureNode> {
+private func byKeyword(
+    decl: Decl,
+    name: String,
+    kind: StructureKind,
+    keyword: ?CjSyntaxToken
+): Array<StructureNode> {
     match (keyword) {
         case Some(token) => [StructureNode(name, kind, decl.syntax.textRange, token.textRange, [])]
         case None => []
@@ -175,11 +202,20 @@ private func byKeyword(decl: Decl, name: String, kind: StructureKind, keyword: ?
  */
 private func extension(decl: ExtendDecl): Array<StructureNode> {
     let ty = decl.ty() ?? return []
-    let members = match (decl.declBody()) {
-        case Some(body) => structureOf(body.decls(), true)
-        case None => Array<StructureNode>()
-    }
-    [StructureNode(unquotedText(ty.syntax), StructureKind.Extension, decl.syntax.textRange, ty.syntax.textRange, members)]
+    let members =
+        match (decl.declBody()) {
+            case Some(body) => structureOf(body.decls(), true)
+            case None => Array<StructureNode>()
+        }
+    [
+        StructureNode(
+            unquotedText(ty.syntax),
+            StructureKind.Extension,
+            decl.syntax.textRange,
+            ty.syntax.textRange,
+            members
+        )
+    ]
 }
 
 /**
@@ -205,7 +241,12 @@ private func variables(decl: VarDecl, kind: StructureKind): Array<StructureNode>
         case (None, Some(pattern)) => collectBindings(pattern, names)
         case _ => ()
     }
-    names.toArray().map {name => StructureNode(name.text(), kind, decl.syntax.textRange, name.syntax.textRange, [])}
+    names
+        .toArray()
+        .map {
+            name =>
+            StructureNode(name.text(), kind, decl.syntax.textRange, name.syntax.textRange, [])
+        }
 }
 
 /**
@@ -213,18 +254,22 @@ private func variables(decl: VarDecl, kind: StructureKind): Array<StructureNode>
  */
 private func collectBindings(pattern: Pattern, names: ArrayList<Name>): Unit {
     match (pattern) {
-        case Pattern.AsBindPat(it) => if (let Some(name) <- it.name()) {
-            names.add(name)
-        }
-        case Pattern.AsTypePat(it) => if (let Some(name) <- it.name()) {
-            names.add(name)
-        }
-        case Pattern.AsTuplePat(it) => for (inner in it.patterns()) {
-            collectBindings(inner, names)
-        }
-        case Pattern.AsEnumPat(it) => for (inner in it.patterns()) {
-            collectBindings(inner, names)
-        }
+        case Pattern.AsBindPat(it) =>
+            if (let Some(name) <- it.name()) {
+                names.add(name)
+            }
+        case Pattern.AsTypePat(it) =>
+            if (let Some(name) <- it.name()) {
+                names.add(name)
+            }
+        case Pattern.AsTuplePat(it) =>
+            for (inner in it.patterns()) {
+                collectBindings(inner, names)
+            }
+        case Pattern.AsEnumPat(it) =>
+            for (inner in it.patterns()) {
+                collectBindings(inner, names)
+            }
         case Pattern.AsWildcardPat(_) | Pattern.AsLiteralPat(_) => ()
     }
 }
@@ -233,12 +278,13 @@ private func collectBindings(pattern: Pattern, names: ArrayList<Name>): Unit {
  * A type's members; none for what is no type, or while it has no body.
  */
 private func members(decl: Decl): Array<StructureNode> {
-    let decls = match (decl) {
-        case Decl.AsClassDecl(it) => it.declBody()?.decls()
-        case Decl.AsInterfaceDecl(it) => it.declBody()?.decls()
-        case Decl.AsStructDecl(it) => it.declBody()?.decls()
-        case Decl.AsEnumDecl(it) => it.enumBody()?.decls()
-        case _ => None<Iterator<Decl>>
-    }
+    let decls =
+        match (decl) {
+            case Decl.AsClassDecl(it) => it.declBody()?.decls()
+            case Decl.AsInterfaceDecl(it) => it.declBody()?.decls()
+            case Decl.AsStructDecl(it) => it.declBody()?.decls()
+            case Decl.AsEnumDecl(it) => it.enumBody()?.decls()
+            case _ => None<Iterator<Decl>>
+        }
     structureOf(decls ?? return [], true)
 }

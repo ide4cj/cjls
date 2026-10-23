@@ -12,12 +12,13 @@ import cjls.handlers.router
 
 main(args: Array<String>): Int64 {
     let logger = stderrLogger()
-    let command = try {
-        parseCommand(args)
-    } catch (e: ArgumentParseException) {
-        getStdErr().write("cjls: ${e.message}\n${USAGE}")
-        return 2
-    }
+    let command =
+        try {
+            parseCommand(args)
+        } catch (e: ArgumentParseException) {
+            getStdErr().write("cjls: ${e.message}\n${USAGE}")
+            return 2
+        }
     try {
         match (command) {
             case Serve => runServer(logger)
@@ -52,13 +53,19 @@ func runServer(logger: Logger): Int64 {
     // stdout is the wire: nothing else may write to it
     let state = ServerState()
     // the parameters are an error type to loupe, expected in an `Option` of their function type (#453)
-    state.startsMacros = {
-        loop, logger =>
-        let host = MacroHost(loop, logger)
-        host.start()
-        host
-    }
-    let exitCode = serve(FramedJsonRpcTransport(StdinStream(), getStdOut(), logger), router().withState(state), logger)
+    state.startsMacros =
+        {
+            loop, logger =>
+            let host = MacroHost(loop, logger)
+            host.start()
+            host
+        }
+    let exitCode =
+        serve(
+            FramedJsonRpcTransport(StdinStream(), getStdOut(), logger),
+            router().withState(state),
+            logger
+        )
     logger.info("stopped", [("exitCode", exitCode)])
     exitCode
 }

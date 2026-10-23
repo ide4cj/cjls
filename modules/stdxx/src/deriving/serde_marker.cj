@@ -56,15 +56,17 @@ public macro Serde(attrs: Tokens, input: Tokens): Tokens {
     let position = beginMarker(attrs, input)
 
     match (parseExpr(quote(dummy($attrs)))) {
-        case call: CallExpr => for (argument in call.arguments) {
-            applyOption(argument, position)
-        }
-        case _ => diagReport(
-            DiagReportLevel.ERROR,
-            attrs,
-            "`@Serde` takes named options",
-            "e.g. `@Serde[rename: \"textDocument\", skipNone]`"
-        )
+        case call: CallExpr =>
+            for (argument in call.arguments) {
+                applyOption(argument, position)
+            }
+        case _ =>
+            diagReport(
+                DiagReportLevel.ERROR,
+                attrs,
+                "`@Serde` takes named options",
+                "e.g. `@Serde[rename: \"textDocument\", skipNone]`"
+            )
     }
 
     input
@@ -109,12 +111,13 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
             if (expected(argument, position, [OnVariant], isFlag, false)) {
                 setPayloadOption(argument, value)
             }
-        case _ => diagReport(
-            DiagReportLevel.ERROR,
-            tokens,
-            "`@Serde` has no option `${name}`",
-            "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other"
-        )
+        case _ =>
+            diagReport(
+                DiagReportLevel.ERROR,
+                tokens,
+                "`@Serde` has no option `${name}`",
+                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other"
+            )
     }
 }
 
@@ -132,7 +135,7 @@ private func expected(
     let tokens = argument.toTokens()
     let name = tokens[0].value
 
-    let names = positions.map {allowed => allowed.name}
+    let names = positions.map { allowed => allowed.name }
     if (!names.contains(position.name)) {
         diagReport(
             DiagReportLevel.ERROR,
@@ -144,11 +147,12 @@ private func expected(
     }
 
     if (isFlag != wantsFlag) {
-        let (spelling, hint) = if (wantsFlag) {
-            ("`${name}` is a flag", "spell it `${name}`, with no value")
-        } else {
-            ("`${name}` needs a value", "spell it `${name}: ...`")
-        }
+        let (spelling, hint) =
+            if (wantsFlag) {
+                ("`${name}` is a flag", "spell it `${name}`, with no value")
+            } else {
+                ("`${name}` needs a value", "spell it `${name}: ...`")
+            }
         diagReport(DiagReportLevel.ERROR, tokens, spelling, hint)
         return false
     }
@@ -181,12 +185,13 @@ private func setWireValueOption(argument: Argument, value: Tokens): Unit {
         case Some(text) =>
             setItem(ITEM_VALUE, text)
             setItem(ITEM_VALUE_IS_INTEGER, "true")
-        case None => diagReport(
-            DiagReportLevel.ERROR,
-            argument.toTokens(),
-            "`value` takes a string or an integer literal",
-            "e.g. `value: \"URI\"`, `value: 1` or `value: -32700`"
-        )
+        case None =>
+            diagReport(
+                DiagReportLevel.ERROR,
+                argument.toTokens(),
+                "`value` takes a string or an integer literal",
+                "e.g. `value: \"URI\"`, `value: 1` or `value: -32700`"
+            )
     }
 }
 
@@ -198,7 +203,10 @@ private func integerTextOf(tokens: Tokens): ?String {
     if (tokens.size == 1 && tokens[0].kind == TokenKind.INTEGER_LITERAL) {
         return tokens[0].value
     }
-    if (tokens.size == 2 && tokens[0].kind == TokenKind.SUB && tokens[1].kind == TokenKind.INTEGER_LITERAL) {
+    if (
+        tokens.size == 2 && tokens[0].kind == TokenKind.SUB &&
+            tokens[1].kind == TokenKind.INTEGER_LITERAL
+    ) {
         return "-${tokens[1].value}"
     }
 
@@ -206,8 +214,10 @@ private func integerTextOf(tokens: Tokens): ?String {
 }
 
 private func setPayloadOption(argument: Argument, value: Tokens): Unit {
-    let names = value |> filter {token: Token => token.kind == TokenKind.STRING_LITERAL} |>
-        map {token: Token => token.value} |> collectArray
+    let names =
+        value |> filter { token: Token => token.kind == TokenKind.STRING_LITERAL } |>
+            map { token: Token => token.value } |>
+            collectArray
 
     if (names.isEmpty()) {
         diagReport(
@@ -233,7 +243,11 @@ struct WireValue {
     WireValue(let literal!: Tokens, let text!: String, let isInteger!: Bool) {}
 
     static func ofString(value: String): WireValue {
-        WireValue(literal: Tokens(Token(TokenKind.STRING_LITERAL, value)), text: value, isInteger: false)
+        WireValue(
+            literal: Tokens(Token(TokenKind.STRING_LITERAL, value)),
+            text: value,
+            isInteger: false
+        )
     }
 
     static func of(text: String, isInteger: Bool): WireValue {
@@ -274,9 +288,17 @@ struct MarkerOptions {
  * identifier.
  */
 func serdeOptionsOf(markers: Markers): (MarkerOptions, (String) -> MarkerOptions) {
-    let typeOptions = markers.ofType(SERDE_MARKER).map {message => optionsOf(message)} ?? MarkerOptions()
+    let typeOptions =
+        markers.ofType(SERDE_MARKER).map { message => optionsOf(message) } ?? MarkerOptions()
 
-    (typeOptions, {ident => markers.ofMember(SERDE_MARKER, ident).map {message => optionsOf(message)} ?? MarkerOptions()})
+    (
+        typeOptions,
+        {
+            ident =>
+            markers.ofMember(SERDE_MARKER, ident).map { message => optionsOf(message) } ??
+                MarkerOptions()
+        }
+    )
 }
 
 private func optionsOf(message: MacroMessage): MarkerOptions {
@@ -286,10 +308,12 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
         tag: stringItemOf(message, ITEM_TAG),
         transparent: message.hasItem(ITEM_TRANSPARENT),
         untagged: message.hasItem(ITEM_UNTAGGED),
-        value: stringItemOf(message, ITEM_VALUE).map {
-            value => WireValue.of(value, message.getString(ITEM_VALUE_IS_INTEGER) == "true")
-        },
-        payload: stringItemOf(message, ITEM_PAYLOAD).map {payload => payload.split(",")} ?? [],
+        value: stringItemOf(message, ITEM_VALUE)
+            .map {
+                value =>
+                WireValue.of(value, message.getString(ITEM_VALUE_IS_INTEGER) == "true")
+            },
+        payload: stringItemOf(message, ITEM_PAYLOAD).map { payload => payload.split(",") } ?? [],
         other: message.hasItem(ITEM_OTHER)
     )
 }

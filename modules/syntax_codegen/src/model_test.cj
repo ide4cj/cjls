@@ -22,13 +22,17 @@ func kindsFile(): KindsFile {
             KindEntry(name: "Comma", text: ",")
         ],
         tokens: [KindEntry(name: "Int"), KindEntry(name: "Under", text: "_", word: true)],
-        keywords: [KindEntry(name: "IfKw", text: "if"), KindEntry(name: "ElseKw", text: "else", contextual: true),
-            KindEntry(name: "SpawnKw", text: "spawn")],
+        keywords: [
+            KindEntry(name: "IfKw", text: "if"),
+            KindEntry(name: "ElseKw", text: "else", contextual: true),
+            KindEntry(name: "SpawnKw", text: "spawn")
+        ],
         nodes: [KindEntry(name: "Error")]
     )
 }
 
-const EXPRS = """
+const EXPRS =
+    """
     E = Lit | Bin | Idx | If | Range
     Lit = 'Int'
     Bin = lhs:E op:('+' | '-') rhs:E
@@ -53,19 +57,24 @@ func bounds(start: Array<String>, end: Array<String>): String {
 }
 
 func fieldsOf(model: Model, node: String): Array<String> {
-    nodeIr(model, node).fields.map {
-        f => match (f) {
-            case NodeField(n, t, First) => "${n}: ${t} first"
-            case NodeField(n, t, Nth(i, counted)) => "${n}: ${t} #${i} of ${counted.size}"
-            case NodeField(n, t, All) => "${n}: ${t} all"
-            case NodeField(n, t, AllFrom(i, counted)) => "${n}: ${t} all after ${i} of ${counted.size}"
-            case NodeField(n, t, Between(start, end)) => "${n}: ${t}${bounds(start, end)}"
-            case NodeField(n, t, AllBetween(start, end)) => "${n}: ${t} all${bounds(start, end)}"
-            case TokenField(n, k, false) => "${n}: ${k}"
-            case TokenField(n, k, true) => "${n}: ${k} many"
-            case TokenSetField(n, ks) => "${n}: ${String.join(ks, delimiter: "|")}"
+    nodeIr(model, node)
+        .fields
+        .map {
+            f =>
+            match (f) {
+                case NodeField(n, t, First) => "${n}: ${t} first"
+                case NodeField(n, t, Nth(i, counted)) => "${n}: ${t} #${i} of ${counted.size}"
+                case NodeField(n, t, All) => "${n}: ${t} all"
+                case NodeField(n, t, AllFrom(i, counted)) =>
+                    "${n}: ${t} all after ${i} of ${counted.size}"
+                case NodeField(n, t, Between(start, end)) => "${n}: ${t}${bounds(start, end)}"
+                case NodeField(n, t, AllBetween(start, end)) =>
+                    "${n}: ${t} all${bounds(start, end)}"
+                case TokenField(n, k, false) => "${n}: ${k}"
+                case TokenField(n, k, true) => "${n}: ${k} many"
+                case TokenSetField(n, ks) => "${n}: ${String.join(ks, delimiter: "|")}"
+            }
         }
-    }
 }
 
 @Test

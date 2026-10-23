@@ -65,8 +65,12 @@ public struct TextSummary {
     }
 
     public operator func +(other: TextSummary): TextSummary {
-        TextSummary(bytes: bytes + other.bytes, utf16: utf16 + other.utf16, chars: chars + other.chars,
-            lineBreaks: lineBreaks + other.lineBreaks)
+        TextSummary(
+            bytes: bytes + other.bytes,
+            utf16: utf16 + other.utf16,
+            chars: chars + other.chars,
+            lineBreaks: lineBreaks + other.lineBreaks
+        )
     }
 }
 
@@ -85,7 +89,11 @@ func summarize(text: String, from: Int64, to: Int64): TextSummary {
         }
         if (!isContinuation(b)) {
             chars++
-            utf16 += if (b >= 0xF0) { 2 } else { 1 }
+            utf16 += if (b >= 0xF0) {
+                    2
+                } else {
+                    1
+                }
         }
     }
     TextSummary(bytes: to - from, utf16: utf16, chars: chars, lineBreaks: lineBreaks)
@@ -118,7 +126,12 @@ func charWidth(lead: Byte): Int64 {
 func charUnits(lead: Byte, encoding: Encoding): Int64 {
     match (encoding) {
         case Utf8 => charWidth(lead)
-        case Utf16 => if (lead >= 0xF0) { 2 } else { 1 }
+        case Utf16 =>
+            if (lead >= 0xF0) {
+                2
+            } else {
+                1
+            }
         case Utf32 => 1
     }
 }

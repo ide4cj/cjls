@@ -32,9 +32,16 @@ public class PrintedTokens {
 public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): PrintedTokens {
     let data = ArrayList<TokenData>(tokens.size)
     for (t in tokens) {
-        data.add(
-            TokenData(kind: t.kind, value: t.value, begin: t.begin.map(positionData), end: t.end.map(positionData),
-                delimiterNum: t.delimiterNum))
+        data
+            .add(
+                TokenData(
+                    kind: t.kind,
+                    value: t.value,
+                    begin: t.begin.map(positionData),
+                    end: t.end.map(positionData),
+                    delimiterNum: t.delimiterNum
+                )
+            )
     }
     printMacroTokens(data.toArray(), numbers)
 }
@@ -70,19 +77,44 @@ func positionData(p: Position): PositionData {
 let NO_SPACE_AFTER: HashSet<String> = HashSet<String>(["LPAREN", "LSQUARE", "NL"])
 
 /** Kinds no space needs to precede. */
-let NO_SPACE_BEFORE: HashSet<String> = HashSet<String>(["RPAREN", "RSQUARE", "COMMA", "SEMI", "LPAREN", "LSQUARE", "NL"])
+let NO_SPACE_BEFORE: HashSet<String> =
+    HashSet<String>(["RPAREN", "RSQUARE", "COMMA", "SEMI", "LPAREN", "LSQUARE", "NL"])
 
 /** Kinds a `.` right after which stays a `.` of its own: neither a number nor a `.` nor a `?`. */
-let NAME_LIKE: HashSet<String> = HashSet<String>(
-    ["IDENTIFIER", "DOLLAR_IDENTIFIER", "RPAREN", "RSQUARE", "THIS", "SUPER", "THISTYPE"])
+let NAME_LIKE: HashSet<String> =
+    HashSet<String>(
+        ["IDENTIFIER", "DOLLAR_IDENTIFIER", "RPAREN", "RSQUARE", "THIS", "SUPER", "THISTYPE"]
+    )
 
 /** Kinds a `:` right after which stays a `:` of its own: neither `<` nor `:`. */
 let BEFORE_COLON: HashSet<String> = HashSet<String>(["IDENTIFIER", "WILDCARD", "RPAREN", "RSQUARE"])
 
 /** Kinds that name a type, which a generic's `<` and `>` hold without a space. */
-let TYPE_NAMES: HashSet<String> = HashSet<String>(
-    ["IDENTIFIER", "INT8", "INT16", "INT32", "INT64", "INTNATIVE", "UINT8", "UINT16", "UINT32", "UINT64", "UINTNATIVE",
-        "FLOAT16", "FLOAT32", "FLOAT64", "RUNE", "BOOLEAN", "NOTHING", "UNIT", "THISTYPE", "VARRAY"])
+let TYPE_NAMES: HashSet<String> =
+    HashSet<String>(
+        [
+            "IDENTIFIER",
+            "INT8",
+            "INT16",
+            "INT32",
+            "INT64",
+            "INTNATIVE",
+            "UINT8",
+            "UINT16",
+            "UINT32",
+            "UINT64",
+            "UINTNATIVE",
+            "FLOAT16",
+            "FLOAT32",
+            "FLOAT64",
+            "RUNE",
+            "BOOLEAN",
+            "NOTHING",
+            "UNIT",
+            "THISTYPE",
+            "VARRAY"
+        ]
+    )
 
 class MacroTextPrinter {
     let out = StringBuilder()
@@ -115,19 +147,46 @@ class MacroTextPrinter {
         if (nameOf(token.kind) != "IDENTIFIER") {
             return [token]
         }
-        let lexed = macroTokens(token.value ?? "", numbers,
-            token.begin ?? PositionData(fileId: 0, line: 1, column: 1))
+        let lexed =
+            macroTokens(
+                token.value ?? "",
+                numbers,
+                token.begin ?? PositionData(fileId: 0, line: 1, column: 1)
+            )
         if (lexed.isEmpty()) {
             return [token]
         }
         if (lexed.size == 1) {
             let t = lexed[0]
-            return [TokenData(kind: t.kind, value: t.value, begin: token.begin, end: token.end,
-                delimiterNum: t.delimiterNum)]
+            return [
+                TokenData(
+                    kind: t.kind,
+                    value: t.value,
+                    begin: token.begin,
+                    end: token.end,
+                    delimiterNum: t.delimiterNum
+                )
+            ]
         }
-        lexed.map {t => TokenData(kind: t.kind, value: t.value,
-            begin: if (token.begin.isSome()) { t.begin } else { None },
-            end: if (token.end.isSome()) { t.end } else { None }, delimiterNum: t.delimiterNum)}
+        lexed
+            .map {
+                t =>
+                TokenData(
+                    kind: t.kind,
+                    value: t.value,
+                    begin: if (token.begin.isSome()) {
+                        t.begin
+                    } else {
+                        None
+                    },
+                    end: if (token.end.isSome()) {
+                        t.end
+                    } else {
+                        None
+                    },
+                    delimiterNum: t.delimiterNum
+                )
+            }
     }
 
     func append(piece: String): Unit {
@@ -156,8 +215,10 @@ class MacroTextPrinter {
         match ((previous, next)) {
             // The SDK accepts some numeric suffixes only immediately before a range; inserting a space
             // there can turn a lexable macro value (`1.5x..`) into a lexer error.
-            case ("INTEGER_LITERAL", "RANGEOP") | ("INTEGER_LITERAL", "CLOSEDRANGEOP") |
-                ("FLOAT_LITERAL", "RANGEOP") | ("FLOAT_LITERAL", "CLOSEDRANGEOP") => false
+            case ("INTEGER_LITERAL", "RANGEOP") |
+                ("INTEGER_LITERAL", "CLOSEDRANGEOP") |
+                ("FLOAT_LITERAL", "RANGEOP") |
+                ("FLOAT_LITERAL", "CLOSEDRANGEOP") => false
             case (_, "DOT") => !NAME_LIKE.contains(previous)
             case ("DOT", _) => next != "IDENTIFIER"
             case ("AT", _) => next != "IDENTIFIER"
@@ -172,17 +233,20 @@ class MacroTextPrinter {
     func textOf(name: String, t: TokenData): String {
         let value = t.value ?? ""
         match (name) {
-            case "NL" => if (value == "\r\n") {
-                value
-            } else {
-                "\n"
-            }
-            case "STRING_LITERAL" => quoted(name, t, ["\"${value}\"", "'${value}'"]) ?? "\"${escaped(value)}\""
+            case "NL" =>
+                if (value == "\r\n") {
+                    value
+                } else {
+                    "\n"
+                }
+            case "STRING_LITERAL" =>
+                quoted(name, t, ["\"${value}\"", "'${value}'"]) ?? "\"${escaped(value)}\""
             case "MULTILINE_STRING" =>
                 let candidates = ["\"\"\"\n${value}\"\"\"", "'''\n${value}'''"]
                 quoted(name, t, candidates) ?? candidates[0]
             case "JSTRING_LITERAL" => quoted(name, t, ["J\"${value}\""]) ?? "J\"${escaped(value)}\""
-            case "RUNE_LITERAL" => quoted(name, t, ["r'${value}'", "r\"${value}\""]) ?? "r'${value}'"
+            case "RUNE_LITERAL" =>
+                quoted(name, t, ["r'${value}'", "r\"${value}\""]) ?? "r'${value}'"
             case "MULTILINE_RAW_STRING" =>
                 let hashes = "#" * Int64(max(t.delimiterNum, 1))
                 let candidates = ["${hashes}\"${value}\"${hashes}", "${hashes}'${value}'${hashes}"]
@@ -197,8 +261,11 @@ class MacroTextPrinter {
     func quoted(name: String, t: TokenData, candidates: Array<String>): ?String {
         for (candidate in candidates) {
             let back = macroTokens(candidate, numbers, PositionData(fileId: 0, line: 1, column: 1))
-            if (back.size == 1 && back[0].kind == numbers.numberOf(name) && back[0].value == t.value &&
-                (name != "MULTILINE_RAW_STRING" || back[0].delimiterNum == t.delimiterNum)) {
+            if (
+                back.size == 1 && back[0].kind == numbers.numberOf(name) &&
+                    back[0].value == t.value &&
+                    (name != "MULTILINE_RAW_STRING" || back[0].delimiterNum == t.delimiterNum)
+            ) {
                 return candidate
             }
         }

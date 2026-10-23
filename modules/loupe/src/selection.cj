@@ -11,16 +11,39 @@ import loupe.syntax.parse
 /**
  * Tokens whose words are selected on their own: comments and the pieces of a string.
  */
-let WORDY = TokenSet<SyntaxKind>([SyntaxKind.LineComment, SyntaxKind.BlockComment, SyntaxKind.StringContent,
-    SyntaxKind.RawStringLit])
+let WORDY =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.LineComment,
+            SyntaxKind.BlockComment,
+            SyntaxKind.StringContent,
+            SyntaxKind.RawStringLit
+        ]
+    )
 
 /**
  * Nodes whose elements are separated by commas.
  */
-let LISTS = TokenSet<SyntaxKind>([SyntaxKind.ArgList, SyntaxKind.AnnotationArgList, SyntaxKind.ParamList,
-    SyntaxKind.LambdaParamList, SyntaxKind.TypeParamList, SyntaxKind.TypeArgList, SyntaxKind.TupleType,
-    SyntaxKind.FuncType, SyntaxKind.TuplePat, SyntaxKind.EnumPat, SyntaxKind.EnumCtor, SyntaxKind.TupleExpr,
-    SyntaxKind.ArrayExpr, SyntaxKind.ImportTreeList, SyntaxKind.ResourceList])
+let LISTS =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.ArgList,
+            SyntaxKind.AnnotationArgList,
+            SyntaxKind.ParamList,
+            SyntaxKind.LambdaParamList,
+            SyntaxKind.TypeParamList,
+            SyntaxKind.TypeArgList,
+            SyntaxKind.TupleType,
+            SyntaxKind.FuncType,
+            SyntaxKind.TuplePat,
+            SyntaxKind.EnumPat,
+            SyntaxKind.EnumCtor,
+            SyntaxKind.TupleExpr,
+            SyntaxKind.ArrayExpr,
+            SyntaxKind.ImportTreeList,
+            SyntaxKind.ResourceList
+        ]
+    )
 
 /**
  * The ranges a selection at `offset` widens through, innermost first, each strictly containing the
@@ -47,7 +70,10 @@ func selectionsAt(root: CjSyntaxNode, offset: Int64): Array<TextRange> {
         chain.add(token.textRange)
         for (node in token.ancestors()) {
             chain.add(node.textRange)
-            if (let Some(list) <- node.parent && LISTS.contains(list.kind) && let Some(range) <- withComma(node)) {
+            if (
+                let Some(list) <- node.parent && LISTS.contains(list.kind) &&
+                    let Some(range) <- withComma(node)
+            ) {
                 chain.add(range)
             }
         }
@@ -77,11 +103,12 @@ class SelectionChain {
 func tokenToSelect(found: TokenAtOffset<CjSyntaxToken>): ?CjSyntaxToken {
     match (found) {
         case Single(token) => token
-        case Between(left, right) => if (selectionPriority(right.kind) > selectionPriority(left.kind)) {
-            right
-        } else {
-            left
-        }
+        case Between(left, right) =>
+            if (selectionPriority(right.kind) > selectionPriority(left.kind)) {
+                right
+            } else {
+                left
+            }
         case NoToken => None
     }
 }
@@ -106,12 +133,13 @@ func wordAt(token: CjSyntaxToken, offset: Int64): ?TextRange {
     var position = 0
     var start = -1
     while (position <= bytes.size) {
-        let (rune, size) = if (position < bytes.size) {
-            Rune.fromUtf8(bytes, position)
-        } else {
-            // past the end: a non-word rune, so a word running to the end is ended like any other
-            (r' ', 0)
-        }
+        let (rune, size) =
+            if (position < bytes.size) {
+                Rune.fromUtf8(bytes, position)
+            } else {
+                // past the end: a non-word rune, so a word running to the end is ended like any other
+                (r' ', 0)
+            }
         if (rune == r'_' || rune.isLetter() || rune.isNumber()) {
             if (start < 0) {
                 start = position
@@ -140,10 +168,12 @@ func wordAt(token: CjSyntaxToken, offset: Int64): ?TextRange {
 func withComma(element: CjSyntaxNode): ?TextRange {
     let range = element.textRange
     if (let Some(comma) <- commaBeside(element, Direction.Next)) {
-        let end = match (comma.nextSiblingOrToken()) {
-            case Some(SyntaxElement.Token(space)) where space.kind == SyntaxKind.Whitespace => space.textRange.end
-            case _ => comma.textRange.end
-        }
+        let end =
+            match (comma.nextSiblingOrToken()) {
+                case Some(SyntaxElement.Token(space)) where space.kind == SyntaxKind.Whitespace =>
+                    space.textRange.end
+                case _ => comma.textRange.end
+            }
         return TextRange(range.start, end)
     }
     let comma = commaBeside(element, Direction.Prev) ?? return None
@@ -155,8 +185,10 @@ func withComma(element: CjSyntaxNode): ?TextRange {
  * break is not taken, so `a\n, b` selects `a` alone (`Newline` is a token of its own, not `Whitespace`).
  */
 func commaBeside(element: CjSyntaxNode, direction: Direction): ?CjSyntaxToken {
-    let beside = element.siblingsWithTokens(direction) |> skip(1) |>
-        filter {it: SyntaxElement<SyntaxKind> => it.kind != SyntaxKind.Whitespace} |> first
+    let beside =
+        element.siblingsWithTokens(direction) |> skip(1) |>
+            filter { it: SyntaxElement<SyntaxKind> => it.kind != SyntaxKind.Whitespace } |>
+            first
     match (beside) {
         case Some(SyntaxElement.Token(token)) where token.kind == SyntaxKind.Comma => token
         case _ => None

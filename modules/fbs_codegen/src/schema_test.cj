@@ -20,8 +20,10 @@ class SchemaTest {
     @TestCase
     func theHeaderStatementsAreRead() {
         // act
-        let sut = parseSchema(
-            "namespace A.B;\nattribute \"priority\";\nfile_identifier \"ABCD\";\ntable T { x: int; }\nroot_type T;")
+        let sut =
+            parseSchema(
+                "namespace A.B;\nattribute \"priority\";\nfile_identifier \"ABCD\";\ntable T { x: int; }\nroot_type T;"
+            )
 
         // assert
         @Expect(sut.namespace, "A.B")
@@ -65,8 +67,10 @@ class SchemaTest {
     @TestCase
     func fieldsHaveTheirTypesDefaultsAndMetadata() {
         // act
-        let sut = parseSchema(
-            "table T {\n  a: uint = 7;\n  b: string (required);\n  c: [ubyte];\n  d: [S] (deprecated, priority: 1);\n  e: x.S;\n}")
+        let sut =
+            parseSchema(
+                "table T {\n  a: uint = 7;\n  b: string (required);\n  c: [ubyte];\n  d: [S] (deprecated, priority: 1);\n  e: x.S;\n}"
+            )
 
         // assert
         let fields = sut.decls[0].fields
@@ -81,8 +85,10 @@ class SchemaTest {
     @TestCase
     func commentsAboveADeclarationAndAtTheEndOfItsLineDocumentIt() {
         // act
-        let sut = parseSchema(
-            "// a file header\n\n/// what T is\n// in two lines\ntable T {\n  // what a is\n  a: int; // and more\n  b: int;\n}")
+        let sut =
+            parseSchema(
+                "// a file header\n\n/// what T is\n// in two lines\ntable T {\n  // what a is\n  a: int; // and more\n  b: int;\n}"
+            )
 
         // assert
         let t = sut.decls[0]
@@ -120,12 +126,13 @@ class SchemaTest {
     @TestCase
     func aRefusalNamesItsLine() {
         // act
-        let sut = try {
-            parseSchema("table T {\n  a: int;\n  b int;\n}")
-            ""
-        } catch (e: SchemaException) {
-            e.message
-        }
+        let sut =
+            try {
+                parseSchema("table T {\n  a: int;\n  b int;\n}")
+                ""
+            } catch (e: SchemaException) {
+                e.message
+            }
 
         // assert
         @Expect(sut.startsWith("line 3:"))

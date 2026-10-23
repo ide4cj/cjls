@@ -52,7 +52,9 @@ public class PositionCursor {
 
     private func moveTo(target: Int64): Unit {
         if (target < offset) {
-            throw IllegalArgumentException("offset ${target} is before ${offset}, the last one asked for")
+            throw IllegalArgumentException(
+                "offset ${target} is before ${offset}, the last one asked for"
+            )
         }
         if (target > size) {
             throw IndexOutOfBoundsException("offset ${target} of a text of ${size} bytes")
@@ -88,8 +90,18 @@ public class PositionCursor {
         match (encoding) {
             case Utf8 => 1
             case Utf16 where isContinuation(b) => 0
-            case Utf16 => if (b >= 0xF0) { 2 } else { 1 }
-            case Utf32 => if (isContinuation(b)) { 0 } else { 1 }
+            case Utf16 =>
+                if (b >= 0xF0) {
+                    2
+                } else {
+                    1
+                }
+            case Utf32 =>
+                if (isContinuation(b)) {
+                    0
+                } else {
+                    1
+                }
         }
     }
 }

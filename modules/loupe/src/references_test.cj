@@ -14,17 +14,23 @@ import loupe.syntax.parse
  */
 func checkReferences(fixture: String, binaries!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
+    let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let found = findReferences(db, cursor.fileId, cursor.offset).map {
-        one =>
-        let access = one.access.map {access => access.toString()} ?? "text"
-        Annotation(one.fileId, one.range, if (one.isDeclaration) {
-            "${access} decl"
-        } else {
-            access
-        })
-    }
+    let found =
+        findReferences(db, cursor.fileId, cursor.offset)
+            .map {
+                one =>
+                let access = one.access.map { access => access.toString() } ?? "text"
+                Annotation(
+                    one.fileId,
+                    one.range,
+                    if (one.isDeclaration) {
+                        "${access} decl"
+                    } else {
+                        access
+                    }
+                )
+            }
     expectAnnotations(fixture, found)
 }
 
@@ -37,7 +43,7 @@ func checkScope(fixture: String, paths: Array<String>): Unit {
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let file = db.sourceFile(cursor.fileId).getOrThrow()
     let token = tokenAt(parse(db, file).syntaxNode(), cursor.offset).getOrThrow()
-    let scope = searchScope(db, meaningsAt(db, file, token), file).map {one => one.fileId(db)}
+    let scope = searchScope(db, meaningsAt(db, file, token), file).map { one => one.fileId(db) }
     @Expect(scope, paths.map {path => parsed.file(path).fileId})
 }
 
@@ -45,7 +51,8 @@ func checkScope(fixture: String, paths: Array<String>): Unit {
 class ReferencesTest {
     @TestCase
     func aPublicFunctionIsFoundInItsImportersAndNotANamesakeOfAnotherPackage() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /lib/a.cj module=lib package=lib
             package lib
             public func foo(): Int64 { 1 }
@@ -63,13 +70,15 @@ class ReferencesTest {
             func f(): Int64 { f$0oo() + foo() }
             //                ^^^^^ read
             //                          ^^^ read
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateFunctionIsLookedForInItsFileOnly() {
         // cjc sees a private declaration in its own file only: another file's `hid` is not this one
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             private func hid(): Int64 { 1 }
@@ -80,12 +89,14 @@ class ReferencesTest {
             package m
             private func hid(): Int64 { 2 }
             func g(): Int64 { hid() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func usesThroughAnImportsAliasAreFoundFromTheDeclarationAndFromTheAlias() {
-        let fixture = #"
+        let fixture =
+            #"
             //- /lib/a.cj module=lib package=lib
             package lib
             public func foo(): Int64 { 1 }
@@ -110,7 +121,8 @@ class ReferencesTest {
 
     @TestCase
     func ofOverloadsOnlyTheOneACallTakesAcrossFiles() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             public func g(n: Int64): Int64 { n }
@@ -121,12 +133,14 @@ class ReferencesTest {
             func f(): Int64 { $0g(1) + g(true) + g(2) }
             //                  ^ read
             //                                   ^ read
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberIsFoundThroughAValueOfItsTypeInAModuleNotNamingIt() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /lib/a.cj module=lib package=lib
             package lib
             public class C {
@@ -143,12 +157,14 @@ class ReferencesTest {
             import lib.{make, other}
             func f(): Int64 { make().si$0ze() + other().size() }
             //                       ^^^^^^ read
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVarIsWrittenAndReadAcrossFiles() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             public var count = 0
@@ -161,12 +177,14 @@ class ReferencesTest {
                 c$0ount
             //  ^^^^^^^ read
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberParameterOfAPrimaryConstructorIsFoundInOtherFiles() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             public class C {
@@ -179,12 +197,14 @@ class ReferencesTest {
             package m
             func f(c: C): Int64 { c.size }
             //                      ^^^^ read
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeParameterIsFoundInItsDeclaration() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             func id<T>(x: $0T): T { x }
@@ -194,12 +214,14 @@ class ReferencesTest {
             //- /b.cj module=m package=m
             package m
             class T {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeParameterOfAFunctionABodyDeclaresIsFoundFromItsDeclaration() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             func f(): Unit {
@@ -213,12 +235,14 @@ class ReferencesTest {
                 }
             }
             func h<T>(x: T): T { x }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfStdIsFoundInEveryPackageAndNotDeclaredInTheWorkspace() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             func f(): Unit { print$0ln("a") }
@@ -227,31 +251,38 @@ class ReferencesTest {
             package n
             func g(): Unit { println("b") }
             //               ^^^^^^^ read
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aKeywordHasNoReferences() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             fu$0nc f(): Int64 { 1 }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameMeaningNothingHasNoReferences() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /a.cj module=m package=m
             package m
             func f(): Int64 { nothi$0ng }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInternalDeclarationIsLookedForInItsPackageAndThoseUnderIt() {
         // arrange
-        let fixture = #"
+        let fixture =
+            #"
             //- /lib/a.cj module=lib package=lib.a
             package lib.a
             func fo$0o(): Int64 { 1 }
@@ -270,7 +301,8 @@ class ReferencesTest {
     @TestCase
     func aPublicDeclarationIsLookedForInTheModulesThatMayImportIt() {
         // arrange
-        let fixture = #"
+        let fixture =
+            #"
             //- /lib/a.cj module=lib package=lib
             package lib
             public func fo$0o(): Int64 { 1 }
@@ -287,7 +319,8 @@ class ReferencesTest {
     @TestCase
     func aPrivateMemberIsLookedForInItsFileAndAnyOtherInEveryFile() {
         // arrange
-        let fixture = #"
+        let fixture =
+            #"
             //- /a.cj module=m package=m
             package m
             public class C {
@@ -302,14 +335,17 @@ class ReferencesTest {
 
         // act, assert
         checkScope(fixture, ["/a.cj"])
-        checkScope(fixture.replace("hi$0d(): Int64 { 1 }", "hid(): Int64 { 1 }").replace("sho", "s$0ho"),
-            ["/a.cj", "/b.cj", "/app/main.cj"])
+        checkScope(
+            fixture.replace("hi$0d(): Int64 { 1 }", "hid(): Int64 { 1 }").replace("sho", "s$0ho"),
+            ["/a.cj", "/b.cj", "/app/main.cj"]
+        )
     }
 
     @TestCase
     func aLocalIsLookedForInItsFileOnly() {
         // arrange
-        let fixture = #"
+        let fixture =
+            #"
             //- /a.cj module=m package=m
             package m
             func f(): Int64 {
@@ -330,14 +366,18 @@ class ReferencesSearchTest {
     @TestCase
     func aFileNamingTheNameOnlyInsideALongerWordIsNotParsed() {
         // arrange - `b.cj` has `foo` in `fooBar` and in `food`, never as a word of its own
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /a.cj module=m package=m
             package m
             public func f$0oo(): Int64 { 1 }
             //- /b.cj module=m package=m
             package m
             public func fooBar(): Int64 { 2 } // food
-            "#)
+            "#
+                )
         let db = parsed.database()
         let a = parsed.file("/a.cj").fileId
         parse(db, db.sourceFile(a).getOrThrow())
@@ -354,7 +394,10 @@ class ReferencesSearchTest {
     @TestCase
     func anEditMakesTheWordsOfTheEditedFileAgainAndNoOthers() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /a.cj module=m package=m
             package m
             public func f$0oo(): Int64 { 1 }
@@ -364,7 +407,8 @@ class ReferencesSearchTest {
             //- /c.cj module=m package=m
             package m
             func h(): Int64 { 3 }
-            "#)
+            "#
+                )
         let db = parsed.database()
         let a = parsed.file("/a.cj").fileId
         let offset = parsed.cursor.getOrThrow().offset

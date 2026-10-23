@@ -24,9 +24,10 @@ func validDocuments(): Array<Array<Byte>> {
         return documents
     }
     let tests = tomlTest()
-    let documents = listed(tests, "1.1.0").filter {name => name.startsWith("valid/") && name.endsWith(".toml")}.map {
-        name => File.readFrom(tests.join(name))
-    }
+    let documents =
+        listed(tests, "1.1.0")
+            .filter { name => name.startsWith("valid/") && name.endsWith(".toml") }
+            .map { name => File.readFrom(tests.join(name)) }
     validDocumentsRead = documents
     documents
 }
@@ -34,13 +35,19 @@ func validDocuments(): Array<Array<Byte>> {
 /** Whether two values are the same TOML: tables as maps, floats by their bits, NaNs alike. */
 func sameValue(a: FtValue, b: FtValue): Bool {
     match ((a.data, b.data)) {
-        case (AsTable(x), AsTable(y)) => x.size == y.size && x.iterator().all {
-            entry => match (y.get(entry[0])) {
-                case Some(other) => sameValue(entry[1], other)
-                case None => false
-            }
-        }
-        case (AsArray(x), AsArray(y)) => x.size == y.size && (0..x.size).iterator().all {i => sameValue(x[i], y[i])}
+        case (AsTable(x), AsTable(y)) =>
+            x.size == y.size &&
+                x
+                    .iterator()
+                    .all {
+                        entry =>
+                        match (y.get(entry[0])) {
+                            case Some(other) => sameValue(entry[1], other)
+                            case None => false
+                        }
+                    }
+        case (AsArray(x), AsArray(y)) =>
+            x.size == y.size && (0..x.size).iterator().all { i => sameValue(x[i], y[i]) }
         case (AsString(x), AsString(y)) => x == y
         case (AsInteger(x), AsInteger(y)) => x == y
         case (AsFloat(x), AsFloat(y)) => (x.isNaN() && y.isNaN()) || x.toBits() == y.toBits()
@@ -58,13 +65,14 @@ func sameValue(a: FtValue, b: FtValue): Bool {
  * or read, and what was read written and read back the same.
  */
 func misreadOf(bytes: Array<Byte>): ?String {
-    let document = try {
-        parseToml(bytes)
-    } catch (_: FtException) {
-        return None
-    } catch (e: Exception) {
-        return "refused with ${e}"
-    }
+    let document =
+        try {
+            parseToml(bytes)
+        } catch (_: FtException) {
+            return None
+        } catch (e: Exception) {
+            return "refused with ${e}"
+        }
     try {
         let written = toTomlBytes(document.root)
         if (sameValue(parseToml(written).root, document.root)) {
@@ -78,7 +86,18 @@ func misreadOf(bytes: Array<Byte>): ?String {
 }
 
 func shown(bytes: Array<Byte>): String {
-    String.fromUtf8(bytes.map {b => if (b < 0x80) { b } else { 0x3F }})
+    String
+        .fromUtf8(
+            bytes
+                .map {
+                    b =>
+                    if (b < 0x80) {
+                        b
+                    } else {
+                        0x3F
+                    }
+                }
+        )
 }
 
 @Test
@@ -134,42 +153,57 @@ class FtFuzzTest {
             @Expect(misreadOf(text.toArray()), Option<String>.None)
             @Expect(parseToml(text).root.data.kindName, "a table")
         }
-        for (text in ["[${tooDeep}]\n", "${tooDeep} = 1\n", "[[${deepest}]]\n", "[${deepest}]\na = []\n"]) {
+        for (
+            text in [
+                "[${tooDeep}]\n",
+                "${tooDeep} = 1\n",
+                "[[${deepest}]]\n",
+                "[${deepest}]\na = []\n"
+            ]
+        ) {
             @Expect(errorOf(text).reason, "nested too deep")
         }
     }
 }
 
 /** A byte TOML's grammar turns on, or any byte at all. */
-let SIGNIFICANT_BYTES: Array<Byte> = "\"'[]{}=.,#\n\r\\ \t0-+:TZe_xtfin".toArray().concat([0x00, 0x7F, 0x80, 0xC3, 0xFF])
+let SIGNIFICANT_BYTES: Array<Byte> =
+    "\"'[]{}=.,#\n\r\\ \t0-+:TZe_xtfin".toArray().concat([0x00, 0x7F, 0x80, 0xC3, 0xFF])
 
 /** Bytes dropped, replaced and inserted in one of the suite's valid documents. */
 struct Mutation <: Arbitrary<Mutation> & Shrink<Mutation> & ToString {
     Mutation(let document: Int64, let edits: Array<(Int64, Int64, Byte)>) {}
 
     public static func arbitrary(random: RandomSource): Generator<Mutation> {
-        Generators.generate {
-            =>
-            let document = Int64(random.nextUInt64() % UInt64(validDocuments().size))
-            let count = 1 + Int64(random.nextUInt8() % 6)
-            let edits = Array(count) {
-                _ =>
-                let at = Int64(random.nextUInt64() % 4096)
-                let kind = Int64(random.nextUInt8() % 3)
-                let b = if (random.nextBool()) {
-                    SIGNIFICANT_BYTES[Int64(random.nextUInt64() % UInt64(SIGNIFICANT_BYTES.size))]
-                } else {
-                    random.nextUInt8()
-                }
-                (at, kind, b)
+        Generators
+            .generate {
+                =>
+                let document = Int64(random.nextUInt64() % UInt64(validDocuments().size))
+                let count = 1 + Int64(random.nextUInt8() % 6)
+                let edits =
+                    Array(count) {
+                        _ =>
+                        let at = Int64(random.nextUInt64() % 4096)
+                        let kind = Int64(random.nextUInt8() % 3)
+                        let b =
+                            if (random.nextBool()) {
+                                SIGNIFICANT_BYTES[
+                                    Int64(random.nextUInt64() % UInt64(SIGNIFICANT_BYTES.size))
+                                ]
+                            } else {
+                                random.nextUInt8()
+                            }
+                        (at, kind, b)
+                    }
+                Mutation(document, edits)
             }
-            Mutation(document, edits)
-        }
     }
 
     /** The same with one edit fewer. */
     public func shrink(): Iterable<Mutation> {
-        (0..edits.size).iterator().map {i => Mutation(document, edits[0..i].concat(edits[i + 1..edits.size]))} |>
+        (0..edits.size)
+            .iterator()
+            .map { i => Mutation(document, edits[0..i].concat(edits[i + 1..edits.size])) } |>
             collectArray
     }
 
@@ -181,11 +215,12 @@ struct Mutation <: Arbitrary<Mutation> & Shrink<Mutation> & ToString {
                 return [b]
             }
             let i = at % bytes.size
-            bytes = match (kind) {
-                case 0 => bytes[0..i].concat(bytes[i + 1..bytes.size])
-                case 1 => bytes[0..i].concat([b]).concat(bytes[i + 1..bytes.size])
-                case _ => bytes[0..i].concat([b]).concat(bytes[i..bytes.size])
-            }
+            bytes =
+                match (kind) {
+                    case 0 => bytes[0..i].concat(bytes[i + 1..bytes.size])
+                    case 1 => bytes[0..i].concat([b]).concat(bytes[i + 1..bytes.size])
+                    case _ => bytes[0..i].concat([b]).concat(bytes[i..bytes.size])
+                }
         }
         bytes
     }
@@ -200,7 +235,7 @@ struct RandomDocument <: Arbitrary<RandomDocument> & Shrink<RandomDocument> & To
     RandomDocument(let root: FtValue) {}
 
     public static func arbitrary(random: RandomSource): Generator<RandomDocument> {
-        Generators.generate {=> RandomDocument(FtValue(AsTable(randomTable(random, 3))))}
+        Generators.generate { => RandomDocument(FtValue(AsTable(randomTable(random, 3)))) }
     }
 
     /** The same with one entry of the root table fewer, or one of its tables emptied. */
@@ -230,17 +265,18 @@ let KEYS: Array<String> = ["a", "b-c", "1", "", "a.b", "é", "q\"", "t t", "_", 
 
 func randomString(random: RandomSource): String {
     let length = Int64(random.nextUInt8() % 6)
-    String(Array(length) {_ => random.suggestRune()})
+    String(Array(length) { _ => random.suggestRune() })
 }
 
 func randomTable(random: RandomSource, depth: Int64): FtTable {
     let table = FtTable(Braced)
     for (_ in 0..Int64(random.nextUInt8() % 5)) {
-        let key = if (random.nextBool()) {
-            KEYS[Int64(random.nextUInt64() % UInt64(KEYS.size))]
-        } else {
-            randomString(random)
-        }
+        let key =
+            if (random.nextBool()) {
+                KEYS[Int64(random.nextUInt64() % UInt64(KEYS.size))]
+            } else {
+                randomString(random)
+            }
         if (!table.contains(key)) {
             table.add(key, randomValue(random, depth))
         }
@@ -249,25 +285,36 @@ func randomTable(random: RandomSource, depth: Int64): FtTable {
 }
 
 func randomValue(random: RandomSource, depth: Int64): FtValue {
-    let kinds: UInt8 = if (depth > 0) { 10 } else { 8 }
-    let data = match (random.nextUInt8() % kinds) {
-        case 0 => AsString(randomString(random))
-        case 1 => AsInteger(random.suggestInt64())
-        case 2 => AsFloat(random.suggestFloat64())
-        case 3 => AsBool(random.nextBool())
-        case 4 => AsLocalDate(randomDate(random))
-        case 5 => AsLocalTime(randomTime(random))
-        case 6 => AsLocalDateTime(LocalDateTime(randomDate(random), randomTime(random)))
-        case 7 => AsOffsetDateTime(OffsetDateTime(LocalDateTime(randomDate(random), randomTime(random)),
-            Int64(random.nextUInt16() % 2879) - 1439))
-        case 8 =>
-            let array = FtArray(false)
-            for (_ in 0..Int64(random.nextUInt8() % 4)) {
-                array.items.add(randomValue(random, depth - 1))
-            }
-            AsArray(array)
-        case _ => AsTable(randomTable(random, depth - 1))
-    }
+    let kinds: UInt8 =
+        if (depth > 0) {
+            10
+        } else {
+            8
+        }
+    let data =
+        match (random.nextUInt8() % kinds) {
+            case 0 => AsString(randomString(random))
+            case 1 => AsInteger(random.suggestInt64())
+            case 2 => AsFloat(random.suggestFloat64())
+            case 3 => AsBool(random.nextBool())
+            case 4 => AsLocalDate(randomDate(random))
+            case 5 => AsLocalTime(randomTime(random))
+            case 6 => AsLocalDateTime(LocalDateTime(randomDate(random), randomTime(random)))
+            case 7 =>
+                AsOffsetDateTime(
+                    OffsetDateTime(
+                        LocalDateTime(randomDate(random), randomTime(random)),
+                        Int64(random.nextUInt16() % 2879) - 1439
+                    )
+                )
+            case 8 =>
+                let array = FtArray(false)
+                for (_ in 0..Int64(random.nextUInt8() % 4)) {
+                    array.items.add(randomValue(random, depth - 1))
+                }
+                AsArray(array)
+            case _ => AsTable(randomTable(random, depth - 1))
+        }
     FtValue(data)
 }
 
@@ -278,9 +325,18 @@ func randomDate(random: RandomSource): LocalDate {
 }
 
 func randomTime(random: RandomSource): LocalTime {
-    let nanosecond = if (random.nextBool()) { 0 } else { Int64(random.nextUInt32() % 1_000_000_000) }
-    LocalTime(Int64(random.nextUInt8() % 24), Int64(random.nextUInt8() % 60), second: Int64(random.nextUInt8() % 61),
-        nanosecond: nanosecond)
+    let nanosecond =
+        if (random.nextBool()) {
+            0
+        } else {
+            Int64(random.nextUInt32() % 1_000_000_000)
+        }
+    LocalTime(
+        Int64(random.nextUInt8() % 24),
+        Int64(random.nextUInt8() % 60),
+        second: Int64(random.nextUInt8() % 61),
+        nanosecond: nanosecond
+    )
 }
 
 @Test

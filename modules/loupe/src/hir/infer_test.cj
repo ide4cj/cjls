@@ -18,9 +18,12 @@ import rope.Rope
  * the name of each local, and of each function or variable whose type its signature does not
  * write. `binaries` are the packages of std's of the project.
  */
-func checkInference(fixture: String, binaries!: Array<String> = ["std.core", "std.collection"]): Unit {
+func checkInference(
+    fixture: String,
+    binaries!: Array<String> = ["std.core", "std.collection"]
+): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
+    let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let actual = ArrayList<Annotation>()
     for (file in parsed.files) {
         let source = db.sourceFile(file.fileId).getOrThrow()
@@ -35,17 +38,27 @@ func checkInference(fixture: String, binaries!: Array<String> = ["std.core", "st
 /**
  * Adds the annotations of the body of `item`, and of its members', to `actual`.
  */
-func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode, item: Item,
-    actual: ArrayList<Annotation>): Unit {
+func annotateTypes(
+    db: AnalysisDatabase,
+    source: SourceFile,
+    root: CjSyntaxNode,
+    item: Item,
+    actual: ArrayList<Annotation>
+): Unit {
     let fileId = source.fileId(db)
     let def = DefId(db, ItemFile.Source(source), item.id)
     match (item.kind) {
         case Func | Main | Var | Prop | Init | PrimaryInit | Finalizer =>
-            let isUnwritten = signatureTypes(db, def).ty.isNone() && item.kind != ItemKind.Init &&
-                item.kind != ItemKind.PrimaryInit && item.kind != ItemKind.Finalizer
-            if (isUnwritten && let Some(node) <- itemIdMap(db, source).node(item.id, root) &&
-                let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
-                actual.add(Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db)))
+            let isUnwritten =
+                signatureTypes(db, def).ty.isNone() && item.kind != ItemKind.Init &&
+                    item.kind != ItemKind.PrimaryInit &&
+                    item.kind != ItemKind.Finalizer
+            if (
+                isUnwritten && let Some(node) <- itemIdMap(db, source).node(item.id, root) &&
+                    let Some(name) <- AnyHasName.cast(node).flatMap { it => it.name() }
+            ) {
+                actual
+                    .add(Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db)))
             }
             let lowered = bodyWithSourceMap(db, def)
             let result = inferBody(db, def)
@@ -56,18 +69,26 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
                 if (local.lone && !ctorsNamed(db, pkg, source, local.name).isEmpty()) {
                     continue
                 }
-                if (let Some(ptr) <- lowered.sourceMap.locals.get(i).flatMap {one => one} &&
-                    let Some(node) <- ptr.tryToNode(root)) {
+                if (
+                    let Some(ptr) <- lowered.sourceMap.locals.get(i).flatMap { one => one } &&
+                        let Some(node) <- ptr.tryToNode(root)
+                ) {
                     actual.add(Annotation(fileId, node.textRange, result.locals[i].text(db)))
                 }
             }
             // `src` of a macro's `x in src` on it (#191)
             for (attr in lowered.body.attrs) {
                 for (arg in attr.args) {
-                    if (let DataArg(_, src) <- arg &&
-                        let Some(ptr) <- lowered.sourceMap.exprs.get(src.index).flatMap {one => one} &&
-                        let Some(node) <- ptr.tryToNode(root)) {
-                        let ty = result.exprs[src.index].map {one => one.text(db)} ?? "none"
+                    if (
+                        let DataArg(_, src) <- arg &&
+                            let Some(ptr) <- lowered
+                                .sourceMap
+                                .exprs
+                                .get(src.index)
+                                .flatMap { one => one } &&
+                            let Some(node) <- ptr.tryToNode(root)
+                    ) {
+                        let ty = result.exprs[src.index].map { one => one.text(db) } ?? "none"
                         actual.add(Annotation(fileId, node.textRange, ty))
                     }
                 }
@@ -99,7 +120,8 @@ func exprTyCount(db: AnalysisDatabase, def: DefId): Int64 {
 class InferTest {
     @TestCase
     func aLiteralIsOfItsSuffixElseOfTheTypeExpectedElseInt64OrFloat64() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(): Unit {
                 let a = 1
@@ -129,24 +151,28 @@ class InferTest {
                 let n: Float32 = 1.0
             //      ^ Float32
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anIntegerLiteralIsNoFloat() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(): Unit {
                 // cjc: cannot convert an integer literal to type 'Float64'
                 let a: Float64 = 1
             //      ^ Float64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorOfTheLanguageTakesALiteralToTheTypeOfItsOtherSide() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(a: Int64, c: Int8, g: Bool): Unit {
             //     ^ Int64
@@ -175,12 +201,14 @@ class InferTest {
                 let p = 2 ** 3
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func tuplesArraysAndRanges() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(n: UInt8): Unit {
             //     ^ UInt8
@@ -199,13 +227,15 @@ class InferTest {
                 let h: (Int8, Float32) = (1, 2.0)
             //      ^ (Int8, Float32)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVArrayLiteralSelectsTheOverloadWithTheMatchingLength() {
         // A failed candidate's size diagnostic must be rolled back with its inferred types.
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func choose(a: VArray<Int8, $1>): Int8 { 1 }
             //          ^ VArray<Int8, $1>
@@ -215,12 +245,14 @@ class InferTest {
                 let result = choose([1, 2])
             //      ^^^^^^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theBranchesOfAnIfOrAMatchAreJoined() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class A <: Base {}
@@ -254,12 +286,14 @@ class InferTest {
                 let k: Base = if (c) { A() } else { B() }
             //      ^ Base
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func branchesOfNoOneLeastCommonSupertypeAreAnError() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface I {}
             class C <: I {}
@@ -276,12 +310,14 @@ class InferTest {
                 let d = [1, 2u8]
             //      ^ Array<{unknown}>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCycleOfSupertypesGrowingTheirArgumentsEnds() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             // cjc: inheritance cycle detected: 'A->B->A'
             open class A<T> <: B<A<T>> {}
@@ -293,12 +329,14 @@ class InferTest {
                 let x = if (c) { a } else { b }
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func whatJumpsIsNothingAndALoopOrAnAssignmentUnit() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(c: Bool): Unit {
             //     ^ Bool
@@ -313,12 +351,14 @@ class InferTest {
                 let e = do { n++ } while (c)
             //      ^ Unit
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeNotWrittenIsInferredFromTheBody() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func noRet() { 1 }
             //   ^^^^^ Int64
@@ -351,12 +391,14 @@ class InferTest {
                 let d = inner()
             //      ^ Float64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionCallingItselfOfNoReturnTypeIsAnError() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             // cjc: unable to infer return type, please add type annotation (twice: here and at the call)
             func rec(n: Int64) { if (n == 0) { 0 } else { rec(n - 1) } }
@@ -373,12 +415,14 @@ class InferTest {
                 let b = ping()
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAValueIsLookedUpFromItsType() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.*
             open class Base {
@@ -424,12 +468,14 @@ class InferTest {
                 let j = A().count
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAGenericTypeIsSeenWithItsArguments() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Box<T> {
                 public Box(public let value: T) {}
@@ -463,12 +509,14 @@ class InferTest {
                 let g = bi.pair()
             //      ^ (Int64, Int64)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnotherInstanceIsNotTheValuesMember() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class Box<T> {}
             extend Box<Int64> {
@@ -480,12 +528,14 @@ class InferTest {
                 let a = b.only()
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInterfaceAnExtendOfAnotherInstanceAddsIsNotTheValues() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface I {
                 func hello(): Int64 { 1 }
@@ -507,12 +557,14 @@ class InferTest {
                 let d = -s
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfATypeOfTheLanguageIsItsExtends() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             extend Int64 {
                 func twice() { this * 2 }
@@ -524,13 +576,15 @@ class InferTest {
                 let b = Int64.Max
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnAliasExtendsTheTypeItExpandsTo() {
         // compiled with cjc 1.3.0-alpha.20261002
-        checkInference(#"
+        checkInference(
+            #"
             package m
             type Small = Int16
             extend Small {
@@ -568,12 +622,14 @@ class InferTest {
                 let m = Byte.Max
             //      ^ UInt8
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaTakesItsParametersFromTheFunctionTypeExpected() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func takes(f: (Int64, String) -> Bool): Unit {}
             //         ^ (Int64, String) -> Bool
@@ -595,12 +651,14 @@ class InferTest {
                 let e = spawn { 1 }
             //      ^ Future<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPatternBindsThePartsOfTheTypeItMatches() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             enum E { | A(Int64) | B }
             func f(arr: Array<String>, o: ?Int64, e: E): Unit {
@@ -636,12 +694,14 @@ class InferTest {
                     ()
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorIsOfItsTypeItsArgumentsWrittenOrExpected() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             enum E { | A(Int64) | B }
             class G<T> {}
@@ -659,12 +719,14 @@ class InferTest {
                 let g: G<String> = G()
             //      ^ G<String>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aSetterTakesItsPropertysType() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class K {
                 mut prop q: String {
@@ -673,12 +735,14 @@ class InferTest {
             //          ^ String
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeArgumentNotWrittenIsTheJoinOfWhatIsPassed() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class D1 <: Base {}
@@ -715,12 +779,14 @@ class InferTest {
             //      ^ (Int64) -> Int64
             //               ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLiteralPassedTakesTheTypeOfAnotherArgumentOrOfTheTypeExpected() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class Box<T> {
                 public Box(public let value: T) {}
@@ -747,12 +813,14 @@ class InferTest {
                 let h = gen(1)
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeArgumentIsTheTypeExpectedOrABoundWhenNothingIsPassed() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class D1 <: Base {}
@@ -781,12 +849,14 @@ class InferTest {
                 let g: Base = gen(D1())
             //      ^ Base
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aValueIsBoxedIntoTheOptionOfAParameter() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class D1 <: Base {}
@@ -805,12 +875,14 @@ class InferTest {
                 let d = pair(Some(1), None)
             //      ^ Option<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaWaitsForTheTypesOfItsParameters() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class Box<T> {
                 public Box(public let value: T) {}
@@ -838,12 +910,14 @@ class InferTest {
             //      ^ Int64
             //                      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anArgumentOfNoTypeAloneIsCheckedAgainstWhatTheOthersSolved() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func none<T>(): Option<T> { None }
             func pair<T>(a: T, b: T): T { a }
@@ -855,12 +929,14 @@ class InferTest {
                 let b = pair(None, Some("s"))
             //      ^ Option<String>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeArgumentIsSolvedThroughTuplesSelfBoundsAndOtherParameters() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class D1 <: Base {}
@@ -896,12 +972,14 @@ class InferTest {
                 let i = gen(throw Exception())
             //      ^ Nothing
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func whatWaitsIsCheckedOnlyOnceItsParameterIsKnown() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func none<T>(): Option<T> { None }
             func pair<T>(a: T, b: T): T { a }
@@ -926,12 +1004,14 @@ class InferTest {
                 let b = pair(none(), none())
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aRecursiveCallSolvesItsTypeParameterAsItself() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func rec<T>(x: T): T {
             //          ^ T
@@ -939,12 +1019,14 @@ class InferTest {
             //      ^ T
                 y
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func whatNothingTellsOrNoTypeMeetsIsAnError() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.ArrayList
             func none<T>(): Option<T> { None }
@@ -966,13 +1048,15 @@ class InferTest {
                 let d = pair(1, 2.0)
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallTakesTheOverloadItsArgumentsFit() {
         // N115
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(x: Int64): Int64 { x }
             //     ^ Int64
@@ -1004,13 +1088,15 @@ class InferTest {
                 let e = z(1, "s")
             //      ^ Bool
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func ofSeveralThatFitTheMostSpecificIsTaken() {
         // N119
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class D <: Base {}
@@ -1046,13 +1132,15 @@ class InferTest {
                 let h = q("s")
             //      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theNearestLevelWhereAnOverloadFitsDecides() {
         // N117: a local, the members, the package, the imported
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(x: Int64): Int64 { x }
             //     ^ Int64
@@ -1088,13 +1176,15 @@ class InferTest {
             //          ^ Int16
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func overloadsNoneOfWhichIsMostSpecificAreAmbiguous() {
         // N120
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             interface I {}
@@ -1129,12 +1219,14 @@ class InferTest {
                 let e = f(1)
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOverloadedFunctionPassedToOverloadsFitsOnlyThoseOfAParameterOneOfItTakes() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func h(a: Int64): Int64 { a }
             //     ^ Int64
@@ -1179,12 +1271,14 @@ class InferTest {
                 let m = mix(h, 1)
             //      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGenericCandidateIsSolvedOnceForEachOverloadOfAnArgument() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func h(a: Int64): Int64 { a }
             //     ^ Int64
@@ -1242,13 +1336,15 @@ class InferTest {
                 let i = gen1(h)
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOverloadedCallInAnArgumentIsTakenForEachCandidateTried() {
         // N115 nested: the inner call's overload by the type the outer candidate expects
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func p(x: Int64, y: String): Int64 { 1 }
             //     ^ Int64
@@ -1279,13 +1375,15 @@ class InferTest {
                 let d = p(h(1), s)
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaFitsAFunctionReturningUnitWhateverItsBlockIs() {
         // N118
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func k(h: () -> Unit): Int64 { 1 }
             //     ^ () -> Unit
@@ -1299,13 +1397,15 @@ class InferTest {
                 let b = k({ => 1 })
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func tuplesAreCovariantAndFunctionsContravariantInTheirParameters() {
         // N116
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class D <: Base {}
@@ -1328,13 +1428,15 @@ class InferTest {
                 let b = w(hb)
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func whatACandidateTriedWritesIsUndoneAndInferredAgainForTheOneTaken() {
         // A27: a member, a call of overloads and an argument of one type in the candidates tried
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class Box {
                 let n = 1
@@ -1384,13 +1486,15 @@ class InferTest {
                 let s: String = "x" * 3
             //      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theBranchesOfALambdaReturningUnitAreOfAnyType() {
         // N118
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func k(h: () -> Unit): Int64 { 1 }
             //     ^ () -> Unit
@@ -1405,13 +1509,15 @@ class InferTest {
                 let x = k({ => unsafe { 1 } })
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeArgumentUnknownIsAlikeToAny() {
         // a tuple's or a function's part unknown in an argument of a type hides nothing
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func h(x: Array<(Int64, String)>): Int64 { 1 }
             //     ^ Array<(Int64, String)>
@@ -1444,13 +1550,15 @@ class InferTest {
                 let fv: (Bool) -> Bool = f
             //      ^^ (Bool) -> Bool
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anIndexIsACallOfTheOperatorItsTypeDeclares() {
         // N122: but a tuple's by a literal and a `VArray`'s, `a[i]` is `a.[](i)`, chosen as a call's
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.*
             class Grid {
@@ -1514,13 +1622,15 @@ class InferTest {
                 let ti = t[i]
             //      ^^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAssignmentToAnIndexCallsTheOperatorTakingAValue() {
         // N124: `a[i] = v` is `a.[](i, value: v)`, of a `[]` taking `value!` last
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.*
             class Grid {
@@ -1559,14 +1669,16 @@ class InferTest {
                 l[0] += "x"
                 g[1] += "x"
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCompoundAssignmentToAnIndexCallsBothItsOperators() {
         // #245: `a[i] op= v` is `a.[](i, value: a.[](i) op v)`, `a[i]++` `a[i] += 1` of an integer,
         // `x++` of an integer alone
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class G {
                 operator func [](i: Int64): Int64 { i }
@@ -1598,14 +1710,16 @@ class InferTest {
             //      ^ Int64
             //               ^ S
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aValueAssignedToAnIndexIsCheckedAgainstTheOperatorTakingIt() {
         // #245: what `a[i] op= v` gives `[](i, value!: T)` fits its `T`, of a generic `[]` too; `a[i]++`
         // needs an integer read; a tuple's or a `VArray`'s element is the language's
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.*
             class S {
@@ -1677,14 +1791,16 @@ class InferTest {
                 let r = (v[0] *= 2)
             //      ^ Unit
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorOfATypeIsACallOfItsMember() {
         // N122, N123: `a + b` is `a.+(b)`, `-a` `a.-()`, of its type's or an `extend`'s, chosen as a
         // call's: by the right, by the type expected; one not declared is none
-        checkInference(#"
+        checkInference(
+            #"
             package m
             struct V {
                 V(let x: Int64) {}
@@ -1761,14 +1877,16 @@ class InferTest {
                 let bad = v + "s"
             //      ^^^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorOfOneCandidateIsACallOfOneButBetweenTheLanguagesTypes() {
         // N168: one `+` an operand fits not is taken still, as a call of one is; an `Int64`'s `*` is
         // the language's too, and of two none fits
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class T {
                 operator func +(r: Int64): Bool { true }
@@ -1798,13 +1916,15 @@ class InferTest {
                 let f: String = t + 1
             //      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorOfATypeParameterIsItsBoundsAndOfAGenericTypeItsArguments() {
         // N122
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface Addable<T> {
                 operator func +(o: T): T
@@ -1835,14 +1955,16 @@ class InferTest {
                 let s = Box("s")[0]
             //      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLiteralLeftOfAnOperatorOfAnotherTypeIsOfItsDefaultType() {
         // N125: the language's tried first, then the left synthesized alone; the right a call's
         // argument, the type expected its return type's
-        checkInference(#"
+        checkInference(
+            #"
             package m
             struct V {
                 V(let x: Int64) {}
@@ -1885,13 +2007,15 @@ class InferTest {
                 let sh = v << 2
             //      ^^ V
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCompoundAssignmentOfATypesOperatorAssignsWhatItGives() {
         // N126: `x op= v` is `x = x.op(v)`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             struct V {
                 V(let x: Int64) {}
@@ -1929,14 +2053,16 @@ class InferTest {
                 let fu = f(v += v)
             //      ^^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theLanguagesOperatorsAreBetweenItsTypesAndTheRestTheTypesOwn() {
         // N125, N126: arithmetic of numbers, an index of a tuple by a literal of any base, of a
         // `VArray` assigned as the language's
-        checkInference(#"
+        checkInference(
+            #"
             package m
             extend Int64 {
                 operator func +(s: String): String { s }
@@ -1982,13 +2108,15 @@ class InferTest {
                 let float = t3[1.5]
             //      ^^^^^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func numbersBetweenThemselvesAreOfTheTypeOfTheOtherSide() {
         // N169: through arithmetic but a power, and the left of a shift
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func test(m: UInt64, k: Int64, f: Float32): Unit {
             //        ^ UInt64
@@ -2008,7 +2136,8 @@ class InferTest {
                 let power = (2 ** 3u64) | m
             //      ^^^^^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
@@ -2025,7 +2154,8 @@ class InferTest {
     @TestCase
     func anOperatorOfTheLanguageIsKeptWhateverFailsInsideItsOperands() {
         // its operands fitting it, a check failing deeper is no reason to try a type's operator
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func g(x: Int64): Int64 { x }
             //     ^ Int64
@@ -2036,14 +2166,16 @@ class InferTest {
                 let sum = b + (if (c) { g("s"); 1 } else { 2 })
             //      ^^^ UInt8
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func coalescingIsTheValueOfItsLeftOrItsRightCheckedAgainstIt() {
         // N127: the left synthesized alone, an `Option<T>`; the right checked against `T`, or against
         // the type expected, of which `T` is a subtype; no join; right-associative, looser than `||`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class Derived <: Base {}
@@ -2085,13 +2217,15 @@ class InferTest {
                 let narrow: Int8 = a ?? 1
             //      ^^^^^^ Int8
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPipelineCallsItsRightWithItsLeft() {
         // N128: `x |> f` is `f(x)`, a call's overloads and type arguments; left-associative
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class C {
                 func n(x: Int64): String { "" }
@@ -2145,13 +2279,15 @@ class InferTest {
                 {it => it.iterator().next().getOrThrow()}
             //   ^^ Iterable<T>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaReturningWhatHoldsATypeArgumentNotSolvedIsSynthesized() {
         // N132: its body tells the argument (`R` of `Option<R>`), as cjc's `filterMap {d => d as T}`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class Derived <: Base {}
@@ -2165,14 +2301,16 @@ class InferTest {
             //      ^ Array<Derived>
             //                ^ Base
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCompositionIsStdCoresCompositionOfItsOperandsSynthesizedAlone() {
         // N129: `f ~> g` is `std.core`'s `composition(f, g)`, `(T1) -> T3` of `(T1) -> T2` and
         // `(T2) -> T3`; an operand a lambda of a parameter not written is an error
-        checkInference(#"
+        checkInference(
+            #"
             package m
             open class Base {}
             class Derived <: Base {}
@@ -2212,14 +2350,16 @@ class InferTest {
             //      ^^^^^^^ {unknown}
             //                      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aValueOfATypeOfACallOperatorIsCalledThroughIt() {
         // N130: `k(x)` of a value of no function type is `k.()(x)`, in a pipeline and a composition
         // too
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class K {
                 operator func ()(x: Int64): Bool { true }
@@ -2245,7 +2385,8 @@ class InferTest {
                 let d = f ~> k
             //      ^ (Int64) -> {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
@@ -2253,7 +2394,8 @@ class InferTest {
         // N133: `a?.b.c` is `match (a) { case Some(v) => Some(v.b.c) case None => None }`, each `?`
         // a `match` inside the one of the `?` before it; the chain is all of the links after the
         // first `?`, an assignment to it included; a parenthesis ends it
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class C {
                 var b = 1
@@ -2332,14 +2474,16 @@ class InferTest {
                 let joined = if (true) { a?.b } else { 1 }
             //      ^^^^^^ Option<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOptionalChainIsSynthesizedWhateverIsExpectedOfIt() {
         // N134: synthesized alone, then checked against what is expected of it, boxed if need be; its
         // left an `Option`; an assignment to it `Unit`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class C {
                 var b = 1
@@ -2394,13 +2538,15 @@ class InferTest {
                 let sum = a?.b + 1
             //      ^^^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOptionalChainIsOfStdCoresOptionWhateverTheScopeNames() {
         // N135: a `Some` and a `None` of the package do not change it
-        checkInference(#"
+        checkInference(
+            #"
             package m
             enum E {
                 | Some(Int64)
@@ -2415,13 +2561,15 @@ class InferTest {
                 let field = a?.b
             //      ^^^^^ Option<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aQuoteAndStdsTestMacrosAreOfTheTypesTheirExpansionsAre() {
         // cjc 1.3.0-alpha.20261002 (N136): each the type its expansion gives, whatever the arguments
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.ast.*
             import std.unittest.*
@@ -2458,13 +2606,16 @@ class InferTest {
             //      ^^ Nothing
                 fl
             }
-            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"])
+            "#,
+            binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"]
+        )
     }
 
     @TestCase
     func theSourceOfADataArgIsInferredOutsideTheDeclaration() {
         // cjc 1.3.0-alpha.20260918 (#191): `src` is evaluated in a lambda of the test class, a `DataStrategy<T>`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
@@ -2482,13 +2633,16 @@ class InferTest {
             //         ^^^^^ Array<String>
             func g(x: String): Unit {}
             //     ^ String
-            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"])
+            "#,
+            binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"]
+        )
     }
 
     @TestCase
     func theSourceOfADataArgIsADataStrategyOfTheParametersType() {
         // cjc 1.3.0-alpha.20260918 (#191): `None` in the literal is told by `DataStrategy<(Int64, ?Int64)>`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
@@ -2496,24 +2650,35 @@ class InferTest {
             //           ^^^^^^^^^^^^^^^^^^^^^^^^^ Array<(Int64, Option<Int64>)>
             func g(row: (Int64, ?Int64)): Unit {}
             //     ^^^ (Int64, Option<Int64>)
-            "#, binaries: ["std.core", "std.ast", "std.unittest", "std.unittest.common", "std.unittest.testmacro"])
+            "#,
+            binaries: [
+                "std.core",
+                "std.ast",
+                "std.unittest",
+                "std.unittest.common",
+                "std.unittest.testmacro"
+            ]
+        )
     }
 
     @TestCase
     func theSourceOfADataArgOfAMacroNotFoundIsNotInferred() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             @Test[x in [1]]
             //         ^^^ {unknown}
             func g(x: Int64): Unit {}
             //     ^ Int64
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aQuotesInterpolationIsInferred() {
         // #195: code run where the macro is, of the types it has there
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.ast.*
             func f(x: Tokens, n: Int64): Tokens {
@@ -2523,13 +2688,16 @@ class InferTest {
             //                               ^ Tokens
             //                                                              ^ Int64
             }
-            "#, binaries: ["std.core", "std.ast"])
+            "#,
+            binaries: ["std.core", "std.ast"]
+        )
     }
 
     @TestCase
     func aStaticMemberOfATypeParameterIsSeenOnItsBound() {
         // cjc 1.3.0-alpha.20261002 (N139): `T.make()` of `T <: Make<T>` is a `T`
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface Make<T> {
                 static func make(): T
@@ -2539,27 +2707,40 @@ class InferTest {
             //      ^ T
                 x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             func f(): Unit { let a = 1 }
             func g(): Unit {}
-            "#)
+            "#
+                )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-        let item = itemTree(db, source).items.iterator().filter {one => one.names.contains("f")}.next().getOrThrow()
+        let item =
+            itemTree(db, source)
+                .items
+                .iterator()
+                .filter { one => one.names.contains("f") }
+                .next()
+                .getOrThrow()
         let def = DefId(db, ItemFile.Source(source), item.id)
         exprTyCount(db, def)
         let before = inferenceReaderRuns.load()
 
         // act
         let text = source.text(db).toString()
-        source.setText(db).to(Rope(text.replace("func g(): Unit {}", "func g(): Unit { let b = 2 }")))
+        source
+            .setText(db)
+            .to(Rope(text.replace("func g(): Unit {}", "func g(): Unit { let b = 2 }")))
         exprTyCount(db, def)
 
         // assert
@@ -2569,7 +2750,10 @@ class InferTest {
     @TestCase
     func aDeclarationAppendedRunsNoBodyQueryOfAnotherAgain() {
         // arrange: `f` binds a name, which may be a constructor of the package, and calls `g`
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             enum E { | A | B }
             func f(e: E): Int64 {
@@ -2580,18 +2764,28 @@ class InferTest {
                 }
             }
             func g(): Int64 { 1 }
-            "#)
+            "#
+                )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-        let item = itemTree(db, source).items.iterator().filter {one => one.names.contains("f")}.next().getOrThrow()
+        let item =
+            itemTree(db, source)
+                .items
+                .iterator()
+                .filter { one => one.names.contains("f") }
+                .next()
+                .getOrThrow()
         let def = DefId(db, ItemFile.Source(source), item.id)
         exprTyCount(db, def)
-        let queries = ["body", "exprScopes", "signature", "signatureTypes", "inferBody", "declaredTyOf"]
-        let before = queries.map {name => db.storage.executionsOf(name)}
+        let queries =
+            ["body", "exprScopes", "signature", "signatureTypes", "inferBody", "declaredTyOf"]
+        let before = queries.map { name => db.storage.executionsOf(name) }
         let readers = inferenceReaderRuns.load()
 
         // act
-        source.setText(db).to(Rope(source.text(db).toString() + "func appended(x: Int64): Int64 { x }\n"))
+        source
+            .setText(db)
+            .to(Rope(source.text(db).toString() + "func appended(x: Int64): Int64 { x }\n"))
         exprTyCount(db, def)
 
         // assert
@@ -2604,7 +2798,8 @@ class InferTest {
 
     @TestCase
     func synchronizedSpawnVArrayAndAConversionAreOfTheirBodiesAndTypes() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class L {}
             func f(l: L): Int64 {
@@ -2622,12 +2817,14 @@ class InferTest {
                 // the function ends in a `synchronized`: its block is a tail
                 synchronized (l) { a }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLoopsBreakAndContinueAreOfNothingAndARangeTakesAStep() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func f(): Unit {
                 for (i in 0..6 : 2) {
@@ -2656,12 +2853,14 @@ class InferTest {
             //       ^ {unknown}
             //          ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorsNameOfTwoEnumsIsChosenByWhatIsExpectedAlone() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             enum E1 { Red | Blue(Int64) }
             enum E2 { Red | Blue(Int64) }
@@ -2680,13 +2879,15 @@ class InferTest {
                 let d = p(E1.Red)
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorWrittenWithTypeArgumentsIsOfAnEnumTakingAsMany() {
         // N172 (#278)
-        checkInference(#"
+        checkInference(
+            #"
             //- /kinds/kinds.cj module=m package=m.kinds
             package m.kinds
             public enum Kind { None | Full }
@@ -2721,13 +2922,15 @@ class InferTest {
                 let b: Mine<String> = None<String>
             //      ^ Mine<String>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anEnumsConstructorsOfOneNameAreOverloadsTheArgumentsChooseAmong() {
         // N172 (#279)
-        checkInference(#"
+        checkInference(
+            #"
             //- /other/other.cj module=m package=m.other
             package m.other
             public enum Other { Full(String, Int64, Bool) | Part(String, Int64, Bool) }
@@ -2764,12 +2967,14 @@ class InferTest {
                     case _ => 0
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorAVariableAndANameNotFoundAsAReceiver() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             enum E {
                 | Red | Blue(Int64)
@@ -2807,12 +3012,14 @@ class InferTest {
                     case _ => Blue(1)
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasIsCalledAsItsClassAnInterfaceAndATypeAreNoValues() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class C { C(x: Int64) {} }
             //          ^ Int64
@@ -2826,12 +3033,14 @@ class InferTest {
                 let t = C
             //      ^ {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGenericCandidateIsMoreSpecificThanOneItsParametersDoNotSolve() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func q<T>(x: Array<T>): Int64 { 0 }
             //        ^ Array<T>
@@ -2841,12 +3050,14 @@ class InferTest {
                 let a = q([1])
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaReturningACallIsTriedAndUndonePerCandidate() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func t(f: (Int64) -> Int64): Int64 { f(1) }
             //     ^ (Int64) -> Int64
@@ -2870,6 +3081,7 @@ class InferTest {
             //      ^ Int64
                 b
             }
-            "#)
+            "#
+        )
     }
 }

@@ -112,7 +112,8 @@ public enum JsonValue <: Equatable<JsonValue> {
             case (JsonString(a), JsonString(b)) => a == b
             case (JsonArray(a), JsonArray(b)) => a == b
             case (JsonObject(a), JsonObject(b)) =>
-                a.size == b.size && (0..a.size).iterator().all {i => a[i][0] == b[i][0] && a[i][1] == b[i][1]}
+                a.size == b.size &&
+                    (0..a.size).iterator().all { i => a[i][0] == b[i][0] && a[i][1] == b[i][1] }
             case _ => false
         }
     }
@@ -199,7 +200,7 @@ private func readJsonValue(r: FjReader, depth: Int64): JsonValue {
             JsonNull
         case FjKind.FjNumber =>
             let number = r.rawValue()
-            if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {
+            if (number.iterator().any { b => b == 0x2E || b == 0x65 || b == 0x45 }) {
                 JsonFloat(FjReader(number).readFloat64())
             } else {
                 // past Int64, an integer is kept as JavaScript keeps it: the nearest Float64
@@ -220,7 +221,14 @@ private func pretty(value: JsonValue, depth: Int64, out: StringBuilder): Unit {
             for (i in 0..items.size) {
                 out.append(inner)
                 pretty(items[i], depth + 1, out)
-                out.append(if (i + 1 < items.size) { ",\n" } else { "\n" })
+                out
+                    .append(
+                        if (i + 1 < items.size) {
+                            ",\n"
+                        } else {
+                            "\n"
+                        }
+                    )
             }
             out.append("  " * depth + "]")
         case JsonObject(members) where !members.isEmpty() =>
@@ -230,7 +238,14 @@ private func pretty(value: JsonValue, depth: Int64, out: StringBuilder): Unit {
                 out.append(JsonString(members[i][0]).toString())
                 out.append(": ")
                 pretty(members[i][1], depth + 1, out)
-                out.append(if (i + 1 < members.size) { ",\n" } else { "\n" })
+                out
+                    .append(
+                        if (i + 1 < members.size) {
+                            ",\n"
+                        } else {
+                            "\n"
+                        }
+                    )
             }
             out.append("  " * depth + "}")
         case _ => out.append(value.toString())

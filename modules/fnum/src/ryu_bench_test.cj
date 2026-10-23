@@ -13,20 +13,21 @@ import std.unittest.testmacro.*
  * `cjpm bench '--filter=RyuBench*'`
  */
 
-let RANDOM_FLOATS: Array<Float64> = {
-    =>
-    let random = Random(7)
-    Array<Float64>(1000) {
-        _ =>
-        var v = Float64.NaN
-        while (v.isNaN() || v.isInf()) {
-            v = Float64.fromBits(random.nextUInt64())
+let RANDOM_FLOATS: Array<Float64> =
+    {
+        =>
+        let random = Random(7)
+        Array<Float64>(1000) {
+            _ =>
+            var v = Float64.NaN
+            while (v.isNaN() || v.isInf()) {
+                v = Float64.fromBits(random.nextUInt64())
+            }
+            v
         }
-        v
-    }
-}()
+    }()
 
-let SHORT_FLOATS: Array<Float64> = Array<Float64>(1000) {i => Float64(i * 37 % 10000) / 100.0}
+let SHORT_FLOATS: Array<Float64> = Array<Float64>(1000) { i => Float64(i * 37 % 10000) / 100.0 }
 
 var ryuSink = 0
 

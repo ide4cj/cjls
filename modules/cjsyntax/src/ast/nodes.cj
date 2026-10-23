@@ -6,41 +6,135 @@ import std.deriving.*
 import ginkgo.*
 import cjsyntax.SyntaxKind
 
-let NAME_SYMBOL = TokenSet<SyntaxKind>(
-    [SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.LParen, SyntaxKind.RParen, SyntaxKind.GtGt, SyntaxKind.GtEq,
-        SyntaxKind.Bang, SyntaxKind.Plus, SyntaxKind.Minus, SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash,
-        SyntaxKind.Percent, SyntaxKind.LtLt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.EqEq,
-        SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.Tilde])
+let NAME_SYMBOL =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.LBracket,
+            SyntaxKind.RBracket,
+            SyntaxKind.LParen,
+            SyntaxKind.RParen,
+            SyntaxKind.GtGt,
+            SyntaxKind.GtEq,
+            SyntaxKind.Bang,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.LtLt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.Tilde
+        ]
+    )
 
-let PRIM_TYPE_KEYWORD = TokenSet<SyntaxKind>(
-    [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
-        SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
-        SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
-        SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+let PRIM_TYPE_KEYWORD =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.Int8Kw,
+            SyntaxKind.Int16Kw,
+            SyntaxKind.Int32Kw,
+            SyntaxKind.Int64Kw,
+            SyntaxKind.IntNativeKw,
+            SyntaxKind.UInt8Kw,
+            SyntaxKind.UInt16Kw,
+            SyntaxKind.UInt32Kw,
+            SyntaxKind.UInt64Kw,
+            SyntaxKind.UIntNativeKw,
+            SyntaxKind.Float16Kw,
+            SyntaxKind.Float32Kw,
+            SyntaxKind.Float64Kw,
+            SyntaxKind.RuneKw,
+            SyntaxKind.BoolKw,
+            SyntaxKind.NothingKw,
+            SyntaxKind.UnitKw
+        ]
+    )
 
 let FUNC_TYPE_TYPES_END = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
 
 let FUNC_TYPE_RET_START = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
 
-let LITERAL_PAT_VALUE = TokenSet<SyntaxKind>(
-    [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
-        SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+let LITERAL_PAT_VALUE =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.IntLit,
+            SyntaxKind.FloatLit,
+            SyntaxKind.RuneLit,
+            SyntaxKind.ByteLit,
+            SyntaxKind.RawStringLit,
+            SyntaxKind.TrueKw,
+            SyntaxKind.FalseKw
+        ]
+    )
 
-let LITERAL_VALUE = TokenSet<SyntaxKind>(
-    [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
-        SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+let LITERAL_VALUE =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.IntLit,
+            SyntaxKind.FloatLit,
+            SyntaxKind.RuneLit,
+            SyntaxKind.ByteLit,
+            SyntaxKind.RawStringLit,
+            SyntaxKind.TrueKw,
+            SyntaxKind.FalseKw
+        ]
+    )
 
-let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
-    [SyntaxKind.LambdaExpr, SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr,
-        SyntaxKind.CallExpr, SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr,
-        SyntaxKind.UnaryExpr, SyntaxKind.BinExpr, SyntaxKind.IsExpr, SyntaxKind.AsExpr, SyntaxKind.RangeExpr,
-        SyntaxKind.PostfixExpr, SyntaxKind.ParenExpr, SyntaxKind.TupleExpr, SyntaxKind.ArrayExpr, SyntaxKind.UnitExpr,
-        SyntaxKind.IfExpr, SyntaxKind.LetExpr, SyntaxKind.MatchExpr, SyntaxKind.TryExpr, SyntaxKind.ForInExpr,
-        SyntaxKind.WhileExpr, SyntaxKind.DoWhileExpr, SyntaxKind.ThrowExpr, SyntaxKind.ReturnExpr, SyntaxKind.BreakExpr,
-        SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
-        SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr, SyntaxKind.TypeConvExpr,
-        SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr, SyntaxKind.MacroExpandExpr,
-        SyntaxKind.MacroExpandDecl])
+let TRAILING_LAMBDA_EXPR_LAMBDA =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.LambdaExpr,
+            SyntaxKind.Literal,
+            SyntaxKind.StringLit,
+            SyntaxKind.RefExpr,
+            SyntaxKind.MemberAccessExpr,
+            SyntaxKind.CallExpr,
+            SyntaxKind.TrailingLambdaExpr,
+            SyntaxKind.IndexExpr,
+            SyntaxKind.OptionalExpr,
+            SyntaxKind.UnaryExpr,
+            SyntaxKind.BinExpr,
+            SyntaxKind.IsExpr,
+            SyntaxKind.AsExpr,
+            SyntaxKind.RangeExpr,
+            SyntaxKind.PostfixExpr,
+            SyntaxKind.ParenExpr,
+            SyntaxKind.TupleExpr,
+            SyntaxKind.ArrayExpr,
+            SyntaxKind.UnitExpr,
+            SyntaxKind.IfExpr,
+            SyntaxKind.LetExpr,
+            SyntaxKind.MatchExpr,
+            SyntaxKind.TryExpr,
+            SyntaxKind.ForInExpr,
+            SyntaxKind.WhileExpr,
+            SyntaxKind.DoWhileExpr,
+            SyntaxKind.ThrowExpr,
+            SyntaxKind.ReturnExpr,
+            SyntaxKind.BreakExpr,
+            SyntaxKind.ContinueExpr,
+            SyntaxKind.SpawnExpr,
+            SyntaxKind.SynchronizedExpr,
+            SyntaxKind.UnsafeExpr,
+            SyntaxKind.ThisExpr,
+            SyntaxKind.SuperExpr,
+            SyntaxKind.WildcardExpr,
+            SyntaxKind.TypeConvExpr,
+            SyntaxKind.PrimTypeExpr,
+            SyntaxKind.VArrayExpr,
+            SyntaxKind.QuoteExpr,
+            SyntaxKind.MacroExpandExpr,
+            SyntaxKind.MacroExpandDecl
+        ]
+    )
 
 let INDEX_EXPR_BASE_END = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
 
@@ -48,32 +142,131 @@ let INDEX_EXPR_INDICES_START = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
 
 let UNARY_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.Minus, SyntaxKind.Bang])
 
-let BIN_EXPR_LHS_END = TokenSet<SyntaxKind>(
-    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
-        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
-        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
-        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
-        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
-        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
-        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let BIN_EXPR_LHS_END =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.LtLt,
+            SyntaxKind.GtGt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.GtEq,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.AmpAmp,
+            SyntaxKind.PipePipe,
+            SyntaxKind.QuestionQuestion,
+            SyntaxKind.PipeGt,
+            SyntaxKind.TildeGt,
+            SyntaxKind.Eq,
+            SyntaxKind.PlusEq,
+            SyntaxKind.MinusEq,
+            SyntaxKind.StarEq,
+            SyntaxKind.StarStarEq,
+            SyntaxKind.SlashEq,
+            SyntaxKind.PercentEq,
+            SyntaxKind.AmpAmpEq,
+            SyntaxKind.PipePipeEq,
+            SyntaxKind.AmpEq,
+            SyntaxKind.PipeEq,
+            SyntaxKind.CaretEq,
+            SyntaxKind.LtLtEq,
+            SyntaxKind.GtGtEq
+        ]
+    )
 
-let BIN_EXPR_OP = TokenSet<SyntaxKind>(
-    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
-        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
-        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
-        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
-        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
-        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
-        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let BIN_EXPR_OP =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.LtLt,
+            SyntaxKind.GtGt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.GtEq,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.AmpAmp,
+            SyntaxKind.PipePipe,
+            SyntaxKind.QuestionQuestion,
+            SyntaxKind.PipeGt,
+            SyntaxKind.TildeGt,
+            SyntaxKind.Eq,
+            SyntaxKind.PlusEq,
+            SyntaxKind.MinusEq,
+            SyntaxKind.StarEq,
+            SyntaxKind.StarStarEq,
+            SyntaxKind.SlashEq,
+            SyntaxKind.PercentEq,
+            SyntaxKind.AmpAmpEq,
+            SyntaxKind.PipePipeEq,
+            SyntaxKind.AmpEq,
+            SyntaxKind.PipeEq,
+            SyntaxKind.CaretEq,
+            SyntaxKind.LtLtEq,
+            SyntaxKind.GtGtEq
+        ]
+    )
 
-let BIN_EXPR_RHS_START = TokenSet<SyntaxKind>(
-    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
-        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
-        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
-        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
-        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
-        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
-        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let BIN_EXPR_RHS_START =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.LtLt,
+            SyntaxKind.GtGt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.GtEq,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.AmpAmp,
+            SyntaxKind.PipePipe,
+            SyntaxKind.QuestionQuestion,
+            SyntaxKind.PipeGt,
+            SyntaxKind.TildeGt,
+            SyntaxKind.Eq,
+            SyntaxKind.PlusEq,
+            SyntaxKind.MinusEq,
+            SyntaxKind.StarEq,
+            SyntaxKind.StarStarEq,
+            SyntaxKind.SlashEq,
+            SyntaxKind.PercentEq,
+            SyntaxKind.AmpAmpEq,
+            SyntaxKind.PipePipeEq,
+            SyntaxKind.AmpEq,
+            SyntaxKind.PipeEq,
+            SyntaxKind.CaretEq,
+            SyntaxKind.LtLtEq,
+            SyntaxKind.GtGtEq
+        ]
+    )
 
 let RANGE_EXPR_START_END = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
 
@@ -103,11 +296,28 @@ let SPAWN_EXPR_CONTEXT_START = TokenSet<SyntaxKind>([SyntaxKind.LParen])
 
 let SPAWN_EXPR_CONTEXT_END = TokenSet<SyntaxKind>([SyntaxKind.RParen])
 
-let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
-    [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
-        SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
-        SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
-        SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+let PRIM_TYPE_EXPR_KEYWORD =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.Int8Kw,
+            SyntaxKind.Int16Kw,
+            SyntaxKind.Int32Kw,
+            SyntaxKind.Int64Kw,
+            SyntaxKind.IntNativeKw,
+            SyntaxKind.UInt8Kw,
+            SyntaxKind.UInt16Kw,
+            SyntaxKind.UInt32Kw,
+            SyntaxKind.UInt64Kw,
+            SyntaxKind.UIntNativeKw,
+            SyntaxKind.Float16Kw,
+            SyntaxKind.Float32Kw,
+            SyntaxKind.Float64Kw,
+            SyntaxKind.RuneKw,
+            SyntaxKind.BoolKw,
+            SyntaxKind.NothingKw,
+            SyntaxKind.UnitKw
+        ]
+    )
 
 let DATA_ARG_PARAM_END = TokenSet<SyntaxKind>([SyntaxKind.InKw])
 
@@ -131,11 +341,26 @@ public struct AnyHasName <: AstNode<SyntaxKind, AnyHasName> & HasName & ToString
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.ImportAlias | SyntaxKind.FuncDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.TypeAliasDecl
-                | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
-                | SyntaxKind.TypeParam | SyntaxKind.Param | SyntaxKind.NamedType | SyntaxKind.BindPat
-                | SyntaxKind.TypePat | SyntaxKind.CatchPat | SyntaxKind.ResourceDecl | SyntaxKind.LambdaParam => true
+            case SyntaxKind.ImportAlias |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.TypeParam |
+                SyntaxKind.Param |
+                SyntaxKind.NamedType |
+                SyntaxKind.BindPat |
+                SyntaxKind.TypePat |
+                SyntaxKind.CatchPat |
+                SyntaxKind.ResourceDecl |
+                SyntaxKind.LambdaParam => true
             case _ => false
         }
     }
@@ -181,12 +406,29 @@ public struct AnyHasModifiers <: AstNode<SyntaxKind, AnyHasModifiers> & HasModif
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.SourceFile | SyntaxKind.FeaturesDirective | SyntaxKind.PackageHeader | SyntaxKind.ImportDecl
-                | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl | SyntaxKind.PropAccessor | SyntaxKind.Param => true
+            case SyntaxKind.SourceFile |
+                SyntaxKind.FeaturesDirective |
+                SyntaxKind.PackageHeader |
+                SyntaxKind.ImportDecl |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.PropAccessor |
+                SyntaxKind.Param => true
             case _ => false
         }
     }
@@ -227,17 +469,38 @@ public interface HasAnnotations {
  * Any node that is a `HasAnnotations`, viewed as one.
  */
 @Derive[Equatable, Hashable]
-public struct AnyHasAnnotations <: AstNode<SyntaxKind, AnyHasAnnotations> & HasAnnotations & ToString {
+public struct AnyHasAnnotations <:
+    AstNode<SyntaxKind, AnyHasAnnotations> &
+    HasAnnotations &
+    ToString {
     AnyHasAnnotations(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.SourceFile | SyntaxKind.FeaturesDirective | SyntaxKind.PackageHeader | SyntaxKind.ImportDecl
-                | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl | SyntaxKind.PropAccessor | SyntaxKind.Param | SyntaxKind.LambdaExpr => true
+            case SyntaxKind.SourceFile |
+                SyntaxKind.FeaturesDirective |
+                SyntaxKind.PackageHeader |
+                SyntaxKind.ImportDecl |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.PropAccessor |
+                SyntaxKind.Param |
+                SyntaxKind.LambdaExpr => true
             case _ => false
         }
     }
@@ -283,9 +546,18 @@ public struct AnyHasTypeParams <: AstNode<SyntaxKind, AnyHasTypeParams> & HasTyp
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl => true
             case _ => false
         }
     }
@@ -326,14 +598,25 @@ public interface HasWhereClause {
  * Any node that is a `HasWhereClause`, viewed as one.
  */
 @Derive[Equatable, Hashable]
-public struct AnyHasWhereClause <: AstNode<SyntaxKind, AnyHasWhereClause> & HasWhereClause & ToString {
+public struct AnyHasWhereClause <:
+    AstNode<SyntaxKind, AnyHasWhereClause> &
+    HasWhereClause &
+    ToString {
     AnyHasWhereClause(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl => true
             case _ => false
         }
     }
@@ -384,11 +667,25 @@ public struct AnyHasDocComment <: AstNode<SyntaxKind, AnyHasDocComment> & HasDoc
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.PackageHeader | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl
-                | SyntaxKind.ClassDecl | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl
-                | SyntaxKind.ExtendDecl | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl
-                | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
-                | SyntaxKind.ForeignBlock | SyntaxKind.MacroExpandDecl | SyntaxKind.Param => true
+            case SyntaxKind.PackageHeader |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.Param => true
             case _ => false
         }
     }
@@ -413,7 +710,11 @@ public struct AnyHasDocComment <: AstNode<SyntaxKind, AnyHasDocComment> & HasDoc
 }
 
 @Derive[Equatable, Hashable]
-public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & HasModifiers & HasAnnotations & ToString {
+public struct SourceFile <:
+    AstNode<SyntaxKind, SourceFile> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     SourceFile(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -548,7 +849,11 @@ public struct StmtsFile <: AstNode<SyntaxKind, StmtsFile> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasModifiers & HasAnnotations & ToString {
+public struct FeaturesDirective <:
+    AstNode<SyntaxKind, FeaturesDirective> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     FeaturesDirective(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -615,7 +920,12 @@ public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasM
 }
 
 @Derive[Equatable, Hashable]
-public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct PackageHeader <:
+    AstNode<SyntaxKind, PackageHeader> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     PackageHeader(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -674,7 +984,11 @@ public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & HasModifiers & HasAnnotations & ToString {
+public struct ImportDecl <:
+    AstNode<SyntaxKind, ImportDecl> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     ImportDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1193,8 +1507,14 @@ public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & ToString {
     }
 }
 
-public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & HasDocComment & Equatable<Decl> &
-    Hashable & ToString {
+public enum Decl <:
+    AstNode<SyntaxKind, Decl> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    Equatable<Decl> &
+    Hashable &
+    ToString {
     | AsFuncDecl(FuncDecl)
     | AsMainDecl(MainDecl)
     | AsMacroDecl(MacroDecl)
@@ -1215,11 +1535,23 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & 
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl => true
             case _ => false
         }
     }
@@ -1333,7 +1665,15 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & 
 }
 
 @Derive[Equatable, Hashable]
-public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct FuncDecl <:
+    AstNode<SyntaxKind, FuncDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     FuncDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1396,7 +1736,14 @@ public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct MainDecl <:
+    AstNode<SyntaxKind, MainDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     MainDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1455,7 +1802,15 @@ public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & HasModifiers & HasAnno
 }
 
 @Derive[Equatable, Hashable]
-public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct MacroDecl <:
+    AstNode<SyntaxKind, MacroDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     MacroDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1518,7 +1873,15 @@ public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & HasName & HasModifie
 }
 
 @Derive[Equatable, Hashable]
-public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct ClassDecl <:
+    AstNode<SyntaxKind, ClassDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     ClassDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1577,7 +1940,15 @@ public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & HasName & HasModifie
 }
 
 @Derive[Equatable, Hashable]
-public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct InterfaceDecl <:
+    AstNode<SyntaxKind, InterfaceDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     InterfaceDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1636,7 +2007,15 @@ public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & HasName & Ha
 }
 
 @Derive[Equatable, Hashable]
-public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct StructDecl <:
+    AstNode<SyntaxKind, StructDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     StructDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1695,7 +2074,15 @@ public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & HasName & HasModif
 }
 
 @Derive[Equatable, Hashable]
-public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct EnumDecl <:
+    AstNode<SyntaxKind, EnumDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     EnumDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1754,7 +2141,14 @@ public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct ExtendDecl <:
+    AstNode<SyntaxKind, ExtendDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     ExtendDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1813,7 +2207,14 @@ public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & HasModifiers & Has
 }
 
 @Derive[Equatable, Hashable]
-public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasDocComment & ToString {
+public struct TypeAliasDecl <:
+    AstNode<SyntaxKind, TypeAliasDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasDocComment &
+    ToString {
     TypeAliasDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1871,7 +2272,13 @@ public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & HasName & Ha
  * `let`, `var` or `const`, of a name or a pattern
  */
 @Derive[Equatable, Hashable]
-public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct VarDecl <:
+    AstNode<SyntaxKind, VarDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     VarDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1938,7 +2345,13 @@ public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & HasName & HasModifiers &
 }
 
 @Derive[Equatable, Hashable]
-public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct PropDecl <:
+    AstNode<SyntaxKind, PropDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     PropDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1993,7 +2406,14 @@ public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct InitDecl <:
+    AstNode<SyntaxKind, InitDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     InitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2055,7 +2475,14 @@ public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & HasModifiers & HasAnno
  * `~init`
  */
 @Derive[Equatable, Hashable]
-public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct FinalizerDecl <:
+    AstNode<SyntaxKind, FinalizerDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     FinalizerDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2121,7 +2548,15 @@ public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & HasModifiers
  * a primary constructor, named as its type
  */
 @Derive[Equatable, Hashable]
-public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct PrimaryInitDecl <:
+    AstNode<SyntaxKind, PrimaryInitDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     PrimaryInitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2180,7 +2615,13 @@ public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & HasName 
 }
 
 @Derive[Equatable, Hashable]
-public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct EnumCtor <:
+    AstNode<SyntaxKind, EnumCtor> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     EnumCtor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2239,7 +2680,12 @@ public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct ForeignBlock <:
+    AstNode<SyntaxKind, ForeignBlock> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     ForeignBlock(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2297,7 +2743,12 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & HasModifiers &
  * a macro call on a declaration
  */
 @Derive[Equatable, Hashable]
-public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct MacroExpandDecl <:
+    AstNode<SyntaxKind, MacroExpandDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     MacroExpandDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2531,7 +2982,11 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & ToString {
  * `get()` or `set(v)` in a property
  */
 @Derive[Equatable, Hashable]
-public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & HasModifiers & HasAnnotations & ToString {
+public struct PropAccessor <:
+    AstNode<SyntaxKind, PropAccessor> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     PropAccessor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2831,7 +3286,13 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct Param <: AstNode<SyntaxKind, Param> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct Param <:
+    AstNode<SyntaxKind, Param> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     Param(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2993,21 +3454,64 @@ public enum Stmt <: AstNode<SyntaxKind, Stmt> & Equatable<Stmt> & Hashable & ToS
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl | SyntaxKind.Literal | SyntaxKind.StringLit | SyntaxKind.RefExpr
-                | SyntaxKind.MemberAccessExpr | SyntaxKind.CallExpr | SyntaxKind.TrailingLambdaExpr
-                | SyntaxKind.IndexExpr | SyntaxKind.OptionalExpr | SyntaxKind.UnaryExpr | SyntaxKind.BinExpr
-                | SyntaxKind.IsExpr | SyntaxKind.AsExpr | SyntaxKind.RangeExpr | SyntaxKind.PostfixExpr
-                | SyntaxKind.ParenExpr | SyntaxKind.TupleExpr | SyntaxKind.ArrayExpr | SyntaxKind.UnitExpr
-                | SyntaxKind.IfExpr | SyntaxKind.LetExpr | SyntaxKind.MatchExpr | SyntaxKind.TryExpr
-                | SyntaxKind.ForInExpr | SyntaxKind.WhileExpr | SyntaxKind.DoWhileExpr | SyntaxKind.ThrowExpr
-                | SyntaxKind.ReturnExpr | SyntaxKind.BreakExpr | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr
-                | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr
-                | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr
-                | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr | SyntaxKind.MacroExpandExpr => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.Literal |
+                SyntaxKind.StringLit |
+                SyntaxKind.RefExpr |
+                SyntaxKind.MemberAccessExpr |
+                SyntaxKind.CallExpr |
+                SyntaxKind.TrailingLambdaExpr |
+                SyntaxKind.IndexExpr |
+                SyntaxKind.OptionalExpr |
+                SyntaxKind.UnaryExpr |
+                SyntaxKind.BinExpr |
+                SyntaxKind.IsExpr |
+                SyntaxKind.AsExpr |
+                SyntaxKind.RangeExpr |
+                SyntaxKind.PostfixExpr |
+                SyntaxKind.ParenExpr |
+                SyntaxKind.TupleExpr |
+                SyntaxKind.ArrayExpr |
+                SyntaxKind.UnitExpr |
+                SyntaxKind.IfExpr |
+                SyntaxKind.LetExpr |
+                SyntaxKind.MatchExpr |
+                SyntaxKind.TryExpr |
+                SyntaxKind.ForInExpr |
+                SyntaxKind.WhileExpr |
+                SyntaxKind.DoWhileExpr |
+                SyntaxKind.ThrowExpr |
+                SyntaxKind.ReturnExpr |
+                SyntaxKind.BreakExpr |
+                SyntaxKind.ContinueExpr |
+                SyntaxKind.SpawnExpr |
+                SyntaxKind.SynchronizedExpr |
+                SyntaxKind.UnsafeExpr |
+                SyntaxKind.LambdaExpr |
+                SyntaxKind.ThisExpr |
+                SyntaxKind.SuperExpr |
+                SyntaxKind.WildcardExpr |
+                SyntaxKind.TypeConvExpr |
+                SyntaxKind.PrimTypeExpr |
+                SyntaxKind.VArrayExpr |
+                SyntaxKind.QuoteExpr |
+                SyntaxKind.MacroExpandExpr => true
             case _ => false
         }
     }
@@ -3060,8 +3564,14 @@ public enum Type <: AstNode<SyntaxKind, Type> & Equatable<Type> & Hashable & ToS
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.PathType | SyntaxKind.PrimType | SyntaxKind.TupleType | SyntaxKind.ParenType
-                | SyntaxKind.FuncType | SyntaxKind.OptionType | SyntaxKind.ThisType | SyntaxKind.VArrayType => true
+            case SyntaxKind.PathType |
+                SyntaxKind.PrimType |
+                SyntaxKind.TupleType |
+                SyntaxKind.ParenType |
+                SyntaxKind.FuncType |
+                SyntaxKind.OptionType |
+                SyntaxKind.ThisType |
+                SyntaxKind.VArrayType => true
             case _ => false
         }
     }
@@ -3594,8 +4104,12 @@ public enum Pattern <: AstNode<SyntaxKind, Pattern> & Equatable<Pattern> & Hasha
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.WildcardPat | SyntaxKind.LiteralPat | SyntaxKind.BindPat | SyntaxKind.TypePat
-                | SyntaxKind.TuplePat | SyntaxKind.EnumPat => true
+            case SyntaxKind.WildcardPat |
+                SyntaxKind.LiteralPat |
+                SyntaxKind.BindPat |
+                SyntaxKind.TypePat |
+                SyntaxKind.TuplePat |
+                SyntaxKind.EnumPat => true
             case _ => false
         }
     }
@@ -4004,17 +4518,48 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.Literal | SyntaxKind.StringLit | SyntaxKind.RefExpr | SyntaxKind.MemberAccessExpr
-                | SyntaxKind.CallExpr | SyntaxKind.TrailingLambdaExpr | SyntaxKind.IndexExpr | SyntaxKind.OptionalExpr
-                | SyntaxKind.UnaryExpr | SyntaxKind.BinExpr | SyntaxKind.IsExpr | SyntaxKind.AsExpr
-                | SyntaxKind.RangeExpr | SyntaxKind.PostfixExpr | SyntaxKind.ParenExpr | SyntaxKind.TupleExpr
-                | SyntaxKind.ArrayExpr | SyntaxKind.UnitExpr | SyntaxKind.IfExpr | SyntaxKind.LetExpr
-                | SyntaxKind.MatchExpr | SyntaxKind.TryExpr | SyntaxKind.ForInExpr | SyntaxKind.WhileExpr
-                | SyntaxKind.DoWhileExpr | SyntaxKind.ThrowExpr | SyntaxKind.ReturnExpr | SyntaxKind.BreakExpr
-                | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr
-                | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr
-                | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr
-                | SyntaxKind.MacroExpandExpr | SyntaxKind.MacroExpandDecl => true
+            case SyntaxKind.Literal |
+                SyntaxKind.StringLit |
+                SyntaxKind.RefExpr |
+                SyntaxKind.MemberAccessExpr |
+                SyntaxKind.CallExpr |
+                SyntaxKind.TrailingLambdaExpr |
+                SyntaxKind.IndexExpr |
+                SyntaxKind.OptionalExpr |
+                SyntaxKind.UnaryExpr |
+                SyntaxKind.BinExpr |
+                SyntaxKind.IsExpr |
+                SyntaxKind.AsExpr |
+                SyntaxKind.RangeExpr |
+                SyntaxKind.PostfixExpr |
+                SyntaxKind.ParenExpr |
+                SyntaxKind.TupleExpr |
+                SyntaxKind.ArrayExpr |
+                SyntaxKind.UnitExpr |
+                SyntaxKind.IfExpr |
+                SyntaxKind.LetExpr |
+                SyntaxKind.MatchExpr |
+                SyntaxKind.TryExpr |
+                SyntaxKind.ForInExpr |
+                SyntaxKind.WhileExpr |
+                SyntaxKind.DoWhileExpr |
+                SyntaxKind.ThrowExpr |
+                SyntaxKind.ReturnExpr |
+                SyntaxKind.BreakExpr |
+                SyntaxKind.ContinueExpr |
+                SyntaxKind.SpawnExpr |
+                SyntaxKind.SynchronizedExpr |
+                SyntaxKind.UnsafeExpr |
+                SyntaxKind.LambdaExpr |
+                SyntaxKind.ThisExpr |
+                SyntaxKind.SuperExpr |
+                SyntaxKind.WildcardExpr |
+                SyntaxKind.TypeConvExpr |
+                SyntaxKind.PrimTypeExpr |
+                SyntaxKind.VArrayExpr |
+                SyntaxKind.QuoteExpr |
+                SyntaxKind.MacroExpandExpr |
+                SyntaxKind.MacroExpandDecl => true
             case _ => false
         }
     }

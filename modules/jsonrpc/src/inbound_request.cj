@@ -50,13 +50,14 @@ public class InboundRequest {
      * included - so nothing escapes it, and it is a safe body for a `spawn`.
      */
     public func respondWith(answer: () -> ResultOrError): Bool {
-        let resultOrError = try {
-            answer()
-        } catch (e: Exception) {
-            ResultOrError.Error(responseErrorOf(e))
-        } catch (e: Error) {
-            ResultOrError.Error(responseErrorOf(e))
-        }
+        let resultOrError =
+            try {
+                answer()
+            } catch (e: Exception) {
+                ResultOrError.Error(responseErrorOf(e))
+            } catch (e: Error) {
+                ResultOrError.Error(responseErrorOf(e))
+            }
         respond(resultOrError)
     }
 }

@@ -16,20 +16,32 @@ import loupe.vfs.VfsPath
  */
 func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Array<String>): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: packages.map {name => stdCjoRead(name, stdCjo(name))},
-        models: [stdWithSources(packages)])
+    let db =
+        parsed
+            .database(
+                binaries: packages.map { name => stdCjoRead(name, stdCjo(name)) },
+                models: [stdWithSources(packages)]
+            )
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let dir = stdSourcesDir()
-    let found = definitionAt(db, cursor.fileId, cursor.offset).map {
-        target =>
-        let text = db.sourceFile(target.fileId).getOrThrow().text(db)
-        let line = text.lineOf(target.focusRange.start)
-        let path = String.join(parsed.pathOf(target.fileId).segmentsUnder(dir).getOrThrow(), delimiter: "/")
-        let written = text.slice(text.lineStart(line)..text.lineEnd(line)).toString().trimAscii()
-        let name = text.slice(target.focusRange.start..target.focusRange.end).toString()
-        @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
-        "${path}: ${name} in `${written}`"
-    }
+    let found =
+        definitionAt(db, cursor.fileId, cursor.offset)
+            .map {
+                target =>
+                let text = db.sourceFile(target.fileId).getOrThrow().text(db)
+                let line = text.lineOf(target.focusRange.start)
+                let path =
+                    String
+                        .join(
+                            parsed.pathOf(target.fileId).segmentsUnder(dir).getOrThrow(),
+                            delimiter: "/"
+                        )
+                let written =
+                    text.slice(text.lineStart(line)..text.lineEnd(line)).toString().trimAscii()
+                let name = text.slice(target.focusRange.start..target.focusRange.end).toString()
+                @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
+                "${path}: ${name} in `${written}`"
+            }
     @Expect(found, expected)
 }
 
@@ -37,52 +49,72 @@ func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Ar
 class DefinitionBinaryTest {
     @TestCase
     func aMacroOfStdCalledWithoutAnAttributeGoesToItsOverloadOfOneParameter() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @$0Test
             class C {}
-            "#, ["std.core", "std.ast", "std.unittest.testmacro"],
-            ["unittest/testmacro/test_macro.cj: Test in `public macro Test(input: Tokens): Tokens {`"])
+            "#,
+            ["std.core", "std.ast", "std.unittest.testmacro"],
+            [
+                "unittest/testmacro/test_macro.cj: Test in `public macro Test(input: Tokens): Tokens {`"
+            ]
+        )
     }
 
     @TestCase
     func aMacroOfStdCalledWithAnAttributeGoesToItsOverloadOfTwo() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @$0Test[x in [1]]
             func f(x: Int64): Unit {}
-            "#, ["std.core", "std.ast", "std.unittest.testmacro"],
-            ["unittest/testmacro/test_macro.cj: Test in `public macro Test(dsl: Tokens, input: Tokens): Tokens {`"])
+            "#,
+            ["std.core", "std.ast", "std.unittest.testmacro"],
+            [
+                "unittest/testmacro/test_macro.cj: Test in `public macro Test(dsl: Tokens, input: Tokens): Tokens {`"
+            ]
+        )
     }
 
     @TestCase
     func aTypeOfStdInASignatureGoesToItsSource() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: $0String): Unit {}
-            "#, ["std.core"],
-            ["core/string.cj: String in `public struct String <: Collection<Byte> & Comparable<String> & Hashable & ToString {`"])
+            "#,
+            ["std.core"],
+            [
+                "core/string.cj: String in `public struct String <: Collection<Byte> & Comparable<String> & Hashable & ToString {`"
+            ]
+        )
     }
 
     @TestCase
     func aFunctionOfStdCalledGoesToItsSource() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             main() {
                 $0println("x")
             }
-            "#, ["std.core"], ["core/print.cj: println in `public func println(str: String): Unit {`"])
+            "#,
+            ["std.core"],
+            ["core/print.cj: println in `public func println(str: String): Unit {`"]
+        )
     }
 
     @TestCase
     func theOverloadOfAMethodOfStdACallTakesGoesToItsSource() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.collection.ArrayList
@@ -90,32 +122,42 @@ class DefinitionBinaryTest {
                 let list = ArrayList<Int64>()
                 list.$0add(1)
             }
-            "#, ["std.core", "std.collection"],
-            ["collection/array_list.cj: add in `public func add(element: T): Unit {`"])
+            "#,
+            ["std.core", "std.collection"],
+            ["collection/array_list.cj: add in `public func add(element: T): Unit {`"]
+        )
     }
 
     @TestCase
     func aMemberOfAnExtendInStdGoesToItsSource() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             main() {
                 let n: Int64 = 1
                 n.$0toString()
             }
-            "#, ["std.core"], ["core/to_string.cj: toString in `public func toString(): String {`"])
+            "#,
+            ["std.core"],
+            ["core/to_string.cj: toString in `public func toString(): String {`"]
+        )
     }
 
     @TestCase
     func aNameInBackquotesGoesToTheNameInside() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.posix.*
             main() {
                 $0`open`("x", 0)
             }
-            "#, ["std.core", "std.posix"], ["posix/file_dir.cj: open in `public func `open`(path: String, oflag: Int32): Int32 {`"])
+            "#,
+            ["std.core", "std.posix"],
+            ["posix/file_dir.cj: open in `public func `open`(path: String, oflag: Int32): Int32 {`"]
+        )
     }
 
     @TestCase
@@ -125,18 +167,33 @@ class DefinitionBinaryTest {
         let core = dir.join("core")
         Directory.create(core, recursive: true)
         // std's files, long enough, with nothing where the `.cjo` says its declarations are
-        for (info in Directory.readFrom(stdSourcesDir().filePath.getOrThrow().join("core")) where info.isRegular()) {
+        for (
+            info in Directory
+                .readFrom(stdSourcesDir().filePath.getOrThrow().join("core")) where info.isRegular()
+        ) {
             File.writeTo(core.join(info.name), ("package std.core\n" + "//\n" * 5000).toArray())
         }
-        let files = Directory.readFrom(core).map {info => VfsPath.file(core.join(info.name))}
-        let other = BinaryModel("std", [],
-            sources: BinarySources(VfsPath.file(dir), [PackageModel("std.core", VfsPath.file(core), files)]))
-        let parsed = Fixture.parse(#"
+        let files = Directory.readFrom(core).map { info => VfsPath.file(core.join(info.name)) }
+        let other =
+            BinaryModel(
+                "std",
+                [],
+                sources: BinarySources(
+                    VfsPath.file(dir),
+                    [PackageModel("std.core", VfsPath.file(core), files)]
+                )
+            )
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /main.cj module=m package=m
             package m
             func f(x: $0String): Unit {}
-            "#)
-        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))], models: [other])
+            "#
+                )
+        let db =
+            parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))], models: [other])
         let cursor = parsed.cursor.getOrThrow()
 
         // act

@@ -1,4 +1,4 @@
-features { user.platform.posix, os.linux }
+features {user.platform.posix, os.linux}
 package platform
 
 import std.collection.ArrayList
@@ -16,18 +16,22 @@ class StartPipedOnLinuxTest {
         let inherited = getVariable("LD_LIBRARY_PATH") ?? ""
 
         // act
-        let child = startPiped(Path("/bin/sh"), [Path("/sdk/runtime"), Path("/sdk/tools/lib")], {
-            _ => ["-c", "printf %s \"$LD_LIBRARY_PATH\" >&4"]
-        })
+        let child =
+            startPiped(
+                Path("/bin/sh"),
+                [Path("/sdk/runtime"), Path("/sdk/tools/lib")],
+                { _ => ["-c", "printf %s \"$LD_LIBRARY_PATH\" >&4"] }
+            )
         let got = String.fromUtf8(readAll(child.fromChild))
         child.wait()
 
         // assert
-        let expected = if (inherited.isEmpty()) {
-            "/sdk/runtime:/sdk/tools/lib"
-        } else {
-            "/sdk/runtime:/sdk/tools/lib:${inherited}"
-        }
+        let expected =
+            if (inherited.isEmpty()) {
+                "/sdk/runtime:/sdk/tools/lib"
+            } else {
+                "/sdk/runtime:/sdk/tools/lib:${inherited}"
+            }
         @Expect(got, expected)
     }
 }

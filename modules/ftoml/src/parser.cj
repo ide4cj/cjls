@@ -139,7 +139,11 @@ class FtParser {
             if ((b < 0x20 && b != 0x09) || b == 0x7F) {
                 throw fail("a control character in a comment")
             }
-            pos += if (b >= 0x80) { utf8At(pos) } else { 1 }
+            pos += if (b >= 0x80) {
+                    utf8At(pos)
+                } else {
+                    1
+                }
         }
     }
 
@@ -175,26 +179,29 @@ class FtParser {
         if (pos >= bytes.size) {
             throw fail("expected a key")
         }
-        let name = match (bytes[pos]) {
-            case 0x22 =>
-                if (startsWith(pos, "\"\"\"")) {
-                    throw fail("a key cannot be a multi-line string")
-                }
-                basicString()
-            case 0x27 =>
-                if (startsWith(pos, "'''")) {
-                    throw fail("a key cannot be a multi-line string")
-                }
-                literalString()
-            case _ =>
-                while (pos < bytes.size && isBareKeyByte(bytes[pos])) {
-                    pos++
-                }
-                if (pos == start) {
-                    throw fail("expected a key")
-                }
-                unsafe { String.fromUtf8Unchecked(bytes[start..pos]) }
-        }
+        let name =
+            match (bytes[pos]) {
+                case 0x22 =>
+                    if (startsWith(pos, "\"\"\"")) {
+                        throw fail("a key cannot be a multi-line string")
+                    }
+                    basicString()
+                case 0x27 =>
+                    if (startsWith(pos, "'''")) {
+                        throw fail("a key cannot be a multi-line string")
+                    }
+                    literalString()
+                case _ =>
+                    while (pos < bytes.size && isBareKeyByte(bytes[pos])) {
+                        pos++
+                    }
+                    if (pos == start) {
+                        throw fail("expected a key")
+                    }
+                    unsafe {
+                        String.fromUtf8Unchecked(bytes[start..pos])
+                    }
+            }
         KeyPart(name: name, start: start, end: pos)
     }
 
@@ -215,7 +222,7 @@ class FtParser {
     }
 
     private func joined(parts: Array<KeyPart>, count: Int64): String {
-        String.join(parts[0..count].map {part => part.name}, delimiter: ".")
+        String.join(parts[0..count].map { part => part.name }, delimiter: ".")
     }
 
     // --- tables
@@ -224,7 +231,12 @@ class FtParser {
      * A table in `parent`, nested one level deeper: nothing is deeper than `NESTING_MAX`, so that
      * whatever walks a document - a writer, a decoder - never runs out of stack.
      */
-    private func nested(parent: FtTable, origin: TableOrigin, at: Int64, levels!: Int64 = 1): FtTable {
+    private func nested(
+        parent: FtTable,
+        origin: TableOrigin,
+        at: Int64,
+        levels!: Int64 = 1
+    ): FtTable {
         let level = parent.level + levels
         if (level > NESTING_MAX) {
             throw fail("nested too deep", at)
@@ -248,15 +260,29 @@ class FtParser {
             match (target.get(part.name)) {
                 case None =>
                     let created = nested(target, Dotted, part.start)
-                    target.add(part.name, FtValue(AsTable(created), start: part.start, end: part.end),
-                        keyStart: part.start, keyEnd: part.end)
+                    target
+                        .add(
+                            part.name,
+                            FtValue(AsTable(created), start: part.start, end: part.end),
+                            keyStart: part.start,
+                            keyEnd: part.end
+                        )
                     target = created
-                case Some(existing) => match (existing.data) {
-                    // dotted keys add only to tables dotted keys under the same header defined
-                    case AsTable(sub) where sub.origin == Dotted => target = sub
-                    case AsTable(_) => throw fail("`${joined(parts, i + 1)}` is a table defined elsewhere", part.start)
-                    case other => throw fail("`${joined(parts, i + 1)}` is already ${other.kindName}", part.start)
-                }
+                case Some(existing) =>
+                    match (existing.data) {
+                        // dotted keys add only to tables dotted keys under the same header defined
+                        case AsTable(sub) where sub.origin == Dotted => target = sub
+                        case AsTable(_) =>
+                            throw fail(
+                                "`${joined(parts, i + 1)}` is a table defined elsewhere",
+                                part.start
+                            )
+                        case other =>
+                            throw fail(
+                                "`${joined(parts, i + 1)}` is already ${other.kindName}",
+                                part.start
+                            )
+                    }
             }
         }
         let last = parts[parts.size - 1]
@@ -271,7 +297,11 @@ class FtParser {
     private func header(): Unit {
         let start = pos
         let isArray = pos + 1 < bytes.size && bytes[pos + 1] == 0x5B
-        pos += if (isArray) { 2 } else { 1 }
+        pos += if (isArray) {
+                2
+            } else {
+                1
+            }
         skipWhitespace()
         let parts = key()
         skipWhitespace()
@@ -293,57 +323,92 @@ class FtParser {
             match (parent.get(part.name)) {
                 case None =>
                     let created = nested(parent, Implicit, part.start)
-                    parent.add(part.name, FtValue(AsTable(created), start: part.start, end: part.end),
-                        keyStart: part.start, keyEnd: part.end)
+                    parent
+                        .add(
+                            part.name,
+                            FtValue(AsTable(created), start: part.start, end: part.end),
+                            keyStart: part.start,
+                            keyEnd: part.end
+                        )
                     parent = created
-                case Some(existing) => match (existing.data) {
-                    case AsTable(sub) where sub.origin == Braced =>
-                        throw fail("`${joined(parts, i + 1)}` is an inline table, complete as written", part.start)
-                    case AsTable(sub) => parent = sub
-                    // the element last defined
-                    case AsArray(array) where array.isTableArray => parent = array[array.size - 1].asTable()
-                    case other => throw fail("`${joined(parts, i + 1)}` is already ${other.kindName}", part.start)
-                }
+                case Some(existing) =>
+                    match (existing.data) {
+                        case AsTable(sub) where sub.origin == Braced =>
+                            throw fail(
+                                "`${joined(parts, i + 1)}` is an inline table, complete as written",
+                                part.start
+                            )
+                        case AsTable(sub) => parent = sub
+                        // the element last defined
+                        case AsArray(array) where array.isTableArray =>
+                            parent = array[array.size - 1].asTable()
+                        case other =>
+                            throw fail(
+                                "`${joined(parts, i + 1)}` is already ${other.kindName}",
+                                part.start
+                            )
+                    }
             }
         }
 
         let last = parts[parts.size - 1]
         let name = joined(parts, parts.size)
-        current = if (isArray) {
-            let array = match (parent.get(last.name)) {
-                case None =>
-                    let created = FtArray(true)
-                    parent.add(last.name, FtValue(AsArray(created), start: start, end: end),
-                        keyStart: last.start, keyEnd: last.end)
-                    created
-                case Some(existing) => match (existing.data) {
-                    case AsArray(array) where array.isTableArray => array
-                    case AsArray(_) => throw fail("`${name}` is an array written as a value, complete as written", last.start)
-                    case other => throw fail("`${name}` is already ${other.kindName}", last.start)
+        current =
+            if (isArray) {
+                let array =
+                    match (parent.get(last.name)) {
+                        case None =>
+                            let created = FtArray(true)
+                            parent
+                                .add(
+                                    last.name,
+                                    FtValue(AsArray(created), start: start, end: end),
+                                    keyStart: last.start,
+                                    keyEnd: last.end
+                                )
+                            created
+                        case Some(existing) =>
+                            match (existing.data) {
+                                case AsArray(array) where array.isTableArray => array
+                                case AsArray(_) =>
+                                    throw fail(
+                                        "`${name}` is an array written as a value, complete as written",
+                                        last.start
+                                    )
+                                case other =>
+                                    throw fail("`${name}` is already ${other.kindName}", last.start)
+                            }
+                    }
+                // the array one level down, its tables two
+                let element = nested(parent, ArrayElement, last.start, levels: 2)
+                array.items.add(FtValue(AsTable(element), start: start, end: end))
+                element
+            } else {
+                match (parent.get(last.name)) {
+                    case None =>
+                        let created = nested(parent, Header, last.start)
+                        parent
+                            .add(
+                                last.name,
+                                FtValue(AsTable(created), start: start, end: end),
+                                keyStart: last.start,
+                                keyEnd: last.end
+                            )
+                        created
+                    case Some(existing) =>
+                        match (existing.data) {
+                            case AsTable(sub) where sub.origin == Implicit =>
+                                sub.origin = Header
+                                existing.startAt = start
+                                existing.endAt = end
+                                sub
+                            case AsTable(_) =>
+                                throw fail("table `${name}` is defined twice", last.start)
+                            case other =>
+                                throw fail("`${name}` is already ${other.kindName}", last.start)
+                        }
                 }
             }
-            // the array one level down, its tables two
-            let element = nested(parent, ArrayElement, last.start, levels: 2)
-            array.items.add(FtValue(AsTable(element), start: start, end: end))
-            element
-        } else {
-            match (parent.get(last.name)) {
-                case None =>
-                    let created = nested(parent, Header, last.start)
-                    parent.add(last.name, FtValue(AsTable(created), start: start, end: end),
-                        keyStart: last.start, keyEnd: last.end)
-                    created
-                case Some(existing) => match (existing.data) {
-                    case AsTable(sub) where sub.origin == Implicit =>
-                        sub.origin = Header
-                        existing.startAt = start
-                        existing.endAt = end
-                        sub
-                    case AsTable(_) => throw fail("table `${name}` is defined twice", last.start)
-                    case other => throw fail("`${name}` is already ${other.kindName}", last.start)
-                }
-            }
-        }
     }
 
     // --- values
@@ -354,34 +419,37 @@ class FtParser {
             throw fail("expected a value")
         }
         let start = pos
-        let data = match (bytes[pos]) {
-            case 0x22 =>
-                if (startsWith(pos, "\"\"\"")) {
-                    AsString(multilineBasicString())
-                } else {
-                    AsString(basicString())
-                }
-            case 0x27 =>
-                if (startsWith(pos, "'''")) {
-                    AsString(multilineLiteralString())
-                } else {
-                    AsString(literalString())
-                }
-            case 0x5B => AsArray(array(level))
-            case 0x7B => AsTable(inlineTable(level))
-            case 0x74 =>
-                keyword("true")
-                AsBool(true)
-            case 0x66 =>
-                keyword("false")
-                AsBool(false)
-            case b where isDigit(b) && (isDateAt(bytes, pos, bytes.size) || isTimeAt(bytes, pos, bytes.size)) =>
-                let (data, end) = scanDateTime(bytes, pos, bytes.size)
-                pos = end
-                data
-            case b where isDigit(b) || b == 0x2B || b == 0x2D || b == 0x69 || b == 0x6E => number()
-            case _ => throw fail("expected a value")
-        }
+        let data =
+            match (bytes[pos]) {
+                case 0x22 =>
+                    if (startsWith(pos, "\"\"\"")) {
+                        AsString(multilineBasicString())
+                    } else {
+                        AsString(basicString())
+                    }
+                case 0x27 =>
+                    if (startsWith(pos, "'''")) {
+                        AsString(multilineLiteralString())
+                    } else {
+                        AsString(literalString())
+                    }
+                case 0x5B => AsArray(array(level))
+                case 0x7B => AsTable(inlineTable(level))
+                case 0x74 =>
+                    keyword("true")
+                    AsBool(true)
+                case 0x66 =>
+                    keyword("false")
+                    AsBool(false)
+                case b where isDigit(b) &&
+                        (isDateAt(bytes, pos, bytes.size) || isTimeAt(bytes, pos, bytes.size)) =>
+                    let (data, end) = scanDateTime(bytes, pos, bytes.size)
+                    pos = end
+                    data
+                case b where isDigit(b) || b == 0x2B || b == 0x2D || b == 0x69 || b == 0x6E =>
+                    number()
+                case _ => throw fail("expected a value")
+            }
         FtValue(data, start: start, end: pos)
     }
 
@@ -463,7 +531,13 @@ class FtParser {
             at++
         }
         if (isWord(at, end, "inf")) {
-            return AsFloat(if (negative) { -Float64.Inf } else { Float64.Inf })
+            return AsFloat(
+                if (negative) {
+                    -Float64.Inf
+                } else {
+                    Float64.Inf
+                }
+            )
         }
         if (isWord(at, end, "nan")) {
             return AsFloat(Float64.NaN)
@@ -471,7 +545,10 @@ class FtParser {
         if (at >= end || !isDigit(bytes[at])) {
             throw fail("expected a number", start)
         }
-        if (bytes[at] == 0x30 && at + 1 < end && (bytes[at + 1] == 0x78 || bytes[at + 1] == 0x6F || bytes[at + 1] == 0x62)) {
+        if (
+            bytes[at] == 0x30 && at + 1 < end &&
+                (bytes[at + 1] == 0x78 || bytes[at + 1] == 0x6F || bytes[at + 1] == 0x62)
+        ) {
             if (at != start) {
                 throw fail("a hexadecimal, octal or binary integer takes no sign", start)
             }
@@ -519,16 +596,21 @@ class FtParser {
     }
 
     private func digitValue(b: Byte, radix: Int64): ?Int64 {
-        let d = if (isDigit(b)) {
-            Int64(b - 0x30)
-        } else if (b >= 0x61 && b <= 0x66) {
-            Int64(b - 0x61 + 10)
-        } else if (b >= 0x41 && b <= 0x46) {
-            Int64(b - 0x41 + 10)
+        let d =
+            if (isDigit(b)) {
+                Int64(b - 0x30)
+            } else if (b >= 0x61 && b <= 0x66) {
+                Int64(b - 0x61 + 10)
+            } else if (b >= 0x41 && b <= 0x46) {
+                Int64(b - 0x41 + 10)
+            } else {
+                return None
+            }
+        if (d < radix) {
+            d
         } else {
-            return None
+            None
         }
-        if (d < radix) { d } else { None }
     }
 
     /** Past the digits of `radix` from `from`, a `_` allowed only between two of them. */
@@ -582,11 +664,12 @@ class FtParser {
     }
 
     private func radixInteger(from: Int64, end: Int64): Int64 {
-        let radix = match (bytes[from - 1]) {
-            case 0x78 => 16
-            case 0x6F => 8
-            case _ => 2
-        }
+        let radix =
+            match (bytes[from - 1]) {
+                case 0x78 => 16
+                case 0x6F => 8
+                case _ => 2
+            }
         if (digits(from, end, radix) != end) {
             throw fail("expected a digit", from)
         }
@@ -624,7 +707,10 @@ class FtParser {
     }
 
     private func takeScratch(): String {
-        let text = unsafe { String.fromUtf8Unchecked(scratch[0..scratchLength]) }
+        let text =
+            unsafe {
+                String.fromUtf8Unchecked(scratch[0..scratchLength])
+            }
         scratchLength = 0
         text
     }
@@ -637,14 +723,21 @@ class FtParser {
         while (pos < bytes.size) {
             let b = bytes[pos]
             if (b == 0x22) {
-                let text = unsafe { String.fromUtf8Unchecked(bytes[start..pos]) }
+                let text =
+                    unsafe {
+                        String.fromUtf8Unchecked(bytes[start..pos])
+                    }
                 pos++
                 return text
             }
             if (b == 0x5C || b < 0x20 || b == 0x7F) {
                 break
             }
-            pos += if (b >= 0x80) { utf8At(pos) } else { 1 }
+            pos += if (b >= 0x80) {
+                    utf8At(pos)
+                } else {
+                    1
+                }
         }
         scratchLength = 0
         pushRange(start, pos)
@@ -664,7 +757,12 @@ class FtParser {
             } else if ((b < 0x20 && b != 0x09) || b == 0x7F) {
                 throw fail("a control character in a string")
             } else {
-                let length = if (b >= 0x80) { utf8At(pos) } else { 1 }
+                let length =
+                    if (b >= 0x80) {
+                        utf8At(pos)
+                    } else {
+                        1
+                    }
                 pushRange(pos, pos + length)
                 pos += length
             }
@@ -697,7 +795,12 @@ class FtParser {
             } else if ((b < 0x20 && b != 0x09 && b != 0x0A) || b == 0x7F) {
                 throw fail("a control character in a string")
             } else {
-                let length = if (b >= 0x80) { utf8At(pos) } else { 1 }
+                let length =
+                    if (b >= 0x80) {
+                        utf8At(pos)
+                    } else {
+                        1
+                    }
                 pushRange(pos, pos + length)
                 pos += length
             }
@@ -715,7 +818,10 @@ class FtParser {
             }
             let b = bytes[pos]
             if (b == 0x27) {
-                let text = unsafe { String.fromUtf8Unchecked(bytes[start..pos]) }
+                let text =
+                    unsafe {
+                        String.fromUtf8Unchecked(bytes[start..pos])
+                    }
                 pos++
                 return text
             }
@@ -725,7 +831,11 @@ class FtParser {
             if ((b < 0x20 && b != 0x09) || b == 0x7F) {
                 throw fail("a control character in a string")
             }
-            pos += if (b >= 0x80) { utf8At(pos) } else { 1 }
+            pos += if (b >= 0x80) {
+                    utf8At(pos)
+                } else {
+                    1
+                }
         }
         ""
     }
@@ -750,7 +860,12 @@ class FtParser {
             } else if ((b < 0x20 && b != 0x09 && b != 0x0A) || b == 0x7F) {
                 throw fail("a control character in a string")
             } else {
-                let length = if (b >= 0x80) { utf8At(pos) } else { 1 }
+                let length =
+                    if (b >= 0x80) {
+                        utf8At(pos)
+                    } else {
+                        1
+                    }
                 pushRange(pos, pos + length)
                 pos += length
             }
@@ -880,31 +995,45 @@ func utf8Length(bytes: Array<Byte>, i: Int64): Int64 {
         at < n && (bytes[at] & 0xC0) == 0x80
     }
     if (b0 >= 0xC2 && b0 <= 0xDF) {
-        return if (cont(i + 1)) { 2 } else { 0 }
+        return if (cont(i + 1)) {
+            2
+        } else {
+            0
+        }
     }
     if (b0 >= 0xE0 && b0 <= 0xEF) {
         if (i + 1 >= n) {
             return 0
         }
         let b1 = bytes[i + 1]
-        let ok = match (b0) {
-            case 0xE0 => b1 >= 0xA0 && b1 <= 0xBF
-            case 0xED => b1 >= 0x80 && b1 <= 0x9F
-            case _ => (b1 & 0xC0) == 0x80
+        let ok =
+            match (b0) {
+                case 0xE0 => b1 >= 0xA0 && b1 <= 0xBF
+                case 0xED => b1 >= 0x80 && b1 <= 0x9F
+                case _ => (b1 & 0xC0) == 0x80
+            }
+        return if (ok && cont(i + 2)) {
+            3
+        } else {
+            0
         }
-        return if (ok && cont(i + 2)) { 3 } else { 0 }
     }
     if (b0 >= 0xF0 && b0 <= 0xF4) {
         if (i + 1 >= n) {
             return 0
         }
         let b1 = bytes[i + 1]
-        let ok = match (b0) {
-            case 0xF0 => b1 >= 0x90 && b1 <= 0xBF
-            case 0xF4 => b1 >= 0x80 && b1 <= 0x8F
-            case _ => (b1 & 0xC0) == 0x80
+        let ok =
+            match (b0) {
+                case 0xF0 => b1 >= 0x90 && b1 <= 0xBF
+                case 0xF4 => b1 >= 0x80 && b1 <= 0x8F
+                case _ => (b1 & 0xC0) == 0x80
+            }
+        return if (ok && cont(i + 2) && cont(i + 3)) {
+            4
+        } else {
+            0
         }
-        return if (ok && cont(i + 2) && cont(i + 3)) { 4 } else { 0 }
     }
     0
 }

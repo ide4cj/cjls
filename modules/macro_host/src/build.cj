@@ -51,7 +51,11 @@ public interface Toolchain {
  * removes it meanwhile.
  */
 public class MacroBuilder {
-    public MacroBuilder(private let out: Path, private let version: String, private let toolchain: Toolchain) {}
+    public MacroBuilder(
+        private let out: Path,
+        private let version: String,
+        private let toolchain: Toolchain
+    ) {}
 
     /**
      * Builds `units`, in their order: for each macro package, by name, its library, or why there is none. A package
@@ -86,7 +90,11 @@ public class MacroBuilder {
         built
     }
 
-    private func buildOne(unit: BuildUnit, stamps: HashMap<String, Int64>, failed: HashMap<String, String>): BuiltLibrary {
+    private func buildOne(
+        unit: BuildUnit,
+        stamps: HashMap<String, Int64>,
+        failed: HashMap<String, String>
+    ): BuiltLibrary {
         for ((_, dep) in unit.deps) {
             if (failed.contains(dep)) {
                 return NotBuilt("${dep}, which it imports, did not build")
@@ -109,11 +117,13 @@ public class MacroBuilder {
         }
         let (code, said) = toolchain.compile(argumentsOf(unit))
         if (code != 0 || !exists(output)) {
-            return NotBuilt(if (said.isEmpty()) {
-                "cjc exited with ${code}"
-            } else {
-                said
-            })
+            return NotBuilt(
+                if (said.isEmpty()) {
+                    "cjc exited with ${code}"
+                } else {
+                    said
+                }
+            )
         }
         try {
             File.writeTo(stampFile, "${stamp}".toArray())
@@ -128,8 +138,16 @@ public class MacroBuilder {
      * `.cjo` of its binaries.
      */
     func argumentsOf(unit: BuildUnit): Array<String> {
-        let arguments = ArrayList<String>(["-p", unit.dir.toString(), "--import-path=${out}", "--no-sub-pkg",
-            "--output-dir=${out.join(unit.module)}"])
+        let arguments =
+            ArrayList<String>(
+                [
+                    "-p",
+                    unit.dir.toString(),
+                    "--import-path=${out}",
+                    "--no-sub-pkg",
+                    "--output-dir=${out.join(unit.module)}"
+                ]
+            )
         let binaryDirs = ArrayList<Path>()
         for (cjo in unit.binaries) {
             if (let Some(parent) <- parentOf(cjo) && !binaryDirs.contains(parent)) {
@@ -189,7 +207,9 @@ func outputName(unit: BuildUnit): String {
 func sourcesOf(dir: Path): Array<String> {
     let found = ArrayList<String>()
     try {
-        for (entry in Directory.readFrom(dir) where entry.isRegular() && entry.name.endsWith(".cj")) {
+        for (
+            entry in Directory.readFrom(dir) where entry.isRegular() && entry.name.endsWith(".cj")
+        ) {
             found.add("${entry.name}:${entry.size}:${timeOf(entry.path)}")
         }
     } catch (_: Exception) {
@@ -242,13 +262,18 @@ func stemOf(cjo: Path): String {
  */
 public func dirNameOf(version: String): String {
     let first = version.lines().next() ?? version
-    let text = match (first.indexOf(": ")) {
-        case Some(at) => first[at + 2..]
-        case None => first
-    }
+    let text =
+        match (first.indexOf(": ")) {
+            case Some(at) => first[at + 2..]
+            case None => first
+        }
     let name = StringBuilder()
     for (r in text.runes()) {
-        if ((r >= r'a' && r <= r'z') || (r >= r'A' && r <= r'Z') || (r >= r'0' && r <= r'9') || r == r'.' || r == r'-') {
+        if (
+            (r >= r'a' && r <= r'z') || (r >= r'A' && r <= r'Z') || (r >= r'0' && r <= r'9') ||
+                r == r'.' ||
+                r == r'-'
+        ) {
             name.append(r)
         } else if (r == r' ') {
             name.append(r'-')

@@ -50,12 +50,15 @@ struct TypeMap <: FromToml<TypeMap> {
      * `(lspName, target)` of every aliased entry
      */
     func aliases(): Array<(String, String)> {
-        entries |> filterMap {
-            entry: (String, TypeBinding) => match (entry[1]) {
-                case Aliased(target) => (entry[0], target)
-                case _ => None
-            }
-        } |> collectArray
+        entries |>
+            filterMap {
+                entry: (String, TypeBinding) =>
+                match (entry[1]) {
+                    case Aliased(target) => (entry[0], target)
+                    case _ => None
+                }
+            } |>
+            collectArray
     }
 
     /**
@@ -75,14 +78,16 @@ struct TypeMap <: FromToml<TypeMap> {
 private func bindingOf(lspName: String, v: FtValue): TypeBinding {
     let entry = v.asTable()
 
-    let declared = entry.get("declared").map {it => declaredOf(it)}
-    let fields = entry.iterator() |> filter {it: (String, FtValue) => it[0] != "declared"} |> collectArray
+    let declared = entry.get("declared").map { it => declaredOf(it) }
+    let fields =
+        entry.iterator() |> filter { it: (String, FtValue) => it[0] != "declared" } |> collectArray
     if (fields.isEmpty()) {
         throw v.error("`types.${lspName}` sets none of `rename`, `alias`, `extern`, `skip`")
     }
 
     if (fields.size > 1) {
-        throw v.error("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
+        throw v
+            .error("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
     }
 
     let (key, data) = fields[0]

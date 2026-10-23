@@ -84,13 +84,11 @@ class SwallowTest {
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let probe = db.snapshot()
-        let reader = spawnQuery(db.snapshot()) {s => tolerantSize(s, file)}
+        let reader = spawnQuery(db.snapshot()) { s => tolerantSize(s, file) }
         db.parking.parked.remove()
 
         // act
-        let write = spawn {
-            file.setText(db).to("bye")
-        }
+        let write = spawn { file.setText(db).to("bye") }
         waitUntilCancelled(probe)
         db.parking.released.add(())
 
@@ -107,7 +105,8 @@ class SwallowTest {
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let stop = AtomicBool(false)
-        let reader = spawnQuery(db.snapshot(cancelledBy: {=> stop.load()})) {s => tolerantSize(s, file)}
+        let reader =
+            spawnQuery(db.snapshot(cancelledBy: { => stop.load() })) { s => tolerantSize(s, file) }
         db.parking.parked.remove()
         db.events.take()
 
@@ -159,9 +158,9 @@ class SwallowTest {
         // whichever closes the loop gives way, and its query catches that
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
-        let fromHead = spawnQuery(db.snapshot()) {s => tolerantParkedHead(s, file)}
+        let fromHead = spawnQuery(db.snapshot()) { s => tolerantParkedHead(s, file) }
         db.parking.parked.remove()
-        let fromTail = spawnQuery(db.snapshot()) {s => tolerantParkedTail(s, file)}
+        let fromTail = spawnQuery(db.snapshot()) { s => tolerantParkedTail(s, file) }
         db.parking.parked.remove()
 
         // act

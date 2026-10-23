@@ -155,7 +155,7 @@ public class ServerState <: FromContext<ServerState> {
     /**
      * The server's directories beside the projects (D106), each set in order the first time it is opened.
      */
-    public let cacheDirs = CacheDirs({name => getVariable(name)})
+    public let cacheDirs = CacheDirs({ name => getVariable(name) })
 
     /**
      * The id each root's watcher was registered with, to unregister it by.
@@ -314,9 +314,11 @@ public class ServerState <: FromContext<ServerState> {
 
     private func takeGone(): Array<(VfsPath, ?Rope)> {
         let rootsNow = roots.toArray()
-        let gone = goneWithProject.toArray().filter {path => !isWorkspaceFile(path, rootsNow)}.map {
-            path => (path, Option<Rope>.None)
-        }
+        let gone =
+            goneWithProject
+                .toArray()
+                .filter { path => !isWorkspaceFile(path, rootsNow) }
+                .map { path => (path, Option<Rope>.None) }
         goneWithProject = HashSet<VfsPath>()
         gone
     }
@@ -351,9 +353,11 @@ public class ServerState <: FromContext<ServerState> {
         if (this.load != load) {
             return false
         }
-        apply(files.filter {file => !openDocuments.contains(file[0]) && !set.contains(file[0])}.map {
-            file => (file[0], Some(file[1]))
-        })
+        apply(
+            files
+                .filter { file => !openDocuments.contains(file[0]) && !set.contains(file[0]) }
+                .map { file => (file[0], Some(file[1])) }
+        )
         true
     }
 
@@ -389,7 +393,7 @@ public class ServerState <: FromContext<ServerState> {
         }
         analysis.applyChanges(vfs, changes)
         filesChanged = true
-        if (changes.iterator().any {change => change.kind != ChangeKind.Modify}) {
+        if (changes.iterator().any { change => change.kind != ChangeKind.Modify }) {
             this.files = None
         }
     }
@@ -401,11 +405,12 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func setProject(model: ProjectModel, binaries!: Array<CjoFileRead> = []): Unit {
         let gone = takeGone()
-        analysis.batch {
-            analysis.setProject(model, vfs.paths, binaries: binaries)
-            // after the project: a file gone takes the durability the new project gives it
-            apply(gone)
-        }
+        analysis
+            .batch {
+                analysis.setProject(model, vfs.paths, binaries: binaries)
+                // after the project: a file gone takes the durability the new project gives it
+                apply(gone)
+            }
         this.model = model
         projectFiles = HashSet<VfsPath>(model.files())
         binarySourceFiles = HashSet<VfsPath>(model.binarySourceFiles())
@@ -449,8 +454,12 @@ public class ServerState <: FromContext<ServerState> {
      * project again (D80, D88), or is compiled alone (#293).
      */
     public func inNoPackage(path: VfsPath): Bool {
-        isCangjieFile(path.name) && !projectFiles.contains(path) && !binarySourceFiles.contains(path) &&
-            !model.modules.iterator().any {module => module.inactive.iterator().any {file => file.path == path}}
+        isCangjieFile(path.name) && !projectFiles.contains(path) &&
+            !binarySourceFiles.contains(path) &&
+            !model
+                .modules
+                .iterator()
+                .any { module => module.inactive.iterator().any { file => file.path == path } }
     }
 
     /**
@@ -464,7 +473,7 @@ public class ServerState <: FromContext<ServerState> {
      * The files with contents under `dir`, `dir` itself included.
      */
     public func filesUnder(dir: VfsPath): Array<VfsPath> {
-        vfs.files().map {id => vfs.filePath(id)}.filter {path => path.isUnder(dir)}
+        vfs.files().map { id => vfs.filePath(id) }.filter { path => path.isUnder(dir) }
     }
 
     /**
@@ -473,12 +482,13 @@ public class ServerState <: FromContext<ServerState> {
      */
     public func setMacroLibraries(stamps: Array<(Package, Int64)>): Unit {
         // read before the batch, which reads nothing
-        let changed = stamps.filter {one => one[0].macroLibrary(analysis) != one[1]}
-        analysis.batch {
-            for ((pkg, stamp) in changed) {
-                pkg.setMacroLibrary(analysis).to(stamp)
+        let changed = stamps.filter { one => one[0].macroLibrary(analysis) != one[1] }
+        analysis
+            .batch {
+                for ((pkg, stamp) in changed) {
+                    pkg.setMacroLibrary(analysis).to(stamp)
+                }
             }
-        }
         filesChanged = true
     }
 
@@ -505,17 +515,36 @@ public class ServerState <: FromContext<ServerState> {
      * The state as it is now, for a handler running on a thread of its own. Its queries stop,
      * `CancelledException`, once `cancelledBy` gives `true`: the client cancelled the request.
      */
-    public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
+    public func snapshot(cancelledBy!: () -> Bool = { => false }): ServerSnapshot {
         // an expanded file the editor opened is no file of the workspace
-        let files = this.files ?? vfs.files().filter {
-            id =>
-            let path = vfs.filePath(id)
-            !binarySourceFiles.contains(path) && !isExpandedFile(path)
-        }
+        let files =
+            this.files ??
+                vfs
+                    .files()
+                    .filter {
+                        id =>
+                        let path = vfs.filePath(id)
+                        !binarySourceFiles.contains(path) && !isExpandedFile(path)
+                    }
         this.files = files
-        ServerSnapshot(analysis.snapshot(cancelledBy: cancelledBy), vfs.paths, files, encoding, multilineTokens,
-            augmentsSyntaxTokens, locationLinks, lineFoldingOnly, foldingRangeLimit, hoverMarkdown, completionMarkdown,
-            roots.toArray(), showsDocuments, codeActionLiterals, cacheDirs, openings)
+        ServerSnapshot(
+            analysis.snapshot(cancelledBy: cancelledBy),
+            vfs.paths,
+            files,
+            encoding,
+            multilineTokens,
+            augmentsSyntaxTokens,
+            locationLinks,
+            lineFoldingOnly,
+            foldingRangeLimit,
+            hoverMarkdown,
+            completionMarkdown,
+            roots.toArray(),
+            showsDocuments,
+            codeActionLiterals,
+            cacheDirs,
+            openings
+        )
     }
 
     /**
@@ -548,22 +577,33 @@ public class ServerState <: FromContext<ServerState> {
  * `CancelledException`, which the server answers with `ContentModified`.
  */
 public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
-    ServerSnapshot(public let analysis: AnalysisDatabase, private let paths: PathInterner,
+    ServerSnapshot(
+        public let analysis: AnalysisDatabase,
+        private let paths: PathInterner,
         /**
          * Every file with contents, in the order of their ids.
          */
-        public let files: Array<FileId>, public let encoding: Encoding, public let multilineTokens: Bool,
-        public let augmentsSyntaxTokens: Bool, public let locationLinks: Bool, public let lineFoldingOnly: Bool,
-        public let foldingRangeLimit: ?Int64, public let hoverMarkdown: Bool, public let completionMarkdown: Bool,
+        public let files: Array<FileId>,
+        public let encoding: Encoding,
+        public let multilineTokens: Bool,
+        public let augmentsSyntaxTokens: Bool,
+        public let locationLinks: Bool,
+        public let lineFoldingOnly: Bool,
+        public let foldingRangeLimit: ?Int64,
+        public let hoverMarkdown: Bool,
+        public let completionMarkdown: Bool,
         /**
          * The roots of the workspace, as the state had them.
          */
-        public let roots: Array<VfsPath>, public let showsDocuments: Bool, public let codeActionLiterals: Bool,
+        public let roots: Array<VfsPath>,
+        public let showsDocuments: Bool,
+        public let codeActionLiterals: Bool,
         public let cacheDirs: CacheDirs,
         /**
          * How many times a document was opened, as the state had it.
          */
-        public let openings: Int64) {}
+        public let openings: Int64
+    ) {}
 
     public static func from<P>(ctx: ReadOnlyContext<P>): ServerSnapshot {
         ctx.snapshot

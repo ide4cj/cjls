@@ -16,7 +16,7 @@ import loupe.syntax.parse
  */
 func checkUnknowns(fixture: String, binaries!: Array<String> = ["std.core"]): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
+    let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let actual = ArrayList<Annotation>()
     for (file in parsed.files) {
         let source = db.sourceFile(file.fileId).getOrThrow()
@@ -27,7 +27,12 @@ func checkUnknowns(fixture: String, binaries!: Array<String> = ["std.core"]): Un
     expectAnnotations(fixture, actual.toArray())
 }
 
-func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotation>, db: AnalysisDatabase): Unit {
+func annotateUnknowns(
+    source: SourceFile,
+    item: Item,
+    actual: ArrayList<Annotation>,
+    db: AnalysisDatabase
+): Unit {
     let root = parse(db, source).syntaxNode()
     let def = DefId(db, ItemFile.Source(source), item.id)
     match (item.kind) {
@@ -42,13 +47,14 @@ func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotati
                 if (!seen.add(node.textRange.start * 1_000_000 + node.textRange.end)) {
                     continue
                 }
-                let text = match (result[ExprId(i)].map {ty => ty.kind(db)}) {
-                    case None => "no value"
-                    case Some(ErrorTy) => "error"
-                    case Some(TodoTy(why)) => "todo(${why})"
-                    case Some(UnknownTy(why)) => "unknown(${why})"
-                    case _ => continue
-                }
+                let text =
+                    match (result[ExprId(i)].map { ty => ty.kind(db) }) {
+                        case None => "no value"
+                        case Some(ErrorTy) => "error"
+                        case Some(TodoTy(why)) => "todo(${why})"
+                        case Some(UnknownTy(why)) => "unknown(${why})"
+                        case _ => continue
+                    }
                 actual.add(Annotation(source.fileId(db), node.textRange, text))
             }
         case _ => ()
@@ -68,7 +74,8 @@ func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotati
 class UnknownTest {
     @TestCase
     func anErrorOfTheUserIsAnErrorAndSoIsWhatIsMadeOfIt() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             class C {
                 func f(): Int64 { 1 }
@@ -101,12 +108,14 @@ class UnknownTest {
                 let f = c.h
             //          ^^^ error
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroCallIsOfATypeNotKnownAndSoIsWhatIsMadeOfIt() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -127,12 +136,14 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroOfTheUserNamedAsStdsIsNotStds() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.Expect
@@ -144,12 +155,14 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro Expect(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeAMacroIsCalledOnMayHaveSupertypesNotSeen() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.a.{C, D, E}
@@ -178,12 +191,14 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfATypeAMacroIsCalledOnMayBeTheMacros() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -234,12 +249,14 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeOrPackageBeforeADotIsNoValue() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.p
@@ -268,12 +285,14 @@ class UnknownTest {
             public class C2 {
                 public static func s(): Int64 { 1 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalFunctionsTypeParameterIsNotKnownYet() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             func f(): Unit {
                 func id<T>(x: T): T {
@@ -283,12 +302,14 @@ class UnknownTest {
                 let a = id(1)
             //          ^^^^^ todo(local generic)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func whatStdsCoreWouldTypeIsNotKnownWithoutIt() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             func f(): Unit {
                 let a = "s"
@@ -296,24 +317,30 @@ class UnknownTest {
                 let b = [1]
             //          ^^^ unknown(no std)
             }
-            "#, binaries: [])
+            "#,
+            binaries: []
+        )
     }
 
     @TestCase
     func aQuoteWithoutStdAstImportedIsAnError() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             func f(): Unit {
                 // cjc: import 'std.ast' to use the 'quote' expression
                 let a = quote(1)
             //          ^^^^^^^^ error
             }
-            "#, binaries: ["std.core", "std.ast"])
+            "#,
+            binaries: ["std.core", "std.ast"]
+        )
     }
 
     @TestCase
     func anIfOrMatchWhoseValueIsNotUsedNeedsNoJoin() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             func a(): Int64 { 1 }
             func b(): String { "" }
@@ -330,12 +357,14 @@ class UnknownTest {
                 let y = if (c) { a() } else { b() }
             //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^ error
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallOfOverloadsByNameIsMatchedByName() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             class C {
                 func r(at!: Int64): Int64 { at }
@@ -344,12 +373,14 @@ class UnknownTest {
             func f(c: C): Unit {
                 let x = c.r(at: 1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorOfATypeAMacroIsCalledOnMayBeTheMacros() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -368,24 +399,28 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallWithATrailingLambdaIsOneCallOfIt() {
         // cjc: `k(1) {y => y}` is an `Int64`
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             func k(a: Int64, f: (Int64) -> Int64): Int64 { f(a) }
             func t(): Unit {
                 let x = k(1) {y => y}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacrosAttributeOfAnythingButIdentifiersBetweenBarsIsNotRead() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
@@ -394,12 +429,15 @@ class UnknownTest {
                 let e = @AssertThrows[std.core.Exception](throw Exception())
             //          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ todo(macro call)
             }
-            "#, binaries: ["std.core", "std.unittest", "std.unittest.testmacro"])
+            "#,
+            binaries: ["std.core", "std.unittest", "std.unittest.testmacro"]
+        )
     }
 
     @TestCase
     func aVariadicFunctionOfACjoIsKnownAloneNotAmongOverloads() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             import std.collection.ArrayList
             // cjc: each of a type known
@@ -423,13 +461,16 @@ class UnknownTest {
                 // the same one, though each of one parameter
                 let u = s.trimStart(r'a')
             }
-            "#, binaries: ["std.core", "std.collection"])
+            "#,
+            binaries: ["std.core", "std.collection"]
+        )
     }
 
     @TestCase
     func aCallTheAnalysisCannotTypeInAnArgumentLeavesItsCandidateUndecided() {
         // cjc: `M` gives back its input, so each call is of the overload of an `Int64` (#281)
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -455,13 +496,15 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallTheAnalysisCannotTypeInAnIndexIsNotAnError() {
         // cjc: an `ArrayList<UInt8>` slice and an `Array<UInt8>` (#281)
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.collection.*
@@ -474,25 +517,31 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#, binaries: ["std.core", "std.collection"])
+            "#,
+            binaries: ["std.core", "std.collection"]
+        )
     }
 
     @TestCase
     func aLambdaPassedToACallNoCandidateIsTakenForHasParametersOfTheCallsType() {
         // cjc: `[2, 1]` (#282)
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Unit {
                 let sizes = "ab c".split(" ").map {line => line.size}
             }
-            "#, binaries: ["std.core", "std.collection"])
+            "#,
+            binaries: ["std.core", "std.collection"]
+        )
     }
 
     @TestCase
     func aLambdaPassedToACallTheAnalysisCannotDecideHasParametersOfWhyItCannot() {
         // cjc: `M` gives back its input, so each call is of the overload of an `Int64` (#282)
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -523,6 +572,7 @@ class UnknownTest {
             macro package m.ms
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 }

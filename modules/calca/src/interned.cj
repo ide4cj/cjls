@@ -57,7 +57,9 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
     public InternedIngredient(let name: String, let revisions!: ?Int64 = DEFAULT_REVISIONS) {
         if (let Some(count) <- revisions) {
             if (count <= 0) {
-                throw IllegalArgumentException("${name} keeps a value unused for at least one revision: ${count}")
+                throw IllegalArgumentException(
+                    "${name} keeps a value unused for at least one revision: ${count}"
+                )
             }
         }
         index = reserveIngredients(1)
@@ -116,7 +118,8 @@ public class InternedIngredient<K> where K <: Hashable & Equatable<K> {
 
     @Frozen
     func table(runtime: Runtime): InternTable<K> {
-        runtime.existing<InternTable<K>>(index) ?? runtime.ingredient(index) {=> InternTable<K>(this)}
+        runtime.existing<InternTable<K>>(index) ??
+            runtime.ingredient(index) { => InternTable<K>(this) }
     }
 }
 
@@ -201,7 +204,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
     func intern(fields: K, durability: ?Durability, now: Int64): InternSlot<K> {
         // outside a query, no memo depends on the value, and nothing would learn it is gone
         let atLeast = durability ?? Durability.High
-        synchronized(lock) {
+        synchronized (lock) {
             match (ids.get(fields)) {
                 case Some(id) =>
                     let slot = values.get(id).getOrThrow()
@@ -223,16 +226,20 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
      */
     @Frozen
     func lookup(id: Id, now: Int64): K {
-        let slot = synchronized(lock) {
-            let found = values.get(id)
-            if (let Some(slot) <- found) {
-                use(id, slot, now)
+        let slot =
+            synchronized (lock) {
+                let found = values.get(id)
+                if (let Some(slot) <- found) {
+                    use(id, slot, now)
+                }
+                found
             }
-            found
-        }
         match (slot) {
             case Some(found) => found.fields
-            case None => throw IllegalStateException("${ingredient.name} has no value ${id} in this database")
+            case None =>
+                throw IllegalStateException(
+                    "${ingredient.name} has no value ${id} in this database"
+                )
         }
     }
 
@@ -241,10 +248,11 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
      */
     @Frozen
     private func use(id: Id, slot: InternSlot<K>, now: Int64): Unit {
-        let revisions = match (ingredient.revisions) {
-            case Some(count) => count
-            case None => return
-        }
+        let revisions =
+            match (ingredient.revisions) {
+                case Some(count) => count
+                case None => return
+            }
         slot.lastUsed.store(now)
         if (active.isEmpty() || active[active.size - 1] != now) {
             active.add(now)
@@ -265,7 +273,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
      */
     public func maybeChangedAfter(db: Database, id: Id, _: Int64): Bool {
         let now = db.storage.runtime.revision
-        synchronized(lock) {
+        synchronized (lock) {
             match (values.get(id)) {
                 case Some(slot) =>
                     use(id, slot, now)
@@ -280,15 +288,17 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
      * been that many, and tells the memo tables keyed by them.
      */
     public func newRevision(): Unit {
-        let collected = synchronized(lock) {
-            collect()
-        }
+        let collected =
+            synchronized (lock) {
+                collect()
+            }
         if (collected.isEmpty()) {
             return
         }
-        let told = synchronized(lock) {
-            watchers.toArray()
-        }
+        let told =
+            synchronized (lock) {
+                watchers.toArray()
+            }
         for (watcher in told) {
             watcher.dropKeys(ingredient.index, collected)
         }
@@ -321,7 +331,7 @@ class InternTable<K> <: Ingredient & InternedKeys where K <: Hashable & Equatabl
      * Tells `table` from now on what is collected. Called once per table.
      */
     public func watch(table: KeyedByInterned): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             watchers.add(table)
         }
     }

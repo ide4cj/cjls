@@ -1,4 +1,4 @@
-<!-- cjls.lsp_ext hash: b6fcc4b15b5cfd61 -->
+<!-- cjls.lsp_ext hash: e94fe20ee13dddff -->
 # LSP extensions
 
 Methods cjls answers beyond LSP (D15). Each is under `cjls/`, advertised as `true` under its name in the `experimental` server capabilities, and optional: every client works without it.

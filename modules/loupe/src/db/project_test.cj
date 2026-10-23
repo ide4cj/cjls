@@ -27,17 +27,25 @@ func at(name: String): VfsPath {
  * A module `app` of a package `app` (`a.cj`, and `b.cj` if `withB`) and a package `app.util`.
  */
 func appProject(withB!: Bool = false): ProjectModel {
-    let files = if (withB) {
-        [at("app/src/a.cj"), at("app/src/b.cj")]
-    } else {
-        [at("app/src/a.cj")]
-    }
-    ProjectModel(Cfg([("os", "Linux")]), [
-        ModuleModel("app", at("app/src"), [
-            PackageModel("app", at("app/src"), files),
-            PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])
-        ])
-    ])
+    let files =
+        if (withB) {
+            [at("app/src/a.cj"), at("app/src/b.cj")]
+        } else {
+            [at("app/src/a.cj")]
+        }
+    ProjectModel(
+        Cfg([("os", "Linux")]),
+        [
+            ModuleModel(
+                "app",
+                at("app/src"),
+                [
+                    PackageModel("app", at("app/src"), files),
+                    PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])
+                ]
+            )
+        ]
+    )
 }
 
 func packageNamed(db: AnalysisDatabase, name: String): Package {
@@ -115,12 +123,26 @@ class ProjectTest {
         // arrange
         let db = AnalysisDatabase()
         let paths = PathInterner()
-        let model = {
-            files: Array<String> => ProjectModel(Cfg([]), [
-                ModuleModel("app", at("app/src"), [
-                    PackageModel("app", at("app/src"), files.map {name => at("app/src/${name}")})])
-            ])
-        }
+        let model =
+            {
+                files: Array<String> =>
+                ProjectModel(
+                    Cfg([]),
+                    [
+                        ModuleModel(
+                            "app",
+                            at("app/src"),
+                            [
+                                PackageModel(
+                                    "app",
+                                    at("app/src"),
+                                    files.map { name => at("app/src/${name}") }
+                                )
+                            ]
+                        )
+                    ]
+                )
+            }
         db.setProject(model(["a.cj", "a_test.cj", "test.cj"]), paths)
         let app = packageNamed(db, "app")
         let before = app.testFiles(db)
@@ -160,13 +182,37 @@ class ProjectTest {
     @TestCase
     func projectsMergedAreOneModulePerRootAndNameAndOnePackagePerName() {
         // arrange
-        let first = ProjectModel(Cfg([("os", "Linux")]), [ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/x.cj")])])],
-            binaries: [BinaryModel("stdx", [at("stdx1")])])
-        let second = ProjectModel(Cfg([("os", "Windows")]), [
-            ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/y.cj")]), PackageModel("a.b", at("one/b"), [])]),
-            ModuleModel("default", at("one"), [PackageModel("default", at("one"), [at("one/build.cj")])]),
-            ModuleModel("default", at("two"), [PackageModel("default", at("two"), [at("two/build.cj")])])
-        ], binaries: [BinaryModel("stdx", [at("stdx2")])])
+        let first =
+            ProjectModel(
+                Cfg([("os", "Linux")]),
+                [ModuleModel("a", at("one"), [PackageModel("a", at("one"), [at("one/x.cj")])])],
+                binaries: [BinaryModel("stdx", [at("stdx1")])]
+            )
+        let second =
+            ProjectModel(
+                Cfg([("os", "Windows")]),
+                [
+                    ModuleModel(
+                        "a",
+                        at("one"),
+                        [
+                            PackageModel("a", at("one"), [at("one/y.cj")]),
+                            PackageModel("a.b", at("one/b"), [])
+                        ]
+                    ),
+                    ModuleModel(
+                        "default",
+                        at("one"),
+                        [PackageModel("default", at("one"), [at("one/build.cj")])]
+                    ),
+                    ModuleModel(
+                        "default",
+                        at("two"),
+                        [PackageModel("default", at("two"), [at("two/build.cj")])]
+                    )
+                ],
+                binaries: [BinaryModel("stdx", [at("stdx2")])]
+            )
 
         // act
         let merged = ProjectModel.merge([first, second], Cfg([]))
@@ -185,16 +231,24 @@ class ProjectTest {
         // arrange - `a` and `b` of the root `one`, and `b` of the root `two`
         let db = AnalysisDatabase()
         let paths = PathInterner()
-        let module = {name: String, dir: String => ModuleModel(name, at(dir), [PackageModel(name, at(dir), [at("${dir}/${name}.cj")])])}
+        let module =
+            {
+                name: String, dir: String =>
+                ModuleModel(name, at(dir), [PackageModel(name, at(dir), [at("${dir}/${name}.cj")])])
+            }
 
         // act
-        db.setProject(ProjectModel(Cfg([]), [module("a", "one"), module("b", "one"), module("b", "two")]), paths)
+        db
+            .setProject(
+                ProjectModel(Cfg([]), [module("a", "one"), module("b", "one"), module("b", "two")]),
+                paths
+            )
 
         // assert
         let modules = db.project().getOrThrow().modules(db)
         @Expect(modules.map {module => module.name(db)}, ["a", "b", "b"])
         @Expect(modules[0] != modules[1] && modules[1] != modules[2])
-        let files = modules.map {module => module.packages(db)[0].files(db)}
+        let files = modules.map { module => module.packages(db)[0].files(db) }
         @Expect(files, [[paths.lookup(at("one/a.cj")).getOrThrow()], [paths.lookup(at("one/b.cj")).getOrThrow()],
             [paths.lookup(at("two/b.cj")).getOrThrow()]])
     }
@@ -204,12 +258,24 @@ class ProjectTest {
         // arrange
         let db = AnalysisDatabase()
         let paths = PathInterner()
-        let sources = BinarySources(at("src/std"), [
-            PackageModel("std", at("src/std"), [at("src/std/std.cj")]),
-            PackageModel("std.collection", at("src/std/collection"), [at("src/std/collection/array_list.cj")])
-        ])
-        let model = ProjectModel(Cfg([]), appProject().modules,
-            binaries: [BinaryModel("std", [at("std")], sources: sources)])
+        let sources =
+            BinarySources(
+                at("src/std"),
+                [
+                    PackageModel("std", at("src/std"), [at("src/std/std.cj")]),
+                    PackageModel(
+                        "std.collection",
+                        at("src/std/collection"),
+                        [at("src/std/collection/array_list.cj")]
+                    )
+                ]
+            )
+        let model =
+            ProjectModel(
+                Cfg([]),
+                appProject().modules,
+                binaries: [BinaryModel("std", [at("std")], sources: sources)]
+            )
 
         // act
         db.setProject(model, paths)
@@ -230,8 +296,20 @@ class ProjectTest {
         // arrange
         let db = AnalysisDatabase()
         let paths = PathInterner()
-        let sources = BinarySources(at("src/std"), [PackageModel("std", at("src/std"), [at("src/std/std.cj")])])
-        db.setProject(ProjectModel(Cfg([]), [], binaries: [BinaryModel("std", [at("std")], sources: sources)]), paths)
+        let sources =
+            BinarySources(
+                at("src/std"),
+                [PackageModel("std", at("src/std"), [at("src/std/std.cj")])]
+            )
+        db
+            .setProject(
+                ProjectModel(
+                    Cfg([]),
+                    [],
+                    binaries: [BinaryModel("std", [at("std")], sources: sources)]
+                ),
+                paths
+            )
 
         // act
         db.setProject(ProjectModel(Cfg([]), [], binaries: [BinaryModel("std", [at("std")])]), paths)
@@ -246,7 +324,11 @@ class ProjectTest {
         let model = appProject()
 
         // act
-        let named = [model.packageOfNewFile(at("app/src/util/new.cj")), model.packageOfNewFile(at("app/src/new.cj"))]
+        let named =
+            [
+                model.packageOfNewFile(at("app/src/util/new.cj")),
+                model.packageOfNewFile(at("app/src/new.cj"))
+            ]
 
         // assert
         @Expect(named, [Some("app.util"), Some("app")])
@@ -255,14 +337,26 @@ class ProjectTest {
     @TestCase
     func aNewFileInADirectoryOfNoPackageIsNamedAfterTheDirectoriesUnderItsModule() {
         // arrange
-        let model = ProjectModel(Cfg([]), [
-            ModuleModel("app", at("app/src"), [PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])]),
-            ModuleModel("org::lib", at("lib/src"), [])
-        ])
+        let model =
+            ProjectModel(
+                Cfg([]),
+                [
+                    ModuleModel(
+                        "app",
+                        at("app/src"),
+                        [PackageModel("app.util", at("app/src/util"), [at("app/src/util/u.cj")])]
+                    ),
+                    ModuleModel("org::lib", at("lib/src"), [])
+                ]
+            )
 
         // act
-        let named = [model.packageOfNewFile(at("app/src/net/http/new.cj")), model.packageOfNewFile(at("app/src/new.cj")),
-            model.packageOfNewFile(at("lib/src/x/new.cj"))]
+        let named =
+            [
+                model.packageOfNewFile(at("app/src/net/http/new.cj")),
+                model.packageOfNewFile(at("app/src/new.cj")),
+                model.packageOfNewFile(at("lib/src/x/new.cj"))
+            ]
 
         // assert
         @Expect(named, [Some("app.net.http"), Some("app"), Some("org::lib.x")])
@@ -271,10 +365,14 @@ class ProjectTest {
     @TestCase
     func aNewFileIsInTheNearestModuleAroundIt() {
         // arrange
-        let model = ProjectModel(Cfg([]), [
-            ModuleModel("outer", at("w/src"), []),
-            ModuleModel("inner", at("w/src/inner/src"), [])
-        ])
+        let model =
+            ProjectModel(
+                Cfg([]),
+                [
+                    ModuleModel("outer", at("w/src"), []),
+                    ModuleModel("inner", at("w/src/inner/src"), [])
+                ]
+            )
 
         // act
         let named = model.packageOfNewFile(at("w/src/inner/src/x/new.cj"))
@@ -286,10 +384,21 @@ class ProjectTest {
     @TestCase
     func aModuleNamingItsPackagesOtherwiseThanByDirectoryNamesNoNewOne() {
         // arrange: loose files, the package `app` in `w/one`
-        let model = ProjectModel(Cfg([]), [ModuleModel("app", at("w"), [PackageModel("app", at("w/one"), [at("w/one/a.cj")])])])
+        let model =
+            ProjectModel(
+                Cfg([]),
+                [
+                    ModuleModel(
+                        "app",
+                        at("w"),
+                        [PackageModel("app", at("w/one"), [at("w/one/a.cj")])]
+                    )
+                ]
+            )
 
         // act
-        let named = [model.packageOfNewFile(at("w/one/new.cj")), model.packageOfNewFile(at("w/two/new.cj"))]
+        let named =
+            [model.packageOfNewFile(at("w/one/new.cj")), model.packageOfNewFile(at("w/two/new.cj"))]
 
         // assert
         @Expect(named, [Some("app"), None])
@@ -298,14 +407,31 @@ class ProjectTest {
     @TestCase
     func aNewFileOfTheDefaultPackageOrOfADirectoryNotAnIdentifierOrOfNoModuleHasNoPackageLine() {
         // arrange: a build script beside `src`
-        let model = ProjectModel(Cfg([]), [
-            ModuleModel("app", at("app/src"), [PackageModel("app", at("app/src"), [at("app/src/a.cj")])]),
-            ModuleModel("default", at("app"), [PackageModel("default", at("app"), [at("app/build.cj")])])
-        ])
+        let model =
+            ProjectModel(
+                Cfg([]),
+                [
+                    ModuleModel(
+                        "app",
+                        at("app/src"),
+                        [PackageModel("app", at("app/src"), [at("app/src/a.cj")])]
+                    ),
+                    ModuleModel(
+                        "default",
+                        at("app"),
+                        [PackageModel("default", at("app"), [at("app/build.cj")])]
+                    )
+                ]
+            )
 
         // act
-        let named = [model.packageOfNewFile(at("app/new.cj")), model.packageOfNewFile(at("app/src/my-dir/new.cj")),
-            model.packageOfNewFile(at("app/src/1x/new.cj")), model.packageOfNewFile(at("elsewhere/new.cj"))]
+        let named =
+            [
+                model.packageOfNewFile(at("app/new.cj")),
+                model.packageOfNewFile(at("app/src/my-dir/new.cj")),
+                model.packageOfNewFile(at("app/src/1x/new.cj")),
+                model.packageOfNewFile(at("elsewhere/new.cj"))
+            ]
 
         // assert
         @Expect(named, [None, None, None, None])

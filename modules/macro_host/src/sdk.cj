@@ -29,7 +29,7 @@ public class MacroSdk {
         if (let Some(found) <- stdLibraries.get(pkg)) {
             return found
         }
-        let found = paths.stdMacroLibrary(pkg).map {path => path.toString()}
+        let found = paths.stdMacroLibrary(pkg).map { path => path.toString() }
         stdLibraries[pkg] = found
         found
     }
@@ -51,9 +51,14 @@ public func macroSdkIn(home: Path): MacroSdkLookup {
     let target = sdkTarget(hostCfg()) ?? return Unusable("no SDK target for this host")
     let paths = MacroServerPaths.inSdk(home, target)
     let toolchain = SdkToolchain(paths)
-    let version = toolchain.version() ?? return Unusable("the SDK's cjc does not run: macros are not expanded")
-    let numbers = tokenNumbersOf(paths, version) ?? return Unusable(
-        "the SDK numbers its token kinds in a way cjls does not know: macros are not expanded")
+    let version =
+        toolchain.version() ??
+            return Unusable("the SDK's cjc does not run: macros are not expanded")
+    let numbers =
+        tokenNumbersOf(paths, version) ??
+            return Unusable(
+                "the SDK numbers its token kinds in a way cjls does not know: macros are not expanded"
+            )
     Usable(MacroSdk(paths, numbers, toolchain, version))
 }
 
@@ -93,7 +98,8 @@ public class SdkToolchain <: Toolchain {
 
     private func run(arguments: Array<String>): (Int64, String, String) {
         try {
-            let (code, out, err) = executeWithOutput(paths.cjc.toString(), arguments, environment: environment)
+            let (code, out, err) =
+                executeWithOutput(paths.cjc.toString(), arguments, environment: environment)
             (code, String.fromUtf8(out), String.fromUtf8(err))
         } catch (e: ProcessException) {
             (-1, "", e.message)

@@ -58,31 +58,40 @@ class CodeWriter <: ToString {
      * `items` separated by `separator`, as many to a line as fit: `head` first, `tail` last, lines after the
      * first one level further in. A `leading` separator starts the next line, so emitted pattern alternatives stay parseable.
      */
-    func wrapped(head: String, items: Array<String>, separator: String, tail: String, leading!: Bool = false): Unit {
-        let pieces = Array<String>(items.size) {
-            i =>
-            let item = if (leading && i > 0) {
-                "${separator.trimAscii()} ${items[i]}"
-            } else {
-                items[i]
+    func wrapped(
+        head: String,
+        items: Array<String>,
+        separator: String,
+        tail: String,
+        leading!: Bool = false
+    ): Unit {
+        let pieces =
+            Array<String>(items.size) {
+                i =>
+                let item =
+                    if (leading && i > 0) {
+                        "${separator.trimAscii()} ${items[i]}"
+                    } else {
+                        items[i]
+                    }
+                if (i + 1 == items.size) {
+                    "${item}${tail}"
+                } else if (leading) {
+                    item
+                } else {
+                    "${item}${separator}"
+                }
             }
-            if (i + 1 == items.size) {
-                "${item}${tail}"
-            } else if (leading) {
-                item
-            } else {
-                "${item}${separator}"
-            }
-        }
         let indent = indentation * 4
         var current = "${head}${pieces[0]}"
         var first = true
         for (i in 1..pieces.size) {
-            let width = if (first) {
-                indent
-            } else {
-                indent + 4
-            }
+            let width =
+                if (first) {
+                    indent
+                } else {
+                    indent + 4
+                }
             if (width + current.size + 1 + pieces[i].size <= LINE_WIDTH) {
                 current = "${current} ${pieces[i]}"
             } else {
@@ -98,7 +107,7 @@ class CodeWriter <: ToString {
         if (first) {
             line(text)
         } else {
-            indented {=> line(text)}
+            indented { => line(text) }
         }
     }
 

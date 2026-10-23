@@ -1,4 +1,4 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 import std.env.getVariables
@@ -13,27 +13,58 @@ import std.io.{InputStream, IOException, OutputStream}
 // What it prints goes to stderr. None of these functions is `@FastNative`: `ReadFile` and
 // `WaitForSingleObject` block (C5).
 
-foreign func CreatePipe(read: CPointer<CPointer<Unit>>, write: CPointer<CPointer<Unit>>, attributes: CPointer<Unit>,
-    size: UInt32): Int32
+foreign func CreatePipe(
+    read: CPointer<CPointer<Unit>>,
+    write: CPointer<CPointer<Unit>>,
+    attributes: CPointer<Unit>,
+    size: UInt32
+): Int32
 
 foreign func SetHandleInformation(handle: CPointer<Unit>, mask: UInt32, flags: UInt32): Int32
 
 foreign func GetStdHandle(which: UInt32): CPointer<Unit>
 
-foreign func DuplicateHandle(sourceProcess: CPointer<Unit>, source: CPointer<Unit>, targetProcess: CPointer<Unit>,
-    target: CPointer<CPointer<Unit>>, access: UInt32, inherit: Int32, options: UInt32): Int32
+foreign func DuplicateHandle(
+    sourceProcess: CPointer<Unit>,
+    source: CPointer<Unit>,
+    targetProcess: CPointer<Unit>,
+    target: CPointer<CPointer<Unit>>,
+    access: UInt32,
+    inherit: Int32,
+    options: UInt32
+): Int32
 
-foreign func InitializeProcThreadAttributeList(list: CPointer<Unit>, count: UInt32, flags: UInt32,
-    size: CPointer<UIntNative>): Int32
+foreign func InitializeProcThreadAttributeList(
+    list: CPointer<Unit>,
+    count: UInt32,
+    flags: UInt32,
+    size: CPointer<UIntNative>
+): Int32
 
-foreign func UpdateProcThreadAttribute(list: CPointer<Unit>, flags: UInt32, attribute: UIntNative,
-    value: CPointer<CPointer<Unit>>, size: UIntNative, previous: CPointer<Unit>, returned: CPointer<UIntNative>): Int32
+foreign func UpdateProcThreadAttribute(
+    list: CPointer<Unit>,
+    flags: UInt32,
+    attribute: UIntNative,
+    value: CPointer<CPointer<Unit>>,
+    size: UIntNative,
+    previous: CPointer<Unit>,
+    returned: CPointer<UIntNative>
+): Int32
 
 foreign func DeleteProcThreadAttributeList(list: CPointer<Unit>): Unit
 
-foreign func CreateProcessW(application: CPointer<UInt16>, commandLine: CPointer<UInt16>, processAttributes: CPointer<Unit>,
-    threadAttributes: CPointer<Unit>, inheritHandles: Int32, flags: UInt32, environment: CPointer<UInt16>,
-    directory: CPointer<UInt16>, startup: CPointer<StartupInfoEx>, information: CPointer<ProcessInformation>): Int32
+foreign func CreateProcessW(
+    application: CPointer<UInt16>,
+    commandLine: CPointer<UInt16>,
+    processAttributes: CPointer<Unit>,
+    threadAttributes: CPointer<Unit>,
+    inheritHandles: Int32,
+    flags: UInt32,
+    environment: CPointer<UInt16>,
+    directory: CPointer<UInt16>,
+    startup: CPointer<StartupInfoEx>,
+    information: CPointer<ProcessInformation>
+): Int32
 
 foreign func ResumeThread(thread: CPointer<Unit>): UInt32
 
@@ -41,11 +72,21 @@ foreign func TerminateProcess(process: CPointer<Unit>, code: UInt32): Int32
 
 foreign func WaitForSingleObject(handle: CPointer<Unit>, milliseconds: UInt32): UInt32
 
-foreign func ReadFile(file: CPointer<Unit>, buffer: CPointer<UInt8>, size: UInt32, read: CPointer<UInt32>,
-    overlapped: CPointer<Unit>): Int32
+foreign func ReadFile(
+    file: CPointer<Unit>,
+    buffer: CPointer<UInt8>,
+    size: UInt32,
+    read: CPointer<UInt32>,
+    overlapped: CPointer<Unit>
+): Int32
 
-foreign func WriteFile(file: CPointer<Unit>, buffer: CPointer<UInt8>, size: UInt32, written: CPointer<UInt32>,
-    overlapped: CPointer<Unit>): Int32
+foreign func WriteFile(
+    file: CPointer<Unit>,
+    buffer: CPointer<UInt8>,
+    size: UInt32,
+    written: CPointer<UInt32>,
+    overlapped: CPointer<Unit>
+): Int32
 
 const HANDLE_FLAG_INHERIT: UInt32 = 0x1
 
@@ -108,7 +149,12 @@ struct ProcessInformation {
 func createPipe(): (CPointer<Unit>, CPointer<Unit>) {
     var read = CPointer<Unit>()
     var write = CPointer<Unit>()
-    if (unsafe { CreatePipe(inout read, inout write, CPointer(), 0) } == 0) {
+    if (
+        unsafe {
+            CreatePipe(inout read, inout write, CPointer(), 0)
+        } ==
+            0
+    ) {
         throw windowsError("CreatePipe")
     }
     (read, write)
@@ -180,7 +226,16 @@ class HandleOutputStream <: OutputStream {
             var at = 0
             while (at < buffer.size) {
                 var written: UInt32 = 0
-                if (WriteFile(handle, memory + at, UInt32(buffer.size - at), inout written, CPointer()) == 0) {
+                if (
+                    WriteFile(
+                        handle,
+                        memory + at,
+                        UInt32(buffer.size - at),
+                        inout written,
+                        CPointer()
+                    ) ==
+                        0
+                ) {
                     let error = GetLastError()
                     LibC.free(memory)
                     throw IOException("WriteFile failed with error ${error}")
@@ -217,7 +272,9 @@ class WindowsChild <: PipedChild {
     }
 
     public func wait(): Unit {
-        unsafe { WaitForSingleObject(process, INFINITE) }
+        unsafe {
+            WaitForSingleObject(process, INFINITE)
+        }
         closeHandle(ownRead)
         closeHandle(ownWrite)
         closeHandle(process)
@@ -225,7 +282,9 @@ class WindowsChild <: PipedChild {
     }
 
     public func kill(): Unit {
-        unsafe { TerminateProcess(process, 1) }
+        unsafe {
+            TerminateProcess(process, 1)
+        }
     }
 }
 
@@ -234,28 +293,45 @@ class WindowsChild <: PipedChild {
  * Windows gives none, and the child then exits only when it next reads, at EOF.
  */
 func jobFor(process: CPointer<Unit>): ?KillOnCloseJob {
-    let job = try {
-        KillOnCloseJob()
-    } catch (_: ProcessStartException) {
-        return None
-    }
+    let job =
+        try {
+            KillOnCloseJob()
+        } catch (_: ProcessStartException) {
+            return None
+        }
     try {
         job.assign(process)
     } catch (_: ProcessStartException) {}
     job
 }
 
-public specific func startPiped(program: Path, libDirs: Array<Path>, args: (ChildPipes) -> Array<String>): PipedChild {
+public specific func startPiped(
+    program: Path,
+    libDirs: Array<Path>,
+    args: (ChildPipes) -> Array<String>
+): PipedChild {
     // the child reads `childRead` and writes `childWrite`; this process the other ends
     let (childRead, ownWrite) = createPipe()
     let (ownRead, childWrite) = createPipe()
     try {
-        let pipes = ChildPipes(read: "${childRead.toUIntNative()}", write: "${childWrite.toUIntNative()}",
-            parent: None)
-        let information = createChildProcess(windowsCommandLine([program.toString()].concat(args(pipes))),
-            windowsEnvironment(getVariables(), libraryPathOf(libDirs)), childRead, childWrite)
+        let pipes =
+            ChildPipes(
+                read: "${childRead.toUIntNative()}",
+                write: "${childWrite.toUIntNative()}",
+                parent: None
+            )
+        let information =
+            createChildProcess(
+                windowsCommandLine([program.toString()].concat(args(pipes))),
+                windowsEnvironment(getVariables(), libraryPathOf(libDirs)),
+                childRead,
+                childWrite
+            )
         let job = jobFor(information.process)
-        let resumed = unsafe { ResumeThread(information.thread) }
+        let resumed =
+            unsafe {
+                ResumeThread(information.thread)
+            }
         closeHandle(information.thread)
         let child = WindowsChild(information.process, job, ownRead, ownWrite)
         if (resumed == 0xFFFF_FFFF) {
@@ -288,7 +364,18 @@ func inheritableStderr(): CPointer<Unit> {
         }
         var duplicate = CPointer<Unit>()
         let current = GetCurrentProcess()
-        if (DuplicateHandle(current, stderr, current, inout duplicate, 0, 1, DUPLICATE_SAME_ACCESS) == 0) {
+        if (
+            DuplicateHandle(
+                current,
+                stderr,
+                current,
+                inout duplicate,
+                0,
+                1,
+                DUPLICATE_SAME_ACCESS
+            ) ==
+                0
+        ) {
             return CPointer<Unit>()
         }
         duplicate
@@ -299,19 +386,29 @@ func inheritableStderr(): CPointer<Unit> {
  * A child of `commandLine` and `environment`, started suspended on `childRead` and `childWrite`, inheriting
  * them and stderr alone.
  */
-func createChildProcess(commandLine: String, environment: Array<UInt16>, childRead: CPointer<Unit>,
-    childWrite: CPointer<Unit>): ProcessInformation {
+func createChildProcess(
+    commandLine: String,
+    environment: Array<UInt16>,
+    childRead: CPointer<Unit>,
+    childWrite: CPointer<Unit>
+): ProcessInformation {
     for (h in [childRead, childWrite]) {
-        if (unsafe { SetHandleInformation(h, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT) } == 0) {
+        if (
+            unsafe {
+                SetHandleInformation(h, HANDLE_FLAG_INHERIT, HANDLE_FLAG_INHERIT)
+            } ==
+                0
+        ) {
             throw windowsError("SetHandleInformation")
         }
     }
     let stderr = inheritableStderr()
-    let inherited = if (stderr.isNull()) {
-        [childRead, childWrite]
-    } else {
-        [childRead, childWrite, stderr]
-    }
+    let inherited =
+        if (stderr.isNull()) {
+            [childRead, childWrite]
+        } else {
+            [childRead, childWrite, stderr]
+        }
     unsafe {
         let handles = LibC.malloc<CPointer<Unit>>(count: inherited.size)
         for (i in 0..inherited.size) {
@@ -328,8 +425,18 @@ func createChildProcess(commandLine: String, environment: Array<UInt16>, childRe
                 throw windowsError("InitializeProcThreadAttributeList")
             }
             try {
-                if (UpdateProcThreadAttribute(list, 0, PROC_THREAD_ATTRIBUTE_HANDLE_LIST, handles,
-                    UIntNative(inherited.size) * sizeOf<CPointer<Unit>>(), CPointer(), CPointer()) == 0) {
+                if (
+                    UpdateProcThreadAttribute(
+                        list,
+                        0,
+                        PROC_THREAD_ATTRIBUTE_HANDLE_LIST,
+                        handles,
+                        UIntNative(inherited.size) * sizeOf<CPointer<Unit>>(),
+                        CPointer(),
+                        CPointer()
+                    ) ==
+                        0
+                ) {
                     throw windowsError("UpdateProcThreadAttribute")
                 }
                 var startup = StartupInfoEx()
@@ -339,9 +446,23 @@ func createChildProcess(commandLine: String, environment: Array<UInt16>, childRe
                 startup.stdError = stderr
                 startup.attributeList = list
                 var information = ProcessInformation()
-                if (CreateProcessW(CPointer(), command, CPointer(), CPointer(), 1,
-                    CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT | CREATE_NO_WINDOW,
-                    environmentBlock, CPointer(), inout startup, inout information) == 0) {
+                if (
+                    CreateProcessW(
+                        CPointer(),
+                        command,
+                        CPointer(),
+                        CPointer(),
+                        1,
+                        CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT |
+                            EXTENDED_STARTUPINFO_PRESENT |
+                            CREATE_NO_WINDOW,
+                        environmentBlock,
+                        CPointer(),
+                        inout startup,
+                        inout information
+                    ) ==
+                        0
+                ) {
                     throw windowsError("CreateProcessW")
                 }
                 information

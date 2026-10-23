@@ -102,9 +102,16 @@ public enum HighlightModifier <: ToString {
     }
 }
 
-let HIGHLIGHT_MODIFIERS = [HighlightModifier.Declaration, HighlightModifier.Documentation, HighlightModifier.Readonly,
-    HighlightModifier.Static, HighlightModifier.Deprecated, HighlightModifier.DefaultLibrary,
-    HighlightModifier.Mutable]
+let HIGHLIGHT_MODIFIERS =
+    [
+        HighlightModifier.Declaration,
+        HighlightModifier.Documentation,
+        HighlightModifier.Readonly,
+        HighlightModifier.Static,
+        HighlightModifier.Deprecated,
+        HighlightModifier.DefaultLibrary,
+        HighlightModifier.Mutable
+    ]
 
 /**
  * A set of `HighlightModifier`s.
@@ -129,7 +136,11 @@ public struct HighlightModifiers <: ToString {
 
     public func toString(): String {
         let bits = this.bits
-        String.join(HIGHLIGHT_MODIFIERS.filter {m => (bits & m.bit()) != 0}.map {m => m.toString()}, delimiter: ", ")
+        String
+            .join(
+                HIGHLIGHT_MODIFIERS.filter { m => (bits & m.bit()) != 0 }.map { m => m.toString() },
+                delimiter: ", "
+            )
     }
 }
 
@@ -148,11 +159,12 @@ public struct HighlightedRange <: ToString {
      * `tag[modifiers]@start..end`.
      */
     public func toString(): String {
-        let modifiers = if (this.modifiers.isEmpty()) {
-            ""
-        } else {
-            "[${this.modifiers}]"
-        }
+        let modifiers =
+            if (this.modifiers.isEmpty()) {
+                ""
+            } else {
+                "[${this.modifiers}]"
+            }
         "${tag}${modifiers}@${range.start}..${range.end}"
     }
 }
@@ -168,7 +180,11 @@ public struct HighlightedRange <: ToString {
  * Not a query: a range in its key would be a position (A2, A3). What it reads, `parse` and
  * resolution, are; a range infers only the bodies of the items it holds.
  */
-public func highlight(db: AnalysisDatabase, fileId: FileId, range!: ?TextRange = None): Array<HighlightedRange> {
+public func highlight(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    range!: ?TextRange = None
+): Array<HighlightedRange> {
     let file = db.sourceFile(fileId) ?? return []
     let highlighter = Highlighter(db, file, range)
     highlighter.walk(parse(db, file).syntaxNode(), false, None)
@@ -185,18 +201,40 @@ const TOKENS_BETWEEN_CHECKS = 1024
  * Where a name used is resolved: in an expression, after a `.`, in a type or a pattern, of a macro
  * call.
  */
-let RESOLVED_IN = TokenSet<SyntaxKind>([SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr, SyntaxKind.PathSegment,
-    SyntaxKind.MacroExpandDecl, SyntaxKind.MacroExpandExpr])
+let RESOLVED_IN =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.RefExpr,
+            SyntaxKind.MemberAccessExpr,
+            SyntaxKind.PathSegment,
+            SyntaxKind.MacroExpandDecl,
+            SyntaxKind.MacroExpandExpr
+        ]
+    )
 
-let PATTERNS = TokenSet<SyntaxKind>([SyntaxKind.WildcardPat, SyntaxKind.LiteralPat, SyntaxKind.BindPat,
-    SyntaxKind.TypePat, SyntaxKind.TuplePat, SyntaxKind.EnumPat])
+let PATTERNS =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.WildcardPat,
+            SyntaxKind.LiteralPat,
+            SyntaxKind.BindPat,
+            SyntaxKind.TypePat,
+            SyntaxKind.TuplePat,
+            SyntaxKind.EnumPat
+        ]
+    )
 
 class Highlighter {
-    Highlighter(private let db: AnalysisDatabase, private let file: SourceFile, private let range: ?TextRange) {
-        ids = match (packageOfFile(db, file)) {
-            case Some(_) => itemIdMap(db, file)
-            case None => None
-        }
+    Highlighter(
+        private let db: AnalysisDatabase,
+        private let file: SourceFile,
+        private let range: ?TextRange
+    ) {
+        ids =
+            match (packageOfFile(db, file)) {
+                case Some(_) => itemIdMap(db, file)
+                case None => None
+            }
     }
 
     let result = ArrayList<HighlightedRange>()
@@ -213,14 +251,16 @@ class Highlighter {
      */
     func walk(node: CjSyntaxNode, inError: Bool, item: ?DefId): Unit {
         let inErrorNode = inError || node.kind == SyntaxKind.ErrorNode
-        let here = match (ids) {
-            case Some(ids) where Decl.canCast(node.kind) || node.kind == SyntaxKind.ImportDecl =>
-                match (ids.idAround(node)) {
-                    case Some(id) => DefId(db, ItemFile.Source(file), id)
-                    case None => item
-                }
-            case _ => item
-        }
+        let here =
+            match (ids) {
+                case Some(ids) where Decl.canCast(node.kind) ||
+                        node.kind == SyntaxKind.ImportDecl =>
+                    match (ids.idAround(node)) {
+                        case Some(id) => DefId(db, ItemFile.Source(file), id)
+                        case None => item
+                    }
+                case _ => item
+            }
         for (child in node.childrenWithTokens()) {
             if (!wanted(child.textRange)) {
                 continue
@@ -234,10 +274,11 @@ class Highlighter {
 
     private func wanted(element: TextRange): Bool {
         let range = this.range
-        !element.isEmpty() && match (range) {
-            case Some(it) => element.start < it.end && it.start < element.end
-            case None => true
-        }
+        !element.isEmpty() &&
+            match (range) {
+                case Some(it) => element.start < it.end && it.start < element.end
+                case None => true
+            }
     }
 
     private func add(token: CjSyntaxToken, inError: Bool, item: ?DefId): Unit {
@@ -246,16 +287,18 @@ class Highlighter {
             db.unwindIfCancelled()
         }
         let syntactic = classify(token, inError)
-        let found = if (inError || ids.isNone() || !isIdent(token)) {
-            syntactic
-        } else {
-            match (resolved(token, item, syntactic)) {
-                case Some(one) => one
-                case None => syntactic
+        let found =
+            if (inError || ids.isNone() || !isIdent(token)) {
+                syntactic
+            } else {
+                match (resolved(token, item, syntactic)) {
+                    case Some(one) => one
+                    case None => syntactic
+                }
             }
-        }
         match (found) {
-            case Some((tag, modifiers)) => result.add(HighlightedRange(token.textRange, tag, modifiers: modifiers))
+            case Some((tag, modifiers)) =>
+                result.add(HighlightedRange(token.textRange, tag, modifiers: modifiers))
             case None => ()
         }
     }
@@ -276,12 +319,13 @@ class Highlighter {
         }
         let defs = classifyName(db, file, item, token) ?? return None
         match (defs.get(0)) {
-            case Some(LocalDef(def, local)) where declares => localHighlight(def, local).map {
-                found => (found[0], found[1].plus(HighlightModifier.Declaration))
-            }
+            case Some(LocalDef(def, local)) where declares =>
+                localHighlight(def, local)
+                    .map { found => (found[0], found[1].plus(HighlightModifier.Declaration)) }
             case Some(one) => definitionHighlight(one)
             // a macro is known by its call, if not by its name
-            case None where owner.kind == SyntaxKind.MacroExpandDecl || owner.kind == SyntaxKind.MacroExpandExpr => None
+            case None where owner.kind == SyntaxKind.MacroExpandDecl ||
+                    owner.kind == SyntaxKind.MacroExpandExpr => None
             // a member a macro called on its type may add, as `@Derive` does
             case None where accessNodeOf(owner).isSome() => None
             case None where macrosMayDeclare() => None
@@ -299,31 +343,34 @@ class Highlighter {
         if (let Some(known) <- workspaceMacros) {
             return known
         }
-        let found = match (packageOfFile(db, file)) {
-            case Some(pkg) => callsMacrosOfItsOwn(db, pkg)
-            case None => false
-        }
+        let found =
+            match (packageOfFile(db, file)) {
+                case Some(pkg) => callsMacrosOfItsOwn(db, pkg)
+                case None => false
+            }
         workspaceMacros = found
         found
     }
 
     private func definitionHighlight(definition: Definition): ?Highlight {
         match (definition) {
-            case DeclDef(id) => match (declarations.get(id)) {
-                case Some(known) => known
-                case None =>
-                    let found = declarationHighlight(db, id)
-                    declarations.add(id, found)
-                    found
-            }
-            case LocalDef(def, local) =>
-                let known = match (locals.get(def)) {
-                    case Some(one) => one
+            case DeclDef(id) =>
+                match (declarations.get(id)) {
+                    case Some(known) => known
                     case None =>
-                        let one = HashMap<Int64, ?Highlight>()
-                        locals.add(def, one)
-                        one
+                        let found = declarationHighlight(db, id)
+                        declarations.add(id, found)
+                        found
                 }
+            case LocalDef(def, local) =>
+                let known =
+                    match (locals.get(def)) {
+                        case Some(one) => one
+                        case None =>
+                            let one = HashMap<Int64, ?Highlight>()
+                            locals.add(def, one)
+                            one
+                    }
                 match (known.get(local.index)) {
                     case Some(found) => found
                     case None =>
@@ -350,9 +397,16 @@ class Highlighter {
             case FuncLocal => tagged(HighlightTag.Symbol(StructureKind.Function))
             case VarLocal =>
                 let (_, name) = localName(db, def, local) ?? return tagged(variable)
-                let decl = (name.ancestors() |> filter {
-                    node: CjSyntaxNode => node != name && !PATTERNS.contains(node.kind)
-                } |> first<CjSyntaxNode>) ?? name
+                let decl =
+                    (
+                        name.ancestors() |>
+                            filter {
+                                node: CjSyntaxNode =>
+                                node != name && !PATTERNS.contains(node.kind)
+                            } |>
+                            first<CjSyntaxNode>
+                    ) ??
+                        name
                 (variable, mutability(decl, HighlightModifiers.NONE))
             case _ => tagged(variable)
         }
@@ -365,10 +419,11 @@ class Highlighter {
  */
 func callsMacrosOfItsOwn(db: AnalysisDatabase, pkg: Package): Bool {
     for (one in filesOf(db, PackageRef.Source(pkg))) {
-        let file = match (one) {
-            case Source(file) => file
-            case _ => continue
-        }
+        let file =
+            match (one) {
+                case Source(file) => file
+                case _ => continue
+            }
         for (item in activeItemTree(db, file).items) {
             for (name in item.macros where !isCompiledMacro(db, pkg, file, name)) {
                 return true
@@ -384,12 +439,18 @@ func callsMacrosOfItsOwn(db: AnalysisDatabase, pkg: Package): Bool {
 func isCompiledMacro(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String): Bool {
     let resolved = resolveMacroPath(db, pkg, file, name.split("."))
     match (resolved.get(resolved.size - 1)) {
-        case Some(Found(ids)) => ids.size > 0 && (ids |> all {
-            id: DefId => match (id.file(db)) {
-                case Binary(_, _) => true
-                case _ => false
-            }
-        })
+        case Some(Found(ids)) =>
+            ids.size > 0 &&
+                (
+                    ids |>
+                        all {
+                            id: DefId =>
+                            match (id.file(db)) {
+                                case Binary(_, _) => true
+                                case _ => false
+                            }
+                        }
+                )
         case _ => false
     }
 }
@@ -402,16 +463,17 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
     let file = id.file(db)
     let item = declItemOf(db, id) ?? return None
     var modifiers = HighlightModifiers.NONE
-    let source = match (file) {
-        case Source(_) => nodeOf(db, id).flatMap {found => Decl.cast(found[1])}
-        case Binary(pkg, _) =>
-            if (pkg.binary(db) == "std") {
-                modifiers = modifiers.plus(HighlightModifier.DefaultLibrary)
-            }
-            Option<Decl>.None
-        // what `@Derive` adds: no modifier its call writes (#175)
-        case Expansion(_) => Option<Decl>.None
-    }
+    let source =
+        match (file) {
+            case Source(_) => nodeOf(db, id).flatMap { found => Decl.cast(found[1]) }
+            case Binary(pkg, _) =>
+                if (pkg.binary(db) == "std") {
+                    modifiers = modifiers.plus(HighlightModifier.DefaultLibrary)
+                }
+                Option<Decl>.None
+            // what `@Derive` adds: no modifier its call writes (#175)
+            case Expansion(_) => Option<Decl>.None
+        }
     if (item.has(Modifier.Static)) {
         modifiers = modifiers.plus(HighlightModifier.Static)
     }
@@ -419,45 +481,52 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
         modifiers = modifiers.plus(HighlightModifier.Deprecated)
     }
     let member = parentOf(db, id).isSome()
-    let kind = match (item.kind) {
-        case ItemKind.Func => if (member) {
-            StructureKind.Method
-        } else {
-            StructureKind.Function
+    let kind =
+        match (item.kind) {
+            case ItemKind.Func =>
+                if (member) {
+                    StructureKind.Method
+                } else {
+                    StructureKind.Function
+                }
+            case ItemKind.Main => StructureKind.Main
+            case ItemKind.Macro => StructureKind.Macro
+            case ItemKind.Class => StructureKind.Class
+            case ItemKind.Interface => StructureKind.Interface
+            case ItemKind.Struct => StructureKind.Struct
+            case ItemKind.Enum => StructureKind.Enum
+            case ItemKind.Extend => StructureKind.Extension
+            case ItemKind.TypeAlias => StructureKind.TypeAlias
+            case ItemKind.Var where item.has(Modifier.Const) =>
+                modifiers = modifiers.plus(HighlightModifier.Readonly)
+                StructureKind.Constant
+            case ItemKind.Var =>
+                modifiers =
+                    modifiers
+                        .plus(
+                            if (isMutable(db, id, source)) {
+                                HighlightModifier.Mutable
+                            } else {
+                                HighlightModifier.Readonly
+                            }
+                        )
+                if (member) {
+                    StructureKind.Field
+                } else {
+                    StructureKind.Variable
+                }
+            case ItemKind.Prop =>
+                if (item.has(Modifier.Mut)) {
+                    modifiers = modifiers.plus(HighlightModifier.Mutable)
+                }
+                StructureKind.Property
+            case ItemKind.Init | ItemKind.PrimaryInit => StructureKind.Constructor
+            case ItemKind.Finalizer => StructureKind.Finalizer
+            case ItemKind.EnumCtor => StructureKind.EnumConstructor
+            case ItemKind.BuiltIn =>
+                return (HighlightTag.BuiltinType, modifiers.plus(HighlightModifier.DefaultLibrary))
+            case ItemKind.Import | ItemKind.MacroCall => return None
         }
-        case ItemKind.Main => StructureKind.Main
-        case ItemKind.Macro => StructureKind.Macro
-        case ItemKind.Class => StructureKind.Class
-        case ItemKind.Interface => StructureKind.Interface
-        case ItemKind.Struct => StructureKind.Struct
-        case ItemKind.Enum => StructureKind.Enum
-        case ItemKind.Extend => StructureKind.Extension
-        case ItemKind.TypeAlias => StructureKind.TypeAlias
-        case ItemKind.Var where item.has(Modifier.Const) =>
-            modifiers = modifiers.plus(HighlightModifier.Readonly)
-            StructureKind.Constant
-        case ItemKind.Var =>
-            modifiers = modifiers.plus(if (isMutable(db, id, source)) {
-                HighlightModifier.Mutable
-            } else {
-                HighlightModifier.Readonly
-            })
-            if (member) {
-                StructureKind.Field
-            } else {
-                StructureKind.Variable
-            }
-        case ItemKind.Prop =>
-            if (item.has(Modifier.Mut)) {
-                modifiers = modifiers.plus(HighlightModifier.Mutable)
-            }
-            StructureKind.Property
-        case ItemKind.Init | ItemKind.PrimaryInit => StructureKind.Constructor
-        case ItemKind.Finalizer => StructureKind.Finalizer
-        case ItemKind.EnumCtor => StructureKind.EnumConstructor
-        case ItemKind.BuiltIn => return (HighlightTag.BuiltinType, modifiers.plus(HighlightModifier.DefaultLibrary))
-        case ItemKind.Import | ItemKind.MacroCall => return None
-    }
     (HighlightTag.Symbol(kind), modifiers)
 }
 
@@ -466,15 +535,19 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
  */
 func isMutable(db: AnalysisDatabase, id: DefId, source: ?Decl): Bool {
     match (id.file(db)) {
-        case Source(_) | Expansion(_) => match (source) {
-            case Some(decl) => hasToken(decl.syntax, SyntaxKind.VarKw)
-            case None => false
-        }
-        case Binary(pkg, index) => match (binaryDecl(db, pkg, BinaryItem(index, id.item(db))).flatMap {decl => decl.info}) {
-            case Some(DeclInfo.AsVarInfo(info)) => info.isVar
-            case Some(DeclInfo.AsVarWithPatternInfo(info)) => info.isVar
-            case _ => false
-        }
+        case Source(_) | Expansion(_) =>
+            match (source) {
+                case Some(decl) => hasToken(decl.syntax, SyntaxKind.VarKw)
+                case None => false
+            }
+        case Binary(pkg, index) =>
+            match (
+                binaryDecl(db, pkg, BinaryItem(index, id.item(db))).flatMap { decl => decl.info }
+            ) {
+                case Some(DeclInfo.AsVarInfo(info)) => info.isVar
+                case Some(DeclInfo.AsVarWithPatternInfo(info)) => info.isVar
+                case _ => false
+            }
     }
 }
 
@@ -493,33 +566,88 @@ func mutability(decl: CjSyntaxNode, modifiers: HighlightModifiers): HighlightMod
 
 let NUMBERS = TokenSet<SyntaxKind>([SyntaxKind.IntLit, SyntaxKind.FloatLit])
 
-let STRINGS = TokenSet<SyntaxKind>([SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
-    SyntaxKind.StringStart, SyntaxKind.StringContent, SyntaxKind.StringEnd])
+let STRINGS =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.RuneLit,
+            SyntaxKind.ByteLit,
+            SyntaxKind.RawStringLit,
+            SyntaxKind.StringStart,
+            SyntaxKind.StringContent,
+            SyntaxKind.StringEnd
+        ]
+    )
 
-let BUILTIN_TYPES = TokenSet<SyntaxKind>([SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw,
-    SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw, SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw,
-    SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw, SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw,
-    SyntaxKind.RuneKw, SyntaxKind.BoolKw, SyntaxKind.NothingKw, SyntaxKind.UnitKw, SyntaxKind.VArrayKw])
+let BUILTIN_TYPES =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.Int8Kw,
+            SyntaxKind.Int16Kw,
+            SyntaxKind.Int32Kw,
+            SyntaxKind.Int64Kw,
+            SyntaxKind.IntNativeKw,
+            SyntaxKind.UInt8Kw,
+            SyntaxKind.UInt16Kw,
+            SyntaxKind.UInt32Kw,
+            SyntaxKind.UInt64Kw,
+            SyntaxKind.UIntNativeKw,
+            SyntaxKind.Float16Kw,
+            SyntaxKind.Float32Kw,
+            SyntaxKind.Float64Kw,
+            SyntaxKind.RuneKw,
+            SyntaxKind.BoolKw,
+            SyntaxKind.NothingKw,
+            SyntaxKind.UnitKw,
+            SyntaxKind.VArrayKw
+        ]
+    )
 
 /**
  * Punctuation that is no operator wherever it is.
  */
-let NOT_OPERATORS = TokenSet<SyntaxKind>([SyntaxKind.Dot, SyntaxKind.Comma, SyntaxKind.LParen, SyntaxKind.RParen,
-    SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.LBrace, SyntaxKind.RBrace, SyntaxKind.Colon,
-    SyntaxKind.ColonColon, SyntaxKind.Semicolon, SyntaxKind.DotDotDot, SyntaxKind.Hash, SyntaxKind.At,
-    SyntaxKind.AtBang, SyntaxKind.Dollar, SyntaxKind.Backslash])
+let NOT_OPERATORS =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.Dot,
+            SyntaxKind.Comma,
+            SyntaxKind.LParen,
+            SyntaxKind.RParen,
+            SyntaxKind.LBracket,
+            SyntaxKind.RBracket,
+            SyntaxKind.LBrace,
+            SyntaxKind.RBrace,
+            SyntaxKind.Colon,
+            SyntaxKind.ColonColon,
+            SyntaxKind.Semicolon,
+            SyntaxKind.DotDotDot,
+            SyntaxKind.Hash,
+            SyntaxKind.At,
+            SyntaxKind.AtBang,
+            SyntaxKind.Dollar,
+            SyntaxKind.Backslash
+        ]
+    )
 
 /**
  * Nodes whose punctuation is brackets, separators or a path, not operators: the `<` `>` of type
  * arguments, the `|` between enum constructors, the `*` of an import.
  */
-let NO_OPERATORS_IN = TokenSet<SyntaxKind>([SyntaxKind.TypeArgList, SyntaxKind.TypeParamList,
-    SyntaxKind.VArrayType, SyntaxKind.EnumBody, SyntaxKind.ImportTree])
+let NO_OPERATORS_IN =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.TypeArgList,
+            SyntaxKind.TypeParamList,
+            SyntaxKind.VArrayType,
+            SyntaxKind.EnumBody,
+            SyntaxKind.ImportTree
+        ]
+    )
 
 /**
  * What only holds declarations: those inside are where it is.
  */
-let DECLARATION_HOLDERS = TokenSet<SyntaxKind>([SyntaxKind.MacroExpandDecl, SyntaxKind.ForeignBlock])
+let DECLARATION_HOLDERS =
+    TokenSet<SyntaxKind>([SyntaxKind.MacroExpandDecl, SyntaxKind.ForeignBlock])
 
 type Highlight = (HighlightTag, HighlightModifiers)
 
@@ -555,17 +683,27 @@ func classify(token: CjSyntaxToken, inError: Bool): ?Highlight {
         usedName(parent)
     } else if (!inError && (kind == SyntaxKind.At || kind == SyntaxKind.AtBang)) {
         callOrAnnotation(parent)
-    } else if (!inError && (kind == SyntaxKind.Ident && parent.kind == SyntaxKind.PropAccessor ||
-        kind == SyntaxKind.Tilde && parent.kind == SyntaxKind.FinalizerDecl)) {
+    } else if (
+        !inError &&
+            (
+                kind == SyntaxKind.Ident && parent.kind == SyntaxKind.PropAccessor ||
+                    kind == SyntaxKind.Tilde && parent.kind == SyntaxKind.FinalizerDecl
+            )
+    ) {
         // `get` and `set`, and the `~` of `~init`
         tagged(HighlightTag.Keyword)
     } else if (kind == SyntaxKind.ThisKw || kind == SyntaxKind.SuperKw) {
         // the value a body is on, which the language declares (D105)
-        (HighlightTag.Symbol(StructureKind.Variable), HighlightModifiers.NONE.plus(HighlightModifier.DefaultLibrary))
+        (
+            HighlightTag.Symbol(StructureKind.Variable),
+            HighlightModifiers.NONE.plus(HighlightModifier.DefaultLibrary)
+        )
     } else if (kind.isKeyword()) {
         tagged(HighlightTag.Keyword)
-    } else if (kind.isPunctuation() && !NOT_OPERATORS.contains(kind) && (inError ||
-        !NO_OPERATORS_IN.contains(parent.kind))) {
+    } else if (
+        kind.isPunctuation() && !NOT_OPERATORS.contains(kind) &&
+            (inError || !NO_OPERATORS_IN.contains(parent.kind))
+    ) {
         tagged(HighlightTag.Operator)
     } else {
         None
@@ -578,7 +716,10 @@ func classify(token: CjSyntaxToken, inError: Bool): ?Highlight {
 func isDocumentation(comment: CjSyntaxToken): Bool {
     let owner = comment.parent.kind
     (Decl.canCast(owner) || owner == SyntaxKind.PackageHeader) &&
-        (comment.siblingsWithTokens(Direction.Prev) |> all {element: SyntaxElement<SyntaxKind> => element.kind.isTrivia()})
+        (
+            comment.siblingsWithTokens(Direction.Prev) |>
+                all { element: SyntaxElement<SyntaxKind> => element.kind.isTrivia() }
+        )
 }
 
 /**
@@ -591,7 +732,8 @@ func declaredName(name: CjSyntaxNode): ?Highlight {
         case SyntaxKind.LambdaParam | SyntaxKind.NamedType => declaration(HighlightTag.Parameter)
         case SyntaxKind.Param => parameter(owner)
         case SyntaxKind.BindPat | SyntaxKind.TypePat => binding(owner)
-        case SyntaxKind.CatchPat | SyntaxKind.ResourceDecl => declaration(HighlightTag.Symbol(StructureKind.Variable))
+        case SyntaxKind.CatchPat | SyntaxKind.ResourceDecl =>
+            declaration(HighlightTag.Symbol(StructureKind.Variable))
         case _ => declared(Decl.cast(owner) ?? return None)
     }
 }
@@ -617,8 +759,12 @@ func parameter(param: CjSyntaxNode): ?Highlight {
  * constructor, which only names resolved tell.
  */
 func binding(pattern: CjSyntaxNode): ?Highlight {
-    let site = (pattern.ancestors() |> filter {node: CjSyntaxNode => !PATTERNS.contains(node.kind)} |>
-        first<CjSyntaxNode>) ?? return None
+    let site =
+        (
+            pattern.ancestors() |> filter { node: CjSyntaxNode => !PATTERNS.contains(node.kind) } |>
+                first<CjSyntaxNode>
+        ) ??
+            return None
     match (Decl.cast(site)) {
         case Some(decl) => declared(decl)
         case None where site.kind == SyntaxKind.ForInExpr || pattern.kind == SyntaxKind.TypePat =>
@@ -639,8 +785,10 @@ func declared(decl: Decl): ?Highlight {
     }
     if (kind == StructureKind.Constant || hasToken(node, SyntaxKind.LetKw)) {
         modifiers = modifiers.plus(HighlightModifier.Readonly)
-    } else if (hasToken(node, SyntaxKind.VarKw) ||
-        (decl.modifiers().map {it => hasToken(it.syntax, SyntaxKind.MutKw)} ?? false)) {
+    } else if (
+        hasToken(node, SyntaxKind.VarKw) ||
+            (decl.modifiers().map { it => hasToken(it.syntax, SyntaxKind.MutKw) } ?? false)
+    ) {
         modifiers = modifiers.plus(HighlightModifier.Mutable)
     }
     if (isDeprecated(decl)) {
@@ -654,8 +802,13 @@ func declared(decl: Decl): ?Highlight {
  * call or a `foreign` block.
  */
 func isMember(decl: CjSyntaxNode): Bool {
-    let container = decl.ancestors() |>
-        filter {node: CjSyntaxNode => node != decl && !DECLARATION_HOLDERS.contains(node.kind)} |> first<CjSyntaxNode>
+    let container =
+        decl.ancestors() |>
+            filter {
+                node: CjSyntaxNode =>
+                node != decl && !DECLARATION_HOLDERS.contains(node.kind)
+            } |>
+            first<CjSyntaxNode>
     match (container) {
         case Some(it) => it.kind == SyntaxKind.DeclBody || it.kind == SyntaxKind.EnumBody
         case None => false
@@ -663,11 +816,12 @@ func isMember(decl: CjSyntaxNode): Bool {
 }
 
 func hasToken(node: CjSyntaxNode, kind: SyntaxKind): Bool {
-    node.childrenWithTokens() |> any {element: SyntaxElement<SyntaxKind> => element.kind == kind}
+    node.childrenWithTokens() |> any { element: SyntaxElement<SyntaxKind> => element.kind == kind }
 }
 
 func isDeprecated(decl: Decl): Bool {
-    decl.annotations() |> any {annotation: Annotation => annotation.nameRef()?.text() == Some("Deprecated")}
+    decl.annotations() |>
+        any { annotation: Annotation => annotation.nameRef()?.text() == Some("Deprecated") }
 }
 
 /**
@@ -676,8 +830,8 @@ func isDeprecated(decl: Decl): Bool {
 func usedName(nameRef: CjSyntaxNode): ?Highlight {
     let owner = nameRef.parent ?? return None
     match (owner.kind) {
-        case SyntaxKind.PathSegment where (owner.parent?.kind == Some(SyntaxKind.PathType)) => tagged(
-            HighlightTag.TypeName)
+        case SyntaxKind.PathSegment where (owner.parent?.kind == Some(SyntaxKind.PathType)) =>
+            tagged(HighlightTag.TypeName)
         case SyntaxKind.PackageHeader => tagged(HighlightTag.Namespace)
         // a segment of an import another follows: a package
         case SyntaxKind.ImportTree where isQualifier(nameRef) => tagged(HighlightTag.Namespace)
@@ -689,16 +843,22 @@ func usedName(nameRef: CjSyntaxNode): ?Highlight {
  * Whether a `.` or a `::` follows `nameRef`.
  */
 func isQualifier(nameRef: CjSyntaxNode): Bool {
-    let next = nameRef.siblingsWithTokens(Direction.Next) |> filter {
-        element: SyntaxElement<SyntaxKind> => element.textRange != nameRef.textRange && !element.kind.isTrivia()
-    } |> map {element: SyntaxElement<SyntaxKind> => element.kind} |> first
+    let next =
+        nameRef.siblingsWithTokens(Direction.Next) |>
+            filter {
+                element: SyntaxElement<SyntaxKind> =>
+                element.textRange != nameRef.textRange && !element.kind.isTrivia()
+            } |>
+            map { element: SyntaxElement<SyntaxKind> => element.kind } |>
+            first
     next == Some(SyntaxKind.Dot) || next == Some(SyntaxKind.ColonColon)
 }
 
 func callOrAnnotation(node: CjSyntaxNode): ?Highlight {
     match (node.kind) {
         case SyntaxKind.Annotation => tagged(HighlightTag.BuiltinAnnotation)
-        case SyntaxKind.MacroExpandDecl | SyntaxKind.MacroExpandExpr => tagged(HighlightTag.MacroCall)
+        case SyntaxKind.MacroExpandDecl | SyntaxKind.MacroExpandExpr =>
+            tagged(HighlightTag.MacroCall)
         case _ => None
     }
 }

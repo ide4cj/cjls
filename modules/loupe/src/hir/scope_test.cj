@@ -34,7 +34,8 @@ func checkScope(fixture: String, ns!: Namespace = Namespace.Values): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let file = parsed.files.iterator().filter {file => file.fileId == cursor.fileId}.next().getOrThrow()
+    let file =
+        parsed.files.iterator().filter { file => file.fileId == cursor.fileId }.next().getOrThrow()
     let source = db.sourceFile(file.fileId).getOrThrow()
     var use: ?(String, TextRange) = None
     for (element in parse(db, source).syntaxNode().descendantsWithTokens()) {
@@ -47,19 +48,32 @@ func checkScope(fixture: String, ns!: Namespace = Namespace.Values): Unit {
     let (name, range) = use ?? throw FixtureException("no token at $0")
     let pkg = sourcePackageOf(db, file)
     let resolution = lookUp(db, pkg, source, name, ns)
-    let onDecl = {id: DefId, text: String => annotationOn(db, id, nameOfDef(db, id), text)}
-    let annotations: Array<Annotation> = match (resolution) {
-        case Found(ids) => ids.map {id => onDecl(id, "def")}
-        case FoundPackage(found) => [Annotation(file.fileId, range, "package ${nameOf(db, found)}")]
-        case Ambiguous(targets) => targets.map {
-            target => match (target) {
-                case OfDecl(id) => onDecl(id, "ambiguous")
-                case OfPackage(found) => Annotation(file.fileId, range, "ambiguous package ${nameOf(db, found)}")
-            }
+    let onDecl = { id: DefId, text: String => annotationOn(db, id, nameOfDef(db, id), text) }
+    let annotations: Array<Annotation> =
+        match (resolution) {
+            case Found(ids) => ids.map { id => onDecl(id, "def") }
+            case FoundPackage(found) =>
+                [Annotation(file.fileId, range, "package ${nameOf(db, found)}")]
+            case Ambiguous(targets) =>
+                targets
+                    .map {
+                        target =>
+                        match (target) {
+                            case OfDecl(id) => onDecl(id, "ambiguous")
+                            case OfPackage(found) =>
+                                Annotation(
+                                    file.fileId,
+                                    range,
+                                    "ambiguous package ${nameOf(db, found)}"
+                                )
+                        }
+                    }
+            case Ctors(own, imported) =>
+                own
+                    .map { id => onDecl(id, "ctor") }
+                    .concat(imported.map { id => onDecl(id, "imported ctor") })
+            case NotFound => [Annotation(file.fileId, range, "not found")]
         }
-        case Ctors(own, imported) => own.map {id => onDecl(id, "ctor")}.concat(imported.map {id => onDecl(id, "imported ctor")})
-        case NotFound => [Annotation(file.fileId, range, "not found")]
-    }
     expectAnnotations(fixture, annotations)
 }
 
@@ -98,7 +112,8 @@ class ScopeTest {
     @TestCase
     func aNameOfThePreludeIsFoundWithoutAnImport() {
         // N12
-        checkScope(#"
+        checkScope(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public struct String {}
@@ -108,13 +123,15 @@ class ScopeTest {
             //- /main.cj module=m package=m
             package m
             func g() { $0println }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasOfANameOfThePreludeLeavesTheName() {
         // N12
-        checkScope(#"
+        checkScope(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public struct String {}
@@ -125,13 +142,16 @@ class ScopeTest {
             package m
             import std.core.String as S
             func g(s: $0String) {}
-            "#, ns: Namespace.Types)
+            "#,
+            ns: Namespace.Types
+        )
     }
 
     @TestCase
     func aDeclarationOfThePackageShadowsAnImportedOne() {
         // N13, in another file of the package
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -143,13 +163,15 @@ class ScopeTest {
             package m
             class X {}
             //    ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfThePackageAndAnImportedOneAreOverloads() {
         // N14
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public func f(x: Bool) {}
@@ -160,13 +182,15 @@ class ScopeTest {
             func f(x: Int64) {}
             //   ^ def
             func g() { $0f(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func twoGlobsBringingOneNameAreAmbiguous() {
         // N15
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -180,13 +204,15 @@ class ScopeTest {
             import m.a.*
             import m.b.*
             func g() { $0X() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExplicitImportDoesNotWinOverAGlob() {
         // N16
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -200,13 +226,15 @@ class ScopeTest {
             import m.a.X
             import m.b.*
             func g() { $0X() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func twoExplicitImportsOfOneNameAreAmbiguousAtTheUse() {
         // N17
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -220,13 +248,15 @@ class ScopeTest {
             import m.a.X
             import m.b.X
             func g() { $0X() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func functionsOfTwoGlobsAreOverloads() {
         // N18
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public func f(x: Int64) {}
@@ -240,13 +270,15 @@ class ScopeTest {
             import m.a.*
             import m.b.*
             func g() { $0f(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGlobAndThePreludeBringingOneNameAreAmbiguous() {
         // N39: the prelude is an import of every name of std.core, at the level of the others
-        checkScope(#"
+        checkScope(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public struct String {}
@@ -261,13 +293,15 @@ class ScopeTest {
             package m
             import m.a.*
             func g() { $0String() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aReExportOfThePackageAndThePreludeBringingOneNameAreAmbiguous() {
         // N39, N11
-        checkScope(#"
+        checkScope(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public struct String {}
@@ -284,13 +318,15 @@ class ScopeTest {
             //- /other.cj module=m package=m
             package m
             internal import m.a.String
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageImportedUnderTheNameOfOneOfThePreludeIsAmbiguous() {
         // N39, N43
-        checkScope(#"
+        checkScope(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public struct String {}
@@ -305,13 +341,15 @@ class ScopeTest {
             import m.a as String
             func g() { $0String.C() }
             //           ^^^^^^ ambiguous package m.a
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfThePackageShadowsAnImportedTypeAsAValue() {
         // N40
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class Foo {}
@@ -321,13 +359,15 @@ class ScopeTest {
             func Foo(x: Int64): Int64 { x }
             //   ^^^ def
             func g() { $0Foo(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func functionsOfThePackageShadowAnImportedVariableSilently() {
         // N40: cjc warns of nothing, and no function of the package is overloaded by the variable
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public var x: Int64 = 0
@@ -341,13 +381,15 @@ class ScopeTest {
             func x(): Int64 { 0 }
             //   ^ def
             func g() { $0x(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfThePackageShadowsAGlobbedVariable() {
         // N40
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public let y: Int64 = 0
@@ -357,13 +399,15 @@ class ScopeTest {
             func y(): Int64 { 0 }
             //   ^ def
             func g() { let f = $0y }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfThePackageDoesNotShadowAnImportedTypeAsAType() {
         // N41
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class Foo {}
@@ -373,13 +417,16 @@ class ScopeTest {
             import m.a.Foo
             func Foo(x: Int64): Int64 { x }
             func g(v: $0Foo) {}
-            "#, ns: Namespace.Types)
+            "#,
+            ns: Namespace.Types
+        )
     }
 
     @TestCase
     func anImportedTypeAndAnImportedFunctionOfOneNameAreTheTypeAsAType() {
         // N41
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -392,13 +439,16 @@ class ScopeTest {
             import m.a.X
             import m.b.X
             func g(v: $0X) {}
-            "#, ns: Namespace.Types)
+            "#,
+            ns: Namespace.Types
+        )
     }
 
     @TestCase
     func anImportedTypeAndAnImportedFunctionOfOneNameAreAmbiguousAsAValue() {
         // N42
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -412,13 +462,15 @@ class ScopeTest {
             import m.a.X
             import m.b.*
             func g() { $0X(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDeclarationOfThePackageShadowsAnImportedPackage() {
         // N43
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -428,13 +480,15 @@ class ScopeTest {
             class a {}
             //    ^ def
             func g() { $0a.C() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportedPackageAndAnImportedDeclarationOfOneNameAreAmbiguous() {
         // N43
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -448,13 +502,15 @@ class ScopeTest {
             import m.b.a
             func g() { $0a.C() }
             //         ^ ambiguous package m.a
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theConstructorsOfAnEnumComeWithItUnderAnAlias() {
         // N44
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public enum Color { | Red | Green }
@@ -463,13 +519,15 @@ class ScopeTest {
             package m
             import m.a.Color as K
             func g() { $0Red }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theConstructorsOfAnEnumComeWithAGlob() {
         // N44
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public enum Color { | Red | Green }
@@ -478,13 +536,15 @@ class ScopeTest {
             package m
             import m.a.*
             func g() { $0Red }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theConstructorsOfAnEnumComeWithItsReExport() {
         // N44
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public enum Color { | Red | Green }
@@ -496,13 +556,15 @@ class ScopeTest {
             package m
             import m.b.Color
             func g() { $0Red }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportedPackageBringsNoConstructors() {
         // N44
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public enum Color { | Red | Green }
@@ -511,13 +573,15 @@ class ScopeTest {
             import m.a
             func g() { $0Red }
             //           ^^^ not found
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportedTypeWinsOverAConstructorOfThePackage() {
         // N45
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class Red {}
@@ -527,13 +591,15 @@ class ScopeTest {
             import m.a.Red
             enum Color { | Red | Green }
             func g() { let c: Color = $0Red }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func constructorsOfThePackageAndImportedOnesAreAllCandidates() {
         // N46: the expected type chooses among them
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public enum Color { | Red | Green }
@@ -544,13 +610,15 @@ class ScopeTest {
             enum Light { | Red | Off }
             //             ^^^ ctor
             func g() { $0Red }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func constructorsOfAGlobAndOfThePreludeAreAllCandidates() {
         // N46
-        checkScope(#"
+        checkScope(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public struct String {}
@@ -565,25 +633,30 @@ class ScopeTest {
             package m
             import m.a.*
             func g() { $0None }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorIsNoType() {
         // N41
-        checkScope(#"
+        checkScope(
+            #"
             //- /main.cj module=m package=m
             package m
             enum Color { | Red | Green }
             func g(c: $0Red) {}
             //          ^^^ not found
-            "#, ns: Namespace.Types)
+            "#,
+            ns: Namespace.Types
+        )
     }
 
     @TestCase
     func aPrivateDeclarationOfAnotherFileDoesNotShadowAnImport() {
         // N49
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -595,13 +668,15 @@ class ScopeTest {
             //- /other.cj module=m package=m
             package m
             private class X {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPlainImportOfTheFileAndAReExportOfThePackageAreAmbiguous() {
         // N11
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -617,13 +692,15 @@ class ScopeTest {
             //- /other.cj module=m package=m
             package m
             internal import m.b.X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPlainImportOfAnotherFileIsNotSeen() {
         // N11
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -634,13 +711,15 @@ class ScopeTest {
             //- /other.cj module=m package=m
             package m
             import m.a.X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func oneDeclarationImportedTwiceIsOne() {
         // N34, N48
-        checkScope(#"
+        checkScope(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -650,20 +729,25 @@ class ScopeTest {
             import m.a.X
             import m.a.*
             func g() { $0X() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameAddedToAGlobbedPackageLeavesTheFileImportsAlone() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
             //- /main.cj module=m package=m
             package m
             import m.a.*
-            "#)
+            "#
+                )
         let db = parsed.database()
         let mainFile = parsed.files[1]
         let source = db.sourceFile(mainFile.fileId).getOrThrow()
@@ -671,7 +755,11 @@ class ScopeTest {
         importedNameCount(db, pkg, source)
         let before = fileImportsReaderRuns.load()
         // act
-        db.setFileText(parsed.files[0].fileId, Rope("package m.a\npublic class X {}\npublic class Y {}\n"))
+        db
+            .setFileText(
+                parsed.files[0].fileId,
+                Rope("package m.a\npublic class X {}\npublic class Y {}\n")
+            )
         importedNameCount(db, pkg, source)
         // assert
         @Expect(fileImportsReaderRuns.load(), before)

@@ -26,18 +26,28 @@ func exprOrError(p: P, r: Restrictions): Unit {
  * at the start of an expression (`top`).
  */
 func exprBp(p: P, r: Restrictions, precedence: Int64, top!: Bool): ?CompletedMarker<SyntaxKind> {
-    let lhs = if (r.allowLet && p.at(LetKw)) {
-        letExpr(p)
-    } else {
-        unaryOrPostfix(p, r) ?? return None
-    }
+    let lhs =
+        if (r.allowLet && p.at(LetKw)) {
+            letExpr(p)
+        } else {
+            unaryOrPostfix(p, r) ?? return None
+        }
     binaryRest(p, r, precedence, lhs, top: top)
 }
 
-func binaryRest(p: P, r: Restrictions, precedence: Int64, first: CompletedMarker<SyntaxKind>, top!: Bool): ?CompletedMarker<SyntaxKind> {
+func binaryRest(
+    p: P,
+    r: Restrictions,
+    precedence: Int64,
+    first: CompletedMarker<SyntaxKind>,
+    top!: Bool
+): ?CompletedMarker<SyntaxKind> {
     var lhs = first
     while (let Some((op, n, opPrecedence)) <- binaryOp(p)) {
-        if (r.allowLet && lhs.kind == LetExpr && opPrecedence < RANGE_PRECEDENCE && op != AmpAmp && op != PipePipe) {
+        if (
+            r.allowLet && lhs.kind == LetExpr && opPrecedence < RANGE_PRECEDENCE && op != AmpAmp &&
+                op != PipePipe
+        ) {
             break
         }
         if (r.letInit && opPrecedence < RANGE_PRECEDENCE) {
@@ -46,7 +56,10 @@ func binaryRest(p: P, r: Restrictions, precedence: Int64, first: CompletedMarker
         if (precedence > opPrecedence) {
             break
         }
-        if (precedence == opPrecedence && op != StarStar && op != QuestionQuestion && !(top && opPrecedence == 0)) {
+        if (
+            precedence == opPrecedence && op != StarStar && op != QuestionQuestion &&
+                !(top && opPrecedence == 0)
+        ) {
             if (!top) {
                 if (let Some(name) <- nonAssociativeName(opPrecedence)) {
                     p.error("${name} operators cannot be chained")
@@ -60,23 +73,24 @@ func binaryRest(p: P, r: Restrictions, precedence: Int64, first: CompletedMarker
         }
         let m = lhs.precede(p)
         p.bumpComposite(op, n)
-        lhs = match (op) {
-            case IsKw =>
-                typ(p)
-                m.complete(p, IsExpr)
-            case AsKw =>
-                typ(p)
-                m.complete(p, AsExpr)
-            case DotDot | DotDotEq =>
-                operand(p, r, opPrecedence)
-                if (p.eat(Colon)) {
+        lhs =
+            match (op) {
+                case IsKw =>
+                    typ(p)
+                    m.complete(p, IsExpr)
+                case AsKw =>
+                    typ(p)
+                    m.complete(p, AsExpr)
+                case DotDot | DotDotEq =>
                     operand(p, r, opPrecedence)
-                }
-                m.complete(p, RangeExpr)
-            case _ =>
-                operand(p, r, opPrecedence)
-                m.complete(p, BinExpr)
-        }
+                    if (p.eat(Colon)) {
+                        operand(p, r, opPrecedence)
+                    }
+                    m.complete(p, RangeExpr)
+                case _ =>
+                    operand(p, r, opPrecedence)
+                    m.complete(p, BinExpr)
+            }
     }
     lhs
 }
@@ -87,7 +101,8 @@ func binaryRest(p: P, r: Restrictions, precedence: Int64, first: CompletedMarker
 func operand(p: P, r: Restrictions, precedence: Int64): Unit {
     match (exprBp(p, r, precedence, top: false)) {
         case None => p.error("expected an expression")
-        case Some(cm) where cm.kind == MacroExpandDecl => p.error("expected an expression, found a declaration")
+        case Some(cm) where cm.kind == MacroExpandDecl =>
+            p.error("expected an expression, found a declaration")
         case _ => ()
     }
 }
@@ -122,7 +137,8 @@ func binaryOp(p: P): ?(SyntaxKind, Int64, Int64) {
             } else {
                 (Gt, 1, 10)
             }
-        case Question where !p.newlineBefore() && p.atComposite([Question, Question]) => (QuestionQuestion, 2, 2)
+        case Question where !p.newlineBefore() && p.atComposite([Question, Question]) =>
+            (QuestionQuestion, 2, 2)
         case Minus where p.newlineBefore() => None
         case StarStar => (k, 1, 16)
         case Star | Slash | Percent => (k, 1, 15)
@@ -137,8 +153,19 @@ func binaryOp(p: P): ?(SyntaxKind, Int64, Int64) {
         case AmpAmp => (k, 1, 5)
         case PipePipe => (k, 1, 3)
         case PipeGt | TildeGt => (k, 1, 1)
-        case Eq | PlusEq | MinusEq | StarEq | StarStarEq | SlashEq | PercentEq | AmpAmpEq | PipePipeEq | AmpEq |
-            PipeEq | CaretEq | LtLtEq => (k, 1, 0)
+        case Eq |
+            PlusEq |
+            MinusEq |
+            StarEq |
+            StarStarEq |
+            SlashEq |
+            PercentEq |
+            AmpAmpEq |
+            PipePipeEq |
+            AmpEq |
+            PipeEq |
+            CaretEq |
+            LtLtEq => (k, 1, 0)
         case _ => None
     }
 }
@@ -149,7 +176,8 @@ func unaryOrPostfix(p: P, r: Restrictions): ?CompletedMarker<SyntaxKind> {
         p.bumpAny()
         match (unaryOrPostfix(p, r.withoutLet())) {
             case None => p.error("expected an expression")
-            case Some(cm) where cm.kind == MacroExpandDecl => p.error("expected an expression, found a declaration")
+            case Some(cm) where cm.kind == MacroExpandDecl =>
+                p.error("expected an expression, found a declaration")
             case _ => ()
         }
         return m.complete(p, UnaryExpr)
@@ -162,7 +190,11 @@ func unaryOrPostfix(p: P, r: Restrictions): ?CompletedMarker<SyntaxKind> {
  * `.name` (a newline may come before the dot), and on the same line: `?`, `[index]`, `(args)`, a trailing
  * lambda; then `++` and `--`.
  */
-func postfix(p: P, r: Restrictions, first: CompletedMarker<SyntaxKind>): CompletedMarker<SyntaxKind> {
+func postfix(
+    p: P,
+    r: Restrictions,
+    first: CompletedMarker<SyntaxKind>
+): CompletedMarker<SyntaxKind> {
     var lhs = first
     if (lhs.kind == BreakExpr || lhs.kind == ContinueExpr || lhs.kind == MacroExpandDecl) {
         return lhs
@@ -182,7 +214,8 @@ func postfix(p: P, r: Restrictions, first: CompletedMarker<SyntaxKind>): Complet
             break
         }
         match (p.current()) {
-            case Question where p.nthAt(1, Dot) || (!p.nthNewlineBefore(1) && p.nthAtAny(1, [LParen, LBracket, LBrace])) =>
+            case Question where p.nthAt(1, Dot) ||
+                    (!p.nthNewlineBefore(1) && p.nthAtAny(1, [LParen, LBracket, LBrace])) =>
                 let m = lhs.precede(p)
                 p.bump(Question)
                 lhs = m.complete(p, OptionalExpr)
@@ -256,7 +289,13 @@ func indexArg(p: P): Unit {
  * `(a, name: b, inout c)` for a call, `[a, name: b]` for an annotation. With `bareLambdas`, an argument `{ … }`
  * needs no `=>`, as a trailing lambda: a macro's, which std.unittest's `@AssertThrows({ … })` is given.
  */
-func argList(p: P, open: SyntaxKind, close: SyntaxKind, kind: SyntaxKind, bareLambdas!: Bool = false): Unit {
+func argList(
+    p: P,
+    open: SyntaxKind,
+    close: SyntaxKind,
+    kind: SyntaxKind,
+    bareLambdas!: Bool = false
+): Unit {
     let m = p.start()
     p.bump(open)
     while (!p.at(close) && !p.atEof()) {
@@ -706,8 +745,13 @@ func matchCase(p: P, hasSelector: Bool): Unit {
 func returnExpr(p: P): CompletedMarker<SyntaxKind> {
     let m = p.start()
     p.bump(ReturnKw)
-    let noValue = (atDeclStart(p) && !p.current().isContextualKeyword()) ||
-        p.atAny([Semicolon, Comma, RParen, RBracket, RBrace, CaseKw, FatArrow, InterpolationEnd]) || p.atEof()
+    let noValue =
+        (atDeclStart(p) && !p.current().isContextualKeyword()) ||
+            p
+                .atAny(
+                    [Semicolon, Comma, RParen, RBracket, RBrace, CaseKw, FatArrow, InterpolationEnd]
+                ) ||
+            p.atEof()
     if (!noValue) {
         exprOrError(p, Restrictions.NONE)
     }

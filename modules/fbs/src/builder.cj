@@ -5,11 +5,12 @@ import std.collection.*
 // Little-endian writes into a struct's bytes (`FbBuilder.addStruct`), a signed value as the bits of the unsigned one.
 
 public func writeBool(buf: Array<Byte>, pos: Int64, value: Bool): Unit {
-    buf[pos] = if (value) {
-        1
-    } else {
-        0
-    }
+    buf[pos] =
+        if (value) {
+            1
+        } else {
+            0
+        }
 }
 
 public func writeUInt8(buf: Array<Byte>, pos: Int64, value: UInt8): Unit {
@@ -257,7 +258,7 @@ public class FbBuilder {
      */
     public func createVector(targets: Array<FbOffset>): FbOffset {
         startVector(4, targets.size, 4)
-        for (i in targets.size - 1..=0 : -1) {
+        for (i in targets.size - 1..=0: -1) {
             addOffset(targets[i])
         }
         endVector(targets.size)
@@ -267,7 +268,7 @@ public class FbBuilder {
      * A vector of strings.
      */
     public func createStringVector(values: Array<String>): FbOffset {
-        createVector(values.map {s => createString(s)})
+        createVector(values.map { s => createString(s) })
     }
 
     /**
@@ -307,7 +308,7 @@ public class FbBuilder {
         for ((id, at) in fields) {
             offsets[id] = UInt16(object - at)
         }
-        for (i in count - 1..=0 : -1) {
+        for (i in count - 1..=0: -1) {
             addUInt16(offsets[i])
         }
         addUInt16(UInt16(object - tableStart))

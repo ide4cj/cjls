@@ -54,7 +54,8 @@ public func readInt16(buf: Array<Byte>, pos: Int64): Int16 {
 
 @Frozen
 public func readUInt32(buf: Array<Byte>, pos: Int64): UInt32 {
-    UInt32(buf[pos]) | (UInt32(buf[pos + 1]) << 8) | (UInt32(buf[pos + 2]) << 16) | (UInt32(buf[pos + 3]) << 24)
+    UInt32(buf[pos]) | (UInt32(buf[pos + 1]) << 8) | (UInt32(buf[pos + 2]) << 16) |
+        (UInt32(buf[pos + 3]) << 24)
 }
 
 @Frozen
@@ -144,17 +145,29 @@ public struct FbTable {
     @Frozen
     public func scalar<T>(id: Int64, default: T, read: (Array<Byte>, Int64) -> T): T {
         let o = offset(id)
-        if (o == 0) { default } else { read(buf, pos + o) }
+        if (o == 0) {
+            default
+        } else {
+            read(buf, pos + o)
+        }
     }
 
     public func string(id: Int64): ?String {
         let o = offset(id)
-        if (o == 0) { Option<String>.None } else { readString(buf, pos + o) }
+        if (o == 0) {
+            Option<String>.None
+        } else {
+            readString(buf, pos + o)
+        }
     }
 
     public func table(id: Int64): ?FbTable {
         let o = offset(id)
-        if (o == 0) { Option<FbTable>.None } else { FbTable.at(buf, pos + o) }
+        if (o == 0) {
+            Option<FbTable>.None
+        } else {
+            FbTable.at(buf, pos + o)
+        }
     }
 
     /**
@@ -162,7 +175,11 @@ public struct FbTable {
      */
     public func structAt(id: Int64): ?Int64 {
         let o = offset(id)
-        if (o == 0) { Option<Int64>.None } else { pos + o }
+        if (o == 0) {
+            Option<Int64>.None
+        } else {
+            pos + o
+        }
     }
 
     /**
@@ -207,11 +224,18 @@ public struct FbVector<T> <: Collection<T> {
      *
      * @throws FbException - if its elements would run past the end of the buffer
      */
-    public static func at(buf: Array<Byte>, pos: Int64, stride: Int64, read: (Array<Byte>, Int64) -> T): FbVector<T> {
+    public static func at(
+        buf: Array<Byte>,
+        pos: Int64,
+        stride: Int64,
+        read: (Array<Byte>, Int64) -> T
+    ): FbVector<T> {
         let at = follow(buf, pos)
         let count = Int64(readUInt32(buf, at))
         if (count > (buf.size - at - 4) / stride) {
-            throw FbException("a vector of ${count} elements at ${at} runs past the end of the buffer")
+            throw FbException(
+                "a vector of ${count} elements at ${at} runs past the end of the buffer"
+            )
         }
         FbVector<T>(buf, at + 4, count, stride, read)
     }
@@ -242,7 +266,7 @@ public struct FbVector<T> <: Collection<T> {
     }
 
     public func toArray(): Array<T> {
-        Array<T>(count) {i => this[i]}
+        Array<T>(count) { i => this[i] }
     }
 }
 

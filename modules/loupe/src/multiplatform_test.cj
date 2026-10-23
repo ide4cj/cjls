@@ -8,7 +8,8 @@ import std.unittest.testmacro.*
  * build takes (`common` ⊂ `posix` ⊂ `linux`), each set a directory of its own, the package one
  * (#318).
  */
-const PLAT = #"
+const PLAT =
+    #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -45,7 +46,8 @@ const PLAT = #"
 class MultiplatformDefinitionTest {
     @TestCase
     func aCommonClassGoesToItsSpecificAndItsCommon() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -69,11 +71,13 @@ class MultiplatformDefinitionTest {
             import plat.*
 
             main() { $0Host() }
-            "#)
+            "#
+        )
     }
     @TestCase
     func aMemberOfACommonClassGoesToItsSpecificAndItsCommon() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -99,12 +103,14 @@ class MultiplatformDefinitionTest {
             import plat.*
 
             main() { Host().$0name() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOnlyTheCommonClassDeclaresIsFound() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -128,12 +134,14 @@ class MultiplatformDefinitionTest {
             import plat.*
 
             main() { Host().$0describe() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCommonFunctionGoesToItsSpecificAndItsCommon() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -154,7 +162,8 @@ class MultiplatformDefinitionTest {
             import plat.*
 
             main() { $0separator() }
-            "#)
+            "#
+        )
     }
 }
 
@@ -162,7 +171,9 @@ class MultiplatformDefinitionTest {
 class MultiplatformDiagnosticsTest {
     @TestCase
     func aCompletedPackageHasNoDiagnostics() {
-        checkDiagnostics(PLAT + #"
+        checkDiagnostics(
+            PLAT +
+                #"
             //- /app/main.cj module=app package=app deps=plat
             package app
 
@@ -174,12 +185,14 @@ class MultiplatformDiagnosticsTest {
                 let sep: Rune = separator()
                 0
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFileOfASourceSetTheBuildLeavesOutIsAllInactiveAndNotChecked() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -195,13 +208,15 @@ class MultiplatformDiagnosticsTest {
             //- /plat/windows/windows.cj module=plat package=plat inactive=windows
               public specific func separator(): Rune { undefined }
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive: source set `windows` is left out
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCommonOfNoBodyAndNoSpecificIsAnError() {
         // as cjc 1.3.0-alpha.20261002 reports them, at the declaration's name
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -248,12 +263,14 @@ class MultiplatformDiagnosticsTest {
 
             public common let v: Int64
             //                ^ error: 'common' variable 'v' can not find 'specific' match
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberTheSpecificTypeLacksIsAnError() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -273,12 +290,14 @@ class MultiplatformDiagnosticsTest {
                 public specific init() {}
                 public specific func name(): String { "linux" }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeOfACommonTypeIsItsSpecific() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -300,6 +319,7 @@ class MultiplatformDiagnosticsTest {
                 public specific init() {}
                 public specific func name(): String { "linux" }
             }
-            "#)
+            "#
+        )
     }
 }

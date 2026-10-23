@@ -36,11 +36,15 @@ class NameClassificationTest {
     @TestCase
     func aMacroInAnInactiveFileIsUnknownAndStopsClassification() {
         // arrange
-        let fixture = Fixture.parse(#"
+        let fixture =
+            Fixture
+                .parse(
+                    #"
             //- /main.cj inactive=windows
             @Miss$0ing
             func f() {}
-            "#)
+            "#
+                )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let source = db.sourceFile(cursor.fileId).getOrThrow()
@@ -84,10 +88,14 @@ class NameClassificationTest {
     @TestCase
     func anImportInAnInactiveFileIsApplicableWithNoDefinitions() {
         // arrange
-        let fixture = Fixture.parse(#"
+        let fixture =
+            Fixture
+                .parse(
+                    #"
             //- /main.cj inactive=windows
             import absent.na$0me
-            "#)
+            "#
+                )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let source = db.sourceFile(cursor.fileId).getOrThrow()

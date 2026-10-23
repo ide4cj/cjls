@@ -13,18 +13,20 @@ func shortest(value: Float64): String {
 /** `text`, a decimal, as `digits * 10^exponent`, sign dropped. */
 func decimalOf(text: String): (BigInt, Int64) {
     let parts = text.removePrefix("-").split("e")
-    let exponent = if (parts.size > 1) {
-        Int64.parse(parts[1].replace("+", ""))
-    } else {
-        0
-    }
+    let exponent =
+        if (parts.size > 1) {
+            Int64.parse(parts[1].replace("+", ""))
+        } else {
+            0
+        }
     let pointed = parts[0].split(".")
-    let fraction = if (pointed.size > 1) {
-        pointed[1]
-    } else {
-        ""
-    }
-    (BigInt.parse(pointed[0] + fraction, radix: 10),exponent - fraction.size)
+    let fraction =
+        if (pointed.size > 1) {
+            pointed[1]
+        } else {
+            ""
+        }
+    (BigInt.parse(pointed[0] + fraction, radix: 10), exponent - fraction.size)
 }
 
 func pow(base: Int64, exponent: Int64): BigInt {
@@ -44,18 +46,20 @@ func roundsTo(digits: BigInt, exponent: Int64, value: Float64): Bool {
     let bits = value.toBits()
     let ieeeMantissa = bits & 0x000F_FFFF_FFFF_FFFF
     let ieeeExponent = Int64((bits >> 52) & 0x7FF)
-    let (m2, e2) = if (ieeeExponent == 0) {
-        (ieeeMantissa, -1074)
-    } else {
-        (ieeeMantissa | 0x0010_0000_0000_0000, ieeeExponent - 1075)
-    }
+    let (m2, e2) =
+        if (ieeeExponent == 0) {
+            (ieeeMantissa, -1074)
+        } else {
+            (ieeeMantissa | 0x0010_0000_0000_0000, ieeeExponent - 1075)
+        }
     // the ends in units of 2^(e2 - 2); the lower one closer when the mantissa is a power of two
     let upper = BigInt(Int64(4 * m2 + 2))
-    let lower = if (ieeeMantissa == 0 && ieeeExponent > 1) {
-        BigInt(Int64(4 * m2 - 1))
-    } else {
-        BigInt(Int64(4 * m2 - 2))
-    }
+    let lower =
+        if (ieeeMantissa == 0 && ieeeExponent > 1) {
+            BigInt(Int64(4 * m2 - 1))
+        } else {
+            BigInt(Int64(4 * m2 - 2))
+        }
     let scaledDecimal = digits * pow(10, max(exponent, 0)) * pow(2, max(2 - e2, 0))
     let scale = pow(10, max(-exponent, 0)) * pow(2, max(e2 - 2, 0))
     let (low, high) = (lower * scale, upper * scale)

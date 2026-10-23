@@ -22,9 +22,19 @@ func loaded(files: Array<(String, String)>, links!: Bool = true): (ServerState, 
     (state, dir)
 }
 
-func definitionOf(state: ServerState, path: Path, line: UInt32, character: UInt32): Nullable<DefinitionOrDefinitionLinks> {
-    handleDefinition(state.snapshot(), DefinitionParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-        position: Position(line: line, character: character)))
+func definitionOf(
+    state: ServerState,
+    path: Path,
+    line: UInt32,
+    character: UInt32
+): Nullable<DefinitionOrDefinitionLinks> {
+    handleDefinition(
+        state.snapshot(),
+        DefinitionParams(
+            textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+            position: Position(line: line, character: character)
+        )
+    )
 }
 
 /**
@@ -63,7 +73,8 @@ class DefinitionTest {
     @TestCase
     func aDeclarationOfAnotherFileIsInThatFile() {
         // arrange
-        let (state, dir) = loaded([("a.cj", "func f() {\n    g()\n}\n"), ("b.cj", "\nfunc g() {}\n")])
+        let (state, dir) =
+            loaded([("a.cj", "func f() {\n    g()\n}\n"), ("b.cj", "\nfunc g() {}\n")])
 
         // act
         let links = linksOf(definitionOf(state, dir.join("a.cj"), 1, 4))
@@ -77,9 +88,17 @@ class DefinitionTest {
     @TestCase
     func aNameOfAProgramAmongLooseOnesGoesToItsOwnFileAndItsHelpers() {
         // arrange: programs compiled one by one, each with the helper (D67)
-        let program = {n: Int64 => "let my_const = ${n}\nmain(): Int64 {\n    helper(my_const)\n}\n"}
-        let (state, dir) = loaded([("a.cj", program(1)), ("b.cj", program(2)), ("c.cj", program(3)),
-            ("util.cj", "func helper(n: Int64): Int64 {\n    n\n}\n")])
+        let program =
+            { n: Int64 => "let my_const = ${n}\nmain(): Int64 {\n    helper(my_const)\n}\n" }
+        let (state, dir) =
+            loaded(
+                [
+                    ("a.cj", program(1)),
+                    ("b.cj", program(2)),
+                    ("c.cj", program(3)),
+                    ("util.cj", "func helper(n: Int64): Int64 {\n    n\n}\n")
+                ]
+            )
 
         // act
         let own = linksOf(definitionOf(state, dir.join("b.cj"), 2, 11))
@@ -94,7 +113,8 @@ class DefinitionTest {
     @TestCase
     func anAmbiguousCallGoesToEachOfItsFunctions() {
         // arrange: neither is more specific for `1` (N120)
-        let (state, dir) = loaded([("a.cj", "func g(n: Int8) {}\nfunc g(n: Int16) {}\nfunc f() {\n    g(1)\n}\n")])
+        let (state, dir) =
+            loaded([("a.cj", "func g(n: Int8) {}\nfunc g(n: Int16) {}\nfunc f() {\n    g(1)\n}\n")])
 
         // act
         let links = linksOf(definitionOf(state, dir.join("a.cj"), 3, 4))
@@ -113,7 +133,9 @@ class DefinitionTest {
 
         // assert
         match (answer) {
-            case Nullable.Value(DefinitionOrDefinitionLinks.AsDefinition(Definition.AsLocations(locations))) =>
+            case Nullable.Value(
+                    DefinitionOrDefinitionLinks.AsDefinition(Definition.AsLocations(locations))
+                ) =>
                 @Expect(locations.size, 1)
                 @Expect(locations[0].uri, uriOf(dir.join("a.cj")))
                 @Expect(at(locations[0].range.start), "0:6")
@@ -137,8 +159,14 @@ class DefinitionTest {
     @TestCase
     func aDocumentTheServerDoesNotKnowIsNull() {
         // act
-        let answer = handleDefinition(ServerState().snapshot(), DefinitionParams(
-            textDocument: TextDocumentIdentifier(uri: URI), position: Position(line: 0, character: 0)))
+        let answer =
+            handleDefinition(
+                ServerState().snapshot(),
+                DefinitionParams(
+                    textDocument: TextDocumentIdentifier(uri: URI),
+                    position: Position(line: 0, character: 0)
+                )
+            )
 
         // assert
         @Expect(answer.isNull())
@@ -157,9 +185,16 @@ class DefinitionTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-                capabilities: capabilities))
+        handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
+            )
+        )
 
         // assert
         @Expect(state.locationLinks, links)

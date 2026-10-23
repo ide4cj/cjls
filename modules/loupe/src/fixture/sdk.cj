@@ -10,7 +10,10 @@ import loupe.vfs.{CjoFile, CjoFileRead, FileStamp, isCangjieFile, VfsPath}
  * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.
  */
 public func stdCjo(name: String): Array<Byte> {
-    let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
+    let home =
+        Path(
+            getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+        )
     for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
         let file = target.path.join("std").join("${name}.cjo")
         if (exists(file)) {
@@ -35,7 +38,9 @@ public func stdCjoRead(name: String, bytes: Array<Byte>): CjoFileRead {
 public func stdSourcesDir(): VfsPath {
     let dir = Path(".corpora/cangjie_runtime/stdlib/libs/std")
     if (!exists(dir)) {
-        throw IllegalStateException("cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+        throw IllegalStateException(
+            "cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`"
+        )
     }
     VfsPath.file(canonicalize(dir))
 }
@@ -45,13 +50,21 @@ public func stdSourcesDir(): VfsPath {
  */
 public func stdWithSources(names: Array<String>): BinaryModel {
     let dir = stdSourcesDir()
-    let packages = names.map {
-        name =>
-        let pkgDir = name.split(".")[1..].iterator().fold(dir) {path, segment => path.join(segment)}
-        let files = Directory.readFrom(pkgDir.filePath.getOrThrow())
-            .filter {info => info.isRegular() && isCangjieFile(info.name)}
-            .map {info => pkgDir.join(info.name)}
-        PackageModel(name, pkgDir, files)
-    }
+    let packages =
+        names
+            .map {
+                name =>
+                let pkgDir =
+                    name
+                        .split(".")[1..]
+                        .iterator()
+                        .fold(dir) { path, segment => path.join(segment) }
+                let files =
+                    Directory
+                        .readFrom(pkgDir.filePath.getOrThrow())
+                        .filter { info => info.isRegular() && isCangjieFile(info.name) }
+                        .map { info => pkgDir.join(info.name) }
+                PackageModel(name, pkgDir, files)
+            }
     BinaryModel("std", [], sources: BinarySources(dir, packages))
 }

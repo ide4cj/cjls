@@ -32,7 +32,15 @@ func genericBounds(db: AnalysisDatabase, owner: DefId): Array<TyBound> {
             for (required in signatureTypes(db, id).bounds) {
                 let subject = substitute(db, required.ty, id, args)
                 for (upper in required.bounds) {
-                    if (!addGenericBound(db, pending, seen, subject, substitute(db, upper, id, args))) {
+                    if (
+                        !addGenericBound(
+                            db,
+                            pending,
+                            seen,
+                            subject,
+                            substitute(db, upper, id, args)
+                        )
+                    ) {
                         return incompleteGenericBounds(db, owner, pending)
                     }
                 }
@@ -46,8 +54,13 @@ func genericBounds(db: AnalysisDatabase, owner: DefId): Array<TyBound> {
  * Records a new instantiated relation, as cjc's Assumption does. A concrete subject is a
  * requirement to validate, not an assumption about a type parameter; it adds no further bounds.
  */
-func addGenericBound(db: AnalysisDatabase, pending: ArrayList<TyBound>, seen: HashMap<Ty, HashSet<Ty>>,
-    subject: Ty, upper: Ty): Bool {
+func addGenericBound(
+    db: AnalysisDatabase,
+    pending: ArrayList<TyBound>,
+    seen: HashMap<Ty, HashSet<Ty>>,
+    subject: Ty,
+    upper: Ty
+): Bool {
     if (subject == upper) {
         return true
     }
@@ -68,14 +81,19 @@ func addGenericBound(db: AnalysisDatabase, pending: ArrayList<TyBound>, seen: Ha
     true
 }
 
-func incompleteGenericBounds(db: AnalysisDatabase, owner: DefId, pending: ArrayList<TyBound>): Array<TyBound> {
-    let subjects = ArrayList<Ty>(Array(genericsOf(db, owner).size) {i => Ty(db, ParamTy(owner, i))})
+func incompleteGenericBounds(
+    db: AnalysisDatabase,
+    owner: DefId,
+    pending: ArrayList<TyBound>
+): Array<TyBound> {
+    let subjects =
+        ArrayList<Ty>(Array(genericsOf(db, owner).size) { i => Ty(db, ParamTy(owner, i)) })
     for (bound in pending where !subjects.contains(bound.ty)) {
         subjects.add(bound.ty)
     }
     let unknown = Ty(db, UnknownTy(UnknownReason.GenericBoundsLimit))
     // Discard partial constraints: even a currently unique member may acquire another overload.
-    subjects.toArray().map {one => TyBound(one, [unknown])}
+    subjects.toArray().map { one => TyBound(one, [unknown]) }
 }
 
 /**
@@ -84,7 +102,10 @@ func incompleteGenericBounds(db: AnalysisDatabase, owner: DefId, pending: ArrayL
 func incompleteBoundsOf(db: AnalysisDatabase, ty: Ty): ?Ty {
     if (let ParamTy(owner, _) <- ty.kind(db)) {
         for (bound in genericBounds(db, owner) where bound.ty == ty) {
-            for (upper in bound.bounds where upper.kind(db) == UnknownTy(UnknownReason.GenericBoundsLimit)) {
+            for (
+                upper in bound.bounds where upper.kind(db) ==
+                    UnknownTy(UnknownReason.GenericBoundsLimit)
+            ) {
                 return upper
             }
         }
@@ -99,13 +120,16 @@ func incompleteBoundsOf(db: AnalysisDatabase, ty: Ty): ?Ty {
  * a type parameter.
  */
 func directSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Array<Ty> {
-    let (head, named) = match (ty.kind(db)) {
-        case DeclTy(id, args) => (ExtendedType.DeclType(id), signatureTypes(db, id).supers.map {
-            one => substitute(db, one, id, args)
-        })
-        case PrimTy(name) => (ExtendedType.PrimType(name), Array<Ty>())
-        case _ => return []
-    }
+    let (head, named) =
+        match (ty.kind(db)) {
+            case DeclTy(id, args) =>
+                (
+                    ExtendedType.DeclType(id),
+                    signatureTypes(db, id).supers.map { one => substitute(db, one, id, args) }
+                )
+            case PrimTy(name) => (ExtendedType.PrimType(name), Array<Ty>())
+            case _ => return []
+        }
     let found = ArrayList<Ty>(named)
     for (ext in extendsOf(db, head, from)) {
         let args = extendArgs(db, ext, ty) ?? continue
@@ -130,7 +154,7 @@ func extendArgs(db: AnalysisDatabase, ext: DefId, ty: Ty): ?Array<Ty> {
     if (!matchTy(db, pattern, ty, ext, binds)) {
         return None
     }
-    binds.map {one => one ?? Ty(db, ErrorTy)}
+    binds.map { one => one ?? Ty(db, ErrorTy) }
 }
 
 /**
@@ -139,20 +163,29 @@ func extendArgs(db: AnalysisDatabase, ext: DefId, ty: Ty): ?Array<Ty> {
  * anything: it hides nothing.
  */
 func matchTy(db: AnalysisDatabase, pattern: Ty, actual: Ty, owner: DefId, binds: Array<?Ty>): Bool {
-    let all = {patterns: Array<Ty>, actuals: Array<Ty> => patterns.size == actuals.size &&
-        (0..patterns.size).iterator().all {i => matchTy(db, patterns[i], actuals[i], owner, binds)}}
+    let all =
+        {
+            patterns: Array<Ty>, actuals: Array<Ty> =>
+            patterns.size == actuals.size &&
+                (0..patterns.size)
+                    .iterator()
+                    .all { i => matchTy(db, patterns[i], actuals[i], owner, binds) }
+        }
     match ((pattern.kind(db), actual.kind(db))) {
         case (_, ErrorTy) | (_, TodoTy(_)) | (_, UnknownTy(_)) => true
-        case (ParamTy(of, index), _) where of == owner && index < binds.size => match (binds[index]) {
-            case Some(bound) => bound == actual
-            case None =>
-                binds[index] = actual
-                true
-        }
+        case (ParamTy(of, index), _) where of == owner && index < binds.size =>
+            match (binds[index]) {
+                case Some(bound) => bound == actual
+                case None =>
+                    binds[index] = actual
+                    true
+            }
         case (DeclTy(a, aArgs), DeclTy(b, bArgs)) => a == b && all(aArgs, bArgs)
         case (TupleTy(a), TupleTy(b)) => all(a, b)
-        case (FuncTy(aParams, aRet, aC), FuncTy(bParams, bRet, bC)) => aC == bC && all(aParams.concat([aRet]), bParams.concat([bRet]))
-        case (VArrayTy(a, aSize), VArrayTy(b, bSize)) => aSize == bSize && matchTy(db, a, b, owner, binds)
+        case (FuncTy(aParams, aRet, aC), FuncTy(bParams, bRet, bC)) =>
+            aC == bC && all(aParams.concat([aRet]), bParams.concat([bRet]))
+        case (VArrayTy(a, aSize), VArrayTy(b, bSize)) =>
+            aSize == bSize && matchTy(db, a, b, owner, binds)
         case _ => pattern == actual
     }
 }
@@ -203,29 +236,45 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
         return true
     }
     match ((sub.kind(db), sup.kind(db))) {
-        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) | (UnknownTy(_), _) | (_, UnknownTy(_)) => true
+        case (ErrorTy, _) |
+            (_, ErrorTy) |
+            (TodoTy(_), _) |
+            (_, TodoTy(_)) |
+            (UnknownTy(_), _) |
+            (_, UnknownTy(_)) => true
         case (PrimTy("Nothing"), _) => true
-        case (TupleTy(subs), TupleTy(sups)) => subs.size == sups.size &&
-            (0..subs.size).iterator().all {i => isSubtype(db, subs[i], sups[i], from)}
-        case (FuncTy(subParams, subRet, subC), FuncTy(supParams, supRet, supC)) => subC == supC &&
-            subParams.size == supParams.size &&
-            (0..subParams.size).iterator().all {i => isSubtype(db, supParams[i], subParams[i], from)} &&
-            isSubtype(db, subRet, supRet, from)
-        case (ParamTy(owner, _), _) => genericBounds(db, owner).iterator().any {
-            bound => bound.ty == sub && bound.bounds.iterator().any {one => isSubtype(db, one, sup, from)}
-        }
+        case (TupleTy(subs), TupleTy(sups)) =>
+            subs.size == sups.size &&
+                (0..subs.size).iterator().all { i => isSubtype(db, subs[i], sups[i], from) }
+        case (FuncTy(subParams, subRet, subC), FuncTy(supParams, supRet, supC)) =>
+            subC == supC && subParams.size == supParams.size &&
+                (0..subParams.size)
+                    .iterator()
+                    .all { i => isSubtype(db, supParams[i], subParams[i], from) } &&
+                isSubtype(db, subRet, supRet, from)
+        case (ParamTy(owner, _), _) =>
+            genericBounds(db, owner)
+                .iterator()
+                .any {
+                    bound =>
+                    bound.ty == sub &&
+                        bound.bounds.iterator().any { one => isSubtype(db, one, sup, from) }
+                }
         // of an interface implemented as several instances (`K<Int64> & K<String>`), any (N143)
         case (_, DeclTy(id, _)) =>
-            let instances = allSupertypes(db, sub, from).filter {
-                one => match (one.kind(db)) {
-                    case DeclTy(other, _) => other == id
-                    case _ => false
-                }
-            }
+            let instances =
+                allSupertypes(db, sub, from)
+                    .filter {
+                        one =>
+                        match (one.kind(db)) {
+                            case DeclTy(other, _) => other == id
+                            case _ => false
+                        }
+                    }
             if (instances.isEmpty()) {
                 isSupertypeKind(db, id) && hasMacroSupertypes(db, sub, from)
             } else {
-                instances.iterator().any {one => isAlike(db, one, sup)}
+                instances.iterator().any { one => isAlike(db, one, sup) }
             }
         case _ => false
     }
@@ -246,10 +295,11 @@ func isSupertypeKind(db: AnalysisDatabase, id: DefId): Bool {
  * `T` of `ty`, `std.core`'s `Option<T>`; `None` of any other type.
  */
 func optionArgOf(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): ?Ty {
-    let (id, arg) = match (ty.kind(db)) {
-        case DeclTy(id, args) where args.size == 1 && isNamed(db, id, "Option") => (id, args[0])
-        case _ => return None
-    }
+    let (id, arg) =
+        match (ty.kind(db)) {
+            case DeclTy(id, args) where args.size == 1 && isNamed(db, id, "Option") => (id, args[0])
+            case _ => return None
+        }
     let pkg = packageOfFile(db, from ?? return None) ?? return None
     if (langItem(db, PackageRef.Source(pkg), LangItem.OptionEnum) == Some(id)) {
         arg
@@ -264,22 +314,26 @@ func optionArgOf(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): ?Ty {
  * anything, or add an `extend` that does (#175, #176). Unknown, not wrong.
  */
 func hasMacroSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Bool {
-    allSupertypes(db, ty, from).iterator().any {
-        one => match (one.kind(db)) {
-            case DeclTy(id, _) => hasUnreadMacros(db, id)
-            case _ => false
+    allSupertypes(db, ty, from)
+        .iterator()
+        .any {
+            one =>
+            match (one.kind(db)) {
+                case DeclTy(id, _) => hasUnreadMacros(db, id)
+                case _ => false
+            }
         }
-    }
 }
 
 /**
  * Whether `ty` is `std.core`'s `Any`, which every type implements (N142).
  */
 func isAny(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Bool {
-    let id = match (ty.kind(db)) {
-        case DeclTy(id, args) where args.isEmpty() && isNamed(db, id, "Any") => id
-        case _ => return false
-    }
+    let id =
+        match (ty.kind(db)) {
+            case DeclTy(id, args) where args.isEmpty() && isNamed(db, id, "Any") => id
+            case _ => return false
+        }
     let file = from ?? return false
     let pkg = packageOfFile(db, file) ?? return false
     langItem(db, PackageRef.Source(pkg), LangItem.AnyInterface) == Some(id)
@@ -293,10 +347,18 @@ func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
     if (a == b) {
         return true
     }
-    let all = {xs: Array<Ty>, ys: Array<Ty> => xs.size == ys.size &&
-        (0..xs.size).iterator().all {i => isAlike(db, xs[i], ys[i])}}
+    let all =
+        {
+            xs: Array<Ty>, ys: Array<Ty> =>
+            xs.size == ys.size && (0..xs.size).iterator().all { i => isAlike(db, xs[i], ys[i]) }
+        }
     match ((a.kind(db), b.kind(db))) {
-        case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) | (UnknownTy(_), _) | (_, UnknownTy(_)) => true
+        case (ErrorTy, _) |
+            (_, ErrorTy) |
+            (TodoTy(_), _) |
+            (_, TodoTy(_)) |
+            (UnknownTy(_), _) |
+            (_, UnknownTy(_)) => true
         case (DeclTy(x, xs), DeclTy(y, ys)) => x == y && all(xs, ys)
         case (TupleTy(xs), TupleTy(ys)) => all(xs, ys)
         case (FuncTy(xs, x, xc), FuncTy(ys, y, yc)) => xc == yc && all(xs, ys) && isAlike(db, x, y)
@@ -334,29 +396,37 @@ func isNothing(db: AnalysisDatabase, ty: Ty): Bool {
  * `2u8`). Of a branch of a type not known, that one: whatever the join, it is not known.
  */
 func joinTys(db: AnalysisDatabase, tys: Array<Ty>, from: ?SourceFile): Ty {
-    let real = tys.filter {one => !isNothing(db, one)}
+    let real = tys.filter { one => !isNothing(db, one) }
     let first = real.get(0) ?? return Ty(db, PrimTy("Nothing"))
-    if (let Some(unknown) <- unknownOf(db, real.filter {one => isUnknown(db, one)})) {
+    if (let Some(unknown) <- unknownOf(db, real.filter { one => isUnknown(db, one) })) {
         return unknown
     }
-    if (real.iterator().all {one => one == first}) {
+    if (real.iterator().all { one => one == first }) {
         return first
     }
     // `?T` and what is a `T`: `?T`, the others boxed (N144, #249)
     for (one in real) {
         let inner = optionArgOf(db, one, from) ?? continue
-        if (real.iterator().all {other => other == one || isSubtype(db, other, inner, from)}) {
+        if (real.iterator().all { other => other == one || isSubtype(db, other, inner, from) }) {
             return one
         }
     }
     // of a branch whose supertypes a macro may add to, the common one is not known (#175)
-    if (real.iterator().any {one => hasMacroSupertypes(db, one, from)}) {
+    if (real.iterator().any { one => hasMacroSupertypes(db, one, from) }) {
         return Ty(db, TodoTy(Todo.MacroMember))
     }
-    let common = allSupertypes(db, first, from).filter {
-        candidate => real.iterator().all {one => isSubtype(db, one, candidate, from)}
-    }
-    let least = common.filter {candidate => common.iterator().all {other => isSubtype(db, candidate, other, from)}}
+    let common =
+        allSupertypes(db, first, from)
+            .filter {
+                candidate =>
+                real.iterator().all { one => isSubtype(db, one, candidate, from) }
+            }
+    let least =
+        common
+            .filter {
+                candidate =>
+                common.iterator().all { other => isSubtype(db, candidate, other, from) }
+            }
     if (least.size == 1) {
         least[0]
     } else {
@@ -369,7 +439,13 @@ func joinTys(db: AnalysisDatabase, tys: Array<Ty>, from: ?SourceFile): Ty {
  * type parameters of the type or `extend` it is in replaced by `recv`'s arguments as an instance of
  * it, `This` by `recv` (N88); `None` for a member of an `extend` `recv` is no instance of (N86).
  */
-public func asMemberOf(db: AnalysisDatabase, ty: Ty, member: DefId, recv: Ty, from: ?SourceFile): ?Ty {
+public func asMemberOf(
+    db: AnalysisDatabase,
+    ty: Ty,
+    member: DefId,
+    recv: Ty,
+    from: ?SourceFile
+): ?Ty {
     let owner = parentOf(db, member) ?? return ty
     let args = ownerArgs(db, owner, recv, from) ?? return None
     let applied = substitute(db, ty, owner, args)
@@ -387,13 +463,14 @@ public func asMemberOf(db: AnalysisDatabase, ty: Ty, member: DefId, recv: Ty, fr
 func ownerArgs(db: AnalysisDatabase, owner: DefId, recv: Ty, from: ?SourceFile): ?Array<Ty> {
     if (owner.item(db).kind == ItemKind.Extend) {
         let extended = signatureTypes(db, owner).ty ?? return None
-        let instance = match (extended.kind(db)) {
-            case DeclTy(id, _) => asInstanceOf(db, recv, id, from) ?? return None
-            case _ => recv
-        }
+        let instance =
+            match (extended.kind(db)) {
+                case DeclTy(id, _) => asInstanceOf(db, recv, id, from) ?? return None
+                case _ => recv
+            }
         return extendArgs(db, owner, instance)
     }
-    match (asInstanceOf(db, recv, owner, from).map {one => one.kind(db)}) {
+    match (asInstanceOf(db, recv, owner, from).map { one => one.kind(db) }) {
         case Some(DeclTy(_, args)) => return args
         case _ => ()
     }
@@ -401,14 +478,17 @@ func ownerArgs(db: AnalysisDatabase, owner: DefId, recv: Ty, from: ?SourceFile):
     if (let ParamTy(param, _) <- recv.kind(db)) {
         for (bound in genericBounds(db, param) where bound.ty == recv) {
             for (one in bound.bounds) {
-                if (let Some(DeclTy(_, args)) <- asInstanceOf(db, one, owner, from).map {it => it.kind(db)}) {
+                if (
+                    let Some(DeclTy(_, args)) <- asInstanceOf(db, one, owner, from)
+                        .map { it => it.kind(db) }
+                ) {
                     return args
                 }
             }
         }
     }
     // a member of a type the value is no instance of: a `.cjo` cjc checked; its arguments unknown
-    genericsOf(db, owner).map {_ => Ty(db, ErrorTy)}
+    genericsOf(db, owner).map { _ => Ty(db, ErrorTy) }
 }
 
 /**
@@ -420,5 +500,5 @@ func eraseParams(db: AnalysisDatabase, ty: Ty, owner: DefId): Ty {
     if (count == 0) {
         return ty
     }
-    substitute(db, ty, owner, Array(count) {_ => Ty(db, ErrorTy)})
+    substitute(db, ty, owner, Array(count) { _ => Ty(db, ErrorTy) })
 }

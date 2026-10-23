@@ -101,8 +101,19 @@ class TypeResolver {
         }
         for (enumeration in mm.enumerations) {
             let closed = !(enumeration.supportsCustomValues ?? false)
-            if (closed && (enumeration.values |> any {it: EnumerationEntry => it.name.toAsciiPascalCase() == "None"})) {
-                if (let Some(ident) <- cfg.typeMap.bind(enumeration.name).typeNameOf(enumeration.name)) {
+            if (
+                closed &&
+                    (
+                        enumeration.values |>
+                            any { it: EnumerationEntry => it.name.toAsciiPascalCase() == "None" }
+                    )
+            ) {
+                if (
+                    let Some(ident) <- cfg
+                        .typeMap
+                        .bind(enumeration.name)
+                        .typeNameOf(enumeration.name)
+                ) {
                     noneVariantHolders.add(ident)
                 }
             }
@@ -147,7 +158,9 @@ class TypeResolver {
             case Or(items) => resolveOr(items, context)
             case Literal(literal) => Named(declareLiteral(literal, context))
             case And(_) | Tuple(_) | StringLiteral(_) | IntegerLiteral(_) | BooleanLiteral(_) =>
-                throw IllegalStateException("`${context}`: ${kindOf(t)} is only supported as a union member or a tag")
+                throw IllegalStateException(
+                    "`${context}`: ${kindOf(t)} is only supported as a union member or a tag"
+                )
         }
     }
 
@@ -170,18 +183,29 @@ class TypeResolver {
         let flattened = ArrayList<DeclaredProperty>()
         let bases = (structure.extends ?? []).concat(structure.mixins ?? [])
         for (base in bases) {
-            let baseName = match (base) {
-                case Reference(name) => name
-                case _ => throw IllegalStateException("`${structure.name}` extends something other than a structure")
-            }
-            let baseStructure = structures.get(baseName).getOrThrow {
-                => IllegalStateException("`${structure.name}` extends unknown structure `${baseName}`")
-            }
+            let baseName =
+                match (base) {
+                    case Reference(name) => name
+                    case _ =>
+                        throw IllegalStateException(
+                            "`${structure.name}` extends something other than a structure"
+                        )
+                }
+            let baseStructure =
+                structures
+                    .get(baseName)
+                    .getOrThrow {
+                        =>
+                        IllegalStateException(
+                            "`${structure.name}` extends unknown structure `${baseName}`"
+                        )
+                    }
             for (property in flattenedProperties(baseStructure)) {
                 addOrReplace(flattened, property)
             }
         }
-        let declaredBy = cfg.typeMap.bind(structure.name).typeNameOf(structure.name) ?? structure.name
+        let declaredBy =
+            cfg.typeMap.bind(structure.name).typeNameOf(structure.name) ?? structure.name
         for (property in structure.properties) {
             addOrReplace(flattened, DeclaredProperty(declaredBy: declaredBy, property: property))
         }
@@ -190,9 +214,16 @@ class TypeResolver {
     }
 
     private func referenceTo(lspName: String): String {
-        cfg.typeMap.bind(lspName).typeNameOf(lspName).getOrThrow {
-            => IllegalStateException("`${lspName}` is skipped by the config, yet something refers to it")
-        }
+        cfg
+            .typeMap
+            .bind(lspName)
+            .typeNameOf(lspName)
+            .getOrThrow {
+                =>
+                IllegalStateException(
+                    "`${lspName}` is skipped by the config, yet something refers to it"
+                )
+            }
     }
 
     private func baseType(base: BaseTypes): TypeIr {
@@ -224,11 +255,12 @@ class TypeResolver {
      */
     private func resolveOr(items: Array<Type>, context: String): TypeIr {
         let members = nonNullMembers(items)
-        let inner = if (members.size == 1) {
-            resolve(members[0], context: context)
-        } else {
-            Named(declareUnion(members, context))
-        }
+        let inner =
+            if (members.size == 1) {
+                resolve(members[0], context: context)
+            } else {
+                Named(declareUnion(members, context))
+            }
 
         if (members.size == items.size || holdsNull(members)) {
             inner
@@ -241,10 +273,11 @@ class TypeResolver {
         if (members.size != 1) {
             return false
         }
-        let aliasType = match (members[0]) {
-            case Reference(name) => aliases.get(name)?.typeAliasType
-            case _ => None<Type>
-        }
+        let aliasType =
+            match (members[0]) {
+                case Reference(name) => aliases.get(name)?.typeAliasType
+                case _ => None<Type>
+            }
 
         match (aliasType) {
             case Some(Or(items)) => nonNullMembers(items).size != items.size
@@ -254,41 +287,55 @@ class TypeResolver {
 
     private func declareUnion(members: Array<Type>, context: String): String {
         // a literal is declared where it appears, so a union holding one belongs to that place too
-        let literalCount = members |> filter {it: Type => isLiteral(it)} |> count
+        let literalCount = members |> filter { it: Type => isLiteral(it) } |> count
         if (literalCount > 1) {
             // each would be named `context`, the second one lost to the first
-            throw IllegalStateException("`${context}`: a union of more than one literal has no names for them")
+            throw IllegalStateException(
+                "`${context}`: a union of more than one literal has no names for them"
+            )
         }
         if (literalCount == 1 && unionAliases.contains(unionKeyOf(members))) {
             // the literal would take the alias's own name, which the union needs
-            throw IllegalStateException("`${context}`: an alias of a union holding a literal has no name for it")
+            throw IllegalStateException(
+                "`${context}`: an alias of a union holding a literal has no name for it"
+            )
         }
-        let key = if (literalCount == 1) {
-            "${unionKeyOf(members)}@${context}"
-        } else {
-            unionKeyOf(members)
-        }
+        let key =
+            if (literalCount == 1) {
+                "${unionKeyOf(members)}@${context}"
+            } else {
+                unionKeyOf(members)
+            }
         if (let Some(ident) <- unionIdents.get(key)) {
             return ident
         }
 
         let alias = unionAliases.get(key)
-        let lspName = match (alias) {
-            case Some(a) => a.name
-            case None => String.join(members.map {it: Type => memberName(it, context)}, delimiter: "Or")
-        }
+        let lspName =
+            match (alias) {
+                case Some(a) => a.name
+                case None =>
+                    String
+                        .join(members.map { it: Type => memberName(it, context) }, delimiter: "Or")
+            }
         let ident = referenceTo(lspName)
         unionIdents.add(key, ident)
 
         if (let Owned(declared) <- cfg.typeMap.bind(lspName)) {
-            let variants = narrowestFirst(members).map {
-                member: Type => UnionVariantIr(ident: VARIANT_PREFIX + memberName(member, context),
-                    payloads: payloadsOf(member, context))
-            }
-            let doc = match (alias) {
-                case Some(a) => resolveDoc(a)
-                case None => DocIr()
-            }
+            let variants =
+                narrowestFirst(members)
+                    .map {
+                        member: Type =>
+                        UnionVariantIr(
+                            ident: VARIANT_PREFIX + memberName(member, context),
+                            payloads: payloadsOf(member, context)
+                        )
+                    }
+            let doc =
+                match (alias) {
+                    case Some(a) => resolveDoc(a)
+                    case None => DocIr()
+                }
             unionList.add(UnionIr(doc, ident: declared, variants: variants))
         }
 
@@ -297,7 +344,7 @@ class TypeResolver {
 
     private func payloadsOf(member: Type, context: String): Array<TypeIr> {
         match (member) {
-            case Tuple(items) => items.map {it: Type => resolve(it, context: context)}
+            case Tuple(items) => items.map { it: Type => resolve(it, context: context) }
             case _ => [resolve(member, context: context)]
         }
     }
@@ -319,16 +366,19 @@ class TypeResolver {
             ordered.add((member, count), at: at)
         }
 
-        ordered.toArray().map {it: (Type, Int64) => it[0]}
+        ordered.toArray().map { it: (Type, Int64) => it[0] }
     }
 
     private func requiredKeyCount(t: Type): Int64 {
-        let name = match (t) {
-            case Reference(name) => name
-            case _ => return 0
-        }
+        let name =
+            match (t) {
+                case Reference(name) => name
+                case _ => return 0
+            }
         if (let Some(structure) <- structures.get(name)) {
-            return flattenedProperties(structure) |> filter {it: DeclaredProperty => !(it.property.optional ?? false)} |> count
+            return flattenedProperties(structure) |>
+                filter { it: DeclaredProperty => !(it.property.optional ?? false) } |>
+                count
         }
         if (let Some(alias) <- aliases.get(name)) {
             return requiredKeyCount(alias.typeAliasType)
@@ -342,23 +392,28 @@ class TypeResolver {
      */
     private func memberName(t: Type, context: String): String {
         match (t) {
-            case Base(base) => match (base) {
-                case Uri => "URI"
-                case DocumentUri => "DocumentUri"
-                case Integer => "Integer"
-                case UInteger => "UInteger"
-                case Decimal => "Decimal"
-                case RegExp => "RegExp"
-                case String => "String"
-                case Boolean => "Boolean"
-                case Null => "Null"
-            }
+            case Base(base) =>
+                match (base) {
+                    case Uri => "URI"
+                    case DocumentUri => "DocumentUri"
+                    case Integer => "Integer"
+                    case UInteger => "UInteger"
+                    case Decimal => "Decimal"
+                    case RegExp => "RegExp"
+                    case String => "String"
+                    case Boolean => "Boolean"
+                    case Null => "Null"
+                }
             case Reference(name) => name
             case Array(element) => pluralOf(memberName(element, context))
             case Literal(literal) => declareLiteral(literal, context)
-            case Tuple(items) where items.size == 2 && canonicalOf(items[0]) == canonicalOf(items[1]) =>
+            case Tuple(items) where items.size == 2 &&
+                    canonicalOf(items[0]) == canonicalOf(items[1]) =>
                 "${memberName(items[0], context)}Pair"
-            case _ => throw IllegalStateException("`${context}`: a union member of ${kindOf(t)} has no name")
+            case _ =>
+                throw IllegalStateException(
+                    "`${context}`: a union member of ${kindOf(t)} has no name"
+                )
         }
     }
 
@@ -376,7 +431,10 @@ class TypeResolver {
     }
 }
 
-private func addOrReplace(properties: ArrayList<DeclaredProperty>, property: DeclaredProperty): Unit {
+private func addOrReplace(
+    properties: ArrayList<DeclaredProperty>,
+    property: DeclaredProperty
+): Unit {
     for (i in 0..properties.size) {
         if (properties[i].property.name == property.property.name) {
             properties[i] = property
@@ -394,19 +452,21 @@ private func isLiteral(t: Type): Bool {
 }
 
 private func nonNullMembers(items: Array<Type>): Array<Type> {
-    items.filter {
-        it: Type => match (it) {
-            case Base(Null) => false
-            case _ => true
+    items
+        .filter {
+            it: Type =>
+            match (it) {
+                case Base(Null) => false
+                case _ => true
+            }
         }
-    }
 }
 
 /**
  * The same members in any order are the same union.
  */
 private func unionKeyOf(members: Array<Type>): String {
-    let canonical = members.map {it: Type => canonicalOf(it)}
+    let canonical = members.map { it: Type => canonicalOf(it) }
     sort(canonical)
 
     String.join(canonical, delimiter: " | ")
@@ -418,14 +478,17 @@ private func canonicalOf(t: Type): String {
         case Reference(name) => name
         case Array(element) => "${canonicalOf(element)}[]"
         case Map(key, value) =>
-            let keyName = match (key) {
-                case Base(name) => name.toString()
-                case Reference(name) => name
-            }
+            let keyName =
+                match (key) {
+                    case Base(name) => name.toString()
+                    case Reference(name) => name
+                }
             "{${keyName}: ${canonicalOf(value)}}"
         case Or(items) => "(${unionKeyOf(items)})"
-        case And(items) => "(${String.join(items.map {it: Type => canonicalOf(it)}, delimiter: " & ")})"
-        case Tuple(items) => "[${String.join(items.map {it: Type => canonicalOf(it)}, delimiter: ", ")}]"
+        case And(items) =>
+            "(${String.join(items.map {it: Type => canonicalOf(it)}, delimiter: " & ")})"
+        case Tuple(items) =>
+            "[${String.join(items.map {it: Type => canonicalOf(it)}, delimiter: ", ")}]"
         case Literal(_) => "{...}"
         case StringLiteral(value) => "'${value}'"
         case IntegerLiteral(value) => "${value}"
@@ -434,9 +497,13 @@ private func canonicalOf(t: Type): String {
 }
 
 private func literalShapeOf(literal: StructureLiteral): String {
-    let properties = literal.properties.map {
-        it: Property => "${it.name}${if (it.optional ?? false) { "?" } else { "" }}: ${canonicalOf(it.propertyType)}"
-    }
+    let properties =
+        literal
+            .properties
+            .map {
+                it: Property =>
+                "${it.name}${if (it.optional ?? false) { "?" } else { "" }}: ${canonicalOf(it.propertyType)}"
+            }
 
     "{${String.join(properties, delimiter: "; ")}}"
 }
@@ -465,7 +532,10 @@ func pluralOf(name: String): String {
     if (name.endsWith("s") || name.endsWith("x") || name.endsWith("sh") || name.endsWith("ch")) {
         return "${name}es"
     }
-    if (name.size >= 2 && name.endsWith("y") && !"aeiou".contains(name[name.size - 2..name.size - 1])) {
+    if (
+        name.size >= 2 && name.endsWith("y") &&
+            !"aeiou".contains(name[name.size - 2..name.size - 1])
+    ) {
         return "${name[..name.size - 1]}ies"
     }
 

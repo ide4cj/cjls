@@ -9,10 +9,34 @@ import stdxx.Nullable
 import rope.Rope
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
-import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
-    readFiles, VfsPath}
-import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, findProjects, hostCfg, loneFileProjects,
-    packageHeader, PROJECT_JSON, ProjectLoad, projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
+import loupe.vfs.{
+    CjoFile,
+    FileStamp,
+    isCangjieFile,
+    isWorkspaceDirectory,
+    isWorkspaceFile,
+    readCjoFiles,
+    readFile,
+    readFiles,
+    VfsPath
+}
+import project_model.{
+    CangjieHome,
+    CFG_TOML,
+    findCangjieHome,
+    findCangjieSrc,
+    findProjects,
+    hostCfg,
+    loneFileProjects,
+    packageHeader,
+    PROJECT_JSON,
+    ProjectLoad,
+    projectDirOf,
+    ProjectSource,
+    withCangjieHome,
+    withCangjieSrc,
+    withPackageCfgs
+}
 import cjls.lsp_types.*
 import cjls.server.*
 import cjls.macros.LspHandler
@@ -55,25 +79,32 @@ func handleInitialized(loop: Loop, client: Client, logger: Logger, _: Initialize
  * directory alone) and the `.cjo` whose stamps moved.
  */
 @LspHandler
-func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, params: DidChangeWatchedFilesParams): Unit {
+func handleDidChangeWatchedFiles(
+    loop: Loop,
+    client: Client,
+    logger: Logger,
+    params: DidChangeWatchedFilesParams
+): Unit {
     let state = loop.state
     let roots = state.roots.toArray()
     // before the files are dropped: a directory gone changes the project if it held a file known
-    let reload = params.changes.iterator().any {event => changesProject(state, event, roots)}
+    let reload = params.changes.iterator().any { event => changesProject(state, event, roots) }
     let files = ArrayList<(VfsPath, ?Rope)>()
     for (event in params.changes) {
         let path = VfsPath.fromUri(event.uri)
         match (event.`type`) {
-            case FileChangeType.Created | FileChangeType.Changed where isWorkspaceFile(path, roots) ||
-                state.inProject(path) =>
-                files.add((path, readFile(path)))
-            case FileChangeType.Deleted => for (gone in state.filesUnder(path)) {
-                files.add((gone, None))
-            }
+            case FileChangeType.Created |
+                FileChangeType.Changed where isWorkspaceFile(path, roots) ||
+                    state.inProject(path) => files.add((path, readFile(path)))
+            case FileChangeType.Deleted =>
+                for (gone in state.filesUnder(path)) {
+                    files.add((gone, None))
+                }
             case _ => ()
         }
     }
-    state.setFilesContents(files.filter {file => !state.openDocuments.contains(file[0])}.toArray())
+    state
+        .setFilesContents(files.filter { file => !state.openDocuments.contains(file[0]) }.toArray())
     // a file of a macro package saved, an open one too: what the build reads is the disk (D104)
     if (!params.changes.isEmpty()) {
         state.macroWork?.wake(true)
@@ -89,21 +120,31 @@ func handleDidChangeWatchedFiles(loop: Loop, client: Client, logger: Logger, par
  * in its revision (S12), so no snapshot sees the old project without them.
  */
 @LspHandler
-func handleDidChangeWorkspaceFolders(loop: Loop, client: Client, logger: Logger,
-    params: DidChangeWorkspaceFoldersParams): Unit {
+func handleDidChangeWorkspaceFolders(
+    loop: Loop,
+    client: Client,
+    logger: Logger,
+    params: DidChangeWorkspaceFoldersParams
+): Unit {
     let state = loop.state
     let removed = rootsOf(params.event.removed)
     // after the removal, so a folder both removed and added stays a root
-    state.roots.removeIf {root => removed.contains(root)}
-    let added = rootsOf(params.event.added).filter {root => !state.roots.contains(root)}
+    state.roots.removeIf { root => removed.contains(root) }
+    let added = rootsOf(params.event.added).filter { root => !state.roots.contains(root) }
     state.roots.add(all: added)
     // a project found from a document goes with the last root it was under
-    state.foundProjects = state.foundProjects.filter {dir => state.roots.iterator().any {root => dir.isUnder(root)}}
+    state.foundProjects =
+        state
+            .foundProjects
+            .filter { dir => state.roots.iterator().any { root => dir.isUnder(root) } }
     unwatch(state, client, logger, removed)
     watch(state, client, logger, added)
 
     for (root in removed) {
-        state.dropWithProject(state.filesUnder(root).filter {path => !state.openDocuments.contains(path)})
+        state
+            .dropWithProject(
+                state.filesUnder(root).filter { path => !state.openDocuments.contains(path) }
+            )
     }
     startLoad(loop, client, logger)
 }
@@ -112,13 +153,18 @@ func handleDidChangeWorkspaceFolders(loop: Loop, client: Client, logger: Logger,
  * The declarations of every file the server knows, open or not, whose names match the query.
  */
 @LspHandler[readonly]
-func handleWorkspaceSymbol(snap: ServerSnapshot, params: WorkspaceSymbolParams): Nullable<SymbolInformationsOrWorkspaceSymbols> {
+func handleWorkspaceSymbol(
+    snap: ServerSnapshot,
+    params: WorkspaceSymbolParams
+): Nullable<SymbolInformationsOrWorkspaceSymbols> {
     let found = workspaceSymbols(snap.analysis, snap.files, params.query, WORKSPACE_SYMBOL_LIMIT)
-    let symbols = found.map {
-        found =>
-        let text = snap.analysis.sourceFile(found.fileId).getOrThrow().text(snap.analysis)
-        workspaceSymbol(text, snap.path(found.fileId).toUri(), found.symbol, snap.encoding)
-    }
+    let symbols =
+        found
+            .map {
+                found =>
+                let text = snap.analysis.sourceFile(found.fileId).getOrThrow().text(snap.analysis)
+                workspaceSymbol(text, snap.path(found.fileId).toUri(), found.symbol, snap.encoding)
+            }
     Nullable.Value(SymbolInformationsOrWorkspaceSymbols.AsWorkspaceSymbols(symbols))
 }
 
@@ -132,11 +178,13 @@ func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>)
     let path = VfsPath.fromUri(event.uri)
     match (event.`type`) {
         case _ where state.binaryWatch?.covers(path) ?? false => true
-        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON || path.name == CFG_TOML => true
+        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON ||
+                path.name == CFG_TOML => true
         case FileChangeType.Changed => false
         case _ where isCangjieFile(path.name) => true
         // what is gone cannot be told a directory or a file, but one holding no file known leaves none to drop
-        case FileChangeType.Deleted => isWorkspaceDirectory(path, roots) && !state.filesUnder(path).isEmpty()
+        case FileChangeType.Deleted =>
+            isWorkspaceDirectory(path, roots) && !state.filesUnder(path).isEmpty()
         case _ => isWorkspaceDirectory(path, roots) && isDirectory(path)
     }
 }
@@ -195,17 +243,19 @@ struct LoadRequest {
  * projects: the files of the folders removed go at once.
  */
 func startLoad(loop: Loop, client: Client, logger: Logger): Unit {
-    let request = match (loadRequest(loop.state)) {
-        case Some(request) => request
-        case None =>
-            loop.state.dropGone()
-            return
-    }
-    loop.start(logger) {
-        if (let Some(warning) <- load(loop, client, logger, request)) {
-            showWarning(client, logger, warning)
+    let request =
+        match (loadRequest(loop.state)) {
+            case Some(request) => request
+            case None =>
+                loop.state.dropGone()
+                return
         }
-    }
+    loop
+        .start(logger) {
+            if (let Some(warning) <- load(loop, client, logger, request)) {
+                showWarning(client, logger, warning)
+            }
+        }
 }
 
 /**
@@ -225,7 +275,11 @@ func startMacros(loop: Loop, logger: Logger): Unit {
  */
 func showWarning(client: Client, logger: Logger, message: String): Unit {
     try {
-        client.notify(ShowMessageNotificationSpec(), ShowMessageParams(`type`: MessageType.Warning, message: message))
+        client
+            .notify(
+                ShowMessageNotificationSpec(),
+                ShowMessageParams(`type`: MessageType.Warning, message: message)
+            )
     } catch (e: Exception) {
         logger.debug("the warning was not shown", [("error", e.toString())])
     }
@@ -238,16 +292,29 @@ func showWarning(client: Client, logger: Logger, message: String): Unit {
 func loadRequest(state: ServerState): ?LoadRequest {
     let settings = state.settings
     let open = collectArray(state.openDocuments.keys())
-    let packageLines = open.filter {path => isCangjieFile(path.name)}.map {
-        path => (path, state.fileContents(path).flatMap {text => packageLineOf(text)})
-    }
+    let packageLines =
+        open
+            .filter { path => isCangjieFile(path.name) }
+            .map {
+                path =>
+                (path, state.fileContents(path).flatMap { text => packageLineOf(text) })
+            }
     // with no root, a document is compiled alone (#293)
     if (state.roots.isEmpty() && settings.linkedProjects.isEmpty() && packageLines.isEmpty()) {
         return None
     }
-    LoadRequest(state.beginLoad(), state.roots.toArray(), settings.linkedProjects, settings.cangjieHome,
-        settings.cangjieSrc, state.workDoneProgress, state.loadBudget, open, found: state.foundProjects,
-        packageLines: packageLines)
+    LoadRequest(
+        state.beginLoad(),
+        state.roots.toArray(),
+        settings.linkedProjects,
+        settings.cangjieHome,
+        settings.cangjieSrc,
+        state.workDoneProgress,
+        state.loadBudget,
+        open,
+        found: state.foundProjects,
+        packageLines: packageLines
+    )
 }
 
 /**
@@ -275,12 +342,18 @@ func packageLineOf(text: Rope): ?String {
  * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
  */
 func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?String {
-    let progress = WorkDoneProgress.begin(client, logger,
-        if (request.progress) {
-            "cjls/load/${request.load}"
-        } else {
-            None
-        }, "Loading the workspace")
+    let progress =
+        WorkDoneProgress
+            .begin(
+                client,
+                logger,
+                if (request.progress) {
+                    "cjls/load/${request.load}"
+                } else {
+                    None
+                },
+                "Loading the workspace"
+            )
     try {
         loadProject(loop, client, logger, request, progress)
     } finally {
@@ -295,23 +368,37 @@ func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?St
  */
 const LOAD_BATCH = 1024
 
-func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadRequest, progress: WorkDoneProgress): ?String {
+func loadProject(
+    loop: Loop,
+    client: Client,
+    logger: Logger,
+    request: LoadRequest,
+    progress: WorkDoneProgress
+): ?String {
     let start = MonoTime.now()
     let budget = request.budget
-    let home = findCangjieHome(request.cangjieHome, env: {name => getVariable(name)})
+    let home = findCangjieHome(request.cangjieHome, env: { name => getVariable(name) })
     if (let Some(home) <- home) {
         logger.info("found the SDK", [("path", home.path), ("source", home.source)])
     }
-    let withHome = withCangjieHome({name => getVariable(name)}, home)
+    let withHome = withCangjieHome({ name => getVariable(name) }, home)
     let src = findCangjieSrc(request.cangjieSrc, env: withHome)
     if (let Some(src) <- src) {
         logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
     }
     let env = withCangjieSrc(withHome, src)
-    let found = findProjects(request.roots, request.linkedProjects, env: env, budget: budget, open: request.open,
-        found: request.found)
+    let found =
+        findProjects(
+            request.roots,
+            request.linkedProjects,
+            env: env,
+            budget: budget,
+            open: request.open,
+            found: request.found
+        )
     // a document open in none of their packages finds its own project, as R1 does on open (#265)
-    let known = HashSet<VfsPath>(ProjectModel.merge(found.map {load => load.model}, hostCfg()).files())
+    let known =
+        HashSet<VfsPath>(ProjectModel.merge(found.map { load => load.model }, hostCfg()).files())
     let more = ArrayList<VfsPath>()
     for (path in request.open where !known.contains(path)) {
         let loaded = request.found.concat(more.toArray())
@@ -321,92 +408,153 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
     }
     let projects = found.concat(findProjects([], [], env: env, found: more.toArray()))
     // a document open in no package of theirs either is compiled alone, as cjc compiles it (#293)
-    let loads = projects.concat(loneFileProjects(ProjectModel.merge(projects.map {load => load.model}, hostCfg()),
-        request.packageLines, env: env))
+    let loads =
+        projects
+            .concat(
+                loneFileProjects(
+                    ProjectModel.merge(projects.map { load => load.model }, hostCfg()),
+                    request.packageLines,
+                    env: env
+                )
+            )
     for (load in loads) {
-        logger.info("found a project", [("source", load.source.toString()), ("modules", load.model.modules.size)])
+        logger
+            .info(
+                "found a project",
+                [("source", load.source.toString()), ("modules", load.model.modules.size)]
+            )
         for (problem in load.problems) {
             logger.warn(problem)
         }
     }
     let cfgProblems = ArrayList<String>()
-    let model = withPackageCfgs(ProjectModel.merge(loads.map {load => load.model}, hostCfg()), cfgProblems)
+    let model =
+        withPackageCfgs(
+            ProjectModel.merge(loads.map { load => load.model }, hostCfg()),
+            cfgProblems
+        )
     for (problem in cfgProblems) {
         logger.warn(problem)
     }
     // `std` is what every file resolves against: the binaries go first
     let cjoFiles = model.cjoFiles()
-    let stamps = loop.write {
-        state: ServerState =>
-        let stamps = HashMap<CjoFile, FileStamp>()
-        for (file in cjoFiles) {
-            if (let Some(stamp) <- state.binaryStamp(file)) {
-                stamps[file] = stamp
+    let stamps =
+        loop
+            .write {
+                state: ServerState =>
+                let stamps = HashMap<CjoFile, FileStamp>()
+                for (file in cjoFiles) {
+                    if (let Some(stamp) <- state.binaryStamp(file)) {
+                        stamps[file] = stamp
+                    }
+                }
+                stamps
             }
-        }
-        stamps
-    }
-    let binaries = readCjoFiles(cjoFiles, unchanged: {file, stamp => stamps.get(file) == stamp},
-        budget: budget)
+    let binaries =
+        readCjoFiles(
+            cjoFiles,
+            unchanged: { file, stamp => stamps.get(file) == stamp },
+            budget: budget
+        )
     for (problem in binaries.problems) {
         logger.warn(problem)
     }
-    let wanted = loop.write {
-        state: ServerState =>
-        if (state.isLoading(request.load)) {
-            state.setProject(model, binaries: binaries.files)
-            state.partialRoots = partialRootsOf(loads)
-            state.foundProjects = request.found.concat(more.toArray())
-            watchBinaries(state, client, logger, model)
-            Some(openFirst(model.files().concat(model.binarySourceFiles()).filter {
-                path => !state.openDocuments.contains(path) && !state.knows(path)
-            }, request.open))
-        } else {
-            Option<Array<VfsPath>>.None
-        }
-    } ?? return None
+    let wanted =
+        loop
+            .write {
+                state: ServerState =>
+                if (state.isLoading(request.load)) {
+                    state.setProject(model, binaries: binaries.files)
+                    state.partialRoots = partialRootsOf(loads)
+                    state.foundProjects = request.found.concat(more.toArray())
+                    watchBinaries(state, client, logger, model)
+                    Some(
+                        openFirst(
+                            model
+                                .files()
+                                .concat(model.binarySourceFiles())
+                                .filter {
+                                    path =>
+                                    !state.openDocuments.contains(path) && !state.knows(path)
+                                },
+                            request.open
+                        )
+                    )
+                } else {
+                    Option<Array<VfsPath>>.None
+                }
+            } ??
+            return None
     var left = budget - binaries.size
     var loaded = 0
     var truncated = false
-    for (from in 0..wanted.size : LOAD_BATCH) {
+    for (from in 0..wanted.size: LOAD_BATCH) {
         let to = min(from + LOAD_BATCH, wanted.size)
         let read = readFiles(wanted[from..to], budget: left)
-        left -= read.files.iterator().fold(0) {size, file => size + file[1].size}
+        left -= read.files.iterator().fold(0) { size, file => size + file[1].size }
         truncated = truncated || read.truncated
-        if (!loop.write {state: ServerState => state.setLoadedFiles(request.load, read.files)}) {
+        if (!loop.write { state: ServerState => state.setLoadedFiles(request.load, read.files) }) {
             return None
         }
         loaded += read.files.size
         progress.report(to, wanted.size, "${to}/${wanted.size} files")
     }
     // `Some((None, _))`: the load ended, with nothing to tell
-    let ended = loop.write {
-        state: ServerState =>
-        if (state.endLoad(request.load)) {
-            // a document opened since the project was found, among the files it left out or of a project of its own
-            let opened = state.openDocuments.keys().iterator().filter {path => !request.open.contains(path)}
-            if (opened.any {path => findsProjectAgain(state, path)}) {
-                startLoad(loop, client, logger)
-            }
-            startMacros(loop, logger)
-            Some((sdkWarning(state, home), packageLinesAfterLoad(state)))
-        } else {
-            Option<(?String, Array<ApplyWorkspaceEditParams>)>.None
-        }
-    } ?? return None
+    let ended =
+        loop
+            .write {
+                state: ServerState =>
+                if (state.endLoad(request.load)) {
+                    // a document opened since the project was found, among the files it left out or of a project of its own
+                    let opened =
+                        state
+                            .openDocuments
+                            .keys()
+                            .iterator()
+                            .filter { path => !request.open.contains(path) }
+                    if (opened.any { path => findsProjectAgain(state, path) }) {
+                        startLoad(loop, client, logger)
+                    }
+                    startMacros(loop, logger)
+                    Some((sdkWarning(state, home), packageLinesAfterLoad(state)))
+                } else {
+                    Option<(?String, Array<ApplyWorkspaceEditParams>)>.None
+                }
+            } ??
+            return None
     let (warning, packageLines) = ended
     for (edit in packageLines) {
         applyEdit(loop, client, logger, edit)
     }
-    logger.info("loaded the workspace", [("roots", request.roots.size), ("files", loaded),
-        ("cjo", binaries.files.size), ("took", MonoTime.now() - start)])
+    logger
+        .info(
+            "loaded the workspace",
+            [
+                ("roots", request.roots.size),
+                ("files", loaded),
+                ("cjo", binaries.files.size),
+                ("took", MonoTime.now() - start)
+            ]
+        )
     if (binaries.truncated) {
-        logger.warn("the binaries hold more than the server loads: the names of those left out do not resolve",
-            [("budget", budget)])
+        logger
+            .warn(
+                "the binaries hold more than the server loads: the names of those left out do not resolve",
+                [("budget", budget)]
+            )
     }
     if (truncated) {
-        logger.warn("the workspace holds more text than the server loads: the rest is not seen until opened",
-            [("budget", budget), ("roots", String.join(request.roots.map {root => root.toString()}, delimiter: ", "))])
+        logger
+            .warn(
+                "the workspace holds more text than the server loads: the rest is not seen until opened",
+                [
+                    ("budget", budget),
+                    (
+                        "roots",
+                        String.join(request.roots.map { root => root.toString() }, delimiter: ", ")
+                    )
+                ]
+            )
     }
     warning
 }
@@ -417,8 +565,15 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
  * came, of none, and compiled alone (#293).
  */
 func findsProjectAgain(state: ServerState, path: VfsPath): Bool {
-    state.leftOut(path) || !state.inProject(path) &&
-        newProjectOf(path, state.roots.toArray(), state.settings.linkedProjects, state.foundProjects).isSome() ||
+    state.leftOut(path) ||
+        !state.inProject(path) &&
+            newProjectOf(
+                path,
+                state.roots.toArray(),
+                state.settings.linkedProjects,
+                state.foundProjects
+            )
+                .isSome() ||
         state.initialized && state.inNoPackage(path)
 }
 
@@ -427,14 +582,22 @@ func findsProjectAgain(state: ServerState, path: VfsPath): Bool {
  * it is under (`projectDirOf`), if that is none loaded: no root, none of `linked`, none of `found`.
  * `None` for a file of a project loaded, or of none.
  */
-func newProjectOf(path: VfsPath, roots: Array<VfsPath>, linked: Array<VfsPath>, found: Array<VfsPath>): ?VfsPath {
+func newProjectOf(
+    path: VfsPath,
+    roots: Array<VfsPath>,
+    linked: Array<VfsPath>,
+    found: Array<VfsPath>
+): ?VfsPath {
     if (!isCangjieFile(path.name)) {
         return None
     }
     for (root in roots) {
-        let dir = projectDirOf(path, root, env: {name => getVariable(name)}) ?? continue
-        let loaded = roots.contains(dir) || found.contains(dir) ||
-            linked.iterator().any {project => project == dir || project == dir.join(PROJECT_JSON)}
+        let dir = projectDirOf(path, root, env: { name => getVariable(name) }) ?? continue
+        let loaded =
+            roots.contains(dir) || found.contains(dir) ||
+                linked
+                    .iterator()
+                    .any { project => project == dir || project == dir.join(PROJECT_JSON) }
         return if (loaded) {
             None
         } else {
@@ -471,8 +634,8 @@ func openFirst(paths: Array<VfsPath>, open: Array<VfsPath>): Array<VfsPath> {
             dirs.add(dir)
         }
     }
-    let near = {path: VfsPath => path.parent.map {dir => dirs.contains(dir)} ?? false}
-    paths.filter(near).concat(paths.filter {path => !near(path)})
+    let near = { path: VfsPath => path.parent.map { dir => dirs.contains(dir) } ?? false }
+    paths.filter(near).concat(paths.filter { path => !near(path) })
 }
 
 /**
@@ -482,14 +645,17 @@ func openFirst(paths: Array<VfsPath>, open: Array<VfsPath>): Array<VfsPath> {
 func sdkWarning(state: ServerState, home: ?CangjieHome): ?String {
     let project = state.analysis.project() ?? return None
     let db = state.analysis
-    if (!project.binaries(db).iterator().any {binary => binary.name == "std"}) {
+    if (!project.binaries(db).iterator().any { binary => binary.name == "std" }) {
         return match (home) {
-            case None where !project.modules(db).iterator().any {module => module.name(db) == "std"} =>
+            case None where !project
+                    .modules(db)
+                    .iterator()
+                    .any { module => module.name(db) == "std" } =>
                 "No Cangjie SDK is found: nothing from std resolves. Set `CANGJIE_HOME`, or the SDK in the editor's settings."
             case _ => None
         }
     }
-    if (project.binaryPackages(db).iterator().any {pkg => pkg.binary(db) == "std"}) {
+    if (project.binaryPackages(db).iterator().any { pkg => pkg.binary(db) == "std" }) {
         return None
     }
     "No package of std is read from the Cangjie SDK at ${home?.path ?? "the project's std"}: nothing from std resolves. The server's log says why."
@@ -503,13 +669,20 @@ func watch(state: ServerState, client: Client, logger: Logger, roots: Array<VfsP
     if (!state.watchesFiles || roots.isEmpty()) {
         return
     }
-    let registrations = roots.map {
-        root =>
-        let id = state.registrationId()
-        state.watchers.add(root, id)
-        watcherRegistration(id, root, state.relativePatterns)
-    }
-    client.request(RegistrationRequestSpec(), RegistrationParams(registrations: registrations), logger)
+    let registrations =
+        roots
+            .map {
+                root =>
+                let id = state.registrationId()
+                state.watchers.add(root, id)
+                watcherRegistration(id, root, state.relativePatterns)
+            }
+    client
+        .request(
+            RegistrationRequestSpec(),
+            RegistrationParams(registrations: registrations),
+            logger
+        )
 }
 
 /**
@@ -524,21 +697,33 @@ func watchBinaries(state: ServerState, client: Client, logger: Logger, model: Pr
     if (let Some(before) <- before && before.dirs == dirs && before.files == files) {
         return
     }
-    let id: ?String = if (state.watchesFiles && (!dirs.isEmpty() || !files.isEmpty())) {
-        state.registrationId()
-    } else {
-        Option<String>.None
-    }
+    let id: ?String =
+        if (state.watchesFiles && (!dirs.isEmpty() || !files.isEmpty())) {
+            state.registrationId()
+        } else {
+            Option<String>.None
+        }
     let watch = BinaryWatch(id, dirs, files)
     state.binaryWatch = watch
     if (let Some(id) <- id) {
-        client.request(RegistrationRequestSpec(),
-            RegistrationParams(registrations: [binaryRegistration(id, watch, state.relativePatterns)]), logger)
+        client
+            .request(
+                RegistrationRequestSpec(),
+                RegistrationParams(
+                    registrations: [binaryRegistration(id, watch, state.relativePatterns)]
+                ),
+                logger
+            )
     }
-    if (let Some(id) <- before.flatMap {before => before.id}) {
-        client.request(UnregistrationRequestSpec(),
-            UnregistrationParams(unregisterations: [DidChangeWatchedFilesNotificationSpec().unregistration(id)]),
-            logger)
+    if (let Some(id) <- before.flatMap { before => before.id }) {
+        client
+            .request(
+                UnregistrationRequestSpec(),
+                UnregistrationParams(
+                    unregisterations: [DidChangeWatchedFilesNotificationSpec().unregistration(id)]
+                ),
+                logger
+            )
     }
 }
 
@@ -551,8 +736,8 @@ func binaryPaths(model: ProjectModel): (Array<VfsPath>, Array<VfsPath>) {
     let dirs = ArrayList<VfsPath>()
     let files = ArrayList<VfsPath>()
     for (binary in model.binaries) {
-        dirs.add(all: binary.paths.filter {dir => seen.add(dir)})
-        files.add(all: binary.packages.map {pkg => pkg.path}.filter {file => seen.add(file)})
+        dirs.add(all: binary.paths.filter { dir => seen.add(dir) })
+        files.add(all: binary.packages.map { pkg => pkg.path }.filter { file => seen.add(file) })
     }
     (dirs.toArray(), files.toArray())
 }
@@ -571,17 +756,39 @@ func binaryRegistration(id: String, watch: BinaryWatch, relative: Bool): Registr
     for (dir in watch.dirs) {
         match (dir.parent) {
             case Some(parent) =>
-                watchers.add(FileSystemWatcher(globPattern: globPattern(parent, dir.name, relative), kind: comeOrGone))
-                watchers.add(FileSystemWatcher(globPattern: globPattern(parent, "${dir.name}/*.cjo", relative), kind: any))
-            case None => watchers.add(FileSystemWatcher(globPattern: globPattern(dir, "*.cjo", relative), kind: any))
+                watchers
+                    .add(
+                        FileSystemWatcher(
+                            globPattern: globPattern(parent, dir.name, relative),
+                            kind: comeOrGone
+                        )
+                    )
+                watchers
+                    .add(
+                        FileSystemWatcher(
+                            globPattern: globPattern(parent, "${dir.name}/*.cjo", relative),
+                            kind: any
+                        )
+                    )
+            case None =>
+                watchers
+                    .add(
+                        FileSystemWatcher(
+                            globPattern: globPattern(dir, "*.cjo", relative),
+                            kind: any
+                        )
+                    )
         }
     }
     for (file in watch.files) {
         let parent = file.parent ?? continue
-        watchers.add(FileSystemWatcher(globPattern: globPattern(parent, file.name, relative), kind: any))
+        watchers
+            .add(
+                FileSystemWatcher(globPattern: globPattern(parent, file.name, relative), kind: any)
+            )
     }
-    DidChangeWatchedFilesNotificationSpec().registration(id,
-        DidChangeWatchedFilesRegistrationOptions(watchers: watchers.toArray()))
+    DidChangeWatchedFilesNotificationSpec()
+        .registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers.toArray()))
 }
 
 /**
@@ -590,8 +797,10 @@ func binaryRegistration(id: String, watch: BinaryWatch, relative: Bool): Registr
  */
 func globPattern(base: VfsPath, glob: String, relative: Bool): GlobPattern {
     if (relative) {
-        return GlobPattern.AsRelativePattern(RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(base.toUri()),
-            pattern: glob))
+        return GlobPattern
+            .AsRelativePattern(
+                RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(base.toUri()), pattern: glob)
+            )
     }
     GlobPattern.AsPattern(base.toString().replace("\\", "/").removeSuffix("/") + "/" + glob)
 }
@@ -607,8 +816,12 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
         }
     }
     if (!unregistrations.isEmpty()) {
-        client.request(UnregistrationRequestSpec(), UnregistrationParams(unregisterations: unregistrations.toArray()),
-            logger)
+        client
+            .request(
+                UnregistrationRequestSpec(),
+                UnregistrationParams(unregisterations: unregistrations.toArray()),
+                logger
+            )
     }
 }
 
@@ -621,19 +834,28 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
  */
 func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registration {
     let comeOrGone = WatchKind(WatchKind.CREATE.value | WatchKind.DELETE.value)
-    let watched = [("**/*", comeOrGone), ("**/*.cj", WatchKind.CHANGE), ("**/cjpm.toml", WatchKind.CHANGE),
-        ("**/${PROJECT_JSON}", WatchKind.CHANGE), ("**/${CFG_TOML}", WatchKind.CHANGE)]
-    let watchers = watched.map {
-        globAndKind =>
-        let (glob, kind) = globAndKind
-        FileSystemWatcher(globPattern: globPattern(root, glob, relative), kind: kind)
-    }
-    DidChangeWatchedFilesNotificationSpec().registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers))
+    let watched =
+        [
+            ("**/*", comeOrGone),
+            ("**/*.cj", WatchKind.CHANGE),
+            ("**/cjpm.toml", WatchKind.CHANGE),
+            ("**/${PROJECT_JSON}", WatchKind.CHANGE),
+            ("**/${CFG_TOML}", WatchKind.CHANGE)
+        ]
+    let watchers =
+        watched
+            .map {
+                globAndKind =>
+                let (glob, kind) = globAndKind
+                FileSystemWatcher(globPattern: globPattern(root, glob, relative), kind: kind)
+            }
+    DidChangeWatchedFilesNotificationSpec()
+        .registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers))
 }
 
 /**
  * The roots `folders` are, those on disk.
  */
 func rootsOf(folders: Array<WorkspaceFolder>): Array<VfsPath> {
-    folders.map {folder => VfsPath.fromUri(folder.uri)}.filter {path => path.filePath.isSome()}
+    folders.map { folder => VfsPath.fromUri(folder.uri) }.filter { path => path.filePath.isSome() }
 }

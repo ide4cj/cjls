@@ -26,14 +26,19 @@ struct KindEntry {
 struct KindsFile {
     KindsFile(
         let grammar!: String,
-        @Serde[rename: "kinds-output"] let kindsOutput!: String,
-        @Serde[rename: "kinds-package"] let kindsPackage!: String,
-        @Serde[rename: "ast-output"] let astOutput!: String,
-        @Serde[rename: "ast-package"] let astPackage!: String,
+        @Serde[rename: "kinds-output"]
+        let kindsOutput!: String,
+        @Serde[rename: "kinds-package"]
+        let kindsPackage!: String,
+        @Serde[rename: "ast-output"]
+        let astOutput!: String,
+        @Serde[rename: "ast-package"]
+        let astPackage!: String,
         let trivia!: ?Array<KindEntry> = None,
         let special!: ?Array<KindEntry> = None,
         let punctuation!: ?Array<KindEntry> = None,
-        @Serde[rename: "glued-punctuation"] let gluedPunctuation!: ?Array<KindEntry> = None,
+        @Serde[rename: "glued-punctuation"]
+        let gluedPunctuation!: ?Array<KindEntry> = None,
         let tokens!: ?Array<KindEntry> = None,
         let keywords!: ?Array<KindEntry> = None,
         let nodes!: ?Array<KindEntry> = None
@@ -58,11 +63,12 @@ struct Inputs {
 
     static func load(path: Path): Inputs {
         let kinds = fromTomlBytes<KindsFile>(File.readFrom(path))
-        let dir = if (path.parent.isEmpty()) {
-            Path(".")
-        } else {
-            path.parent
-        }
+        let dir =
+            if (path.parent.isEmpty()) {
+                Path(".")
+            } else {
+                path.parent
+            }
         let grammarText = String.fromUtf8(File.readFrom(dir.join(kinds.grammar)))
         Inputs(dir: dir, kinds: kinds, grammar: parseGrammar(grammarText))
     }

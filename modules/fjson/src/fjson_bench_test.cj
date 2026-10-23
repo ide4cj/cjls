@@ -16,43 +16,60 @@ import stdx.encoding.json.stream.*
  * `cjHeapSize=4GB cjpm bench '--filter=FjsonBench*'`
  */
 
-let BENCH_TEXT: String = {
-    =>
-    let line = "    let greeting = \"héllo, \\\"мир\\\"\\t\" // a comment 😀\n"
-    let sb = StringBuilder()
-    while (sb.size < 64 * 1024) {
-        sb.append(line)
-    }
-    sb.toString()
-}()
+let BENCH_TEXT: String =
+    {
+        =>
+        let line = "    let greeting = \"héllo, \\\"мир\\\"\\t\" // a comment 😀\n"
+        let sb = StringBuilder()
+        while (sb.size < 64 * 1024) {
+            sb.append(line)
+        }
+        sb.toString()
+    }()
 
-let DID_OPEN: Array<Byte> = {
-    =>
-    let document = JsonObject()
-    document.put("uri", JsonString("file:///home/user/project/src/main.cj"))
-    document.put("languageId", JsonString("cangjie"))
-    document.put("version", JsonInt(1))
-    document.put("text", JsonString(BENCH_TEXT))
-    let params = JsonObject()
-    params.put("textDocument", document)
-    let message = JsonObject()
-    message.put("jsonrpc", JsonString("2.0"))
-    message.put("method", JsonString("textDocument/didOpen"))
-    message.put("params", params)
-    message.toString().toArray()
-}()
+let DID_OPEN: Array<Byte> =
+    {
+        =>
+        let document = JsonObject()
+        document.put("uri", JsonString("file:///home/user/project/src/main.cj"))
+        document.put("languageId", JsonString("cangjie"))
+        document.put("version", JsonInt(1))
+        document.put("text", JsonString(BENCH_TEXT))
+        let params = JsonObject()
+        params.put("textDocument", document)
+        let message = JsonObject()
+        message.put("jsonrpc", JsonString("2.0"))
+        message.put("method", JsonString("textDocument/didOpen"))
+        message.put("params", params)
+        message.toString().toArray()
+    }()
 
 struct BenchSymbol {
-    BenchSymbol(let name: String, let detail: String, let kind: Int64, let line: Int64, let children: Array<BenchSymbol>) {}
+    BenchSymbol(
+        let name: String,
+        let detail: String,
+        let kind: Int64,
+        let line: Int64,
+        let children: Array<BenchSymbol>
+    ) {}
 }
 
-let BENCH_SYMBOLS: Array<BenchSymbol> = Array<BenchSymbol>(50) {
-    c =>
-    let methods = Array<BenchSymbol>(10) {
-        m => BenchSymbol("method${m}OfClass${c}", "(a: Int64, b: String): Unit", 6, c * 100 + m * 9 + 1, [])
+let BENCH_SYMBOLS: Array<BenchSymbol> =
+    Array<BenchSymbol>(50) {
+        c =>
+        let methods =
+            Array<BenchSymbol>(10) {
+                m =>
+                BenchSymbol(
+                    "method${m}OfClass${c}",
+                    "(a: Int64, b: String): Unit",
+                    6,
+                    c * 100 + m * 9 + 1,
+                    []
+                )
+            }
+        BenchSymbol("Class${c}", "", 5, c * 100, methods)
     }
-    BenchSymbol("Class${c}", "", 5, c * 100, methods)
-}
 
 /** The text of a `didOpen`, read by fjson the way a generated decoder reads it. */
 func fjsonText(r: FjReader): String {
@@ -117,7 +134,8 @@ func streamText(bytes: Array<Byte>): String {
 
 func treeText(bytes: Array<Byte>): String {
     let message = StdxJsonValue.fromStr(String.fromUtf8(bytes)).asObject()
-    let document = message.get("params").getOrThrow().asObject().get("textDocument").getOrThrow().asObject()
+    let document =
+        message.get("params").getOrThrow().asObject().get("textDocument").getOrThrow().asObject()
     document.get("text").getOrThrow().asString().getValue()
 }
 
