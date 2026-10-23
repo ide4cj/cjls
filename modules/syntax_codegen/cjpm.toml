@@ -9,7 +9,7 @@ script-dir = ""
 output-type = "executable"
 compile-option = "--static-std -Woff unused"
 override-compile-option = ""
-link-option = "-lc++"
+link-option = ""
 package-configuration = {}
 
 [dependencies]
