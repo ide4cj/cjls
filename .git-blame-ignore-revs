@@ -1,0 +1,3 @@
+# Repository-wide cjformat migration (D147, #256 and #171).
+# Preserve this commit, or update the hash after squashing/rebasing the migration.
+699f505c6f834670691d1bb3b974be9cf5806b87
