@@ -6,7 +6,7 @@ import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, PostfixExpr,
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, InitDecl, NameRef, PathSegment, PathType, PostfixExpr,
     UnaryExpr, isIdent}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
@@ -33,9 +33,9 @@ public struct NavigationTarget {
 /**
  * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
  * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
- * call names (#175); after a `specific` declaration, the `common` ones it completes (#318); a package in the headers
- * of its files, a name of an `import` what it imports. Nothing for a package compiled already, nor for a declaration
- * of one whose binary's sources are not there (D65).
+ * call names (#175); the constructor `this(...)` or `super(...)` calls; after a `specific` declaration, the `common`
+ * ones it completes (#318); a package in the headers of its files, a name of an `import` what it imports.
+ * Nothing for a package compiled already, nor for a declaration of one whose binary's sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
@@ -155,10 +155,13 @@ func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, 
 }
 
 /**
- * The identifier or `This` at `offset`, the one after it if it is between two.
+ * The identifier, `This`, `this` or `super` at `offset`, the one after it if it is between two.
  */
 func tokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
-    let isName = {token: CjSyntaxToken => isIdent(token) || token.kind == SyntaxKind.ThisTypeKw}
+    let isName = {token: CjSyntaxToken =>
+        isIdent(token) || token.kind == SyntaxKind.ThisTypeKw || token.kind == SyntaxKind.ThisKw ||
+            token.kind == SyntaxKind.SuperKw
+    }
     // a name before an operator it touches (`a|+b`)
     match (root.tokenAtOffset(offset)) {
         case Single(token) where isName(token) || isOperator(token) => token
@@ -292,7 +295,8 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
     }
     let (file, node) = nodeOf(db, id) ?? return None
     let name = AnyHasName.cast(node).flatMap {it => it.name()}
-    NavigationTarget(file.fileId(db), node.textRange, name?.syntax.textRange ?? node.textRange)
+    let focus = name?.syntax.textRange ?? InitDecl.cast(node).flatMap {decl => decl.initToken()}?.textRange ?? node.textRange
+    NavigationTarget(file.fileId(db), node.textRange, focus)
 }
 
 /**

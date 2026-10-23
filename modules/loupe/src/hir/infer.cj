@@ -234,8 +234,8 @@ public struct InferenceResult {
     }
 
     /**
-     * The declaration the call whose callee is `expr` takes, if it was chosen among several; the
-     * operator function the operator `expr` calls (8e).
+     * The declaration chosen for the call whose callee is `expr`: an overload, an enum constructor,
+     * or the initializer `this(...)` or `super(...)` calls; the operator function `expr` calls (8e).
      */
     public func calleeOf(expr: ExprId): ?DefId {
         match (findByIndex(callees, expr.index)) {
@@ -2550,13 +2550,18 @@ class Inference {
             case CallExpr(_, _) => true
             case _ => false
         }
+        let isDelegation = match (hir[callee]) {
+            case ThisExpr | SuperExpr => true
+            case _ => false
+        }
         match (choose(callee, all, args, expected)) {
             case Chose(callable, matched) =>
                 // a type's name called goes to the type, not to the constructor taken; a constructor's
-                // name to the enum's constructor taken, though of one
-                if ((all.size > 1 || isEnumCtor(callable)) && let Some(decl) <- callable.decl &&
-                    decl.item(db).kind != ItemKind.Init &&
-                    decl.item(db).kind != ItemKind.PrimaryInit) {
+                // name to the enum's constructor taken, though of one. Delegation names the
+                // constructor itself, even when it is the only candidate.
+                if ((all.size > 1 || isEnumCtor(callable) || isDelegation) && let Some(decl) <- callable.decl &&
+                    (isDelegation || (decl.item(db).kind != ItemKind.Init &&
+                        decl.item(db).kind != ItemKind.PrimaryInit))) {
                     setCallee(callee, decl)
                 }
                 if (isOfCall) {

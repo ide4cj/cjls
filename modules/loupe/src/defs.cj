@@ -231,6 +231,10 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
         let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return None
         return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}
     }
+    if (name.kind == SyntaxKind.ThisExpr || name.kind == SyntaxKind.SuperExpr) {
+        let expr = sourceMap.exprAt(SyntaxNodePtr(name)) ?? return None
+        return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}
+    }
     if (let Some(ref) <- RefExpr.cast(node)) {
         let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return None
         let inferred = inferBody(db, def)
