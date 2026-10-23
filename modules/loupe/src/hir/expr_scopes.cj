@@ -300,9 +300,7 @@ class ScopesBuilder {
                 let locals = params |> filterMap {param: BodyParam => param.local} |> collectArray
                 walk(lambdaBody, add(scope, locals))
             case ConvExpr(_, inner) => walk(inner, scope)
-            case VArrayExpr(ty, args) =>
-                typeIn(ty, scope)
-                walkAll(args.map {arg => arg.expr}, scope)
+            case TypeExpr(ty) => typeIn(ty, scope)
             case MacroExpr(call) =>
                 for (ty in call.attr ?? []) {
                     typeIn(ty, scope)
