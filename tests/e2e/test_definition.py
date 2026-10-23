@@ -125,4 +125,30 @@ async def test_a_name_of_std_goes_to_its_source(server: LanguageClient, tmp_path
     assert written.startswith("public struct String ")
     assert written[character:].startswith("String")
 
+    # The editor opens the SDK file outside all workspace roots. Its source context must
+    # survive didOpen, without triggering discovery of an unrelated loose-file project.
+    source = path.read_text(encoding="utf-8")
+    server.text_document_did_open(types.DidOpenTextDocumentParams(
+        text_document=types.TextDocumentItem(
+            uri=path.as_uri(), language_id="cangjie", version=1, text=source,
+        ),
+    ))
+    collection_character = written.index("Collection<")
+    second = await server.text_document_definition_async(types.DefinitionParams(
+        text_document=types.TextDocumentIdentifier(uri=path.as_uri()),
+        position=types.Position(line=line, character=collection_character),
+    ))
+    [(sibling, sibling_line, sibling_character)] = targets(second)
+    assert sibling == CANGJIE_SRC.resolve() / "std" / "core" / "collection.cj"
+    assert sibling.read_text(encoding="utf-8").splitlines()[sibling_line][sibling_character:].startswith("Collection")
+
+    # Browsing std must leave the project's binary type resolution intact.
+    again = await server.text_document_definition_async(types.DefinitionParams(
+        text_document=types.TextDocumentIdentifier(uri=file.as_uri()),
+        position=types.Position(line=0, character=11),
+    ))
+    assert targets(again) == [(path, line, character)]
+    symbols = await server.workspace_symbol_async(types.WorkspaceSymbolParams(query="String"))
+    assert not symbols
+
     await server.shutdown_session()

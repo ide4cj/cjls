@@ -104,7 +104,7 @@ public func enclosingTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
     let parent = parentOf(db, def) ?? return None
     match (parent.item(db).kind) {
         case Extend => extendedTypeOf(db, parent)
-        case Class | Interface | Struct | Enum => ExtendedType.DeclType(parent)
+        case Class | Interface | Struct | Enum => ExtendedType.DeclType(canonicalDef(db, parent))
         case _ => None
     }
 }
@@ -175,7 +175,7 @@ func sourceFileOf(db: AnalysisDatabase, def: DefId): ?SourceFile {
 func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
     match (def.file(db)) {
         case Binary(pkg, _) => PackageRef.Binary(pkg)
-        case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}.map {pkg => PackageRef.Source(pkg)}
+        case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}.map {pkg => resolutionPackage(db, pkg)}
     }
 }
 
@@ -238,7 +238,14 @@ func lookUpMembers(db: AnalysisDatabase, start: Array<ExtendedType>, name: Strin
         let next = ArrayList<ExtendedType>()
         for (ty in level) {
             let extends = extendsOn(db, ty, on, from)
-            found.add(all: ownMembersNamed(db, ty, name))
+            let own = ownMembersNamed(db, ty, name)
+            found.add(all: own)
+            if (own.isEmpty() && let DeclType(id) <- ty && let Some(file) <- from &&
+                let Some(context) <- attachedContext(db, file) &&
+                packageRefOf(db, id) == Some(resolutionPackage(db, context)) &&
+                let Some(source) <- sourceDefOf(db, id)) {
+                found.add(all: membersOfItem(db, source, name))
+            }
             for (ext in extends) {
                 found.add(all: membersOfItem(db, ext, name))
             }
@@ -369,7 +376,7 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
     let typePackage = match (ty) {
         case DeclType(id) => packageRefOf(db, id)
         case PrimType(_) => match (viewer) {
-            case Some((pkg, _)) => packageIndex(db).find("std.core", from: PackageRef.Source(pkg))
+            case Some((pkg, _)) => packageIndex(db).find("std.core", from: resolutionPackage(db, pkg))
             case None => sdkCore(db)
         }
     }
@@ -378,8 +385,8 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
         found.add(all: packageExtends(db, one).get(ty) ?? [])
     }
     if (let Some((pkg, file)) <- viewer) {
-        if (typePackage != PackageRef.Source(pkg)) {
-            found.add(all: packageExtends(db, PackageRef.Source(pkg)).get(ty) ?? [])
+        if (typePackage != resolutionPackage(db, pkg)) {
+            found.add(all: packageExtends(db, resolutionPackage(db, pkg)).get(ty) ?? [])
         }
         found.add(all: interfaceExtendsOf(db, pkg, file).get(ty) ?? [])
     }
@@ -428,7 +435,7 @@ public func foreignExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<Exte
  * glob, its package's re-export, or their package's name.
  */
 func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<PackageRef> {
-    let found = ArrayList<PackageRef>([PackageRef.Source(pkg)])
+    let found = ArrayList<PackageRef>([resolutionPackage(db, pkg)])
     let imports = importsOf(db, pkg, file)
     for (names in [imports.file, imports.pkg]) {
         for ((_, all) in names.names) {
@@ -478,7 +485,7 @@ public func interfacePackagesOf(db: AnalysisDatabase, pkg: PackageRef): Array<Pa
  */
 func isExtendSeen(db: AnalysisDatabase, ext: DefId, ty: ExtendedType, viewer: ?(Package, SourceFile)): Bool {
     let extPkg = packageRefOf(db, ext) ?? return false
-    if (let Some((pkg, _)) <- viewer && extPkg == PackageRef.Source(pkg)) {
+    if (let Some((pkg, _)) <- viewer && extPkg == resolutionPackage(db, pkg)) {
         return true
     }
     let ofTypesPackage = match (ty) {
@@ -509,7 +516,7 @@ func isExtendSeen(db: AnalysisDatabase, ext: DefId, ty: ExtendedType, viewer: ?(
  */
 func isImported(db: AnalysisDatabase, pkg: Package, imports: ImportLevel, id: DefId): Bool {
     let own = packageRefOf(db, id) ?? return false
-    if (own == PackageRef.Source(pkg)) {
+    if (own == resolutionPackage(db, pkg)) {
         return true
     }
     for (names in [imports.file, imports.pkg]) {

@@ -123,8 +123,9 @@ one normalized model into project, module and package inputs. File membership an
 durability come from that model ([A5, A17–A18](design/02-analysis.md#rules)).
 
 Binary packages are inputs of their `.cjo` bytes outside the VFS (D38); source
-files attached to a binary are navigation destinations and do not create a second
-resolution scope (D65). Queries lower source and binary declarations to the same
+files attached to a binary have detached contexts for browsing bodies and imports,
+using the binary's canonical declarations without adding import candidates or
+workspace symbols (D65, D147). Queries lower source and binary declarations to the same
 item model. Binary views borrow their input bytes: tracked results keep a stable
 binary item identity and reopen the declaration instead of retaining `cjo.Decl`.
 
