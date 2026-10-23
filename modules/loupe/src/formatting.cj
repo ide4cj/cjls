@@ -18,9 +18,12 @@ public func formatting(db: AnalysisDatabase, fileId: FileId): ?Array<TextEdit> {
 }
 
 /**
- * The edits that format the lines `range` covers (`cjformat.formatRange`), indented as the whole
- * file formatted indents them; `None` as for `formatting`.
+ * The edits that format the complete syntax node enclosing `range` (`cjformat.formatRange`); `None` as for `formatting`.
  */
-public func rangeFormatting(db: AnalysisDatabase, fileId: FileId, range: TextRange): ?Array<TextEdit> {
+public func rangeFormatting(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    range: TextRange
+): ?Array<TextEdit> {
     formatRange(parse(db, db.sourceFile(fileId) ?? return None), range)
 }

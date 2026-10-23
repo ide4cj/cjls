@@ -1,6 +1,6 @@
 package cjformat
 
-import std.collection.ArrayList
+import std.collection.{ArrayList, collectArray}
 import std.env.getVariable
 import std.fs.{Directory, File, Path}
 import ginkgo.SyntaxElement
@@ -16,7 +16,15 @@ func significant(text: String): Array<String> {
         match (element) {
             case SyntaxElement.Token(t) where t.kind == Whitespace || t.kind == Newline => ()
             case SyntaxElement.Token(t) where t.kind == LineComment || t.kind == BlockComment =>
-                tokens.add(t.text().replace(" ", "").replace("\t", "").replace("\r", "").replace("\n", ""))
+                tokens
+                    .add(
+                        t
+                            .text()
+                            .replace(" ", "")
+                            .replace("\t", "")
+                            .replace("\r", "")
+                            .replace("\n", "")
+                    )
             case SyntaxElement.Token(t) => tokens.add(t.text())
             case _ => ()
         }
@@ -34,8 +42,31 @@ func formattingProblems(name: String, text: String): Array<String> {
     if (significant(formatted) != significant(text)) {
         problems.add("${name}: formatting changed more than whitespace")
     }
+    let reparsed = parse(formatted)
+    if (!reparsed.errors.isEmpty()) {
+        problems.add("${name}: formatting introduced syntax errors: ${reparsed.errors}")
+    }
+    if (structure(text) != structure(formatted)) {
+        problems.add("${name}: formatting changed the syntax tree")
+    }
     if (formatText(formatted) != Some(formatted)) {
         problems.add("${name}: formatting it twice changes it again")
+    }
+    if (!problems.isEmpty()) {
+        if (let Some(dir) <- getVariable("CJFORMAT_FAILURES")) {
+            let path = Path(dir).join(name.replace("/", "_").replace("\\", "_"))
+            File.writeTo(path, formatted.toArray())
+            File
+                .writeTo(
+                    Path("${path}.second"),
+                    (formatText(formatted) ?? "<syntax errors>").toArray()
+                )
+            File
+                .writeTo(
+                    Path("${path}.problems"),
+                    String.join(problems.toArray(), delimiter: "\n").toArray()
+                )
+        }
     }
     problems.toArray()
 }
@@ -51,8 +82,8 @@ func cjFilesUnder(dir: Path, files: ArrayList<Path>): Unit {
 }
 
 /**
- * The two properties of a formatter over real code: it changes only whitespace, and what it
- * makes it leaves alone.
+ * A formatter over real code preserves tokens and syntax, produces parseable output, and
+ * leaves its own output unchanged.
  */
 @Test
 class CorpusTest {
@@ -79,11 +110,12 @@ class CorpusTest {
         // act
         let problems = ArrayList<String>()
         for (file in files) {
-            let text = try {
-                String.fromUtf8(File.readFrom(file))
-            } catch (_: IllegalArgumentException) {
-                continue
-            }
+            let text =
+                try {
+                    String.fromUtf8(File.readFrom(file))
+                } catch (_: IllegalArgumentException) {
+                    continue
+                }
             problems.add(all: formattingProblems(file.toString(), text))
         }
 
@@ -91,4 +123,14 @@ class CorpusTest {
         @Expect(files.size > 0)
         @Expect(String.join(problems.toArray(), delimiter: "\n"), "")
     }
+}
+
+/** Newlines can change a call into a separate statement without changing any token. */
+func structure(text: String): Array<SyntaxKind> {
+    parse(text)
+        .syntaxNode()
+        .descendantsWithTokens()
+        .filter { e => !e.kind.isTrivia() }
+        .map { e => e.kind } |>
+        collectArray
 }

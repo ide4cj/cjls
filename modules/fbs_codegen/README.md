@@ -15,7 +15,7 @@ Vectors of unions are rejected. See [writer generation](src/emit_writers.cj).
 ## Regeneration and verification
 
 Run from the repository root with the [SDK environment](../../docs/development.md#select-the-pinned-sdk)
-loaded (`cjfmt` must be on PATH). Build the generator **before** changing or
+loaded for the build. Build the generator **before** changing or
 removing generated output, so a broken consumer cannot prevent bootstrapping it:
 
 ```bash
@@ -30,6 +30,6 @@ are in [cjo](../cjo/README.md#updating-the-sdk-schema) and
 [macro_server](../macro_server/README.md#updating-the-sdk-protocol).
 `GeneratedFilesTest` compares freshly generated, formatted bytes with checked-in
 output for each config in `CONFIGS`. A new generated consumer needs an entry
-there. The formatter invocation checks only exit status; it does not detect all
-syntax errors ([K12](../../docs/sdk-issues.md#k12)). Compile and test consumers
+there. The shared `cjformat` library formats in memory and rejects syntax errors before
+writing. Built generators require no SDK environment. Compile and test consumers
 when generated code changes, following [Development](../../docs/development.md#generated-code).

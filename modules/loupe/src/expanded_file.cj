@@ -10,7 +10,7 @@ import loupe.syntax.parse
 import loupe.vfs.FileId
 
 /**
- * The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D60), its
+ * The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D147), its
  * trailing whitespace left out; as the macro wrote it if it does not format. Its bytes that are not whitespace are
  * those of the text the macro wrote (`expandedMacro`), in order: that is how an offset goes from one to the other.
  */

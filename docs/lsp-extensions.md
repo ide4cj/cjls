@@ -61,7 +61,7 @@ What the macro call at a position expands to, as rust-analyzer's `rust-analyzer/
 | Result, or `null` off a call, or on one nothing expands yet | |
 |---|---|
 | `name: string` | the macro as the call writes it: `@Derive`, `@m.M` |
-| `expansion: string` | the expansion, formatted as `cjls fmt` formats (D60) |
+| `expansion: string` | the expansion, formatted as `cjls fmt` formats (D147) |
 | `kind: string` | `server`: the macro server's output, for a macro of the workspace or of std (D123); `cjls`: cjls's own for one of std the server has not expanded, signatures only, after a comment line saying so and the declaration it adds to, as cjc's output starts with it |
 
 A call inside the input of another (D98) answers the expansion of that one, the call read.

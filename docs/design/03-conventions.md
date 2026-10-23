@@ -39,6 +39,7 @@ Constraint kinds and how to revise them are defined in the
 | C29 | [Documentation comments](#c29-documentation-comments) | Convention |
 | C30 | [Narrow exceptions](#c30-narrow-exceptions) | Convention |
 | C31 | [Types and function size](#c31-types-and-function-size) | Convention |
+| C33 | [Formatting](#c33-formatting) | Design choice |
 
 ### C1: Implicit constructors
 
@@ -407,3 +408,24 @@ A function stays within ~50 lines and four levels of nesting (`G.FUN.01`) unless
 `match` over kinds; one over 80 is split where its parts have names.
 
 A file stays within ~1000 lines, split by subject beyond.
+
+### C33: Formatting
+
+`cjformat` chooses line breaks at 100 Unicode scalar columns with four-space
+indentation, identically in the CLI, LSP and all generators (D147). There are no
+style options. Short lists and single-expression lambdas flatten; long lists
+break between elements, chains before dots, operators after their token.
+Nonempty declaration and control-flow bodies have one statement per line.
+Commas and other significant tokens are preserved. Indivisible text may overflow.
+
+Comments retain source order and their leading/trailing/dangling placement.
+Blank lines are capped at one; nonempty files end with one newline in their
+original LF/CRLF convention. String contents and interpolations are verbatim;
+macro token-tree layout is preserved, shifting only indentation as a whole.
+Syntax errors refuse formatting of the entire file. Range formatting replaces a
+complete enclosing statement/declaration or body, possibly beyond the selection.
+
+Generated files follow the same style. Build `syntax_codegen` against checked-in
+syntax before changing its output; restore unbuildable generated syntax before
+rebuilding the generator. The formatter is a library dependency of generators,
+which must not invoke an SDK formatter or the language-server executable.

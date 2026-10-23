@@ -5,7 +5,7 @@ set -e
 # wait on each other for good (#342); Windows looks for cjc.exe, not the shim
 export PATH="$(pwd)/.github/actions/setup-cangjie/shim:$PATH"
 
-# every Cangjie file as `cjls fmt` leaves it, as CI's Format job holds it (D60); first, failing fast
+# every Cangjie file as `cjls fmt` leaves it, as CI's Format job holds it (D147); first, failing fast
 target/release/bin/cjls fmt --check .
 
 python3 tests/corpora/fetch.py
