@@ -12,7 +12,9 @@ is a complete feature list.
 - Check unfamiliar Cangjie/compiler behavior in source or a small probe.
 - Prefer string interpolation when it simplifies fixture sources or expected
   text; preserve literal code, markers and offsets as described in
-  [Contributing](CONTRIBUTING.md#test-fixtures). The existing-test audit is #498.
+  [Contributing](CONTRIBUTING.md#test-fixtures). Compute conditional markers and
+  other fixture-building logic in named locals before the string; keep `if`,
+  `match` and loops out of interpolation slots. The existing-test audit is #498.
 - Run checks appropriate to the change and report their results, including
   limitations and assumptions that have not been verified.
 

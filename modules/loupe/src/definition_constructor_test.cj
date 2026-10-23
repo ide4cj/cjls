@@ -8,14 +8,16 @@ class ConstructorDefinitionTest {
     @TestCase[row in [("1", 0), ("true", 1)]]
     func aCallGoesToTheConstructorItsArgumentsChoose(row: (String, Int64)) {
         let (argument, index) = row
+        let intTarget = if (index == 0) { "//  ^^^^ def" } else { "" }
+        let boolTarget = if (index == 1) { "//  ^^^^ def" } else { "" }
         checkDefinition("""
             //- /main.cj module=m package=m
             package m
             class C {
                 init(x: Int64) {}
-            ${if (index == 0) { "//  ^^^^ def" } else { "" }}
+            ${intTarget}
                 init(x: Bool) {}
-            ${if (index == 1) { "//  ^^^^ def" } else { "" }}
+            ${boolTarget}
             }
             func f() { $0C(${argument}) }
             """)
@@ -188,16 +190,19 @@ class ConstructorDefinitionTest {
     @TestCase[row in [("1", 0), ("true", 1), ("1, true", 2)], qualifier in ["", "E."]]
     func enumConstructorOverloadsAreChosenByArgumentTypeAndArity(row: (String, Int64), qualifier: String) {
         let (arguments, index) = row
+        let intTarget = if (index == 0) { "//    ^ def" } else { "" }
+        let boolTarget = if (index == 1) { "//    ^ def" } else { "" }
+        let pairTarget = if (index == 2) { "//    ^ def" } else { "" }
         checkDefinition("""
             //- /main.cj module=m package=m
             package m
             enum E {
                 | C(Int64)
-            ${if (index == 0) { "//    ^ def" } else { "" }}
+            ${intTarget}
                 | C(Bool)
-            ${if (index == 1) { "//    ^ def" } else { "" }}
+            ${boolTarget}
                 | C(Int64, Bool)
-            ${if (index == 2) { "//    ^ def" } else { "" }}
+            ${pairTarget}
             }
             func f() { ${qualifier}$0C(${arguments}) }
             """)
