@@ -161,3 +161,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0140](0140-an-enums-constructors-of-one-name-are-overloads.md) | An enum's constructors of one name are overloads, narrowed by arity and type arguments before a call tries them | accepted |
 | [0141](0141-a-tests-state-runs-no-macros.md) | A state runs no macros unless it is given what starts them | accepted |
 | [0142](0142-linux-glibc-baseline.md) | Build Linux releases on Ubuntu 22.04 and check them without the SDK | proposed |
+| [0143](0143-bounded-generic-bounds.md) | Expand implied generic bounds in a separate bounded query | accepted |
+| [0146](0146-prefer-compile-time-constants.md) | Prefer const for values known at compile time | accepted |
