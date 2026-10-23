@@ -47,6 +47,7 @@ Constraint kinds and how to revise them are defined in the
 | A34 | [Common and specific declarations](#a34-common-and-specific-declarations) | Language constraint |
 | A35 | [Reading macro expansions](#a35-reading-macro-expansions) | Design choice |
 | A36 | [Package navigation](#a36-package-navigation) | Design choice |
+| A37 | [Constructor navigation](#a37-constructor-navigation) | Design choice |
 
 ### A1: Concrete database handle
 
@@ -345,6 +346,19 @@ A name of an `import` means what its path names up to it (`importPathTo`): the n
 brings, what the leaf imports; a name before it, a package.
 
 Hover shows a package as `package` and its name, at an `import` and in a macro's path alike.
+
+### A37: Constructor navigation
+
+Go to definition on a class or struct call uses the explicit initializer selected
+by inference; without one, it keeps the type target. An enum constructor call uses
+the overload inference selected (D140). A request on an initializer declaration
+(`init` or a primary constructor's name), or an enum constructor declaration,
+goes to the owning type (D145).
+
+Initializer selection uses the overload journal (A27) and is exposed separately
+from ordinary callee identity: class/struct hover and reference searches continue
+to use the type. The initializer target selects its name or the `init` keyword,
+so another go-to-definition request reaches the type.
 
 ## Analysis tests
 
