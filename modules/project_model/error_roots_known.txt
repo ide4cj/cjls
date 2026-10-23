@@ -13,7 +13,7 @@ modules/cjls/src/handlers/new_file.cj: member found: 3
 modules/cjls/src/handlers/progress.cj: member found: 4
 modules/cjls/src/handlers/router.cj: member found: 1
 modules/cjls/src/handlers/settings.cj: member found: 4
-modules/cjls/src/handlers/workspace.cj: member found: 7
+modules/cjls/src/handlers/workspace.cj: member found: 8
 modules/cjls/src/heap.cj: member found: 2
 modules/cjls/src/logging.cj: member found: 1
 modules/cjls/src/macro_host/host.cj: member found: 6

@@ -96,7 +96,7 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
             }
         // the methods under `cjls/`, by their names (`docs/lsp-extensions.md`)
         case "experimental" => methods.add(all: value.asObject()
-            .filter {entry => isOn(entry[1])}
+            .filter {entry => isOn(entry[1]) && entry[0] != "binarySourceRoots"}
             .map {entry => "cjls/${entry[0]}"})
         case _ => throw IllegalArgumentException("no methods known for the capability \"${key}\"")
     }
