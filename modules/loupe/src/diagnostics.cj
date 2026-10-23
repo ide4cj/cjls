@@ -154,6 +154,10 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                     case _ => "mismatched types: expected '${expected.text(db)}', found '${actual.text(db)}'"
                 }
                 found.add(Diagnostic(node.textRange, Severity.Error, message))
+            case VArraySizeMismatch(id, expected, actual) =>
+                let node = nodeOf(id) ?? continue
+                found.add(Diagnostic(node.textRange, Severity.Error,
+                    "mismatch 'VArray' type's size: expected size is ${expected}, found ${actual}"))
             case ArgCount(call, params, given) =>
                 let node = nodeOf(call) ?? continue
                 let taken = params.size

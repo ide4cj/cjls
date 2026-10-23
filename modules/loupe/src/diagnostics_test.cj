@@ -107,6 +107,52 @@ class ScopeDiagnosticsInFileTest {
 @Test
 class InferenceDiagnosticsTest {
     @TestCase
+    func arrayLiteralsAreCheckedAgainstTheExpectedVArray() {
+        // #491: checking only the annotated local's type misses a mismatch on its initializer.
+        checkDiagnostics(#"
+            package m
+            type Pair = VArray<Int8, $2>
+            func pair(): Pair { [1, 2] }
+            func take(a: Pair, b!: Pair): Unit {}
+            func choose(a: VArray<Int8, $1>): Int8 { 1 }
+            func choose(a: Pair): Int64 { 2 }
+            func test(): Unit {
+                let a: VArray<Int64, $4> = [1, 2, 3, 4]
+                for (i in 0..4) {
+                    print("${a[i]}, ")
+                }
+                var b: Pair = [1, 2]
+                b = [3, 4]
+                let c: ?Pair = [5, 6]
+                // Whitespace keeps the zero size distinct from the fixture's cursor marker.
+                let d: VArray<Int8, $ 0> = []
+                let e: VArray<Pair, $1> = [[1, 2]]
+                take([1, 2], b: [3, 4])
+                let selected: Int64 = choose([1, 2])
+                let ordinary = [1, 2]
+                let narrow: Array<Int8> = [1, 2]
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func aVArrayLiteralStillChecksItsElementsAndLength() {
+        checkDiagnostics(#"
+            package m
+            func test(s: String): Unit {
+                let a: VArray<Int8, $2> = [1, s]
+            //                                ^ error: mismatched types: expected 'Int8', found 'String'
+                let b: VArray<Int8, $2> = [1]
+            //                            ^^^ error: mismatch 'VArray' type's size: expected size is 2, found 1
+                let c: VArray<Int8, $2> = [1, 2, 3]
+            //                            ^^^^^^^^^ error: mismatch 'VArray' type's size: expected size is 2, found 3
+                let d: VArray<Int8, $1> = []
+            //                            ^^ error: mismatch 'VArray' type's size: expected size is 1, found 0
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
     func aValueOfAnotherTypeThanTheOneExpectedIsAMismatch() {
         checkDiagnostics(#"
             package m

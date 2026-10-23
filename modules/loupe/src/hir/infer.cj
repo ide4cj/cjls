@@ -101,6 +101,10 @@ public enum InferenceDiagnostic {
      */
     | TypeMismatch(ExprId, Ty, Ty)
     /**
+     * An array literal with a different number of elements than its expected `VArray` size.
+     */
+    | VArraySizeMismatch(ExprId, Int64, Int64)
+    /**
      * A call of one function of as many arguments as the second, its parameters the first (cjc's
      * "missing argument", "extra argument").
      */
@@ -972,7 +976,7 @@ class Inference {
                 } else {
                     Ty(db, TupleTy(tys))
                 }
-            case ArrayExpr(elements) => arrayTy(elements, expected)
+            case ArrayExpr(elements) => arrayTy(id, elements, expected)
             case UnitExpr => prim("Unit")
             case IfExpr(condition, then, otherwise) =>
                 infer(condition, prim("Bool"))
@@ -2095,11 +2099,26 @@ class Inference {
     }
 
     /**
-     * An array: its elements checked against the element type of the `Array` expected, else of their
-     * join (N98).
+     * An array: checked against the element type and size of an expected `VArray`, or the element
+     * type of an expected `Array`, else of the elements' join (N98, #491).
      */
-    private func arrayTy(elements: Array<ExprId>, expected: ?Ty): Ty {
-        let wanted: ?Ty = match (expected.map {one => unboxed(one)}) {
+    private func arrayTy(id: ExprId, elements: Array<ExprId>, expected: ?Ty): Ty {
+        let array = expected.map {one => unboxed(one)}
+        if (let Some(one) <- array && let VArrayTy(element, size) <- one.kind(db)) {
+            for (e in elements) {
+                infer(e, element)
+            }
+            if (size != elements.size) {
+                // Count a size failure during overload trials too; report() journals its diagnostic.
+                mismatches++
+                if (quiet == 0) {
+                    report(VArraySizeMismatch(id, size, elements.size))
+                }
+                return error
+            }
+            return one
+        }
+        let wanted: ?Ty = match (array) {
             case Some(one) => match (one.kind(db)) {
                 case DeclTy(id, args) where args.size == 1 && Some(id) == langId(LangItem.ArrayStruct) => args[0]
                 // of an interface `Array<T>` implements as `I<T>`, `T` (N147)
