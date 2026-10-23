@@ -643,7 +643,7 @@ class ExpressionExpansionTest {
     }
 
     @TestCase
-    func aNameTheStatementsDeclareThemselvesIsNotReadWhereTheCallStands() {
+    func aNameTheStatementsDeclareIsReadInTheExpansion() {
         // arrange
         let (db, file) = expansionDatabase(#"
             package m
@@ -663,8 +663,32 @@ class ExpressionExpansionTest {
         // assert
         @Expect(expandToOf(db, call), ExpandTo.ToStmts)
         @Expect(expansionParse(db, call).errors.size, 0)
-        @Expect(hover.isNone())
-        @Expect(targets.size, 0)
+        @Expect(hover?.items.map {item => item.code}, Some(["let x: Int64"]))
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion, Some(call))
+        @Expect(targets[0].focusRange, TextRange(4, 5))
+    }
+
+    @TestCase
+    func aCopiedMemberIsReadFromItsQualifiedExpression() {
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            class Box { let n: Int64 = 1 }
+            func f(b: Box): Int64 { @B(b.n) }
+            "#)
+        let source = file.text(db).toString()
+        let copied = offsetIn(source, "b.n") - offsetIn(source, "func f")
+        let call = answer(db, file, "B", "b.n", [
+            MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(copied, copied + 3)))
+        ])
+        let hover = hoverInExpansion(db, call, 2)
+        let targets = definitionInExpansion(db, call, 2)
+        @Expect(hover?.items.map {item => item.code}, Some(["let n: Int64"]))
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion.isNone())
+        let at = offsetIn(source, "n: Int64")
+        @Expect(targets[0].focusRange, TextRange(at, at + 1))
     }
 
     @TestCase

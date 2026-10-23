@@ -291,7 +291,7 @@ func replacedItemsOf(db: AnalysisDatabase, files: Array<ItemFile>): Array<ItemId
 /**
  * The `Expansion` of `call`; an empty one for a call the analysis does not expand, or on an item no longer there. A
  * call the macro server ran has its last output that succeeded (#176), else one of std the analysis's own. A call in an
- * item (D117) has the server's, which takes the call's place, whether or not the body reads it (#369).
+ * item (D117) has the server's; its body reads it only while its successful answer is current (D144).
  */
 @CalcaTracked
 public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {

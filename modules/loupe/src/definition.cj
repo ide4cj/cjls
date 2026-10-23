@@ -63,10 +63,14 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
     let (root, _) = syntaxOf(db, file) ?? return []
     let token = tokenAt(root, offset, includeInit: true) ?? return []
     let item = itemAround(db, file, token.parent)
-    let named = if (let Some(one) <- constructorDefinition(db, item, token)) {
+    let expressionOwner: ?DefId = if (let Expansion(call) <- file && item.isNone()) {
+        bodyOfExpressionExpansion(db, call)
+    } else { None }
+    let origin: ?MacroCallId = if (let Expansion(call) <- file && expressionOwner.isSome()) { Some(call) } else { None }
+    let named = if (let Some(one) <- constructorDefinition(db, item ?? expressionOwner, token, expansion: origin)) {
         Some([Definition.DeclDef(one)])
     } else {
-        classifyName(db, scope, item, token)
+        classifyName(db, scope, item ?? expressionOwner, token, expansion: origin)
     }
     let defs = match ((named, file)) {
         case (Some(defs), _) => defs
@@ -97,7 +101,8 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
  * A constructor call goes to the initializer chosen by inference; a constructor declaration goes to its type.
  * These navigation targets do not change the type identity used by hover and reference searches.
  */
-func constructorDefinition(db: AnalysisDatabase, item: ?DefId, token: CjSyntaxToken): ?DefId {
+func constructorDefinition(db: AnalysisDatabase, item: ?DefId, token: CjSyntaxToken,
+    expansion!: ?MacroCallId = None): ?DefId {
     let def = item ?? return None
     let parent = token.parent
     let node = parent.parent
@@ -109,7 +114,7 @@ func constructorDefinition(db: AnalysisDatabase, item: ?DefId, token: CjSyntaxTo
     }
     let exprNode = node ?? return None
     let callee = RefExpr.cast(exprNode).map {it => it.syntax} ?? accessNodeOf(exprNode) ?? return None
-    let expr = bodyWithSourceMap(db, def).sourceMap.exprAt(SyntaxNodePtr(callee)) ?? return None
+    let expr = bodyWithSourceMap(db, def).sourceMap.exprAt(SyntaxNodePtr(callee), expansion: expansion) ?? return None
     inferBody(db, def).initializerOf(expr)
 }
 
@@ -129,8 +134,8 @@ func itemAround(db: AnalysisDatabase, file: ItemFile, node: CjSyntaxNode): ?DefI
 func targetsOfDefinition(db: AnalysisDatabase, definition: Definition, intoExpansions!: Bool = false): Array<NavigationTarget> {
     let one = match (definition) {
         case DeclDef(id) => declTarget(db, id, intoExpansions: intoExpansions)
-        case LocalDef(def, local) => localTarget(db, def, local)
-        case MemberParamDef(ctor, local) => localTarget(db, ctor, local)
+        case LocalDef(def, local) => localTarget(db, def, local, intoExpansions: intoExpansions)
+        case MemberParamDef(ctor, local) => localTarget(db, ctor, local, intoExpansions: intoExpansions)
         case TypeParamDef(target) => targetOf(db, target, intoExpansions)
         case PackageDef(pkg) => return packageTargets(db, pkg)
     }
@@ -162,9 +167,27 @@ func packageTargets(db: AnalysisDatabase, pkg: PackageRef): Array<NavigationTarg
 /**
  * The local `local` of the body of `def`: its name, in the node declaring it.
  */
-func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId): ?NavigationTarget {
-    let (file, name) = localName(db, def, local) ?? return None
-    NavigationTarget(file.fileId(db), name.parent?.textRange ?? name.textRange, name.textRange)
+func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId, intoExpansions!: Bool = false): ?NavigationTarget {
+    let lowered = bodyWithSourceMap(db, def)
+    let source = lowered.sourceMap.locals.get(local.index).flatMap {one => one} ?? return None
+    let name = source.node(db, def.file(db)) ?? return None
+    let full = name.parent?.textRange ?? name.textRange
+    bodySourceTarget(db, def.file(db), source, full, name.textRange, intoExpansions)
+}
+
+/** A source request stays in source, including a local declared by a statement expansion. */
+func bodySourceTarget(db: AnalysisDatabase, owner: ItemFile, source: BodySource, full: TextRange,
+    focus: TextRange, intoExpansions: Bool): ?NavigationTarget {
+    match (source.inFile(owner)) {
+        case Source(file) => NavigationTarget(file.fileId(db), full, focus)
+        case Expansion(call) =>
+            if (intoExpansions || sourceRangeOf(db, call, focus).isSome()) {
+                return expansionTarget(db, call, full, focus)
+            }
+            let (_, head) = macroCallHeadOf(db, call) ?? return None
+            NavigationTarget(call.file(db).fileId(db), head, head)
+        case _ => None
+    }
 }
 
 /**
@@ -176,7 +199,9 @@ func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, 
         case _ => return None
     }
     let ptr = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
-    let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
+    let source = ptr ?? return None
+    if (source.expansion.isSome()) { return None }
+    let name = source.node(db, def.file(db)) ?? return None
     (file, name)
 }
 
@@ -249,15 +274,12 @@ func targetOf(db: AnalysisDatabase, target: TypeTarget, intoExpansions: Bool): ?
             let (file, node) = nodeOf(db, owner) ?? return None
             genericTarget(db, file, node, index)
         case LocalGenericOf(owner, localFunc, index) =>
-            let file = match (owner.file(db)) {
-                case Source(file) => file
-                case _ => return None
-            }
             let lowered = bodyWithSourceMap(db, owner)
             let local = lowered.body.funcs.get(localFunc)?.local ?? return None
-            let ptr = lowered.sourceMap.locals.get(local.index) ?? return None
-            let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
-            genericTarget(db, file, name.parent ?? return None, index)
+            let source = lowered.sourceMap.locals.get(local.index).flatMap {one => one} ?? return None
+            let name = source.node(db, owner.file(db)) ?? return None
+            let (full, focus) = genericRanges(name.parent ?? return None, index) ?? return None
+            bodySourceTarget(db, owner.file(db), source, full, focus, intoExpansions)
         case QualifierOf(_) => None
     }
 }

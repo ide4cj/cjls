@@ -2,17 +2,17 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr}
+import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, DataArg, Decl, GenericConstraint, Interpolation, LambdaExpr,
-    MacroAttr, MacroExpandDecl, MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern,
+    ExprFile, StmtsFile, MacroAttr, MacroExpandDecl, MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern,
     QuoteInterpolation, ResourceDecl, Type, TypesArg, identText}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
 import calca.*
 import calca.macros.*
-import loupe.db.AnalysisDatabase
+import loupe.db.{AnalysisDatabase, MacroSeverity}
 import loupe.syntax.parse
 
 /**
@@ -418,26 +418,62 @@ public struct Body {
 }
 
 /**
+ * A node of a body, qualified by the expression expansion it came from. `None` is the body's own file.
+ * Offsets and kinds alone do not identify a node once several expansions are lowered into one body.
+ */
+public struct BodySource <: Equatable<BodySource> & Hashable {
+    public BodySource(public let ptr: SyntaxNodePtr<SyntaxKind>, public let expansion!: ?MacroCallId = None) {}
+
+    public operator func ==(other: BodySource): Bool {
+        ptr == other.ptr && expansion == other.expansion
+    }
+
+    public operator func !=(other: BodySource): Bool { !(this == other) }
+
+    public func hashCode(): Int64 { ptr.hashCode() ^ expansion.hashCode() }
+
+    /** The file containing this node, relative to the body's own file `owner`. */
+    public func inFile(owner: ItemFile): ItemFile {
+        expansion.map {call => ItemFile.Expansion(call)} ?? owner
+    }
+
+    /** Resolves in the current tree; `None` if that file or node is no longer available. */
+    public func node(db: AnalysisDatabase, owner: ItemFile): ?CjSyntaxNode {
+        let (root, _) = syntaxOf(db, inFile(owner)) ?? return None
+        ptr.tryToNode(root)
+    }
+}
+
+@Derive[Equatable]
+struct ExprSourceAlias {
+    ExprSourceAlias(let source: BodySource, let expr: ExprId) {}
+}
+
+/**
  * Where each expression, pattern, local and type of a body is written: a local by its name; and the
  * other way round, by hash, for what asks of every name of a file.
  */
 public struct BodySourceMap <: Equatable<BodySourceMap> {
-    public let exprs: Array<?SyntaxNodePtr<SyntaxKind>>
-    public let pats: Array<?SyntaxNodePtr<SyntaxKind>>
-    public let locals: Array<?SyntaxNodePtr<SyntaxKind>>
-    public let types: Array<?SyntaxNodePtr<SyntaxKind>>
+    public let exprs: Array<?BodySource>
+    public let pats: Array<?BodySource>
+    public let locals: Array<?BodySource>
+    public let types: Array<?BodySource>
+    private let aliases: Array<ExprSourceAlias>
     private let exprIndex: PtrIndex
     private let patIndex: PtrIndex
     private let localIndex: PtrIndex
     private let typeIndex: PtrIndex
 
-    public init(exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [], pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [], types!: Array<?SyntaxNodePtr<SyntaxKind>> = []) {
+    init(exprs!: Array<?BodySource> = [], pats!: Array<?BodySource> = [],
+        locals!: Array<?BodySource> = [], types!: Array<?BodySource> = [],
+        aliases!: Array<ExprSourceAlias> = []) {
         this.exprs = exprs
         this.pats = pats
         this.locals = locals
         this.types = types
+        this.aliases = aliases
         exprIndex = PtrIndex(exprs)
+        for (alias in aliases) { exprIndex.alias(alias.source, alias.expr.index) }
         patIndex = PtrIndex(pats)
         localIndex = PtrIndex(locals)
         typeIndex = PtrIndex(types)
@@ -445,9 +481,14 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
 
     /**
      * The expression of the node `ptr` as written: of a node desugared, the first of those of the
-     * node, the `match`es it is desugared into after it (A29).
+     * node, the `match`es it is desugared into after it (A29). An unqualified pointer belongs to the body's own
+     * file; use `exprAtSource` for a node from an expression expansion.
      */
     public func exprAt(ptr: SyntaxNodePtr<SyntaxKind>): ?ExprId {
+        exprAtSource(BodySource(ptr))
+    }
+
+    public func exprAtSource(ptr: BodySource): ?ExprId {
         match (exprIndex.get(ptr)) {
             case Some(i) => ExprId(i)
             case None => None
@@ -455,6 +496,10 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     }
 
     public func patAt(ptr: SyntaxNodePtr<SyntaxKind>): ?PatId {
+        patAtSource(BodySource(ptr))
+    }
+
+    public func patAtSource(ptr: BodySource): ?PatId {
         match (patIndex.get(ptr)) {
             case Some(i) => PatId(i)
             case None => None
@@ -465,6 +510,10 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
      * The local whose name `ptr` points to.
      */
     public func localAt(ptr: SyntaxNodePtr<SyntaxKind>): ?LocalId {
+        localAtSource(BodySource(ptr))
+    }
+
+    public func localAtSource(ptr: BodySource): ?LocalId {
         match (localIndex.get(ptr)) {
             case Some(i) => LocalId(i)
             case None => None
@@ -472,6 +521,10 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     }
 
     public func typeAt(ptr: SyntaxNodePtr<SyntaxKind>): ?TypeRefId {
+        typeAtSource(BodySource(ptr))
+    }
+
+    public func typeAtSource(ptr: BodySource): ?TypeRefId {
         match (typeIndex.get(ptr)) {
             case Some(i) => TypeRefId(i)
             case None => None
@@ -482,7 +535,8 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
      * Field by field, but the indexes, which the arrays make.
      */
     public operator func ==(other: BodySourceMap): Bool {
-        exprs == other.exprs && pats == other.pats && locals == other.locals && types == other.types
+        exprs == other.exprs && pats == other.pats && locals == other.locals && types == other.types &&
+            aliases == other.aliases
     }
 
     public operator func !=(other: BodySourceMap): Bool {
@@ -494,10 +548,10 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
  * The first index of each pointer of an array.
  */
 class PtrIndex {
-    private let first: HashMap<SyntaxNodePtr<SyntaxKind>, Int64>
+    private let first: HashMap<BodySource, Int64>
 
-    init(ptrs: Array<?SyntaxNodePtr<SyntaxKind>>) {
-        first = HashMap<SyntaxNodePtr<SyntaxKind>, Int64>(ptrs.size)
+    init(ptrs: Array<?BodySource>) {
+        first = HashMap<BodySource, Int64>(ptrs.size)
         for (i in 0..ptrs.size) {
             if (let Some(ptr) <- ptrs[i] && !first.contains(ptr)) {
                 first.add(ptr, i)
@@ -505,7 +559,9 @@ class PtrIndex {
         }
     }
 
-    func get(ptr: SyntaxNodePtr<SyntaxKind>): ?Int64 {
+    func alias(source: BodySource, index: Int64): Unit { first[source] = index }
+
+    func get(ptr: BodySource): ?Int64 {
         first.get(ptr)
     }
 }
@@ -529,7 +585,26 @@ public func bodyWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredBody {
         case _ => return LoweredBody(Body(), BodySourceMap())
     }
     match (ids.node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
-        case Some(decl) => lowerBody(decl, active: ActiveFilter.of(db, file))
+        case Some(decl) =>
+            let expansions = HashMap<SyntaxNodePtr<SyntaxKind>, MacroCallId>()
+            if (let Source(_) <- def.file(db) && file.macroOutputs(db).size > 0) {
+                for (request in macroRequests(db, file) where request.current &&
+                    request.call.inBody(db).isSome() && request.call.item(db) == def.item(db)) {
+                    let output = macroOutputOf(db, request.call) ?? continue
+                    if (output.expansion.isNone() ||
+                        output.diagnostics.any {one => one.severity == MacroSeverity.MacroError}) {
+                        continue
+                    }
+                    let node = bodyCallNodeOf(db, request.call) ?? continue
+                    expansions[SyntaxNodePtr(node)] = request.call
+                }
+            }
+            lowerBodyWith(decl, ActiveFilter.of(db, file), {node =>
+                let call = expansions.get(SyntaxNodePtr(node)) ?? return None
+                let parsed = expansionParse(db, call)
+                if (!parsed.errors.isEmpty()) { return None }
+                (call, parsed.syntaxNode())
+            })
         case None => LoweredBody(Body(), BodySourceMap())
     }
 }
@@ -545,10 +620,15 @@ public func body(db: AnalysisDatabase, def: DefId): Body {
 
 /**
  * The body of `decl`, what `active` leaves out of the build left out: parameters, declarations of
- * its blocks, accessors.
+ * its blocks, accessors. This standalone lowering reads no expansion answers, including for speculative completion.
  */
 public func lowerBody(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredBody {
-    let lowering = BodyLowering(active)
+    lowerBodyWith(decl, active, {_ => None})
+}
+
+private func lowerBodyWith(decl: Decl, active: ActiveFilter,
+    expansion: (CjSyntaxNode) -> ?(MacroCallId, CjSyntaxNode)): LoweredBody {
+    let lowering = BodyLowering(active, expansion)
     var params = Array<BodyParam>()
     var value: ?ExprId = None
     var accessors = Array<ExprId>()
@@ -580,17 +660,23 @@ class BodyLowering {
     let active: ActiveFilter
     let types: SignatureLowering
     let exprs = ArrayList<Expr>()
-    let exprPtrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
+    let exprPtrs = ArrayList<?BodySource>()
     let pats = ArrayList<Pat>()
-    let patPtrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
+    let patPtrs = ArrayList<?BodySource>()
     let locals = ArrayList<Local>()
-    let localPtrs = ArrayList<?SyntaxNodePtr<SyntaxKind>>()
+    let localPtrs = ArrayList<?BodySource>()
     let funcs = ArrayList<LocalFunc>()
+    private let aliases = ArrayList<ExprSourceAlias>()
     // the `?`s of the optional chains being lowered, innermost last: what each is applied to, and the
     // local its value is bound to
     private let quests = ArrayList<(ExprId, LocalId)>()
 
-    init(active: ActiveFilter) {
+    private let expansion: (CjSyntaxNode) -> ?(MacroCallId, CjSyntaxNode)
+    private var currentExpansion: ?MacroCallId = None
+    private let typeExpansions = HashMap<Int64, MacroCallId>()
+
+    init(active: ActiveFilter, expansion: (CjSyntaxNode) -> ?(MacroCallId, CjSyntaxNode)) {
+        this.expansion = expansion
         this.active = active
         this.types = SignatureLowering(active: active)
     }
@@ -600,7 +686,10 @@ class BodyLowering {
             Body(exprs: exprs.toArray(), pats: pats.toArray(), locals: locals.toArray(), funcs: funcs.toArray(),
                 types: types.types.toArray(), params: params, value: value, accessors: accessors, attrs: attrs),
             BodySourceMap(exprs: exprPtrs.toArray(), pats: patPtrs.toArray(), locals: localPtrs.toArray(),
-                types: types.ptrs.toArray())
+                types: Array(types.ptrs.size) {i =>
+                    types.ptrs[i].map {ptr => BodySource(ptr, expansion: typeExpansions.get(i))}
+                },
+                aliases: aliases.toArray())
         )
     }
 
@@ -634,13 +723,36 @@ class BodyLowering {
     func local(name: ?Name, kind: LocalKind, lone!: Bool = false): ?LocalId {
         let one = name ?? return None
         locals.add(Local(one.text(), kind, lone: lone))
-        localPtrs.add(SyntaxNodePtr(one.syntax))
+        localPtrs.add(source(one.syntax))
         LocalId(locals.size - 1)
+    }
+
+    private func source(node: CjSyntaxNode): BodySource {
+        BodySource(SyntaxNodePtr(node), expansion: currentExpansion)
+    }
+
+    /** Lower in place; a statement expansion must not introduce an extra lexical scope. */
+    private func inExpansion<T>(call: MacroCallId, lower: () -> T): T {
+        let previous = currentExpansion
+        let start = types.ptrs.size
+        currentExpansion = call
+        try {
+            lower()
+        } finally {
+            for (i in start..types.ptrs.size) { typeExpansions[i] = call }
+            currentExpansion = previous
+        }
+    }
+
+    private func expansionOf(node: CjSyntaxNode): ?(MacroCallId, CjSyntaxNode) {
+        // Output-written calls have no source call key; recursive expansion is a separate feature.
+        if (currentExpansion.isSome()) { return None }
+        expansion(node)
     }
 
     func add(expr: Expr, node: CjSyntaxNode): ExprId {
         exprs.add(expr)
-        exprPtrs.add(SyntaxNodePtr(node))
+        exprPtrs.add(source(node))
         ExprId(exprs.size - 1)
     }
 
@@ -664,6 +776,19 @@ class BodyLowering {
     func stmts(nodes: Iterator<AstStmt>): Array<Stmt> {
         let lowered = ArrayList<Stmt>()
         for (node in nodes) {
+            let syntax = match (node) {
+                case AstStmt.ExprStmt(one) => one.syntax
+                case AstStmt.DeclStmt(one) => one.syntax
+            }
+            if (active.isActive(syntax) && let Some((call, root)) <- expansionOf(syntax) &&
+                let Some(file) <- StmtsFile.cast(root)) {
+                let statements = inExpansion(call, {=> stmts(file.stmts())})
+                if (let Some(Stmt.ExprStmt(id)) <- statements.get(statements.size - 1)) {
+                    aliases.add(ExprSourceAlias(source(syntax), id))
+                }
+                lowered.add(all: statements)
+                continue
+            }
             match (node) {
                 case AstStmt.ExprStmt(one) => lowered.add(Stmt.ExprStmt(expr(one)))
                 case AstStmt.DeclStmt(decl) where !active.isActive(decl.syntax) => ()
@@ -770,6 +895,12 @@ class BodyLowering {
      * left is, a link of its own, the `?`s of what it applies to are those of the chain.
      */
     private func link(node: AstExpr): ExprId {
+        if (let Some((call, root)) <- expansionOf(node.syntax) &&
+            let Some(value) <- ExprFile.cast(root).flatMap {one => one.expr()}) {
+            let id = inExpansion(call, {=> expr(value)})
+            aliases.add(ExprSourceAlias(source(node.syntax), id))
+            return id
+        }
         let lowered = match (node) {
             case AstExpr.AsLiteral(it) => Expr.LitExpr(it.value()?.text() ?? "")
             // of one character, a `Rune` or a `Byte` where one is expected: a literal as a number is
@@ -788,7 +919,7 @@ class BodyLowering {
                     // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
                     case Expr.CallExpr(inner, args) =>
                         this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda, isTrailing: true)]))
-                        exprPtrs[callee.index] = SyntaxNodePtr(it.syntax)
+                        exprPtrs[callee.index] = source(it.syntax)
                         return callee
                     case _ => Expr.CallExpr(callee, [CallArg(None, lambda, isTrailing: true)])
                 }
@@ -1096,7 +1227,7 @@ class BodyLowering {
 
     private func addPat(pat: Pat, node: ?CjSyntaxNode): PatId {
         pats.add(pat)
-        patPtrs.add(node.map {one => SyntaxNodePtr(one)})
+        patPtrs.add(node.map {one => source(one)})
         PatId(pats.size - 1)
     }
 }
