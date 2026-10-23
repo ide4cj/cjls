@@ -100,9 +100,9 @@ public struct TypeScope {
 public func typeScopeOf(db: AnalysisDatabase, def: DefId): ?TypeScope {
     let file = scopeFileOf(db, def.file(db)) ?? return None
     let pkg = packageOfFile(db, file) ?? return None
-    let generics = ArrayList<Generics>([Generics(def, signature(db, def).generics)])
+    let generics = ArrayList<Generics>([Generics(canonicalDef(db, def), signature(db, def).generics)])
     if (let Some(parent) <- parentOf(db, def)) {
-        generics.add(Generics(parent, signature(db, parent).generics))
+        generics.add(Generics(canonicalDef(db, parent), signature(db, parent).generics))
     }
     TypeScope(generics.toArray(), pkg, file)
 }
@@ -133,7 +133,7 @@ public func packageOfFile(db: AnalysisDatabase, file: SourceFile): ?Package {
             return pkg
         }
     }
-    None
+    binaryContextOfFile(db, file)
 }
 
 /**

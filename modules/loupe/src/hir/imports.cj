@@ -40,7 +40,8 @@ public struct PackageIndex {
         /**
          * What each module may import from: itself, its deps, and `std`.
          */
-        public let scopes: IndexMap<String, Array<String>>
+        public let scopes: IndexMap<String, Array<String>>,
+        public let contexts!: IndexMap<PackageRef, PackageRef> = IndexMap<PackageRef, PackageRef>()
     ) {}
 
     /**
@@ -49,6 +50,7 @@ public struct PackageIndex {
      * binary first, else any.
      */
     public func find(name: String, from!: PackageRef): ?PackageRef {
+        if (let Some(binary) <- contexts.get(from)) { return find(name, from: binary) }
         let candidates = packages.get(name) ?? return None
         let owner = owners.get(from) ?? ""
         match (from) {
@@ -71,6 +73,7 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
     let packages = IndexMap<String, ArrayList<IndexedPackage>>()
     let owners = IndexMap<PackageRef, String>()
     let scopes = IndexMap<String, Array<String>>()
+    let contexts = IndexMap<PackageRef, PackageRef>()
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db)) {
             let owner = module.name(db)
@@ -86,13 +89,18 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
                 owners[ref] = owner
             }
         }
+        for (source in project.binarySources(db)) {
+            if (let Some(pkg) <- source.context && let Some(binary) <- pkg.binary(db)) {
+                contexts[PackageRef.Source(pkg)] = PackageRef.Binary(binary)
+            }
+        }
         for (binary in project.binaryPackages(db)) {
             let ref = PackageRef.Binary(binary)
             entryOf(packages, binary.name(db)).add(IndexedPackage(ref, binary.binary(db)))
             owners[ref] = binary.binary(db)
         }
     }
-    PackageIndex(frozen(packages) {list => list.toArray()}, owners, scopes)
+    PackageIndex(frozen(packages) {list => list.toArray()}, owners, scopes, contexts: contexts)
 }
 
 /**

@@ -22,6 +22,7 @@ public enum PackageRef {
  */
 public func filesOf(db: AnalysisDatabase, pkg: PackageRef): Array<ItemFile> {
     match (pkg) {
+        case Source(source) where source.binary(db).isSome() => filesOf(db, resolutionPackage(db, source))
         case Source(source) => source.files(db) |> filterMap {fileId => db.sourceFile(fileId)} |>
             map {file => ItemFile.Source(file)} |> collectArray
         case Binary(binary) => Array(binaryItemTrees(db, binary).size) {index => ItemFile.Binary(binary, index)}
@@ -228,6 +229,9 @@ public func defMap(db: AnalysisDatabase, pkg: PackageRef): DefMap {
  */
 @CalcaTracked
 public func defMapAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): DefMap {
+    if (let Source(source) <- pkg && source.binary(db).isSome()) {
+        return binarySourceDefMap(db, source, stage)
+    }
     if (let Binary(_) <- pkg && stage == ScopeStage.Written) {
         return defMapAt(db, pkg, ScopeStage.Expanded)
     }
