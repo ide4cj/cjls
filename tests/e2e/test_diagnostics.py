@@ -83,3 +83,18 @@ async def test_a_client_that_cannot_pull_is_pushed_the_errors_and_their_clearing
     assert list(closed.diagnostics) == []
 
     await server.shutdown_session()
+
+
+async def test_empty_interpolation_is_reported_and_clears_after_an_edit(server: LanguageClient):
+    await server.initialize_session(types.InitializeParams(capabilities=client_capabilities("neovim")))
+    uri = "untitled:interpolation"
+    open_document(server, uri, 'main() { println("${}") }')
+    diagnostics = await pull(server, uri)
+    assert len(diagnostics) == 1
+    assert diagnostics[0].severity == types.DiagnosticSeverity.Error
+    assert diagnostics[0].message == "string interpolation cannot be empty"
+    assert diagnostics[0].range.start == types.Position(line=0, character=20)
+
+    change_whole(server, uri, 'main() { println("${1}") }', version=2)
+    assert await pull(server, uri) == []
+    await server.shutdown_session()
