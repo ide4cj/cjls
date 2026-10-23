@@ -5,22 +5,20 @@ import std.unittest.testmacro.*
 
 @Test
 class ConstructorDefinitionTest {
-    @TestCase
-    func aCallGoesToTheConstructorItsArgumentsChoose() {
-        for (argument in ["1", "true"]) {
-            let chosen = if (argument == "1") { "Int64" } else { "Bool" }
-            let other = if (argument == "1") { "Bool" } else { "Int64" }
-            checkDefinition(#"
-                //- /main.cj module=m package=m
-                package m
-                class C {
-                    init(x: OTHER) {}
-                    init(x: CHOSEN) {}
-                //  ^^^^ def
-                }
-                func f() { $0C(ARGUMENT) }
-                "#.replace("OTHER", other).replace("CHOSEN", chosen).replace("ARGUMENT", argument))
-        }
+    @TestCase[row in [("1", 0), ("true", 1)]]
+    func aCallGoesToTheConstructorItsArgumentsChoose(row: (String, Int64)) {
+        let (argument, index) = row
+        checkDefinition("""
+            //- /main.cj module=m package=m
+            package m
+            class C {
+                init(x: Int64) {}
+            ${if (index == 0) { "//  ^^^^ def" } else { "" }}
+                init(x: Bool) {}
+            ${if (index == 1) { "//  ^^^^ def" } else { "" }}
+            }
+            func f() { $0C(${argument}) }
+            """)
     }
 
     @TestCase
@@ -187,23 +185,22 @@ class ConstructorDefinitionTest {
             "#)
     }
 
-    @TestCase
-    func enumConstructorOverloadsAreChosenByArgumentTypeAndArity() {
-        for ((call, index) in [("C(1)", 0), ("C(true)", 1), ("C(1, true)", 2),
-            ("E.C(1)", 0), ("E.C(true)", 1), ("E.C(1, true)", 2)]) {
-            let constructors = ["    | C(Int64)", "    | C(Bool)", "    | C(Int64, Bool)"]
-            let declarations = String.join(constructors.map {
-                one => if (one == constructors[index]) { one + "\n//    ^ def" } else { one }
-            }, delimiter: "\n")
-            checkDefinition(#"
-                //- /main.cj module=m package=m
-                package m
-                enum E {
-                CONSTRUCTORS
-                }
-                func f() { CALL }
-                "#.replace("CONSTRUCTORS", declarations.replace("\n", "\n                ")).replace("CALL", call.replace("C(", "$0C(")))
-        }
+    @TestCase[row in [("1", 0), ("true", 1), ("1, true", 2)], qualifier in ["", "E."]]
+    func enumConstructorOverloadsAreChosenByArgumentTypeAndArity(row: (String, Int64), qualifier: String) {
+        let (arguments, index) = row
+        checkDefinition("""
+            //- /main.cj module=m package=m
+            package m
+            enum E {
+                | C(Int64)
+            ${if (index == 0) { "//    ^ def" } else { "" }}
+                | C(Bool)
+            ${if (index == 1) { "//    ^ def" } else { "" }}
+                | C(Int64, Bool)
+            ${if (index == 2) { "//    ^ def" } else { "" }}
+            }
+            func f() { ${qualifier}$0C(${arguments}) }
+            """)
     }
 
     @TestCase
