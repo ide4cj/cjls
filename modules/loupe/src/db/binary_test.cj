@@ -27,7 +27,11 @@ let STAMPED = DateTime.now()
  * `std.core` of the binary `std` read as `bytes`, its stamp telling `bytes` and `version` apart.
  */
 func coreRead(bytes: ?Array<Byte>, version!: Int64 = 0): CjoFileRead {
-    CjoFileRead(CjoFile("std", "std.core", at("std/std.core.cjo")), FileStamp(version, STAMPED), bytes)
+    CjoFileRead(
+        CjoFile("std", "std.core", at("std/std.core.cjo")),
+        FileStamp(version, STAMPED),
+        bytes
+    )
 }
 
 func binaryPackagesOf(db: AnalysisDatabase): Array<BinaryPackageFile> {
@@ -130,8 +134,15 @@ class BinaryPackageTest {
         File.writeTo(dir.join("stdx.b.cjo"), [])
         File.writeTo(dir.join("stdx.a.cjo"), [])
         let named = BinaryPackage("dep.x", at("dep/dep.x.cjo"))
-        let model = ProjectModel(Cfg([]), [], binaries: [BinaryModel("stdx", [VfsPath.file(dir)], packages: [named]),
-            BinaryModel("dep", [], packages: [named])])
+        let model =
+            ProjectModel(
+                Cfg([]),
+                [],
+                binaries: [
+                    BinaryModel("stdx", [VfsPath.file(dir)], packages: [named]),
+                    BinaryModel("dep", [], packages: [named])
+                ]
+            )
 
         // act
         let files = model.cjoFiles()

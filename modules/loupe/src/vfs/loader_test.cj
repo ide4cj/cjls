@@ -14,7 +14,7 @@ import rope.Rope
 func tree(files: Array<(String, String)>): Path {
     let dir = Directory.createTemp(getTempDirectory())
     for ((relative, text) in files) {
-        let path = relative.split("/").fold(dir) {parent, name => parent.join(name)}
+        let path = relative.split("/").fold(dir) { parent, name => parent.join(name) }
         if (!exists(path.parent)) {
             Directory.create(path.parent, recursive: true)
         }
@@ -28,9 +28,14 @@ func tree(files: Array<(String, String)>): Path {
  */
 func readUnder(dir: Path, roots!: Array<VfsPath> = [VfsPath.file(dir)]): Array<String> {
     let root = VfsPath.file(dir)
-    let read = readRoots(roots).files.map {
-        file => String.join(file[0].segmentsUnder(root).getOrThrow(), delimiter: "/") + "=" + file[1].toString()
-    }
+    let read =
+        readRoots(roots)
+            .files
+            .map {
+                file =>
+                String.join(file[0].segmentsUnder(root).getOrThrow(), delimiter: "/") + "=" +
+                    file[1].toString()
+            }
     sort(read)
     read
 }
@@ -40,7 +45,8 @@ class LoaderTest {
     @TestCase
     func aRootGivesEveryCangjieFileUnderIt() {
         // arrange
-        let dir = tree([("a.cj", "a"), ("src/b.cj", "b"), ("src/deep/c.cj", "c"), ("README.md", "r")])
+        let dir =
+            tree([("a.cj", "a"), ("src/b.cj", "b"), ("src/deep/c.cj", "c"), ("README.md", "r")])
 
         // act
         let read = readUnder(dir)
@@ -53,7 +59,15 @@ class LoaderTest {
     @TestCase
     func targetAndHiddenDirectoriesAreLeftOut() {
         // arrange
-        let dir = tree([("a.cj", "a"), ("target/release/g.cj", "g"), (".git/h.cj", "h"), ("src/.cache/i.cj", "i")])
+        let dir =
+            tree(
+                [
+                    ("a.cj", "a"),
+                    ("target/release/g.cj", "g"),
+                    (".git/h.cj", "h"),
+                    ("src/.cache/i.cj", "i")
+                ]
+            )
 
         // act
         let read = readUnder(dir)
@@ -80,7 +94,15 @@ class LoaderTest {
     @TestCase
     func aFileThatDoesNotFitTheBudgetIsLeftOutAndTheRestRead() {
         // arrange - three files of four bytes, one of twenty
-        let dir = tree([("a.cj", "aaaa"), ("big.cj", "bbbbbbbbbbbbbbbbbbbb"), ("c.cj", "cccc"), ("d.cj", "dddd")])
+        let dir =
+            tree(
+                [
+                    ("a.cj", "aaaa"),
+                    ("big.cj", "bbbbbbbbbbbbbbbbbbbb"),
+                    ("c.cj", "cccc"),
+                    ("d.cj", "dddd")
+                ]
+            )
 
         // act
         let read = readRoots([VfsPath.file(dir)], budget: 10)
@@ -112,7 +134,9 @@ class LoaderTest {
     @TestCase
     func aRootNotThereOrVirtualGivesNothing() {
         // act
-        let read = readRoots([inTemp("cjls-no-such-directory"), VfsPath.virtual("untitled:Untitled-1")]).files
+        let read =
+            readRoots([inTemp("cjls-no-such-directory"), VfsPath.virtual("untitled:Untitled-1")])
+                .files
 
         // assert
         @Expect(read.size, 0)

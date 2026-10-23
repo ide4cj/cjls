@@ -12,7 +12,12 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
  * is seen as nothing else, nor anything else as a macro: a function `Derive` leaves `@Derive` the imported macro. A
  * segment after the macro is not found.
  */
-public func resolveMacroPath(db: AnalysisDatabase, pkg: Package, file: SourceFile, path: Array<String>): Array<Resolution> {
+public func resolveMacroPath(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile,
+    path: Array<String>
+): Array<Resolution> {
     if (path.isEmpty()) {
         return []
     }
@@ -20,21 +25,25 @@ public func resolveMacroPath(db: AnalysisDatabase, pkg: Package, file: SourceFil
         return [lookUp(db, pkg, file, path[0], Namespace.Macros)]
     }
     let found = ArrayList<Resolution>()
-    let qualifier = match (qualifierNamed(db, TypeScope([], pkg, file), path[0], stage: ScopeStage.Written)) {
-        case Some(Resolved(QualifierOf(one))) =>
-            found.add(Resolution.FoundPackage(one))
-            Some(one)
-        case Some(ConflictedPackages(pkgs)) =>
-            found.add(Resolution.Ambiguous(pkgs.map {one => ScopeTarget.OfPackage(one)}))
-            None<PackageRef>
-        case _ =>
-            found.add(Resolution.NotFound)
-            None<PackageRef>
-    }
-    found.add(match (qualifier) {
-        case Some(one) => macroOfPackage(db, pkg, one, path[1])
-        case None => Resolution.NotFound
-    })
+    let qualifier =
+        match (qualifierNamed(db, TypeScope([], pkg, file), path[0], stage: ScopeStage.Written)) {
+            case Some(Resolved(QualifierOf(one))) =>
+                found.add(Resolution.FoundPackage(one))
+                Some(one)
+            case Some(ConflictedPackages(pkgs)) =>
+                found.add(Resolution.Ambiguous(pkgs.map { one => ScopeTarget.OfPackage(one) }))
+                None<PackageRef>
+            case _ =>
+                found.add(Resolution.NotFound)
+                None<PackageRef>
+        }
+    found
+        .add(
+            match (qualifier) {
+                case Some(one) => macroOfPackage(db, pkg, one, path[1])
+                case None => Resolution.NotFound
+            }
+        )
     for (_ in 2..path.size) {
         found.add(Resolution.NotFound)
     }
@@ -44,15 +53,24 @@ public func resolveMacroPath(db: AnalysisDatabase, pkg: Package, file: SourceFil
 /**
  * The macro `name` names among the exports of `target` that `pkg` sees.
  */
-func macroOfPackage(db: AnalysisDatabase, pkg: Package, target: PackageRef, name: String): Resolution {
+func macroOfPackage(
+    db: AnalysisDatabase,
+    pkg: Package,
+    target: PackageRef,
+    name: String
+): Resolution {
     let relation = relationOf(pkg.name(db), nameOf(db, target))
-    let ids = visibleOf(exportsAt(db, target, ScopeStage.Written).names.get(name) ?? [], relation, Visibility.Private).filter {
-        id => isIn(id.item(db).kind, Namespace.Macros)
-    }
+    let ids =
+        visibleOf(
+            exportsAt(db, target, ScopeStage.Written).names.get(name) ?? [],
+            relation,
+            Visibility.Private
+        )
+            .filter { id => isIn(id.item(db).kind, Namespace.Macros) }
     match (ids.size) {
         case 0 => Resolution.NotFound
         case 1 => Resolution.Found(ids)
-        case _ => Resolution.Ambiguous(ids.map {id => ScopeTarget.OfDecl(id)})
+        case _ => Resolution.Ambiguous(ids.map { id => ScopeTarget.OfDecl(id) })
     }
 }
 
@@ -65,17 +83,21 @@ func macroOfPackage(db: AnalysisDatabase, pkg: Package, target: PackageRef, name
  * a `MacroCallId`'s.
  */
 public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
-    let file = match (def.file(db)) {
-        case Source(file) => file
-        case _ => return []
-    }
+    let file =
+        match (def.file(db)) {
+            case Source(file) => file
+            case _ => return []
+        }
     let pkg = packageOfFile(db, file) ?? return []
     let item = declItemOf(db, def) ?? return []
-    item.macros.concat(item.paramMacros.flatten()).map {
-        name =>
-        let path = name.split(".")
-        resolveMacroPath(db, pkg, file, path)[path.size - 1]
-    }
+    item
+        .macros
+        .concat(item.paramMacros.flatten())
+        .map {
+            name =>
+            let path = name.split(".")
+            resolveMacroPath(db, pkg, file, path)[path.size - 1]
+        }
 }
 
 /**
@@ -88,12 +110,18 @@ public func hasUnreadMacros(db: AnalysisDatabase, def: DefId): Bool {
         return false
     }
     let onMember = parentOf(db, def).isSome()
-    if (macrosOf(db, def).iterator().any {one => !isReadMacro(db, one, onMember: onMember)}) {
+    if (macrosOf(db, def).iterator().any { one => !isReadMacro(db, one, onMember: onMember) }) {
         return true
     }
     let item = declItemOf(db, def) ?? return false
     let file = def.file(db)
-    item.members.iterator().any {member => !member.macros.isEmpty() && hasUnreadMacros(db, DefId(db, file, member.id))}
+    item
+        .members
+        .iterator()
+        .any {
+            member =>
+            !member.macros.isEmpty() && hasUnreadMacros(db, DefId(db, file, member.id))
+        }
 }
 
 /**
@@ -104,7 +132,10 @@ public func hasUnreadMacros(db: AnalysisDatabase, def: DefId): Bool {
 @CalcaTracked
 public func packageHasUnreadMacros(db: AnalysisDatabase, pkg: Package): Bool {
     for (file in filesOf(db, PackageRef.Source(pkg))) {
-        for (item in itemTreeOf(db, file).items where !item.macros.isEmpty() || !item.members.isEmpty()) {
+        for (
+            item in itemTreeOf(db, file).items where !item.macros.isEmpty() ||
+                !item.members.isEmpty()
+        ) {
             if (hasUnreadMacros(db, DefId(db, file, item.id))) {
                 return true
             }

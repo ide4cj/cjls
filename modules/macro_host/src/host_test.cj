@@ -12,8 +12,15 @@ import stdx.log.*
 import loupe.{hoverAt, TextRange}
 import loupe.db.*
 import loupe.fixture.*
-import loupe.hir.{expandedCalls, macroExpansion, macroOutputOf, MacroPackage, macroRequests, pendingMacroRequests,
-    setMacroOutputsByKey}
+import loupe.hir.{
+    expandedCalls,
+    macroExpansion,
+    macroOutputOf,
+    MacroPackage,
+    macroRequests,
+    pendingMacroRequests,
+    setMacroOutputsByKey
+}
 import macro_server.*
 import project_model.{hostCfg, sdkTarget}
 import rope.Rope
@@ -22,7 +29,8 @@ import rope.Rope
  * The SDK the tests run on (`CANGJIE_HOME`).
  */
 func testSdkPaths(): MacroServerPaths {
-    let home = getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+    let home =
+        getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
     MacroServerPaths.inSdk(Path(home), sdkTarget(hostCfg()).getOrThrow())
 }
 
@@ -70,14 +78,20 @@ func resultOf(data: MacroResultData): MacroResult {
  * `/main.cj` of package `m` holding `text`, with the workspace macro package `m.ms`.
  */
 func macroFixture(text: String): (AnalysisDatabase, SourceFile, String) {
-    let parsed = Fixture.parse(#"
+    let parsed =
+        Fixture
+            .parse(
+                #"
         //- /main.cj module=m package=m
-        "# + text + #"
+        "# +
+                    text +
+                    #"
         //- /ms/ms.cj module=m package=m.ms
         macro package m.ms
         import std.ast.*
         public macro M(attrs: Tokens, input: Tokens): Tokens { input }
-        "#)
+        "#
+            )
     let db = parsed.database()
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow(), parsed.file("/main.cj").text)
 }
@@ -85,14 +99,20 @@ func macroFixture(text: String): (AnalysisDatabase, SourceFile, String) {
 /**
  * `library` as the library of the workspace macro package of the first call of `file`.
  */
-func libraryOf(db: AnalysisDatabase, file: SourceFile, library: MacroLibrary): HashMap<Package, MacroLibrary> {
+func libraryOf(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    library: MacroLibrary
+): HashMap<Package, MacroLibrary> {
     match (macroRequests(db, file)[0].definition.pkg) {
         case MacroPackage.WorkspacePackage(pkg) => HashMap<Package, MacroLibrary>([(pkg, library)])
-        case _ => throw IllegalStateException("the first call of the file is not of a workspace macro")
+        case _ =>
+            throw IllegalStateException("the first call of the file is not of a workspace macro")
     }
 }
 
-const MAIN = #"
+const MAIN =
+    #"
         package m
         import m.ms.*
         @M[x]
@@ -109,7 +129,8 @@ class MacroRoundTest {
         let expander = FakeExpander()
 
         // act
-        let answers = expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander)
+        let answers =
+            expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander)
         setMacroOutputsByKey(db, answers)
 
         // assert
@@ -125,17 +146,23 @@ class MacroRoundTest {
     @TestCase
     func aCallInABodyIsSentWithItsArgumentsAndItsAnswerComesFromWhereTheyAre() {
         // arrange
-        let (db, file, source) = macroFixture(#"
+        let (db, file, source) =
+            macroFixture(
+                #"
         package m
         import m.ms.*
         func f(): Int64 { @M[x](1 + 2) }
-"#)
+"#
+            )
         let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let expander = FakeExpander()
         let request = macroRequests(db, file)[0]
 
         // act
-        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander))
+        setMacroOutputsByKey(
+            db,
+            expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander)
+        )
 
         // assert
         @Expect(expander.calls.size, 1)
@@ -154,7 +181,9 @@ class MacroRoundTest {
     @TestCase
     func anAttributeAndArgumentsAreSentWithoutTheLineBreaksTheyStartWithAsCjcGivesThem() {
         // arrange
-        let (db, file, _) = macroFixture(#"
+        let (db, file, _) =
+            macroFixture(
+                #"
         package m
         import m.ms.*
         func f(): Int64 {
@@ -166,7 +195,8 @@ class MacroRoundTest {
                 1
             )
         }
-"#)
+"#
+            )
         let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let expander = FakeExpander()
 
@@ -181,17 +211,23 @@ class MacroRoundTest {
     @TestCase
     func aCallInABodyKeepsWhereItsArgumentsAreWhenTheyStartOnALineOfTheirOwn() {
         // arrange
-        let (db, file, source) = macroFixture(#"
+        let (db, file, source) =
+            macroFixture(
+                #"
         package m
         import m.ms.*
         func f(): Int64 { @M[x](
             1 + 2) }
-"#)
+"#
+            )
         let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let request = macroRequests(db, file)[0]
 
         // act
-        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), FakeExpander()))
+        setMacroOutputsByKey(
+            db,
+            expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), FakeExpander())
+        )
 
         // assert
         let expansion = macroOutputOf(db, request.call).getOrThrow().expansion.getOrThrow()
@@ -208,7 +244,10 @@ class MacroRoundTest {
         let request = macroRequests(db, file)[0]
 
         // act
-        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), FakeExpander()))
+        setMacroOutputsByKey(
+            db,
+            expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), FakeExpander())
+        )
 
         // assert
         let expansion = macroOutputOf(db, request.call).getOrThrow().expansion.getOrThrow()
@@ -255,8 +294,18 @@ class MacroRoundTest {
         let expander = FakeExpander()
 
         // act
-        let answers = expandAll(db, sendableRequests(db, [file], HashMap<Package, MacroLibrary>(),
-            stdLibrary: {pkg => "/sdk/libcangjie-${pkg}.so"}), testNumbers(), expander)
+        let answers =
+            expandAll(
+                db,
+                sendableRequests(
+                    db,
+                    [file],
+                    HashMap<Package, MacroLibrary>(),
+                    stdLibrary: { pkg => "/sdk/libcangjie-${pkg}.so" }
+                ),
+                testNumbers(),
+                expander
+            )
 
         // assert
         @Expect(expander.calls.size, 1)
@@ -273,7 +322,13 @@ class MacroRoundTest {
         let (db, file) = deriveFixture()
 
         // act
-        let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>(), stdLibrary: {_ => None})
+        let requests =
+            sendableRequests(
+                db,
+                [file],
+                HashMap<Package, MacroLibrary>(),
+                stdLibrary: { _ => None }
+            )
 
         // assert
         @Expect(requests.size, 0)
@@ -283,7 +338,10 @@ class MacroRoundTest {
         (0i32, MacroSeverity.MacroError, "@M reported an error"),
         (1i32, MacroSeverity.MacroWarning, "@M reported a warning")
     ]]
-    func anEmptyDiagnosticHasTheMacrosNameAndSeverityAsItsMessage(text: ?String, row: (Int32, MacroSeverity, String)) {
+    func anEmptyDiagnosticHasTheMacrosNameAndSeverityAsItsMessage(
+        text: ?String,
+        row: (Int32, MacroSeverity, String)
+    ) {
         // arrange
         let (level, severity, message) = row
         let (db, file, _) = macroFixture(MAIN)
@@ -291,8 +349,26 @@ class MacroRoundTest {
         let (_, layout) = callDataOf(request, "m.ms", "/lib", testNumbers())
 
         // act
-        let output = outputOf(request, layout, Answered(resultOf(MacroResultData(status: 1,
-            diags: [DiagnosticData(diagSeverity: level, errorMessage: text, mainHint: text)]))), testNumbers())
+        let output =
+            outputOf(
+                request,
+                layout,
+                Answered(
+                    resultOf(
+                        MacroResultData(
+                            status: 1,
+                            diags: [
+                                DiagnosticData(
+                                    diagSeverity: level,
+                                    errorMessage: text,
+                                    mainHint: text
+                                )
+                            ]
+                        )
+                    )
+                ),
+                testNumbers()
+            )
 
         // assert
         @Expect(output.diagnostics, [MacroDiagnostic(severity, None, message, "")])
@@ -306,7 +382,13 @@ class MacroRoundTest {
         let (_, layout) = callDataOf(request, "m.ms", "/lib", testNumbers())
 
         // act
-        let failed = outputOf(request, layout, Answered(resultOf(MacroResultData(status: MACRO_FAILED))), testNumbers())
+        let failed =
+            outputOf(
+                request,
+                layout,
+                Answered(resultOf(MacroResultData(status: MACRO_FAILED))),
+                testNumbers()
+            )
         let lost = outputOf(request, layout, Unanswered("it ran longer than 10 s"), testNumbers())
 
         // assert
@@ -326,7 +408,7 @@ class WatchdogTest {
         let watchdog = Watchdog(NoopLogger())
 
         // act
-        let id = watchdog.arm(Duration.Zero) {=> fired.add(1)}
+        let id = watchdog.arm(Duration.Zero) { => fired.add(1) }
         fired.remove()
 
         // assert
@@ -338,7 +420,7 @@ class WatchdogTest {
     func whatEndsInTimeIsDisarmed() {
         // arrange
         let watchdog = Watchdog(NoopLogger())
-        let id = watchdog.arm(Duration.hour) {=> throw IllegalStateException("fired")}
+        let id = watchdog.arm(Duration.hour) { => throw IllegalStateException("fired") }
 
         // act
         let disarmed = watchdog.disarm(id)
@@ -353,15 +435,25 @@ class WatchdogTest {
  * `/main.cj` of package `m` deriving `Equatable` for a class with std's `@Derive`, std's `.cjo`s among the packages.
  */
 func deriveFixture(): (AnalysisDatabase, SourceFile) {
-    let parsed = Fixture.parse(#"
+    let parsed =
+        Fixture
+            .parse(
+                #"
         //- /main.cj module=m package=m
         package m
         import std.deriving.*
         @Derive[Equatable]
         class A { let x: Int64 = 1 }
-        "#)
-    let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core")),
-        stdCjoRead("std.deriving", stdCjo("std.deriving"))])
+        "#
+            )
+    let db =
+        parsed
+            .database(
+                binaries: [
+                    stdCjoRead("std.core", stdCjo("std.core")),
+                    stdCjoRead("std.deriving", stdCjo("std.deriving"))
+                ]
+            )
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow())
 }
 
@@ -376,17 +468,18 @@ class HandFiredDeadlines <: Deadlines {
     private var count = 0
 
     public func arm(_: Duration, fire: () -> Unit): Int64 {
-        let id = synchronized(lock) {
-            count++
-            pending.add(count, fire)
-            count
-        }
+        let id =
+            synchronized (lock) {
+                count++
+                pending.add(count, fire)
+                count
+            }
         armed.add(id)
         id
     }
 
     public func disarm(id: Int64): Bool {
-        synchronized(lock) {
+        synchronized (lock) {
             pending.remove(id).isSome()
         }
     }
@@ -397,16 +490,18 @@ class HandFiredDeadlines <: Deadlines {
      * Runs what `id` was armed with, unless disarmed: it cannot be disarmed after.
      */
     func fire(id: Int64): Unit {
-        let fire = synchronized(lock) {
-            pending.remove(id)
-        }
+        let fire =
+            synchronized (lock) {
+                pending.remove(id)
+            }
         if (let Some(it) <- fire) {
             it()
         }
     }
 }
 
-const TOY_MACROS = ##"
+const TOY_MACROS =
+    ##"
 macro package toy.ms
 
 import std.ast.*
@@ -437,8 +532,10 @@ func buildToyMacros(toolchain: SdkToolchain): BuiltLibrary {
     let dir = root.join("src").join("ms")
     Directory.create(dir, recursive: true)
     File.writeTo(dir.join("ms.cj"), TOY_MACROS.toArray())
-    let built = MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain).build(
-        [BuildUnit("toy.ms", "toy", dir, true, [], [])]).getOrThrow()
+    let built =
+        MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain)
+            .build([BuildUnit("toy.ms", "toy", dir, true, [], [])])
+            .getOrThrow()
     built.get("toy.ms") ?? NotBuilt("nothing built")
 }
 
@@ -451,7 +548,7 @@ class SdkToolchainMacosTest {
     @TestCase
     func aMacroPackageIsLinkedWhereTheEnvironmentNamesNoSdkroot() {
         // arrange
-        let variables = getVariables().filter {variable => variable[0] != "SDKROOT"}
+        let variables = getVariables().filter { variable => variable[0] != "SDKROOT" }
         let toolchain = SdkToolchain(testSdkPaths(), variables: variables)
 
         // act
@@ -521,8 +618,13 @@ class GuardedServerTest {
         let own = macroExpansion(db, call)
 
         // act
-        let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>(),
-            stdLibrary: {pkg => paths.stdMacroLibrary(pkg).map {path => path.toString()}})
+        let requests =
+            sendableRequests(
+                db,
+                [file],
+                HashMap<Package, MacroLibrary>(),
+                stdLibrary: { pkg => paths.stdMacroLibrary(pkg).map { path => path.toString() } }
+            )
         setMacroOutputsByKey(db, expandAll(db, requests, numbers, server))
         server.close()
         let served = macroExpansion(db, call)
@@ -540,7 +642,11 @@ class GuardedServerTest {
     func aBuiltKeywordIdentifierKeepsItsPrimitiveType() {
         // arrange
         let (paths, library) = built()
-        let fixture = Fixture.parse(trimIndent(#"
+        let fixture =
+            Fixture
+                .parse(
+                    trimIndent(
+                        #"
             //- /main.cj module=toy package=toy
             package toy
             import toy.ms.*
@@ -550,14 +656,20 @@ class GuardedServerTest {
                 $0value
             }
             //- /ms/ms.cj module=toy package=toy.ms
-            "#) + TOY_MACROS)
+            "#
+                    ) +
+                        TOY_MACROS
+                )
         let db = fixture.database()
         let file = db.sourceFile(fixture.file("/main.cj").fileId).getOrThrow()
         let libraries = libraryOf(db, file, MacroLibrary(library, 0))
         let server = GuardedServer(paths, Duration.minute, NoopLogger())
 
         // act
-        setMacroOutputsByKey(db, expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), server))
+        setMacroOutputsByKey(
+            db,
+            expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), server)
+        )
         server.close()
         let expansion = macroExpansion(db, expandedCalls(db, file)[0])
         let cursor = fixture.cursor.getOrThrow()
@@ -577,7 +689,7 @@ class GuardedServerTest {
         let server = GuardedServer(paths, Duration.second, NoopLogger(), deadlines)
 
         // act - Spin's deadline fired while it runs, which it never stops doing; Same's never
-        let spinning = spawn {server.expand(call("Spin", library, numbers))}
+        let spinning = spawn { server.expand(call("Spin", library, numbers)) }
         deadlines.fire(deadlines.armed.remove())
         let spun = spinning.get()
         let next = server.expand(call("Same", library, numbers))
@@ -600,7 +712,10 @@ class DirNameTest {
     @TestCase
     func aCompilersVersionNamesItsDirectory() {
         // act
-        let name = dirNameOf("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)\nTarget: x86_64-unknown-linux-gnu\n")
+        let name =
+            dirNameOf(
+                "Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)\nTarget: x86_64-unknown-linux-gnu\n"
+            )
 
         // assert
         @Expect(name, "1.3.0-alpha.20261002001050-cjnative")
@@ -624,7 +739,8 @@ class EditingExpander <: Expander {
     }
 }
 
-const USES = #"
+const USES =
+    #"
         package m
         import m.ms.*
         @M
@@ -635,19 +751,32 @@ const USES = #"
  * `/a.cj` and `/b.cj` of package `m`, each holding `USES`, with the workspace macro package `m.ms` built.
  */
 func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<Package, MacroLibrary>) {
-    let parsed = Fixture.parse(#"
+    let parsed =
+        Fixture
+            .parse(
+                #"
         //- /a.cj module=m package=m
-        "# + USES + #"
+        "# +
+                    USES +
+                    #"
         //- /b.cj module=m package=m
-        "# + USES + #"
+        "# +
+                    USES +
+                    #"
         //- /ms/ms.cj module=m package=m.ms
         macro package m.ms
         import std.ast.*
         public macro M(input: Tokens): Tokens { input }
-        "#)
+        "#
+            )
     let db = parsed.database()
     let a = db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow()
-    (db, a, db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(), libraryOf(db, a, MacroLibrary("/lib", 0)))
+    (
+        db,
+        a,
+        db.sourceFile(parsed.file("/b.cj").fileId).getOrThrow(),
+        libraryOf(db, a, MacroLibrary("/lib", 0))
+    )
 }
 
 @Test
@@ -658,7 +787,10 @@ class MacroRoundEditTest {
         let (db, a, b, libraries) = twoFilesFixture()
         let snapshot = db.snapshot()
         let requests = sendableRequests(snapshot, [a, b], libraries)
-        let expander = EditingExpander({=> db.setFileText(b.fileId(db), Rope(USES.replace("a = 1", "b = 2")))})
+        let expander =
+            EditingExpander(
+                { => db.setFileText(b.fileId(db), Rope(USES.replace("a = 1", "b = 2"))) }
+            )
 
         // act
         let answers = expandAll(snapshot, requests, testNumbers(), expander)
@@ -676,7 +808,10 @@ class MacroRoundEditTest {
         let (db, a, b, libraries) = twoFilesFixture()
         let snapshot = db.snapshot()
         let requests = sendableRequests(snapshot, [a, b], libraries)
-        let expander = EditingExpander({=> db.setFileText(a.fileId(db), Rope(USES.replace("a = 1", "b = 2")))})
+        let expander =
+            EditingExpander(
+                { => db.setFileText(a.fileId(db), Rope(USES.replace("a = 1", "b = 2"))) }
+            )
 
         // act
         let answers = expandAll(snapshot, requests, testNumbers(), expander)
@@ -693,7 +828,13 @@ class MacroRoundEditTest {
         let (db, a, b, libraries) = twoFilesFixture()
 
         // act
-        let requests = sendableRequests(db, [a, b], libraries, isOpen: {file => file.fileId(db).index == b.fileId(db).index})
+        let requests =
+            sendableRequests(
+                db,
+                [a, b],
+                libraries,
+                isOpen: { file => file.fileId(db).index == b.fileId(db).index }
+            )
 
         // assert
         @Expect(requests.map {one => one[0].fileId(db).index}, [b.fileId(db).index, a.fileId(db).index])

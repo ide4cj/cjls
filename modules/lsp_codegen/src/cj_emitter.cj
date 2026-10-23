@@ -60,7 +60,10 @@ class CjEmitter {
 
     func emit(s: String): Unit {
         let indentBytes = Array<Byte>(indentation * indentWidth, repeat: b' ')
-        let ws = unsafe { String.fromUtf8Unchecked(indentBytes) }
+        let ws =
+            unsafe {
+                String.fromUtf8Unchecked(indentBytes)
+            }
         output.write("${ws}${s}")
     }
 
@@ -79,7 +82,9 @@ func emittedBy(body: (CjEmitter) -> Unit): String {
     body(emitter)
     emitter.flush()
 
-    unsafe { String.fromUtf8(readToEnd(output)) }
+    unsafe {
+        String.fromUtf8(readToEnd(output))
+    }
 }
 
 struct DocComment {

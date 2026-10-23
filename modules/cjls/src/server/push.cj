@@ -34,13 +34,14 @@ class DiagnosticsPush {
      * cancels the publish, and has scheduled one of its own.
      */
     func schedule(snapshot: ServerSnapshot, documents: Array<(VfsPath, Int32)>): Future<Unit> {
-        let generation = synchronized(lock) {
-            generations++
-            for ((path, _) in documents) {
-                latest[path] = generations
+        let generation =
+            synchronized (lock) {
+                generations++
+                for ((path, _) in documents) {
+                    latest[path] = generations
+                }
+                generations
             }
-            generations
-        }
         spawn {
             try {
                 for ((path, version) in documents) {
@@ -82,9 +83,13 @@ class DiagnosticsPush {
      */
     func clear(path: VfsPath): Unit {
         try {
-            synchronized(lock) {
+            synchronized (lock) {
                 latest.remove(path)
-                client.notify(PublishDiagnosticsNotificationSpec(), PublishDiagnosticsParams(uri: path.toUri(), diagnostics: []))
+                client
+                    .notify(
+                        PublishDiagnosticsNotificationSpec(),
+                        PublishDiagnosticsParams(uri: path.toUri(), diagnostics: [])
+                    )
             }
         } catch (e: Exception) {
             failed(e)
@@ -104,14 +109,30 @@ class DiagnosticsPush {
         }
     }
 
-    private func publish(path: VfsPath, version: Int32, diagnostics: Array<Diagnostic>, generation: Int64): Unit {
-        synchronized(lock) {
+    private func publish(
+        path: VfsPath,
+        version: Int32,
+        diagnostics: Array<Diagnostic>,
+        generation: Int64
+    ): Unit {
+        synchronized (lock) {
             if (latest.get(path) != generation) {
-                logger.debug("push dropped", [("reason", "a newer one was scheduled"), ("uri", path.toUri())])
+                logger
+                    .debug(
+                        "push dropped",
+                        [("reason", "a newer one was scheduled"), ("uri", path.toUri())]
+                    )
                 return
             }
-            client.notify(PublishDiagnosticsNotificationSpec(),
-                PublishDiagnosticsParams(uri: path.toUri(), version: version, diagnostics: diagnostics))
+            client
+                .notify(
+                    PublishDiagnosticsNotificationSpec(),
+                    PublishDiagnosticsParams(
+                        uri: path.toUri(),
+                        version: version,
+                        diagnostics: diagnostics
+                    )
+                )
         }
     }
 }

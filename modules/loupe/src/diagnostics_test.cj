@@ -27,15 +27,18 @@ class DiagnosticsTest {
 
     @TestCase
     func aSyntaxErrorIsAnErrorWhereTheParserPutIt() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             class A {
             //       | error: expected '}'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func eachFileHasItsOwn() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /a.cj
               func f() {
                   let x =
@@ -47,7 +50,8 @@ class DiagnosticsTest {
               class C { func }
             //              | error: expected '('
             //              | error: expected a name
-            "#)
+            "#
+        )
     }
 
     @TestCase
@@ -80,7 +84,8 @@ class DiagnosticsTest {
 class ScopeDiagnosticsInFileTest {
     @TestCase
     func theImportsOfAFileAreReportedWhereCjcPutsThem() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /a/a.cj module=imp package=imp.a
             package imp.a
             public class C {}
@@ -96,7 +101,8 @@ class ScopeDiagnosticsInFileTest {
             //     ^^^^^^^^^^^ error: 'nope' is not accessible in package 'imp.a'
             //                         ^ warning: imported decl 'D' is shadowed, it will be ignored by compiler
             class D {}
-            "#)
+            "#
+        )
     }
 }
 
@@ -109,7 +115,8 @@ class InferenceDiagnosticsTest {
     @TestCase
     func arrayLiteralsAreCheckedAgainstTheExpectedVArray() {
         // #491: checking only the annotated local's type misses a mismatch on its initializer.
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             type Pair = VArray<Int8, $2>
             func pair(): Pair { [1, 2] }
@@ -132,12 +139,15 @@ class InferenceDiagnosticsTest {
                 let ordinary = [1, 2]
                 let narrow: Array<Int8> = [1, 2]
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aVArrayLiteralStillChecksItsElementsAndLength() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func test(s: String): Unit {
                 let a: VArray<Int8, $2> = [1, s]
@@ -149,12 +159,15 @@ class InferenceDiagnosticsTest {
                 let d: VArray<Int8, $1> = []
             //                            ^^ error: mismatch 'VArray' type's size: expected size is 1, found 0
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aValueOfAnotherTypeThanTheOneExpectedIsAMismatch() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func f(a: Int64, b: String): Int64 { a }
             func g(): Unit {
@@ -166,13 +179,16 @@ class InferenceDiagnosticsTest {
                 z = "q"
             //      ^^^ error: mismatched types: expected 'Int64', found 'String'
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aQuoteIsCheckedInItsInterpolationsOnly() {
         // #195: the rest is tokens, checked where the macro is expanded
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             import std.ast.*
             func f(a: Int64): Tokens { quote() }
@@ -180,12 +196,15 @@ class InferenceDiagnosticsTest {
                 quote(f("s") + $(f("s")))
             //                     ^^^ error: mismatched types: expected 'Int64', found 'String'
             }
-            "#, binaries: ["std.core", "std.ast"])
+            "#,
+            binaries: ["std.core", "std.ast"]
+        )
     }
 
     @TestCase
     func anIntegerLiteralWhereNoNumberIsExpectedCannotBeConverted() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             class C { func m(x: Bool): Unit {} }
             func f(a: Int64, b: String): Unit {}
@@ -195,12 +214,15 @@ class InferenceDiagnosticsTest {
                 C().m(1)
             //        ^ error: cannot convert an integer literal to type 'Bool'
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func tooFewOrTooManyArgumentsOfOneFunctionAreReportedOverTheArguments() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func f(a: Int64, b: String): Int64 { a }
             class K { init(a: Int64) {} }
@@ -221,12 +243,15 @@ class InferenceDiagnosticsTest {
                 t(1, {=> ()}) {}
             //   ^^^^^^^^^^^^^^^ error: extra argument given for parameter list '(Int64, () -> Unit)' in call: expected 2 arguments, found 3
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func anArgumentPassedByAWrongNameOrByNoneIsReportedAtTheArgument() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func f(a: Int64, b!: Int64, c!: Int64 = 0): Int64 { a }
             func g(a: Int64, xs: Array<Int64>): Int64 { a }
@@ -255,24 +280,30 @@ class InferenceDiagnosticsTest {
                 k(1, h: {x => x}) { x => x }
             //   ^^^^^^^^^^^^^^^^^^^^^^^^^^^ error: extra argument given for parameter list '(Int64, (Int64) -> Int64)' in call: expected 2 arguments, found 3
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aParameterOfABinaryWhoseDefaultIsNoConstantMayBeLeftOut() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             import std.time.DateTime
             func g(): Unit {
                 // `timeZone!: TimeZone = TimeZone.Local`, whose value the `.cjo` does not hold
                 let now = DateTime.now()
             }
-            "#, binaries: ["std.core", "std.time"])
+            "#,
+            binaries: ["std.core", "std.time"]
+        )
     }
 
     @TestCase
     func whatCjcAcceptsIsNoError() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func v(a: Int64, b: Array<Int64>): Unit {}
             func w(b: Array<Int64>): Unit {}
@@ -295,12 +326,15 @@ class InferenceDiagnosticsTest {
                 let o: ?Int64 = 1
                 let u: Unit = h(1)
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func whatTheGateOfStdsSourcesFoundIsNoError() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             foreign func abs(x: Int32): Int32
             interface K<T> {}
@@ -333,12 +367,15 @@ class InferenceDiagnosticsTest {
                 let r1: Int64 = c.r(at: 1)
                 let s1: Int64 = s(1)
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func nothingIsReportedAboutATypeNotKnown() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func f(a: Int64): Unit {}
             func g(): Unit {
@@ -347,12 +384,15 @@ class InferenceDiagnosticsTest {
                 f(missing())
                 let y: Nope = 1
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aVariadicFunctionOfACjoIsCalledWithItsArraysElements() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             import std.collection.ArrayList
             // cjc: no error
@@ -367,23 +407,35 @@ class InferenceDiagnosticsTest {
                 let t = s.trimStart(r'a', r'b')
                 let u = s.trimStart(r'a')
             }
-            "#, binaries: ["std.core", "std.collection"])
+            "#,
+            binaries: ["std.core", "std.collection"]
+        )
     }
 
     @TestCase
     func aFileOfNoPackageCallsAVariadicFunctionOfStdCoreWithItsArraysElements() {
         // arrange - a project with the SDK's std, and a file in none of its packages: one under
         // `target`, or above the root
-        let fixture = Fixture.parse(#"
+        let fixture =
+            Fixture
+                .parse(
+                    #"
             //- /m/m.cj module=m package=m
             package m
-            "#)
+            "#
+                )
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let loose = FileId(fixture.files.size)
-        db.setFileText(loose, Rope("func g(): Unit {\n    let d = Float64.max(1.0, 2.0)\n    let e = Float64.max(1.0, 2.0, 3.0, 4.0)\n}\n"))
+        db
+            .setFileText(
+                loose,
+                Rope(
+                    "func g(): Unit {\n    let d = Float64.max(1.0, 2.0)\n    let e = Float64.max(1.0, 2.0, 3.0, 4.0)\n}\n"
+                )
+            )
 
         // act
-        let result = diagnostics(db, loose).map {one => one.message}
+        let result = diagnostics(db, loose).map { one => one.message }
 
         // assert - cjc: none, `others` taking any number of elements
         @Expect(result, Array<String>())
@@ -391,7 +443,8 @@ class InferenceDiagnosticsTest {
 
     @TestCase
     func aNamedParameterLeftOutIsMissingWithTheNamesPassedAfterIt() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func f(a!: Int64, b!: Int64, c!: Int64): Unit {}
             func g(): Unit {
@@ -401,7 +454,9 @@ class InferenceDiagnosticsTest {
                 f(1, c: 2)
             //   ^^^^^^^^^ error: missing argument for parameter list '(Int64, Int64, Int64)' in call: expected 3 arguments, found 2
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     /**
@@ -410,7 +465,8 @@ class InferenceDiagnosticsTest {
      */
     @TestCase
     func aMemberNoFunctionAndATypesMemberNotFoundAreNotReported() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             class A { let x = 1 }
             func g(): Unit {
@@ -418,7 +474,9 @@ class InferenceDiagnosticsTest {
                 let a = A()
                 a.x()
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 }
 
@@ -435,11 +493,19 @@ func derivedByServer(fixture: String, written: String): (AnalysisDatabase, Sourc
     let start = text.indexOf("\n", anchor).getOrThrow() + 1
     let copied = text[start..].trimAscii()
     let output = copied + "\n" + written
-    answer(db, file, "Derive", output, [
-        MappedSpan(TextRange(0, copied.size),
-            SpanOrigin.FromSource(TextRange(start - anchor, start - anchor + copied.size))),
-        MappedSpan(TextRange(copied.size + 1, output.size), SpanOrigin.FromCall)
-    ])
+    answer(
+        db,
+        file,
+        "Derive",
+        output,
+        [
+            MappedSpan(
+                TextRange(0, copied.size),
+                SpanOrigin.FromSource(TextRange(start - anchor, start - anchor + copied.size))
+            ),
+            MappedSpan(TextRange(copied.size + 1, output.size), SpanOrigin.FromCall)
+        ]
+    )
     (db, file)
 }
 
@@ -451,7 +517,9 @@ class ReplacedItemDiagnosticsTest {
     @TestCase
     func aTypeTheServersDeriveReplacedIsNotCheckedAgainstItsSourceTwin() {
         // arrange
-        let (db, file) = derivedByServer(#"
+        let (db, file) =
+            derivedByServer(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -467,8 +535,10 @@ class ReplacedItemDiagnosticsTest {
                     }
                 }
             }
-            "#, "extend E <: Equatable<E> {\n    public operator func ==(that: E): Bool { true }\n" +
-            "    public operator func !=(that: E): Bool { false }\n}")
+            "#,
+                "extend E <: Equatable<E> {\n    public operator func ==(that: E): Bool { true }\n" +
+                    "    public operator func !=(that: E): Bool { false }\n}"
+            )
 
         // act
         let result = diagnostics(db, file.fileId(db))
@@ -480,7 +550,9 @@ class ReplacedItemDiagnosticsTest {
     @TestCase
     func aMismatchInCopiedTextIsWhereItWasCopiedFromAndInWrittenTextAtTheCallsHead() {
         // arrange
-        let (db, file) = derivedByServer(#"
+        let (db, file) =
+            derivedByServer(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -490,8 +562,10 @@ class ReplacedItemDiagnosticsTest {
                     let x: Int64 = "s"
                 }
             }
-            "#, "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool {\n" +
-            "        let y: Bool = \"no\"\n        y\n    }\n    public operator func !=(that: S): Bool { false }\n}")
+            "#,
+                "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool {\n" +
+                    "        let y: Bool = \"no\"\n        y\n    }\n    public operator func !=(that: S): Bool { false }\n}"
+            )
         let text = file.text(db).toString()
 
         // act
@@ -509,7 +583,9 @@ class ReplacedItemDiagnosticsTest {
     @TestCase
     func anOutputOlderThanTheTextReportsNothingOfItsBodies() {
         // arrange
-        let (db, file) = derivedByServer(#"
+        let (db, file) =
+            derivedByServer(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -517,8 +593,10 @@ class ReplacedItemDiagnosticsTest {
             struct S {
                 func f(): Int64 { "s" }
             }
-            "#, "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool { true }\n" +
-            "    public operator func !=(that: S): Bool { false }\n}")
+            "#,
+                "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool { true }\n" +
+                    "    public operator func !=(that: S): Bool { false }\n}"
+            )
         let text = file.text(db).toString()
 
         // act
@@ -539,7 +617,8 @@ class ReplacedItemDiagnosticsTest {
 class StdFalseMismatchesTest {
     @TestCase
     func theDotsOfAForeignFunctionTakeAnyArgumentsMoreAfterItsParameters() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /native.cj module=m package=m
             package m
             foreign func open(pathname: CString, flags: Int32, ...): Int32
@@ -558,12 +637,15 @@ class StdFalseMismatchesTest {
                 unsafe { cv(p) }
             //             ^^^ error: missing argument for parameter list '(CString, Int32)' in call: expected 2 arguments, found 1
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func anOperandNotKnownLeavesTheLanguagesOperatorNotAnotherDeclared() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             extend Float64 {
                 operator func +(arg: UInt8): Float64 { this }
@@ -571,14 +653,17 @@ class StdFalseMismatchesTest {
             func g(a: Float64, b: Float64): Unit {
                 let s = a + b * nope
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aBinaryOperatorNoCandidateFitsIsReportedAtTheOperator() {
         // N168: by its operands' types, its operand not; a `[]` by its argument, as a call; a
         // result the type expected takes not, as any value
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             class T {
                 operator func +(r: Int64): Bool { true }
@@ -599,12 +684,15 @@ class StdFalseMismatchesTest {
                 let f = 1 + true
             //            ^ error: invalid binary operator '+' on type 'Int64' and 'Bool'
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func anArgumentNotKnownTakesNoneOfSeveralOverloads() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             func abs(x: Int64): Int64 { x }
             func abs(x: Float64): Float64 { x }
@@ -612,12 +700,15 @@ class StdFalseMismatchesTest {
                 let x = nope
                 if (abs(x) > 0.5) {}
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func thisCallsAPrimaryConstructorOfAParameterByNameWithItsDefault() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             class Configuration {}
             class Printer {
@@ -626,6 +717,8 @@ class StdFalseMismatchesTest {
                     this(!false)
                 }
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 }

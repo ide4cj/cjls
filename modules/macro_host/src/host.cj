@@ -24,24 +24,33 @@ public struct MacroLibrary {
  * `stdLibrary` finds of its name in the SDK; those of the files `isOpen` says the editor shows first, then the
  * others, each in their order.
  */
-public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, libraries: HashMap<Package, MacroLibrary>,
-    stdLibrary!: (String) -> ?String = {_ => None}, isOpen!: (SourceFile) -> Bool = {_ => false}): Array<(SourceFile,
-        MacroRequest, MacroLibrary)> {
+public func sendableRequests(
+    db: AnalysisDatabase,
+    files: Array<SourceFile>,
+    libraries: HashMap<Package, MacroLibrary>,
+    stdLibrary!: (String) -> ?String = { _ => None },
+    isOpen!: (SourceFile) -> Bool = { _ => false }
+): Array<(SourceFile, MacroRequest, MacroLibrary)> {
     let found = ArrayList<(SourceFile, MacroRequest, MacroLibrary)>()
-    for (file in files.filter(isOpen).concat(files.filter {file => !isOpen(file)})) {
+    for (file in files.filter(isOpen).concat(files.filter { file => !isOpen(file) })) {
         for (request in pendingMacroRequests(db, file)) {
-            let library = match (request.definition.pkg) {
-                case MacroPackage.WorkspacePackage(pkg) => libraries.get(pkg).flatMap {
-                    one => if (one.stamp == pkg.macroLibrary(db)) {
-                        one
-                    } else {
-                        None<MacroLibrary>
-                    }
+            let library =
+                match (request.definition.pkg) {
+                    case MacroPackage.WorkspacePackage(pkg) =>
+                        libraries
+                            .get(pkg)
+                            .flatMap {
+                                one =>
+                                if (one.stamp == pkg.macroLibrary(db)) {
+                                    one
+                                } else {
+                                    None<MacroLibrary>
+                                }
+                            }
+                    case MacroPackage.StdPackage(binary) =>
+                        stdLibrary(binary.name(db))
+                            .map { path => MacroLibrary(path, request.definition.libraryStamp(db)) }
                 }
-                case MacroPackage.StdPackage(binary) => stdLibrary(binary.name(db)).map {
-                    path => MacroLibrary(path, request.definition.libraryStamp(db))
-                }
-            }
             if (let Some(one) <- library) {
                 found.add((file, request, one))
             }
@@ -58,15 +67,22 @@ public func sendableRequests(db: AnalysisDatabase, files: Array<SourceFile>, lib
  *
  * @throws CancelledException - if the files change before the first call is sent
  */
-public func expandAll(db: AnalysisDatabase, requests: Array<(SourceFile, MacroRequest, MacroLibrary)>,
-    numbers: TokenNumbers, expander: Expander, stopped!: () -> Bool = {=> false}): Array<(SourceFile, MacroCallKey,
-        MacroOutput)> {
-    let calls = requests.map {
-        one =>
-        let (file, request, library) = one
-        let (call, layout) = callDataOf(request, request.definition.pkgName(db), library.path, numbers)
-        (file, request, macroCallKeyOf(db, request.call), call, layout)
-    }
+public func expandAll(
+    db: AnalysisDatabase,
+    requests: Array<(SourceFile, MacroRequest, MacroLibrary)>,
+    numbers: TokenNumbers,
+    expander: Expander,
+    stopped!: () -> Bool = { => false }
+): Array<(SourceFile, MacroCallKey, MacroOutput)> {
+    let calls =
+        requests
+            .map {
+                one =>
+                let (file, request, library) = one
+                let (call, layout) =
+                    callDataOf(request, request.definition.pkgName(db), library.path, numbers)
+                (file, request, macroCallKeyOf(db, request.call), call, layout)
+            }
     let answers = ArrayList<(SourceFile, MacroCallKey, MacroOutput)>()
     for ((file, request, key, call, layout) in calls) {
         if (stopped() || isCancelled(db)) {
@@ -119,9 +135,10 @@ class Watchdog <: Deadlines {
     private var stopped = false
 
     init(logger: Logger) {
-        changed = synchronized(lock) {
-            lock.condition()
-        }
+        changed =
+            synchronized (lock) {
+                lock.condition()
+            }
         spawn {
             try {
                 run()
@@ -134,7 +151,7 @@ class Watchdog <: Deadlines {
     }
 
     public func arm(timeout: Duration, fire: () -> Unit): Int64 {
-        synchronized(lock) {
+        synchronized (lock) {
             count++
             armed = (count, MonoTime.now() + timeout, fire)
             changed.notifyAll()
@@ -143,7 +160,7 @@ class Watchdog <: Deadlines {
     }
 
     public func disarm(id: Int64): Bool {
-        synchronized(lock) {
+        synchronized (lock) {
             match (armed) {
                 case Some((one, _, _)) where one == id =>
                     armed = None
@@ -155,14 +172,14 @@ class Watchdog <: Deadlines {
     }
 
     public func stop(): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             stopped = true
             changed.notifyAll()
         }
     }
 
     private func run(): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             while (!stopped) {
                 match (armed) {
                     case None => changed.wait()
@@ -204,17 +221,19 @@ public class GuardedServer <: Expander {
     }
 
     public func expand(call: MacroCallData): CallOutcome {
-        let server = match (process) {
-            case Some(running) => running
-            case None => try {
-                let started = startMacroServer(paths)
-                process = started
-                started
-            } catch (e: Exception) {
-                return Unanswered("the macro server did not start: ${e.message}")
+        let server =
+            match (process) {
+                case Some(running) => running
+                case None =>
+                    try {
+                        let started = startMacroServer(paths)
+                        process = started
+                        started
+                    } catch (e: Exception) {
+                        return Unanswered("the macro server did not start: ${e.message}")
+                    }
             }
-        }
-        let id = deadlines.arm(timeout) {=> killQuietly(server)}
+        let id = deadlines.arm(timeout) { => killQuietly(server) }
         try {
             let result = server.connection.expand(call)
             if (deadlines.disarm(id)) {
@@ -227,7 +246,11 @@ public class GuardedServer <: Expander {
             process = None
             killQuietly(server)
             if (inTime) {
-                logger.warn("the macro server exited", [("macro", call.methodName ?? ""), ("cause", e)])
+                logger
+                    .warn(
+                        "the macro server exited",
+                        [("macro", call.methodName ?? ""), ("cause", e)]
+                    )
                 Unanswered("the macro server exited")
             } else {
                 Unanswered(pastDeadline())
@@ -301,7 +324,7 @@ public class MacroServers <: Expander {
  * Whether `call` runs a macro of std: one of a package of std (`ServerMacro.isStd`), which a workspace cannot name.
  */
 func isStdCall(call: MacroCallData): Bool {
-    call.packageName.map {pkg => pkg.startsWith("std.")} ?? false
+    call.packageName.map { pkg => pkg.startsWith("std.") } ?? false
 }
 
 func killQuietly(server: MacroServerProcess): Unit {

@@ -1,5 +1,5 @@
 @NonProduct
-features { user.platform.posix }
+features {user.platform.posix}
 package platform
 
 import std.fs.Path

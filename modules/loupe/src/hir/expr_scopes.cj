@@ -131,8 +131,12 @@ class ScopesBuilder {
         ExprScopes(scopes: scopes.toArray(), exprScopes: exprScopes, typeScopes: typeScopes)
     }
 
-    private func add(parent: ?ScopeId, entries: Array<LocalId>, genericsOf!: ?Int64 = None,
-        generics!: Array<String> = []): ScopeId {
+    private func add(
+        parent: ?ScopeId,
+        entries: Array<LocalId>,
+        genericsOf!: ?Int64 = None,
+        generics!: Array<String> = []
+    ): ScopeId {
         scopes.add(ScopeData(parent, entries, genericsOf: genericsOf, generics: generics))
         ScopeId(scopes.size - 1)
     }
@@ -181,7 +185,8 @@ class ScopesBuilder {
 
     private func innerTypes(ty: TypeRefId): Array<TypeRefId> {
         match (body.types[ty.index]) {
-            case PathRef(segments) => segments |> flatMap {segment: TypeSegment => segment.args} |> collectArray
+            case PathRef(segments) =>
+                segments |> flatMap { segment: TypeSegment => segment.args } |> collectArray
             case TupleRef(elements) => elements
             case FuncRef(params, ret) => params.concat([ret])
             case OptionRef(inner) => [inner]
@@ -210,9 +215,10 @@ class ScopesBuilder {
             case BlockExpr(stmts) => block(stmts, scope)
             case StrExpr(parts) => walkAll(parts, scope)
             case QuoteExpr(parts) => walkAll(parts, scope)
-            case PathExpr(_, args) => for (arg in args) {
-                typeIn(arg, scope)
-            }
+            case PathExpr(_, args) =>
+                for (arg in args) {
+                    typeIn(arg, scope)
+                }
             case FieldExpr(receiver, _, args) =>
                 walk(receiver, scope)
                 for (arg in args) {
@@ -220,7 +226,7 @@ class ScopesBuilder {
                 }
             case CallExpr(callee, args) =>
                 walk(callee, scope)
-                walkAll(args.map {arg => arg.expr}, scope)
+                walkAll(args.map { arg => arg.expr }, scope)
             case IndexExpr(base, indices) =>
                 walk(base, scope)
                 walkAll(indices, scope)
@@ -267,10 +273,11 @@ class ScopesBuilder {
                     for (ty in arm.types) {
                         typeIn(ty, scope)
                     }
-                    let inner = match (arm.local) {
-                        case Some(local) => add(scope, [local])
-                        case None => scope
-                    }
+                    let inner =
+                        match (arm.local) {
+                            case Some(local) => add(scope, [local])
+                            case None => scope
+                        }
                     walk(arm.body, inner)
                 }
                 walkOpt(finallyBlock, scope)
@@ -297,17 +304,17 @@ class ScopesBuilder {
                 for (param in params) {
                     typeIn(param.ty, scope)
                 }
-                let locals = params |> filterMap {param: BodyParam => param.local} |> collectArray
+                let locals = params |> filterMap { param: BodyParam => param.local } |> collectArray
                 walk(lambdaBody, add(scope, locals))
             case ConvExpr(_, inner) => walk(inner, scope)
             case VArrayExpr(ty, args) =>
                 typeIn(ty, scope)
-                walkAll(args.map {arg => arg.expr}, scope)
+                walkAll(args.map { arg => arg.expr }, scope)
             case MacroExpr(call) =>
                 for (ty in call.attr ?? []) {
                     typeIn(ty, scope)
                 }
-                walkAll(call.args.map {arg => arg.expr}, scope)
+                walkAll(call.args.map { arg => arg.expr }, scope)
             case _ => ()
         }
     }
@@ -389,12 +396,14 @@ class ScopesBuilder {
         match (body[pat]) {
             case BindPat(local) => found.add(local)
             case TypePat(Some(local), _) => found.add(local)
-            case TuplePat(inner) => for (one in inner) {
-                collect(one, found)
-            }
-            case EnumPat(_, inner) => for (one in inner) {
-                collect(one, found)
-            }
+            case TuplePat(inner) =>
+                for (one in inner) {
+                    collect(one, found)
+                }
+            case EnumPat(_, inner) =>
+                for (one in inner) {
+                    collect(one, found)
+                }
             case _ => ()
         }
     }

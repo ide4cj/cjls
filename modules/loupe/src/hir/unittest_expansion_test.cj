@@ -11,9 +11,11 @@ import loupe.syntax.parse
  * The database of `parsed`, with the `.cjo`s of std.core and of std.unittest's packages among its packages.
  */
 func databaseWithUnittest(parsed: Fixture): AnalysisDatabase {
-    parsed.database(binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"].map {
-        name => stdCjoRead(name, stdCjo(name))
-    })
+    parsed
+        .database(
+            binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
+                .map { name => stdCjoRead(name, stdCjo(name)) }
+        )
 }
 
 /**
@@ -24,8 +26,12 @@ func unittestExpansionsAt(fixture: String, index: Int64): Array<String> {
     let parsed = Fixture.parse(fixture)
     let db = databaseWithUnittest(parsed)
     let file = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-    let item = itemTree(db, file).items.get(index) ?? throw FixtureException("no item ${index} in the fixture")
-    expandedCalls(db, file).filter {call => call.item(db) == item.id}.map {call => macroExpansion(db, call).text}
+    let item =
+        itemTree(db, file).items.get(index) ??
+            throw FixtureException("no item ${index} in the fixture")
+    expandedCalls(db, file)
+        .filter { call => call.item(db) == item.id }
+        .map { call => macroExpansion(db, call).text }
 }
 
 /**
@@ -37,7 +43,9 @@ class UnittestExpansionTest {
     @TestCase
     func aTestClassIsATestClassAndRegistered() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -47,7 +55,9 @@ class UnittestExpansionTest {
                 @TestCase
                 func t(): Unit {}
             }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [
@@ -65,7 +75,9 @@ class UnittestExpansionTest {
     @TestCase
     func aGenericTestClassKeepsItsTypeParametersAndConstraints() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -75,7 +87,9 @@ class UnittestExpansionTest {
             class C<T> where T <: ToString {
                 C() {}
             }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [
@@ -93,7 +107,9 @@ class UnittestExpansionTest {
     @TestCase
     func aTestClassMadeOfArgumentsAloneIsNotRegistered() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -102,7 +118,9 @@ class UnittestExpansionTest {
             class C {
                 init(x: Int64) {}
             }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, ["extend C <: TestClass {\n    public func asTestSuite(): TestSuite ${stubOf("@Test")}\n}\n"])
@@ -111,14 +129,18 @@ class UnittestExpansionTest {
     @TestCase
     func aTestTemplateIsATestClassNotRegistered() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @TestTemplate
             abstract class T {}
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, ["extend T <: TestClass {\n    public func asTestSuite(): TestSuite ${stubOf("@TestTemplate")}\n}\n"])
@@ -127,14 +149,18 @@ class UnittestExpansionTest {
     @TestCase
     func aTestFunctionGetsATestClassOfItsOwn() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @Test
             func f(): Unit {}
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [
@@ -152,14 +178,18 @@ class UnittestExpansionTest {
     @TestCase
     func aTestBuilderIsRegistered() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @TestBuilder
             func b(): TestSuite { TestSuite.builder("b").build() }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [
@@ -174,7 +204,9 @@ class UnittestExpansionTest {
     @TestCase
     func onlyTheOutermostOfTestAndTestBuilderRewritesTheItem() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -183,7 +215,9 @@ class UnittestExpansionTest {
             @TestBuilder
             @Test
             func b(): TestSuite { TestSuite.builder("b").build() }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts.size, 1)
@@ -193,14 +227,18 @@ class UnittestExpansionTest {
     @TestCase
     func aStrategyIsALetOfItsNameAndModifiers() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @Strategy[x in [1, 2]]
             public func strat(x: Int64): Array<Int64> { [x] }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, ["public let strat: DataStrategyProcessor<Array<Int64>>\n"])
@@ -209,14 +247,18 @@ class UnittestExpansionTest {
     @TestCase
     func aStrategyWithoutAReturnTypeIsALetOfNoType() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @Strategy
             func strat() { 1 }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, ["let strat\n"])
@@ -225,13 +267,17 @@ class UnittestExpansionTest {
     @TestCase
     func anOptionIsTheStructOfItsKey() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @UnittestOption[Int64, Array<String>](public zxc, "an option")
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [
@@ -248,13 +294,17 @@ class UnittestExpansionTest {
     @TestCase
     func anOptionNotPublicIsInternal() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @UnittestOption[Bool](opt)
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts.size, 1)
@@ -264,18 +314,26 @@ class UnittestExpansionTest {
     @TestCase
     func anOptionWithoutTypesOrANameDeclaresNothing() {
         // act
-        let noTypes = unittestExpansionsAt(#"
+        let noTypes =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @UnittestOption(opt)
-            "#, 0)
-        let noName = unittestExpansionsAt(#"
+            "#,
+                0
+            )
+        let noName =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @UnittestOption[Bool]("opt")
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(noTypes, [""])
@@ -285,7 +343,10 @@ class UnittestExpansionTest {
     @TestCase
     func packagesImportingEachOtherExpandBothNoCycleOfQueries() {
         // arrange - a cycle of plain imports (cjpm rejects it), each package with an expansion and an import of a name
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /a/a.cj module=m package=m.a
             package m.a
             import std.unittest.*
@@ -302,7 +363,8 @@ class UnittestExpansionTest {
             @UnittestOption[Int64](public b)
             @Test
             class B {}
-            "#)
+            "#
+                )
         let db = databaseWithUnittest(parsed)
         let a = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let pkg = packageOfFile(db, a).getOrThrow()
@@ -319,14 +381,18 @@ class UnittestExpansionTest {
     @TestCase
     func theFunctionAStrategyReplacesIsNoDeclarationOfThePackage() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @Strategy[x in [1, 2]]
             func strat(x: Int64): Int64 { x }
-            "#)
+            "#
+                )
         let db = databaseWithUnittest(parsed)
         let file = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let pkg = packageOfFile(db, file).getOrThrow()
@@ -348,7 +414,9 @@ class UnittestExpansionTest {
     @TestCase
     func aTestOfTheUserIsNotStds() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -358,7 +426,9 @@ class UnittestExpansionTest {
             macro package m.ms
             import std.ast.*
             public macro Test(input: Tokens): Tokens { input }
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [])
@@ -367,13 +437,17 @@ class UnittestExpansionTest {
     @TestCase
     func testNotImportedExpandsNothing() {
         // act
-        let texts = unittestExpansionsAt(#"
+        let texts =
+            unittestExpansionsAt(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             @Test
             class C {}
-            "#, 0)
+            "#,
+                0
+            )
 
         // assert
         @Expect(texts, [])
@@ -404,7 +478,8 @@ func checkInferenceWithUnittest(fixture: String): Unit {
 class UnittestInferenceTest {
     @TestCase
     func aTestClassIsATestClass() {
-        checkInferenceWithUnittest(#"
+        checkInferenceWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -424,14 +499,16 @@ class UnittestInferenceTest {
             }
             @Test
             func g(): Unit {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTestFileSeesStdUnittestAndItsMacrosUnimported() {
         // cjc 1.3.0-alpha.20261014 (D129): `--test` imports `std.unittest.*` and `std.unittest.testmacro.*` in every
         // file, which only a `*_test.cj` is compiled with
-        checkInferenceWithUnittest(#"
+        checkInferenceWithUnittest(
+            #"
             //- /m/src/a_test.cj module=m package=m
             package m
             open class Base <: Exception {}
@@ -457,13 +534,15 @@ class UnittestInferenceTest {
             }
             //- /m/src/a.cj module=m package=m
             package m
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFileNotATestOfAPackageWithTestsSeesNoneOfStdUnittest() {
         // cjc 1.3.0-alpha.20261014 (D129): `cjpm build` compiles it without `--test`: undeclared identifier 'Expect'
-        checkInferenceWithUnittest(#"
+        checkInferenceWithUnittest(
+            #"
             //- /m/src/a.cj module=m package=m
             package m
             @Test
@@ -479,12 +558,14 @@ class UnittestInferenceTest {
             }
             //- /m/src/a_test.cj module=m package=m
             package m
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOptionIsItsKey() {
-        checkInferenceWithUnittest(#"
+        checkInferenceWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -499,12 +580,14 @@ class UnittestInferenceTest {
                 let value = c.get(KeyZxc.zxc)
             //      ^^^^^ Option<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aStrategyIsAProcessorOfWhatItsFunctionReturns() {
-        checkInferenceWithUnittest(#"
+        checkInferenceWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -517,12 +600,14 @@ class UnittestInferenceTest {
                 let s = strat
             //      ^ DataStrategyProcessor<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theMacrosOfStdUnittestOnMembersAddNothingUnknown() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
@@ -542,12 +627,15 @@ class UnittestInferenceTest {
                 let n = c.nothing
             //          ^^^^^^^^^ error
             }
-            "#, binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"])
+            "#,
+            binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
+        )
     }
 
     @TestCase
     func theMacrosOfStdDerivingAddNothingUnknown() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             import std.deriving.*
             @Derive[Hashable]
@@ -561,12 +649,15 @@ class UnittestInferenceTest {
                 let n = s.nothing
             //          ^^^^^^^^^ error
             }
-            "#, binaries: ["std.core", "std.deriving"])
+            "#,
+            binaries: ["std.core", "std.deriving"]
+        )
     }
 
     @TestCase
     func aStrategyOnAMemberIsNotExpandedSoItsClassIsNotKnown() {
-        checkUnknowns(#"
+        checkUnknowns(
+            #"
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
@@ -579,12 +670,15 @@ class UnittestInferenceTest {
                 let n = c.nothing
             //          ^^^^^^^^^ todo(macro member)
             }
-            "#, binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"])
+            "#,
+            binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
+        )
     }
 
     @TestCase
     func theDeclarationsOfATestOfTheUserAreNotStds() {
-        checkInferenceWithUnittest(#"
+        checkInferenceWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -600,6 +694,7 @@ class UnittestInferenceTest {
             macro package m.ms
             import std.ast.*
             public macro Test(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 }

@@ -28,7 +28,8 @@ public class GreenToken<K> <: Equatable<GreenToken<K>> & Hashable & ToString whe
 
     @Frozen
     public operator func ==(other: GreenToken<K>): Bool {
-        refEq(this, other) || (structuralHash == other.structuralHash && kind == other.kind && text == other.text)
+        refEq(this, other) ||
+            (structuralHash == other.structuralHash && kind == other.kind && text == other.text)
     }
 
     @Frozen
@@ -76,7 +77,13 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
         kind = node.kind
     }
 
-    private init(elements: Array<GreenElement<K>>, offsets: Array<Int64>, textLen: Int64, structuralHash: Int64, kind: K) {
+    private init(
+        elements: Array<GreenElement<K>>,
+        offsets: Array<Int64>,
+        textLen: Int64,
+        structuralHash: Int64,
+        kind: K
+    ) {
         this.elements = elements
         this.offsets = offsets
         this.textLen = textLen
@@ -161,9 +168,15 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
      * A copy with children `start` up to, not including, `end` replaced by `replacement`.
      */
     @Frozen
-    public func spliceChildren(start: Int64, end: Int64, replacement: Array<GreenElement<K>>): GreenNode<K> {
+    public func spliceChildren(
+        start: Int64,
+        end: Int64,
+        replacement: Array<GreenElement<K>>
+    ): GreenNode<K> {
         if (start < 0 || end < start || end > elements.size) {
-            throw IndexOutOfBoundsException("Invalid child range ${start}..${end} of ${elements.size} children")
+            throw IndexOutOfBoundsException(
+                "Invalid child range ${start}..${end} of ${elements.size} children"
+            )
         }
         GreenNode<K>.measure(elements[..start].concat(replacement).concat(elements[end..]), kind)
     }
@@ -183,7 +196,10 @@ public class GreenNode<K> <: Equatable<GreenNode<K>> & Hashable & ToString where
         if (refEq(this, other)) {
             return true
         }
-        if (structuralHash != other.structuralHash || kind != other.kind || elements.size != other.elements.size) {
+        if (
+            structuralHash != other.structuralHash || kind != other.kind ||
+                elements.size != other.elements.size
+        ) {
             return false
         }
         for (i in 0..elements.size) {

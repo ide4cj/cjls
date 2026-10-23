@@ -7,7 +7,7 @@ import std.unittest.testmacro.*
  * The views `emitViews` makes of `names`, whitespace collapsed so that a test can look for a line in them.
  */
 func viewsOf(names: Names): String {
-    let lines = emitViews(names, "// header", "p").split("\n").map {l => l.trimAscii()}
+    let lines = emitViews(names, "// header", "p").split("\n").map { l => l.trimAscii() }
     String.join(lines, delimiter: "\n")
 }
 
@@ -67,7 +67,10 @@ class EmitTest {
     @TestCase
     func everyUnionHasUnknownAndReadsItsMembersByTag() {
         // act
-        let sut = viewsOf(namesOf("table T {}\nstruct S { x: int; }\nunion U { T, S, StringValue: string }"))
+        let sut =
+            viewsOf(
+                namesOf("table T {}\nstruct S { x: int; }\nunion U { T, S, StringValue: string }")
+            )
 
         // assert
         @Expect(sut.contains("| Unknown(UInt8)"))
@@ -91,10 +94,12 @@ class EmitTest {
     @TestCase
     func aTableReadsEachFieldByItsId() {
         // act
-        let sut = viewsOf(
-            namesOf(
-                "table T {}\nunion U { T }\nenum E : int { A = 2, B }\nstruct S { x: int; }\ntable X {\n  a: int = 5;\n  u: U;\n  e: E = B;\n  s: S;\n  t: T;\n  v: [S];\n  w: [string];\n  us: [U];\n}"
-            ))
+        let sut =
+            viewsOf(
+                namesOf(
+                    "table T {}\nunion U { T }\nenum E : int { A = 2, B }\nstruct S { x: int; }\ntable X {\n  a: int = 5;\n  u: U;\n  e: E = B;\n  s: S;\n  t: T;\n  v: [S];\n  w: [string];\n  us: [U];\n}"
+                )
+            )
 
         // assert
         @Expect(sut.contains("fb.scalar(0, 5, readInt32)"))
@@ -112,7 +117,10 @@ class EmitTest {
     @TestCase
     func aRequiredFieldIsNotOptionalAndADeprecatedOneIsLeftOut() {
         // act
-        let sut = viewsOf(namesOf("table X { name: string (required); old: int (deprecated); note: string; }"))
+        let sut =
+            viewsOf(
+                namesOf("table X { name: string (required); old: int (deprecated); note: string; }")
+            )
 
         // assert
         @Expect(sut.contains("public prop name: String {"))
@@ -135,7 +143,8 @@ class EmitTest {
     @TestCase
     func theRootTableHasItsFileIdentifierAndARoot() {
         // act
-        let sut = viewsOf(namesOf("file_identifier \"ABCD\";\ntable R {}\ntable X {}\nroot_type R;"))
+        let sut =
+            viewsOf(namesOf("file_identifier \"ABCD\";\ntable R {}\ntable X {}\nroot_type R;"))
 
         // assert
         @Expect(sut.contains("static const FILE_IDENTIFIER = \"ABCD\""))
@@ -175,11 +184,12 @@ class CodeWriterTest {
         let sut = CodeWriter()
 
         // act
-        sut.block("a") {
-            sut.line("b")
-            sut.blank()
-            sut.line("")
-        }
+        sut
+            .block("a") {
+                sut.line("b")
+                sut.blank()
+                sut.line("")
+            }
 
         // assert
         @Expect(sut.toString(), "a {\n    b\n\n\n}\n")

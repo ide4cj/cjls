@@ -20,7 +20,7 @@ extend Tree <: ToString {
 /** Values of every kind, up to 4 containers deep, their numbers and characters biased to the edges. */
 extend Tree <: Arbitrary<Tree> {
     public static func arbitrary(random: RandomSource): Generator<Tree> {
-        Generators.generate {generateTree(random, 0)}
+        Generators.generate { generateTree(random, 0) }
     }
 }
 
@@ -34,7 +34,7 @@ extend Tree <: Shrink<Tree> {
         }
         match (this) {
             case TObject(members) =>
-                smaller.add(all: members.map {m => m[1]})
+                smaller.add(all: members.map { m => m[1] })
                 for (i in 0..members.size) {
                     smaller.add(TObject(without(members, i)))
                 }
@@ -57,7 +57,7 @@ extend Tree <: Shrink<Tree> {
                         smaller.add(TArray(replaced(items, i, v)))
                     }
                 }
-            case TString(s) => smaller.add(all: shrinkString(s).map {t => TString(t)})
+            case TString(s) => smaller.add(all: shrinkString(s).map { t => TString(t) })
             case TInt(i) where i != 0 => smaller.add(all: [TInt(0), TInt(i / 2)])
             case TFloat(f) where f != 0.0 => smaller.add(all: [TFloat(0.0), TFloat(f / 2.0)])
             case TBool(true) => smaller.add(TBool(false))
@@ -84,18 +84,25 @@ func shrinkString(s: String): Array<String> {
         return []
     }
     let halves = [String(runes[0..runes.size / 2]), String(runes[runes.size / 2..])]
-    halves.concat(Array(runes.size) {i => String(without(runes, i))})
+    halves.concat(Array(runes.size) { i => String(without(runes, i)) })
 }
 
 func generateTree(random: RandomSource, depth: Int64): Tree {
-    let choice = if (depth >= 4) {
-        2 + random.nextInt64(5)
-    } else {
-        random.nextInt64(7)
-    }
+    let choice =
+        if (depth >= 4) {
+            2 + random.nextInt64(5)
+        } else {
+            random.nextInt64(7)
+        }
     match (choice) {
-        case 0 => TObject(Array(random.nextInt64(5)) {_ => (generateString(random), generateTree(random, depth + 1))})
-        case 1 => TArray(Array(random.nextInt64(5)) {_ => generateTree(random, depth + 1)})
+        case 0 =>
+            TObject(
+                Array(random.nextInt64(5)) {
+                    _ =>
+                    (generateString(random), generateTree(random, depth + 1))
+                }
+            )
+        case 1 => TArray(Array(random.nextInt64(5)) { _ => generateTree(random, depth + 1) })
         case 2 => TString(generateString(random))
         case 3 => TInt(random.suggestInt64())
         case 4 => TFloat(generateFloat(random))
@@ -106,36 +113,39 @@ func generateTree(random: RandomSource, depth: Int64): Tree {
 
 /** Characters from every range the reader and the writer treat apart: control, escaped, ASCII, 2, 3 and 4 bytes. */
 func generateString(random: RandomSource): String {
-    let runes = Array(random.nextInt64(12)) {
-        _: Int64 =>
-        let cp: UInt32 = match (random.nextInt64(7)) {
-            case 0 => random.nextUInt32(0x20)
-            case 1 => [0x22u32, 0x5Cu32, 0x2Fu32, 0x7Fu32][random.nextInt64(4)]
-            case 2 => 0x20 + random.nextUInt32(0x60)
-            case 3 => 0x80 + random.nextUInt32(0x780)
-            case 4 =>
-                let c = 0x800 + random.nextUInt32(0xF800)
-                if (c >= 0xD800 && c <= 0xDFFF) {
-                    0xFFFDu32
-                } else {
-                    c
+    let runes =
+        Array(random.nextInt64(12)) {
+            _: Int64 =>
+            let cp: UInt32 =
+                match (random.nextInt64(7)) {
+                    case 0 => random.nextUInt32(0x20)
+                    case 1 => [0x22u32, 0x5Cu32, 0x2Fu32, 0x7Fu32][random.nextInt64(4)]
+                    case 2 => 0x20 + random.nextUInt32(0x60)
+                    case 3 => 0x80 + random.nextUInt32(0x780)
+                    case 4 =>
+                        let c = 0x800 + random.nextUInt32(0xF800)
+                        if (c >= 0xD800 && c <= 0xDFFF) {
+                            0xFFFDu32
+                        } else {
+                            c
+                        }
+                    case 5 => 0x10000 + random.nextUInt32(0x100000)
+                    case _ => UInt32(random.suggestRune())
                 }
-            case 5 => 0x10000 + random.nextUInt32(0x100000)
-            case _ => UInt32(random.suggestRune())
+            Rune(cp)
         }
-        Rune(cp)
-    }
     String(runes)
 }
 
 /** A finite float, half of them the edge values `suggestFloat64` picks. */
 func generateFloat(random: RandomSource): Float64 {
     while (true) {
-        let f = if (random.nextBool()) {
-            random.suggestFloat64()
-        } else {
-            Float64.fromBits(random.nextUInt64())
-        }
+        let f =
+            if (random.nextBool()) {
+                random.suggestFloat64()
+            } else {
+                Float64.fromBits(random.nextUInt64())
+            }
         if (!f.isNaN() && !f.isInf()) {
             return f
         }
@@ -173,10 +183,11 @@ func fuzzSeeds(): Array<Array<Byte>> {
     if (let Some(seeds) <- fuzzSeedsRead) {
         return seeds
     }
-    let seeds = corpus("test_parsing", prefix: "y_")
-        .concat(corpus("test_parsing", prefix: "i_"))
-        .map {file => file[1]}
-        .filter {bytes => bytes.size <= 4096}
+    let seeds =
+        corpus("test_parsing", prefix: "y_")
+            .concat(corpus("test_parsing", prefix: "i_"))
+            .map { file => file[1] }
+            .filter { bytes => bytes.size <= 4096 }
     fuzzSeedsRead = seeds
     seeds
 }
@@ -205,13 +216,13 @@ struct Mutant <: ToString {
 extend Mutant <: Arbitrary<Mutant> {
     public static func arbitrary(random: RandomSource): Generator<Mutant> {
         let seeds = fuzzSeeds()
-        Generators.generate {mutate(seeds[random.nextInt64(seeds.size)], random)}
+        Generators.generate { mutate(seeds[random.nextInt64(seeds.size)], random) }
     }
 }
 
 extend Mutant <: Shrink<Mutant> {
     public func shrink(): Iterable<Mutant> {
-        bytes.shrink() |> map {b: Array<Byte> => Mutant(b)}
+        bytes.shrink() |> map { b: Array<Byte> => Mutant(b) }
     }
 }
 

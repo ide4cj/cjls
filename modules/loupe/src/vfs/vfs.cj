@@ -49,7 +49,7 @@ public class PathInterner {
      * @throws IndexOutOfBoundsException - if the id was not given here
      */
     public func path(id: FileId): VfsPath {
-        paths.getAt(id.index).getOrThrow {=> IndexOutOfBoundsException("no path has ${id}")}
+        paths.getAt(id.index).getOrThrow { => IndexOutOfBoundsException("no path has ${id}") }
     }
 }
 
@@ -97,7 +97,7 @@ public class Vfs {
      */
     public func fileId(path: VfsPath): ?FileId {
         let id = paths.lookup(path) ?? return None
-        fileContents(id).map {_ => id}
+        fileContents(id).map { _ => id }
     }
 
     /**
@@ -139,13 +139,14 @@ public class Vfs {
         while (contents.size <= id.index) {
             contents.add(None)
         }
-        let kind = match ((contents[id.index], text)) {
-            case (None, None) => return false
-            case (Some(old), Some(new)) where old == new => return false
-            case (None, Some(_)) => Create
-            case (Some(_), Some(_)) => Modify
-            case (Some(_), None) => Delete
-        }
+        let kind =
+            match ((contents[id.index], text)) {
+                case (None, None) => return false
+                case (Some(old), Some(new)) where old == new => return false
+                case (None, Some(_)) => Create
+                case (Some(_), Some(_)) => Modify
+                case (Some(_), None) => Delete
+            }
         contents[id.index] = text
         record(id, kind)
         true
@@ -157,7 +158,7 @@ public class Vfs {
      * counting from after the last change of each that came to nothing.
      */
     public func takeChanges(): Array<ChangedFile> {
-        let taken = changes.toArray().map {change => ChangedFile(change[0], change[1])}
+        let taken = changes.toArray().map { change => ChangedFile(change[0], change[1]) }
         changes.clear()
         taken
     }

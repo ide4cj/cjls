@@ -9,7 +9,8 @@ class CjEmitterTest {
     func aDocCommentLeavesBlankLinesWithoutTrailingSpace() {
         // arrange
         let dc = DocComment(lines: ["one", "two", "", "three"])
-        let expected = """
+        let expected =
+            """
 /**
  * one
  * two
@@ -19,7 +20,7 @@ class CjEmitterTest {
 """
 
         // act
-        let actual = emittedBy {emitter => emitter.emitln(dc)}
+        let actual = emittedBy { emitter => emitter.emitln(dc) }
 
         // assert
         @PowerAssert(expected, actual)

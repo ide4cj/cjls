@@ -40,16 +40,21 @@ public class MacroConnection {
      * @throws IOException - if writing to it fails
      */
     public func expand(call: MacroCallData): MacroResult {
-        writeMessage(output, MacroMsgData(content: MsgContentData.AsMultiCalls(MultiMacroCallsData(calls: [call]))).toBytes())
+        writeMessage(
+            output,
+            MacroMsgData(content: MsgContentData.AsMultiCalls(MultiMacroCallsData(calls: [call])))
+                .toBytes()
+        )
         let answer = readMessage(input) ?? throw MacroServerException("the server exited")
-        let result = try {
-            match (MacroMsg.root(answer).content) {
-                case Some(MsgContent.AsMacroResult(r)) => r
-                case _ => throw MacroServerException("the server answered with no MacroResult")
+        let result =
+            try {
+                match (MacroMsg.root(answer).content) {
+                    case Some(MsgContent.AsMacroResult(r)) => r
+                    case _ => throw MacroServerException("the server answered with no MacroResult")
+                }
+            } catch (e: FbException | IndexOutOfBoundsException) {
+                throw MacroServerException("the server's answer is broken: ${e.message}")
             }
-        } catch (e: FbException | IndexOutOfBoundsException) {
-            throw MacroServerException("the server's answer is broken: ${e.message}")
-        }
         writeMessage(output, exitTask(false))
         result
     }

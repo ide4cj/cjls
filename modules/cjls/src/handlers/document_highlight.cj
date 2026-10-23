@@ -11,16 +11,24 @@ import cjls.macros.LspHandler
  * neither; `null` for a name nothing resolves, or a document the server does not know.
  */
 @LspHandler[readonly]
-func handleDocumentHighlight(snap: ServerSnapshot, params: DocumentHighlightParams): Nullable<Array<DocumentHighlight>> {
+func handleDocumentHighlight(
+    snap: ServerSnapshot,
+    params: DocumentHighlightParams
+): Nullable<Array<DocumentHighlight>> {
     if (isExpandedDocument(params.textDocument.uri)) {
         let view = expandedViewOf(snap, params.textDocument.uri) ?? return Nullable.Null
         return highlightsInView(snap, view, params.position)
     }
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
-    let found = highlightRelated(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position))
+    let found =
+        highlightRelated(
+            snap.analysis,
+            file.fileId(snap.analysis),
+            offsetOf(snap, file, params.position)
+        )
     if (found.isEmpty()) {
         return Nullable.Null
     }
     let text = file.text(snap.analysis)
-    Nullable.Value(found.map {highlight => documentHighlight(text, highlight, snap.encoding)})
+    Nullable.Value(found.map { highlight => documentHighlight(text, highlight, snap.encoding) })
 }

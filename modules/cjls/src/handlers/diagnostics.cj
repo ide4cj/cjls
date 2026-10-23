@@ -13,15 +13,22 @@ import cjls.macros.LspHandler
  * the server's to answer (S5): the handler runs again on the files as they are then (D122).
  */
 @LspHandler[readonly]
-func handleDocumentDiagnostic(snap: ServerSnapshot, params: DocumentDiagnosticParams): DocumentDiagnosticReport {
+func handleDocumentDiagnostic(
+    snap: ServerSnapshot,
+    params: DocumentDiagnosticParams
+): DocumentDiagnosticReport {
     let items = documentDiagnostics(snap, VfsPath.fromUri(params.textDocument.uri))
     let resultId = resultIdOf(snap, items)
     if (params.previousResultId == Some(resultId)) {
-        return DocumentDiagnosticReport.AsRelatedUnchangedDocumentDiagnosticReport(
-            RelatedUnchangedDocumentDiagnosticReport(resultId: resultId))
+        return DocumentDiagnosticReport
+            .AsRelatedUnchangedDocumentDiagnosticReport(
+                RelatedUnchangedDocumentDiagnosticReport(resultId: resultId)
+            )
     }
-    DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
-        RelatedFullDocumentDiagnosticReport(resultId: resultId, items: items))
+    DocumentDiagnosticReport
+        .AsRelatedFullDocumentDiagnosticReport(
+            RelatedFullDocumentDiagnosticReport(resultId: resultId, items: items)
+        )
 }
 
 /**
@@ -45,5 +52,6 @@ func documentDiagnostics(snap: ServerSnapshot, path: VfsPath): Array<Diagnostic>
     }
     let file = snap.sourceFile(path) ?? return []
     let text = file.text(snap.analysis)
-    diagnostics(snap.analysis, file.fileId(snap.analysis)).map {it => diagnostic(text, it, snap.encoding)}
+    diagnostics(snap.analysis, file.fileId(snap.analysis))
+        .map { it => diagnostic(text, it, snap.encoding) }
 }

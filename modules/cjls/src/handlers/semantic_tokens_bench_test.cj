@@ -25,9 +25,20 @@ import cjls.lsp_types.*
 /**
  * The sources of `dir` but the tests, under `/<module>/…`, of the package `pkg`, as fixture files.
  */
-func tokensFixtureFiles(text: StringBuilder, module: String, deps: String, dir: Path, pkg: String): Unit {
-    let files = Directory.readFrom(dir).filter {info => info.isRegular() && info.name.endsWith(".cj") &&
-        !info.name.endsWith("_test.cj")}
+func tokensFixtureFiles(
+    text: StringBuilder,
+    module: String,
+    deps: String,
+    dir: Path,
+    pkg: String
+): Unit {
+    let files =
+        Directory
+            .readFrom(dir)
+            .filter {
+                info =>
+                info.isRegular() && info.name.endsWith(".cj") && !info.name.endsWith("_test.cj")
+            }
     for (info in files) {
         text.append("//- /${module}/${pkg}/${info.name} module=${module} package=${pkg}${deps}\n")
         text.append(String.fromUtf8(File.readFrom(info.path)))
@@ -46,20 +57,30 @@ func tokensDelta(old: Array<UInt32>, new: Array<UInt32>): Array<SemanticTokensEd
     }
     prefix -= prefix % 5
     var suffix = 0
-    while (suffix < old.size - prefix && suffix < new.size - prefix &&
-        old[old.size - 1 - suffix] == new[new.size - 1 - suffix]) {
+    while (
+        suffix < old.size - prefix && suffix < new.size - prefix &&
+            old[old.size - 1 - suffix] == new[new.size - 1 - suffix]
+    ) {
         suffix++
     }
     suffix -= suffix % 5
     if (prefix == old.size && prefix == new.size) {
         return []
     }
-    [SemanticTokensEdit(start: UInt32(prefix), deleteCount: UInt32(old.size - prefix - suffix),
-        data: new[prefix..new.size - suffix])]
+    [
+        SemanticTokensEdit(
+            start: UInt32(prefix),
+            deleteCount: UInt32(old.size - prefix - suffix),
+            data: new[prefix..new.size - suffix]
+        )
+    ]
 }
 
 func tokensResponse(result: RawJson): Array<Byte> {
-    toJsonBytes(ResponseBody(Nullable.Value(IntegerOrString.Integer(7)), ResultOrError.Result(result)).enveloped())
+    toJsonBytes(
+        ResponseBody(Nullable.Value(IntegerOrString.Integer(7)), ResultOrError.Result(result))
+            .enveloped()
+    )
 }
 
 class SemanticTokensBenchState {
@@ -77,13 +98,28 @@ class SemanticTokensBenchState {
     init() {
         let text = StringBuilder()
         tokensFixtureFiles(text, "ginkgo", "", Path("modules/ginkgo/src"), "ginkgo")
-        tokensFixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src"), "cjsyntax")
-        tokensFixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src/ast"), "cjsyntax.ast")
+        tokensFixtureFiles(
+            text,
+            "cjsyntax",
+            " deps=ginkgo",
+            Path("modules/cjsyntax/src"),
+            "cjsyntax"
+        )
+        tokensFixtureFiles(
+            text,
+            "cjsyntax",
+            " deps=ginkgo",
+            Path("modules/cjsyntax/src/ast"),
+            "cjsyntax.ast"
+        )
         let fixture = Fixture.parse(text.toString())
         nodesFile = fixture.file("/cjsyntax/cjsyntax.ast/nodes.cj").fileId
-        db = fixture.database(binaries: ["std.core", "std.collection"].map {
-            name => stdCjoRead(name, stdCjo(name))
-        })
+        db =
+            fixture
+                .database(
+                    binaries: ["std.core", "std.collection"]
+                        .map { name => stdCjoRead(name, stdCjo(name)) }
+                )
         let source = db.sourceFile(nodesFile).getOrThrow().text(db).toString()
         let at = source.lastIndexOf("\n    }\n").getOrThrow()
         texts = [source, source[..at] + " " + source[at..]]
@@ -151,8 +187,17 @@ class SemanticTokensBench {
             hasher.write(value)
         }
         let resultId = "${hasher.finish()}"
-        let delta = SemanticTokensDelta(resultId: resultId, edits: tokensDelta(state.before.data, state.after.data))
-        tokensResponse(SemanticTokensDeltaRequestSpec().encodeResult(
-            Nullable.Value(SemanticTokensOrSemanticTokensDelta.AsSemanticTokensDelta(delta)))).size
+        let delta =
+            SemanticTokensDelta(
+                resultId: resultId,
+                edits: tokensDelta(state.before.data, state.after.data)
+            )
+        tokensResponse(
+            SemanticTokensDeltaRequestSpec()
+                .encodeResult(
+                    Nullable.Value(SemanticTokensOrSemanticTokensDelta.AsSemanticTokensDelta(delta))
+                )
+        )
+            .size
     }
 }

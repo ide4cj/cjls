@@ -54,26 +54,38 @@ class DeclShape {
      */
     static func of(decl: Decl, derive: String): ?DeclShape {
         if (let enumDecl: EnumDecl <- decl) {
-            let variants = enumDecl.constructors.toArray().map {
-                ctor => DeclVariant(
-                    ident: ctor.identifier,
-                    payloadTypes: ctor.typeArguments.toArray().map {payloadType => payloadType.toTokens()}
-                )
-            }
+            let variants =
+                enumDecl
+                    .constructors
+                    .toArray()
+                    .map {
+                        ctor =>
+                        DeclVariant(
+                            ident: ctor.identifier,
+                            payloadTypes: ctor
+                                .typeArguments
+                                .toArray()
+                                .map { payloadType => payloadType.toTokens() }
+                        )
+                    }
             return DeclShape(decl: decl, kind: IsEnum, fields: None, variants: variants)
         }
-        let kind = if (decl is StructDecl) {
-            IsStruct
-        } else if (decl is ClassDecl) {
-            IsClass
-        } else {
-            report(decl, "`@DeriveExt[${derive}]` only derives for a `struct`, a `class` or an `enum`",
-                "hand-write it for anything else")
-            return None
-        }
-        let fields = primaryCtorOf(decl).map {
-            ctor => ctor.funcParams.toArray().map {param => fieldOf(param)}
-        }
+        let kind =
+            if (decl is StructDecl) {
+                IsStruct
+            } else if (decl is ClassDecl) {
+                IsClass
+            } else {
+                report(
+                    decl,
+                    "`@DeriveExt[${derive}]` only derives for a `struct`, a `class` or an `enum`",
+                    "hand-write it for anything else"
+                )
+                return None
+            }
+        let fields =
+            primaryCtorOf(decl)
+                .map { ctor => ctor.funcParams.toArray().map { param => fieldOf(param) } }
 
         DeclShape(decl: decl, kind: kind, fields: fields, variants: [])
     }
@@ -86,8 +98,10 @@ private func fieldOf(param: FuncParam): DeclField {
     DeclField(
         ident: param.identifier,
         fieldType: param.paramType.toTokens(),
-        isMember: head.map {token => token.kind == TokenKind.LET || token.kind == TokenKind.VAR} ?? false,
-        isMutable: head.map {token => token.kind == TokenKind.VAR} ?? false,
+        isMember: head
+            .map { token => token.kind == TokenKind.LET || token.kind == TokenKind.VAR } ??
+            false,
+        isMutable: head.map { token => token.kind == TokenKind.VAR } ?? false,
         isNamed: isNamedParam(tokens),
         tokens: tokens
     )
@@ -137,7 +151,12 @@ func whereClauseOf(decl: Decl, bound: (String) -> String): Tokens {
 /**
  * `extend<T> Name<T> <: Interface where ... { body }` - every derivation ends in one.
  */
-func extensionOf(decl: Decl, interfaceType: Tokens, bound: (String) -> String, body: Tokens): Tokens {
+func extensionOf(
+    decl: Decl,
+    interfaceType: Tokens,
+    bound: (String) -> String,
+    body: Tokens
+): Tokens {
     let typeIdent = decl.identifier
     let typeArgs = typeArgsOf(decl)
     let whereClause = whereClauseOf(decl, bound)

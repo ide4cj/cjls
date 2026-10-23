@@ -22,9 +22,12 @@ public enum PackageRef {
  */
 public func filesOf(db: AnalysisDatabase, pkg: PackageRef): Array<ItemFile> {
     match (pkg) {
-        case Source(source) => source.files(db) |> filterMap {fileId => db.sourceFile(fileId)} |>
-            map {file => ItemFile.Source(file)} |> collectArray
-        case Binary(binary) => Array(binaryItemTrees(db, binary).size) {index => ItemFile.Binary(binary, index)}
+        case Source(source) =>
+            source.files(db) |> filterMap { fileId => db.sourceFile(fileId) } |>
+                map { file => ItemFile.Source(file) } |>
+                collectArray
+        case Binary(binary) =>
+            Array(binaryItemTrees(db, binary).size) { index => ItemFile.Binary(binary, index) }
     }
 }
 
@@ -120,11 +123,13 @@ public struct DefMap {
      * tell apart (N26). Empty if neither has it.
      */
     public func lookUp(db: AnalysisDatabase, name: String, from!: ItemFile): Array<DefId> {
-        let seen = (names.get(name) ?? []).filter {def => def.visibility != Visibility.Private || def.id.file(db) == from}
+        let seen =
+            (names.get(name) ?? [])
+                .filter { def => def.visibility != Visibility.Private || def.id.file(db) == from }
         if (seen.isEmpty()) {
-            (ctors.get(name) ?? []).map {def => def.id}
+            (ctors.get(name) ?? []).map { def => def.id }
         } else {
-            seen.map {def => def.id}
+            seen.map { def => def.id }
         }
     }
 }
@@ -157,14 +162,24 @@ public func collectDefMap(db: AnalysisDatabase, files: Array<(ItemFile, ItemTree
                     continue
                 }
                 let taken = entryOf(names, name)
-                if (!taken.isEmpty() && (item.kind != ItemKind.Func || taken.iterator().any {t => t[1] != ItemKind.Func})) {
+                if (
+                    !taken.isEmpty() &&
+                        (
+                            item.kind != ItemKind.Func ||
+                                taken.iterator().any { t => t[1] != ItemKind.Func }
+                        )
+                ) {
                     errors.add(Redefinition(def.id, name))
                 }
                 taken.add((def, item.kind))
             }
             // an enum's constructors are seen as the enum is: they take no modifiers of their own
-            let completed = item.has(Modifier.Common) &&
-                item.names.iterator().any {name => specifics.contains(platformKey(name, item.kind))}
+            let completed =
+                item.has(Modifier.Common) &&
+                    item
+                        .names
+                        .iterator()
+                        .any { name => specifics.contains(platformKey(name, item.kind)) }
             for (ctor in item.members where ctor.kind == ItemKind.EnumCtor && !completed) {
                 for (name in ctor.names) {
                     entryOf(ctors, name).add(Def(DefId(db, file, ctor.id), def.visibility))
@@ -172,8 +187,12 @@ public func collectDefMap(db: AnalysisDatabase, files: Array<(ItemFile, ItemTree
             }
         }
     }
-    DefMap(frozen(names) {taken => taken.toArray().map {t => t[0]}}, frozen(ctors) {defs => defs.toArray()}, errors.toArray(),
-        commons: frozen(commons) {defs => defs.toArray()})
+    DefMap(
+        frozen(names) { taken => taken.toArray().map { t => t[0] } },
+        frozen(ctors) { defs => defs.toArray() },
+        errors.toArray(),
+        commons: frozen(commons) { defs => defs.toArray() }
+    )
 }
 
 /**
@@ -198,8 +217,11 @@ func entryOf<V>(map: IndexMap<String, ArrayList<V>>, key: String): ArrayList<V> 
 /**
  * `map` with each list made an array by `toArray`, in the same order.
  */
-func frozen<V, R>(map: IndexMap<String, ArrayList<V>>, toArray: (ArrayList<V>) -> Array<R>): IndexMap<String, Array<R>> {
-    IndexMap<String, Array<R>>(map.toArray().map {entry => (entry[0], toArray(entry[1]))})
+func frozen<V, R>(
+    map: IndexMap<String, ArrayList<V>>,
+    toArray: (ArrayList<V>) -> Array<R>
+): IndexMap<String, Array<R>> {
+    IndexMap<String, Array<R>>(map.toArray().map { entry => (entry[0], toArray(entry[1])) })
 }
 
 /**
@@ -233,7 +255,7 @@ public func defMapAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): 
     }
     let files = filesOf(db, pkg)
     if (stage == ScopeStage.Written) {
-        return collectDefMap(db, files.map {file => (file, itemTreeOf(db, file))})
+        return collectDefMap(db, files.map { file => (file, itemTreeOf(db, file)) })
     }
     let trees = ArrayList<(ItemFile, ItemTree)>()
     for (file in files) {
@@ -243,10 +265,19 @@ public func defMapAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): 
         if (replaced.isEmpty()) {
             trees.add((file, tree))
         } else {
-            trees.add((file, ItemTree(packageHeader: tree.packageHeader, imports: tree.imports,
-                items: tree.items.filter {item => !replaced.contains(item.id)})))
+            trees
+                .add(
+                    (
+                        file,
+                        ItemTree(
+                            packageHeader: tree.packageHeader,
+                            imports: tree.imports,
+                            items: tree.items.filter { item => !replaced.contains(item.id) }
+                        )
+                    )
+                )
         }
-        trees.add(all: expansions.map {one => (one, itemTreeOf(db, one))})
+        trees.add(all: expansions.map { one => (one, itemTreeOf(db, one)) })
     }
     collectDefMap(db, trees.toArray())
 }

@@ -25,7 +25,13 @@ class ArgumentsTest {
         let file = SourceFile(db, "a.cj", "hello")
 
         // act
-        let results = [slice(db, file, 0, 2), slice(db, file, 0, 2), slice(db, file, 1, 3), slice(db, file, 0, 3)]
+        let results =
+            [
+                slice(db, file, 0, 2),
+                slice(db, file, 0, 2),
+                slice(db, file, 1, 3),
+                slice(db, file, 0, 3)
+            ]
 
         // assert
         @Expect(results, ["he", "he", "el", "hel"])

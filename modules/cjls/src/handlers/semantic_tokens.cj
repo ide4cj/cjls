@@ -11,21 +11,44 @@ import cjls.macros.LspHandler
  * does not know. All of it every time: no `full/delta` (D136).
  */
 @LspHandler[readonly]
-func handleSemanticTokensFull(snap: ServerSnapshot, params: SemanticTokensParams): Nullable<SemanticTokens> {
+func handleSemanticTokensFull(
+    snap: ServerSnapshot,
+    params: SemanticTokensParams
+): Nullable<SemanticTokens> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
     let tokens = highlight(snap.analysis, file.fileId(snap.analysis))
-    Nullable.Value(semanticTokens(text, overSyntax(tokens, snap.augmentsSyntaxTokens), snap.encoding, snap.multilineTokens))
+    Nullable
+        .Value(
+            semanticTokens(
+                text,
+                overSyntax(tokens, snap.augmentsSyntaxTokens),
+                snap.encoding,
+                snap.multilineTokens
+            )
+        )
 }
 
 /**
  * The same, for the tokens a range of the document holds, even partly: what an editor shows.
  */
 @LspHandler[readonly]
-func handleSemanticTokensRange(snap: ServerSnapshot, params: SemanticTokensRangeParams): Nullable<SemanticTokens> {
+func handleSemanticTokensRange(
+    snap: ServerSnapshot,
+    params: SemanticTokensRangeParams
+): Nullable<SemanticTokens> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
-    let range = TextRange(offsetOf(snap, file, params.range.start), offsetOf(snap, file, params.range.end))
+    let range =
+        TextRange(offsetOf(snap, file, params.range.start), offsetOf(snap, file, params.range.end))
     let tokens = highlight(snap.analysis, file.fileId(snap.analysis), range: range)
-    Nullable.Value(semanticTokens(text, overSyntax(tokens, snap.augmentsSyntaxTokens), snap.encoding, snap.multilineTokens))
+    Nullable
+        .Value(
+            semanticTokens(
+                text,
+                overSyntax(tokens, snap.augmentsSyntaxTokens),
+                snap.encoding,
+                snap.multilineTokens
+            )
+        )
 }

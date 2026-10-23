@@ -15,7 +15,10 @@ public struct LocalDate <: ToString {
      * @throws IllegalArgumentException - if there is no such day
      */
     public LocalDate(public let year: Int64, public let month: Int64, public let day: Int64) {
-        if (year < 0 || year > 9999 || month < 1 || month > 12 || day < 1 || day > daysIn(year, month)) {
+        if (
+            year < 0 || year > 9999 || month < 1 || month > 12 || day < 1 ||
+                day > daysIn(year, month)
+        ) {
             throw IllegalArgumentException("no such date: ${year}-${month}-${day}")
         }
     }
@@ -47,9 +50,14 @@ public struct LocalTime <: ToString {
         public let second!: Int64 = 0,
         public let nanosecond!: Int64 = 0
     ) {
-        if (hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 60 || nanosecond < 0 ||
-            nanosecond > 999_999_999) {
-            throw IllegalArgumentException("no such time: ${hour}:${minute}:${second}.${nanosecond}")
+        if (
+            hour < 0 || hour > 23 || minute < 0 || minute > 59 || second < 0 || second > 60 ||
+                nanosecond < 0 ||
+                nanosecond > 999_999_999
+        ) {
+            throw IllegalArgumentException(
+                "no such time: ${hour}:${minute}:${second}.${nanosecond}"
+            )
         }
     }
 
@@ -123,8 +131,18 @@ public struct OffsetDateTime <: ToString {
         if (offsetMinutes == 0) {
             return "${dateTime}Z"
         }
-        let sign = if (offsetMinutes < 0) { "-" } else { "+" }
-        let magnitude = if (offsetMinutes < 0) { -offsetMinutes } else { offsetMinutes }
+        let sign =
+            if (offsetMinutes < 0) {
+                "-"
+            } else {
+                "+"
+            }
+        let magnitude =
+            if (offsetMinutes < 0) {
+                -offsetMinutes
+            } else {
+                offsetMinutes
+            }
         "${dateTime}${sign}${pad(magnitude / 60, 2)}:${pad(magnitude % 60, 2)}"
     }
 }
@@ -135,7 +153,12 @@ func isLeapYear(year: Int64): Bool {
 
 func daysIn(year: Int64, month: Int64): Int64 {
     match (month) {
-        case 2 => if (isLeapYear(year)) { 29 } else { 28 }
+        case 2 =>
+            if (isLeapYear(year)) {
+                29
+            } else {
+                28
+            }
         case 4 | 6 | 9 | 11 => 30
         case _ => 31
     }
@@ -151,7 +174,10 @@ private func pad(value: Int64, width: Int64): String {
 }
 
 private func parseWhole(text: String): FtData {
-    let bytes = unsafe { text.rawData() }
+    let bytes =
+        unsafe {
+            text.rawData()
+        }
     try {
         let (data, end) = scanDateTime(bytes, 0, bytes.size)
         if (end != bytes.size) {
@@ -169,7 +195,8 @@ func isDigit(b: Byte): Bool {
 
 /** Whether a date starts at `at`: four digits and a `-`. */
 func isDateAt(bytes: Array<Byte>, at: Int64, end: Int64): Bool {
-    at + 4 < end && isDigit(bytes[at]) && isDigit(bytes[at + 1]) && isDigit(bytes[at + 2]) && isDigit(bytes[at + 3]) &&
+    at + 4 < end && isDigit(bytes[at]) && isDigit(bytes[at + 1]) && isDigit(bytes[at + 2]) &&
+        isDigit(bytes[at + 3]) &&
         bytes[at + 4] == 0x2D
 }
 
@@ -203,9 +230,12 @@ func scanDateTime(bytes: Array<Byte>, at: Int64, end: Int64): (FtData, Int64) {
         return (AsLocalTime(time), past)
     }
     let (date, afterDate) = scanDate(bytes, at, end)
-    let separated = afterDate < end &&
-        (bytes[afterDate] == 0x54 || bytes[afterDate] == 0x74 ||
-            (bytes[afterDate] == 0x20 && isTimeAt(bytes, afterDate + 1, end)))
+    let separated =
+        afterDate < end &&
+            (
+                bytes[afterDate] == 0x54 || bytes[afterDate] == 0x74 ||
+                    (bytes[afterDate] == 0x20 && isTimeAt(bytes, afterDate + 1, end))
+            )
     if (!separated) {
         return (AsLocalDate(date), afterDate)
     }
@@ -223,7 +253,12 @@ func scanDateTime(bytes: Array<Byte>, at: Int64, end: Int64): (FtData, Int64) {
             if (hours > 23 || minutes > 59) {
                 throw FtException("no such offset", afterTime)
             }
-            let offset = if (bytes[afterTime] == 0x2D) { -(hours * 60 + minutes) } else { hours * 60 + minutes }
+            let offset =
+                if (bytes[afterTime] == 0x2D) {
+                    -(hours * 60 + minutes)
+                } else {
+                    hours * 60 + minutes
+                }
             (AsOffsetDateTime(OffsetDateTime(dateTime, offset)), afterTime + 6)
         case _ => (AsLocalDateTime(dateTime), afterTime)
     }

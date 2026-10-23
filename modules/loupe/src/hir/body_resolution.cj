@@ -75,7 +75,12 @@ func sourceOf(db: AnalysisDatabase, def: DefId): ?(Package, SourceFile) {
  * The constructors named `name` a pattern of `file` of `pkg` may mean: those of the enums of the
  * package, and of those any of its files imports (N72, N73), as `file` sees them (`ctorImportsOf`).
  */
-public func ctorsNamed(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String): Array<DefId> {
+public func ctorsNamed(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile,
+    name: String
+): Array<DefId> {
     packageCtorsNamed(db, pkg, isTestOf(db, pkg, file), name)
 }
 
@@ -85,7 +90,12 @@ public func ctorsNamed(db: AnalysisDatabase, pkg: Package, file: SourceFile, nam
  * only what read a name it changes.
  */
 @CalcaTracked
-public func packageCtorsNamed(db: AnalysisDatabase, pkg: Package, ofTests: Bool, name: String): Array<DefId> {
+public func packageCtorsNamed(
+    db: AnalysisDatabase,
+    pkg: Package,
+    ofTests: Bool,
+    name: String
+): Array<DefId> {
     let found = ArrayList<DefId>()
     for (def in defMap(db, PackageRef.Source(pkg)).ctors.get(name) ?? []) {
         found.add(def.id)
@@ -103,19 +113,29 @@ public func packageCtorsNamed(db: AnalysisDatabase, pkg: Package, ofTests: Bool,
  * is in; that type's type parameters; the file's scope (N60–N63, N69, N70, N74). A pattern's lone
  * name is no local if a constructor has it (N72).
  */
-public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, name: String): BodyResolution {
+public func resolveBodyName(
+    db: AnalysisDatabase,
+    def: DefId,
+    scope: ?ScopeId,
+    name: String
+): BodyResolution {
     let (pkg, file) = sourceOf(db, def) ?? return BodyResolution.InFile(Resolution.NotFound)
     let lowered = body(db, def)
     let scopes = exprScopes(db, def)
     let funcs = ArrayList<ValueTarget>()
     // what is no function decides, but for the functions found before it
-    let settle = {
-        target: ValueTarget => BodyResolution.Values(if (funcs.isEmpty()) {
-            [target]
-        } else {
-            funcs.toArray()
-        })
-    }
+    let settle =
+        {
+            target: ValueTarget =>
+            BodyResolution
+                .Values(
+                    if (funcs.isEmpty()) {
+                        [target]
+                    } else {
+                        funcs.toArray()
+                    }
+                )
+        }
     var isCtor: ?Bool = None
     for (one in scopes.chain(scope)) {
         for (local in scopes[one].entries where lowered[local].name == name) {
@@ -144,9 +164,9 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
     }
     let members = membersNamed(db, def, name)
     if (!members.isEmpty()) {
-        let nonFuncs = members.iterator().any {member => !isFuncMember(db, member)}
+        let nonFuncs = members.iterator().any { member => !isFuncMember(db, member) }
         if (funcs.isEmpty() && nonFuncs) {
-            return BodyResolution.Values(members.map {member => ValueTarget.MemberOf(member)})
+            return BodyResolution.Values(members.map { member => ValueTarget.MemberOf(member) })
         }
         for (member in members where isFuncMember(db, member)) {
             funcs.add(ValueTarget.MemberOf(member))
@@ -167,7 +187,9 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
     }
     // the file's functions join those found; anything else there (a variable, an ambiguity, nothing)
     // stops them, as a variable of a nearer level does (N63)
-    if (let Found(ids) <- inFile && ids.iterator().all {id => id.item(db).kind == ItemKind.Func}) {
+    if (
+        let Found(ids) <- inFile && ids.iterator().all { id => id.item(db).kind == ItemKind.Func }
+    ) {
         for (id in ids) {
             funcs.add(ValueTarget.DeclOf(id))
         }
@@ -180,8 +202,13 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
  * parameter of a function the body declares around it, the innermost first (N68), else as in the
  * signature of `def` (`resolveTypePath`).
  */
-public func resolveBodyTypePath(db: AnalysisDatabase, def: DefId, ty: TypeRefId, path: Array<String>): Array<PathResolution> {
-    let scope = typeScopeOf(db, def) ?? return path.map {_ => PathResolution.UnresolvedPath}
+public func resolveBodyTypePath(
+    db: AnalysisDatabase,
+    def: DefId,
+    ty: TypeRefId,
+    path: Array<String>
+): Array<PathResolution> {
+    let scope = typeScopeOf(db, def) ?? return path.map { _ => PathResolution.UnresolvedPath }
     if (path.size == 1) {
         let scopes = exprScopes(db, def)
         for (one in scopes.chain(scopes.scopeOfType(ty))) {

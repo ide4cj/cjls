@@ -23,12 +23,18 @@ let THREE_DOCUMENTS: Array<(VfsPath, Int32)> = [(FIRST_PATH, 1), (SECOND_PATH, 1
  * One diagnostic, its message the document's text as the snapshot has it.
  */
 func textAsDiagnostic(snap: ServerSnapshot, path: VfsPath): Array<Diagnostic> {
-    let text = match (snap.sourceFile(path)) {
-        case Some(file) => file.text(snap.analysis).toString()
-        case None => ""
-    }
+    let text =
+        match (snap.sourceFile(path)) {
+            case Some(file) => file.text(snap.analysis).toString()
+            case None => ""
+        }
     let start = Position(line: 0, character: 0)
-    [Diagnostic(range: LspRange(start: start, end: start), message: StringOrMarkupContent.AsString(text))]
+    [
+        Diagnostic(
+            range: LspRange(start: start, end: start),
+            message: StringOrMarkupContent.AsString(text)
+        )
+    ]
 }
 
 func messageOf(diagnostic: Diagnostic): String {
@@ -112,13 +118,19 @@ class DiagnosticsPushTest {
         let state = stateWith("a")
         let overflows = AtomicBool(true)
         let transport = WrittenTransport()
-        let push = DiagnosticsPush({
-            snap, path => if (overflows.swap(false)) {
-                overflowTheStack()
-            } else {
-                textAsDiagnostic(snap, path)
-            }
-        }, clientOn(transport), NoopLogger())
+        let push =
+            DiagnosticsPush(
+                {
+                    snap, path =>
+                    if (overflows.swap(false)) {
+                        overflowTheStack()
+                    } else {
+                        textAsDiagnostic(snap, path)
+                    }
+                },
+                clientOn(transport),
+                NoopLogger()
+            )
 
         // act - `get` rethrows what the `spawn` let escape
         push.schedule(state.snapshot(), [(PUSHED_PATH, 1)]).get()
@@ -133,13 +145,19 @@ class DiagnosticsPushTest {
     func aDocumentWhoseDiagnosticsThrowDoesNotStopTheOnesAfterIt() {
         // arrange
         let transport = WrittenTransport()
-        let push = DiagnosticsPush({
-            snap, path => if (path == SECOND_PATH) {
-                throw Exception("a query failed")
-            } else {
-                textAsDiagnostic(snap, path)
-            }
-        }, clientOn(transport), NoopLogger())
+        let push =
+            DiagnosticsPush(
+                {
+                    snap, path =>
+                    if (path == SECOND_PATH) {
+                        throw Exception("a query failed")
+                    } else {
+                        textAsDiagnostic(snap, path)
+                    }
+                },
+                clientOn(transport),
+                NoopLogger()
+            )
 
         // act
         push.schedule(ServerState().snapshot(), THREE_DOCUMENTS).get()
@@ -156,13 +174,19 @@ class DiagnosticsPushTest {
     func aDocumentWhoseDiagnosticsOverflowTheStackDoesNotStopTheOnesAfterIt() {
         // arrange
         let transport = WrittenTransport()
-        let push = DiagnosticsPush({
-            snap, path => if (path == SECOND_PATH) {
-                overflowTheStack()
-            } else {
-                textAsDiagnostic(snap, path)
-            }
-        }, clientOn(transport), NoopLogger())
+        let push =
+            DiagnosticsPush(
+                {
+                    snap, path =>
+                    if (path == SECOND_PATH) {
+                        overflowTheStack()
+                    } else {
+                        textAsDiagnostic(snap, path)
+                    }
+                },
+                clientOn(transport),
+                NoopLogger()
+            )
 
         // act
         push.schedule(ServerState().snapshot(), THREE_DOCUMENTS).get()
@@ -180,14 +204,20 @@ class DiagnosticsPushTest {
         // arrange - the second document's diagnostics change a file under the snapshot, then query it
         let state = stateWith("a")
         let transport = WrittenTransport()
-        let push = DiagnosticsPush({
-            snap, path => if (path == SECOND_PATH) {
-                state.setFileContents(PUSHED_PATH, Rope("b"))
-                textAsDiagnostic(snap, PUSHED_PATH)
-            } else {
-                textAsDiagnostic(snap, path)
-            }
-        }, clientOn(transport), NoopLogger())
+        let push =
+            DiagnosticsPush(
+                {
+                    snap, path =>
+                    if (path == SECOND_PATH) {
+                        state.setFileContents(PUSHED_PATH, Rope("b"))
+                        textAsDiagnostic(snap, PUSHED_PATH)
+                    } else {
+                        textAsDiagnostic(snap, path)
+                    }
+                },
+                clientOn(transport),
+                NoopLogger()
+            )
 
         // act
         push.schedule(state.snapshot(), THREE_DOCUMENTS).get()
@@ -206,34 +236,43 @@ class DiagnosticsPushTest {
 func pushingServer(transport: WrittenTransport, pushes: Bool): Server {
     let state = ServerState()
     state.pushesDiagnostics = pushes
-    initialized(lifecycleRouter()
-        .withState(state)
-        .route(DidOpenTextDocumentNotificationSpec()) {
-            ctx: Context<DidOpenTextDocumentParams> =>
-            let path = VfsPath.fromUri(ctx.params.textDocument.uri)
-            ctx.state.openDocuments.add(path, ctx.params.textDocument.version)
-            ctx.state.setFileContents(path, Rope(ctx.params.textDocument.text))
-        }
-        .route(DidCloseTextDocumentNotificationSpec()) {
-            ctx: Context<DidCloseTextDocumentParams> =>
-            let path = VfsPath.fromUri(ctx.params.textDocument.uri)
-            ctx.state.openDocuments.remove(path)
-            ctx.state.setFileContents(path, Option<Rope>.None)
-        }
-        .publishDiagnostics(textAsDiagnostic), client: clientOn(transport))
+    initialized(
+        lifecycleRouter()
+            .withState(state)
+            .route(DidOpenTextDocumentNotificationSpec()) {
+                ctx: Context<DidOpenTextDocumentParams> =>
+                let path = VfsPath.fromUri(ctx.params.textDocument.uri)
+                ctx.state.openDocuments.add(path, ctx.params.textDocument.version)
+                ctx.state.setFileContents(path, Rope(ctx.params.textDocument.text))
+            }
+            .route(DidCloseTextDocumentNotificationSpec()) {
+                ctx: Context<DidCloseTextDocumentParams> =>
+                let path = VfsPath.fromUri(ctx.params.textDocument.uri)
+                ctx.state.openDocuments.remove(path)
+                ctx.state.setFileContents(path, Option<Rope>.None)
+            }
+            .publishDiagnostics(textAsDiagnostic),
+        client: clientOn(transport)
+    )
 }
 
 func open(server: Server, text: String): Unit {
-    let params = DidOpenTextDocumentParams(textDocument: TextDocumentItem(uri: PUSHED_PATH.toUri(),
-        languageId: LanguageKind("cangjie"), version: 7, text: text))
-    server.onNotification(DidOpenTextDocumentNotificationSpec.METHOD,
-        RawJson.of(params))
+    let params =
+        DidOpenTextDocumentParams(
+            textDocument: TextDocumentItem(
+                uri: PUSHED_PATH.toUri(),
+                languageId: LanguageKind("cangjie"),
+                version: 7,
+                text: text
+            )
+        )
+    server.onNotification(DidOpenTextDocumentNotificationSpec.METHOD, RawJson.of(params))
 }
 
 func close(server: Server): Unit {
-    let params = DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: PUSHED_PATH.toUri()))
-    server.onNotification(DidCloseTextDocumentNotificationSpec.METHOD,
-        RawJson.of(params))
+    let params =
+        DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: PUSHED_PATH.toUri()))
+    server.onNotification(DidCloseTextDocumentNotificationSpec.METHOD, RawJson.of(params))
 }
 
 @Test

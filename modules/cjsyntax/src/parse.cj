@@ -47,7 +47,11 @@ public func parseStmts(text: String): Parse<SyntaxKind> {
  * gives a tree of the text's tokens in an `ErrorNode` under `root`, with an error saying so, rather than an exception
  * (see `ginkgo.parsing.parseWith`).
  */
-func parseWithGrammar(text: String, grammar: (P) -> Unit, root!: SyntaxKind = SourceFile): Parse<SyntaxKind> {
+func parseWithGrammar(
+    text: String,
+    grammar: (P) -> Unit,
+    root!: SyntaxKind = SourceFile
+): Parse<SyntaxKind> {
     let lexed = tokenize(text)
     let p = Parser<SyntaxKind>(inputOf(lexed), Eof, ErrorNode)
     parseWith(lexed, p, CangjieTrivia(), root, grammar)
@@ -57,7 +61,12 @@ func parseWithGrammar(text: String, grammar: (P) -> Unit, root!: SyntaxKind = So
  * What the parser reads of `lexed`: its tokens but trivia, a newline being `Newline`, and the contextual kinds.
  */
 func inputOf(lexed: Lexed<SyntaxKind>): Input<SyntaxKind> {
-    lexed.toInput({k => k.isTrivia()}, {k => k == Newline}, contextual: {k, t => contextualKind(k, t)})
+    lexed
+        .toInput(
+            { k => k.isTrivia() },
+            { k => k == Newline },
+            contextual: { k, t => contextualKind(k, t) }
+        )
 }
 
 /**
@@ -66,10 +75,11 @@ func inputOf(lexed: Lexed<SyntaxKind>): Input<SyntaxKind> {
  */
 public func message(error: ParseError<SyntaxKind>): String {
     match (error) {
-        case Expected(kind) => match (kind.fixedText()) {
-            case Some(text) => "expected '${text}'"
-            case None => "expected ${kind}"
-        }
+        case Expected(kind) =>
+            match (kind.fixedText()) {
+                case Some(text) => "expected '${text}'"
+                case None => "expected ${kind}"
+            }
         case Message(message) => message
     }
 }
@@ -79,11 +89,31 @@ func contextualKind(kind: SyntaxKind, text: String): ?SyntaxKind {
         return None
     }
     match (text) {
-        case "JavaMirror" | "JavaImpl" | "JavaHasDefault" | "ObjCMirror" | "ObjCImpl" | "ForeignGetterName" |
-            "ForeignSetterName" | "ObjCInit" | "ObjCOptional" | "ForeignName" | "CallingConv" | "C" | "Attribute" |
-            "Intrinsic" | "OverflowThrowing" | "OverflowWrapping" | "OverflowSaturating" | "When" | "FastNative" |
-            "Annotation" | "ConstSafe" | "Deprecated" | "Frozen" | "EnsurePreparedToMock" | "NonProduct" =>
-            BuiltinAnnotationName
+        case "JavaMirror" |
+            "JavaImpl" |
+            "JavaHasDefault" |
+            "ObjCMirror" |
+            "ObjCImpl" |
+            "ForeignGetterName" |
+            "ForeignSetterName" |
+            "ObjCInit" |
+            "ObjCOptional" |
+            "ForeignName" |
+            "CallingConv" |
+            "C" |
+            "Attribute" |
+            "Intrinsic" |
+            "OverflowThrowing" |
+            "OverflowWrapping" |
+            "OverflowSaturating" |
+            "When" |
+            "FastNative" |
+            "Annotation" |
+            "ConstSafe" |
+            "Deprecated" |
+            "Frozen" |
+            "EnsurePreparedToMock" |
+            "NonProduct" => BuiltinAnnotationName
         case _ => None
     }
 }
@@ -118,9 +148,24 @@ class CangjieTrivia <: TriviaRules<SyntaxKind> {
 
 func isDocumentable(kind: SyntaxKind): Bool {
     match (kind) {
-        case FuncDecl | MainDecl | MacroDecl | ClassDecl | InterfaceDecl | StructDecl | EnumDecl | ExtendDecl |
-            TypeAliasDecl | VarDecl | PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor |
-            MacroExpandDecl | PackageHeader | Param => true
+        case FuncDecl |
+            MainDecl |
+            MacroDecl |
+            ClassDecl |
+            InterfaceDecl |
+            StructDecl |
+            EnumDecl |
+            ExtendDecl |
+            TypeAliasDecl |
+            VarDecl |
+            PropDecl |
+            InitDecl |
+            FinalizerDecl |
+            PrimaryInitDecl |
+            EnumCtor |
+            MacroExpandDecl |
+            PackageHeader |
+            Param => true
         case _ => false
     }
 }
@@ -150,13 +195,55 @@ struct Restrictions {
     }
 }
 
-let MODIFIERS = TokenSet<SyntaxKind>([StaticKw, PublicKw, PrivateKw, InternalKw, ProtectedKw, OverrideKw, RedefKw,
-    AbstractKw, SealedKw, OpenKw, ForeignKw, InoutKw, MutKw, UnsafeKw, OperatorKw, ConstKw, CommonKw, SpecificKw])
+let MODIFIERS =
+    TokenSet<SyntaxKind>(
+        [
+            StaticKw,
+            PublicKw,
+            PrivateKw,
+            InternalKw,
+            ProtectedKw,
+            OverrideKw,
+            RedefKw,
+            AbstractKw,
+            SealedKw,
+            OpenKw,
+            ForeignKw,
+            InoutKw,
+            MutKw,
+            UnsafeKw,
+            OperatorKw,
+            ConstKw,
+            CommonKw,
+            SpecificKw
+        ]
+    )
 
-let PRIM_TYPES = TokenSet<SyntaxKind>([Int8Kw, Int16Kw, Int32Kw, Int64Kw, IntNativeKw, UInt8Kw, UInt16Kw, UInt32Kw,
-    UInt64Kw, UIntNativeKw, Float16Kw, Float32Kw, Float64Kw, RuneKw, BoolKw, NothingKw, UnitKw])
+let PRIM_TYPES =
+    TokenSet<SyntaxKind>(
+        [
+            Int8Kw,
+            Int16Kw,
+            Int32Kw,
+            Int64Kw,
+            IntNativeKw,
+            UInt8Kw,
+            UInt16Kw,
+            UInt32Kw,
+            UInt64Kw,
+            UIntNativeKw,
+            Float16Kw,
+            Float32Kw,
+            Float64Kw,
+            RuneKw,
+            BoolKw,
+            NothingKw,
+            UnitKw
+        ]
+    )
 
-let LITERALS = TokenSet<SyntaxKind>([IntLit, FloatLit, RuneLit, ByteLit, RawStringLit, TrueKw, FalseKw])
+let LITERALS =
+    TokenSet<SyntaxKind>([IntLit, FloatLit, RuneLit, ByteLit, RawStringLit, TrueKw, FalseKw])
 
 /**
  * An identifier, or a contextual keyword standing for one.
@@ -172,7 +259,8 @@ func atName(p: P, n: Int64): Bool {
  */
 func atContextualKeywordAsName(p: P): Bool {
     let next = p.nth(1)
-    p.current().isContextualKeyword() && (next.isPunctuation() || next == InterpolationEnd) && next != Tilde &&
+    p.current().isContextualKeyword() && (next.isPunctuation() || next == InterpolationEnd) &&
+        next != Tilde &&
         next != At
 }
 

@@ -15,7 +15,9 @@ struct Config {
         let typeMap!: TypeMap = TypeMap()
     ) {
         // cjpm names a subpackage `<root>.<path under src-dir>`: the root is no directory
-        outputDir = outputPackage.split(".")[1..] |> fold(srcDir) {dir: Path, part: String => dir.join(part)}
+        outputDir =
+            outputPackage.split(".")[1..] |>
+                fold(srcDir) { dir: Path, part: String => dir.join(part) }
     }
 
     static func load(cfgPath: Path): Config {
@@ -29,11 +31,16 @@ struct Config {
             throw ConfigException("`output-subpackage` must not be empty")
         }
 
-        let srcDir = nonBlankPath(general.srcDir) ?? manifest.flatMap {it: CjpmManifest => nonBlankPath(it.pkg.srcDir)} ??
-            Path("src")
-        let rootPackage = manifest.map {it: CjpmManifest => it.pkg.name}.getOrThrow {
-            => ConfigException("cannot tell the root package of `${subPackage}`")
-        }
+        let srcDir =
+            nonBlankPath(general.srcDir) ??
+                manifest.flatMap { it: CjpmManifest => nonBlankPath(it.pkg.srcDir) } ?? Path("src")
+        let rootPackage =
+            manifest
+                .map { it: CjpmManifest => it.pkg.name }
+                .getOrThrow {
+                    =>
+                    ConfigException("cannot tell the root package of `${subPackage}`")
+                }
 
         Config(
             imports: general.imports ?? [],
@@ -48,7 +55,7 @@ struct Config {
  * cjpm writes `""` for an unset `src-dir`, so a blank one falls through to the next source.
  */
 private func nonBlankPath(raw: ?String): ?Path {
-    let value = raw.map {it: String => it.trimAscii()} ?? ""
+    let value = raw.map { it: String => it.trimAscii() } ?? ""
     if (value.isEmpty()) {
         None
     } else {
@@ -87,8 +94,10 @@ struct ConfigFile {
 @DeriveExt[FromToml]
 struct GeneralSection {
     GeneralSection(
-        @Serde[rename: "src-dir"] let srcDir!: ?String = None,
-        @Serde[rename: "output-subpackage"] let outputSubpackage!: String,
+        @Serde[rename: "src-dir"]
+        let srcDir!: ?String = None,
+        @Serde[rename: "output-subpackage"]
+        let outputSubpackage!: String,
         let imports!: ?Array<String> = None
     ) {}
 }
@@ -96,7 +105,10 @@ struct GeneralSection {
 /** What the generator needs of the `cjpm.toml` beside its config; the rest is skipped. */
 @DeriveExt[FromToml]
 struct CjpmManifest {
-    CjpmManifest(@Serde[rename: "package"] let pkg!: CjpmPackage) {}
+    CjpmManifest(
+        @Serde[rename: "package"]
+        let pkg!: CjpmPackage
+    ) {}
 
     static func load(cfgDir: Path): ?CjpmManifest {
         let manifestPath = cfgDir.join("cjpm.toml")
@@ -110,7 +122,11 @@ struct CjpmManifest {
 
 @DeriveExt[FromToml]
 struct CjpmPackage {
-    CjpmPackage(let name!: String, @Serde[rename: "src-dir"] let srcDir!: ?String = None) {}
+    CjpmPackage(
+        let name!: String,
+        @Serde[rename: "src-dir"]
+        let srcDir!: ?String = None
+    ) {}
 }
 
 extend Path {

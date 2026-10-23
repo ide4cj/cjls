@@ -12,12 +12,24 @@ import cjls.macros.LspHandler
  * of the document stands for that end, as LSP has it.
  */
 @LspHandler[readonly]
-func handleSelectionRange(snap: ServerSnapshot, params: SelectionRangeParams): Nullable<Array<SelectionRange>> {
+func handleSelectionRange(
+    snap: ServerSnapshot,
+    params: SelectionRangeParams
+): Nullable<Array<SelectionRange>> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
     let fileId = file.fileId(snap.analysis)
-    Nullable.Value(params.positions.map {
-        position => selectionRange(text, extendSelection(snap.analysis, fileId, offsetOf(snap, file, position)),
-            snap.encoding)
-    })
+    Nullable
+        .Value(
+            params
+                .positions
+                .map {
+                    position =>
+                    selectionRange(
+                        text,
+                        extendSelection(snap.analysis, fileId, offsetOf(snap, file, position)),
+                        snap.encoding
+                    )
+                }
+        )
 }

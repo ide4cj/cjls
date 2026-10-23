@@ -11,7 +11,8 @@ import std.unittest.testmacro.*
 class AnnotationDefinitionTest {
     @TestCase
     func anAnnotationGoesToItsClass() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             @Annotation
@@ -22,12 +23,14 @@ class AnnotationDefinitionTest {
             }
             @$0A[1]
             class C {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAnnotationOfAnotherPackageAfterItsName() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.a
@@ -42,12 +45,14 @@ class AnnotationDefinitionTest {
             //           ^ def
                 public const init() {}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAnnotationOnAParameter() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             @Annotation
@@ -58,12 +63,14 @@ class AnnotationDefinitionTest {
             class C {
                 C(@$0A let x: Int64) {}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroOfTheNameIsTheMacro() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -78,12 +85,14 @@ class AnnotationDefinitionTest {
             import std.ast.*
             public macro A(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallInABodyIsNoAnnotation() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             @Annotation
@@ -94,6 +103,7 @@ class AnnotationDefinitionTest {
                 @$0A(1)
             //   ^ no definition
             }
-            "#)
+            "#
+        )
     }
 }

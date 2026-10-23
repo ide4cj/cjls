@@ -104,12 +104,13 @@ func wordsOf(text: Rope): FileWords {
         while (at < bytes.size) {
             let b = bytes[at]
             // a chunk holds whole characters: a rune never continues into the next one
-            let (size, part) = if (b < 0x80) {
-                (1, isAsciiWordByte(b))
-            } else {
-                let (r, n) = Rune.fromUtf8(bytes, at)
-                (n, isIdentLike(r))
-            }
+            let (size, part) =
+                if (b < 0x80) {
+                    (1, isAsciiWordByte(b))
+                } else {
+                    let (r, n) = Rune.fromUtf8(bytes, at)
+                    (n, isIdentLike(r))
+                }
             if (part) {
                 for (i in at..at + size) {
                     hash = mixWord(hash, bytes[i])

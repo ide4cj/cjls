@@ -8,13 +8,15 @@ import std.unittest.testmacro.*
 import fjson.*
 
 /** The messages the fuzzers start from, one of each shape. */
-let FUZZ_MESSAGES = [
-    ##"{"jsonrpc":"2.0","id":1,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///a.cj"},"position":{"line":3,"character":14}}}"##,
-    ##"{"jsonrpc":"2.0","id":"a-1","method":"shutdown"}"##,
-    ##"{"params":[1,-2.5e3,true,null,"\u00e9\ud83d\ude00 é😀"],"method":"m","jsonrpc":"2.0"}"##,
-    ##"{"jsonrpc":"2.0","id":7,"result":{"capabilities":{}}}"##,
-    ##"{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"parse error","data":{"at":[0]}}}"##
-].map {message => message.toArray()}
+let FUZZ_MESSAGES =
+    [
+        ##"{"jsonrpc":"2.0","id":1,"method":"textDocument/hover","params":{"textDocument":{"uri":"file:///a.cj"},"position":{"line":3,"character":14}}}"##,
+        ##"{"jsonrpc":"2.0","id":"a-1","method":"shutdown"}"##,
+        ##"{"params":[1,-2.5e3,true,null,"\u00e9\ud83d\ude00 é😀"],"method":"m","jsonrpc":"2.0"}"##,
+        ##"{"jsonrpc":"2.0","id":7,"result":{"capabilities":{}}}"##,
+        ##"{"jsonrpc":"2.0","id":null,"error":{"code":-32700,"message":"parse error","data":{"at":[0]}}}"##
+    ]
+        .map { message => message.toArray() }
 
 /** What reading `bytes` as a message threw, unless it read or threw what the read loop answers. */
 func readOrAnswer(bytes: Array<Byte>): ?String {
@@ -36,7 +38,8 @@ func readOrAnswer(bytes: Array<Byte>): ?String {
  */
 @Test
 class BodyFuzzTest {
-    let bytesTried: Array<Byte> = [0x00, 0x20, 0x22, 0x2C, 0x2D, 0x30, 0x3A, 0x5B, 0x5C, 0x5D, 0x6E, 0x7B, 0x7D, 0x80, 0xFF]
+    let bytesTried: Array<Byte> =
+        [0x00, 0x20, 0x22, 0x2C, 0x2D, 0x30, 0x3A, 0x5B, 0x5C, 0x5D, 0x6E, 0x7B, 0x7D, 0x80, 0xFF]
 
     func check(bytes: Array<Byte>, failures: ArrayList<String>): Unit {
         if (let Some(e) <- readOrAnswer(bytes)) {
@@ -89,29 +92,31 @@ struct MutatedMessage <: ToString {
 
 extend MutatedMessage <: Arbitrary<MutatedMessage> {
     public static func arbitrary(random: RandomSource): Generator<MutatedMessage> {
-        Generators.generate {
-            let bytes = ArrayList(FUZZ_MESSAGES[random.nextInt64(FUZZ_MESSAGES.size)])
-            for (_ in 0..1 + random.nextInt64(4)) {
-                let at = random.nextInt64(bytes.size + 1)
-                match (random.nextInt64(5)) {
-                    case 0 where at < bytes.size => bytes.remove(at: at)
-                    case 1 => bytes.add(random.suggestUInt8(), at: at)
-                    case 2 where at < bytes.size => bytes[at] = random.suggestUInt8()
-                    case 3 where at < bytes.size =>
-                        let run = bytes[at..min(bytes.size, at + 1 + random.nextInt64(8))].toArray()
-                        bytes.add(all: run, at: at)
-                    case 4 => bytes.remove(at..bytes.size)
-                    case _ => ()
+        Generators
+            .generate {
+                let bytes = ArrayList(FUZZ_MESSAGES[random.nextInt64(FUZZ_MESSAGES.size)])
+                for (_ in 0..1 + random.nextInt64(4)) {
+                    let at = random.nextInt64(bytes.size + 1)
+                    match (random.nextInt64(5)) {
+                        case 0 where at < bytes.size => bytes.remove(at: at)
+                        case 1 => bytes.add(random.suggestUInt8(), at: at)
+                        case 2 where at < bytes.size => bytes[at] = random.suggestUInt8()
+                        case 3 where at < bytes.size =>
+                            let run =
+                                bytes[at..min(bytes.size, at + 1 + random.nextInt64(8))].toArray()
+                            bytes.add(all: run, at: at)
+                        case 4 => bytes.remove(at..bytes.size)
+                        case _ => ()
+                    }
                 }
+                MutatedMessage(bytes.toArray())
             }
-            MutatedMessage(bytes.toArray())
-        }
     }
 }
 
 extend MutatedMessage <: Shrink<MutatedMessage> {
     public func shrink(): Iterable<MutatedMessage> {
-        bytes.shrink() |> map {b: Array<Byte> => MutatedMessage(b)}
+        bytes.shrink() |> map { b: Array<Byte> => MutatedMessage(b) }
     }
 }
 

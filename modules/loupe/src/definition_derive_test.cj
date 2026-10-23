@@ -11,21 +11,31 @@ import loupe.syntax.parse
  */
 func checkDefinitionWithDerive(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core")),
-        stdCjoRead("std.deriving", stdCjo("std.deriving"))])
+    let db =
+        parsed
+            .database(
+                binaries: [
+                    stdCjoRead("std.core", stdCjo("std.core")),
+                    stdCjoRead("std.deriving", stdCjo("std.deriving"))
+                ]
+            )
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let targets = definitionAt(db, cursor.fileId, cursor.offset)
-    let annotations = if (targets.isEmpty()) {
-        let source = db.sourceFile(cursor.fileId).getOrThrow()
-        let token = tokenAt(parse(db, source).syntaxNode(), cursor.offset) ?? throw FixtureException("no name at $0")
-        [Annotation(cursor.fileId, token.textRange, "no definition")]
-    } else {
-        targets.map {
-            target =>
-            @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
-            Annotation(target.fileId, target.focusRange, "def")
+    let annotations =
+        if (targets.isEmpty()) {
+            let source = db.sourceFile(cursor.fileId).getOrThrow()
+            let token =
+                tokenAt(parse(db, source).syntaxNode(), cursor.offset) ??
+                    throw FixtureException("no name at $0")
+            [Annotation(cursor.fileId, token.textRange, "no definition")]
+        } else {
+            targets
+                .map {
+                    target =>
+                    @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
+                    Annotation(target.fileId, target.focusRange, "def")
+                }
         }
-    }
     expectAnnotations(fixture, annotations)
 }
 
@@ -36,7 +46,8 @@ func checkDefinitionWithDerive(fixture: String): Unit {
 class DeriveDefinitionTest {
     @TestCase
     func aDerivedMemberAfterADotGoesToItsInterfaceInTheCall() {
-        checkDefinitionWithDerive(#"
+        checkDefinitionWithDerive(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -46,12 +57,14 @@ class DeriveDefinitionTest {
             func f(s: S): Int64 {
                 s.$0hashCode()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDerivedOperatorGoesToItsInterfaceInTheCall() {
-        checkDefinitionWithDerive(#"
+        checkDefinitionWithDerive(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -63,12 +76,14 @@ class DeriveDefinitionTest {
             func f(a: P<Int64>, b: P<Int64>): Bool {
                 a $0== b
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theEquatableComparableAddsGoesToComparable() {
-        checkDefinitionWithDerive(#"
+        checkDefinitionWithDerive(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -79,12 +94,14 @@ class DeriveDefinitionTest {
             func f(a: R<Int64>, b: R<Int64>): Bool {
                 a $0!= b
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDerivedMemberOfAnotherFileOfThePackage() {
-        checkDefinitionWithDerive(#"
+        checkDefinitionWithDerive(
+            #"
             //- /a.cj module=m package=m
             package m
             import std.deriving.Derive
@@ -96,6 +113,7 @@ class DeriveDefinitionTest {
             func f(s: S): Int64 {
                 s.$0hashCode()
             }
-            "#)
+            "#
+        )
     }
 }

@@ -4,9 +4,31 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{Arg, ArgList, Block, CatchClause, DataArg, Decl, GenericConstraint, Interpolation, LambdaExpr,
-    MacroAttr, MacroExpandDecl, MacroExpandExpr, MatchCase, Name, NameRef, ParamList, PathSegment, Pattern,
-    QuoteInterpolation, ResourceDecl, Type, TypesArg, identText}
+import cjsyntax.ast.{
+    Arg,
+    ArgList,
+    Block,
+    CatchClause,
+    DataArg,
+    Decl,
+    GenericConstraint,
+    Interpolation,
+    LambdaExpr,
+    MacroAttr,
+    MacroExpandDecl,
+    MacroExpandExpr,
+    MatchCase,
+    Name,
+    NameRef,
+    ParamList,
+    PathSegment,
+    Pattern,
+    QuoteInterpolation,
+    ResourceDecl,
+    Type,
+    TypesArg,
+    identText
+}
 import cjsyntax.ast.Expr as AstExpr
 import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.Param as AstParam
@@ -139,8 +161,12 @@ public enum Stmt {
  */
 @Derive[Equatable]
 public struct CallArg {
-    public CallArg(public let name: ?String, public let expr: ExprId, public let isInout!: Bool = false,
-        public let isTrailing!: Bool = false) {}
+    public CallArg(
+        public let name: ?String,
+        public let expr: ExprId,
+        public let isInout!: Bool = false,
+        public let isTrailing!: Bool = false
+    ) {}
 }
 
 /**
@@ -158,12 +184,20 @@ public struct MatchArm {
 
 @Derive[Equatable]
 public struct Resource {
-    public Resource(public let local: ?LocalId, public let ty: ?TypeRefId, public let value: ExprId) {}
+    public Resource(
+        public let local: ?LocalId,
+        public let ty: ?TypeRefId,
+        public let value: ExprId
+    ) {}
 }
 
 @Derive[Equatable]
 public struct CatchArm {
-    public CatchArm(public let local: ?LocalId, public let types: Array<TypeRefId>, public let body: ExprId) {}
+    public CatchArm(
+        public let local: ?LocalId,
+        public let types: Array<TypeRefId>,
+        public let body: ExprId
+    ) {}
 }
 
 /**
@@ -335,7 +369,10 @@ public struct DeclAttr {
  * The macros on a declaration whose `[...]` is code by their name, as std.unittest's (#191): what
  * `@Tag` and `@Skip` list is none, nor is a user's macro's.
  */
-let CODE_ATTRS = HashSet<String>(["Test", "TestCase", "Bench", "Strategy", "Configure", "Timeout", "Measure", "Types"])
+let CODE_ATTRS =
+    HashSet<String>(
+        ["Test", "TestCase", "Bench", "Strategy", "Configure", "Timeout", "Measure", "Types"]
+    )
 
 /**
  * A pattern as a body writes it.
@@ -428,8 +465,12 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     private let localIndex: PtrIndex
     private let typeIndex: PtrIndex
 
-    public init(exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [], pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
-        locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [], types!: Array<?SyntaxNodePtr<SyntaxKind>> = []) {
+    public init(
+        exprs!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
+        pats!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
+        locals!: Array<?SyntaxNodePtr<SyntaxKind>> = [],
+        types!: Array<?SyntaxNodePtr<SyntaxKind>> = []
+    ) {
         this.exprs = exprs
         this.pats = pats
         this.locals = locals
@@ -519,13 +560,14 @@ public struct LoweredBody {
  */
 @CalcaTracked
 public func bodyWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredBody {
-    let (root, ids, file) = match (def.file(db)) {
-        case Source(file) => (parse(db, file).syntaxNode(), itemIdMap(db, file), file)
-        case Expansion(call) where !macroExpansion(db, call).spans.isEmpty() =>
-            (expansionParse(db, call).syntaxNode(), expansionIdMap(db, call), call.file(db))
-        case _ => return LoweredBody(Body(), BodySourceMap())
-    }
-    match (ids.node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
+    let (root, ids, file) =
+        match (def.file(db)) {
+            case Source(file) => (parse(db, file).syntaxNode(), itemIdMap(db, file), file)
+            case Expansion(call) where !macroExpansion(db, call).spans.isEmpty() =>
+                (expansionParse(db, call).syntaxNode(), expansionIdMap(db, call), call.file(db))
+            case _ => return LoweredBody(Body(), BodySourceMap())
+        }
+    match (ids.node(def.item(db), root).flatMap { node => Decl.cast(node) }) {
         case Some(decl) => lowerBody(decl, active: ActiveFilter.of(db, file))
         case None => LoweredBody(Body(), BodySourceMap())
     }
@@ -550,21 +592,39 @@ public func lowerBody(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredBo
     var value: ?ExprId = None
     var accessors = Array<ExprId>()
     match (decl) {
-        case Decl.AsFuncDecl(it) => (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
-        case Decl.AsMainDecl(it) => (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
-        case Decl.AsMacroDecl(it) => (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
-        case Decl.AsInitDecl(it) => (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
+        case Decl.AsFuncDecl(it) =>
+            (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
+        case Decl.AsMainDecl(it) =>
+            (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
+        case Decl.AsMacroDecl(it) =>
+            (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
+        case Decl.AsInitDecl(it) =>
+            (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
         case Decl.AsFinalizerDecl(it) => value = lowering.blockOf(it.block())
         case Decl.AsPrimaryInitDecl(it) =>
-            (params, value) = (lowering.params(it.paramLists(), primary: true), lowering.blockOf(it.block()))
-        case Decl.AsVarDecl(it) => value = it.expr().map {one => lowering.expr(one)}
-        case Decl.AsPropDecl(it) => if (let Some(propBody) <- it.propBody()) {
-            accessors = propBody.propAccessors() |> filter {accessor => active.isActive(accessor.syntax)} |> map {
-                accessor =>
-                let accessorParams = lowering.params(accessor.paramLists())
-                lowering.add(Expr.LambdaExpr(accessorParams, lowering.block(accessor.block())), accessor.syntax)
-            } |> collectArray
-        }
+            (params, value) =
+                (lowering.params(it.paramLists(), primary: true), lowering.blockOf(it.block()))
+        case Decl.AsVarDecl(it) => value = it.expr().map { one => lowering.expr(one) }
+        case Decl.AsPropDecl(it) =>
+            if (let Some(propBody) <- it.propBody()) {
+                accessors =
+                    propBody.propAccessors() |>
+                        filter { accessor => active.isActive(accessor.syntax) } |>
+                        map {
+                            accessor =>
+                            let accessorParams = lowering.params(accessor.paramLists())
+                            lowering
+                                .add(
+                                    Expr
+                                        .LambdaExpr(
+                                            accessorParams,
+                                            lowering.block(accessor.block())
+                                        ),
+                                    accessor.syntax
+                                )
+                        } |>
+                        collectArray
+            }
         case _ => ()
     }
     lowering.finish(params, value, accessors, attrs: lowering.declAttrs(decl))
@@ -592,12 +652,30 @@ class BodyLowering {
         this.types = SignatureLowering(active: active)
     }
 
-    func finish(params: Array<BodyParam>, value: ?ExprId, accessors: Array<ExprId>, attrs!: Array<DeclAttr> = []): LoweredBody {
+    func finish(
+        params: Array<BodyParam>,
+        value: ?ExprId,
+        accessors: Array<ExprId>,
+        attrs!: Array<DeclAttr> = []
+    ): LoweredBody {
         LoweredBody(
-            Body(exprs: exprs.toArray(), pats: pats.toArray(), locals: locals.toArray(), funcs: funcs.toArray(),
-                types: types.types.toArray(), params: params, value: value, accessors: accessors, attrs: attrs),
-            BodySourceMap(exprs: exprPtrs.toArray(), pats: patPtrs.toArray(), locals: localPtrs.toArray(),
-                types: types.ptrs.toArray())
+            Body(
+                exprs: exprs.toArray(),
+                pats: pats.toArray(),
+                locals: locals.toArray(),
+                funcs: funcs.toArray(),
+                types: types.types.toArray(),
+                params: params,
+                value: value,
+                accessors: accessors,
+                attrs: attrs
+            ),
+            BodySourceMap(
+                exprs: exprPtrs.toArray(),
+                pats: patPtrs.toArray(),
+                locals: localPtrs.toArray(),
+                types: types.ptrs.toArray()
+            )
         )
     }
 
@@ -617,15 +695,20 @@ class BodyLowering {
 
     private func paramOf(param: AstParam, primary: Bool): BodyParam {
         // the default value first: it sees the parameters before this one, not this one (N67)
-        let defaultValue = param.expr().map {one => expr(one)}
-        let passedBy: ?String = if (param.bangToken().isSome()) {
-            param.name()?.text()
-        } else {
-            None
-        }
-        BodyParam(local(param.name(), LocalKind.ParamLocal), ty: param.ty().map {one => types.lower(one)},
-            defaultValue: defaultValue, isMember: primary && (param.letToken().isSome() || param.varToken().isSome()),
-            passedBy: passedBy)
+        let defaultValue = param.expr().map { one => expr(one) }
+        let passedBy: ?String =
+            if (param.bangToken().isSome()) {
+                param.name()?.text()
+            } else {
+                None
+            }
+        BodyParam(
+            local(param.name(), LocalKind.ParamLocal),
+            ty: param.ty().map { one => types.lower(one) },
+            defaultValue: defaultValue,
+            isMember: primary && (param.letToken().isSome() || param.varToken().isSome()),
+            passedBy: passedBy
+        )
     }
 
     func local(name: ?Name, kind: LocalKind, lone!: Bool = false): ?LocalId {
@@ -648,7 +731,7 @@ class BodyLowering {
     }
 
     func blockOf(node: ?Block): ?ExprId {
-        node.map {one => block(one)}
+        node.map { one => block(one) }
     }
 
     func block(node: ?Block): ExprId {
@@ -664,9 +747,10 @@ class BodyLowering {
             match (node) {
                 case AstStmt.ExprStmt(one) => lowered.add(Stmt.ExprStmt(expr(one)))
                 case AstStmt.DeclStmt(decl) where !active.isActive(decl.syntax) => ()
-                case AstStmt.DeclStmt(decl) => if (let Some(one) <- stmtOf(decl)) {
-                    lowered.add(one)
-                }
+                case AstStmt.DeclStmt(decl) =>
+                    if (let Some(one) <- stmtOf(decl)) {
+                        lowered.add(one)
+                    }
             }
         }
         lowered.toArray()
@@ -680,32 +764,50 @@ class BodyLowering {
         match (decl) {
             case Decl.AsVarDecl(it) =>
                 // the initializer first: it does not see the names it is bound to (N61)
-                let value = it.expr().map {one => expr(one)}
-                let ty = it.ty().map {one => types.lower(one)}
-                let pat = match ((it.name(), it.pattern())) {
-                    case (Some(name), _) => addPat(Pat.BindPat(local(name, LocalKind.VarLocal).getOrThrow()), name.syntax)
-                    case (None, Some(pattern)) => pat(pattern, LocalKind.VarLocal, lone: false)
-                    case (None, None) => addPat(Pat.MissingPat, None)
-                }
+                let value = it.expr().map { one => expr(one) }
+                let ty = it.ty().map { one => types.lower(one) }
+                let pat =
+                    match ((it.name(), it.pattern())) {
+                        case (Some(name), _) =>
+                            addPat(
+                                Pat.BindPat(local(name, LocalKind.VarLocal).getOrThrow()),
+                                name.syntax
+                            )
+                        case (None, Some(pattern)) => pat(pattern, LocalKind.VarLocal, lone: false)
+                        case (None, None) => addPat(Pat.MissingPat, None)
+                    }
                 Stmt.LetStmt(pat, ty, value)
             case Decl.AsFuncDecl(it) =>
                 let name = local(it.name(), LocalKind.FuncLocal) ?? return None
-                let generics = match (it.typeParamList()) {
-                    case Some(list) => list.typeParams() |> map {param => param.name()?.text() ?? ""} |> collectArray
-                    case None => Array<String>()
-                }
+                let generics =
+                    match (it.typeParamList()) {
+                        case Some(list) =>
+                            list.typeParams() |> map { param => param.name()?.text() ?? "" } |>
+                                collectArray
+                        case None => Array<String>()
+                    }
                 let params = params(it.paramLists())
-                let ret = it.retType().flatMap {one => one.ty()}.map {one => types.lower(one)}
-                let bounds = match (it.whereClause()) {
-                    case Some(clause) => clause.genericConstraints() |> map {
-                        constraint: GenericConstraint =>
-                        TypeBound(types.lower(constraint.ty()), types.bounds(constraint.typeBoundList()))
-                    } |> collectArray
-                    case None => Array<TypeBound>()
-                }
-                funcs.add(LocalFunc(name, generics, params, ret, blockOf(it.block()), bounds: bounds))
+                let ret = it.retType().flatMap { one => one.ty() }.map { one => types.lower(one) }
+                let bounds =
+                    match (it.whereClause()) {
+                        case Some(clause) =>
+                            clause.genericConstraints() |>
+                                map {
+                                    constraint: GenericConstraint =>
+                                    TypeBound(
+                                        types.lower(constraint.ty()),
+                                        types.bounds(constraint.typeBoundList())
+                                    )
+                                } |>
+                                collectArray
+                        case None => Array<TypeBound>()
+                    }
+                funcs
+                    .add(
+                        LocalFunc(name, generics, params, ret, blockOf(it.block()), bounds: bounds)
+                    )
                 Stmt.FuncStmt(funcs.size - 1)
-            case Decl.AsMacroExpandDecl(it) => it.decl().flatMap {inner => stmtOf(inner)}
+            case Decl.AsMacroExpandDecl(it) => it.decl().flatMap { inner => stmtOf(inner) }
             case _ => None
         }
     }
@@ -728,30 +830,49 @@ class BodyLowering {
      * from the innermost out, around `value` (cjc's `DesugarOptionalChainExpr`).
      */
     private func questMatches(value: ExprId, mark: Int64, node: AstExpr): ExprId {
-        let assigns = match (node) {
-            case AstExpr.AsBinExpr(it) => ASSIGNMENTS.contains(it.op()?.text() ?? "")
-            case AstExpr.AsPostfixExpr(_) => true
-            case _ => false
-        }
-        var inner = if (assigns) {
-            value
-        } else {
-            synthesized(Expr.CallExpr(synthesized(Expr.LangExpr(LangItem.OptionSome)), [CallArg(None, value)]))
-        }
+        let assigns =
+            match (node) {
+                case AstExpr.AsBinExpr(it) => ASSIGNMENTS.contains(it.op()?.text() ?? "")
+                case AstExpr.AsPostfixExpr(_) => true
+                case _ => false
+            }
+        var inner =
+            if (assigns) {
+                value
+            } else {
+                synthesized(
+                    Expr
+                        .CallExpr(
+                            synthesized(Expr.LangExpr(LangItem.OptionSome)),
+                            [CallArg(None, value)]
+                        )
+                )
+            }
         while (quests.size > mark) {
             // read before removed: -O2 miscompiles one taken apart straight from `remove`
             let (selector, local) = quests[quests.size - 1]
             quests.remove(at: quests.size - 1)
             let some = addPat(Pat.EnumPat(["Some"], [addPat(Pat.BindPat(local), None)]), None)
             let none = addPat(Pat.EnumPat(["None"], []), None)
-            let otherwise = if (assigns) {
-                synthesized(Expr.UnitExpr)
-            } else {
-                synthesized(Expr.LangExpr(LangItem.OptionNone))
-            }
+            let otherwise =
+                if (assigns) {
+                    synthesized(Expr.UnitExpr)
+                } else {
+                    synthesized(Expr.LangExpr(LangItem.OptionNone))
+                }
             // after the chain's own: an expression is found by its node as written (`exprAt`)
-            inner = add(Expr.QuestMatchExpr(selector, [MatchArm([some], None, None, inner),
-                MatchArm([none], None, None, otherwise)]), node.syntax)
+            inner =
+                add(
+                    Expr
+                        .QuestMatchExpr(
+                            selector,
+                            [
+                                MatchArm([some], None, None, inner),
+                                MatchArm([none], None, None, otherwise)
+                            ]
+                        ),
+                    node.syntax
+                )
         }
         inner
     }
@@ -767,138 +888,242 @@ class BodyLowering {
      * left is, a link of its own, the `?`s of what it applies to are those of the chain.
      */
     private func link(node: AstExpr): ExprId {
-        let lowered = match (node) {
-            case AstExpr.AsLiteral(it) => Expr.LitExpr(it.value()?.text() ?? "")
-            // of one character, a `Rune` or a `Byte` where one is expected: a literal as a number is
-            case AstExpr.AsStringLit(it) where isOneChar(it.syntax.text()) => Expr.LitExpr(it.syntax.text())
-            case AstExpr.AsStringLit(it) => Expr.StrExpr(it.interpolations() |> map {
-                one: Interpolation => add(Expr.BlockExpr(stmts(one.stmts())), one.syntax)
-            } |> collectArray)
-            case AstExpr.AsRefExpr(it) => Expr.PathExpr(it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
-            case AstExpr.AsMemberAccessExpr(it) =>
-                Expr.FieldExpr(linkOf(it.receiver()), it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
-            case AstExpr.AsCallExpr(it) => Expr.CallExpr(linkOf(it.callee()), args(it.argList()))
-            case AstExpr.AsTrailingLambdaExpr(it) =>
-                let callee = linkOf(it.callee())
-                let lambda = lambdaOf(it.lambda())
-                match (this.exprs[callee.index]) {
-                    // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
-                    case Expr.CallExpr(inner, args) =>
-                        this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda, isTrailing: true)]))
-                        exprPtrs[callee.index] = SyntaxNodePtr(it.syntax)
-                        return callee
-                    case _ => Expr.CallExpr(callee, [CallArg(None, lambda, isTrailing: true)])
-                }
-            case AstExpr.AsIndexExpr(it) => Expr.IndexExpr(linkOf(it.base()), it.indices() |> map {one => expr(one)} |> collectArray)
-            // `a?`: `$v`, bound to the value of `a` by the `match` the chain is desugared to
-            case AstExpr.AsOptionalExpr(it) =>
-                let selector = linkOf(it.expr())
-                locals.add(Local("$v", LocalKind.PatLocal))
-                localPtrs.add(None)
-                quests.add((selector, LocalId(locals.size - 1)))
-                Expr.PathExpr("$v", [])
-            case AstExpr.AsUnaryExpr(it) => Expr.UnaryExpr(it.op()?.text() ?? "", exprOf(it.expr()))
-            case AstExpr.AsBinExpr(it) =>
-                let op = it.op()?.text() ?? ""
-                // an assignment's left a link: `a?.b = x` is a chain (cjc's `ParseExprWithRightExprOrType`)
-                if (ASSIGNMENTS.contains(op)) {
-                    let lhs = linkOf(it.lhs())
-                    let rhs = exprOf(it.rhs())
-                    // `a[i] op= v` assigns `a[i] op v` (#245)
-                    match (this.exprs[lhs.index]) {
-                        case Expr.IndexExpr(_, _) where op != "=" =>
-                            Expr.BinaryExpr(op, lhs, synthesized(Expr.AssignedExpr(op[0..op.size - 1], lhs, rhs)))
-                        case _ => Expr.BinaryExpr(op, lhs, rhs)
+        let lowered =
+            match (node) {
+                case AstExpr.AsLiteral(it) => Expr.LitExpr(it.value()?.text() ?? "")
+                // of one character, a `Rune` or a `Byte` where one is expected: a literal as a number is
+                case AstExpr.AsStringLit(it) where isOneChar(it.syntax.text()) =>
+                    Expr.LitExpr(it.syntax.text())
+                case AstExpr.AsStringLit(it) =>
+                    Expr
+                        .StrExpr(
+                            it.interpolations() |>
+                                map {
+                                    one: Interpolation =>
+                                    add(Expr.BlockExpr(stmts(one.stmts())), one.syntax)
+                                } |>
+                                collectArray
+                        )
+                case AstExpr.AsRefExpr(it) =>
+                    Expr.PathExpr(it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
+                case AstExpr.AsMemberAccessExpr(it) =>
+                    Expr
+                        .FieldExpr(
+                            linkOf(it.receiver()),
+                            it.nameRef()?.text() ?? "",
+                            typeArgs(it.typeArgList()?.types())
+                        )
+                case AstExpr.AsCallExpr(it) =>
+                    Expr.CallExpr(linkOf(it.callee()), args(it.argList()))
+                case AstExpr.AsTrailingLambdaExpr(it) =>
+                    let callee = linkOf(it.callee())
+                    let lambda = lambdaOf(it.lambda())
+                    match (this.exprs[callee.index]) {
+                        // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
+                        case Expr.CallExpr(inner, args) =>
+                            this.exprs[callee.index] =
+                                Expr
+                                    .CallExpr(
+                                        inner,
+                                        args.concat([CallArg(None, lambda, isTrailing: true)])
+                                    )
+                            exprPtrs[callee.index] = SyntaxNodePtr(it.syntax)
+                            return callee
+                        case _ => Expr.CallExpr(callee, [CallArg(None, lambda, isTrailing: true)])
                     }
-                } else {
-                    Expr.BinaryExpr(op, exprOf(it.lhs()), exprOf(it.rhs()))
-                }
-            case AstExpr.AsIsExpr(it) => Expr.IsExpr(exprOf(it.expr()), types.lower(it.ty()))
-            case AstExpr.AsAsExpr(it) => Expr.AsExpr(exprOf(it.expr()), types.lower(it.ty()))
-            case AstExpr.AsRangeExpr(it) => Expr.RangeExpr(it.start().map {one => expr(one)}, it.end().map {one => expr(one)},
-                it.step().map {one => expr(one)}, it.op()?.kind == SyntaxKind.DotDotEq)
-            case AstExpr.AsPostfixExpr(it) =>
-                let op = it.op()?.text() ?? ""
-                let inner = linkOf(it.expr())
-                // `a[i]++` is `a[i] += 1` (#245)
-                let value = match (this.exprs[inner.index]) {
-                    case Expr.IndexExpr(_, _) =>
-                        let one = synthesized(Expr.LitExpr("1"))
-                        Some(synthesized(Expr.AssignedExpr(if (op == "--") { "-" } else { "+" }, inner, one)))
-                    case _ => None<ExprId>
-                }
-                Expr.PostfixExpr(inner, op, value)
-            case AstExpr.AsParenExpr(it) => return exprOf(it.expr())
-            case AstExpr.AsTupleExpr(it) => Expr.TupleExpr(it.exprs() |> map {one => expr(one)} |> collectArray)
-            case AstExpr.AsArrayExpr(it) => Expr.ArrayExpr(it.exprs() |> map {one => expr(one)} |> collectArray)
-            case AstExpr.AsUnitExpr(_) => Expr.UnitExpr
-            case AstExpr.AsIfExpr(it) =>
-                let condition = exprOf(it.condition())
-                let then = block(it.then())
-                let otherwise = match ((it.elseBlock(), it.elseIf())) {
-                    case (Some(one), _) => Some(block(one))
-                    case (None, Some(one)) => Some(expr(AstExpr.AsIfExpr(one)))
-                    case (None, None) => None<ExprId>
-                }
-                Expr.IfExpr(condition, then, otherwise)
-            case AstExpr.AsLetExpr(it) =>
-                // what it matches first: it does not see the names it binds
-                let value = exprOf(it.expr())
-                Expr.LetExpr(it.patterns() |> map {one => pat(one, LocalKind.PatLocal, lone: true)} |> collectArray, value)
-            case AstExpr.AsMatchExpr(it) =>
-                let scrutinee = it.expr().map {one => expr(one)}
-                let arms = match (it.matchBody()) {
-                    case Some(matchBody) => matchBody.matchCases() |> map {one: MatchCase => arm(one)} |> collectArray
-                    case None => Array<MatchArm>()
-                }
-                Expr.MatchExpr(scrutinee, arms)
-            case AstExpr.AsTryExpr(it) =>
-                let resources = match (it.resourceList()) {
-                    case Some(list) => list.resourceDecls() |> map {one: ResourceDecl => resource(one)} |> collectArray
-                    case None => Array<Resource>()
-                }
-                let tried = block(it.block())
-                let catches = it.catchClauses() |> map {one: CatchClause => catchArm(one)} |> collectArray
-                Expr.TryExpr(resources, tried, catches, it.finallyClause().map {one => block(one.block())})
-            case AstExpr.AsForInExpr(it) =>
-                let iterated = exprOf(it.expr())
-                let pattern = match (it.pattern()) {
-                    case Some(one) => pat(one, LocalKind.PatLocal, lone: true)
-                    case None => addPat(Pat.MissingPat, None)
-                }
-                Expr.ForExpr(pattern, iterated, it.guard().flatMap {one => one.expr()}.map {one => expr(one)}, block(it.block()))
-            case AstExpr.AsWhileExpr(it) => Expr.WhileExpr(exprOf(it.expr()), block(it.block()))
-            case AstExpr.AsDoWhileExpr(it) =>
-                let body = block(it.block())
-                Expr.DoWhileExpr(body, exprOf(it.expr()))
-            case AstExpr.AsThrowExpr(it) => Expr.ThrowExpr(exprOf(it.expr()))
-            case AstExpr.AsReturnExpr(it) => Expr.ReturnExpr(it.expr().map {one => expr(one)})
-            case AstExpr.AsBreakExpr(_) => Expr.BreakExpr
-            case AstExpr.AsContinueExpr(_) => Expr.ContinueExpr
-            case AstExpr.AsSpawnExpr(it) =>
-                let context = it.context().map {one => expr(one)}
-                let lambda = it.syntax.children() |> filterMap {child: CjSyntaxNode => LambdaExpr.cast(child)} |> first
-                Expr.SpawnExpr(context, lambdaOf(lambda))
-            case AstExpr.AsSynchronizedExpr(it) => Expr.SynchronizedExpr(exprOf(it.expr()), block(it.block()))
-            case AstExpr.AsUnsafeExpr(it) => Expr.UnsafeExpr(block(it.block()))
-            case AstExpr.AsLambdaExpr(it) => return lambdaOf(it)
-            case AstExpr.AsThisExpr(_) => Expr.ThisExpr
-            case AstExpr.AsSuperExpr(_) => Expr.SuperExpr
-            case AstExpr.AsWildcardExpr(_) => Expr.WildcardExpr
-            case AstExpr.AsTypeConvExpr(it) => Expr.ConvExpr(it.primType()?.keyword()?.text() ?? "", exprOf(it.expr()))
-            case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
-            case AstExpr.AsVArrayExpr(it) =>
-                Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
-            case AstExpr.AsQuoteExpr(it) => Expr.QuoteExpr(it.quoteInterpolations() |> map {
-                one: QuoteInterpolation => exprOf(one.expr())
-            } |> collectArray)
-            // no arguments: a macro call on a declaration (`var f = @M func g() {}`) is given the declaration, not
-            // values
-            case AstExpr.AsMacroExpandDecl(it) => Expr.MacroExpr(MacroCall(macroName(it).split("."), None, []))
-            case AstExpr.AsMacroExpandExpr(it) =>
-                let path = it.nameRefs() |> map {name: NameRef => name.text()} |> collectArray
-                Expr.MacroExpr(MacroCall(path, it.macroAttr().map {attr => attrTypes(attr)}, macroArgs(it)))
-        }
+                case AstExpr.AsIndexExpr(it) =>
+                    Expr
+                        .IndexExpr(
+                            linkOf(it.base()),
+                            it.indices() |> map { one => expr(one) } |> collectArray
+                        )
+                // `a?`: `$v`, bound to the value of `a` by the `match` the chain is desugared to
+                case AstExpr.AsOptionalExpr(it) =>
+                    let selector = linkOf(it.expr())
+                    locals.add(Local("$v", LocalKind.PatLocal))
+                    localPtrs.add(None)
+                    quests.add((selector, LocalId(locals.size - 1)))
+                    Expr.PathExpr("$v", [])
+                case AstExpr.AsUnaryExpr(it) =>
+                    Expr.UnaryExpr(it.op()?.text() ?? "", exprOf(it.expr()))
+                case AstExpr.AsBinExpr(it) =>
+                    let op = it.op()?.text() ?? ""
+                    // an assignment's left a link: `a?.b = x` is a chain (cjc's `ParseExprWithRightExprOrType`)
+                    if (ASSIGNMENTS.contains(op)) {
+                        let lhs = linkOf(it.lhs())
+                        let rhs = exprOf(it.rhs())
+                        // `a[i] op= v` assigns `a[i] op v` (#245)
+                        match (this.exprs[lhs.index]) {
+                            case Expr.IndexExpr(_, _) where op != "=" =>
+                                Expr
+                                    .BinaryExpr(
+                                        op,
+                                        lhs,
+                                        synthesized(Expr.AssignedExpr(op[0..op.size - 1], lhs, rhs))
+                                    )
+                            case _ => Expr.BinaryExpr(op, lhs, rhs)
+                        }
+                    } else {
+                        Expr.BinaryExpr(op, exprOf(it.lhs()), exprOf(it.rhs()))
+                    }
+                case AstExpr.AsIsExpr(it) => Expr.IsExpr(exprOf(it.expr()), types.lower(it.ty()))
+                case AstExpr.AsAsExpr(it) => Expr.AsExpr(exprOf(it.expr()), types.lower(it.ty()))
+                case AstExpr.AsRangeExpr(it) =>
+                    Expr
+                        .RangeExpr(
+                            it.start().map { one => expr(one) },
+                            it.end().map { one => expr(one) },
+                            it.step().map { one => expr(one) },
+                            it.op()?.kind == SyntaxKind.DotDotEq
+                        )
+                case AstExpr.AsPostfixExpr(it) =>
+                    let op = it.op()?.text() ?? ""
+                    let inner = linkOf(it.expr())
+                    // `a[i]++` is `a[i] += 1` (#245)
+                    let value =
+                        match (this.exprs[inner.index]) {
+                            case Expr.IndexExpr(_, _) =>
+                                let one = synthesized(Expr.LitExpr("1"))
+                                Some(
+                                    synthesized(
+                                        Expr
+                                            .AssignedExpr(
+                                                if (op == "--") {
+                                                    "-"
+                                                } else {
+                                                    "+"
+                                                },
+                                                inner,
+                                                one
+                                            )
+                                    )
+                                )
+                            case _ => None<ExprId>
+                        }
+                    Expr.PostfixExpr(inner, op, value)
+                case AstExpr.AsParenExpr(it) => return exprOf(it.expr())
+                case AstExpr.AsTupleExpr(it) =>
+                    Expr.TupleExpr(it.exprs() |> map { one => expr(one) } |> collectArray)
+                case AstExpr.AsArrayExpr(it) =>
+                    Expr.ArrayExpr(it.exprs() |> map { one => expr(one) } |> collectArray)
+                case AstExpr.AsUnitExpr(_) => Expr.UnitExpr
+                case AstExpr.AsIfExpr(it) =>
+                    let condition = exprOf(it.condition())
+                    let then = block(it.then())
+                    let otherwise =
+                        match ((it.elseBlock(), it.elseIf())) {
+                            case (Some(one), _) => Some(block(one))
+                            case (None, Some(one)) => Some(expr(AstExpr.AsIfExpr(one)))
+                            case (None, None) => None<ExprId>
+                        }
+                    Expr.IfExpr(condition, then, otherwise)
+                case AstExpr.AsLetExpr(it) =>
+                    // what it matches first: it does not see the names it binds
+                    let value = exprOf(it.expr())
+                    Expr
+                        .LetExpr(
+                            it.patterns() |>
+                                map { one => pat(one, LocalKind.PatLocal, lone: true) } |>
+                                collectArray,
+                            value
+                        )
+                case AstExpr.AsMatchExpr(it) =>
+                    let scrutinee = it.expr().map { one => expr(one) }
+                    let arms =
+                        match (it.matchBody()) {
+                            case Some(matchBody) =>
+                                matchBody.matchCases() |> map { one: MatchCase => arm(one) } |>
+                                    collectArray
+                            case None => Array<MatchArm>()
+                        }
+                    Expr.MatchExpr(scrutinee, arms)
+                case AstExpr.AsTryExpr(it) =>
+                    let resources =
+                        match (it.resourceList()) {
+                            case Some(list) =>
+                                list.resourceDecls() |>
+                                    map { one: ResourceDecl => resource(one) } |>
+                                    collectArray
+                            case None => Array<Resource>()
+                        }
+                    let tried = block(it.block())
+                    let catches =
+                        it.catchClauses() |> map { one: CatchClause => catchArm(one) } |>
+                            collectArray
+                    Expr
+                        .TryExpr(
+                            resources,
+                            tried,
+                            catches,
+                            it.finallyClause().map { one => block(one.block()) }
+                        )
+                case AstExpr.AsForInExpr(it) =>
+                    let iterated = exprOf(it.expr())
+                    let pattern =
+                        match (it.pattern()) {
+                            case Some(one) => pat(one, LocalKind.PatLocal, lone: true)
+                            case None => addPat(Pat.MissingPat, None)
+                        }
+                    Expr
+                        .ForExpr(
+                            pattern,
+                            iterated,
+                            it.guard().flatMap { one => one.expr() }.map { one => expr(one) },
+                            block(it.block())
+                        )
+                case AstExpr.AsWhileExpr(it) => Expr.WhileExpr(exprOf(it.expr()), block(it.block()))
+                case AstExpr.AsDoWhileExpr(it) =>
+                    let body = block(it.block())
+                    Expr.DoWhileExpr(body, exprOf(it.expr()))
+                case AstExpr.AsThrowExpr(it) => Expr.ThrowExpr(exprOf(it.expr()))
+                case AstExpr.AsReturnExpr(it) => Expr.ReturnExpr(it.expr().map { one => expr(one) })
+                case AstExpr.AsBreakExpr(_) => Expr.BreakExpr
+                case AstExpr.AsContinueExpr(_) => Expr.ContinueExpr
+                case AstExpr.AsSpawnExpr(it) =>
+                    let context = it.context().map { one => expr(one) }
+                    let lambda =
+                        it.syntax.children() |>
+                            filterMap { child: CjSyntaxNode => LambdaExpr.cast(child) } |>
+                            first
+                    Expr.SpawnExpr(context, lambdaOf(lambda))
+                case AstExpr.AsSynchronizedExpr(it) =>
+                    Expr.SynchronizedExpr(exprOf(it.expr()), block(it.block()))
+                case AstExpr.AsUnsafeExpr(it) => Expr.UnsafeExpr(block(it.block()))
+                case AstExpr.AsLambdaExpr(it) => return lambdaOf(it)
+                case AstExpr.AsThisExpr(_) => Expr.ThisExpr
+                case AstExpr.AsSuperExpr(_) => Expr.SuperExpr
+                case AstExpr.AsWildcardExpr(_) => Expr.WildcardExpr
+                case AstExpr.AsTypeConvExpr(it) =>
+                    Expr.ConvExpr(it.primType()?.keyword()?.text() ?? "", exprOf(it.expr()))
+                case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
+                case AstExpr.AsVArrayExpr(it) =>
+                    Expr
+                        .VArrayExpr(
+                            types.lower(it.vArrayType().map { one => Type.AsVArrayType(one) }),
+                            args(it.argList())
+                        )
+                case AstExpr.AsQuoteExpr(it) =>
+                    Expr
+                        .QuoteExpr(
+                            it.quoteInterpolations() |>
+                                map { one: QuoteInterpolation => exprOf(one.expr()) } |>
+                                collectArray
+                        )
+                // no arguments: a macro call on a declaration (`var f = @M func g() {}`) is given the declaration, not
+                // values
+                case AstExpr.AsMacroExpandDecl(it) =>
+                    Expr.MacroExpr(MacroCall(macroName(it).split("."), None, []))
+                case AstExpr.AsMacroExpandExpr(it) =>
+                    let path = it.nameRefs() |> map { name: NameRef => name.text() } |> collectArray
+                    Expr
+                        .MacroExpr(
+                            MacroCall(
+                                path,
+                                it.macroAttr().map { attr => attrTypes(attr) },
+                                macroArgs(it)
+                            )
+                        )
+            }
         add(lowered, node.syntax)
     }
 
@@ -918,7 +1143,7 @@ class BodyLowering {
 
     private func typeArgs(nodes: ?Iterator<Type>): Array<TypeRefId> {
         match (nodes) {
-            case Some(it) => it |> map {one: Type => types.lower(one)} |> collectArray
+            case Some(it) => it |> map { one: Type => types.lower(one) } |> collectArray
             case None => Array<TypeRefId>()
         }
     }
@@ -929,18 +1154,22 @@ class BodyLowering {
     private func attrTypes(attr: MacroAttr): Array<TypeRefId> {
         let tokens = ArrayList<CjSyntaxToken>()
         for (element in attr.syntax.descendantsWithTokens()) {
-            if (let SyntaxElement.Token(token) <- element && !token.kind.isTrivia() && token.kind != SyntaxKind.LBracket &&
-                token.kind != SyntaxKind.RBracket) {
+            if (
+                let SyntaxElement.Token(token) <- element && !token.kind.isTrivia() &&
+                    token.kind != SyntaxKind.LBracket &&
+                    token.kind != SyntaxKind.RBracket
+            ) {
                 tokens.add(token)
             }
         }
         // `A`, `A | B`: an identifier at each even place, a `|` at each odd one
         for (i in 0..tokens.size) {
-            let wanted = if (i % 2 == 0) {
-                SyntaxKind.Ident
-            } else {
-                SyntaxKind.Pipe
-            }
+            let wanted =
+                if (i % 2 == 0) {
+                    SyntaxKind.Ident
+                } else {
+                    SyntaxKind.Pipe
+                }
             if (tokens[i].kind != wanted) {
                 return []
             }
@@ -948,7 +1177,10 @@ class BodyLowering {
         if (tokens.size % 2 == 0) {
             return []
         }
-        tokens.toArray().filter {token => token.kind == SyntaxKind.Ident}.map {token => types.named(identText(token))}
+        tokens
+            .toArray()
+            .filter { token => token.kind == SyntaxKind.Ident }
+            .map { token => types.named(identText(token)) }
     }
 
     /**
@@ -965,7 +1197,7 @@ class BodyLowering {
         calls.reverse()
         let found = ArrayList<DeclAttr>()
         for (call in calls) {
-            let path = call.nameRefs() |> map {name: NameRef => name.text()} |> collectArray
+            let path = call.nameRefs() |> map { name: NameRef => name.text() } |> collectArray
             let attr = call.macroAttr() ?? continue
             if (CODE_ATTRS.contains(path.get(path.size - 1) ?? "")) {
                 found.add(DeclAttr(path, attrArgs(attr)))
@@ -982,17 +1214,20 @@ class BodyLowering {
         let found = ArrayList<AttrArg>()
         for (child in attr.syntax.children()) {
             if (let Some(it) <- DataArg.cast(child)) {
-                let param = match (it.param()) {
-                    case Some(one) where one.syntax.kind == SyntaxKind.RefExpr => Some(expr(one))
-                    case _ => None<ExprId>
-                }
+                let param =
+                    match (it.param()) {
+                        case Some(one) where one.syntax.kind == SyntaxKind.RefExpr =>
+                            Some(expr(one))
+                        case _ => None<ExprId>
+                    }
                 found.add(AttrArg.DataArg(param, exprOf(it.source())))
             } else if (let Some(it) <- TypesArg.cast(child)) {
                 let param = types.lower(it.ty())
                 found.add(AttrArg.TypesArg(param, typeArgs(it.typeArgList()?.types())))
             } else if (let Some(it) <- Arg.cast(child)) {
                 match (it.nameRef()) {
-                    case Some(name) => found.add(AttrArg.OptionArg(optionKey(name.text(), it), exprOf(it.expr())))
+                    case Some(name) =>
+                        found.add(AttrArg.OptionArg(optionKey(name.text(), it), exprOf(it.expr())))
                     case None => found.add(AttrArg.ValueArg(exprOf(it.expr())))
                 }
             }
@@ -1018,15 +1253,22 @@ class BodyLowering {
     private func macroArgs(node: MacroExpandExpr): Array<CallArg> {
         match (node.macroArgs()) {
             case Some(it) => args(it.argList())
-            case None => node.macroExpandExpr().map {inner => macroArgs(inner)} ?? []
+            case None => node.macroExpandExpr().map { inner => macroArgs(inner) } ?? []
         }
     }
 
     private func args(list: ?ArgList): Array<CallArg> {
         let it = list?.args() ?? return []
-        it |> map {
-            arg: Arg => CallArg(arg.nameRef()?.text(), exprOf(arg.expr()), isInout: arg.inoutToken().isSome())
-        } |> collectArray
+        it |>
+            map {
+                arg: Arg =>
+                CallArg(
+                    arg.nameRef()?.text(),
+                    exprOf(arg.expr()),
+                    isInout: arg.inoutToken().isSome()
+                )
+            } |>
+            collectArray
     }
 
     /**
@@ -1034,12 +1276,20 @@ class BodyLowering {
      */
     private func lambdaOf(node: ?LambdaExpr): ExprId {
         let it = node ?? return missing()
-        let params = match (it.lambdaParamList()) {
-            case Some(list) => list.lambdaParams() |> map {
-                param => BodyParam(local(param.name(), LocalKind.LambdaParamLocal), ty: param.ty().map {one => types.lower(one)})
-            } |> collectArray
-            case None => Array<BodyParam>()
-        }
+        let params =
+            match (it.lambdaParamList()) {
+                case Some(list) =>
+                    list.lambdaParams() |>
+                        map {
+                            param =>
+                            BodyParam(
+                                local(param.name(), LocalKind.LambdaParamLocal),
+                                ty: param.ty().map { one => types.lower(one) }
+                            )
+                        } |>
+                        collectArray
+                case None => Array<BodyParam>()
+            }
         // the block has no node of its own: the lambda's is the lambda's
         exprs.add(Expr.BlockExpr(stmts(it.stmts())))
         exprPtrs.add(None)
@@ -1047,25 +1297,31 @@ class BodyLowering {
     }
 
     private func arm(node: MatchCase): MatchArm {
-        let pats = node.patterns() |> map {one => pat(one, LocalKind.PatLocal, lone: true)} |> collectArray
-        let guard = node.guard().flatMap {one => one.expr()}.map {one => expr(one)}
-        let condition = node.condition().map {one => expr(one)}
+        let pats =
+            node.patterns() |> map { one => pat(one, LocalKind.PatLocal, lone: true) } |>
+                collectArray
+        let guard = node.guard().flatMap { one => one.expr() }.map { one => expr(one) }
+        let condition = node.condition().map { one => expr(one) }
         let body = add(Expr.BlockExpr(stmts(node.stmts())), node.syntax)
         MatchArm(pats, guard, condition, body)
     }
 
     private func resource(node: ResourceDecl): Resource {
         let value = exprOf(node.expr())
-        let ty = node.ty().map {one => types.lower(one)}
+        let ty = node.ty().map { one => types.lower(one) }
         Resource(local(node.name(), LocalKind.ResourceLocal), ty, value)
     }
 
     private func catchArm(node: CatchClause): CatchArm {
-        let (local, caught) = match (node.catchPat()) {
-            case Some(catchPat) => (local(catchPat.name(), LocalKind.CatchLocal),
-                catchPat.types() |> map {one: Type => types.lower(one)} |> collectArray)
-            case None => (None<LocalId>, Array<TypeRefId>())
-        }
+        let (local, caught) =
+            match (node.catchPat()) {
+                case Some(catchPat) =>
+                    (
+                        local(catchPat.name(), LocalKind.CatchLocal),
+                        catchPat.types() |> map { one: Type => types.lower(one) } |> collectArray
+                    )
+                case None => (None<LocalId>, Array<TypeRefId>())
+            }
         CatchArm(local, caught, block(node.block()))
     }
 
@@ -1073,25 +1329,39 @@ class BodyLowering {
      * The pattern `node`, its names locals of `kind`; a lone name may be a constructor if `lone`.
      */
     func pat(node: Pattern, kind: LocalKind, lone!: Bool): PatId {
-        let lowered = match (node) {
-            case Pattern.AsWildcardPat(_) => Pat.WildcardPat
-            case Pattern.AsLiteralPat(it) => Pat.LitPat(compactText(it.syntax))
-            case Pattern.AsBindPat(it) => match (local(it.name(), kind, lone: lone)) {
-                case Some(one) => Pat.BindPat(one)
-                case None => Pat.MissingPat
+        let lowered =
+            match (node) {
+                case Pattern.AsWildcardPat(_) => Pat.WildcardPat
+                case Pattern.AsLiteralPat(it) => Pat.LitPat(compactText(it.syntax))
+                case Pattern.AsBindPat(it) =>
+                    match (local(it.name(), kind, lone: lone)) {
+                        case Some(one) => Pat.BindPat(one)
+                        case None => Pat.MissingPat
+                    }
+                case Pattern.AsTypePat(it) =>
+                    Pat.TypePat(local(it.name(), kind), types.lower(it.ty()))
+                case Pattern.AsTuplePat(it) =>
+                    Pat
+                        .TuplePat(
+                            it.patterns() |> map { one => pat(one, kind, lone: lone) } |>
+                                collectArray
+                        )
+                case Pattern.AsEnumPat(it) =>
+                    Pat
+                        .EnumPat(
+                            it.pathSegments() |>
+                                map { segment: PathSegment => segment.nameRef()?.text() ?? "" } |>
+                                collectArray,
+                            it.patterns() |> map { one => pat(one, kind, lone: lone) } |>
+                                collectArray
+                        )
             }
-            case Pattern.AsTypePat(it) => Pat.TypePat(local(it.name(), kind), types.lower(it.ty()))
-            case Pattern.AsTuplePat(it) => Pat.TuplePat(it.patterns() |> map {one => pat(one, kind, lone: lone)} |> collectArray)
-            case Pattern.AsEnumPat(it) => Pat.EnumPat(it.pathSegments() |> map {
-                segment: PathSegment => segment.nameRef()?.text() ?? ""
-            } |> collectArray, it.patterns() |> map {one => pat(one, kind, lone: lone)} |> collectArray)
-        }
         addPat(lowered, node.syntax)
     }
 
     private func addPat(pat: Pat, node: ?CjSyntaxNode): PatId {
         pats.add(pat)
-        patPtrs.add(node.map {one => SyntaxNodePtr(one)})
+        patPtrs.add(node.map { one => SyntaxNodePtr(one) })
         PatId(pats.size - 1)
     }
 }

@@ -58,7 +58,12 @@ func beginMarker(attrs: Tokens, input: Tokens): MarkerPosition {
     let ident = identOf(input) ?? Token(TokenKind.IDENTIFIER, "")
     setItem(ITEM_IDENT, ident.value)
     setItem(ITEM_ON_TYPE, position.isType)
-    let at = if (attrs.size > 0) { attrs } else { ident.toTokens() }
+    let at =
+        if (attrs.size > 0) {
+            attrs
+        } else {
+            ident.toTokens()
+        }
     setItem(ITEM_AT, at)
 
     position

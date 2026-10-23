@@ -177,7 +177,7 @@ public class FtTable <: Iterable<(String, FtValue)> {
 
     /** Where `key` was written: its last part, for a dotted key. */
     public func keySpan(key: String): ?(Int64, Int64) {
-        entries.indexOf(key).map {index => keySpans[index]}
+        entries.indexOf(key).map { index => keySpans[index] }
     }
 
     func add(key: String, value: FtValue, keyStart!: Int64 = 0, keyEnd!: Int64 = 0): Unit {

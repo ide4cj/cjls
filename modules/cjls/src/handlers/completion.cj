@@ -16,25 +16,43 @@ import cjls.macros.LspHandler
  * the server does not know, or in an expanded file, which is read-only.
  */
 @LspHandler[readonly]
-func handleCompletion(snap: ServerSnapshot, params: CompletionParams): Nullable<CompletionItemsOrCompletionList> {
+func handleCompletion(
+    snap: ServerSnapshot,
+    params: CompletionParams
+): Nullable<CompletionItemsOrCompletionList> {
     let uri = params.textDocument.uri
     if (isExpandedDocument(uri)) {
         return Nullable.Null
     }
     let file = fileOf(snap, uri) ?? return Nullable.Null
-    let result = completionsAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position)) ??
-        return Nullable.Null
-    let range = lspRange(file.text(snap.analysis), result.range.start, result.range.end, snap.encoding)
+    let result =
+        completionsAt(
+            snap.analysis,
+            file.fileId(snap.analysis),
+            offsetOf(snap, file, params.position)
+        ) ??
+            return Nullable.Null
+    let range =
+        lspRange(file.text(snap.analysis), result.range.start, result.range.end, snap.encoding)
     let width = "${result.items.size}".size
-    let items = Array<CompletionItem>(result.items.size) {
-        index =>
-        let item = result.items[index]
-        CompletionItem(label: item.label, kind: completionItemKind(item.kind),
-            sortText: "${index}".padStart(width, padding: "0"),
-            textEdit: TextEditOrInsertReplaceEdit.AsTextEdit(TextEdit(range: range, newText: item.label)),
-            data: completionData(uri, params.position, index))
-    }
-    Nullable.Value(CompletionItemsOrCompletionList.AsCompletionList(CompletionList(isIncomplete: false, items: items)))
+    let items =
+        Array<CompletionItem>(result.items.size) {
+            index =>
+            let item = result.items[index]
+            CompletionItem(
+                label: item.label,
+                kind: completionItemKind(item.kind),
+                sortText: "${index}".padStart(width, padding: "0"),
+                textEdit: TextEditOrInsertReplaceEdit
+                    .AsTextEdit(TextEdit(range: range, newText: item.label)),
+                data: completionData(uri, params.position, index)
+            )
+        }
+    Nullable
+        .Value(
+            CompletionItemsOrCompletionList
+                .AsCompletionList(CompletionList(isIncomplete: false, items: items))
+        )
 }
 
 /**
@@ -54,19 +72,44 @@ func handleCompletionResolve(snap: ServerSnapshot, item: CompletionItem): Comple
         return item
     }
     let detail = completionDetail(snap.analysis, fileId, offset, result.items[index]) ?? return item
-    let documentation = detail.doc.map {
-        doc => StringOrMarkupContent.AsMarkupContent(MarkupContent(kind: if (snap.completionMarkdown) {
-            MarkupKind.Markdown
-        } else {
-            MarkupKind.PlainText
-        }, value: doc))
-    }
-    CompletionItem(label: item.label, labelDetails: item.labelDetails, kind: item.kind, tags: item.tags,
-        detail: detail.code, documentation: documentation, deprecated: item.deprecated, preselect: item.preselect,
-        sortText: item.sortText, filterText: item.filterText, insertText: item.insertText,
-        insertTextFormat: item.insertTextFormat, insertTextMode: item.insertTextMode, textEdit: item.textEdit,
-        textEditText: item.textEditText, additionalTextEdits: item.additionalTextEdits,
-        commitCharacters: item.commitCharacters, command: item.command, data: item.data)
+    let documentation =
+        detail
+            .doc
+            .map {
+                doc =>
+                StringOrMarkupContent
+                    .AsMarkupContent(
+                        MarkupContent(
+                            kind: if (snap.completionMarkdown) {
+                                MarkupKind.Markdown
+                            } else {
+                                MarkupKind.PlainText
+                            },
+                            value: doc
+                        )
+                    )
+            }
+    CompletionItem(
+        label: item.label,
+        labelDetails: item.labelDetails,
+        kind: item.kind,
+        tags: item.tags,
+        detail: detail.code,
+        documentation: documentation,
+        deprecated: item.deprecated,
+        preselect: item.preselect,
+        sortText: item.sortText,
+        filterText: item.filterText,
+        insertText: item.insertText,
+        insertTextFormat: item.insertTextFormat,
+        insertTextMode: item.insertTextMode,
+        textEdit: item.textEdit,
+        textEditText: item.textEditText,
+        additionalTextEdits: item.additionalTextEdits,
+        commitCharacters: item.commitCharacters,
+        command: item.command,
+        data: item.data
+    )
 }
 
 /**
@@ -74,7 +117,8 @@ func handleCompletionResolve(snap: ServerSnapshot, item: CompletionItem): Comple
  */
 func completionItemKind(kind: CompletionKind): CompletionItemKind {
     match (kind) {
-        case CompletionKind.LocalItem | CompletionKind.ParamItem | CompletionKind.VarItem => CompletionItemKind.Variable
+        case CompletionKind.LocalItem | CompletionKind.ParamItem | CompletionKind.VarItem =>
+            CompletionItemKind.Variable
         case CompletionKind.FuncItem => CompletionItemKind.Function
         case CompletionKind.PropItem => CompletionItemKind.Property
         case CompletionKind.CtorItem => CompletionItemKind.Constructor
@@ -92,20 +136,31 @@ func completionItemKind(kind: CompletionKind): CompletionItemKind {
  * Where a completion item came from, for `completionItem/resolve`, whose request carries the item alone.
  */
 func completionData(uri: DocumentUri, position: Position, index: Int64): LSPAny {
-    JsonValue.JsonObject([("uri", JsonValue.JsonString(uri)),
-        ("line", JsonValue.JsonInteger(Int64(position.line))),
-        ("character", JsonValue.JsonInteger(Int64(position.character))), ("index", JsonValue.JsonInteger(index))])
+    JsonValue
+        .JsonObject(
+            [
+                ("uri", JsonValue.JsonString(uri)),
+                ("line", JsonValue.JsonInteger(Int64(position.line))),
+                ("character", JsonValue.JsonInteger(Int64(position.character))),
+                ("index", JsonValue.JsonInteger(index))
+            ]
+        )
 }
 
 func completionDataOf(data: ?LSPAny): ?(DocumentUri, Position, Int64) {
     let fields = data ?? return None
-    let (uri, line, character, index) = match ((fields.get("uri"), fields.get("line"), fields.get("character"),
-        fields.get("index"))) {
-        case (Some(JsonValue.JsonString(uri)), Some(JsonValue.JsonInteger(line)),
-            Some(JsonValue.JsonInteger(character)), Some(JsonValue.JsonInteger(index))) =>
-            (uri, line, character, index)
-        case _ => return None
-    }
+    let (uri, line, character, index) =
+        match (
+            (fields.get("uri"), fields.get("line"), fields.get("character"), fields.get("index"))
+        ) {
+            case (
+                    Some(JsonValue.JsonString(uri)),
+                    Some(JsonValue.JsonInteger(line)),
+                    Some(JsonValue.JsonInteger(character)),
+                    Some(JsonValue.JsonInteger(index))
+                ) => (uri, line, character, index)
+            case _ => return None
+        }
     if (line < 0 || character < 0 || line > Int64(UInt32.Max) || character > Int64(UInt32.Max)) {
         return None
     }

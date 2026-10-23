@@ -156,7 +156,12 @@ class MethodTest {
         let b = SourceFile(db, "b.cj", "hi")
 
         // act
-        let results = [SourceFile.totalSize(db, a, b), SourceFile.totalSize(db, a, b), SourceFile.totalSize(db, b, a)]
+        let results =
+            [
+                SourceFile.totalSize(db, a, b),
+                SourceFile.totalSize(db, a, b),
+                SourceFile.totalSize(db, b, a)
+            ]
 
         // assert
         @Expect(results, [7, 7, 7])

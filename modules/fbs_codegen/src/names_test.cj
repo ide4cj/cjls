@@ -14,15 +14,16 @@ func namesOf(
     wrap!: Array<(String, String)> = [],
     write!: Bool = false
 ): Names {
-    let config = Config(
-        schema: "s.fbs",
-        output: "out.cj",
-        packageName: "p",
-        openEnums: open,
-        renames: HashMap<String, String>(rename),
-        wraps: HashMap<String, String>(wrap),
-        write: write
-    )
+    let config =
+        Config(
+            schema: "s.fbs",
+            output: "out.cj",
+            packageName: "p",
+            openEnums: open,
+            renames: HashMap<String, String>(rename),
+            wraps: HashMap<String, String>(wrap),
+            write: write
+        )
     Names(parseSchema(text), config)
 }
 
@@ -44,8 +45,11 @@ class NamesTest {
     @TestCase
     func theConfigRenamesDeclarationsAndEnumMembers() {
         // arrange
-        let sut = namesOf("table Generic {}\nenum E : byte { Generic, Other }",
-            rename: [("Generic", "Generics"), ("E.Other", "Else")])
+        let sut =
+            namesOf(
+                "table Generic {}\nenum E : byte { Generic, Other }",
+                rename: [("Generic", "Generics"), ("E.Other", "Else")]
+            )
 
         // act & assert
         @Expect(sut.typeName("Generic"), "Generics")
@@ -126,7 +130,10 @@ class StructLayoutTest {
     @TestCase
     func aNestedStructIsAlignedAsItsLargestField() {
         // arrange
-        let names = namesOf("struct In { x: ubyte; y: long; }\nenum E : short { A }\nstruct S { a: ubyte; e: E; b: In; }")
+        let names =
+            namesOf(
+                "struct In { x: ubyte; y: long; }\nenum E : short { A }\nstruct S { a: ubyte; e: E; b: In; }"
+            )
 
         // act
         let sut = structLayout(names, names.decl("S"))
@@ -153,7 +160,10 @@ class FieldIdsTest {
     @TestCase
     func aUnionOrAVectorOfUnionsTakesTwoIds() {
         // arrange
-        let names = namesOf("table T {}\nunion U { T }\ntable X { a: int; u: U; b: string; us: [U]; c: [int]; }")
+        let names =
+            namesOf(
+                "table T {}\nunion U { T }\ntable X { a: int; u: U; b: string; us: [U]; c: [int]; }"
+            )
 
         // act
         let sut = fieldIds(names, names.decl("X"))

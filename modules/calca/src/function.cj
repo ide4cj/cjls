@@ -45,9 +45,9 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
         let storage = db.storage
         let outermost = storage.beginOperation()
         try {
-            let memos = storage.runtime.existing<MemoTable<D, K, V>>(index) ?? storage.runtime.ingredient(index) {
-                => memoTable<B>()
-            }
+            let memos =
+                storage.runtime.existing<MemoTable<D, K, V>>(index) ??
+                    storage.runtime.ingredient(index) { => memoTable<B>() }
             let (value, memo, entry) = memos.fetchValue(db, storage, key)
             storage.reportRead(DatabaseKey(index, entry.id), entry, memo.durability, memo.changedAt)
             value
@@ -57,12 +57,13 @@ public class TrackedFunction<D, K, V> where D <: Database, K <: Hashable & Equat
     }
 
     private func memoTable<B>(): MemoTable<D, K, V> where B <: TrackedBody<D, K, V> {
-        let recover: ?(D, K) -> V = if (B.calcaHasFallback()) {
-            {db: D, key: K => B.calcaFallback(db, key)}
-        } else {
-            None
-        }
-        MemoTable(this, {db: D, key: K => B.calcaExecute(db, key)}, recover)
+        let recover: ?(D, K) -> V =
+            if (B.calcaHasFallback()) {
+                { db: D, key: K => B.calcaFallback(db, key) }
+            } else {
+                None
+            }
+        MemoTable(this, { db: D, key: K => B.calcaExecute(db, key) }, recover)
     }
 }
 
@@ -168,7 +169,8 @@ class MemoEntry<K, V> <: Edge {
  * verified in the current revision is read without a claim, and without the lock (C9): the entries
  * are found by key in a `ConcurrentHashMap`, and the lock goes only around what changes them.
  */
-class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K <: Hashable & Equatable<K> {
+class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database,
+    K <: Hashable & Equatable<K> {
     private let lock = Mutex()
     let entries = Slab<MemoEntry<K, V>>()
     private let executions = AtomicInt64(0)
@@ -205,8 +207,12 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     /**
      * The function itself, the same whichever `fetch` gave it.
      */
-    MemoTable(let function: TrackedFunction<D, K, V>, let body: (D, K) -> V, let recover: ?(D, K) -> V) {
-        used = function.lru.map {capacity => IdLru(capacity)}
+    MemoTable(
+        let function: TrackedFunction<D, K, V>,
+        let body: (D, K) -> V,
+        let recover: ?(D, K) -> V
+    ) {
+        used = function.lru.map { capacity => IdLru(capacity) }
         lock.lock()
         released = lock.condition()
         lock.unlock()
@@ -248,13 +254,14 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     @Frozen
     private func keysOfInterned(key: K): KeysOfInterned {
         if (let KeysUnknown <- interned) {
-            interned = if ((key as InternedValue).isSome()) {
-                KeysAreInterned(HashMap<DatabaseKey, Id>())
-            } else if ((key as InternedFields).isSome()) {
-                KeysHoldInterned(HashMap<DatabaseKey, HashSet<Id>>())
-            } else {
-                KeysOfNone
-            }
+            interned =
+                if ((key as InternedValue).isSome()) {
+                    KeysAreInterned(HashMap<DatabaseKey, Id>())
+                } else if ((key as InternedFields).isSome()) {
+                    KeysHoldInterned(HashMap<DatabaseKey, HashSet<Id>>())
+                } else {
+                    KeysOfNone
+                }
         }
         interned
     }
@@ -280,9 +287,14 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         if (watched.contains(ingredient)) {
             return
         }
-        let table = (runtime.ingredientAt(ingredient) as InternedKeys).getOrThrow {
-            => IllegalStateException("${function.name} is keyed by ${ingredient}, which interns nothing")
-        }
+        let table =
+            (runtime.ingredientAt(ingredient) as InternedKeys)
+                .getOrThrow {
+                    =>
+                    IllegalStateException(
+                        "${function.name} is keyed by ${ingredient}, which interns nothing"
+                    )
+                }
         table.watch(this)
         watched.add(ingredient)
     }
@@ -292,26 +304,28 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * keys holding any of them; their keys' `Id`s go with them.
      */
     public func dropKeys(ingredient: Int64, collected: Array<Id>): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             match (interned) {
-                case KeysAreInterned(memos) => for (value in collected) {
-                    drop(memos.remove(DatabaseKey(ingredient, value)) ?? continue)
-                }
-                case KeysHoldInterned(memos) => for (value in collected) {
-                    let gone = DatabaseKey(ingredient, value)
-                    for (id in memos.remove(gone) ?? continue) {
-                        let entry = drop(id) ?? continue
-                        // the other values its key held no longer key it
-                        for (other in internedFields(entry.key) where other != gone) {
-                            if (let Some(ids) <- memos.get(other)) {
-                                ids.remove(id)
-                                if (ids.isEmpty()) {
-                                    memos.remove(other)
+                case KeysAreInterned(memos) =>
+                    for (value in collected) {
+                        drop(memos.remove(DatabaseKey(ingredient, value)) ?? continue)
+                    }
+                case KeysHoldInterned(memos) =>
+                    for (value in collected) {
+                        let gone = DatabaseKey(ingredient, value)
+                        for (id in memos.remove(gone) ?? continue) {
+                            let entry = drop(id) ?? continue
+                            // the other values its key held no longer key it
+                            for (other in internedFields(entry.key) where other != gone) {
+                                if (let Some(ids) <- memos.get(other)) {
+                                    ids.remove(id)
+                                    if (ids.isEmpty()) {
+                                        memos.remove(other)
+                                    }
                                 }
                             }
                         }
                     }
-                }
                 case _ => ()
             }
         }
@@ -346,11 +360,12 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
                 }
             }
         }
-        let entry = synchronized(lock) {
-            let entry = internLocked(storage.runtime, key)
-            touchLocked(entry.id)
-            entry
-        }
+        let entry =
+            synchronized (lock) {
+                let entry = internLocked(storage.runtime, key)
+                touchLocked(entry.id)
+                entry
+            }
         if (let Some(hit) <- current(entry, storage.runtime)) {
             return hit
         }
@@ -390,22 +405,30 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         throw IllegalStateException("unreachable")
     }
 
-    private func fetchClaimed(db: D, storage: Storage, databaseKey: DatabaseKey, key: K): (V, Memo<V>) {
+    private func fetchClaimed(
+        db: D,
+        storage: Storage,
+        databaseKey: DatabaseKey,
+        key: K
+    ): (V, Memo<V>) {
         storage.enter(databaseKey)
         try {
-            let old = synchronized(lock) {
-                claim(storage, databaseKey)
-                // the owner waited for may have left it verified or computed
-                entry(databaseKey.id).memo.load()
-            }
+            let old =
+                synchronized (lock) {
+                    claim(storage, databaseKey)
+                    // the owner waited for may have left it verified or computed
+                    entry(databaseKey.id).memo.load()
+                }
             try {
                 match (old) {
-                    case Some(memo) => match (memo.value) {
-                        case Some(value) where verify(db, storage.runtime, memo, databaseKey) => (value, memo)
-                        case None where verify(db, storage.runtime, memo, databaseKey) =>
-                            execute(db, storage, databaseKey, key, old, unchanged: true)
-                        case _ => execute(db, storage, databaseKey, key, old, unchanged: false)
-                    }
+                    case Some(memo) =>
+                        match (memo.value) {
+                            case Some(value) where verify(db, storage.runtime, memo, databaseKey) =>
+                                (value, memo)
+                            case None where verify(db, storage.runtime, memo, databaseKey) =>
+                                execute(db, storage, databaseKey, key, old, unchanged: true)
+                            case _ => execute(db, storage, databaseKey, key, old, unchanged: false)
+                        }
                     case None => execute(db, storage, databaseKey, key, old, unchanged: false)
                 }
             } finally {
@@ -449,7 +472,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
     }
 
     private func release(storage: Storage, key: DatabaseKey): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             claims.remove(key.id)
             storage.runtime.released(key)
             released.notifyAll()
@@ -468,16 +491,19 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         if (verifiedAt == now) {
             return true
         }
-        let changed = try {
-            runtime.lastChangedAt(memo.durability) > verifiedAt && memo.dependencies.iterator().any {
-                dependency => dependency.maybeChangedAfter(db, runtime, verifiedAt)
+        let changed =
+            try {
+                runtime.lastChangedAt(memo.durability) > verifiedAt &&
+                    memo
+                        .dependencies
+                        .iterator()
+                        .any { dependency => dependency.maybeChangedAfter(db, runtime, verifiedAt) }
+            } catch (e: VerifyingCycleException) {
+                if (e.key != key) {
+                    throw e
+                }
+                true
             }
-        } catch (e: VerifyingCycleException) {
-            if (e.key != key) {
-                throw e
-            }
-            true
-        }
         if (changed) {
             return false
         }
@@ -497,36 +523,51 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * computed a value from reads its memo does not know of, maybe in a revision cancelled: what
      * unwinds it is thrown again, and nothing is stored.
      */
-    private func execute(db: D, storage: Storage, databaseKey: DatabaseKey, key: K, old: ?Memo<V>,
-        unchanged!: Bool): (V, Memo<V>) {
+    private func execute(
+        db: D,
+        storage: Storage,
+        databaseKey: DatabaseKey,
+        key: K,
+        old: ?Memo<V>,
+        unchanged!: Bool
+    ): (V, Memo<V>) {
         storage.runtime.executions.fetchAdd(1)
         executions.fetchAdd(1)
         let frame = storage.push(databaseKey)
-        let value = try {
-            let computed = body(db, key)
-            if (frame.inCycle) {
+        let value =
+            try {
+                let computed = body(db, key)
+                if (frame.inCycle) {
+                    fallback(db, key, frame)
+                } else {
+                    computed
+                }
+            } catch (e: CycleUnwindException) {
+                if (!frame.inCycle) {
+                    throw e
+                }
                 fallback(db, key, frame)
-            } else {
-                computed
+            } finally {
+                storage.pop()
             }
-        } catch (e: CycleUnwindException) {
-            if (!frame.inCycle) {
-                throw e
-            }
-            fallback(db, key, frame)
-        } finally {
-            storage.pop()
-        }
         if (let Some(e) <- frame.unwoundBy) {
             throw e
         }
-        let changedAt = match (old) {
-            case Some(memo) where frame.durability >= memo.durability && (unchanged || isEqual(memo.value, value)) =>
-                memo.changedAt
-            case _ => frame.changedAt
-        }
-        let memo = Memo(storage.runtime.revision, value, changedAt, frame.durability, frame.dependencies.toArray())
-        synchronized(lock) {
+        let changedAt =
+            match (old) {
+                case Some(memo) where frame.durability >= memo.durability &&
+                        (unchanged || isEqual(memo.value, value)) => memo.changedAt
+                case _ => frame.changedAt
+            }
+        let memo =
+            Memo(
+                storage.runtime.revision,
+                value,
+                changedAt,
+                frame.durability,
+                frame.dependencies.toArray()
+            )
+        synchronized (lock) {
             entry(databaseKey.id).memo.store(memo)
             touchLocked(databaseKey.id)
         }
@@ -538,7 +579,8 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      */
     private func fallback(db: D, key: K, frame: ActiveQuery): V {
         frame.unwinding = false
-        let recovered = recover.getOrThrow {=> IllegalStateException("${function.name} has no fallback")}
+        let recovered =
+            recover.getOrThrow { => IllegalStateException("${function.name} has no fallback") }
         recovered(db, key)
     }
 
@@ -560,7 +602,12 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * whoever fetches it computes it. A memo dropped with its key is changed.
      */
     public func maybeChangedAfter(db: Database, id: Id, revision: Int64): Bool {
-        let typed = (db as D).getOrThrow {=> IllegalStateException("${function.name} is given a database of another type")}
+        let typed =
+            (db as D)
+                .getOrThrow {
+                    =>
+                    IllegalStateException("${function.name} is given a database of another type")
+                }
         let storage = db.storage
         let databaseKey = DatabaseKey(function.index, id)
         while (true) {
@@ -576,29 +623,40 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
         throw IllegalStateException("unreachable")
     }
 
-    private func verifyClaimed(db: D, storage: Storage, databaseKey: DatabaseKey, revision: Int64): Bool {
+    private func verifyClaimed(
+        db: D,
+        storage: Storage,
+        databaseKey: DatabaseKey,
+        revision: Int64
+    ): Bool {
         storage.enter(databaseKey)
         try {
             let now = storage.runtime.revision
-            let found: ?(K, ?Memo<V>, Bool) = synchronized(lock) {
-                match (entries.get(databaseKey.id)) {
-                    case Some(entry) => match (entry.memo.load()) {
-                        case Some(memo) where memo.verifiedAt.load() == now => Some((entry.key, Some(memo), false))
-                        case _ =>
-                            claim(storage, databaseKey)
-                            // the owner waited for may have left it verified or computed
-                            Some((entry.key, entry.memo.load(), true))
+            let found: ?(K, ?Memo<V>, Bool) =
+                synchronized (lock) {
+                    match (entries.get(databaseKey.id)) {
+                        case Some(entry) =>
+                            match (entry.memo.load()) {
+                                case Some(memo) where memo.verifiedAt.load() == now =>
+                                    Some((entry.key, Some(memo), false))
+                                case _ =>
+                                    claim(storage, databaseKey)
+                                    // the owner waited for may have left it verified or computed
+                                    Some((entry.key, entry.memo.load(), true))
+                            }
+                        case None => None
                     }
-                    case None => None
                 }
-            }
             let (key, old, claimed) = found ?? return true
             try {
                 match (old) {
-                    case Some(memo) where memo.value.isNone() => !verify(db, storage.runtime, memo, databaseKey) ||
+                    case Some(memo) where memo.value.isNone() =>
+                        !verify(db, storage.runtime, memo, databaseKey) || memo.changedAt > revision
+                    case Some(memo) where verify(db, storage.runtime, memo, databaseKey) =>
                         memo.changedAt > revision
-                    case Some(memo) where verify(db, storage.runtime, memo, databaseKey) => memo.changedAt > revision
-                    case _ => execute(db, storage, databaseKey, key, old, unchanged: false)[1].changedAt > revision
+                    case _ =>
+                        execute(db, storage, databaseKey, key, old, unchanged: false)[1].changedAt >
+                            revision
                 }
             } finally {
                 if (claimed) {
@@ -635,7 +693,7 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      * Evicts what a fetch that did not end left beyond `lru` (cancelled, or unwound by a cycle).
      */
     public func newRevision(): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             used?.trim(evictLocked)
         }
     }
@@ -657,6 +715,6 @@ class MemoTable<D, K, V> <: Ingredient & KeyedByInterned where D <: Database, K 
      */
     @Frozen
     private func entry(id: Id): MemoEntry<K, V> {
-        entries.get(id).getOrThrow {=> IllegalStateException("${function.name} has no key ${id}")}
+        entries.get(id).getOrThrow { => IllegalStateException("${function.name} has no key ${id}") }
     }
 }

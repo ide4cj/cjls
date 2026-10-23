@@ -60,25 +60,26 @@ public enum Modifier <: ToString {
 /**
  * The modifiers in the order they are kept in, whatever the order they are written in.
  */
-let MODIFIERS: Array<(SyntaxKind, Modifier)> = [
-    (SyntaxKind.StaticKw, Modifier.Static),
-    (SyntaxKind.PublicKw, Modifier.Public),
-    (SyntaxKind.PrivateKw, Modifier.Private),
-    (SyntaxKind.InternalKw, Modifier.Internal),
-    (SyntaxKind.ProtectedKw, Modifier.Protected),
-    (SyntaxKind.OverrideKw, Modifier.Override),
-    (SyntaxKind.RedefKw, Modifier.Redef),
-    (SyntaxKind.AbstractKw, Modifier.Abstract),
-    (SyntaxKind.SealedKw, Modifier.Sealed),
-    (SyntaxKind.OpenKw, Modifier.Open),
-    (SyntaxKind.ForeignKw, Modifier.Foreign),
-    (SyntaxKind.MutKw, Modifier.Mut),
-    (SyntaxKind.UnsafeKw, Modifier.Unsafe),
-    (SyntaxKind.OperatorKw, Modifier.Operator),
-    (SyntaxKind.ConstKw, Modifier.Const),
-    (SyntaxKind.CommonKw, Modifier.Common),
-    (SyntaxKind.SpecificKw, Modifier.Specific)
-]
+let MODIFIERS: Array<(SyntaxKind, Modifier)> =
+    [
+        (SyntaxKind.StaticKw, Modifier.Static),
+        (SyntaxKind.PublicKw, Modifier.Public),
+        (SyntaxKind.PrivateKw, Modifier.Private),
+        (SyntaxKind.InternalKw, Modifier.Internal),
+        (SyntaxKind.ProtectedKw, Modifier.Protected),
+        (SyntaxKind.OverrideKw, Modifier.Override),
+        (SyntaxKind.RedefKw, Modifier.Redef),
+        (SyntaxKind.AbstractKw, Modifier.Abstract),
+        (SyntaxKind.SealedKw, Modifier.Sealed),
+        (SyntaxKind.OpenKw, Modifier.Open),
+        (SyntaxKind.ForeignKw, Modifier.Foreign),
+        (SyntaxKind.MutKw, Modifier.Mut),
+        (SyntaxKind.UnsafeKw, Modifier.Unsafe),
+        (SyntaxKind.OperatorKw, Modifier.Operator),
+        (SyntaxKind.ConstKw, Modifier.Const),
+        (SyntaxKind.CommonKw, Modifier.Common),
+        (SyntaxKind.SpecificKw, Modifier.Specific)
+    ]
 
 /**
  * The `package` line: the package's name as written (`a.b`, `org::a.b`), and whether it is a
@@ -192,20 +193,38 @@ public struct ItemTree {
      */
     public static func of(tree: CjParse, ids: ItemIdMap): ItemTree {
         let root = SourceFileNode.cast(tree.syntaxNode()) ?? return ItemTree()
-        let packageHeader = root.packageHeader().map {
-            header => PackageItem(String.join(pathSegments(header.syntax), delimiter: "."),
-                header.macroToken().isSome(), modifiersOf([header.modifiers()]))
-        }
-        let imports = root.importDecls() |> map {
-            decl =>
-            let paths = ArrayList<ImportPath>()
-            if (let Some(tree) <- decl.importTree()) {
-                lowerImportTree(tree, [], paths)
-            }
-            ImportItem(idOf(ids, decl.syntax), modifiersOf([decl.modifiers()]), paths.toArray(),
-                condition: conditionOf(decl.syntax))
-        } |> collectArray
-        ItemTree(packageHeader: packageHeader, imports: imports, items: lowerItems(root.decls(), ids))
+        let packageHeader =
+            root
+                .packageHeader()
+                .map {
+                    header =>
+                    PackageItem(
+                        String.join(pathSegments(header.syntax), delimiter: "."),
+                        header.macroToken().isSome(),
+                        modifiersOf([header.modifiers()])
+                    )
+                }
+        let imports =
+            root.importDecls() |>
+                map {
+                    decl =>
+                    let paths = ArrayList<ImportPath>()
+                    if (let Some(tree) <- decl.importTree()) {
+                        lowerImportTree(tree, [], paths)
+                    }
+                    ImportItem(
+                        idOf(ids, decl.syntax),
+                        modifiersOf([decl.modifiers()]),
+                        paths.toArray(),
+                        condition: conditionOf(decl.syntax)
+                    )
+                } |>
+                collectArray
+        ItemTree(
+            packageHeader: packageHeader,
+            imports: imports,
+            items: lowerItems(root.decls(), ids)
+        )
     }
 }
 
@@ -218,27 +237,45 @@ public func itemTree(db: AnalysisDatabase, file: SourceFile): ItemTree {
 }
 
 private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
-    itemsIn(decls).map {
-        item =>
-        let modifiers = modifiersOf(item.macroCalls.map {call => call.modifiers()}.concat([item.decl.modifiers()]),
-            inForeignBlock: item.inForeignBlock)
-        let macros = item.macroCalls.map {call => macroName(call)}
-        let macrosOfItem = match (item.decl) {
-            case Decl.AsMacroExpandDecl(call) => macros.concat([macroName(call)])
-            case _ => macros
+    itemsIn(decls)
+        .map {
+            item =>
+            let modifiers =
+                modifiersOf(
+                    item
+                        .macroCalls
+                        .map { call => call.modifiers() }
+                        .concat([item.decl.modifiers()]),
+                    inForeignBlock: item.inForeignBlock
+                )
+            let macros = item.macroCalls.map { call => macroName(call) }
+            let macrosOfItem =
+                match (item.decl) {
+                    case Decl.AsMacroExpandDecl(call) => macros.concat([macroName(call)])
+                    case _ => macros
+                }
+            let outermost = item.macroCalls.get(0).map { call => call.syntax } ?? item.decl.syntax
+            let paramMacros =
+                paramMacroCallsOf(item.decl.syntax)
+                    .map { chain => chain.map { call => macroName(call) } }
+            Item(
+                idOf(ids, item.decl.syntax),
+                namesOf(item.decl),
+                modifiers,
+                macrosOfItem,
+                lowerItems(item.members(), ids),
+                condition: conditionOf(outermost),
+                paramMacros: paramMacros
+            )
         }
-        let outermost = item.macroCalls.get(0).map {call => call.syntax} ?? item.decl.syntax
-        let paramMacros = paramMacroCallsOf(item.decl.syntax).map {chain => chain.map {call => macroName(call)}}
-        Item(idOf(ids, item.decl.syntax), namesOf(item.decl), modifiers, macrosOfItem, lowerItems(item.members(), ids),
-            condition: conditionOf(outermost), paramMacros: paramMacros)
-    }
 }
 
 /**
  * The id `ids` gives the node: made of the same tree, they have every item.
  */
 private func idOf(ids: ItemIdMap, node: CjSyntaxNode): ItemId {
-    ids.idOf(SyntaxNodePtr(node)) ?? throw IllegalStateException("no id for the item at ${node.textRange}")
+    ids.idOf(SyntaxNodePtr(node)) ??
+        throw IllegalStateException("no id for the item at ${node.textRange}")
 }
 
 /**
@@ -251,10 +288,11 @@ private func namesOf(decl: Decl): Array<String> {
         case Decl.AsInitDecl(_) => ["init"]
         case Decl.AsFinalizerDecl(_) => ["~init"]
         case Decl.AsVarDecl(it) => bindingsOf(it)
-        case _ => match (AnyHasName.cast(decl.syntax).flatMap {it => it.name()}) {
-            case Some(name) => [name.text()]
-            case None => []
-        }
+        case _ =>
+            match (AnyHasName.cast(decl.syntax).flatMap { it => it.name() }) {
+                case Some(name) => [name.text()]
+                case None => []
+            }
     }
 }
 
@@ -274,18 +312,22 @@ private func bindingsOf(decl: VarDecl): Array<String> {
 
 private func collectBindings(pattern: Pattern, names: ArrayList<String>): Unit {
     match (pattern) {
-        case Pattern.AsBindPat(it) => if (let Some(name) <- it.name()) {
-            names.add(name.text())
-        }
-        case Pattern.AsTypePat(it) => if (let Some(name) <- it.name()) {
-            names.add(name.text())
-        }
-        case Pattern.AsTuplePat(it) => for (inner in it.patterns()) {
-            collectBindings(inner, names)
-        }
-        case Pattern.AsEnumPat(it) => for (inner in it.patterns()) {
-            collectBindings(inner, names)
-        }
+        case Pattern.AsBindPat(it) =>
+            if (let Some(name) <- it.name()) {
+                names.add(name.text())
+            }
+        case Pattern.AsTypePat(it) =>
+            if (let Some(name) <- it.name()) {
+                names.add(name.text())
+            }
+        case Pattern.AsTuplePat(it) =>
+            for (inner in it.patterns()) {
+                collectBindings(inner, names)
+            }
+        case Pattern.AsEnumPat(it) =>
+            for (inner in it.patterns()) {
+                collectBindings(inner, names)
+            }
         case Pattern.AsWildcardPat(_) | Pattern.AsLiteralPat(_) => ()
     }
 }
@@ -305,20 +347,32 @@ private func modifiersOf(nodes: Array<?Modifiers>, inForeignBlock!: Bool = false
     if (inForeignBlock) {
         written.add(SyntaxKind.ForeignKw)
     }
-    MODIFIERS.filter {modifier => written.contains(modifier[0])}.map {modifier => modifier[1]}
+    MODIFIERS.filter { modifier => written.contains(modifier[0]) }.map { modifier => modifier[1] }
 }
 
 /**
  * The names `tree` imports, `prefix` before them: one per leaf of its braces.
  */
-private func lowerImportTree(tree: ImportTree, prefix: Array<String>, paths: ArrayList<ImportPath>): Unit {
+private func lowerImportTree(
+    tree: ImportTree,
+    prefix: Array<String>,
+    paths: ArrayList<ImportPath>
+): Unit {
     let segments = prefix.concat(pathSegments(tree.syntax))
     match (tree.importTreeList()) {
-        case Some(list) => for (inner in list.importTrees()) {
-            lowerImportTree(inner, segments, paths)
-        }
-        case None => paths.add(ImportPath(segments, alias: tree.importAlias()?.name()?.text(),
-            isGlob: tree.starToken().isSome()))
+        case Some(list) =>
+            for (inner in list.importTrees()) {
+                lowerImportTree(inner, segments, paths)
+            }
+        case None =>
+            paths
+                .add(
+                    ImportPath(
+                        segments,
+                        alias: tree.importAlias()?.name()?.text(),
+                        isGlob: tree.starToken().isSome()
+                    )
+                )
     }
 }
 
@@ -329,17 +383,21 @@ private func lowerImportTree(tree: ImportTree, prefix: Array<String>, paths: Arr
  */
 public func importPathTo(name: CjSyntaxNode): ?(ImportPath, Bool) {
     let parent = name.parent ?? return None
-    let (tree, upTo): (ImportTree, ?CjSyntaxNode) = if (let Some(one) <- ImportTree.cast(parent) &&
-        NameRef.canCast(name.kind)) {
-        (one, name)
-    } else if (parent.kind == SyntaxKind.ImportAlias && name.kind == SyntaxKind.Name) {
-        (ImportTree.cast(parent.parent ?? return None) ?? return None, None)
-    } else {
-        return None
-    }
+    let (tree, upTo): (ImportTree, ?CjSyntaxNode) =
+        if (let Some(one) <- ImportTree.cast(parent) && NameRef.canCast(name.kind)) {
+            (one, name)
+        } else if (parent.kind == SyntaxKind.ImportAlias && name.kind == SyntaxKind.Name) {
+            (ImportTree.cast(parent.parent ?? return None) ?? return None, None)
+        } else {
+            return None
+        }
     let outers = ArrayList<ImportTree>()
-    outers.add(all: tree.syntax.ancestors() |> skip(1) |> filterMap {node: CjSyntaxNode => ImportTree.cast(node)} |>
-        collectArray)
+    outers
+        .add(
+            all: tree.syntax.ancestors() |> skip(1) |>
+                filterMap { node: CjSyntaxNode => ImportTree.cast(node) } |>
+                collectArray
+        )
     outers.reverse()
     let segments = ArrayList<String>()
     for (outer in outers) {
@@ -350,14 +408,23 @@ public func importPathTo(name: CjSyntaxNode): ?(ImportPath, Bool) {
     for (one in tree.nameRefs()) {
         last = one
     }
-    let isLeaf = tree.importTreeList().isNone() && tree.starToken().isNone() &&
-        (upTo.isNone() || last.map {one => one.syntax.textRange} == Some(name.textRange))
-    let alias = if (isLeaf) {
-        tree.importAlias()?.name()?.text()
-    } else {
-        None<String>
-    }
-    (ImportPath(segments.toArray(), alias: alias, isGlob: upTo.isNone() && tree.starToken().isSome()), isLeaf)
+    let isLeaf =
+        tree.importTreeList().isNone() && tree.starToken().isNone() &&
+            (upTo.isNone() || last.map { one => one.syntax.textRange } == Some(name.textRange))
+    let alias =
+        if (isLeaf) {
+            tree.importAlias()?.name()?.text()
+        } else {
+            None<String>
+        }
+    (
+        ImportPath(
+            segments.toArray(),
+            alias: alias,
+            isGlob: upTo.isNone() && tree.starToken().isSome()
+        ),
+        isLeaf
+    )
 }
 
 /**
@@ -383,8 +450,9 @@ private func pathSegments(node: CjSyntaxNode, upTo!: ?CjSyntaxNode = None): Arra
                     segments.add(name)
                 }
                 joinNext = false
-                reached = reached || upTo.map {one => one.textRange} == Some(child.textRange)
-            case SyntaxElement.Token(token) where token.kind == SyntaxKind.ColonColon => joinNext = true
+                reached = reached || upTo.map { one => one.textRange } == Some(child.textRange)
+            case SyntaxElement.Token(token) where token.kind == SyntaxKind.ColonColon =>
+                joinNext = true
             case SyntaxElement.Token(token) where reached && !token.kind.isTrivia() => break
             case _ => ()
         }

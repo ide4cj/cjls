@@ -28,7 +28,11 @@ public struct SourceFile {
  * and can sit under all of them.
  */
 public class AnalysisDatabase <: Database {
-    private AnalysisDatabase(private let storage_: Storage, private let files: Files, private let projects: Projects) {}
+    private AnalysisDatabase(
+        private let storage_: Storage,
+        private let files: Files,
+        private let projects: Projects
+    ) {}
 
     public init() {
         this(Storage(), Files(), Projects())
@@ -44,7 +48,7 @@ public class AnalysisDatabase <: Database {
      * Its queries throw `CancelledException` once `cancelledBy` gives `true`, as well as once the
      * files change.
      */
-    public func snapshot(cancelledBy!: () -> Bool = {=> false}): AnalysisDatabase {
+    public func snapshot(cancelledBy!: () -> Bool = { => false }): AnalysisDatabase {
         AnalysisDatabase(storage_.snapshot(cancelledBy: cancelledBy), files, projects)
     }
 
@@ -60,7 +64,11 @@ public class AnalysisDatabase <: Database {
      *
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
-    public func setFileText(fileId: FileId, text: Rope, durability!: Durability = Durability.Low): SourceFile {
+    public func setFileText(
+        fileId: FileId,
+        text: Rope,
+        durability!: Durability = Durability.Low
+    ): SourceFile {
         match (files.get(fileId)) {
             case Some(file) =>
                 file.setText(this).withDurability(durability).to(text)
@@ -81,8 +89,11 @@ public class AnalysisDatabase <: Database {
     public func applyChanges(vfs: Vfs, changes: Array<ChangedFile>): Unit {
         batch {
             for (change in changes) {
-                setFileText(change.fileId, vfs.fileContents(change.fileId) ?? Rope(),
-                    durability: projects.durabilities.get(change.fileId) ?? Durability.Low)
+                setFileText(
+                    change.fileId,
+                    vfs.fileContents(change.fileId) ?? Rope(),
+                    durability: projects.durabilities.get(change.fileId) ?? Durability.Low
+                )
             }
         }
     }
@@ -108,15 +119,35 @@ public class AnalysisDatabase <: Database {
      *
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
-    public func setProject(model: ProjectModel, paths: PathInterner, binaries!: Array<CjoFileRead> = []): Unit {
+    public func setProject(
+        model: ProjectModel,
+        paths: PathInterner,
+        binaries!: Array<CjoFileRead> = []
+    ): Unit {
         let durabilities = HashMap<FileId, Durability>()
         batch {
-            let modules = model.modules.map {module => setModule(module, paths, durabilities)}
+            let modules = model.modules.map { module => setModule(module, paths, durabilities) }
             let packages = setBinaryPackages(binaries)
             let sources = binarySources(model, paths, durabilities)
             match (projects.project) {
-                case None => projects.project = (Project(this, model.cfg, modules, model.binaries, packages, sources,
-                    durability: Durability.High), model.cfg, modules, model.binaries, packages, sources)
+                case None =>
+                    projects.project =
+                        (
+                            Project(
+                                this,
+                                model.cfg,
+                                modules,
+                                model.binaries,
+                                packages,
+                                sources,
+                                durability: Durability.High
+                            ),
+                            model.cfg,
+                            modules,
+                            model.binaries,
+                            packages,
+                            sources
+                        )
                 case Some((project, cfg, oldModules, oldBinaries, oldPackages, oldSources)) =>
                     if (cfg != model.cfg) {
                         project.setCfg(this).withDurability(Durability.High).to(model.cfg)
@@ -133,7 +164,8 @@ public class AnalysisDatabase <: Database {
                     if (oldSources != sources) {
                         project.setBinarySources(this).withDurability(Durability.High).to(sources)
                     }
-                    projects.project = (project, model.cfg, modules, model.binaries, packages, sources)
+                    projects.project =
+                        (project, model.cfg, modules, model.binaries, packages, sources)
             }
         }
         projects.durabilities = durabilities
@@ -144,14 +176,17 @@ public class AnalysisDatabase <: Database {
      * be read again.
      */
     public func binaryStamp(file: CjoFile): ?FileStamp {
-        projects.binaries.get(file).flatMap {binary => binary[1]}
+        projects.binaries.get(file).flatMap { binary => binary[1] }
     }
 
     /**
      * The files of the sources of `model`'s binaries, each named as its binary's `.cjo` names it.
      */
-    private func binarySources(model: ProjectModel, paths: PathInterner,
-        durabilities: HashMap<FileId, Durability>): Array<BinarySourceFile> {
+    private func binarySources(
+        model: ProjectModel,
+        paths: PathInterner,
+        durabilities: HashMap<FileId, Durability>
+    ): Array<BinarySourceFile> {
         let files = ArrayList<BinarySourceFile>()
         for (binary in model.binaries) {
             let durability = binaryDurability(binary.name)
@@ -180,8 +215,15 @@ public class AnalysisDatabase <: Database {
                     packages.add(pkg)
                 case (Some((pkg, Some(_), _)), None) => packages.add(pkg)
                 case (None, Some(bytes)) =>
-                    let pkg = BinaryPackageFile(this, read.file.binary, read.file.name, read.file.path, bytes,
-                        durability: durability)
+                    let pkg =
+                        BinaryPackageFile(
+                            this,
+                            read.file.binary,
+                            read.file.name,
+                            read.file.path,
+                            bytes,
+                            durability: durability
+                        )
                     projects.binaries.add(read.file, (pkg, read.stamp, bytes))
                     packages.add(pkg)
                 // left unread, but nothing was read before
@@ -189,7 +231,9 @@ public class AnalysisDatabase <: Database {
             }
             kept.add(read.file)
         }
-        let gone = projects.binaries.keys() |> filter {file: CjoFile => !kept.contains(file)} |> collectArray
+        let gone =
+            projects.binaries.keys() |> filter { file: CjoFile => !kept.contains(file) } |>
+                collectArray
         for (file in gone) {
             let (pkg, stamp, _) = projects.binaries[file]
             if (stamp.isSome()) {
@@ -200,26 +244,39 @@ public class AnalysisDatabase <: Database {
         packages.toArray()
     }
 
-    private func setModule(model: ModuleModel, paths: PathInterner, durabilities: HashMap<FileId, Durability>): Module {
+    private func setModule(
+        model: ModuleModel,
+        paths: PathInterner,
+        durabilities: HashMap<FileId, Durability>
+    ): Module {
         let durability = model.durability
-        let packages = model.packages.map {
-            pkg =>
-            let files = pkg.files.map {path => paths.intern(path)}
-            for (file in files) {
-                durabilities.add(file, durability)
-            }
-            setPackage(model.key, pkg, files, durability)
-        }
-        let inactive = model.inactive.map {
-            file =>
-            let fileId = paths.intern(file.path)
-            durabilities.add(fileId, durability)
-            InactiveSourceFile(fileId, file.reason)
-        }
+        let packages =
+            model
+                .packages
+                .map {
+                    pkg =>
+                    let files = pkg.files.map { path => paths.intern(path) }
+                    for (file in files) {
+                        durabilities.add(file, durability)
+                    }
+                    setPackage(model.key, pkg, files, durability)
+                }
+        let inactive =
+            model
+                .inactive
+                .map {
+                    file =>
+                    let fileId = paths.intern(file.path)
+                    durabilities.add(fileId, durability)
+                    InactiveSourceFile(fileId, file.reason)
+                }
         match (projects.modules.get(model.key)) {
             case Some((module, old)) =>
                 // a package is the input of its name in this module: the same names are the same inputs
-                if (old.packages.map {it => it.name} != model.packages.map {it => it.name} || old.durability != durability) {
+                if (
+                    old.packages.map { it => it.name } != model.packages.map { it => it.name } ||
+                        old.durability != durability
+                ) {
                     module.setPackages(this).withDurability(durability).to(packages)
                 }
                 if (old.deps != model.deps || old.durability != durability) {
@@ -237,14 +294,29 @@ public class AnalysisDatabase <: Database {
                 projects.modules.add(model.key, (module, model))
                 module
             case None =>
-                let module = Module(this, model.root, model.name, packages, model.deps, model.member, model.cfg, inactive,
-                    durability: durability)
+                let module =
+                    Module(
+                        this,
+                        model.root,
+                        model.name,
+                        packages,
+                        model.deps,
+                        model.member,
+                        model.cfg,
+                        inactive,
+                        durability: durability
+                    )
                 projects.modules.add(model.key, (module, model))
                 module
         }
     }
 
-    private func setPackage(module: ModuleKey, model: PackageModel, files: Array<FileId>, durability: Durability): Package {
+    private func setPackage(
+        module: ModuleKey,
+        model: PackageModel,
+        files: Array<FileId>,
+        durability: Durability
+    ): Package {
         let key = PackageKey(module, model.name)
         match (projects.packages.get(key)) {
             case Some((pkg, old, oldDurability)) =>
@@ -255,9 +327,9 @@ public class AnalysisDatabase <: Database {
                 if (old.files != model.files || moved) {
                     pkg.setFiles(this).withDurability(durability).to(files)
                 }
-                let testsChanged = old.files.filter {file => isTestFile(file)} != model.files.filter {
-                    file => isTestFile(file)
-                }
+                let testsChanged =
+                    old.files.filter { file => isTestFile(file) } !=
+                        model.files.filter { file => isTestFile(file) }
                 if (testsChanged || moved) {
                     pkg.setTestFiles(this).withDurability(durability).to(testFilesOf(model, files))
                 }
@@ -273,8 +345,18 @@ public class AnalysisDatabase <: Database {
                 projects.packages.add(key, (pkg, model, durability))
                 pkg
             case None =>
-                let pkg = Package(this, model.name, model.dir, files, model.noPrelude, model.isMacro,
-                    model.cfg, testFiles: testFilesOf(model, files), durability: durability)
+                let pkg =
+                    Package(
+                        this,
+                        model.name,
+                        model.dir,
+                        files,
+                        model.noPrelude,
+                        model.isMacro,
+                        model.cfg,
+                        testFiles: testFilesOf(model, files),
+                        durability: durability
+                    )
                 projects.packages.add(key, (pkg, model, durability))
                 pkg
         }

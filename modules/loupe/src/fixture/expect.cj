@@ -51,7 +51,7 @@ let updates = Mutex()
  * @throws FixtureException - if no test, or more than one place, holds it
  */
 public func replaceInTests(root: Path, original: String, replacement: String): Unit {
-    synchronized(updates) {
+    synchronized (updates) {
         let found = ArrayList<(Path, String, Int64)>()
         for (file in testsUnder(root)) {
             let text = String.fromUtf8(File.readFrom(file))
@@ -62,7 +62,8 @@ public func replaceInTests(root: Path, original: String, replacement: String): U
         if (found.size != 1) {
             throw FixtureException(
                 "the fixture is to be updated, a raw string `#\"…\"#` in a test, and it is in ${found.size} places " +
-                    "under ${root}:\n${original}")
+                    "under ${root}:\n${original}"
+            )
         }
         let (file, text, at) = found[0]
         File.writeTo(file, (text[..at] + replacement + text[at + original.size..]).toArray())
@@ -78,7 +79,9 @@ func rawStringsOf(text: String, content: String): Array<Int64> {
     while (let Some(opening) <- text.indexOf("\"" + content + "\"", from)) {
         let start = opening + 1
         let end = start + content.size
-        if (opening > 0 && text[opening - 1] == b'#' && end + 1 < text.size && text[end + 1] == b'#') {
+        if (
+            opening > 0 && text[opening - 1] == b'#' && end + 1 < text.size && text[end + 1] == b'#'
+        ) {
             found.add(start)
         }
         from = start

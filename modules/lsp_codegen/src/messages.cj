@@ -58,36 +58,49 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
     for (request in mm.requests) {
         let owner = messageIdentOf(request.typeName, request.method)
         // not declared yet, but resolved all the same: the types they name must exist
-        resolveUnused(resolver, owner, [("PartialResult", request.partialResult), ("ErrorData", request.errorData)])
-        messages.add(
-            MessageIr(
-                resolveDoc(request),
-                ident: owner + SPEC_SUFFIX,
-                method: request.method,
-                direction: request.messageDirection,
-                params: paramsOf(resolver, owner, request.params),
-                result: resultOf(resolver, owner, request.result),
-                isRequest: true,
-                registrationOptions: optionalOf(resolver, owner + "RegistrationOptions", request.registrationOptions),
-                registrationMethod: request.registrationMethod
-            )
+        resolveUnused(
+            resolver,
+            owner,
+            [("PartialResult", request.partialResult), ("ErrorData", request.errorData)]
         )
+        messages
+            .add(
+                MessageIr(
+                    resolveDoc(request),
+                    ident: owner + SPEC_SUFFIX,
+                    method: request.method,
+                    direction: request.messageDirection,
+                    params: paramsOf(resolver, owner, request.params),
+                    result: resultOf(resolver, owner, request.result),
+                    isRequest: true,
+                    registrationOptions: optionalOf(
+                        resolver,
+                        owner + "RegistrationOptions",
+                        request.registrationOptions
+                    ),
+                    registrationMethod: request.registrationMethod
+                )
+            )
     }
     for (notification in mm.notifications) {
         let owner = messageIdentOf(notification.typeName, notification.method)
-        messages.add(
-            MessageIr(
-                resolveDoc(notification),
-                ident: owner + SPEC_SUFFIX,
-                method: notification.method,
-                direction: notification.messageDirection,
-                params: paramsOf(resolver, owner, notification.params),
-                isRequest: false,
-                registrationOptions: optionalOf(resolver, owner + "RegistrationOptions",
-                    notification.registrationOptions),
-                registrationMethod: notification.registrationMethod
+        messages
+            .add(
+                MessageIr(
+                    resolveDoc(notification),
+                    ident: owner + SPEC_SUFFIX,
+                    method: notification.method,
+                    direction: notification.messageDirection,
+                    params: paramsOf(resolver, owner, notification.params),
+                    isRequest: false,
+                    registrationOptions: optionalOf(
+                        resolver,
+                        owner + "RegistrationOptions",
+                        notification.registrationOptions
+                    ),
+                    registrationMethod: notification.registrationMethod
+                )
             )
-        )
     }
 
     messages.toArray()
@@ -97,7 +110,7 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
  * A name made up from the method could clash with a type, so a message without `typeName` is refused.
  */
 private func messageIdentOf(typeName: ?String, method: String): String {
-    typeName.getOrThrow {=> IllegalStateException("message `${method}` has no type name")}
+    typeName.getOrThrow { => IllegalStateException("message `${method}` has no type name") }
 }
 
 private func paramsOf(resolver: TypeResolver, owner: String, params: ?OneOrMany<Type>): ?TypeIr {
@@ -123,7 +136,11 @@ private func optionalOf(resolver: TypeResolver, context: String, t: ?Type): ?Typ
     }
 }
 
-private func resolveUnused(resolver: TypeResolver, owner: String, types: Array<(String, ?Type)>): Unit {
+private func resolveUnused(
+    resolver: TypeResolver,
+    owner: String,
+    types: Array<(String, ?Type)>
+): Unit {
     for ((part, t) in types) {
         optionalOf(resolver, owner + part, t)
     }
@@ -132,21 +149,24 @@ private func resolveUnused(resolver: TypeResolver, owner: String, types: Array<(
 extend CjEmitter {
     func emitMessage(messageIr: MessageIr): Unit {
         let ident = escapedIdent(messageIr.ident).value
-        let types = if (messageIr.isRequest) {
-            "Request<${messageIr.paramsType}, ${messageIr.resultType}>"
-        } else {
-            "Notification<${messageIr.paramsType}>"
-        }
+        let types =
+            if (messageIr.isRequest) {
+                "Request<${messageIr.paramsType}, ${messageIr.resultType}>"
+            } else {
+                "Notification<${messageIr.paramsType}>"
+            }
         // the direction is in the type, so a handler of a message the server sends does not compile
-        let (spec, isInbound, isOutbound) = match (messageIr.direction) {
-            case ClientToServer => ("LspInbound${types}", true, false)
-            case ServerToClient => ("LspOutbound${types}", false, true)
-            case Both => ("LspInbound${types} & LspOutbound${types}", true, true)
-        }
-        let supertypes = match (messageIr.registrationOptions) {
-            case Some(options) => "${spec} & LspRegistrable<${options}>"
-            case None => spec
-        }
+        let (spec, isInbound, isOutbound) =
+            match (messageIr.direction) {
+                case ClientToServer => ("LspInbound${types}", true, false)
+                case ServerToClient => ("LspOutbound${types}", false, true)
+                case Both => ("LspInbound${types} & LspOutbound${types}", true, true)
+            }
+        let supertypes =
+            match (messageIr.registrationOptions) {
+                case Some(options) => "${spec} & LspRegistrable<${options}>"
+                case None => spec
+            }
 
         emitDoc(messageIr.doc)
         // The supertypes are resolved source; the common formatter decides their spacing.
@@ -154,22 +174,24 @@ extend CjEmitter {
         indented {
             =>
             emitln("public static prop METHOD: String {")
-            indented {=> emitln("get() { \"${messageIr.method}\" }")}
+            indented { => emitln("get() { \"${messageIr.method}\" }") }
             emitln("}")
             nl()
             emitln("public static prop DIRECTION: MessageDirection {")
-            indented {=> emitln("get() { ${messageIr.direction} }")}
+            indented { => emitln("get() { ${messageIr.direction} }") }
             emitln("}")
             nl()
             emitln("public prop method: String {")
-            indented {=> emitln("get() { METHOD }")}
+            indented { => emitln("get() { METHOD }") }
             emitln("}")
             if (messageIr.registrationOptions.isSome()) {
                 nl()
                 emitln("public prop registrationMethod: String {")
                 indented {
-                    => match (messageIr.registrationMethod) {
-                        case Some(registrationMethod) => emitln("get() { \"${registrationMethod}\" }")
+                    =>
+                    match (messageIr.registrationMethod) {
+                        case Some(registrationMethod) =>
+                            emitln("get() { \"${registrationMethod}\" }")
                         case None => emitln("get() { METHOD }")
                     }
                 }
@@ -195,7 +217,8 @@ extend CjEmitter {
     private func emitInboundCodec(messageIr: MessageIr): Unit {
         emitln("public func decodeParams(params: ?RawJson): ${messageIr.paramsType} {")
         indented {
-            => match (messageIr.params) {
+            =>
+            match (messageIr.params) {
                 case Some(params) => emitln("decodeMessageParams<${params}>(params)")
                 case None => emitln("()")
             }
@@ -205,7 +228,8 @@ extend CjEmitter {
         // in place, the value is there whatever the type: one without params skips it
         emitln("public func decodeParams(r: FjReader): ${messageIr.paramsType} {")
         indented {
-            => match (messageIr.params) {
+            =>
+            match (messageIr.params) {
                 case Some(params) => emitln("decodeMessageParams<${params}>(r)")
                 case None => emitln("r.skipValue()")
             }
@@ -218,7 +242,8 @@ extend CjEmitter {
         nl()
         emitln("public func encodeResult(result: ${messageIr.resultType}): RawJson {")
         indented {
-            => match (messageIr.result) {
+            =>
+            match (messageIr.result) {
                 case Some(_) => emitln("RawJson.of(result)")
                 case None => emitln("RawJson.NULL")
             }
@@ -233,7 +258,8 @@ extend CjEmitter {
     private func emitOutboundCodec(messageIr: MessageIr): Unit {
         emitln("public func encodeParams(params: ${messageIr.paramsType}): RawJson {")
         indented {
-            => match (messageIr.params) {
+            =>
+            match (messageIr.params) {
                 case Some(_) => emitln("RawJson.of(params)")
                 case None => emitln("RawJson.NULL")
             }
@@ -246,7 +272,8 @@ extend CjEmitter {
         nl()
         emitln("public func decodeResult(result: RawJson): ${messageIr.resultType} {")
         indented {
-            => match (messageIr.result) {
+            =>
+            match (messageIr.result) {
                 case Some(resultType) => emitln("result.read<${resultType}>()")
                 case None => emitln("()")
             }

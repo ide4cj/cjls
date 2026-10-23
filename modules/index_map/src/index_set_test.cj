@@ -82,7 +82,7 @@ class IndexSetTest {
         let set = IndexSet<Int64>([5, 1, 4, 2, 3])
 
         // act
-        set.removeIf {n => n % 2 == 0}
+        set.removeIf { n => n % 2 == 0 }
         set.retain(all: HashSet<Int64>([3, 5, 7]))
 
         // assert

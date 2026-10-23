@@ -8,8 +8,10 @@ import cjsyntax.SyntaxKind
 // position: each is found by the tokens around it as only this code knows them.
 
 let R_PAREN = TokenSet<SyntaxKind>([SyntaxKind.RParen])
-let VISIBILITY = TokenSet<SyntaxKind>([SyntaxKind.PublicKw, SyntaxKind.ProtectedKw, SyntaxKind.InternalKw,
-    SyntaxKind.PrivateKw])
+let VISIBILITY =
+    TokenSet<SyntaxKind>(
+        [SyntaxKind.PublicKw, SyntaxKind.ProtectedKw, SyntaxKind.InternalKw, SyntaxKind.PrivateKw]
+    )
 
 extend Name {
     /**
@@ -148,7 +150,8 @@ private func commentsBeforePipe(ctor: SyntaxNode<SyntaxKind>): Array<SyntaxToken
         element = token.prevSiblingOrToken()
     }
     match (element) {
-        case Some(SyntaxElement.Token(token)) where token.kind == SyntaxKind.Pipe => element = token.prevSiblingOrToken()
+        case Some(SyntaxElement.Token(token)) where token.kind == SyntaxKind.Pipe =>
+            element = token.prevSiblingOrToken()
         case _ => return []
     }
     let comments = ArrayList<SyntaxToken<SyntaxKind>>()
@@ -170,7 +173,7 @@ private func leadingComments(node: SyntaxNode<SyntaxKind>): Array<SyntaxToken<Sy
     for (element in node.childrenWithTokens()) {
         match (element) {
             case SyntaxElement.Token(token) where token.kind == SyntaxKind.LineComment ||
-                token.kind == SyntaxKind.BlockComment => comments.add(token)
+                    token.kind == SyntaxKind.BlockComment => comments.add(token)
             case SyntaxElement.Token(token) where token.kind.isTrivia() => ()
             case _ => break
         }

@@ -82,8 +82,14 @@ class FormatPathsTest {
         let (out, err) = (ByteBuffer(), ByteBuffer())
 
         // act
-        let exitCode = formatPaths([file], false, out, err,
-            write: {_, _ => throw FSException("Permission denied")})
+        let exitCode =
+            formatPaths(
+                [file],
+                false,
+                out,
+                err,
+                write: { _, _ => throw FSException("Permission denied") }
+            )
 
         // assert
         @Expect(exitCode, 1)

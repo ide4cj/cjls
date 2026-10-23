@@ -160,18 +160,19 @@ public struct Rope <: Equatable<Rope> & ToString {
         }
         let start = lineStart(position.line)
         let end = lineEnd(position.line)
-        let offset = match (encoding) {
-            case Utf8 =>
-                // a byte past the line's end is the end; one inside a character backs off to it
-                var offset = min(start + position.column, end)
-                while (!isCharBoundary(root, offset)) {
-                    offset--
-                }
-                offset
-            case _ =>
-                let units = prefixSummary(root, start).measure(encoding) + position.column
-                offsetAtUnits(root, units, encoding)
-        }
+        let offset =
+            match (encoding) {
+                case Utf8 =>
+                    // a byte past the line's end is the end; one inside a character backs off to it
+                    var offset = min(start + position.column, end)
+                    while (!isCharBoundary(root, offset)) {
+                        offset--
+                    }
+                    offset
+                case _ =>
+                    let units = prefixSummary(root, start).measure(encoding) + position.column
+                    offsetAtUnits(root, units, encoding)
+            }
         min(offset, end)
     }
 
@@ -243,14 +244,20 @@ public struct Rope <: Equatable<Rope> & ToString {
         if (range.step != 1) {
             throw IllegalArgumentException("a range of a text has a step of 1")
         }
-        let start = if (range.hasStart) { range.start } else { 0 }
-        let end = if (!range.hasEnd) {
-            size
-        } else if (range.isClosed) {
-            range.end + 1
-        } else {
-            range.end
-        }
+        let start =
+            if (range.hasStart) {
+                range.start
+            } else {
+                0
+            }
+        let end =
+            if (!range.hasEnd) {
+                size
+            } else if (range.isClosed) {
+                range.end + 1
+            } else {
+                range.end
+            }
         if (start < 0 || start > end || end > size) {
             throw IndexOutOfBoundsException("range ${start}..${end} of a text of ${size} bytes")
         }

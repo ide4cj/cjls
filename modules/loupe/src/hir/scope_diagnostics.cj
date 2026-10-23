@@ -55,9 +55,11 @@ public enum ScopeProblem <: ToString {
     public func message(): String {
         match (this) {
             case ImportFailed(error) => error.toString()
-            case Shadowed(name) => "imported decl '${name}' is shadowed, it will be ignored by compiler"
+            case Shadowed(name) =>
+                "imported decl '${name}' is shadowed, it will be ignored by compiler"
             case Conflicted(name) => "imported decl '${name}' is conflicted with other import"
-            case SubPackage(name, pkg) => "top-level declaration '${name}' is conflicted with possible sub-package '${pkg}'"
+            case SubPackage(name, pkg) =>
+                "top-level declaration '${name}' is conflicted with possible sub-package '${pkg}'"
         }
     }
 }
@@ -115,7 +117,11 @@ func onImportCycleFallback(_: AnalysisDatabase, _: PackageRef): Bool {
  * declarations named like a package under its own.
  */
 @CalcaTracked
-public func scopeDiagnostics(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<ScopeDiagnostic> {
+public func scopeDiagnostics(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile
+): Array<ScopeDiagnostic> {
     let from = PackageRef.Source(pkg)
     let own = ItemFile.Source(file)
     let defs = defMap(db, from)
@@ -129,21 +135,22 @@ public func scopeDiagnostics(db: AnalysisDatabase, pkg: Package, file: SourceFil
             let at = ScopeProblemAt.AtImport(ImportSite(own, item.id, i, level))
             let target = targetOf(db, from, item.paths[i], level)
             // what the path brings by its own name, and what is wrong with it
-            let result: (?ScopeProblem, ?String) = match (target) {
-                case PackageOf(name, _) => (None, name)
-                case GlobOf(pkgOfGlob, full) =>
-                    if (packageExports(db, pkgOfGlob).cyclic) {
-                        (ScopeProblem.ImportFailed(ImportError.Cycle(full)), None)
-                    } else {
-                        (None, None)
-                    }
-                case NameOf(pkgOfName, pkgName, name, alias) =>
-                    match (namesOf(db, from, pkgOfName, pkgName, level, (name, alias))) {
-                        case Unresolved(error) => (ScopeProblem.ImportFailed(error), None)
-                        case _ => (None, alias ?? name)
-                    }
-                case NoTarget(error) => (ScopeProblem.ImportFailed(error), None)
-            }
+            let result: (?ScopeProblem, ?String) =
+                match (target) {
+                    case PackageOf(name, _) => (None, name)
+                    case GlobOf(pkgOfGlob, full) =>
+                        if (packageExports(db, pkgOfGlob).cyclic) {
+                            (ScopeProblem.ImportFailed(ImportError.Cycle(full)), None)
+                        } else {
+                            (None, None)
+                        }
+                    case NameOf(pkgOfName, pkgName, name, alias) =>
+                        match (namesOf(db, from, pkgOfName, pkgName, level, (name, alias))) {
+                            case Unresolved(error) => (ScopeProblem.ImportFailed(error), None)
+                            case _ => (None, alias ?? name)
+                        }
+                    case NoTarget(error) => (ScopeProblem.ImportFailed(error), None)
+                }
             var problem = result[0]
             // a cycle through plain imports: this package and the one imported both on one
             if (problem.isNone() && cyclic) {
@@ -158,10 +165,14 @@ public func scopeDiagnostics(db: AnalysisDatabase, pkg: Package, file: SourceFil
                 if (!brought.add(name)) {
                     found.add(ScopeDiagnostic(at, ScopeProblem.Conflicted(name)))
                 }
-                let shadowing = (defs.names.get(name) ?? []).iterator().any {
-                    def => (def.visibility != Visibility.Private || def.id.file(db) == own) &&
-                        def.id.item(db).kind != ItemKind.Func
-                }
+                let shadowing =
+                    (defs.names.get(name) ?? [])
+                        .iterator()
+                        .any {
+                            def =>
+                            (def.visibility != Visibility.Private || def.id.file(db) == own) &&
+                                def.id.item(db).kind != ItemKind.Func
+                        }
                 if (shadowing) {
                     found.add(ScopeDiagnostic(at, ScopeProblem.Shadowed(name)))
                 }
@@ -175,8 +186,13 @@ public func scopeDiagnostics(db: AnalysisDatabase, pkg: Package, file: SourceFil
         for (name in item.names) {
             let sub = "${pkgName}.${name}"
             if (let Some(Source(_)) <- index.find(sub, from: from)) {
-                found.add(ScopeDiagnostic(ScopeProblemAt.AtDecl(DefId(db, own, item.id), name),
-                    ScopeProblem.SubPackage(name, sub)))
+                found
+                    .add(
+                        ScopeDiagnostic(
+                            ScopeProblemAt.AtDecl(DefId(db, own, item.id), name),
+                            ScopeProblem.SubPackage(name, sub)
+                        )
+                    )
             }
         }
     }

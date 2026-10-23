@@ -10,14 +10,21 @@ import loupe.hir.*
  * Each declaration of the workspace whose signature, as types, holds an error, by `onFailed`; how
  * many types its signatures hold, each counted with the types inside it.
  */
-func lowerEverySignature(ws: BenchWorkspace, onFailed!: (SourceFile, DefId, SignatureTypes) -> Unit = {_, _, _ => ()}): Int64 {
+func lowerEverySignature(
+    ws: BenchWorkspace,
+    onFailed!: (SourceFile, DefId, SignatureTypes) -> Unit = { _, _, _ => () }
+): Int64 {
     var count = 0
     for ((_, file, _) in ws.files) {
         for (def in defsOf(ws, file)) {
             let types = signatureTypes(ws.db, def)
-            let bounds = types.bounds.map {bound => [bound.ty].concat(bound.bounds)}
-            let all = types.params.concat(types.ty.map {ty => [ty]} ?? []).concat(types.supers).concat(
-                bounds.iterator().flatMap {one => one.iterator()} |> collectArray)
+            let bounds = types.bounds.map { bound => [bound.ty].concat(bound.bounds) }
+            let all =
+                types
+                    .params
+                    .concat(types.ty.map { ty => [ty] } ?? [])
+                    .concat(types.supers)
+                    .concat(bounds.iterator().flatMap { one => one.iterator() } |> collectArray)
             var failed = !types.errors.isEmpty()
             for (ty in all) {
                 let (size, errors) = sizeOf(ws.db, ty)
@@ -36,14 +43,15 @@ func lowerEverySignature(ws: BenchWorkspace, onFailed!: (SourceFile, DefId, Sign
  * How many types `ty` is made of, itself among them, and how many of them are errors.
  */
 func sizeOf(db: AnalysisDatabase, ty: Ty): (Int64, Int64) {
-    let inner = match (ty.kind(db)) {
-        case DeclTy(_, args) => args
-        case TupleTy(elements) => elements
-        case FuncTy(params, ret, _) => params.concat([ret])
-        case VArrayTy(element, _) => [element]
-        case ErrorTy => return (1, 1)
-        case _ => Array<Ty>()
-    }
+    let inner =
+        match (ty.kind(db)) {
+            case DeclTy(_, args) => args
+            case TupleTy(elements) => elements
+            case FuncTy(params, ret, _) => params.concat([ret])
+            case VArrayTy(element, _) => [element]
+            case ErrorTy => return (1, 1)
+            case _ => Array<Ty>()
+        }
     var size = 1
     var errors = 0
     for (one in inner) {

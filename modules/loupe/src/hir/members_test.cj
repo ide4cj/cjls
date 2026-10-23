@@ -10,10 +10,14 @@ class LookupTyTest {
     func anAbsentReceiverIsComputedOnlyOnceAndOnlyWhenNeeded() {
         // arrange
         let calls = [0]
-        let lookup = LookupTy({=>
-            calls[0]++
-            Option<Ty>.None
-        })
+        let lookup =
+            LookupTy(
+                {
+                    =>
+                    calls[0]++
+                    Option<Ty>.None
+                }
+            )
 
         // act
         let before = calls[0]
@@ -33,10 +37,14 @@ class LookupTyTest {
         let db = AnalysisDatabase()
         let ty = Ty(db, PrimTy("Int64"))
         let calls = [0]
-        let lookup = LookupTy({=>
-            calls[0]++
-            Some(ty)
-        })
+        let lookup =
+            LookupTy(
+                {
+                    =>
+                    calls[0]++
+                    Some(ty)
+                }
+            )
 
         // act
         let before = calls[0]

@@ -115,7 +115,12 @@ public func typeScopeOf(db: AnalysisDatabase, def: DefId): ?TypeScope {
 public func parentOf(db: AnalysisDatabase, def: DefId): ?DefId {
     let file = def.file(db)
     let id = def.item(db)
-    for (item in itemTreeOf(db, file).items where item.members.iterator().any {member => member.id == id}) {
+    for (
+        item in itemTreeOf(db, file).items where item
+            .members
+            .iterator()
+            .any { member => member.id == id }
+    ) {
         return DefId(db, file, item.id)
     }
     None
@@ -142,20 +147,26 @@ public func packageOfFile(db: AnalysisDatabase, file: SourceFile): ?Package {
  * type parameter has the name; else it is a type, as a path of one segment is. After a package
  * comes one of its types; nothing comes after a type (N54).
  */
-public func resolveTypePath(db: AnalysisDatabase, scope: TypeScope, path: Array<String>): Array<PathResolution> {
+public func resolveTypePath(
+    db: AnalysisDatabase,
+    scope: TypeScope,
+    path: Array<String>
+): Array<PathResolution> {
     if (path.isEmpty()) {
         return []
     }
-    let first = if (path.size > 1) {
-        qualifierNamed(db, scope, path[0])
-    } else {
-        None<PathResolution>
-    }
+    let first =
+        if (path.size > 1) {
+            qualifierNamed(db, scope, path[0])
+        } else {
+            None<PathResolution>
+        }
     let found = ArrayList<PathResolution>([first ?? typeNamed(db, scope, path[0])])
-    var pkg = match (found[0]) {
-        case Resolved(QualifierOf(one)) => Some(one)
-        case _ => None<PackageRef>
-    }
+    var pkg =
+        match (found[0]) {
+            case Resolved(QualifierOf(one)) => Some(one)
+            case _ => None<PackageRef>
+        }
     for (i in 1..path.size) {
         match (pkg) {
             case Some(one) => found.add(typeOfPackage(db, scope, one, path[i]))
@@ -170,8 +181,12 @@ public func resolveTypePath(db: AnalysisDatabase, scope: TypeScope, path: Array<
  * The package the file imports by `name`, as the qualifier of a path (N51, N52): of its imports
  * alone, whatever else has the name.
  */
-func qualifierNamed(db: AnalysisDatabase, scope: TypeScope, name: String,
-    stage!: ScopeStage = ScopeStage.Expanded): ?PathResolution {
+func qualifierNamed(
+    db: AnalysisDatabase,
+    scope: TypeScope,
+    name: String,
+    stage!: ScopeStage = ScopeStage.Expanded
+): ?PathResolution {
     let pkgs = ArrayList<PackageRef>()
     for (one in importsAt(db, scope.pkg, scope.file, stage).names(db, name)) {
         if (let OfPackage(pkg) <- one.target && !pkgs.contains(pkg)) {
@@ -205,14 +220,19 @@ func typeNamed(db: AnalysisDatabase, scope: TypeScope, name: String): PathResolu
 /**
  * The type `name` names among the exports of `pkg` that `scope`'s package sees.
  */
-func typeOfPackage(db: AnalysisDatabase, scope: TypeScope, pkg: PackageRef, name: String): PathResolution {
+func typeOfPackage(
+    db: AnalysisDatabase,
+    scope: TypeScope,
+    pkg: PackageRef,
+    name: String
+): PathResolution {
     let relation = relationOf(scope.pkg.name(db), nameOf(db, pkg))
-    let ids = visibleOf(packageExports(db, pkg).names.get(name) ?? [], relation, Visibility.Private).filter {
-        id => isIn(id.item(db).kind, Namespace.Types)
-    }
+    let ids =
+        visibleOf(packageExports(db, pkg).names.get(name) ?? [], relation, Visibility.Private)
+            .filter { id => isIn(id.item(db).kind, Namespace.Types) }
     match (ids.size) {
         case 0 => PathResolution.UnresolvedPath
         case 1 => PathResolution.Resolved(TypeOf(ids[0]))
-        case _ => PathResolution.AmbiguousPath(ids.map {id => ScopeTarget.OfDecl(id)})
+        case _ => PathResolution.AmbiguousPath(ids.map { id => ScopeTarget.OfDecl(id) })
     }
 }

@@ -71,11 +71,19 @@ struct FixtureLine {
      * over its line break.
      */
     func offsetOf(column: Int64, end!: Bool): Int64 {
-        let shift = 2 * markers.iterator().filter {marker => if (end) {
-            marker + 2 <= column
-        } else {
-            marker < column
-        }}.count()
+        let shift =
+            2 *
+                markers
+                    .iterator()
+                    .filter {
+                        marker =>
+                        if (end) {
+                            marker + 2 <= column
+                        } else {
+                            marker < column
+                        }
+                    }
+                    .count()
         let clean = column - shift
         let runes = written.replace("$0", "").toRuneArray()
         if (clean <= runes.size) {
@@ -91,18 +99,20 @@ struct FixtureLine {
     func columnOf(offset: Int64, end!: Bool): Int64 {
         let clean = written.replace("$0", "")
         let inLine = offset - start
-        let column = if (inLine <= clean.size) {
-            String.fromUtf8(clean.toArray()[..inLine]).toRuneArray().size
-        } else {
-            clean.toRuneArray().size + inLine - clean.size
-        }
+        let column =
+            if (inLine <= clean.size) {
+                String.fromUtf8(clean.toArray()[..inLine]).toRuneArray().size
+            } else {
+                clean.toRuneArray().size + inLine - clean.size
+            }
         var shifted = column
         for (marker in markers) {
-            let before = if (end) {
-                marker < shifted
-            } else {
-                marker <= shifted
-            }
+            let before =
+                if (end) {
+                    marker < shifted
+                } else {
+                    marker <= shifted
+                }
             if (before) {
                 shifted += 2
             }
@@ -117,7 +127,11 @@ struct FixtureLine {
  */
 @Derive[Equatable]
 public struct Annotation <: ToString {
-    public Annotation(public let fileId: FileId, public let range: TextRange, public let text: String) {}
+    public Annotation(
+        public let fileId: FileId,
+        public let range: TextRange,
+        public let text: String
+    ) {}
 
     public func toString(): String {
         "${fileId} ${range} ${text}"
@@ -208,11 +222,12 @@ public class Fixture {
     public static func parse(text: String): Fixture {
         let lines = trimIndent(text).split("\n")
         // a text ending with a line break has an empty piece after it, not a line of its own
-        let count = if (lines[lines.size - 1].isEmpty()) {
-            lines.size - 1
-        } else {
-            lines.size
-        }
+        let count =
+            if (lines[lines.size - 1].isEmpty()) {
+                lines.size - 1
+            } else {
+                lines.size
+            }
         // the last line of the text keeps its line break only if the text had one
         let broken = count < lines.size
         let paths = PathInterner()
@@ -228,13 +243,27 @@ public class Fixture {
                 while (last < count && !isHeader(lines[last])) {
                     last++
                 }
-                files.add(parseFile(lines[first], lines[first + 1..last], last < count || broken, paths, annotations,
-                    markers))
+                files
+                    .add(
+                        parseFile(
+                            lines[first],
+                            lines[first + 1..last],
+                            last < count || broken,
+                            paths,
+                            annotations,
+                            markers
+                        )
+                    )
                 first = last
             }
         }
-        if (markers.size > 2 || markers.size == 2 && markers[0].fileId.index != markers[1].fileId.index) {
-            throw FixtureException("a fixture has one `$0`, or two in one file: ${markers.size} found")
+        if (
+            markers.size > 2 ||
+                markers.size == 2 && markers[0].fileId.index != markers[1].fileId.index
+        ) {
+            throw FixtureException(
+                "a fixture has one `$0`, or two in one file: ${markers.size} found"
+            )
         }
         Fixture(files.toArray(), annotations.toArray(), markers.toArray(), paths)
     }
@@ -258,10 +287,14 @@ public class Fixture {
      */
     public func projectModel(): ProjectModel {
         let modules = ArrayList<(String, ?VfsPath)>()
-        for (file in files where !modules.iterator().any {it => it[0] == file.module && it[1] == file.root}) {
+        for (
+            file in files where !modules
+                .iterator()
+                .any { it => it[0] == file.module && it[1] == file.root }
+        ) {
             modules.add((file.module, file.root))
         }
-        ProjectModel(Cfg([]), modules.toArray().map {module => moduleModel(module[0], module[1])})
+        ProjectModel(Cfg([]), modules.toArray().map { module => moduleModel(module[0], module[1]) })
     }
 
     /**
@@ -269,18 +302,26 @@ public class Fixture {
      * `binaries`, and the binaries `models` with the texts of their sources, as the disk has them.
      * The files are created in a batch of their own after the project, as the server's load does.
      */
-    public func database(binaries!: Array<CjoFileRead> = [], models!: Array<BinaryModel> = []): AnalysisDatabase {
+    public func database(
+        binaries!: Array<CjoFileRead> = [],
+        models!: Array<BinaryModel> = []
+    ): AnalysisDatabase {
         let db = AnalysisDatabase()
         let model = ProjectModel(Cfg([]), projectModel().modules, binaries: models)
         db.setProject(model, paths, binaries: binaries)
-        db.batch {
-            for (file in files) {
-                db.setFileText(file.fileId, Rope(file.text))
+        db
+            .batch {
+                for (file in files) {
+                    db.setFileText(file.fileId, Rope(file.text))
+                }
+                for (path in model.binarySourceFiles()) {
+                    db
+                        .setFileText(
+                            paths.intern(path),
+                            readFile(path) ?? throw FixtureException("${path} cannot be read")
+                        )
+                }
             }
-            for (path in model.binarySourceFiles()) {
-                db.setFileText(paths.intern(path), readFile(path) ?? throw FixtureException("${path} cannot be read"))
-            }
-        }
         db
     }
 
@@ -305,19 +346,26 @@ public class Fixture {
                 out.append(header)
                 out.append("\n")
             }
-            let under = Array<ArrayList<(Int64, Int64, String)>>(file.lines.size) {_ => ArrayList()}
+            let under =
+                Array<ArrayList<(Int64, Int64, String)>>(file.lines.size) { _ => ArrayList() }
             for (annotation in annotations where annotation.fileId.index == file.fileId.index) {
                 let line = lineOf(file, annotation.range.start)
                 let at = file.lines[line]
                 let start = at.columnOf(annotation.range.start, end: false)
                 let end = at.columnOf(annotation.range.end, end: true)
-                if (annotation.range.end > lineEnd(file, line) || annotation.range.end < annotation.range.start) {
-                    throw FixtureException("${annotation.range} is across lines of ${file.path}: ${annotation.text}")
+                if (
+                    annotation.range.end > lineEnd(file, line) ||
+                        annotation.range.end < annotation.range.start
+                ) {
+                    throw FixtureException(
+                        "${annotation.range} is across lines of ${file.path}: ${annotation.text}"
+                    )
                 }
                 if (start < 2) {
                     throw FixtureException(
                         "${annotation.range} starts at column ${start} of `${at.written}` in ${file.path}, left of " +
-                            "where `//` lets an annotation start: indent the file's code by two")
+                            "where `//` lets an annotation start: indent the file's code by two"
+                    )
                 }
                 under[line].add((start, end, annotation.text))
             }
@@ -328,14 +376,19 @@ public class Fixture {
                     out.append("\n")
                 }
                 let sorted = under[i].toArray()
-                sort(sorted, by: {a: (Int64, Int64, String), b: (Int64, Int64, String) =>
-                    if (a[0] != b[0]) {
-                        a[0].compare(b[0])
-                    } else if (a[1] != b[1]) {
-                        a[1].compare(b[1])
-                    } else {
-                        a[2].compare(b[2])
-                    }})
+                sort(
+                    sorted,
+                    by: {
+                        a: (Int64, Int64, String), b: (Int64, Int64, String) =>
+                        if (a[0] != b[0]) {
+                            a[0].compare(b[0])
+                        } else if (a[1] != b[1]) {
+                            a[1].compare(b[1])
+                        } else {
+                            a[2].compare(b[2])
+                        }
+                    }
+                )
                 for ((start, end, text) in sorted) {
                     if (!out.toString().endsWith("\n")) {
                         out.append("\n")
@@ -359,7 +412,7 @@ public class Fixture {
     }
 
     private func moduleModel(name: String, written: ?VfsPath): ModuleModel {
-        let ofModule = files.filter {file => file.module == name && file.root == written}
+        let ofModule = files.filter { file => file.module == name && file.root == written }
         let packages = ArrayList<String>()
         let deps = ArrayList<String>()
         for (file in ofModule where file.inactive.isNone()) {
@@ -376,20 +429,42 @@ public class Fixture {
                 root = root.parent.getOrThrow()
             }
         }
-        ModuleModel(name, root, packages.toArray().map {
-            pkg =>
-            let ofPackage = ofModule.filter {file => file.pkg == pkg && file.inactive.isNone()}
-            let options = ofPackage |> flatMap {file: FixtureFile => file.cfg?.options ?? []} |>
-                map {option: CfgOption => (option.key, option.value)} |> collectArray
-            let cfg = if (options.isEmpty()) {
-                None<Cfg>
-            } else {
-                Some(Cfg(options))
-            }
-            PackageModel(pkg, ofPackage[0].path.parent.getOrThrow(), ofPackage.map {file => file.path}, cfg: cfg)
-        }, deps: deps.toArray(), inactive: ofModule |> filterMap {
-            file: FixtureFile => file.inactive.map {set => InactiveFile(file.path, "source set `${set}` is left out")}
-        } |> collectArray)
+        ModuleModel(
+            name,
+            root,
+            packages
+                .toArray()
+                .map {
+                    pkg =>
+                    let ofPackage =
+                        ofModule.filter { file => file.pkg == pkg && file.inactive.isNone() }
+                    let options =
+                        ofPackage |> flatMap { file: FixtureFile => file.cfg?.options ?? [] } |>
+                            map { option: CfgOption => (option.key, option.value) } |>
+                            collectArray
+                    let cfg =
+                        if (options.isEmpty()) {
+                            None<Cfg>
+                        } else {
+                            Some(Cfg(options))
+                        }
+                    PackageModel(
+                        pkg,
+                        ofPackage[0].path.parent.getOrThrow(),
+                        ofPackage.map { file => file.path },
+                        cfg: cfg
+                    )
+                },
+            deps: deps.toArray(),
+            inactive: ofModule |>
+                filterMap {
+                    file: FixtureFile =>
+                    file
+                        .inactive
+                        .map { set => InactiveFile(file.path, "source set `${set}` is left out") }
+                } |>
+                collectArray
+        )
     }
 }
 
@@ -437,8 +512,14 @@ func annotationMarker(line: String): ?(Int64, Int64, String) {
     (column, carets, afterSlashes[carets..].trimAscii())
 }
 
-func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathInterner,
-    annotations: ArrayList<Annotation>, markers: ArrayList<FilePosition>): FixtureFile {
+func parseFile(
+    header: ?String,
+    body: Array<String>,
+    broken: Bool,
+    paths: PathInterner,
+    annotations: ArrayList<Annotation>,
+    markers: ArrayList<FilePosition>
+): FixtureFile {
     var path = "/main.cj"
     var module = "default"
     var pkg: ?String = None
@@ -461,18 +542,28 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
                 case "module" => module = pair[1]
                 case "package" => pkg = pair[1]
                 case "deps" => deps = pair[1].split(",", removeEmpty: true)
-                case "cfg" => cfg = Cfg(pair[1].split(",", removeEmpty: true).map {
-                    option =>
-                    let keyValue = option.split(":", 2)
-                    if (keyValue.size != 2) {
-                        throw FixtureException("not a `key:value`: ${option} in ${line}")
-                    }
-                    (keyValue[0], keyValue[1])
-                })
+                case "cfg" =>
+                    cfg =
+                        Cfg(
+                            pair[1]
+                                .split(",", removeEmpty: true)
+                                .map {
+                                    option =>
+                                    let keyValue = option.split(":", 2)
+                                    if (keyValue.size != 2) {
+                                        throw FixtureException(
+                                            "not a `key:value`: ${option} in ${line}"
+                                        )
+                                    }
+                                    (keyValue[0], keyValue[1])
+                                }
+                        )
                 case "inactive" => inactive = pair[1]
                 case "root" => root = pair[1]
-                case key => throw FixtureException(
-                    "an unknown key `${key}` in ${line}: module, package, deps, cfg, inactive, root")
+                case key =>
+                    throw FixtureException(
+                        "an unknown key `${key}` in ${line}: module, package, deps, cfg, inactive, root"
+                    )
             }
         }
     }
@@ -516,8 +607,19 @@ func parseFile(header: ?String, body: Array<String>, broken: Bool, paths: PathIn
         }
         lines.add(FixtureLine(line, start, columns.toArray()))
     }
-    FixtureFile(fileId, vfsPath, module, root.map {written => pathOf(written)}, pkg ?? module, deps, cfg, inactive,
-        text.toString(), header, lines.toArray())
+    FixtureFile(
+        fileId,
+        vfsPath,
+        module,
+        root.map { written => pathOf(written) },
+        pkg ?? module,
+        deps,
+        cfg,
+        inactive,
+        text.toString(),
+        header,
+        lines.toArray()
+    )
 }
 
 /**
@@ -553,11 +655,17 @@ func lineEnd(file: FixtureFile, line: Int64): Int64 {
 public func trimIndent(text: String): String {
     let body = splitIndent(text)[1]
     let indent = commonIndent(body)
-    let lines = body.split("\n").map {line => if (line.trimAscii().isEmpty()) {
-        ""
-    } else {
-        line[indent..]
-    }}
+    let lines =
+        body
+            .split("\n")
+            .map {
+                line =>
+                if (line.trimAscii().isEmpty()) {
+                    ""
+                } else {
+                    line[indent..]
+                }
+            }
     String.join(lines, delimiter: "\n")
 }
 
@@ -565,11 +673,12 @@ public func trimIndent(text: String): String {
  * `text` as the first empty line, the lines, and the spaces of the last line of nothing else.
  */
 func splitIndent(text: String): (String, String, String) {
-    let lead = if (text.startsWith("\n")) {
-        "\n"
-    } else {
-        ""
-    }
+    let lead =
+        if (text.startsWith("\n")) {
+            "\n"
+        } else {
+            ""
+        }
     let rest = text[lead.size..]
     let lastBreak = rest.lastIndexOf("\n")
     if (let Some(at) <- lastBreak) {
@@ -602,9 +711,14 @@ func commonIndent(body: String): Int64 {
  */
 public func indentLike(original: String, rendered: String): String {
     let (lead, body, tail) = splitIndent(original)
-    let prefix = body.split("\n").iterator().filter {line => !line.trimAscii().isEmpty()}.next().map {
-        line => line[..commonIndent(body)]
-    } ?? ""
+    let prefix =
+        body
+            .split("\n")
+            .iterator()
+            .filter { line => !line.trimAscii().isEmpty() }
+            .next()
+            .map { line => line[..commonIndent(body)] } ??
+            ""
     let lines = rendered.split("\n")
     let out = StringBuilder(lead)
     for (i in 0..lines.size) {

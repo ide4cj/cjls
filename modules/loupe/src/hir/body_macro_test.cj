@@ -12,16 +12,18 @@ import loupe.fixture.*
  * A call of `serverCalls` as a line: its macro, its ordinal, `/` if it is in its item (D117), `!` if it is read.
  */
 func describeCall(db: AnalysisDatabase, one: ServerCall): String {
-    let inItem = if (one.call.inBody(db).isSome()) {
-        "/"
-    } else {
-        ""
-    }
-    let read = if (one.read) {
-        "!"
-    } else {
-        ""
-    }
+    let inItem =
+        if (one.call.inBody(db).isSome()) {
+            "/"
+        } else {
+            ""
+        }
+    let read =
+        if (one.read) {
+            "!"
+        } else {
+            ""
+        }
     "${one.definition.name}${one.call.index(db)}${inItem}${read}"
 }
 
@@ -34,17 +36,20 @@ class BodyMacroCallTest {
     @TestCase
     func callsInAnItemGoBeforeTheCallsOnItInnermostFirst() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             @A class X {
                 func f(): Int64 { @B(@I(1)) }
                 let y = @I(2)
             }
-            "#)
+            "#
+            )
 
         // act
-        let calls = serverCalls(db, file).map {one => describeCall(db, one)}
+        let calls = serverCalls(db, file).map { one => describeCall(db, one) }
 
         // assert: `y`'s `@I` is the first of its own item
         @Expect(calls, ["I0/", "B0/", "I0/", "A0!"])
@@ -53,7 +58,9 @@ class BodyMacroCallTest {
     @TestCase
     func aCallIsKeyedByItsItemItsMacrosNameAndItsOrdinalAmongTheCallsOfThatName() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
@@ -61,10 +68,11 @@ class BodyMacroCallTest {
                 @I(2)
                 @B(3)
             }
-            "#)
+            "#
+            )
 
         // act
-        let keys = serverCalls(db, file).map {one => macroCallKeyOf(db, one.call)}
+        let keys = serverCalls(db, file).map { one => macroCallKeyOf(db, one.call) }
 
         // assert
         @Expect(keys.map {key => "${key.inBody ?? "-"}#${key.index}"}, ["B#0", "I#0", "B#1"])
@@ -74,13 +82,16 @@ class BodyMacroCallTest {
     @TestCase
     func aKeyFindsItsCallAfterAnEditElsewhereAndNoneOnceItIsGone() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
                 @B(1)
             }
-            "#)
+            "#
+            )
         let call = serverCalls(db, file)[0].call
         let key = macroCallKeyOf(db, call)
 
@@ -98,16 +109,19 @@ class BodyMacroCallTest {
     @TestCase
     func theInputIsWhatTheParenthesesHoldAndTheParentsTheCallsAroundIt() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             @A class X {
                 @I func f(): Int64 { @M[x](1 + 2) }
             }
-            "#)
+            "#
+            )
 
         // act
-        let requests = macroRequests(db, file).map {request => describe(request)}
+        let requests = macroRequests(db, file).map { request => describe(request) }
 
         // assert
         @Expect(requests[0], "M[x] <1 + 2> parents=A,I children=")
@@ -116,14 +130,17 @@ class BodyMacroCallTest {
     @TestCase
     func aCallWithAnotherInItsInputIsNotAskedUntilNestingIsExpanded() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Int64 { @B(@I(1)) }
-            "#)
+            "#
+            )
 
         // act
-        let requests = macroRequests(db, file).map {request => describe(request)}
+        let requests = macroRequests(db, file).map { request => describe(request) }
 
         // assert
         @Expect(requests, ["I <1> parents=B children="])
@@ -132,16 +149,19 @@ class BodyMacroCallTest {
     @TestCase
     func aCallOnALocalDeclarationIsGivenTheDeclaration() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
                 @I func local() {}
             }
-            "#)
+            "#
+            )
 
         // act
-        let requests = macroRequests(db, file).map {request => describe(request)}
+        let requests = macroRequests(db, file).map { request => describe(request) }
 
         // assert
         @Expect(requests, ["I <func local() {}> parents= children="])
@@ -150,7 +170,9 @@ class BodyMacroCallTest {
     @TestCase
     func aCallUnderAFalseWhenOrOfStdIsNotAsked() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             import std.unittest.testmacro.*
@@ -160,10 +182,13 @@ class BodyMacroCallTest {
                 @Expect(1, 1)
                 @I(2)
             }
-            "#, std: ["std.unittest", "std.unittest.testmacro"], cfg: "os:Linux")
+            "#,
+                std: ["std.unittest", "std.unittest.testmacro"],
+                cfg: "os:Linux"
+            )
 
         // act
-        let calls = serverCalls(db, file).map {one => describeCall(db, one)}
+        let calls = serverCalls(db, file).map { one => describeCall(db, one) }
 
         // assert
         @Expect(calls, ["I0/"])
@@ -172,14 +197,22 @@ class BodyMacroCallTest {
     @TestCase
     func anAnswerMakesTheRequestCurrentAndItsDiagnosticsAreOnTheCallsHead() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Int64 { @B(1) }
-            "#)
+            "#
+            )
         let request = requestNamed(db, file, "B")
-        let output = MacroOutput(request.fingerprint, MappedText("(1) + 0", []), [],
-            [MacroDiagnostic(MacroSeverity.MacroError, None, "not a number", "")])
+        let output =
+            MacroOutput(
+                request.fingerprint,
+                MappedText("(1) + 0", []),
+                [],
+                [MacroDiagnostic(MacroSeverity.MacroError, None, "not a number", "")]
+            )
 
         // act
         setMacroOutputs(db, [(request.call, output)])

@@ -9,10 +9,11 @@ import platform.executableFile
  * Where a nightly's release notes are read, by its tag (the version `cjc --version` prints): the
  * GitHub mirror's API first, then gitcode's, the origin (D62).
  */
-let RELEASE_NOTES = [
-    "https://api.github.com/repos/cangjie-bot/nightly_build/releases/tags/",
-    "https://api.gitcode.com/api/v5/repos/Cangjie/nightly_build/releases/tags/"
-]
+let RELEASE_NOTES =
+    [
+        "https://api.github.com/repos/cangjie-bot/nightly_build/releases/tags/",
+        "https://api.gitcode.com/api/v5/repos/Cangjie/nightly_build/releases/tags/"
+    ]
 
 /**
  * Where `cangjie_runtime` is downloaded at a commit, as a `.tar.gz`: GitHub's mirror alone, gitcode's
@@ -113,20 +114,24 @@ func fetchSrc(home: Path, dir: Path, host: SrcHost, out: OutputStream, err: Outp
 }
 
 func fetchSrcTo(home: Path, dir: Path, host: SrcHost, err: OutputStream): Int64 {
-    let say = {line: String => err.write("${line}\n".toArray())}
+    let say = { line: String => err.write("${line}\n".toArray()) }
     let cjc = home.join("bin").join(executableFile("cjc"))
-    let version = match (host.compilerVersion(cjc).flatMap {it => compilerVersionOf(it)}) {
-        case Some(version) => version
-        case None =>
-            say("${cjc}: no version: is ${home} an SDK?")
-            return 1
-    }
-    let commit = match (runtimeCommitOfRelease(version, host)) {
-        case Some(commit) => commit
-        case None =>
-            say("no release notes of a nightly ${version} name its cangjie_runtime: a release SDK's sources are not fetched; put std's in a directory and name it by CANGJIE_SRC")
-            return 1
-    }
+    let version =
+        match (host.compilerVersion(cjc).flatMap { it => compilerVersionOf(it) }) {
+            case Some(version) => version
+            case None =>
+                say("${cjc}: no version: is ${home} an SDK?")
+                return 1
+        }
+    let commit =
+        match (runtimeCommitOfRelease(version, host)) {
+            case Some(commit) => commit
+            case None =>
+                say(
+                    "no release notes of a nightly ${version} name its cangjie_runtime: a release SDK's sources are not fetched; put std's in a directory and name it by CANGJIE_SRC"
+                )
+                return 1
+        }
     if (stampOf(dir) == Some(commit)) {
         say("${dir}: std's sources of ${version} already, cangjie_runtime ${commit}")
         return 0
@@ -195,7 +200,11 @@ func compilerVersionOf(output: String): ?String {
  */
 func runtimeCommitOfRelease(version: String, host: SrcHost): ?String {
     for (base in RELEASE_NOTES) {
-        if (let Some(commit) <- host.get("${base}${version}").flatMap {notes => runtimeCommitOf(notes)}) {
+        if (
+            let Some(commit) <- host
+                .get("${base}${version}")
+                .flatMap { notes => runtimeCommitOf(notes) }
+        ) {
             return commit
         }
     }
@@ -215,7 +224,7 @@ func runtimeCommitOf(notes: String): ?String {
     }
     let end = rest[1..].indexOf("`") ?? return None
     let commit = rest[1..1 + end]
-    if (commit.size >= 7 && commit.size <= 40 && commit.toArray().all {b => isHex(b)}) {
+    if (commit.size >= 7 && commit.size <= 40 && commit.toArray().all { b => isHex(b) }) {
         commit
     } else {
         None
@@ -254,7 +263,7 @@ func holdsOther(dir: Path): Bool {
  * commit, into `src`; `false` if it has no `stdlib/libs/std`.
  */
 func layOut(unpacked: Path, src: Path): Bool {
-    let tops = Directory.readFrom(unpacked).filter {info => info.isDirectory()}
+    let tops = Directory.readFrom(unpacked).filter { info => info.isDirectory() }
     if (tops.size != 1) {
         return false
     }

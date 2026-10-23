@@ -4,8 +4,21 @@ import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
-import cjo.{AccessLevel, AccessModifier, Attribute, Attributes, DeclInfo, DeclKind, FbVector, FullId, openCjo, PackageKind,
-    Position, SemaTyInfo, TypeKind}
+import cjo.{
+    AccessLevel,
+    AccessModifier,
+    Attribute,
+    Attributes,
+    DeclInfo,
+    DeclKind,
+    FbVector,
+    FullId,
+    openCjo,
+    PackageKind,
+    Position,
+    SemaTyInfo,
+    TypeKind
+}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
@@ -87,43 +100,57 @@ public func binaryDecl(db: AnalysisDatabase, pkg: BinaryPackageFile, item: Binar
  * an interface's, a struct's, an enum's, an `extend`'s; none that cannot be found among the packages
  * of the project.
  */
-public func binarySupertypes(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): Array<DefId> {
+public func binarySupertypes(
+    db: AnalysisDatabase,
+    pkg: BinaryPackageFile,
+    item: BinaryItem
+): Array<DefId> {
     let index = binaryExports(db, pkg).declIndex(item) ?? return []
-    let refs = try {
-        let cjo = openCjo(pkg.bytes(db))
-        let inherited = match (cjo.allDecls[index].info) {
-            case Some(DeclInfo.AsClassInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsInterfaceInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsStructInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsEnumInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsExtendInfo(it)) => it.inheritedTypes.toArray()
-            case _ => Array<UInt32>()
+    let refs =
+        try {
+            let cjo = openCjo(pkg.bytes(db))
+            let inherited =
+                match (cjo.allDecls[index].info) {
+                    case Some(DeclInfo.AsClassInfo(it)) => it.inheritedTypes.toArray()
+                    case Some(DeclInfo.AsInterfaceInfo(it)) => it.inheritedTypes.toArray()
+                    case Some(DeclInfo.AsStructInfo(it)) => it.inheritedTypes.toArray()
+                    case Some(DeclInfo.AsEnumInfo(it)) => it.inheritedTypes.toArray()
+                    case Some(DeclInfo.AsExtendInfo(it)) => it.inheritedTypes.toArray()
+                    case _ => Array<UInt32>()
+                }
+            let imports = cjo.imports.toArray()
+            inherited |> filterMap { ty: UInt32 => binaryTypeRef(cjo, imports, ty) } |> collectArray
+        } catch (_: Exception) {
+            return []
         }
-        let imports = cjo.imports.toArray()
-        inherited |> filterMap {ty: UInt32 => binaryTypeRef(cjo, imports, ty)} |> collectArray
-    } catch (_: Exception) {
-        return []
-    }
-    refs |> filterMap {
-        ref: BinaryTypeRef => match (resolveBinaryType(db, pkg, ref)) {
-            case Some(DeclType(id)) => id
-            case _ => None
-        }
-    } |> collectArray
+    refs |>
+        filterMap {
+            ref: BinaryTypeRef =>
+            match (resolveBinaryType(db, pkg, ref)) {
+                case Some(DeclType(id)) => id
+                case _ => None
+            }
+        } |>
+        collectArray
 }
 
 /**
  * The type the `extend` `item` of `pkg` extends, as its `.cjo` resolved it; `None` for one that
  * cannot be found among the packages of the project.
  */
-public func binaryExtendedType(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): ?ExtendedType {
+public func binaryExtendedType(
+    db: AnalysisDatabase,
+    pkg: BinaryPackageFile,
+    item: BinaryItem
+): ?ExtendedType {
     let index = binaryExports(db, pkg).declIndex(item) ?? return None
-    let ref = try {
-        let cjo = openCjo(pkg.bytes(db))
-        binaryTypeRef(cjo, cjo.imports.toArray(), cjo.allDecls[index].`type`)
-    } catch (_: Exception) {
-        None<BinaryTypeRef>
-    }
+    let ref =
+        try {
+            let cjo = openCjo(pkg.bytes(db))
+            binaryTypeRef(cjo, cjo.imports.toArray(), cjo.allDecls[index].`type`)
+        } catch (_: Exception) {
+            None<BinaryTypeRef>
+        }
     resolveBinaryType(db, pkg, ref ?? return None)
 }
 
@@ -158,22 +185,39 @@ func binaryTypeRef(cjo: CjoPackage, imports: Array<String>, ty: UInt32): ?Binary
     }
     let semaTy = types[Int64(ty) - 1]
     match (semaTy.kind) {
-        case TypeKind.CPointer | TypeKind.CString => return BinaryTypeRef.BuiltInRef(semaTy.kind.toString())
-        case TypeKind.`Unit` | TypeKind.`Int8` | TypeKind.`Int16` | TypeKind.`Int32` | TypeKind.`Int64` |
-            TypeKind.`IntNative` | TypeKind.`UInt8` | TypeKind.`UInt16` | TypeKind.`UInt32` | TypeKind.`UInt64` |
-            TypeKind.`UIntNative` | TypeKind.`Float16` | TypeKind.`Float32` | TypeKind.`Float64` | TypeKind.`Rune` |
-            TypeKind.`Nothing` | TypeKind.`Bool` => return BinaryTypeRef.PrimTypeRef(semaTy.kind.toString())
+        case TypeKind.CPointer | TypeKind.CString =>
+            return BinaryTypeRef.BuiltInRef(semaTy.kind.toString())
+        case TypeKind.`Unit` |
+            TypeKind.`Int8` |
+            TypeKind.`Int16` |
+            TypeKind.`Int32` |
+            TypeKind.`Int64` |
+            TypeKind.`IntNative` |
+            TypeKind.`UInt8` |
+            TypeKind.`UInt16` |
+            TypeKind.`UInt32` |
+            TypeKind.`UInt64` |
+            TypeKind.`UIntNative` |
+            TypeKind.`Float16` |
+            TypeKind.`Float32` |
+            TypeKind.`Float64` |
+            TypeKind.`Rune` |
+            TypeKind.`Nothing` |
+            TypeKind.`Bool` => return BinaryTypeRef.PrimTypeRef(semaTy.kind.toString())
         case _ => ()
     }
-    let id = match (semaTy.info) {
-        case Some(SemaTyInfo.AsCompositeTyInfo(info)) => info.declPtr
-        case _ => None<FullId>
-    } ?? return None
+    let id =
+        match (semaTy.info) {
+            case Some(SemaTyInfo.AsCompositeTyInfo(info)) => info.declPtr
+            case _ => None<FullId>
+        } ??
+            return None
     // -2 this package, by the place of the declaration among `allDecls` from 1; 0 and up a package
     // it imports, by the declaration's `exportId`
     match (id.pkgId) {
         case -2 => BinaryTypeRef.OwnDeclRef(Int64(id.index) - 1)
-        case n where n >= 0 && Int64(n) < imports.size => BinaryTypeRef.ImportedDeclRef(imports[Int64(n)], id.decl ?? "")
+        case n where n >= 0 && Int64(n) < imports.size =>
+            BinaryTypeRef.ImportedDeclRef(imports[Int64(n)], id.decl ?? "")
         case _ => None
     }
 }
@@ -181,24 +225,41 @@ func binaryTypeRef(cjo: CjoPackage, imports: Array<String>, ty: UInt32): ?Binary
 /**
  * The type `ref`, of `pkg`, names among the packages of the project; `None` for one not found.
  */
-func resolveBinaryType(db: AnalysisDatabase, pkg: BinaryPackageFile, ref: BinaryTypeRef): ?ExtendedType {
+func resolveBinaryType(
+    db: AnalysisDatabase,
+    pkg: BinaryPackageFile,
+    ref: BinaryTypeRef
+): ?ExtendedType {
     match (ref) {
         case PrimTypeRef(name) => ExtendedType.PrimType(name)
         case BuiltInRef(name) =>
-            let core = packageIndex(db).find("std.core", from: PackageRef.Binary(pkg)) ?? return None
+            let core =
+                packageIndex(db).find("std.core", from: PackageRef.Binary(pkg)) ?? return None
             let builtIns = packageExports(db, core).names.get(name) ?? []
-            builtIns.iterator().filter {one => one.id.item(db).kind == ItemKind.BuiltIn}.next().map {
-                one => ExtendedType.DeclType(one.id)
+            builtIns
+                .iterator()
+                .filter { one => one.id.item(db).kind == ItemKind.BuiltIn }
+                .next()
+                .map { one => ExtendedType.DeclType(one.id) }
+        case OwnDeclRef(index) =>
+            binaryExports(db, pkg)
+                .itemAt(index)
+                .map {
+                    one =>
+                    ExtendedType.DeclType(DefId(db, ItemFile.Binary(pkg, one.file), one.id))
+                }
+        case ImportedDeclRef(full, exportId) =>
+            match (packageIndex(db).find(full, from: PackageRef.Binary(pkg))) {
+                case Some(PackageRef.Binary(other)) =>
+                    binaryExports(db, other)
+                        .itemOf(exportId)
+                        .map {
+                            one =>
+                            ExtendedType
+                                .DeclType(DefId(db, ItemFile.Binary(other, one.file), one.id))
+                        }
+                case _ => None
             }
-        case OwnDeclRef(index) => binaryExports(db, pkg).itemAt(index).map {
-            one => ExtendedType.DeclType(DefId(db, ItemFile.Binary(pkg, one.file), one.id))
-        }
-        case ImportedDeclRef(full, exportId) => match (packageIndex(db).find(full, from: PackageRef.Binary(pkg))) {
-            case Some(PackageRef.Binary(other)) => binaryExports(db, other).itemOf(exportId).map {
-                one => ExtendedType.DeclType(DefId(db, ItemFile.Binary(other, one.file), one.id))
-            }
-            case _ => None
-        }
     }
 }
 
@@ -229,8 +290,11 @@ public class BinaryExports <: Equatable<BinaryExports> {
      * Each item, the index of its declaration and its `exportId` (empty for none), in the order
      * they were lowered in.
      */
-    BinaryExports(private let items!: Array<BinaryItem> = [], private let decls!: Array<Int64> = [],
-        private let exportIds!: Array<String> = []) {
+    BinaryExports(
+        private let items!: Array<BinaryItem> = [],
+        private let decls!: Array<Int64> = [],
+        private let exportIds!: Array<String> = []
+    ) {
         for (i in 0..items.size) {
             byItem.add(items[i], decls[i])
             byDecl.add(decls[i], items[i])
@@ -318,15 +382,26 @@ class BinaryLowerer {
         fileCount = max(pkg.allFiles.size, 1)
         let name = pkg.fullPkgName ?? ""
         let imports = pkg.imports.toArray()
-        selfId = imports.iterator().enumerate().filter {it => it[1] == name}.next().map {it => UInt32(it[0] + 1)}
-        counters = Array(fileCount) {_ => ItemIdCounter()}
-        items = Array(fileCount) {_ => ArrayList<Item>()}
+        selfId =
+            imports
+                .iterator()
+                .enumerate()
+                .filter { it => it[1] == name }
+                .next()
+                .map { it => UInt32(it[0] + 1) }
+        counters = Array(fileCount) { _ => ItemIdCounter() }
+        items = Array(fileCount) { _ => ArrayList<Item>() }
     }
 
     func lower(): BinaryLowering {
-        let header = PackageItem(pkg.fullPkgName ?? "", pkg.kind == PackageKind.Macro, [accessOf(pkg.access)])
+        let header =
+            PackageItem(
+                pkg.fullPkgName ?? "",
+                pkg.kind == PackageKind.Macro,
+                [accessOf(pkg.access)]
+            )
         // imports first, as a source file's are
-        let imports = Array(fileCount) {file => importsOf(file)}
+        let imports = Array(fileCount) { file => importsOf(file) }
         for (i in 0..decls.size) {
             let decl = decls[i]
             if (decl.isTopLevel) {
@@ -336,8 +411,23 @@ class BinaryLowerer {
                 }
             }
         }
-        let trees = Array(fileCount) {file => ItemTree(packageHeader: header, imports: imports[file], items: items[file].toArray())}
-        BinaryLowering(trees, BinaryExports(items: lowered.toArray(), decls: declIndices.toArray(), exportIds: exportIds.toArray()))
+        let trees =
+            Array(fileCount) {
+                file =>
+                ItemTree(
+                    packageHeader: header,
+                    imports: imports[file],
+                    items: items[file].toArray()
+                )
+            }
+        BinaryLowering(
+            trees,
+            BinaryExports(
+                items: lowered.toArray(),
+                decls: declIndices.toArray(),
+                exportIds: exportIds.toArray()
+            )
+        )
     }
 
     /**
@@ -347,7 +437,12 @@ class BinaryLowerer {
      * `PrimaryCtorDecl`, only the `init` it makes of it (`PrimaryConstructor`) and a field per member
      * parameter (`isMemberParam`), both `CompilerAdd` (`DesugarPrimaryCtor`).
      */
-    private func lowerDecl(index: Int64, file: Int64, parent!: ?ItemId = None, parentName!: String = ""): ?Item {
+    private func lowerDecl(
+        index: Int64,
+        file: Int64,
+        parent!: ?ItemId = None,
+        parentName!: String = ""
+    ): ?Item {
         // a member out of `allDecls`, or one lowered already, is a broken file's: that one alone is left out
         if (index < 0 || index >= decls.size || seen[index]) {
             return None
@@ -356,25 +451,31 @@ class BinaryLowerer {
         let decl = decls[index]
         let attributes = decl.attributes
         let info = decl.info
-        let memberParam = match (info) {
-            case Some(DeclInfo.AsVarInfo(var_)) => var_.isMemberParam
-            case _ => false
-        }
-        if (attributes.has(Attribute.CompilerAdd) && !attributes.has(Attribute.PrimaryConstructor) && !memberParam) {
+        let memberParam =
+            match (info) {
+                case Some(DeclInfo.AsVarInfo(var_)) => var_.isMemberParam
+                case _ => false
+            }
+        if (
+            attributes.has(Attribute.CompilerAdd) &&
+                !attributes.has(Attribute.PrimaryConstructor) &&
+                !memberParam
+        ) {
             return None
         }
         let kind = kindOf(decl.kind, attributes) ?? return None
         let identifier = decl.identifier ?? ""
-        let names: Array<String> = match (kind) {
-            case ItemKind.Extend => []
-            case ItemKind.Main => ["main"]
-            case ItemKind.Init => ["init"]
-            case ItemKind.Finalizer => ["~init"]
-            // cjc names it `init`, its `identifierForLsp` as its type, as a source names it
-            case ItemKind.PrimaryInit => [parentName]
-            case _ where identifier.isEmpty() => []
-            case _ => [identifier]
-        }
+        let names: Array<String> =
+            match (kind) {
+                case ItemKind.Extend => []
+                case ItemKind.Main => ["main"]
+                case ItemKind.Init => ["init"]
+                case ItemKind.Finalizer => ["~init"]
+                // cjc names it `init`, its `identifierForLsp` as its type, as a source names it
+                case ItemKind.PrimaryInit => [parentName]
+                case _ where identifier.isEmpty() => []
+                case _ => [identifier]
+            }
         let exportId = decl.exportId ?? ""
         // an extend, or a `let` of a pattern, keeps no name as text: its exportId tells it apart
         let id = counters[file].next(parent, kind, names.get(0) ?? exportId)
@@ -383,7 +484,14 @@ class BinaryLowerer {
         exportIds.add(exportId)
         let members = ArrayList<Item>()
         for (member in bodyOf(info)) {
-            if (let Some(item) <- lowerDecl(Int64(member) - 1, file, parent: id, parentName: identifier)) {
+            if (
+                let Some(item) <- lowerDecl(
+                    Int64(member) - 1,
+                    file,
+                    parent: id,
+                    parentName: identifier
+                )
+            ) {
                 members.add(item)
             }
         }
@@ -397,13 +505,14 @@ class BinaryLowerer {
     private func fileOf(begin: ?Position): Int64 {
         let position = begin ?? return 0
         let file = Int64(position.file)
-        let index = if (position.pkgId == 0) {
-            file - 1
-        } else if (Some(position.pkgId) == selfId) {
-            file
-        } else {
-            0
-        }
+        let index =
+            if (position.pkgId == 0) {
+                file - 1
+            } else if (Some(position.pkgId) == selfId) {
+                file
+            } else {
+                0
+            }
         if (index >= 0 && index < fileCount) {
             index
         } else {
@@ -422,31 +531,47 @@ class BinaryLowerer {
         }
         let imports = ArrayList<ImportItem>()
         for (spec in all[file].importSpecs) {
-            let modifier = match (spec.reExport) {
-                case AccessModifier.Public => Modifier.Public
-                case AccessModifier.Protected => Modifier.Protected
-                case AccessModifier.Internal => Modifier.Internal
-                case AccessModifier.Private => continue
-            }
+            let modifier =
+                match (spec.reExport) {
+                    case AccessModifier.Public => Modifier.Public
+                    case AccessModifier.Protected => Modifier.Protected
+                    case AccessModifier.Internal => Modifier.Internal
+                    case AccessModifier.Private => continue
+                }
             let identifier = spec.identifier ?? ""
             // cjc writes one for every import it keeps
             if (identifier.isEmpty()) {
                 continue
             }
             let isGlob = identifier == "*"
-            let segments = importSegments(spec.prefixPaths.toArray(), identifier, spec.hasDoubleColon)
-            let alias = spec.asIdentifier.flatMap {it => if (it.isEmpty()) {
-                None<String>
-            } else {
-                it
-            }}
-            let text = String.join(segments, delimiter: ".") + (if (isGlob) {
-                ".*"
-            } else {
-                ""
-            }) + (alias.map {it => " as ${it}"} ?? "")
+            let segments =
+                importSegments(spec.prefixPaths.toArray(), identifier, spec.hasDoubleColon)
+            let alias =
+                spec
+                    .asIdentifier
+                    .flatMap {
+                        it =>
+                        if (it.isEmpty()) {
+                            None<String>
+                        } else {
+                            it
+                        }
+                    }
+            let text =
+                String.join(segments, delimiter: ".") +
+                    (
+                        if (isGlob) {
+                            ".*"
+                        } else {
+                            ""
+                        }
+                    ) +
+                    (alias.map { it => " as ${it}" } ?? "")
             let id = counters[file].next(None, ItemKind.Import, text)
-            imports.add(ImportItem(id, [modifier], [ImportPath(segments, alias: alias, isGlob: isGlob)]))
+            imports
+                .add(
+                    ImportItem(id, [modifier], [ImportPath(segments, alias: alias, isGlob: isGlob)])
+                )
         }
         imports.toArray()
     }
@@ -458,12 +583,17 @@ class BinaryLowerer {
  * whether the first is an organization (`hasDoubleColon`), one segment with the name after it:
  * `org::a`, `org::a.B` and `org::a.*` all begin with `org::a`.
  */
-func importSegments(prefix: Array<String>, identifier: String, hasDoubleColon: Bool): Array<String> {
-    let written = if (identifier == "*") {
-        prefix
-    } else {
-        prefix.concat([identifier])
-    }
+func importSegments(
+    prefix: Array<String>,
+    identifier: String,
+    hasDoubleColon: Bool
+): Array<String> {
+    let written =
+        if (identifier == "*") {
+            prefix
+        } else {
+            prefix.concat([identifier])
+        }
     if (hasDoubleColon && written.size >= 2) {
         ["${written[0]}::${written[1]}"].concat(written[2..])
     } else {
@@ -488,7 +618,8 @@ private func kindOf(kind: DeclKind, attributes: Attributes): ?ItemKind {
         case DeclKind.VarDecl where attributes.has(Attribute.EnumConstructor) => ItemKind.EnumCtor
         case DeclKind.VarDecl => ItemKind.Var
         case DeclKind.FuncDecl where attributes.has(Attribute.EnumConstructor) => ItemKind.EnumCtor
-        case DeclKind.FuncDecl where attributes.has(Attribute.PrimaryConstructor) => ItemKind.PrimaryInit
+        case DeclKind.FuncDecl where attributes.has(Attribute.PrimaryConstructor) =>
+            ItemKind.PrimaryInit
         case DeclKind.FuncDecl where attributes.has(Attribute.Finalizer) => ItemKind.Finalizer
         case DeclKind.FuncDecl where attributes.has(Attribute.Constructor) => ItemKind.Init
         case DeclKind.FuncDecl where attributes.has(Attribute.MacroFunc) => ItemKind.Macro
@@ -518,34 +649,38 @@ private func bodyOf(info: ?DeclInfo): Array<UInt32> {
  * interface is `public`), in the order of `MODIFIERS`.
  */
 private func modifiersOf(attributes: Attributes, info: ?DeclInfo): Array<Modifier> {
-    let isConst = match (info) {
-        case Some(DeclInfo.AsVarInfo(it)) => it.isConst
-        case Some(DeclInfo.AsVarWithPatternInfo(it)) => it.isConst
-        case Some(DeclInfo.AsFuncInfo(it)) => it.isConst
-        case Some(DeclInfo.AsPropInfo(it)) => it.isConst
-        case _ => false
-    }
-    MODIFIERS.map {it => it[1]}.filter {
-        modifier => match (modifier) {
-            case Modifier.Static => attributes.has(Attribute.Static)
-            case Modifier.Public => attributes.has(Attribute.Public)
-            case Modifier.Private => attributes.has(Attribute.Private)
-            case Modifier.Internal => attributes.has(Attribute.Internal)
-            case Modifier.Protected => attributes.has(Attribute.Protected)
-            case Modifier.Override => attributes.has(Attribute.Override)
-            case Modifier.Redef => attributes.has(Attribute.Redef)
-            case Modifier.Abstract => attributes.has(Attribute.Abstract)
-            case Modifier.Sealed => attributes.has(Attribute.Sealed)
-            case Modifier.Open => attributes.has(Attribute.Open)
-            case Modifier.Foreign => attributes.has(Attribute.Foreign)
-            case Modifier.Mut => attributes.has(Attribute.Mut)
-            case Modifier.Unsafe => attributes.has(Attribute.Unsafe)
-            case Modifier.Operator => attributes.has(Attribute.Operator)
-            case Modifier.Const => isConst
-            case Modifier.Common => attributes.has(Attribute.Common)
-            case Modifier.Specific => attributes.has(Attribute.Specific)
+    let isConst =
+        match (info) {
+            case Some(DeclInfo.AsVarInfo(it)) => it.isConst
+            case Some(DeclInfo.AsVarWithPatternInfo(it)) => it.isConst
+            case Some(DeclInfo.AsFuncInfo(it)) => it.isConst
+            case Some(DeclInfo.AsPropInfo(it)) => it.isConst
+            case _ => false
         }
-    }
+    MODIFIERS
+        .map { it => it[1] }
+        .filter {
+            modifier =>
+            match (modifier) {
+                case Modifier.Static => attributes.has(Attribute.Static)
+                case Modifier.Public => attributes.has(Attribute.Public)
+                case Modifier.Private => attributes.has(Attribute.Private)
+                case Modifier.Internal => attributes.has(Attribute.Internal)
+                case Modifier.Protected => attributes.has(Attribute.Protected)
+                case Modifier.Override => attributes.has(Attribute.Override)
+                case Modifier.Redef => attributes.has(Attribute.Redef)
+                case Modifier.Abstract => attributes.has(Attribute.Abstract)
+                case Modifier.Sealed => attributes.has(Attribute.Sealed)
+                case Modifier.Open => attributes.has(Attribute.Open)
+                case Modifier.Foreign => attributes.has(Attribute.Foreign)
+                case Modifier.Mut => attributes.has(Attribute.Mut)
+                case Modifier.Unsafe => attributes.has(Attribute.Unsafe)
+                case Modifier.Operator => attributes.has(Attribute.Operator)
+                case Modifier.Const => isConst
+                case Modifier.Common => attributes.has(Attribute.Common)
+                case Modifier.Specific => attributes.has(Attribute.Specific)
+            }
+        }
 }
 
 /**

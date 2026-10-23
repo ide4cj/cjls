@@ -30,7 +30,7 @@ struct Nested <: AstNode<TestKind, Nested> {
 }
 
 func kindsOf(nodes: Iterator<Nested>): Array<TestKind> {
-    collectArray(nodes.map {n => n.syntax.kind})
+    collectArray(nodes.map { n => n.syntax.kind })
 }
 
 @Test

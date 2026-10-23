@@ -84,16 +84,17 @@ class BinaryItemTreeTest {
         let pkg = binaryPackage(db, "std.core", bytes)
 
         // act
-        let string = named(binaryItemTrees(db, pkg)[fileIndex(bytes, "std.core/string.cj")].items, "String")
+        let string =
+            named(binaryItemTrees(db, pkg)[fileIndex(bytes, "std.core/string.cj")].items, "String")
 
         // assert
-        let inits = string.members.filter {member => member.kind == ItemKind.Init}
+        let inits = string.members.filter { member => member.kind == ItemKind.Init }
         @Expect(inits.size > 1)
         @Expect(inits.map {it => it.names}, Array(inits.size) {_ => ["init"]})
         @Expect(inits.map {it => it.id.index}, Array(inits.size) {i => i})
         @Expect(named(string.members, "size").kind, ItemKind.Prop)
         @Expect(named(string.members, "empty").modifiers, [Modifier.Static, Modifier.Public, Modifier.Const])
-        let indexOf = string.members.filter {member => member.names == ["indexOf"]}
+        let indexOf = string.members.filter { member => member.names == ["indexOf"] }
         @Expect(indexOf.map {it => it.id.index}, Array(indexOf.size) {i => i})
         @Expect(named(string.members, "fromUtf8Unchecked").modifiers, [Modifier.Static, Modifier.Public, Modifier.Unsafe])
     }
@@ -126,10 +127,15 @@ class BinaryItemTreeTest {
         let items = everyItem(binaryItemTrees(db, pkg))
 
         // assert
-        let withPrimary = items.filter {item => item.members.iterator().any {member => member.kind == ItemKind.PrimaryInit}}
+        let withPrimary =
+            items
+                .filter {
+                    item =>
+                    item.members.iterator().any { member => member.kind == ItemKind.PrimaryInit }
+                }
         @Expect(!withPrimary.isEmpty())
         for (item in withPrimary) {
-            let primary = item.members.filter {member => member.kind == ItemKind.PrimaryInit}
+            let primary = item.members.filter { member => member.kind == ItemKind.PrimaryInit }
             @Expect(primary[0].names, item.names)
         }
         @Expect(items.iterator().all {item => item.names.iterator().all {name => !name.startsWith("$")}})
@@ -158,10 +164,15 @@ class BinaryItemTreeTest {
         let pkg = binaryPackage(db, "std.unittest", stdCjo("std.unittest"))
 
         // act
-        let imports = binaryItemTrees(db, pkg).map {tree => tree.imports}.flatMap {it => it}
+        let imports = binaryItemTrees(db, pkg).map { tree => tree.imports }.flatMap { it => it }
 
         // assert
-        let arbitrary = imports.filter {it => it.paths[0].segments == ["std", "unittest", "prop_test", "Arbitrary"]}
+        let arbitrary =
+            imports
+                .filter {
+                    it =>
+                    it.paths[0].segments == ["std", "unittest", "prop_test", "Arbitrary"]
+                }
         @Expect(arbitrary.size, 1)
         @Expect(arbitrary[0].modifiers, [Modifier.Public])
         @Expect(arbitrary[0].paths[0].alias, None<String>)
@@ -225,9 +236,18 @@ class BinaryExportIdTest {
     @TestCase
     func anExportIdIsUniqueInItsPackage() {
         // arrange
-        let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
-        let std = Directory.readFrom(home.join("modules")).filter {target => target.isDirectory()}[0].path.join("std")
-        let files = Directory.readFrom(std).filter {entry => entry.name.endsWith(".cjo")}
+        let home =
+            Path(
+                getVariable("CANGJIE_HOME") ??
+                    throw IllegalStateException("CANGJIE_HOME names no SDK")
+            )
+        let std =
+            Directory
+                .readFrom(home.join("modules"))
+                .filter { target => target.isDirectory() }[0]
+                .path
+                .join("std")
+        let files = Directory.readFrom(std).filter { entry => entry.name.endsWith(".cjo") }
 
         // act
         let duplicates = ArrayList<String>()

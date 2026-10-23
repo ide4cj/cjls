@@ -218,7 +218,11 @@ extend<K, V> HashMap<K, V> <: ToJson where K <: JsonKey<K>, V <: ToJson {
     }
 }
 
-extend<K, V> HashMap<K, V> <: FromJson<HashMap<K, V>> where K <: JsonKey<K> & Hashable & Equatable<K>, V <: FromJson<V> {
+extend<K, V> HashMap<K, V> <: FromJson<HashMap<K, V>> where K <:
+            JsonKey<K> &
+            Hashable &
+            Equatable<K>,
+    V <: FromJson<V> {
     public static func fromJson(r: FjReader): HashMap<K, V> {
         let map = HashMap<K, V>()
         r.beginObject()

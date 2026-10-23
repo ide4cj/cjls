@@ -11,22 +11,34 @@ import loupe.syntax.parse
  */
 func checkDefinitionWithUnittest(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"].map {
-        name => stdCjoRead(name, stdCjo(name))
-    })
+    let db =
+        parsed
+            .database(
+                binaries: [
+                    "std.core",
+                    "std.unittest",
+                    "std.unittest.common",
+                    "std.unittest.testmacro"
+                ]
+                    .map { name => stdCjoRead(name, stdCjo(name)) }
+            )
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let targets = definitionAt(db, cursor.fileId, cursor.offset)
-    let annotations = if (targets.isEmpty()) {
-        let source = db.sourceFile(cursor.fileId).getOrThrow()
-        let token = tokenAt(parse(db, source).syntaxNode(), cursor.offset) ?? throw FixtureException("no name at $0")
-        [Annotation(cursor.fileId, token.textRange, "no definition")]
-    } else {
-        targets.map {
-            target =>
-            @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
-            Annotation(target.fileId, target.focusRange, "def")
+    let annotations =
+        if (targets.isEmpty()) {
+            let source = db.sourceFile(cursor.fileId).getOrThrow()
+            let token =
+                tokenAt(parse(db, source).syntaxNode(), cursor.offset) ??
+                    throw FixtureException("no name at $0")
+            [Annotation(cursor.fileId, token.textRange, "no definition")]
+        } else {
+            targets
+                .map {
+                    target =>
+                    @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
+                    Annotation(target.fileId, target.focusRange, "def")
+                }
         }
-    }
     expectAnnotations(fixture, annotations)
 }
 
@@ -38,7 +50,8 @@ func checkDefinitionWithUnittest(fixture: String): Unit {
 class UnittestDefinitionTest {
     @TestCase
     func aMemberOfATestClassGoesToTest() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
               package m
               import std.unittest.*
@@ -49,12 +62,14 @@ class UnittestDefinitionTest {
               func f(c: C): TestSuite {
                   c.$0asTestSuite()
               }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theTestClassOfATestFunctionGoesToTest() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
               package m
               import std.unittest.*
@@ -65,12 +80,14 @@ class UnittestDefinitionTest {
               func f(): Unit {
                   $0TestCase_g()
               }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theKeyOfAnOptionGoesToItsName() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -80,12 +97,14 @@ class UnittestDefinitionTest {
             func f(): Unit {
                 let key = KeyZxc.$0zxc
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aStrategyGoesToItsFunctionsName() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -96,6 +115,7 @@ class UnittestDefinitionTest {
             func f(): Unit {
                 let s = $0strat
             }
-            "#)
+            "#
+        )
     }
 }

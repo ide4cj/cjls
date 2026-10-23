@@ -111,15 +111,20 @@ class FtParserTest {
     @TestCase
     func stringsReadAsTheirFourFormsSay() {
         // arrange
-        let text = String.join([
-            #"basic = "tab\there \u00E9 \U0001F600 \x41\e""#,
-            #"literal = 'C:\Users\'"#,
-            #"multi = """"#,
-            #"one \"#,
-            #"   two"""""#,
-            "raw = '''",
-            "it's '' here'''"
-        ], delimiter: "\n")
+        let text =
+            String
+                .join(
+                    [
+                        #"basic = "tab\there \u00E9 \U0001F600 \x41\e""#,
+                        #"literal = 'C:\Users\'"#,
+                        #"multi = """"#,
+                        #"one \"#,
+                        #"   two"""""#,
+                        "raw = '''",
+                        "it's '' here'''"
+                    ],
+                    delimiter: "\n"
+                )
 
         // act
         let root = parseToml(text).table
@@ -134,7 +139,8 @@ class FtParserTest {
     @TestCase
     func numbersReadInEveryBase() {
         // arrange
-        let text = "a = 0xDEAD_beef\nb = 0o755\nc = 0b1010\nd = -9_223_372_036_854_775_808\ne = 6.626e-34\nf = -inf\n"
+        let text =
+            "a = 0xDEAD_beef\nb = 0o755\nc = 0b1010\nd = -9_223_372_036_854_775_808\ne = 6.626e-34\nf = -inf\n"
 
         // act
         let root = parseToml(text).table
@@ -193,7 +199,8 @@ class FtParserTest {
     @TestCase
     func datesAndTimesReadInEachOfTheirKinds() {
         // arrange
-        let text = "a = 1979-05-27T07:32:00.999999999999-07:00\nb = 1979-05-27 07:32\nc = 2000-02-29\nd = 07:32\n"
+        let text =
+            "a = 1979-05-27T07:32:00.999999999999-07:00\nb = 1979-05-27 07:32\nc = 2000-02-29\nd = 07:32\n"
 
         // act
         let root = parseToml(text).table

@@ -10,9 +10,15 @@ import cjls.lsp_types.*
  * also registers with a client that takes it), and `didChangeWatchedFiles`, which the server
  * registers at run time with a client that watches files for it.
  */
-private let UNADVERTISED = [InitializeRequestSpec.METHOD, InitializedNotificationSpec.METHOD, ShutdownRequestSpec.METHOD,
-    CancelNotificationSpec.METHOD, DidChangeWatchedFilesNotificationSpec.METHOD,
-    DidChangeConfigurationNotificationSpec.METHOD]
+private let UNADVERTISED =
+    [
+        InitializeRequestSpec.METHOD,
+        InitializedNotificationSpec.METHOD,
+        ShutdownRequestSpec.METHOD,
+        CancelNotificationSpec.METHOD,
+        DidChangeWatchedFilesNotificationSpec.METHOD,
+        DidChangeConfigurationNotificationSpec.METHOD
+    ]
 
 /**
  * Whether a capability is on: `true`, or options.
@@ -37,7 +43,13 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
         case "positionEncoding" => ()
         case "textDocumentSync" =>
             if (isOn(value.get("openClose"))) {
-                methods.add(all: [DidOpenTextDocumentNotificationSpec.METHOD, DidCloseTextDocumentNotificationSpec.METHOD])
+                methods
+                    .add(
+                        all: [
+                            DidOpenTextDocumentNotificationSpec.METHOD,
+                            DidCloseTextDocumentNotificationSpec.METHOD
+                        ]
+                    )
             }
             // a `TextDocumentSyncKind`, `None` (0) for no changes
             if (let Some(JsonValue.JsonInteger(change)) <- value.get("change") && change != 0) {
@@ -54,7 +66,8 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
             }
         case "documentSymbolProvider" => methods.add(DocumentSymbolRequestSpec.METHOD)
         case "documentFormattingProvider" => methods.add(DocumentFormattingRequestSpec.METHOD)
-        case "documentRangeFormattingProvider" => methods.add(DocumentRangeFormattingRequestSpec.METHOD)
+        case "documentRangeFormattingProvider" =>
+            methods.add(DocumentRangeFormattingRequestSpec.METHOD)
         case "foldingRangeProvider" => methods.add(FoldingRangeRequestSpec.METHOD)
         case "definitionProvider" => methods.add(DefinitionRequestSpec.METHOD)
         case "documentHighlightProvider" => methods.add(DocumentHighlightRequestSpec.METHOD)
@@ -84,20 +97,31 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
             if (isOn(full)) {
                 methods.add(SemanticTokensRequestSpec.METHOD)
             }
-            if (isOn(full.flatMap {full => full.get("delta")})) {
+            if (isOn(full.flatMap { full => full.get("delta") })) {
                 methods.add(SemanticTokensDeltaRequestSpec.METHOD)
             }
             if (isOn(value.get("range"))) {
                 methods.add(SemanticTokensRangeRequestSpec.METHOD)
             }
         case "workspace" =>
-            if (isOn(value.get("workspaceFolders").flatMap {folders => folders.get("changeNotifications")})) {
+            if (
+                isOn(
+                    value
+                        .get("workspaceFolders")
+                        .flatMap { folders => folders.get("changeNotifications") }
+                )
+            ) {
                 methods.add(DidChangeWorkspaceFoldersNotificationSpec.METHOD)
             }
         // the methods under `cjls/`, by their names (`docs/lsp-extensions.md`)
-        case "experimental" => methods.add(all: value.asObject()
-            .filter {entry => isOn(entry[1])}
-            .map {entry => "cjls/${entry[0]}"})
+        case "experimental" =>
+            methods
+                .add(
+                    all: value
+                        .asObject()
+                        .filter { entry => isOn(entry[1]) }
+                        .map { entry => "cjls/${entry[0]}" }
+                )
         case _ => throw IllegalArgumentException("no methods known for the capability \"${key}\"")
     }
     methods.toArray()
@@ -120,7 +144,7 @@ class CapabilitiesTest {
         let advertised = advertised()
 
         // act
-        let unadvertised = router().methods.filter {method => !advertised.contains(method)}
+        let unadvertised = router().methods.filter { method => !advertised.contains(method) }
 
         // assert
         @Expect(unadvertised, Array<String>())
@@ -132,7 +156,7 @@ class CapabilitiesTest {
         let routed = HashSet<String>(router().methods)
 
         // act
-        let unrouted = advertised().toArray().filter {method => !routed.contains(method)}
+        let unrouted = advertised().toArray().filter { method => !routed.contains(method) }
 
         // assert
         @Expect(unrouted, Array<String>())

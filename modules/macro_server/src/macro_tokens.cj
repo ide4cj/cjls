@@ -8,181 +8,190 @@ import ginkgo.parsing.Lexed
  * cjc's name of each kind cjsyntax lexes one token of, one for one. The others are `macroTokens`'s to put together
  * or take apart: a string's pieces, the trivia, `>`, `?` and `!`, which cjc's lexer glues to what follows.
  */
-let SIMPLE_KINDS: Array<(SyntaxKind, String)> = [
-    (Dot, "DOT"),
-    (Comma, "COMMA"),
-    (LParen, "LPAREN"),
-    (RParen, "RPAREN"),
-    (LBracket, "LSQUARE"),
-    (RBracket, "RSQUARE"),
-    (LBrace, "LCURL"),
-    (RBrace, "RCURL"),
-    (StarStar, "EXP"),
-    (Star, "MUL"),
-    (Percent, "MOD"),
-    (Slash, "DIV"),
-    (Plus, "ADD"),
-    (Minus, "SUB"),
-    (PlusPlus, "INCR"),
-    (MinusMinus, "DECR"),
-    (AmpAmp, "AND"),
-    (PipePipe, "OR"),
-    (PipeGt, "PIPELINE"),
-    (TildeGt, "COMPOSITION"),
-    (Amp, "BITAND"),
-    (Pipe, "BITOR"),
-    (Caret, "BITXOR"),
-    (Tilde, "BITNOT"),
-    (LtLt, "LSHIFT"),
-    (Colon, "COLON"),
-    (ColonColon, "DOUBLE_COLON"),
-    (Semicolon, "SEMI"),
-    (Eq, "ASSIGN"),
-    (PlusEq, "ADD_ASSIGN"),
-    (MinusEq, "SUB_ASSIGN"),
-    (StarEq, "MUL_ASSIGN"),
-    (StarStarEq, "EXP_ASSIGN"),
-    (SlashEq, "DIV_ASSIGN"),
-    (PercentEq, "MOD_ASSIGN"),
-    (AmpAmpEq, "AND_ASSIGN"),
-    (PipePipeEq, "OR_ASSIGN"),
-    (AmpEq, "BITAND_ASSIGN"),
-    (PipeEq, "BITOR_ASSIGN"),
-    (CaretEq, "BITXOR_ASSIGN"),
-    (LtLtEq, "LSHIFT_ASSIGN"),
-    (Arrow, "ARROW"),
-    (LArrow, "BACKARROW"),
-    (FatArrow, "DOUBLE_ARROW"),
-    (DotDot, "RANGEOP"),
-    (DotDotEq, "CLOSEDRANGEOP"),
-    (DotDotDot, "ELLIPSIS"),
-    (Hash, "HASH"),
-    (At, "AT"),
-    (AtBang, "AT_EXCL"),
-    (Lt, "LT"),
-    (LtEq, "LE"),
-    (LtColon, "UPPERBOUND"),
-    (EqEq, "EQUAL"),
-    (BangEq, "NOTEQ"),
-    (Dollar, "DOLLAR"),
-    (Backslash, "ILLEGAL"),
-    (ErrorToken, "ILLEGAL"),
-    (IntLit, "INTEGER_LITERAL"),
-    (FloatLit, "FLOAT_LITERAL"),
-    (Ident, "IDENTIFIER"),
-    (DollarIdent, "DOLLAR_IDENTIFIER"),
-    (Underscore, "WILDCARD"),
-    (TrueKw, "BOOL_LITERAL"),
-    (FalseKw, "BOOL_LITERAL"),
-    (Int8Kw, "INT8"),
-    (Int16Kw, "INT16"),
-    (Int32Kw, "INT32"),
-    (Int64Kw, "INT64"),
-    (IntNativeKw, "INTNATIVE"),
-    (UInt8Kw, "UINT8"),
-    (UInt16Kw, "UINT16"),
-    (UInt32Kw, "UINT32"),
-    (UInt64Kw, "UINT64"),
-    (UIntNativeKw, "UINTNATIVE"),
-    (Float16Kw, "FLOAT16"),
-    (Float32Kw, "FLOAT32"),
-    (Float64Kw, "FLOAT64"),
-    (RuneKw, "RUNE"),
-    (BoolKw, "BOOLEAN"),
-    (NothingKw, "NOTHING"),
-    (UnitKw, "UNIT"),
-    (StructKw, "STRUCT"),
-    (EnumKw, "ENUM"),
-    (VArrayKw, "VARRAY"),
-    (ThisTypeKw, "THISTYPE"),
-    (PackageKw, "PACKAGE"),
-    (ImportKw, "IMPORT"),
-    (ClassKw, "CLASS"),
-    (InterfaceKw, "INTERFACE"),
-    (FuncKw, "FUNC"),
-    (MacroKw, "MACRO"),
-    (QuoteKw, "QUOTE"),
-    (LetKw, "LET"),
-    (VarKw, "VAR"),
-    (ConstKw, "CONST"),
-    (TypeKw, "TYPE"),
-    (InitKw, "INIT"),
-    (ThisKw, "THIS"),
-    (SuperKw, "SUPER"),
-    (IfKw, "IF"),
-    (ElseKw, "ELSE"),
-    (CaseKw, "CASE"),
-    (TryKw, "TRY"),
-    (CatchKw, "CATCH"),
-    (FinallyKw, "FINALLY"),
-    (ForKw, "FOR"),
-    (DoKw, "DO"),
-    (WhileKw, "WHILE"),
-    (ThrowKw, "THROW"),
-    (ReturnKw, "RETURN"),
-    (ContinueKw, "CONTINUE"),
-    (BreakKw, "BREAK"),
-    (InKw, "IN"),
-    (MatchKw, "MATCH"),
-    (WhereKw, "WHERE"),
-    (ExtendKw, "EXTEND"),
-    (WithKw, "WITH"),
-    (PropKw, "PROP"),
-    (StaticKw, "STATIC"),
-    (PublicKw, "PUBLIC"),
-    (PrivateKw, "PRIVATE"),
-    (InternalKw, "INTERNAL"),
-    (ProtectedKw, "PROTECTED"),
-    (OverrideKw, "OVERRIDE"),
-    (RedefKw, "REDEF"),
-    (AbstractKw, "ABSTRACT"),
-    (SealedKw, "SEALED"),
-    (OpenKw, "OPEN"),
-    (ForeignKw, "FOREIGN"),
-    (InoutKw, "INOUT"),
-    (MutKw, "MUT"),
-    (UnsafeKw, "UNSAFE"),
-    (OperatorKw, "OPERATOR"),
-    (SpawnKw, "SPAWN"),
-    (SynchronizedKw, "SYNCHRONIZED"),
-    (MainKw, "MAIN"),
-    (IsKw, "IS"),
-    (AsKw, "AS"),
-    (CommonKw, "COMMON"),
-    (SpecificKw, "SPECIFIC"),
-    (FeaturesKw, "FEATURES")
-]
+let SIMPLE_KINDS: Array<(SyntaxKind, String)> =
+    [
+        (Dot, "DOT"),
+        (Comma, "COMMA"),
+        (LParen, "LPAREN"),
+        (RParen, "RPAREN"),
+        (LBracket, "LSQUARE"),
+        (RBracket, "RSQUARE"),
+        (LBrace, "LCURL"),
+        (RBrace, "RCURL"),
+        (StarStar, "EXP"),
+        (Star, "MUL"),
+        (Percent, "MOD"),
+        (Slash, "DIV"),
+        (Plus, "ADD"),
+        (Minus, "SUB"),
+        (PlusPlus, "INCR"),
+        (MinusMinus, "DECR"),
+        (AmpAmp, "AND"),
+        (PipePipe, "OR"),
+        (PipeGt, "PIPELINE"),
+        (TildeGt, "COMPOSITION"),
+        (Amp, "BITAND"),
+        (Pipe, "BITOR"),
+        (Caret, "BITXOR"),
+        (Tilde, "BITNOT"),
+        (LtLt, "LSHIFT"),
+        (Colon, "COLON"),
+        (ColonColon, "DOUBLE_COLON"),
+        (Semicolon, "SEMI"),
+        (Eq, "ASSIGN"),
+        (PlusEq, "ADD_ASSIGN"),
+        (MinusEq, "SUB_ASSIGN"),
+        (StarEq, "MUL_ASSIGN"),
+        (StarStarEq, "EXP_ASSIGN"),
+        (SlashEq, "DIV_ASSIGN"),
+        (PercentEq, "MOD_ASSIGN"),
+        (AmpAmpEq, "AND_ASSIGN"),
+        (PipePipeEq, "OR_ASSIGN"),
+        (AmpEq, "BITAND_ASSIGN"),
+        (PipeEq, "BITOR_ASSIGN"),
+        (CaretEq, "BITXOR_ASSIGN"),
+        (LtLtEq, "LSHIFT_ASSIGN"),
+        (Arrow, "ARROW"),
+        (LArrow, "BACKARROW"),
+        (FatArrow, "DOUBLE_ARROW"),
+        (DotDot, "RANGEOP"),
+        (DotDotEq, "CLOSEDRANGEOP"),
+        (DotDotDot, "ELLIPSIS"),
+        (Hash, "HASH"),
+        (At, "AT"),
+        (AtBang, "AT_EXCL"),
+        (Lt, "LT"),
+        (LtEq, "LE"),
+        (LtColon, "UPPERBOUND"),
+        (EqEq, "EQUAL"),
+        (BangEq, "NOTEQ"),
+        (Dollar, "DOLLAR"),
+        (Backslash, "ILLEGAL"),
+        (ErrorToken, "ILLEGAL"),
+        (IntLit, "INTEGER_LITERAL"),
+        (FloatLit, "FLOAT_LITERAL"),
+        (Ident, "IDENTIFIER"),
+        (DollarIdent, "DOLLAR_IDENTIFIER"),
+        (Underscore, "WILDCARD"),
+        (TrueKw, "BOOL_LITERAL"),
+        (FalseKw, "BOOL_LITERAL"),
+        (Int8Kw, "INT8"),
+        (Int16Kw, "INT16"),
+        (Int32Kw, "INT32"),
+        (Int64Kw, "INT64"),
+        (IntNativeKw, "INTNATIVE"),
+        (UInt8Kw, "UINT8"),
+        (UInt16Kw, "UINT16"),
+        (UInt32Kw, "UINT32"),
+        (UInt64Kw, "UINT64"),
+        (UIntNativeKw, "UINTNATIVE"),
+        (Float16Kw, "FLOAT16"),
+        (Float32Kw, "FLOAT32"),
+        (Float64Kw, "FLOAT64"),
+        (RuneKw, "RUNE"),
+        (BoolKw, "BOOLEAN"),
+        (NothingKw, "NOTHING"),
+        (UnitKw, "UNIT"),
+        (StructKw, "STRUCT"),
+        (EnumKw, "ENUM"),
+        (VArrayKw, "VARRAY"),
+        (ThisTypeKw, "THISTYPE"),
+        (PackageKw, "PACKAGE"),
+        (ImportKw, "IMPORT"),
+        (ClassKw, "CLASS"),
+        (InterfaceKw, "INTERFACE"),
+        (FuncKw, "FUNC"),
+        (MacroKw, "MACRO"),
+        (QuoteKw, "QUOTE"),
+        (LetKw, "LET"),
+        (VarKw, "VAR"),
+        (ConstKw, "CONST"),
+        (TypeKw, "TYPE"),
+        (InitKw, "INIT"),
+        (ThisKw, "THIS"),
+        (SuperKw, "SUPER"),
+        (IfKw, "IF"),
+        (ElseKw, "ELSE"),
+        (CaseKw, "CASE"),
+        (TryKw, "TRY"),
+        (CatchKw, "CATCH"),
+        (FinallyKw, "FINALLY"),
+        (ForKw, "FOR"),
+        (DoKw, "DO"),
+        (WhileKw, "WHILE"),
+        (ThrowKw, "THROW"),
+        (ReturnKw, "RETURN"),
+        (ContinueKw, "CONTINUE"),
+        (BreakKw, "BREAK"),
+        (InKw, "IN"),
+        (MatchKw, "MATCH"),
+        (WhereKw, "WHERE"),
+        (ExtendKw, "EXTEND"),
+        (WithKw, "WITH"),
+        (PropKw, "PROP"),
+        (StaticKw, "STATIC"),
+        (PublicKw, "PUBLIC"),
+        (PrivateKw, "PRIVATE"),
+        (InternalKw, "INTERNAL"),
+        (ProtectedKw, "PROTECTED"),
+        (OverrideKw, "OVERRIDE"),
+        (RedefKw, "REDEF"),
+        (AbstractKw, "ABSTRACT"),
+        (SealedKw, "SEALED"),
+        (OpenKw, "OPEN"),
+        (ForeignKw, "FOREIGN"),
+        (InoutKw, "INOUT"),
+        (MutKw, "MUT"),
+        (UnsafeKw, "UNSAFE"),
+        (OperatorKw, "OPERATOR"),
+        (SpawnKw, "SPAWN"),
+        (SynchronizedKw, "SYNCHRONIZED"),
+        (MainKw, "MAIN"),
+        (IsKw, "IS"),
+        (AsKw, "AS"),
+        (CommonKw, "COMMON"),
+        (SpecificKw, "SPECIFIC"),
+        (FeaturesKw, "FEATURES")
+    ]
 
 let SIMPLE_KIND_NAMES: HashMap<SyntaxKind, String> = HashMap<SyntaxKind, String>(SIMPLE_KINDS)
 
 /**
  * Every kind `macroTokens` sends: an SDK whose `Tokens.inc` lacks one is sent nothing.
  */
-let SENT_KINDS: Array<String> = SIMPLE_KINDS.map {k => k[1]}.concat(
-    [
-        "GT",
-        "GE",
-        "RSHIFT",
-        "RSHIFT_ASSIGN",
-        "QUEST",
-        "COALESCING",
-        "NOT",
-        "NOT_IN",
-        "NL",
-        "STRING_LITERAL",
-        "MULTILINE_STRING",
-        "JSTRING_LITERAL",
-        "MULTILINE_RAW_STRING",
-        "RUNE_LITERAL",
-        "RUNE_BYTE_LITERAL"
-    ])
+let SENT_KINDS: Array<String> =
+    SIMPLE_KINDS
+        .map { k => k[1] }
+        .concat(
+            [
+                "GT",
+                "GE",
+                "RSHIFT",
+                "RSHIFT_ASSIGN",
+                "QUEST",
+                "COALESCING",
+                "NOT",
+                "NOT_IN",
+                "NL",
+                "STRING_LITERAL",
+                "MULTILINE_STRING",
+                "JSTRING_LITERAL",
+                "MULTILINE_RAW_STRING",
+                "RUNE_LITERAL",
+                "RUNE_BYTE_LITERAL"
+            ]
+        )
 
 /**
  * The tokens cjc's lexer makes of `text`, as a macro is given them: no comment and no whitespace, an `NL` for each
  * line break, a string one token of what is between its quotes, `>>`, `>=`, `>>=`, `??` and `!in` glued. `begin`
  * is where `text` starts; a position is a line and a column in bytes, both from 1, as cjc counts them.
  */
-public func macroTokens(text: String, numbers: TokenNumbers, begin: PositionData): Array<TokenData> {
+public func macroTokens(
+    text: String,
+    numbers: TokenNumbers,
+    begin: PositionData
+): Array<TokenData> {
     MacroTokenWriter(text, numbers, begin).run()
 }
 
@@ -225,12 +234,23 @@ class MacroTokenWriter {
                 case RawStringLit =>
                     let hashes = countHashes(range.start)
                     let inner = min(range.start + hashes + 1, range.end)
-                    emit("MULTILINE_RAW_STRING", range.start, range.end, valueStart: inner,
-                        valueEnd: max(inner, range.end - hashes - 1), delimiterNum: UInt32(hashes))
+                    emit(
+                        "MULTILINE_RAW_STRING",
+                        range.start,
+                        range.end,
+                        valueStart: inner,
+                        valueEnd: max(inner, range.end - hashes - 1),
+                        delimiterNum: UInt32(hashes)
+                    )
                     i++
                 case RuneLit =>
-                    emit("RUNE_LITERAL", range.start, range.end, valueStart: min(range.start + 2, range.end),
-                        valueEnd: max(range.start + 2, range.end - 1))
+                    emit(
+                        "RUNE_LITERAL",
+                        range.start,
+                        range.end,
+                        valueStart: min(range.start + 2, range.end),
+                        valueEnd: max(range.start + 2, range.end - 1)
+                    )
                     i++
                 case ByteLit =>
                     emit("RUNE_BYTE_LITERAL", range.start, range.end)
@@ -283,11 +303,12 @@ class MacroTokenWriter {
     func newlines(start: Int64, end: Int64): Unit {
         var j = start
         while (j < end) {
-            let len = if (bytes[j] == b'\r' && j + 1 < end && bytes[j + 1] == b'\n') {
-                2
-            } else {
-                1
-            }
+            let len =
+                if (bytes[j] == b'\r' && j + 1 < end && bytes[j + 1] == b'\n') {
+                    2
+                } else {
+                    1
+                }
             if (bytes[j + len - 1] == b'\n') {
                 emit("NL", j, j + len)
             }
@@ -317,12 +338,18 @@ class MacroTokenWriter {
             }
         }
         let closed = depth == 0
-        let innerEnd = if (closed) { close.start } else { close.end }
-        let (name, innerStart) = match (opener) {
-            case "\"\"\"" | "'''" => ("MULTILINE_STRING", skipLineBreak(open.end, innerEnd))
-            case _ where opener.startsWith("J") => ("JSTRING_LITERAL", open.end)
-            case _ => ("STRING_LITERAL", open.end)
-        }
+        let innerEnd =
+            if (closed) {
+                close.start
+            } else {
+                close.end
+            }
+        let (name, innerStart) =
+            match (opener) {
+                case "\"\"\"" | "'''" => ("MULTILINE_STRING", skipLineBreak(open.end, innerEnd))
+                case _ where opener.startsWith("J") => ("JSTRING_LITERAL", open.end)
+                case _ => ("STRING_LITERAL", open.end)
+            }
         emit(name, open.start, close.end, valueStart: innerStart, valueEnd: innerEnd)
     }
 
@@ -352,11 +379,12 @@ class MacroTokenWriter {
     func greater(start: Int64): Unit {
         var at = start
         do {
-            let (name, len) = if (byteAt(at) == b'>') {
-                greaterAt(at)
-            } else {
-                equalAt(at)
-            }
+            let (name, len) =
+                if (byteAt(at) == b'>') {
+                    greaterAt(at)
+                } else {
+                    equalAt(at)
+                }
             emit(name, at, at + len)
             at += len
             while (i < lexed.size && lexed.range(i).start < at) {
@@ -395,7 +423,8 @@ class MacroTokenWriter {
 
     /** Whether a `=>` cjc keeps whole starts at `at`. */
     func arrowAt(at: Int64): Bool {
-        byteAt(at) == b'=' && byteAt(at + 1) == b'>' && byteAt(at + 2) != b'=' && byteAt(at + 2) != b'>'
+        byteAt(at) == b'=' && byteAt(at + 1) == b'>' && byteAt(at + 2) != b'=' &&
+            byteAt(at + 2) != b'>'
     }
 
     /** The byte at `at`, 0 past the end. */
@@ -410,16 +439,24 @@ class MacroTokenWriter {
     /**
      * A token of kind `name` over `start..end`, whose value is `text[valueStart..valueEnd]`.
      */
-    func emit(name: String, start: Int64, end: Int64, valueStart!: Int64 = start, valueEnd!: Int64 = end,
-        delimiterNum!: UInt32 = 1): Unit {
-        out.add(
-            TokenData(
-                kind: numbers.numberOf(name),
-                value: text[valueStart..valueEnd],
-                begin: position(start),
-                end: endPosition(start, end),
-                delimiterNum: delimiterNum
-            ))
+    func emit(
+        name: String,
+        start: Int64,
+        end: Int64,
+        valueStart!: Int64 = start,
+        valueEnd!: Int64 = end,
+        delimiterNum!: UInt32 = 1
+    ): Unit {
+        out
+            .add(
+                TokenData(
+                    kind: numbers.numberOf(name),
+                    value: text[valueStart..valueEnd],
+                    begin: position(start),
+                    end: endPosition(start, end),
+                    delimiterNum: delimiterNum
+                )
+            )
     }
 
     /**
@@ -439,11 +476,12 @@ class MacroTokenWriter {
      */
     func position(offset: Int64): PositionData {
         let line = lineOf(offset)
-        let column = if (line == 0) {
-            Int64(begin.column) + offset
-        } else {
-            offset - lineStarts[line - 1] + 1
-        }
+        let column =
+            if (line == 0) {
+                Int64(begin.column) + offset
+            } else {
+                offset - lineStarts[line - 1] + 1
+            }
         PositionData(fileId: begin.fileId, line: begin.line + Int32(line), column: Int32(column))
     }
 

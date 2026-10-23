@@ -30,10 +30,16 @@ const DEFAULT_PACKAGE = "default"
  * `default` holding it and the files without `main` of its directory; the files without `main` of
  * the other directories stay the module `default` of `root`.
  */
-public func looseProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg(),
-    budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): ProjectLoad {
+public func looseProject(
+    root: VfsPath,
+    env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg(),
+    budget!: Int64 = Int64.Max,
+    open!: Array<VfsPath> = []
+): ProjectLoad {
     let loading = Loading(env, cfg)
-    let walk = LooseWalk(budget, HashSet<VfsPath>(open.filter {path => isWorkspaceFile(path, [root])}))
+    let walk =
+        LooseWalk(budget, HashSet<VfsPath>(open.filter { path => isWorkspaceFile(path, [root]) }))
     walk.walkOpen()
     walk.walk(root)
     let programs = programsOf(walk)
@@ -44,21 +50,27 @@ public func looseProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = h
         let files = sortedPaths(walk.byPackage[name].toArray())
         let pkg = PackageModel(name, files[0].parent.getOrThrow(), files)
         let module = moduleOf(name)
-        match (modules.iterator().filter {it => it[0] == module}.next()) {
+        match (modules.iterator().filter { it => it[0] == module }.next()) {
             case Some((_, packages)) => packages.add(pkg)
             case None => modules.add((module, ArrayList<PackageModel>([pkg])))
         }
     }
     if (walk.truncated) {
-        loading.problems.add("the files under ${root} hold more text than is loaded: the rest is left out")
+        loading
+            .problems
+            .add("the files under ${root} hold more text than is loaded: the rest is left out")
     }
     let binaries = ArrayList<BinaryModel>()
     if (let Some(std) <- loading.stdBinary()) {
         binaries.add(std)
     }
-    let models = modules.toArray().map {module => ModuleModel(module[0], root, module[1].toArray())}.concat(programs)
+    let models =
+        modules
+            .toArray()
+            .map { module => ModuleModel(module[0], root, module[1].toArray()) }
+            .concat(programs)
     // the programs after the `default` of the root, the modules in the order of their names
-    sort(models, stable: true, by: {a: ModuleModel, b: ModuleModel => a.name.compare(b.name)})
+    sort(models, stable: true, by: { a: ModuleModel, b: ModuleModel => a.name.compare(b.name) })
     let model = ProjectModel(cfg, models, binaries: binaries.toArray())
     ProjectLoad(model, LooseFiles(root), loading.problems.toArray(), partial: walk.truncated)
 }
@@ -77,14 +89,20 @@ private func programsOf(walk: LooseWalk): Array<ModuleModel> {
         return []
     }
     let helpers = walk.byPackage.get(DEFAULT_PACKAGE) ?? ArrayList<VfsPath>()
-    let mainDirs = HashSet<VfsPath>(walk.mains.toArray().map {file => file.parent.getOrThrow()})
-    let programs = sortedPaths(walk.mains.toArray()).map {
-        program =>
-        let dir = program.parent.getOrThrow()
-        let files = helpers.toArray().filter {file => file.parent == Some(dir)}
-        ModuleModel(DEFAULT_PACKAGE, program, [PackageModel(DEFAULT_PACKAGE, dir, sortedPaths(files.concat([program])))])
-    }
-    let left = helpers.toArray().filter {file => !mainDirs.contains(file.parent.getOrThrow())}
+    let mainDirs = HashSet<VfsPath>(walk.mains.toArray().map { file => file.parent.getOrThrow() })
+    let programs =
+        sortedPaths(walk.mains.toArray())
+            .map {
+                program =>
+                let dir = program.parent.getOrThrow()
+                let files = helpers.toArray().filter { file => file.parent == Some(dir) }
+                ModuleModel(
+                    DEFAULT_PACKAGE,
+                    program,
+                    [PackageModel(DEFAULT_PACKAGE, dir, sortedPaths(files.concat([program])))]
+                )
+            }
+    let left = helpers.toArray().filter { file => !mainDirs.contains(file.parent.getOrThrow()) }
     if (left.isEmpty()) {
         walk.byPackage.remove(DEFAULT_PACKAGE)
     } else {
@@ -94,7 +112,7 @@ private func programsOf(walk: LooseWalk): Array<ModuleModel> {
 }
 
 private func sortedPaths(paths: Array<VfsPath>): Array<VfsPath> {
-    sort(paths, by: {a, b => a.toString().compare(b.toString())})
+    sort(paths, by: { a, b => a.toString().compare(b.toString()) })
     paths
 }
 
@@ -122,7 +140,9 @@ private class LooseWalk {
         for (file in open) {
             let dir = file.parent ?? continue
             if (walked.add(dir)) {
-                for (entry in entriesOf(dir) where !entry.isSymbolicLink() && !entry.isDirectory()) {
+                for (
+                    entry in entriesOf(dir) where !entry.isSymbolicLink() && !entry.isDirectory()
+                ) {
                     take(entry)
                 }
             }
@@ -192,11 +212,12 @@ func headerOf(path: Path): LooseHeader {
         if (let Some(name) <- packageHeader(header)) {
             return Named(name)
         }
-        let text = if (header.size < HEADER_BYTES) {
-            header
-        } else {
-            File.readFrom(path)
-        }
+        let text =
+            if (header.size < HEADER_BYTES) {
+                header
+            } else {
+                File.readFrom(path)
+            }
         Unnamed(declaresMain(text))
     } catch (_: FSException) {
         Unnamed(false)
@@ -236,11 +257,12 @@ public func declaresMain(text: Array<Byte>): Bool {
     if (!containsMain(text)) {
         return false
     }
-    let source = try {
-        String.fromUtf8(text)
-    } catch (_: IllegalArgumentException) {
-        return false
-    }
+    let source =
+        try {
+            String.fromUtf8(text)
+        } catch (_: IllegalArgumentException) {
+            return false
+        }
     let lexed = tokenize(source)
     var depth = 0
     for (i in 0..lexed.size) {
@@ -255,8 +277,11 @@ public func declaresMain(text: Array<Byte>): Bool {
 }
 
 private func containsMain(text: Array<Byte>): Bool {
-    for (i in 0..(text.size - 3) where text[i] == b'm' && text[i + 1] == b'a' && text[i + 2] == b'i' &&
-        text[i + 3] == b'n') {
+    for (
+        i in 0..(text.size - 3) where text[i] == b'm' && text[i + 1] == b'a' &&
+            text[i + 2] == b'i' &&
+            text[i + 3] == b'n'
+    ) {
         return true
     }
     false
@@ -370,7 +395,8 @@ private class HeaderScanner {
 
     private func startsWith(s: String): Bool {
         let bytes = s.toArray()
-        at + bytes.size <= text.size && (0..bytes.size).iterator().all {i => text[at + i] == bytes[i]}
+        at + bytes.size <= text.size &&
+            (0..bytes.size).iterator().all { i => text[at + i] == bytes[i] }
     }
 
     private func indexOf(byte: Byte, from: Int64): ?Int64 {
@@ -386,6 +412,7 @@ private class HeaderScanner {
  * character beyond ASCII (Cangjie takes Unicode identifiers).
  */
 private func isIdentifierByte(byte: Byte, first: Bool): Bool {
-    (byte >= b'a' && byte <= b'z') || (byte >= b'A' && byte <= b'Z') || byte == b'_' || byte >= 0x80 ||
+    (byte >= b'a' && byte <= b'z') || (byte >= b'A' && byte <= b'Z') || byte == b'_' ||
+        byte >= 0x80 ||
         (!first && byte >= b'0' && byte <= b'9')
 }

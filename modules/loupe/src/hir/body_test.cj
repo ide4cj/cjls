@@ -14,7 +14,11 @@ import loupe.vfs.CjoFileRead
 /**
  * The database of `fixture`, its only file, and the declaration named `name` among its items.
  */
-func declOf(fixture: String, name: String, binaries!: Array<CjoFileRead> = []): (AnalysisDatabase, SourceFile, DefId) {
+func declOf(
+    fixture: String,
+    name: String,
+    binaries!: Array<CjoFileRead> = []
+): (AnalysisDatabase, SourceFile, DefId) {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database(binaries: binaries)
     let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
@@ -51,7 +55,9 @@ class BodyTest {
     @TestCase
     func everyExpressionOfTheLanguageIsLowered() {
         // arrange
-        let (db, _, f) = declOf(#"
+        let (db, _, f) =
+            declOf(
+                #"
             package m
             enum E { A(Int64) | B }
             class R {}
@@ -83,7 +89,9 @@ class BodyTest {
                 this
                 return
             }
-            "#, "f")
+            "#,
+                "f"
+            )
         // act
         let lowered = body(db, f)
         // assert
@@ -96,7 +104,9 @@ class BodyTest {
     @TestCase
     func anOptionalChainIsLoweredIntoAMatchOfEachQuestionMark() {
         // arrange
-        let (db, _, f) = declOf(#"
+        let (db, _, f) =
+            declOf(
+                #"
             package m
             class C {
                 var b: ?C = None
@@ -105,15 +115,25 @@ class BodyTest {
             func f(a: ?C): Unit {
                 a?.b?.c
             }
-            "#, "f")
+            "#,
+                "f"
+            )
         // act
         let lowered = bodyWithSourceMap(db, f)
         // assert: `match (a) { case Some($v) => match ($v.b) { case Some($v) => Some($v.c) case None => None }
         // case None => None }`, the inner lowered first
         let hir = lowered.body
-        let quests = (0..hir.exprs.size) |> filter {
-            i => if (let QuestMatchExpr(_, _) <- hir.exprs[i]) { true } else { false }
-        } |> collectArray
+        let quests =
+            (0..hir.exprs.size) |>
+                filter {
+                    i =>
+                    if (let QuestMatchExpr(_, _) <- hir.exprs[i]) {
+                        true
+                    } else {
+                        false
+                    }
+                } |>
+                collectArray
         @Expect(quests.size, 2)
         let (inner, outer) = (quests[0], quests[1])
         if (let QuestMatchExpr(selector, arms) <- hir.exprs[outer]) {
@@ -131,18 +151,23 @@ class BodyTest {
         }
         @Expect(hir.locals.map {local => local.name}, ["a", "$v", "$v"])
         // the chain's node is found as written, `$v.c`, not as the `match`es it is desugared into
-        let written = lowered.sourceMap.exprAt(lowered.sourceMap.exprs[outer].getOrThrow()).getOrThrow()
+        let written =
+            lowered.sourceMap.exprAt(lowered.sourceMap.exprs[outer].getOrThrow()).getOrThrow()
         @Expect(if (let FieldExpr(_, "c", _) <- hir[written]) { true } else { false })
     }
 
     @TestCase
     func aCommentInTheBodyLeavesItEqualAndWhatReadItAlone() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             func f(x: Int64): Int64 { x + 1 }
             func g(): Int64 { 2 }
-            "#)
+            "#
+                )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()
@@ -150,7 +175,13 @@ class BodyTest {
         exprCount(db, f)
         let before = bodyReaderRuns.load()
         // act
-        db.setFileText(fileId, Rope("package m\n\nfunc f(x: Int64): Int64 {\n    // one more\n    x + 1\n}\nfunc g(): Int64 { 3 }\n"))
+        db
+            .setFileText(
+                fileId,
+                Rope(
+                    "package m\n\nfunc f(x: Int64): Int64 {\n    // one more\n    x + 1\n}\nfunc g(): Int64 { 3 }\n"
+                )
+            )
         exprCount(db, f)
         // assert
         @Expect(bodyReaderRuns.load(), before)
@@ -159,10 +190,14 @@ class BodyTest {
     @TestCase
     func anEditOfTheBodyRunsAgainWhatReadIt() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             func f(x: Int64): Int64 { x }
-            "#)
+            "#
+                )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()
@@ -179,20 +214,25 @@ class BodyTest {
     @TestCase
     func aLetOpensAScopeForWhatFollowsIt() {
         // arrange
-        let (db, _, f) = declOf(#"
+        let (db, _, f) =
+            declOf(
+                #"
             package m
             func f(): Int64 {
                 let x = 1
                 let y = x
                 y
             }
-            "#, "f")
+            "#,
+                "f"
+            )
         let scopes = exprScopes(db, f)
         let lowered = body(db, f)
         // act
-        let names = scopes.chain(scopes.scopeOf(useOf(db, f, "y"))).map {
-            scope => scopes[scope].entries.map {local => lowered[local].name}
-        }
+        let names =
+            scopes
+                .chain(scopes.scopeOf(useOf(db, f, "y")))
+                .map { scope => scopes[scope].entries.map { local => lowered[local].name } }
         // assert
         let expected: Array<Array<String>> = [["y"], ["x"], [], []]
         @Expect(names, expected)
@@ -202,26 +242,34 @@ class BodyTest {
     func aMemberOfAClassOfStdIsFoundThroughItsSupertypes() {
         // N69: `message` is `Exception`'s, which `IllegalArgumentException` inherits from
         // arrange
-        let (db, _, x) = declOf(#"
+        let (db, _, x) =
+            declOf(
+                #"
             package m
             class X <: IllegalArgumentException {
                 func f(): String { message }
             }
-            "#, "X", binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+            "#,
+                "X",
+                binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+            )
         let f = DefId(db, x.file(db), named(itemOf(db, x).getOrThrow().members, "f").id)
         // act
-        let resolution = resolveBodyName(db, f, exprScopes(db, f).scopeOf(useOf(db, f, "message")), "message")
+        let resolution =
+            resolveBodyName(db, f, exprScopes(db, f).scopeOf(useOf(db, f, "message")), "message")
         // assert
-        let targets = match (resolution) {
-            case Values(targets) => targets
-            case InFile(_) => Array<ValueTarget>()
-        }
+        let targets =
+            match (resolution) {
+                case Values(targets) => targets
+                case InFile(_) => Array<ValueTarget>()
+            }
         @Assert(targets.size, 1)
-        let owner = match (targets[0]) {
-            case MemberOf(MemberDecl(id)) where id.file(db) != x.file(db) =>
-                itemOf(db, parentOf(db, id).getOrThrow()).flatMap {item => item.names.get(0)}
-            case _ => None<String>
-        }
+        let owner =
+            match (targets[0]) {
+                case MemberOf(MemberDecl(id)) where id.file(db) != x.file(db) =>
+                    itemOf(db, parentOf(db, id).getOrThrow()).flatMap { item => item.names.get(0) }
+                case _ => None<String>
+            }
         @Expect(owner, Some("Exception"))
     }
 }

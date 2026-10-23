@@ -16,7 +16,8 @@ func rangeOf(db: AnalysisDatabase, site: ImportSite): TextRange {
     match (site.file) {
         case ItemFile.Source(file) =>
             let root = parse(db, file).syntaxNode()
-            let decl = ImportDecl.cast(itemIdMap(db, file).node(site.item, root).getOrThrow()).getOrThrow()
+            let decl =
+                ImportDecl.cast(itemIdMap(db, file).node(site.item, root).getOrThrow()).getOrThrow()
             let leaves = ArrayList<ImportTree>()
             leavesOf(decl.importTree().getOrThrow(), leaves)
             tightRange(leaves[site.path].syntax)
@@ -36,10 +37,19 @@ func checkScopeDiagnostics(fixture: String): Unit {
     for (file in parsed.files) {
         let source = db.sourceFile(file.fileId).getOrThrow()
         for (diagnostic in scopeDiagnostics(db, sourcePackageOf(db, file), source)) {
-            actual.add(match (diagnostic.at) {
-                case AtImport(site) => Annotation(file.fileId, rangeOf(db, site), diagnostic.problem.toString())
-                case AtDecl(def, name) => annotationOn(db, def, name, diagnostic.problem.toString())
-            })
+            actual
+                .add(
+                    match (diagnostic.at) {
+                        case AtImport(site) =>
+                            Annotation(
+                                file.fileId,
+                                rangeOf(db, site),
+                                diagnostic.problem.toString()
+                            )
+                        case AtDecl(def, name) =>
+                            annotationOn(db, def, name, diagnostic.problem.toString())
+                    }
+                )
         }
     }
     expectAnnotations(fixture, actual.toArray())
@@ -50,7 +60,8 @@ class ScopeDiagnosticsTest {
     @TestCase
     func aNameThePackageDoesNotHaveIsAnError() {
         // N35
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             class Hidden {}
@@ -58,24 +69,28 @@ class ScopeDiagnosticsTest {
             package m
             import m.a.Hidden
             //     ^^^^^^^^^^ error: 'Hidden' is not accessible in package 'm.a'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageImportingItselfIsAnError() {
         // N47
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.*
             //     ^^^ error: package 'm' should not import itself
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeOfThePackageShadowingAnImportWarns() {
         // N13, N40
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public func Foo(x: Bool): Bool { x }
@@ -84,13 +99,15 @@ class ScopeDiagnosticsTest {
             import m.a.Foo
             //     ^^^^^^^ warning: imported decl 'Foo' is shadowed, it will be ignored by compiler
             class Foo {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfThePackageShadowingAnImportedTypeDoesNotWarn() {
         // N40
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class Foo {}
@@ -98,13 +115,15 @@ class ScopeDiagnosticsTest {
             package m
             import m.a.Foo
             func Foo(x: Int64): Int64 { x }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateDeclarationOfAnotherFileDoesNotShadowAnImport() {
         // N49: cjc warns, wrongly
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -114,13 +133,15 @@ class ScopeDiagnosticsTest {
             //- /other.cj module=m package=m
             package m
             private class X {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func twoPathsImportingOneNameWarn() {
         // N17, N48: functions too, though they overload at the use
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public func f(x: Int64): Int64 { x }
@@ -132,13 +153,15 @@ class ScopeDiagnosticsTest {
             import m.a.f
             import m.b.f
             //     ^^^^^ warning: imported decl 'f' is conflicted with other import
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageAndADeclarationImportedUnderOneNameWarn() {
         // N43
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -150,13 +173,15 @@ class ScopeDiagnosticsTest {
             import m.a
             import m.b.a
             //     ^^^^^ warning: imported decl 'a' is conflicted with other import
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func packagesImportingEachOtherAreACycle() {
         // N36
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             import m.b.*
@@ -168,13 +193,15 @@ class ScopeDiagnosticsTest {
             //- /main.cj module=m package=m
             package m
             import m.a.*
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDeclarationNamedLikeASubPackageIsAnError() {
         // N30
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /p/p.cj module=m package=m.p
             package m.p
             public func q(): Int64 { 1 }
@@ -182,19 +209,22 @@ class ScopeDiagnosticsTest {
             //- /p/q/q.cj module=m package=m.p.q
             package m.p.q
             public func f(): Int64 { 2 }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGlobBringingNothingIsNoError() {
         // N50
-        checkScopeDiagnostics(#"
+        checkScopeDiagnostics(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             class Hidden {}
             //- /main.cj module=m package=m
             package m
             import m.a.*
-            "#)
+            "#
+        )
     }
 }

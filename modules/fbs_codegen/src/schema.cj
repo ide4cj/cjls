@@ -310,10 +310,11 @@ class SchemaParser {
         let name = expect(Ident).text
         expectPunct(":")
         let underlyingName = expect(Ident).text
-        let underlying = match (Scalar.named(underlyingName)) {
-            case Some(s) where s.isInteger => s
-            case _ => throw fail("enum ${name} is of ${underlyingName}, not an integer")
-        }
+        let underlying =
+            match (Scalar.named(underlyingName)) {
+                case Some(s) where s.isInteger => s
+                case _ => throw fail("enum ${name} is of ${underlyingName}, not an integer")
+            }
         skipMetadata()
         expectPunct("{")
         let members = ArrayList<EnumMember>()
@@ -373,7 +374,17 @@ class SchemaParser {
             let (required, deprecated) = metadata()
             let end = peek().line
             expectPunct(";")
-            fields.add(Field(token.text, fbType, defaultValue, required, deprecated, docOf(token.line, end)))
+            fields
+                .add(
+                    Field(
+                        token.text,
+                        fbType,
+                        defaultValue,
+                        required,
+                        deprecated,
+                        docOf(token.line, end)
+                    )
+                )
         }
         expectPunct("}")
         Decl(kind, name, doc, fields: fields.toArray())

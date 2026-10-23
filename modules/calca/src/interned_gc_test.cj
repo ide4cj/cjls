@@ -36,7 +36,7 @@ func wordOf(db: TestDb, file: SourceFile): Word {
 
 @CalcaTracked
 func wordsOf(db: TestDb, file: SourceFile): Array<Word> {
-    file.text(db).split(" ").map {text => Word(db, text)}
+    file.text(db).split(" ").map { text => Word(db, text) }
 }
 
 @CalcaTracked
@@ -235,7 +235,7 @@ class InternedGcTest {
         let foo = termOf(db, a)
 
         // act
-        activeRevisions(db, other, 2, use: {=> termOf(db, other)})
+        activeRevisions(db, other, 2, use: { => termOf(db, other) })
         other.setText(db).to("kept")
         // reading `foo` would use it: whether its slot is free tells instead
         let probe = Term(db, "probe")
@@ -254,7 +254,7 @@ class InternedGcTest {
         let foo = keywordOf(db, a)
 
         // act
-        activeRevisions(db, other, 3, use: {=> keywordOf(db, other)})
+        activeRevisions(db, other, 3, use: { => keywordOf(db, other) })
 
         // assert
         @Expect(foo.text(db), "foo")
@@ -303,12 +303,13 @@ class InternedGcTest {
     func snapshotsInterningTheSameFieldsAtOnceGetOneValue(): Unit {
         // arrange
         let db = TestDatabase()
-        let files = Array<SourceFile>(8, {i => SourceFile(db, "${i}.cj", "same")})
+        let files = Array<SourceFile>(8, { i => SourceFile(db, "${i}.cj", "same") })
 
         // act
-        let snapshots = files.map {_ => db.snapshot()}
-        let futures = Array<Future<Word>>(files.size, {i => spawn {wordOf(snapshots[i], files[i])}})
-        let words = futures.map {future => future.get()}
+        let snapshots = files.map { _ => db.snapshot() }
+        let futures =
+            Array<Future<Word>>(files.size, { i => spawn { wordOf(snapshots[i], files[i]) } })
+        let words = futures.map { future => future.get() }
 
         // assert
         @Expect(words.iterator().all {word => word == words[0]})
@@ -368,8 +369,11 @@ class InternedGcTest {
         let result = doubledLengthOfWord(db, typed)
 
         // assert
-        let memos = memosOf<CalcaFields_repeatedLength_STestDb_SWord_SInt64, Int64>(db,
-            CalcaTracked_repeatedLength_STestDb_SWord_SInt64.FUNCTION.index)
+        let memos =
+            memosOf<CalcaFields_repeatedLength_STestDb_SWord_SInt64, Int64>(
+                db,
+                CalcaTracked_repeatedLength_STestDb_SWord_SInt64.FUNCTION.index
+            )
         @Expect(result, 6)
         @Expect(memos.entries.size, 1)
         @Expect(memos.entries.slotCount, 2)
@@ -391,8 +395,11 @@ class InternedGcTest {
         let result = paddedLengthOfWord(db, typed)
 
         // assert
-        let memos = memosOf<CalcaFields_Word_DpaddedLength_STestDb_SInt64, Int64>(db,
-            CalcaTracked_Word_DpaddedLength_STestDb_SInt64.FUNCTION.index)
+        let memos =
+            memosOf<CalcaFields_Word_DpaddedLength_STestDb_SInt64, Int64>(
+                db,
+                CalcaTracked_Word_DpaddedLength_STestDb_SInt64.FUNCTION.index
+            )
         @Expect(result, 6)
         @Expect(memos.entries.size, 1)
         @Expect(memos.entries.slotCount, 2)
@@ -414,8 +421,11 @@ class InternedGcTest {
         let result = lengthOfPair(db, typed)
 
         // assert
-        let memos = memosOf<CalcaFields_pairLength_STestDb_SWord_SWord, Int64>(db,
-            CalcaTracked_pairLength_STestDb_SWord_SWord.FUNCTION.index)
+        let memos =
+            memosOf<CalcaFields_pairLength_STestDb_SWord_SWord, Int64>(
+                db,
+                CalcaTracked_pairLength_STestDb_SWord_SWord.FUNCTION.index
+            )
         @Expect(result, 2)
         @Expect(memos.entries.size, 1)
         @Expect(memos.entries.slotCount, 2)
@@ -432,7 +442,12 @@ class InternedGcTest {
      * `count` revisions, each with a write and a use of the table that uses no value interned
      * before.
      */
-    private func activeRevisions(db: TestDatabase, other: SourceFile, count: Int64, use!: ?() -> Any = None): Unit {
+    private func activeRevisions(
+        db: TestDatabase,
+        other: SourceFile,
+        count: Int64,
+        use!: ?() -> Any = None
+    ): Unit {
         for (i in 0..count) {
             other.setText(db).to("active ${i}")
             match (use) {
@@ -446,8 +461,10 @@ class InternedGcTest {
         memosOf<Word, Int64>(db, CalcaTracked_wordLength_STestDb_SWord.FUNCTION.index)
     }
 
-    private func memosOf<K, V>(db: TestDatabase, index: Int64): MemoTable<TestDb, K, V> where K <: Hashable &
-        Equatable<K> {
+    private func memosOf<K, V>(
+        db: TestDatabase,
+        index: Int64
+    ): MemoTable<TestDb, K, V> where K <: Hashable & Equatable<K> {
         (db.storage.runtime.ingredientAt(index) as MemoTable<TestDb, K, V>).getOrThrow()
     }
 }

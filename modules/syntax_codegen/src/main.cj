@@ -7,12 +7,13 @@ import std.fs.*
  * `syntax_codegen <kinds file>`: writes the kinds and the typed views the kinds file and its grammar make.
  */
 main(args: Array<String>): Int64 {
-    let kindsFile = try {
-        parseKindsFile(args)
-    } catch (e: ArgumentParseException) {
-        eprintln("error: ${e.message}\nusage: syntax_codegen <kinds file>")
-        return 2
-    }
+    let kindsFile =
+        try {
+            parseKindsFile(args)
+        } catch (e: ArgumentParseException) {
+            eprintln("error: ${e.message}\nusage: syntax_codegen <kinds file>")
+            return 2
+        }
     try {
         let generated = generate(kindsFile)
         for (file in generated.files) {
@@ -20,7 +21,9 @@ main(args: Array<String>): Int64 {
             println("info: wrote ${file.path}")
         }
         for (n in generated.model.nodes where !n.handWritten.isEmpty()) {
-            println("note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}")
+            println(
+                "note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}"
+            )
         }
         0
     } catch (e: Exception) {

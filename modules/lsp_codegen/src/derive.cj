@@ -87,7 +87,7 @@ func literalOf(value: IntegerOrString): Tokens {
 }
 
 func serdeMarkerOf(options: ?SerdeMemberOptions): Tokens {
-    options.map {it: SerdeMemberOptions => it.toTokens()} ?? Tokens()
+    options.map { it: SerdeMemberOptions => it.toTokens() } ?? Tokens()
 }
 
 extend CjEmitter {
@@ -123,5 +123,5 @@ extend CjEmitter {
 }
 
 func joined(parts: Iterable<Tokens>): ?Tokens {
-    parts |> reduce {acc: Tokens, it: Tokens => quote($acc, $it)}
+    parts |> reduce { acc: Tokens, it: Tokens => quote($acc, $it) }
 }

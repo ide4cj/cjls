@@ -19,11 +19,12 @@ public struct Ty {
      * an error and for one the analysis cannot find alike.
      */
     public func text(db: AnalysisDatabase): String {
-        let list = {tys: Array<Ty> => String.join(tys.map {one => one.text(db)}, delimiter: ", ")}
+        let list =
+            { tys: Array<Ty> => String.join(tys.map { one => one.text(db) }, delimiter: ", ") }
         match (kind(db)) {
             case PrimTy(name) => name
             case DeclTy(def, args) =>
-                let name = itemOf(db, def).flatMap {item => item.names.get(0)} ?? "{unknown}"
+                let name = itemOf(db, def).flatMap { item => item.names.get(0) } ?? "{unknown}"
                 if (args.isEmpty()) {
                     name
                 } else {
@@ -142,7 +143,8 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
             case (PrimTy(a), PrimTy(b)) => a == b
             case (DeclTy(a, aArgs), DeclTy(b, bArgs)) => a == b && aArgs == bArgs
             case (TupleTy(a), TupleTy(b)) => a == b
-            case (FuncTy(aParams, aRet, aC), FuncTy(bParams, bRet, bC)) => aParams == bParams && aRet == bRet && aC == bC
+            case (FuncTy(aParams, aRet, aC), FuncTy(bParams, bRet, bC)) =>
+                aParams == bParams && aRet == bRet && aC == bC
             case (VArrayTy(a, aSize), VArrayTy(b, bSize)) => a == b && aSize == bSize
             case (ParamTy(a, aIndex), ParamTy(b, bIndex)) => a == b && aIndex == bIndex
             case (ThisTy, ThisTy) => true
@@ -250,12 +252,13 @@ public func substitute(db: AnalysisDatabase, ty: Ty, owner: DefId, args: Array<T
     if (args.isEmpty()) {
         return ty
     }
-    let all = {tys: Array<Ty> => tys.map {one => substitute(db, one, owner, args)}}
+    let all = { tys: Array<Ty> => tys.map { one => substitute(db, one, owner, args) } }
     match (ty.kind(db)) {
         case ParamTy(of, index) where of == owner => args.get(index) ?? ty
         case DeclTy(def, tyArgs) => Ty(db, DeclTy(def, all(tyArgs)))
         case TupleTy(elements) => Ty(db, TupleTy(all(elements)))
-        case FuncTy(params, ret, isC) => Ty(db, FuncTy(all(params), substitute(db, ret, owner, args), isC))
+        case FuncTy(params, ret, isC) =>
+            Ty(db, FuncTy(all(params), substitute(db, ret, owner, args), isC))
         case VArrayTy(element, size) => Ty(db, VArrayTy(substitute(db, element, owner, args), size))
         case _ => ty
     }
