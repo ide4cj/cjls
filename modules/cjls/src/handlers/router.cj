@@ -88,6 +88,6 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             changeNotifications: StringOrBoolean.AsBoolean(true))),
         // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
         experimental: JsonValue.JsonObject([("memoryUsage", JsonValue.JsonBool(true)),
-            ("analysisStats", JsonValue.JsonBool(true)), ("expandMacro", JsonValue.JsonBool(true))])
+            ("analysisStats", JsonValue.JsonBool(true)), ("expandMacro", JsonValue.JsonBool(true)), ("binarySourceRoots", JsonValue.JsonBool(true))])
     )
 }
