@@ -340,7 +340,7 @@ func declaredTyOnCycle(db: AnalysisDatabase, _: DefId): Ty {
 }
 
 // the level of the members of the type around a body, after any local's (8d)
-let MEMBER_LEVEL = 1 << 32
+const MEMBER_LEVEL = 1 << 32
 
 /**
  * Where each argument of a call goes among a candidate's parameters, matched before it is tried

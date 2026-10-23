@@ -38,9 +38,9 @@ func configOf(typeMap!: TypeMap = TypeMap()): Config {
     Config(srcDir: Path("src"), outputPackage: "demo.lsp_types", typeMap: typeMap)
 }
 
-private let DEMO_MANIFEST = "[package]\nname = \"demo\"\n"
+private const DEMO_MANIFEST = "[package]\nname = \"demo\"\n"
 
-private let LSP_TYPES_CONFIG = "[general]\noutput-subpackage = \"lsp_types\"\n"
+private const LSP_TYPES_CONFIG = "[general]\noutput-subpackage = \"lsp_types\"\n"
 
 @Test
 class ConfigLoadTest {

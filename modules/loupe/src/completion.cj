@@ -15,7 +15,7 @@ import loupe.vfs.FileId
  * The name completion inserts at the cursor to parse the file as if one were there, R1's
  * `raCompletionMarker` (D110).
  */
-let COMPLETION_MARKER = "cjlsCompletionMarker"
+const COMPLETION_MARKER = "cjlsCompletionMarker"
 
 /**
  * The keywords that start an expression or a statement, offered where a name would be.

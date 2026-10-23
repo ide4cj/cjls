@@ -2,8 +2,8 @@ package syntax_codegen
 
 import std.collection.*
 
-let NODE_TYPE = "SyntaxNode<SyntaxKind>"
-let TOKEN_TYPE = "SyntaxToken<SyntaxKind>"
+const NODE_TYPE = "SyntaxNode<SyntaxKind>"
+const TOKEN_TYPE = "SyntaxToken<SyntaxKind>"
 
 /**
  * The typed views of the grammar: a struct for every node, an enum for every rule listing nodes, and the

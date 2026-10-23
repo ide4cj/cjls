@@ -179,7 +179,7 @@ public func highlight(db: AnalysisDatabase, fileId: FileId, range!: ?TextRange =
  * How many tokens are highlighted between two checks for a write waiting: a large file does not
  * hold one up.
  */
-let TOKENS_BETWEEN_CHECKS = 1024
+const TOKENS_BETWEEN_CHECKS = 1024
 
 /**
  * Where a name used is resolved: in an expression, after a `.`, in a type or a pattern, of a macro

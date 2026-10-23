@@ -3,7 +3,7 @@ package syntax_codegen
 import std.unittest.*
 import std.unittest.testmacro.*
 
-let DECLS = """
+const DECLS = """
     D = F | V | X
     F = Mods? 'if' N
     V = Mods? N

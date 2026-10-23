@@ -11,15 +11,15 @@ import cjls.lsp_types.Range as LspRange
 import cjls.server.*
 
 // indices into the legend: types
-let KEYWORD: UInt32 = 0
-let COMMENT: UInt32 = 1
-let NUMBER: UInt32 = 3
-let OPERATOR: UInt32 = 4
-let CLASS: UInt32 = 8
-let VARIABLE: UInt32 = 17
+const KEYWORD: UInt32 = 0
+const COMMENT: UInt32 = 1
+const NUMBER: UInt32 = 3
+const OPERATOR: UInt32 = 4
+const CLASS: UInt32 = 8
+const VARIABLE: UInt32 = 17
 // and bits of modifiers
-let DECLARATION: UInt32 = 1
-let READONLY: UInt32 = 4
+const DECLARATION: UInt32 = 1
+const READONLY: UInt32 = 4
 
 func semanticTokensData(state: ServerState, uri: String): ?Array<UInt32> {
     match (handleSemanticTokensFull(state.snapshot(), SemanticTokensParams(textDocument: TextDocumentIdentifier(uri: uri)))) {

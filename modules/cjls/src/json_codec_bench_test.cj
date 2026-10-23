@@ -49,7 +49,7 @@ func keystrokeReadInPlace(): DidChangeTextDocumentParams {
 }
 
 // JSON string content, escapes included: quotes, backslashes, a tab, Cyrillic and an emoji
-let BENCH_LINE = #"    let s = \"a \\\"quoted\\\" \\\\ path\tтекст 😀\"; // комментарий\n"#
+const BENCH_LINE = #"    let s = \"a \\\"quoted\\\" \\\\ path\tтекст 😀\"; // комментарий\n"#
 
 let BENCH_OPEN: Array<Byte> = (##"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","languageId":"cangjie","version":1,"text":""## +
     BENCH_LINE * (65536 / BENCH_LINE.size) + ##""}}}"##).toArray()

@@ -623,7 +623,7 @@ func lowerBinarySignature(db: AnalysisDatabase, def: DefId, pkg: BinaryPackageFi
  * The most dimensions a `RawArray` of a `.cjo` is read with, far more than a type writes: more
  * are a broken file's.
  */
-let maxRawArrayDims = 64
+const MAX_RAW_ARRAY_DIMS = 64
 
 /**
  * One declaration of a `.cjo` as types: cjc's `SemaTy`s, each by its place among `allTypes` from 1,
@@ -814,10 +814,10 @@ class BinaryTyLowering {
 
     /**
      * `RawArray<T>` of `dims` dimensions, one inside another: `RawArray<RawArray<T>>` of 2; an
-     * unknown for more than `maxRawArrayDims`, a broken file's (D38).
+     * unknown for more than `MAX_RAW_ARRAY_DIMS`, a broken file's (D38).
      */
     private func rawArrayOf(args: Array<Ty>, dims: Int64): Ty {
-        if (dims > maxRawArrayDims) {
+        if (dims > MAX_RAW_ARRAY_DIMS) {
             return Ty(db, UnknownTy(UnknownReason.BinaryType))
         }
         let element = args.get(0) ?? return Ty(db, UnknownTy(UnknownReason.BinaryType))

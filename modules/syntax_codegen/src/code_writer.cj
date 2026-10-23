@@ -1,6 +1,6 @@
 package syntax_codegen
 
-let LINE_WIDTH = 120
+const LINE_WIDTH = 120
 
 /**
  * Builds a Cangjie file formatted as `cjfmt` would leave it, so what is checked in is exactly what is generated.

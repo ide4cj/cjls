@@ -52,8 +52,8 @@ class FakeSrcHost <: SrcHost {
     }
 }
 
-let GITHUB_NOTES = "https://api.github.com/repos/cangjie-bot/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
-let GITCODE_NOTES = "https://api.gitcode.com/api/v5/repos/Cangjie/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
+const GITHUB_NOTES = "https://api.github.com/repos/cangjie-bot/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
+const GITCODE_NOTES = "https://api.gitcode.com/api/v5/repos/Cangjie/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
 
 let RUNTIME_TREE = [
     ("cangjie_runtime-5d555bcc34d6/LICENSE", "license"),

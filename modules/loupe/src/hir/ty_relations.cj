@@ -6,7 +6,7 @@ import calca.macros.*
 import loupe.db.{AnalysisDatabase, SourceFile}
 
 // A resource limit, not a language limit: overflow becomes UnknownTy, never a partial proof (A30).
-let GENERIC_BOUNDS_LIMIT = 256
+const GENERIC_BOUNDS_LIMIT = 256
 
 /**
  * The declaration's written bounds and those its bounding interfaces require of their arguments
