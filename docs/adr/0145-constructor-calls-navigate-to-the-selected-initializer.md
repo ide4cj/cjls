@@ -1,6 +1,6 @@
 # ADR-0145: Constructor calls navigate to the selected initializer, and declarations to their type
 
-Status: proposed
+Status: accepted, 2026-10-23
 Amends ADR-0063: a class or struct call goes to the initializer selected by inference, rather than directly to the type
 
 ## Context
