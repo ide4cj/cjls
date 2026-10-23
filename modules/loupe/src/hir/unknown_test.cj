@@ -38,7 +38,9 @@ func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotati
             let seen = HashSet<Int64>()
             for (i in 0..lowered.body.exprs.size) {
                 let ptr = lowered.sourceMap.exprs.get(i) ?? continue
-                let node = (ptr ?? continue).tryToNode(root) ?? continue
+                let location = ptr ?? continue
+                if (location.expansion.isSome()) { continue }
+                let node = location.ptr.tryToNode(root) ?? continue
                 if (!seen.add(node.textRange.start * 1_000_000 + node.textRange.end)) {
                     continue
                 }

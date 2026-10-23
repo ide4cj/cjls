@@ -6,9 +6,20 @@ import cjsyntax.ast.{Name, NameRef, RefExpr}
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 
+/** The source body currently reading `call`; stale and unavailable outputs keep the call-site fallback. */
+func bodyOfExpressionExpansion(db: AnalysisDatabase, call: MacroCallId): ?DefId {
+    if (call.inBody(db).isNone()) { return None }
+    let def = DefId(db, ItemFile.Source(call.file(db)), call.item(db))
+    let map = bodyWithSourceMap(db, def).sourceMap
+    for (sources in [map.exprs, map.locals, map.types]) {
+        if (sources.any {one => one.map {source => source.expansion == call} ?? false}) { return def }
+    }
+    None
+}
+
 /**
  * What a name of the expansion of a macro call in an item (D117), an expression or statements with no item of their
- * own, is read as until the body reads the expansion in the call's place (#369): where the call stands, as cjc pastes
+ * own, is read as when its body does not read a current expansion: where the call stands, as cjc pastes
  * the tokens, with no hygiene.
  */
 enum CallSiteName {
@@ -25,7 +36,7 @@ enum CallSiteName {
 /**
  * What `token`, at `offset` of the expansion of `call`, is read as (`CallSiteName`). `None` for a call on an item, for
  * what is neither copied nor a plain name (a member after a `.`, a type the macro wrote), for a name the expansion
- * itself declares, which only the body reading it knows (#369), and for a call that is no expression (on a local
+ * itself declares, which only a body reading a current expansion knows, and for a call that is no expression (on a local
  * declaration).
  */
 func callSiteNameOf(db: AnalysisDatabase, call: MacroCallId, token: CjSyntaxToken, offset: Int64): ?CallSiteName {

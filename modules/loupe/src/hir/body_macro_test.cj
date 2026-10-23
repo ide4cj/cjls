@@ -3,8 +3,10 @@ package loupe.hir
 import std.collection.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.TextRange
+import ginkgo.{Kind, SyntaxNodePtr, TextRange}
 import rope.Rope
+import cjsyntax.ast.Decl
+import loupe.syntax.parse
 import loupe.db.*
 import loupe.fixture.*
 
@@ -190,4 +192,185 @@ class BodyMacroCallTest {
         let text = file.text(db).toString()
         @Expect(diagnostics.map {one => text[one.range.start..one.range.end]}, ["@B"])
     }
+}
+
+@Test
+class BodyMacroExpansionTest {
+    @TestCase
+    func anExpressionIsTypedFromItsCurrentExpansion() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x = @B(1 + 2) }
+            "#, std: ["std.core"])
+        let request = requestNamed(db, file, "B")
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        @Expect(inferBody(db, def).locals[0].kind(db), TyKind.TodoTy(Todo.MacroCall))
+        setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
+        let lowered = bodyWithSourceMap(db, def)
+        let inferred = inferBody(db, def)
+        @Expect(inferred.locals[0].text(db), "Bool")
+        let expanded = lowered.sourceMap.exprs.filterMap {one => one}.filter {one => one.expansion == request.call}
+        @Expect(expanded.size, 1)
+        @Expect(expanded[0].node(db, def.file(db)).getOrThrow().text(), "true")
+        @Expect(lowered.sourceMap.exprAtSource(expanded[0]).isSome())
+        let syntax = bodyCallNodeOf(db, request.call).getOrThrow()
+        @Expect(lowered.sourceMap.exprAt(SyntaxNodePtr(syntax)), lowered.sourceMap.exprAtSource(expanded[0]))
+    }
+
+    @TestCase
+    func statementExpansionsDeclareNamesInTheSurroundingBlock() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(seed: Int64): Int64 {
+                @B(nothing)
+                let result = made
+                result
+            }
+            "#, std: ["std.core"])
+        let request = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(request.call, writtenOutput(request,
+            "func local(): Int64 { seed }\nlet made = local()"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        let lowered = body(db, def)
+        let inferred = inferBody(db, def)
+        @Expect(lowered.locals.map {one => one.name}, ["seed", "local", "made", "result"])
+        @Expect(inferred.locals.map {one => one.text(db)}, ["Int64", "() -> Int64", "Int64", "Int64"])
+        @Expect(inferred.diagnostics.size, 0)
+    }
+
+    @TestCase
+    func twoOutputsAtTheSameOffsetsHaveDifferentSources() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let a = @B(0); let b = @I(0) }
+            "#, std: ["std.core"])
+        let first = requestNamed(db, file, "B")
+        let second = requestNamed(db, file, "I")
+        setMacroOutputs(db, [(first.call, writtenOutput(first, "1")), (second.call, writtenOutput(second, "2"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        let map = bodyWithSourceMap(db, def).sourceMap
+        let sources = map.exprs.filterMap {one => one}.filter {one => one.expansion.isSome()}
+        @Expect(sources.size, 2)
+        @Expect(sources[0].ptr, sources[1].ptr)
+        @Expect(map.exprAtSource(sources[0]) != map.exprAtSource(sources[1]))
+        @Expect(map.exprAt(sources[0].ptr), None<ExprId>)
+    }
+
+    @TestCase
+    func anEditMakesTheOldExpressionExpansionUnread() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x = @B(1) }
+            "#, std: ["std.core"])
+        let request = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        @Expect(inferBody(db, def).locals[0].text(db), "Bool")
+        db.setFileText(file.fileId(db), Rope(file.text(db).toString().replace("@B(1)", "@B(2)")))
+        @Expect(inferBody(db, def).locals[0].kind(db), TyKind.TodoTy(Todo.MacroCall))
+        @Expect(bodyWithSourceMap(db, def).sourceMap.exprs.filterMap {one => one}.iterator().all {one => one.expansion.isNone()})
+    }
+    @TestCase
+    func aFailedRunDoesNotReadTheRetainedExpressionOutput() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x = @B(1) }
+            "#, std: ["std.core"])
+        let request = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        @Expect(inferBody(db, def).locals[0].text(db), "Bool")
+        setMacroOutputs(db, [(request.call, MacroOutput(request.fingerprint, None, [],
+            [MacroDiagnostic(MacroSeverity.MacroError, None, "failed", "")]))])
+        @Expect(macroOutputOf(db, request.call).getOrThrow().expansion.isSome())
+        @Expect(inferBody(db, def).locals[0].kind(db), TyKind.TodoTy(Todo.MacroCall))
+    }
+
+    @TestCase
+    func aMacroOnALocalDeclarationReplacesItWithStatements() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Int64 {
+                @B func old(): Bool { true }
+                made
+            }
+            "#, std: ["std.core"])
+        let request = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(request.call, writtenOutput(request, "let made = 1"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        @Expect(body(db, def).locals.map {one => one.name}, ["made"])
+        @Expect(inferBody(db, def).locals[0].text(db), "Int64")
+        @Expect(inferBody(db, def).diagnostics.size, 0)
+    }
+
+    @TestCase
+    func speculativeLoweringReadsNoExpansion() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x = @B(1) }
+            "#, std: ["std.core"])
+        let request = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        let decl = Decl.cast(itemIdMap(db, file).node(def.item(db), parse(db, file).syntaxNode()).getOrThrow()).getOrThrow()
+        let speculative = lowerBody(decl)
+        @Expect(speculative.sourceMap.exprs.filterMap {one => one}.all {one => one.expansion.isNone()})
+        @Expect(speculative.body.exprs.any {one => if (let MacroExpr(_) <- one) { true } else { false }})
+    }
+
+    @TestCase
+    func patternsLocalsAndTypesAreQualifiedByTheirExpansion() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit {
+                if (true) { @B(0) } else { @I(0) }
+            }
+            "#, std: ["std.core"])
+        let first = requestNamed(db, file, "B")
+        let second = requestNamed(db, file, "I")
+        setMacroOutputs(db, [(first.call, writtenOutput(first, "let made: Int64 = 1")),
+            (second.call, writtenOutput(second, "let made: Int64 = 2"))])
+        let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        let map = bodyWithSourceMap(db, def).sourceMap
+        for (sources in [map.pats, map.locals, map.types]) {
+            let present = sources.filterMap {one => one}
+            @Expect(present.size, 2)
+            @Expect(present[0].ptr, present[1].ptr)
+            @Expect(present[0].expansion, Some(first.call))
+            @Expect(present[1].expansion, Some(second.call))
+        }
+        @Expect(map.patAtSource(map.pats[0].getOrThrow()) != map.patAtSource(map.pats[1].getOrThrow()))
+        @Expect(map.localAtSource(map.locals[0].getOrThrow()) != map.localAtSource(map.locals[1].getOrThrow()))
+        @Expect(map.typeAtSource(map.types[0].getOrThrow()) != map.typeAtSource(map.types[1].getOrThrow()))
+        @Expect(inferBody(db, def).diagnostics.size, 0)
+    }
+
+    @TestCase
+    func initializersAndParameterDefaultsReadTheirExpansions() {
+        let (db, file, _) = workspaceMacroDatabase(#"
+            package m
+            import m.ms.*
+            let value = @B(0)
+            func f(arg: Int64 = @I(0)): Int64 { arg }
+            "#, std: ["std.core"])
+        let initializer = requestNamed(db, file, "B")
+        let defaultValue = requestNamed(db, file, "I")
+        setMacroOutputs(db, [(initializer.call, writtenOutput(initializer, "true")),
+            (defaultValue.call, writtenOutput(defaultValue, "2"))])
+        let value = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "value").id)
+        let f = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
+        @Expect(declaredTyOf(db, value).text(db), "Bool")
+        let expr = body(db, f).params[0].defaultValue.getOrThrow()
+        @Expect(inferBody(db, f)[expr].getOrThrow().text(db), "Int64")
+        @Expect(inferBody(db, f).diagnostics.size, 0)
+    }
+
 }
