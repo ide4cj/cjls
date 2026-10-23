@@ -2,7 +2,7 @@
 cjc-version = "1.3.0"
 name = "cjformat"
 organization = ""
-description = "The Cangjie formatter, on cjsyntax's lossless tree: whitespace only, line breaks kept"
+description = "The Cangjie formatter, on cjsyntax's lossless tree: syntax-driven layout at a fixed width"
 version = "0.1.0"
 target-dir = ""
 script-dir = ""

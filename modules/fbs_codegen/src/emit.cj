@@ -220,7 +220,7 @@ func isUnion(names: Names, t: FbType): Bool {
 }
 
 /**
- * The views of the schema: a Cangjie file of package `packageName`, before `cjfmt` has had it.
+ * The views of the schema: a Cangjie file of package `packageName`, before `cjformat` has had it.
  */
 func emitViews(names: Names, header: String, packageName: String): String {
     names.check()

@@ -149,7 +149,7 @@ extend CjEmitter {
         }
 
         emitDoc(messageIr.doc)
-        // verbatim: cjfmt leaves the spaces `Tokens` puts around `<` and `>` in a type
+        // The supertypes are resolved source; the common formatter decides their spacing.
         emitln("public struct ${ident} <: ${supertypes} {")
         indented {
             =>

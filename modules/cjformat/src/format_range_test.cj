@@ -33,7 +33,7 @@ func linesOf(text: String, first: Int64, last: Int64): TextRange {
 @Test
 class FormatRangeTest {
     @TestCase
-    func onlyTheLinesCoveredChange() {
+    func onlyTheSelectedStatementChanges() {
         // arrange
         let text = "func f() {\nlet a = 1\nlet b = 2\nlet c = 3\n}\n"
 
@@ -69,7 +69,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func aRangeEndingWhereALineStartsDoesNotCoverIt() {
+    func aRangeCoveringSeveralSiblingsFormatsTheirEnclosingBody() {
         // arrange - lines 1 and 2 selected whole, as VS Code selects them
         let text = "func f() {\nlet a = 1\nlet b = 2\nlet c = 3\n}\n"
         let range = TextRange(linesOf(text, 1, 1).start, linesOf(text, 3, 3).start)
@@ -78,7 +78,14 @@ class FormatRangeTest {
         let formatted = formattedIn(text, range)
 
         // assert
-        @Expect(formatted, Some("func f() {\n    let a = 1\n    let b = 2\nlet c = 3\n}\n"))
+        @Expect(formatted, Some("func f() {\n    let a = 1\n    let b = 2\n    let c = 3\n}\n"))
+    }
+
+    @TestCase
+    func aBodySelectionDoesNotReformatItsDeclarationHeader(): Unit {
+        let text = "func   f() {\na\nb\n}\n"
+        @Expect(formattedIn(text, linesOf(text, 1, 2)),
+            Some("func   f() {\n    a\n    b\n}\n"))
     }
 
     @TestCase
@@ -116,8 +123,36 @@ class FormatRangeTest {
         let fromSecond = formattedIn(text, linesOf(text, 1, 1))
 
         // assert
-        @Expect(fromFirst, Some("func f() {\n}\n"))
-        @Expect(fromSecond, Some("func f() {\n}\n"))
+        @Expect(fromFirst, Some("func f() {}\n"))
+        @Expect(fromSecond, Some("func f() {}\n"))
+    }
+
+    @TestCase
+    func aRangeCanJoinLinesOutsideTheSelectionButKeepsTheNextStatement(): Unit {
+        let text = "func f() {\ncall(a,\nb)\nx\n}\n"
+        @Expect(formattedIn(text, linesOf(text, 2, 2)),
+            Some("func f() {\n    call(a, b)\nx\n}\n"))
+    }
+
+    @TestCase
+    func continuationIndentationComesFromTheWholeFileLayout(): Unit {
+        let text = "func f() {\nlet g = { x =>\na(x)\nb(x)\n}\n}\n"
+        @Expect(formattedIn(text, linesOf(text, 3, 3)),
+            Some("func f() {\nlet g = { x =>\na(x)\n            b(x)\n}\n}\n"))
+    }
+
+    @TestCase
+    func aRangeReservesThePunctuationAfterItsSelectedNode(): Unit {
+        let name = "a" * 90
+        let text = "func f() {\n    call(${name});\n}\n"
+        let start = text.indexOf("call").getOrThrow()
+        @Expect(formattedIn(text, TextRange(start, start + 1)), formatText(text))
+    }
+
+    @TestCase
+    func aSelectionInsideAMacroCannotReformatItsInternalStatements(): Unit {
+        let text = "func f() {\n    @M({ x =>\na(x)\nb(x)\n})\n}\n"
+        @Expect(formattedIn(text, linesOf(text, 3, 3)), Some(text))
     }
 
     @TestCase

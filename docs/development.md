@@ -118,8 +118,8 @@ inspection:
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
 
-The Cangjie runtime is linked statically and the server runs without an SDK
-environment; generators still need the SDK because they invoke `cjfmt`. Linux
+The Cangjie runtime is linked statically: the server and generators run without
+an SDK environment. Generators link the same `cjformat` library as the server. Linux
 executables still use system glibc and libstdc++. Release builds use Ubuntu 22.04
 and check the executable in a clean Ubuntu 22.04 container with `libstdc++6`
 installed; a local build on a newer system may require newer system libraries.
@@ -193,6 +193,10 @@ cjpm build
 target/release/bin/cjls fmt --check .
 python3 scripts/docs.py check
 ```
+
+Use `git blame --ignore-revs-file .git-blame-ignore-revs <file>` to look through
+the repository-wide formatting migration. Keep its recorded hash aligned with
+the final commit if the migration is squash-merged or rebased.
 
 For changes to `scripts/docs.py`, also run:
 
@@ -298,7 +302,7 @@ does not prevent running the generator. Read the relevant module notes first.
 Generator tests compare checked-in output; syntax conformance checks trees
 against the ungrammar. The compiler corpus/oracle harness is not fully checked
 in yet (#114); do not claim it ran from the normal suite. Generator CLI/check
-mode and formatting changes are tracked separately in #112 and #359.
+mode changes remain tracked in #112. Formatting uses the shared library (D147).
 
 ## Toolchain constraints
 

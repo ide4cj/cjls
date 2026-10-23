@@ -24,6 +24,7 @@ const MACRO_MAIN = "package app\nimport app.ms.*\n@M[x]\nclass C {}\nfunc use(c:
  * What the macro server answers for `@M[x]`: `class C {}` copied, a class `Gen` and a function `make` written.
  */
 const MACRO_OUTPUT = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T): C { C() }"
+const SHOWN_MACRO_OUTPUT = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T): C {\n    C()\n}"
 
 /**
  * A cjpm module `app` whose `src/main.cj` calls the workspace's macro `M` of `app.ms`, loaded, the call answered with
@@ -31,20 +32,47 @@ const MACRO_OUTPUT = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T): C { 
  * removes it.
  */
 func macroWorkspace(shows!: Bool = true): (ServerState, Path) {
-    let dir = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", MACRO_MAIN),
-        ("src/ms/ms.cj", "macro package app.ms\nimport std.ast.*\npublic macro M(attrs: Tokens, input: Tokens): Tokens { input }\n")])
+    let dir =
+        workspaceOf(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\n"),
+                ("src/main.cj", MACRO_MAIN),
+                (
+                    "src/ms/ms.cj",
+                    "macro package app.ms\nimport std.ast.*\npublic macro M(attrs: Tokens, input: Tokens): Tokens { input }\n"
+                )
+            ]
+        )
     let loop = initializedWith([dir], watches: false)
     let state = loop.state
     state.showsDocuments = shows
     state.codeActionLiterals = true
     state.locationLinks = true
     initialized(loop, Client(), NoopLogger(), InitializedParams())
-    let file = state.snapshot().sourceFile(VfsPath.file(dir.join("src").join("main.cj"))).getOrThrow()
-    let request = macroRequests(state.analysis, file).filter {one => one.definition.name == "M"}[0]
-    setMacroOutputs(state.analysis, [(request.call, MacroOutput(request.fingerprint, MappedText(MACRO_OUTPUT, [
-        MappedSpan(TextRange(0, 10), SpanOrigin.FromSource(TextRange(6, 16))),
-        MappedSpan(TextRange(11, MACRO_OUTPUT.size), SpanOrigin.FromCall)
-    ]), [], []))])
+    let file =
+        state.snapshot().sourceFile(VfsPath.file(dir.join("src").join("main.cj"))).getOrThrow()
+    let request =
+        macroRequests(state.analysis, file).filter { one => one.definition.name == "M" }[0]
+    setMacroOutputs(
+        state.analysis,
+        [
+            (
+                request.call,
+                MacroOutput(
+                    request.fingerprint,
+                    MappedText(
+                        MACRO_OUTPUT,
+                        [
+                            MappedSpan(TextRange(0, 10), SpanOrigin.FromSource(TextRange(6, 16))),
+                            MappedSpan(TextRange(11, MACRO_OUTPUT.size), SpanOrigin.FromCall)
+                        ]
+                    ),
+                    [],
+                    []
+                )
+            )
+        ]
+    )
     (state, dir)
 }
 
@@ -67,19 +95,35 @@ func removeWorkspace(dir: Path): Unit {
 }
 
 func positionIn(path: Path, line: UInt32, character: UInt32): TextDocumentPositionParams {
-    TextDocumentPositionParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-        position: Position(line: line, character: character))
+    TextDocumentPositionParams(
+        textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+        position: Position(line: line, character: character)
+    )
 }
 
-func codeActionsAt(state: ServerState, path: Path, line: UInt32, character: UInt32, only!: ?Array<CodeActionKind> = None): Nullable<Array<CommandOrCodeAction>> {
+func codeActionsAt(
+    state: ServerState,
+    path: Path,
+    line: UInt32,
+    character: UInt32,
+    only!: ?Array<CodeActionKind> = None
+): Nullable<Array<CommandOrCodeAction>> {
     let position = Position(line: line, character: character)
-    handleCodeAction(state.snapshot(), CodeActionParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-        range: LspRange(start: position, end: position), context: CodeActionContext(diagnostics: [], only: only)))
+    handleCodeAction(
+        state.snapshot(),
+        CodeActionParams(
+            textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+            range: LspRange(start: position, end: position),
+            context: CodeActionContext(diagnostics: [], only: only)
+        )
+    )
 }
 
 func expandCommand(path: Path, line: UInt32, character: UInt32): ExecuteCommandParams {
-    ExecuteCommandParams(command: EXPAND_MACRO_COMMAND,
-        arguments: [RawJson.of(positionIn(path, line, character)).read<JsonValue>()])
+    ExecuteCommandParams(
+        command: EXPAND_MACRO_COMMAND,
+        arguments: [RawJson.of(positionIn(path, line, character)).read<JsonValue>()]
+    )
 }
 
 /**
@@ -121,7 +165,7 @@ class ExpandMacroTest {
             case Nullable.Value(expansion) =>
                 @Expect(expansion.name, "@M")
                 @Expect(expansion.kind, "server")
-                @Expect(expansion.expansion, MACRO_OUTPUT)
+                @Expect(expansion.expansion, SHOWN_MACRO_OUTPUT)
             case _ => @Fail("no expansion")
         }
     }
@@ -150,17 +194,21 @@ class ExpandMacroTest {
         // assert
         removeWorkspace(dir)
         match (actions) {
-            case Nullable.Value(found) where found.size == 1 => match (found[0]) {
-                case AsCodeAction(action) =>
-                    @Expect(action.title, "Expand macro @M")
-                    @Expect(action.kind.isNone())
-                    let command = action.command.getOrThrow()
-                    @Expect(command.command, EXPAND_MACRO_COMMAND)
-                    let argument = RawJson.of(command.arguments.getOrThrow()[0]).read<TextDocumentPositionParams>()
-                    @Expect(argument.textDocument.uri, uriOf(mainOf(dir)))
-                    @Expect(at(argument.position), "2:1")
-                case _ => @Fail("not a code action")
-            }
+            case Nullable.Value(found) where found.size == 1 =>
+                match (found[0]) {
+                    case AsCodeAction(action) =>
+                        @Expect(action.title, "Expand macro @M")
+                        @Expect(action.kind.isNone())
+                        let command = action.command.getOrThrow()
+                        @Expect(command.command, EXPAND_MACRO_COMMAND)
+                        let argument =
+                            RawJson
+                                .of(command.arguments.getOrThrow()[0])
+                                .read<TextDocumentPositionParams>()
+                        @Expect(argument.textDocument.uri, uriOf(mainOf(dir)))
+                        @Expect(at(argument.position), "2:1")
+                    case _ => @Fail("not a code action")
+                }
             case _ => @Fail("not one action")
         }
     }
@@ -188,40 +236,58 @@ class ExpandMacroTest {
     func theCommandWritesTheExpandedFileReadOnlyAndAsksToShowItsExpansion() {
         // arrange
         let (state, dir) = macroWorkspace()
-        let transport = AnsweringTransport(result: {_ => RawJson.of(ShowDocumentResult(success: true))})
+        let transport =
+            AnsweringTransport(result: { _ => RawJson.of(ShowDocumentResult(success: true)) })
         let client = answeredClientOn(transport)
 
         // act
-        let answer = handleExecuteCommand(state.snapshot(), client, NoopLogger(), expandCommand(mainOf(dir), 2, 1))
+        let answer =
+            handleExecuteCommand(
+                state.snapshot(),
+                client,
+                NoopLogger(),
+                expandCommand(mainOf(dir), 2, 1)
+            )
 
         // assert
         let path = expandedOf(dir)
         let text = String.fromUtf8(File.readFrom(path))
         let readOnly = !FileInfo(path).canWrite()
-        let ignore = String.fromUtf8(File.readFrom(dir.join(".cache").join("cjls").join(".gitignore")))
+        let ignore =
+            String.fromUtf8(File.readFrom(dir.join(".cache").join("cjls").join(".gitignore")))
         let shown = shownDocuments(transport)
         client.close()
         removeWorkspace(dir)
         @Expect(answer, JsonValue.JsonNull)
         @Expect(text, "// generated by cjls from src/main.cj: read-only, regenerated by \"Expand macro\"\n" +
-            "package app\nimport app.ms.*\n// @M[x] expanded by cjls\n${MACRO_OUTPUT}\nfunc use(c: C) {}\n")
+            "package app\nimport app.ms.*\n// @M[x] expanded by cjls\n${SHOWN_MACRO_OUTPUT}\nfunc use(c: C) {}\n")
         @Expect(readOnly)
         @Expect(ignore, "*\n")
         @Expect(shown.size, 1)
         @Expect(shown[0].uri, uriOf(path))
         @Expect(shown[0].takeFocus, Some(true))
-        @Expect(shown[0].selection.map {range => "${at(range.start)}-${at(range.end)}"}, Some("4:0-6:37"))
+        @Expect(shown[0].selection.map {range => "${at(range.start)}-${at(range.end)}"}, Some("4:0-8:1"))
     }
 
     @TestCase
     func theCommandWritesTheFileAgainOverItsReadOnlyCopy() {
         // arrange
         let (state, dir) = macroWorkspace()
-        handleExecuteCommand(state.snapshot(), Client(), NoopLogger(), expandCommand(mainOf(dir), 2, 1))
+        handleExecuteCommand(
+            state.snapshot(),
+            Client(),
+            NoopLogger(),
+            expandCommand(mainOf(dir), 2, 1)
+        )
         state.setFileContents(VfsPath.file(mainOf(dir)), Rope(MACRO_MAIN + "func more() {}\n"))
 
         // act
-        handleExecuteCommand(state.snapshot(), Client(), NoopLogger(), expandCommand(mainOf(dir), 2, 1))
+        handleExecuteCommand(
+            state.snapshot(),
+            Client(),
+            NoopLogger(),
+            expandCommand(mainOf(dir), 2, 1)
+        )
 
         // assert
         let text = String.fromUtf8(File.readFrom(expandedOf(dir)))
@@ -235,12 +301,18 @@ class ExpandMacroTest {
         let (state, dir) = macroWorkspace(shows: false)
 
         // act
-        let failed = try {
-            handleExecuteCommand(state.snapshot(), Client(), NoopLogger(), expandCommand(mainOf(dir), 2, 1))
-            false
-        } catch (_: RpcException) {
-            true
-        }
+        let failed =
+            try {
+                handleExecuteCommand(
+                    state.snapshot(),
+                    Client(),
+                    NoopLogger(),
+                    expandCommand(mainOf(dir), 2, 1)
+                )
+                false
+            } catch (_: RpcException) {
+                true
+            }
 
         // assert
         let written = exists(expandedOf(dir))
@@ -259,11 +331,11 @@ class ExpandedFileNavigationTest {
         expandAndOpen(state, dir)
 
         // act
-        let (_, range) = markupOf(hoverOf(state, expandedOf(dir), 7, 6))
+        let (_, range) = markupOf(hoverOf(state, expandedOf(dir), 9, 6))
 
         // assert
         removeWorkspace(dir)
-        @Expect(range, "7:5-7:8")
+        @Expect(range, "9:5-9:8")
     }
 
     @TestCase
@@ -304,14 +376,21 @@ class ExpandedFileNavigationTest {
         expandAndOpen(state, dir)
 
         // act
-        let answer = handleDocumentHighlight(state.snapshot(), DocumentHighlightParams(
-            textDocument: TextDocumentIdentifier(uri: uriOf(expandedOf(dir))), position: Position(line: 7, character: 9)))
+        let answer =
+            handleDocumentHighlight(
+                state.snapshot(),
+                DocumentHighlightParams(
+                    textDocument: TextDocumentIdentifier(uri: uriOf(expandedOf(dir))),
+                    position: Position(line: 9, character: 9)
+                )
+            )
 
         // assert
         removeWorkspace(dir)
         match (answer) {
-            case Nullable.Value(found) => @Expect(found.map {one => "${at(one.range.start)}-${at(one.range.end)}"},
-                ["7:9-7:10"])
+            case Nullable.Value(found) =>
+                @Expect(found.map {one => "${at(one.range.start)}-${at(one.range.end)}"},
+                    ["9:9-9:10"])
             case _ => @Fail("no highlights")
         }
     }
@@ -323,15 +402,16 @@ class ExpandedFileNavigationTest {
         expandAndOpen(state, dir)
 
         // act - the parameter `c` of `use`, in `src/main.cj` on its fifth line
-        let copied = referencesOf(state, expandedOf(dir), 7, 9)
+        let copied = referencesOf(state, expandedOf(dir), 9, 9)
         let written = referencesOf(state, expandedOf(dir), 6, 16)
 
         // assert
         removeWorkspace(dir)
         match (copied) {
-            case Nullable.Value(found) => @Expect(found.map {
-                one => "${one.uri == uriOf(mainOf(dir))} ${at(one.range.start)}-${at(one.range.end)}"
-            }, ["true 4:9-4:10"])
+            case Nullable.Value(found) =>
+                @Expect(found.map {
+                    one => "${one.uri == uriOf(mainOf(dir))} ${at(one.range.start)}-${at(one.range.end)}"
+                }, ["true 4:9-4:10"])
             case _ => @Fail("no references")
         }
         @Expect(written.isNull())
@@ -344,9 +424,10 @@ class ExpandedFileNavigationTest {
         expandAndOpen(state, dir)
 
         // act - `C` of the parameter of `use`, which nothing extends, and a name of an expansion
-        let copied = implementationsOf(state, expandedOf(dir), 7, 12)
+        let copied = implementationsOf(state, expandedOf(dir), 9, 12)
         let written = implementationsOf(state, expandedOf(dir), 6, 16)
-        let elsewhere = implementationsOf(state, expandedOf(dir).parent.join("other.cj.macrocall"), 0, 0)
+        let elsewhere =
+            implementationsOf(state, expandedOf(dir).parent.join("other.cj.macrocall"), 0, 0)
 
         // assert
         removeWorkspace(dir)
@@ -363,7 +444,7 @@ class ExpandedFileNavigationTest {
         state.setFileContents(VfsPath.file(mainOf(dir)), Rope(MACRO_MAIN + "func more() {}\n"))
 
         // act
-        let hover = hoverOf(state, expandedOf(dir), 7, 6)
+        let hover = hoverOf(state, expandedOf(dir), 9, 6)
         let definition = definitionOf(state, expandedOf(dir), 6, 16)
 
         // assert
@@ -382,7 +463,7 @@ class ExpandedFileNavigationTest {
         // act
         let snap = state.snapshot()
         let diagnostics = documentDiagnostics(snap, path)
-        let listed = snap.files.map {id => snap.path(id)}.contains(path)
+        let listed = snap.files.map { id => snap.path(id) }.contains(path)
 
         // assert
         removeWorkspace(dir)
@@ -394,7 +475,12 @@ class ExpandedFileNavigationTest {
     func aLoadReadsNothingOfTheCacheDirectory() {
         // arrange
         let (state, dir) = macroWorkspace()
-        handleExecuteCommand(state.snapshot(), Client(), NoopLogger(), expandCommand(mainOf(dir), 2, 1))
+        handleExecuteCommand(
+            state.snapshot(),
+            Client(),
+            NoopLogger(),
+            expandCommand(mainOf(dir), 2, 1)
+        )
         writeFile(dir, ".cache/cjls/a.cj", "package app\n")
 
         // act
@@ -403,7 +489,8 @@ class ExpandedFileNavigationTest {
 
         // assert
         let knowsExpanded = loop.state.knows(VfsPath.file(expandedOf(dir)))
-        let knowsHidden = loop.state.knows(VfsPath.file(dir.join(".cache").join("cjls").join("a.cj")))
+        let knowsHidden =
+            loop.state.knows(VfsPath.file(dir.join(".cache").join("cjls").join("a.cj")))
         let knowsMain = loop.state.knows(VfsPath.file(mainOf(dir)))
         removeWorkspace(dir)
         @Expect(!knowsExpanded)
@@ -427,8 +514,16 @@ class ShowsDocumentsTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null, capabilities: capabilities))
+        handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
+            )
+        )
 
         // assert
         @Expect(state.showsDocuments, shows)

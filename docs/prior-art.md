@@ -110,7 +110,7 @@ Features:
 | Call and type hierarchy | yes | — | after #48 |
 | Folding | — | yes | yes (syntactic) |
 | Selection range | — | yes | yes |
-| Formatting | — | yes | yes, ranges too (D60, D74) |
+| Formatting | — | yes | yes, ranges too (D147) |
 | Code actions, code lens, document links | yes | code actions | — |
 | Macros | expanded (`LSPMacroServer`) | expanded (R4's `LSPMacroServer`) | std's expanded by its own code (#175); arguments parsed (D59); the workspace's: D87, #176 |
 | `std` and dependencies | cjc's `.cjo` | `.cjo`, read as flatbuffers | `.cjo`, read as flatbuffers (D37, D38); their sources for definition (D65) |
