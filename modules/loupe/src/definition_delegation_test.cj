@@ -100,14 +100,14 @@ class DelegationDefinitionTest {
     }
 
     @TestCase
-    func aClassCallStillGoesToTheClass() {
+    func aClassCallGoesToItsChosenConstructor() {
         checkDefinition(#"
             //- /main.cj module=m package=m
             package m
             class C {
-            //    ^ def
                 init(x: String) {}
                 init(x: Int64) {}
+            //  ^^^^ def
             }
             func f(): C { $0C(1) }
             "#, std: ["std.core"])
