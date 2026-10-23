@@ -2,14 +2,12 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
-import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, InitDecl, NameRef, PathSegment, PathType, PostfixExpr,
     UnaryExpr, isIdent}
 import cjsyntax.ast.SourceFile as SourceFileNode
-import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
@@ -219,7 +217,7 @@ func targetOf(db: AnalysisDatabase, target: TypeTarget, intoExpansions: Bool): ?
                 let (full, focus) = genericRanges(itemNodeOf(db, owner) ?? return None, index) ?? return None
                 return expansionTarget(db, call, full, focus)
             }
-            let (file, node) = nodeOf(db, owner) ?? return None
+            let (file, node) = nodeOf(db, sourceDefOf(db, owner) ?? owner) ?? return None
             genericTarget(db, file, node, index)
         case LocalGenericOf(owner, localFunc, index) =>
             let file = match (owner.file(db)) {
@@ -307,62 +305,17 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
  * position is none, a `let` of a pattern has no name).
  */
 func binaryTarget(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64, id: ItemId): ?NavigationTarget {
-    let index = binaryExports(db, pkg).declIndex(BinaryItem(file, id)) ?? return None
-    let name = (findItem(itemTreeOf(db, ItemFile.Binary(pkg, file)).items, id)?.names ?? []).get(0) ?? return None
-    // the positions of cjc: lines and columns from 1, columns in bytes, the end past the declaration
-    let (fileName, begin, end, at) = try {
-        let cjo = openCjo(pkg.bytes(db))
-        let decl = cjo.allDecls[index]
-        let lineColumn = {position: ?CjoPosition => position.map {it => (Int64(it.line) - 1, Int64(it.column) - 1)}}
-        (cjo.allFiles[file], lineColumn(decl.begin), lineColumn(decl.end), lineColumn(decl.identifierPos))
-    } catch (_: Exception) {
-        return None
-    }
-    let binary = pkg.binary(db)
-    let sources = db.project()?.binarySources(db) ?? return None
-    let fileId = (sources |> filter {source: BinarySourceFile => source.binary == binary && source.name == fileName} |>
-        map {source: BinarySourceFile => source.fileId} |> first) ?? return None
-    let text = (db.sourceFile(fileId) ?? return None).text(db)
-    let offsetOf = {
-        position: ?(Int64, Int64) => match (position) {
-            case Some((line, column)) where line >= 0 && column >= 0 && line < text.lineCount =>
-                Some(text.offsetOf(LineColumn(line, column), Encoding.Utf8))
-            case _ => Option<Int64>.None
-        }
-    }
-    // a name in backquotes is at the name, inside them
-    let start = offsetOf(at) ?? return None
-    if (!writes(text, start, name)) {
-        return None
-    }
-    let focus = TextRange(start, start + name.size)
-    let full = match ((offsetOf(begin), offsetOf(end))) {
-        case (Some(from), Some(to)) where from <= focus.start && focus.end <= to => TextRange(from, to)
-        case _ => focus
-    }
-    NavigationTarget(fileId, full, focus)
+    let at = binarySourceLocation(db, pkg, file, id) ?? return None
+    NavigationTarget(at.fileId, at.fullRange, at.focusRange)
 }
 
-/**
- * The item `id` among `items` and their members.
- */
+/** The item `id` among `items` and their members. */
 func findItem(items: Array<Item>, id: ItemId): ?Item {
     for (item in items) {
-        if (item.id == id) {
-            return item
-        }
-        if (let Some(member) <- findItem(item.members, id)) {
-            return member
-        }
+        if (item.id == id) { return item }
+        if (let Some(member) <- findItem(item.members, id)) { return member }
     }
     None
-}
-
-/**
- * Whether `text` has `written` at `offset`.
- */
-func writes(text: Rope, offset: Int64, written: String): Bool {
-    offset + written.size <= text.size && text.slice(offset..offset + written.size).toString() == written
 }
 
 /**

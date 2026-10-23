@@ -381,7 +381,8 @@ public struct Project {
  */
 @Derive[Equatable]
 public struct BinarySourceFile {
-    public BinarySourceFile(public let binary: String, public let name: String, public let fileId: FileId) {}
+    public BinarySourceFile(public let binary: String, public let name: String, public let fileId: FileId,
+        public let context!: ?Package = None) {}
 }
 
 /**
@@ -433,6 +434,8 @@ public struct Package {
      * The project model never sets it; a new one makes every request for the package's macros new.
      */
     public var macroLibrary: Int64 = 0
+    /** The binary whose declarations this detached source context uses; absent for project packages. */
+    public var binary: ?BinaryPackageFile = None
 }
 
 /**
@@ -460,6 +463,9 @@ class Projects {
         Array<BinarySourceFile>) = None
     let modules = HashMap<ModuleKey, (Module, ModuleModel)>()
     let packages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
+    // A workspace may itself open the SDK tree; its source packages must remain independent.
+    let binarySourcePackages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
+    let contextBinaries = HashMap<Package, BinaryPackageFile>()
     /**
      * Each `.cjo` ever set, with the stamp and the bytes it was set last with: a gone one's are empty.
      */

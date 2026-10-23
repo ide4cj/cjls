@@ -113,7 +113,7 @@ public class AnalysisDatabase <: Database {
         batch {
             let modules = model.modules.map {module => setModule(module, paths, durabilities)}
             let packages = setBinaryPackages(binaries)
-            let sources = binarySources(model, paths, durabilities)
+            let sources = binarySources(model, paths, durabilities, binaries)
             match (projects.project) {
                 case None => projects.project = (Project(this, model.cfg, modules, model.binaries, packages, sources,
                     durability: Durability.High), model.cfg, modules, model.binaries, packages, sources)
@@ -151,15 +151,21 @@ public class AnalysisDatabase <: Database {
      * The files of the sources of `model`'s binaries, each named as its binary's `.cjo` names it.
      */
     private func binarySources(model: ProjectModel, paths: PathInterner,
-        durabilities: HashMap<FileId, Durability>): Array<BinarySourceFile> {
+        durabilities: HashMap<FileId, Durability>, reads: Array<CjoFileRead>): Array<BinarySourceFile> {
         let files = ArrayList<BinarySourceFile>()
         for (binary in model.binaries) {
             let durability = binaryDurability(binary.name)
             for (pkg in binary.sources?.packages ?? []) {
+                let compiled = reads.iterator().filter {one => one.file.binary == binary.name && one.file.name == pkg.name}
+                    .next().flatMap {one => projects.binaries.get(one.file).map {kept => kept[0]}}
+                let context = compiled.map {one =>
+                    setPackage(ModuleKey(binary.sources.getOrThrow().dir, binary.name), pkg,
+                        pkg.files.map {path => paths.intern(path)}, durability, binary: one)
+                }
                 for (path in pkg.files) {
                     let fileId = paths.intern(path)
                     durabilities.add(fileId, durability)
-                    files.add(BinarySourceFile(binary.name, "${pkg.name}/${path.name}", fileId))
+                    files.add(BinarySourceFile(binary.name, "${pkg.name}/${path.name}", fileId, context: context))
                 }
             }
         }
@@ -244,11 +250,17 @@ public class AnalysisDatabase <: Database {
         }
     }
 
-    private func setPackage(module: ModuleKey, model: PackageModel, files: Array<FileId>, durability: Durability): Package {
+    private func setPackage(module: ModuleKey, model: PackageModel, files: Array<FileId>, durability: Durability,
+        binary!: ?BinaryPackageFile = None): Package {
         let key = PackageKey(module, model.name)
-        match (projects.packages.get(key)) {
+        let packages = if (binary.isSome()) { projects.binarySourcePackages } else { projects.packages }
+        match (packages.get(key)) {
             case Some((pkg, old, oldDurability)) =>
                 let moved = oldDurability != durability
+                if (binary.isSome() && projects.contextBinaries.get(pkg) != binary) {
+                    projects.contextBinaries[pkg] = binary.getOrThrow()
+                    pkg.setBinary(this).withDurability(durability).to(binary)
+                }
                 if (old.dir != model.dir || moved) {
                     pkg.setDir(this).withDurability(durability).to(model.dir)
                 }
@@ -270,12 +282,13 @@ public class AnalysisDatabase <: Database {
                 if (old.cfg != model.cfg || moved) {
                     pkg.setCfg(this).withDurability(durability).to(model.cfg)
                 }
-                projects.packages.add(key, (pkg, model, durability))
+                packages.add(key, (pkg, model, durability))
                 pkg
             case None =>
                 let pkg = Package(this, model.name, model.dir, files, model.noPrelude, model.isMacro,
-                    model.cfg, testFiles: testFilesOf(model, files), durability: durability)
-                projects.packages.add(key, (pkg, model, durability))
+                    model.cfg, testFiles: testFilesOf(model, files), binary: binary, durability: durability)
+                packages.add(key, (pkg, model, durability))
+                if (let Some(one) <- binary) { projects.contextBinaries[pkg] = one }
                 pkg
         }
     }

@@ -36,6 +36,27 @@ func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Ar
 @Test
 class DefinitionBinaryTest {
     @TestCase
+    func navigationContinuesFromTheStdDeclarationReachedFromAProject() {
+        let parsed = Fixture.parse(#"
+            //- /main.cj module=m package=m
+            package m
+            main() { $0println("x") }
+            "#)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])])
+        let cursor = parsed.cursor.getOrThrow()
+        let targets = definitionAt(db, cursor.fileId, cursor.offset)
+        @Assert(targets.size, 1)
+        let target = targets[0]
+        let text = db.sourceFile(target.fileId).getOrThrow().text(db).toString()
+        let at = target.focusRange.start + text[target.focusRange.start..].indexOf("str: String").getOrThrow() + 5
+        let next = definitionAt(db, target.fileId, at)
+        @Assert(next.size, 1)
+        @Expect(parsed.pathOf(next[0].fileId), stdSourcesDir().join("core").join("string.cj"))
+        @Expect(definitionAt(db, cursor.fileId, cursor.offset), targets)
+    }
+
+    @TestCase
     func aMacroOfStdCalledWithoutAnAttributeGoesToItsOverloadOfOneParameter() {
         checkDefinitionInStd(#"
             //- /main.cj module=m package=m
