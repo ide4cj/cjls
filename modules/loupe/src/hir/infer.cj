@@ -26,11 +26,11 @@ public struct FieldTargets <: ByIndex {
 }
 
 /**
- * The declaration a call of several candidates takes, by its callee (8d).
+ * The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation.
  */
 @Derive[Equatable]
 public struct CalleeTarget <: ByIndex {
-    public CalleeTarget(public let expr: ExprId, public let decl: DefId) {}
+    public CalleeTarget(public let expr: ExprId, public let decl: DefId, public let isInitializer!: Bool = false) {}
 
     public func keyIndex(): Int64 {
         expr.index
@@ -243,8 +243,19 @@ public struct InferenceResult {
      */
     public func calleeOf(expr: ExprId): ?DefId {
         match (findByIndex(callees, expr.index)) {
-            case Some(one) => one.decl
-            case None => None
+            case Some(one) where !one.isInitializer => one.decl
+            case _ => None
+        }
+    }
+
+    /**
+     * The explicit initializer selected for the call whose callee is `expr`. Navigation uses it separately
+     * so hover and references keep the identity of the type named by the call. None if no initializer was chosen.
+     */
+    public func initializerOf(expr: ExprId): ?DefId {
+        match (findByIndex(callees, expr.index)) {
+            case Some(one) where one.isInitializer => one.decl
+            case _ => None
         }
     }
 
@@ -714,7 +725,14 @@ class Inference {
         if (trying > 0) {
             undo.add(CalleeWas(expr, callees.get(expr.index)))
         }
-        callees[expr.index] = CalleeTarget(expr, decl)
+        let kind = decl.item(db).kind
+        // Delegation names the initializer itself; a type call keeps its type identity for hover and references.
+        let isDelegation = match (hir[expr]) {
+            case ThisExpr | SuperExpr => true
+            case _ => false
+        }
+        callees[expr.index] = CalleeTarget(expr, decl,
+            isInitializer: !isDelegation && (kind == ItemKind.Init || kind == ItemKind.PrimaryInit))
     }
 
     /**
@@ -2588,13 +2606,12 @@ class Inference {
         }
         match (choose(callee, all, args, expected)) {
             case Chose(callable, matched) =>
-                // a type's name called goes to the type, not to the constructor taken; a constructor's
-                // name to the enum's constructor taken, though of one. Delegation names the
-                // constructor itself, even when it is the only candidate.
-                if ((all.size > 1 || isEnumCtor(callable) || isDelegation) && let Some(decl) <- callable.decl &&
-                    (isDelegation || (decl.item(db).kind != ItemKind.Init &&
-                        decl.item(db).kind != ItemKind.PrimaryInit))) {
-                    setCallee(callee, decl)
+                if (let Some(decl) <- callable.decl) {
+                    let kind = decl.item(db).kind
+                    if (all.size > 1 || isEnumCtor(callable) || isDelegation ||
+                        kind == ItemKind.Init || kind == ItemKind.PrimaryInit) {
+                        setCallee(callee, decl)
+                    }
                 }
                 if (isOfCall) {
                     quiet++

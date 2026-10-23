@@ -44,6 +44,34 @@ const PLAT = #"
 @Test
 class MultiplatformDefinitionTest {
     @TestCase
+    func aCommonConstructorCallGoesToItsSpecificAndItsCommon() {
+        checkDefinition(#"
+            //- /plat/common/plat.cj module=plat package=plat
+            @NonProduct
+            features {}
+            package plat
+
+            public common class Host {
+                public common init()
+            //                ^^^^ def
+            }
+            //- /plat/linux/linux.cj module=plat package=plat
+            features { user.plat.posix, os.linux }
+            package plat
+
+            public specific class Host {
+                public specific init() {}
+            //                  ^^^^ def
+            }
+            //- /app/main.cj module=app package=app deps=plat
+            package app
+
+            import plat.*
+
+            main() { $0Host() }
+            "#)
+    }
+    @TestCase
     func aCommonClassGoesToItsSpecificAndItsCommon() {
         checkDefinition(#"
             //- /plat/common/plat.cj module=plat package=plat
@@ -68,7 +96,7 @@ class MultiplatformDefinitionTest {
 
             import plat.*
 
-            main() { $0Host() }
+            main() { let host: $0Host = Host() }
             "#)
     }
     @TestCase
