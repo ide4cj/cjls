@@ -1,6 +1,6 @@
 # ADR-0143: Expand implied generic bounds in a separate bounded query
 
-Status: proposed
+Status: accepted, 2026-10-23
 
 ## Context
 

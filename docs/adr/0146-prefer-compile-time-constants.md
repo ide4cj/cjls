@@ -1,6 +1,6 @@
 # ADR-0146: Prefer const for values known at compile time
 
-Status: proposed
+Status: accepted, 2026-10-23
 
 ## Context
 
