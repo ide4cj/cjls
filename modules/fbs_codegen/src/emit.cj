@@ -441,7 +441,7 @@ func emitTable(w: CodeWriter, names: Names, d: Decl): Unit {
             if (let Some(identifier) <- names.schema.fileIdentifier) {
                 w.blank()
                 w.doc(["What a file of this schema has at bytes 4 to 8."])
-                w.line("static let FILE_IDENTIFIER = ${quoted(identifier)}")
+                w.line("static const FILE_IDENTIFIER = ${quoted(identifier)}")
             }
             w.blank()
             w.doc(["The root table of `buf`, nothing checked."])

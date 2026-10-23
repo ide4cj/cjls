@@ -48,7 +48,7 @@ func placeOf(target: NavigationTarget): String {
 /**
  * The macros of the workspace the tests call, in a package of their own.
  */
-let EXPANSION_MACROS = #"
+const EXPANSION_MACROS = #"
     //- /ms/ms.cj module=m package=m.ms
     macro package m.ms
     import std.ast.*

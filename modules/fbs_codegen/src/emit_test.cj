@@ -138,7 +138,7 @@ class EmitTest {
         let sut = viewsOf(namesOf("file_identifier \"ABCD\";\ntable R {}\ntable X {}\nroot_type R;"))
 
         // assert
-        @Expect(sut.contains("static let FILE_IDENTIFIER = \"ABCD\""))
+        @Expect(sut.contains("static const FILE_IDENTIFIER = \"ABCD\""))
         @Expect(sut.contains("static func root(buf: Array<Byte>): R {"))
         @Expect(sut.split("static func root").size, 2)
     }

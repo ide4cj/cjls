@@ -11,7 +11,7 @@ import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.*
 
-let URI = "file:///nowhere/a.cj"
+const URI = "file:///nowhere/a.cj"
 
 func opened(text: String, uri!: String = URI): ServerState {
     let state = ServerState()

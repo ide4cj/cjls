@@ -43,8 +43,6 @@ for creation and cleanup.
 - Git and Python 3 (the repository scripts and POSIX compiler shim use Python).
 - The SDK nightly in [`.cangjie-version`](../.cangjie-version), with matching
   static stdx, verified against [`.cangjie-sha256`](../.cangjie-sha256).
-- On Linux, LLVM's libc++ and libc++abi development libraries for static linking
-  (Debian/Ubuntu packages `libc++-dev` and `libc++abi-dev`; use your distro's names).
 - [uv](https://docs.astral.sh/uv/) for e2e/performance Python dependencies;
   [cocogitto](https://docs.cocogitto.io/) (`cog`) for commit/PR-title checks.
 - GitHub CLI (`gh`) for GitHub tasks and allocating ADR numbers across open PRs.

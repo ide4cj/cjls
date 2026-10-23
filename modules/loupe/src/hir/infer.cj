@@ -101,6 +101,10 @@ public enum InferenceDiagnostic {
      */
     | TypeMismatch(ExprId, Ty, Ty)
     /**
+     * An array literal with a different number of elements than its expected `VArray` size.
+     */
+    | VArraySizeMismatch(ExprId, Int64, Int64)
+    /**
      * A call of one function of as many arguments as the second, its parameters the first (cjc's
      * "missing argument", "extra argument").
      */
@@ -340,7 +344,7 @@ func declaredTyOnCycle(db: AnalysisDatabase, _: DefId): Ty {
 }
 
 // the level of the members of the type around a body, after any local's (8d)
-let MEMBER_LEVEL = 1 << 32
+const MEMBER_LEVEL = 1 << 32
 
 /**
  * Where each argument of a call goes among a candidate's parameters, matched before it is tried
@@ -546,7 +550,7 @@ class Inference {
         from = sourceFileOf(db, def)
         pkg = packageOf(db, def)
         error = Ty(db, ErrorTy)
-        notInferred = Ty(db, TodoTy(Todo.NotInferred))
+        notInferred = Ty(db, UnknownTy(UnknownReason.NotInferred))
         exprs = Array<?Ty>(hir.exprs.size, repeat: notInferred)
         pats = Array<Ty>(hir.pats.size, repeat: error)
         locals = Array<Ty>(hir.locals.size, repeat: error)
@@ -665,6 +669,13 @@ class Inference {
 
     /**
      * A type the analysis cannot find, `why`.
+     */
+    private func unknown(why: UnknownReason): Ty {
+        Ty(db, UnknownTy(why))
+    }
+
+    /**
+     * A type requiring an unsupported analysis feature.
      */
     private func todo(why: Todo): Ty {
         Ty(db, TodoTy(why))
@@ -846,7 +857,7 @@ class Inference {
     private func langTy(item: LangItem, args: Array<Ty>): Ty {
         match (langId(item)) {
             case Some(id) => Ty(db, DeclTy(id, args))
-            case None => todo(Todo.NoStd)
+            case None => unknown(UnknownReason.NoStd)
         }
     }
 
@@ -856,7 +867,7 @@ class Inference {
     private func optionOf(arg: Ty): Ty {
         match (option) {
             case Some(id) => Ty(db, DeclTy(id, [arg]))
-            case None => todo(Todo.NoStd)
+            case None => unknown(UnknownReason.NoStd)
         }
     }
 
@@ -972,7 +983,7 @@ class Inference {
                 } else {
                     Ty(db, TupleTy(tys))
                 }
-            case ArrayExpr(elements) => arrayTy(elements, expected)
+            case ArrayExpr(elements) => arrayTy(id, elements, expected)
             case UnitExpr => prim("Unit")
             case IfExpr(condition, then, otherwise) =>
                 infer(condition, prim("Bool"))
@@ -994,7 +1005,7 @@ class Inference {
             case QuestMatchExpr(selector, arms) => questMatchTy(selector, arms)
             case LangExpr(item) => match (langId(item)) {
                 case Some(decl) => declValueTy(decl, [], expected)
-                case None => todo(Todo.NoStd)
+                case None => unknown(UnknownReason.NoStd)
             }
             case TryExpr(resources, tried, catches, cleanup) =>
                 tryExprTy(resources, tried, catches, cleanup, expected, dropped.contains(id.index))
@@ -1061,7 +1072,7 @@ class Inference {
      * "import 'std.ast' to use the 'quote' expression", N136).
      */
     private func quoteTy(): Ty {
-        let file = from ?? return todo(Todo.NoStd)
+        let file = from ?? return unknown(UnknownReason.NoStd)
         let imported = activeItemTree(db, file).imports.iterator().any {
             item => item.paths.iterator().any {
                 path => path.segments.size >= 2 && path.segments[0] == "std" && path.segments[1] == "ast"
@@ -1205,6 +1216,9 @@ class Inference {
         if (isUnknown(db, recv)) {
             return recv
         }
+        if (let Some(unknown) <- incompleteBoundsOf(db, recv)) {
+            return unknown
+        }
         if (isMacroTyped(recv)) {
             todo(Todo.MacroMember)
         } else {
@@ -1267,6 +1281,9 @@ class Inference {
                 match (hir[receiver]) {
                     case ThisExpr | SuperExpr => infer(receiver, None)
                     case _ => noValue(receiver)
+                }
+                if (let Some(unknown) <- incompleteBoundsOf(db, typeOfReceiver(receiver, None))) {
+                    return unknown
                 }
                 let byMacro = types.iterator().any {
                     one => match (one) {
@@ -1423,7 +1440,7 @@ class Inference {
      * instance of (N105).
      */
     private func elementTy(iterated: Ty): Ty {
-        let iterable = langId(LangItem.IterableInterface) ?? return todo(Todo.NoStd)
+        let iterable = langId(LangItem.IterableInterface) ?? return unknown(UnknownReason.NoStd)
         match (asInstanceOf(db, iterated, iterable, from).map {one => one.kind(db)}) {
             case Some(DeclTy(_, args)) => args.get(0) ?? error
             // cjc: the type is not an instance of `Iterable`
@@ -2095,11 +2112,26 @@ class Inference {
     }
 
     /**
-     * An array: its elements checked against the element type of the `Array` expected, else of their
-     * join (N98).
+     * An array: checked against the element type and size of an expected `VArray`, or the element
+     * type of an expected `Array`, else of the elements' join (N98, #491).
      */
-    private func arrayTy(elements: Array<ExprId>, expected: ?Ty): Ty {
-        let wanted: ?Ty = match (expected.map {one => unboxed(one)}) {
+    private func arrayTy(id: ExprId, elements: Array<ExprId>, expected: ?Ty): Ty {
+        let array = expected.map {one => unboxed(one)}
+        if (let Some(one) <- array && let VArrayTy(element, size) <- one.kind(db)) {
+            for (e in elements) {
+                infer(e, element)
+            }
+            if (size != elements.size) {
+                // Count a size failure during overload trials too; report() journals its diagnostic.
+                mismatches++
+                if (quiet == 0) {
+                    report(VArraySizeMismatch(id, size, elements.size))
+                }
+                return error
+            }
+            return one
+        }
+        let wanted: ?Ty = match (array) {
             case Some(one) => match (one.kind(db)) {
                 case DeclTy(id, args) where args.size == 1 && Some(id) == langId(LangItem.ArrayStruct) => args[0]
                 // of an interface `Array<T>` implements as `I<T>`, `T` (N147)
@@ -2489,7 +2521,7 @@ class Inference {
     private func valueCallables(ty: Ty): Array<Callable> {
         match (ty.kind(db)) {
             case FuncTy(params, ret, _) => [Callable(params, ret, isValue: true)]
-            case ErrorTy | TodoTy(_) => []
+            case ErrorTy | TodoTy(_) | UnknownTy(_) => []
             // of another type, its `operator func ()` (N130): what is called is the value, not
             // the operator a name of it goes to
             case _ => operatorCallables(ty, "()").map {
@@ -2585,11 +2617,14 @@ class Inference {
                 }
                 // a lambda of a parameter whose type it does not write waits for why the call fails
                 let argTys = args.filter {arg => !isUntypedLambda(arg.expr)}.map {arg => infer(arg.expr, None)}
+                let incomplete = all |> filterMap {one: Callable => one.open.flatMap {
+                    owner => incompleteBoundsOf(db, Ty(db, ParamTy(owner, 0)))
+                }} |> collectArray
                 // an argument not known fits any candidate: of several, none is taken for it; a
                 // macro whose expansion is not read may declare the one that fits
                 let why = if (all.isEmpty()) {
                     calleeFailure(callee)
-                } else if (let Some(unknown) <- unknownOf(db, argTys.concat(listOf(expected)))) {
+                } else if (let Some(unknown) <- unknownOf(db, argTys.concat(listOf(expected)).concat(incomplete))) {
                     unknown
                 } else {
                     macroFailure(callee)
@@ -2601,7 +2636,7 @@ class Inference {
                 }
                 // a type the analysis cannot find in a lambda's body may be why too
                 let failure = match (unknownOf(db, lambdaTys)) {
-                    case Some(one) where !all.isEmpty() && !isTodo(db, why) && isTodo(db, one) => one
+                    case Some(one) where !all.isEmpty() && !isAnalysisUnknown(db, why) && isAnalysisUnknown(db, one) => one
                     case _ => why
                 }
                 match (hir[callee]) {
@@ -2948,7 +2983,7 @@ class Inference {
                 case NoField => noField(receiver)
                 case _ => error
             }
-            case LangExpr(_) => todo(Todo.NoStd)
+            case LangExpr(_) => unknown(UnknownReason.NoStd)
             case _ => failed([tyOf(callee)])
         }
     }
@@ -3343,7 +3378,8 @@ class Inference {
         // a type argument not solved for an argument not known is not known as it is, else an error
         // (cjc: "can not infer")
         let inferred = args |> filterMap {arg: CallArg => inferredTyOf(arg.expr)} |> collectArray
-        let unsolvedTy = unknownOf(db, inferred.concat(listOf(expected))) ?? error
+        let unsolvedTy = unknownOf(db, inferred.concat(listOf(expected))) ??
+            incompleteBoundsOf(db, Ty(db, ParamTy(owner, 0))) ?? error
         let final = {ty: Ty => replaceVars(db, ty, base, solution, unsolved: unsolvedTy)}
         // a call not solved fits not, nor what synthesized a type its parameter solved takes not (8d)
         if (unsolved > 0) {
@@ -3431,7 +3467,7 @@ class Inference {
     private func isKnownEnough(target: Ty): Bool {
         match (target.kind(db)) {
             case FuncTy(params, _, _) => params.iterator().all {one => !hasUnknowns(db, one)}
-            case ErrorTy | TodoTy(_) => false
+            case ErrorTy | TodoTy(_) | UnknownTy(_) => false
             case _ => true
         }
     }
@@ -3815,7 +3851,7 @@ public func headTysOf(db: AnalysisDatabase, ty: Ty): Array<Ty> {
     match (ty.kind(db)) {
         case ParamTy(owner, _) =>
             let found = ArrayList<Ty>()
-            for (bound in signatureTypes(db, owner).bounds where bound.ty == ty) {
+            for (bound in genericBounds(db, owner) where bound.ty == ty) {
                 found.add(all: bound.bounds)
             }
             found.toArray()

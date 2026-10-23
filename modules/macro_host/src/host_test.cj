@@ -92,7 +92,7 @@ func libraryOf(db: AnalysisDatabase, file: SourceFile, library: MacroLibrary): H
     }
 }
 
-let MAIN = #"
+const MAIN = #"
         package m
         import m.ms.*
         @M[x]
@@ -406,7 +406,7 @@ class HandFiredDeadlines <: Deadlines {
     }
 }
 
-let TOY_MACROS = ##"
+const TOY_MACROS = ##"
 macro package toy.ms
 
 import std.ast.*
@@ -624,7 +624,7 @@ class EditingExpander <: Expander {
     }
 }
 
-let USES = #"
+const USES = #"
         package m
         import m.ms.*
         @M

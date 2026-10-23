@@ -8,7 +8,7 @@ import std.unittest.testmacro.*
 
 let SOURCES = Path("modules/cjls/src/lsp_ext")
 let DOC = Path("docs/lsp-extensions.md")
-let MARKER = "<!-- cjls.lsp_ext hash: "
+const MARKER = "<!-- cjls.lsp_ext hash: "
 
 /**
  * `docs/lsp-extensions.md` is what the editor clients read of this package (D32), so it names the

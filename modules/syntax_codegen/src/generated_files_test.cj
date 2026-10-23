@@ -6,7 +6,7 @@ import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
 
-let KINDS_FILE = "modules/cjsyntax/syntax_kinds.toml"
+const KINDS_FILE = "modules/cjsyntax/syntax_kinds.toml"
 
 /**
  * A change to the kinds file or the grammar that was not generated fails here,

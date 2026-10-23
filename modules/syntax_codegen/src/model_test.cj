@@ -28,7 +28,7 @@ func kindsFile(): KindsFile {
     )
 }
 
-let EXPRS = """
+const EXPRS = """
     E = Lit | Bin | Idx | If | Range
     Lit = 'Int'
     Bin = lhs:E op:('+' | '-') rhs:E

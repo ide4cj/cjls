@@ -203,6 +203,22 @@ class InferTest {
     }
 
     @TestCase
+    func aVArrayLiteralSelectsTheOverloadWithTheMatchingLength() {
+        // A failed candidate's size diagnostic must be rolled back with its inferred types.
+        checkInference(#"
+            package m
+            func choose(a: VArray<Int8, $1>): Int8 { 1 }
+            //          ^ VArray<Int8, $1>
+            func choose(a: VArray<Int8, $2>): Int64 { 2 }
+            //          ^ VArray<Int8, $2>
+            func test(): Unit {
+                let result = choose([1, 2])
+            //      ^^^^^^ Int64
+            }
+            "#)
+    }
+
+    @TestCase
     func theBranchesOfAnIfOrAMatchAreJoined() {
         checkInference(#"
             package m

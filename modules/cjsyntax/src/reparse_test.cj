@@ -7,7 +7,7 @@ import std.unittest.testmacro.*
 import ginkgo.*
 
 /** A name as completion inserts one at the cursor to parse the file as if it were there. */
-let MARKER = "cjlsCompletionMarker"
+const MARKER = "cjlsCompletionMarker"
 
 func edited(text: String, delete: TextRange, insert: String): String {
     text[..delete.start] + insert + text[delete.end..]

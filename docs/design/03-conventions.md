@@ -308,9 +308,19 @@ Elsewhere, prefer the concise forms above.
 
 ### C23: Bindings and type annotations
 
-`let` unless the binding is assigned again (`G.VAR.01`).
+Prefer `const` over `let` when the initializer is a constant expression on the
+supported SDK and the declaration keeps its type, API and behavior (D146).
+This applies to package-level, static and named local constants; use C19's
+`UPPER_SNAKE_CASE` names. Numeric and string literals and constant arithmetic
+belong here.
 
-A local's type is inferred unless the literal needs one (`let n: UInt32 = 0`, `var x: ?T =
+Use `let` for immutable runtime values and `var` when the binding is assigned
+again (`G.VAR.01`). Ordinary arrays, collections and non-constant calls stay
+`let`; `Duration.millisecond * 10` is not a constant expression on the current
+SDK either. Do not change types, constructors or APIs solely to permit `const`.
+Generated declarations follow the same rule through their generator.
+
+A local's type is inferred unless the literal needs one (`const MASK: UInt32 = 1`, `var x: ?T =
 None`); a public declaration writes its type, a `const` and a `let` included (`G.DCL.02`), and
 every function its return type. `this.` only where a parameter hides the field (`this.x = x`).
 

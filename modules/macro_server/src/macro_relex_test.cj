@@ -34,8 +34,30 @@ let RELEX_SOURCES = relexSources()
 /** Preserves the SDK's token values rather than deriving the expected tokens through macroTokens. */
 func sdkWireTokens(source: String): Array<TokenData> {
     let tokens = cangjieLex(source)
-    Array(tokens.size) {i =>
+    let normalized = ArrayList<SdkToken>()
+    var i = 0
+    while (i < tokens.size) {
         let t = tokens[i]
+        // K27: CJ_AST_Lex consumes an extra token after trying to combine an arrow. Ask the SDK again
+        // about a residual adjacent pair in isolation, so its answer cannot depend on the preceding pair.
+        if (i + 1 < tokens.size && ["GE", "RSHIFT_ASSIGN"].contains(t.kind.toString())) {
+            let next = tokens[i + 1]
+            let startsArrow = i + 2 < tokens.size && tokens[i + 2].kind.toString() == "DOUBLE_ARROW" &&
+                next.pos.line == tokens[i + 2].pos.line && next.pos.column + 1 == tokens[i + 2].pos.column
+            // In `>=>=>`, the middle `>` already belongs to the SDK's second recombined pair.
+            if (!startsArrow && next.kind.toString() == "GT" && t.pos.line == next.pos.line &&
+                t.pos.column + Int32(t.value.size) == next.pos.column) {
+                for (relexed in cangjieLex("${t.value}${next.value}")) {
+                    normalized.add(relexed)
+                }
+                i += 2
+                continue
+            }
+        }
+        normalized.add(t)
+        i++
+    }
+    normalized.toArray().map {t =>
         TokenData(kind: KIND_NUMBERS[t.kind.toString()], value: t.value, delimiterNum: UInt32(t.delimiterNum))
     }
 }
@@ -165,6 +187,21 @@ class MacroRelexTest {
             return
         }
         @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
+    }
+
+    @TestCase[source in [">=> >=> >>", ">=> >=>", ">>=> >>=>", ">=> >= >", ">=> >=>=", ">=>\n>=>", ">=>=> >"]]
+    func consecutiveGenericClosersKeepTheirArrows(source: String): Unit {
+        @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
+    }
+
+    @TestCase
+    func shortGreaterAndEqualRunsKeepSdkMeaning(): Unit {
+        for (width in 1..=10) {
+            for (bits in 0..(1 << width)) {
+                let source = String.join(Array(width) {i => if ((bits & (1 << i)) == 0) { ">" } else { "=" }})
+                @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
+            }
+        }
     }
 }
 

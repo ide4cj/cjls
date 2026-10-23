@@ -165,7 +165,7 @@ private func outermost(roots: Array<VfsPath>): Array<VfsPath> {
     kept.toArray()
 }
 
-let CJO_SUFFIX = ".cjo"
+const CJO_SUFFIX = ".cjo"
 
 /**
  * What tells a file changed without reading it: its size, and when it was written last.
