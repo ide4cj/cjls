@@ -265,7 +265,10 @@ public enum Expr {
      * `Int64` before a `.`.
      */
     | PrimExpr(String)
-    | VArrayExpr(TypeRefId, Array<CallArg>)
+    /**
+     * A type spelling used as the callee of a built-in constructor, not a value by itself.
+     */
+    | TypeExpr(TypeRefId)
     /**
      * A declaration of `std.core` a desugaring names, whatever the scopes do: R1's `Path::LangItem`.
      */
@@ -888,7 +891,9 @@ class BodyLowering {
             case AstExpr.AsTypeConvExpr(it) => Expr.ConvExpr(it.primType()?.keyword()?.text() ?? "", exprOf(it.expr()))
             case AstExpr.AsPrimTypeExpr(it) => Expr.PrimExpr(it.keyword()?.text() ?? "")
             case AstExpr.AsVArrayExpr(it) =>
-                Expr.VArrayExpr(types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)}), args(it.argList()))
+                let ty = types.lower(it.vArrayType().map {one => Type.AsVArrayType(one)})
+                // The call owns the written node; its type keeps the original type source map.
+                Expr.CallExpr(synthesized(Expr.TypeExpr(ty)), args(it.argList()))
             case AstExpr.AsQuoteExpr(it) => Expr.QuoteExpr(it.quoteInterpolations() |> map {
                 one: QuoteInterpolation => exprOf(one.expr())
             } |> collectArray)

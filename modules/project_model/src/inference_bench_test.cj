@@ -92,7 +92,6 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
         case ReturnExpr(value) => opt(value)
         case SpawnExpr(context, lambda) => opt(context).concat([lambda])
         case LambdaExpr(_, block) => [block]
-        case VArrayExpr(_, args) => ofArgs(args)
         case BlockExpr(stmts) =>
             let found = ArrayList<ExprId>()
             for (stmt in stmts) {

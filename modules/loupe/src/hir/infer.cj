@@ -631,7 +631,7 @@ class Inference {
      */
     private func noValue(id: ExprId): Unit {
         match (hir[id]) {
-            case PathExpr(_, _) | PrimExpr(_) => setExpr(id, None)
+            case PathExpr(_, _) | PrimExpr(_) | TypeExpr(_) => setExpr(id, None)
             case FieldExpr(receiver, _, _) =>
                 setExpr(id, None)
                 noValue(receiver)
@@ -1053,12 +1053,7 @@ class Inference {
                 infer(inner, None)
                 prim(name)
             // a type of the language as a value; one before a `.` is no value, never inferred
-            case PrimExpr(_) => error
-            case VArrayExpr(ty, args) =>
-                for (arg in args) {
-                    infer(arg.expr, None)
-                }
-                typeAt(ty)
+            case PrimExpr(_) | TypeExpr(_) => error
             case BlockExpr(stmts) => blockTy(stmts, expected)
         }
     }
@@ -2515,7 +2510,8 @@ class Inference {
      * What the declaration `id` called means: a function, the constructors of a type, an enum
      * constructor, a variable of a function type.
      */
-    private func declCallables(id: DefId, explicit: Array<Ty>, expected: ?Ty): Array<Callable> {
+    private func declCallables(id: DefId, explicit: Array<Ty>, expected: ?Ty,
+        callArgs!: Array<CallArg> = []): Array<Callable> {
         match (id.item(db).kind) {
             case Func => [funcCallable(id, explicit, None)]
             case Class | Struct =>
@@ -2525,11 +2521,25 @@ class Inference {
                 case Some(one) => [one]
                 case None => []
             }
-            case TypeAlias => match (typeOfDecl(id, explicit, expected).kind(db)) {
-                case DeclTy(target, args) => initCallables(target, args)
-                case _ => []
-            }
+            case TypeAlias => typeCallables(typeOfDecl(id, explicit, expected), callArgs)
             case Var | Prop => valueCallables(valueOf(id))
+            case _ => []
+        }
+    }
+
+    /**
+     * Constructors of an already resolved type, whether written directly or through an alias.
+     */
+    private func typeCallables(ty: Ty, args: Array<CallArg>): Array<Callable> {
+        match (ty.kind(db)) {
+            case DeclTy(target, explicit) => initCallables(target, explicit)
+            case VArrayTy(element, _) =>
+                // cjc's ChkVArrayArg chooses the constructor form by the argument's name, before types.
+                if (args.get(0).flatMap {arg => arg.name}.isSome()) {
+                    [Callable([element], ty, names: [Some("repeat")])]
+                } else {
+                    [Callable([Ty(db, FuncTy([prim("Int64")], element, false))], ty)]
+                }
             case _ => []
         }
     }
@@ -2557,7 +2567,7 @@ class Inference {
      * what is wrong reported, its arguments checked quietly against the parameters they would go to.
      */
     private func callTy(callee: ExprId, args: Array<CallArg>, expected: ?Ty, call!: ?ExprId = None): Ty {
-        let all = byLambdas(overriding(callablesOf(callee, expected, arity: args.size)), args)
+        let all = byLambdas(overriding(callablesOf(callee, expected, arity: args.size, callArgs: args)), args)
         // what a call returns called: of a generic call, its type arguments solved alone (N131)
         let isOfCall = match (hir[callee]) {
             case CallExpr(_, _) => true
@@ -3539,7 +3549,8 @@ class Inference {
     /**
      * What the callee `callee` may call, with `arity` arguments if called.
      */
-    private func callablesOf(callee: ExprId, expected: ?Ty, arity!: ?Int64 = None): Array<Callable> {
+    private func callablesOf(callee: ExprId, expected: ?Ty, arity!: ?Int64 = None,
+        callArgs!: Array<CallArg> = []): Array<Callable> {
         match (hir[callee]) {
             case PathExpr(name, args) =>
                 let explicit = args.map {one => typeAt(one)}
@@ -3553,7 +3564,7 @@ class Inference {
                                     found.add(all: localCallables(local).map {one => one.at(level)})
                                 case MemberOf(member) => found.add(all: memberCallables(member, thisTy(), explicit,
                                     expected).map {one => one.at(MEMBER_LEVEL)})
-                                case DeclOf(id) => found.add(all: declCallables(id, explicit, expected).map {
+                                case DeclOf(id) => found.add(all: declCallables(id, explicit, expected, callArgs: callArgs).map {
                                     one => one.at(fileLevel(id))
                                 })
                                 case TypeParamOf(_) => ()
@@ -3563,7 +3574,7 @@ class Inference {
                     case InFile(Found(ids)) =>
                         let found = ArrayList<Callable>()
                         for (id in ids) {
-                            found.add(all: declCallables(id, explicit, expected).map {one => one.at(fileLevel(id))})
+                            found.add(all: declCallables(id, explicit, expected, callArgs: callArgs).map {one => one.at(fileLevel(id))})
                         }
                         found.toArray()
                     case InFile(Ctors(own, imported)) =>
@@ -3579,7 +3590,9 @@ class Inference {
                         found.toArray()
                     case _ => []
                 }
-            case FieldExpr(receiver, name, args) => fieldCallables(callee, receiver, name, args, expected)
+            case FieldExpr(receiver, name, args) => fieldCallables(callee, receiver, name, args, expected,
+                callArgs: callArgs)
+            case TypeExpr(ty) => typeCallables(typeAt(ty), callArgs)
             case LangExpr(item) => match (langId(item)) {
                 case Some(decl) => declCallables(decl, [], expected)
                 case None => []
@@ -3599,14 +3612,14 @@ class Inference {
      * What `expr`, a `FieldExpr` whose name is `name`, called means.
      */
     private func fieldCallables(expr: ExprId, receiver: ExprId, name: String, args: Array<TypeRefId>,
-        expected: ?Ty): Array<Callable> {
+        expected: ?Ty, callArgs!: Array<CallArg> = []): Array<Callable> {
         let explicit = args.map {one => typeAt(one)}
         let found = ArrayList<Callable>()
         match (resolveAccess(expr)) {
             case PackageMembers(ids) =>
                 noValue(receiver)
                 for (id in ids) {
-                    found.add(all: declCallables(id, explicit, expected))
+                    found.add(all: declCallables(id, explicit, expected, callArgs: callArgs))
                 }
             case TypeMembers(targets) =>
                 noValue(receiver)

@@ -5,7 +5,8 @@ import std.deriving.*
 import std.sort.*
 import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.{AnyHasName, Arg, BinExpr, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import cjsyntax.ast.{AnyHasName, Arg, BinExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import cjsyntax.ast.ArgList as AstArgList
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
@@ -199,11 +200,7 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
  */
 func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
     let trailing = TrailingLambdaExpr.cast(node)
-    let call = match (trailing) {
-        case Some(one) => one.callee().flatMap {callee => CallExpr.cast(callee.syntax)}
-        case None => CallExpr.cast(node)
-    }
-    let args: Array<Arg> = match (call.flatMap {one => one.argList()}) {
+    let args: Array<Arg> = match (callArgList(node)) {
         case Some(list) => list.args() |> collectArray
         case _ => []
     }
@@ -218,14 +215,16 @@ func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
  * trailing lambda.
  */
 func argsStart(node: CjSyntaxNode): Int64 {
-    let call = match (TrailingLambdaExpr.cast(node)) {
-        case Some(trailing) => match (trailing.callee().flatMap {callee => CallExpr.cast(callee.syntax)}) {
-            case Some(inner) => inner
-            case None => return (trailing.lambda()?.syntax.textRange.start) ?? node.textRange.start
-        }
-        case None => CallExpr.cast(node) ?? return node.textRange.start
-    }
-    (call.argList()?.syntax.textRange.start) ?? node.textRange.start
+    (callArgList(node)?.syntax.textRange.start) ??
+        (TrailingLambdaExpr.cast(node)?.lambda()?.syntax.textRange.start) ?? node.textRange.start
+}
+
+/**
+ * The written argument list of an ordinary or built-in call, before a trailing lambda if present.
+ */
+func callArgList(node: CjSyntaxNode): ?AstArgList {
+    let callee = TrailingLambdaExpr.cast(node).flatMap {one => one.callee()}.map {one => one.syntax} ?? node
+    callee.children() |> filterMap {child: CjSyntaxNode => AstArgList.cast(child)} |> first
 }
 
 /**
