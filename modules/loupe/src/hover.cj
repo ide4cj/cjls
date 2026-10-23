@@ -59,8 +59,8 @@ public func hoverAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): ?Hover
 /**
  * What the name at `offset` of the text of the expansion of `call` (`expandedMacro`) stands for, as `hoverAt` finds
  * it in a file, the names of the expansion in the scope of the call's file; the range of the result is of that text.
- * Nothing in a body of an expansion: the analysis lowers none (`bodyWithSourceMap`). In the expression or statements a
- * call in an item expands to, a name as where the call stands (`callSiteNameOf`).
+ * A current expression expansion is read in its owner's body; other expression outputs use the call-site fallback.
+ * Bodies of cjls's own signature stubs remain empty (`bodyWithSourceMap`).
  */
 public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: Int64): ?HoverResult {
     hoverIn(db, ItemFile.Expansion(call), offset)
@@ -101,7 +101,13 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
     }
     let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idAround(node)} |> first
     if (let Expansion(call) <- file && item.isNone()) {
-        // an expression or statements a call in an item expands to (D117), read where the call stands
+        if (let Some(owner) <- bodyOfExpressionExpansion(db, call)) {
+            let hovers = Hovers(db, owner, token, expansion: call)
+            let items = if (let Some((typeNode, segment)) <- typeAt(token)) {
+                hovers.ofType(typeNode, segment)
+            } else { hovers.ofBody() }
+            return if (items.isEmpty()) { None } else { HoverResult(token.textRange, items) }
+        }
         return hoverAtCallSite(db, call, token, offset)
     }
     let def = DefId(db, file, item ?? return None)
@@ -197,7 +203,8 @@ func isDeclaredName(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Boo
  * completion asks of a declaration's detail (`completionDetail`), `def` the item at the cursor.
  */
 class Hovers {
-    Hovers(let db: AnalysisDatabase, let def: DefId, let token: ?CjSyntaxToken) {}
+    Hovers(let db: AnalysisDatabase, let def: DefId, let token: ?CjSyntaxToken,
+        let expansion!: ?MacroCallId = None) {}
 
     private prop from: ?SourceFile {
         get() {
@@ -216,13 +223,13 @@ class Hovers {
     func ofType(typeNode: CjSyntaxNode, segment: Int64): Array<HoverItem> {
         let ptr = SyntaxNodePtr(typeNode)
         let lowered = signatureWithSourceMap(db, def)
-        let (ty, resolve) = match (lowered.sourceMap.typeAt(ptr)) {
+        let (ty, resolve) = match (if (expansion.isNone()) { lowered.sourceMap.typeAt(ptr) } else { None<TypeRefId> }) {
             case Some(ty) => (lowered.signature[ty], {
                 path: Array<String> => resolveTypePath(db, typeScopeOf(db, def) ?? return Array<PathResolution>(), path)
             })
             case None =>
                 let lowered = bodyWithSourceMap(db, def)
-                let ty = lowered.sourceMap.typeAt(ptr) ?? return []
+                let ty = lowered.sourceMap.typeAtSource(BodySource(ptr, expansion: expansion)) ?? return []
                 (lowered.body.types[ty.index], {path: Array<String> => resolveBodyTypePath(db, def, ty, path)})
         }
         match (ty) {
@@ -255,21 +262,21 @@ class Hovers {
         let lowered = bodyWithSourceMap(db, def)
         let sourceMap = lowered.sourceMap
         if (isOperator(token)) {
-            let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return []
+            let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(token.parent), expansion: expansion)) ?? return []
             return match (inferBody(db, def).calleeOf(expr)) {
                 case Some(decl) => ofDecl(decl)
                 case None => []
             }
         }
         if (let Some(ref) <- RefExpr.cast(node)) {
-            let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return []
+            let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(ref.syntax), expansion: expansion)) ?? return []
             if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
                 return ofDecl(decl)
             }
             return ofResolution(resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text()))
         }
         if (let Some(access) <- accessNodeOf(node)) {
-            let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return []
+            let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(access), expansion: expansion)) ?? return []
             let inferred = inferBody(db, def)
             // the type of the value it is a member of, if it is one's
             let recv = match (lowered.body[expr]) {
@@ -292,7 +299,7 @@ class Hovers {
         }
         let place: ?(Package, SourceFile) = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
         if (let Some(_) <- BindPat.cast(node)) {
-            let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return []
+            let local = sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ?? return []
             let ctors = match (place) {
                 case Some((pkg, file)) where lowered.body[local].lone => ctorsNamed(db, pkg, file, token.text())
                 case _ => Array<DefId>()
@@ -310,7 +317,7 @@ class Hovers {
             }
             return []
         }
-        listOf(sourceMap.localAt(SyntaxNodePtr(name)).flatMap {local => localItem(def, local)})
+        listOf(sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)).flatMap {local => localItem(def, local)})
     }
 
     /**
@@ -414,12 +421,8 @@ class Hovers {
      * The name of `local` in the source of the body of `owner`, as written.
      */
     private func nameNodeOf(owner: DefId, local: LocalId): ?CjSyntaxNode {
-        let file = match (owner.file(db)) {
-            case Source(file) => file
-            case _ => return None
-        }
-        let ptr = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index) ?? return None
-        (ptr ?? return None).tryToNode(parse(db, file).syntaxNode())
+        let source = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index).flatMap {one => one} ?? return None
+        source.node(db, owner.file(db))
     }
 
     private func localFuncCode(body: Body, local: LocalId, ty: Ty): String {

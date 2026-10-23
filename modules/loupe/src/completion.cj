@@ -562,7 +562,7 @@ func localCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
                 case _ => LocalItem
             }
             let source = match (speculative.sourceMap.locals.get(local.index).flatMap {one => one}) {
-                case Some(ptr) => match (real.localAt(ptr)) {
+                case Some(ptr) => match (real.localAtSource(ptr)) {
                     case Some(one) => LocalSource(def, one)
                     case None => NoSource
                 }

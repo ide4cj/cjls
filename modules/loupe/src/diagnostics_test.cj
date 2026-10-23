@@ -583,3 +583,85 @@ class StdFalseMismatchesTest {
             "#, binaries: ["std.core"])
     }
 }
+
+@Test
+class ExpressionMacroDiagnosticsTest {
+    @TestCase
+    func generatedTypeErrorsPointAtTheCallHead() {
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x: Int64 = @B(1) }
+            "#)
+        answer(db, file, "B", "true", [MappedSpan(TextRange(0, 4), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+        let result = diagnostics(db, file.fileId(db))
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["@B"])
+        @Expect(result.map {one => one.message}, ["mismatched types: expected 'Int64', found 'Bool'"])
+    }
+
+    @TestCase
+    func copiedTypeErrorsPointAtTheCopiedArgument() {
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x: Int64 = @B(true) }
+            "#)
+        let text = file.text(db).toString()
+        let start = offsetIn(text, "true") - offsetIn(text, "func f")
+        answer(db, file, "B", "true", [MappedSpan(TextRange(0, 4), SpanOrigin.FromSource(TextRange(start, start + 4)))])
+        let result = diagnostics(db, file.fileId(db))
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["true"])
+        @Expect(result.map {one => one.message}, ["mismatched types: expected 'Int64', found 'Bool'"])
+    }
+
+    @TestCase
+    func errorsInGeneratedStatementsPointAtTheirOwnCall() {
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { @B(1) }
+            "#)
+        let output = "let x: Bool = 1"
+        answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+        let result = diagnostics(db, file.fileId(db))
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["@B"])
+        @Expect(result.size, 1)
+    }
+    @TestCase
+    func invalidExpressionOutputReportsItsParseErrorsAtTheCall() {
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x = @B(1) }
+            "#)
+        let output = "func local() {}"
+        answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+        let result = diagnostics(db, file.fileId(db))
+        @Expect(!result.isEmpty())
+        @Expect(result.all {one => one.message.startsWith("macro expansion:")})
+        @Expect(result.all {one => text[one.range.start..one.range.end] == "@B"})
+    }
+
+    @TestCase
+    func aGeneratedLocalUsedAfterTheCallNavigatesToTheCallInSource() {
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit {
+                @B(1)
+                let result = made
+            }
+            "#)
+        let output = "let made = 1"
+        answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+        let targets = definitionAt(db, file.fileId(db), offsetIn(text, "made"))
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion.isNone())
+        @Expect(text[targets[0].focusRange.start..targets[0].focusRange.end], "@B")
+    }
+
+}

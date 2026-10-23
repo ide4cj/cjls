@@ -138,12 +138,19 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
         id: ExprId =>
         let ptr = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
         let one = ptr ?? return None<CjSyntaxNode>
-        if (lowered.sourceMap.exprAt(one) != Some(id)) {
+        if (lowered.sourceMap.exprAtSource(one) != Some(id)) {
             return None<CjSyntaxNode>
         }
-        one.tryToNode(root)
+        if (one.expansion.isSome()) { one.node(db, def.file(db)) } else { one.ptr.tryToNode(root) }
     }
     let found = ArrayList<Diagnostic>()
+    let report = {id: ExprId, range: TextRange, message: String =>
+        let source = lowered.sourceMap.exprs.get(id.index).flatMap {one => one} ?? return
+        let mapped = if (let Some(call) <- source.expansion) {
+            sourceRangeOf(db, call, range) ?? (macroCallHeadOf(db, call) ?? return)[1]
+        } else { range }
+        found.add(Diagnostic(mapped, Severity.Error, message))
+    }
     for (diagnostic in inferred.diagnostics) {
         match (diagnostic) {
             case TypeMismatch(id, expected, actual) =>
@@ -153,7 +160,7 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                         "cannot convert an integer literal to type '${expected.text(db)}'"
                     case _ => "mismatched types: expected '${expected.text(db)}', found '${actual.text(db)}'"
                 }
-                found.add(Diagnostic(node.textRange, Severity.Error, message))
+                report(id, node.textRange, message)
             case ArgCount(call, params, given) =>
                 let node = nodeOf(call) ?? continue
                 let taken = params.size
@@ -169,8 +176,8 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                 } else {
                     "s"
                 }
-                found.add(Diagnostic(TextRange(argsStart(node), node.textRange.end), Severity.Error,
-                    "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}"))
+                report(call, TextRange(argsStart(node), node.textRange.end),
+                    "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}")
             case ArgName(call, at, why) =>
                 let node = nodeOf(call) ?? continue
                 let range = argRange(node, at) ?? continue
@@ -182,13 +189,13 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                         "missing argument prefix ${prefixes} for named parameter"
                     case NameOfValue => "named argument cannot be used in variable function call"
                 }
-                found.add(Diagnostic(range, Severity.Error, message))
+                report(call, range, message)
             case InvalidBinaryOperator(id, left, right) =>
                 let node = nodeOf(id) ?? continue
                 // at the operator, as cjc's
                 let op = (BinExpr.cast(node)?.op() ?? None) ?? continue
-                found.add(Diagnostic(op.textRange, Severity.Error,
-                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'"))
+                report(id, op.textRange,
+                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'")
         }
     }
     found.toArray()

@@ -325,9 +325,17 @@ A declaration a workspace macro copied is what its expansion declares, at its us
 also those its `@Derive` adds.
 
 The expansion of a call in an item is parsed as where the call stands says (`expandToOf`: an
-expression, or a block's statements, D117), so it has no item: until the body reads it (#369), a
-token the macro copied is read as at its place in the source, and a plain name it wrote in the
-scope where the call stands (`callSiteNameOf`), unless the expansion declares that name itself.
+expression, or a block's statements, D117). The body lowers a current successful answer in place
+(D144): a statement expansion's declarations belong to the surrounding block. `BodySource`
+qualifies each expression, pattern, local and type pointer by its expansion, or by the body's
+own file; reverse lookups must use that qualification. Diagnostics map copied tokens to source
+and generated tokens to the call head. Missing, stale, failed or unparseable answers and
+speculative completion retain the argument-only fallback.
+
+Hover and definition in a current expression expansion use that body's qualified sources.
+An expression output its body does not read keeps the call-site fallback (`callSiteNameOf`):
+copied tokens at their source positions, plain generated names in the call site's scope unless
+the expansion declares them. Requests on source arguments still wait for #370's descent.
 
 ### A36: Package navigation
 
