@@ -84,7 +84,7 @@ private func resolveAliases(cfg: Config, resolver: TypeResolver, mm: MetaModel):
     lines.toArray()
 }
 
-private let SPEC_DECLARATIONS = """
+private const SPEC_DECLARATIONS = """
 /**
  * A message of the protocol. A value of it names the message where its handler is registered -
  * `.route(InitializeRequestSpec(), handleInitialize)` - and brings its method and types along.

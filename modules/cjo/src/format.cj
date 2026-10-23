@@ -3521,7 +3521,7 @@ public struct Package {
     /**
      * What a file of this schema has at bytes 4 to 8.
      */
-    static let FILE_IDENTIFIER = "CJOF"
+    static const FILE_IDENTIFIER = "CJOF"
 
     /**
      * The root table of `buf`, nothing checked.

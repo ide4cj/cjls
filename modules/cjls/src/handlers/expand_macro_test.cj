@@ -18,12 +18,12 @@ import cjls.lsp_types.Range as LspRange
 import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
 import cjls.server.*
 
-let MACRO_MAIN = "package app\nimport app.ms.*\n@M[x]\nclass C {}\nfunc use(c: C) {}\n"
+const MACRO_MAIN = "package app\nimport app.ms.*\n@M[x]\nclass C {}\nfunc use(c: C) {}\n"
 
 /**
  * What the macro server answers for `@M[x]`: `class C {}` copied, a class `Gen` and a function `make` written.
  */
-let MACRO_OUTPUT = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T): C { C() }"
+const MACRO_OUTPUT = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T): C { C() }"
 
 /**
  * A cjpm module `app` whose `src/main.cj` calls the workspace's macro `M` of `app.ms`, loaded, the call answered with

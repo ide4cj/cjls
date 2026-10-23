@@ -298,7 +298,7 @@ let BENCH_IDS: Array<Id> = {
     }
 }()
 
-let BENCH_CAPACITY = 128
+const BENCH_CAPACITY = 128
 
 /**
  * A revision's touches and the trim ending it, on `IdLru`, on the hash set it replaced, on a linked

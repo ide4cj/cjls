@@ -573,7 +573,7 @@ class DidChangeWatchedFilesTest {
     }
 }
 
-let PROGRAM = "main() {\n    helper()\n}\n"
+const PROGRAM = "main() {\n    helper()\n}\n"
 
 /**
  * A root of loose files past a budget of 20 bytes: the filler and the program are each past it, the
@@ -682,7 +682,7 @@ class LeftOutDocumentTest {
     }
 }
 
-let DEMO_MAIN = "package demo\n\nimport util.*\n\nmain() {\n    helper()\n    local()\n}\n"
+const DEMO_MAIN = "package demo\n\nimport util.*\n\nmain() {\n    helper()\n    local()\n}\n"
 
 /**
  * A root whose `cjpm.toml` lists none of the two projects below it: `tools/demo`, which depends on
@@ -822,7 +822,7 @@ func stopMacros(loop: Loop): Unit {
     loop.state.macroWork?.stop()
 }
 
-let ALONE = "import std.collection.ArrayList\n\nfunc own() {}\n\nmain() {\n    let list = ArrayList<Int64>()\n    own()\n}\n"
+const ALONE = "import std.collection.ArrayList\n\nfunc own() {}\n\nmain() {\n    let list = ArrayList<Int64>()\n    own()\n}\n"
 
 @Test
 class FileAloneTest {

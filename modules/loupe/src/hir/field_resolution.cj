@@ -216,17 +216,16 @@ func superclassOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
 }
 
 /**
- * The types the `where` of its declaration bounds the type parameter `target` by (N78).
+ * The types bounding `target`, including constraints from its bounding interfaces (N78, #437).
  */
 func boundsOf(db: AnalysisDatabase, target: TypeTarget): Array<ExtendedType> {
     match (target) {
         case GenericOf(owner, index) =>
-            let sig = signature(db, owner)
-            let name = sig.generics.get(index) ?? return []
+            let ty = Ty(db, ParamTy(owner, index))
             let found = ArrayList<ExtendedType>()
-            for (bound in sig.bounds where isNamed(sig[bound.ty], name)) {
+            for (bound in genericBounds(db, owner) where bound.ty == ty) {
                 for (one in bound.bounds) {
-                    if (let PathRef(segments) <- sig[one] && let Some(id) <- typeOfPath(db, owner, segments)) {
+                    if (let DeclTy(id, _) <- one.kind(db) && !found.contains(DeclType(id))) {
                         found.add(DeclType(id))
                     }
                 }

@@ -13,12 +13,12 @@ import calca.macros.*
 import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
 import loupe.syntax.parse
 
-let CJC_VERSION = "cjc_version"
+const CJC_VERSION = "cjc_version"
 
 /**
  * The value of `debug` and `test` in a `Cfg` when they are set.
  */
-public let FLAG_SET = "true"
+public const FLAG_SET: String = "true"
 
 /**
  * The condition of a `@When`, lowered from its expression with nothing of the tree: what cjc
@@ -129,7 +129,7 @@ let BUILTIN_VALUES: Array<(String, Array<String>)> = [
     ("env", ["", "gnu", "ohos", "simulator", "android"])
 ]
 
-let INVALID_EXPR = "conditional compilation not support this expression"
+const INVALID_EXPR = "conditional compilation not support this expression"
 
 private func builtinOps(key: String): ?Array<String> {
     for ((name, ops) in BUILTIN_OPS where name == key) {

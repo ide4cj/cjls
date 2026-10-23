@@ -31,11 +31,11 @@ class TypeArgSolver {
     }
 
     /**
-     * Bounds each variable by the bounds its type parameter `vars` stands for declares: `T <: Base`
-     * of `where` (cjc's `CopyUpperbound`).
+     * Bounds each variable by the constraints on the parameter `vars` stands for, including those
+     * required by its bounding interfaces (cjc's `CopyUpperbound`).
      */
     func boundedBy(owner: DefId, vars: Array<Ty>): Unit {
-        for (bound in signatureTypes(db, owner).bounds) {
+        for (bound in genericBounds(db, owner)) {
             if (let ParamTy(of, index) <- bound.ty.kind(db) && of == owner && index < count) {
                 for (one in bound.bounds) {
                     add(bounds[index].upper, substitute(db, one, owner, vars))
@@ -63,7 +63,7 @@ class TypeArgSolver {
             return
         }
         match ((sub.kind(db), sup.kind(db))) {
-            case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) => ()
+            case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) | (UnknownTy(_), _) | (_, UnknownTy(_)) => ()
             case (TupleTy(a), TupleTy(b)) where a.size == b.size =>
                 for (i in 0..a.size) {
                     constrain(a[i], b[i])
@@ -237,7 +237,7 @@ func anyIn(db: AnalysisDatabase, ty: Ty, test: (Ty) -> Bool): Bool {
  * Whether `ty` is or holds a type not known.
  */
 func hasUnknowns(db: AnalysisDatabase, ty: Ty): Bool {
-    anyIn(db, ty) {one => isUnknown(db, one)}
+    firstUnknownIn(db, ty).isSome()
 }
 
 /**
@@ -249,7 +249,7 @@ func unknownOf(db: AnalysisDatabase, tys: Array<Ty>): ?Ty {
     var error: ?Ty = None
     for (ty in tys) {
         match (firstUnknownIn(db, ty)) {
-            case Some(found) where isTodo(db, found) => return found
+            case Some(found) where isAnalysisUnknown(db, found) => return found
             case Some(found) where error.isNone() => error = found
             case _ => ()
         }
@@ -266,6 +266,7 @@ func firstUnknownIn(db: AnalysisDatabase, ty: Ty): ?Ty {
     }
     let all = {tys: Array<Ty> => unknownOf(db, tys)}
     match (ty.kind(db)) {
+        case ParamTy(_, _) => incompleteBoundsOf(db, ty)
         case DeclTy(_, args) => all(args)
         case TupleTy(elements) => all(elements)
         case FuncTy(params, ret, _) => all(params.concat([ret]))
@@ -274,9 +275,9 @@ func firstUnknownIn(db: AnalysisDatabase, ty: Ty): ?Ty {
     }
 }
 
-func isTodo(db: AnalysisDatabase, ty: Ty): Bool {
+func isAnalysisUnknown(db: AnalysisDatabase, ty: Ty): Bool {
     match (ty.kind(db)) {
-        case TodoTy(_) => true
+        case TodoTy(_) | UnknownTy(_) => true
         case _ => false
     }
 }

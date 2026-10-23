@@ -7,4 +7,3 @@ ast/ffi.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is 
 ast/tokens.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
 runtime/runtime_signal.cj:141: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
 runtime/runtime_signal.cj:39: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
-unittest/prop_test/random_strategy.cj:165: invalid binary operator '>' on type 'T' and 'T'  # #437: a bound's where bounds the parameter too

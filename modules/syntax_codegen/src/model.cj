@@ -132,7 +132,7 @@ class Model {
 /**
  * The name of the pseudo-token matching any token, for nodes holding raw tokens.
  */
-let ANY_TOKEN = "AnyToken"
+const ANY_TOKEN = "AnyToken"
 
 func buildModel(file: KindsFile, grammar: Grammar): Model {
     let kinds = ArrayList<KindInfo>()

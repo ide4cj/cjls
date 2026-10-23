@@ -8,7 +8,7 @@ import std.unittest.testmacro.*
  * build takes (`common` ⊂ `posix` ⊂ `linux`), each set a directory of its own, the package one
  * (#318).
  */
-let PLAT = #"
+const PLAT = #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}

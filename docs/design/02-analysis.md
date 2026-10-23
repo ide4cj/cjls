@@ -239,17 +239,24 @@ expressions after it of that node are what it is desugared into, the last its va
 
 ### A30: Errors and analysis gaps
 
-A type not known is one of two (D77): `ErrorTy` only where cjc reports an error, as far as the
-analysis follows cjc; `TodoTy(why)` where the analysis cannot find a type cjc may well find (a
-macro, a `.cjo` not read, no std, a gap), its reason one of `Todo`'s.
+A type not known has three causes (D77, D143): `ErrorTy` only where cjc reports an error, as
+far as the analysis follows cjc; `TodoTy(why)` for an unsupported analysis feature (macro
+expansion, local generics); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
+`BinaryType`), a type not inferred yet (`NotInferred`), or an exhausted analysis resource budget
+(`GenericBoundsLimit`). A malformed binary or an unresolved binary dependency alone does not
+establish an error in the user's source.
 
-What is made of a type not known is that one, a `TodoTy` before an `ErrorTy` (`unknownOf`),
-never a new error: a failure of known types alone is an `ErrorTy`, unless a macro whose
+What is made of a type not known is that one, a `TodoTy` or `UnknownTy` before an `ErrorTy`
+(`unknownOf`), never a new error: a failure of known types alone is an `ErrorTy`, unless a macro whose
 expansion is not read is called on the type or in the package looked in (a `TodoTy`).
 
 Such a type, or one of its supertypes so called on, may be a subtype of any class or interface
 (`hasMacroSupertypes`): a bound it does not seem to meet is met, and a join with it is a
 `TodoTy` (#175).
+
+Implied generic bounds are expanded separately from signature lowering (A24). The expansion
+budget bounds analysis work; exceeding it yields `UnknownTy(GenericBoundsLimit)` for the affected
+parameters, never a partial set treated as complete or a user diagnostic (D143).
 
 A type or package before a `.` is no value: no type at all (`None` in `InferenceResult.exprs`),
 never an unknown one.
@@ -268,8 +275,8 @@ of the first, never a cycle of queries (D82).
 ### A32: Conservative diagnostics and gates
 
 Inference reports a diagnostic (`InferenceResult.diagnostics`, by expression) only between types
-known wholly (no `ErrorTy`, `TodoTy` or variable inside, A30), on an expression the user wrote
-(A29), and where it matches the arguments as cjc does; a check it cannot make yet is counted, so
+known wholly (no `ErrorTy`, `TodoTy`, `UnknownTy` or variable inside, A30), on an expression
+the user wrote (A29), and where it matches the arguments as cjc does; a check it cannot make yet is counted, so
 a candidate still fails, and not reported.
 
 A false error on code cjc accepts fails `DiagnosticsGateTest`: none on this repository, on std's

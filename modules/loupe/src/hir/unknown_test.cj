@@ -9,9 +9,10 @@ import loupe.syntax.parse
 
 /**
  * Checks what each expression of the bodies of `fixture` of no type known is is its annotations:
- * `//^ error` under one of an error type, `//^ todo(reason)` under one the analysis cannot type,
- * `//^ no value` under a type or package before a `.`. An expression of a type known, if one
- * holding an unknown one, has none. `binaries` are the packages of std's of the project.
+ * `//^ error` under an error type, `//^ todo(reason)` under an unsupported feature,
+ * `//^ unknown(reason)` under missing inputs or exhausted resources, `//^ no value` under a type
+ * or package before a `.`. An expression of a type known, if one holding an unknown one, has none.
+ * `binaries` are the packages of std's of the project.
  */
 func checkUnknowns(fixture: String, binaries!: Array<String> = ["std.core"]): Unit {
     let parsed = Fixture.parse(fixture)
@@ -45,6 +46,7 @@ func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotati
                     case None => "no value"
                     case Some(ErrorTy) => "error"
                     case Some(TodoTy(why)) => "todo(${why})"
+                    case Some(UnknownTy(why)) => "unknown(${why})"
                     case _ => continue
                 }
                 actual.add(Annotation(source.fileId(db), node.textRange, text))
@@ -290,9 +292,9 @@ class UnknownTest {
             package m
             func f(): Unit {
                 let a = "s"
-            //          ^^^ todo(no std)
+            //          ^^^ unknown(no std)
                 let b = [1]
-            //          ^^^ todo(no std)
+            //          ^^^ unknown(no std)
             }
             "#, binaries: [])
     }

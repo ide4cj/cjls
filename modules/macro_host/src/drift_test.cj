@@ -16,7 +16,7 @@ import loupe.hir.{expandedCalls, ItemId, itemTree, macroExpansion, pendingMacroR
 /**
  * Every case of std's macros cjls expands itself (#175), in one file.
  */
-let STD_MACRO_CASES = #"
+const STD_MACRO_CASES = #"
     //- /main.cj module=m package=m
     package m
     import std.deriving.*

@@ -60,6 +60,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K24](#k24) | Two parameter marker macros crash compiler | No known affected cjls code |
 | [K25](#k25) | `genericConstraint.toTokens()` throws | Iterate constraints |
 | [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
+| [K27](#k27) | `cangjieLex` skips consecutive arrow recombination | Re-lex affected adjacent pairs in the test oracle |
 
 ## Evidence and use
 
@@ -392,6 +393,30 @@ frozen helper, rather than fields read through a recursive generic-struct
 receiver. Keep the wrapper/helper split in [ptr.cj](../modules/ginkgo/src/ptr.cj).
 No standalone SDK-only reproduction, upstream root cause, or general restriction
 on generic recursion is established by this observation.
+
+<a id="k27"></a>
+### K27
+
+`std.ast.cangjieLex(">=> >=> >>")` on `1.3.0-alpha.20261014001050` yields
+`GT DOUBLE_ARROW GE GT RSHIFT`: it recombines only the first `>=>`.
+Reproduced on Linux x86_64 after the randomized macro re-lexing test found it
+in [Windows CI for #481](https://github.com/ide4cj/cjls/actions/runs/39814126314/job/119947979493).
+macOS is unverified. The pinned runtime's
+[`CJ_AST_Lex`](https://github.com/cangjie-bot/cangjie_runtime/blob/c1e289a7d43cb2e5a05add8b58ee7306dcfcdc3b/stdlib/libs/std/ast/native/ast_api.cpp)
+consumes two tokens for `TryCombineDoubleArrow`, then unconditionally consumes
+one more token before checking the next pair. The second pair's first token
+therefore bypasses recombination. This is a `std.ast` wrapper defect, not a
+platform-specific lexer rule.
+
+The [macro re-lexing oracle](../modules/macro_server/src/macro_relex_test.cj)
+re-lexes residual adjacent `GE`/`GT` and `RSHIFT_ASSIGN`/`GT` pairs in isolation
+with the SDK. It checks line and column adjacency so separated operators are
+unchanged, and leaves already recombined pairs intact (`>=>=>` must not combine
+twice around its middle `>`). Other token values remain the SDK's. Deterministic
+regressions include consecutive pairs, spaces, newlines and every run of `>`/`=`
+up to ten characters; the randomized property remains enabled. Production code does not emulate the
+wrapper's skipped iteration. This workaround does not establish a general SDK
+fix or validate the compiler's entire macro pipeline.
 
 ## Reconciliation and remaining work
 

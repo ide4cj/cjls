@@ -84,7 +84,11 @@ constant. Forced experimental kinds that the active SDK dialect only lexes as
 identifiers have no source representation and are excluded from the ordinary
 kind round-trip, while their spellings still exercise identifier re-lexing.
 This is not a differential test of the compiler's whole macro pipeline or of
-source positions. The real SDK `Id`/hover regression in macro_host separately
+source positions. The oracle re-lexes adjacent `GE`/`GT` and `RSHIFT_ASSIGN`/`GT`
+pairs in isolation: the SDK wrapper can skip arrow recombination immediately
+after another pair ([K27](../../docs/sdk-issues.md#k27)). Other token kinds and
+values still come directly from the SDK; the production lexer is not the oracle.
+The real SDK `Id`/hover regression in macro_host separately
 checks the result reaches analysis.
 
 Run the generated cases normally or with comparison coverage in a separate cache:

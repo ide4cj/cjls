@@ -11,7 +11,7 @@ import loupe.fixture.*
 /**
  * The macros of the workspace the tests call, in a package of their own.
  */
-let WORKSPACE_MACROS = #"
+const WORKSPACE_MACROS = #"
     //- /ms/ms.cj module=m package=m.ms
     macro package m.ms
     import std.ast.*
