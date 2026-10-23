@@ -504,8 +504,15 @@ func stringLit(p: P): CompletedMarker<SyntaxKind> {
             case InterpolationStart =>
                 let i = p.start()
                 p.bump(InterpolationStart)
+                // Empty statements do not make an interpolation nonempty (as in cjc).
+                while (p.eat(Semicolon)) {}
+                if (p.at(InterpolationEnd)) {
+                    p.error("string interpolation cannot be empty")
+                }
                 statements(p, [InterpolationEnd, StringEnd, StringContent])
-                p.eat(InterpolationEnd)
+                if (!p.eat(InterpolationEnd)) {
+                    p.error("expected '}' to close string interpolation")
+                }
                 i.complete(p, Interpolation)
             case StringEnd =>
                 p.bump(StringEnd)

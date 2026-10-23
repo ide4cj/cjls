@@ -47,6 +47,7 @@ Constraint kinds and how to revise them are defined in the
 | A34 | [Common and specific declarations](#a34-common-and-specific-declarations) | Language constraint |
 | A35 | [Reading macro expansions](#a35-reading-macro-expansions) | Design choice |
 | A36 | [Package navigation](#a36-package-navigation) | Design choice |
+| A37 | [Interpolation highlighting](#a37-interpolation-highlighting) | Design choice |
 
 ### A1: Concrete database handle
 
@@ -345,6 +346,15 @@ A name of an `import` means what its path names up to it (`importPathTo`): the n
 brings, what the leaf imports; a name before it, a package.
 
 Hover shows a package as `package` and its name, at an `import` and in a macro's path alike.
+
+### A37: Interpolation highlighting
+
+String interpolation boundaries (`${` and its matching `}`) have their own
+`InterpolationDelimiter` tag, translated to the standard LSP `operator` type
+even when tokens augment an editor grammar (D148, amending D105). The expression
+inside keeps its normal code tags and string text keeps its string tags;
+highlighted ranges never overlap. Escaped and raw interpolation text is string
+content.
 
 ## Analysis tests
 

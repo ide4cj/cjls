@@ -120,18 +120,40 @@ class HighlightTest {
         // act
         let result = highlighted(##"let s = "a${n + 1}b""##)
 
-        // assert - the `${` and `}` around the code are left out, as other punctuation
+        // assert - the delimiters stand apart from string text and the expression keeps its own tags
         @Expect(result, [
             "Keyword@0..3 let",
             "Variable[Declaration, Readonly]@4..5 s",
             "Operator@6..7 =",
             "StringLiteral@8..9 \"",
             "StringLiteral@9..10 a",
+            "InterpolationDelimiter@10..12 \${",
             "Operator@14..15 +",
             "NumberLiteral@16..17 1",
+            "InterpolationDelimiter@17..18 }",
             "StringLiteral@18..19 b",
             "StringLiteral@19..20 \""
         ])
+    }
+
+    @TestCase
+    func emptyAdjacentAndNestedInterpolationsKeepTheirDelimiters() {
+        let text = ##"let s = "${}${"${1}"}""##
+        let result = highlightOf(text)
+        let delimiters = result.filter {it => it.tag == HighlightTag.InterpolationDelimiter}
+        @Expect(delimiters.map {it => it.range}, [TextRange(9, 11), TextRange(11, 12),
+            TextRange(12, 14), TextRange(15, 17), TextRange(18, 19), TextRange(20, 21)])
+        @Expect(result.filter {it => it.tag == HighlightTag.NumberLiteral}.map {it => it.range}, [TextRange(17, 18)])
+        for (i in 1..result.size) {
+            @Expect(result[i - 1].range.end <= result[i].range.start)
+        }
+        @Expect(highlightOf(text, range: TextRange(10, 11)).map {it => it.range}, [TextRange(9, 11)])
+    }
+
+    @TestCase
+    func escapedAndRawInterpolationTextStaysStringContent() {
+        let text = ###"let a = "\${}"; let b = #"${}"#"###
+        @Expect(highlightOf(text).filter {it => it.tag == HighlightTag.InterpolationDelimiter}.isEmpty())
     }
 
     @TestCase

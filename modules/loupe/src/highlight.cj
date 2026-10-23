@@ -24,6 +24,8 @@ public enum HighlightTag <: ToString {
     | StringLiteral
     | NumberLiteral
     | Operator
+    // `${` and `}`: retained over an editor grammar so interpolation boundaries remain visible.
+    | InterpolationDelimiter
     // `@Deprecated` and the other annotations the compiler knows: the `@` and the name
     | BuiltinAnnotation
     // the `@` and the name of a macro call
@@ -48,6 +50,7 @@ public enum HighlightTag <: ToString {
             case StringLiteral => "StringLiteral"
             case NumberLiteral => "NumberLiteral"
             case Operator => "Operator"
+            case InterpolationDelimiter => "InterpolationDelimiter"
             case BuiltinAnnotation => "BuiltinAnnotation"
             case MacroCall => "MacroCall"
             case BuiltinType => "BuiltinType"
@@ -547,6 +550,8 @@ func classify(token: CjSyntaxToken, inError: Bool): ?Highlight {
         tagged(HighlightTag.NumberLiteral)
     } else if (STRINGS.contains(kind)) {
         tagged(HighlightTag.StringLiteral)
+    } else if (kind == SyntaxKind.InterpolationStart || kind == SyntaxKind.InterpolationEnd) {
+        tagged(HighlightTag.InterpolationDelimiter)
     } else if (BUILTIN_TYPES.contains(kind)) {
         (HighlightTag.BuiltinType, HighlightModifiers.NONE.plus(HighlightModifier.DefaultLibrary))
     } else if (!inError && parent.kind == SyntaxKind.Name) {

@@ -34,6 +34,19 @@ class DiagnosticsTest {
     }
 
     @TestCase
+    func emptyInterpolationsAreSyntaxErrorsAndLaterCodeStillParses() {
+        checkDiagnostics(#"
+            func f(): Unit {
+                let a = "${}after${1}"
+            //             | error: string interpolation cannot be empty
+                let b = "${ /* empty */ ; ; }"
+            //                             | error: string interpolation cannot be empty
+                let c = "${; let n = 1; n;}"
+            }
+            "#)
+    }
+
+    @TestCase
     func eachFileHasItsOwn() {
         checkDiagnostics(#"
             //- /a.cj
