@@ -27,6 +27,28 @@ results attributable to their original inputs. [host.cj](src/host.cj) starts a
 server lazily, restarts after failure, and kills calls exceeding their deadlines.
 Unit-test deadlines are fired explicitly rather than depending on wall-clock races.
 
+[D151](../../docs/adr/0151-macro-server-retry-budgets.md) bounds repeated attempts.
+Repeated disconnects before a library has answered share a three-attempt budget
+for that library. A disconnect alone does not identify a loader failure: after
+any protocol answer (including a failed expansion), crashes are limited per
+method instead. Timeouts always use a method budget, so a looping macro does not
+pause its siblings. Other libraries and the separate std server remain eligible.
+Process-start failures share a server-wide budget.
+
+Exhausting a budget pauses affected calls for 60 seconds. The next incoming call
+after that interval probes once; another failure starts another 60-second pause,
+while a protocol answer clears its method and library budget. There is no retry
+timer and already-recorded failed outputs are not automatically re-expanded.
+Skipped calls start no process and produce no warning or SDK stderr. cjls logs
+the first failure with library, method and cause, and the transition into a pause;
+SDK stderr is retained for each actual attempt.
+
+A changed library size or modification time releases its history and restarts
+the process to unload old code. An explicit restart after a workspace rebuild
+clears history too; changing the selected SDK, timeout or disabling/re-enabling
+macro expansion creates fresh servers. A same-path SDK/dependency repair that
+changes no library metadata is retried by the cooldown policy or an editor reload.
+
 Preserve separate std/workspace server processes and the current separation of
 request selection and sending. Their SDK failure evidence and limits are
 canonical in [K23](../../docs/sdk-issues.md#k23) and

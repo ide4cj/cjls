@@ -305,6 +305,9 @@ public class MacroHost <: MacroWork {
         if (sdkOf == key) {
             return sdk
         }
+        // Sessions and retry budgets belong to the selected SDK, even when its timeout did not change.
+        servers?.close()
+        servers = None
         sdkOf = key
         sdk = None
         let found = match (macroSdkIn(Path(home.path))) {

@@ -181,13 +181,31 @@ class Watchdog <: Deadlines {
 }
 
 /**
- * An `LSPMacroServer` guarded as D87 says: started for the first call and again after it exits, which costs only
- * the call in flight; ended once a call runs past `timeout`, that call answered as failed. Its calls are made one at
- * a time.
+ * A serial SDK session, replaceable in tests without starting child processes.
+ */
+interface MacroSession {
+    func expand(call: MacroCallData): MacroResult
+    func close(): Unit
+    func kill(): Unit
+}
+
+class SdkMacroSession <: MacroSession {
+    SdkMacroSession(let process: MacroServerProcess) {}
+    public func expand(call: MacroCallData): MacroResult { process.connection.expand(call) }
+    public func close(): Unit { process.close() }
+    public func kill(): Unit { process.kill() }
+}
+
+/**
+ * A serial macro server with deadlines and bounded retries. Repeated failures pause the affected library or
+ * method for a minute; a later call probes it once. Restarting explicitly clears the failure history.
  */
 public class GuardedServer <: Expander {
-    private var process: ?MacroServerProcess = None
-    private let paths: MacroServerPaths
+    private var process: ?MacroSession = None
+    private let failures = HashMap<String, LibraryFailures>()
+    private let startup = RetryBudget()
+    private let start: () -> MacroSession
+    private let now: () -> MonoTime
     private let timeout: Duration
     private let logger: Logger
     private let deadlines: Deadlines
@@ -197,48 +215,114 @@ public class GuardedServer <: Expander {
     }
 
     init(paths: MacroServerPaths, timeout: Duration, logger: Logger, deadlines: Deadlines) {
-        this.paths = paths
+        this(timeout, logger, deadlines, {=> SdkMacroSession(startMacroServer(paths))}, {=> MonoTime.now()})
+    }
+
+    init(timeout: Duration, logger: Logger, deadlines: Deadlines, start: () -> MacroSession, now: () -> MonoTime) {
         this.timeout = timeout
         this.logger = logger
         this.deadlines = deadlines
+        this.start = start
+        this.now = now
     }
 
     public func expand(call: MacroCallData): CallOutcome {
+        if (startup.isPaused(now())) {
+            return paused()
+        }
+        let library = failuresOf(call.libPath ?? "")
+        if (library.loading.isPaused(now())) {
+            return paused()
+        }
+        let method = library.method(call.methodName ?? "")
+        if (method.isPaused(now())) {
+            return paused()
+        }
         let server = match (process) {
             case Some(running) => running
             case None => try {
-                let started = startMacroServer(paths)
+                let started = start()
                 process = started
+                startup.reset()
                 started
             } catch (e: Exception) {
+                reportFailure(startup, call, "the macro server did not start", cause: e)
                 return Unanswered("the macro server did not start: ${e.message}")
             }
         }
         let id = deadlines.arm(timeout) {=> killQuietly(server)}
         try {
-            let result = server.connection.expand(call)
+            let result = server.expand(call)
             if (deadlines.disarm(id)) {
+                library.hasAnswered = true
+                library.loading.reset()
+                method.reset()
                 return Answered(result)
             }
             process = None
+            reportFailure(method, call, pastDeadline())
             Unanswered(pastDeadline())
         } catch (e: Exception) {
             let inTime = deadlines.disarm(id)
             process = None
             killQuietly(server)
             if (inTime) {
-                logger.warn("the macro server exited", [("macro", call.methodName ?? ""), ("cause", e)])
+                // A disconnect is not evidence of dlopen failure. Before any answer, share a library budget;
+                // afterwards isolate methods so a crashing macro cannot silence its healthy siblings.
+                reportFailure(method, call, "the macro server exited", cause: e,
+                    shared: if (library.hasAnswered) { None } else { library.loading })
                 Unanswered("the macro server exited")
             } else {
+                reportFailure(method, call, pastDeadline())
                 Unanswered(pastDeadline())
             }
         }
     }
 
+    private func failuresOf(path: String): LibraryFailures {
+        let stamp = libraryIdentity(path)
+        if (let Some(found) <- failures.get(path)) {
+            if (found.stamp == stamp) {
+                return found
+            }
+            restart()
+        }
+        let fresh = LibraryFailures(stamp)
+        failures[path] = fresh
+        fresh
+    }
+
+    private func reportFailure(budget: RetryBudget, call: MacroCallData, message: String,
+        cause!: ?Exception = None, shared!: ?RetryBudget = None): Unit {
+        let time = now()
+        budget.failed(time)
+        shared?.failed(time)
+        // Both budgets remember disconnects so changing failure kind cannot grant extra probes.
+        let count = max(budget.count, shared?.count ?? 0)
+        if (count == 1 || count >= 3) {
+            let retry = if (count >= 3) {
+                "paused for 60 s; a later call retries, or rebuild/reload to retry immediately"
+            } else {
+                "up to 3 attempts before a 60 s cooldown"
+            }
+            if (let Some(error) <- cause) {
+                // Structured logger calls remain error roots until #509 (D121).
+                logger.warn(message, [("library", call.libPath ?? ""), ("macro", call.methodName ?? ""),
+                    ("retry", retry), ("cause", error)])
+            } else {
+                // Structured logger calls remain error roots until #509 (D121).
+                logger.warn(message, [("library", call.libPath ?? ""), ("macro", call.methodName ?? ""),
+                    ("retry", retry)])
+            }
+        }
+    }
+
     /**
-     * Ends the server, if one runs: the next call starts another, which loads the libraries anew.
+     * Ends the server and clears retry history: rebuilt libraries must be loaded anew.
      */
     public func restart(): Unit {
+        failures.clear()
+        startup.reset()
         if (let Some(server) <- process) {
             process = None
             try {
@@ -249,12 +333,13 @@ public class GuardedServer <: Expander {
         }
     }
 
-    /**
-     * Ends the server and the deadlines.
-     */
     public func close(): Unit {
         restart()
         deadlines.stop()
+    }
+
+    private func paused(): CallOutcome {
+        Unanswered("repeated macro server failures; retry on a new call after a 60 s cooldown, or rebuild/reload")
     }
 
     private func pastDeadline(): String {
@@ -304,7 +389,7 @@ func isStdCall(call: MacroCallData): Bool {
     call.packageName.map {pkg => pkg.startsWith("std.")} ?? false
 }
 
-func killQuietly(server: MacroServerProcess): Unit {
+func killQuietly(server: MacroSession): Unit {
     try {
         server.kill()
     } catch (_: Exception) {

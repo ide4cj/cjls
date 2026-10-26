@@ -491,6 +491,33 @@ class GuardedServerTest {
     }
 
     @TestCase
+    func anUnloadableLibraryDoesNotRestartTheSdkServerForEveryCall() {
+        // arrange
+        let (paths, library) = built()
+        let numbers = testNumbers()
+        let host = RetryTestHost()
+        let server = GuardedServer(Duration.minute, host, HandFiredDeadlines(), {=>
+            host.starts++
+            SdkMacroSession(startMacroServer(paths))
+        }, {=> host.clock})
+
+        // act
+        for (_ in 0..100) {
+            server.expand(call("Same", "${library}.missing", numbers))
+        }
+        let healthy = server.expand(call("Same", library, numbers))
+        server.close()
+
+        // assert
+        @Expect(host.starts, 4)
+        @Expect(host.messages.size, 2)
+        match (healthy) {
+            case Answered(result) => @Expect(result.status != MACRO_FAILED)
+            case Unanswered(reason) => @Fail(reason)
+        }
+    }
+
+    @TestCase
     func aMacroOfTheWorkspaceBuiltByCjcIsExpandedByTheServer() {
         // arrange
         let (paths, library) = built()

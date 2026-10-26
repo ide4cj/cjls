@@ -41,6 +41,6 @@ modules/loupe/src/hir/server_macro.cj: local: 1
 modules/loupe/src/hir/signature.cj: local: 2
 modules/loupe/src/hir/ty_relations.cj: local: 4
 modules/macro_host/src/host.cj: local: 1
-modules/macro_host/src/host.cj: member found: 2
+modules/macro_host/src/host.cj: member found: 3
 modules/platform/src/posix/relaunch.cj: name found: 2
 modules/rope/src/node.cj: local: 1
