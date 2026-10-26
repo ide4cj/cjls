@@ -4,11 +4,11 @@ import std.fs.Path
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
-import rope.Rope
-import loupe.vfs.VfsPath
 import cjls.lsp_types.*
 import cjls.server.*
+import loupe.vfs.VfsPath
+import rope.Rope
+import stdxx.Nullable
 
 func completionOf(state: ServerState, path: Path, line: UInt32, character: UInt32): Array<CompletionItem> {
     let answer = handleCompletion(state.snapshot(),

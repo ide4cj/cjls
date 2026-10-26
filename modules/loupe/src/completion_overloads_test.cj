@@ -1,9 +1,9 @@
 package loupe
 
+import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
-import std.sort.sort
-import loupe.fixture.*
+import loupe.fixture.{Fixture, stdCjo, stdCjoRead}
 
 /**
  * Checks one grouped candidate and every declaration it retains, independent of the unrelated

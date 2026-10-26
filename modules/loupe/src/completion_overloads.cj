@@ -1,7 +1,7 @@
 package loupe
 
-import std.collection.*
-import std.deriving.*
+import std.collection.{ArrayList, HashMap, HashSet}
+import std.deriving.Derive
 import loupe.hir.{DefId, Ty}
 
 /**
