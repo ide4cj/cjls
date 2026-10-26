@@ -7,6 +7,7 @@ import rope.Rope
 import loupe.vfs.FileId
 import loupe.db.*
 import loupe.fixture.*
+import loupe.hir.packageOfFile
 
 func diagnosticsOf(text: String): Array<Diagnostic> {
     let db = AnalysisDatabase()
@@ -774,4 +775,67 @@ class ExpressionMacroDiagnosticsTest {
         @Expect(text[targets[0].focusRange.start..targets[0].focusRange.end], "@B")
     }
 
+}
+
+@Test
+class PackageHeaderDiagnosticsTest {
+    @TestCase
+    func aNonMacroHeaderInAMacroPackageIsAnError() {
+        checkDiagnostics(#"
+            //- /a.cj module=m package=m
+            macro package m
+            //- /b.cj module=m package=m
+              package m
+            //^^^^^^^ error: file in macro package 'm' must declare 'macro package'
+            "#)
+    }
+
+    @TestCase
+    func consistentHeadersHaveNoError() {
+        checkDiagnostics(#"
+            //- /a.cj module=m package=m
+            macro package m
+            //- /b.cj module=m package=m
+            macro package m
+            //- /other.cj module=m package=m.other
+            package m.other
+            "#)
+    }
+
+    @TestCase
+    func aHeaderEditUpdatesTheOtherFilesDiagnostic() {
+        let fixture = Fixture.parse(#"
+            //- /a.cj module=m package=m
+            package m
+            //- /b.cj module=m package=m
+            package m
+            "#)
+        let db = fixture.database()
+        let first = fixture.file("/a.cj").fileId
+        let second = fixture.file("/b.cj").fileId
+        @Expect(diagnostics(db, second).isEmpty())
+        db.setFileText(first, Rope("macro package m"))
+        @Expect(diagnostics(db, second).map {one => one.message},
+            ["file in macro package 'm' must declare 'macro package'"])
+        db.setFileText(first, Rope("package m"))
+        @Expect(diagnostics(db, second).isEmpty())
+    }
+
+    @TestCase
+    func explicitPackageMetadataTakesPrecedenceOverHeaders() {
+        let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m")
+        let db = fixture.database()
+        let id = fixture.files[0].fileId
+        let file = db.sourceFile(id).getOrThrow()
+        let pkg = packageOfFile(db, file).getOrThrow()
+        pkg.setIsMacro(db).to(Some(true))
+        @Expect(diagnostics(db, id).map {one => one.message},
+            ["file in macro package 'm' must declare 'macro package'"])
+        pkg.setIsMacro(db).to(Some(false))
+        db.setFileText(id, Rope("macro package m"))
+        let errors = diagnostics(db, id)
+        @Expect(errors.map {one => one.message},
+            ["file in ordinary package 'm' must not declare 'macro package'"])
+        @Expect(errors[0].range, TextRange(0, 5))
+    }
 }

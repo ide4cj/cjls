@@ -5,6 +5,7 @@ import std.env.getVariable
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
 import rope.{Encoding, Rope}
+import loupe.newFilePackageLine
 import loupe.vfs.*
 import loupe.db.*
 import loupe.hir.setMacroOutputsByKey
@@ -421,11 +422,11 @@ public class ServerState <: FromContext<ServerState> {
     }
 
     /**
-     * The package a file new at `path` is in, as the project last set names it; `None` if it names
-     * none (`ProjectModel.packageOfNewFile`).
+     * The package header for a new file, from the project last set and the current file contents;
+     * `None` if the project names none (`newFilePackageLine`).
      */
-    public func packageOfNewFile(path: VfsPath): ?String {
-        model.packageOfNewFile(path)
+    public func packageLineOfNewFile(path: VfsPath): ?String {
+        newFilePackageLine(model, path) {file => fileContents(file)}
     }
 
     /**

@@ -7,6 +7,7 @@ import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
 import cjsyntax.ast.{AnyHasName, Arg, BinExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
 import cjsyntax.ast.ArgList as AstArgList
+import cjsyntax.ast.SourceFile as AstSourceFile
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
@@ -40,7 +41,7 @@ public struct Diagnostic {
  * database does not know.
  *
  * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `scopeDiagnostics`,
- * `macroDiagnostics`, `inferBody`), remembered there, and this only collects their results (A11).
+ * `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects their results (A11).
  */
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
@@ -59,6 +60,13 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
             "code is inactive due to @When: ${String.join(code.reasons, delimiter: " and ")}", unnecessary: true)
     })
     let root = parse(db, file).syntaxNode()
+    if (let Some(message) <- packageHeaderError(db, file)) {
+        if (let Some(header) <- AstSourceFile.cast(root).flatMap {source => source.packageHeader()}) {
+            let range = header.macroToken()?.textRange ?? header.packageToken()?.textRange ??
+                header.syntax.textRange
+            result.add(Diagnostic(range, Severity.Error, message))
+        }
+    }
     result.add(all: scopeDiagnosticsOf(db, file, root))
     result.add(all: macroDiagnostics(db, file).map {
         one =>
