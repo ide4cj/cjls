@@ -123,7 +123,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0102](0102-the-multiplatform-module-is-built-without-o2.md) | The multiplatform module is built `-O1`, not `-O2`, and the workspace root names no `-O` | accepted |
 | [0103](0103-an-expansion-is-shown-as-a-request-and-as-a-read-only-file.md) | An expansion is shown as cjls/expandMacro and as a read-only .cache/cjls/expanded/<file>.macrocall the server navigates | accepted |
 | [0104](0104-workspace-macros-are-built-by-cjc-and-run-under-a-deadline.md) | The workspace's macro packages are built by cjc into the server's cache directory, and run under a deadline | accepted |
-| [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | accepted |
+| [0105](0105-semantic-tokens-augment-the-grammar.md) | Semantic tokens augment the editor's grammar, in token types they share | accepted; string interpolation delimiters are sent even when semantic tokens augment a grammar by D148 |
 | [0106](0106-the-servers-directory-is-the-projects-cache-cjls.md) | The server's own directory is <project>/.cache/cjls, owned by one type, with a layout and a lifecycle | accepted |
 | [0107](0107-settings-follow-the-pin.md) | A client's settings are made again when its pin moves, never checked against the cjls under test | accepted |
 | [0108](0108-error-roots-only-shrink.md) | This repository's roots of an error type are held to a checked-in count per file and kind that only shrinks | accepted; the file only shrinks by D121 |
@@ -166,3 +166,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0145](0145-constructor-calls-navigate-to-the-selected-initializer.md) | Constructor calls navigate to the selected initializer, and declarations to their type | accepted |
 | [0146](0146-prefer-compile-time-constants.md) | Prefer const for values known at compile time | accepted |
 | [0147](0147-sdk-source-context.md) | Binary sources resolve in a detached context with canonical binary declarations | proposed |
+| [0148](0148-interpolation-delimiters.md) | Highlight interpolation delimiters over editor grammars | accepted |
