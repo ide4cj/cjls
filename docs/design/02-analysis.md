@@ -230,6 +230,11 @@ its scope (D66).
 A source file of no package finds them, as the `extend`s of a type of the language, in the SDK's
 binary `std.core` (`sdkCore`, #319).
 
+`VArray` constructors use their semantic type, including a type alias's expansion, and the
+ordinary call argument checks. As cjc's `ChkVArrayArg`, a named argument selects `repeat: T`;
+an argument in order selects an initializer of type `(Int64) -> T`. A trailing lambda is an
+argument of that same call, so it receives the same expected type (#494).
+
 ### A29: Source maps for desugaring
 
 A desugaring in the HIR (an optional chain into `QuestMatchExpr`s) adds its expressions after
