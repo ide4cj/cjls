@@ -1,11 +1,11 @@
 package loupe
 
 public import cjformat.TextEdit
-import loupe.vfs.FileId
-import loupe.db.AnalysisDatabase
-import loupe.syntax.parse
 import cjformat.{format, formatRange}
 import ginkgo.TextRange
+import loupe.db.AnalysisDatabase
+import loupe.syntax.parse
+import loupe.vfs.FileId
 
 /**
  * The edits that format a file (`cjformat.format`), on the tree the database already holds; `None`

@@ -21,8 +21,8 @@ class DocumentTest {
             )
 
         // act
-        let printed1 = Printer(14, "\n").print(doc)
-        let printed2 = Printer(13, "\n").print(doc)
+        let printed1 = Printer("\n", width: 14).print(doc)
+        let printed2 = Printer("\n", width: 13).print(doc)
 
         // assert
         @Expect(printed1, "call(one, two)")
@@ -45,8 +45,8 @@ class DocumentTest {
             )
 
         // act
-        let printed1 = Printer(20, "\n").print(doc)
-        let printed2 = Printer(8, "\n").print(doc)
+        let printed1 = Printer("\n", width: 20).print(doc)
+        let printed2 = Printer("\n", width: 8).print(doc)
 
         // assert
         @Expect(printed1, "aaaa b c?")
@@ -71,7 +71,7 @@ class DocumentTest {
             )
 
         // act
-        let printed1 = Printer(100, "\r\n").print(doc)
+        let printed1 = Printer("\r\n", width: 100).print(doc)
 
         // assert
         @Expect(printed1, "a // c\r\nb\r\n")
@@ -84,8 +84,8 @@ class DocumentTest {
             concat([group(concat([textDoc("abc"), softline(), textDoc("def")])), textDoc(");")])
 
         // act
-        let printed1 = Printer(8, "\n").print(doc)
-        let printed2 = Printer(9, "\n").print(doc)
+        let printed1 = Printer("\n", width: 8).print(doc)
+        let printed2 = Printer("\n", width: 9).print(doc)
 
         // assert
         @Expect(printed1, "abc\ndef);")
@@ -98,7 +98,7 @@ class DocumentTest {
         let doc = concat([textDoc("012345\nx"), group(concat([softline(), textDoc("y")]))])
 
         // act
-        let printed1 = Printer(5, "\n").print(doc)
+        let printed1 = Printer("\n", width: 5).print(doc)
 
         // assert
         @Expect(printed1, "012345\nx y")
@@ -110,9 +110,9 @@ class DocumentTest {
         let doc = group(concat([textDoc("ёж😀"), softline(), textDoc("x")]))
 
         // act
-        let printed1 = Printer(5, "\n").print(doc)
-        let printed2 = Printer(4, "\n").print(doc)
-        let printed3 = Printer(2, "\n").print(textDoc("abcdef"))
+        let printed1 = Printer("\n", width: 5).print(doc)
+        let printed2 = Printer("\n", width: 4).print(doc)
+        let printed3 = Printer("\n", width: 2).print(textDoc("abcdef"))
 
         // assert
         @Expect(printed1, "ёж😀 x")

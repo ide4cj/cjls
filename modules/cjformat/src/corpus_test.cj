@@ -10,14 +10,16 @@ import ginkgo.SyntaxElement
  * The tokens of `text` the formatter has to keep: all but whitespace, a comment without the
  * whitespace it may move or drop.
  */
-func significant(text: String): Array<String> {
-    let tokens = ArrayList<String>()
-    for (element in parse(text).syntaxNode().descendantsWithTokens()) {
-        match (element) {
-            case SyntaxElement.Token(t) where t.kind == Whitespace || t.kind == Newline => ()
-            case SyntaxElement.Token(t) where t.kind == LineComment || t.kind == BlockComment =>
-                tokens
-                    .add(
+private func significant(text: String): Array<String> {
+    parse(text)
+        .syntaxNode()
+        .descendantsWithTokens()
+        .filterMap {
+            element =>
+            match (element) {
+                case SyntaxElement.Token(t) where isSpace(t.kind) => None
+                case SyntaxElement.Token(t) where isComment(t.kind) =>
+                    Some(
                         t
                             .text()
                             .replace(" ", "")
@@ -25,11 +27,11 @@ func significant(text: String): Array<String> {
                             .replace("\r", "")
                             .replace("\n", "")
                     )
-            case SyntaxElement.Token(t) => tokens.add(t.text())
-            case _ => ()
-        }
-    }
-    tokens.toArray()
+                case SyntaxElement.Token(t) => Some(t.text())
+                case _ => None
+            }
+        } |>
+        collectArray
 }
 
 /**
@@ -71,8 +73,10 @@ func formattingProblems(name: String, text: String): Array<String> {
     problems.toArray()
 }
 
-/** Collects source files recursively, excluding build output, hidden directories and symlinks. */
-func cjFilesUnder(dir: Path, files: ArrayList<Path>): Unit {
+/**
+ * Collects source files recursively, excluding build output, hidden directories and symlinks.
+ */
+private func cjFilesUnder(dir: Path, files: ArrayList<Path>): Unit {
     for (info in Directory.readFrom(dir) where !info.isSymbolicLink()) {
         if (info.isDirectory() && info.name != "target" && !info.name.startsWith(".")) {
             cjFilesUnder(info.path, files)
@@ -90,7 +94,7 @@ func cjFilesUnder(dir: Path, files: ArrayList<Path>): Unit {
 @Tag[gate]
 class CorpusTest {
     @TestCase
-    func thisRepositoryFormatsToTheSameTokensAndStaysFormatted() {
+    func thisRepositoryFormatsToTheSameTokensAndStaysFormatted(): Unit {
         check(Path("modules"))
     }
 
@@ -98,13 +102,13 @@ class CorpusTest {
      * Over the corpus `CJFORMAT_CORPUS` names, such as the compiler's tests; nothing without it.
      */
     @TestCase
-    func aCorpusFormatsToTheSameTokensAndStaysFormatted() {
+    func aCorpusFormatsToTheSameTokensAndStaysFormatted(): Unit {
         if (let Some(corpus) <- getVariable("CJFORMAT_CORPUS")) {
             check(Path(corpus))
         }
     }
 
-    private func check(root: Path) {
+    private func check(root: Path): Unit {
         // arrange
         let files = ArrayList<Path>()
         cjFilesUnder(root, files)
@@ -127,8 +131,10 @@ class CorpusTest {
     }
 }
 
-/** Newlines can change a call into a separate statement without changing any token. */
-func structure(text: String): Array<SyntaxKind> {
+/**
+ * Newlines can change a call into a separate statement without changing any token.
+ */
+private func structure(text: String): Array<SyntaxKind> {
     parse(text)
         .syntaxNode()
         .descendantsWithTokens()

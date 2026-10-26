@@ -26,7 +26,9 @@ public func formatRange(parse: CjParse, range: TextRange): ?Array<TextEdit> {
     formatNode(root, selected, text)
 }
 
-/** Finds the smallest complete range target after trimming selection whitespace. */
+/**
+ * Finds the smallest complete range target after trimming selection whitespace.
+ */
 private func rangeNode(root: CjSyntaxNode, text: String, range: TextRange): CjSyntaxNode {
     var start = range.start
     var end = range.end
@@ -52,12 +54,14 @@ private func rangeNode(root: CjSyntaxNode, text: String, range: TextRange): CjSy
     selected
 }
 
-/** Reprints a target in the indentation and continuation context of its whole file. */
+/**
+ * Reprints a target in the indentation and continuation context of its whole file.
+ */
 private func formatNode(root: CjSyntaxNode, selected: CjSyntaxNode, text: String): Array<TextEdit> {
     // A range inherits the same group/continuation context as whole-file formatting, including
     // indentation introduced by assignments/match arms and space reserved for following punctuation.
     let position = LayoutPosition()
-    Printer(LINE_WIDTH, lineBreakIn(text))
+    Printer(lineBreakIn(text), width: LINE_WIDTH)
         .print(LayoutBuilder(text, target: Some(selected), position: Some(position)).node(root))
     let nodeRange = selected.textRange
     var from = nodeRange.start
@@ -66,7 +70,7 @@ private func formatNode(root: CjSyntaxNode, selected: CjSyntaxNode, text: String
     }
     let isLineStart = from == 0 || text[from - 1] == b'\n'
     let result =
-        Printer(LINE_WIDTH, lineBreakIn(text))
+        Printer(lineBreakIn(text), width: LINE_WIDTH)
             .print(
                 LayoutBuilder(text).node(selected, includeLeading: true),
                 indentation: position.indentation,
@@ -109,8 +113,10 @@ private func formatNode(root: CjSyntaxNode, selected: CjSyntaxNode, text: String
     )
 }
 
-/** Whether a node can be selected independently without entering protected syntax. */
-func isRangeNode(n: CjSyntaxNode): Bool {
+/**
+ * Whether a node can be selected independently without entering protected syntax.
+ */
+private func isRangeNode(n: CjSyntaxNode): Bool {
     for (ancestor in n.ancestors()) {
         if (isOpaque(ancestor.kind)) {
             return false
@@ -134,13 +140,17 @@ func isRangeNode(n: CjSyntaxNode): Bool {
     }
 }
 
-/** Whether a byte is layout whitespace around a selection. */
-func isAsciiSpace(b: UInt8): Bool {
+/**
+ * Whether a byte is layout whitespace around a selection.
+ */
+private func isAsciiSpace(b: UInt8): Bool {
     b == b' ' || b == b'\t' || b == b'\r' || b == b'\n'
 }
 
-/** Whether a node owns a sequence of statements or declarations. */
-func isRangeBody(kind: SyntaxKind): Bool {
+/**
+ * Whether a node owns a sequence of statements or declarations.
+ */
+private func isRangeBody(kind: SyntaxKind): Bool {
     match (kind) {
         case Block | DeclBody | EnumBody | PropBody | MatchBody | ForeignBlock => true
         case _ => false

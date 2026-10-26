@@ -7,7 +7,9 @@ import ginkgo.TextRange
 const INDENT = 4
 const LINE_WIDTH = 100
 
-/** A replacement in UTF-8 byte offsets. */
+/**
+ * A replacement in UTF-8 byte offsets.
+ */
 @Derive[Equatable, ToString]
 public struct TextEdit {
     public TextEdit(public let range: TextRange, public let text: String) {}
@@ -24,16 +26,21 @@ public func format(parse: CjParse): ?Array<TextEdit> {
     }
     let root = parse.syntaxNode()
     let source = root.text()
-    let result = Printer(LINE_WIDTH, lineBreakIn(source)).print(LayoutBuilder(source).node(root))
+    let result =
+        Printer(lineBreakIn(source), width: LINE_WIDTH).print(LayoutBuilder(source).node(root))
     Some(replacement(source, root.textRange, result))
 }
 
-/** Formats source text, or returns `None` when parsing reports syntax errors. */
+/**
+ * Formats source text, or returns `None` when parsing reports syntax errors.
+ */
 public func formatText(text: String): ?String {
     applyEdits(text, format(parse(text)) ?? return None)
 }
 
-/** Applies ordered, non-overlapping edits to `text`. Offsets must be valid UTF-8 boundaries. */
+/**
+ * Applies ordered, non-overlapping edits to `text`. Offsets must be valid UTF-8 boundaries.
+ */
 func applyEdits(text: String, edits: Array<TextEdit>): String {
     let out = StringBuilder()
     var at = 0
@@ -46,7 +53,9 @@ func applyEdits(text: String, edits: Array<TextEdit>): String {
     out.toString()
 }
 
-/** Returns one minimal replacement with endpoints on UTF-8 boundaries, or no edits. */
+/**
+ * Returns one minimal replacement with endpoints on UTF-8 boundaries, or no edits.
+ */
 func replacement(source: String, range: TextRange, result: String): Array<TextEdit> {
     let previous = source[range.start..range.end]
     if (previous == result) {
@@ -72,7 +81,9 @@ func replacement(source: String, range: TextRange, result: String): Array<TextEd
     [TextEdit(TextRange(range.start + first, range.start + oldEnd), result[first..newEnd])]
 }
 
-/** Uses CRLF when present in the source, otherwise LF. */
+/**
+ * Uses CRLF when present in the source, otherwise LF.
+ */
 func lineBreakIn(text: String): String {
     if (text.contains("\r\n")) {
         "\r\n"
@@ -81,12 +92,16 @@ func lineBreakIn(text: String): String {
     }
 }
 
-/** Whether a token is whitespace that layout may replace. */
+/**
+ * Whether a token is whitespace that layout may replace.
+ */
 func isSpace(kind: SyntaxKind): Bool {
     kind == SyntaxKind.Whitespace || kind == SyntaxKind.Newline
 }
 
-/** Whether a token carries a line or block comment. */
+/**
+ * Whether a token carries a line or block comment.
+ */
 func isComment(kind: SyntaxKind): Bool {
     kind == SyntaxKind.LineComment || kind == SyntaxKind.BlockComment
 }

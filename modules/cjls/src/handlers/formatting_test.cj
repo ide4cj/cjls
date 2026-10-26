@@ -2,11 +2,14 @@ package cjls.handlers
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
-import cjls.server.*
+import cjls.server.ServerState
+import stdxx.Nullable
 
+/**
+ * The handler edits for the open document, or no answer when formatting is refused.
+ */
 func formattingEdits(state: ServerState, uri: String): ?Array<TextEdit> {
     let params =
         DocumentFormattingParams(
@@ -19,6 +22,9 @@ func formattingEdits(state: ServerState, uri: String): ?Array<TextEdit> {
     }
 }
 
+/**
+ * The handler edits for a complete node enclosing the requested range.
+ */
 func rangeFormattingEdits(state: ServerState, uri: String, range: LspRange): ?Array<TextEdit> {
     let params =
         DocumentRangeFormattingParams(
@@ -35,12 +41,13 @@ func rangeFormattingEdits(state: ServerState, uri: String, range: LspRange): ?Ar
 @Test
 class FormattingTest {
     @TestCase
-    func theEditsAreInTheColumnsAgreedOnAndIgnoreTheClientsIndent() {
+    func theEditsAreInTheColumnsAgreedOnAndIgnoreTheClientsIndent(): Unit {
         // arrange - the emoji is two UTF-16 units and four bytes
         let state = opened("let s = \"😀\"  +  \"x\"\n")
 
         // act
-        let edits = formattingEdits(state, URI).getOrThrow()
+        let edits =
+            formattingEdits(state, URI) ?? throw IllegalStateException("valid input must format")
 
         // assert
         @Expect(edits.size, 1)
@@ -52,21 +59,31 @@ class FormattingTest {
     }
 
     @TestCase
-    func aDocumentWithSyntaxErrorsOrNotKnownIsNotFormatted() {
-        // act, assert
-        @Expect(formattingEdits(opened("func f( {\n"), URI).isNone())
-        @Expect(formattingEdits(ServerState(), URI).isNone())
+    func aDocumentWithSyntaxErrorsOrNotKnownIsNotFormatted(): Unit {
+        // arrange
+        let invalid = opened("func f( {\n")
+        let unknown = ServerState()
+
+        // act
+        let invalidEdits = formattingEdits(invalid, URI)
+        let unknownEdits = formattingEdits(unknown, URI)
+
+        // assert
+        @Expect(invalidEdits.isNone())
+        @Expect(unknownEdits.isNone())
     }
 
     @TestCase
-    func aRangeExpandsToItsStatementAndUsesTheAgreedColumns() {
+    func aRangeExpandsToItsStatementAndUsesTheAgreedColumns(): Unit {
         // arrange - the selected emoji occupies two UTF-16 columns; the following statement is untouched.
         let state = opened("func f() {\nlet s = \"😀\"  +  \"x\"\ny\n}\n")
         let range =
             LspRange(start: Position(line: 1, character: 9), end: Position(line: 1, character: 11))
 
         // act
-        let edits = rangeFormattingEdits(state, URI, range).getOrThrow()
+        let edits =
+            rangeFormattingEdits(state, URI, range) ??
+                throw IllegalStateException("valid range must format")
 
         // assert
         @Expect(edits.size, 1)
@@ -78,13 +95,20 @@ class FormattingTest {
     }
 
     @TestCase
-    func aRangeOfADocumentWithSyntaxErrorsOrNotKnownIsNotFormatted() {
+    func aRangeOfADocumentWithSyntaxErrorsOrNotKnownIsNotFormatted(): Unit {
         // arrange
         let range =
             LspRange(start: Position(line: 0, character: 0), end: Position(line: 0, character: 1))
 
-        // act, assert
-        @Expect(rangeFormattingEdits(opened("func f( {\n"), URI, range).isNone())
-        @Expect(rangeFormattingEdits(ServerState(), URI, range).isNone())
+        let invalid = opened("func f( {\n")
+        let unknown = ServerState()
+
+        // act
+        let invalidEdits = rangeFormattingEdits(invalid, URI, range)
+        let unknownEdits = rangeFormattingEdits(unknown, URI, range)
+
+        // assert
+        @Expect(invalidEdits.isNone())
+        @Expect(unknownEdits.isNone())
     }
 }

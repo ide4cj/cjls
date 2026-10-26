@@ -92,7 +92,9 @@ class LayoutBuilder {
         }
     }
 
-    /** Parser trivia ownership is for documentation lookup, not visual comment attachment. */
+    /**
+     * Parser trivia ownership is for documentation lookup, not visual comment attachment.
+     */
     private func partsOf(n: CjSyntaxNode): Array<CjSyntaxElement> {
         let parts = ArrayList<CjSyntaxElement>()
         var isLeading = n.parent.isSome()
@@ -185,7 +187,9 @@ class LayoutBuilder {
         }
     }
 
-    /** Bodies have one statement per line, regardless of the input's line breaks. */
+    /**
+     * Bodies have one statement per line, regardless of the input's line breaks.
+     */
     private func body(parts: Array<CjSyntaxElement>, context: SyntaxKind): Doc {
         let open = indexOfKind(parts, LBrace) ?? return sequence(parts, context)
         let close = parts.size - 1
@@ -210,7 +214,9 @@ class LayoutBuilder {
         )
     }
 
-    /** Single-expression lambdas can flatten; a statement sequence must keep its separators. */
+    /**
+     * Single-expression lambdas can flatten; a statement sequence must keep its separators.
+     */
     private func lambda(parts: Array<CjSyntaxElement>): Doc {
         let open = indexOfKind(parts, LBrace) ?? return sequence(parts, LambdaExpr)
         let content = parts[open + 1..parts.size - 1]
@@ -293,7 +299,9 @@ class LayoutBuilder {
         )
     }
 
-    /** A whole postfix chain shares one continuation indent, including calls after each dot. */
+    /**
+     * A whole postfix chain shares one continuation indent, including calls after each dot.
+     */
     private func chain(n: CjSyntaxNode): Doc {
         let links = ArrayList<CjSyntaxNode>()
         var base = n
@@ -331,7 +339,9 @@ class LayoutBuilder {
         group(concat([concat(head.toArray()), indent(concat(suffix.toArray()))]))
     }
 
-    /** Delimited lists choose between one line and one element per line. */
+    /**
+     * Delimited lists choose between one line and one element per line.
+     */
     private func delimited(
         parts: Array<CjSyntaxElement>,
         context: SyntaxKind,
@@ -455,7 +465,9 @@ class LayoutBuilder {
         tokenSeparator(before, after, context, continuation: continuation)
     }
 
-    /** Spaces and optional breaks between significant tokens within one syntax node. */
+    /**
+     * Spaces and optional breaks between significant tokens within one syntax node.
+     */
     private func tokenSeparator(
         before: CjSyntaxElement,
         after: CjSyntaxElement,
@@ -527,15 +539,17 @@ class LayoutBuilder {
         source[before.textRange.end..startOf(after)].contains("\n")
     }
 
-    /** Move only whitespace at line starts; a string token inside a macro is never rewritten. */
+    /**
+     * Move only whitespace at line starts; a string token inside a macro is never rewritten.
+     */
     private func opaque(n: CjSyntaxNode): Doc {
         let ranges = ArrayList<TextRange>()
-        var lineStart = false
+        var isLineStart = false
         for (e in n.descendantsWithTokens()) {
             let t = e.asToken() ?? continue
             if (t.kind == Newline) {
-                lineStart = true
-            } else if (lineStart) {
+                isLineStart = true
+            } else if (isLineStart) {
                 let start = t.textRange.start - n.textRange.start
                 ranges
                     .add(
@@ -549,7 +563,7 @@ class LayoutBuilder {
                                 }
                         )
                     )
-                lineStart = false
+                isLineStart = false
             }
         }
         reindented(n.text(), originalIndent(n.textRange.start), ranges.toArray())
@@ -586,7 +600,9 @@ class LayoutBuilder {
     }
 }
 
-/** Whether a node's internal layout must be preserved. */
+/**
+ * Whether a node's internal layout must be preserved.
+ */
 func isOpaque(kind: SyntaxKind): Bool {
     match (kind) {
         case QuoteExpr | MacroArgs | MacroAttr | StringLit => true
@@ -594,8 +610,10 @@ func isOpaque(kind: SyntaxKind): Bool {
     }
 }
 
-/** Whether a postfix node extends the same receiver chain. */
-func isChain(kind: SyntaxKind): Bool {
+/**
+ * Whether a postfix node extends the same receiver chain.
+ */
+private func isChain(kind: SyntaxKind): Bool {
     match (kind) {
         case MemberAccessExpr |
             CallExpr |
@@ -607,13 +625,17 @@ func isChain(kind: SyntaxKind): Bool {
     }
 }
 
-/** Whether angle brackets delimit types rather than comparisons. */
-func isAngleContext(kind: SyntaxKind): Bool {
+/**
+ * Whether angle brackets delimit types rather than comparisons.
+ */
+private func isAngleContext(kind: SyntaxKind): Bool {
     kind == TypeArgList || kind == TypeParamList || kind == VArrayType
 }
 
-/** Whether an operator permits a following continuation break. */
-func isOperator(kind: SyntaxKind): Bool {
+/**
+ * Whether an operator permits a following continuation break.
+ */
+private func isOperator(kind: SyntaxKind): Bool {
     match (kind) {
         case Eq |
             Plus |
@@ -646,8 +668,14 @@ func isOperator(kind: SyntaxKind): Bool {
     }
 }
 
-/** Whether the following declaration starts on its own line. */
-func isAnnotationEnd(before: CjSyntaxElement, after: CjSyntaxElement, context: SyntaxKind): Bool {
+/**
+ * Whether the following declaration starts on its own line.
+ */
+private func isAnnotationEnd(
+    before: CjSyntaxElement,
+    after: CjSyntaxElement,
+    context: SyntaxKind
+): Bool {
     if (before.kind == Annotation) {
         return context != Param && context != LambdaExpr
     }
@@ -658,8 +686,14 @@ func isAnnotationEnd(before: CjSyntaxElement, after: CjSyntaxElement, context: S
     )
 }
 
-/** Finds the matching direct delimiter; children already own their nested delimiters. */
-func delimiterEnd(parts: Array<CjSyntaxElement>, start: Int64, context: SyntaxKind): ?Int64 {
+/**
+ * Finds the matching direct delimiter; children already own their nested delimiters.
+ */
+private func delimiterEnd(
+    parts: Array<CjSyntaxElement>,
+    start: Int64,
+    context: SyntaxKind
+): ?Int64 {
     let close =
         match (parts[start].kind) {
             case LParen => RParen
@@ -676,8 +710,10 @@ func delimiterEnd(parts: Array<CjSyntaxElement>, start: Int64, context: SyntaxKi
     None
 }
 
-/** Finds the first direct element of the requested kind. */
-func indexOfKind(parts: Array<CjSyntaxElement>, kind: SyntaxKind): ?Int64 {
+/**
+ * Finds the first direct element of the requested kind.
+ */
+private func indexOfKind(parts: Array<CjSyntaxElement>, kind: SyntaxKind): ?Int64 {
     for (i in 0..parts.size) {
         if (parts[i].kind == kind) {
             return Some(i)
@@ -686,8 +722,10 @@ func indexOfKind(parts: Array<CjSyntaxElement>, kind: SyntaxKind): ?Int64 {
     None
 }
 
-/** Whether a declaration's signature controls its parameter layout. */
-func isFunctionDeclaration(kind: SyntaxKind): Bool {
+/**
+ * Whether a declaration's signature controls its parameter layout.
+ */
+private func isFunctionDeclaration(kind: SyntaxKind): Bool {
     match (kind) {
         case FuncDecl |
             MainDecl |
@@ -700,7 +738,9 @@ func isFunctionDeclaration(kind: SyntaxKind): Bool {
     }
 }
 
-/** Punctuation that attaches to its preceding token. */
+/**
+ * Punctuation that attaches to its preceding token.
+ */
 private func isTightBefore(kind: SyntaxKind): Bool {
     match (kind) {
         case Comma | Colon | Dot | ColonColon | RParen | RBracket | RBrace => true
@@ -708,7 +748,9 @@ private func isTightBefore(kind: SyntaxKind): Bool {
     }
 }
 
-/** Punctuation that attaches to its following token. */
+/**
+ * Punctuation that attaches to its following token.
+ */
 private func isTightAfter(kind: SyntaxKind): Bool {
     match (kind) {
         case Dot | ColonColon | At | AtBang | Dollar | Tilde | LParen | LBracket | LBrace => true
@@ -716,7 +758,9 @@ private func isTightAfter(kind: SyntaxKind): Bool {
     }
 }
 
-/** Syntax whose direct parts form one lexical unit, except nested unary minus. */
+/**
+ * Syntax whose direct parts form one lexical unit, except nested unary minus.
+ */
 private func isTightContext(kind: SyntaxKind): Bool {
     match (kind) {
         case Name | LiteralPat | OptionType | OptionalExpr | PostfixExpr | UnaryExpr => true
@@ -724,7 +768,9 @@ private func isTightContext(kind: SyntaxKind): Bool {
     }
 }
 
-/** Suffix nodes and punctuation that need no preceding space. */
+/**
+ * Suffix nodes and punctuation that need no preceding space.
+ */
 private func isAttachedSuffix(kind: SyntaxKind): Bool {
     match (kind) {
         case TypeArgList |

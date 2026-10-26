@@ -19,21 +19,15 @@ func formattedIn(text: String, range: TextRange): ?String {
  */
 func linesOf(text: String, first: Int64, last: Int64): TextRange {
     let lines = text.split("\n")
-    var start = 0
-    for (line in lines[..first]) {
-        start += line.size + 1
-    }
-    var end = start
-    for (line in lines[first..last]) {
-        end += line.size + 1
-    }
+    let start = lines[..first].fold(0) { offset, line => offset + line.size + 1 }
+    let end = lines[first..last].fold(start) { offset, line => offset + line.size + 1 }
     TextRange(start, end + lines[last].size)
 }
 
 @Test
 class FormatRangeTest {
     @TestCase
-    func onlyTheSelectedStatementChanges() {
+    func onlyTheSelectedStatementChanges(): Unit {
         // arrange
         let text = "func f() {\nlet a = 1\nlet b = 2\nlet c = 3\n}\n"
 
@@ -45,7 +39,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func aLineIsIndentedAsTheWholeFileIndentsItAndTheLineBeforeKeepsItsEnd() {
+    func aLineIsIndentedAsTheWholeFileIndentsItAndTheLineBeforeKeepsItsEnd(): Unit {
         // arrange - trailing spaces on the line before, in the same edit as the indent
         let text = "class A {\nfunc f() {   \nlet a = 1\n}\n}\n"
 
@@ -57,7 +51,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func theEndOfALineCoveredIsFormattedButNotTheIndentOfTheNext() {
+    func theEndOfALineCoveredIsFormattedButNotTheIndentOfTheNext(): Unit {
         // arrange
         let text = "func f() {\nlet a = 1   \nlet b = 2\n}\n"
 
@@ -69,7 +63,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func aRangeCoveringSeveralSiblingsFormatsTheirEnclosingBody() {
+    func aRangeCoveringSeveralSiblingsFormatsTheirEnclosingBody(): Unit {
         // arrange - lines 1 and 2 selected whole, as VS Code selects them
         let text = "func f() {\nlet a = 1\nlet b = 2\nlet c = 3\n}\n"
         let range = TextRange(linesOf(text, 1, 1).start, linesOf(text, 3, 3).start)
@@ -94,7 +88,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func aRangeWithinALineCoversTheLine() {
+    func aRangeWithinALineCoversTheLine(): Unit {
         // arrange
         let text = "func f() {\nlet a = 1\n}\n"
         let start = linesOf(text, 1, 1).start + 4
@@ -107,7 +101,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func theRangeAtTheEndCoversTheLastLineBreak() {
+    func theRangeAtTheEndCoversTheLastLineBreak(): Unit {
         // arrange
         let text = "func f() {}\n\n\n"
 
@@ -119,7 +113,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func aBraceJoinsTheLineBeforeWhenEitherLineIsCovered() {
+    func aBraceJoinsTheLineBeforeWhenEitherLineIsCovered(): Unit {
         // arrange
         let text = "func f()\n    {\n}\n"
 
@@ -183,7 +177,7 @@ class FormatRangeTest {
     }
 
     @TestCase
-    func aFileWithSyntaxErrorsIsNotFormatted() {
+    func aFileWithSyntaxErrorsIsNotFormatted(): Unit {
         // arrange
         let text = "func f( {\nlet a = 1\n"
 

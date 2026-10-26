@@ -1,8 +1,8 @@
 package syntax_codegen
 
-import std.collection.*
+import std.collection.ArrayList
 import std.env.getTempDirectory
-import std.fs.*
+import std.fs.{Directory, File, Path, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 
@@ -41,7 +41,7 @@ class GeneratedFilesTest {
     }
 
     @TestCase
-    func theCheckedInFilesAreWhatTheGeneratorMakes() {
+    func theCheckedInFilesAreWhatTheGeneratorMakes(): Unit {
         // arrange
         let generated = generate(Path(KINDS_FILE))
         let dir = Directory.createTemp(getTempDirectory())

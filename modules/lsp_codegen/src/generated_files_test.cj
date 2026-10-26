@@ -6,7 +6,9 @@ import std.unittest.testmacro.*
 import cjformat.formatText
 import fjson.fromJsonBytes
 
-/** Generation must produce canonical source without a formatter subprocess. */
+/**
+ * Generation must produce canonical source without a formatter subprocess.
+ */
 @Test
 class GeneratedFilesTest {
     @TestCase

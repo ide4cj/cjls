@@ -1,7 +1,13 @@
 package lsp_codegen
 
-import std.argopt.*
-import std.fs.*
+import std.argopt.{
+    ArgumentMode,
+    ArgumentParseException,
+    ArgumentSpec,
+    ParsedArguments,
+    parseArguments
+}
+import std.fs.{Directory, File, Path, exists}
 import fjson.fromJsonBytes
 
 main(args: Array<String>): Int64 {
@@ -13,6 +19,9 @@ main(args: Array<String>): Int64 {
     }
 }
 
+/**
+ * Generates and writes the configured protocol files; failures reach the CLI error boundary.
+ */
 private func mainImpl(args: Array<String>): Int64 {
     let cliArgs = parseArgs(args)
     let cfg = Config.load(cliArgs.configPath)
@@ -34,6 +43,11 @@ struct CliArgs {
     CliArgs(let configPath!: Path, let metaModelPath!: Path) {}
 }
 
+/**
+ * Reads the model and configuration paths.
+ *
+ * @throws ArgumentParseException - if required arguments are missing or blank
+ */
 func parseArgs(args: Array<String>): CliArgs {
     let parsed = parseArguments(args, [Full("config", r'c', RequiredValue)])
 

@@ -1,22 +1,22 @@
 package cjls.handlers
 
 import std.collection.ArrayList
-import std.fs.{exists, File, FileInfo, Path, remove}
+import std.fs.{File, FileInfo, Path, exists, remove}
 import std.unittest.*
 import std.unittest.testmacro.*
 import stdx.log.NoopLogger
-import stdxx.Nullable
+import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
+import cjls.lsp_types.*
+import cjls.lsp_types.Range as LspRange
+import cjls.server.{Client, ServerState}
 import fjson.{JsonValue, RawJson}
 import jsonrpc.{Body, RpcException}
-import rope.Rope
 import loupe.TextRange
 import loupe.db.{MacroOutput, MappedSpan, MappedText, SpanOrigin}
 import loupe.hir.{macroRequests, setMacroOutputs}
 import loupe.vfs.VfsPath
-import cjls.lsp_types.*
-import cjls.lsp_types.Range as LspRange
-import cjls.lsp_ext.{EXPAND_MACRO_COMMAND, MacroExpansion}
-import cjls.server.*
+import rope.Rope
+import stdxx.Nullable
 
 const MACRO_MAIN = "package app\nimport app.ms.*\n@M[x]\nclass C {}\nfunc use(c: C) {}\n"
 
@@ -50,7 +50,8 @@ func macroWorkspace(shows!: Bool = true): (ServerState, Path) {
     state.locationLinks = true
     initialized(loop, Client(), NoopLogger(), InitializedParams())
     let file =
-        state.snapshot().sourceFile(VfsPath.file(dir.join("src").join("main.cj"))).getOrThrow()
+        state.snapshot().sourceFile(VfsPath.file(dir.join("src").join("main.cj"))) ??
+            throw IllegalStateException("the macro workspace must contain its main file")
     let request =
         macroRequests(state.analysis, file).filter { one => one.definition.name == "M" }[0]
     setMacroOutputs(
@@ -76,10 +77,16 @@ func macroWorkspace(shows!: Bool = true): (ServerState, Path) {
     (state, dir)
 }
 
+/**
+ * The source file containing the macro call.
+ */
 func mainOf(dir: Path): Path {
     dir.join("src").join("main.cj")
 }
 
+/**
+ * The cached expansion path corresponding to the source file.
+ */
 func expandedOf(dir: Path): Path {
     dir.join(".cache").join("cjls").join("expanded").join("src").join("main.cj.macrocall")
 }
@@ -94,6 +101,9 @@ func removeWorkspace(dir: Path): Unit {
     remove(dir, recursive: true)
 }
 
+/**
+ * An LSP position in the named source or expansion file.
+ */
 func positionIn(path: Path, line: UInt32, character: UInt32): TextDocumentPositionParams {
     TextDocumentPositionParams(
         textDocument: TextDocumentIdentifier(uri: uriOf(path)),
@@ -101,6 +111,9 @@ func positionIn(path: Path, line: UInt32, character: UInt32): TextDocumentPositi
     )
 }
 
+/**
+ * The code actions offered at the position, optionally restricted by kind.
+ */
 func codeActionsAt(
     state: ServerState,
     path: Path,
@@ -119,6 +132,9 @@ func codeActionsAt(
     )
 }
 
+/**
+ * The expansion command with the position encoded as its argument.
+ */
 func expandCommand(path: Path, line: UInt32, character: UInt32): ExecuteCommandParams {
     ExecuteCommandParams(
         command: EXPAND_MACRO_COMMAND,
@@ -133,7 +149,13 @@ func shownDocuments(transport: AnsweringTransport): Array<ShowDocumentParams> {
     let shown = ArrayList<ShowDocumentParams>()
     while (let Some(body) <- transport.written.tryRemove()) {
         if (let Request(request) <- body && request.method == ShowDocumentRequestSpec.METHOD) {
-            shown.add(request.params.getOrThrow().read<ShowDocumentParams>())
+            shown
+                .add(
+                    request
+                        .params
+                        .getOrThrow { => IllegalStateException("showDocument must carry params") }
+                        .read<ShowDocumentParams>()
+                )
         }
     }
     shown.toArray()
@@ -152,7 +174,7 @@ func expandAndOpen(state: ServerState, dir: Path): Unit {
 @Test
 class ExpandMacroTest {
     @TestCase
-    func aCallAnswersItsExpansionFormatted() {
+    func aCallAnswersItsExpansionFormatted(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
 
@@ -171,7 +193,7 @@ class ExpandMacroTest {
     }
 
     @TestCase
-    func offACallIsNull() {
+    func offACallIsNull(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
 
@@ -184,7 +206,7 @@ class ExpandMacroTest {
     }
 
     @TestCase
-    func theCallOffersExpandMacroWithItsPosition() {
+    func theCallOffersExpandMacroWithItsPosition(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
 
@@ -199,11 +221,26 @@ class ExpandMacroTest {
                     case AsCodeAction(action) =>
                         @Expect(action.title, "Expand macro @M")
                         @Expect(action.kind.isNone())
-                        let command = action.command.getOrThrow()
+                        let command =
+                            action
+                                .command
+                                .getOrThrow {
+                                    =>
+                                    IllegalStateException("expandMacro must offer a command")
+                                }
                         @Expect(command.command, EXPAND_MACRO_COMMAND)
                         let argument =
                             RawJson
-                                .of(command.arguments.getOrThrow()[0])
+                                .of(
+                                    command
+                                        .arguments
+                                        .getOrThrow {
+                                            =>
+                                            IllegalStateException(
+                                                "expandMacro must carry a position"
+                                            )
+                                        }[0]
+                                )
                                 .read<TextDocumentPositionParams>()
                         @Expect(argument.textDocument.uri, uriOf(mainOf(dir)))
                         @Expect(at(argument.position), "2:1")
@@ -214,7 +251,7 @@ class ExpandMacroTest {
     }
 
     @TestCase
-    func noExpandMacroOffACallToAClientThatShowsNoDocumentOrForAKindAskedFor() {
+    func noExpandMacroOffACallToAClientThatShowsNoDocumentOrForAKindAskedFor(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         let (blind, blindDir) = macroWorkspace(shows: false)
@@ -233,7 +270,7 @@ class ExpandMacroTest {
     }
 
     @TestCase
-    func theCommandWritesTheExpandedFileReadOnlyAndAsksToShowItsExpansion() {
+    func theCommandWritesTheExpandedFileReadOnlyAndAsksToShowItsExpansion(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         let transport =
@@ -259,8 +296,7 @@ class ExpandMacroTest {
         client.close()
         removeWorkspace(dir)
         @Expect(answer, JsonValue.JsonNull)
-        @Expect(text, "// generated by cjls from src/main.cj: read-only, regenerated by \"Expand macro\"\n" +
-            "package app\nimport app.ms.*\n// @M[x] expanded by cjls\n${SHOWN_MACRO_OUTPUT}\nfunc use(c: C) {}\n")
+        @Expect(text, "// generated by cjls from src/main.cj: read-only, regenerated by \"Expand macro\"\npackage app\nimport app.ms.*\n// @M[x] expanded by cjls\n${SHOWN_MACRO_OUTPUT}\nfunc use(c: C) {}\n")
         @Expect(readOnly)
         @Expect(ignore, "*\n")
         @Expect(shown.size, 1)
@@ -270,7 +306,7 @@ class ExpandMacroTest {
     }
 
     @TestCase
-    func theCommandWritesTheFileAgainOverItsReadOnlyCopy() {
+    func theCommandWritesTheFileAgainOverItsReadOnlyCopy(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         handleExecuteCommand(
@@ -279,7 +315,7 @@ class ExpandMacroTest {
             NoopLogger(),
             expandCommand(mainOf(dir), 2, 1)
         )
-        state.setFileContents(VfsPath.file(mainOf(dir)), Rope(MACRO_MAIN + "func more() {}\n"))
+        state.setFileContents(VfsPath.file(mainOf(dir)), Rope("${MACRO_MAIN}func more() {}\n"))
 
         // act
         handleExecuteCommand(
@@ -296,7 +332,7 @@ class ExpandMacroTest {
     }
 
     @TestCase
-    func theCommandFailsForAClientThatShowsNoDocument() {
+    func theCommandFailsForAClientThatShowsNoDocument(): Unit {
         // arrange
         let (state, dir) = macroWorkspace(shows: false)
 
@@ -325,7 +361,7 @@ class ExpandMacroTest {
 @Test
 class ExpandedFileNavigationTest {
     @TestCase
-    func aNameCopiedFromTheSourceIsHoveredThereOverItsRangeHere() {
+    func aNameCopiedFromTheSourceIsHoveredThereOverItsRangeHere(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -339,7 +375,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aNameOfAnExpansionIsHoveredInIt() {
+    func aNameOfAnExpansionIsHoveredInIt(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -354,7 +390,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aNameTheMacroWroteGoesToItsDeclarationInTheExpandedFile() {
+    func aNameTheMacroWroteGoesToItsDeclarationInTheExpandedFile(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -370,7 +406,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aNameCopiedFromTheSourceHighlightsItsNamesHere() {
+    func aNameCopiedFromTheSourceHighlightsItsNamesHere(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -396,7 +432,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aNameCopiedFromTheSourceHasItsReferencesInTheFilesAndOneOfAnExpansionNone() {
+    func aNameCopiedFromTheSourceHasItsReferencesInTheFilesAndOneOfAnExpansionNone(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -418,7 +454,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aClassCopiedFromTheSourceIsAskedForItsImplementationsInTheFiles() {
+    func aClassCopiedFromTheSourceIsAskedForItsImplementationsInTheFiles(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -437,11 +473,11 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func afterTheSourceChangedTheFileAnswersNothing() {
+    func afterTheSourceChangedTheFileAnswersNothing(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
-        state.setFileContents(VfsPath.file(mainOf(dir)), Rope(MACRO_MAIN + "func more() {}\n"))
+        state.setFileContents(VfsPath.file(mainOf(dir)), Rope("${MACRO_MAIN}func more() {}\n"))
 
         // act
         let hover = hoverOf(state, expandedOf(dir), 9, 6)
@@ -454,7 +490,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func theExpandedFileIsNoFileOfTheWorkspace() {
+    func theExpandedFileIsNoFileOfTheWorkspace(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         expandAndOpen(state, dir)
@@ -472,7 +508,7 @@ class ExpandedFileNavigationTest {
     }
 
     @TestCase
-    func aLoadReadsNothingOfTheCacheDirectory() {
+    func aLoadReadsNothingOfTheCacheDirectory(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
         handleExecuteCommand(
@@ -508,7 +544,7 @@ class ShowsDocumentsTest {
             false),
         (ClientCapabilities(), false)
     ]]
-    func aClientShowsDocumentsOnlyIfItSaysSo(row: (ClientCapabilities, Bool)) {
+    func aClientShowsDocumentsOnlyIfItSaysSo(row: (ClientCapabilities, Bool)): Unit {
         // arrange
         let (capabilities, shows) = row
         let state = ServerState()

@@ -9,7 +9,8 @@ struct CjFile {
     CjFile(let path: Path, let contents: String) {}
 }
 
-/** Produces formatted files in memory; rejects invalid source before any output is written.
+/**
+ * Produces formatted files in memory; rejects invalid source before any output is written.
  * @throws IllegalStateException - if output does not parse or declaration paths collide
  */
 func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
@@ -18,17 +19,15 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
         ArrayList<CjFile>(
             mm
                 .enumerations
-                .filterMap { it: Enumeration => resolveEnum(cfg, it) }
+                .filterMap { it => resolveEnum(cfg, it) }
                 .map {
-                    enumIr: EnumIr =>
+                    enumIr =>
                     cjFileOf(cfg, mm, enumIr.ident) { emitter => emitter.emitEnum(enumIr) }
                 }
         )
 
     let structs =
-        ArrayList<StructIr>(
-            mm.structures.filterMap { it: Structure => resolveStruct(cfg, resolver, it) }
-        )
+        ArrayList<StructIr>(mm.structures.filterMap { it => resolveStruct(cfg, resolver, it) })
     let aliasLines = resolveAliases(cfg, resolver, mm)
     let messages = resolveMessages(resolver, mm)
     // a literal may hold further literals and unions of its own, met only once it is resolved
@@ -43,7 +42,7 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
             all: structs
                 .toArray()
                 .map {
-                    structIr: StructIr =>
+                    structIr =>
                     cjFileOf(cfg, mm, structIr.ident) { emitter => emitter.emitStruct(structIr) }
                 }
         )
@@ -52,7 +51,7 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
             all: resolver
                 .unions
                 .map {
-                    unionIr: UnionIr =>
+                    unionIr =>
                     cjFileOf(cfg, mm, unionIr.ident) { emitter => emitter.emitUnion(unionIr) }
                 }
         )
@@ -60,7 +59,7 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
         .add(
             all: messages
                 .map {
-                    messageIr: MessageIr =>
+                    messageIr =>
                     cjFileOf(cfg, mm, messageIr.ident) { emitter => emitter.emitMessage(messageIr) }
                 }
         )
@@ -93,6 +92,11 @@ private func checkUniquePaths(files: ArrayList<CjFile>): Unit {
     }
 }
 
+/**
+ * Emits and formats one declaration.
+ *
+ * @throws IllegalStateException - if the emitted source does not parse
+ */
 private func cjFileOf(
     cfg: Config,
     mm: MetaModel,

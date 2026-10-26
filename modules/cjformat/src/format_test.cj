@@ -7,7 +7,7 @@ import std.unittest.testmacro.*
 /**
  * `before` formatted is `after`, and `after` is left as it is.
  */
-func check(before: String, after: String) {
+func check(before: String, after: String): Unit {
     @Expect(formatText(before), Some(after))
     @Expect(formatText(after), Some(after))
     @Expect(formattingProblems("fixture", before), [])
@@ -32,20 +32,21 @@ func code(text: String): String {
             .iterator() |>
             min
     let shared = indent ?? 0
-    String
-        .join(
-            body
-                .map {
-                    line =>
-                    if (line.trimAscii().isEmpty()) {
-                        ""
-                    } else {
-                        line[shared..]
-                    }
-                },
-            delimiter: "\n"
-        ) +
-        "\n"
+    let joined =
+        String
+            .join(
+                body
+                    .map {
+                        line =>
+                        if (line.trimAscii().isEmpty()) {
+                            ""
+                        } else {
+                            line[shared..]
+                        }
+                    },
+                delimiter: "\n"
+            )
+    "${joined}\n"
 }
 
 @Test

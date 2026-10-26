@@ -11,7 +11,9 @@ let BENCH_FILES =
             parse("func f() {\n${"call(firstArgument, secondArgument, thirdArgument)\n" * n}}\n")
         }
 
-/** Pre-parsed files isolate layout and printing from parser costs. */
+/**
+ * Pre-parsed files isolate layout and printing from parser costs.
+ */
 @Test
 class FormatBench {
     @Bench[p in BENCH_FILES]
@@ -31,11 +33,13 @@ let BENCH_DOCS =
             doc
         }
 
-/** Nested groups expose a repeated suffix-measurement regression. */
+/**
+ * Nested groups expose a repeated suffix-measurement regression.
+ */
 @Test
 class PrinterBench {
     @Bench[doc in BENCH_DOCS]
     func nestedGroups(doc: Doc): String {
-        Printer(LINE_WIDTH, "\n").print(doc)
+        Printer("\n", width: LINE_WIDTH).print(doc)
     }
 }

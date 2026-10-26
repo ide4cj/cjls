@@ -3,9 +3,7 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
-import loupe.db.*
-import loupe.fixture.*
-import loupe.hir.*
+import loupe.fixture.Fixture
 
 /**
  * A place, as a line to compare.
@@ -21,7 +19,7 @@ func describe(place: ?ExpandedPlace): String {
 @Test
 class ShownExpansionTest {
     @TestCase
-    func anExpansionIsFormattedAndItsOffsetsGoBothWays() {
+    func anExpansionIsFormattedAndItsOffsetsGoBothWays(): Unit {
         // arrange
         let written = "class A {\nfunc f(): Unit {}\n  let x = 1\n}\n\n"
 
@@ -53,7 +51,7 @@ class ShownExpansionTest {
     }
 
     @TestCase
-    func anExpansionThatDoesNotFormatIsShownAsWritten() {
+    func anExpansionThatDoesNotFormatIsShownAsWritten(): Unit {
         // arrange
         let written = "class A {\nfunc f(: Unit {}\n"
 
@@ -69,26 +67,38 @@ class ShownExpansionTest {
 @Test
 class ExpandFileTest {
     @TestCase
-    func aCallOfTheWorkspaceIsReplacedByItsExpansionFromTheCallOn() {
+    func aCallOfTheWorkspaceIsReplacedByItsExpansionFromTheCallOn(): Unit {
         // arrange
         let (db, file, _, written) = answeredM()
         let source = file.text(db).toString()
 
         // act
-        let expanded = expandFile(db, file.fileId(db), "// header").getOrThrow()
+        let expanded =
+            expandFile(db, file.fileId(db), "// header")
+                .getOrThrow {
+                    =>
+                    IllegalStateException("the fixture must produce an expanded file")
+                }
 
         // assert
         @Expect(source.contains("@M[x]\nclass C {}"))
-        @Expect(expanded.text,
-            "// header\n" + source.replace("@M[x]\nclass C {}", "// @M[x] expanded by cjls\n" + written.replace("{ C() }", "{\n    C()\n}")))
+        let formatted = written.replace("{ C() }", "{\n    C()\n}")
+        let replaced =
+            source.replace("@M[x]\nclass C {}", "// @M[x] expanded by cjls\n${formatted}")
+        @Expect(expanded.text, "// header\n${replaced}")
     }
 
     @TestCase
-    func anOffsetIsInTheSourceInAnExpansionOrInWhatTheAnalysisWrote() {
+    func anOffsetIsInTheSourceInAnExpansionOrInWhatTheAnalysisWrote(): Unit {
         // arrange
         let (db, file, call, written) = answeredM()
         let source = file.text(db).toString()
-        let expanded = expandFile(db, file.fileId(db), "// header").getOrThrow()
+        let expanded =
+            expandFile(db, file.fileId(db), "// header")
+                .getOrThrow {
+                    =>
+                    IllegalStateException("the fixture must produce an expanded file")
+                }
         let text = expanded.text
 
         // act
@@ -109,11 +119,16 @@ class ExpandFileTest {
     }
 
     @TestCase
-    func rangesOfTheSourceAndOfAnExpansionAreFoundInTheFile() {
+    func rangesOfTheSourceAndOfAnExpansionAreFoundInTheFile(): Unit {
         // arrange
         let (db, file, call, written) = answeredM()
         let source = file.text(db).toString()
-        let expanded = expandFile(db, file.fileId(db), "// header").getOrThrow()
+        let expanded =
+            expandFile(db, file.fileId(db), "// header")
+                .getOrThrow {
+                    =>
+                    IllegalStateException("the fixture must produce an expanded file")
+                }
         let text = expanded.text
         let import_ = offsetIn(source, "import")
         let gen = offsetIn(written, "Gen")
@@ -126,14 +141,14 @@ class ExpandFileTest {
 
         // assert
         @Expect(fromSource.map {range => text[range.start..range.end]}, Some("import"))
-        @Expect(fromReplaced, None<TextRange>)
+        @Expect(fromReplaced, None)
         @Expect(fromExpansion.map {range => text[range.start..range.end]}, Some("Gen"))
         @Expect(expanded.expansionOf(call).map {range => text[range.start..range.end].startsWith("class C {}")},
             Some(true))
     }
 
     @TestCase
-    func aStdDeriveIsFollowedByTheAnalysissSignatures() {
+    func aStdDeriveIsFollowedByTheAnalysissSignatures(): Unit {
         // arrange
         let parsed =
             Fixture
@@ -151,7 +166,12 @@ class ExpandFileTest {
         let file = parsed.file("/main.cj")
 
         // act
-        let expanded = expandFile(db, file.fileId, "// header").getOrThrow()
+        let expanded =
+            expandFile(db, file.fileId, "// header")
+                .getOrThrow {
+                    =>
+                    IllegalStateException("the fixture must produce an expanded file")
+                }
         let text = expanded.text
 
         // assert
@@ -163,7 +183,7 @@ class ExpandFileTest {
     }
 
     @TestCase
-    func aFileWithNoExpansionHasNone() {
+    func aFileWithNoExpansionHasNone(): Unit {
         // arrange
         let (db, file) =
             expansionDatabase(

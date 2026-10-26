@@ -1,10 +1,10 @@
 package cjls.handlers
 
-import stdxx.Nullable
-import loupe.{formatting, rangeFormatting, TextRange}
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.{ReadOnlyContext, ServerSnapshot}
+import loupe.{TextRange, formatting, rangeFormatting}
+import stdxx.Nullable
 
 /**
  * The edits that format a document; `null` for one with syntax errors or not known. The style is
