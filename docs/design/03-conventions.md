@@ -104,6 +104,10 @@ wired together; an editor client's own tests run in its CI, not here (D32).
 A case an e2e test could cover and a unit test can is a unit test: `cjpm test` runs in seconds,
 the e2e suite starts a process per test.
 
+New and modified tests mark their Arrange, Act and Assert phases with `// arrange`, `// act` and
+`// assert` comments (`#` in Python). Multi-step scenarios may repeat Act and Assert
+phases. Only a test consisting solely of a `checkDiagnostics` call may omit them.
+
 ### C8: LSP imports and aliases
 
 The LSP types are imported whole, `import cjls.lsp_types.*`, and named bare.

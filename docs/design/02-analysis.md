@@ -147,6 +147,15 @@ The project is set before the files it names, so they are created with it (D33).
 Which files a package has is `Package.files`, never found from the texts: a file deleted is an
 empty text (A5).
 
+Binary attachments may have detached source contexts linked to their binary package
+(D147). They are outside project modules and import candidates, so neither project
+resolution nor workspace symbols gains a second copy of SDK declarations. Their
+imports use the binary's lookup scope; bodies and file imports use source text.
+Names absent from the binary may come from source files with checked declaration
+pairs, only inside the detached context; binary names and overload sets win.
+Members absent from a binary type may come from its paired source type only for
+another source in the same attached package.
+
 Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module
 is a unit of the build, cjc's is the first segment of a name (D33).
 
@@ -184,6 +193,12 @@ found by inference, never by a `defMap`.
 
 A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair
 held apart; a query about one declaration is keyed by it (D45).
+
+An attached source body retains its source identity for locals and ranges, but its
+self type and generic owners use the binary declaration paired at its checked
+identifier position (D147). Package and member lookup use binary declarations,
+including compiler-provided types. A file with no matching declarations has no
+source context; navigation targets retain D65's position/name check.
 
 ### A24: Signature type dependencies
 

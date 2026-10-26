@@ -140,7 +140,7 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
     }
     let own = signature(db, def).generics
     for (i in 0..own.size where own[i] == name) {
-        return settle(ValueTarget.TypeParamOf(TypeTarget.GenericOf(def, i)))
+        return settle(ValueTarget.TypeParamOf(TypeTarget.GenericOf(canonicalDef(db, def), i)))
     }
     let members = membersNamed(db, def, name)
     if (!members.isEmpty()) {
@@ -158,7 +158,7 @@ public func resolveBodyName(db: AnalysisDatabase, def: DefId, scope: ?ScopeId, n
     if (let Some(parent) <- parentOf(db, def)) {
         let generics = signature(db, parent).generics
         for (i in 0..generics.size where generics[i] == name) {
-            return settle(ValueTarget.TypeParamOf(TypeTarget.GenericOf(parent, i)))
+            return settle(ValueTarget.TypeParamOf(TypeTarget.GenericOf(canonicalDef(db, parent), i)))
         }
     }
     let inFile = lookUp(db, pkg, file, name, Namespace.Values)
