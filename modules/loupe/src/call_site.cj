@@ -6,13 +6,20 @@ import cjsyntax.ast.{Name, NameRef, RefExpr}
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 
-/** The source body currently reading `call`; stale and unavailable outputs keep the call-site fallback. */
+/**
+ * The source body currently reading `call`; stale and unavailable outputs keep the call-site fallback.
+ */
 func bodyOfExpressionExpansion(db: AnalysisDatabase, call: MacroCallId): ?DefId {
     if (call.inBody(db).isNone()) { return None }
     let def = DefId(db, ItemFile.Source(call.file(db)), call.item(db))
     let map = bodyWithSourceMap(db, def).sourceMap
     for (sources in [map.exprs, map.locals, map.types]) {
-        if (sources.any {one => one.map {source => source.expansion == call} ?? false}) { return def }
+        if (sources.any {one =>
+            match (one) {
+                case WrittenSource(source) => source.expansion == call
+                case SyntheticSource => false
+            }
+        }) { return def }
     }
     None
 }

@@ -421,7 +421,10 @@ class Hovers {
      * The name of `local` in the source of the body of `owner`, as written.
      */
     private func nameNodeOf(owner: DefId, local: LocalId): ?CjSyntaxNode {
-        let source = bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index).flatMap {one => one} ?? return None
+        let source = match (bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index)) {
+            case Some(WrittenSource(source)) => source
+            case _ => return None
+        }
         source.node(db, owner.file(db))
     }
 

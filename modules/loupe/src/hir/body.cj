@@ -421,26 +421,45 @@ public struct Body {
  * A node of a body, qualified by the expression expansion it came from. `None` is the body's own file.
  * Offsets and kinds alone do not identify a node once several expansions are lowered into one body.
  */
-public struct BodySource <: Equatable<BodySource> & Hashable {
+@Derive[Equatable, Hashable]
+public struct BodySource {
     public BodySource(public let ptr: SyntaxNodePtr<SyntaxKind>, public let expansion!: ?MacroCallId = None) {}
 
-    public operator func ==(other: BodySource): Bool {
-        ptr == other.ptr && expansion == other.expansion
-    }
-
-    public operator func !=(other: BodySource): Bool { !(this == other) }
-
-    public func hashCode(): Int64 { ptr.hashCode() ^ expansion.hashCode() }
-
-    /** The file containing this node, relative to the body's own file `owner`. */
+    /**
+     * The file containing this node, relative to the body's own file `owner`.
+     */
     public func inFile(owner: ItemFile): ItemFile {
         expansion.map {call => ItemFile.Expansion(call)} ?? owner
     }
 
-    /** Resolves in the current tree; `None` if that file or node is no longer available. */
+    /**
+     * Resolves in the current tree; `None` if that file or node is no longer available.
+     */
     public func node(db: AnalysisDatabase, owner: ItemFile): ?CjSyntaxNode {
         let (root, _) = syntaxOf(db, inFile(owner)) ?? return None
         ptr.tryToNode(root)
+    }
+}
+
+/**
+ * A body node's origin: syntax in a file, or a synthetic node introduced by lowering.
+ * A missing array index is separate from a present synthetic node.
+ */
+@Derive[Equatable]
+public enum BodyOrigin {
+    | WrittenSource(BodySource)
+    | SyntheticSource
+
+    /**
+     * The syntax source, when lowering preserved one.
+     */
+    public prop written: ?BodySource {
+        get() {
+            match (this) {
+                case WrittenSource(source) => source
+                case SyntheticSource => None
+            }
+        }
     }
 }
 
@@ -454,29 +473,29 @@ struct ExprSourceAlias {
  * other way round, by hash, for what asks of every name of a file.
  */
 public struct BodySourceMap <: Equatable<BodySourceMap> {
-    public let exprs: Array<?BodySource>
-    public let pats: Array<?BodySource>
-    public let locals: Array<?BodySource>
-    public let types: Array<?BodySource>
+    public let exprs: Array<BodyOrigin>
+    public let pats: Array<BodyOrigin>
+    public let locals: Array<BodyOrigin>
+    public let types: Array<BodyOrigin>
     private let aliases: Array<ExprSourceAlias>
-    private let exprIndex: PtrIndex
-    private let patIndex: PtrIndex
-    private let localIndex: PtrIndex
-    private let typeIndex: PtrIndex
+    private let exprIndex: BodySourceIndex
+    private let patIndex: BodySourceIndex
+    private let localIndex: BodySourceIndex
+    private let typeIndex: BodySourceIndex
 
-    init(exprs!: Array<?BodySource> = [], pats!: Array<?BodySource> = [],
-        locals!: Array<?BodySource> = [], types!: Array<?BodySource> = [],
+    init(exprs!: Array<BodyOrigin> = [], pats!: Array<BodyOrigin> = [],
+        locals!: Array<BodyOrigin> = [], types!: Array<BodyOrigin> = [],
         aliases!: Array<ExprSourceAlias> = []) {
         this.exprs = exprs
         this.pats = pats
         this.locals = locals
         this.types = types
         this.aliases = aliases
-        exprIndex = PtrIndex(exprs)
+        exprIndex = BodySourceIndex(exprs)
         for (alias in aliases) { exprIndex.alias(alias.source, alias.expr.index) }
-        patIndex = PtrIndex(pats)
-        localIndex = PtrIndex(locals)
-        typeIndex = PtrIndex(types)
+        patIndex = BodySourceIndex(pats)
+        localIndex = BodySourceIndex(locals)
+        typeIndex = BodySourceIndex(types)
     }
 
     /**
@@ -488,8 +507,11 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         exprAtSource(BodySource(ptr))
     }
 
-    public func exprAtSource(ptr: BodySource): ?ExprId {
-        match (exprIndex.get(ptr)) {
+    /**
+     * The expression at the file-qualified syntax source.
+     */
+    public func exprAtSource(source: BodySource): ?ExprId {
+        match (exprIndex.get(source)) {
             case Some(i) => ExprId(i)
             case None => None
         }
@@ -499,8 +521,11 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         patAtSource(BodySource(ptr))
     }
 
-    public func patAtSource(ptr: BodySource): ?PatId {
-        match (patIndex.get(ptr)) {
+    /**
+     * The pattern at the file-qualified syntax source.
+     */
+    public func patAtSource(source: BodySource): ?PatId {
+        match (patIndex.get(source)) {
             case Some(i) => PatId(i)
             case None => None
         }
@@ -513,8 +538,11 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         localAtSource(BodySource(ptr))
     }
 
-    public func localAtSource(ptr: BodySource): ?LocalId {
-        match (localIndex.get(ptr)) {
+    /**
+     * The local declaration at the file-qualified syntax source.
+     */
+    public func localAtSource(source: BodySource): ?LocalId {
+        match (localIndex.get(source)) {
             case Some(i) => LocalId(i)
             case None => None
         }
@@ -524,8 +552,11 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         typeAtSource(BodySource(ptr))
     }
 
-    public func typeAtSource(ptr: BodySource): ?TypeRefId {
-        match (typeIndex.get(ptr)) {
+    /**
+     * The type reference at the file-qualified syntax source.
+     */
+    public func typeAtSource(source: BodySource): ?TypeRefId {
+        match (typeIndex.get(source)) {
             case Some(i) => TypeRefId(i)
             case None => None
         }
@@ -547,22 +578,22 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
 /**
  * The first index of each pointer of an array.
  */
-class PtrIndex {
+class BodySourceIndex {
     private let first: HashMap<BodySource, Int64>
 
-    init(ptrs: Array<?BodySource>) {
-        first = HashMap<BodySource, Int64>(ptrs.size)
-        for (i in 0..ptrs.size) {
-            if (let Some(ptr) <- ptrs[i] && !first.contains(ptr)) {
-                first.add(ptr, i)
+    init(origins: Array<BodyOrigin>) {
+        first = HashMap<BodySource, Int64>(origins.size)
+        for (i in 0..origins.size) {
+            if (let WrittenSource(source) <- origins[i] && !first.contains(source)) {
+                first.add(source, i)
             }
         }
     }
 
     func alias(source: BodySource, index: Int64): Unit { first[source] = index }
 
-    func get(ptr: BodySource): ?Int64 {
-        first.get(ptr)
+    func get(source: BodySource): ?Int64 {
+        first.get(source)
     }
 }
 
@@ -660,11 +691,11 @@ class BodyLowering {
     let active: ActiveFilter
     let types: SignatureLowering
     let exprs = ArrayList<Expr>()
-    let exprPtrs = ArrayList<?BodySource>()
+    let exprOrigins = ArrayList<BodyOrigin>()
     let pats = ArrayList<Pat>()
-    let patPtrs = ArrayList<?BodySource>()
+    let patOrigins = ArrayList<BodyOrigin>()
     let locals = ArrayList<Local>()
-    let localPtrs = ArrayList<?BodySource>()
+    let localOrigins = ArrayList<BodyOrigin>()
     let funcs = ArrayList<LocalFunc>()
     private let aliases = ArrayList<ExprSourceAlias>()
     // the `?`s of the optional chains being lowered, innermost last: what each is applied to, and the
@@ -685,9 +716,12 @@ class BodyLowering {
         LoweredBody(
             Body(exprs: exprs.toArray(), pats: pats.toArray(), locals: locals.toArray(), funcs: funcs.toArray(),
                 types: types.types.toArray(), params: params, value: value, accessors: accessors, attrs: attrs),
-            BodySourceMap(exprs: exprPtrs.toArray(), pats: patPtrs.toArray(), locals: localPtrs.toArray(),
+            BodySourceMap(exprs: exprOrigins.toArray(), pats: patOrigins.toArray(), locals: localOrigins.toArray(),
                 types: Array(types.ptrs.size) {i =>
-                    types.ptrs[i].map {ptr => BodySource(ptr, expansion: typeExpansions.get(i))}
+                    match (types.ptrs[i]) {
+                        case Some(ptr) => WrittenSource(BodySource(ptr, expansion: typeExpansions.get(i)))
+                        case None => SyntheticSource
+                    }
                 },
                 aliases: aliases.toArray())
         )
@@ -723,7 +757,7 @@ class BodyLowering {
     func local(name: ?Name, kind: LocalKind, lone!: Bool = false): ?LocalId {
         let one = name ?? return None
         locals.add(Local(one.text(), kind, lone: lone))
-        localPtrs.add(source(one.syntax))
+        localOrigins.add(WrittenSource(source(one.syntax)))
         LocalId(locals.size - 1)
     }
 
@@ -731,7 +765,9 @@ class BodyLowering {
         BodySource(SyntaxNodePtr(node), expansion: currentExpansion)
     }
 
-    /** Lower in place; a statement expansion must not introduce an extra lexical scope. */
+    /**
+     * Lower in place; a statement expansion must not introduce an extra lexical scope.
+     */
     private func inExpansion<T>(call: MacroCallId, lower: () -> T): T {
         let previous = currentExpansion
         let start = types.ptrs.size
@@ -752,13 +788,13 @@ class BodyLowering {
 
     func add(expr: Expr, node: CjSyntaxNode): ExprId {
         exprs.add(expr)
-        exprPtrs.add(source(node))
+        exprOrigins.add(WrittenSource(source(node)))
         ExprId(exprs.size - 1)
     }
 
     private func missing(): ExprId {
         exprs.add(Expr.MissingExpr)
-        exprPtrs.add(None)
+        exprOrigins.add(SyntheticSource)
         ExprId(exprs.size - 1)
     }
 
@@ -886,7 +922,7 @@ class BodyLowering {
 
     private func synthesized(expr: Expr): ExprId {
         exprs.add(expr)
-        exprPtrs.add(None)
+        exprOrigins.add(SyntheticSource)
         ExprId(exprs.size - 1)
     }
 
@@ -919,7 +955,7 @@ class BodyLowering {
                     // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
                     case Expr.CallExpr(inner, args) =>
                         this.exprs[callee.index] = Expr.CallExpr(inner, args.concat([CallArg(None, lambda, isTrailing: true)]))
-                        exprPtrs[callee.index] = source(it.syntax)
+                        exprOrigins[callee.index] = WrittenSource(source(it.syntax))
                         return callee
                     case _ => Expr.CallExpr(callee, [CallArg(None, lambda, isTrailing: true)])
                 }
@@ -928,7 +964,7 @@ class BodyLowering {
             case AstExpr.AsOptionalExpr(it) =>
                 let selector = linkOf(it.expr())
                 locals.add(Local("$v", LocalKind.PatLocal))
-                localPtrs.add(None)
+                localOrigins.add(SyntheticSource)
                 quests.add((selector, LocalId(locals.size - 1)))
                 Expr.PathExpr("$v", [])
             case AstExpr.AsUnaryExpr(it) => Expr.UnaryExpr(it.op()?.text() ?? "", exprOf(it.expr()))
@@ -1144,7 +1180,7 @@ class BodyLowering {
         let runes = name.toRuneArray()
         let key = "Key${String(runes[..1]).toAsciiUpper()}${String(runes[1..])}"
         exprs.add(Expr.PathExpr(key, []))
-        exprPtrs.add(None)
+        exprOrigins.add(SyntheticSource)
         add(Expr.FieldExpr(ExprId(exprs.size - 1), name, []), arg.syntax)
     }
 
@@ -1178,7 +1214,7 @@ class BodyLowering {
         }
         // the block has no node of its own: the lambda's is the lambda's
         exprs.add(Expr.BlockExpr(stmts(it.stmts())))
-        exprPtrs.add(None)
+        exprOrigins.add(SyntheticSource)
         add(Expr.LambdaExpr(params, ExprId(exprs.size - 1)), it.syntax)
     }
 
@@ -1227,7 +1263,7 @@ class BodyLowering {
 
     private func addPat(pat: Pat, node: ?CjSyntaxNode): PatId {
         pats.add(pat)
-        patPtrs.add(node.map {one => source(one)})
+        patOrigins.add(node.map {one => WrittenSource(source(one))} ?? SyntheticSource)
         PatId(pats.size - 1)
     }
 }

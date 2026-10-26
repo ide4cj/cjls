@@ -137,16 +137,22 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
     let lowered = bodyWithSourceMap(db, def)
     let nodeOf = {
         id: ExprId =>
-        let ptr = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
-        let one = ptr ?? return None<CjSyntaxNode>
-        if (lowered.sourceMap.exprAtSource(one) != Some(id)) {
+        let origin = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
+        let source = match (origin) {
+            case WrittenSource(source) => source
+            case _ => return None<CjSyntaxNode>
+        }
+        if (lowered.sourceMap.exprAtSource(source) != Some(id)) {
             return None<CjSyntaxNode>
         }
-        if (one.expansion.isSome()) { one.node(db, def.file(db)) } else { one.ptr.tryToNode(root) }
+        if (source.expansion.isSome()) { source.node(db, def.file(db)) } else { source.ptr.tryToNode(root) }
     }
     let found = ArrayList<Diagnostic>()
     let report = {id: ExprId, range: TextRange, message: String =>
-        let source = lowered.sourceMap.exprs.get(id.index).flatMap {one => one} ?? return
+        let source = match (lowered.sourceMap.exprs.get(id.index)) {
+            case Some(WrittenSource(source)) => source
+            case _ => return
+        }
         let mapped = if (let Some(call) <- source.expansion) {
             sourceRangeOf(db, call, range) ?? (macroCallHeadOf(db, call) ?? return)[1]
         } else { range }

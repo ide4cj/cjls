@@ -37,10 +37,13 @@ func annotateUnknowns(source: SourceFile, item: Item, actual: ArrayList<Annotati
             // a node's expression is its first: those after it are a desugaring's (A29)
             let seen = HashSet<Int64>()
             for (i in 0..lowered.body.exprs.size) {
-                let ptr = lowered.sourceMap.exprs.get(i) ?? continue
-                let location = ptr ?? continue
-                if (location.expansion.isSome()) { continue }
-                let node = location.ptr.tryToNode(root) ?? continue
+                let origin = lowered.sourceMap.exprs.get(i) ?? continue
+                let bodySource = match (origin) {
+                    case WrittenSource(source) => source
+                    case _ => continue
+                }
+                if (bodySource.expansion.isSome()) { continue }
+                let node = bodySource.ptr.tryToNode(root) ?? continue
                 if (!seen.add(node.textRange.start * 1_000_000 + node.textRange.end)) {
                     continue
                 }

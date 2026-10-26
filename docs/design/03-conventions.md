@@ -387,7 +387,15 @@ name and type do not say all a caller needs.
 It says what and why (C15), and names every exception a caller sees: `@throws
 IndexOutOfBoundsException - if …` (`G.ERR.01`).
 
-A comment above a declaration is `/** … */`; `//` is for the inside of a body.
+A comment above a declaration uses a multiline doc block, even for one sentence;
+`/**`, each ` *` content line and ` */` stand on separate lines. Do not put the
+whole doc comment on one line. `//` is for the inside of a body.
+
+```cangjie
+/**
+ * The file containing this node.
+ */
+```
 
 ### C30: Narrow exceptions
 

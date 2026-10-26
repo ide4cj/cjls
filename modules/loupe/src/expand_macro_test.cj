@@ -671,6 +671,7 @@ class ExpressionExpansionTest {
 
     @TestCase
     func aCopiedMemberIsReadFromItsQualifiedExpression() {
+        // arrange
         let (db, file) = expansionDatabase(#"
             package m
             import m.ms.*
@@ -682,8 +683,12 @@ class ExpressionExpansionTest {
         let call = answer(db, file, "B", "b.n", [
             MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(copied, copied + 3)))
         ])
+
+        // act
         let hover = hoverInExpansion(db, call, 2)
         let targets = definitionInExpansion(db, call, 2)
+
+        // assert
         @Expect(hover?.items.map {item => item.code}, Some(["let n: Int64"]))
         @Expect(targets.size, 1)
         @Expect(targets[0].expansion.isNone())

@@ -224,8 +224,11 @@ func relativeName(path: VfsPath, root: VfsPath): String {
  */
 func whereIs(ws: BenchWorkspace, root: ErrorRoot): String {
     let db = ws.db
-    let ptr = bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
-    let source = ptr ?? return "no node"
+    let origin = bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
+    let source = match (origin) {
+        case WrittenSource(source) => source
+        case _ => return "no node"
+    }
     let node = source.node(db, root.def.file(db)) ?? return "no node"
     let range = if (let Some(call) <- source.expansion) {
         sourceRangeOf(db, call, node.textRange) ?? (macroCallHeadOf(db, call) ?? return "no call")[1]

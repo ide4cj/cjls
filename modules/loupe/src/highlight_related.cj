@@ -117,7 +117,7 @@ func typeParamTarget(db: AnalysisDatabase, file: SourceFile, param: TypeParam): 
     let lowered = bodyWithSourceMap(db, owner)
     let ptr = SyntaxNodePtr(name.syntax)
     let localFunc = (lowered.body.funcs |> enumerate |> filter {
-        pair: (Int64, LocalFunc) => (lowered.sourceMap.locals.get(pair[1].local.index) ?? None) == BodySource(ptr)
+        pair: (Int64, LocalFunc) => lowered.sourceMap.locals.get(pair[1].local.index) == Some(WrittenSource(BodySource(ptr)))
     } |> map {pair: (Int64, LocalFunc) => pair[0]} |> first) ?? return None
     TypeTarget.LocalGenericOf(owner, localFunc, index)
 }

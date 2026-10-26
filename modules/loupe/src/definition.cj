@@ -169,13 +169,18 @@ func packageTargets(db: AnalysisDatabase, pkg: PackageRef): Array<NavigationTarg
  */
 func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId, intoExpansions!: Bool = false): ?NavigationTarget {
     let lowered = bodyWithSourceMap(db, def)
-    let source = lowered.sourceMap.locals.get(local.index).flatMap {one => one} ?? return None
+    let source = match (lowered.sourceMap.locals.get(local.index)) {
+        case Some(WrittenSource(source)) => source
+        case _ => return None
+    }
     let name = source.node(db, def.file(db)) ?? return None
     let full = name.parent?.textRange ?? name.textRange
     bodySourceTarget(db, def.file(db), source, full, name.textRange, intoExpansions)
 }
 
-/** A source request stays in source, including a local declared by a statement expansion. */
+/**
+ * A source request stays in source, including a local declared by a statement expansion.
+ */
 func bodySourceTarget(db: AnalysisDatabase, owner: ItemFile, source: BodySource, full: TextRange,
     focus: TextRange, intoExpansions: Bool): ?NavigationTarget {
     match (source.inFile(owner)) {
@@ -198,8 +203,11 @@ func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, 
         case Source(file) => file
         case _ => return None
     }
-    let ptr = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
-    let source = ptr ?? return None
+    let origin = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
+    let source = match (origin) {
+        case WrittenSource(source) => source
+        case _ => return None
+    }
     if (source.expansion.isSome()) { return None }
     let name = source.node(db, def.file(db)) ?? return None
     (file, name)
@@ -276,7 +284,10 @@ func targetOf(db: AnalysisDatabase, target: TypeTarget, intoExpansions: Bool): ?
         case LocalGenericOf(owner, localFunc, index) =>
             let lowered = bodyWithSourceMap(db, owner)
             let local = lowered.body.funcs.get(localFunc)?.local ?? return None
-            let source = lowered.sourceMap.locals.get(local.index).flatMap {one => one} ?? return None
+            let source = match (lowered.sourceMap.locals.get(local.index)) {
+                case Some(WrittenSource(source)) => source
+                case _ => return None
+            }
             let name = source.node(db, owner.file(db)) ?? return None
             let (full, focus) = genericRanges(name.parent ?? return None, index) ?? return None
             bodySourceTarget(db, owner.file(db), source, full, focus, intoExpansions)
