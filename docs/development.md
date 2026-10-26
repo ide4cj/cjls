@@ -86,9 +86,12 @@ cjpm --version
 
 Confirm the compiler version matches the pin. `CANGJIE_HOME` must identify this
 SDK, with stdx under `third_party/stdx/<os>_<arch>_cjnative/static/stdx`, as the
-root [manifest](../cjpm.toml) specifies. Exported variables belong to the current
-shell: a new terminal or agent command process must load the environment again,
-or inherit it from its launcher.
+module manifests specify (for example, [loupe](../modules/loupe/cjpm.toml)). Each
+module that directly imports stdx declares its own binary dependencies, including
+modules that use stdx only in tests. This lets external projects depend on these
+modules without inheriting the cjls workspace configuration. Exported variables
+belong to the current shell: a new terminal or agent command process must load
+the environment again, or inherit it from its launcher.
 
 To enable repository Git hooks once per clone:
 

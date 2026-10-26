@@ -44,7 +44,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K8](#k8) | Nested derived generic `Hashable` crashes cjc | Handwritten `AstPtr` equality/hash |
 | [K9](#k9) | `Float64.parse` misrounds decimals | `fnum` parser and exact test oracle |
 | [K10](#k10) | `cjpm test` progress reporter stalls | `--no-progress` |
-| [K11](#k11) | Member-only build does not see workspace stdx | Build from workspace |
+| [K11](#k11) | Member-only build does not see workspace stdx | Declare stdx in each importing module |
 | [K12](#k12) | `cjfmt` exits zero on syntax errors | No reliable failure check in generators yet |
 | [K13](#k13) | macOS clears reachable objects' weak references | Check retention by identity |
 | [K14](#k14) | CJMP at `-O2` leaks std bodies into product | `platform` uses `-O1` |
@@ -198,9 +198,15 @@ exact nightly/platform and root cause are unverified. Keep `--no-progress` in
 `cjpm build -m <member>` reportedly ignores workspace-level stdx binary
 dependencies. [#332](https://github.com/ide4cj/cjls/issues/332) is the public seed;
 local historical notes report cjc/cjpm `1.3.0-alpha` in September 2026, exact nightly
-and platform unverified. The [root manifest](../cjpm.toml) owns the stdx paths.
-Build stdx-dependent members via the workspace. `-m modules/platform` examples
-remain valid for that module: this is not a blanket prohibition on member builds.
+and platform unverified.
+
+The current workaround is to declare stdx binary dependencies in each module
+that directly imports it, including test-only consumers (for example,
+[loupe](../modules/loupe/cjpm.toml) and [fjson](../modules/fjson/cjpm.toml)). The
+root workspace no longer declares stdx. This also lets external consumers resolve
+these dependencies without inheriting the cjls workspace configuration. It does
+not establish that the reported workspace-level SDK defect is fixed or impose a
+blanket prohibition on member builds.
 
 <a id="k12"></a>
 ### K12
