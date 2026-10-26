@@ -81,7 +81,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted; the line breaks are the author's by D76 |
 | [0061](0061-the-workspace-is-loaded-on-a-spawn.md) | The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded | accepted |
 | [0062](0062-toolchain-from-the-github-mirror.md) | The toolchain is downloaded from the GitHub mirror, checked against sha256 pinned from gitcode | accepted |
-| [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted |
+| [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted; a class or struct call goes to the initializer selected by inference, rather than directly to the type, by D145 |
 | [0064](0064-an-operator-is-a-call-of-its-types-member.md) | An operator of a type is a call of its member, the language's own tried first, as cjc | accepted; an operator with one declared candidate keeps its return type; a failing built-in operator is an error by D134 |
 | [0065](0065-binary-sources-at-the-cjo-positions.md) | A declaration of a package compiled already goes to the sources of its binary, at the position its `.cjo` gives, its name checked there | accepted |
 | [0066](0066-sugar-is-typed-as-cjc-desugars-it.md) | Coalescing, pipelines and compositions are typed as what cjc desugars them to, std.core named through lang items | accepted |
@@ -162,4 +162,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0141](0141-a-tests-state-runs-no-macros.md) | A state runs no macros unless it is given what starts them | accepted |
 | [0142](0142-linux-glibc-baseline.md) | Build Linux releases on Ubuntu 22.04 and check them without the SDK | proposed |
 | [0143](0143-bounded-generic-bounds.md) | Expand implied generic bounds in a separate bounded query | accepted |
+| [0145](0145-constructor-calls-navigate-to-the-selected-initializer.md) | Constructor calls navigate to the selected initializer, and declarations to their type | accepted |
 | [0146](0146-prefer-compile-time-constants.md) | Prefer const for values known at compile time | accepted |
