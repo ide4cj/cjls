@@ -242,10 +242,7 @@ public struct InferenceResult {
      * or the initializer `this(...)` or `super(...)` calls; the operator function `expr` calls (8e).
      */
     public func calleeOf(expr: ExprId): ?DefId {
-        match (findByIndex(callees, expr.index)) {
-            case Some(one) where !one.isInitializer => one.decl
-            case _ => None
-        }
+        findByIndex(callees, expr.index).filter {one => !one.isInitializer}.map {one => one.decl}
     }
 
     /**
@@ -253,10 +250,7 @@ public struct InferenceResult {
      * so hover and references keep the identity of the type named by the call. None if no initializer was chosen.
      */
     public func initializerOf(expr: ExprId): ?DefId {
-        match (findByIndex(callees, expr.index)) {
-            case Some(one) where one.isInitializer => one.decl
-            case _ => None
-        }
+        findByIndex(callees, expr.index).filter {one => one.isInitializer}.map {one => one.decl}
     }
 
     /**
