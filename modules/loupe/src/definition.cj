@@ -7,7 +7,7 @@ import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, InitDecl, NameRef, PathSegment, PathType, PostfixExpr,
-    UnaryExpr, isIdent}
+    RefExpr, UnaryExpr, isIdent}
 import cjsyntax.ast.SourceFile as SourceFileNode
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
 import loupe.hir.*
@@ -34,8 +34,9 @@ public struct NavigationTarget {
  * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
  * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
  * call names (#175); the constructor `this(...)` or `super(...)` calls; after a `specific` declaration, the `common`
- * ones it completes (#318); a package in the headers of its files, a name of an `import` what it imports.
- * Nothing for a package compiled already, nor for a declaration of one whose binary's sources are not there (D65).
+ * ones it completes (#318); a package in the headers of its files, a name of an `import` what it imports;
+ * a type called its chosen explicit initializer, a constructor declaration its owning type. Nothing for a package
+ * compiled already, nor for a declaration of one whose binary's sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
@@ -60,9 +61,14 @@ public func definitionInExpansion(db: AnalysisDatabase, call: MacroCallId, offse
 func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<NavigationTarget> {
     let scope = scopeFileOf(db, file) ?? return []
     let (root, _) = syntaxOf(db, file) ?? return []
-    let token = tokenAt(root, offset) ?? return []
+    let token = tokenAt(root, offset, includeInit: true) ?? return []
     let item = itemAround(db, file, token.parent)
-    let defs = match ((classifyName(db, scope, item, token), file)) {
+    let named = if (let Some(one) <- constructorDefinition(db, item, token)) {
+        Some([Definition.DeclDef(one)])
+    } else {
+        classifyName(db, scope, item, token)
+    }
+    let defs = match ((named, file)) {
         case (Some(defs), _) => defs
         // an expression or statements a call in an item expands to (D117), read where the call stands
         case (None, Expansion(call)) where item.isNone() => match (callSiteNameOf(db, call, token, offset)) {
@@ -85,6 +91,26 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
         }
     }
     targets.toArray()
+}
+
+/**
+ * A constructor call goes to the initializer chosen by inference; a constructor declaration goes to its type.
+ * These navigation targets do not change the type identity used by hover and reference searches.
+ */
+func constructorDefinition(db: AnalysisDatabase, item: ?DefId, token: CjSyntaxToken): ?DefId {
+    let def = item ?? return None
+    let parent = token.parent
+    let node = parent.parent
+    if ((token.kind == SyntaxKind.InitKw && parent.kind == SyntaxKind.InitDecl) ||
+        (parent.kind == SyntaxKind.Name && node.map {it =>
+            it.kind == SyntaxKind.PrimaryInitDecl || it.kind == SyntaxKind.EnumCtor
+        } == Some(true))) {
+        return parentOf(db, def)
+    }
+    let exprNode = node ?? return None
+    let callee = RefExpr.cast(exprNode).map {it => it.syntax} ?? accessNodeOf(exprNode) ?? return None
+    let expr = bodyWithSourceMap(db, def).sourceMap.exprAt(SyntaxNodePtr(callee)) ?? return None
+    inferBody(db, def).initializerOf(expr)
 }
 
 /**
@@ -155,12 +181,13 @@ func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, 
 }
 
 /**
- * The identifier, `This`, `this` or `super` at `offset`, the one after it if it is between two.
+ * The identifier, `This`, `this` or `super` at `offset`, also `init` when `includeInit`;
+ * the one after it if it is between two.
  */
-func tokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
+func tokenAt(root: CjSyntaxNode, offset: Int64, includeInit!: Bool = false): ?CjSyntaxToken {
     let isName = {token: CjSyntaxToken =>
         isIdent(token) || token.kind == SyntaxKind.ThisTypeKw || token.kind == SyntaxKind.ThisKw ||
-            token.kind == SyntaxKind.SuperKw
+            token.kind == SyntaxKind.SuperKw || (includeInit && token.kind == SyntaxKind.InitKw)
     }
     // a name before an operator it touches (`a|+b`)
     match (root.tokenAtOffset(offset)) {
@@ -284,7 +311,7 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
         // what a macro call adds: where the call writes it (#175)
         case Expansion(call) =>
             if (intoExpansions && let Some(node) <- itemNodeOf(db, id)) {
-                let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? node.textRange
+                let name = declarationFocus(node)
                 if (sourceRangeOf(db, call, name).isNone()) {
                     return NavigationTarget(call.file(db).fileId(db), node.textRange, name, expansion: call)
                 }
@@ -294,9 +321,15 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
         case Source(_) => ()
     }
     let (file, node) = nodeOf(db, id) ?? return None
-    let name = AnyHasName.cast(node).flatMap {it => it.name()}
-    let focus = name?.syntax.textRange ?? InitDecl.cast(node).flatMap {decl => decl.initToken()}?.textRange ?? node.textRange
-    NavigationTarget(file.fileId(db), node.textRange, focus)
+    NavigationTarget(file.fileId(db), node.textRange, declarationFocus(node))
+}
+
+/**
+ * The name an editor selects; initializers spell theirs as the keyword `init`.
+ */
+func declarationFocus(node: CjSyntaxNode): TextRange {
+    AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ??
+        InitDecl.cast(node).flatMap {it => it.initToken()}?.textRange ?? node.textRange
 }
 
 /**
