@@ -1,30 +1,50 @@
 package cjformat
 
+import std.env.getVariable
 import std.unittest.*
 import std.unittest.testmacro.*
-import std.env.getVariable
 import cjsyntax.{CjParse, CjSyntaxNode, parse}
+import ginkgo.TextRange
 
 /**
- * Keep inputs and intermediate results alive outside the timed region. Stage measurements
- * isolate work, but their medians need not sum to the full call: allocation and GC differ.
+ * A layout measurement needs the source tree, but must not retain a previously built document.
  */
-class FormatStageInput {
+class FormatParsedInput {
     let parsed: CjParse
     let root: CjSyntaxNode
-    let doc: Doc
-    let printed: String
-    let edits: Array<TextEdit>
 
-    FormatStageInput(let source: String) {
+    FormatParsedInput(let source: String) {
         parsed = parse(source)
         if (!parsed.errors.isEmpty()) {
             throw IllegalStateException("a formatter benchmark input must parse")
         }
         root = parsed.syntaxNode()
-        doc = LayoutBuilder(source).node(root)
-        printed = Printer(lineBreakIn(source), width: LINE_WIDTH).print(doc)
-        edits = replacement(source, root.textRange, printed)
+    }
+}
+
+/**
+ * Printing retains its document, not the temporary source tree used to construct it.
+ */
+class FormatPrintInput {
+    let doc: Doc
+    let newline: String
+
+    FormatPrintInput(input: FormatParsedInput) {
+        doc = LayoutBuilder(input.source).node(input.root)
+        newline = lineBreakIn(input.source)
+    }
+}
+
+/**
+ * Edit measurements retain text and edits, without pinning a document during unrelated stages.
+ */
+class FormatEditInput {
+    let printed: String
+    let edits: Array<TextEdit>
+
+    FormatEditInput(let source: String) {
+        printed = formatText(source) ?? throw IllegalStateException("a benchmark input must format")
+        edits = replacement(source, TextRange(0, source.size), printed)
         if (applyEdits(source, edits) != printed) {
             throw IllegalStateException("benchmark edits must reproduce the printed document")
         }
@@ -32,73 +52,91 @@ class FormatStageInput {
 }
 
 /**
- * Select one size per process when profiling: retaining every large document can distort
- * small-file GC costs. The default still runs the complete scaling series.
+ * A single size per process avoids retaining large fixtures during small-file measurements.
  */
-func formatStageSizes(): Array<Int64> {
+func formatStageSize(): Int64 {
     match (getVariable("CJFORMAT_BENCH_STATEMENTS")) {
-        case None => [100, 1000, 10000]
-        case Some("100") => [100]
-        case Some("1000") => [1000]
-        case Some("10000") => [10000]
+        case None | Some("1000") => 1000
+        case Some("100") => 100
+        case Some("10000") => 10000
         case _ =>
             throw IllegalArgumentException("CJFORMAT_BENCH_STATEMENTS must be 100, 1000 or 10000")
     }
 }
 
-let FORMAT_STAGE_INPUTS =
-    formatStageSizes()
-        .map {
-            n =>
-            FormatStageInput(
-                "func f() {\n${"call(firstArgument, secondArgument, thirdArgument)\n" * n}}\n"
-            )
-        }
+/**
+ * Data providers run outside the timed body, and keep only the selected stage's inputs alive.
+ */
+func formatStageSources(): Array<String> {
+    let n = formatStageSize()
+    ["func f() {\n${"call(firstArgument, secondArgument, thirdArgument)\n" * n}}\n"]
+}
 
 /**
- * The same statement counts as FormatBench, with parsing and each formatter stage separated.
- * These synthetic files measure scaling; they do not represent every syntax or an LSP request.
+ * Pre-parsed inputs isolate source reconstruction, layout and formatting from parser costs.
+ */
+func formatStageParsedInputs(): Array<FormatParsedInput> {
+    formatStageSources().map { source => FormatParsedInput(source) }
+}
+
+/**
+ * Pre-built documents isolate printing from layout construction.
+ */
+func formatStagePrintInputs(): Array<FormatPrintInput> {
+    formatStageParsedInputs().map { input => FormatPrintInput(input) }
+}
+
+/**
+ * Pre-formatted outputs isolate replacement calculation and application.
+ */
+func formatStageEditInputs(): Array<FormatEditInput> {
+    formatStageSources().map { source => FormatEditInput(source) }
+}
+
+/**
+ * Synthetic scaling inputs, not an LSP request or a representative syntax corpus. Stage
+ * medians need not sum to the full call: allocation and GC differ between isolated operations.
  */
 @Test
 @Configure[warmup: Duration.second, minDuration: Duration.second]
 class FormatStagesBench {
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func parseSource(input: FormatStageInput): CjParse {
-        parse(input.source)
+    @Bench[source in formatStageSources()]
+    func parseSource(source: String): CjParse {
+        parse(source)
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func materializeSource(input: FormatStageInput): String {
+    @Bench[input in formatStageParsedInputs()]
+    func materializeSource(input: FormatParsedInput): String {
         input.root.text()
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func buildLayout(input: FormatStageInput): Doc {
+    @Bench[input in formatStageParsedInputs()]
+    func buildLayout(input: FormatParsedInput): Doc {
         LayoutBuilder(input.source).node(input.root)
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func printLayout(input: FormatStageInput): String {
-        Printer(lineBreakIn(input.source), width: LINE_WIDTH).print(input.doc)
+    @Bench[input in formatStagePrintInputs()]
+    func printLayout(input: FormatPrintInput): String {
+        Printer(input.newline, width: LINE_WIDTH).print(input.doc)
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func makeReplacement(input: FormatStageInput): Array<TextEdit> {
-        replacement(input.source, input.root.textRange, input.printed)
+    @Bench[input in formatStageEditInputs()]
+    func makeReplacement(input: FormatEditInput): Array<TextEdit> {
+        replacement(input.source, TextRange(0, input.source.size), input.printed)
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func applyReplacement(input: FormatStageInput): String {
+    @Bench[input in formatStageEditInputs()]
+    func applyReplacement(input: FormatEditInput): String {
         applyEdits(input.source, input.edits)
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func formatParsed(input: FormatStageInput): ?Array<TextEdit> {
+    @Bench[input in formatStageParsedInputs()]
+    func formatParsed(input: FormatParsedInput): ?Array<TextEdit> {
         format(input.parsed)
     }
 
-    @Bench[input in FORMAT_STAGE_INPUTS]
-    func formatSource(input: FormatStageInput): ?String {
-        formatText(input.source)
+    @Bench[source in formatStageSources()]
+    func formatSource(source: String): ?String {
+        formatText(source)
     }
 }

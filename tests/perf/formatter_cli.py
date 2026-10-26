@@ -40,12 +40,26 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--repetitions", type=int, default=9)
     parser.add_argument("--warmup", type=int, default=1)
-    parser.add_argument("--sizes", type=int, nargs="+", default=[1, 100, 1000, 10000])
+    inputs = parser.add_mutually_exclusive_group()
+    inputs.add_argument("--sizes", type=int, nargs="+", default=[1, 100, 1000, 10000])
+    inputs.add_argument("--inputs", type=Path, nargs="+", help="read-only source files to copy and format")
     args = parser.parse_args()
     if args.repetitions < 2 or args.warmup < 0 or any(n < 1 for n in args.sizes):
         parser.error("use at least two repetitions, nonnegative warmup and positive sizes")
     cjls = args.cjls.resolve(strict=True)
     cjfmt = args.cjfmt.resolve(strict=True)
+    if args.inputs:
+        cases = [(str(path.resolve()), None, path.read_bytes()) for path in args.inputs]
+    else:
+        cases = [
+            (
+                f"calls-{count}", count,
+                ("func f() {\n"
+                 + "call(firstArgument, secondArgument, thirdArgument)\n" * count
+                 + "}\n").encode(),
+            )
+            for count in args.sizes
+        ]
     args.output.parent.mkdir(parents=True, exist_ok=True)
     report = {
         "platform": platform.platform(),
@@ -73,12 +87,7 @@ def main() -> None:
             "cjls": [str(cjls), "fmt", str(source)],
             "cjfmt": [str(cjfmt), "-f", str(source), "-c", str(config)],
         }
-        for count in args.sizes:
-            original = (
-                "func f() {\n"
-                + "call(firstArgument, secondArgument, thirdArgument)\n" * count
-                + "}\n"
-            ).encode()
+        for name_of_input, count, original in cases:
             samples = {name: [] for name in commands}
             outputs = {}
             for repetition in range(args.warmup + args.repetitions):
@@ -98,6 +107,7 @@ def main() -> None:
                 if source.read_bytes() != formatted:
                     raise RuntimeError(f"{name} output is not idempotent")
             case = {
+                "input": name_of_input,
                 "statements": count,
                 "input_bytes": len(original),
                 "input_sha256": hashlib.sha256(original).hexdigest(),
