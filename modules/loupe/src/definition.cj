@@ -375,7 +375,9 @@ func binaryTarget(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64, id:
     NavigationTarget(at.fileId, at.fullRange, at.focusRange)
 }
 
-/** The item `id` among `items` and their members. */
+/**
+ * The item `id` among `items` and their members.
+ */
 func findItem(items: Array<Item>, id: ItemId): ?Item {
     for (item in items) {
         if (item.id == id) { return item }

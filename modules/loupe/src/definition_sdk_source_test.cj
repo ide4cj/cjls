@@ -2,25 +2,34 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import rope.Rope
 import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.fixture.*
-import loupe.hir.*
+import loupe.fixture.{Fixture, FixtureException, stdCjo, stdCjoRead, stdWithSources}
+import loupe.hir.{canonicalDef, DefId, ExtendedType, ItemFile, itemTree, lookUp, memberLookup, Namespace, packageExports,
+    packageOfFile, Resolution, resolutionPackage, signatureTypes}
+import rope.Rope
 
-/** The loaded attachment, independent of any workspace root or open-document discovery. */
+/**
+ * The loaded attachment, independent of any workspace root or open-document discovery.
+ */
 func sdkSource(db: AnalysisDatabase, name: String): SourceFile {
-    for (source in db.project().getOrThrow().binarySources(db) where source.name == name) {
-        return db.sourceFile(source.fileId).getOrThrow()
+    let project = db.project() ?? throw FixtureException("no project for SDK navigation")
+    for (source in project.binarySources(db) where source.name == name) {
+        return db.sourceFile(source.fileId) ?? throw FixtureException("no source for ${name}")
     }
     throw FixtureException("no attached ${name}")
 }
 
+/**
+ * Checks the declaration reached from a name in an attached SDK source.
+ */
 func checkSdkJump(db: AnalysisDatabase, file: SourceFile, context: String, name: String,
     targetFile: String, targetName: String): Unit {
     let text = file.text(db).toString()
-    let at = text.indexOf(context).getOrThrow() + context.indexOf(name).getOrThrow()
+    let start = text.indexOf(context) ?? throw FixtureException("SDK source has no ${context}")
+    let offset = context.indexOf(name) ?? throw FixtureException("${name} absent from ${context}")
+    let at = start + offset
     let targets = definitionAt(db, file.fileId(db), at)
-    @Assert("${context}: ${targets.size}", "${context}: 1")
+    @Assert(targets.size, 1)
     let target = targets[0]
     let source = sdkSource(db, targetFile)
     @Expect(target.fileId, source.fileId(db))
@@ -38,10 +47,11 @@ class DefinitionSdkSourceTest {
         let file = sdkSource(db, "std.core/print.cj")
         let original = file.text(db)
         checkSdkJump(db, file, "str.rawData()", "rawData", "std.core/string.cj", "rawData")
-        let mismatched = "package std.core\nfunc fake(value: Int64): Int64 { value }\n"
-        db.setFileText(file.fileId(db), Rope(mismatched))
+        const MISMATCHED = "package std.core\nfunc fake(value: Int64): Int64 { value }\n"
+        db.setFileText(file.fileId(db), Rope(MISMATCHED))
         @Expect(packageOfFile(db, file).isNone())
-        @Expect(definitionAt(db, file.fileId(db), mismatched.indexOf("{ value").getOrThrow() + 2).isEmpty())
+        let body = MISMATCHED.indexOf("{ value") ?? throw FixtureException("no value in mismatched source")
+        @Expect(definitionAt(db, file.fileId(db), body + 2).isEmpty())
         db.setFileText(file.fileId(db), original)
         checkSdkJump(db, file, "str.rawData()", "rawData", "std.core/string.cj", "rawData")
     }
@@ -58,7 +68,7 @@ class DefinitionSdkSourceTest {
         checkSdkJump(db, file, "str.rawData()", "rawData", "std.core/string.cj", "rawData")
         checkSdkJump(db, file, "let build: StringBuilder", "StringBuilder", "std.core/string_builder.cj", "StringBuilder")
         checkSdkJump(db, file, "line.isNull()", "isNull", "std.core/c_pointer_resource.cj", "isNull")
-        let context = packageOfFile(db, file).getOrThrow()
+        let context = packageOfFile(db, file) ?? throw FixtureException("no checked SDK context")
         @Expect(packageExports(db, resolutionPackage(db, context)).names.get("readFromConsole").isNone())
     }
 
@@ -70,12 +80,12 @@ class DefinitionSdkSourceTest {
         let file = sdkSource(db, "std.core/thread.cj")
         checkSdkJump(db, file, "let rtCJThreadHandle = acquireCJThreadHandle()", "acquireCJThreadHandle",
             "std.core/thread.cj", "acquireCJThreadHandle")
-        let pkg = packageOfFile(db, file).getOrThrow()
+        let pkg = packageOfFile(db, file) ?? throw FixtureException("no checked SDK context")
         let thread = match (lookUp(db, pkg, file, "Thread", Namespace.Types)) {
             case Found(ids) => ids[0]
             case _ => throw FixtureException("no Thread")
         }
-        let projectFile = db.sourceFile(parsed.files[0].fileId).getOrThrow()
+        let projectFile = db.sourceFile(parsed.files[0].fileId) ?? throw FixtureException("no project source")
         @Expect(memberLookup(db, [ExtendedType.DeclType(thread)], "acquireCJThreadHandle", from: projectFile).isEmpty())
     }
 
@@ -90,10 +100,11 @@ class DefinitionSdkSourceTest {
         checkSdkJump(db, file, "myData.copyTo(newData, 0, 0, newSize)", "copyTo", "std.core/array.cj", "copyTo")
         checkSdkJump(db, file, "ArrayList<T>(newData)", "T", "std.collection/array_list.cj", "T")
         // A source self type must be the same declaration as binary signatures and imports name.
-        let sourceType = itemTree(db, file).items.iterator().filter {one => one.names.contains("ArrayList")}.next().getOrThrow()
+        let sourceType = itemTree(db, file).items.iterator().filter {one => one.names.contains("ArrayList")}
+            .next() ?? throw FixtureException("SDK source has no ArrayList")
         let sourceDef = DefId(db, ItemFile.Source(file), sourceType.id)
         let canonical = canonicalDef(db, sourceDef)
-        let pkg = packageOfFile(db, file).getOrThrow()
+        let pkg = packageOfFile(db, file) ?? throw FixtureException("no checked SDK context")
         let resolved = lookUp(db, pkg, file, "ArrayList", Namespace.Types)
         @Expect(resolved, Resolution.Found([canonical]))
         @Expect(canonical != sourceDef)

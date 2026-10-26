@@ -155,11 +155,12 @@ public class AnalysisDatabase <: Database {
         let files = ArrayList<BinarySourceFile>()
         for (binary in model.binaries) {
             let durability = binaryDurability(binary.name)
-            for (pkg in binary.sources?.packages ?? []) {
+            let sources = binary.sources ?? continue
+            for (pkg in sources.packages) {
                 let compiled = reads.iterator().filter {one => one.file.binary == binary.name && one.file.name == pkg.name}
                     .next().flatMap {one => projects.binaries.get(one.file).map {kept => kept[0]}}
                 let context = compiled.map {one =>
-                    setPackage(ModuleKey(binary.sources.getOrThrow().dir, binary.name), pkg,
+                    setPackage(ModuleKey(sources.dir, binary.name), pkg,
                         pkg.files.map {path => paths.intern(path)}, durability, binary: one)
                 }
                 for (path in pkg.files) {
@@ -257,8 +258,8 @@ public class AnalysisDatabase <: Database {
         match (packages.get(key)) {
             case Some((pkg, old, oldDurability)) =>
                 let moved = oldDurability != durability
-                if (binary.isSome() && projects.contextBinaries.get(pkg) != binary) {
-                    projects.contextBinaries[pkg] = binary.getOrThrow()
+                if (let Some(one) <- binary && projects.contextBinaries.get(pkg) != binary) {
+                    projects.contextBinaries[pkg] = one
                     pkg.setBinary(this).withDurability(durability).to(binary)
                 }
                 if (old.dir != model.dir || moved) {

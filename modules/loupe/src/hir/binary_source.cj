@@ -1,27 +1,31 @@
 package loupe.hir
 
-import std.collection.*
-import std.deriving.*
+import std.collection.ArrayList
+import std.deriving.Derive
 import calca.*
-import calca.macros.*
+import calca.macros.CalcaTracked
 import cjo.{openCjo, Position as CjoPosition}
 import cjsyntax.ast.AnyHasName
 import ginkgo.TextRange
 import index_map.IndexMap
-import rope.{Encoding, LineColumn, Rope}
-import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, Package, SourceFile}
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import rope.{Encoding, LineColumn, Rope}
 
-/** A binary declaration's checked source position, shared by navigation and source identity. */
+/**
+ * A binary declaration's checked source position, shared by navigation and source identity.
+ */
 @Derive[Equatable]
-public struct BinarySourceLocation {
+protected struct BinarySourceLocation {
     public BinarySourceLocation(public let fileId: FileId, public let fullRange: TextRange,
         public let focusRange: TextRange) {}
 }
 
-/** The D65 position/name check; absent sources and mismatched names produce no location. */
-public func binarySourceLocation(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64,
+/**
+ * The D65 position/name check; absent sources and mismatched names produce no location.
+ */
+protected func binarySourceLocation(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64,
     id: ItemId): ?BinarySourceLocation {
     let index = binaryExports(db, pkg).declIndex(BinaryItem(file, id)) ?? return None
     let name = (findBinaryItem(itemTreeOf(db, ItemFile.Binary(pkg, file)).items, id)?.names ?? []).get(0) ?? return None
@@ -37,14 +41,14 @@ public func binarySourceLocation(db: AnalysisDatabase, pkg: BinaryPackageFile, f
     }
     let binary = pkg.binary(db)
     let sources = db.project()?.binarySources(db) ?? return None
-    let fileId = (sources |> filter {source: BinarySourceFile => source.binary == binary && source.name == fileName} |>
-        map {source: BinarySourceFile => source.fileId} |> first) ?? return None
+    let fileId = sources.iterator().filter {source => source.binary == binary && source.name == fileName}
+        .next()?.fileId ?? return None
     let text = (db.sourceFile(fileId) ?? return None).text(db)
-    let offsetOf = {
-        position: ?(Int64, Int64) => match (position) {
+    let offsetOf: (?(Int64, Int64)) -> ?Int64 = {position =>
+        match (position) {
             case Some((line, column)) where line >= 0 && column >= 0 && line < text.lineCount =>
                 Some(text.offsetOf(LineColumn(line, column), Encoding.Utf8))
-            case _ => Option<Int64>.None
+            case _ => None
         }
     }
     // a name in backquotes is at the name, inside them
@@ -82,7 +86,9 @@ func writes(text: Rope, offset: Int64, written: String): Bool {
     offset + written.size <= text.size && text.slice(offset..offset + written.size).toString() == written
 }
 
-/** The detached context of an attached file, before any source query is run. */
+/**
+ * The detached context of an attached file, before any source query is run.
+ */
 func attachedContext(db: AnalysisDatabase, file: SourceFile): ?Package {
     let id = file.fileId(db)
     for (source in db.project()?.binarySources(db) ?? [] where source.fileId == id) {
@@ -112,49 +118,57 @@ func binarySourceItems(db: AnalysisDatabase, file: SourceFile): IndexMap<ItemId,
     let pending = ArrayList<Item>(binaryItemTrees(db, pkg)[index].items)
     while (!pending.isEmpty()) {
         let item = pending.remove(at: pending.size - 1)
-        if (let Some(at) <- binarySourceLocation(db, pkg, index, item.id)) {
-            if (let Some(token) <- root.tokenAtOffset(at.focusRange.start).rightBiased()) {
-                for (node in token.parent.ancestors()) {
-                    let name = AnyHasName.cast(node).flatMap {one => one.name()}
-                    if (let Some(name) <- name && name.syntax.textRange.containsRange(at.focusRange) &&
-                        item.names.contains(name.text()) && let Some(id) <- ids.idAround(node) && id.kind == item.kind) {
-                        found[id] = DefId(db, ItemFile.Binary(pkg, index), item.id)
-                        break
-                    }
-                }
+        pending.add(all: item.members)
+        let at = binarySourceLocation(db, pkg, index, item.id) ?? continue
+        let token = root.tokenAtOffset(at.focusRange.start).rightBiased() ?? continue
+        for (node in token.parent.ancestors()) {
+            let name = AnyHasName.cast(node).flatMap {one => one.name()} ?? continue
+            if (name.syntax.textRange.containsRange(at.focusRange) && item.names.contains(name.text()) &&
+                let Some(id) <- ids.idAround(node) && id.kind == item.kind) {
+                found[id] = DefId(db, ItemFile.Binary(pkg, index), item.id)
+                break
             }
         }
-        pending.add(all: item.members)
     }
     found
 }
 
-/** A source body keeps its syntax identity; types and generic owners use its binary identity. */
-public func canonicalDef(db: AnalysisDatabase, def: DefId): DefId {
+/**
+ * A source body keeps its syntax identity; types and generic owners use its binary identity.
+ */
+protected func canonicalDef(db: AnalysisDatabase, def: DefId): DefId {
     match (def.file(db)) {
         case Source(file) => binarySourceItems(db, file).get(def.item(db)) ?? def
         case _ => def
     }
 }
 
-/** A source context is usable only when this file has declarations matching the installed binary. */
+/**
+ * A source context is usable only when this file has declarations matching the installed binary.
+ */
 func binaryContextOfFile(db: AnalysisDatabase, file: SourceFile): ?Package {
     if (binarySourceItems(db, file).isEmpty()) { None } else { attachedContext(db, file) }
 }
 
-/** The resolution package of a detached source context, or a normal source package itself. */
-public func resolutionPackage(db: AnalysisDatabase, pkg: Package): PackageRef {
+/**
+ * The resolution package of a detached source context, or a normal source package itself.
+ */
+protected func resolutionPackage(db: AnalysisDatabase, pkg: Package): PackageRef {
     pkg.binary(db).map {one => PackageRef.Binary(one)} ?? PackageRef.Source(pkg)
 }
 
-/** Private binary declarations are visible from their attached source file alone. */
+/**
+ * Private binary declarations are visible from their attached source file alone.
+ */
 func resolutionFile(db: AnalysisDatabase, file: SourceFile): ItemFile {
     for ((_, def) in binarySourceItems(db, file)) { return def.file(db) }
     ItemFile.Source(file)
 }
 
-/** The paired source declaration, for navigation to a binary owner's type parameters. */
-public func sourceDefOf(db: AnalysisDatabase, def: DefId): ?DefId {
+/**
+ * The paired source declaration, for navigation to a binary owner's type parameters.
+ */
+protected func sourceDefOf(db: AnalysisDatabase, def: DefId): ?DefId {
     let (pkg, index) = match (def.file(db)) {
         case Binary(pkg, index) => (pkg, index)
         case _ => return None
@@ -174,17 +188,15 @@ public func sourceDefOf(db: AnalysisDatabase, def: DefId): ?DefId {
 @CalcaTracked
 func binarySourceDefMap(db: AnalysisDatabase, pkg: Package, stage: ScopeStage): DefMap {
     let compiled = defMapAt(db, resolutionPackage(db, pkg), stage)
-    let trees = ArrayList<(ItemFile, ItemTree)>()
-    for (id in pkg.files(db)) {
-        let file = db.sourceFile(id) ?? continue
-        if (binarySourceItems(db, file).isEmpty()) { continue }
-        let tree = activeItemTree(db, file)
-        trees.add((ItemFile.Source(file), ItemTree(items: tree.items.filter {item =>
-            item.kind != ItemKind.Extend && !item.names.isEmpty() &&
-                item.names.iterator().all {name => !compiled.names.contains(name)}
-        })))
-    }
-    let extra = collectDefMap(db, trees.toArray())
+    let trees = pkg.files(db).filterMap {id => db.sourceFile(id)}
+        .filter {file => !binarySourceItems(db, file).isEmpty()}.map {file =>
+            let tree = activeItemTree(db, file)
+            (ItemFile.Source(file), ItemTree(items: tree.items.filter {item =>
+                item.kind != ItemKind.Extend && !item.names.isEmpty() &&
+                    item.names.iterator().all {name => !compiled.names.contains(name)}
+            }))
+        }
+    let extra = collectDefMap(db, trees)
     let names = IndexMap<String, Array<Def>>(compiled.names.toArray())
     for ((name, defs) in extra.names) { names[name] = defs }
     let ctors = IndexMap<String, Array<Def>>(compiled.ctors.toArray())

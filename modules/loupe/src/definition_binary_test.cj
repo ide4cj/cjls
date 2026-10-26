@@ -44,12 +44,14 @@ class DefinitionBinaryTest {
             "#)
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
             models: [stdWithSources(["std.core"])])
-        let cursor = parsed.cursor.getOrThrow()
+        let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
         let targets = definitionAt(db, cursor.fileId, cursor.offset)
         @Assert(targets.size, 1)
         let target = targets[0]
-        let text = db.sourceFile(target.fileId).getOrThrow().text(db).toString()
-        let at = target.focusRange.start + text[target.focusRange.start..].indexOf("str: String").getOrThrow() + 5
+        let text = (db.sourceFile(target.fileId) ?? throw FixtureException("no source for println")).text(db).toString()
+        let parameter = text[target.focusRange.start..].indexOf("str: String") ??
+            throw FixtureException("println has no str: String")
+        let at = target.focusRange.start + parameter + 5
         let next = definitionAt(db, target.fileId, at)
         @Assert(next.size, 1)
         @Expect(parsed.pathOf(next[0].fileId), stdSourcesDir().join("core").join("string.cj"))
