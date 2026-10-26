@@ -420,6 +420,9 @@ public struct InactiveSourceFile {
 public struct Package {
     public let name: String
     public var dir: VfsPath
+    /**
+     * In path order, so header consistency uses the same first file as cjc.
+     */
     public var files: Array<FileId>
     public var noPrelude: Bool
     public var isMacro: ?Bool
