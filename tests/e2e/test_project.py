@@ -43,8 +43,11 @@ def test_dir_names_the_directory(tmp_path):
 
 
 def test_an_unknown_command_is_a_usage_error():
+    # arrange
+    command = [CJLS, "frob"]
+
     # act
-    run = subprocess.run([CJLS, "frob"], capture_output=True, timeout=60)
+    run = subprocess.run(command, capture_output=True, timeout=60)
 
     # assert
     assert run.returncode == 2

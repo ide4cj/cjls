@@ -50,14 +50,20 @@ async def test_a_client_that_pulls_sees_the_errors_until_the_document_is_fixed(s
     # arrange: Neovim pulls
     await server.initialize_session(types.InitializeParams(capabilities=client_capabilities("neovim")))
     uri = "untitled:a"
+
+    # act
     open_document(server, uri, BROKEN)
-    assert_the_broken_body(await pull(server, uri))
+    broken = await pull(server, uri)
+
+    # assert
+    assert_the_broken_body(broken)
 
     # act
     change_whole(server, uri, FIXED, version=2)
+    fixed = await pull(server, uri)
 
     # assert
-    assert await pull(server, uri) == []
+    assert fixed == []
 
     await server.shutdown_session()
 
@@ -69,6 +75,12 @@ async def test_a_client_that_cannot_pull_is_pushed_the_errors_and_their_clearing
 
     # act
     opened = await pushed_after(server, lambda: open_document(server, uri, BROKEN))
+
+    # assert
+    assert opened.uri == uri
+    assert_the_broken_body(opened.diagnostics)
+
+    # act
     closed = await pushed_after(
         server,
         lambda: server.text_document_did_close(
@@ -77,8 +89,6 @@ async def test_a_client_that_cannot_pull_is_pushed_the_errors_and_their_clearing
     )
 
     # assert
-    assert opened.uri == uri
-    assert_the_broken_body(opened.diagnostics)
     assert closed.uri == uri
     assert list(closed.diagnostics) == []
 

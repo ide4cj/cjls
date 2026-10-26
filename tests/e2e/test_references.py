@@ -53,9 +53,13 @@ async def test_the_uses_of_a_function_are_found_in_every_file(server: LanguageCl
             for one in answer or []
         )
 
-    # act, assert: the overload of `Int64`, declared in one file and called in another; not the other overload
+    # act: the overload of `Int64`, declared in one file and called in another; not the other overload
+    with_declaration = await references("b.cj", 1, 4, declaration=True)
+    without_declaration = await references("a.cj", 0, 5, declaration=False)
+
+    # assert
     assert result.capabilities.references_provider
-    assert await references("b.cj", 1, 4, declaration=True) == [("a.cj", 0, 5), ("b.cj", 1, 4), ("b.cj", 1, 21)]
-    assert await references("a.cj", 0, 5, declaration=False) == [("b.cj", 1, 4), ("b.cj", 1, 21)]
+    assert with_declaration == [("a.cj", 0, 5), ("b.cj", 1, 4), ("b.cj", 1, 21)]
+    assert without_declaration == [("b.cj", 1, 4), ("b.cj", 1, 21)]
 
     await server.shutdown_session()

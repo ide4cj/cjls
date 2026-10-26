@@ -106,20 +106,34 @@ async def test_a_closed_document_goes_back_to_what_the_disk_holds(client: Langua
     path = tmp_path / "a.cj"
     path.write_text("class OnDisk {}\n", encoding="utf-8")
     uri = vs_code_uri(path)
+
+    # act
     open_document(client, uri, "class InTheBuffer {}\n")
-    assert names(await outline(client, uri)) == ["InTheBuffer"]
+    buffered = await outline(client, uri)
+
+    # assert
+    assert names(buffered) == ["InTheBuffer"]
 
     # act
     client.text_document_did_close(
         types.DidCloseTextDocumentParams(text_document=types.TextDocumentIdentifier(uri=uri))
     )
+    original = await outline(client, uri)
+    canonical = await outline(client, path.as_uri())
+    unescaped = await outline(client, urllib.parse.unquote(uri))
 
     # assert: any spelling of the path finds it
-    assert names(await outline(client, uri)) == ["OnDisk"]
-    assert names(await outline(client, path.as_uri())) == ["OnDisk"]
-    assert names(await outline(client, urllib.parse.unquote(uri))) == ["OnDisk"]
+    assert names(original) == ["OnDisk"]
+    assert names(canonical) == ["OnDisk"]
+    assert names(unescaped) == ["OnDisk"]
 
 
 async def test_a_document_the_server_does_not_know_has_no_outline(client: LanguageClient):
-    # act, assert
-    assert await outline(client, "untitled:nothing") is None
+    # arrange
+    uri = "untitled:nothing"
+
+    # act
+    symbols = await outline(client, uri)
+
+    # assert
+    assert symbols is None

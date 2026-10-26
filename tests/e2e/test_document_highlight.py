@@ -47,15 +47,19 @@ async def test_a_name_highlights_what_means_the_same(server: LanguageClient, tmp
         )
         return [(h.range.start.line, h.range.start.character, h.kind) for h in answer or []]
 
-    # act, assert: the field, written through `this`, read through a value; not the parameter of its name
+    # act: the field, written through `this`, read through a value; not the parameter of its name
+    field_highlights = await highlights(7, 6)
+    parameter_highlights = await highlights(7, 10)
+
+    # assert
     assert result.capabilities.document_highlight_provider
-    assert await highlights(7, 6) == [
+    assert field_highlights == [
         (1, 8, types.DocumentHighlightKind.Write),
         (3, 13, types.DocumentHighlightKind.Write),
         (7, 6, types.DocumentHighlightKind.Read),
     ]
     # the parameter: its declaration, text, and its use
-    assert await highlights(7, 10) == [
+    assert parameter_highlights == [
         (6, 13, types.DocumentHighlightKind.Text),
         (7, 10, types.DocumentHighlightKind.Read),
     ]

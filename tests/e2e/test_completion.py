@@ -48,17 +48,20 @@ async def test_a_dot_lists_the_members_and_resolves_their_docs(server: LanguageC
                                             trigger_character="."),
         )
     )
-    x = next(item for item in answer.items if item.label == "x")
-    resolved = await server.completion_item_resolve_async(x)
 
-    # assert: advertised with `.` to trigger it; the members, inserted at the cursor; the declaration and the doc
-    # comment on resolve
+    # assert: advertised with `.` to trigger it; the members, inserted at the cursor
     assert "." in result.capabilities.completion_provider.trigger_characters
     assert result.capabilities.completion_provider.resolve_provider
     assert isinstance(answer, types.CompletionList)
     assert {"norm", "x"} <= {item.label for item in answer.items}
+    x = next(item for item in answer.items if item.label == "x")
     assert x.text_edit.range == types.Range(start=types.Position(line=7, character=6),
                                             end=types.Position(line=7, character=6))
+
+    # act
+    resolved = await server.completion_item_resolve_async(x)
+
+    # assert: the declaration and the doc comment on resolve
     assert resolved.detail == "public let x: Int64"
     assert "How far right." in resolved.documentation.value
 

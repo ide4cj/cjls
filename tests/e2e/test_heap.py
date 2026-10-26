@@ -63,14 +63,16 @@ def test_killing_the_server_leaves_no_process_of_it_behind():
     env = {k: v for k, v in os.environ.items() if k != "cjHeapSize"}
     server = serving(env)
     children = psutil.Process(server.pid).children(recursive=True)
-    assert len(children) == (1 if sys.platform == "win32" else 0)
 
     # act: as an editor kills a server it gave up on, its end of stdin still open
     server.kill()
     server.wait()
 
-    # assert: the child ends with it (D78); one left running would hold this until the timeout
+    # one left running would hold this until the timeout
     _, alive = psutil.wait_procs(children)
+
+    # assert: the child ends with it (D78)
+    assert len(children) == (1 if sys.platform == "win32" else 0)
     assert alive == []
     server.stdin.close()
     server.stdout.close()

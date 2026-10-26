@@ -76,7 +76,6 @@ async def test_expand_macro_answers_the_expansion_and_shows_the_expanded_file(se
         await server.shutdown_session()
         return
 
-    # act: the code action's command, as the editor runs it
     [action] = actions
     assert action.title == "Expand macro @Derive"
     command = action.command
@@ -86,6 +85,8 @@ async def test_expand_macro_answers_the_expansion_and_shows_the_expanded_file(se
     else:
         command = {"command": command.command, "arguments": command.arguments}
     assert command["command"] == "cjls.expandMacro"
+
+    # act: the code action's command, as the editor runs it
     await server.workspace_execute_command_async(types.ExecuteCommandParams(command=command["command"], arguments=command["arguments"]))
 
     # assert: the request to show the file (pytest-lsp's client shows it) came before the command's answer, and the

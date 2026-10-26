@@ -12,10 +12,11 @@ def exit_code(client: LanguageClient) -> int | None:
 
 
 async def test_initialize_tells_what_the_server_can_do(server: LanguageClient):
+    # arrange
+    params = types.InitializeParams(capabilities=types.ClientCapabilities())
+
     # act
-    result = await server.initialize_session(
-        types.InitializeParams(capabilities=types.ClientCapabilities())
-    )
+    result = await server.initialize_session(params)
 
     # assert
     assert result.server_info is not None and result.server_info.name == "cjls"
@@ -37,9 +38,10 @@ async def test_exit_after_shutdown_ends_the_process_with_0(server: LanguageClien
 
     # act: sends shutdown, then exit, and waits for the process
     await server.shutdown_session()
+    code = exit_code(server)
 
     # assert
-    assert exit_code(server) == 0
+    assert code == 0
 
 
 async def test_exit_without_shutdown_ends_the_process_with_1(server: LanguageClient):
@@ -48,10 +50,10 @@ async def test_exit_without_shutdown_ends_the_process_with_1(server: LanguageCli
 
     # act
     server.exit(None)
-    await server._server.wait()
+    code = await server._server.wait()
 
     # assert
-    assert exit_code(server) == 1
+    assert code == 1
 
 
 async def test_a_request_before_initialize_is_refused(server: LanguageClient):

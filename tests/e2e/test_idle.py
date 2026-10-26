@@ -14,8 +14,14 @@ TEXT = "class A {\n" + "    func f(x: Int64): Int64 { x + 1 }\n" * 2000 + "}\n"
 async def test_a_server_waiting_for_input_uses_no_cpu(client: LanguageClient):
     # arrange: work that leaves garbage behind, then nothing more from the client
     for i in range(FILES):
+        # act
         open_document(client, f"untitled:{i}", TEXT)
-        assert await outline(client, f"untitled:{i}")
+        symbols = await outline(client, f"untitled:{i}")
+
+        # assert
+        assert symbols
+
+    # arrange
     # to a client that does not pull them the server pushes each document's diagnostics, inferring its
     # bodies, after it answered (S8): work too, waited for
     can_pull = client.capabilities.text_document is not None and client.capabilities.text_document.diagnostic is not None
