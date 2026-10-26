@@ -83,7 +83,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0062](0062-toolchain-from-the-github-mirror.md) | The toolchain is downloaded from the GitHub mirror, checked against sha256 pinned from gitcode | accepted |
 | [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted; a class or struct call goes to the initializer selected by inference, rather than directly to the type, by D145 |
 | [0064](0064-an-operator-is-a-call-of-its-types-member.md) | An operator of a type is a call of its member, the language's own tried first, as cjc | accepted; an operator with one declared candidate keeps its return type; a failing built-in operator is an error by D134 |
-| [0065](0065-binary-sources-at-the-cjo-positions.md) | A declaration of a package compiled already goes to the sources of its binary, at the position its `.cjo` gives, its name checked there | accepted |
+| [0065](0065-binary-sources-at-the-cjo-positions.md) | A declaration of a package compiled already goes to the sources of its binary, at the position its `.cjo` gives, its name checked there | accepted; source attachments also provide a context for navigation within their files by D147 |
 | [0066](0066-sugar-is-typed-as-cjc-desugars-it.md) | Coalescing, pipelines and compositions are typed as what cjc desugars them to, std.core named through lang items | accepted |
 | [0067](0067-loose-mains-are-programs.md) | Loose files without a package line, two or more of which declare main, are a program per main, each with the main-less files of its directory | accepted |
 | [0068](0068-binaries-are-watched-from-their-directories.md) | The `.cjo` of the binaries are watched from the directories they are in, by a registration of their own, and an event on one finds the project again | accepted |
@@ -165,3 +165,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0144](0144-body-expression-expansions.md) | A body lowers current expression expansions in place, with file-qualified source maps | accepted |
 | [0145](0145-constructor-calls-navigate-to-the-selected-initializer.md) | Constructor calls navigate to the selected initializer, and declarations to their type | accepted |
 | [0146](0146-prefer-compile-time-constants.md) | Prefer const for values known at compile time | accepted |
+| [0147](0147-sdk-source-context.md) | Binary sources resolve in a detached context with canonical binary declarations | proposed |
