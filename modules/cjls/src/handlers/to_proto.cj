@@ -108,7 +108,14 @@ func documentHighlight(text: Rope, highlight: RelatedHighlight, encoding: Encodi
  * the same lines.
  */
 func hoverContent(hover: HoverResult, markdown: Bool): MarkupContent {
-    let parts = hover.items.map {
+    hoverContent(hover.items, markdown)
+}
+
+/**
+ * Declarations with their paths and docs, shared by hover and grouped completion documentation.
+ */
+func hoverContent(items: Array<HoverItem>, markdown: Bool): MarkupContent {
+    let parts = items.map {
         item: HoverItem =>
         let lines = ArrayList<String>()
         if (let Some(path) <- item.path) {

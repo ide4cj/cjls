@@ -65,12 +65,14 @@ public enum CompletionKind {
 
 /**
  * What a completion item stands for, for its detail and documentation when a client asks for them
- * (`completionDetail`): a declaration, as a member of a value of a type if one's; a local of a
- * body; a member parameter of a primary constructor; nothing, for a keyword or a package.
+ * (`completionDetails`): a declaration, as a member of a value of a type if one's; a group of
+ * overloads with their receiver types; a local of a body; a member parameter of a primary
+ * constructor; nothing, for a keyword or a package.
  */
 @Derive[Equatable]
 public enum CompletionSource {
     | DeclSource(DefId, ?Ty)
+    | OverloadSource(Array<CompletionOverload>)
     | LocalSource(DefId, LocalId)
     | MemberParamSource(DefId, LocalId, ?Ty)
     | NoSource
@@ -88,6 +90,18 @@ public struct CompletionItem {
         public let relevance: Int64,
         public let source: CompletionSource
     ) {}
+
+    /**
+     * How many declarations this item offers; counting a group needs no signature query.
+     */
+    public prop overloadCount: Int64 {
+        get() {
+            match (source) {
+                case OverloadSource(decls) => decls.size
+                case _ => 1
+            }
+        }
+    }
 }
 
 /**
@@ -155,20 +169,31 @@ func nameRefCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSynt
 }
 
 /**
- * The detail of `item`, one of the completions at `offset` of `fileId`: its declaration as hover
- * shows it, with its path and its doc comment; a member as a member of the value it was listed
- * on. Asked for one item at a time, when the client shows it.
+ * The declarations of `item`, one of the completions at `offset` of `fileId`, as hover shows
+ * them, with their paths and doc comments; members as members of the values they were listed
+ * on. An overload group resolves every declaration, in list order. Empty if none can be shown.
+ * Asked for one item at a time, when the client shows it.
  */
-public func completionDetail(db: AnalysisDatabase, fileId: FileId, offset: Int64, item: CompletionItem): ?HoverItem {
-    let file = db.sourceFile(fileId) ?? return None
-    let def = defAround(db, file, parse(db, file).syntaxNode(), offset) ?? return None
+public func completionDetails(db: AnalysisDatabase, fileId: FileId, offset: Int64, item: CompletionItem): Array<HoverItem> {
+    let file = db.sourceFile(fileId) ?? return []
+    let def = defAround(db, file, parse(db, file).syntaxNode(), offset) ?? return []
     let hovers = Hovers(db, def, None)
-    match (item.source) {
+    if (let OverloadSource(decls) <- item.source) {
+        let details = ArrayList<HoverItem>()
+        for (decl in decls) {
+            if (let Some(detail) <- hovers.declItem(decl.id, decl.receiver)) {
+                details.add(detail)
+            }
+        }
+        return details.toArray()
+    }
+    let detail: ?HoverItem = match (item.source) {
         case DeclSource(id, recv) => hovers.declItem(id, recv)
         case LocalSource(owner, local) => hovers.localItem(owner, local)
         case MemberParamSource(ctor, local, recv) => hovers.memberParamItem(ctor, local, recv)
-        case NoSource => None
+        case _ => None
     }
+    detail.map {one => [one]} ?? []
 }
 
 /**
@@ -842,7 +867,7 @@ func hasModifier(decl: CjSyntaxNode, text: String): Bool {
 
 /**
  * `items` the most relevant first, then by name, each once: a name shadowed by a nearer one is
- * gone, but for the functions, which overload each other.
+ * gone, but for functions and constructors, whose overloads share one item (D149).
  */
 func ranked(items: Array<CompletionItem>): Array<CompletionItem> {
     let sorted = items.clone()
@@ -864,5 +889,5 @@ func ranked(items: Array<CompletionItem>): Array<CompletionItem> {
             kept.add(item)
         }
     }
-    kept.toArray()
+    groupCompletionOverloads(kept.toArray())
 }

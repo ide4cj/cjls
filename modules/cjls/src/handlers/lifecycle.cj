@@ -30,6 +30,8 @@ func handleInitialize(state: ServerState, client: Client, logger: Logger, params
     state.locationLinks = takesLocationLinks(params.capabilities)
     state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
     state.completionMarkdown = takesCompletionMarkdown(params.capabilities)
+    state.completionLabelDetails = params.capabilities.textDocument.flatMap {it => it.completion}
+        .flatMap {it => it.completionItem}.flatMap {it => it.labelDetailsSupport} ?? false
     state.roots.add(all: workspaceRoots(params))
     state.settings = initialSettings(params.initializationOptions, client, logger)
     let workspace = params.capabilities.workspace

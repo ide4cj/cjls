@@ -66,7 +66,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         implementationProvider: BooleanOrImplementationOptionsOrImplementationRegistrationOptions.AsBoolean(true),
         hoverProvider: BooleanOrHoverOptions.AsBoolean(true),
         // the detail and the documentation on resolve, so the list executes no query per item (D81, D111)
-        completionProvider: CompletionOptions(triggerCharacters: ["."], resolveProvider: true),
+        completionProvider: CompletionOptions(triggerCharacters: ["."], resolveProvider: true,
+            completionItem: ServerCompletionItemOptions(labelDetailsSupport: true)),
         selectionRangeProvider: BooleanOrSelectionRangeOptionsOrSelectionRangeRegistrationOptions.AsBoolean(true),
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
         documentRangeFormattingProvider: BooleanOrDocumentRangeFormattingOptions.AsBoolean(true),
