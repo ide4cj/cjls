@@ -187,6 +187,32 @@ bash .github/scripts/check-linux-compat.sh target/release/bin/cjls
 
 Project formatting policy is documented in [Formatter configuration](formatting.md).
 
+### Nix package
+
+On `x86_64-linux` or `aarch64-linux`, build the flake's default package:
+
+```bash
+nix build
+./result/bin/cjls --config-schema
+```
+
+For the build and test commands in this guide, enter the default (`nightly`)
+development shell:
+
+```bash
+nix develop
+```
+
+The shell sets `CANGJIE_HOME` and `CANGJIE_STDX_PATH` (the matching static stdx
+directory); no separate SDK installation or environment setup is required.
+
+Nix fetches the Git revisions in `cjpm.lock` and generates `cangjie-repo.toml` for
+an offline, build-local dependency cache. When locked sources change, update the
+package-name entry in `gitHashes` in [`nix/package.nix`](../nix/package.nix). These
+hashes include the Git metadata required by cjpm (`leaveDotGit = true`).
+
+CI builds both Linux packages on native runners as non-blocking checks.
+
 ## Choose checks for a change
 
 | Change | Start with | Broader verification |
