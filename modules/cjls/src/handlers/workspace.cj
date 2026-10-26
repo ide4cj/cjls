@@ -133,7 +133,8 @@ func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>)
     let path = VfsPath.fromUri(event.uri)
     match (event.`type`) {
         case _ where state.binaryWatch?.covers(path) ?? false => true
-        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON || path.name == CFG_TOML => true
+        case _ where path.name == "cjpm.toml" || path.name == "cjpm.lock" || path.name == "cangjie-repo.toml" ||
+            path.name == PROJECT_JSON || path.name == CFG_TOML => true
         case FileChangeType.Changed => false
         case _ where isCangjieFile(path.name) => true
         // what is gone cannot be told a directory or a file, but one holding no file known leaves none to drop
@@ -629,6 +630,7 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
 func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registration {
     let comeOrGone = WatchKind(WatchKind.CREATE.value | WatchKind.DELETE.value)
     let watched = [("**/*", comeOrGone), ("**/*.cj", WatchKind.CHANGE), ("**/cjpm.toml", WatchKind.CHANGE),
+        ("**/cjpm.lock", WatchKind.CHANGE), ("**/cangjie-repo.toml", WatchKind.CHANGE),
         ("**/${PROJECT_JSON}", WatchKind.CHANGE), ("**/${CFG_TOML}", WatchKind.CHANGE)]
     let watchers = watched.map {
         globAndKind =>

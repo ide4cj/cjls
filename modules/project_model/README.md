@@ -15,6 +15,24 @@ the next source. Linked projects and directories discovered from an open documen
 enter through the same normalization. Keep selection and fallback behavior in
 this layer, rather than duplicating it in LSP handlers (D33, D88).
 
+Git dependencies use the entry project's `cjpm.lock` (v0 or v1) and the checkout
+already downloaded by cjpm. Ordinary/test dependencies use `requires`; build
+script dependencies and their transitive imports use `scripts`. A dependency's
+own lock does not override the entry project's resolution. The loader checks
+the declared URL and selector against the lock, then reads the exact cached
+commit, including members of Git workspaces. It never fetches or runs build
+scripts during discovery. Missing or stale locks/checkouts produce recoverable
+problems directing the user to `cjpm update`.
+
+The repository cache follows `cangjie-repo.toml` precedence: project, user
+`~/.cjpm`, then SDK `tools/config`. Relative cache paths are relative to the
+configuration file; an empty or absent path defaults to `~/.cjpm` (HOME, else
+USERPROFILE). Project-local config and lock changes reload the project.
+Registry dependencies remain unsupported (#514); workspace dependency
+inheritance, replacements and mode-specific sections are tracked by #515–#517.
+The model still shares import scopes for modules of the same name: distinct
+versions in the source and build-script graphs need scope isolation (#515).
+
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does
 not mistake an omitted file for an independent project (D80). A document truly

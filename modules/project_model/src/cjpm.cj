@@ -15,11 +15,11 @@ const BUILD_SCRIPT = "build.cj"
 
 /**
  * The project of the `cjpm.toml` at `file`, `None` if there is no such file: a module per package
- * of the workspace, and one per path dependency, reached from them, which is no member; and one
+ * of the workspace, and one per source dependency, reached from them, which is no member; and one
  * per `build.cj`. A multiplatform module's packages are those of the chain of source sets the
  * target of `cfg` takes, the files of the others inactive (#318). A
- * dependency of another kind (git, a version) is not there before `cjpm update` and is told in the
- * problems, not guessed.
+ * Git dependency is read from cjpm's locked checkout; missing locks/checkouts and unsupported
+ * registry dependencies are reported in the problems.
  *
  * @throws ProjectException - if the file cannot be read
  */
@@ -83,8 +83,10 @@ class CjpmLowering {
      * could not be.
      */
     private let reached = HashMap<VfsPath, ?String>()
+    private let git: CjpmGit
 
     CjpmLowering(private let loading: Loading, private let root: VfsPath, private let manifest: Manifest) {
+        git = CjpmGit(loading, root)
         let members = ArrayList<VfsPath>()
         if (manifest.pkg.isSome()) {
             members.add(root)
@@ -102,7 +104,7 @@ class CjpmLowering {
      * The name of the module in `dir`, lowered the first time; `None` if it has no manifest, or
      * no package.
      */
-    func module(dir: VfsPath): ?String {
+    func module(dir: VfsPath, forScript!: Bool = false): ?String {
         if (let Some(name) <- reached.get(dir)) {
             return name
         }
@@ -132,9 +134,15 @@ class CjpmLowering {
         for ((key, dep) in dependencies(manifest)) {
             match (dep) {
                 case Table(table) where table.path.isSome() =>
-                    deps.add(module(loading.resolve(dir, table.path.getOrThrow())) ?? key)
+                    deps.add(module(loading.resolve(dir, table.path.getOrThrow()), forScript: forScript) ?? key)
+                case Table(table) where table.git.isSome() =>
+                    if (let Some(path) <- git.resolve(key, table, script: forScript)) {
+                        if (let Some(name) <- module(path, forScript: forScript)) {
+                            deps.add(name)
+                        }
+                    }
                 case _ => loading.problems.add(
-                    "dependency `${key}` of `${name}` is left out: only path dependencies are read, not git or version ones")
+                    "dependency `${key}` of `${name}` is left out: registry dependencies are not read")
             }
         }
         let member = members.contains(dir)
@@ -217,9 +225,15 @@ class CjpmLowering {
         for ((key, dep) in sorted) {
             match (dep) {
                 case Table(table) where table.path.isSome() =>
-                    deps.add(module(loading.resolve(dir, table.path.getOrThrow())) ?? key)
+                    deps.add(module(loading.resolve(dir, table.path.getOrThrow()), forScript: true) ?? key)
+                case Table(table) where table.git.isSome() =>
+                    if (let Some(path) <- git.resolve(key, table, script: true)) {
+                        if (let Some(name) <- module(path, forScript: true)) {
+                            deps.add(name)
+                        }
+                    }
                 case _ => loading.problems.add(
-                    "script dependency `${key}` of ${script} is left out: only path dependencies are read, not git or version ones")
+                    "script dependency `${key}` of ${script} is left out: registry dependencies are not read")
             }
         }
         modules.add(ModuleModel(DEFAULT_PACKAGE, dir, [PackageModel(DEFAULT_PACKAGE, dir, [script])], deps: deps.toArray(),
@@ -342,7 +356,14 @@ enum Dependency {
 
 @DeriveExt[FromToml]
 struct DependencyTable {
-    DependencyTable(let path!: ?String = None) {}
+    DependencyTable(
+        let path!: ?String = None,
+        let git!: ?String = None,
+        let branch!: ?String = None,
+        let tag!: ?String = None,
+        let commitId!: ?String = None,
+        let source!: ?String = None
+    ) {}
 }
 
 /**
