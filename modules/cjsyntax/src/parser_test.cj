@@ -138,8 +138,13 @@ class StatementParseTest {
 
     @TestCase
     func eachStatementParsesToItsTree() {
+        // arrange
         for ((text, expected) in cases) {
-            @Expect(stmtSexp(text), expected)
+            // act
+            let actual = stmtSexp(text)
+
+            // assert
+            @Expect(actual, expected)
         }
     }
 }
@@ -367,17 +372,27 @@ class EntryParseTest {
 class StringInterpolationParseTest {
     @TestCase[body in ["", "   ", "/* empty */", "; ;", "\n// empty\n"]]
     func triviaAndSemicolonsDoNotMakeAnInterpolationNonempty(body: String) {
+        // arrange
         let text = "main() { let s = \"\${${body}}\" }"
+
+        // act
         let parsed = parse(text)
+
+        // assert
         @Expect(parsed.syntaxNode().text(), text)
         @Expect(parsed.errors.map {it => message(it.error)}, ["string interpolation cannot be empty"])
     }
 
     @TestCase
     func anUnclosedInterpolationHasAClosingDelimiterErrorAndKeepsItsText() {
-        let text = ##"main() { let s = "${1"##
-        let parsed = parse(text)
-        @Expect(parsed.syntaxNode().text(), text)
+        // arrange
+        const TEXT = ##"main() { let s = "${1"##
+
+        // act
+        let parsed = parse(TEXT)
+
+        // assert
+        @Expect(parsed.syntaxNode().text(), TEXT)
         @Expect(parsed.errors.map {it => message(it.error)}.contains("expected '}' to close string interpolation"))
     }
 }

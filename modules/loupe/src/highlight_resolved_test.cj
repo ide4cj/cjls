@@ -60,7 +60,8 @@ func isUse(token: CjSyntaxToken): Bool {
 class HighlightResolvedTest {
     @TestCase
     func anInterpolationsNamesKeepTheirSemanticHighlighting() {
-        checkHighlight(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -68,7 +69,10 @@ class HighlightResolvedTest {
                 "before${n}after"
             //           ^ Parameter
             }
-            "#)
+            "#
+
+        // act, assert
+        checkHighlight(FIXTURE)
     }
 
     @TestCase

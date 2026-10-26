@@ -138,8 +138,14 @@ class HighlightTest {
 
     @TestCase
     func emptyAdjacentAndNestedInterpolationsKeepTheirDelimiters() {
-        let text = ##"let s = "${}${"${1}"}""##
-        let result = highlightOf(text)
+        // arrange
+        const TEXT = ##"let s = "${}${"${1}"}""##
+
+        // act
+        let result = highlightOf(TEXT)
+        let partial = highlightOf(TEXT, range: TextRange(10, 11))
+
+        // assert
         let delimiters = result.filter {it => it.tag == HighlightTag.InterpolationDelimiter}
         @Expect(delimiters.map {it => it.range}, [TextRange(9, 11), TextRange(11, 12),
             TextRange(12, 14), TextRange(15, 17), TextRange(18, 19), TextRange(20, 21)])
@@ -147,13 +153,19 @@ class HighlightTest {
         for (i in 1..result.size) {
             @Expect(result[i - 1].range.end <= result[i].range.start)
         }
-        @Expect(highlightOf(text, range: TextRange(10, 11)).map {it => it.range}, [TextRange(9, 11)])
+        @Expect(partial.map {it => it.range}, [TextRange(9, 11)])
     }
 
     @TestCase
     func escapedAndRawInterpolationTextStaysStringContent() {
-        let text = ###"let a = "\${}"; let b = #"${}"#"###
-        @Expect(highlightOf(text).filter {it => it.tag == HighlightTag.InterpolationDelimiter}.isEmpty())
+        // arrange
+        const TEXT = ###"let a = "\${}"; let b = #"${}"#"###
+
+        // act
+        let result = highlightOf(TEXT)
+
+        // assert
+        @Expect(result.filter {it => it.tag == HighlightTag.InterpolationDelimiter}.isEmpty())
     }
 
     @TestCase

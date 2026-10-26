@@ -30,12 +30,17 @@ async def test_a_document_is_highlighted_from_its_start(client: LanguageClient):
 
 
 async def test_interpolation_boundaries_are_operators_over_an_editors_grammar(client: LanguageClient):
+    # arrange
     uri = "untitled:interpolation"
     text = 'main() { let n = 1; let s = "${n}" }'
     open_document(client, uri, text)
+
+    # act
     tokens = await client.text_document_semantic_tokens_full_async(
         types.SemanticTokensParams(text_document=types.TextDocumentIdentifier(uri=uri))
     )
+
+    # assert
     assert tokens is not None
     # The standard legend keeps operator at index 4; every editor gets the boundaries,
     # even when ordinary operators/literals are left to its base grammar (D148).
