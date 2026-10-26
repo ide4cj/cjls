@@ -235,7 +235,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken,
         return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}
     }
     if (name.kind == SyntaxKind.ThisExpr || name.kind == SyntaxKind.SuperExpr) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(name)) ?? return None
+        let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ?? return None
         return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}
     }
     if (let Some(ref) <- RefExpr.cast(node)) {

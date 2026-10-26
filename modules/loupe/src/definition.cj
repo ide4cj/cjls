@@ -114,7 +114,7 @@ func constructorDefinition(db: AnalysisDatabase, item: ?DefId, token: CjSyntaxTo
     }
     let exprNode = node ?? return None
     let callee = RefExpr.cast(exprNode).map {it => it.syntax} ?? accessNodeOf(exprNode) ?? return None
-    let expr = bodyWithSourceMap(db, def).sourceMap.exprAt(SyntaxNodePtr(callee), expansion: expansion) ?? return None
+    let expr = bodyWithSourceMap(db, def).sourceMap.exprAtSource(BodySource(SyntaxNodePtr(callee), expansion: expansion)) ?? return None
     inferBody(db, def).initializerOf(expr)
 }
 

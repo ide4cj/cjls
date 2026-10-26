@@ -538,6 +538,33 @@ class InExpansionTest {
  */
 @Test
 class ExpressionExpansionTest {
+    @TestCase[argument in ["1", "true"]]
+    func aConstructorInAnExpressionExpansionGoesToTheSelectedInitializer(argument: String) {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            class Box {
+                init(x: Int64) {}
+                init(x: Bool) {}
+            }
+            func f(): Box { @B(0) }
+            "#)
+        let text = "Box(${argument})"
+        let call = answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+
+        // act
+        let targets = definitionInExpansion(db, call, 0)
+
+        // assert
+        let source = file.text(db).toString()
+        let parameter = if (argument == "1") { "Int64" } else { "Bool" }
+        let at = offsetIn(source, "init(x: ${parameter})")
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion.isNone())
+        @Expect(targets[0].focusRange, TextRange(at, at + 4))
+    }
+
     @TestCase
     func whereTheCallStandsSaysWhatItsOutputIsParsedAs() {
         // arrange
