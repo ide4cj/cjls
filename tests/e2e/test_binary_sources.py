@@ -2,8 +2,10 @@
 
 import asyncio
 import json
+import pathlib
 
 from lsprotocol import types
+from pygls.uris import to_fs_path
 
 from conftest import capabilities
 
@@ -41,12 +43,13 @@ async def test_binary_roots_replace_after_manifest_reload(server, tmp_path):
         workspace_folders=[types.WorkspaceFolder(uri=root.as_uri(), name="ws")],
         initialization_options={"cangjieHome": str(tmp_path / "no-sdk")},
     ))
-    first = await reports.get()
+    # Compare paths so Windows drive-letter casing and URI escaping are handled.
+    first = [pathlib.Path(to_fs_path(uri)) for uri in await reports.get()]
 
     # assert
     assert result.capabilities.experimental["binarySourceRoots"] is True
-    assert source.as_uri() in first
-    assert dep.as_uri() not in first
+    assert source in first
+    assert dep not in first
 
     # act: a manifest reload replaces the previous roots
     model["binaries"] = []
@@ -54,8 +57,8 @@ async def test_binary_roots_replace_after_manifest_reload(server, tmp_path):
     server.workspace_did_change_watched_files(types.DidChangeWatchedFilesParams(changes=[
         types.FileEvent(uri=manifest.as_uri(), type=types.FileChangeType.Changed),
     ]))
-    second = await reports.get()
+    second = [pathlib.Path(to_fs_path(uri)) for uri in await reports.get()]
 
     # assert
-    assert source.as_uri() not in second
+    assert source not in second
     await server.shutdown_session()
