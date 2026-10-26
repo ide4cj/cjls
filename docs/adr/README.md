@@ -167,3 +167,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0146](0146-prefer-compile-time-constants.md) | Prefer const for values known at compile time | accepted |
 | [0147](0147-sdk-source-context.md) | Binary sources resolve in a detached context with canonical binary declarations | proposed |
 | [0148](0148-interpolation-delimiters.md) | Highlight interpolation delimiters over editor grammars | accepted |
+| [0149](0149-group-completion-overloads.md) | Completion groups overloads by the name it inserts and resolves their signatures together | accepted |
