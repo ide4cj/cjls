@@ -4,13 +4,14 @@ Generates syntax kinds and typed tree views from cjsyntax's kinds file and
 ungrammar ([D10](../../docs/adr/0010-generated-syntax.md)). The input model and
 accessor constraints are explained in [cjsyntax's notes](../cjsyntax/README.md#generated-tree-views).
 
-The executable depends on `ftoml` and `stdxx`; `cjsyntax` and `ginkgo` are test
-dependencies only. Preserve this separation so broken generated syntax cannot
-prevent rebuilding the generator that repairs it.
+The executable links `cjformat`, which depends on checked-in `cjsyntax` and
+`ginkgo`. Build it before changing generated syntax (D150). If checked-in output
+cannot build, restore it from git or repair it before rebuilding the generator;
+the previously built generator can then generate the new kinds.
 
 ## Regenerate
 
-From the workspace root, with the pinned SDK and `cjfmt` available as described
+Build from the workspace root, with the pinned SDK as described
 in [Development](../../docs/development.md#select-the-pinned-sdk):
 
 ```bash
@@ -25,11 +26,9 @@ Build before breaking or removing generated output. Edit
 notes about accessors requiring handwritten implementations in
 [`node_ext.cj`](../cjsyntax/src/ast/node_ext.cj). Do not patch generated output.
 
-Formatting is part of generation, but the current `writeFormatted` checks only
-`cjfmt`'s exit status and discards stderr. [K12](../../docs/sdk-issues.md#k12)
-records reports that syntax errors can return zero with unchanged input. A
-successful generator command therefore does not establish that the generated
-consumer compiles; build/test it too.
+Formatting uses the `cjformat` library in memory and rejects syntax errors before
+writing a file. The built generator needs no SDK on PATH. Build/test consumers as
+well: successful formatting establishes parsing, not type correctness.
 
 ## Verification
 
@@ -53,4 +52,4 @@ These checks validate tree/view agreement, not compiler acceptance.
 
 Follow with [Development's grammar/generated-code checks](../../docs/development.md#choose-checks-for-a-change).
 The generator tests import the generated consumer, exercising that dependency
-without making it a dependency of the executable.
+and the library formatter also uses the checked-in syntax consumer.

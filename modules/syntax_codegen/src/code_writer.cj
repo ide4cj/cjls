@@ -3,7 +3,7 @@ package syntax_codegen
 const LINE_WIDTH = 120
 
 /**
- * Builds a Cangjie file formatted as `cjfmt` would leave it, so what is checked in is exactly what is generated.
+ * Builds valid source; the shared formatter decides the final layout.
  */
 class CodeWriter <: ToString {
     let sb = StringBuilder()
@@ -56,7 +56,7 @@ class CodeWriter <: ToString {
 
     /**
      * `items` separated by `separator`, as many to a line as fit: `head` first, `tail` last, lines after the
-     * first one level further in. A `leading` separator starts the next line, as `cjfmt` has the `|` of patterns.
+     * first one level further in. A `leading` separator starts the next line, so emitted pattern alternatives stay parseable.
      */
     func wrapped(head: String, items: Array<String>, separator: String, tail: String, leading!: Bool = false): Unit {
         let pieces = Array<String>(items.size) {

@@ -19,7 +19,7 @@ import cjls.server.*
 import cjls.macros.LspHandler
 
 /**
- * What the macro call at the position, or the item it is in (`macroCallAt`), expands to, formatted (D60); one of std,
+ * What the macro call at the position, or the item it is in (`macroCallAt`), expands to, formatted (D150); one of std,
  * which the server writes itself, after a line saying so, and after the declaration it adds to. `null` off a call, on
  * one nothing expands, or in a document the server does not know.
  */

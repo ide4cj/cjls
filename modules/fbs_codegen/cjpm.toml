@@ -7,12 +7,13 @@ version = "0.1.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
-compile-option = "--static-std -Woff unused"
+compile-option = "--static -Woff unused"
 override-compile-option = ""
 link-option = ""
 package-configuration = {}
 
 [dependencies]
+cjformat = { path = "../cjformat" }
 ftoml = { path = "../ftoml" }
 stdxx = { path = "../stdxx" }
 

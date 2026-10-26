@@ -172,8 +172,8 @@ class ResolveEnumTest {
 }
 
 /**
- * The blank lines inside the blocks are what the emitter lays down; `cjfmt`, which `main` runs over
- * the output, collapses them in the file that lands on disk.
+ * The blank lines inside the blocks are what the emitter lays down; `generateCjFiles` applies
+ * the shared formatter before producing files.
  */
 @Test
 class EmitEnumTest {

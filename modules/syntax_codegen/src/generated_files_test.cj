@@ -15,6 +15,32 @@ const KINDS_FILE = "modules/cjsyntax/syntax_kinds.toml"
 @Test
 class GeneratedFilesTest {
     @TestCase
+    func invalidGeneratedSourceDoesNotOverwriteAFile(): Unit {
+        // arrange
+        let dir = Directory.createTemp(getTempDirectory())
+        try {
+            let path = dir.join("output.cj")
+            File.writeTo(path, "keep".toArray())
+
+            // act
+            @AssertThrows[IllegalStateException](writeFormatted(path, "func broken( {"))
+            let preserved = String.fromUtf8(File.readFrom(path))
+
+            // assert
+            @Expect(preserved, "keep")
+
+            // act
+            writeFormatted(path, "func f() {call(a,\nb)}")
+            let formatted = String.fromUtf8(File.readFrom(path))
+
+            // assert
+            @Expect(formatted, "func f() {\n    call(a, b)\n}\n")
+        } finally {
+            remove(dir, recursive: true)
+        }
+    }
+
+    @TestCase
     func theCheckedInFilesAreWhatTheGeneratorMakes() {
         // arrange
         let generated = generate(Path(KINDS_FILE))
@@ -27,7 +53,10 @@ class GeneratedFilesTest {
                 let fresh = dir.join(file.path.fileName)
                 writeFormatted(fresh, file.contents)
                 if (File.readFrom(fresh) != File.readFrom(file.path)) {
-                    stale.add("${file.path} is out of date: `cjpm build`, then `target/release/bin/syntax_codegen ${KINDS_FILE}`")
+                    stale
+                        .add(
+                            "${file.path} is out of date: `cjpm build`, then `target/release/bin/syntax_codegen ${KINDS_FILE}`"
+                        )
                 }
             }
         } finally {

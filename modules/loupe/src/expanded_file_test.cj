@@ -37,6 +37,22 @@ class ShownExpansionTest {
     }
 
     @TestCase
+    func reflowedLinesKeepTheMappingToTheMacroOutput(): Unit {
+        // arrange
+        let written = "func f(x: Int64) { g(x) }"
+
+        // act
+        let shown = ShownExpansion.of(written)
+
+        // assert
+        @Expect(shown.text, "func f(x: Int64) {\n    g(x)\n}")
+        let oldName = offsetIn(written, "g(x)", plus: 2)
+        let newName = offsetIn(shown.text, "g(x)", plus: 2)
+        @Expect(shown.fromWritten(TextRange(oldName, oldName + 1)), TextRange(newName, newName + 1))
+        @Expect(shown.toWritten(newName), oldName)
+    }
+
+    @TestCase
     func anExpansionThatDoesNotFormatIsShownAsWritten() {
         // arrange
         let written = "class A {\nfunc f(: Unit {}\n"
@@ -64,7 +80,7 @@ class ExpandFileTest {
         // assert
         @Expect(source.contains("@M[x]\nclass C {}"))
         @Expect(expanded.text,
-            "// header\n" + source.replace("@M[x]\nclass C {}", "// @M[x] expanded by cjls\n" + written))
+            "// header\n" + source.replace("@M[x]\nclass C {}", "// @M[x] expanded by cjls\n" + written.replace("{ C() }", "{\n    C()\n}")))
     }
 
     @TestCase
@@ -104,7 +120,8 @@ class ExpandFileTest {
 
         // act
         let fromSource = expanded.fromSource(TextRange(import_, import_ + 6))
-        let fromReplaced = expanded.fromSource(TextRange(offsetIn(source, "C {}"), offsetIn(source, "C {}") + 1))
+        let fromReplaced =
+            expanded.fromSource(TextRange(offsetIn(source, "C {}"), offsetIn(source, "C {}") + 1))
         let fromExpansion = expanded.fromExpansion(call, TextRange(gen, gen + 3))
 
         // assert
@@ -118,14 +135,18 @@ class ExpandFileTest {
     @TestCase
     func aStdDeriveIsFollowedByTheAnalysissSignatures() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Hashable]
             struct S {}
             func f() {}
-            "#)
+            "#
+                )
         let db = deriveDatabase(parsed)
         let file = parsed.file("/main.cj")
 
@@ -144,10 +165,13 @@ class ExpandFileTest {
     @TestCase
     func aFileWithNoExpansionHasNone() {
         // arrange
-        let (db, file) = expansionDatabase(#"
+        let (db, file) =
+            expansionDatabase(
+                #"
             package m
             class C {}
-            "#)
+            "#
+            )
 
         // act
         let expanded = expandFile(db, file.fileId(db), "// header")
