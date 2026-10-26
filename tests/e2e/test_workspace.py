@@ -81,6 +81,11 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
     )
     await loaded(server, 2)
     after_gone = await found()
+
+    # assert
+    assert after_gone == []
+
+    # act
     (tmp_path / "away").rename(root / "src" / "b")
     server.workspace_did_change_watched_files(
         types.DidChangeWatchedFilesParams(
@@ -91,7 +96,6 @@ async def test_a_folder_gone_or_come_is_followed_from_one_event_for_it(server: L
     after_come = await found()
 
     # assert: the server follows such an event, and a watcher of the editor's lets it through
-    assert after_gone == []
     assert after_come == ["src/b/x.cj"]
     watches = capabilities(editor).workspace.did_change_watched_files
     if watches and watches.dynamic_registration:

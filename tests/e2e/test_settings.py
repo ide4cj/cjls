@@ -12,8 +12,11 @@ from conftest import CJLS, CLIENTS, capabilities, loaded
 
 
 def test_config_schema_prints_every_setting_with_its_type_default_and_description():
+    # arrange
+    command = [CJLS, "--config-schema"]
+
     # act
-    run = subprocess.run([CJLS, "--config-schema"], capture_output=True, timeout=60)
+    run = subprocess.run(command, capture_output=True, timeout=60)
 
     # assert
     assert run.returncode == 0, run.stderr.decode()
