@@ -1212,7 +1212,7 @@ class LoadOffTheLoopTest {
         let token = create.params.getOrThrow().read<WorkDoneProgressCreateParams>().token
         let progress = (0..3).iterator().map {
             _: Int64 =>
-            let notification = transport.written.remove().getNotificationBodyOrThrow()
+            let notification = nextLoadProgress(transport)
             @Expect(notification.method, "$/progress")
             let params = notification.params.getOrThrow().read<ProgressParams>()
             @Expect(params.token, token)
@@ -1242,7 +1242,7 @@ class LoadOffTheLoopTest {
         @Expect(textAt(loop.state, dir.join("a.cj")), Some("a"))
         @Expect(transport.written.remove().getRequestBodyOrThrow().method, "window/workDoneProgress/create")
         let progress = (0..3).iterator().map {
-            _: Int64 => transport.written.remove().getNotificationBodyOrThrow().method
+            _: Int64 => nextLoadProgress(transport).method
         } |> collectArray
         @Expect(progress, ["$/progress", "$/progress", "$/progress"])
     }
@@ -1529,4 +1529,15 @@ class BinaryWatchTest {
         @Expect(watch.covers(VfsPath.file(dir.join("libs").join("bin2").join("a.cjo"))))
         @Expect(!watch.covers(VfsPath.file(dir.join("libs").join("bin").join("a.cjo"))))
     }
+}
+
+/**
+ * Source roots can arrive between progress reports during a load.
+ */
+private func nextLoadProgress(transport: AnsweringTransport): NotificationBody {
+    var notification = transport.written.remove().getNotificationBodyOrThrow()
+    if (notification.method == "cjls/binarySourceRoots") {
+        notification = transport.written.remove().getNotificationBodyOrThrow()
+    }
+    notification
 }

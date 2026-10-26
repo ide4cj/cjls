@@ -1,9 +1,10 @@
 package cjls.handlers
 
 import std.collection.{ArrayList, HashSet}
+import cjls.lsp_ext.BinarySourceRootsNotificationSpec
+import cjls.lsp_types.*
 import fjson.{JsonValue, RawJson}
 import rope.Encoding
-import cjls.lsp_types.*
 
 /**
  * The methods every server takes unasked (`didChangeConfiguration` among them, which the server
@@ -94,10 +95,11 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
             if (isOn(value.get("workspaceFolders").flatMap {folders => folders.get("changeNotifications")})) {
                 methods.add(DidChangeWorkspaceFoldersNotificationSpec.METHOD)
             }
-        // the methods under `cjls/`, by their names (`docs/lsp-extensions.md`)
+        // Server-to-client notifications advertise support but have no inbound route.
         case "experimental" => methods.add(all: value.asObject()
             .filter {entry => isOn(entry[1])}
-            .map {entry => "cjls/${entry[0]}"})
+            .map {entry => "cjls/${entry[0]}"}
+            .filter {method => method != BinarySourceRootsNotificationSpec.METHOD})
         case _ => throw IllegalArgumentException("no methods known for the capability \"${key}\"")
     }
     methods.toArray()

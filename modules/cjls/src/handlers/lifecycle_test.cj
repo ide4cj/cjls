@@ -30,7 +30,9 @@ private func session(messages: Array<String>): (Int64, Array<ResponseBody>) {
     let responses = FramedJsonRpcTransport(output, ByteBuffer(), NoopLogger())
     let bodies = ArrayList<ResponseBody>()
     while (let Some(body) <- responses.read()) {
-        bodies.add(body.getResponseBodyOrThrow())
+        if (let Response(response) <- body) {
+            bodies.add(response)
+        }
     }
     (exitCode, bodies.toArray())
 }
