@@ -23,6 +23,10 @@ glibc and an up-to-date `libstdc++6` package (`GLIBCXX_3.4.30`). Run it over std
 `cjpm.toml`'s directory as the root. `CJLS_LOG_LEVEL`
 (`OFF`, `ERROR`, `WARN`, `INFO` by default, `DEBUG`, `TRACE`) sets what it logs to stderr.
 
+**Nix**: add `github:ide4cj/cjls` as a flake input named `cjls`, then add
+`inputs.cjls.packages.${system}.default` to `environment.systemPackages`
+(NixOS) or `home.packages` (Home Manager).
+
 VS Code and Zed extensions are planned.
 
 ## Build
