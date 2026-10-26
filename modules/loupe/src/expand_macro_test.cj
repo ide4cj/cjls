@@ -538,6 +538,33 @@ class InExpansionTest {
  */
 @Test
 class ExpressionExpansionTest {
+    @TestCase[argument in ["1", "true"]]
+    func aConstructorInAnExpressionExpansionGoesToTheSelectedInitializer(argument: String) {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            class Box {
+                init(x: Int64) {}
+                init(x: Bool) {}
+            }
+            func f(): Box { @B(0) }
+            "#)
+        let text = "Box(${argument})"
+        let call = answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+
+        // act
+        let targets = definitionInExpansion(db, call, 0)
+
+        // assert
+        let source = file.text(db).toString()
+        let parameter = if (argument == "1") { "Int64" } else { "Bool" }
+        let at = offsetIn(source, "init(x: ${parameter})")
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion.isNone())
+        @Expect(targets[0].focusRange, TextRange(at, at + 4))
+    }
+
     @TestCase
     func whereTheCallStandsSaysWhatItsOutputIsParsedAs() {
         // arrange
@@ -643,7 +670,7 @@ class ExpressionExpansionTest {
     }
 
     @TestCase
-    func aNameTheStatementsDeclareThemselvesIsNotReadWhereTheCallStands() {
+    func aNameTheStatementsDeclareIsReadInTheExpansion() {
         // arrange
         let (db, file) = expansionDatabase(#"
             package m
@@ -663,8 +690,37 @@ class ExpressionExpansionTest {
         // assert
         @Expect(expandToOf(db, call), ExpandTo.ToStmts)
         @Expect(expansionParse(db, call).errors.size, 0)
-        @Expect(hover.isNone())
-        @Expect(targets.size, 0)
+        @Expect(hover?.items.map {item => item.code}, Some(["let x: Int64"]))
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion, Some(call))
+        @Expect(targets[0].focusRange, TextRange(4, 5))
+    }
+
+    @TestCase
+    func aCopiedMemberIsReadFromItsQualifiedExpression() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            class Box { let n: Int64 = 1 }
+            func f(b: Box): Int64 { @B(b.n) }
+            "#)
+        let source = file.text(db).toString()
+        let copied = offsetIn(source, "b.n") - offsetIn(source, "func f")
+        let call = answer(db, file, "B", "b.n", [
+            MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(copied, copied + 3)))
+        ])
+
+        // act
+        let hover = hoverInExpansion(db, call, 2)
+        let targets = definitionInExpansion(db, call, 2)
+
+        // assert
+        @Expect(hover?.items.map {item => item.code}, Some(["let n: Int64"]))
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion.isNone())
+        let at = offsetIn(source, "n: Int64")
+        @Expect(targets[0].focusRange, TextRange(at, at + 1))
     }
 
     @TestCase

@@ -144,9 +144,12 @@ func rootKindOf(db: AnalysisDatabase, def: DefId, hir: Body, result: InferenceRe
  */
 func textOf(ws: BenchWorkspace, file: SourceFile, def: DefId, id: ExprId): String {
     let db = ws.db
-    let root = parse(db, file).syntaxNode()
-    let ptr = bodyWithSourceMap(db, def).sourceMap.exprs.get(id.index) ?? return "?"
-    let node = (ptr ?? return "no node").tryToNode(root) ?? return "?"
+    let origin = bodyWithSourceMap(db, def).sourceMap.exprs.get(id.index) ?? return "?"
+    let source = match (origin) {
+        case WrittenSource(source) => source
+        case _ => return "no node"
+    }
+    let node = source.node(db, def.file(db)) ?? return "?"
     let text = node.text().replace("\n", " ")
     let short = if (text.size > 100) {
         text[..100]

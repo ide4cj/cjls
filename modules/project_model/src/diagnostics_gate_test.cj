@@ -10,7 +10,7 @@ import std.unittest.testmacro.*
 import loupe.{diagnostics, Severity}
 import loupe.db.{AnalysisDatabase, BinaryModel, BinaryPackage, Cfg, ModuleModel, PackageModel, ProjectModel}
 import loupe.fixture.{stdSourcesDir, UPDATE_EXPECT}
-import loupe.hir.bodyWithSourceMap
+import loupe.hir.{bodyWithSourceMap, macroCallHeadOf, sourceRangeOf}
 import loupe.syntax.parse
 import loupe.vfs.{isCangjieFile, PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
 
@@ -224,10 +224,16 @@ func relativeName(path: VfsPath, root: VfsPath): String {
  */
 func whereIs(ws: BenchWorkspace, root: ErrorRoot): String {
     let db = ws.db
-    let tree = parse(db, root.file).syntaxNode()
-    let ptr = bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
-    let node = (ptr ?? return "no node").tryToNode(tree) ?? return "no node"
-    let line = root.file.text(db).toString()[..node.textRange.start].count("\n") + 1
+    let origin = bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
+    let source = match (origin) {
+        case WrittenSource(source) => source
+        case _ => return "no node"
+    }
+    let node = source.node(db, root.def.file(db)) ?? return "no node"
+    let range = if (let Some(call) <- source.expansion) {
+        sourceRangeOf(db, call, node.textRange) ?? (macroCallHeadOf(db, call) ?? return "no call")[1]
+    } else { node.textRange }
+    let line = root.file.text(db).toString()[..range.start].count("\n") + 1
     let runes = node.text().replace("\n", " ").toRuneArray()
     let text = if (runes.size > 60) {
         String(runes[..60]) + "…"

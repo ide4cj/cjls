@@ -4,7 +4,7 @@ import std.collection.*
 import std.deriving.*
 import std.sort.*
 import ginkgo.TextRange
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
+import cjsyntax.{CjSyntaxNode, SyntaxKind, message}
 import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl}
 import calca.*
 import calca.macros.*
@@ -108,7 +108,7 @@ public struct ServerCall {
  * calls, then its own, each item's the calls in it (D117), then those on its parameters (D119) and then on itself,
  * innermost first. A call of std on a member is one only under an item with a call the server runs, whose input it is
  * part of, and in an item none so far; a call of the workspace on a member of a type with none, or on a parameter, is
- * expanded and read by nothing of its own (#176), and so far one in an item too (#369).
+ * expanded and read by nothing of its own (#176). A call in an item is read in its body's current expansion (D144).
  */
 @CalcaTracked
 public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCall> {
@@ -122,11 +122,12 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
     let pkg = packageOfFile(db, file)
     let addInItem = {
         item: ItemId, top: ItemId =>
-        for (one in inItems.get(item) ?? ArrayList<BodyMacroCall>()) {
+        let calls = inItems.get(item) ?? return ()
+        for (one in calls) {
             let owner = pkg ?? break
             let path = one.name.split(".")
             let definition = serverMacroOf(db, resolveMacroPath(db, owner, file, path)[path.size - 1]) ?? continue
-            // std's, whose expansion nothing reads yet (#369), are not run
+            // std's expression calls keep their fallback until #375 sends them to the server
             if (definition.isStd) {
                 continue
             }
@@ -396,7 +397,7 @@ public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Macr
     let found = ArrayList<MacroCallDiagnostic>()
     for (one in serverCalls(db, file) where current.contains(one.call)) {
         let output = macroOutputOf(db, one.call) ?? continue
-        if (output.diagnostics.isEmpty()) {
+        if (output.diagnostics.isEmpty() && one.call.inBody(db).isNone()) {
             continue
         }
         let head = if (one.call.inBody(db).isSome()) {
@@ -404,6 +405,12 @@ public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Macr
         } else {
             let node = ids.node(one.call.item(db), root) ?? continue
             macroHeadOf(macroCallAt(node, one.call.index(db)) ?? continue)
+        }
+        if (one.call.inBody(db).isSome() && output.expansion.isSome() &&
+            !output.diagnostics.any {diagnostic => diagnostic.severity == MacroSeverity.MacroError}) {
+            for (error in expansionParse(db, one.call).errors) {
+                found.add(MacroCallDiagnostic(head, MacroSeverity.MacroError, "macro expansion: ${message(error.error)}"))
+            }
         }
         let anchor = anchorOf(ids, root, one.top) ?? continue
         for (diagnostic in output.diagnostics) {

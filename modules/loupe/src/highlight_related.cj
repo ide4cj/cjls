@@ -7,7 +7,7 @@ import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, BinExpr, MemberAccessExpr, Name, NameRef, Param, ParenExpr, Pattern, PostfixExpr,
     RefExpr, TupleExpr, TypeParam, TypeParamList, VarDecl, identText, isIdent}
 import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.hir.{DefId, ItemFile, LocalFunc, TypeTarget, bodyWithSourceMap, itemIdMap}
+import loupe.hir.{BodySource, DefId, ItemFile, LocalFunc, TypeTarget, bodyWithSourceMap, itemIdMap}
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
@@ -117,7 +117,7 @@ func typeParamTarget(db: AnalysisDatabase, file: SourceFile, param: TypeParam): 
     let lowered = bodyWithSourceMap(db, owner)
     let ptr = SyntaxNodePtr(name.syntax)
     let localFunc = (lowered.body.funcs |> enumerate |> filter {
-        pair: (Int64, LocalFunc) => (lowered.sourceMap.locals.get(pair[1].local.index) ?? None) == ptr
+        pair: (Int64, LocalFunc) => lowered.sourceMap.locals.get(pair[1].local.index) == Some(WrittenSource(BodySource(ptr)))
     } |> map {pair: (Int64, LocalFunc) => pair[0]} |> first) ?? return None
     TypeTarget.LocalGenericOf(owner, localFunc, index)
 }
