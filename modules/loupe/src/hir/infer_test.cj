@@ -56,8 +56,8 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
                 if (local.lone && !ctorsNamed(db, pkg, source, local.name).isEmpty()) {
                     continue
                 }
-                if (let Some(ptr) <- lowered.sourceMap.locals.get(i).flatMap {one => one} &&
-                    let Some(node) <- ptr.tryToNode(root)) {
+                if (let Some(WrittenSource(source)) <- lowered.sourceMap.locals.get(i) && source.expansion.isNone() &&
+                    let Some(node) <- source.ptr.tryToNode(root)) {
                     actual.add(Annotation(fileId, node.textRange, result.locals[i].text(db)))
                 }
             }
@@ -65,8 +65,8 @@ func annotateTypes(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode,
             for (attr in lowered.body.attrs) {
                 for (arg in attr.args) {
                     if (let DataArg(_, src) <- arg &&
-                        let Some(ptr) <- lowered.sourceMap.exprs.get(src.index).flatMap {one => one} &&
-                        let Some(node) <- ptr.tryToNode(root)) {
+                        let Some(WrittenSource(source)) <- lowered.sourceMap.exprs.get(src.index) && source.expansion.isNone() &&
+                        let Some(node) <- source.ptr.tryToNode(root)) {
                         let ty = result.exprs[src.index].map {one => one.text(db)} ?? "none"
                         actual.add(Annotation(fileId, node.textRange, ty))
                     }
@@ -198,6 +198,22 @@ class InferTest {
             //      ^ String
                 let h: (Int8, Float32) = (1, 2.0)
             //      ^ (Int8, Float32)
+            }
+            "#)
+    }
+
+    @TestCase
+    func aVArrayLiteralSelectsTheOverloadWithTheMatchingLength() {
+        // A failed candidate's size diagnostic must be rolled back with its inferred types.
+        checkInference(#"
+            package m
+            func choose(a: VArray<Int8, $1>): Int8 { 1 }
+            //          ^ VArray<Int8, $1>
+            func choose(a: VArray<Int8, $2>): Int64 { 2 }
+            //          ^ VArray<Int8, $2>
+            func test(): Unit {
+                let result = choose([1, 2])
+            //      ^^^^^^ Int64
             }
             "#)
     }

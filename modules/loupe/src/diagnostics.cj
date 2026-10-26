@@ -3,13 +3,15 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import std.sort.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.{AnyHasName, Arg, BinExpr, CallExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
-import loupe.vfs.FileId
+import cjsyntax.ast.ArgList as AstArgList
+import cjsyntax.ast.SourceFile as AstSourceFile
+import cjsyntax.ast.{AnyHasName, Arg, BinExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 @Derive[Equatable]
 public enum Severity {
@@ -39,7 +41,8 @@ public struct Diagnostic {
  * database does not know.
  *
  * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `scopeDiagnostics`,
- * `macroDiagnostics`, `inferBody`), remembered there, and this only collects their results (A11).
+ * `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects
+ * their results (A11).
  */
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
@@ -58,6 +61,13 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
             "code is inactive due to @When: ${String.join(code.reasons, delimiter: " and ")}", unnecessary: true)
     })
     let root = parse(db, file).syntaxNode()
+    if (let Some(message) <- packageHeaderError(db, file)) {
+        if (let Some(header) <- (AstSourceFile.cast(root)?.packageHeader() ?? None)) {
+            let range = header.macroToken()?.textRange ?? header.packageToken()?.textRange ??
+                header.syntax.textRange
+            result.add(Diagnostic(range, Severity.Error, message))
+        }
+    }
     result.add(all: scopeDiagnosticsOf(db, file, root))
     result.add(all: macroDiagnostics(db, file).map {
         one =>
@@ -136,14 +146,27 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
     let lowered = bodyWithSourceMap(db, def)
     let nodeOf = {
         id: ExprId =>
-        let ptr = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
-        let one = ptr ?? return None<CjSyntaxNode>
-        if (lowered.sourceMap.exprAt(one) != Some(id)) {
+        let origin = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
+        let source = match (origin) {
+            case WrittenSource(source) => source
+            case _ => return None<CjSyntaxNode>
+        }
+        if (lowered.sourceMap.exprAtSource(source) != Some(id)) {
             return None<CjSyntaxNode>
         }
-        one.tryToNode(root)
+        if (source.expansion.isSome()) { source.node(db, def.file(db)) } else { source.ptr.tryToNode(root) }
     }
     let found = ArrayList<Diagnostic>()
+    let report = {id: ExprId, range: TextRange, message: String =>
+        let source = match (lowered.sourceMap.exprs.get(id.index)) {
+            case Some(WrittenSource(source)) => source
+            case _ => return
+        }
+        let mapped = if (let Some(call) <- source.expansion) {
+            sourceRangeOf(db, call, range) ?? (macroCallHeadOf(db, call) ?? return)[1]
+        } else { range }
+        found.add(Diagnostic(mapped, Severity.Error, message))
+    }
     for (diagnostic in inferred.diagnostics) {
         match (diagnostic) {
             case TypeMismatch(id, expected, actual) =>
@@ -153,7 +176,11 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                         "cannot convert an integer literal to type '${expected.text(db)}'"
                     case _ => "mismatched types: expected '${expected.text(db)}', found '${actual.text(db)}'"
                 }
-                found.add(Diagnostic(node.textRange, Severity.Error, message))
+                report(id, node.textRange, message)
+            case VArraySizeMismatch(id, expected, actual) =>
+                let node = nodeOf(id) ?? continue
+                report(id, node.textRange,
+                    "mismatch 'VArray' type's size: expected size is ${expected}, found ${actual}")
             case ArgCount(call, params, given) =>
                 let node = nodeOf(call) ?? continue
                 let taken = params.size
@@ -169,8 +196,8 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                 } else {
                     "s"
                 }
-                found.add(Diagnostic(TextRange(argsStart(node), node.textRange.end), Severity.Error,
-                    "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}"))
+                report(call, TextRange(argsStart(node), node.textRange.end),
+                    "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}")
             case ArgName(call, at, why) =>
                 let node = nodeOf(call) ?? continue
                 let range = argRange(node, at) ?? continue
@@ -182,13 +209,13 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                         "missing argument prefix ${prefixes} for named parameter"
                     case NameOfValue => "named argument cannot be used in variable function call"
                 }
-                found.add(Diagnostic(range, Severity.Error, message))
+                report(call, range, message)
             case InvalidBinaryOperator(id, left, right) =>
                 let node = nodeOf(id) ?? continue
                 // at the operator, as cjc's
                 let op = (BinExpr.cast(node)?.op() ?? None) ?? continue
-                found.add(Diagnostic(op.textRange, Severity.Error,
-                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'"))
+                report(id, op.textRange,
+                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'")
         }
     }
     found.toArray()
@@ -199,11 +226,7 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
  */
 func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
     let trailing = TrailingLambdaExpr.cast(node)
-    let call = match (trailing) {
-        case Some(one) => one.callee().flatMap {callee => CallExpr.cast(callee.syntax)}
-        case None => CallExpr.cast(node)
-    }
-    let args: Array<Arg> = match (call.flatMap {one => one.argList()}) {
+    let args: Array<Arg> = match (callArgList(node)) {
         case Some(list) => list.args() |> collectArray
         case _ => []
     }
@@ -218,14 +241,16 @@ func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
  * trailing lambda.
  */
 func argsStart(node: CjSyntaxNode): Int64 {
-    let call = match (TrailingLambdaExpr.cast(node)) {
-        case Some(trailing) => match (trailing.callee().flatMap {callee => CallExpr.cast(callee.syntax)}) {
-            case Some(inner) => inner
-            case None => return (trailing.lambda()?.syntax.textRange.start) ?? node.textRange.start
-        }
-        case None => CallExpr.cast(node) ?? return node.textRange.start
-    }
-    (call.argList()?.syntax.textRange.start) ?? node.textRange.start
+    (callArgList(node)?.syntax.textRange.start) ??
+        (TrailingLambdaExpr.cast(node)?.lambda()?.syntax.textRange.start) ?? node.textRange.start
+}
+
+/**
+ * The written argument list of an ordinary or built-in call, before a trailing lambda if present.
+ */
+func callArgList(node: CjSyntaxNode): ?AstArgList {
+    let callee = TrailingLambdaExpr.cast(node).flatMap {one => one.callee()}.map {one => one.syntax} ?? node
+    callee.children() |> filterMap {child: CjSyntaxNode => AstArgList.cast(child)} |> first
 }
 
 /**

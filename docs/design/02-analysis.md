@@ -47,6 +47,7 @@ Constraint kinds and how to revise them are defined in the
 | A34 | [Common and specific declarations](#a34-common-and-specific-declarations) | Language constraint |
 | A35 | [Reading macro expansions](#a35-reading-macro-expansions) | Design choice |
 | A36 | [Package navigation](#a36-package-navigation) | Design choice |
+| A37 | [Constructor navigation](#a37-constructor-navigation) | Design choice |
 
 ### A1: Concrete database handle
 
@@ -146,6 +147,15 @@ The project is set before the files it names, so they are created with it (D33).
 Which files a package has is `Package.files`, never found from the texts: a file deleted is an
 empty text (A5).
 
+Binary attachments may have detached source contexts linked to their binary package
+(D147). They are outside project modules and import candidates, so neither project
+resolution nor workspace symbols gains a second copy of SDK declarations. Their
+imports use the binary's lookup scope; bodies and file imports use source text.
+Names absent from the binary may come from source files with checked declaration
+pairs, only inside the detached context; binary names and overload sets win.
+Members absent from a binary type may come from its paired source type only for
+another source in the same attached package.
+
 Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module
 is a unit of the build, cjc's is the first segment of a name (D33).
 
@@ -183,6 +193,12 @@ found by inference, never by a `defMap`.
 
 A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair
 held apart; a query about one declaration is keyed by it (D45).
+
+An attached source body retains its source identity for locals and ranges, but its
+self type and generic owners use the binary declaration paired at its checked
+identifier position (D147). Package and member lookup use binary declarations,
+including compiler-provided types. A file with no matching declarations has no
+source context; navigation targets retain D65's position/name check.
 
 ### A24: Signature type dependencies
 
@@ -229,6 +245,11 @@ its scope (D66).
 
 A source file of no package finds them, as the `extend`s of a type of the language, in the SDK's
 binary `std.core` (`sdkCore`, #319).
+
+`VArray` constructors use their semantic type, including a type alias's expansion, and the
+ordinary call argument checks. As cjc's `ChkVArrayArg`, a named argument selects `repeat: T`;
+an argument in order selects an initializer of type `(Int64) -> T`. A trailing lambda is an
+argument of that same call, so it receives the same expected type (#494).
 
 ### A29: Source maps for desugaring
 
@@ -332,9 +353,17 @@ A declaration a workspace macro copied is what its expansion declares, at its us
 also those its `@Derive` adds.
 
 The expansion of a call in an item is parsed as where the call stands says (`expandToOf`: an
-expression, or a block's statements, D117), so it has no item: until the body reads it (#369), a
-token the macro copied is read as at its place in the source, and a plain name it wrote in the
-scope where the call stands (`callSiteNameOf`), unless the expansion declares that name itself.
+expression, or a block's statements, D117). The body lowers a current successful answer in place
+(D144): a statement expansion's declarations belong to the surrounding block. `BodySource`
+qualifies each expression, pattern, local and type pointer by its expansion, or by the body's
+own file; reverse lookups must use that qualification. Diagnostics map copied tokens to source
+and generated tokens to the call head. Missing, stale, failed or unparseable answers and
+speculative completion retain the argument-only fallback.
+
+Hover and definition in a current expression expansion use that body's qualified sources.
+An expression output its body does not read keeps the call-site fallback (`callSiteNameOf`):
+copied tokens at their source positions, plain generated names in the call site's scope unless
+the expansion declares them. Requests on source arguments still wait for #370's descent.
 
 ### A36: Package navigation
 
@@ -345,6 +374,19 @@ A name of an `import` means what its path names up to it (`importPathTo`): the n
 brings, what the leaf imports; a name before it, a package.
 
 Hover shows a package as `package` and its name, at an `import` and in a macro's path alike.
+
+### A37: Constructor navigation
+
+Go to definition on a class or struct call uses the explicit initializer selected
+by inference; without one, it keeps the type target. An enum constructor call uses
+the overload inference selected (D140). A request on an initializer declaration
+(`init` or a primary constructor's name), or an enum constructor declaration,
+goes to the owning type (D145).
+
+Initializer selection uses the overload journal (A27) and is exposed separately
+from ordinary callee identity: class/struct hover and reference searches continue
+to use the type. The initializer target selects its name or the `init` keyword,
+so another go-to-definition request reaches the type.
 
 ## Analysis tests
 

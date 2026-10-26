@@ -5,7 +5,7 @@ import std.unittest.testmacro.*
 
 /**
  * An annotation of the workspace's (`@A[1]` of an `@Annotation class A`), which the parser reads as a macro call: the
- * class, as a call of its constructors goes to, whichever of them its arguments take.
+ * class, rather than the constructor a regular call of the class would choose.
  */
 @Test
 class AnnotationDefinitionTest {

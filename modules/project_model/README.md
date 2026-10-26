@@ -21,7 +21,8 @@ not mistake an omitted file for an independent project (D80). A document truly
 outside the model can become a lone-file module with std alone, matching
 `cjc file.cj`; it does not inherit imports from an unrelated workspace (D139).
 See [loose.cj](src/loose.cj) and [lone.cj](src/lone.cj). Source attachments to binary
-packages are navigation destinations, not another resolution scope (D65).
+packages acquire detached analysis contexts without becoming discovered projects
+or competing import candidates (D65, D147).
 
 ## Target and SDK inputs
 

@@ -2,14 +2,12 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import cjo.{openCjo, Position as CjoPosition}
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
-import rope.{Encoding, LineColumn, Rope}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, NameRef, PathSegment, PathType, PostfixExpr,
-    UnaryExpr, isIdent}
+import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, BinExpr, IndexExpr, InitDecl, NameRef, PathSegment, PathType, PostfixExpr,
+    RefExpr, UnaryExpr, isIdent}
 import cjsyntax.ast.SourceFile as SourceFileNode
-import loupe.db.{AnalysisDatabase, BinaryPackageFile, BinarySourceFile, SourceFile}
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
@@ -33,9 +31,10 @@ public struct NavigationTarget {
 /**
  * Where the name at `offset` of the file is declared: where what `classifyName` says it means is (rust-analyzer's
  * `goto_definition`); the operator function an operator calls (8e); a member `@Derive` adds, at the interface the
- * call names (#175); after a `specific` declaration, the `common` ones it completes (#318); a package in the headers
- * of its files, a name of an `import` what it imports. Nothing for a package compiled already, nor for a declaration
- * of one whose binary's sources are not there (D65).
+ * call names (#175); the constructor `this(...)` or `super(...)` calls; after a `specific` declaration, the `common`
+ * ones it completes (#318); a package in the headers of its files, a name of an `import` what it imports;
+ * a type called its chosen explicit initializer, a constructor declaration its owning type. Nothing for a package
+ * compiled already, nor for a declaration of one whose binary's sources are not there (D65).
  */
 public func definitionAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
@@ -60,9 +59,18 @@ public func definitionInExpansion(db: AnalysisDatabase, call: MacroCallId, offse
 func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<NavigationTarget> {
     let scope = scopeFileOf(db, file) ?? return []
     let (root, _) = syntaxOf(db, file) ?? return []
-    let token = tokenAt(root, offset) ?? return []
+    let token = tokenAt(root, offset, includeInit: true) ?? return []
     let item = itemAround(db, file, token.parent)
-    let defs = match ((classifyName(db, scope, item, token), file)) {
+    let expressionOwner: ?DefId = if (let Expansion(call) <- file && item.isNone()) {
+        bodyOfExpressionExpansion(db, call)
+    } else { None }
+    let origin: ?MacroCallId = if (let Expansion(call) <- file && expressionOwner.isSome()) { Some(call) } else { None }
+    let named = if (let Some(one) <- constructorDefinition(db, item ?? expressionOwner, token, expansion: origin)) {
+        Some([Definition.DeclDef(one)])
+    } else {
+        classifyName(db, scope, item ?? expressionOwner, token, expansion: origin)
+    }
+    let defs = match ((named, file)) {
         case (Some(defs), _) => defs
         // an expression or statements a call in an item expands to (D117), read where the call stands
         case (None, Expansion(call)) where item.isNone() => match (callSiteNameOf(db, call, token, offset)) {
@@ -88,6 +96,27 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
 }
 
 /**
+ * A constructor call goes to the initializer chosen by inference; a constructor declaration goes to its type.
+ * These navigation targets do not change the type identity used by hover and reference searches.
+ */
+func constructorDefinition(db: AnalysisDatabase, item: ?DefId, token: CjSyntaxToken,
+    expansion!: ?MacroCallId = None): ?DefId {
+    let def = item ?? return None
+    let parent = token.parent
+    let node = parent.parent
+    if ((token.kind == SyntaxKind.InitKw && parent.kind == SyntaxKind.InitDecl) ||
+        (parent.kind == SyntaxKind.Name && node.map {it =>
+            it.kind == SyntaxKind.PrimaryInitDecl || it.kind == SyntaxKind.EnumCtor
+        } == Some(true))) {
+        return parentOf(db, def)
+    }
+    let exprNode = node ?? return None
+    let callee = RefExpr.cast(exprNode).map {it => it.syntax} ?? accessNodeOf(exprNode) ?? return None
+    let expr = bodyWithSourceMap(db, def).sourceMap.exprAtSource(BodySource(SyntaxNodePtr(callee), expansion: expansion)) ?? return None
+    inferBody(db, def).initializerOf(expr)
+}
+
+/**
  * The innermost item `node`, of the tree of `file`, is in, or is.
  */
 func itemAround(db: AnalysisDatabase, file: ItemFile, node: CjSyntaxNode): ?DefId {
@@ -103,8 +132,8 @@ func itemAround(db: AnalysisDatabase, file: ItemFile, node: CjSyntaxNode): ?DefI
 func targetsOfDefinition(db: AnalysisDatabase, definition: Definition, intoExpansions!: Bool = false): Array<NavigationTarget> {
     let one = match (definition) {
         case DeclDef(id) => declTarget(db, id, intoExpansions: intoExpansions)
-        case LocalDef(def, local) => localTarget(db, def, local)
-        case MemberParamDef(ctor, local) => localTarget(db, ctor, local)
+        case LocalDef(def, local) => localTarget(db, def, local, intoExpansions: intoExpansions)
+        case MemberParamDef(ctor, local) => localTarget(db, ctor, local, intoExpansions: intoExpansions)
         case TypeParamDef(target) => targetOf(db, target, intoExpansions)
         case PackageDef(pkg) => return packageTargets(db, pkg)
     }
@@ -136,9 +165,32 @@ func packageTargets(db: AnalysisDatabase, pkg: PackageRef): Array<NavigationTarg
 /**
  * The local `local` of the body of `def`: its name, in the node declaring it.
  */
-func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId): ?NavigationTarget {
-    let (file, name) = localName(db, def, local) ?? return None
-    NavigationTarget(file.fileId(db), name.parent?.textRange ?? name.textRange, name.textRange)
+func localTarget(db: AnalysisDatabase, def: DefId, local: LocalId, intoExpansions!: Bool = false): ?NavigationTarget {
+    let lowered = bodyWithSourceMap(db, def)
+    let source = match (lowered.sourceMap.locals.get(local.index)) {
+        case Some(WrittenSource(source)) => source
+        case _ => return None
+    }
+    let name = source.node(db, def.file(db)) ?? return None
+    let full = name.parent?.textRange ?? name.textRange
+    bodySourceTarget(db, def.file(db), source, full, name.textRange, intoExpansions)
+}
+
+/**
+ * A source request stays in source, including a local declared by a statement expansion.
+ */
+func bodySourceTarget(db: AnalysisDatabase, owner: ItemFile, source: BodySource, full: TextRange,
+    focus: TextRange, intoExpansions: Bool): ?NavigationTarget {
+    match (source.inFile(owner)) {
+        case Source(file) => NavigationTarget(file.fileId(db), full, focus)
+        case Expansion(call) =>
+            if (intoExpansions || sourceRangeOf(db, call, focus).isSome()) {
+                return expansionTarget(db, call, full, focus)
+            }
+            let (_, head) = macroCallHeadOf(db, call) ?? return None
+            NavigationTarget(call.file(db).fileId(db), head, head)
+        case _ => None
+    }
 }
 
 /**
@@ -149,16 +201,25 @@ func localName(db: AnalysisDatabase, def: DefId, local: LocalId): ?(SourceFile, 
         case Source(file) => file
         case _ => return None
     }
-    let ptr = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
-    let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
+    let origin = bodyWithSourceMap(db, def).sourceMap.locals.get(local.index) ?? return None
+    let source = match (origin) {
+        case WrittenSource(source) => source
+        case _ => return None
+    }
+    if (source.expansion.isSome()) { return None }
+    let name = source.node(db, def.file(db)) ?? return None
     (file, name)
 }
 
 /**
- * The identifier or `This` at `offset`, the one after it if it is between two.
+ * The identifier, `This`, `this` or `super` at `offset`, also `init` when `includeInit`;
+ * the one after it if it is between two.
  */
-func tokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
-    let isName = {token: CjSyntaxToken => isIdent(token) || token.kind == SyntaxKind.ThisTypeKw}
+func tokenAt(root: CjSyntaxNode, offset: Int64, includeInit!: Bool = false): ?CjSyntaxToken {
+    let isName = {token: CjSyntaxToken =>
+        isIdent(token) || token.kind == SyntaxKind.ThisTypeKw || token.kind == SyntaxKind.ThisKw ||
+            token.kind == SyntaxKind.SuperKw || (includeInit && token.kind == SyntaxKind.InitKw)
+    }
     // a name before an operator it touches (`a|+b`)
     match (root.tokenAtOffset(offset)) {
         case Single(token) where isName(token) || isOperator(token) => token
@@ -216,18 +277,18 @@ func targetOf(db: AnalysisDatabase, target: TypeTarget, intoExpansions: Bool): ?
                 let (full, focus) = genericRanges(itemNodeOf(db, owner) ?? return None, index) ?? return None
                 return expansionTarget(db, call, full, focus)
             }
-            let (file, node) = nodeOf(db, owner) ?? return None
+            let (file, node) = nodeOf(db, sourceDefOf(db, owner) ?? owner) ?? return None
             genericTarget(db, file, node, index)
         case LocalGenericOf(owner, localFunc, index) =>
-            let file = match (owner.file(db)) {
-                case Source(file) => file
-                case _ => return None
-            }
             let lowered = bodyWithSourceMap(db, owner)
             let local = lowered.body.funcs.get(localFunc)?.local ?? return None
-            let ptr = lowered.sourceMap.locals.get(local.index) ?? return None
-            let name = (ptr ?? return None).tryToNode(parse(db, file).syntaxNode()) ?? return None
-            genericTarget(db, file, name.parent ?? return None, index)
+            let source = match (lowered.sourceMap.locals.get(local.index)) {
+                case Some(WrittenSource(source)) => source
+                case _ => return None
+            }
+            let name = source.node(db, owner.file(db)) ?? return None
+            let (full, focus) = genericRanges(name.parent ?? return None, index) ?? return None
+            bodySourceTarget(db, owner.file(db), source, full, focus, intoExpansions)
         case QualifierOf(_) => None
     }
 }
@@ -281,7 +342,7 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
         // what a macro call adds: where the call writes it (#175)
         case Expansion(call) =>
             if (intoExpansions && let Some(node) <- itemNodeOf(db, id)) {
-                let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? node.textRange
+                let name = declarationFocus(node)
                 if (sourceRangeOf(db, call, name).isNone()) {
                     return NavigationTarget(call.file(db).fileId(db), node.textRange, name, expansion: call)
                 }
@@ -291,8 +352,15 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
         case Source(_) => ()
     }
     let (file, node) = nodeOf(db, id) ?? return None
-    let name = AnyHasName.cast(node).flatMap {it => it.name()}
-    NavigationTarget(file.fileId(db), node.textRange, name?.syntax.textRange ?? node.textRange)
+    NavigationTarget(file.fileId(db), node.textRange, declarationFocus(node))
+}
+
+/**
+ * The name an editor selects; initializers spell theirs as the keyword `init`.
+ */
+func declarationFocus(node: CjSyntaxNode): TextRange {
+    AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ??
+        InitDecl.cast(node).flatMap {it => it.initToken()}?.textRange ?? node.textRange
 }
 
 /**
@@ -303,40 +371,8 @@ func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false):
  * position is none, a `let` of a pattern has no name).
  */
 func binaryTarget(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64, id: ItemId): ?NavigationTarget {
-    let index = binaryExports(db, pkg).declIndex(BinaryItem(file, id)) ?? return None
-    let name = (findItem(itemTreeOf(db, ItemFile.Binary(pkg, file)).items, id)?.names ?? []).get(0) ?? return None
-    // the positions of cjc: lines and columns from 1, columns in bytes, the end past the declaration
-    let (fileName, begin, end, at) = try {
-        let cjo = openCjo(pkg.bytes(db))
-        let decl = cjo.allDecls[index]
-        let lineColumn = {position: ?CjoPosition => position.map {it => (Int64(it.line) - 1, Int64(it.column) - 1)}}
-        (cjo.allFiles[file], lineColumn(decl.begin), lineColumn(decl.end), lineColumn(decl.identifierPos))
-    } catch (_: Exception) {
-        return None
-    }
-    let binary = pkg.binary(db)
-    let sources = db.project()?.binarySources(db) ?? return None
-    let fileId = (sources |> filter {source: BinarySourceFile => source.binary == binary && source.name == fileName} |>
-        map {source: BinarySourceFile => source.fileId} |> first) ?? return None
-    let text = (db.sourceFile(fileId) ?? return None).text(db)
-    let offsetOf = {
-        position: ?(Int64, Int64) => match (position) {
-            case Some((line, column)) where line >= 0 && column >= 0 && line < text.lineCount =>
-                Some(text.offsetOf(LineColumn(line, column), Encoding.Utf8))
-            case _ => Option<Int64>.None
-        }
-    }
-    // a name in backquotes is at the name, inside them
-    let start = offsetOf(at) ?? return None
-    if (!writes(text, start, name)) {
-        return None
-    }
-    let focus = TextRange(start, start + name.size)
-    let full = match ((offsetOf(begin), offsetOf(end))) {
-        case (Some(from), Some(to)) where from <= focus.start && focus.end <= to => TextRange(from, to)
-        case _ => focus
-    }
-    NavigationTarget(fileId, full, focus)
+    let at = binarySourceLocation(db, pkg, file, id) ?? return None
+    NavigationTarget(at.fileId, at.fullRange, at.focusRange)
 }
 
 /**
@@ -344,21 +380,10 @@ func binaryTarget(db: AnalysisDatabase, pkg: BinaryPackageFile, file: Int64, id:
  */
 func findItem(items: Array<Item>, id: ItemId): ?Item {
     for (item in items) {
-        if (item.id == id) {
-            return item
-        }
-        if (let Some(member) <- findItem(item.members, id)) {
-            return member
-        }
+        if (item.id == id) { return item }
+        if (let Some(member) <- findItem(item.members, id)) { return member }
     }
     None
-}
-
-/**
- * Whether `text` has `written` at `offset`.
- */
-func writes(text: Rope, offset: Int64, written: String): Bool {
-    offset + written.size <= text.size && text.slice(offset..offset + written.size).toString() == written
 }
 
 /**

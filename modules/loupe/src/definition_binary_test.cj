@@ -10,11 +10,11 @@ import loupe.fixture.*
 import loupe.vfs.VfsPath
 
 /**
- * Checks where the name at the cursor of `fixture` is declared, with std's packages `packages` read
+ * Finds where the name at the cursor of `fixture` is declared, with std's packages `packages` read
  * from the SDK and their sources from `.corpora/`: each target as its file under std's sources, the
  * line its name is on, and its name.
  */
-func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Array<String>): Unit {
+func definitionsInStd(fixture: String, packages: Array<String>): Array<String> {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database(binaries: packages.map {name => stdCjoRead(name, stdCjo(name))},
         models: [stdWithSources(packages)])
@@ -30,59 +30,129 @@ func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Ar
         @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
         "${path}: ${name} in `${written}`"
     }
-    @Expect(found, expected)
+    found
+}
+
+/**
+ * Checks SDK navigation for fixtures shared by the other definition test classes.
+ */
+func checkDefinitionInStd(fixture: String, packages: Array<String>, expected: Array<String>): Unit {
+    @Expect(definitionsInStd(fixture, packages), expected)
 }
 
 @Test
 class DefinitionBinaryTest {
     @TestCase
+    func navigationContinuesFromTheStdDeclarationReachedFromAProject() {
+        // arrange
+        let parsed = Fixture.parse(#"
+            //- /main.cj module=m package=m
+            package m
+            main() { $0println("x") }
+            "#)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])])
+        let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
+        let targets = definitionAt(db, cursor.fileId, cursor.offset)
+        @Assert(targets.size, 1)
+        let target = targets[0]
+        let text = (db.sourceFile(target.fileId) ?? throw FixtureException("no source for println")).text(db).toString()
+        let parameter = text[target.focusRange.start..].indexOf("str: String") ??
+            throw FixtureException("println has no str: String")
+        let at = target.focusRange.start + parameter + 5
+
+        // act
+        let next = definitionAt(db, target.fileId, at)
+        let again = definitionAt(db, cursor.fileId, cursor.offset)
+
+        // assert
+        @Assert(next.size, 1)
+        @Expect(parsed.pathOf(next[0].fileId), stdSourcesDir().join("core").join("string.cj"))
+        @Expect(again, targets)
+    }
+
+    @TestCase
     func aMacroOfStdCalledWithoutAnAttributeGoesToItsOverloadOfOneParameter() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @$0Test
             class C {}
-            "#, ["std.core", "std.ast", "std.unittest.testmacro"],
-            ["unittest/testmacro/test_macro.cj: Test in `public macro Test(input: Tokens): Tokens {`"])
+            "#
+        let packages = ["std.core", "std.ast", "std.unittest.testmacro"]
+        let expected = ["unittest/testmacro/test_macro.cj: Test in `public macro Test(input: Tokens): Tokens {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase
     func aMacroOfStdCalledWithAnAttributeGoesToItsOverloadOfTwo() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @$0Test[x in [1]]
             func f(x: Int64): Unit {}
-            "#, ["std.core", "std.ast", "std.unittest.testmacro"],
-            ["unittest/testmacro/test_macro.cj: Test in `public macro Test(dsl: Tokens, input: Tokens): Tokens {`"])
+            "#
+        let packages = ["std.core", "std.ast", "std.unittest.testmacro"]
+        let expected = ["unittest/testmacro/test_macro.cj: Test in `public macro Test(dsl: Tokens, input: Tokens): Tokens {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase
     func aTypeOfStdInASignatureGoesToItsSource() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             func f(x: $0String): Unit {}
-            "#, ["std.core"],
-            ["core/string.cj: String in `public struct String <: Collection<Byte> & Comparable<String> & Hashable & ToString {`"])
+            "#
+        let packages = ["std.core"]
+        let expected = ["core/string.cj: String in `public struct String <: Collection<Byte> & Comparable<String> & Hashable & ToString {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase
     func aFunctionOfStdCalledGoesToItsSource() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             main() {
                 $0println("x")
             }
-            "#, ["std.core"], ["core/print.cj: println in `public func println(str: String): Unit {`"])
+            "#
+        let packages = ["std.core"]
+        let expected = ["core/print.cj: println in `public func println(str: String): Unit {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase
     func theOverloadOfAMethodOfStdACallTakesGoesToItsSource() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             import std.collection.ArrayList
@@ -90,32 +160,57 @@ class DefinitionBinaryTest {
                 let list = ArrayList<Int64>()
                 list.$0add(1)
             }
-            "#, ["std.core", "std.collection"],
-            ["collection/array_list.cj: add in `public func add(element: T): Unit {`"])
+            "#
+        let packages = ["std.core", "std.collection"]
+        let expected = ["collection/array_list.cj: add in `public func add(element: T): Unit {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase
     func aMemberOfAnExtendInStdGoesToItsSource() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             main() {
                 let n: Int64 = 1
                 n.$0toString()
             }
-            "#, ["std.core"], ["core/to_string.cj: toString in `public func toString(): String {`"])
+            "#
+        let packages = ["std.core"]
+        let expected = ["core/to_string.cj: toString in `public func toString(): String {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase
     func aNameInBackquotesGoesToTheNameInside() {
-        checkDefinitionInStd(#"
+        // arrange
+        const FIXTURE = #"
             //- /main.cj module=m package=m
             package m
             import std.posix.*
             main() {
                 $0`open`("x", 0)
             }
-            "#, ["std.core", "std.posix"], ["posix/file_dir.cj: open in `public func `open`(path: String, oflag: Int32): Int32 {`"])
+            "#
+        let packages = ["std.core", "std.posix"]
+        let expected = ["posix/file_dir.cj: open in `public func `open`(path: String, oflag: Int32): Int32 {`"]
+
+        // act
+        let found = definitionsInStd(FIXTURE, packages)
+
+        // assert
+        @Expect(found, expected)
     }
 
     @TestCase

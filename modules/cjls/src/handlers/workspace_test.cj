@@ -1531,8 +1531,10 @@ class BinaryWatchTest {
     }
 }
 
-/** Source roots can arrive between progress reports during a load. */
-func nextLoadProgress(transport: AnsweringTransport): NotificationBody {
+/**
+ * Source roots can arrive between progress reports during a load.
+ */
+private func nextLoadProgress(transport: AnsweringTransport): NotificationBody {
     var notification = transport.written.remove().getNotificationBodyOrThrow()
     if (notification.method == "cjls/binarySourceRoots") {
         notification = transport.written.remove().getNotificationBodyOrThrow()

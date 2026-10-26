@@ -84,6 +84,34 @@ class NewFilePackageTest {
         @Expect(transport.nextRequest().isNone())
     }
 
+    @TestCase[loaded in [true, false]]
+    func aNewFileInAMacroPackageGetsAMacroHeader(loaded: Bool) {
+        // arrange
+        let root = workspaceOf([("cjpm.toml", "[package]\nname = \"app\"\n"),
+            ("src/ms/m.cj", "macro package app.ms")])
+        let loop = editableWith(root, loaded: loaded)
+        let transport = RequestsTransport()
+        let client = clientOn(transport)
+        let path = root.join("src").join("ms").join("new.cj")
+
+        let request: ?LoadRequest = if (loaded) {None} else {loadRequest(loop.state)}
+
+        // act
+        openBlank(loop, client, path)
+        if (let Some(pending) <- request) {
+            load(loop, client, NoopLogger(), pending)
+        }
+        client.close()
+        remove(root, recursive: true)
+
+        // assert
+        let requestBody = transport.nextRequest() ??
+            throw IllegalStateException("the macro package header edit was not sent")
+        let edit = editOf(requestBody)
+        @Expect(edit.label, Some("macro package app.ms"))
+        @Expect(changesOf(edit, uriOf(path))[0].newText, "macro package app.ms\n")
+    }
+
     @TestCase
     func aClientTakingVersionsIsGivenTheLineOfTheVersionOpened() {
         // arrange

@@ -65,7 +65,8 @@ enum NameClassification {
  * overload not taken, the one a call takes. Empty when it means nothing; `None` when the name is none of those, or
  * nothing tells yet what it is: a member of a value of a type not inferred, a constructor named by a path.
  */
-func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: CjSyntaxToken): ?Array<Definition> {
+func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: CjSyntaxToken,
+    expansion!: ?MacroCallId = None): ?Array<Definition> {
     match (macroDefinitions(db, file, token)) {
         case NotApplicable => ()
         case UnknownMeaning => return None
@@ -78,9 +79,9 @@ func classifyName(db: AnalysisDatabase, file: SourceFile, item: ?DefId, token: C
     }
     let def = item ?? return None
     if (let Some((typeNode, segment)) <- typeAt(token)) {
-        return typeDefinitions(db, def, typeNode, segment)
+        return typeDefinitions(db, def, typeNode, segment, expansion: expansion)
     }
-    bodyDefinitions(db, def, token)
+    bodyDefinitions(db, def, token, expansion: expansion)
 }
 
 /**
@@ -169,10 +170,11 @@ func importDefinitions(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxTo
 /**
  * What the segment `segment` of the type `typeNode`, in the signature or the body of `def`, names.
  */
-func typeDefinitions(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, segment: Int64): ?Array<Definition> {
+func typeDefinitions(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, segment: Int64,
+    expansion!: ?MacroCallId = None): ?Array<Definition> {
     let ptr = SyntaxNodePtr(typeNode)
     let lowered = signatureWithSourceMap(db, def)
-    let (ty, resolve) = match (lowered.sourceMap.typeAt(ptr)) {
+    let (ty, resolve) = match (if (expansion.isNone()) { lowered.sourceMap.typeAt(ptr) } else { None<TypeRefId> }) {
         // as lowering resolved it, if it did
         case Some(ty) => (lowered.signature[ty], {
             path: Array<String> => signatureTypes(db, def).pathOf(ty) ??
@@ -180,7 +182,7 @@ func typeDefinitions(db: AnalysisDatabase, def: DefId, typeNode: CjSyntaxNode, s
         })
         case None =>
             let lowered = bodyWithSourceMap(db, def)
-            let ty = lowered.sourceMap.typeAt(ptr) ?? return None
+            let ty = lowered.sourceMap.typeAtSource(BodySource(ptr, expansion: expansion)) ?? return None
             (lowered.body.types[ty.index], {
                 path: Array<String> => inferBody(db, def).typePathOf(ty) ?? resolveBodyTypePath(db, def, ty, path)
             })
@@ -219,7 +221,8 @@ func accessNodeOf(node: CjSyntaxNode): ?CjSyntaxNode {
  * What the name `token`, in the body of `def`, means: what a name used there means (N59–N71), what a name after a
  * `.` does (N75–N79), the constructor a pattern names (N72), a local itself at its declaration.
  */
-func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?Array<Definition> {
+func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken,
+    expansion!: ?MacroCallId = None): ?Array<Definition> {
     let name = token.parent
     let node = name.parent ?? return None
     let lowered = bodyWithSourceMap(db, def)
@@ -228,11 +231,15 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
     let pkg = packageOfFile(db, file) ?? return None
     // an operator: the operator function it calls (8e); `+=` of `a[i] += v` its `+` and the `[]` taking a value (#245)
     if (isOperator(token)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(token.parent)) ?? return None
+        let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(token.parent), expansion: expansion)) ?? return None
+        return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}
+    }
+    if (name.kind == SyntaxKind.ThisExpr || name.kind == SyntaxKind.SuperExpr) {
+        let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ?? return None
         return inferBody(db, def).calleesOf(expr).map {decl => Definition.DeclDef(decl)}
     }
     if (let Some(ref) <- RefExpr.cast(node)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(ref.syntax)) ?? return None
+        let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(ref.syntax), expansion: expansion)) ?? return None
         let inferred = inferBody(db, def)
         // of overloads, the one inference chose (8d)
         if (let Some(decl) <- inferred.calleeOf(expr)) {
@@ -243,7 +250,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
         return resolutionDefinitions(def, resolution)
     }
     if (let Some(access) <- accessNodeOf(node)) {
-        let expr = sourceMap.exprAt(SyntaxNodePtr(access)) ?? return None
+        let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(access), expansion: expansion)) ?? return None
         let inferred = inferBody(db, def)
         if (let Some(decl) <- inferred.calleeOf(expr)) {
             return [Definition.DeclDef(decl)]
@@ -259,7 +266,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
         }
     }
     if (let Some(_) <- BindPat.cast(node)) {
-        let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return None
+        let local = sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ?? return None
         let ctors = if (lowered.body[local].lone) {
             ctorsNamed(db, pkg, file, token.text())
         } else {
@@ -278,7 +285,7 @@ func bodyDefinitions(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): ?A
         }
         return None
     }
-    let local = sourceMap.localAt(SyntaxNodePtr(name)) ?? return None
+    let local = sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ?? return None
     [Definition.LocalDef(def, local)]
 }
 

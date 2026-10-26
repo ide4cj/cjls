@@ -81,9 +81,9 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted; the line breaks are the author's by D76 |
 | [0061](0061-the-workspace-is-loaded-on-a-spawn.md) | The workspace is loaded on a spawn and set in batches between the messages, through a lock the read loop's handlers take too, reporting $/progress; a request meanwhile answers from what is loaded | accepted |
 | [0062](0062-toolchain-from-the-github-mirror.md) | The toolchain is downloaded from the GitHub mirror, checked against sha256 pinned from gitcode | accepted |
-| [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted |
+| [0063](0063-an-overload-is-taken-by-trying-its-candidates.md) | An overload is taken by trying its candidates, as cjc | accepted; a class or struct call goes to the initializer selected by inference, rather than directly to the type, by D145 |
 | [0064](0064-an-operator-is-a-call-of-its-types-member.md) | An operator of a type is a call of its member, the language's own tried first, as cjc | accepted; an operator with one declared candidate keeps its return type; a failing built-in operator is an error by D134 |
-| [0065](0065-binary-sources-at-the-cjo-positions.md) | A declaration of a package compiled already goes to the sources of its binary, at the position its `.cjo` gives, its name checked there | accepted |
+| [0065](0065-binary-sources-at-the-cjo-positions.md) | A declaration of a package compiled already goes to the sources of its binary, at the position its `.cjo` gives, its name checked there | accepted; source attachments also provide a context for navigation within their files by D147 |
 | [0066](0066-sugar-is-typed-as-cjc-desugars-it.md) | Coalescing, pipelines and compositions are typed as what cjc desugars them to, std.core named through lang items | accepted |
 | [0067](0067-loose-mains-are-programs.md) | Loose files without a package line, two or more of which declare main, are a program per main, each with the main-less files of its directory | accepted |
 | [0068](0068-binaries-are-watched-from-their-directories.md) | The `.cjo` of the binaries are watched from the directories they are in, by a registration of their own, and an event on one finds the project again | accepted |
@@ -135,7 +135,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0114](0114-std-derive-is-expanded-in-a-workspace-macros-input.md) | A std @Derive in a workspace macro's input is the declaration and cjls's own extends after it, and every call nested in the input is a child | accepted; the `extend`s an outer macro copies have bodies of a comment, not empty ones, by D118; a std `@Derive` in a workspace call's input is the server's output, cjls's own only once its run failed, by D123 |
 | [0115](0115-unittest-attributes-are-parsed-and-lowered-into-the-declarations-body.md) | A macro attribute is parsed by its shape and std.unittest's are lowered into the body of the declaration they are on | accepted |
 | [0116](0116-quote-interpolations-are-code-of-the-macro.md) | A quote's interpolations are code of the macro, the rest of it tokens | accepted |
-| [0117](0117-expression-macros-are-asked-with-the-items-calls.md) | A macro called in an expression, std.unittest's included, is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands while its answer is current | proposed |
+| [0117](0117-expression-macros-are-asked-with-the-items-calls.md) | A macro called in an expression, std.unittest's included, is asked with its file's other calls, keyed by its item, its macro's name and its ordinal, and read where it stands while its answer is current | proposed; a body's current expression and statement expansions are lowered and inferred (#369) by D144 |
 | [0118](0118-a-body-cjls-writes-itself-is-a-comment.md) | A body cjls writes in an expansion of its own is a comment naming the macro | accepted |
 | [0119](0119-a-macro-call-on-a-parameter-is-a-call-of-its-items-chain.md) | A macro call on a parameter is a macro call of the item whose parameter list holds it, indexed after the item's own | accepted |
 | [0120](0120-the-gate-is-tagged-out-of-the-coverage-run.md) | The diagnostics gate is tagged `gate` and left out of the coverage run | accepted |
@@ -150,7 +150,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0129](0129-test-files-see-std-unittest-macros.md) | A `*_test.cj` file imports std.unittest and its macros with no line, as `cjc --test` does | accepted |
 | [0130](0130-references-filter-files-by-an-index-of-their-words.md) | References read only the files whose words, a tracked bloom filter per file, name the name | accepted |
 | [0131](0131-a-diagnostic-reports-result-id-is-its-hash.md) | A diagnostic report's resultId is a hash of its items and of the openings so far | accepted |
-| [0132](0132-a-replaced-item-is-read-through-its-expansion.md) | An item a macro's output replaces is read through that output alone; its source maps to it by spans | proposed |
+| [0132](0132-a-replaced-item-is-read-through-its-expansion.md) | An item a macro's output replaces is read through that output alone; its source maps to it by spans | proposed; a body source map can contain nodes from several expansion files by D144 |
 | [0133](0133-client-versions-follow-the-server.md) | A client's version is the major and minor of the cjls release it pins, with a patch of its own | accepted |
 | [0134](0134-an-operator-none-fits-is-reported.md) | An operator none of whose candidates fits is reported at the operator; of one declared candidate it is of its return type, as a call of one, and between the language's types an error | accepted |
 | [0135](0135-workspace-diagnostics-are-not-offered.md) | `workspace/diagnostic` is not offered: a file not open has no diagnostics | accepted |
@@ -162,4 +162,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0141](0141-a-tests-state-runs-no-macros.md) | A state runs no macros unless it is given what starts them | accepted |
 | [0142](0142-linux-glibc-baseline.md) | Build Linux releases on Ubuntu 22.04 and check them without the SDK | proposed |
 | [0143](0143-bounded-generic-bounds.md) | Expand implied generic bounds in a separate bounded query | accepted |
+| [0144](0144-body-expression-expansions.md) | A body lowers current expression expansions in place, with file-qualified source maps | accepted |
+| [0145](0145-constructor-calls-navigate-to-the-selected-initializer.md) | Constructor calls navigate to the selected initializer, and declarations to their type | accepted |
 | [0146](0146-prefer-compile-time-constants.md) | Prefer const for values known at compile time | accepted |
+| [0147](0147-sdk-source-context.md) | Binary sources resolve in a detached context with canonical binary declarations | proposed |

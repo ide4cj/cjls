@@ -1,6 +1,24 @@
 # Contributing
 
-Build, test and commit conventions are in [Development](docs/development.md); a change the editor clients need too, the channels, labels and triage in [ide4cj's CONTRIBUTING](https://github.com/ide4cj/.github/blob/main/CONTRIBUTING.md) (D32). This file covers the one change made most often.
+Build, test and commit conventions are in [Development](docs/development.md); a change the editor clients need too, the channels, labels and triage in [ide4cj's CONTRIBUTING](https://github.com/ide4cj/.github/blob/main/CONTRIBUTING.md) (D32).
+
+## Test fixtures
+
+Prefer string interpolation when it makes fixture sources or expected text easier
+to read than concatenation, replacement chains or explicit `toString()` calls.
+
+Keep interpolation slots to values or simple field/index access. Compute
+conditional markers, formatting and other fixture-building logic in named locals
+before the string. Keep `if`, `match` and loops out of `${...}` so the fixture's
+source and expected result remain easy to read. For example, compute
+`let target = if (selected) { "//  ^^^^ def" } else { "" }` before the fixture
+and insert `${target}` on its annotation line.
+
+Preserve the resulting text, whitespace, cursor markers (`$0`) and annotation
+offsets. Keep raw literals when clearer, especially for fixtures containing
+literal `${...}` code: host-string interpolation must not evaluate the code under
+test. Apply this preference when writing or touching tests; the existing-test
+audit is tracked in [#498](https://github.com/ide4cj/cjls/issues/498).
 
 ## Adding a request or notification
 

@@ -1,16 +1,20 @@
 package cjls.lsp_ext
 
+import cjls.lsp_types.*
 import fjson.*
 import stdxx.deriving.*
-import cjls.lsp_types.*
 
-/** The complete replacement of the binary source roots protected by the client. */
+/**
+ * The complete replacement of the binary source roots protected by the client.
+ */
 @DeriveExt[ToJson, FromJson]
 protected struct BinarySourceRootsParams {
     public BinarySourceRootsParams(public let roots!: Array<DocumentUri>) {}
 }
 
-/** Reports actual source directories without changing their file identities or permissions. */
+/**
+ * Reports actual source directories without changing their file identities or permissions.
+ */
 protected struct BinarySourceRootsNotificationSpec <: LspOutboundNotification<BinarySourceRootsParams> {
     public static prop METHOD: String {
         get() { "cjls/binarySourceRoots" }

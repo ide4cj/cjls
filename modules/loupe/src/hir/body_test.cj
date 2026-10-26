@@ -130,8 +130,10 @@ class BodyTest {
             })
         }
         @Expect(hir.locals.map {local => local.name}, ["a", "$v", "$v"])
+        @Expect(lowered.sourceMap.locals[1], BodyOrigin.SyntheticSource)
+        @Expect(lowered.sourceMap.locals.get(hir.locals.size), None<BodyOrigin>)
         // the chain's node is found as written, `$v.c`, not as the `match`es it is desugared into
-        let written = lowered.sourceMap.exprAt(lowered.sourceMap.exprs[outer].getOrThrow()).getOrThrow()
+        let written = lowered.sourceMap.exprAtSource(lowered.sourceMap.exprs[outer].written.getOrThrow()).getOrThrow()
         @Expect(if (let FieldExpr(_, "c", _) <- hir[written]) { true } else { false })
     }
 

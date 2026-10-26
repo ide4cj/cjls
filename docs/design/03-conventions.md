@@ -39,6 +39,7 @@ Constraint kinds and how to revise them are defined in the
 | C29 | [Documentation comments](#c29-documentation-comments) | Convention |
 | C30 | [Narrow exceptions](#c30-narrow-exceptions) | Convention |
 | C31 | [Types and function size](#c31-types-and-function-size) | Convention |
+| C33 | [Arrange, act and assert](#c33-arrange-act-and-assert) | Convention |
 
 ### C1: Implicit constructors
 
@@ -102,6 +103,10 @@ wired together; an editor client's own tests run in its CI, not here (D32).
 
 A case an e2e test could cover and a unit test can is a unit test: `cjpm test` runs in seconds,
 the e2e suite starts a process per test.
+
+New and modified tests mark their Arrange, Act and Assert phases with `// arrange`, `// act` and
+`// assert` comments (`#` in Python). Multi-step scenarios may repeat Act and Assert
+phases. Only a test consisting solely of a `checkDiagnostics` call may omit them.
 
 ### C8: LSP imports and aliases
 
@@ -387,7 +392,15 @@ name and type do not say all a caller needs.
 It says what and why (C15), and names every exception a caller sees: `@throws
 IndexOutOfBoundsException - if …` (`G.ERR.01`).
 
-A comment above a declaration is `/** … */`; `//` is for the inside of a body.
+A comment above a declaration uses a multiline doc block, even for one sentence;
+`/**`, each ` *` content line and ` */` stand on separate lines. Do not put the
+whole doc comment on one line. `//` is for the inside of a body.
+
+```cangjie
+/**
+ * The file containing this node.
+ */
+```
 
 ### C30: Narrow exceptions
 
@@ -407,3 +420,18 @@ A function stays within ~50 lines and four levels of nesting (`G.FUN.01`) unless
 `match` over kinds; one over 80 is split where its parts have names.
 
 A file stays within ~1000 lines, split by subject beyond.
+
+### C33: Arrange, act and assert
+
+Mark each test's setup, operation under test and result checks with `// arrange`,
+`// act` and `// assert` comments, separated by blank lines. Keep the operation's
+result in a local before asserting it, so the action and its expected outcome
+are easy to distinguish. Add a short explanation to a marker when the scenario
+needs one. A test of successive state changes repeats the act/assert sections
+for each step.
+
+The only exception is a test whose body consists solely of fixture-checking
+calls such as `checkDiagnostics(...)`: those helpers already combine setup,
+execution and assertions, and the fixture describes the expected behavior.
+A test that constructs a fixture and then performs operations or assertions
+still uses the AAA comments.

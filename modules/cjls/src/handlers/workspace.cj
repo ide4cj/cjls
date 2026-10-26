@@ -5,18 +5,18 @@ import std.env.getVariable
 import std.fs.{FileInfo, FSException}
 import std.time.MonoTime
 import stdx.log.Logger
-import stdxx.Nullable
-import rope.Rope
+import cjls.lsp_ext.{BinarySourceRootsNotificationSpec, BinarySourceRootsParams}
+import cjls.lsp_types.*
+import cjls.macros.LspHandler
+import cjls.server.*
 import loupe.workspaceSymbols
 import loupe.db.ProjectModel
 import loupe.vfs.{CjoFile, FileStamp, isCangjieFile, isWorkspaceDirectory, isWorkspaceFile, readCjoFiles, readFile,
     readFiles, VfsPath}
 import project_model.{CangjieHome, CFG_TOML, findCangjieHome, findCangjieSrc, findProjects, hostCfg, loneFileProjects,
     packageHeader, PROJECT_JSON, ProjectLoad, projectDirOf, ProjectSource, withCangjieHome, withCangjieSrc, withPackageCfgs}
-import cjls.lsp_ext.{BinarySourceRootsNotificationSpec, BinarySourceRootsParams}
-import cjls.lsp_types.*
-import cjls.server.*
-import cjls.macros.LspHandler
+import rope.Rope
+import stdxx.Nullable
 
 /**
  * How many declarations `workspace/symbol` answers with at most: a query of a letter or two
@@ -360,12 +360,7 @@ func loadProject(loop: Loop, client: Client, logger: Logger, request: LoadReques
         state: ServerState =>
         if (state.isLoading(request.load)) {
             state.setProject(model, binaries: binaries.files)
-            let roots = HashSet<VfsPath>()
-            for (binary in model.binaries) {
-                if (let Some(sources) <- binary.sources) {
-                    roots.add(sources.dir)
-                }
-            }
+            let roots = HashSet<VfsPath>(model.binaries.filterMap {binary => binary.sources?.dir})
             notifyBinarySourceRoots(client, logger, roots.toArray())
             state.partialRoots = partialRootsOf(loads)
             state.foundProjects = request.found.concat(more.toArray())
@@ -650,8 +645,10 @@ func rootsOf(folders: Array<WorkspaceFolder>): Array<VfsPath> {
     folders.map {folder => VfsPath.fromUri(folder.uri)}.filter {path => path.filePath.isSome()}
 }
 
-/** Sends under the loop lock so an obsolete load cannot replace newer roots. */
-func notifyBinarySourceRoots(client: Client, logger: Logger, roots: Array<VfsPath>): Unit {
+/**
+ * Sends under the loop lock so an obsolete load cannot replace newer roots.
+ */
+private func notifyBinarySourceRoots(client: Client, logger: Logger, roots: Array<VfsPath>): Unit {
     try {
         client.notify(BinarySourceRootsNotificationSpec(),
             BinarySourceRootsParams(roots: roots.map {root => root.toUri()}))

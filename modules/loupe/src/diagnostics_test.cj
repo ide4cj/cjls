@@ -3,10 +3,11 @@ package loupe
 import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.TextRange
-import rope.Rope
-import loupe.vfs.FileId
 import loupe.db.*
 import loupe.fixture.*
+import loupe.hir.packageOfFile
+import loupe.vfs.FileId
+import rope.Rope
 
 func diagnosticsOf(text: String): Array<Diagnostic> {
     let db = AnalysisDatabase()
@@ -106,6 +107,52 @@ class ScopeDiagnosticsInFileTest {
  */
 @Test
 class InferenceDiagnosticsTest {
+    @TestCase
+    func arrayLiteralsAreCheckedAgainstTheExpectedVArray() {
+        // #491: checking only the annotated local's type misses a mismatch on its initializer.
+        checkDiagnostics(#"
+            package m
+            type Pair = VArray<Int8, $2>
+            func pair(): Pair { [1, 2] }
+            func take(a: Pair, b!: Pair): Unit {}
+            func choose(a: VArray<Int8, $1>): Int8 { 1 }
+            func choose(a: Pair): Int64 { 2 }
+            func test(): Unit {
+                let a: VArray<Int64, $4> = [1, 2, 3, 4]
+                for (i in 0..4) {
+                    print("${a[i]}, ")
+                }
+                var b: Pair = [1, 2]
+                b = [3, 4]
+                let c: ?Pair = [5, 6]
+                // Whitespace keeps the zero size distinct from the fixture's cursor marker.
+                let d: VArray<Int8, $ 0> = []
+                let e: VArray<Pair, $1> = [[1, 2]]
+                take([1, 2], b: [3, 4])
+                let selected: Int64 = choose([1, 2])
+                let ordinary = [1, 2]
+                let narrow: Array<Int8> = [1, 2]
+            }
+            "#, binaries: ["std.core"])
+    }
+
+    @TestCase
+    func aVArrayLiteralStillChecksItsElementsAndLength() {
+        checkDiagnostics(#"
+            package m
+            func test(s: String): Unit {
+                let a: VArray<Int8, $2> = [1, s]
+            //                                ^ error: mismatched types: expected 'Int8', found 'String'
+                let b: VArray<Int8, $2> = [1]
+            //                            ^^^ error: mismatch 'VArray' type's size: expected size is 2, found 1
+                let c: VArray<Int8, $2> = [1, 2, 3]
+            //                            ^^^^^^^^^ error: mismatch 'VArray' type's size: expected size is 2, found 3
+                let d: VArray<Int8, $1> = []
+            //                            ^^ error: mismatch 'VArray' type's size: expected size is 1, found 0
+            }
+            "#, binaries: ["std.core"])
+    }
+
     @TestCase
     func aValueOfAnotherTypeThanTheOneExpectedIsAMismatch() {
         checkDiagnostics(#"
@@ -581,5 +628,240 @@ class StdFalseMismatchesTest {
                 }
             }
             "#, binaries: ["std.core"])
+    }
+}
+
+@Test
+class ExpressionMacroDiagnosticsTest {
+    @TestCase
+    func generatedVArraySizeErrorsPointAtTheCallHead() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x: VArray<Int64, $2> = @B(0) }
+            "#)
+        answer(db, file, "B", "[1]", [MappedSpan(TextRange(0, 3), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["@B"])
+        @Expect(result.map {one => one.message}, ["mismatch 'VArray' type's size: expected size is 2, found 1"])
+    }
+
+    @TestCase
+    func copiedVArraySizeErrorsPointAtTheCopiedArgument() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x: VArray<Int64, $2> = @B([1]) }
+            "#)
+        let text = file.text(db).toString()
+        let start = offsetIn(text, "[1]") - offsetIn(text, "func f")
+        answer(db, file, "B", "[1]", [MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(start, start + 3)))])
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["[1]"])
+        @Expect(result.map {one => one.message}, ["mismatch 'VArray' type's size: expected size is 2, found 1"])
+    }
+
+    @TestCase
+    func generatedTypeErrorsPointAtTheCallHead() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x: Int64 = @B(1) }
+            "#)
+        answer(db, file, "B", "true", [MappedSpan(TextRange(0, 4), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["@B"])
+        @Expect(result.map {one => one.message}, ["mismatched types: expected 'Int64', found 'Bool'"])
+    }
+
+    @TestCase
+    func copiedTypeErrorsPointAtTheCopiedArgument() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x: Int64 = @B(true) }
+            "#)
+        let text = file.text(db).toString()
+        let start = offsetIn(text, "true") - offsetIn(text, "func f")
+        answer(db, file, "B", "true", [MappedSpan(TextRange(0, 4), SpanOrigin.FromSource(TextRange(start, start + 4)))])
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["true"])
+        @Expect(result.map {one => one.message}, ["mismatched types: expected 'Int64', found 'Bool'"])
+    }
+
+    @TestCase
+    func errorsInGeneratedStatementsPointAtTheirOwnCall() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { @B(1) }
+            "#)
+        let output = "let x: Bool = 1"
+        answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(result.map {one => text[one.range.start..one.range.end]}, ["@B"])
+        @Expect(result.size, 1)
+    }
+    @TestCase
+    func invalidExpressionOutputReportsItsParseErrorsAtTheCall() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit { let x = @B(1) }
+            "#)
+        let output = "func local() {}"
+        answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+
+        // act
+        let result = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(!result.isEmpty())
+        @Expect(result.all {one => one.message.startsWith("macro expansion:")})
+        @Expect(result.all {one => text[one.range.start..one.range.end] == "@B"})
+    }
+
+    @TestCase
+    func aGeneratedLocalUsedAfterTheCallNavigatesToTheCallInSource() {
+        // arrange
+        let (db, file) = expansionDatabase(#"
+            package m
+            import m.ms.*
+            func f(): Unit {
+                @B(1)
+                let result = made
+            }
+            "#)
+        let output = "let made = 1"
+        answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
+        let text = file.text(db).toString()
+
+        // act
+        let targets = definitionAt(db, file.fileId(db), offsetIn(text, "made"))
+
+        // assert
+        @Expect(targets.size, 1)
+        @Expect(targets[0].expansion.isNone())
+        @Expect(text[targets[0].focusRange.start..targets[0].focusRange.end], "@B")
+    }
+
+}
+
+@Test
+class PackageHeaderDiagnosticsTest {
+    @TestCase
+    func aNonMacroHeaderInAMacroPackageIsAnError() {
+        checkDiagnostics(#"
+            //- /a.cj module=m package=m
+            macro package m
+            //- /b.cj module=m package=m
+              package m
+            //^^^^^^^ error: file in macro package 'm' must declare 'macro package'
+            "#)
+    }
+
+    @TestCase
+    func consistentHeadersHaveNoError() {
+        checkDiagnostics(#"
+            //- /a.cj module=m package=m
+            macro package m
+            //- /b.cj module=m package=m
+            macro package m
+            //- /other.cj module=m package=m.other
+            package m.other
+            "#)
+    }
+
+    @TestCase
+    func aHeaderEditUpdatesTheOtherFilesDiagnostic() {
+        // arrange
+        let fixture = Fixture.parse(#"
+            //- /a.cj module=m package=m
+            package m
+            //- /b.cj module=m package=m
+            package m
+            "#)
+        let db = fixture.database()
+        let first = fixture.file("/a.cj").fileId
+        let second = fixture.file("/b.cj").fileId
+
+        // act
+        let before = diagnostics(db, second)
+
+        // assert
+        @Expect(before.isEmpty())
+
+        // act: another file makes this a macro package
+        db.setFileText(first, Rope("macro package m"))
+        let inconsistent = diagnostics(db, second)
+
+        // assert
+        @Expect(inconsistent.map {one => one.message},
+            ["file in macro package 'm' must declare 'macro package'"])
+
+        // act: restoring the header clears the cached diagnostic
+        db.setFileText(first, Rope("package m"))
+        let restored = diagnostics(db, second)
+
+        // assert
+        @Expect(restored.isEmpty())
+    }
+
+    @TestCase
+    func explicitPackageMetadataTakesPrecedenceOverHeaders() {
+        // arrange
+        let fixture = Fixture.parse("//- /main.cj module=m package=m\npackage m")
+        let db = fixture.database()
+        let id = fixture.files[0].fileId
+        let file = db.sourceFile(id) ?? throw IllegalStateException("the fixture file was not loaded")
+        let pkg = packageOfFile(db, file) ?? throw IllegalStateException("the fixture file has no package")
+
+        // act: metadata requires a macro header despite ordinary headers in the files
+        pkg.setIsMacro(db).to(Some(true))
+        let missingMacro = diagnostics(db, id)
+
+        // assert
+        @Expect(missingMacro.map {one => one.message},
+            ["file in macro package 'm' must declare 'macro package'"])
+
+        // act: metadata forbids a macro header despite a macro header in the file
+        pkg.setIsMacro(db).to(Some(false))
+        db.setFileText(id, Rope("macro package m"))
+        let unexpectedMacro = diagnostics(db, id)
+
+        // assert
+        @Expect(unexpectedMacro.map {one => one.message},
+            ["file in ordinary package 'm' must not declare 'macro package'"])
+        @Expect(unexpectedMacro[0].range, TextRange(0, 5))
     }
 }

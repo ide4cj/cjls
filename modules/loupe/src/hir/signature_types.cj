@@ -315,9 +315,10 @@ public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
  * type a `specific` one completes, that one, of the `common` one's parameters (#318).
  */
 func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
-    let count = genericsOf(db, def).size
-    let head = specificOf(db, def) ?? def
-    Ty(db, DeclTy(head, Array(count) {i => Ty(db, ParamTy(def, i))}))
+    let owner = canonicalDef(db, def)
+    let count = genericsOf(db, owner).size
+    let head = specificOf(db, owner) ?? owner
+    Ty(db, DeclTy(head, Array(count) {i => Ty(db, ParamTy(owner, i))}))
 }
 
 /**

@@ -30,7 +30,7 @@ let CANGJIE_SRC = Setting<?String>("cangjieSrc",
     optionalPathSchema(), Option<String>.None, readOptionalPath)
 
 let NEW_FILE_PACKAGE = Setting<Bool>("newFilePackage",
-    "Whether a new file starts with its package line: a document opened blank in a package's directory, or in a directory a module names its packages after, is given the line `package <name>` once the project is loaded.",
+    "Whether a new file starts with its package line: a document opened blank in a package's directory, or in a directory a module names its packages after, is given the line `package <name>` (`macro package <name>` in a macro package) once the project is loaded.",
     JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
     true, readBool)
 

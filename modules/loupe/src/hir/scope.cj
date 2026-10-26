@@ -149,7 +149,7 @@ public func preludeOf(db: AnalysisDatabase, pkg: Package): ?Glob {
     if (pkg.noPrelude(db)) {
         return None
     }
-    let from = PackageRef.Source(pkg)
+    let from = resolutionPackage(db, pkg)
     let core = packageIndex(db).find("std.core", from: from) ?? return None
     if (core == from) {
         return None
@@ -171,7 +171,7 @@ public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile):
     if (!isTestOf(db, pkg, file)) {
         return []
     }
-    let from = PackageRef.Source(pkg)
+    let from = resolutionPackage(db, pkg)
     let name = pkg.name(db)
     TEST_IMPORTS |> filterMap {
         imported: String => packageIndex(db).find(imported, from: from).flatMap {
@@ -211,7 +211,7 @@ public func fileImportsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, 
         item => (own, item)
     }
     let prelude = preludeOf(db, pkg).map {glob => [glob]} ?? []
-    collectImports(db, PackageRef.Source(pkg), imports, prelude.concat(testImportsOf(db, pkg, file)), stage)
+    collectImports(db, resolutionPackage(db, pkg), imports, prelude.concat(testImportsOf(db, pkg, file)), stage)
 }
 
 /**
@@ -271,7 +271,7 @@ public func importsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Imp
  * The level of imports of `file`, of `pkg`, the packages it names read at `stage`.
  */
 public func importsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stage: ScopeStage): ImportLevel {
-    ImportLevel(fileImportsAt(db, pkg, file, stage), packageImportsAt(db, PackageRef.Source(pkg), stage), stage: stage)
+    ImportLevel(fileImportsAt(db, pkg, file, stage), packageImportsAt(db, resolutionPackage(db, pkg), stage), stage: stage)
 }
 
 /**
@@ -394,7 +394,7 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
     let files = pkg.files(db) |> filter {fileId: FileId => ofTests || !tests.contains(fileId)} |>
         filterMap {fileId => db.sourceFile(fileId)}
     let levels = (files |> map {file => fileImports(db, pkg, file)} |> collectArray).concat(
-        [packageImports(db, PackageRef.Source(pkg))])
+        [packageImports(db, resolutionPackage(db, pkg))])
     for (names in levels) {
         for ((name, ids) in names.ctors) {
             let entry = entryOf(ctors, name)
@@ -419,9 +419,9 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
  * over the first two (N14).
  */
 public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports: ImportLevel, name: String,
-    ns: Namespace, ctorImports!: CtorImports): Resolution {
+    ns: Namespace, ctorImports!: CtorImports, source!: ?ItemFile = None): Resolution {
     let own = (defs.names.get(name) ?? []).filter {
-        def => (def.visibility != Visibility.Private || def.id.file(db) == from) && isIn(def.id.item(db).kind, ns)
+        def => (def.visibility != Visibility.Private || def.id.file(db) == from || Some(def.id.file(db)) == source) && isIn(def.id.item(db).kind, ns)
     }.map {def => def.id}
     let imported = ArrayList<ScopeTarget>()
     for (one in imports.names(db, name) where isIn(one.target, db, ns) && !imported.contains(one.target)) {
@@ -486,6 +486,6 @@ public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: S
     } else {
         CtorImports(IndexMap<String, Array<DefId>>(), [])
     }
-    lookUpIn(db, defMapAt(db, PackageRef.Source(pkg), stage), ItemFile.Source(file), importsAt(db, pkg, file, stage),
-        name, ns, ctorImports: ctorImports)
+    lookUpIn(db, defMapAt(db, PackageRef.Source(pkg), stage), resolutionFile(db, file), importsAt(db, pkg, file, stage),
+        name, ns, ctorImports: ctorImports, source: ItemFile.Source(file))
 }

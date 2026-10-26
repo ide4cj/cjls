@@ -69,19 +69,26 @@ async def test_a_name_goes_to_its_declarations(server: LanguageClient, tmp_path,
             )
         )
 
-    # act, assert: a type, a name in a body, a member after a `.`, an overload
-    assert targets(await definition(6, 11)) == [(file, 0, 6)]
-    assert targets(await definition(7, 4)) == [(file, 6, 8)]
-    assert targets(await definition(7, 6)) == [(file, 1, 9)]
+    # act
+    type_definition = await definition(6, 11)
+    local_definition = await definition(7, 4)
+    member_definition = await definition(7, 6)
+    overload_definition = await definition(7, 12)
+    builtin_definition = await definition(3, 10)
+
+    # assert: a type, a name in a body, a member after a `.`, an overload
+    assert targets(type_definition) == [(file, 0, 6)]
+    assert targets(local_definition) == [(file, 6, 8)]
+    assert targets(member_definition) == [(file, 1, 9)]
     # its parameters of built-in types: one picked with std's `.cjo` or without (a server finds an SDK
     # where the shell has one, not in CI)
-    assert targets(await definition(7, 12)) == [(file, 3, 5)]
+    assert targets(overload_definition) == [(file, 3, 5)]
     # `Int64` is built in: nothing to go to
-    assert await definition(3, 10) is None
+    assert builtin_definition is None
     # a link where the client takes one
     definition_caps = capabilities(editor).text_document.definition
     if definition_caps and definition_caps.link_support:
-        assert isinstance((await definition(6, 11))[0], types.LocationLink)
+        assert isinstance(type_definition[0], types.LocationLink)
 
     await server.shutdown_session()
 
@@ -124,5 +131,37 @@ async def test_a_name_of_std_goes_to_its_source(server: LanguageClient, tmp_path
     written = path.read_text(encoding="utf-8").splitlines()[line]
     assert written.startswith("public struct String ")
     assert written[character:].startswith("String")
+
+    # arrange: opening the SDK file outside all workspace roots must preserve its context
+    # without triggering discovery of an unrelated loose-file project.
+    source = path.read_text(encoding="utf-8")
+    server.text_document_did_open(types.DidOpenTextDocumentParams(
+        text_document=types.TextDocumentItem(
+            uri=path.as_uri(), language_id="cangjie", version=1, text=source,
+        ),
+    ))
+    collection_character = written.index("Collection<")
+
+    # act
+    second = await server.text_document_definition_async(types.DefinitionParams(
+        text_document=types.TextDocumentIdentifier(uri=path.as_uri()),
+        position=types.Position(line=line, character=collection_character),
+    ))
+
+    # assert
+    [(sibling, sibling_line, sibling_character)] = targets(second)
+    assert sibling == CANGJIE_SRC.resolve() / "std" / "core" / "collection.cj"
+    assert sibling.read_text(encoding="utf-8").splitlines()[sibling_line][sibling_character:].startswith("Collection")
+
+    # act: browsing std must leave the project's binary type resolution intact.
+    again = await server.text_document_definition_async(types.DefinitionParams(
+        text_document=types.TextDocumentIdentifier(uri=file.as_uri()),
+        position=types.Position(line=0, character=11),
+    ))
+    symbols = await server.workspace_symbol_async(types.WorkspaceSymbolParams(query="String"))
+
+    # assert
+    assert targets(again) == [(path, line, character)]
+    assert not symbols
 
     await server.shutdown_session()
