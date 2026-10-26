@@ -3,15 +3,15 @@ package loupe
 import std.collection.*
 import std.deriving.*
 import std.sort.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjSyntaxNode, message}
-import cjsyntax.ast.{AnyHasName, Arg, BinExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
 import cjsyntax.ast.ArgList as AstArgList
 import cjsyntax.ast.SourceFile as AstSourceFile
-import loupe.vfs.FileId
+import cjsyntax.ast.{AnyHasName, Arg, BinExpr, ImportDecl, ImportTree, InitDecl, TrailingLambdaExpr}
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
+import loupe.vfs.FileId
 
 @Derive[Equatable]
 public enum Severity {
@@ -41,7 +41,8 @@ public struct Diagnostic {
  * database does not know.
  *
  * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `scopeDiagnostics`,
- * `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects their results (A11).
+ * `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects
+ * their results (A11).
  */
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
@@ -61,7 +62,7 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
     })
     let root = parse(db, file).syntaxNode()
     if (let Some(message) <- packageHeaderError(db, file)) {
-        if (let Some(header) <- AstSourceFile.cast(root).flatMap {source => source.packageHeader()}) {
+        if (let Some(header) <- (AstSourceFile.cast(root)?.packageHeader() ?? None)) {
             let range = header.macroToken()?.textRange ?? header.packageToken()?.textRange ??
                 header.syntax.textRange
             result.add(Diagnostic(range, Severity.Error, message))

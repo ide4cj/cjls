@@ -1,16 +1,16 @@
 package loupe.hir
 
-import calca.*
-import calca.macros.*
-import loupe.db.*
+import calca.{TrackedBody, TrackedFunction}
+import calca.macros.CalcaTracked
+import loupe.db.{AnalysisDatabase, SourceFile}
 
 /**
- * Whether a file's explicit package header disagrees with its package's macro kind. Without
- * explicit metadata, any macro header makes the package a macro package, as `isMacroPackage`
- * determines for building it. Checks only explicit, named headers.
+ * Why a file's explicit package header disagrees with its package's macro kind; `None` when it
+ * agrees or has no explicit, named header. Without explicit metadata, any macro header makes
+ * the package a macro package, as `isMacroPackage` determines for building it.
  */
 @CalcaTracked
-public func packageHeaderError(db: AnalysisDatabase, file: SourceFile): ?String {
+protected func packageHeaderError(db: AnalysisDatabase, file: SourceFile): ?String {
     let pkg = packageOfFile(db, file) ?? return None
     let header = itemTree(db, file).packageHeader ?? return None
     if (header.name.isEmpty()) {

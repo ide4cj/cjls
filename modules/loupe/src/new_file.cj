@@ -2,9 +2,9 @@ package loupe
 
 import cjsyntax.parse
 import cjsyntax.ast.SourceFile as AstSourceFile
-import rope.Rope
 import loupe.db.ProjectModel
 import loupe.vfs.VfsPath
+import rope.Rope
 
 /**
  * The header for a new file, or `None` when its project names no package. Explicit macro metadata
@@ -20,7 +20,7 @@ public func newFilePackageLine(model: ProjectModel, path: VfsPath, textOf: (VfsP
                 file =>
                 let text = textOf(file) ?? return false
                 let root = AstSourceFile.cast(parse(text.toString()).syntaxNode()) ?? return false
-                root.packageHeader().flatMap {header => header.macroToken()}.isSome()
+                (root.packageHeader()?.macroToken() ?? None).isSome()
             }
             return "${if (macroPackage) {"macro "} else {""}}package ${name}"
         }

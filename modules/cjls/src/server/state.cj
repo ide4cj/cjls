@@ -4,11 +4,11 @@ import std.collection.{ArrayList, HashMap, HashSet}
 import std.env.getVariable
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
-import rope.{Encoding, Rope}
 import loupe.newFilePackageLine
-import loupe.vfs.*
 import loupe.db.*
 import loupe.hir.setMacroOutputsByKey
+import loupe.vfs.*
+import rope.{Encoding, Rope}
 
 /**
  * The `.cjo` of a project's binaries (D38), as an event reports them: every one in the
@@ -425,7 +425,7 @@ public class ServerState <: FromContext<ServerState> {
      * The package header for a new file, from the project last set and the current file contents;
      * `None` if the project names none (`newFilePackageLine`).
      */
-    public func packageLineOfNewFile(path: VfsPath): ?String {
+    protected func packageLineOfNewFile(path: VfsPath): ?String {
         newFilePackageLine(model, path) {file => fileContents(file)}
     }
 
