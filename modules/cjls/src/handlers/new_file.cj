@@ -57,8 +57,7 @@ func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditPara
     if (!isBlank(text)) {
         return None
     }
-    let name = state.packageOfNewFile(path) ?? return None
-    let line = "package ${name}"
+    let line = state.packageLineOfNewFile(path) ?? return None
     let start = Position(line: 0, character: 0)
     let edit = TextEdit(range: LspRange(start: start, end: start), newText: "${line}\n")
     let uri = path.toUri()

@@ -27,6 +27,7 @@ public struct MacroBuildUnit {
 /**
  * Whether `pkg` is a macro package: as the project model says, else as a `package` line of its files does.
  */
+@CalcaTracked
 public func isMacroPackage(db: AnalysisDatabase, pkg: Package): Bool {
     if (let Some(isMacro) <- pkg.isMacro(db)) {
         return isMacro
