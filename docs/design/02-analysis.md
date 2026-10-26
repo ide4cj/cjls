@@ -48,6 +48,7 @@ Constraint kinds and how to revise them are defined in the
 | A35 | [Reading macro expansions](#a35-reading-macro-expansions) | Design choice |
 | A36 | [Package navigation](#a36-package-navigation) | Design choice |
 | A37 | [Constructor navigation](#a37-constructor-navigation) | Design choice |
+| A38 | [Interpolation highlighting](#a38-interpolation-highlighting) | Design choice |
 
 ### A1: Concrete database handle
 
@@ -387,6 +388,15 @@ Initializer selection uses the overload journal (A27) and is exposed separately
 from ordinary callee identity: class/struct hover and reference searches continue
 to use the type. The initializer target selects its name or the `init` keyword,
 so another go-to-definition request reaches the type.
+
+### A38: Interpolation highlighting
+
+String interpolation boundaries (`${` and its matching `}`) have their own
+`InterpolationDelimiter` tag, translated to the standard LSP `operator` type
+even when tokens augment an editor grammar (D148, amending D105). The expression
+inside keeps its normal code tags and string text keeps its string tags;
+highlighted ranges never overlap. Escaped and raw interpolation text is string
+content.
 
 ## Analysis tests
 

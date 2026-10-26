@@ -27,3 +27,29 @@ async def test_a_document_is_highlighted_from_its_start(client: LanguageClient):
         assert list(tokens.data[:5]) == [0, 0, 5, 0, 0]
     # `let` starts the next line
     assert [tokens.data[i] for i in range(0, len(tokens.data), 5)].count(1) == 1
+
+
+async def test_interpolation_boundaries_are_operators_over_an_editors_grammar(client: LanguageClient):
+    # arrange
+    uri = "untitled:interpolation"
+    text = 'main() { let n = 1; let s = "${n}" }'
+    open_document(client, uri, text)
+
+    # act
+    tokens = await client.text_document_semantic_tokens_full_async(
+        types.SemanticTokensParams(text_document=types.TextDocumentIdentifier(uri=uri))
+    )
+
+    # assert
+    assert tokens is not None
+    # The standard legend keeps operator at index 4; every editor gets the boundaries,
+    # even when ordinary operators/literals are left to its base grammar (D148).
+    column = 0
+    found = {}
+    for offset in range(0, len(tokens.data), 5):
+        line_delta, start_delta, length, kind, _ = tokens.data[offset:offset + 5]
+        assert line_delta == 0
+        column += start_delta
+        found[text[column:column + length]] = kind
+    assert found["${"] == 4
+    assert found["}"] == 4
