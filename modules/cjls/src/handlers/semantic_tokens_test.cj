@@ -275,6 +275,30 @@ class SemanticTokensTest {
     }
 
     @TestCase
+    func interpolationDelimitersReachAClientThatAugmentsItsGrammar() {
+        // arrange
+        let state = opened(##"let s = "${1}""##)
+        state.augmentsSyntaxTokens = true
+        let range = LspRange(start: Position(line: 0, character: 9), end: Position(line: 0, character: 13))
+
+        // act
+        let data = semanticTokensData(state, URI).getOrThrow {
+            IllegalStateException("no tokens for an open document")
+        }
+        let ranged = handleSemanticTokensRange(state.snapshot(),
+            SemanticTokensRangeParams(textDocument: TextDocumentIdentifier(uri: URI), range: range))
+
+        // assert
+        @Expect(data, [0, 4, 1, VARIABLE, DECLARATION | READONLY,
+            0, 5, 2, OPERATOR, 0, 0, 3, 1, OPERATOR, 0])
+
+        match (ranged) {
+            case Nullable.Value(tokens) => @Expect(tokens.data, [0, 9, 2, OPERATOR, 0, 0, 3, 1, OPERATOR, 0])
+            case Nullable.Null => @Fail("no tokens for an open document")
+        }
+    }
+
+    @TestCase
     func aConstructorAndAConstantAreToldByAModifierOfTheirType() {
         // arrange
         let state = opened("class A {\n    A() {}\n}\nconst K = 1")

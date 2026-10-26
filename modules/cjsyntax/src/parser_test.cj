@@ -96,6 +96,9 @@ class StatementParseTest {
         ("throw E()", "(ThrowExpr throw (CallExpr (RefExpr (NameRef E)) (ArgList ( ))))"),
         ("break; continue", "(BreakExpr break) ; (ContinueExpr continue)"),
         ("\"a\${b}c\${\"d\${e}\"}\"", "(StringLit \" a (Interpolation \${ (RefExpr (NameRef b)) }) c (Interpolation \${ (StringLit \" d (Interpolation \${ (RefExpr (NameRef e)) }) \") }) \")"),
+        (##""${}""##, ##"(StringLit " (Interpolation ${ }) ") !12..12: string interpolation cannot be empty"##),
+        (##""${ /* empty */ ; ; }after${1}""##, ##"(StringLit " (Interpolation ${ ; ; }) after (Interpolation ${ (Literal 1) }) ") !28..28: string interpolation cannot be empty"##),
+        (##""${; let n = 1; n;}""##, ##"(StringLit " (Interpolation ${ ; (VarDecl let (Name n) = (Literal 1)) ; (RefExpr (NameRef n)) ; }) ")"##),
         ("quote(a + \$b + \$(c) \\( )", "(QuoteExpr quote ( a + (QuoteInterpolation (RefExpr (NameRef \$b))) + (QuoteInterpolation \$ ( (RefExpr (NameRef c)) )) \\ ( ))"),
         ("quote(\\\$x \$`y`)", "(QuoteExpr quote ( \\ \$x (QuoteInterpolation (RefExpr (NameRef \$`y`))) ))"),
         ("@M(1, 2)", "(MacroExpandExpr @ (NameRef M) (MacroArgs (ArgList ( (Arg (Literal 1)) , (Arg (Literal 2)) ))))"),
@@ -135,8 +138,13 @@ class StatementParseTest {
 
     @TestCase
     func eachStatementParsesToItsTree() {
+        // arrange
         for ((text, expected) in cases) {
-            @Expect(stmtSexp(text), expected)
+            // act
+            let actual = stmtSexp(text)
+
+            // assert
+            @Expect(actual, expected)
         }
     }
 }
@@ -357,5 +365,34 @@ class EntryParseTest {
     func brokenOutputStillGivesATreeCoveringIt(text: String) {
         @Expect(parseExpr(text).syntaxNode().text(), text)
         @Expect(parseStmts(text).syntaxNode().text(), text)
+    }
+}
+
+@Test
+class StringInterpolationParseTest {
+    @TestCase[body in ["", "   ", "/* empty */", "; ;", "\n// empty\n"]]
+    func triviaAndSemicolonsDoNotMakeAnInterpolationNonempty(body: String) {
+        // arrange
+        let text = "main() { let s = \"\${${body}}\" }"
+
+        // act
+        let parsed = parse(text)
+
+        // assert
+        @Expect(parsed.syntaxNode().text(), text)
+        @Expect(parsed.errors.map {it => message(it.error)}, ["string interpolation cannot be empty"])
+    }
+
+    @TestCase
+    func anUnclosedInterpolationHasAClosingDelimiterErrorAndKeepsItsText() {
+        // arrange
+        const TEXT = ##"main() { let s = "${1"##
+
+        // act
+        let parsed = parse(TEXT)
+
+        // assert
+        @Expect(parsed.syntaxNode().text(), TEXT)
+        @Expect(parsed.errors.map {it => message(it.error)}.contains("expected '}' to close string interpolation"))
     }
 }

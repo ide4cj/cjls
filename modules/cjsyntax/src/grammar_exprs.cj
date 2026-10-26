@@ -504,8 +504,15 @@ func stringLit(p: P): CompletedMarker<SyntaxKind> {
             case InterpolationStart =>
                 let i = p.start()
                 p.bump(InterpolationStart)
+                // Semicolons alone are empty statements, not an interpolation body.
+                while (p.eat(Semicolon)) {}
+                if (p.at(InterpolationEnd)) {
+                    p.error("string interpolation cannot be empty")
+                }
                 statements(p, [InterpolationEnd, StringEnd, StringContent])
-                p.eat(InterpolationEnd)
+                if (!p.eat(InterpolationEnd)) {
+                    p.error("expected '}' to close string interpolation")
+                }
                 i.complete(p, Interpolation)
             case StringEnd =>
                 p.bump(StringEnd)

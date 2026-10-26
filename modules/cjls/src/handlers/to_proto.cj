@@ -296,7 +296,7 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
         case HighlightTag.Comment => SemanticTokenTypes.COMMENT
         case HighlightTag.StringLiteral => SemanticTokenTypes.STRING
         case HighlightTag.NumberLiteral => SemanticTokenTypes.NUMBER
-        case HighlightTag.Operator => SemanticTokenTypes.OPERATOR
+        case HighlightTag.Operator | HighlightTag.InterpolationDelimiter => SemanticTokenTypes.OPERATOR
         case HighlightTag.BuiltinAnnotation => SemanticTokenTypes.DECORATOR
         case HighlightTag.MacroCall => SemanticTokenTypes.MACRO
         case HighlightTag.BuiltinType | HighlightTag.TypeName => SemanticTokenTypes.TYPE
@@ -324,6 +324,7 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
 /**
  * `tokens`, less those a client laying them over a grammar of its own has from it: a keyword, a
  * comment, a literal or an operator, unless a modifier tells what the grammar cannot (D105).
+ * Interpolation delimiters stay explicit operators over base punctuation scopes (D148).
  */
 func overSyntax(tokens: Array<HighlightedRange>, augments: Bool): Array<HighlightedRange> {
     if (!augments) {

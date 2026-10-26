@@ -59,6 +59,23 @@ func isUse(token: CjSyntaxToken): Bool {
 @Test
 class HighlightResolvedTest {
     @TestCase
+    func anInterpolationsNamesKeepTheirSemanticHighlighting() {
+        // arrange
+        const FIXTURE = #"
+            //- /main.cj module=m package=m
+            package m
+            //      ^ Namespace
+            func f(n: Int64) {
+                "before${n}after"
+            //           ^ Parameter
+            }
+            "#
+
+        // act, assert
+        checkHighlight(FIXTURE)
+    }
+
+    @TestCase
     func whatStdsTestMacrosTakeAsCodeByWhatItMeans() {
         // #191: `x in src`'s `x` the parameter, `src` a name around it, `@Configure`'s option its key's property,
         // `@Tag`'s identifiers nothing
