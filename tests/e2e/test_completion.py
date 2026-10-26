@@ -12,6 +12,7 @@ struct Point {
     /** How far right. */
     public let x: Int64 = 1
     public func norm(): Int64 { x }
+    public func norm(scale: Int64): Int64 { x * scale }
 }
 func main(): Int64 {
     let p = Point()
@@ -43,7 +44,7 @@ async def test_a_dot_lists_the_members_and_resolves_their_docs(server: LanguageC
     answer = await server.text_document_completion_async(
         types.CompletionParams(
             text_document=types.TextDocumentIdentifier(uri=file.as_uri()),
-            position=types.Position(line=7, character=6),
+            position=types.Position(line=8, character=6),
             context=types.CompletionContext(trigger_kind=types.CompletionTriggerKind.TriggerCharacter,
                                             trigger_character="."),
         )
@@ -55,14 +56,27 @@ async def test_a_dot_lists_the_members_and_resolves_their_docs(server: LanguageC
     assert isinstance(answer, types.CompletionList)
     assert {"norm", "x"} <= {item.label for item in answer.items}
     x = next(item for item in answer.items if item.label == "x")
-    assert x.text_edit.range == types.Range(start=types.Position(line=7, character=6),
-                                            end=types.Position(line=7, character=6))
+    assert x.text_edit.range == types.Range(start=types.Position(line=8, character=6),
+                                            end=types.Position(line=8, character=6))
+    norms = [item for item in answer.items if item.label == "norm"]
+    assert len(norms) == 1
+    norm = norms[0]
 
     # act
     resolved = await server.completion_item_resolve_async(x)
+    resolved_norm = await server.completion_item_resolve_async(norm)
 
-    # assert: the declaration and the doc comment on resolve
+    # assert: the declarations and the doc comment on resolve
     assert resolved.detail == "public let x: Int64"
     assert "How far right." in resolved.documentation.value
+    assert norm.detail == "2 overloads"
+    assert norm.text_edit.new_text == "norm"
+    assert result.capabilities.completion_provider.completion_item.label_details_support
+    if capabilities(editor).text_document.completion.completion_item.label_details_support:
+        assert norm.label_details.detail == " (2 overloads)"
+    else:
+        assert norm.label_details is None
+    assert "public func norm(): Int64" in resolved_norm.documentation.value
+    assert "public func norm(scale: Int64): Int64" in resolved_norm.documentation.value
 
     await server.shutdown_session()

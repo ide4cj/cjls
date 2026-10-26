@@ -200,7 +200,7 @@ func isDeclaredName(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Boo
 
 /**
  * The items one hover finds, for the name `token` in the item `def`; with no token, what
- * completion asks of a declaration's detail (`completionDetail`), `def` the item at the cursor.
+ * completion asks of declarations' details (`completionDetails`), `def` the item at the cursor.
  */
 class Hovers {
     Hovers(let db: AnalysisDatabase, let def: DefId, let token: ?CjSyntaxToken,

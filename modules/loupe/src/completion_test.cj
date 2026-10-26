@@ -40,7 +40,10 @@ func checkCompletion(fixture: String, std!: Array<String> = []): Unit {
             }
             result.items.map {
                 item =>
-                let detail = completionDetail(db, cursor.fileId, cursor.offset, item).map {one => " | ${one.code}"} ?? ""
+                let details = completionDetails(db, cursor.fileId, cursor.offset, item)
+                let detail = if (details.isEmpty()) { "" } else {
+                    " | ${String.join(details.map {one => one.code}, delimiter: " / ")}"
+                }
                 let relevance = "${item.relevance}".padStart(3, padding: "0")
                 Annotation(cursor.fileId, range, "${relevance} ${item.label} | ${item.kind}${detail}")
             }
