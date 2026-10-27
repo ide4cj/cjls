@@ -1,6 +1,7 @@
 package cjformat
 
 import std.collection.ArrayList
+import cjsyntax.ast.Expr
 import cjsyntax.{CjSyntaxElement, CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import ginkgo.{SyntaxElement, TextRange}
 
@@ -12,6 +13,7 @@ import ginkgo.{SyntaxElement, TextRange}
 class LayoutBuilder {
     LayoutBuilder(
         private let source: String,
+        private let options!: FormatOptions = FormatOptions(),
         private let target!: ?CjSyntaxNode = None,
         private let position!: ?LayoutPosition = None
     ) {}
@@ -24,7 +26,10 @@ class LayoutBuilder {
                 return concat([concat(docs), node(n)])
             }
         }
-        let doc = nodeBody(n)
+        mark(n, nodeBody(n))
+    }
+
+    private func mark(n: CjSyntaxNode, doc: Doc): Doc {
         if (target == Some(n)) {
             if (let Some(at) <- position) {
                 return positioned(doc, at)
@@ -65,6 +70,7 @@ class LayoutBuilder {
             case Block | DeclBody | EnumBody | PropBody | MatchBody | ForeignBlock =>
                 body(parts, n.kind)
             case LambdaExpr => lambda(parts)
+            case IfExpr => ifExpression(parts)
             case MatchCase => matchCase(parts)
             case VarDecl | TypeAliasDecl | ResourceDecl => assignment(parts, n.kind)
             case FuncDecl |
@@ -151,6 +157,71 @@ class LayoutBuilder {
                     textDoc(t.text())
                 }
         }
+    }
+
+    /** Only complete, comment-free expression branches may share a line. */
+    private func ifExpression(parts: Array<CjSyntaxElement>): Doc {
+        match (options.simpleIf) {
+            case SimpleIf.Multiline => return group(sequence(parts, IfExpr))
+            case _ => ()
+        }
+        var branches = 0
+        for (part in parts) {
+            if (isComment(part.kind) || part.kind == IfExpr) {
+                return group(sequence(parts, IfExpr))
+            }
+            if (let Some(n) <- part.asNode()) {
+                if (n.descendantsWithTokens().any { e => isComment(e.kind) }) {
+                    return group(sequence(parts, IfExpr))
+                }
+                if (part.kind == Block) {
+                    let children = partsOf(n)
+                    if (children.size != 3 || !Expr.canCast(children[1].kind)) {
+                        return group(sequence(parts, IfExpr))
+                    }
+                    branches++
+                }
+            }
+        }
+        if (branches != 2) {
+            return group(sequence(parts, IfExpr))
+        }
+        let flat = ArrayList<Doc>()
+        let broken = ArrayList<Doc>()
+        for (i in 0..parts.size) {
+            let part = parts[i]
+            if (i > 0) {
+                let space = tokenSeparator(parts[i - 1], part, IfExpr, continuation: false)
+                flat.add(space)
+                broken.add(space)
+            }
+            if (part.kind == Block) {
+                let block = part.asNode().getOrThrow()
+                // Share the expression document between alternatives: rebuilding it for both
+                // layouts would multiply work at each level of nested if expressions.
+                let expression = element(partsOf(block)[1])
+                flat.add(mark(block, concat([textDoc("{ "), expression, textDoc(" }")])))
+                broken
+                    .add(
+                        mark(
+                            block,
+                            concat(
+                                [
+                                    textDoc("{"),
+                                    indent(concat([hardline(), expression])),
+                                    hardline(),
+                                    textDoc("}")
+                                ]
+                            )
+                        )
+                    )
+            } else {
+                let doc = element(part)
+                flat.add(doc)
+                broken.add(doc)
+            }
+        }
+        group(ifBreak(concat(broken.toArray()), concat(flat.toArray())))
     }
 
     private func assignment(parts: Array<CjSyntaxElement>, context: SyntaxKind): Doc {

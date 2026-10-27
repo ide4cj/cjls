@@ -182,7 +182,11 @@ class Printer {
     private var lineBreaks = 0
     private var isStart = true
 
-    Printer(private let newline: String, private let width!: Int64) {}
+    Printer(
+        private let newline: String,
+        private let width!: Int64,
+        private let indentWidth!: Int64 = INDENT
+    ) {}
 
     func print(
         doc: Doc,
@@ -215,7 +219,15 @@ class Printer {
                 writeReindented(value, oldIndent, ranges, level)
             case Concat(docs) => pushConcat(docs, frame)
             case Indented(doc) =>
-                stack.add(PrintFrame(doc, level + INDENT, isFlat: isFlat, reserved: frame.reserved))
+                stack
+                    .add(
+                        PrintFrame(
+                            doc,
+                            level + indentWidth,
+                            isFlat: isFlat,
+                            reserved: frame.reserved
+                        )
+                    )
             case Group(doc) => pushGroup(doc, frame)
             case Line(value) =>
                 if (isFlat) {

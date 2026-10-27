@@ -14,6 +14,31 @@ func written(buffer: ByteBuffer): String {
 @Test
 class FormatPathsTest {
     @TestCase
+    func projectSettingsApplyAndInvalidConfigLeavesSourceAlone() {
+        // arrange
+        let dir = Directory.createTemp(getTempDirectory())
+        let file = dir.join("a.cj")
+        let config = dir.join("cjformat.toml")
+        let source = "func f() { if (a) { b } else { c } }\n"
+        File.writeTo(file, source.toArray())
+        File.writeTo(config, "indent_width = 2\nsimple_if = 'compact'\n".toArray())
+        let (out, err) = (ByteBuffer(), ByteBuffer())
+
+        // act
+        let first = formatPaths([file], false, out, err)
+        let formatted = String.fromUtf8(File.readFrom(file))
+        File.writeTo(config, "indent_width = 0\n".toArray())
+        let invalid = formatPaths([file], false, out, err)
+
+        // assert
+        @Expect(first, 0)
+        @Expect(formatted, "func f() {\n  if (a) { b } else { c }\n}\n")
+        @Expect(invalid, 1)
+        @Expect(String.fromUtf8(File.readFrom(file)), formatted)
+        @Expect(written(err).contains("cjformat.toml"))
+    }
+
+    @TestCase
     func aDirectorysFilesAreFormattedInPlaceAndNamed() {
         // arrange
         let dir = Directory.createTemp(getTempDirectory())
@@ -82,8 +107,14 @@ class FormatPathsTest {
         let (out, err) = (ByteBuffer(), ByteBuffer())
 
         // act
-        let exitCode = formatPaths([file], false, out, err,
-            write: {_, _ => throw FSException("Permission denied")})
+        let exitCode =
+            formatPaths(
+                [file],
+                false,
+                out,
+                err,
+                write: { _, _ => throw FSException("Permission denied") }
+            )
 
         // assert
         @Expect(exitCode, 1)

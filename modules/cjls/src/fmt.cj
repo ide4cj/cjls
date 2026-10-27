@@ -7,6 +7,7 @@ import std.sort.sort
 import rope.Rope
 import loupe.vfs.{VfsPath, readFiles, readRoots}
 import cjformat.formatText
+import cjformat.config.optionsFor
 
 /**
  * Formats the Cangjie files at `paths` in place, or with `check` only names those it would change;
@@ -22,7 +23,7 @@ func formatPaths(
     check: Bool,
     out: OutputStream,
     err: OutputStream,
-    write!: (Path, Array<Byte>) -> Unit = {path, bytes => File.writeTo(path, bytes)}
+    write!: (Path, Array<Byte>) -> Unit = { path, bytes => File.writeTo(path, bytes) }
 ): Int64 {
     var failed = false
     for (path in paths where !exists(path)) {
@@ -31,7 +32,15 @@ func formatPaths(
     }
     for ((path, rope) in sourcesAt(paths)) {
         let text = rope.toString()
-        match (formatText(text)) {
+        let formattedText =
+            try {
+                formatText(text, options: optionsFor(path.filePath.getOrThrow()))
+            } catch (e: Exception) {
+                err.write("${path}: not formatted: ${e.message}\n".toArray())
+                failed = true
+                continue
+            }
+        match (formattedText) {
             case None =>
                 err.write("${path}: not formatted: it has syntax errors\n".toArray())
                 failed = true
@@ -53,19 +62,23 @@ func formatPaths(
     }
     out.flush()
     err.flush()
-    if (failed) { 1 } else { 0 }
+    if (failed) {
+        1
+    } else {
+        0
+    }
 }
 
 /**
  * The files at `paths`, a directory's read as the server reads it, in the order of their paths.
  */
 func sourcesAt(paths: Array<Path>): Array<(VfsPath, Rope)> {
-    let directories = paths.filter {path => isDirectory(path)}.map {path => VfsPath.file(path)}
-    let files = paths.filter {path => !isDirectory(path)}.map {path => VfsPath.file(path)}
+    let directories = paths.filter { path => isDirectory(path) }.map { path => VfsPath.file(path) }
+    let files = paths.filter { path => !isDirectory(path) }.map { path => VfsPath.file(path) }
     let read = ArrayList<(VfsPath, Rope)>(readRoots(directories).files)
     read.add(all: readFiles(files).files)
     let sources = read.toArray()
-    sort(sources, by: {a, b => a[0].toString().compare(b[0].toString())})
+    sort(sources, by: { a, b => a[0].toString().compare(b[0].toString()) })
     sources
 }
 

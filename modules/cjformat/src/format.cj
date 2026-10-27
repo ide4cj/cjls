@@ -16,26 +16,27 @@ public struct TextEdit {
 }
 
 /**
- * Formats a file to 100 columns, with four-space indentation. Returns no edits for canonical
+ * Formats a file using `options`. Returns no edits for canonical
  * input, or `None` for a file with syntax errors. Tokens, including commas, are preserved.
  * Macro token trees and string contents retain their layout. Long indivisible text may overflow.
  */
-public func format(parse: CjParse): ?Array<TextEdit> {
+public func format(parse: CjParse, options!: FormatOptions = FormatOptions()): ?Array<TextEdit> {
     if (!parse.errors.isEmpty()) {
         return None
     }
     let root = parse.syntaxNode()
     let source = root.text()
     let result =
-        Printer(lineBreakIn(source), width: LINE_WIDTH).print(LayoutBuilder(source).node(root))
+        Printer(lineBreakIn(source), width: options.lineWidth, indentWidth: options.indentWidth)
+            .print(LayoutBuilder(source, options: options).node(root))
     Some(replacement(source, root.textRange, result))
 }
 
 /**
  * Formats source text, or returns `None` when parsing reports syntax errors.
  */
-public func formatText(text: String): ?String {
-    applyEdits(text, format(parse(text)) ?? return None)
+public func formatText(text: String, options!: FormatOptions = FormatOptions()): ?String {
+    applyEdits(text, format(parse(text), options: options) ?? return None)
 }
 
 /**

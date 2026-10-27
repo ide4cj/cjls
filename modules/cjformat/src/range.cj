@@ -10,7 +10,11 @@ import ginkgo.TextRange
  * The replacement can extend outside the requested range, but never outside the selected node
  * and its adjacent whitespace. Invalid byte ranges return no edits.
  */
-public func formatRange(parse: CjParse, range: TextRange): ?Array<TextEdit> {
+public func formatRange(
+    parse: CjParse,
+    range: TextRange,
+    options!: FormatOptions = FormatOptions()
+): ?Array<TextEdit> {
     if (!parse.errors.isEmpty()) {
         return None
     }
@@ -21,9 +25,9 @@ public func formatRange(parse: CjParse, range: TextRange): ?Array<TextEdit> {
     }
     let selected = rangeNode(root, text, range)
     if (selected == root) {
-        return format(parse)
+        return format(parse, options: options)
     }
-    formatNode(root, selected, text)
+    formatNode(root, selected, text, options)
 }
 
 /**
@@ -57,12 +61,20 @@ private func rangeNode(root: CjSyntaxNode, text: String, range: TextRange): CjSy
 /**
  * Reprints a target in the indentation and continuation context of its whole file.
  */
-private func formatNode(root: CjSyntaxNode, selected: CjSyntaxNode, text: String): Array<TextEdit> {
+private func formatNode(
+    root: CjSyntaxNode,
+    selected: CjSyntaxNode,
+    text: String,
+    options: FormatOptions
+): Array<TextEdit> {
     // A range inherits the same group/continuation context as whole-file formatting, including
     // indentation introduced by assignments/match arms and space reserved for following punctuation.
     let position = LayoutPosition()
-    Printer(lineBreakIn(text), width: LINE_WIDTH)
-        .print(LayoutBuilder(text, target: Some(selected), position: Some(position)).node(root))
+    Printer(lineBreakIn(text), width: options.lineWidth, indentWidth: options.indentWidth)
+        .print(
+            LayoutBuilder(text, options: options, target: Some(selected), position: Some(position))
+                .node(root)
+        )
     let nodeRange = selected.textRange
     var from = nodeRange.start
     while (from > 0 && (text[from - 1] == b' ' || text[from - 1] == b'\t')) {
@@ -70,9 +82,9 @@ private func formatNode(root: CjSyntaxNode, selected: CjSyntaxNode, text: String
     }
     let isLineStart = from == 0 || text[from - 1] == b'\n'
     let result =
-        Printer(lineBreakIn(text), width: LINE_WIDTH)
+        Printer(lineBreakIn(text), width: options.lineWidth, indentWidth: options.indentWidth)
             .print(
-                LayoutBuilder(text).node(selected, includeLeading: true),
+                LayoutBuilder(text, options: options).node(selected, includeLeading: true),
                 indentation: position.indentation,
                 column: if (isLineStart) {
                     0

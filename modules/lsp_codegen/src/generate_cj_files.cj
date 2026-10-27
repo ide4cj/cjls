@@ -4,6 +4,7 @@ import std.ast.*
 import std.collection.{ArrayList, HashSet}
 import std.fs.Path
 import cjformat.formatText
+import cjformat.config.optionsFor
 
 struct CjFile {
     CjFile(let path: Path, let contents: String) {}
@@ -117,7 +118,10 @@ private func cjFileOf(
 
     CjFile(
         cfg.outputDir.join("${ident.toAsciiLowerSnakeCase()}.cj"),
-        formatText(contents) ??
+        formatText(
+            contents,
+            options: optionsFor(cfg.outputDir.join("${ident.toAsciiLowerSnakeCase()}.cj"))
+        ) ??
             throw IllegalStateException("generated code does not parse: ${ident}")
     )
 }

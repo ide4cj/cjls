@@ -4,6 +4,7 @@ import std.fs.{File, Path}
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjformat.formatText
+import cjformat.config.optionsFor
 import fjson.fromJsonBytes
 
 /**
@@ -23,7 +24,7 @@ class GeneratedFilesTest {
         // assert
         @Expect(!files.isEmpty())
         for (file in files) {
-            @Expect(formatText(file.contents), Some(file.contents))
+            @Expect(formatText(file.contents, options: optionsFor(file.path)), Some(file.contents))
             @Expect(String.fromUtf8(File.readFrom(file.path)), file.contents)
         }
     }

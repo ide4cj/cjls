@@ -6,6 +6,10 @@ import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.ServerState
 import stdxx.Nullable
+import std.env.getTempDirectory
+import std.fs.{Directory, File}
+import loupe.vfs.VfsPath
+import jsonrpc.RpcException
 
 /**
  * The handler edits for the open document, or no answer when formatting is refused.
@@ -40,6 +44,31 @@ func rangeFormattingEdits(state: ServerState, uri: String, range: LspRange): ?Ar
 
 @Test
 class FormattingTest {
+    @TestCase
+    func diskPolicyAppliesToWholeFilesAndRangesAndReloadsOnTheNextRequest(): Unit {
+        // arrange
+        let dir = Directory.createTemp(getTempDirectory())
+        let uri = VfsPath.file(dir.join("a.cj")).toUri()
+        let config = dir.join("cjformat.toml")
+        let state = opened("func f() {\nx\n}\n", uri: uri)
+        File.writeTo(config, "indent_width = 2\n".toArray())
+        let range =
+            LspRange(start: Position(line: 1, character: 0), end: Position(line: 1, character: 1))
+
+        // act
+        let whole = formattingEdits(state, uri).getOrThrow()
+        let selected = rangeFormattingEdits(state, uri, range).getOrThrow()
+        File.writeTo(config, "indent_width = 6\n".toArray())
+        let reloaded = formattingEdits(state, uri).getOrThrow()
+        File.writeTo(config, "indent_width = 'bad'\n".toArray())
+
+        // assert
+        @Expect(whole[0].newText, "  ")
+        @Expect(selected[0].newText, "  ")
+        @Expect(reloaded[0].newText, "      ")
+        @AssertThrows[RpcException](formattingEdits(state, uri))
+    }
+
     @TestCase
     func theEditsAreInTheColumnsAgreedOnAndIgnoreTheClientsIndent(): Unit {
         // arrange - the emoji is two UTF-16 units and four bytes

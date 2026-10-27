@@ -440,10 +440,13 @@ still uses the AAA comments.
 ### C34: Formatting
 
 `cjformat` chooses line breaks at 100 Unicode scalar columns with four-space
-indentation, identically in the CLI, LSP and all generators (D150). There are no
-style options. Short lists and single-expression lambdas flatten; long lists
+indentation by default, identically in the CLI, LSP and all generators (D150, D152).
+The nearest `cjformat.toml` sets `line_width`, `indent_width` and `simple_if`;
+see [formatter configuration](../formatting.md). Short lists and single-expression lambdas flatten; long lists
 break between elements, chains before dots, operators after their token.
-Nonempty declaration and control-flow bodies have one statement per line.
+Nonempty declaration and control-flow bodies have one statement per line, except
+comment-free single-expression `if/else` branches in `simple_if = "compact"` mode
+when the complete expression fits.
 Commas and other significant tokens are preserved. Indivisible text may overflow.
 
 Comments retain source order and their leading/trailing/dangling placement.

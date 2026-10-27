@@ -132,6 +132,8 @@ To run the same compatibility check locally (requires Docker):
 bash .github/scripts/check-linux-compat.sh target/release/bin/cjls
 ```
 
+Project formatting policy is documented in [Formatter configuration](formatting.md).
+
 ## Choose checks for a change
 
 | Change | Start with | Broader verification |

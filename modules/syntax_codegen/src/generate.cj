@@ -1,7 +1,8 @@
 package syntax_codegen
 
 import std.fs.{Directory, File, Path, exists}
-import cjformat.formatText
+import cjformat.{FormatOptions, formatText}
+import cjformat.config.optionsFor
 
 struct GeneratedFile {
     GeneratedFile(let path: Path, let contents: String) {}
@@ -40,13 +41,13 @@ func generate(path: Path): Generated {
  *
  * @throws IllegalStateException - if `cjformat` fails, which it does on code that does not parse
  */
-func writeFormatted(path: Path, contents: String): Unit {
+func writeFormatted(path: Path, contents: String, options!: ?FormatOptions = None): Unit {
     let dir = path.parent
     if (!dir.isEmpty() && !exists(dir)) {
         Directory.create(dir, recursive: true)
     }
     let formatted =
-        formatText(contents) ??
+        formatText(contents, options: options ?? optionsFor(path)) ??
             throw IllegalStateException("generated code does not parse: ${path}")
     File.writeTo(path, formatted.toArray())
 }

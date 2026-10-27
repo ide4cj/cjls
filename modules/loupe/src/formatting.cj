@@ -1,7 +1,7 @@
 package loupe
 
 public import cjformat.TextEdit
-import cjformat.{format, formatRange}
+import cjformat.{FormatOptions, format, formatRange}
 import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
@@ -13,8 +13,12 @@ import loupe.vfs.FileId
  *
  * Not a query: an editor asks it once for a version it then changes.
  */
-public func formatting(db: AnalysisDatabase, fileId: FileId): ?Array<TextEdit> {
-    format(parse(db, db.sourceFile(fileId) ?? return None))
+public func formatting(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    options!: FormatOptions = FormatOptions()
+): ?Array<TextEdit> {
+    format(parse(db, db.sourceFile(fileId) ?? return None), options: options)
 }
 
 /**
@@ -23,7 +27,8 @@ public func formatting(db: AnalysisDatabase, fileId: FileId): ?Array<TextEdit> {
 public func rangeFormatting(
     db: AnalysisDatabase,
     fileId: FileId,
-    range: TextRange
+    range: TextRange,
+    options!: FormatOptions = FormatOptions()
 ): ?Array<TextEdit> {
-    formatRange(parse(db, db.sourceFile(fileId) ?? return None), range)
+    formatRange(parse(db, db.sourceFile(fileId) ?? return None), range, options: options)
 }

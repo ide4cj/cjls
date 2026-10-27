@@ -38,8 +38,12 @@ private func significant(text: String): Array<String> {
  * What is wrong with formatting `text`, as lines; nothing for a file with syntax errors, which is
  * not formatted.
  */
-func formattingProblems(name: String, text: String): Array<String> {
-    let formatted = formatText(text) ?? return []
+func formattingProblems(
+    name: String,
+    text: String,
+    options!: FormatOptions = FormatOptions()
+): Array<String> {
+    let formatted = formatText(text, options: options) ?? return []
     let problems = ArrayList<String>()
     if (significant(formatted) != significant(text)) {
         problems.add("${name}: formatting changed more than whitespace")
@@ -51,7 +55,7 @@ func formattingProblems(name: String, text: String): Array<String> {
     if (structure(text) != structure(formatted)) {
         problems.add("${name}: formatting changed the syntax tree")
     }
-    if (formatText(formatted) != Some(formatted)) {
+    if (formatText(formatted, options: options) != Some(formatted)) {
         problems.add("${name}: formatting it twice changes it again")
     }
     if (!problems.isEmpty()) {
@@ -61,7 +65,7 @@ func formattingProblems(name: String, text: String): Array<String> {
             File
                 .writeTo(
                     Path("${path}.second"),
-                    (formatText(formatted) ?? "<syntax errors>").toArray()
+                    (formatText(formatted, options: options) ?? "<syntax errors>").toArray()
                 )
             File
                 .writeTo(
@@ -122,7 +126,14 @@ class CorpusTest {
                 } catch (_: IllegalArgumentException) {
                     continue
                 }
-            problems.add(all: formattingProblems(file.toString(), text))
+            problems
+                .add(
+                    all: formattingProblems(
+                        file.toString(),
+                        text,
+                        options: FormatOptions(simpleIf: SimpleIf.Compact)
+                    )
+                )
         }
 
         // assert
