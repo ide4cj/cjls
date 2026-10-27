@@ -3,6 +3,7 @@
 
 Build cjls first and run this script inside a coordinated measurement window.
 Results describe each tool's own output, not equivalent formatting algorithms.
+Policy is fixed at width 100, indent 4, with multiline simple ifs in cjls.
 """
 
 import argparse
@@ -15,6 +16,10 @@ import statistics
 import subprocess
 import tempfile
 import time
+
+
+CJLS_CONFIG = 'line_width = 100\nindent_width = 4\nsimple_if = "multiline"\n'
+CJFMT_CONFIG = 'indentWidth = 4\nlinelimitLength = 100\nlineBreakType = "LF"\n'
 
 
 def run_formatter(command: list[str], source: Path, original: bytes) -> float:
@@ -76,13 +81,19 @@ def main() -> None:
         "warmup": args.warmup,
         "repetitions": args.repetitions,
         "line_width": 100,
+        "formatter_options": {
+            "cjls": {"line_width": 100, "indent_width": 4, "simple_if": "multiline"},
+            "cjfmt": {"indentWidth": 4, "linelimitLength": 100, "lineBreakType": "LF"},
+        },
         "cases": [],
     }
     with tempfile.TemporaryDirectory(dir=args.output.parent) as directory:
         root = Path(directory).resolve()
         source = root / "input.cj"
         config = root / "cangjie-format.toml"
-        config.write_text('indentWidth = 4\nlinelimitLength = 100\nlineBreakType = "LF"\n')
+        config.write_text(CJFMT_CONFIG)
+        # The nearest policy replaces ancestors, including the output directory's project.
+        (root / "cjformat.toml").write_text(CJLS_CONFIG)
         commands = {
             "cjls": [str(cjls), "fmt", str(source)],
             "cjfmt": [str(cjfmt), "-f", str(source), "-c", str(config)],
