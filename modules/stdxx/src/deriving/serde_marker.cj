@@ -13,6 +13,7 @@ const ITEM_VALUE = "value"
 const ITEM_VALUE_IS_INTEGER = "valueIsInteger"
 const ITEM_PAYLOAD = "payload"
 const ITEM_OTHER = "other"
+const ITEM_DENY_UNKNOWN_FIELDS = "denyUnknownFields"
 
 /**
  * Configures what `@DeriveExt` generates for the declaration it sits on:
@@ -23,6 +24,7 @@ const ITEM_OTHER = "other"
  *
  * | on           | option                    | meaning                                                  |
  * |--------------|---------------------------|----------------------------------------------------------|
+ * | type         | `denyUnknownFields`       | reject unknown fields in objects/tables on read         |
  * | type         | `skipNone`                | every optional field omits its key when `None`           |
  * | type         | `tag: "kind"`             | the type is internally tagged by that field              |
  * | enum         | `untagged`                | the variant is whichever one the value reads as          |
@@ -79,6 +81,10 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
     let value = argument.expr.toTokens()
 
     match (name) {
+        case "denyUnknownFields" =>
+            if (expected(argument, position, [OnType], isFlag, true)) {
+                setItem(ITEM_DENY_UNKNOWN_FIELDS, "true")
+            }
         case "rename" =>
             if (expected(argument, position, [OnType, OnField, OnVariant], isFlag, false)) {
                 setStringOption(argument, ITEM_RENAME, value)
@@ -116,7 +122,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
                 DiagReportLevel.ERROR,
                 tokens,
                 "`@Serde` has no option `${name}`",
-                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other"
+                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other, denyUnknownFields"
             )
     }
 }
@@ -279,7 +285,8 @@ struct MarkerOptions {
         let untagged!: Bool = false,
         let value!: ?WireValue = None,
         let payload!: Array<String> = [],
-        let other!: Bool = false
+        let other!: Bool = false,
+        let denyUnknownFields!: Bool = false
     ) {}
 }
 
@@ -314,7 +321,8 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
                 WireValue.of(value, message.getString(ITEM_VALUE_IS_INTEGER) == "true")
             },
         payload: stringItemOf(message, ITEM_PAYLOAD).map { payload => payload.split(",") } ?? [],
-        other: message.hasItem(ITEM_OTHER)
+        other: message.hasItem(ITEM_OTHER),
+        denyUnknownFields: message.hasItem(ITEM_DENY_UNKNOWN_FIELDS)
     )
 }
 

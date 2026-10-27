@@ -4,7 +4,7 @@ import std.ast.*
 
 /*
  * `FromJson`: a value read straight from an `FjReader` - keys compared where they lie,
- * unknown ones skipped, no tree on the way.
+ * unknown ones skipped unless strict decoding is requested, no tree on the way.
  */
 
 func deriveFromJson(model: DeclModel): Tokens {
@@ -86,6 +86,7 @@ private func structFromJson(model: StructModel): Tokens {
     }
 
     let (locals, branches) = fieldReaders(model.fields, quote(r))
+    let unknown = unknownJsonField(denyUnknownFields: model.denyUnknownFields)
     let ctorArgs =
         commaSeparated(
             model
@@ -105,7 +106,7 @@ private func structFromJson(model: StructModel): Tokens {
         while (r.nextKey()) {
             $tagBranch
             $branches
-            r.skipValue()
+            $unknown
         }
         $tagCheck
         $selfType($ctorArgs)
@@ -132,12 +133,19 @@ private func fieldReaders(fields: Array<DerivedField>, reader: Tokens): (Tokens,
                 case OptionalNullable =>
                     (quote(?$innerType), quote(Some($innerType.fromJson($reader))))
             }
+        let seen = Token(TokenKind.IDENTIFIER, "seen_${stripBackquotes(field.ident.value)}")
+        let presenceLocal =
+            if (field.defaultValue.isSome()) { quote(var $seen = false) } else { Tokens() }
+        let presenceRead =
+            if (field.defaultValue.isSome()) { quote($seen = true) } else { Tokens() }
         locals += quote(
             var $local: $localType = Option<$innerType>.None
+            $presenceLocal
         )
         branches += quote(
             if ($reader.keyIs($wireName)) {
                 $local = $read
+                $presenceRead
                 continue
             }
         )
@@ -147,16 +155,22 @@ private func fieldReaders(fields: Array<DerivedField>, reader: Tokens): (Tokens,
 }
 
 /**
- * The local a field was read into, as its constructor argument: a required one has to have been there.
+ * The decoded field or its initializer for an absent key; a required field without either fails.
  */
 private func fieldValue(field: DerivedField, typeName: Token): Tokens {
     let local = field.local
     let wireName = field.wireLiteral
-    if (field.shape.isOptional) {
-        quote($local)
-    } else {
-        quote($local ?? throw missingField($typeName, $wireName))
+    let value =
+        if (field.shape.isOptional) {
+            quote($local)
+        } else {
+            quote($local ?? throw missingField($typeName, $wireName))
+        }
+    if (let Some(defaultValue) <- field.defaultValue) {
+        let seen = Token(TokenKind.IDENTIFIER, "seen_${stripBackquotes(field.ident.value)}")
+        return quote(if ($seen) { $value } else { $defaultValue })
     }
+    value
 }
 
 /**
@@ -276,8 +290,7 @@ private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
     for (variant in model.variants) {
         let ident = variant.ident
         let literal = variant.value.literal
-        if (variant.payloadFields.isEmpty()) {
-            // the reader is at the object's start again: past it, as reading its fields would be
+        if (variant.payloadFields.isEmpty() && !model.denyUnknownFields) {
             cases += quote(
                 case $literal =>
                     r.skipValue()
@@ -285,19 +298,25 @@ private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
             )
             continue
         }
-
         let (locals, branches) = fieldReaders(variant.payloadFields, quote(r))
+        let unknown = unknownJsonField(denyUnknownFields: model.denyUnknownFields)
         let args =
             commaSeparated(variant.payloadFields.map { field => fieldValue(field, typeName) })
+        let construct =
+            if (variant.payloadFields.isEmpty()) { quote($ident) } else { quote($ident($args)) }
         cases += quote(
             case $literal =>
                 $locals
                 r.beginObject()
                 while (r.nextKey()) {
+                    if (r.keyIs($tagLiteral)) {
+                        r.skipValue()
+                        continue
+                    }
                     $branches
-                    r.skipValue()
+                    $unknown
                 }
-                $ident($args)
+                $construct
         )
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` ${tag}: ")
@@ -319,4 +338,15 @@ private func taggedEnumFromJson(model: EnumModel, tag: String): Tokens {
             case other => throw FjException($unexpected + other)
         }
     )
+}
+
+/**
+ * Unknown JSON keys are skipped unless strict decoding was explicitly requested.
+ */
+private func unknownJsonField(denyUnknownFields!: Bool): Tokens {
+    if (denyUnknownFields) {
+        quote(throw FjException("unknown field: " + r.key()))
+    } else {
+        quote(r.skipValue())
+    }
 }

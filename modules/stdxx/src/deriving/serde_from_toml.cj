@@ -3,10 +3,10 @@ macro package stdxx.deriving
 import std.ast.*
 
 /*
- * `FromToml`: a value read from a document read by `ftoml`. A table is looked up key by
- * key, so their order does not matter and one no field names is skipped; a required key missing is
- * an error naming it, at its table. An untagged enum tries each variant on the value, which a
- * document makes cheap: nothing is read twice.
+ * `FromToml` reads a parsed document, looking up table keys independently of their order.
+ * Unknown keys are skipped unless strict decoding is requested. A required key missing without
+ * an initializer is an error naming it, at its table. An untagged enum tries each variant on
+ * the same value without reparsing it.
  */
 
 func deriveFromToml(model: DeclModel): Tokens {
@@ -68,6 +68,12 @@ private func structFromToml(model: StructModel): Tokens {
                 )
             )
     }
+    let unknownCheck =
+        rejectUnknownTomlFields(
+            model.fields,
+            model.tag.map { pair => pair[0] },
+            denyUnknownFields: model.denyUnknownFields
+        )
     let ctorArgs =
         commaSeparated(
             model
@@ -83,6 +89,7 @@ private func structFromToml(model: StructModel): Tokens {
     quote(
         let table = v.asTable()
         $tagCheck
+        $unknownCheck
         $selfType($ctorArgs)
     )
 }
@@ -100,10 +107,26 @@ private func tagFromToml(typeName: Token, tag: String, check: Tokens): Tokens {
     )
 }
 
-/** The field's key in `table`, read as its type; `None` for an optional one that is not there. */
+/**
+ * Reads a field by its wire key; an absent key uses its initializer or the type's absence rule.
+ */
 private func fieldFromToml(field: DerivedField, typeName: Token): Tokens {
     let name = field.wireLiteral
     let innerType = field.innerType
+    if (let Some(defaultValue) <- field.defaultValue) {
+        let read =
+            if (field.shape.isOptional) {
+                quote(Some($innerType.fromToml(item)))
+            } else {
+                quote($innerType.fromToml(item))
+            }
+        return quote(
+            match (table.get($name)) {
+                case Some(item) => $read
+                case None => $defaultValue
+            }
+        )
+    }
     if (field.shape.isOptional) {
         quote(
             match (table.get($name)) {
@@ -220,16 +243,32 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
         let ident = variant.ident
         let literal = variant.value.literal
         if (variant.payloadFields.isEmpty()) {
+            let unknownCheck =
+                rejectUnknownTomlFields(
+                    variant.payloadFields,
+                    Some(tag),
+                    denyUnknownFields: model.denyUnknownFields
+                )
             cases += quote(
-                case $literal => $ident
+                case $literal =>
+                    $unknownCheck
+                    $ident
             )
             continue
         }
 
+        let unknownCheck =
+            rejectUnknownTomlFields(
+                variant.payloadFields,
+                Some(tag),
+                denyUnknownFields: model.denyUnknownFields
+            )
         let args =
             commaSeparated(variant.payloadFields.map { field => fieldFromToml(field, typeName) })
         cases += quote(
-            case $literal => $ident($args)
+            case $literal =>
+                $unknownCheck
+                $ident($args)
         )
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` ${tag}: ")
@@ -241,6 +280,35 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
         match (tag) {
             $cases
             case other => throw tagValue.error($unexpected + other)
+        }
+    )
+}
+
+/**
+ * Uses wire names, including the discriminator, and retains the offending value's source span.
+ */
+private func rejectUnknownTomlFields(
+    fields: Array<DerivedField>,
+    tag: ?String,
+    denyUnknownFields!: Bool
+): Tokens {
+    if (!denyUnknownFields) {
+        return Tokens()
+    }
+    var known = quote(false)
+    for (field in fields) {
+        let name = field.wireLiteral
+        known += quote(|| key == $name)
+    }
+    if (let Some(tagName) <- tag) {
+        let name = Token(TokenKind.STRING_LITERAL, tagName)
+        known += quote(|| key == $name)
+    }
+    quote(
+        for ((key, item) in table) {
+            if (!($known)) {
+                throw item.error("unknown field: " + key)
+            }
         }
     )
 }

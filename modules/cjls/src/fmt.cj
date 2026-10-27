@@ -4,10 +4,10 @@ import std.collection.ArrayList
 import std.fs.{File, FileInfo, FSException, Path, exists}
 import std.io.OutputStream
 import std.sort.sort
-import rope.Rope
-import loupe.vfs.{VfsPath, readFiles, readRoots}
 import cjformat.formatText
 import cjformat.config.optionsFor
+import loupe.vfs.{VfsPath, readFiles, readRoots}
+import rope.Rope
 
 /**
  * Formats the Cangjie files at `paths` in place, or with `check` only names those it would change;

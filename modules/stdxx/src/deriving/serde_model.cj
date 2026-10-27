@@ -39,7 +39,8 @@ struct StructModel {
          * The tag field's name and this struct's value in it.
          */
         let tag!: ?(String, String),
-        let transparent!: Bool
+        let transparent!: Bool,
+        let denyUnknownFields!: Bool = false
     ) {}
 }
 
@@ -65,28 +66,28 @@ struct EnumModel {
         let decl!: EnumDecl,
         let variants!: Array<DerivedVariant>,
         let shape!: EnumShape,
-        let skipNone!: Bool
+        let skipNone!: Bool,
+        let denyUnknownFields!: Bool = false
     ) {}
 }
 
 /**
- * How a field's declared type spells the two independent axes - may the key be absent, and may the
- * value be `null`.
+ * How a field's declared type spells optionality and nullability before applying an initializer.
  */
 enum FieldShape {
     /**
-     * `T`, `Nullable<T>` included: the key is always there. A `Nullable<T>` carries its own `null`.
+     * `T`, `Nullable<T>` included: the key is required unless an initializer supplies a default.
+     * A `Nullable<T>` carries its own `null`.
      */
     | Required
 
     /**
-     * `?T`: absent and `null` both read as `None`.
+     * `?T`: `null` reads as `None`; an absent key uses its initializer or `None`.
      */
     | Optional
 
     /**
-     * `?Nullable<T>`: absent reads as `None` and `null` as `Some(Null)` - the one shape where the
-     * two stay apart.
+     * `?Nullable<T>`: an absent key uses its initializer or `None`; `null` reads as `Some(Null)`.
      */
     | OptionalNullable
 
@@ -116,7 +117,8 @@ struct DerivedField {
          */
         let innerType!: Tokens,
         let shape!: FieldShape,
-        let skipNone!: Bool
+        let skipNone!: Bool,
+        let defaultValue!: ?Tokens = None
     ) {}
 
     prop wireLiteral: Token {
@@ -253,7 +255,13 @@ private func structModelOf(
                 (tag, rename ?? stripBackquotes(typeIdent.value))
         }
 
-    StructModel(decl: decl, fields: fields.toArray(), tag: tag, transparent: false)
+    StructModel(
+        decl: decl,
+        fields: fields.toArray(),
+        tag: tag,
+        transparent: false,
+        denyUnknownFields: typeOptions.denyUnknownFields
+    )
 }
 
 /**
@@ -274,7 +282,10 @@ private func transparentModelOf(
             "`${typeIdent.value}` declares ${fields.size}"
         )
     }
-    if (typeOptions.skipNone || typeOptions.tag.isSome() || typeOptions.rename.isSome()) {
+    if (
+        typeOptions.skipNone || typeOptions.tag.isSome() || typeOptions.rename.isSome() ||
+            typeOptions.denyUnknownFields
+    ) {
         return reportNone(
             typeIdent,
             "`transparent` takes no other option on the type",
@@ -318,6 +329,11 @@ private func fieldOf(
     }
 
     let (shape, innerType) = shapeOf(declField.fieldType)
+    // An optional None initializer already matches the decoder's absent/null behavior.
+    let defaultValue =
+        declField
+            .defaultValue
+            .filter { value => !(shape.isOptional && value.size == 1 && value[0].value == "None") }
 
     DerivedField(
         ident: declField.ident,
@@ -326,7 +342,8 @@ private func fieldOf(
         fieldType: declField.fieldType,
         innerType: innerType,
         shape: shape,
-        skipNone: skipNoneOnType || options.skipNone
+        skipNone: skipNoneOnType || options.skipNone,
+        defaultValue: defaultValue
     )
 }
 
@@ -384,6 +401,13 @@ private func enumModelOf(
         return reportNone(decl, "an enum is either `untagged` or has a `tag`", "drop one of them")
     }
 
+    if (typeOptions.denyUnknownFields && typeOptions.tag.isNone()) {
+        return reportNone(
+            decl,
+            "`denyUnknownFields` needs object fields",
+            "use it on a struct or a tagged enum"
+        )
+    }
     let variants = ArrayList<DerivedVariant>()
     var other: ?DerivedVariant = None
     for (declVariant in declVariants) {
@@ -559,7 +583,8 @@ private func enumModelOf(
         decl: decl,
         variants: variants.toArray(),
         shape: shape,
-        skipNone: typeOptions.skipNone
+        skipNone: typeOptions.skipNone,
+        denyUnknownFields: typeOptions.denyUnknownFields
     )
 }
 
