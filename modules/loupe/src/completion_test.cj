@@ -14,41 +14,49 @@ import loupe.syntax.parse
  */
 func checkCompletion(fixture: String, std!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = if (std.isEmpty()) {
-        parsed.database()
-    } else {
-        parsed.database(binaries: std.map {name => stdCjoRead(name, stdCjo(name))})
-    }
+    let db =
+        if (std.isEmpty()) {
+            parsed.database()
+        } else {
+            parsed.database(binaries: std.map { name => stdCjoRead(name, stdCjo(name)) })
+        }
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let source = db.sourceFile(cursor.fileId).getOrThrow()
     let root = parse(db, source).syntaxNode()
-    var left = match (root.tokenAtOffset(cursor.offset)) {
-        case Single(token) => token
-        case Between(token, _) => token
-        case NoToken => throw FixtureException("no token at $0")
-    }
+    var left =
+        match (root.tokenAtOffset(cursor.offset)) {
+            case Single(token) => token
+            case Between(token, _) => token
+            case NoToken => throw FixtureException("no token at $0")
+        }
     // the annotation goes under code: the token before the cursor, past the trivia
     while (left.kind.isTrivia()) {
         left = left.prevToken() ?? throw FixtureException("nothing before $0")
     }
-    let annotations = match (completionsAt(db, cursor.fileId, cursor.offset)) {
-        case Some(result) =>
-            let range = if (result.range.isEmpty()) {
-                left.textRange
-            } else {
-                result.range
-            }
-            result.items.map {
-                item =>
-                let details = completionDetails(db, cursor.fileId, cursor.offset, item)
-                let detail = if (details.isEmpty()) { "" } else {
-                    " | ${String.join(details.map {one => one.code}, delimiter: " / ")}"
-                }
-                let relevance = "${item.relevance}".padStart(3, padding: "0")
-                Annotation(cursor.fileId, range, "${relevance} ${item.label} | ${item.kind}${detail}")
-            }
-        case None => [Annotation(cursor.fileId, left.textRange, "no completion")]
-    }
+    let annotations =
+        match (completionsAt(db, cursor.fileId, cursor.offset)) {
+            case Some(result) =>
+                let range = if (result.range.isEmpty()) { left.textRange } else { result.range }
+                result
+                    .items
+                    .map {
+                        item =>
+                        let details = completionDetails(db, cursor.fileId, cursor.offset, item)
+                        let detail =
+                            if (details.isEmpty()) {
+                                ""
+                            } else {
+                                " | ${String.join(details.map {one => one.code}, delimiter: " / ")}"
+                            }
+                        let relevance = "${item.relevance}".padStart(3, padding: "0")
+                        Annotation(
+                            cursor.fileId,
+                            range,
+                            "${relevance} ${item.label} | ${item.kind}${detail}"
+                        )
+                    }
+            case None => [Annotation(cursor.fileId, left.textRange, "no completion")]
+        }
     expectAnnotations(fixture, annotations)
 }
 
@@ -56,7 +64,8 @@ func checkCompletion(fixture: String, std!: Array<String> = []): Unit {
 class CompletionTest {
     @TestCase
     func aDotOnALocalOfAGenericTypeListsItsMembersWithTheArgumentsSubstituted() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Box<T> {
@@ -73,12 +82,14 @@ class CompletionTest {
             //   ^ 080 put | CompletionKind.FuncItem | func put(value: Int64): Unit
             //   ^ 080 value | CompletionKind.VarItem | let value: Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDotOnATypeListsItsStaticMembersAndNotTheInstanceOnes() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Box<T> {
@@ -95,12 +106,14 @@ class CompletionTest {
                 Box<Int64>.$0
             //            ^ 080 empty | CompletionKind.FuncItem | static func empty(): Box<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDotOnThisListsTheInstanceMembersAndNotTheStaticOnes() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Counter {
@@ -112,12 +125,14 @@ class CompletionTest {
                 }
                 static func zero(): Counter { Counter() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorFunctionIsNotListedAfterADot() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             struct Money {
@@ -130,12 +145,14 @@ class CompletionTest {
             //          ^ 080 twice | CompletionKind.FuncItem | func twice(): Money
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDotOnAnEnumListsItsConstructorsAndStaticMembers() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             enum Color {
@@ -149,12 +166,14 @@ class CompletionTest {
             //       ^ 080 Rgb | CompletionKind.CtorItem | Rgb(Int64)
             //       ^ 080 all | CompletionKind.FuncItem | static func all(): {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDotOnAPackageListsWhatItExportsAndNotItsPrivateDeclarations() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public func shown(): Int64 { 1 }
@@ -170,12 +189,14 @@ class CompletionTest {
             //     ^ 080 answer | CompletionKind.VarItem | public let answer: Int64
             //     ^ 080 shown | CompletionKind.FuncItem | public func shown(): Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDotListsTheMembersOfAnExtendTheFileImportsTheInterfaceOfAndNotOfAnother() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /shapes.cj module=m package=m.shapes
             package m.shapes
             public class Point {
@@ -209,12 +230,14 @@ class CompletionTest {
             //   ^ 080 name | CompletionKind.FuncItem | public func name(): Int64
             //   ^ 080 norm | CompletionKind.FuncItem | public func norm(): Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateMemberOfAnotherTypeIsNotListedAndOneOfTheTypeAroundIs() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Other {
@@ -228,12 +251,14 @@ class CompletionTest {
             //           ^ 080 shown | CompletionKind.FuncItem | public func shown(): Unit
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameInABodyListsTheLocalsBeforeItAndNotThoseAfter() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             func helper(): Unit {}
@@ -266,12 +291,14 @@ class CompletionTest {
             //  ^^ 100 twice | CompletionKind.LocalItem | let twice: Int64
                 let after = 3
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameInAMethodListsTheMembersOfTheTypeAroundAndItsTypeParameters() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Counter<T> {
@@ -306,12 +333,14 @@ class CompletionTest {
                 }
                 static func zero(): Counter<T> { Counter<T>() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameOnALineOfItsOwnListsWhatIsInScopeThoughTheNextLineWouldBeItsMember() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Point {
@@ -325,13 +354,15 @@ class CompletionTest {
             //   ^ 080 x | CompletionKind.VarItem | let x: Int64
                 norm()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameListsNoConstructorOfAnEnumOnlyATestImports() {
         // N73 within what `cjpm build` compiles: it leaves the `*_test.cj` files out (N164, D129)
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public enum Color { | Red | Green }
@@ -363,12 +394,14 @@ class CompletionTest {
             //  ^^ 010 while | CompletionKind.KeywordItem
             //  ^^ 060 main | CompletionKind.FuncItem | main(): {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameAfterAnImportListsTheImportedAndTheGlob() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public func shown(): Int64 { 1 }
@@ -405,12 +438,14 @@ class CompletionTest {
             //  ^^ 050 shown | CompletionKind.FuncItem | public func shown(): Int64
             //  ^^ 060 main | CompletionKind.FuncItem | main(): {unknown}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBodyThatDoesNotParseStillCompletesTheLocalsBeforeTheCursor() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             main() {
@@ -442,12 +477,14 @@ class CompletionTest {
             //      ^^ 100 second | CompletionKind.LocalItem | let second: Int64
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCursorInATypeBodyOutsideAMemberListsTheKeywordsStartingAMember() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Point {
@@ -471,12 +508,14 @@ class CompletionTest {
             //  ^^ 010 unsafe | CompletionKind.KeywordItem
             //  ^^ 010 var | CompletionKind.KeywordItem
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameOnALineOfItsOwnAfterAnEnumsConstructorsListsTheKeywordsStartingAMember() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             enum E {
@@ -500,12 +539,14 @@ class CompletionTest {
             //  ^^ 010 unsafe | CompletionKind.KeywordItem
             //  ^^ 010 var | CompletionKind.KeywordItem
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameAfterAPipeInAnEnumIsAConstructorAndCompletesNothing() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             enum E {
@@ -513,24 +554,28 @@ class CompletionTest {
                 | fu$0
             //    ^^ no completion
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theFirstNameOfAnEnumWithoutAPipeIsAConstructorAndCompletesNothing() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             enum E {
                 fu$0
             //  ^^ no completion
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCursorAtTheTopLevelListsTheKeywordsStartingADeclarationAndImportInThePreamble() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
               package m
               cl$0
@@ -556,12 +601,14 @@ class CompletionTest {
             //^^ 010 type | CompletionKind.KeywordItem
             //^^ 010 unsafe | CompletionKind.KeywordItem
             //^^ 010 var | CompletionKind.KeywordItem
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCursorAtTheTopLevelAfterADeclarationListsNoImport() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
               package m
               func f(): Unit {}
@@ -587,22 +634,26 @@ class CompletionTest {
             //^^ 010 type | CompletionKind.KeywordItem
             //^^ 010 unsafe | CompletionKind.KeywordItem
             //^^ 010 var | CompletionKind.KeywordItem
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCursorInsideAWordAtTheTopLevelCompletesNothing() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
               package m
               str$0uct Point {}
             //^^^^^^^^ no completion
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aParameterTypeListsTheTypesInScopeAndNotTheValues() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public class Remote {}
@@ -635,12 +686,14 @@ class CompletionTest {
             //              ^ 060 Color | CompletionKind.EnumItem | enum Color
             //              ^ 060 Shape | CompletionKind.ClassItem | class Shape
             //              ^ 085 T | CompletionKind.TypeParamItem
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeAnnotationInABodyListsTheTypeParametersOfTheTypeAround() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             class Box<T> {
@@ -668,12 +721,14 @@ class CompletionTest {
             //             ^ 085 U | CompletionKind.TypeParamItem
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeAfterAnImportedPackageListsTheTypesItExports() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public class Remote {}
@@ -688,12 +743,14 @@ class CompletionTest {
             //            ^ 080 Remote | CompletionKind.ClassItem | public class Remote
             //            ^ 080 Shown | CompletionKind.InterfaceItem | public interface Shown
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportListsTheNextSegmentOfThePackagesTheModuleSees() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public func shown(): Unit {}
@@ -708,12 +765,14 @@ class CompletionTest {
             import m.$0
             //      ^ 070 lib | CompletionKind.PkgItem
             //      ^ 070 util | CompletionKind.PkgItem
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportAfterAPackageListsItsSubpackagesAndWhatItExports() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /lib.cj module=m package=m.lib
             package m.lib
             public func shown(): Unit {}
@@ -727,12 +786,14 @@ class CompletionTest {
             //           ^ 070 deep | CompletionKind.PkgItem
             //           ^ 080 Shape | CompletionKind.ClassItem | public class Shape
             //           ^ 080 shown | CompletionKind.FuncItem | public func shown(): Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionNamedInATypeBodyListsTheMembersOfItsSupertypesItMayOverride() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             interface Shape {
@@ -753,12 +814,14 @@ class CompletionTest {
             //                  ^^^^ 080 area | CompletionKind.FuncItem | func area(): Int64
             //                  ^^^^ 080 draw | CompletionKind.FuncItem | public open func draw(): Unit
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCursorInACommentCompletesNothing() {
-        checkCompletion(#"
+        checkCompletion(
+            #"
             //- /main.cj module=m package=m
             package m
             main() {
@@ -766,6 +829,7 @@ class CompletionTest {
             //          ^ no completion
                 // x.$0
             }
-            "#)
+            "#
+        )
     }
 }

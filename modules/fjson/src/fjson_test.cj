@@ -73,13 +73,14 @@ class FjReaderTest {
     @TestCase
     func refusesInvalidUtf8AndControlCharacters() {
         // arrange
-        let cases: Array<Array<Byte>> = [
-            [0x22, 0x61, 0xC0, 0x80, 0x22], // overlong
-            [0x22, 0xED, 0xA0, 0x80, 0x22], // an encoded surrogate
-            [0x22, 0xF4, 0x90, 0x80, 0x80, 0x22], // past U+10FFFF
-            [0x22, 0x61, 0x0A, 0x22], // a raw newline
-            "\"abc".toArray()
-        ]
+        let cases: Array<Array<Byte>> =
+            [
+                [0x22, 0x61, 0xC0, 0x80, 0x22], // overlong
+                [0x22, 0xED, 0xA0, 0x80, 0x22], // an encoded surrogate
+                [0x22, 0xF4, 0x90, 0x80, 0x80, 0x22], // past U+10FFFF
+                [0x22, 0x61, 0x0A, 0x22], // a raw newline
+                "\"abc".toArray()
+            ]
 
         for (bytes in cases) {
             // act, assert
@@ -125,10 +126,11 @@ class FjReaderTest {
         // assert
         @Expect(String.fromUtf8(raw), #"{"a": [1, "}", {"b": null}]}"#)
         @Expect(method, "m")
-        let isObject = match (FjReader(raw).peekKind()) {
-            case FjKind.FjObject => true
-            case _ => false
-        }
+        let isObject =
+            match (FjReader(raw).peekKind()) {
+                case FjKind.FjObject => true
+                case _ => false
+            }
         @Expect(isObject)
     }
 
@@ -173,7 +175,9 @@ class FjReaderTest {
     func skipsEveryValidEscapeAndRefusesTheRest() {
         // act, assert
         skipValue(#"["\" \\ \/ \b \f \n \r \t é 😀 \ud800"]"#)
-        for (text in [#"["\x"]"#, #"["\a"]"#, #"["\u12"]"#, #"["\uqqqq"]"#, "[\"\\\n\"]", #"["\"#]) {
+        for (
+            text in [#"["\x"]"#, #"["\a"]"#, #"["\u12"]"#, #"["\uqqqq"]"#, "[\"\\\n\"]", #"["\"#]
+        ) {
             @AssertThrows[FjException](skipValue(text))
         }
     }

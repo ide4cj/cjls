@@ -25,8 +25,10 @@ public func commonsOf(db: AnalysisDatabase, def: DefId): Array<DefId> {
             let found = ArrayList<DefId>()
             for (common in commonsOf(db, parent)) {
                 let item = itemOf(db, common) ?? continue
-                for (one in item.members where one.kind == member.kind &&
-                    one.names.iterator().any {name => member.names.contains(name)}) {
+                for (
+                    one in item.members where one.kind == member.kind &&
+                        one.names.iterator().any { name => member.names.contains(name) }
+                ) {
                     found.add(DefId(db, common.file(db), one.id))
                 }
             }
@@ -40,8 +42,10 @@ public func commonsOf(db: AnalysisDatabase, def: DefId): Array<DefId> {
             let commons = defMap(db, pkg).commons
             let found = ArrayList<DefId>()
             for (name in item.names) {
-                for (common in commons.get(name) ?? [] where common.id.item(db).kind == item.kind &&
-                    !found.contains(common.id)) {
+                for (
+                    common in commons.get(name) ?? [] where common.id.item(db).kind == item.kind &&
+                        !found.contains(common.id)
+                ) {
                     found.add(common.id)
                 }
             }
@@ -61,11 +65,11 @@ public func specificOf(db: AnalysisDatabase, def: DefId): ?DefId {
     let pkg = packageRefOf(db, def) ?? return None
     let map = defMap(db, pkg)
     for (name in item.names) {
-        if (!(map.commons.get(name) ?? []).iterator().any {common => common.id == def}) {
+        if (!(map.commons.get(name) ?? []).iterator().any { common => common.id == def }) {
             continue
         }
         for (one in map.names.get(name) ?? [] where one.id.item(db).kind == item.kind) {
-            if (itemOf(db, one.id).map {it => it.has(Modifier.Specific)} ?? false) {
+            if (itemOf(db, one.id).map { it => it.has(Modifier.Specific) } ?? false) {
                 return one.id
             }
         }
@@ -78,10 +82,11 @@ public func specificOf(db: AnalysisDatabase, def: DefId): ?DefId {
  */
 func completedType(db: AnalysisDatabase, ty: ExtendedType): ExtendedType {
     match (ty) {
-        case DeclType(id) => match (specificOf(db, id)) {
-            case Some(specific) => ExtendedType.DeclType(specific)
-            case None => ty
-        }
+        case DeclType(id) =>
+            match (specificOf(db, id)) {
+                case Some(specific) => ExtendedType.DeclType(specific)
+                case None => ty
+            }
         case _ => ty
     }
 }
@@ -90,8 +95,16 @@ func completedType(db: AnalysisDatabase, ty: ExtendedType): ExtendedType {
  * The members of `common`, a `common` declaration `specific` completes, named `name`, if
  * `specific` has no member of the name: what the `common` type adds to it, with a body (#318).
  */
-func commonMembersNamed(db: AnalysisDatabase, specific: DefId, item: Item, name: String): Array<MemberTarget> {
-    if (!item.has(Modifier.Specific) || item.members.iterator().any {member => member.names.contains(name)}) {
+func commonMembersNamed(
+    db: AnalysisDatabase,
+    specific: DefId,
+    item: Item,
+    name: String
+): Array<MemberTarget> {
+    if (
+        !item.has(Modifier.Specific) ||
+            item.members.iterator().any { member => member.names.contains(name) }
+    ) {
         return []
     }
     let found = ArrayList<MemberTarget>()
@@ -107,7 +120,7 @@ func commonMembersNamed(db: AnalysisDatabase, specific: DefId, item: Item, name:
 func memberItemOf(db: AnalysisDatabase, parent: DefId, def: DefId): ?Item {
     let id = def.item(db)
     let item = itemOf(db, parent) ?? return None
-    item.members.iterator().filter {member => member.id == id}.next()
+    item.members.iterator().filter { member => member.id == id }.next()
 }
 
 /**
@@ -129,7 +142,7 @@ public struct NoSpecific {
 @CalcaTracked
 public func noSpecifics(db: AnalysisDatabase, pkg: Package, file: SourceFile): Array<NoSpecific> {
     let tree = activeItemTree(db, file)
-    if (!tree.items.iterator().any {item => item.has(Modifier.Common)}) {
+    if (!tree.items.iterator().any { item => item.has(Modifier.Common) }) {
         return []
     }
     let own = ItemFile.Source(file)
@@ -140,19 +153,31 @@ public func noSpecifics(db: AnalysisDatabase, pkg: Package, file: SourceFile): A
     for (item in tree.items where item.has(Modifier.Common)) {
         let def = DefId(db, own, item.id)
         let name = item.names.get(0) ?? ""
-        let completed = item.names.iterator().any {
-            one => (map.commons.get(one) ?? []).iterator().any {common => common.id == def}
-        }
-        let specificMembers = if (completed) {
-            specificOf(db, def).flatMap {specific => itemOf(db, specific)}.map {specific => specific.members} ?? []
-        } else {
-            Array<Item>()
-        }
+        let completed =
+            item
+                .names
+                .iterator()
+                .any {
+                    one =>
+                    (map.commons.get(one) ?? []).iterator().any { common => common.id == def }
+                }
+        let specificMembers =
+            if (completed) {
+                specificOf(db, def)
+                    .flatMap { specific => itemOf(db, specific) }
+                    .map { specific => specific.members } ??
+                    []
+            } else {
+                Array<Item>()
+            }
         let missing = ArrayList<NoSpecific>()
         for (member in item.members where needsSpecific(member, item.kind, ids, root)) {
-            if (completed && specificMembers.iterator().any {
-                one => one.kind == member.kind && one.names == member.names
-            }) {
+            if (
+                completed &&
+                    specificMembers
+                        .iterator()
+                        .any { one => one.kind == member.kind && one.names == member.names }
+            ) {
                 continue
             }
             // an interface's function needs none of its own: the interface does
@@ -161,8 +186,16 @@ public func noSpecifics(db: AnalysisDatabase, pkg: Package, file: SourceFile): A
             }
             missing.add(NoSpecific(DefId(db, own, member.id), messageOf(member, item.kind, name)))
         }
-        if (!completed && (needsSpecific(item, None, ids, root) ||
-            item.members.iterator().any {member => needsSpecific(member, item.kind, ids, root)})) {
+        if (
+            !completed &&
+                (
+                    needsSpecific(item, None, ids, root) ||
+                        item
+                            .members
+                            .iterator()
+                            .any { member => needsSpecific(member, item.kind, ids, root) }
+                )
+        ) {
             found.add(NoSpecific(def, messageOf(item, None, "")))
         }
         found.add(all: missing)
@@ -184,10 +217,10 @@ func needsSpecific(item: Item, around: ?ItemKind, ids: ItemIdMap, root: CjSyntax
     }
     let node = ids.node(item.id, root) ?? return false
     match (item.kind) {
-        case Func => FuncDecl.cast(node).map {decl => decl.block().isNone()} ?? false
-        case Init => InitDecl.cast(node).map {decl => decl.block().isNone()} ?? false
-        case Prop => PropDecl.cast(node).map {decl => decl.propBody().isNone()} ?? false
-        case Var => VarDecl.cast(node).map {decl => decl.expr().isNone()} ?? false
+        case Func => FuncDecl.cast(node).map { decl => decl.block().isNone() } ?? false
+        case Init => InitDecl.cast(node).map { decl => decl.block().isNone() } ?? false
+        case Prop => PropDecl.cast(node).map { decl => decl.propBody().isNone() } ?? false
+        case Var => VarDecl.cast(node).map { decl => decl.expr().isNone() } ?? false
         case _ => false
     }
 }
@@ -198,18 +231,20 @@ func needsSpecific(item: Item, around: ?ItemKind, ids: ItemIdMap, root: CjSyntax
  */
 func messageOf(item: Item, around: ?ItemKind, owner: String): String {
     let name = item.names.get(0) ?? ""
-    let what = match (item.kind) {
-        case Func => "function '${name}'"
-        case Init => "constructor"
-        case Prop => "property '${name}'"
-        case Var => "variable '${name}'"
-        case Class => "class '${name}'"
-        case Struct => "struct '${name}'"
-        case Enum => "enum '${name}'"
-        case Interface => "interface '${name}'"
-        case EnumCtor where around == Some(ItemKind.Enum) => "enum '${owner}' constructor '${name}'"
-        case _ => "declaration '${name}'"
-    }
+    let what =
+        match (item.kind) {
+            case Func => "function '${name}'"
+            case Init => "constructor"
+            case Prop => "property '${name}'"
+            case Var => "variable '${name}'"
+            case Class => "class '${name}'"
+            case Struct => "struct '${name}'"
+            case Enum => "enum '${name}'"
+            case Interface => "interface '${name}'"
+            case EnumCtor where around == Some(ItemKind.Enum) =>
+                "enum '${owner}' constructor '${name}'"
+            case _ => "declaration '${name}'"
+        }
     "'common' ${what} can not find 'specific' match"
 }
 

@@ -41,11 +41,7 @@ func textDoc(text: String): Doc {
     let prefix = text[..first].runes() |> count
     Doc(
         Text(text),
-        if (first < text.size) {
-            INFINITE_WIDTH
-        } else {
-            prefix
-        },
+        if (first < text.size) { INFINITE_WIDTH } else { prefix },
         prefix,
         hasBreak: first < text.size
     )
@@ -229,21 +225,11 @@ class Printer {
                         )
                     )
             case Group(doc) => pushGroup(doc, frame)
-            case Line(value) =>
-                if (isFlat) {
-                    write(value, level)
-                } else {
-                    endLine(count: 1)
-                }
+            case Line(value) => if (isFlat) { write(value, level) } else { endLine(count: 1) }
             case HardLine => endLine(count: 1)
             case EmptyLine => endLine(count: 2)
             case IfBreak(broken, oneLine) =>
-                let selected =
-                    if (isFlat) {
-                        oneLine
-                    } else {
-                        broken
-                    }
+                let selected = if (isFlat) { oneLine } else { broken }
                 stack.add(PrintFrame(selected, level, isFlat: isFlat, reserved: frame.reserved))
             case LineSuffix(doc) => suffixes.add(PrintFrame(doc, level, isFlat: true))
         }
@@ -252,12 +238,7 @@ class Printer {
     private func recordPosition(doc: Doc, position: LayoutPosition, frame: PrintFrame): Unit {
         position.reserved = frame.reserved
         position.indentation = frame.indentation
-        position.column =
-            if (isStart) {
-                0
-            } else {
-                column + pendingSpaces
-            }
+        position.column = if (isStart) { 0 } else { column + pendingSpaces }
         position.lineIndent = lineIndent
         stack
             .add(PrintFrame(doc, frame.indentation, isFlat: frame.isFlat, reserved: frame.reserved))
@@ -269,12 +250,7 @@ class Printer {
         ranges: Array<TextRange>,
         level: Int64
     ): Unit {
-        let actualIndent =
-            if (isStart) {
-                level
-            } else {
-                lineIndent
-            }
+        let actualIndent = if (isStart) { level } else { lineIndent }
         let delta = ranges.fold(actualIndent - oldIndent) { d, range => max(d, -range.len) }
         let edits = ranges.map { range => TextEdit(range, " " * (range.len + delta)) }
         writeRaw(applyEdits(value, edits), level)
@@ -295,12 +271,7 @@ class Printer {
     }
 
     private func pushGroup(doc: Doc, frame: PrintFrame): Unit {
-        let used =
-            if (isStart) {
-                frame.indentation
-            } else {
-                column + pendingSpaces
-            }
+        let used = if (isStart) { frame.indentation } else { column + pendingSpaces }
         let isFlat = frame.isFlat || doc.width <= width - used - frame.reserved
         stack.add(PrintFrame(doc, frame.indentation, isFlat: isFlat, reserved: frame.reserved))
     }
@@ -361,12 +332,7 @@ class Printer {
             lineIndent = last.size - last.trimAsciiStart().size
             column = last.runes() |> count
             isStart = value.endsWith("\n")
-            lineBreaks =
-                if (isStart) {
-                    1
-                } else {
-                    0
-                }
+            lineBreaks = if (isStart) { 1 } else { 0 }
         }
     }
 }

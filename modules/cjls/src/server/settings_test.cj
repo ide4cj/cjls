@@ -27,12 +27,23 @@ class SettingsTest {
         let problems = ArrayList<String>()
 
         // act
-        let settings = Settings.read(settingsJson([
-            ("linkedProjects", JsonValue.JsonArray([text(a.toString()), text(VfsPath.file(b).toUri())])),
-            ("cangjieHome", text(VfsPath.file(sdk).toUri())),
-            ("cangjieSrc", text(src.toString())),
-            ("newFilePackage", JsonValue.JsonBool(false))
-        ]), problems)
+        let settings =
+            Settings
+                .read(
+                    settingsJson(
+                        [
+                            (
+                                "linkedProjects",
+                                JsonValue
+                                    .JsonArray([text(a.toString()), text(VfsPath.file(b).toUri())])
+                            ),
+                            ("cangjieHome", text(VfsPath.file(sdk).toUri())),
+                            ("cangjieSrc", text(src.toString())),
+                            ("newFilePackage", JsonValue.JsonBool(false))
+                        ]
+                    ),
+                    problems
+                )
 
         // assert
         @Expect(settings.linkedProjects, [VfsPath.file(a), VfsPath.file(b)])
@@ -47,11 +58,22 @@ class SettingsTest {
         let home = getVariable("HOME") ?? getVariable("USERPROFILE").getOrThrow()
         let variable = if (getVariable("HOME").isSome()) { "HOME" } else { "USERPROFILE" }
         let problems = ArrayList<String>()
-        let settings = Settings.read(settingsJson([
-            ("linkedProjects", JsonValue.JsonArray([text("~/project"), text("\${${variable}}/other")])),
-            ("cangjieHome", text("~")),
-            ("cangjieSrc", text("$${variable}/src"))
-        ]), problems)
+        let settings =
+            Settings
+                .read(
+                    settingsJson(
+                        [
+                            (
+                                "linkedProjects",
+                                JsonValue
+                                    .JsonArray([text("~/project"), text("\${${variable}}/other")])
+                            ),
+                            ("cangjieHome", text("~")),
+                            ("cangjieSrc", text("$${variable}/src"))
+                        ]
+                    ),
+                    problems
+                )
 
         @Expect(settings.linkedProjects, [VfsPath.file(home).join("project"), VfsPath.file(home).join("other")])
         @Expect(settings.cangjieHome, Some(home))
@@ -63,10 +85,24 @@ class SettingsTest {
     func unresolvedVariablesAreRejectedEvenInAbsolutePathsAndUrisStayLiteral() {
         let literal = VfsPath.file(getTempDirectory()).join("$HOME").join("~")
         let problems = ArrayList<String>()
-        let value = Settings.read(settingsJson([
-            ("cangjieHome", text(getTempDirectory().join("\${CJLS_TEST_UNSET_PATH_8267}").toString())),
-            ("cangjieSrc", text(literal.toUri()))
-        ]), problems)
+        let value =
+            Settings
+                .read(
+                    settingsJson(
+                        [
+                            (
+                                "cangjieHome",
+                                text(
+                                    getTempDirectory()
+                                        .join("\${CJLS_TEST_UNSET_PATH_8267}")
+                                        .toString()
+                                )
+                            ),
+                            ("cangjieSrc", text(literal.toUri()))
+                        ]
+                    ),
+                    problems
+                )
         @Expect(value.cangjieHome.isNone())
         @Expect(value.cangjieSrc, literal.filePath.map {it => it.toString()})
         @Expect(problems.toArray().any {it => it.contains("CJLS_TEST_UNSET_PATH_8267")})
@@ -78,8 +114,12 @@ class SettingsTest {
         let problems = ArrayList<String>()
 
         // act
-        let settings = Settings.read(settingsJson([("cangjieHome", JsonValue.JsonNull), ("other", text("x"))]),
-            problems)
+        let settings =
+            Settings
+                .read(
+                    settingsJson([("cangjieHome", JsonValue.JsonNull), ("other", text("x"))]),
+                    problems
+                )
 
         // assert
         @Expect(settings == Settings())
@@ -93,12 +133,29 @@ class SettingsTest {
         let problems = ArrayList<String>()
 
         // act
-        let settings = Settings.read(settingsJson([
-            ("linkedProjects", JsonValue.JsonArray([text("relative"), text(a.toString()), JsonValue.JsonInteger(1)])),
-            ("cangjieHome", text("relative")),
-            ("cangjieSrc", JsonValue.JsonBool(true)),
-            ("newFilePackage", text("no"))
-        ]), problems)
+        let settings =
+            Settings
+                .read(
+                    settingsJson(
+                        [
+                            (
+                                "linkedProjects",
+                                JsonValue
+                                    .JsonArray(
+                                        [
+                                            text("relative"),
+                                            text(a.toString()),
+                                            JsonValue.JsonInteger(1)
+                                        ]
+                                    )
+                            ),
+                            ("cangjieHome", text("relative")),
+                            ("cangjieSrc", JsonValue.JsonBool(true)),
+                            ("newFilePackage", text("no"))
+                        ]
+                    ),
+                    problems
+                )
 
         // assert: an item of a list is left out alone
         @Expect(settings == Settings(linkedProjects: [VfsPath.file(a)]))
@@ -112,8 +169,17 @@ class SettingsTest {
     @TestCase
     func aParsedAbsenceIsAcceptedWithoutUsingTheDefaultOrReportingAProblem() {
         // arrange
-        let setting = Setting<?String>("path", "A path", optionalPathSchema(), Some("fallback"),
-            {_: String, _: JsonValue, _: ArrayList<String> => ParsedSetting(Option<String>.None)})
+        let setting =
+            Setting<?String>(
+                "path",
+                "A path",
+                optionalPathSchema(),
+                Some("fallback"),
+                {
+                    _: String, _: JsonValue, _: ArrayList<String> =>
+                    ParsedSetting(Option<String>.None)
+                }
+            )
         let problems = ArrayList<String>()
 
         // act

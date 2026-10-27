@@ -10,10 +10,12 @@ import fbs.*
  * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.
  */
 func stdCjo(name: String): Array<Byte> {
-    let home = match (getVariable("CANGJIE_HOME")) {
-        case Some(h) => Path(h)
-        case _ => throw IllegalStateException("CANGJIE_HOME names no SDK, whose std these tests read")
-    }
+    let home =
+        match (getVariable("CANGJIE_HOME")) {
+            case Some(h) => Path(h)
+            case _ =>
+                throw IllegalStateException("CANGJIE_HOME names no SDK, whose std these tests read")
+        }
     for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
         let file = target.path.join("std").join("${name}.cjo")
         if (exists(file)) {
@@ -72,10 +74,11 @@ class OpenCjoTest {
         @Expect(begin.pkgId, 0u32)
         // a file of the package itself is counted from 1
         @Expect(pkg.allFiles[Int64(begin.file) - 1], "std.core/string.cj")
-        let isStruct = match (string.info) {
-            case Some(DeclInfo.AsStructInfo(info)) => !info.body.isEmpty()
-            case _ => false
-        }
+        let isStruct =
+            match (string.info) {
+                case Some(DeclInfo.AsStructInfo(info)) => !info.body.isEmpty()
+                case _ => false
+            }
         @Expect(isStruct)
     }
 
@@ -89,10 +92,11 @@ class OpenCjoTest {
 
         // assert
         @Expect(pointer.kind, DeclKind.BuiltInDecl)
-        let builtIn = match (pointer.info) {
-            case Some(DeclInfo.AsBuiltInInfo(info)) => info.builtInType
-            case _ => BuiltInType.CFunc
-        }
+        let builtIn =
+            match (pointer.info) {
+                case Some(DeclInfo.AsBuiltInInfo(info)) => info.builtInType
+                case _ => BuiltInType.CFunc
+            }
         @Expect(builtIn, BuiltInType.CPointer)
     }
 
@@ -160,10 +164,11 @@ class OpenCjoTest {
         let info = topLevel(openCjo(bytes), "String").info
 
         // assert
-        let tag = match (info) {
-            case Some(DeclInfo.Unknown(t)) => t
-            case _ => 0u8
-        }
+        let tag =
+            match (info) {
+                case Some(DeclInfo.Unknown(t)) => t
+                case _ => 0u8
+            }
         @Expect(tag, 200u8)
     }
 

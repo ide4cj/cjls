@@ -34,13 +34,17 @@ struct DerivedSkipped {
 
 @DeriveExt[ToJson, FromJson]
 struct DerivedRenamedAndSkipped {
-    DerivedRenamedAndSkipped(@Serde[rename: "textDocument", skipNone] let document!: ?String = None) {}
+    DerivedRenamedAndSkipped(
+        @Serde[rename: "textDocument", skipNone]
+        let document!: ?String = None
+    ) {}
 }
 
 @DeriveExt[ToJson, FromJson]
 struct DerivedPartlySkipped {
     DerivedPartlySkipped(
-        @Serde[skipNone] let skipped!: ?String = None,
+        @Serde[skipNone]
+        let skipped!: ?String = None,
         let kept!: ?String = None
     ) {}
 }
@@ -57,7 +61,8 @@ public struct DerivedPublicSkipped {
 @DeriveExt[ToJson, FromJson]
 struct DerivedNames {
     DerivedNames(
-        @Serde[rename: "textDocument"] let document!: String,
+        @Serde[rename: "textDocument"]
+        let document!: String,
         let `type`!: String
     ) {}
 }

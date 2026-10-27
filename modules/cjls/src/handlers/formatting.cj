@@ -1,14 +1,14 @@
 package cjls.handlers
 
+import cjformat.FormatOptions
+import cjformat.config.{FormatConfigException, optionsFor}
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.{ReadOnlyContext, ServerSnapshot}
-import loupe.vfs.VfsPath
-import loupe.{TextRange, formatting, rangeFormatting}
-import stdxx.Nullable
-import cjformat.FormatOptions
-import cjformat.config.optionsFor
 import jsonrpc.{ErrorCode, RpcException}
+import loupe.{TextRange, formatting, rangeFormatting}
+import loupe.vfs.VfsPath
+import stdxx.Nullable
 
 /**
  * The edits that format a document; `null` for one with syntax errors or not known. The style is
@@ -56,12 +56,16 @@ func handleRangeFormatting(
     Nullable.Value(edits.map { edit => textEdit(text, edit, snap.encoding) })
 }
 
-/** Reads project policy for disk documents; virtual documents use the library defaults. */
+/**
+ * Reads project policy for disk documents; virtual documents use the library defaults.
+ *
+ * @throws RpcException - if a project config cannot be read or validated
+ */
 private func formattingOptions(uri: String): FormatOptions {
     let path = VfsPath.fromUri(uri).filePath ?? return FormatOptions()
     try {
         optionsFor(path)
-    } catch (e: Exception) {
+    } catch (e: FormatConfigException) {
         throw RpcException(ErrorCode.REQUEST_FAILED, e.message)
     }
 }

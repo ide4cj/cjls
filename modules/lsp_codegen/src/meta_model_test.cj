@@ -3,7 +3,16 @@ package lsp_codegen
 import std.fs.*
 import std.unittest.*
 import std.unittest.testmacro.*
-import stdx.encoding.json.{JsonArray, JsonBool, JsonFloat, JsonInt, JsonNull, JsonObject, JsonString, JsonValue}
+import stdx.encoding.json.{
+    JsonArray,
+    JsonBool,
+    JsonFloat,
+    JsonInt,
+    JsonNull,
+    JsonObject,
+    JsonString,
+    JsonValue
+}
 import fjson.{FromJson, ToJson, fromJsonBytes, toJsonBytes}
 
 /**
@@ -16,8 +25,14 @@ func metaModelOf(
     typeAliases!: Array<TypeAlias> = [],
     enumerations!: Array<Enumeration> = []
 ): MetaModel {
-    MetaModel(metaData: MetaData(version: "3.18.0"), requests: requests, notifications: notifications,
-        structures: structures, enumerations: enumerations, typeAliases: typeAliases)
+    MetaModel(
+        metaData: MetaData(version: "3.18.0"),
+        requests: requests,
+        notifications: notifications,
+        structures: structures,
+        enumerations: enumerations,
+        typeAliases: typeAliases
+    )
 }
 
 private func treeOf(json: String): JsonValue {
@@ -45,7 +60,13 @@ private func firstDifference(expected: JsonValue, actual: JsonValue, path!: Stri
                 match (actualFields.get(name)) {
                     case None => return "${path}.${name} (dropped on the way out)"
                     case Some(actualValue) =>
-                        if (let Some(diff) <- firstDifference(expectedValue, actualValue, path: "${path}.${name}")) {
+                        if (
+                            let Some(diff) <- firstDifference(
+                                expectedValue,
+                                actualValue,
+                                path: "${path}.${name}"
+                            )
+                        ) {
                             return diff
                         }
                 }
@@ -63,7 +84,13 @@ private func firstDifference(expected: JsonValue, actual: JsonValue, path!: Stri
                 return "${path} (${expectedItems.size} items in, ${actualItems.size} out)"
             }
             for (i in 0..expectedItems.size) {
-                if (let Some(diff) <- firstDifference(expectedItems[i], actualItems[i], path: "${path}[${i}]")) {
+                if (
+                    let Some(diff) <- firstDifference(
+                        expectedItems[i],
+                        actualItems[i],
+                        path: "${path}[${i}]"
+                    )
+                ) {
                     return diff
                 }
             }
@@ -115,7 +142,8 @@ class MetaModelTest {
     @TestCase
     func aRequestWithPositionalParamsAndProposedTagsRoundTrips() {
         // arrange
-        let json = ##"{"method": "custom/multi", "messageDirection": "both", "result": {"kind": "base", "name": "null"},
+        let json =
+            ##"{"method": "custom/multi", "messageDirection": "both", "result": {"kind": "base", "name": "null"},
             "params": [{"kind": "reference", "name": "A"}, {"kind": "reference", "name": "B"}],
             "proposed": true, "sinceTags": ["3.18.0"], "deprecated": "use something else"}"##
 

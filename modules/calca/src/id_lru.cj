@@ -64,11 +64,7 @@ class IdLru <: Iterable<Id> {
      */
     prop oldestId: ?Id {
         get() {
-            if (oldest == NO_ID) {
-                None
-            } else {
-                Id(oldest)
-            }
+            if (oldest == NO_ID) { None } else { Id(oldest) }
         }
     }
 
@@ -90,11 +86,7 @@ class IdLru <: Iterable<Id> {
         }
         prev[i] = newest
         next[i] = NO_ID
-        if (newest == NO_ID) {
-            oldest = i
-        } else {
-            next[newest] = i
-        }
+        if (newest == NO_ID) { oldest = i } else { next[newest] = i }
         newest = i
     }
 
@@ -135,16 +127,8 @@ class IdLru <: Iterable<Id> {
     private func unlink(i: Int64): Unit {
         let before = prev[i]
         let after = next[i]
-        if (before == NO_ID) {
-            oldest = after
-        } else {
-            next[before] = after
-        }
-        if (after == NO_ID) {
-            newest = before
-        } else {
-            prev[after] = before
-        }
+        if (before == NO_ID) { oldest = after } else { next[before] = after }
+        if (after == NO_ID) { newest = before } else { prev[after] = before }
     }
 }
 

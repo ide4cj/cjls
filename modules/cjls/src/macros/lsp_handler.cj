@@ -26,49 +26,72 @@ public macro LspHandler(input: Tokens): Tokens {
 
 public macro LspHandler(attrs: Tokens, input: Tokens): Tokens {
     if (attrs.size != 1 || attrs[0].value != "readonly") {
-        diagReport(DiagReportLevel.ERROR, attrs, "`@LspHandler` takes no option but `readonly`", "write `@LspHandler[readonly]`, or `@LspHandler` for a handler that runs on the read loop")
+        diagReport(
+            DiagReportLevel.ERROR,
+            attrs,
+            "`@LspHandler` takes no option but `readonly`",
+            "write `@LspHandler[readonly]`, or `@LspHandler` for a handler that runs on the read loop"
+        )
         return input
     }
     withContextOverload(input, quote(ReadOnlyContext))
 }
 
 private func withContextOverload(input: Tokens, context: Tokens): Tokens {
-    let handler = match (parseDecl(input)) {
-        case fd: FuncDecl => fd
-        case _ =>
-            diagReport(DiagReportLevel.ERROR, input, "`@LspHandler` goes on a function", "")
-            return input
-    }
+    let handler =
+        match (parseDecl(input)) {
+            case fd: FuncDecl => fd
+            case _ =>
+                diagReport(DiagReportLevel.ERROR, input, "`@LspHandler` goes on a function", "")
+                return input
+        }
     let params = handler.funcParams
     if (handler.isGenericDecl || params.isEmpty()) {
-        diagReport(DiagReportLevel.ERROR, input, "a handler is not generic, and takes at least its params", "")
+        diagReport(
+            DiagReportLevel.ERROR,
+            input,
+            "a handler is not generic, and takes at least its params",
+            ""
+        )
         return input
     }
-    if (let Some(named) <- (params |> filter {param: FuncParam => isNamed(param)} |> first)) {
-        diagReport(DiagReportLevel.ERROR, named.toTokens(), "a handler's parameters are positional", "")
+    if (let Some(named) <- (params |> filter { param: FuncParam => isNamed(param) } |> first)) {
+        diagReport(
+            DiagReportLevel.ERROR,
+            named.toTokens(),
+            "a handler's parameters are positional",
+            ""
+        )
         return input
     }
 
     let name = handler.identifier
-    let args = params[..params.size - 1] |> fold(Tokens()) {
-        acc: Tokens, param: FuncParam => acc + quote($(param.paramType.toTokens()).from(context), )
-    }
-    let modifiers = handler.modifiers |> fold(Tokens()) {acc: Tokens, modifier: Modifier => acc + modifier.toTokens()}
+    let args =
+        params[..params.size - 1] |>
+            fold(Tokens()) {
+                acc: Tokens, param: FuncParam =>
+                acc + quote($(param.paramType.toTokens()).from(context), )
+            }
+    let modifiers =
+        handler.modifiers |>
+            fold(Tokens()) { acc: Tokens, modifier: Modifier => acc + modifier.toTokens() }
     let paramsType = params[params.size - 1].paramType.toTokens()
-    let returnType = try {
-        let declared = handler.declType.toTokens()
-        quote(: $declared)
-    } catch (_: ASTException) {
-        Tokens()
-    }
-
-    input + quote(
-        $modifiers func $name(context: $context<$paramsType>) $returnType {
-            $name($args context.params)
+    let returnType =
+        try {
+            let declared = handler.declType.toTokens()
+            quote(: $declared)
+        } catch (_: ASTException) {
+            Tokens()
         }
-    )
+
+    input +
+        quote(
+            $modifiers func $name(context: $context<$paramsType>) $returnType {
+                $name($args context.params)
+            }
+        )
 }
 
 private func isNamed(param: FuncParam): Bool {
-    param.toTokens() |> any {token: Token => token.kind == TokenKind.NOT}
+    param.toTokens() |> any { token: Token => token.kind == TokenKind.NOT }
 }

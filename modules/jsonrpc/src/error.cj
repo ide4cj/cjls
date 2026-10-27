@@ -10,7 +10,11 @@ public struct ResponseError {
     /**
      * @param data - as it came, unread: only whoever knows the method knows its type
      */
-    public ResponseError(public let code: ErrorCode, public let message: String, public let data!: ?RawJson = None) {}
+    public ResponseError(
+        public let code: ErrorCode,
+        public let message: String,
+        public let data!: ?RawJson = None
+    ) {}
 }
 
 /**

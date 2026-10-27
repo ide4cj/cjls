@@ -8,7 +8,15 @@ import platform.{hostArch, hostEnv, hostOs}
  * and `test` set, for a package's tests are among its files (#149, as R1's `cfg.setTest`).
  */
 public func hostCfg(): Cfg {
-    Cfg([("os", hostOs()), ("arch", hostArch()), ("env", hostEnv()), ("backend", "cjnative"), ("test", "true")])
+    Cfg(
+        [
+            ("os", hostOs()),
+            ("arch", hostArch()),
+            ("env", hostEnv()),
+            ("backend", "cjnative"),
+            ("test", "true")
+        ]
+    )
 }
 
 /**
@@ -31,11 +39,12 @@ func cjpmTriple(cfg: Cfg): ?String {
  */
 public func sdkTarget(cfg: Cfg): ?String {
     let arch = cfg.get("arch") ?? return None
-    let os = match (cfg.get("os")) {
-        case Some("macOS") => "darwin"
-        case Some("Linux") => "linux"
-        case Some("Windows") => "windows"
-        case _ => return None
-    }
+    let os =
+        match (cfg.get("os")) {
+            case Some("macOS") => "darwin"
+            case Some("Linux") => "linux"
+            case Some("Windows") => "windows"
+            case _ => return None
+        }
     "${os}_${arch}_${cfg.get("backend") ?? "cjnative"}"
 }

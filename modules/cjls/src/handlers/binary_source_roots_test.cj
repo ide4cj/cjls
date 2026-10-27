@@ -15,9 +15,13 @@ import jsonrpc.{Body, Connection}
 private func sourceReports(transport: AnsweringTransport): Array<BinarySourceRootsParams> {
     let reports = ArrayList<BinarySourceRootsParams>()
     while (let Some(body) <- transport.written.tryRemove()) {
-        if (let Body.Notification(notification) <- body &&
-            notification.method == BinarySourceRootsNotificationSpec.METHOD) {
-            let params = notification.params ?? throw IllegalStateException("a source-root report needs params")
+        if (
+            let Body.Notification(notification) <- body &&
+                notification.method == BinarySourceRootsNotificationSpec.METHOD
+        ) {
+            let params =
+                notification.params ??
+                    throw IllegalStateException("a source-root report needs params")
             reports.add(params.read<BinarySourceRootsParams>())
         }
     }
@@ -29,7 +33,8 @@ class BinarySourceRootsTest {
     @TestCase
     func onlyTheCurrentLoadReportsDeduplicatedBinarySourceRoots(): Unit {
         // arrange: two binaries share sources, while a source dependency contributes no root
-        let manifest = ##"
+        let manifest =
+            ##"
 {
     "modules": [{"name": "dep", "root": "dep", "member": false,
         "packages": [{"name": "dep", "dir": "dep", "files": ["lib.cj"]}]}],
@@ -40,15 +45,23 @@ class BinarySourceRootsTest {
     ]
 }
 "##
-        let dir = workspaceOf([("cj-project.json", manifest),
-            ("lib sources/lib.cj", "package lib"), ("dep/lib.cj", "package dep")])
+        let dir =
+            workspaceOf(
+                [
+                    ("cj-project.json", manifest),
+                    ("lib sources/lib.cj", "package lib"),
+                    ("dep/lib.cj", "package dep")
+                ]
+            )
         try {
             let loop = initializedWith([dir], watches: false)
             let transport = AnsweringTransport(answers: false)
             let client = Client()
             client.connect(Connection(transport, NoHandler(), NoopLogger()))
-            let older = loadRequest(loop.state) ?? throw IllegalStateException("the workspace needs a load")
-            let current = loadRequest(loop.state) ?? throw IllegalStateException("the workspace needs a load")
+            let older =
+                loadRequest(loop.state) ?? throw IllegalStateException("the workspace needs a load")
+            let current =
+                loadRequest(loop.state) ?? throw IllegalStateException("the workspace needs a load")
 
             // act: the older load completes after its replacement has started
             load(loop, client, NoopLogger(), older)
@@ -79,7 +92,8 @@ class BinarySourceRootsTest {
             let transport = AnsweringTransport(answers: false)
             let client = Client()
             client.connect(Connection(transport, NoHandler(), NoopLogger()))
-            let stale = loadRequest(loop.state) ?? throw IllegalStateException("the workspace needs a load")
+            let stale =
+                loadRequest(loop.state) ?? throw IllegalStateException("the workspace needs a load")
             loop.state.roots.clear()
 
             // act

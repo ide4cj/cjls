@@ -18,7 +18,13 @@ class MacroStateTest {
         // arrange
         let state = ServerState()
         let root = pathOf("macros")
-        state.setProject(ProjectModel(Cfg([]), [ModuleModel("m", root, [PackageModel("m.ms", root.join("ms"), [])])]))
+        state
+            .setProject(
+                ProjectModel(
+                    Cfg([]),
+                    [ModuleModel("m", root, [PackageModel("m.ms", root.join("ms"), [])])]
+                )
+            )
         let db = state.analysis
         let pkg = db.project().getOrThrow().modules(db)[0].packages(db)[0]
         state.takeFilesChanged()
@@ -44,7 +50,12 @@ class LoadStateTest {
         state.setFilesContents([(changed, Some(Rope("newer"))), (deleted, None)])
 
         // act
-        let current = state.setLoadedFiles(load, [(changed, Rope("read before")), (deleted, Rope("read before"))])
+        let current =
+            state
+                .setLoadedFiles(
+                    load,
+                    [(changed, Rope("read before")), (deleted, Rope("read before"))]
+                )
 
         // assert
         @Expect(current)

@@ -53,11 +53,12 @@ func utf8Length(bytes: Array<Byte>, i: Int64): Int64 {
             return 0
         }
         let b1 = bytes[i + 1]
-        let ok = match (b0) {
-            case 0xE0 => b1 >= 0xA0 && b1 <= 0xBF
-            case 0xED => b1 >= 0x80 && b1 <= 0x9F
-            case _ => (b1 & 0xC0) == 0x80
-        }
+        let ok =
+            match (b0) {
+                case 0xE0 => b1 >= 0xA0 && b1 <= 0xBF
+                case 0xED => b1 >= 0x80 && b1 <= 0x9F
+                case _ => (b1 & 0xC0) == 0x80
+            }
         return if (ok && cont(i + 2)) { 3 } else { 0 }
     }
     if (b0 >= 0xF0 && b0 <= 0xF4) {
@@ -65,11 +66,12 @@ func utf8Length(bytes: Array<Byte>, i: Int64): Int64 {
             return 0
         }
         let b1 = bytes[i + 1]
-        let ok = match (b0) {
-            case 0xF0 => b1 >= 0x90 && b1 <= 0xBF
-            case 0xF4 => b1 >= 0x80 && b1 <= 0x8F
-            case _ => (b1 & 0xC0) == 0x80
-        }
+        let ok =
+            match (b0) {
+                case 0xF0 => b1 >= 0x90 && b1 <= 0xBF
+                case 0xF4 => b1 >= 0x80 && b1 <= 0x8F
+                case _ => (b1 & 0xC0) == 0x80
+            }
         return if (ok && cont(i + 2) && cont(i + 3)) { 4 } else { 0 }
     }
     0

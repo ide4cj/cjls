@@ -10,25 +10,174 @@ import std.fs.*
  * since 1.1 numbers them the same; 1.0 had the first `KINDS_OF_1_0` and then `ILLEGAL`, which 1.1 moved to make
  * room.
  */
-let KINDS: Array<String> = [
-    "DOT", "COMMA", "LPAREN", "RPAREN", "LSQUARE", "RSQUARE", "LCURL", "RCURL", "EXP", "MUL", "MOD", "DIV", "ADD",
-    "SUB", "INCR", "DECR", "AND", "OR", "COALESCING", "PIPELINE", "COMPOSITION", "NOT", "BITAND", "BITOR", "BITXOR",
-    "BITNOT", "LSHIFT", "RSHIFT", "COLON", "SEMI", "ASSIGN", "ADD_ASSIGN", "SUB_ASSIGN", "MUL_ASSIGN", "EXP_ASSIGN",
-    "DIV_ASSIGN", "MOD_ASSIGN", "AND_ASSIGN", "OR_ASSIGN", "BITAND_ASSIGN", "BITOR_ASSIGN", "BITXOR_ASSIGN",
-    "LSHIFT_ASSIGN", "RSHIFT_ASSIGN", "ARROW", "BACKARROW", "DOUBLE_ARROW", "RANGEOP", "CLOSEDRANGEOP", "ELLIPSIS",
-    "HASH", "AT", "QUEST", "LT", "GT", "LE", "GE", "IS", "AS", "NOTEQ", "EQUAL", "WILDCARD", "INT8", "INT16",
-    "INT32", "INT64", "INTNATIVE", "UINT8", "UINT16", "UINT32", "UINT64", "UINTNATIVE", "FLOAT16", "FLOAT32",
-    "FLOAT64", "RUNE", "BOOLEAN", "NOTHING", "UNIT", "STRUCT", "ENUM", "VARRAY", "THISTYPE", "PACKAGE", "IMPORT",
-    "CLASS", "INTERFACE", "FUNC", "MACRO", "QUOTE", "DOLLAR", "LET", "VAR", "CONST", "TYPE", "INIT", "THIS",
-    "SUPER", "IF", "ELSE", "CASE", "TRY", "CATCH", "FINALLY", "FOR", "DO", "WHILE", "THROW", "RETURN", "CONTINUE",
-    "BREAK", "IN", "NOT_IN", "MATCH", "WHERE", "EXTEND", "WITH", "PROP", "STATIC", "PUBLIC", "PRIVATE", "INTERNAL",
-    "PROTECTED", "OVERRIDE", "REDEF", "ABSTRACT", "SEALED", "OPEN", "FOREIGN", "INOUT", "MUT", "UNSAFE", "OPERATOR",
-    "SPAWN", "SYNCHRONIZED", "UPPERBOUND", "MAIN", "IDENTIFIER", "PACKAGE_IDENTIFIER", "INTEGER_LITERAL",
-    "RUNE_BYTE_LITERAL", "FLOAT_LITERAL", "COMMENT", "NL", "END", "SENTINEL", "RUNE_LITERAL", "STRING_LITERAL",
-    "JSTRING_LITERAL", "MULTILINE_STRING", "MULTILINE_RAW_STRING", "BOOL_LITERAL", "UNIT_LITERAL",
-    "DOLLAR_IDENTIFIER", "ANNOTATION", "AT_EXCL", "COMMON", "SPECIFIC", "PERFORM", "RESUME", "THROWING", "HANDLE",
-    "ILLEGAL", "DOUBLE_COLON", "FEATURES"
-]
+let KINDS: Array<String> =
+    [
+        "DOT",
+        "COMMA",
+        "LPAREN",
+        "RPAREN",
+        "LSQUARE",
+        "RSQUARE",
+        "LCURL",
+        "RCURL",
+        "EXP",
+        "MUL",
+        "MOD",
+        "DIV",
+        "ADD",
+        "SUB",
+        "INCR",
+        "DECR",
+        "AND",
+        "OR",
+        "COALESCING",
+        "PIPELINE",
+        "COMPOSITION",
+        "NOT",
+        "BITAND",
+        "BITOR",
+        "BITXOR",
+        "BITNOT",
+        "LSHIFT",
+        "RSHIFT",
+        "COLON",
+        "SEMI",
+        "ASSIGN",
+        "ADD_ASSIGN",
+        "SUB_ASSIGN",
+        "MUL_ASSIGN",
+        "EXP_ASSIGN",
+        "DIV_ASSIGN",
+        "MOD_ASSIGN",
+        "AND_ASSIGN",
+        "OR_ASSIGN",
+        "BITAND_ASSIGN",
+        "BITOR_ASSIGN",
+        "BITXOR_ASSIGN",
+        "LSHIFT_ASSIGN",
+        "RSHIFT_ASSIGN",
+        "ARROW",
+        "BACKARROW",
+        "DOUBLE_ARROW",
+        "RANGEOP",
+        "CLOSEDRANGEOP",
+        "ELLIPSIS",
+        "HASH",
+        "AT",
+        "QUEST",
+        "LT",
+        "GT",
+        "LE",
+        "GE",
+        "IS",
+        "AS",
+        "NOTEQ",
+        "EQUAL",
+        "WILDCARD",
+        "INT8",
+        "INT16",
+        "INT32",
+        "INT64",
+        "INTNATIVE",
+        "UINT8",
+        "UINT16",
+        "UINT32",
+        "UINT64",
+        "UINTNATIVE",
+        "FLOAT16",
+        "FLOAT32",
+        "FLOAT64",
+        "RUNE",
+        "BOOLEAN",
+        "NOTHING",
+        "UNIT",
+        "STRUCT",
+        "ENUM",
+        "VARRAY",
+        "THISTYPE",
+        "PACKAGE",
+        "IMPORT",
+        "CLASS",
+        "INTERFACE",
+        "FUNC",
+        "MACRO",
+        "QUOTE",
+        "DOLLAR",
+        "LET",
+        "VAR",
+        "CONST",
+        "TYPE",
+        "INIT",
+        "THIS",
+        "SUPER",
+        "IF",
+        "ELSE",
+        "CASE",
+        "TRY",
+        "CATCH",
+        "FINALLY",
+        "FOR",
+        "DO",
+        "WHILE",
+        "THROW",
+        "RETURN",
+        "CONTINUE",
+        "BREAK",
+        "IN",
+        "NOT_IN",
+        "MATCH",
+        "WHERE",
+        "EXTEND",
+        "WITH",
+        "PROP",
+        "STATIC",
+        "PUBLIC",
+        "PRIVATE",
+        "INTERNAL",
+        "PROTECTED",
+        "OVERRIDE",
+        "REDEF",
+        "ABSTRACT",
+        "SEALED",
+        "OPEN",
+        "FOREIGN",
+        "INOUT",
+        "MUT",
+        "UNSAFE",
+        "OPERATOR",
+        "SPAWN",
+        "SYNCHRONIZED",
+        "UPPERBOUND",
+        "MAIN",
+        "IDENTIFIER",
+        "PACKAGE_IDENTIFIER",
+        "INTEGER_LITERAL",
+        "RUNE_BYTE_LITERAL",
+        "FLOAT_LITERAL",
+        "COMMENT",
+        "NL",
+        "END",
+        "SENTINEL",
+        "RUNE_LITERAL",
+        "STRING_LITERAL",
+        "JSTRING_LITERAL",
+        "MULTILINE_STRING",
+        "MULTILINE_RAW_STRING",
+        "BOOL_LITERAL",
+        "UNIT_LITERAL",
+        "DOLLAR_IDENTIFIER",
+        "ANNOTATION",
+        "AT_EXCL",
+        "COMMON",
+        "SPECIFIC",
+        "PERFORM",
+        "RESUME",
+        "THROWING",
+        "HANDLE",
+        "ILLEGAL",
+        "DOUBLE_COLON",
+        "FEATURES"
+    ]
 
 /**
  * How many kinds 1.0 numbered before its `ILLEGAL`, as `Tokens.inc` of cangjie_compiler's tag v1.0.5 lists them.
@@ -67,11 +216,12 @@ public class TokenNumbers {
      * The numbers the file `tokensInc` lists, as `parse` reads them; `None` if it cannot be read either.
      */
     public static func read(tokensInc: Path): ?TokenNumbers {
-        let text = try {
-            String.fromUtf8(File.readFrom(tokensInc))
-        } catch (_: Exception) {
-            return None
-        }
+        let text =
+            try {
+                String.fromUtf8(File.readFrom(tokensInc))
+            } catch (_: Exception) {
+                return None
+            }
         parse(text)
     }
 
@@ -83,20 +233,21 @@ public class TokenNumbers {
         let names = ArrayList<String>()
         for (line in tokensInc.lines()) {
             let entry = line.trimAscii()
-            let args = if (entry.startsWith("TOKEN(")) {
-                entry["TOKEN(".size..]
-            } else if (entry.startsWith("EXPERIMENTAL_TOKEN(")) {
-                entry["EXPERIMENTAL_TOKEN(".size..]
-            } else {
-                continue
-            }
+            let args =
+                if (entry.startsWith("TOKEN(")) {
+                    entry["TOKEN(".size..]
+                } else if (entry.startsWith("EXPERIMENTAL_TOKEN(")) {
+                    entry["EXPERIMENTAL_TOKEN(".size..]
+                } else {
+                    continue
+                }
             names.add(args[..(args.indexOf(",") ?? return None)].trimAscii())
         }
         if (names.size > Int64(UInt8.Max) + 1) {
             return None
         }
         let numbers = TokenNumbers(names.toArray())
-        if (SENT_KINDS.iterator().any {name => !numbers.numbers.contains(name)}) {
+        if (SENT_KINDS.iterator().any { name => !numbers.numbers.contains(name) }) {
             return None
         }
         numbers
@@ -111,10 +262,11 @@ public class TokenNumbers {
     public static func builtin(version: String): ?TokenNumbers {
         let (major, minor) = versionOf(version) ?? return None
         if (major == 1 && minor == 0) {
-            let added = KINDS[KINDS_OF_1_0..].filter {kind => kind != "ILLEGAL"}
-            return TokenNumbers(KINDS[..KINDS_OF_1_0].concat(["ILLEGAL"]), sentAs: added.map {
-                kind => (kind, "IDENTIFIER")
-            })
+            let added = KINDS[KINDS_OF_1_0..].filter { kind => kind != "ILLEGAL" }
+            return TokenNumbers(
+                KINDS[..KINDS_OF_1_0].concat(["ILLEGAL"]),
+                sentAs: added.map { kind => (kind, "IDENTIFIER") }
+            )
         }
         if (major > 1 || (major == 1 && minor >= 1)) {
             return TokenNumbers(KINDS)
@@ -137,7 +289,7 @@ public class TokenNumbers {
  */
 func versionOf(version: String): ?(Int64, Int64) {
     let first = version.lines().next() ?? return None
-    let text = first[(first.indexOf(": ").map {at => at + 2} ?? 0)..]
+    let text = first[(first.indexOf(": ").map { at => at + 2 } ?? 0)..]
     let parts = text.split(".")
     if (parts.size < 2) {
         return None

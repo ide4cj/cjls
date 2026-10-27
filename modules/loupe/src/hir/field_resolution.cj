@@ -72,22 +72,35 @@ public enum FieldResolution <: ToString {
  * type has, not yet (N75).
  */
 public func resolveField(db: AnalysisDatabase, def: DefId, expr: ExprId): FieldResolution {
-    let (receiver, name) = match (body(db, def)[expr]) {
-        case FieldExpr(receiver, name, _) => (receiver, name)
-        case _ => return FieldResolution.NoField
-    }
+    let (receiver, name) =
+        match (body(db, def)[expr]) {
+            case FieldExpr(receiver, name, _) => (receiver, name)
+            case _ => return FieldResolution.NoField
+        }
     match (receiverOf(db, def, receiver)) {
         case PackageReceiver(pkg) =>
             let from = packageOf(db, def) ?? return FieldResolution.NoField
             let relation = relationOf(from.name(db), nameOf(db, pkg))
-            let ids = visibleOf(packageExports(db, pkg).names.get(name) ?? [], relation, Visibility.Private)
+            let ids =
+                visibleOf(
+                    packageExports(db, pkg).names.get(name) ?? [],
+                    relation,
+                    Visibility.Private
+                )
             if (ids.isEmpty()) {
                 FieldResolution.NoField
             } else {
                 FieldResolution.PackageMembers(ids)
             }
         case TypesReceiver(types) =>
-            let targets = lookUpMembers(db, types, name, sourceFileOf(db, def), LookupTy({=> receiverTyOf(db, def, receiver)}))
+            let targets =
+                lookUpMembers(
+                    db,
+                    types,
+                    name,
+                    sourceFileOf(db, def),
+                    LookupTy({ => receiverTyOf(db, def, receiver) })
+                )
             if (targets.isEmpty()) {
                 FieldResolution.NoField
             } else {
@@ -104,30 +117,36 @@ public func resolveField(db: AnalysisDatabase, def: DefId, expr: ExprId): FieldR
  */
 public func receiverOf(db: AnalysisDatabase, def: DefId, expr: ExprId): Receiver {
     match (body(db, def)[expr]) {
-        case PathExpr(name, _) => match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), name)) {
-            case Values(targets) => match (targets.get(0)) {
-                case Some(TypeParamOf(target)) where targets.size == 1 => TypesReceiver(boundsOf(db, target))
-                case _ => ValueReceiver
+        case PathExpr(name, _) =>
+            match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), name)) {
+                case Values(targets) =>
+                    match (targets.get(0)) {
+                        case Some(TypeParamOf(target)) where targets.size == 1 =>
+                            TypesReceiver(boundsOf(db, target))
+                        case _ => ValueReceiver
+                    }
+                case InFile(Found(ids)) => receiverOfDecl(db, ids[0])
+                case InFile(FoundPackage(pkg)) => PackageReceiver(pkg)
+                case InFile(Ctors(_, _)) => ValueReceiver
+                case InFile(_) => NoReceiver
             }
-            case InFile(Found(ids)) => receiverOfDecl(db, ids[0])
-            case InFile(FoundPackage(pkg)) => PackageReceiver(pkg)
-            case InFile(Ctors(_, _)) => ValueReceiver
-            case InFile(_) => NoReceiver
-        }
-        case FieldExpr(_, _, _) => match (resolveField(db, def, expr)) {
-            case PackageMembers(ids) => receiverOfDecl(db, ids[0])
-            case TypeMembers(_) | OfValue => ValueReceiver
-            case NoField => NoReceiver
-        }
+        case FieldExpr(_, _, _) =>
+            match (resolveField(db, def, expr)) {
+                case PackageMembers(ids) => receiverOfDecl(db, ids[0])
+                case TypeMembers(_) | OfValue => ValueReceiver
+                case NoField => NoReceiver
+            }
         case PrimExpr(name) => TypesReceiver([PrimType(name)])
-        case ThisExpr => match (enclosingTypeOf(db, def)) {
-            case Some(ty) => TypesReceiver([ty])
-            case None => NoReceiver
-        }
-        case SuperExpr => match (superclassOf(db, def)) {
-            case Some(ty) => TypesReceiver([ty])
-            case None => NoReceiver
-        }
+        case ThisExpr =>
+            match (enclosingTypeOf(db, def)) {
+                case Some(ty) => TypesReceiver([ty])
+                case None => NoReceiver
+            }
+        case SuperExpr =>
+            match (superclassOf(db, def)) {
+                case Some(ty) => TypesReceiver([ty])
+                case None => NoReceiver
+            }
         case MissingExpr => NoReceiver
         case _ => ValueReceiver
     }
@@ -142,19 +161,23 @@ public func receiverOf(db: AnalysisDatabase, def: DefId, expr: ExprId): Receiver
 public func receiverTyOf(db: AnalysisDatabase, def: DefId, expr: ExprId): ?Ty {
     match (body(db, def)[expr]) {
         case ThisExpr => selfTyAround(db, def)
-        case SuperExpr => match ((superclassOf(db, def), selfTyAround(db, def))) {
-            case (Some(DeclType(id)), Some(own)) => asInstanceOf(db, own, id, sourceFileOf(db, def))
-            case _ => None
-        }
+        case SuperExpr =>
+            match ((superclassOf(db, def), selfTyAround(db, def))) {
+                case (Some(DeclType(id)), Some(own)) =>
+                    asInstanceOf(db, own, id, sourceFileOf(db, def))
+                case _ => None
+            }
         case PrimExpr(name) => Ty(db, PrimTy(name))
-        case PathExpr(name, args) => match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), name)) {
-            case InFile(Found(ids)) => namedTyOf(db, def, ids[0], args)
-            case _ => None
-        }
-        case FieldExpr(_, _, args) => match (resolveField(db, def, expr)) {
-            case PackageMembers(ids) => namedTyOf(db, def, ids[0], args)
-            case _ => None
-        }
+        case PathExpr(name, args) =>
+            match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), name)) {
+                case InFile(Found(ids)) => namedTyOf(db, def, ids[0], args)
+                case _ => None
+            }
+        case FieldExpr(_, _, args) =>
+            match (resolveField(db, def, expr)) {
+                case PackageMembers(ids) => namedTyOf(db, def, ids[0], args)
+                case _ => None
+            }
         case _ => None
     }
 }
@@ -165,15 +188,17 @@ public func receiverTyOf(db: AnalysisDatabase, def: DefId, expr: ExprId): ?Ty {
  */
 func namedTyOf(db: AnalysisDatabase, def: DefId, id: DefId, args: Array<TypeRefId>): ?Ty {
     let count = genericsOf(db, id).size
-    let applied = if (count > 0 && args.size == count) {
-        let lowering = SourceTyLowering(db, def, body(db, def))
-        args.map {one => lowering.lowerType(one)}
-    } else {
-        Array(count) {_ => Ty(db, ErrorTy)}
-    }
+    let applied =
+        if (count > 0 && args.size == count) {
+            let lowering = SourceTyLowering(db, def, body(db, def))
+            args.map { one => lowering.lowerType(one) }
+        } else {
+            Array(count) { _ => Ty(db, ErrorTy) }
+        }
     match (id.item(db).kind) {
         case Class | Interface | Struct | Enum | BuiltIn => Ty(db, DeclTy(id, applied))
-        case TypeAlias => signatureTypes(db, id).ty.map {aliased => substitute(db, aliased, id, applied)}
+        case TypeAlias =>
+            signatureTypes(db, id).ty.map { aliased => substitute(db, aliased, id, applied) }
         case _ => None
     }
 }
@@ -184,10 +209,11 @@ func namedTyOf(db: AnalysisDatabase, def: DefId, id: DefId, args: Array<TypeRefI
 func receiverOfDecl(db: AnalysisDatabase, id: DefId): Receiver {
     match (id.item(db).kind) {
         case Class | Interface | Struct | Enum | BuiltIn => TypesReceiver([DeclType(id)])
-        case TypeAlias => match (aliasedTypeOf(db, id)) {
-            case Some(ty) => TypesReceiver([ty])
-            case None => NoReceiver
-        }
+        case TypeAlias =>
+            match (aliasedTypeOf(db, id)) {
+                case Some(ty) => TypesReceiver([ty])
+                case None => NoReceiver
+            }
         case _ => ValueReceiver
     }
 }
@@ -198,10 +224,11 @@ func receiverOfDecl(db: AnalysisDatabase, id: DefId): Receiver {
  */
 func superclassOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
     let ty = enclosingTypeOf(db, def) ?? return None
-    let id = match (ty) {
-        case DeclType(id) where id.item(db).kind == ItemKind.Class => id
-        case _ => return None
-    }
+    let id =
+        match (ty) {
+            case DeclType(id) where id.item(db).kind == ItemKind.Class => id
+            case _ => return None
+        }
     for (one in supertypes(db, id)) {
         if (let DeclType(other) <- one && other.item(db).kind == ItemKind.Class) {
             return one
@@ -210,9 +237,11 @@ func superclassOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
     let pkg = packageOf(db, def) ?? return None
     let core = packageIndex(db).find("std.core", from: PackageRef.Source(pkg)) ?? return None
     let objects = packageExports(db, core).names.get("Object") ?? []
-    objects.iterator().filter {one => one.id.item(db).kind == ItemKind.Class}.next().map {
-        one => ExtendedType.DeclType(one.id)
-    }
+    objects
+        .iterator()
+        .filter { one => one.id.item(db).kind == ItemKind.Class }
+        .next()
+        .map { one => ExtendedType.DeclType(one.id) }
 }
 
 /**
@@ -239,7 +268,13 @@ func boundsOf(db: AnalysisDatabase, target: TypeTarget): Array<ExtendedType> {
             for (bound in fn.bounds where isNamed(lowered.types[bound.ty.index], name)) {
                 for (one in bound.bounds) {
                     if (let PathRef(segments) <- lowered.types[one.index]) {
-                        let path = resolveBodyTypePath(db, owner, one, segments.map {segment => segment.name})
+                        let path =
+                            resolveBodyTypePath(
+                                db,
+                                owner,
+                                one,
+                                segments.map { segment => segment.name }
+                            )
                         if (let Some(Resolved(TypeOf(id))) <- path.get(path.size - 1)) {
                             found.add(DeclType(id))
                         }

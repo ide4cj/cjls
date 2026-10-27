@@ -5,8 +5,20 @@ import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange}
 import cjo.{DeclInfo, openCjo}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{Annotation, AnyHasDocComment, AnyHasName, BindPat, EnumPat, MemberAccessExpr, NameRef, Param,
-    ParamList, PathSegment, RefExpr, VarDecl}
+import cjsyntax.ast.{
+    Annotation,
+    AnyHasDocComment,
+    AnyHasName,
+    BindPat,
+    EnumPat,
+    MemberAccessExpr,
+    NameRef,
+    Param,
+    ParamList,
+    PathSegment,
+    RefExpr,
+    VarDecl
+}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
@@ -69,7 +81,11 @@ public func hoverInExpansion(db: AnalysisDatabase, call: MacroCallId, offset: In
 /**
  * A macro name's definitions, or documentation for a compiler macro no package declares.
  */
-func hoverOfMacroName(db: AnalysisDatabase, token: CjSyntaxToken, defs: Array<Definition>): ?HoverResult {
+func hoverOfMacroName(
+    db: AnalysisDatabase,
+    token: CjSyntaxToken,
+    defs: Array<Definition>
+): ?HoverResult {
     if (defs.isEmpty() && let Some(doc) <- builtinMacroDoc(token.text())) {
         return builtinHover(token, doc)
     }
@@ -99,26 +115,31 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
     if (let Some(doc) <- builtinAnnotationAt(token)) {
         return builtinHover(token, doc)
     }
-    let item = token.parent.ancestors() |> filterMap {node: CjSyntaxNode => ids.idAround(node)} |> first
+    let item =
+        token.parent.ancestors() |> filterMap { node: CjSyntaxNode => ids.idAround(node) } |> first
     if (let Expansion(call) <- file && item.isNone()) {
         if (let Some(owner) <- bodyOfExpressionExpansion(db, call)) {
             let hovers = Hovers(db, owner, token, expansion: call)
-            let items = if (let Some((typeNode, segment)) <- typeAt(token)) {
-                hovers.ofType(typeNode, segment)
-            } else { hovers.ofBody() }
+            let items =
+                if (let Some((typeNode, segment)) <- typeAt(token)) {
+                    hovers.ofType(typeNode, segment)
+                } else {
+                    hovers.ofBody()
+                }
             return if (items.isEmpty()) { None } else { HoverResult(token.textRange, items) }
         }
         return hoverAtCallSite(db, call, token, offset)
     }
     let def = DefId(db, file, item ?? return None)
-    let items = if (isDeclaredName(db, def, token)) {
-        // what a workspace macro's expansion made of it, the interfaces it added and all
-        Hovers(db, def, token).ofDecl(expandedDeclOf(db, def) ?? def)
-    } else if (let Some((typeNode, segment)) <- typeAt(token)) {
-        Hovers(db, def, token).ofType(typeNode, segment)
-    } else {
-        Hovers(db, def, token).ofBody()
-    }
+    let items =
+        if (isDeclaredName(db, def, token)) {
+            // what a workspace macro's expansion made of it, the interfaces it added and all
+            Hovers(db, def, token).ofDecl(expandedDeclOf(db, def) ?? def)
+        } else if (let Some((typeNode, segment)) <- typeAt(token)) {
+            Hovers(db, def, token).ofType(typeNode, segment)
+        } else {
+            Hovers(db, def, token).ofBody()
+        }
     if (items.isEmpty()) {
         return None
     }
@@ -128,15 +149,23 @@ func hoverIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): ?HoverResult 
 /**
  * The hover of `token` that means `defs`: a declaration as at its name, a package as its header names it (A36).
  */
-func hoverOfDefinitions(db: AnalysisDatabase, token: CjSyntaxToken, defs: Array<Definition>): ?HoverResult {
-    let items = defs |> filterMap {
-        one: Definition => match (one) {
-            case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
-            case PackageDef(Source(pkg)) => HoverItem("package ${pkg.name(db)}")
-            case PackageDef(Binary(pkg)) => HoverItem("package ${pkg.name(db)}")
-            case _ => None<HoverItem>
-        }
-    } |> collectArray
+func hoverOfDefinitions(
+    db: AnalysisDatabase,
+    token: CjSyntaxToken,
+    defs: Array<Definition>
+): ?HoverResult {
+    let items =
+        defs |>
+            filterMap {
+                one: Definition =>
+                match (one) {
+                    case DeclDef(id) => Hovers(db, id, token).declItem(id, None)
+                    case PackageDef(Source(pkg)) => HoverItem("package ${pkg.name(db)}")
+                    case PackageDef(Binary(pkg)) => HoverItem("package ${pkg.name(db)}")
+                    case _ => None<HoverItem>
+                }
+            } |>
+            collectArray
     if (items.isEmpty()) {
         return None
     }
@@ -147,20 +176,23 @@ func hoverOfDefinitions(db: AnalysisDatabase, token: CjSyntaxToken, defs: Array<
  * A type the language builds in at `offset` that the grammar has as a keyword (`Int64`, `Unit`, `VArray`).
  */
 func builtinTypeAt(root: CjSyntaxNode, offset: Int64): ?HoverResult {
-    let doc = {
-        token: CjSyntaxToken => if (BUILTIN_TYPES.contains(token.kind)) {
-            builtinTypeDoc(token.text())
-        } else {
-            Option<BuiltinDoc>.None
+    let doc =
+        {
+            token: CjSyntaxToken =>
+            if (BUILTIN_TYPES.contains(token.kind)) {
+                builtinTypeDoc(token.text())
+            } else {
+                Option<BuiltinDoc>.None
+            }
         }
-    }
     match (root.tokenAtOffset(offset)) {
-        case Single(token) => doc(token).map {one => builtinHover(token, one)}
-        case Between(left, right) => match ((doc(left), doc(right))) {
-            case (_, Some(one)) => builtinHover(right, one)
-            case (Some(one), _) => builtinHover(left, one)
-            case _ => None
-        }
+        case Single(token) => doc(token).map { one => builtinHover(token, one) }
+        case Between(left, right) =>
+            match ((doc(left), doc(right))) {
+                case (_, Some(one)) => builtinHover(right, one)
+                case (Some(one), _) => builtinHover(left, one)
+                case _ => None
+            }
         case _ => None
     }
 }
@@ -171,7 +203,7 @@ func builtinTypeAt(root: CjSyntaxNode, offset: Int64): ?HoverResult {
  */
 func builtinAnnotationAt(token: CjSyntaxToken): ?BuiltinDoc {
     let name = NameRef.cast(token.parent) ?? return None
-    if (name.syntax.parent.map {one => Annotation.canCast(one.kind)} ?? false) {
+    if (name.syntax.parent.map { one => Annotation.canCast(one.kind) } ?? false) {
         builtinAnnotationDoc(token.text())
     } else {
         None
@@ -187,7 +219,7 @@ func builtinHover(token: CjSyntaxToken, doc: BuiltinDoc): HoverResult {
  */
 func isDeclaredName(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Bool {
     let node = itemNodeOf(db, def) ?? return false
-    if (let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
+    if (let Some(name) <- AnyHasName.cast(node).flatMap { it => it.name() }) {
         return name.syntax.textRange == token.parent.textRange
     }
     // a name of a `let` of a pattern: a binding of its pattern, not of a body
@@ -203,8 +235,12 @@ func isDeclaredName(db: AnalysisDatabase, def: DefId, token: CjSyntaxToken): Boo
  * completion asks of declarations' details (`completionDetails`), `def` the item at the cursor.
  */
 class Hovers {
-    Hovers(let db: AnalysisDatabase, let def: DefId, let token: ?CjSyntaxToken,
-        let expansion!: ?MacroCallId = None) {}
+    Hovers(
+        let db: AnalysisDatabase,
+        let def: DefId,
+        let token: ?CjSyntaxToken,
+        let expansion!: ?MacroCallId = None
+    ) {}
 
     private prop from: ?SourceFile {
         get() {
@@ -223,30 +259,53 @@ class Hovers {
     func ofType(typeNode: CjSyntaxNode, segment: Int64): Array<HoverItem> {
         let ptr = SyntaxNodePtr(typeNode)
         let lowered = signatureWithSourceMap(db, def)
-        let (ty, resolve) = match (if (expansion.isNone()) { lowered.sourceMap.typeAt(ptr) } else { None<TypeRefId> }) {
-            case Some(ty) => (lowered.signature[ty], {
-                path: Array<String> => resolveTypePath(db, typeScopeOf(db, def) ?? return Array<PathResolution>(), path)
-            })
-            case None =>
-                let lowered = bodyWithSourceMap(db, def)
-                let ty = lowered.sourceMap.typeAtSource(BodySource(ptr, expansion: expansion)) ?? return []
-                (lowered.body.types[ty.index], {path: Array<String> => resolveBodyTypePath(db, def, ty, path)})
-        }
+        let (ty, resolve) =
+            match (
+                if (expansion.isNone()) { lowered.sourceMap.typeAt(ptr) } else { None<TypeRefId> }
+            ) {
+                case Some(ty) =>
+                    (
+                        lowered.signature[ty],
+                        {
+                            path: Array<String> =>
+                            resolveTypePath(
+                                db,
+                                typeScopeOf(db, def) ?? return Array<PathResolution>(),
+                                path
+                            )
+                        }
+                    )
+                case None =>
+                    let lowered = bodyWithSourceMap(db, def)
+                    let ty =
+                        lowered.sourceMap.typeAtSource(BodySource(ptr, expansion: expansion)) ??
+                            return []
+                    (
+                        lowered.body.types[ty.index],
+                        { path: Array<String> => resolveBodyTypePath(db, def, ty, path) }
+                    )
+            }
         match (ty) {
-            case PathRef(segments) => match (resolve(segments.map {one => one.name}).get(segment)) {
-                case Some(Resolved(target)) => listOf(typeItem(target))
-                case Some(AmbiguousPath(targets)) => targets |> filterMap {
-                    target: ScopeTarget => match (target) {
-                        case OfDecl(id) => declItem(id, None)
-                        case OfPackage(_) => None
-                    }
-                } |> collectArray
-                case _ => []
-            }
-            case ThisRef => match (parentOf(db, def)) {
-                case Some(parent) where parent.item(db).kind == ItemKind.Class => ofDecl(parent)
-                case _ => []
-            }
+            case PathRef(segments) =>
+                match (resolve(segments.map { one => one.name }).get(segment)) {
+                    case Some(Resolved(target)) => listOf(typeItem(target))
+                    case Some(AmbiguousPath(targets)) =>
+                        targets |>
+                            filterMap {
+                                target: ScopeTarget =>
+                                match (target) {
+                                    case OfDecl(id) => declItem(id, None)
+                                    case OfPackage(_) => None
+                                }
+                            } |>
+                            collectArray
+                    case _ => []
+                }
+            case ThisRef =>
+                match (parentOf(db, def)) {
+                    case Some(parent) where parent.item(db).kind == ItemKind.Class => ofDecl(parent)
+                    case _ => []
+                }
             case _ => []
         }
     }
@@ -262,62 +321,93 @@ class Hovers {
         let lowered = bodyWithSourceMap(db, def)
         let sourceMap = lowered.sourceMap
         if (isOperator(token)) {
-            let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(token.parent), expansion: expansion)) ?? return []
+            let expr =
+                sourceMap
+                    .exprAtSource(BodySource(SyntaxNodePtr(token.parent), expansion: expansion)) ??
+                    return []
             return match (inferBody(db, def).calleeOf(expr)) {
                 case Some(decl) => ofDecl(decl)
                 case None => []
             }
         }
         if (let Some(ref) <- RefExpr.cast(node)) {
-            let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(ref.syntax), expansion: expansion)) ?? return []
+            let expr =
+                sourceMap
+                    .exprAtSource(BodySource(SyntaxNodePtr(ref.syntax), expansion: expansion)) ??
+                    return []
             if (let Some(decl) <- inferBody(db, def).calleeOf(expr)) {
                 return ofDecl(decl)
             }
-            return ofResolution(resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text()))
+            return ofResolution(
+                resolveBodyName(db, def, exprScopes(db, def).scopeOf(expr), token.text())
+            )
         }
         if (let Some(access) <- accessNodeOf(node)) {
-            let expr = sourceMap.exprAtSource(BodySource(SyntaxNodePtr(access), expansion: expansion)) ?? return []
+            let expr =
+                sourceMap.exprAtSource(BodySource(SyntaxNodePtr(access), expansion: expansion)) ??
+                    return []
             let inferred = inferBody(db, def)
             // the type of the value it is a member of, if it is one's
-            let recv = match (lowered.body[expr]) {
-                case FieldExpr(receiver, _, _) => inferred[receiver]
-                case _ => Option<Ty>.None
-            }
+            let recv =
+                match (lowered.body[expr]) {
+                    case FieldExpr(receiver, _, _) => inferred[receiver]
+                    case _ => Option<Ty>.None
+                }
             if (let Some(decl) <- inferred.calleeOf(expr)) {
                 return listOf(declItem(decl, recv))
             }
             return match (resolveField(db, def, expr)) {
-                case PackageMembers(ids) => ids |> filterMap {id: DefId => declItem(id, None)} |> collectArray
-                case TypeMembers(targets) => targets |> filterMap {
-                    target: MemberTarget => valueItem(ValueTarget.MemberOf(target), None)
-                } |> collectArray
-                case OfValue => (inferred.fieldOf(expr) ?? []) |> filterMap {
-                    target: MemberTarget => valueItem(ValueTarget.MemberOf(target), recv)
-                } |> collectArray
+                case PackageMembers(ids) =>
+                    ids |> filterMap { id: DefId => declItem(id, None) } |> collectArray
+                case TypeMembers(targets) =>
+                    targets |>
+                        filterMap {
+                            target: MemberTarget =>
+                            valueItem(ValueTarget.MemberOf(target), None)
+                        } |>
+                        collectArray
+                case OfValue =>
+                    (inferred.fieldOf(expr) ?? []) |>
+                        filterMap {
+                            target: MemberTarget =>
+                            valueItem(ValueTarget.MemberOf(target), recv)
+                        } |>
+                        collectArray
                 case NoField => []
             }
         }
-        let place: ?(Package, SourceFile) = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
+        let place: ?(Package, SourceFile) =
+            from.flatMap { file => packageOfFile(db, file).map { pkg => (pkg, file) } }
         if (let Some(_) <- BindPat.cast(node)) {
-            let local = sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ?? return []
-            let ctors = match (place) {
-                case Some((pkg, file)) where lowered.body[local].lone => ctorsNamed(db, pkg, file, token.text())
-                case _ => Array<DefId>()
-            }
+            let local =
+                sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)) ??
+                    return []
+            let ctors =
+                match (place) {
+                    case Some((pkg, file)) where lowered.body[local].lone =>
+                        ctorsNamed(db, pkg, file, token.text())
+                    case _ => Array<DefId>()
+                }
             return if (ctors.isEmpty()) {
                 listOf(localItem(def, local))
             } else {
-                ctors |> filterMap {id: DefId => declItem(id, None)} |> collectArray
+                ctors |> filterMap { id: DefId => declItem(id, None) } |> collectArray
             }
         }
         if (let Some(segment) <- PathSegment.cast(node)) {
-            let pat = segment.syntax.parent.flatMap {one => EnumPat.cast(one)} ?? return []
+            let pat = segment.syntax.parent.flatMap { one => EnumPat.cast(one) } ?? return []
             if ((pat.pathSegments() |> collectArray).size == 1 && let Some((pkg, file)) <- place) {
-                return ctorsNamed(db, pkg, file, token.text()) |> filterMap {id: DefId => declItem(id, None)} |> collectArray
+                return ctorsNamed(db, pkg, file, token.text()) |>
+                    filterMap { id: DefId => declItem(id, None) } |>
+                    collectArray
             }
             return []
         }
-        listOf(sourceMap.localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion)).flatMap {local => localItem(def, local)})
+        listOf(
+            sourceMap
+                .localAtSource(BodySource(SyntaxNodePtr(name), expansion: expansion))
+                .flatMap { local => localItem(def, local) }
+        )
     }
 
     /**
@@ -325,10 +415,12 @@ class Hovers {
      */
     func ofResolution(resolution: BodyResolution): Array<HoverItem> {
         match (resolution) {
-            case Values(targets) => targets |> filterMap {target: ValueTarget => valueItem(target, None)} |>
-                collectArray
-            case InFile(resolution) => fileDecls(resolution) |> filterMap {id: DefId => declItem(id, None)} |>
-                collectArray
+            case Values(targets) =>
+                targets |> filterMap { target: ValueTarget => valueItem(target, None) } |>
+                    collectArray
+            case InFile(resolution) =>
+                fileDecls(resolution) |> filterMap { id: DefId => declItem(id, None) } |>
+                    collectArray
         }
     }
 
@@ -352,15 +444,26 @@ class Hovers {
             case GenericOf(owner, index) =>
                 let name = genericsOf(db, owner).get(index) ?? return None
                 let param = Ty(db, ParamTy(owner, index))
-                boundedItem(name, signatureTypes(db, owner).bounds |> filter {bound: TyBound => bound.ty == param} |>
-                    flatMap {bound: TyBound => bound.bounds} |> map {one: Ty => one.text(db)} |> collectArray)
+                boundedItem(
+                    name,
+                    signatureTypes(db, owner).bounds |>
+                        filter { bound: TyBound => bound.ty == param } |>
+                        flatMap { bound: TyBound => bound.bounds } |>
+                        map { one: Ty => one.text(db) } |>
+                        collectArray
+                )
             case LocalGenericOf(owner, localFunc, index) =>
                 let lowered = body(db, owner)
                 let localFn = lowered.funcs.get(localFunc) ?? return None
                 let name = localFn.generics.get(index) ?? return None
                 let types = lowered.typesAsSignature()
-                boundedItem(name, localFn.bounds |> filter {bound: TypeBound => types.text(bound.ty) == name} |>
-                    flatMap {bound: TypeBound => bound.bounds} |> map {one: TypeRefId => types.text(one)} |> collectArray)
+                boundedItem(
+                    name,
+                    localFn.bounds |> filter { bound: TypeBound => types.text(bound.ty) == name } |>
+                        flatMap { bound: TypeBound => bound.bounds } |>
+                        map { one: TypeRefId => types.text(one) } |>
+                        collectArray
+                )
             // a package, which declares nothing
             case QualifierOf(_) => None
         }
@@ -384,16 +487,23 @@ class Hovers {
     func localItem(owner: DefId, local: LocalId): ?HoverItem {
         let lowered = bodyWithSourceMap(db, owner)
         // a member parameter is the member it declares, at its declaration as at its uses
-        if (lowered.body.params.iterator().any {param => param.local == Some(local) && param.isMember}) {
+        if (
+            lowered
+                .body
+                .params
+                .iterator()
+                .any { param => param.local == Some(local) && param.isMember }
+        ) {
             return memberParamItem(owner, local, None)
         }
         let declared = lowered.body.locals.get(local.index) ?? return None
         let ty = inferBody(db, owner)[local] ?? Ty(db, ErrorTy)
-        let code = match (declared.kind) {
-            case VarLocal => "${varKeyword(owner, local)}${declared.name}: ${ty.text(db)}"
-            case FuncLocal => localFuncCode(lowered.body, local, ty)
-            case _ => "${declared.name}: ${ty.text(db)}"
-        }
+        let code =
+            match (declared.kind) {
+                case VarLocal => "${varKeyword(owner, local)}${declared.name}: ${ty.text(db)}"
+                case FuncLocal => localFuncCode(lowered.body, local, ty)
+                case _ => "${declared.name}: ${ty.text(db)}"
+            }
         HoverItem(code)
     }
 
@@ -404,7 +514,7 @@ class Hovers {
     private func varKeyword(owner: DefId, local: LocalId): String {
         let name = nameNodeOf(owner, local) ?? return ""
         // a member parameter of a primary constructor
-        if (let Some(param) <- name.parent.flatMap {node => Param.cast(node)}) {
+        if (let Some(param) <- name.parent.flatMap { node => Param.cast(node) }) {
             return if (param.varToken().isSome()) {
                 "var "
             } else if (param.letToken().isSome()) {
@@ -413,7 +523,9 @@ class Hovers {
                 ""
             }
         }
-        let decl = (name.ancestors() |> filterMap {node: CjSyntaxNode => VarDecl.cast(node)} |> first) ?? return ""
+        let decl =
+            (name.ancestors() |> filterMap { node: CjSyntaxNode => VarDecl.cast(node) } |> first) ??
+                return ""
         keywordOf(decl)
     }
 
@@ -421,24 +533,36 @@ class Hovers {
      * The name of `local` in the source of the body of `owner`, as written.
      */
     private func nameNodeOf(owner: DefId, local: LocalId): ?CjSyntaxNode {
-        let source = match (bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index)) {
-            case Some(WrittenSource(source)) => source
-            case _ => return None
-        }
+        let source =
+            match (bodyWithSourceMap(db, owner).sourceMap.locals.get(local.index)) {
+                case Some(WrittenSource(source)) => source
+                case _ => return None
+            }
         source.node(db, owner.file(db))
     }
 
     private func localFuncCode(body: Body, local: LocalId, ty: Ty): String {
         let name = body[local].name
-        let localFunc = (body.funcs |> filter {one: LocalFunc => one.local == local} |> first) ?? return "func ${name}"
-        let (params, ret) = match (ty.kind(db)) {
-            case FuncTy(params, ret, _) => (params, ret)
-            case _ => return "func ${name}"
-        }
-        let names = localFunc.params.map {
-            param => param.local.flatMap {one => body.locals.get(one.index)}.map {one => one.name} ?? "_"
-        }
-        let written = Array(params.size) {i => "${names.get(i) ?? "_"}: ${params[i].text(db)}"}
+        let localFunc =
+            (body.funcs |> filter { one: LocalFunc => one.local == local } |> first) ??
+                return "func ${name}"
+        let (params, ret) =
+            match (ty.kind(db)) {
+                case FuncTy(params, ret, _) => (params, ret)
+                case _ => return "func ${name}"
+            }
+        let names =
+            localFunc
+                .params
+                .map {
+                    param =>
+                    param
+                        .local
+                        .flatMap { one => body.locals.get(one.index) }
+                        .map { one => one.name } ??
+                        "_"
+                }
+        let written = Array(params.size) { i => "${names.get(i) ?? "_"}: ${params[i].text(db)}" }
         "func ${name}${genericList(localFunc.generics)}(${String.join(written, delimiter: ", ")}): ${ret.text(db)}"
     }
 
@@ -448,11 +572,16 @@ class Hovers {
      */
     func memberParamItem(ctor: DefId, local: LocalId, recv: ?Ty): ?HoverItem {
         let params = body(db, ctor).params
-        let index = (0..params.size |> filter {i: Int64 => params[i].local == Some(local)} |> first) ?? return None
+        let index =
+            (0..params.size |> filter { i: Int64 => params[i].local == Some(local) } |> first) ??
+                return None
         let ty = seen(signatureTypes(db, ctor).params.get(index) ?? return None, ctor, recv)
         let name = body(db, ctor).locals.get(local.index)?.name ?? return None
         // the doc comment before the parameter (#377)
-        let doc = nameNodeOf(ctor, local).flatMap {node => node.parent}.flatMap {param => docOfNode(param)}
+        let doc =
+            nameNodeOf(ctor, local)
+                .flatMap { node => node.parent }
+                .flatMap { param => docOfNode(param) }
         HoverItem("${varKeyword(ctor, local)}${name}: ${ty.text(db)}", path: pathOf(ctor), doc: doc)
     }
 
@@ -473,52 +602,70 @@ class Hovers {
     func declItem(id: DefId, recv: ?Ty): ?HoverItem {
         let item = declItemOf(db, id) ?? return None
         let sig = signatureTypes(db, id)
-        let ty = {one: Ty => seen(one, id, recv).text(db)}
+        let ty = { one: Ty => seen(one, id, recv).text(db) }
         let names = item.names
-        let name = match (token) {
-            case Some(one) where names.contains(one.text()) => one.text()
-            case _ => names.get(0) ?? "_"
-        }
+        let name =
+            match (token) {
+                case Some(one) where names.contains(one.text()) => one.text()
+                case _ => names.get(0) ?? "_"
+            }
         let generics = genericList(sig.generics)
-        let params = {=> "(${String.join(paramsOf(id, sig, ty), delimiter: ", ")})"}
-        let declared = {=> ty(declaredTyOf(db, id))}
-        let head = match (item.kind) {
-            case Func => "func ${name}${generics}${params()}: ${declared()}"
-            case Main => "main${params()}: ${declared()}"
-            case Macro => "macro ${name}${params()}"
-            case Init => "init${generics}${params()}"
-            case PrimaryInit => "${name}${params()}"
-            case Finalizer => "~init()"
-            case Class => "class ${name}${generics}${supersOf(id, item, sig, ty)}"
-            case Interface => "interface ${name}${generics}${supersOf(id, item, sig, ty)}"
-            case Struct => "struct ${name}${generics}${supersOf(id, item, sig, ty)}"
-            case Enum => "enum ${name}${generics}${supersOf(id, item, sig, ty)}"
-            case BuiltIn => "type ${name}${generics}"
-            case Extend => "extend${generics} ${sig.ty.map {one => ty(one)} ?? "_"}${supersOf(id, item, sig, ty)}"
-            case TypeAlias => "type ${name}${generics} = ${sig.ty.map {one => ty(one)} ?? "_"}"
-            case EnumCtor where sig.params.isEmpty() => name
-            case EnumCtor => "${name}(${String.join(sig.params.map {one => ty(one)}, delimiter: ", ")})"
-            // one name of several of a pattern: its type is the pattern's
-            case Var where names.size > 1 => "${varKeyword(id)}${name}"
-            case Var => "${varKeyword(id)}${name}: ${declared()}"
-            case Prop => "prop ${name}: ${declared()}"
-            case Import | MacroCall => return None
-        }
-        let bounds = if (sig.bounds.isEmpty()) {
-            ""
-        } else {
-            " where " + String.join(sig.bounds.map {
-                bound => "${ty(bound.ty)} <: ${String.join(bound.bounds.map {one => ty(one)}, delimiter: " & ")}"
-            }, delimiter: ", ")
-        }
+        let params = { => "(${String.join(paramsOf(id, sig, ty), delimiter: ", ")})" }
+        let declared = { => ty(declaredTyOf(db, id)) }
+        let head =
+            match (item.kind) {
+                case Func => "func ${name}${generics}${params()}: ${declared()}"
+                case Main => "main${params()}: ${declared()}"
+                case Macro => "macro ${name}${params()}"
+                case Init => "init${generics}${params()}"
+                case PrimaryInit => "${name}${params()}"
+                case Finalizer => "~init()"
+                case Class => "class ${name}${generics}${supersOf(id, item, sig, ty)}"
+                case Interface => "interface ${name}${generics}${supersOf(id, item, sig, ty)}"
+                case Struct => "struct ${name}${generics}${supersOf(id, item, sig, ty)}"
+                case Enum => "enum ${name}${generics}${supersOf(id, item, sig, ty)}"
+                case BuiltIn => "type ${name}${generics}"
+                case Extend =>
+                    "extend${generics} ${sig.ty.map {one => ty(one)} ?? "_"}${supersOf(id, item, sig, ty)}"
+                case TypeAlias => "type ${name}${generics} = ${sig.ty.map {one => ty(one)} ?? "_"}"
+                case EnumCtor where sig.params.isEmpty() => name
+                case EnumCtor =>
+                    "${name}(${String.join(sig.params.map {one => ty(one)}, delimiter: ", ")})"
+                // one name of several of a pattern: its type is the pattern's
+                case Var where names.size > 1 => "${varKeyword(id)}${name}"
+                case Var => "${varKeyword(id)}${name}: ${declared()}"
+                case Prop => "prop ${name}: ${declared()}"
+                case Import | MacroCall => return None
+            }
+        let bounds =
+            if (sig.bounds.isEmpty()) {
+                ""
+            } else {
+                " where " +
+                    String
+                        .join(
+                            sig
+                                .bounds
+                                .map {
+                                    bound =>
+                                    "${ty(bound.ty)} <: ${String.join(bound.bounds.map {one => ty(one)}, delimiter: " & ")}"
+                                },
+                            delimiter: ", "
+                        )
+            }
         let modifiers = modifiersText(item)
         // a type of the compiler's own has no doc comment: our words of it
-        let builtin = if (item.kind == ItemKind.BuiltIn) {
-            builtinTypeDoc(name)
-        } else {
-            Option<BuiltinDoc>.None
-        }
-        HoverItem("${modifiers}${head}${bounds}", path: pathOf(id), doc: docOf(id) ?? builtin?.summary)
+        let builtin =
+            if (item.kind == ItemKind.BuiltIn) {
+                builtinTypeDoc(name)
+            } else {
+                Option<BuiltinDoc>.None
+            }
+        HoverItem(
+            "${modifiers}${head}${bounds}",
+            path: pathOf(id),
+            doc: docOf(id) ?? builtin?.summary
+        )
     }
 
     /**
@@ -528,10 +675,11 @@ class Hovers {
         let names = paramNamesOf(id)
         Array(sig.params.size) {
             i =>
-            let byName = match (sig.paramNames.get(i).flatMap {one => one}) {
-                case Some(_) => "!"
-                case _ => ""
-            }
+            let byName =
+                match (sig.paramNames.get(i).flatMap { one => one }) {
+                    case Some(_) => "!"
+                    case _ => ""
+                }
             "${names.get(i) ?? "_"}${byName}: ${ty(sig.params[i])}"
         }
     }
@@ -545,9 +693,10 @@ class Hovers {
             case file =>
                 let (root, ids) = syntaxOf(db, file) ?? return []
                 let node = ids.node(id.item(db), root) ?? return []
-                node.children() |> filterMap {child: CjSyntaxNode => ParamList.cast(child)} |> flatMap {
-                    list: ParamList => list.writtenParams()
-                } |> map {param: Param => param.name()?.text() ?? "_"} |> collectArray
+                node.children() |> filterMap { child: CjSyntaxNode => ParamList.cast(child) } |>
+                    flatMap { list: ParamList => list.writtenParams() } |>
+                    map { param: Param => param.name()?.text() ?? "_" } |>
+                    collectArray
         }
     }
 
@@ -555,19 +704,17 @@ class Hovers {
         let index = binaryExports(db, pkg).declIndex(item) ?? return []
         try {
             let cjo = openCjo(pkg.bytes(db))
-            let lists = match (cjo.allDecls[index].info) {
-                case Some(DeclInfo.AsFuncInfo(it)) => (it.funcBody ?? return []).paramLists.toArray()
-                case _ => return []
-            }
+            let lists =
+                match (cjo.allDecls[index].info) {
+                    case Some(DeclInfo.AsFuncInfo(it)) =>
+                        (it.funcBody ?? return []).paramLists.toArray()
+                    case _ => return []
+                }
             let names = ArrayList<String>()
             for (list in lists) {
                 for (param in list.params) {
                     let name = cjo.allDecls[Int64(param) - 1].identifier ?? ""
-                    names.add(if (name.isEmpty()) {
-                        "_"
-                    } else {
-                        name
-                    })
+                    names.add(if (name.isEmpty()) { "_" } else { name })
                 }
             }
             names.toArray()
@@ -584,13 +731,16 @@ class Hovers {
             case Source(_) | Expansion(_) =>
                 let (root, ids) = syntaxOf(db, id.file(db)) ?? return ""
                 keywordOf(VarDecl.cast(ids.node(id.item(db), root) ?? return "") ?? return "")
-            case Binary(pkg, file) => match (binaryDecl(db, pkg, BinaryItem(file, id.item(db))).flatMap {decl => decl.info}) {
-                case Some(DeclInfo.AsVarInfo(it)) where it.isConst => ""
-                case Some(DeclInfo.AsVarInfo(it)) where it.isVar => "var "
-                case Some(DeclInfo.AsVarWithPatternInfo(it)) where it.isConst => ""
-                case Some(DeclInfo.AsVarWithPatternInfo(it)) where it.isVar => "var "
-                case _ => "let "
-            }
+            case Binary(pkg, file) =>
+                match (
+                    binaryDecl(db, pkg, BinaryItem(file, id.item(db))).flatMap { decl => decl.info }
+                ) {
+                    case Some(DeclInfo.AsVarInfo(it)) where it.isConst => ""
+                    case Some(DeclInfo.AsVarInfo(it)) where it.isVar => "var "
+                    case Some(DeclInfo.AsVarWithPatternInfo(it)) where it.isConst => ""
+                    case Some(DeclInfo.AsVarWithPatternInfo(it)) where it.isVar => "var "
+                    case _ => "let "
+                }
         }
     }
 
@@ -599,21 +749,19 @@ class Hovers {
      * on it add, `@Derive[...]`'s; not the `Object` cjc gives a class of no superclass.
      */
     private func supersOf(id: DefId, item: Item, sig: SignatureTypes, ty: (Ty) -> String): String {
-        let added = match (item.kind) {
-            case Class | Struct | Enum => addedSupersOf(id)
-            case _ => Array<Ty>()
-        }
-        let written = sig.supers.concat(added).map {one => ty(one)}
-        let shown = if (item.kind == ItemKind.Class && written.get(0) == Some("Object")) {
-            written[1..]
-        } else {
-            written
-        }
-        if (shown.isEmpty()) {
-            ""
-        } else {
-            " <: " + String.join(shown, delimiter: " & ")
-        }
+        let added =
+            match (item.kind) {
+                case Class | Struct | Enum => addedSupersOf(id)
+                case _ => Array<Ty>()
+            }
+        let written = sig.supers.concat(added).map { one => ty(one) }
+        let shown =
+            if (item.kind == ItemKind.Class && written.get(0) == Some("Object")) {
+                written[1..]
+            } else {
+                written
+            }
+        if (shown.isEmpty()) { "" } else { " <: " + String.join(shown, delimiter: " & ") }
     }
 
     /**
@@ -623,15 +771,22 @@ class Hovers {
      */
     private func addedSupersOf(id: DefId): Array<Ty> {
         match (id.file(db)) {
-            case Source(file) => expandedCalls(db, file).filter {call => call.item(db) == id.item(db)}.map {
-                call => extendSupersIn(call, {_ => true})
-            }.flatten()
-            case Expansion(call) => extendSupersIn(call, {
-                extended => match (extended.kind(db)) {
-                    case DeclTy(of, _) => of == id
-                    case _ => false
-                }
-            })
+            case Source(file) =>
+                expandedCalls(db, file)
+                    .filter { call => call.item(db) == id.item(db) }
+                    .map { call => extendSupersIn(call, { _ => true }) }
+                    .flatten()
+            case Expansion(call) =>
+                extendSupersIn(
+                    call,
+                    {
+                        extended =>
+                        match (extended.kind(db)) {
+                            case DeclTy(of, _) => of == id
+                            case _ => false
+                        }
+                    }
+                )
             case _ => []
         }
     }
@@ -641,30 +796,40 @@ class Hovers {
      */
     private func extendSupersIn(call: MacroCallId, takes: (Ty) -> Bool): Array<Ty> {
         let file = ItemFile.Expansion(call)
-        expansionItemTree(db, call).items.filter {item => item.kind == ItemKind.Extend}.map {
-            item => signatureTypes(db, DefId(db, file, item.id))
-        }.filter {sig => sig.ty.map {one => takes(one)} ?? false}.map {sig => sig.supers}.flatten()
+        expansionItemTree(db, call)
+            .items
+            .filter { item => item.kind == ItemKind.Extend }
+            .map { item => signatureTypes(db, DefId(db, file, item.id)) }
+            .filter { sig => sig.ty.map { one => takes(one) } ?? false }
+            .map { sig => sig.supers }
+            .flatten()
     }
 
     /**
      * Where `id` is declared: its package, and the type it is a member of, an `extend`'s type.
      */
     private func pathOf(id: DefId): ?String {
-        let pkg = match (id.file(db)) {
-            case Binary(binary, _) => binary.name(db)
-            case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}?.name(db)
-        }
-        let owner: ?String = match (parentOf(db, id)) {
-            case Some(parent) where parent.item(db).kind == ItemKind.Extend => match (signatureTypes(db, parent).ty) {
-                case Some(extended) => match (extended.kind(db)) {
-                    case DeclTy(of, _) => declItemOf(db, of).flatMap {one => one.names.get(0)}
-                    case _ => extended.text(db)
-                }
+        let pkg =
+            match (id.file(db)) {
+                case Binary(binary, _) => binary.name(db)
+                case file =>
+                    scopeFileOf(db, file).flatMap { one => packageOfFile(db, one) }?.name(db)
+            }
+        let owner: ?String =
+            match (parentOf(db, id)) {
+                case Some(parent) where parent.item(db).kind == ItemKind.Extend =>
+                    match (signatureTypes(db, parent).ty) {
+                        case Some(extended) =>
+                            match (extended.kind(db)) {
+                                case DeclTy(of, _) =>
+                                    declItemOf(db, of).flatMap { one => one.names.get(0) }
+                                case _ => extended.text(db)
+                            }
+                        case None => None
+                    }
+                case Some(parent) => declItemOf(db, parent).flatMap { one => one.names.get(0) }
                 case None => None
             }
-            case Some(parent) => declItemOf(db, parent).flatMap {one => one.names.get(0)}
-            case None => None
-        }
         match ((pkg, owner)) {
             case (Some(one), Some(name)) => "${one}.${name}"
             case (Some(one), None) => one
@@ -678,22 +843,28 @@ class Hovers {
      * where they are (D65).
      */
     private func docOf(id: DefId): ?String {
-        let node = match (id.file(db)) {
-            case Source(_) => (nodeOf(db, id) ?? return None)[1]
-            case Binary(pkg, file) =>
-                let target = binaryTarget(db, pkg, file, id.item(db)) ?? return None
-                let source = db.sourceFile(target.fileId) ?? return None
-                documentedAt(parse(db, source).syntaxNode(), target.focusRange.start) ?? return None
-            // a declaration a workspace macro copied has the doc comment of the one it copied (#176); what a macro
-            // wrote has none (#175)
-            case Expansion(call) =>
-                let (name, _) = expansionOrigin(db, call, id.item(db)) ?? return None
-                let node = documentedAt(parse(db, call.file(db)).syntaxNode(), name.start) ?? return None
-                if (AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange != name) {
-                    return None
-                }
-                node
-        }
+        let node =
+            match (id.file(db)) {
+                case Source(_) => (nodeOf(db, id) ?? return None)[1]
+                case Binary(pkg, file) =>
+                    let target = binaryTarget(db, pkg, file, id.item(db)) ?? return None
+                    let source = db.sourceFile(target.fileId) ?? return None
+                    documentedAt(parse(db, source).syntaxNode(), target.focusRange.start) ??
+                        return None
+                // a declaration a workspace macro copied has the doc comment of the one it copied (#176); what a macro
+                // wrote has none (#175)
+                case Expansion(call) =>
+                    let (name, _) = expansionOrigin(db, call, id.item(db)) ?? return None
+                    let node =
+                        documentedAt(parse(db, call.file(db)).syntaxNode(), name.start) ??
+                            return None
+                    if (
+                        AnyHasName.cast(node).flatMap { it => it.name() }?.syntax.textRange != name
+                    ) {
+                        return None
+                    }
+                    node
+            }
         docOfNode(node)
     }
 
@@ -702,12 +873,8 @@ class Hovers {
      */
     private func docOfNode(node: CjSyntaxNode): ?String {
         let comments = AnyHasDocComment.cast(node)?.docComments() ?? return None
-        let doc = docText(comments.map {comment => comment.text()})
-        if (doc.isEmpty()) {
-            None
-        } else {
-            doc
-        }
+        let doc = docText(comments.map { comment => comment.text() })
+        if (doc.isEmpty()) { None } else { doc }
     }
 
     /**
@@ -716,12 +883,16 @@ class Hovers {
     private func fileDecls(resolution: Resolution): Array<DefId> {
         match (resolution) {
             case Found(ids) => ids
-            case Ambiguous(targets) => targets |> filterMap {
-                target: ScopeTarget => match (target) {
-                    case OfDecl(id) => id
-                    case OfPackage(_) => None
-                }
-            } |> collectArray
+            case Ambiguous(targets) =>
+                targets |>
+                    filterMap {
+                        target: ScopeTarget =>
+                        match (target) {
+                            case OfDecl(id) => id
+                            case OfPackage(_) => None
+                        }
+                    } |>
+                    collectArray
             case Ctors(own, imported) => own.concat(imported)
             case _ => []
         }
@@ -749,11 +920,7 @@ func keywordOf(decl: VarDecl): String {
 }
 
 func genericList(generics: Array<String>): String {
-    if (generics.isEmpty()) {
-        ""
-    } else {
-        "<${String.join(generics, delimiter: ", ")}>"
-    }
+    if (generics.isEmpty()) { "" } else { "<${String.join(generics, delimiter: ", ")}>" }
 }
 
 /**
@@ -762,21 +929,33 @@ func genericList(generics: Array<String>): String {
  */
 func modifiersText(item: Item): String {
     let access = [Modifier.Public, Modifier.Protected, Modifier.Internal, Modifier.Private]
-    let shown = item.modifiers.filter {one => access.contains(one)}.concat(
-        item.modifiers.filter {one => !access.contains(one) && one != Modifier.Common && one != Modifier.Specific})
-    String.join(shown.map {one => "${one} "}, delimiter: "")
+    let shown =
+        item
+            .modifiers
+            .filter { one => access.contains(one) }
+            .concat(
+                item
+                    .modifiers
+                    .filter {
+                        one =>
+                        !access.contains(one) && one != Modifier.Common && one != Modifier.Specific
+                    }
+            )
+    String.join(shown.map { one => "${one} " }, delimiter: "")
 }
 
 /**
  * The declaration of the token at `offset` of `root` that can have a doc comment, the innermost.
  */
 func documentedAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxNode {
-    let at = match (root.tokenAtOffset(offset)) {
-        case Single(one) => one
-        case Between(_, right) => right
-        case _ => return None
-    }
-    at.parent.ancestors() |> filter {one: CjSyntaxNode => AnyHasDocComment.canCast(one.kind)} |> first
+    let at =
+        match (root.tokenAtOffset(offset)) {
+            case Single(one) => one
+            case Between(_, right) => right
+            case _ => return None
+        }
+    at.parent.ancestors() |> filter { one: CjSyntaxNode => AnyHasDocComment.canCast(one.kind) } |>
+        first
 }
 
 /**
@@ -795,18 +974,21 @@ func docText(comments: Array<String>): String {
         let split = inner.split("\n")
         for (i in 0..split.size) {
             let trimmed = split[i].trimAsciiStart()
-            lines.add(if (trimmed.startsWith("*")) {
-                dropSpace(trimmed.removePrefix("*"))
-            } else if (i == 0) {
-                // the text after the opening, `/** text`
-                trimmed
-            } else {
-                split[i]
-            })
+            lines
+                .add(
+                    if (trimmed.startsWith("*")) {
+                        dropSpace(trimmed.removePrefix("*"))
+                    } else if (i == 0) {
+                        // the text after the opening, `/** text`
+                        trimmed
+                    } else {
+                        split[i]
+                    }
+                )
         }
     }
-    let kept = lines.toArray().map {one => one.trimAsciiEnd()}
-    let first = (0..kept.size |> filter {i: Int64 => !kept[i].isEmpty()} |> first) ?? return ""
+    let kept = lines.toArray().map { one => one.trimAsciiEnd() }
+    let first = (0..kept.size |> filter { i: Int64 => !kept[i].isEmpty() } |> first) ?? return ""
     var last = kept.size - 1
     while (kept[last].isEmpty()) {
         last--
@@ -815,9 +997,5 @@ func docText(comments: Array<String>): String {
 }
 
 func dropSpace(text: String): String {
-    if (text.startsWith(" ")) {
-        text[1..]
-    } else {
-        text
-    }
+    if (text.startsWith(" ")) { text[1..] } else { text }
 }

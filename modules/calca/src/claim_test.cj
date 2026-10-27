@@ -95,11 +95,11 @@ class ClaimTest {
         // arrange - the first handle is inside the body
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
-        let owner = spawnQuery(db.snapshot()) {s => parkedSize(s, file)}
+        let owner = spawnQuery(db.snapshot()) { s => parkedSize(s, file) }
         db.parking.parked.remove()
 
         // act
-        let waiter = spawnQuery(db.snapshot()) {s => parkedSize(s, file)}
+        let waiter = spawnQuery(db.snapshot()) { s => parkedSize(s, file) }
         waitForWaiters(db, 1)
         db.parking.released.add(())
 
@@ -116,15 +116,13 @@ class ClaimTest {
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let probe = db.snapshot()
-        let owner = spawnQuery(db.snapshot()) {s => parkedSize(s, file)}
+        let owner = spawnQuery(db.snapshot()) { s => parkedSize(s, file) }
         db.parking.parked.remove()
-        let waiter = spawnQuery(db.snapshot()) {s => parkedSize(s, file)}
+        let waiter = spawnQuery(db.snapshot()) { s => parkedSize(s, file) }
         waitForWaiters(db, 1)
 
         // act
-        let write = spawn {
-            file.setText(db).to("bye")
-        }
+        let write = spawn { file.setText(db).to("bye") }
         waitUntilCancelled(probe)
         db.parking.released.add(())
 
@@ -141,10 +139,11 @@ class ClaimTest {
         // arrange
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
-        let owner = spawnQuery(db.snapshot()) {s => parkedSize(s, file)}
+        let owner = spawnQuery(db.snapshot()) { s => parkedSize(s, file) }
         db.parking.parked.remove()
         let stop = AtomicBool(false)
-        let waiter = spawnQuery(db.snapshot(cancelledBy: {=> stop.load()})) {s => parkedSize(s, file)}
+        let waiter =
+            spawnQuery(db.snapshot(cancelledBy: { => stop.load() })) { s => parkedSize(s, file) }
         waitForWaiters(db, 1)
 
         // act
@@ -162,9 +161,9 @@ class ClaimTest {
         // arrange - each handle claims one memo, and parks before it needs the other's
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
-        let first = spawnQuery(db.snapshot()) {s => needsTheOther(s, file)}
+        let first = spawnQuery(db.snapshot()) { s => needsTheOther(s, file) }
         db.parking.parked.remove()
-        let second = spawnQuery(db.snapshot()) {s => needsTheFirst(s, file)}
+        let second = spawnQuery(db.snapshot()) { s => needsTheFirst(s, file) }
         db.parking.parked.remove()
 
         // act
@@ -183,9 +182,9 @@ class ClaimTest {
         // arrange - each handle claims one end of the cycle, and parks before it needs the other
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
-        let fromHead = spawnQuery(db.snapshot()) {s => parkedHead(s, file)}
+        let fromHead = spawnQuery(db.snapshot()) { s => parkedHead(s, file) }
         db.parking.parked.remove()
-        let fromTail = spawnQuery(db.snapshot()) {s => parkedTail(s, file)}
+        let fromTail = spawnQuery(db.snapshot()) { s => parkedTail(s, file) }
         db.parking.parked.remove()
 
         // act
@@ -207,12 +206,14 @@ class ClaimTest {
         let file = SourceFile(db, "a.cj", "hello")
         let headParking = Parking()
         let tailParking = Parking()
-        let fromHead = spawnQuery(db.snapshot(parking: headParking)) {s => parkedHead(s, file)}
+        let fromHead = spawnQuery(db.snapshot(parking: headParking)) { s => parkedHead(s, file) }
         headParking.parked.remove()
         let stop = AtomicBool(false)
-        let fromTail = spawnQuery(db.snapshot(cancelledBy: {=> stop.load()}, parking: tailParking)) {
-            s => parkedTail(s, file)
-        }
+        let fromTail =
+            spawnQuery(db.snapshot(cancelledBy: { => stop.load() }, parking: tailParking)) {
+                s =>
+                parkedTail(s, file)
+            }
         tailParking.parked.remove()
         headParking.released.add(())
         waitForWaiters(db, 1)

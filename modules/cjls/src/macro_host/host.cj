@@ -41,9 +41,10 @@ public class MacroHost <: MacroWork {
 
     public MacroHost(private let loop: Loop, private let logger: Logger) {
         // made under `lock`: `condition` throws otherwise
-        woken = synchronized(lock) {
-            lock.condition()
-        }
+        woken =
+            synchronized (lock) {
+                lock.condition()
+            }
     }
 
     /**
@@ -63,7 +64,7 @@ public class MacroHost <: MacroWork {
     }
 
     public func wake(build: Bool): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             work = true
             this.build = this.build || build
             woken.notifyAll()
@@ -71,20 +72,20 @@ public class MacroHost <: MacroWork {
     }
 
     public func stop(): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             stopped = true
             woken.notifyAll()
         }
     }
 
     private func isStopped(): Bool {
-        synchronized(lock) {
+        synchronized (lock) {
             stopped
         }
     }
 
     private func next(): ?Bool {
-        synchronized(lock) {
+        synchronized (lock) {
             while (!work && !stopped) {
                 woken.wait()
             }
@@ -113,9 +114,12 @@ public class MacroHost <: MacroWork {
     }
 
     private func cycle(build: Bool): Unit {
-        let (settings, roots, cacheDirs) = loop.write {
-            state: ServerState => (state.settings, state.roots.toArray(), state.cacheDirs)
-        }
+        let (settings, roots, cacheDirs) =
+            loop
+                .write {
+                    state: ServerState =>
+                    (state.settings, state.roots.toArray(), state.cacheDirs)
+                }
         if (!settings.macroExpansion) {
             servers?.close()
             servers = None
@@ -143,8 +147,16 @@ public class MacroHost <: MacroWork {
             failed += notExpanded
         }
         if (sent > 0) {
-            logger.info("expanded macro calls", [("calls", sent), ("std", ofStd), ("failed", failed),
-                ("ms", (MonoTime.now() - started).toMilliseconds())])
+            logger
+                .info(
+                    "expanded macro calls",
+                    [
+                        ("calls", sent),
+                        ("std", ofStd),
+                        ("failed", failed),
+                        ("ms", (MonoTime.now() - started).toMilliseconds())
+                    ]
+                )
         }
     }
 
@@ -153,11 +165,14 @@ public class MacroHost <: MacroWork {
      * among them, and not expanded.
      */
     private func round(settings: Settings): ?(Int64, Int64, Int64) {
-        let (snapshot, open) = loop.write {
-            state: ServerState => (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
-        }
+        let (snapshot, open) =
+            loop
+                .write {
+                    state: ServerState =>
+                    (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
+                }
         let db = snapshot.analysis
-        let files = snapshot.files |> filterMap {id: FileId => db.sourceFile(id)} |> collectArray
+        let files = snapshot.files |> filterMap { id: FileId => db.sourceFile(id) } |> collectArray
         // nothing to ask, nothing to look for: std's macros need no build, but the SDK. A loop, and what is sent in a
         // frame of its own: at -O2 a lambda here, or the references of a send, crashed the GC that scanned this
         // thread while it parsed (SIGSEGV in `VisitStackRoots`, 1.3.0-alpha.20261014)
@@ -174,28 +189,46 @@ public class MacroHost <: MacroWork {
     /**
      * Sends what `files` of `snapshot` have to send, those `open` first, and sets the answers.
      */
-    private func send(settings: Settings, snapshot: ServerSnapshot, open: HashSet<VfsPath>, files: Array<SourceFile>):
-        ?(Int64, Int64, Int64) {
+    private func send(
+        settings: Settings,
+        snapshot: ServerSnapshot,
+        open: HashSet<VfsPath>,
+        files: Array<SourceFile>
+    ): ?(Int64, Int64, Int64) {
         let db = snapshot.analysis
         let sdk = sdkFor(settings) ?? return None
         let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
-        let requests = sendableRequests(db, files, libraries, stdLibrary: {pkg => sdk.stdLibrary(pkg)},
-            isOpen: {file => open.contains(snapshot.path(file.fileId(db)))})
+        let requests =
+            sendableRequests(
+                db,
+                files,
+                libraries,
+                stdLibrary: { pkg => sdk.stdLibrary(pkg) },
+                isOpen: { file => open.contains(snapshot.path(file.fileId(db))) }
+            )
         if (requests.isEmpty()) {
             return None
         }
         logger.debug("expanding macro calls", [("calls", requests.size)])
         // an edit midway ends the round: what came before it is set, and the next round asks what it changed
-        let answers = expandAll(db, requests, sdk.numbers, expander, stopped: {=> isStopped()})
-        let ofStd = requests[..answers.size].iterator().filter {one => one[1].definition.isStd}.count()
+        let answers = expandAll(db, requests, sdk.numbers, expander, stopped: { => isStopped() })
+        let ofStd =
+            requests[..answers.size].iterator().filter { one => one[1].definition.isStd }.count()
         var failed = 0
         for ((file, key, output) in answers where output.expansion.isNone()) {
             failed++
-            logger.debug("a macro call was not expanded", [("file", snapshot.path(file.fileId(db)).toString()),
-                ("call", key.toString()), ("why", output.diagnostics.get(0)?.message ?? "")])
+            logger
+                .debug(
+                    "a macro call was not expanded",
+                    [
+                        ("file", snapshot.path(file.fileId(db)).toString()),
+                        ("call", key.toString()),
+                        ("why", output.diagnostics.get(0)?.message ?? "")
+                    ]
+                )
         }
         if (!answers.isEmpty()) {
-            loop.write {state: ServerState => state.setMacroOutputs(answers)}
+            loop.write { state: ServerState => state.setMacroOutputs(answers) }
         }
         (answers.size, ofStd, failed)
     }
@@ -220,7 +253,11 @@ public class MacroHost <: MacroWork {
      * libraries; a new library ends the server, which keeps the old one loaded. Nothing is built in a directory
      * another server builds in.
      */
-    private func buildLibraries(settings: Settings, roots: Array<VfsPath>, cacheDirs: CacheDirs): Unit {
+    private func buildLibraries(
+        settings: Settings,
+        roots: Array<VfsPath>,
+        cacheDirs: CacheDirs
+    ): Unit {
         let snapshot = loop.snapshot()
         let db = snapshot.analysis
         let plan = macroBuildPlan(db)
@@ -230,8 +267,14 @@ public class MacroHost <: MacroWork {
         let sdk = sdkFor(settings) ?? return ()
         let name = dirNameOf(sdk.version)
         let outs = HashMap<String, ?Path>()
-        let built = buildPlan(db, plan, {pkg => macroBuildOf(snapshot, pkg, roots, cacheDirs, name, outs)},
-            sdk.version, sdk.toolchain)
+        let built =
+            buildPlan(
+                db,
+                plan,
+                { pkg => macroBuildOf(snapshot, pkg, roots, cacheDirs, name, outs) },
+                sdk.version,
+                sdk.toolchain
+            )
         for (dir in built.held) {
             logger.info("another server builds the macros", [("directory", dir.toString())])
         }
@@ -243,14 +286,23 @@ public class MacroHost <: MacroWork {
                 case Built(path, stamp) =>
                     if (libraries.get(pkg)?.stamp != Some(stamp)) {
                         changed = true
-                        logger.info("built a macro package", [("package", pkgName), ("library", path.toString())])
+                        logger
+                            .info(
+                                "built a macro package",
+                                [("package", pkgName), ("library", path.toString())]
+                            )
                     }
                     libraries[pkg] = MacroLibrary(path.toString(), stamp)
                     reported.remove(key)
-                case NotBuilt(reason) => if (reported.add(key)) {
-                    // the last library stands: cjc wrote nothing
-                    logger.warn("a macro package did not build", [("package", pkgName), ("reason", reason)])
-                }
+                case NotBuilt(reason) =>
+                    if (reported.add(key)) {
+                        // the last library stands: cjc wrote nothing
+                        logger
+                            .warn(
+                                "a macro package did not build",
+                                [("package", pkgName), ("reason", reason)]
+                            )
+                    }
             }
         }
         let stamps = ArrayList<(Package, Int64)>()
@@ -262,7 +314,7 @@ public class MacroHost <: MacroWork {
         if (changed) {
             servers?.restartWorkspace()
         }
-        loop.write {state: ServerState => state.setMacroLibraries(stamps.toArray())}
+        loop.write { state: ServerState => state.setMacroLibraries(stamps.toArray()) }
     }
 
     /**
@@ -270,26 +322,36 @@ public class MacroHost <: MacroWork {
      * directory, each directory's taken once a build, in `outs`, since taking it marks it used; `None`, logged once,
      * if there is none.
      */
-    private func macroBuildOf(snapshot: ServerSnapshot, pkg: Package, roots: Array<VfsPath>, cacheDirs: CacheDirs,
-        name: String, outs: HashMap<String, ?Path>): ?Path {
+    private func macroBuildOf(
+        snapshot: ServerSnapshot,
+        pkg: Package,
+        roots: Array<VfsPath>,
+        cacheDirs: CacheDirs,
+        name: String,
+        outs: HashMap<String, ?Path>
+    ): ?Path {
         let db = snapshot.analysis
         let file = pkg.files(db).get(0) ?? return None
-        let cacheDir = match (cacheDirs.of(snapshot.path(file), roots)) {
-            case Some(dir) => dir
-            case None =>
-                report("no directory ${pkg.name(db)} can be built in: its macros are not expanded")
-                return None
-        }
+        let cacheDir =
+            match (cacheDirs.of(snapshot.path(file), roots)) {
+                case Some(dir) => dir
+                case None =>
+                    report(
+                        "no directory ${pkg.name(db)} can be built in: its macros are not expanded"
+                    )
+                    return None
+            }
         let key = cacheDir.path.toString()
         if (let Some(out) <- outs.get(key)) {
             return out
         }
-        let out = try {
-            cacheDir.macroBuild(name)
-        } catch (e: FSException) {
-            report("${cacheDir.path} cannot be written: ${e.message}")
-            None<Path>
-        }
+        let out =
+            try {
+                cacheDir.macroBuild(name)
+            } catch (e: FSException) {
+                report("${cacheDir.path} cannot be written: ${e.message}")
+                None<Path>
+            }
         outs[key] = out
         out
     }
@@ -299,18 +361,20 @@ public class MacroHost <: MacroWork {
      * once, if there is none or it cannot number tokens.
      */
     private func sdkFor(settings: Settings): ?MacroSdk {
-        let home = findCangjieHome(settings.cangjieHome, env: {name => getVariable(name)}) ?? return none(
-            "no SDK: the workspace's macros are not expanded")
+        let home =
+            findCangjieHome(settings.cangjieHome, env: { name => getVariable(name) }) ??
+                return none("no SDK: the workspace's macros are not expanded")
         let key = home.path.toString()
         if (sdkOf == key) {
             return sdk
         }
         sdkOf = key
         sdk = None
-        let found = match (macroSdkIn(Path(home.path))) {
-            case Usable(found) => found
-            case Unusable(reason) => return none(reason)
-        }
+        let found =
+            match (macroSdkIn(Path(home.path))) {
+                case Usable(found) => found
+                case Unusable(reason) => return none(reason)
+            }
         sdk = found
         found
     }

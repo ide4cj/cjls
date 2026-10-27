@@ -29,7 +29,17 @@ public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: A
     for (i in 0..green.childCount) {
         if (let GreenElement.Node(n) <- green.child(i)) {
             if (T.canCast(n.kind)) {
-                if (let Some(it) <- T.cast(SyntaxNode(n, parent: parent, indexInParent: i, offset: parent.offset + green.childOffset(i)))) {
+                if (
+                    let Some(it) <- T
+                        .cast(
+                            SyntaxNode(
+                                n,
+                                parent: parent,
+                                indexInParent: i,
+                                offset: parent.offset + green.childOffset(i)
+                            )
+                        )
+                ) {
                     return it
                 }
             }
@@ -42,7 +52,9 @@ public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: A
  * The children of `parent` that are `T`s, in order.
  */
 @Frozen
-public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
+public func astChildren<K, T>(
+    parent: SyntaxNode<K>
+): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
     AstChildren<K, T>(parent, 0, None)
 }
 
@@ -52,8 +64,11 @@ public func astChildren<K, T>(parent: SyntaxNode<K>): Iterator<T> where K <: Kin
  * grammar and be taken for it.
  */
 @Frozen
-public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): ?T where K <: Kind<K>,
-    T <: AstNode<K, T> {
+public func astNthChild<K, T>(
+    parent: SyntaxNode<K>,
+    n: Int64,
+    counted: TokenSet<K>
+): ?T where K <: Kind<K>, T <: AstNode<K, T> {
     let green = parent.green
     var seen = 0
     for (i in 0..green.childCount) {
@@ -61,7 +76,15 @@ public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet
             if (counted.contains(node.kind)) {
                 if (seen == n) {
                     return if (T.canCast(node.kind)) {
-                        T.cast(SyntaxNode(node, parent: parent, indexInParent: i, offset: parent.offset + green.childOffset(i)))
+                        T
+                            .cast(
+                                SyntaxNode(
+                                    node,
+                                    parent: parent,
+                                    indexInParent: i,
+                                    offset: parent.offset + green.childOffset(i)
+                                )
+                            )
                     } else {
                         None
                     }
@@ -78,8 +101,11 @@ public func astNthChild<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet
  * indices of an index expression, after the expression indexed.
  */
 @Frozen
-public func astChildrenFrom<K, T>(parent: SyntaxNode<K>, n: Int64, counted: TokenSet<K>): Iterator<T> where K <: Kind<K>,
-    T <: AstNode<K, T> {
+public func astChildrenFrom<K, T>(
+    parent: SyntaxNode<K>,
+    n: Int64,
+    counted: TokenSet<K>
+): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
     AstChildren<K, T>(parent, n, counted)
 }
 
@@ -89,8 +115,11 @@ public func astChildrenFrom<K, T>(parent: SyntaxNode<K>, n: Int64, counted: Toke
  * condition of an `if` from the `if` of an `else if` while the condition is missing: the `)` between them.
  */
 @Frozen
-public func astChildBetween<K, T>(parent: SyntaxNode<K>, start: ?TokenSet<K>, end: ?TokenSet<K>): ?T where K <: Kind<K>,
-    T <: AstNode<K, T> {
+public func astChildBetween<K, T>(
+    parent: SyntaxNode<K>,
+    start: ?TokenSet<K>,
+    end: ?TokenSet<K>
+): ?T where K <: Kind<K>, T <: AstNode<K, T> {
     AstChildrenBetween<K, T>(parent, start, end).next()
 }
 
@@ -99,8 +128,11 @@ public func astChildBetween<K, T>(parent: SyntaxNode<K>, start: ?TokenSet<K>, en
  * that; `None` for either end of `parent`.
  */
 @Frozen
-public func astChildrenBetween<K, T>(parent: SyntaxNode<K>, start: ?TokenSet<K>,
-    end: ?TokenSet<K>): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
+public func astChildrenBetween<K, T>(
+    parent: SyntaxNode<K>,
+    start: ?TokenSet<K>,
+    end: ?TokenSet<K>
+): Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
     AstChildrenBetween<K, T>(parent, start, end)
 }
 
@@ -119,13 +151,24 @@ class AstChildrenBetween<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K
             let at = i
             i++
             match (green.child(at)) {
-                case GreenElement.Token(t) where !started => started = start?.contains(t.kind) ?? false
+                case GreenElement.Token(t) where !started =>
+                    started = start?.contains(t.kind) ?? false
                 case GreenElement.Token(t) where end?.contains(t.kind) ?? false =>
                     i = green.childCount
                     return None
                 case GreenElement.Token(_) => ()
                 case GreenElement.Node(n) where started && T.canCast(n.kind) =>
-                    if (let Some(it) <- T.cast(SyntaxNode(n, parent: parent, indexInParent: at, offset: parent.offset + green.childOffset(at)))) {
+                    if (
+                        let Some(it) <- T
+                            .cast(
+                                SyntaxNode(
+                                    n,
+                                    parent: parent,
+                                    indexInParent: at,
+                                    offset: parent.offset + green.childOffset(at)
+                                )
+                            )
+                    ) {
                         return it
                     }
                 case GreenElement.Node(_) => ()
@@ -154,7 +197,17 @@ class AstChildren<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
                 if (toSkip > 0 && (counted?.contains(n.kind) ?? false)) {
                     toSkip--
                 } else if (T.canCast(n.kind)) {
-                    if (let Some(it) <- T.cast(SyntaxNode(n, parent: parent, indexInParent: at, offset: parent.offset + green.childOffset(at)))) {
+                    if (
+                        let Some(it) <- T
+                            .cast(
+                                SyntaxNode(
+                                    n,
+                                    parent: parent,
+                                    indexInParent: at,
+                                    offset: parent.offset + green.childOffset(at)
+                                )
+                            )
+                    ) {
                         return it
                     }
                 }
@@ -186,19 +239,25 @@ public func astToken<K>(parent: SyntaxNode<K>, kind: K): ?SyntaxToken<K> where K
  * of a binary expression.
  */
 @Frozen
-public func astToken<K>(parent: SyntaxNode<K>, kinds: TokenSet<K>): ?SyntaxToken<K> where K <: Kind<K> {
-    ownTokens(parent).filter {t => kinds.contains(t.kind)}.next()
+public func astToken<K>(
+    parent: SyntaxNode<K>,
+    kinds: TokenSet<K>
+): ?SyntaxToken<K> where K <: Kind<K> {
+    ownTokens(parent).filter { t => kinds.contains(t.kind) }.next()
 }
 
 /**
  * The tokens of `parent`, not counting those inside its children, whose kind is `kind`: every `.` of a path.
  */
 @Frozen
-public func astTokens<K>(parent: SyntaxNode<K>, kind: K): Iterator<SyntaxToken<K>> where K <: Kind<K> {
-    ownTokens(parent).filter {t => t.kind == kind}
+public func astTokens<K>(
+    parent: SyntaxNode<K>,
+    kind: K
+): Iterator<SyntaxToken<K>> where K <: Kind<K> {
+    ownTokens(parent).filter { t => t.kind == kind }
 }
 
 @Frozen
 func ownTokens<K>(parent: SyntaxNode<K>): Iterator<SyntaxToken<K>> where K <: Kind<K> {
-    parent.childrenWithTokens().filterMap {el => el.asToken()}
+    parent.childrenWithTokens().filterMap { el => el.asToken() }
 }

@@ -8,7 +8,15 @@ import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
 import loupe.{diagnostics, Severity}
-import loupe.db.{AnalysisDatabase, BinaryModel, BinaryPackage, Cfg, ModuleModel, PackageModel, ProjectModel}
+import loupe.db.{
+    AnalysisDatabase,
+    BinaryModel,
+    BinaryPackage,
+    Cfg,
+    ModuleModel,
+    PackageModel,
+    ProjectModel
+}
 import loupe.fixture.{stdSourcesDir, UPDATE_EXPECT}
 import loupe.hir.{bodyWithSourceMap, macroCallHeadOf, sourceRangeOf}
 import loupe.syntax.parse
@@ -18,7 +26,12 @@ import loupe.vfs.{isCangjieFile, PathInterner, readCjoFiles, readFiles, Vfs, Vfs
  * Each diagnostic of the files of `db` among `files`, as `path:line: message`, the path relative to
  * `root` with `/`s; sorted.
  */
-func diagnosticsOf(db: AnalysisDatabase, paths: PathInterner, files: Array<VfsPath>, root: VfsPath): Array<String> {
+func diagnosticsOf(
+    db: AnalysisDatabase,
+    paths: PathInterner,
+    files: Array<VfsPath>,
+    root: VfsPath
+): Array<String> {
     let found = ArrayList<String>()
     for (path in files) {
         let fileId = paths.lookup(path) ?? continue
@@ -58,7 +71,16 @@ func declaredPackageOf(file: Path): ?String {
  * What std's sources are analyzed under by the gate on every host, as `std_diagnostics_known.txt` is
  * written: Linux on x86_64. `@When` picks which of std's twins are read.
  */
-let STD_GATE_CFG = Cfg([("os", "Linux"), ("arch", "x86_64"), ("env", "gnu"), ("backend", "cjnative"), ("test", "true")])
+let STD_GATE_CFG =
+    Cfg(
+        [
+            ("os", "Linux"),
+            ("arch", "x86_64"),
+            ("env", "gnu"),
+            ("backend", "cjnative"),
+            ("test", "true")
+        ]
+    )
 
 func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
     let dir = stdSourcesDir()
@@ -76,16 +98,28 @@ func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
         }
     }
     walk(dir.filePath.getOrThrow())
-    let packages = byPackage.keys().toArray().filter {name => name != "std.core"}.map {
-        name =>
-        let files = byPackage[name].toArray()
-        PackageModel(name, files[0].parent.getOrThrow(), files)
-    }
-    let home = getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
-    let target = Directory.readFrom(Path(home).join("modules")).filter {info => info.isDirectory()}[0].name
-    let core = VfsPath.file(Path(home).join("modules").join(target).join("std").join("std.core.cjo"))
-    let model = ProjectModel(STD_GATE_CFG, [ModuleModel("std", dir, packages)],
-        binaries: [BinaryModel("std", [], packages: [BinaryPackage("std.core", core)])])
+    let packages =
+        byPackage
+            .keys()
+            .toArray()
+            .filter { name => name != "std.core" }
+            .map {
+                name =>
+                let files = byPackage[name].toArray()
+                PackageModel(name, files[0].parent.getOrThrow(), files)
+            }
+    let home =
+        getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+    let target =
+        Directory.readFrom(Path(home).join("modules")).filter { info => info.isDirectory() }[0].name
+    let core =
+        VfsPath.file(Path(home).join("modules").join(target).join("std").join("std.core.cjo"))
+    let model =
+        ProjectModel(
+            STD_GATE_CFG,
+            [ModuleModel("std", dir, packages)],
+            binaries: [BinaryModel("std", [], packages: [BinaryPackage("std.core", core)])]
+        )
     let db = AnalysisDatabase()
     let vfs = Vfs()
     db.setProject(model, vfs.paths, binaries: readCjoFiles(model.cjoFiles()).files)
@@ -101,7 +135,12 @@ func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
  * a gap of the analysis, its issue named, or of the corpus; none of std.
  */
 func knownOfStd(): Path {
-    workspaceRoot().filePath.getOrThrow().join("modules").join("project_model").join("std_diagnostics_known.txt")
+    workspaceRoot()
+        .filePath
+        .getOrThrow()
+        .join("modules")
+        .join("project_model")
+        .join("std_diagnostics_known.txt")
 }
 
 /**
@@ -116,7 +155,7 @@ class DiagnosticsGateTest {
     @TestCase
     func thisRepositoryHasNoDiagnostic() {
         let ws = workspace()
-        let files = ws.files.toArray().map {one => ws.paths.path(one[1].fileId(ws.db))}
+        let files = ws.files.toArray().map { one => ws.paths.path(one[1].fileId(ws.db)) }
         @Expect(diagnosticsOf(ws.db, ws.paths, files, workspaceRoot()), Array<String>())
     }
 
@@ -131,15 +170,19 @@ class DiagnosticsGateTest {
         let (db, paths, files) = stdFromSources()
         let found = diagnosticsOf(db, paths, files, stdSourcesDir())
         let lines = String.fromUtf8(File.readFrom(knownOfStd())).replace("\r\n", "\n").split("\n")
-        let header = lines.filter {line => line.startsWith("#")}
+        let header = lines.filter { line => line.startsWith("#") }
         let why = HashMap<String, String>()
         for (line in lines where !line.startsWith("#") && !line.isEmpty()) {
             let parts = line.split("  # ", 2)
             why[parts[0]] = parts.get(1) ?? "?"
         }
         if (getVariable(UPDATE_EXPECT).isSome()) {
-            let written = found.map {one => "${one}  # ${why.get(one) ?? "?"}"}
-            File.writeTo(knownOfStd(), (String.join(header.concat(written), delimiter: "\n") + "\n").toArray())
+            let written = found.map { one => "${one}  # ${why.get(one) ?? "?"}" }
+            File
+                .writeTo(
+                    knownOfStd(),
+                    (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
+                )
             return
         }
         let known = why.keys().toArray()
@@ -168,7 +211,8 @@ class ErrorRootsGateTest {
         let ws = workspace()
         let byLine = HashMap<String, ArrayList<ErrorRoot>>()
         for (root in censusOf(ws).errorRoots) {
-            let line = "${relativeName(ws.paths.path(root.file.fileId(ws.db)), workspaceRoot())}: ${root.kind}"
+            let line =
+                "${relativeName(ws.paths.path(root.file.fileId(ws.db)), workspaceRoot())}: ${root.kind}"
             let roots = byLine.get(line) ?? ArrayList<ErrorRoot>()
             roots.add(root)
             byLine[line] = roots
@@ -177,12 +221,17 @@ class ErrorRootsGateTest {
         for ((line, roots) in byLine) {
             found[line] = roots.size
         }
-        let lines = String.fromUtf8(File.readFrom(knownErrorRoots())).replace("\r\n", "\n").split("\n")
+        let lines =
+            String.fromUtf8(File.readFrom(knownErrorRoots())).replace("\r\n", "\n").split("\n")
         if (getVariable(UPDATE_EXPECT).isSome()) {
-            let written = found.keys().toArray().map {line => "${line}: ${found[line]}"}
+            let written = found.keys().toArray().map { line => "${line}: ${found[line]}" }
             sort(written)
-            let header = lines.filter {line => line.startsWith("#")}
-            File.writeTo(knownErrorRoots(), (String.join(header.concat(written), delimiter: "\n") + "\n").toArray())
+            let header = lines.filter { line => line.startsWith("#") }
+            File
+                .writeTo(
+                    knownErrorRoots(),
+                    (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
+                )
             return
         }
         let known = HashMap<String, Int64>()
@@ -191,12 +240,24 @@ class ErrorRootsGateTest {
             known[line[..at]] = Int64.parse(line[at + 2..])
         }
         let changed = ArrayList<String>()
-        for ((line, count) in found where count > (known.get(line) ?? 0)) {
-            let roots = byLine[line].toArray().map {root => whereIs(ws, root)}
-            changed.add("${line}: ${known.get(line) ?? 0} known, ${count} found: ${String.join(roots, delimiter: "; ")}")
+        for (
+            (line, count) in found where count >
+                (known.get(line) ?? 0)
+        ) {
+            let roots = byLine[line].toArray().map { root => whereIs(ws, root) }
+            changed
+                .add(
+                    "${line}: ${known.get(line) ?? 0} known, ${count} found: ${String.join(roots, delimiter: "; ")}"
+                )
         }
-        for ((line, count) in known where count > (found.get(line) ?? 0)) {
-            changed.add("${line}: ${count} known, ${found.get(line) ?? 0} found: a gap closed, `UPDATE_EXPECT=1` takes it off")
+        for (
+            (line, count) in known where count >
+                (found.get(line) ?? 0)
+        ) {
+            changed
+                .add(
+                    "${line}: ${count} known, ${found.get(line) ?? 0} found: a gap closed, `UPDATE_EXPECT=1` takes it off"
+                )
         }
         let sorted = changed.toArray()
         sort(sorted)
@@ -209,7 +270,12 @@ class ErrorRootsGateTest {
  * The file of this repository's roots of an error type, a line `path: kind: count` each.
  */
 func knownErrorRoots(): Path {
-    workspaceRoot().filePath.getOrThrow().join("modules").join("project_model").join("error_roots_known.txt")
+    workspaceRoot()
+        .filePath
+        .getOrThrow()
+        .join("modules")
+        .join("project_model")
+        .join("error_roots_known.txt")
 }
 
 /**
@@ -224,21 +290,23 @@ func relativeName(path: VfsPath, root: VfsPath): String {
  */
 func whereIs(ws: BenchWorkspace, root: ErrorRoot): String {
     let db = ws.db
-    let origin = bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
-    let source = match (origin) {
-        case WrittenSource(source) => source
-        case _ => return "no node"
-    }
+    let origin =
+        bodyWithSourceMap(db, root.def).sourceMap.exprs.get(root.id.index) ?? return "no node"
+    let source =
+        match (origin) {
+            case WrittenSource(source) => source
+            case _ => return "no node"
+        }
     let node = source.node(db, root.def.file(db)) ?? return "no node"
-    let range = if (let Some(call) <- source.expansion) {
-        sourceRangeOf(db, call, node.textRange) ?? (macroCallHeadOf(db, call) ?? return "no call")[1]
-    } else { node.textRange }
+    let range =
+        if (let Some(call) <- source.expansion) {
+            sourceRangeOf(db, call, node.textRange) ??
+                (macroCallHeadOf(db, call) ?? return "no call")[1]
+        } else {
+            node.textRange
+        }
     let line = root.file.text(db).toString()[..range.start].count("\n") + 1
     let runes = node.text().replace("\n", " ").toRuneArray()
-    let text = if (runes.size > 60) {
-        String(runes[..60]) + "…"
-    } else {
-        String(runes)
-    }
+    let text = if (runes.size > 60) { String(runes[..60]) + "…" } else { String(runes) }
     "line ${line} `${text}`"
 }

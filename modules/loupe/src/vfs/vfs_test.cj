@@ -15,7 +15,7 @@ func inTemp(name: String): VfsPath {
 }
 
 func kinds(changes: Array<ChangedFile>): Array<String> {
-    changes.map {change => change.toString()}
+    changes.map { change => change.toString() }
 }
 
 @Test
@@ -243,17 +243,23 @@ class PathInternerTest {
     func threadsInterningThePathsAtOnceAgreeOnTheirIds() {
         // arrange
         let interner = PathInterner()
-        let paths = Array(100) {i => inTemp("${i}.cj")}
+        let paths = Array(100) { i => inTemp("${i}.cj") }
 
         // act
-        let seen = Array(8) {
-            reader => spawn {
-                Array(paths.size) {i => interner.intern(paths[(i + reader * 13) % paths.size])}
+        let seen =
+            Array(8) {
+                reader =>
+                spawn {
+                    Array(paths.size) {
+                        i =>
+                        interner.intern(paths[(i + reader * 13) % paths.size])
+                    }
+                }
             }
-        }.map {reader => reader.get()}
+                .map { reader => reader.get() }
 
         // assert
-        let ids = paths.map {path => interner.lookup(path).getOrThrow()}
+        let ids = paths.map { path => interner.lookup(path).getOrThrow() }
         @Expect(HashSet(ids.map {id => id.index}), HashSet(Array(paths.size) {i => i}))
         @Expect(ids.map {id => interner.path(id)}, paths)
         for (reader in 0..seen.size) {

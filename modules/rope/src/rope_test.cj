@@ -11,14 +11,15 @@ import std.unittest.testmacro.*
 let PIECES: Array<String> = ["a", "bc", " ", "\n", "\r\n", "й", "中", "😀", "xyz", "\t"]
 
 func randomText(random: Random, pieces: Int64): String {
-    String.join(Array(pieces) {_ => PIECES[random.nextInt64(PIECES.size)]})
+    String.join(Array(pieces) { _ => PIECES[random.nextInt64(PIECES.size)] })
 }
 
 /**
  * The offsets of `text` between characters, both ends included.
  */
 func boundaries(text: String): Array<Int64> {
-    (0..=text.size) |> filter {i: Int64 => i == text.size || !isContinuation(text[i])} |> collectArray
+    (0..=text.size) |> filter { i: Int64 => i == text.size || !isContinuation(text[i]) } |>
+        collectArray
 }
 
 /**
@@ -45,10 +46,10 @@ func naivePosition(text: String, offset: Int64, encoding: Encoding): LineColumn 
     var column = 0
     for (r in text[lineStart..offset].runes()) {
         column += match (encoding) {
-            case Utf8 => String(r).size
-            case Utf16 => if (UInt32(r) > 0xFFFF) { 2 } else { 1 }
-            case Utf32 => 1
-        }
+                case Utf8 => String(r).size
+                case Utf16 => if (UInt32(r) > 0xFFFF) { 2 } else { 1 }
+                case Utf32 => 1
+            }
     }
     LineColumn(line, column)
 }
@@ -85,13 +86,19 @@ class RopeTest {
             let b = offsets[random.nextInt64(offsets.size)]
             let (start, end) = (min(a, b), max(a, b))
             // mostly typing, sometimes a paste or a large deletion
-            let inserted = match (random.nextInt64(10)) {
-                case 0 => randomText(random, random.nextInt64(3000))
-                case 1 | 2 => ""
-                case _ => randomText(random, random.nextInt64(4))
-            }
+            let inserted =
+                match (random.nextInt64(10)) {
+                    case 0 => randomText(random, random.nextInt64(3000))
+                    case 1 | 2 => ""
+                    case _ => randomText(random, random.nextInt64(4))
+                }
             let from = start
-            let upTo = if (random.nextInt64(3) == 0) { end } else { floorBoundary(text, min(end, start + 8)) }
+            let upTo =
+                if (random.nextInt64(3) == 0) {
+                    end
+                } else {
+                    floorBoundary(text, min(end, start + 8))
+                }
 
             // act
             let edited = rope.replace(from..upTo, inserted)
@@ -138,7 +145,9 @@ class RopeTest {
                 // assert
                 @Assert(position, naivePosition(text, offset, encoding))
                 // between the `\r` and the `\n` of a line end is past the line, which is before the `\r`
-                let insideLineEnd = offset > 0 && offset < text.size && text[offset - 1] == b'\r' && text[offset] == b'\n'
+                let insideLineEnd =
+                    offset > 0 && offset < text.size && text[offset - 1] == b'\r' &&
+                        text[offset] == b'\n'
                 @Assert(rope.offsetOf(position, encoding), if (insideLineEnd) { offset - 1 } else { offset })
             }
         }
@@ -148,7 +157,12 @@ class RopeTest {
     func positionsOnLinesLongerThanALeafAgreeWithCountingThemTheSlowWay() {
         // arrange
         let random = Random(12)
-        let line = String.join(Array(MAX_CHUNK) {_ => PIECES[random.nextInt64(PIECES.size)]}.filter {p => !p.contains("\n")})
+        let line =
+            String
+                .join(
+                    Array(MAX_CHUNK) { _ => PIECES[random.nextInt64(PIECES.size)] }
+                        .filter { p => !p.contains("\n") }
+                )
         let text = "${line}\n${line}\r\n${line}"
         let rope = Rope(text)
 
@@ -311,7 +325,9 @@ private func checkNode(node: Node, isRoot: Bool): Unit {
             }
             for (child in branch.children) {
                 if (child.height != branch.height - 1) {
-                    throw IllegalStateException("a child at height ${child.height} of a branch at ${branch.height}")
+                    throw IllegalStateException(
+                        "a child at height ${child.height} of a branch at ${branch.height}"
+                    )
                 }
                 checkNode(child, false)
             }

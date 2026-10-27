@@ -11,13 +11,23 @@ class LangItemTest {
         LangItem.RangeStruct, LangItem.ArrayStruct, LangItem.ExceptionClass, LangItem.TokensClass]]
     func eachLangItemIsADeclarationOfTheSdksStd(item: LangItem) {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             class Option {}
             enum E { Some(Int64) | None }
-            "#)
-        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core")),
-            stdCjoRead("std.ast", stdCjo("std.ast"))])
+            "#
+                )
+        let db =
+            parsed
+                .database(
+                    binaries: [
+                        stdCjoRead("std.core", stdCjo("std.core")),
+                        stdCjoRead("std.ast", stdCjo("std.ast"))
+                    ]
+                )
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let from = PackageRef.Source(packageOfFile(db, source).getOrThrow())
 

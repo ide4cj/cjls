@@ -1,10 +1,14 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 foreign func CreateJobObjectW(attributes: CPointer<Unit>, name: CPointer<UInt16>): CPointer<Unit>
 
-foreign func SetInformationJobObject(job: CPointer<Unit>, infoClass: Int32, info: CPointer<JobExtendedLimits>,
-    size: UInt32): Int32
+foreign func SetInformationJobObject(
+    job: CPointer<Unit>,
+    infoClass: Int32,
+    info: CPointer<JobExtendedLimits>,
+    size: UInt32
+): Int32
 
 foreign func AssignProcessToJobObject(job: CPointer<Unit>, process: CPointer<Unit>): Int32
 
@@ -88,15 +92,23 @@ class KillOnCloseJob <: Resource {
      * @throws ProcessStartException - if Windows makes no job or does not set its limit
      */
     init() {
-        handle = unsafe { CreateJobObjectW(CPointer(), CPointer()) }
+        handle =
+            unsafe {
+                CreateJobObjectW(CPointer(), CPointer())
+            }
         if (handle.isNull()) {
             throw windowsError("CreateJobObjectW")
         }
         var limits = JobExtendedLimits(JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
-        let limited = unsafe {
-            SetInformationJobObject(handle, JOB_OBJECT_EXTENDED_LIMIT_INFORMATION, inout limits,
-                UInt32(sizeOf<JobExtendedLimits>()))
-        }
+        let limited =
+            unsafe {
+                SetInformationJobObject(
+                    handle,
+                    JOB_OBJECT_EXTENDED_LIMIT_INFORMATION,
+                    inout limits,
+                    UInt32(sizeOf<JobExtendedLimits>())
+                )
+            }
         if (limited == 0) {
             let e = windowsError("SetInformationJobObject")
             close()
@@ -111,7 +123,12 @@ class KillOnCloseJob <: Resource {
      * @throws ProcessStartException - if Windows refuses
      */
     func assign(process: CPointer<Unit>): Unit {
-        if (unsafe { AssignProcessToJobObject(handle, process) } == 0) {
+        if (
+            unsafe {
+                AssignProcessToJobObject(handle, process)
+            } ==
+                0
+        ) {
             throw windowsError("AssignProcessToJobObject")
         }
     }
@@ -125,7 +142,9 @@ class KillOnCloseJob <: Resource {
      */
     public func close(): Unit {
         if (!handle.isNull()) {
-            unsafe { CloseHandle(handle) }
+            unsafe {
+                CloseHandle(handle)
+            }
             handle = CPointer()
         }
     }
@@ -137,6 +156,8 @@ func windowsError(what: String): ProcessStartException {
 
 func closeHandle(handle: CPointer<Unit>): Unit {
     if (!handle.isNull()) {
-        unsafe { CloseHandle(handle) }
+        unsafe {
+            CloseHandle(handle)
+        }
     }
 }

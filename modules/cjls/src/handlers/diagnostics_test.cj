@@ -13,9 +13,15 @@ func pulled(snap: ServerSnapshot, uri!: String = URI): Array<Diagnostic> {
 /**
  * The full report a pull with `previousResultId` answers; it fails on an `unchanged` one.
  */
-func fullReport(snap: ServerSnapshot, previousResultId: ?String): RelatedFullDocumentDiagnosticReport {
-    let params = DocumentDiagnosticParams(textDocument: TextDocumentIdentifier(uri: URI),
-        previousResultId: previousResultId)
+func fullReport(
+    snap: ServerSnapshot,
+    previousResultId: ?String
+): RelatedFullDocumentDiagnosticReport {
+    let params =
+        DocumentDiagnosticParams(
+            textDocument: TextDocumentIdentifier(uri: URI),
+            previousResultId: previousResultId
+        )
     match (handleDocumentDiagnostic(snap, params)) {
         case DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(report) => report
         case _ => throw AssertException("not a full report")
@@ -26,10 +32,14 @@ func fullReport(snap: ServerSnapshot, previousResultId: ?String): RelatedFullDoc
  * The `resultId` of the `unchanged` report a pull with `previousResultId` answers, `None` for a full one.
  */
 func unchangedId(snap: ServerSnapshot, previousResultId: String): ?String {
-    let params = DocumentDiagnosticParams(textDocument: TextDocumentIdentifier(uri: URI),
-        previousResultId: previousResultId)
+    let params =
+        DocumentDiagnosticParams(
+            textDocument: TextDocumentIdentifier(uri: URI),
+            previousResultId: previousResultId
+        )
     match (handleDocumentDiagnostic(snap, params)) {
-        case DocumentDiagnosticReport.AsRelatedUnchangedDocumentDiagnosticReport(report) => report.resultId
+        case DocumentDiagnosticReport.AsRelatedUnchangedDocumentDiagnosticReport(report) =>
+            report.resultId
         case _ => None<String>
     }
 }
@@ -136,9 +146,23 @@ class DocumentDiagnosticTest {
         // arrange - Neovim's `:e!` closes and opens the buffer, drops its diagnostics, keeps the id
         let state = opened("class A {")
         let first = fullReport(state.snapshot(), None<String>).resultId.getOrThrow()
-        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: URI)))
-        handleDidOpen(Loop(state), Client(), NoopLogger(), DidOpenTextDocumentParams(
-            textDocument: TextDocumentItem(uri: URI, languageId: LanguageKind("cangjie"), version: 3, text: "class A {")))
+        handleDidClose(
+            state,
+            DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: URI))
+        )
+        handleDidOpen(
+            Loop(state),
+            Client(),
+            NoopLogger(),
+            DidOpenTextDocumentParams(
+                textDocument: TextDocumentItem(
+                    uri: URI,
+                    languageId: LanguageKind("cangjie"),
+                    version: 3,
+                    text: "class A {"
+                )
+            )
+        )
 
         // act
         let report = fullReport(state.snapshot(), first)

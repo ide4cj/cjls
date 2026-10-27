@@ -32,10 +32,17 @@ public func isMacroPackage(db: AnalysisDatabase, pkg: Package): Bool {
     if (let Some(isMacro) <- pkg.isMacro(db)) {
         return isMacro
     }
-    pkg.files(db).iterator().any {
-        id => db.sourceFile(id).flatMap {file => itemTree(db, file).packageHeader}.map {header => header.isMacro} ??
-            false
-    }
+    pkg
+        .files(db)
+        .iterator()
+        .any {
+            id =>
+            db
+                .sourceFile(id)
+                .flatMap { file => itemTree(db, file).packageHeader }
+                .map { header => header.isMacro } ??
+                false
+        }
 }
 
 /**
@@ -67,7 +74,10 @@ class MacroBuildPlanner {
     private let linked = HashMap<Package, (Array<Package>, Array<VfsPath>)>()
     private let visiting = HashSet<Package>()
 
-    MacroBuildPlanner(private let db: AnalysisDatabase, private let modules: HashMap<Package, String>) {}
+    MacroBuildPlanner(
+        private let db: AnalysisDatabase,
+        private let modules: HashMap<Package, String>
+    ) {}
 
     func visit(pkg: Package): (Array<Package>, Array<VfsPath>) {
         if (let Some(done) <- linked.get(pkg)) {
@@ -89,15 +99,24 @@ class MacroBuildPlanner {
                     for (one in depBinaries where !binaries.contains(one)) {
                         binaries.add(one)
                     }
-                case Binary(file) where file.binary(db) != "std" && !binaries.contains(file.path(db)) =>
-                    binaries.add(file.path(db))
+                case Binary(file) where file.binary(db) != "std" &&
+                        !binaries.contains(file.path(db)) => binaries.add(file.path(db))
                 case _ => ()
             }
         }
         visiting.remove(pkg)
         let done = (deps.toArray(), binaries.toArray())
         linked[pkg] = done
-        units.add(MacroBuildUnit(pkg, modules.get(pkg) ?? "", isMacroPackage(db, pkg), done[0], done[1]))
+        units
+            .add(
+                MacroBuildUnit(
+                    pkg,
+                    modules.get(pkg) ?? "",
+                    isMacroPackage(db, pkg),
+                    done[0],
+                    done[1]
+                )
+            )
         done
     }
 
@@ -111,12 +130,13 @@ class MacroBuildPlanner {
             let file = db.sourceFile(id) ?? continue
             for (item in itemTree(db, file).imports) {
                 for (path in item.paths) {
-                    let target = match (targetOf(db, from, path, Visibility.Private)) {
-                        case PackageOf(_, target) => target
-                        case GlobOf(target, _) => target
-                        case NameOf(target, _, _, _) => target
-                        case NoTarget(_) => continue
-                    }
+                    let target =
+                        match (targetOf(db, from, path, Visibility.Private)) {
+                            case PackageOf(_, target) => target
+                            case GlobOf(target, _) => target
+                            case NameOf(target, _, _, _) => target
+                            case NoTarget(_) => continue
+                        }
                     if (!found.contains(target)) {
                         found.add(target)
                     }

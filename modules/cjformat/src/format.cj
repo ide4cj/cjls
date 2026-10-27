@@ -86,11 +86,7 @@ func replacement(source: String, range: TextRange, result: String): Array<TextEd
  * Uses CRLF when present in the source, otherwise LF.
  */
 func lineBreakIn(text: String): String {
-    if (text.contains("\r\n")) {
-        "\r\n"
-    } else {
-        "\n"
-    }
+    if (text.contains("\r\n")) { "\r\n" } else { "\n" }
 }
 
 /**

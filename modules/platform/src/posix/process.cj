@@ -1,5 +1,5 @@
 @NonProduct
-features { user.platform.posix }
+features {user.platform.posix}
 package platform
 
 import std.env.getProcessId
@@ -12,7 +12,8 @@ import std.process.*
  * stdin and stdout, the only descriptors it passes), what it prints to stderr, never onto a pipe;
  * the library directories, one list, set in the script itself, where macOS does not strip them.
  */
-const POSIX_LAUNCH = ##"lib="$1"; shift; LD_LIBRARY_PATH="$lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" DYLD_LIBRARY_PATH="$lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" exec "$@" 3<&0 4>&1 0</dev/null 1>&2"##
+const POSIX_LAUNCH =
+    ##"lib="$1"; shift; LD_LIBRARY_PATH="$lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" DYLD_LIBRARY_PATH="$lib${DYLD_LIBRARY_PATH:+:$DYLD_LIBRARY_PATH}" exec "$@" 3<&0 4>&1 0</dev/null 1>&2"##
 
 class PosixChild <: PipedChild {
     PosixChild(let process: SubProcess) {}
@@ -39,14 +40,20 @@ class PosixChild <: PipedChild {
     }
 }
 
-public specific func startPiped(program: Path, libDirs: Array<Path>, args: (ChildPipes) -> Array<String>): PipedChild {
+public specific func startPiped(
+    program: Path,
+    libDirs: Array<Path>,
+    args: (ChildPipes) -> Array<String>
+): PipedChild {
     let pipes = ChildPipes(read: "3", write: "4", parent: getProcessId())
-    let process = launch(
-        "/bin/sh",
-        ["-c", POSIX_LAUNCH, "sh", libraryPathOf(libDirs), program.toString()].concat(args(pipes)),
-        stdIn: ProcessRedirect.Pipe,
-        stdOut: ProcessRedirect.Pipe,
-        stdErr: ProcessRedirect.Inherit
-    )
+    let process =
+        launch(
+            "/bin/sh",
+            ["-c", POSIX_LAUNCH, "sh", libraryPathOf(libDirs), program.toString()]
+                .concat(args(pipes)),
+            stdIn: ProcessRedirect.Pipe,
+            stdOut: ProcessRedirect.Pipe,
+            stdErr: ProcessRedirect.Inherit
+        )
     PosixChild(process)
 }

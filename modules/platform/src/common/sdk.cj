@@ -11,14 +11,18 @@ import std.fs.Path
  * whatever its case), and on macOS `SDKROOT` from `xcrun` when `variables` name none: without it cjc links with
  * `-syslibroot /`, where there is no `libSystem`, and fails.
  */
-public common func sdkToolEnvironment(variables: Array<(String, String)>, libDir: Path): HashMap<String, String>
+public common func sdkToolEnvironment(
+    variables: Array<(String, String)>,
+    libDir: Path
+): HashMap<String, String>
 
 /**
  * `env` with `dir` first on the list of directories `name` holds.
  */
 func putFirstOn(env: HashMap<String, String>, name: String, dir: Path): Unit {
-    env[name] = match (env.get(name)) {
-        case Some(old) where !old.isEmpty() => "${dir}${pathListSeparator()}${old}"
-        case _ => dir.toString()
-    }
+    env[name] =
+        match (env.get(name)) {
+            case Some(old) where !old.isEmpty() => "${dir}${pathListSeparator()}${old}"
+            case _ => dir.toString()
+        }
 }

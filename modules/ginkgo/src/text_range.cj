@@ -63,11 +63,7 @@ public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     public func intersect(other: TextRange): ?TextRange {
         let s = max(start, other.start)
         let e = min(end, other.end)
-        if (s <= e) {
-            TextRange(s, e)
-        } else {
-            None
-        }
+        if (s <= e) { TextRange(s, e) } else { None }
     }
 
     /**

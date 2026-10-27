@@ -305,6 +305,10 @@ class LruTest {
      * `a` and `b`, which the queries read, and `other`, which none does: setting it opens a revision.
      */
     private func files(db: TestDatabase): (SourceFile, SourceFile, SourceFile) {
-        (SourceFile(db, "a.cj", "hello"), SourceFile(db, "b.cj", "hi"), SourceFile(db, "other.cj", ""))
+        (
+            SourceFile(db, "a.cj", "hello"),
+            SourceFile(db, "b.cj", "hi"),
+            SourceFile(db, "other.cj", "")
+        )
     }
 }

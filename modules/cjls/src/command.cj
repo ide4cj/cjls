@@ -10,7 +10,8 @@ import loupe.vfs.VfsPath
 import project_model.*
 import cjls.server.settingsSchema
 
-const USAGE = """
+const USAGE =
+    """
 Usage: cjls [command]
 
 Commands:
@@ -66,7 +67,8 @@ func parseCommand(args: Array<String>): Command {
         case "fmt" => formatCommand(args[1..])
         case "fetch-src" => FetchSrc(fetchSrcDir(args[1..]))
         case "--config-schema" where args.size == 1 => PrintConfigSchema
-        case "--config-schema" => throw ArgumentParseException("`--config-schema` takes no `${args[1]}`")
+        case "--config-schema" =>
+            throw ArgumentParseException("`--config-schema` takes no `${args[1]}`")
         case "help" | "--help" | "-h" => Help
         case other => throw ArgumentParseException("no command `${other}`")
     }
@@ -80,7 +82,7 @@ func parseCommand(args: Array<String>): Command {
  */
 func printProject(dir: Path, logger: Logger): Int64 {
     let root = VfsPath.file(dir)
-    let env = {name: String => getVariable(name)}
+    let env = { name: String => getVariable(name) }
     let withHome = withCangjieHome(env, findCangjieHome(None, env: env))
     let load = findProject(root, env: withCangjieSrc(withHome, findCangjieSrc(None, env: withHome)))
     logger.info("found a project", [("source", load.source.toString())])
@@ -111,14 +113,15 @@ func printConfigSchema(out: OutputStream): Int64 {
  * @return the exit code
  */
 func fetchSrcCommand(dir: ?Path, out: OutputStream, err: OutputStream): Int64 {
-    let env = {name: String => getVariable(name)}
-    let home = match (findCangjieHome(None, env: env)) {
-        case Some(home) => Path(home.path)
-        case None =>
-            err.write("no SDK found: set CANGJIE_HOME\n".toArray())
-            err.flush()
-            return 1
-    }
+    let env = { name: String => getVariable(name) }
+    let home =
+        match (findCangjieHome(None, env: env)) {
+            case Some(home) => Path(home.path)
+            case None =>
+                err.write("no SDK found: set CANGJIE_HOME\n".toArray())
+                err.flush()
+                return 1
+        }
     fetchSrc(home, dir ?? home.join("src"), SystemSrcHost(), out, err)
 }
 
@@ -172,14 +175,10 @@ func formatCommand(arguments: Array<String>): Command {
     if (parsed.nonOptions.isEmpty()) {
         throw ArgumentParseException("`fmt` takes the paths to format")
     }
-    let paths = parsed.nonOptions.map {argument => absolute(Path(argument))}
+    let paths = parsed.nonOptions.map { argument => absolute(Path(argument)) }
     Format(paths, parsed.options.contains("check"))
 }
 
 func absolute(path: Path): Path {
-    if (path.isAbsolute()) {
-        path
-    } else {
-        getWorkingDirectory().join(path)
-    }
+    if (path.isAbsolute()) { path } else { getWorkingDirectory().join(path) }
 }

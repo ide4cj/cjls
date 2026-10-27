@@ -15,7 +15,12 @@ import cjls.macros.LspHandler
  * A document opened blank is given its `package` line (D92).
  */
 @LspHandler
-func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTextDocumentParams): Unit {
+func handleDidOpen(
+    loop: Loop,
+    client: Client,
+    logger: Logger,
+    params: DidOpenTextDocumentParams
+): Unit {
     let state = loop.state
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
@@ -35,20 +40,26 @@ func handleDidOpen(loop: Loop, client: Client, logger: Logger, params: DidOpenTe
  * dropped whole, with a warning.
  */
 @LspHandler
-func handleDidChange(state: ServerState, logger: Logger, params: DidChangeTextDocumentParams): Unit {
+func handleDidChange(
+    state: ServerState,
+    logger: Logger,
+    params: DidChangeTextDocumentParams
+): Unit {
     let document = params.textDocument
     let path = VfsPath.fromUri(document.uri)
-    let text = match (state.fileContents(path)) {
-        case Some(text) where state.openDocuments.contains(path) => text
-        case _ =>
-            logger.warn("a change to a document not open", [("uri", document.uri)])
-            return
-    }
+    let text =
+        match (state.fileContents(path)) {
+            case Some(text) where state.openDocuments.contains(path) => text
+            case _ =>
+                logger.warn("a change to a document not open", [("uri", document.uri)])
+                return
+        }
     match (edited(text, params.contentChanges, state.encoding)) {
         case Some(result) =>
             state.openDocuments.add(path, document.version)
             state.setFileContents(path, result)
-        case None => logger.warn("a change whose range ends before it starts", [("uri", document.uri)])
+        case None =>
+            logger.warn("a change whose range ends before it starts", [("uri", document.uri)])
     }
 }
 
@@ -69,16 +80,17 @@ func handleDidClose(state: ServerState, params: DidCloseTextDocumentParams): Uni
 func edited(text: Rope, changes: Array<TextDocumentContentChangeEvent>, encoding: Encoding): ?Rope {
     var result = text
     for (change in changes) {
-        result = match (change) {
-            case AsTextDocumentContentChangeWholeDocument(whole) => Rope(whole.text)
-            case AsTextDocumentContentChangePartial(partial) =>
-                let start = result.offsetOf(lineColumn(partial.range.start), encoding)
-                let end = result.offsetOf(lineColumn(partial.range.end), encoding)
-                if (end < start) {
-                    return None
-                }
-                result.replace(start..end, partial.text)
-        }
+        result =
+            match (change) {
+                case AsTextDocumentContentChangeWholeDocument(whole) => Rope(whole.text)
+                case AsTextDocumentContentChangePartial(partial) =>
+                    let start = result.offsetOf(lineColumn(partial.range.start), encoding)
+                    let end = result.offsetOf(lineColumn(partial.range.end), encoding)
+                    if (end < start) {
+                        return None
+                    }
+                    result.replace(start..end, partial.text)
+            }
     }
     result
 }

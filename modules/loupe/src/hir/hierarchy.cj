@@ -15,7 +15,10 @@ import loupe.db.{AnalysisDatabase, SourceFile}
 public func packageSubtypes(db: AnalysisDatabase, pkg: PackageRef): IndexMap<DefId, Array<DefId>> {
     let found = IndexMap<DefId, ArrayList<DefId>>()
     let files = filesOf(db, pkg)
-    for (file in files.concat(files |> flatMap {one: ItemFile => expansionsOf(db, one)} |> collectArray)) {
+    for (
+        file in files
+            .concat(files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray)
+    ) {
         for (item in itemTreeOf(db, file).items where isSubtypeItem(item.kind)) {
             let def = DefId(db, file, item.id)
             // each a declaration: `supertypes` resolves no type of the language
@@ -30,7 +33,7 @@ public func packageSubtypes(db: AnalysisDatabase, pkg: PackageRef): IndexMap<Def
             }
         }
     }
-    IndexMap<DefId, Array<DefId>>(found.toArray().map {entry => (entry[0], entry[1].toArray())})
+    IndexMap<DefId, Array<DefId>>(found.toArray().map { entry => (entry[0], entry[1].toArray()) })
 }
 
 func isSubtypeItem(kind: ItemKind): Bool {
@@ -58,8 +61,12 @@ public func overriddenMembers(db: AnalysisDatabase, member: DefId): Array<DefId>
     for (sup in allSupertypes(db, recv, from)[1..]) {
         if (let DeclTy(id, _) <- sup.kind(db)) {
             for (candidate in membersOfItem(db, id, shape.name)) {
-                if (let MemberDecl(other) <- candidate && other != member && !found.contains(other) &&
-                    shape.isAlike(db, other) && shape.paramsOn(db, other, recv, from) == own) {
+                if (
+                    let MemberDecl(other) <- candidate && other != member &&
+                        !found.contains(other) &&
+                        shape.isAlike(db, other) &&
+                        shape.paramsOn(db, other, recv, from) == own
+                ) {
                     found.add(other)
                 }
             }
@@ -81,21 +88,30 @@ public func overridingMembers(db: AnalysisDatabase, member: DefId): Array<DefId>
     let found = ArrayList<DefId>()
     for (sub in subtypesOf(db, parentOf(db, member) ?? return [])) {
         let from = sourceFileOf(db, sub)
-        let (recv, holders) = if (sub.item(db).kind == ItemKind.Extend) {
-            let extended = extendedTypeOf(db, sub) ?? continue
-            let ownHolders = match (extended) {
-                case DeclType(id) => [id]
-                case PrimType(_) => Array<DefId>()
+        let (recv, holders) =
+            if (sub.item(db).kind == ItemKind.Extend) {
+                let extended = extendedTypeOf(db, sub) ?? continue
+                let ownHolders =
+                    match (extended) {
+                        case DeclType(id) => [id]
+                        case PrimType(_) => Array<DefId>()
+                    }
+                (
+                    signatureTypes(db, sub).ty ?? continue,
+                    ownHolders.concat(extendsOf(db, extended, from))
+                )
+            } else {
+                (selfTyOf(db, sub), [sub])
             }
-            (signatureTypes(db, sub).ty ?? continue, ownHolders.concat(extendsOf(db, extended, from)))
-        } else {
-            (selfTyOf(db, sub), [sub])
-        }
         let wanted = shape.paramsOn(db, member, recv, from)
         for (holder in holders) {
             for (candidate in membersOfItem(db, holder, shape.name)) {
-                if (let MemberDecl(other) <- candidate && other != member && !found.contains(other) &&
-                    shape.isAlike(db, other) && shape.paramsOn(db, other, recv, from) == wanted) {
+                if (
+                    let MemberDecl(other) <- candidate && other != member &&
+                        !found.contains(other) &&
+                        shape.isAlike(db, other) &&
+                        shape.paramsOn(db, other, recv, from) == wanted
+                ) {
                     found.add(other)
                 }
             }
@@ -124,14 +140,15 @@ public func subtypesOf(db: AnalysisDatabase, ty: DefId): Array<DefId> {
                     }
                     found.add(sub)
                     // below an `extend`, what is below the type it extends
-                    let below = if (sub.item(db).kind == ItemKind.Extend) {
-                        match (extendedTypeOf(db, sub)) {
-                            case Some(DeclType(id)) => id
-                            case _ => continue
+                    let below =
+                        if (sub.item(db).kind == ItemKind.Extend) {
+                            match (extendedTypeOf(db, sub)) {
+                                case Some(DeclType(id)) => id
+                                case _ => continue
+                            }
+                        } else {
+                            sub
                         }
-                    } else {
-                        sub
-                    }
                     if (below == sub || seen.add(below)) {
                         next.add(below)
                     }
@@ -153,10 +170,11 @@ public func importersOf(db: AnalysisDatabase, pkg: PackageRef): Array<PackageRef
     let owner = index.owners.get(pkg) ?? return [pkg]
     let found = ArrayList<PackageRef>([pkg])
     for ((one, oneOwner) in index.owners where one != pkg) {
-        let imports = match (one) {
-            case Source(_) => index.scopes.get(oneOwner)?.contains(owner) ?? false
-            case Binary(_) => oneOwner == owner && pkg.isBinary()
-        }
+        let imports =
+            match (one) {
+                case Source(_) => index.scopes.get(oneOwner)?.contains(owner) ?? false
+                case Binary(_) => oneOwner == owner && pkg.isBinary()
+            }
         if (imports) {
             found.add(one)
         }
@@ -197,7 +215,8 @@ struct MemberShape {
      * Whether `other`, of the name, is of the kind and as static.
      */
     func isAlike(db: AnalysisDatabase, other: DefId): Bool {
-        other.item(db).kind == kind && (memberItemOf(db, other)?.has(Modifier.Static) ?? false) == isStatic
+        other.item(db).kind == kind &&
+            (memberItemOf(db, other)?.has(Modifier.Static) ?? false) == isStatic
     }
 
     /**
@@ -208,9 +227,12 @@ struct MemberShape {
         if (kind != ItemKind.Func) {
             return []
         }
-        signatureTypes(db, member).params.map {
-            one => eraseParams(db, asMemberOf(db, one, member, recv, from) ?? Ty(db, ErrorTy), member)
-        }
+        signatureTypes(db, member)
+            .params
+            .map {
+                one =>
+                eraseParams(db, asMemberOf(db, one, member, recv, from) ?? Ty(db, ErrorTy), member)
+            }
     }
 }
 
@@ -220,5 +242,5 @@ struct MemberShape {
 func memberItemOf(db: AnalysisDatabase, member: DefId): ?Item {
     let parent = itemOf(db, parentOf(db, member) ?? return None) ?? return None
     let id = member.item(db)
-    parent.members.iterator().filter {one => one.id == id}.next()
+    parent.members.iterator().filter { one => one.id == id }.next()
 }

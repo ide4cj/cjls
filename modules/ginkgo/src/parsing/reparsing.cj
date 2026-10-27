@@ -38,10 +38,11 @@ public class Reparser<K> where K <: Kind<K> {
         if (!root.textRange.containsRange(delete)) {
             return None
         }
-        var node = match (root.coveringElement(delete)) {
-            case SyntaxElement.Node(n) => Some(n)
-            case SyntaxElement.Token(t) => Some(t.parent)
-        }
+        var node =
+            match (root.coveringElement(delete)) {
+                case SyntaxElement.Node(n) => Some(n)
+                case SyntaxElement.Token(t) => Some(t.parent)
+            }
         while (let Some(n) <- node) {
             if (let Some(grammar) <- blockGrammar(n.kind)) {
                 if (let Some(reparsed) <- reparseBlock(parse, n, grammar, delete, insert)) {
@@ -54,8 +55,13 @@ public class Reparser<K> where K <: Kind<K> {
     }
 
     @Frozen
-    func reparseBlock(parse: Parse<K>, node: SyntaxNode<K>, grammar: (Parser<K>) -> Unit, delete: TextRange,
-        insert: String): ?Parse<K> {
+    func reparseBlock(
+        parse: Parse<K>,
+        node: SyntaxNode<K>,
+        grammar: (Parser<K>) -> Unit,
+        delete: TextRange,
+        insert: String
+    ): ?Parse<K> {
         let range = node.textRange
         let old = node.text()
         let text = old[..delete.start - range.start] + insert + old[delete.end - range.start..]
@@ -64,15 +70,16 @@ public class Reparser<K> where K <: Kind<K> {
             return None
         }
         let p = Parser<K>(toInput(lexed), eof, errorKind)
-        let block = try {
-            grammar(p)
-            if (!p.atEof()) {
+        let block =
+            try {
+                grammar(p)
+                if (!p.atEof()) {
+                    return None
+                }
+                buildTree(lexed, p, rules)
+            } catch (e: Exception) {
                 return None
             }
-            buildTree(lexed, p, rules)
-        } catch (e: Exception) {
-            return None
-        }
         if (block.green.kind != node.kind) {
             return None
         }
@@ -89,7 +96,11 @@ public class Reparser<K> where K <: Kind<K> {
             errors.add(SyntaxError(e.error, e.range.shift(range.start)))
         }
         let sorted = errors.toArray()
-        sort(sorted, stable: true, by: {a: SyntaxError<K>, b: SyntaxError<K> => a.range.start.compare(b.range.start)})
+        sort(
+            sorted,
+            stable: true,
+            by: { a: SyntaxError<K>, b: SyntaxError<K> => a.range.start.compare(b.range.start) }
+        )
         Parse(node.replaceWith(block.green), sorted)
     }
 

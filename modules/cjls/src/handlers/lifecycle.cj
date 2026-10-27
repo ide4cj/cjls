@@ -14,45 +14,89 @@ import cjls.macros.LspHandler
 const VERSION = "0.6.0"
 
 @LspHandler
-func handleInitialize(state: ServerState, client: Client, logger: Logger, params: InitializeParams): InitializeResult {
+func handleInitialize(
+    state: ServerState,
+    client: Client,
+    logger: Logger,
+    params: InitializeParams
+): InitializeResult {
     state.encoding = negotiatedEncoding(params.capabilities)
     state.pushesDiagnostics = !pullsDiagnostics(params.capabilities)
     state.multilineTokens = takesMultilineTokens(params.capabilities)
-    state.augmentsSyntaxTokens = params.capabilities.textDocument.flatMap {textDocument => textDocument.semanticTokens}
-        .flatMap {semanticTokens => semanticTokens.augmentsSyntaxTokens} ?? false
-    state.refreshesSemanticTokens = params.capabilities.workspace.flatMap {workspace => workspace.semanticTokens}
-        .flatMap {semanticTokens => semanticTokens.refreshSupport} ?? false
-    state.refreshesDiagnostics = params.capabilities.workspace.flatMap {workspace => workspace.diagnostics}
-        .flatMap {diagnostics => diagnostics.refreshSupport} ?? false
-    let folding = params.capabilities.textDocument.flatMap {textDocument => textDocument.foldingRange}
-    state.lineFoldingOnly = folding.flatMap {it => it.lineFoldingOnly} ?? false
-    state.foldingRangeLimit = folding.flatMap {it => it.rangeLimit}.map {it => Int64(it)}
+    state.augmentsSyntaxTokens =
+        params
+            .capabilities
+            .textDocument
+            .flatMap { textDocument => textDocument.semanticTokens }
+            .flatMap { semanticTokens => semanticTokens.augmentsSyntaxTokens } ??
+            false
+    state.refreshesSemanticTokens =
+        params
+            .capabilities
+            .workspace
+            .flatMap { workspace => workspace.semanticTokens }
+            .flatMap { semanticTokens => semanticTokens.refreshSupport } ??
+            false
+    state.refreshesDiagnostics =
+        params
+            .capabilities
+            .workspace
+            .flatMap { workspace => workspace.diagnostics }
+            .flatMap { diagnostics => diagnostics.refreshSupport } ??
+            false
+    let folding =
+        params.capabilities.textDocument.flatMap { textDocument => textDocument.foldingRange }
+    state.lineFoldingOnly = folding.flatMap { it => it.lineFoldingOnly } ?? false
+    state.foldingRangeLimit = folding.flatMap { it => it.rangeLimit }.map { it => Int64(it) }
     state.locationLinks = takesLocationLinks(params.capabilities)
     state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
     state.completionMarkdown = takesCompletionMarkdown(params.capabilities)
-    state.completionLabelDetails = params.capabilities.textDocument.flatMap {it => it.completion}
-        .flatMap {it => it.completionItem}.flatMap {it => it.labelDetailsSupport} ?? false
+    state.completionLabelDetails =
+        params
+            .capabilities
+            .textDocument
+            .flatMap { it => it.completion }
+            .flatMap { it => it.completionItem }
+            .flatMap { it => it.labelDetailsSupport } ??
+            false
     state.roots.add(all: workspaceRoots(params))
     state.settings = initialSettings(params.initializationOptions, client, logger)
     let workspace = params.capabilities.workspace
-    state.pullsSettings = workspace.flatMap {workspace => workspace.configuration} ?? false
-    state.registersSettings = workspace.flatMap {workspace => workspace.didChangeConfiguration}.flatMap {
-        it => it.dynamicRegistration
-    } ?? false
-    let watching = workspace.flatMap {workspace => workspace.didChangeWatchedFiles}
-    state.watchesFiles = watching.flatMap {it => it.dynamicRegistration} ?? false
-    state.relativePatterns = watching.flatMap {it => it.relativePatternSupport} ?? false
-    state.appliesEdits = workspace.flatMap {workspace => workspace.applyEdit} ?? false
-    state.versionedEdits = workspace.flatMap {workspace => workspace.workspaceEdit}.flatMap {
-        it => it.documentChanges
-    } ?? false
-    state.workDoneProgress = params.capabilities.window.flatMap {window => window.workDoneProgress} ?? false
-    state.showsDocuments = params.capabilities.window.flatMap {window => window.showDocument}.map {
-        it => it.support
-    } ?? false
-    state.codeActionLiterals = params.capabilities.textDocument.flatMap {textDocument => textDocument.codeAction}
-        .flatMap {codeAction => codeAction.codeActionLiteralSupport}.isSome()
-    InitializeResult(capabilities: capabilities(state.encoding), serverInfo: ServerInfo(name: "cjls", version: VERSION))
+    state.pullsSettings = workspace.flatMap { workspace => workspace.configuration } ?? false
+    state.registersSettings =
+        workspace
+            .flatMap { workspace => workspace.didChangeConfiguration }
+            .flatMap { it => it.dynamicRegistration } ??
+            false
+    let watching = workspace.flatMap { workspace => workspace.didChangeWatchedFiles }
+    state.watchesFiles = watching.flatMap { it => it.dynamicRegistration } ?? false
+    state.relativePatterns = watching.flatMap { it => it.relativePatternSupport } ?? false
+    state.appliesEdits = workspace.flatMap { workspace => workspace.applyEdit } ?? false
+    state.versionedEdits =
+        workspace
+            .flatMap { workspace => workspace.workspaceEdit }
+            .flatMap { it => it.documentChanges } ??
+            false
+    state.workDoneProgress =
+        params.capabilities.window.flatMap { window => window.workDoneProgress } ?? false
+    state.showsDocuments =
+        params
+            .capabilities
+            .window
+            .flatMap { window => window.showDocument }
+            .map { it => it.support } ??
+            false
+    state.codeActionLiterals =
+        params
+            .capabilities
+            .textDocument
+            .flatMap { textDocument => textDocument.codeAction }
+            .flatMap { codeAction => codeAction.codeActionLiteralSupport }
+            .isSome()
+    InitializeResult(
+        capabilities: capabilities(state.encoding),
+        serverInfo: ServerInfo(name: "cjls", version: VERSION)
+    )
 }
 
 /**
@@ -71,8 +115,8 @@ func workspaceRoots(params: InitializeParams): Array<VfsPath> {
  * otherwise, which every client can.
  */
 func negotiatedEncoding(capabilities: ClientCapabilities): Encoding {
-    let offered = capabilities.general.flatMap {general => general.positionEncodings} ?? []
-    if (offered.any {kind => kind.value == PositionEncodingKind.UTF8.value}) {
+    let offered = capabilities.general.flatMap { general => general.positionEncodings } ?? []
+    if (offered.any { kind => kind.value == PositionEncodingKind.UTF8.value }) {
         Encoding.Utf8
     } else {
         Encoding.Utf16
@@ -84,41 +128,52 @@ func negotiatedEncoding(capabilities: ClientCapabilities): Encoding {
  * pushed them (D14).
  */
 func pullsDiagnostics(capabilities: ClientCapabilities): Bool {
-    capabilities.textDocument.flatMap {textDocument => textDocument.diagnostic}.isSome()
+    capabilities.textDocument.flatMap { textDocument => textDocument.diagnostic }.isSome()
 }
 
 /**
  * Whether the client takes a semantic token spanning lines; `false` unless it says so, as LSP has it.
  */
 func takesMultilineTokens(capabilities: ClientCapabilities): Bool {
-    capabilities.textDocument.flatMap {textDocument => textDocument.semanticTokens}.flatMap {
-        semanticTokens => semanticTokens.multilineTokenSupport
-    } ?? false
+    capabilities
+        .textDocument
+        .flatMap { textDocument => textDocument.semanticTokens }
+        .flatMap { semanticTokens => semanticTokens.multilineTokenSupport } ??
+        false
 }
 
 /**
  * Whether the client takes a definition as `LocationLink`s; `false` unless it says so, as LSP has it.
  */
 func takesLocationLinks(capabilities: ClientCapabilities): Bool {
-    capabilities.textDocument.flatMap {textDocument => textDocument.definition}.flatMap {
-        definition => definition.linkSupport
-    } ?? false
+    capabilities
+        .textDocument
+        .flatMap { textDocument => textDocument.definition }
+        .flatMap { definition => definition.linkSupport } ??
+        false
 }
 
 /**
  * Whether the client takes a hover's content as Markdown: one of the formats it lists.
  */
 func takesHoverMarkdown(capabilities: ClientCapabilities): Bool {
-    let formats = capabilities.textDocument.flatMap {textDocument => textDocument.hover}.flatMap {
-        hover => hover.contentFormat
-    } ?? []
+    let formats =
+        capabilities
+            .textDocument
+            .flatMap { textDocument => textDocument.hover }
+            .flatMap { hover => hover.contentFormat } ??
+            []
     formats.contains(MarkupKind.Markdown)
 }
 
 func takesCompletionMarkdown(capabilities: ClientCapabilities): Bool {
-    let formats = capabilities.textDocument.flatMap {textDocument => textDocument.completion}.flatMap {
-        completion => completion.completionItem
-    }.flatMap {item => item.documentationFormat} ?? []
+    let formats =
+        capabilities
+            .textDocument
+            .flatMap { textDocument => textDocument.completion }
+            .flatMap { completion => completion.completionItem }
+            .flatMap { item => item.documentationFormat } ??
+            []
     formats.contains(MarkupKind.Markdown)
 }
 

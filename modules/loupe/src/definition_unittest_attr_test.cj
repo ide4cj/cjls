@@ -12,7 +12,8 @@ import std.unittest.testmacro.*
 class UnittestAttrDefinitionTest {
     @TestCase
     func theParameterOfADataArgOfATestCaseGoesToTheParameter() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -24,12 +25,14 @@ class UnittestAttrDefinitionTest {
                 //     ^ def
                 func data(): Array<Int64> { [1, 2] }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theSourceOfADataArgOfATestCaseGoesToAMemberOfTheClass() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -41,12 +44,14 @@ class UnittestAttrDefinitionTest {
                 func data(): Array<Int64> { [1, 2] }
                 //   ^^^^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theParameterOfADataArgOfATopLevelTestGoesToTheParameter() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -55,12 +60,14 @@ class UnittestAttrDefinitionTest {
             func f(x: Int64): Unit {}
             //     ^ def
             func data(): Array<Int64> { [1, 2] }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theSourceOfADataArgOfATopLevelTestGoesToAFunctionOfTheFile() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -69,12 +76,14 @@ class UnittestAttrDefinitionTest {
             func f(x: Int64): Unit {}
             func data(): Array<Int64> { [1, 2] }
             //   ^^^^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theSourceOfADataArgSeesNoParameterOfTheDeclaration() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -83,12 +92,14 @@ class UnittestAttrDefinitionTest {
             //  ^ def
             @Test[x in $0x]
             func f(x: Int64): Unit {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aSourceUnderAnotherMacroIsTheDeclarationsToo() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -101,12 +112,14 @@ class UnittestAttrDefinitionTest {
                 func data(): Array<Int64> { [1, 2] }
                 //   ^^^^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theTypeParameterOfTypesGoesToTheTypeParameter() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -116,12 +129,14 @@ class UnittestAttrDefinitionTest {
             class C<T> {}
             //      ^ def
             class A {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeOfTypesGoesToTheType() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -134,12 +149,14 @@ class UnittestAttrDefinitionTest {
             }
             class A {}
             //    ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anIdentifierATagListsGoesNowhere() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -152,12 +169,14 @@ class UnittestAttrDefinitionTest {
                 func f(): Unit {}
             }
             class A {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTimeoutsExpressionGoesToWhatItNames() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -170,12 +189,14 @@ class UnittestAttrDefinitionTest {
                 @Timeout[$0limit]
                 func f(): Unit {}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOptionOfConfigureGoesToItsKeysProperty() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -183,13 +204,18 @@ class UnittestAttrDefinitionTest {
             @Test
             @Configure[$0generationSteps: 10]
             class C {}
-            "#, ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"],
-            ["unittest/options.cj: generationSteps in `public static prop generationSteps: KeyGenerationSteps {`"])
+            "#,
+            ["std.core", "std.ast", "std.unittest", "std.unittest.testmacro"],
+            [
+                "unittest/options.cj: generationSteps in `public static prop generationSteps: KeyGenerationSteps {`"
+            ]
+        )
     }
 
     @TestCase
     func anOptionOfConfigureDeclaredByUnittestOptionGoesToItsName() {
-        checkDefinitionWithUnittest(#"
+        checkDefinitionWithUnittest(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -200,6 +226,7 @@ class UnittestAttrDefinitionTest {
             @Test
             @Configure[$0zxc: 1]
             class C {}
-            "#)
+            "#
+        )
     }
 }

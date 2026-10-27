@@ -1,8 +1,8 @@
 package cjformat
 
 import std.collection.ArrayList
-import cjsyntax.ast.Expr
 import cjsyntax.{CjSyntaxElement, CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.Expr
 import ginkgo.{SyntaxElement, TextRange}
 
 /**
@@ -155,7 +155,9 @@ class LayoutBuilder {
         }
     }
 
-    /** Only complete, comment-free expression branches may share a line. */
+    /**
+     * Only complete, comment-free expression branches may share a line.
+     */
     private func ifExpression(n: CjSyntaxNode, parts: Array<CjSyntaxElement>): Doc {
         match (options.simpleIf) {
             case SimpleIf.Multiline => return group(sequence(parts, IfExpr))

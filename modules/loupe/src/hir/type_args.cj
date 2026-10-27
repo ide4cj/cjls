@@ -25,9 +25,14 @@ class VarBounds {
 class TypeArgSolver {
     private let bounds: Array<VarBounds>
 
-    TypeArgSolver(private let db: AnalysisDatabase, private let base: Int64, private let count: Int64,
-        private let from: ?SourceFile, private let option: ?DefId) {
-        bounds = Array(count) {_ => VarBounds()}
+    TypeArgSolver(
+        private let db: AnalysisDatabase,
+        private let base: Int64,
+        private let count: Int64,
+        private let from: ?SourceFile,
+        private let option: ?DefId
+    ) {
+        bounds = Array(count) { _ => VarBounds() }
     }
 
     /**
@@ -63,25 +68,32 @@ class TypeArgSolver {
             return
         }
         match ((sub.kind(db), sup.kind(db))) {
-            case (ErrorTy, _) | (_, ErrorTy) | (TodoTy(_), _) | (_, TodoTy(_)) | (UnknownTy(_), _) | (_, UnknownTy(_)) => ()
+            case (ErrorTy, _) |
+                (_, ErrorTy) |
+                (TodoTy(_), _) |
+                (_, TodoTy(_)) |
+                (UnknownTy(_), _) |
+                (_, UnknownTy(_)) => ()
             case (TupleTy(a), TupleTy(b)) where a.size == b.size =>
                 for (i in 0..a.size) {
                     constrain(a[i], b[i])
                 }
-            case (FuncTy(aParams, aRet, _), FuncTy(bParams, bRet, _)) where aParams.size == bParams.size =>
+            case (FuncTy(aParams, aRet, _), FuncTy(bParams, bRet, _)) where aParams.size ==
+                    bParams.size =>
                 for (i in 0..aParams.size) {
                     constrain(bParams[i], aParams[i])
                 }
                 constrain(aRet, bRet)
             // no `VArray` of a type parameter: cjc rejects one
-            case (_, DeclTy(id, args)) => match (asInstanceOf(db, sub, id, from).map {one => one.kind(db)}) {
-                case Some(DeclTy(_, subArgs)) where subArgs.size == args.size =>
-                    for (i in 0..args.size) {
-                        equal(subArgs[i], args[i])
-                    }
-                case _ where Some(id) == option && args.size == 1 => constrain(sub, args[0])
-                case _ => ()
-            }
+            case (_, DeclTy(id, args)) =>
+                match (asInstanceOf(db, sub, id, from).map { one => one.kind(db) }) {
+                    case Some(DeclTy(_, subArgs)) where subArgs.size == args.size =>
+                        for (i in 0..args.size) {
+                            equal(subArgs[i], args[i])
+                        }
+                    case _ where Some(id) == option && args.size == 1 => constrain(sub, args[0])
+                    case _ => ()
+                }
             case _ => ()
         }
     }
@@ -92,11 +104,7 @@ class TypeArgSolver {
      */
     func literal(isFloat: Bool, param: Ty): Unit {
         if (let Some(index) <- varOf(param)) {
-            if (isFloat) {
-                bounds[index].float = true
-            } else {
-                bounds[index].integer = true
-            }
+            if (isFloat) { bounds[index].float = true } else { bounds[index].integer = true }
             return
         }
         if (let DeclTy(id, args) <- param.kind(db) && Some(id) == option && args.size == 1) {
@@ -112,11 +120,20 @@ class TypeArgSolver {
      */
     func solve(): Array<?Ty> {
         let solved = Array<?Ty>(count, repeat: None)
-        let known = {tys: Array<Ty> => tys.map {one => replaceVars(db, one, base, solved)}.filter {
-            one => !hasUnknowns(db, one)
-        }}
+        let known =
+            {
+                tys: Array<Ty> =>
+                tys
+                    .map { one => replaceVars(db, one, base, solved) }
+                    .filter { one => !hasUnknowns(db, one) }
+            }
         for (i in 0..count) {
-            solved[i] = choose(known(bounds[i].lower.toArray()), known(bounds[i].upper.toArray()), bounds[i])
+            solved[i] =
+                choose(
+                    known(bounds[i].lower.toArray()),
+                    known(bounds[i].upper.toArray()),
+                    bounds[i]
+                )
         }
         solved
     }
@@ -131,22 +148,27 @@ class TypeArgSolver {
         if (of.integer && of.float) {
             return None
         }
-        let ideal: ?Array<String> = if (of.integer) {
-            Some(INTEGER_TYPES)
-        } else if (of.float) {
-            Some(FLOAT_TYPES)
-        } else {
-            None
-        }
-        let real = lower.filter {one => !isNothing(db, one)}
+        let ideal: ?Array<String> =
+            if (of.integer) {
+                Some(INTEGER_TYPES)
+            } else if (of.float) {
+                Some(FLOAT_TYPES)
+            } else {
+                None
+            }
+        let real = lower.filter { one => !isNothing(db, one) }
         if (!real.isEmpty()) {
             let joined = joinTys(db, real, from)
-            let fitsIdeal = match ((ideal, joined.kind(db))) {
-                case (None, _) => true
-                case (Some(kinds), PrimTy(name)) => kinds.contains(name)
-                case _ => false
-            }
-            if (!isUnknown(db, joined) && fitsIdeal && upper.iterator().all {one => fits(joined, one)}) {
+            let fitsIdeal =
+                match ((ideal, joined.kind(db))) {
+                    case (None, _) => true
+                    case (Some(kinds), PrimTy(name)) => kinds.contains(name)
+                    case _ => false
+                }
+            if (
+                !isUnknown(db, joined) && fitsIdeal &&
+                    upper.iterator().all { one => fits(joined, one) }
+            ) {
                 return joined
             }
             return None
@@ -157,11 +179,7 @@ class TypeArgSolver {
                     return one
                 }
             }
-            return Ty(db, PrimTy(if (of.integer) {
-                "Int64"
-            } else {
-                "Float64"
-            }))
+            return Ty(db, PrimTy(if (of.integer) { "Int64" } else { "Float64" }))
         }
         if (!lower.isEmpty()) {
             // what is passed is `Nothing` alone (`gen(throw e)`): an upper bound if there is one,
@@ -178,7 +196,7 @@ class TypeArgSolver {
      * The one of `tys` that is a subtype of every other.
      */
     private func meet(tys: Array<Ty>): ?Ty {
-        let least = tys.filter {one => tys.iterator().all {other => fits(one, other)}}
+        let least = tys.filter { one => tys.iterator().all { other => fits(one, other) } }
         least.get(0)
     }
 
@@ -212,7 +230,7 @@ class TypeArgSolver {
     }
 
     private func hasVars(ty: Ty): Bool {
-        anyIn(db, ty) {one => varOf(one).isSome()}
+        anyIn(db, ty) { one => varOf(one).isSome() }
     }
 }
 
@@ -223,7 +241,7 @@ func anyIn(db: AnalysisDatabase, ty: Ty, test: (Ty) -> Bool): Bool {
     if (test(ty)) {
         return true
     }
-    let all = {tys: Array<Ty> => tys.iterator().any {one => anyIn(db, one, test)}}
+    let all = { tys: Array<Ty> => tys.iterator().any { one => anyIn(db, one, test) } }
     match (ty.kind(db)) {
         case DeclTy(_, args) => all(args)
         case TupleTy(elements) => all(elements)
@@ -264,7 +282,7 @@ func firstUnknownIn(db: AnalysisDatabase, ty: Ty): ?Ty {
     if (isUnknown(db, ty)) {
         return ty
     }
-    let all = {tys: Array<Ty> => unknownOf(db, tys)}
+    let all = { tys: Array<Ty> => unknownOf(db, tys) }
     match (ty.kind(db)) {
         case ParamTy(_, _) => incompleteBoundsOf(db, ty)
         case DeclTy(_, args) => all(args)
@@ -287,7 +305,8 @@ func isAnalysisUnknown(db: AnalysisDatabase, ty: Ty): Bool {
  */
 func hasInferVars(db: AnalysisDatabase, ty: Ty): Bool {
     anyIn(db, ty) {
-        one => match (one.kind(db)) {
+        one =>
+        match (one.kind(db)) {
             case InferTy(_) => true
             case _ => false
         }
@@ -298,14 +317,27 @@ func hasInferVars(db: AnalysisDatabase, ty: Ty): Bool {
  * `ty` with each variable `InferTy(base + i)` replaced by `solved[i]`, `unsolved` if `None`: an
  * error type unless given.
  */
-func replaceVars(db: AnalysisDatabase, ty: Ty, base: Int64, solved: Array<?Ty>, unsolved!: ?Ty = None): Ty {
-    let all = {tys: Array<Ty> => tys.map {one => replaceVars(db, one, base, solved, unsolved: unsolved)}}
+func replaceVars(
+    db: AnalysisDatabase,
+    ty: Ty,
+    base: Int64,
+    solved: Array<?Ty>,
+    unsolved!: ?Ty = None
+): Ty {
+    let all =
+        {
+            tys: Array<Ty> =>
+            tys.map { one => replaceVars(db, one, base, solved, unsolved: unsolved) }
+        }
     match (ty.kind(db)) {
-        case InferTy(n) where n >= base && n < base + solved.size => solved[n - base] ?? unsolved ?? Ty(db, ErrorTy)
+        case InferTy(n) where n >= base && n < base + solved.size =>
+            solved[n - base] ?? unsolved ?? Ty(db, ErrorTy)
         case DeclTy(def, args) => Ty(db, DeclTy(def, all(args)))
         case TupleTy(elements) => Ty(db, TupleTy(all(elements)))
-        case FuncTy(params, ret, isC) => Ty(db, FuncTy(all(params), replaceVars(db, ret, base, solved, unsolved: unsolved), isC))
-        case VArrayTy(element, size) => Ty(db, VArrayTy(replaceVars(db, element, base, solved, unsolved: unsolved), size))
+        case FuncTy(params, ret, isC) =>
+            Ty(db, FuncTy(all(params), replaceVars(db, ret, base, solved, unsolved: unsolved), isC))
+        case VArrayTy(element, size) =>
+            Ty(db, VArrayTy(replaceVars(db, element, base, solved, unsolved: unsolved), size))
         case _ => ty
     }
 }

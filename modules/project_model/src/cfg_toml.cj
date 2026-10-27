@@ -18,15 +18,37 @@ public const CFG_TOML = "cfg.toml"
  * be read, or is not of strings, is left out, and said in `problems`.
  */
 public func withPackageCfgs(model: ProjectModel, problems: ArrayList<String>): ProjectModel {
-    let modules = model.modules.map {
-        module => ModuleModel(module.name, module.root, module.packages.map {
-            pkg => match (cfgTomlOf(pkg.dir, problems)) {
-                case Some(cfg) => PackageModel(pkg.name, pkg.dir, pkg.files, noPrelude: pkg.noPrelude,
-                    isMacro: pkg.isMacro, cfg: cfg)
-                case None => pkg
+    let modules =
+        model
+            .modules
+            .map {
+                module =>
+                ModuleModel(
+                    module.name,
+                    module.root,
+                    module
+                        .packages
+                        .map {
+                            pkg =>
+                            match (cfgTomlOf(pkg.dir, problems)) {
+                                case Some(cfg) =>
+                                    PackageModel(
+                                        pkg.name,
+                                        pkg.dir,
+                                        pkg.files,
+                                        noPrelude: pkg.noPrelude,
+                                        isMacro: pkg.isMacro,
+                                        cfg: cfg
+                                    )
+                                case None => pkg
+                            }
+                        },
+                    deps: module.deps,
+                    member: module.member,
+                    cfg: module.cfg,
+                    inactive: module.inactive
+                )
             }
-        }, deps: module.deps, member: module.member, cfg: module.cfg, inactive: module.inactive)
-    }
     ProjectModel(model.cfg, modules, binaries: model.binaries)
 }
 

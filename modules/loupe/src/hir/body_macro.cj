@@ -59,8 +59,12 @@ func bodyCallSyntaxOf(db: AnalysisDatabase, call: MacroCallId): ?BodyCallSyntax 
     let file = call.file(db)
     let node = itemIdMap(db, file).node(call.item(db), parse(db, file).syntaxNode()) ?? return None
     let walker = BodyCallWalker(itemIdMap(db, file), ActiveFilter.of(db, file), call.item(db))
-    (walker.walk(node) |> filter {one: FoundBodyCall => one.name == name && one.index == call.index(db)} |>
-        map {one: FoundBodyCall => one.syntax} |> first)
+    (
+        walker.walk(node) |>
+            filter { one: FoundBodyCall => one.name == name && one.index == call.index(db) } |>
+            map { one: FoundBodyCall => one.syntax } |>
+            first
+    )
 }
 
 /**
@@ -68,20 +72,25 @@ func bodyCallSyntaxOf(db: AnalysisDatabase, call: MacroCallId): ?BodyCallSyntax 
  * the `MacroExpandDecl` on a local declaration; `None` if it is no longer there.
  */
 public func bodyCallNodeOf(db: AnalysisDatabase, call: MacroCallId): ?CjSyntaxNode {
-    bodyCallSyntaxOf(db, call).map {one => one.syntax}
+    bodyCallSyntaxOf(db, call).map { one => one.syntax }
 }
 
 /**
  * The call in an item of `file` (`bodyMacroCalls`) whose head `offset` is on, the end included, the innermost if
  * calls nest, and that head; `None` off any.
  */
-func bodyCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64): ?(MacroCallId, TextRange) {
+func bodyCallUnder(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    offset: Int64
+): ?(MacroCallId, TextRange) {
     let root = parse(db, file).syntaxNode()
-    let tokens = match (root.tokenAtOffset(offset)) {
-        case Single(token) => [token]
-        case Between(left, right) => [right, left]
-        case _ => return None
-    }
+    let tokens =
+        match (root.tokenAtOffset(offset)) {
+            case Single(token) => [token]
+            case Between(left, right) => [right, left]
+            case _ => return None
+        }
     let ids = itemIdMap(db, file)
     for (token in tokens) {
         for (node in token.parent.ancestors()) {
@@ -89,13 +98,27 @@ func bodyCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64): ?(Mac
             if (!call.head().containsInclusive(offset)) {
                 continue
             }
-            let (item, itemNode) = (node.ancestors() |> filterMap {
-                one: CjSyntaxNode => ids.idOf(SyntaxNodePtr(one)).map {id => (id, one)}
-            } |> first) ?? break
+            let (item, itemNode) =
+                (
+                    node.ancestors() |>
+                        filterMap {
+                            one: CjSyntaxNode =>
+                            ids.idOf(SyntaxNodePtr(one)).map { id => (id, one) }
+                        } |>
+                        first
+                ) ??
+                    break
             let walker = BodyCallWalker(ids, ActiveFilter.of(db, file), item)
-            let found = (walker.walk(itemNode) |> filter {
-                one: FoundBodyCall => one.syntax.syntax.textRange == node.textRange
-            } |> first) ?? continue
+            let found =
+                (
+                    walker.walk(itemNode) |>
+                        filter {
+                            one: FoundBodyCall =>
+                            one.syntax.syntax.textRange == node.textRange
+                        } |>
+                        first
+                ) ??
+                    continue
             return (MacroCallId(db, file, item, found.index, Some(found.name)), found.syntax.head())
         }
     }
@@ -107,9 +130,12 @@ func bodyCallUnder(db: AnalysisDatabase, file: SourceFile, offset: Int64): ?(Mac
  */
 func bodyMacroCallOf(db: AnalysisDatabase, call: MacroCallId): ?BodyMacroCall {
     let name = call.inBody(db) ?? return None
-    bodyMacroCalls(db, call.file(db)) |> filter {
-        one: BodyMacroCall => one.item == call.item(db) && one.name == name && one.index == call.index(db)
-    } |> first
+    bodyMacroCalls(db, call.file(db)) |>
+        filter {
+            one: BodyMacroCall =>
+            one.item == call.item(db) && one.name == name && one.index == call.index(db)
+        } |>
+        first
 }
 
 /**
@@ -127,7 +153,7 @@ enum BodyCallSyntax {
         if (let Some(call) <- MacroExpandExpr.cast(node)) {
             return InExpr(call)
         }
-        MacroExpandDecl.cast(node).map {call => OnLocalDecl(call)}
+        MacroExpandDecl.cast(node).map { call => OnLocalDecl(call) }
     }
 
     prop syntax: CjSyntaxNode {
@@ -144,11 +170,12 @@ enum BodyCallSyntax {
      */
     prop name: String {
         get() {
-            let names = match (this) {
-                case InExpr(call) => call.nameRefs()
-                case OnLocalDecl(call) => call.nameRefs()
-            }
-            String.join(names |> map {one: NameRef => one.text()} |> collectArray, delimiter: ".")
+            let names =
+                match (this) {
+                    case InExpr(call) => call.nameRefs()
+                    case OnLocalDecl(call) => call.nameRefs()
+                }
+            String.join(names |> map { one: NameRef => one.text() } |> collectArray, delimiter: ".")
         }
     }
 
@@ -172,8 +199,8 @@ enum BodyCallSyntax {
      */
     func rest(): ?CjSyntaxNode {
         match (this) {
-            case InExpr(call) => call.macroExpandExpr().map {one => one.syntax}
-            case OnLocalDecl(call) => call.decl().map {one => one.syntax}
+            case InExpr(call) => call.macroExpandExpr().map { one => one.syntax }
+            case OnLocalDecl(call) => call.decl().map { one => one.syntax }
         }
     }
 
@@ -182,18 +209,22 @@ enum BodyCallSyntax {
      */
     func head(): TextRange {
         let whole = syntax.textRange.start
-        let start = match (this) {
-            case InExpr(call) => call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? whole
-            case OnLocalDecl(call) => call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? whole
-        }
+        let start =
+            match (this) {
+                case InExpr(call) =>
+                    call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? whole
+                case OnLocalDecl(call) =>
+                    call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? whole
+            }
         if (let Some(attr) <- macroAttr()) {
             return TextRange(start, attr.syntax.textRange.end)
         }
-        let names = match (this) {
-            case InExpr(call) => call.nameRefs()
-            case OnLocalDecl(call) => call.nameRefs()
-        }
-        let ends = names |> map {one: NameRef => one.syntax.textRange.end} |> collectArray
+        let names =
+            match (this) {
+                case InExpr(call) => call.nameRefs()
+                case OnLocalDecl(call) => call.nameRefs()
+            }
+        let ends = names |> map { one: NameRef => one.syntax.textRange.end } |> collectArray
         TextRange(start, ends.get(ends.size - 1) ?? (start + 1))
     }
 }
@@ -219,7 +250,11 @@ class BodyCallWalker {
     private let ordinals = HashMap<String, Int64>()
     private let found = ArrayList<FoundBodyCall>()
 
-    BodyCallWalker(private let ids: ItemIdMap, private let filter: ActiveFilter, private let item: ItemId) {}
+    BodyCallWalker(
+        private let ids: ItemIdMap,
+        private let filter: ActiveFilter,
+        private let item: ItemId
+    ) {}
 
     func walk(node: CjSyntaxNode): Array<FoundBodyCall> {
         visit(node, [])
@@ -254,7 +289,7 @@ class BodyCallWalker {
      */
     private func isAnotherItem(node: CjSyntaxNode): Bool {
         var decl = node
-        while (let Some(inner) <- MacroExpandDecl.cast(decl).flatMap {one => one.decl()}) {
+        while (let Some(inner) <- MacroExpandDecl.cast(decl).flatMap { one => one.decl() }) {
             decl = inner.syntax
         }
         match (ids.idOf(SyntaxNodePtr(decl))) {
@@ -268,7 +303,9 @@ class BodyCallWalker {
      */
     private func isOnParam(node: CjSyntaxNode): Bool {
         var call = MacroExpandDecl.cast(node) ?? return false
-        while (let Some(inner) <- call.decl().flatMap {decl => MacroExpandDecl.cast(decl.syntax)}) {
+        while (
+            let Some(inner) <- call.decl().flatMap { decl => MacroExpandDecl.cast(decl.syntax) }
+        ) {
             call = inner
         }
         call.param().isSome()

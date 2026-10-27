@@ -41,7 +41,7 @@ class Branch <: Node {
 }
 
 private func summaryOf(children: Array<Node>): TextSummary {
-    children |> fold(TextSummary.EMPTY) {summary, child => summary + child.summary}
+    children |> fold(TextSummary.EMPTY) { summary, child => summary + child.summary }
 }
 
 /**
@@ -167,7 +167,10 @@ private func merged(left: Node, right: Node): ArrayList<Node> {
 func grouped(nodes: ArrayList<Node>, height: Int64): ArrayList<Node> {
     let all = nodes.toArray()
     let groups = (all.size + MAX_CHILDREN - 1) / MAX_CHILDREN
-    ArrayList<Node>(groups) {group => Branch(height, all[all.size * group / groups..all.size * (group + 1) / groups])}
+    ArrayList<Node>(groups) {
+        group =>
+        Branch(height, all[all.size * group / groups..all.size * (group + 1) / groups])
+    }
 }
 
 /**
@@ -240,15 +243,17 @@ func positionInLeaf(node: Node, offset: Int64, encoding: Encoding): ?LineColumn 
                         None
                     }
                 }
-                let breaksBefore = if (lineStart <= text.size / 2) {
-                    countLineBreaks(text, 0, lineStart)
-                } else {
-                    leaf.summary.lineBreaks - countLineBreaks(text, lineStart, text.size)
-                }
-                let column = match (encoding) {
-                    case Utf8 => remaining - lineStart
-                    case _ => summarize(text, lineStart, remaining).measure(encoding)
-                }
+                let breaksBefore =
+                    if (lineStart <= text.size / 2) {
+                        countLineBreaks(text, 0, lineStart)
+                    } else {
+                        leaf.summary.lineBreaks - countLineBreaks(text, lineStart, text.size)
+                    }
+                let column =
+                    match (encoding) {
+                        case Utf8 => remaining - lineStart
+                        case _ => summarize(text, lineStart, remaining).measure(encoding)
+                    }
                 return LineColumn(lineBreaks + breaksBefore, column)
             case branch: Branch =>
                 let children = branch.children
@@ -390,7 +395,7 @@ class ChunkIterator <: Iterator<String> {
             match (node) {
                 case leaf: Leaf where !leaf.text.isEmpty() => return leaf.text
                 case branch: Branch =>
-                    for (i in branch.children.size - 1..=0 : -1) {
+                    for (i in branch.children.size - 1..=0: -1) {
                         pending.add(branch.children[i])
                     }
                 case _ => ()

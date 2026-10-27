@@ -12,7 +12,8 @@ import std.unittest.testmacro.*
 class ArgumentMatchingTest {
     @TestCase
     func aNamedArgumentIsInferredAgainstItsParameter() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class P { let name = 1 }
             //            ^^^^ Int64
@@ -38,12 +39,14 @@ class ArgumentMatchingTest {
                 let a = small(x: 1)
             //      ^ Int8
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOverloadIsTakenByNamesAndDefaultValues() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.ArrayList
             class C {
@@ -68,12 +71,14 @@ class ArgumentMatchingTest {
                 let added = l.add("a")
             //      ^^^^^ Unit
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnAliasExtendsTheTypeItExpandsTo() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             type Small = Int16
             extend Small {
@@ -85,13 +90,15 @@ class ArgumentMatchingTest {
                 let t = n.twice()
             //      ^ Int16
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func branchesOfAnOptionAndOfItsArgumentAreJoinedIntoTheOption() {
         // #249
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class C { var b = 1 }
             //            ^ Int64
@@ -106,12 +113,14 @@ class ArgumentMatchingTest {
                 let j3 = if (c) { 1 } else { o }
             //      ^^ Option<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aForeignFunctionIsACFuncAsAValue() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             foreign func abs(x: Int32): Int32
             //               ^ Int32
@@ -122,12 +131,14 @@ class ArgumentMatchingTest {
                 let joined = if (true) { o } else { 1 }
             //      ^^^^^^ Option<Int64>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVariadicFunctionOfACjoTakesTheElementsOfItsArray() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             import std.collection.ArrayList
             func g(s: String): Unit {
@@ -154,12 +165,14 @@ class ArgumentMatchingTest {
                 let u = s.trimStart(r'a')
             //      ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func argumentsGoToTheirParametersByPlaceAndByNameBeforeACandidateIsTried() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             class T {
                 init(words!: Array<Int64>) {}
@@ -189,12 +202,14 @@ class ArgumentMatchingTest {
             //      ^^ Int64
             //                  ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTrailingLambdaGoesToANamedLastParameterPastOnesOfADefaultValue() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func withConfig<T>(a: String, m!: ?String = None, body!: (String, Int64) -> T): T {
             //                 ^ String
@@ -212,12 +227,14 @@ class ArgumentMatchingTest {
             //      ^ String
             //                                    ^ String
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVariadicParameterTakesTheTailOnlyIfNoCandidateTakesTheArgumentsAsTheyAre() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func v(a: Int64, xs: Array<Int64>): Int64 { a }
             //     ^ Int64
@@ -271,12 +288,14 @@ class ArgumentMatchingTest {
                 let m1 = mx(1, 2, 3)
             //      ^^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aParameterOfADefaultValueLeftOutGivesACandidateNoPriority() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func d(a: Int64, b!: Int64 = 0): Int64 { a }
             //     ^ Int64
@@ -290,12 +309,14 @@ class ArgumentMatchingTest {
                 let d2 = d(1, b: 2)
             //      ^^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaGoesToACandidateWhoseParameterThereIsAFunctionFirst() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             struct Lazy<T> {
                 init(value: T) {}
@@ -312,12 +333,14 @@ class ArgumentMatchingTest {
             //      ^ Array<Int64>
             //                           ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalFunctionTakesItsParametersByTheirNames() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func test(): Unit {
                 func g(a: Int64, b!: Int64 = 0): Int64 { a + b }
@@ -329,12 +352,14 @@ class ArgumentMatchingTest {
                 let y = g(1)
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdaArgumentExcludesTheCandidatesOfFewerParametersAndMismatchesThoseOfNoFunction() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func k(f: () -> Int64): Int64 { f() }
             //     ^ () -> Int64
@@ -357,6 +382,7 @@ class ArgumentMatchingTest {
             //     ^ () -> Int64
             func j(g!: () -> Int64): String { "" }
             //     ^ () -> Int64
-            "#)
+            "#
+        )
     }
 }

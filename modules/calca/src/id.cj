@@ -42,11 +42,7 @@ public struct Id <: ToString {
      * The index, and the generation after a `g` once there is one: `3`, `3g1`.
      */
     public func toString(): String {
-        if (generation == 0) {
-            index.toString()
-        } else {
-            "${index}g${generation}"
-        }
+        if (generation == 0) { index.toString() } else { "${index}g${generation}" }
     }
 }
 

@@ -79,7 +79,8 @@ class MemoryUsageTest {
         let runtime = FakeHeapRuntime(dumpFails: true)
 
         // act
-        let e = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(heapDump: "heap.data")))
+        let e =
+            @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(heapDump: "heap.data")))
 
         // assert
         @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
@@ -91,7 +92,8 @@ class MemoryUsageTest {
         let runtime = FakeHeapRuntime(collectsAfterPauses: 0, heapDumped: false)
 
         // act
-        let e = @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(collect: true, heapDump: "heap.data")))
+        let e =
+            @AssertThrows[RpcException](memoryUsage(runtime, MemoryUsageParams(collect: true, heapDump: "heap.data")))
 
         // assert
         @Expect(e.responseError.code, ErrorCode.REQUEST_FAILED)
@@ -134,7 +136,8 @@ class MemoryUsageTest {
     @TestCase
     func paramsThatDoNotReadAreInvalid() {
         // act
-        let e = @AssertThrows[RpcException](MemoryUsageRequestSpec().decodeParams(RawJson(##"{"collect": 1}"##.toArray())))
+        let e =
+            @AssertThrows[RpcException](MemoryUsageRequestSpec().decodeParams(RawJson(##"{"collect": 1}"##.toArray())))
 
         // assert
         @Expect(e.responseError.code, ErrorCode.INVALID_PARAMS)
@@ -207,8 +210,15 @@ class FakeHeapRuntime <: HeapRuntime {
 
     public func usage(): MemoryUsage {
         calls.add("usage")
-        MemoryUsage(usedHeap: 1, allocatedHeap: 1, maxHeap: 1, gcCount: count, gcTime: 0, gcFreed: 0,
-            threads: 1)
+        MemoryUsage(
+            usedHeap: 1,
+            allocatedHeap: 1,
+            maxHeap: 1,
+            gcCount: count,
+            gcTime: 0,
+            gcFreed: 0,
+            threads: 1
+        )
     }
 
     private func collectIfDue(): Unit {

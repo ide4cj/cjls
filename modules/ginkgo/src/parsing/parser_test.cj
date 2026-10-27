@@ -69,7 +69,13 @@ class ParserTest {
 
         // assert
         @Expect(joint.errors.size, 0)
-        let shr = joint.syntaxNode().descendantsWithTokens().filter {el => el.kind == Shr}.next().getOrThrow()
+        let shr =
+            joint
+                .syntaxNode()
+                .descendantsWithTokens()
+                .filter { el => el.kind == Shr }
+                .next()
+                .getOrThrow()
         @Expect(shr.toString(), ">>")
         @Expect(apart.errors.size > 0)
         @Expect(apart.syntaxNode().text(), "1> >2")
@@ -85,7 +91,7 @@ class ParserTest {
 
         // assert
         @Expect(parse.syntaxNode().text(), text)
-        let messages = parse.errors.map {e => e.toString()}
+        let messages = parse.errors.map { e => e.toString() }
         @Expect(String.join(messages, delimiter: "; "),
             "4..4: expected a number; 4..5: unknown character; 6..6: expected a newline; 8..8: expected a number; " +
                 "10..10: expected a newline")
@@ -202,7 +208,7 @@ class ParserTest {
         let lexed = toyLex("1 + 2 # c")
 
         // act
-        let parse = parseWith(lexed, toyParser(lexed), ToyTrivia(), Root) {p => p.bump(Plus)}
+        let parse = parseWith(lexed, toyParser(lexed), ToyTrivia(), Root) { p => p.bump(Plus) }
 
         // assert
         @Expect(parse.syntaxNode().debugDump(),
@@ -215,7 +221,7 @@ class ParserTest {
     func aGrammarThatWorksIsBuiltAsBuildTreeWould() {
         // act
         let lexed = toyLex("1 + 2")
-        let parse = parseWith(lexed, toyParser(lexed), ToyTrivia(), Root) {p => toyRoot(p)}
+        let parse = parseWith(lexed, toyParser(lexed), ToyTrivia(), Root) { p => toyRoot(p) }
 
         // assert
         @Expect(parse == toyParse("1 + 2"))

@@ -8,14 +8,19 @@ import std.fs.Path
  * Missing values remain literal and are reported in `problems`. Other shell syntax is literal.
  * This accepts filesystem paths, not URIs; relative paths stay relative.
  */
-public func expandPath(text: String, env: (String) -> ?String, problems: ArrayList<String>): String {
+public func expandPath(
+    text: String,
+    env: (String) -> ?String,
+    problems: ArrayList<String>
+): String {
     let expanded = expandVariables(text, env, problems)
     // Only a tilde written by the user denotes home: variable values are never expanded again.
     if (text == "~" || text.startsWith("~/") || text.startsWith("~\\")) {
-        let home = match (env("HOME")) {
-            case Some(value) => Some(value)
-            case None => env("USERPROFILE")
-        }
+        let home =
+            match (env("HOME")) {
+                case Some(value) => Some(value)
+                case None => env("USERPROFILE")
+            }
         if (let Some(home) <- home) {
             if (home.isEmpty()) {
                 problems.add("home is empty: `${text}` cannot expand `~`")
@@ -47,7 +52,9 @@ func expandVariables(text: String, env: (String) -> ?String, problems: ArrayList
         let nameStart = if (braced) { offset + 1 } else { offset }
         var end = nameStart
         if (braced) {
-            while (end < bytes.size && bytes[end] != b'}') { end++ }
+            while (end < bytes.size && bytes[end] != b'}') {
+                end++
+            }
             if (end == bytes.size) {
                 break
             }
@@ -55,7 +62,10 @@ func expandVariables(text: String, env: (String) -> ?String, problems: ArrayList
             if (!variableStart(bytes[end])) {
                 continue
             }
-            while (end < bytes.size && (variableStart(bytes[end]) || (bytes[end] >= b'0' && bytes[end] <= b'9'))) {
+            while (
+                end < bytes.size &&
+                    (variableStart(bytes[end]) || (bytes[end] >= b'0' && bytes[end] <= b'9'))
+            ) {
                 end++
             }
         }

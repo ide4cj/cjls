@@ -23,8 +23,10 @@ struct TomlManifest {
 struct TomlPackage {
     TomlPackage(
         let name!: String,
-        @Serde[rename: "cjc-version"] let cjcVersion!: String,
-        @Serde[rename: "output-type"] let outputType!: TomlOutputType,
+        @Serde[rename: "cjc-version"]
+        let cjcVersion!: String,
+        @Serde[rename: "output-type"]
+        let outputType!: TomlOutputType,
         let description!: ?String = None,
         let members!: ?Array<String> = None
     ) {}
@@ -117,7 +119,11 @@ struct TomlPositional {
 
 @DeriveExt[ToToml, FromToml]
 struct TomlSteps {
-    TomlSteps(let steps!: Array<TomlStep>, let range!: ?TomlRange = None, let version!: ?TomlVersion = None) {}
+    TomlSteps(
+        let steps!: Array<TomlStep>,
+        let range!: ?TomlRange = None,
+        let version!: ?TomlVersion = None
+    ) {}
 }
 
 private func toml<T>(value: T): String where T <: ToToml {
@@ -128,7 +134,8 @@ private func read<T>(text: String): T where T <: FromToml<T> {
     fromTomlString<T>(text)
 }
 
-private let PACKAGE = TomlPackage(name: "demo", cjcVersion: "1.3.0", outputType: TomlOutputType.Executable)
+private let PACKAGE =
+    TomlPackage(name: "demo", cjcVersion: "1.3.0", outputType: TomlOutputType.Executable)
 
 @Test
 class DeriveTomlStructTest {
@@ -143,12 +150,13 @@ class DeriveTomlStructTest {
         // arrange
         let dependencies = HashMap<String, TomlDependency>()
         dependencies["fjson"] = TomlDependency.Local(TomlPathDependency(path: "../fjson"))
-        let manifest = TomlManifest(
-            `package`: PACKAGE,
-            dependencies: dependencies,
-            bin: [TomlTarget(name: "a", level: TomlLevel.Quiet)],
-            profile: TomlProfile(lto: false, jobs: 4)
-        )
+        let manifest =
+            TomlManifest(
+                `package`: PACKAGE,
+                dependencies: dependencies,
+                bin: [TomlTarget(name: "a", level: TomlLevel.Quiet)],
+                profile: TomlProfile(lto: false, jobs: 4)
+            )
 
         // act & assert
         @Expect(toml(manifest),
@@ -166,9 +174,10 @@ class DeriveTomlStructTest {
     @TestCase
     func aManifestRoundTrips() {
         // arrange
-        let text = "[package]\nname = \"demo\"\ncjc-version = \"1.3.0\"\noutput-type = \"static\"\n" +
-            "members = [\"a\", \"b\"]\n\n[dependencies]\nfjson = { kind = \"path\", path = \"../fjson\" }\n" +
-            "rope = \"1.0\"\n\n[[bin]]\nname = \"x\"\nlevel = 7\n"
+        let text =
+            "[package]\nname = \"demo\"\ncjc-version = \"1.3.0\"\noutput-type = \"static\"\n" +
+                "members = [\"a\", \"b\"]\n\n[dependencies]\nfjson = { kind = \"path\", path = \"../fjson\" }\n" +
+                "rope = \"1.0\"\n\n[[bin]]\nname = \"x\"\nlevel = 7\n"
 
         // act
         let manifest = read<TomlManifest>(text)
@@ -308,7 +317,10 @@ class DeriveTomlEnumTest {
     @TestCase
     func aTaggedVariantIsATableOfTheTagAndItsPayloads() {
         // arrange
-        let steps = TomlSteps(steps: [TomlStep.Run("cjpm", ["test"]), TomlStep.Echo("hi", None), TomlStep.Skip])
+        let steps =
+            TomlSteps(
+                steps: [TomlStep.Run("cjpm", ["test"]), TomlStep.Echo("hi", None), TomlStep.Skip]
+            )
 
         // act
         let text = toml(steps)
@@ -330,7 +342,8 @@ class DeriveTomlEnumTest {
     @TestCase
     func anUnknownOrAbsentTagThrows() {
         // act
-        let unknown = @AssertThrows[FtException](read<TomlBox<TomlStep>>("value = {kind = \"jump\"}"))
+        let unknown =
+            @AssertThrows[FtException](read<TomlBox<TomlStep>>("value = {kind = \"jump\"}"))
         let absent = @AssertThrows[FtException](read<TomlBox<TomlStep>>("value = {text = \"x\"}"))
 
         // assert
@@ -352,7 +365,8 @@ class DeriveTomlTransparentAndTaggedStructTest {
     @TestCase
     func aForeignOrAbsentTagThrows() {
         // act
-        let onOtherTag = @AssertThrows[FtException](read<TomlPathDependency>("kind = \"git\"\npath = \"a\""))
+        let onOtherTag =
+            @AssertThrows[FtException](read<TomlPathDependency>("kind = \"git\"\npath = \"a\""))
         let absent = @AssertThrows[FtException](read<TomlPathDependency>("path = \"a\""))
 
         // assert

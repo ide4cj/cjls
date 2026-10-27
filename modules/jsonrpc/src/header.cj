@@ -18,17 +18,21 @@ struct Header {
         for (rawField in str.split("\r\n", removeEmpty: true)) {
             let parts = rawField.split(": ", 2)
             if (parts.size == 2 && parts[0] == "Content-Length") {
-                contentLength = try {
-                    Int32.parse(parts[1])
-                } catch (e: IllegalArgumentException) {
-                    throw TransportException("\"Content-Length\" value is invalid\nCause: ${e.message}")
-                }
+                contentLength =
+                    try {
+                        Int32.parse(parts[1])
+                    } catch (e: IllegalArgumentException) {
+                        throw TransportException(
+                            "\"Content-Length\" value is invalid\nCause: ${e.message}"
+                        )
+                    }
             }
         }
 
         match (contentLength) {
             case None => throw TransportException("Required field \"Content-Length\" is missing")
-            case Some(v) where v < 0 => throw TransportException("\"Content-Length\" must be non-negative")
+            case Some(v) where v < 0 =>
+                throw TransportException("\"Content-Length\" must be non-negative")
             case Some(v) => Header(v)
         }
     }
@@ -44,7 +48,10 @@ struct Header {
         while (let Some(byte) <- input.readByte()) {
             bytes.add(byte)
             let n = bytes.size
-            if (n >= 4 && bytes[n - 4] == b'\r' && bytes[n - 3] == b'\n' && bytes[n - 2] == b'\r' && byte == b'\n') {
+            if (
+                n >= 4 && bytes[n - 4] == b'\r' && bytes[n - 3] == b'\n' && bytes[n - 2] == b'\r' &&
+                    byte == b'\n'
+            ) {
                 return Header.parse(String.fromUtf8(bytes[..n - 4].toArray()))
             }
         }

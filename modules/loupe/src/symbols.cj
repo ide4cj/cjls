@@ -54,7 +54,12 @@ public func fileSymbols(db: AnalysisDatabase, file: SourceFile): Array<FileSymbo
  * are in it in order, whatever their case (`fb` matches `FooBar`), so a few letters of a name
  * find it; an empty query matches every name.
  */
-public func workspaceSymbols(db: AnalysisDatabase, files: Array<FileId>, query: String, limit: Int64): Array<FoundSymbol> {
+public func workspaceSymbols(
+    db: AnalysisDatabase,
+    files: Array<FileId>,
+    query: String,
+    limit: Int64
+): Array<FoundSymbol> {
     let found = ArrayList<FoundSymbol>()
     let wanted = query.toLower().toRuneArray()
     for (fileId in files) {
@@ -69,7 +74,11 @@ public func workspaceSymbols(db: AnalysisDatabase, files: Array<FileId>, query: 
     found.toArray()
 }
 
-private func flatten(nodes: Array<StructureNode>, container: ?String, symbols: ArrayList<FileSymbol>): Unit {
+private func flatten(
+    nodes: Array<StructureNode>,
+    container: ?String,
+    symbols: ArrayList<FileSymbol>
+): Unit {
     for (node in nodes) {
         symbols.add(FileSymbol(node.name, node.kind, node.range, node.selectionRange, container))
         flatten(node.children, node.name, symbols)

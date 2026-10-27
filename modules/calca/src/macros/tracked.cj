@@ -70,12 +70,22 @@ private func tracked(attrs: Tokens, input: Tokens): Tokens {
             function + holder
         case ed: ExtendDecl =>
             if (attrs.size > 0) {
-                diagReport(DiagReportLevel.ERROR, attrs, "an `extend`'s options go on each of its methods", "")
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "an `extend`'s options go on each of its methods",
+                    ""
+                )
                 return input
             }
             trackedExtend(ed, input)
         case _ =>
-            diagReport(DiagReportLevel.ERROR, input, "`@CalcaTracked` goes on a function, or an `extend`", "")
+            diagReport(
+                DiagReportLevel.ERROR,
+                input,
+                "`@CalcaTracked` goes on a function, or an `extend`",
+                ""
+            )
             input
     }
 }
@@ -102,30 +112,48 @@ private func parseOptions(attrs: Tokens): ?Options {
                 equal = quote({_, _ => false})
                 i++
             // a literal has no sign, `-` is a token of its own
-            case "lru" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON && attrs[i + 2].kind ==
-                TokenKind.INTEGER_LITERAL =>
+            case "lru" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON &&
+                    attrs[i + 2].kind == TokenKind.INTEGER_LITERAL =>
                 let capacity = attrs[i + 2]
                 lru = quote(, lru: $capacity)
                 i += 3
             case "lru" =>
-                diagReport(DiagReportLevel.ERROR, attrs, "`lru` takes how many values to keep: `lru: 128`", "")
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "`lru` takes how many values to keep: `lru: 128`",
+                    ""
+                )
                 return None
             case "cycleResult" where i + 2 < attrs.size && attrs[i + 1].kind == TokenKind.COLON &&
-                attrs[i + 2].kind == TokenKind.IDENTIFIER =>
+                    attrs[i + 2].kind == TokenKind.IDENTIFIER =>
                 cycleResult = attrs[i + 2]
                 i += 3
             case "cycleResult" =>
-                diagReport(DiagReportLevel.ERROR, attrs,
-                    "`cycleResult` takes the function giving the fallback: `cycleResult: f`", "")
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "`cycleResult` takes the function giving the fallback: `cycleResult: f`",
+                    ""
+                )
                 return None
             case _ =>
-                diagReport(DiagReportLevel.ERROR, attrs,
-                    "`@CalcaTracked` takes no option but `noEq`, `lru: N` and `cycleResult: f`", "")
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "`@CalcaTracked` takes no option but `noEq`, `lru: N` and `cycleResult: f`",
+                    ""
+                )
                 return None
         }
         if (i < attrs.size) {
             if (attrs[i].kind != TokenKind.COMMA) {
-                diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaTracked`'s options are separated by commas", "")
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "`@CalcaTracked`'s options are separated by commas",
+                    ""
+                )
                 return None
             }
             i++
@@ -139,7 +167,12 @@ private func parseOptions(attrs: Tokens): ?Options {
  */
 private func trackedExtend(decl: ExtendDecl, input: Tokens): Tokens {
     if (decl.isGenericDecl) {
-        diagReport(DiagReportLevel.ERROR, input, "a tracked method is not of a generic `extend`", "")
+        diagReport(
+            DiagReportLevel.ERROR,
+            input,
+            "a tracked method is not of a generic `extend`",
+            ""
+        )
         return input
     }
     let marked = HashMap<String, Tokens>()
@@ -147,14 +180,19 @@ private func trackedExtend(decl: ExtendDecl, input: Tokens): Tokens {
     for (message in getChildMessages("CalcaTracked") where message.hasItem("name")) {
         let name = message.getString("name")
         if (marked.contains(name)) {
-            diagReport(DiagReportLevel.ERROR, input, "tracked methods are not overloaded: `${name}`", "")
+            diagReport(
+                DiagReportLevel.ERROR,
+                input,
+                "tracked methods are not overloaded: `${name}`",
+                ""
+            )
             return input
         }
-        marked.add(name, if (message.hasItem("attrs")) {
-            message.getTokens("attrs")
-        } else {
-            Tokens()
-        })
+        marked
+            .add(
+                name,
+                if (message.hasItem("attrs")) { message.getTokens("attrs") } else { Tokens() }
+            )
     }
     let receiver = decl.extendType.toTokens()
     var receiverName = ""
@@ -164,24 +202,26 @@ private func trackedExtend(decl: ExtendDecl, input: Tokens): Tokens {
     var members = Tokens()
     var holders = Tokens()
     for (member in decl.body.decls) {
-        let method = match (member) {
-            case fd: FuncDecl where marked.contains(fd.identifier.value) => fd
-            case _ =>
-                members += member.toTokens()
-                continue
-        }
+        let method =
+            match (member) {
+                case fd: FuncDecl where marked.contains(fd.identifier.value) => fd
+                case _ =>
+                    members += member.toTokens()
+                    continue
+            }
         let options = parseOptions(marked[method.identifier.value]) ?? return input
-        let (inside, holder) = query(method, member.toTokens(), (receiver, receiverName), options) ?? return input
+        let (inside, holder) =
+            query(method, member.toTokens(), (receiver, receiverName), options) ?? return input
         members += inside
         holders += holder
     }
     var superTypes = Tokens()
     for (superType in decl.superTypes) {
         superTypes += if (superTypes.size == 0) {
-            quote(<: $(superType.toTokens()))
-        } else {
-            quote(& $(superType.toTokens()))
-        }
+                quote(<: $(superType.toTokens()))
+            } else {
+                quote(& $(superType.toTokens()))
+            }
     }
     let modifiers = modifiersOf(decl.modifiers)
     quote(
@@ -198,13 +238,14 @@ private func trackedExtend(decl: ExtendDecl, input: Tokens): Tokens {
  * method), and what goes at the top level (its holder, and the struct of its key). `receiver` is a
  * method's type, and its name as a word. `None` once what cannot be a query was reported.
  */
-private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), options: Options): ?(Tokens, Tokens) {
+private func query(
+    decl: FuncDecl,
+    input: Tokens,
+    receiver: ?(Tokens, String),
+    options: Options
+): ?(Tokens, Tokens) {
     let params = decl.funcParams
-    let what = if (receiver.isSome()) {
-        "tracked method"
-    } else {
-        "tracked function"
-    }
+    let what = if (receiver.isSome()) { "tracked method" } else { "tracked function" }
     if (decl.isGenericDecl) {
         diagReport(DiagReportLevel.ERROR, input, "a ${what} is not generic", "")
         return None
@@ -214,36 +255,43 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
         return None
     }
     for (param in params where param.not.kind == TokenKind.NOT) {
-        diagReport(DiagReportLevel.ERROR, param.toTokens(), "a ${what}'s parameters are positional", "")
+        diagReport(
+            DiagReportLevel.ERROR,
+            param.toTokens(),
+            "a ${what}'s parameters are positional",
+            ""
+        )
         return None
     }
-    let returnType = try {
-        decl.declType.toTokens()
-    } catch (_: ASTException) {
-        diagReport(DiagReportLevel.ERROR, input, "a ${what} declares its return type", "")
-        return None
-    }
+    let returnType =
+        try {
+            decl.declType.toTokens()
+        } catch (_: ASTException) {
+            diagReport(DiagReportLevel.ERROR, input, "a ${what} declares its return type", "")
+            return None
+        }
 
     let name = decl.identifier
     let plain = stripBackquotes(name.value)
-    let described = match (receiver) {
-        case Some((_, typeName)) => "${typeName}.${plain}"
-        case None => plain
-    }
+    let described =
+        match (receiver) {
+            case Some((_, typeName)) => "${typeName}.${plain}"
+            case None => plain
+        }
     // the types too, or two overloads would declare one holder; a method's `.` keeps it from a
     // function named `Type_method`
-    let prefix = mangled(described, params.toArray().map {param => param.paramType.toTokens()})
+    let prefix = mangled(described, params.toArray().map { param => param.paramType.toTokens() })
     let holder = Token(TokenKind.IDENTIFIER, "CalcaTracked_" + prefix)
     let db = params[0].identifier
     let dbType = params[0].paramType.toTokens()
-    let args = params.toArray()[1..].map {param => (param.identifier, param.paramType.toTokens())}
+    let args = params.toArray()[1..].map { param => (param.identifier, param.paramType.toTokens()) }
     var signature = quote($db: $dbType)
     for ((ident, argType) in args) {
         signature += quote(, $ident: $argType)
     }
 
     // the key's fields: the value an instance method is called on, then the arguments
-    let isStatic = decl.modifiers.iterator().any {modifier => modifier.keyword.value == "static"}
+    let isStatic = decl.modifiers.iterator().any { modifier => modifier.keyword.value == "static" }
     let fields = ArrayList<(Token, Tokens, Tokens)>()
     if (let Some((receiverType, _)) <- receiver) {
         if (!isStatic) {
@@ -261,89 +309,102 @@ private func query(decl: FuncDecl, input: Tokens, receiver: ?(Tokens, String), o
             made += Token(TokenKind.COMMA)
         }
         made += value
-        taken.add(if (fields.size == 1) {
-            quote(calcaKey)
-        } else {
-            quote(calcaKey.$ident)
-        })
+        taken.add(if (fields.size == 1) { quote(calcaKey) } else { quote(calcaKey.$ident) })
     }
     let unpacked = arguments(taken.toArray())
     // a key of `Unit` is read by nothing: unnamed, it warns of nothing
-    let keyParam = if (fields.isEmpty()) {
-        quote(_)
-    } else {
-        quote(calcaKey)
-    }
+    let keyParam = if (fields.isEmpty()) { quote(_) } else { quote(calcaKey) }
 
     // no field is a key of `Unit`, one its own key, several a struct of them all
-    let (keyType, keyArg, keyStruct) = match (fields.size) {
-        case 0 => (quote(Unit), quote(()), quote())
-        case 1 => (fields[0][1], made, quote())
-        case _ =>
-            let keyName = Token(TokenKind.IDENTIFIER, "CalcaFields_" + prefix)
-            (quote($keyName), quote($keyName($made)),
-                fieldsStruct(keyName, fields.toArray().map {field => (field[0], field[1])}, holdsInterned: true))
-    }
+    let (keyType, keyArg, keyStruct) =
+        match (fields.size) {
+            case 0 => (quote(Unit), quote(()), quote())
+            case 1 => (fields[0][1], made, quote())
+            case _ =>
+                let keyName = Token(TokenKind.IDENTIFIER, "CalcaFields_" + prefix)
+                (
+                    quote($keyName),
+                    quote($keyName($made)),
+                    fieldsStruct(
+                        keyName,
+                        fields.toArray().map { field => (field[0], field[1]) },
+                        holdsInterned: true
+                    )
+                )
+        }
 
     let modifiers = modifiersOf(decl.modifiers)
     let body = decl.block.toTokens()
-    let (execute, method) = match (receiver) {
-        case Some((receiverType, _)) =>
-            // the body stays a member, for `this` and the type's other members
-            let bodyName = Token(TokenKind.IDENTIFIER, "calcaBody_" + plain)
-            let (call, staticMark) = if (isStatic) {
-                (quote($receiverType.$bodyName($db $unpacked)), quote(static))
-            } else {
-                let rest = arguments(taken.toArray()[1..])
-                (quote($(taken[0]).$bodyName($db $rest)), quote())
-            }
-            (quote(
-                public static func calcaExecute($db: $dbType, $keyParam: $keyType): $returnType {
-                    $call
-                }
-            ), quote($staticMark func $bodyName($signature): $returnType $body))
-        case None => (quote(
-            public static func calcaExecute($db: $dbType, $keyParam: $keyType): $returnType {
-                calcaRun($db $unpacked)
-            }
+    let (execute, method) =
+        match (receiver) {
+            case Some((receiverType, _)) =>
+                // the body stays a member, for `this` and the type's other members
+                let bodyName = Token(TokenKind.IDENTIFIER, "calcaBody_" + plain)
+                let (call, staticMark) =
+                    if (isStatic) {
+                        (quote($receiverType.$bodyName($db $unpacked)), quote(static))
+                    } else {
+                        let rest = arguments(taken.toArray()[1..])
+                        (quote($(taken[0]).$bodyName($db $rest)), quote())
+                    }
+                (
+                    quote(
+                        public static func calcaExecute($db: $dbType, $keyParam: $keyType): $returnType {
+                            $call
+                        }
+                    ),
+                    quote($staticMark func $bodyName($signature): $returnType $body)
+                )
+            case None =>
+                (
+                    quote(
+                        public static func calcaExecute($db: $dbType, $keyParam: $keyType): $returnType {
+                            calcaRun($db $unpacked)
+                        }
 
-            static func calcaRun($signature): $returnType $body
-        ), quote())
-    }
-    let fallback = match (options.cycleResult) {
-        case Some(recover) => quote(
-            public static func calcaHasFallback(): Bool {
-                true
-            }
+                        static func calcaRun($signature): $returnType $body
+                    ),
+                    quote()
+                )
+        }
+    let fallback =
+        match (options.cycleResult) {
+            case Some(recover) =>
+                quote(
+                    public static func calcaHasFallback(): Bool {
+                        true
+                    }
 
-            public static func calcaFallback($db: $dbType, $keyParam: $keyType): $returnType {
-                $recover($db $unpacked)
-            }
-        )
-        case None => quote()
-    }
+                    public static func calcaFallback($db: $dbType, $keyParam: $keyType): $returnType {
+                        $recover($db $unpacked)
+                    }
+                )
+            case None => quote()
+        }
     let equal = options.equal
     let lru = options.lru
     let describedName = Token(TokenKind.STRING_LITERAL, described)
 
-    let declaration = quote(
-        $modifiers func $name($signature): $returnType {
-            $holder.FUNCTION.fetch<$holder>($db, $keyArg)
-        }
+    let declaration =
+        quote(
+            $modifiers func $name($signature): $returnType {
+                $holder.FUNCTION.fetch<$holder>($db, $keyArg)
+            }
 
-        $method
-    )
-    let topLevel = quote(
-        private struct $holder <: TrackedBody<$dbType, $keyType, $returnType> {
-            static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($describedName, $equal $lru)
+            $method
+        )
+    let topLevel =
+        quote(
+            private struct $holder <: TrackedBody<$dbType, $keyType, $returnType> {
+                static let FUNCTION = TrackedFunction<$dbType, $keyType, $returnType>($describedName, $equal $lru)
 
-            $execute
+                $execute
 
-            $fallback
-        }
+                $fallback
+            }
 
-        $keyStruct
-    )
+            $keyStruct
+        )
     (declaration, topLevel)
 }
 

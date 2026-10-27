@@ -14,22 +14,37 @@ import cjls.macros.LspHandler
  */
 @LspHandler[readonly]
 func handleReferences(snap: ServerSnapshot, params: ReferenceParams): Nullable<Array<Location>> {
-    let (fileId, offset) = if (isExpandedDocument(params.textDocument.uri)) {
-        let view = expandedViewOf(snap, params.textDocument.uri) ?? return Nullable.Null
-        match (view.expanded.placeOf(view.offsetOf(snap, params.position))) {
-            case Some(InSource(offset)) => (view.source.fileId(snap.analysis), offset)
-            case _ => return Nullable.Null
+    let (fileId, offset) =
+        if (isExpandedDocument(params.textDocument.uri)) {
+            let view = expandedViewOf(snap, params.textDocument.uri) ?? return Nullable.Null
+            match (view.expanded.placeOf(view.offsetOf(snap, params.position))) {
+                case Some(InSource(offset)) => (view.source.fileId(snap.analysis), offset)
+                case _ => return Nullable.Null
+            }
+        } else {
+            let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
+            (file.fileId(snap.analysis), offsetOf(snap, file, params.position))
         }
-    } else {
-        let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
-        (file.fileId(snap.analysis), offsetOf(snap, file, params.position))
-    }
     let found = findReferences(snap.analysis, fileId, offset)
     if (found.isEmpty()) {
         return Nullable.Null
     }
-    Nullable.Value(found |> filter {one: Reference => params.context.includeDeclaration || !one.isDeclaration} |> map {
-        one: Reference => location(snap.analysis.sourceFile(one.fileId).getOrThrow().text(snap.analysis),
-            snap.path(one.fileId).toUri(), one, snap.encoding)
-    } |> collectArray)
+    Nullable
+        .Value(
+            found |>
+                filter {
+                    one: Reference =>
+                    params.context.includeDeclaration || !one.isDeclaration
+                } |>
+                map {
+                    one: Reference =>
+                    location(
+                        snap.analysis.sourceFile(one.fileId).getOrThrow().text(snap.analysis),
+                        snap.path(one.fileId).toUri(),
+                        one,
+                        snap.encoding
+                    )
+                } |>
+                collectArray
+        )
 }

@@ -43,13 +43,13 @@ public struct Token {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(2).map {p => Position(fb.buf, p)}
+            fb.structAt(2).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(3).map {p => Position(fb.buf, p)}
+            fb.structAt(3).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -71,7 +71,7 @@ public struct IdInfo {
 
     public prop pos: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 }
@@ -101,7 +101,7 @@ public struct TokensValue {
 
     public prop val: FbVector<Token> {
         get() {
-            fb.vector(0, 4, {b, p => Token(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => Token(FbTable.at(b, p)) })
         }
     }
 }
@@ -136,11 +136,14 @@ public enum OptionValue {
      */
     static func readVector(fb: FbTable, id: Int64): FbVector<OptionValue> {
         let tags = fb.vector(id, 1, readUInt8)
-        let values = fb.vector(id + 1, 4) {_, p => p}
+        let values = fb.vector(id + 1, 4) { _, p => p }
         if (tags.size != values.size) {
             throw broken("OptionValue: ${tags.size} types for ${values.size} values")
         }
-        FbVector<OptionValue>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}
+        FbVector<OptionValue>(fb.buf, values.start, values.size, 4) {
+            b, p =>
+            at(b, tags[(p - values.start) / 4], p)
+        }
     }
 
     /**
@@ -184,7 +187,7 @@ public struct ChildMsg {
 
     public prop items: FbVector<ItemInfo> {
         get() {
-            fb.vector(1, 4, {b, p => ItemInfo(FbTable.at(b, p))})
+            fb.vector(1, 4, { b, p => ItemInfo(FbTable.at(b, p)) })
         }
     }
 }
@@ -210,13 +213,13 @@ public struct Diagnostic {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(2).map {p => Position(fb.buf, p)}
+            fb.structAt(2).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -238,7 +241,7 @@ public struct MacroCall {
 
     public prop id: ?IdInfo {
         get() {
-            fb.table(0).map {x => IdInfo(x)}
+            fb.table(0).map { x => IdInfo(x) }
         }
     }
 
@@ -250,13 +253,13 @@ public struct MacroCall {
 
     public prop args: FbVector<Token> {
         get() {
-            fb.vector(2, 4, {b, p => Token(FbTable.at(b, p))})
+            fb.vector(2, 4, { b, p => Token(FbTable.at(b, p)) })
         }
     }
 
     public prop attrs: FbVector<Token> {
         get() {
-            fb.vector(3, 4, {b, p => Token(FbTable.at(b, p))})
+            fb.vector(3, 4, { b, p => Token(FbTable.at(b, p)) })
         }
     }
 
@@ -268,7 +271,7 @@ public struct MacroCall {
 
     public prop childMsges: FbVector<ChildMsg> {
         get() {
-            fb.vector(5, 4, {b, p => ChildMsg(FbTable.at(b, p))})
+            fb.vector(5, 4, { b, p => ChildMsg(FbTable.at(b, p)) })
         }
     }
 
@@ -292,13 +295,13 @@ public struct MacroCall {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(9).map {p => Position(fb.buf, p)}
+            fb.structAt(9).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(10).map {p => Position(fb.buf, p)}
+            fb.structAt(10).map { p => Position(fb.buf, p) }
         }
     }
 }
@@ -308,7 +311,7 @@ public struct MacroResult {
 
     public prop id: ?IdInfo {
         get() {
-            fb.table(0).map {x => IdInfo(x)}
+            fb.table(0).map { x => IdInfo(x) }
         }
     }
 
@@ -320,13 +323,13 @@ public struct MacroResult {
 
     public prop tks: FbVector<Token> {
         get() {
-            fb.vector(2, 4, {b, p => Token(FbTable.at(b, p))})
+            fb.vector(2, 4, { b, p => Token(FbTable.at(b, p)) })
         }
     }
 
     public prop items: FbVector<ItemInfo> {
         get() {
-            fb.vector(3, 4, {b, p => ItemInfo(FbTable.at(b, p))})
+            fb.vector(3, 4, { b, p => ItemInfo(FbTable.at(b, p)) })
         }
     }
 
@@ -338,7 +341,7 @@ public struct MacroResult {
 
     public prop diags: FbVector<Diagnostic> {
         get() {
-            fb.vector(5, 4, {b, p => Diagnostic(FbTable.at(b, p))})
+            fb.vector(5, 4, { b, p => Diagnostic(FbTable.at(b, p)) })
         }
     }
 }
@@ -348,7 +351,7 @@ public struct MultiMacroCalls {
 
     public prop calls: FbVector<MacroCall> {
         get() {
-            fb.vector(0, 4, {b, p => MacroCall(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => MacroCall(FbTable.at(b, p)) })
         }
     }
 }
@@ -393,11 +396,14 @@ public enum MsgContent {
      */
     static func readVector(fb: FbTable, id: Int64): FbVector<MsgContent> {
         let tags = fb.vector(id, 1, readUInt8)
-        let values = fb.vector(id + 1, 4) {_, p => p}
+        let values = fb.vector(id + 1, 4) { _, p => p }
         if (tags.size != values.size) {
             throw broken("MsgContent: ${tags.size} types for ${values.size} values")
         }
-        FbVector<MsgContent>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}
+        FbVector<MsgContent>(fb.buf, values.start, values.size, 4) {
+            b, p =>
+            at(b, tags[(p - values.start) / 4], p)
+        }
     }
 
     /**
@@ -438,7 +444,11 @@ public struct PositionData {
     public static const SIZE = 12
     public static const ALIGNMENT = 4
 
-    public PositionData(public let fileId!: UInt32, public let line!: Int32, public let column!: Int32) {}
+    public PositionData(
+        public let fileId!: UInt32,
+        public let line!: Int32,
+        public let column!: Int32
+    ) {}
 
     /**
      * Writes its fields into `buf` from `pos`, as the schema lays them out.
@@ -463,15 +473,19 @@ public struct PositionData {
  * A `Token` to write.
  */
 public class TokenData {
-    public TokenData(public let kind!: UInt8 = 0, public let value!: ?String = None,
-        public let begin!: ?PositionData = None, public let end!: ?PositionData = None,
-        public let delimiterNum!: UInt32 = 1) {}
+    public TokenData(
+        public let kind!: UInt8 = 0,
+        public let value!: ?String = None,
+        public let begin!: ?PositionData = None,
+        public let end!: ?PositionData = None,
+        public let delimiterNum!: UInt32 = 1
+    ) {}
 
     /**
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let valueOffset = value.map {v => b.createString(v)}
+        let valueOffset = value.map { v => b.createString(v) }
         b.startTable()
         if (kind != 0) {
             b.addUInt8(kind)
@@ -507,7 +521,7 @@ public class IdInfoData {
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let nameOffset = name.map {v => b.createString(v)}
+        let nameOffset = name.map { v => b.createString(v) }
         b.startTable()
         if (let Some(o) <- nameOffset) {
             b.addOffset(o)
@@ -583,7 +597,7 @@ public class TokensValueData {
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let valOffset = b.createVector(val.map {v => v.pack(b)})
+        let valOffset = b.createVector(val.map { v => v.pack(b) })
         b.startTable()
         b.addOffset(valOffset)
         b.slot(0)
@@ -631,14 +645,17 @@ public enum OptionValueData {
  * A `ItemInfo` to write.
  */
 public class ItemInfoData {
-    public ItemInfoData(public let key!: ?String = None, public let value!: ?OptionValueData = None) {}
+    public ItemInfoData(
+        public let key!: ?String = None,
+        public let value!: ?OptionValueData = None
+    ) {}
 
     /**
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let keyOffset = key.map {v => b.createString(v)}
-        let valueOffset = value.map {v => v.pack(b)}
+        let keyOffset = key.map { v => b.createString(v) }
+        let valueOffset = value.map { v => v.pack(b) }
         b.startTable()
         if (let Some(o) <- keyOffset) {
             b.addOffset(o)
@@ -658,14 +675,17 @@ public class ItemInfoData {
  * A `ChildMsg` to write.
  */
 public class ChildMsgData {
-    public ChildMsgData(public let childName!: ?String = None, public let items!: Array<ItemInfoData> = []) {}
+    public ChildMsgData(
+        public let childName!: ?String = None,
+        public let items!: Array<ItemInfoData> = []
+    ) {}
 
     /**
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let childNameOffset = childName.map {v => b.createString(v)}
-        let itemsOffset = b.createVector(items.map {v => v.pack(b)})
+        let childNameOffset = childName.map { v => b.createString(v) }
+        let itemsOffset = b.createVector(items.map { v => v.pack(b) })
         b.startTable()
         if (let Some(o) <- childNameOffset) {
             b.addOffset(o)
@@ -699,16 +719,20 @@ public class DefLibData {
  * A `Diagnostic` to write.
  */
 public class DiagnosticData {
-    public DiagnosticData(public let diagSeverity!: Int32 = 0, public let begin!: ?PositionData = None,
-        public let end!: ?PositionData = None, public let errorMessage!: ?String = None,
-        public let mainHint!: ?String = None) {}
+    public DiagnosticData(
+        public let diagSeverity!: Int32 = 0,
+        public let begin!: ?PositionData = None,
+        public let end!: ?PositionData = None,
+        public let errorMessage!: ?String = None,
+        public let mainHint!: ?String = None
+    ) {}
 
     /**
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let errorMessageOffset = errorMessage.map {v => b.createString(v)}
-        let mainHintOffset = mainHint.map {v => b.createString(v)}
+        let errorMessageOffset = errorMessage.map { v => b.createString(v) }
+        let mainHintOffset = mainHint.map { v => b.createString(v) }
         b.startTable()
         if (diagSeverity != 0) {
             b.addInt32(diagSeverity)
@@ -738,25 +762,32 @@ public class DiagnosticData {
  * A `MacroCall` to write.
  */
 public class MacroCallData {
-    public MacroCallData(public let id!: ?IdInfoData = None, public let hasAttrs!: Bool = false,
-        public let args!: Array<TokenData> = [], public let attrs!: Array<TokenData> = [],
-        public let parentNames!: Array<String> = [], public let childMsges!: Array<ChildMsgData> = [],
-        public let methodName!: ?String = None, public let packageName!: ?String = None,
-        public let libPath!: ?String = None, public let begin!: ?PositionData = None,
-        public let end!: ?PositionData = None) {}
+    public MacroCallData(
+        public let id!: ?IdInfoData = None,
+        public let hasAttrs!: Bool = false,
+        public let args!: Array<TokenData> = [],
+        public let attrs!: Array<TokenData> = [],
+        public let parentNames!: Array<String> = [],
+        public let childMsges!: Array<ChildMsgData> = [],
+        public let methodName!: ?String = None,
+        public let packageName!: ?String = None,
+        public let libPath!: ?String = None,
+        public let begin!: ?PositionData = None,
+        public let end!: ?PositionData = None
+    ) {}
 
     /**
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let idOffset = id.map {v => v.pack(b)}
-        let argsOffset = b.createVector(args.map {v => v.pack(b)})
-        let attrsOffset = b.createVector(attrs.map {v => v.pack(b)})
+        let idOffset = id.map { v => v.pack(b) }
+        let argsOffset = b.createVector(args.map { v => v.pack(b) })
+        let attrsOffset = b.createVector(attrs.map { v => v.pack(b) })
         let parentNamesOffset = b.createStringVector(parentNames)
-        let childMsgesOffset = b.createVector(childMsges.map {v => v.pack(b)})
-        let methodNameOffset = methodName.map {v => b.createString(v)}
-        let packageNameOffset = packageName.map {v => b.createString(v)}
-        let libPathOffset = libPath.map {v => b.createString(v)}
+        let childMsgesOffset = b.createVector(childMsges.map { v => v.pack(b) })
+        let methodNameOffset = methodName.map { v => b.createString(v) }
+        let packageNameOffset = packageName.map { v => b.createString(v) }
+        let libPathOffset = libPath.map { v => b.createString(v) }
         b.startTable()
         if (let Some(o) <- idOffset) {
             b.addOffset(o)
@@ -802,19 +833,24 @@ public class MacroCallData {
  * A `MacroResult` to write.
  */
 public class MacroResultData {
-    public MacroResultData(public let id!: ?IdInfoData = None, public let status!: UInt8 = 0,
-        public let tks!: Array<TokenData> = [], public let items!: Array<ItemInfoData> = [],
-        public let assertParents!: Array<String> = [], public let diags!: Array<DiagnosticData> = []) {}
+    public MacroResultData(
+        public let id!: ?IdInfoData = None,
+        public let status!: UInt8 = 0,
+        public let tks!: Array<TokenData> = [],
+        public let items!: Array<ItemInfoData> = [],
+        public let assertParents!: Array<String> = [],
+        public let diags!: Array<DiagnosticData> = []
+    ) {}
 
     /**
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let idOffset = id.map {v => v.pack(b)}
-        let tksOffset = b.createVector(tks.map {v => v.pack(b)})
-        let itemsOffset = b.createVector(items.map {v => v.pack(b)})
+        let idOffset = id.map { v => v.pack(b) }
+        let tksOffset = b.createVector(tks.map { v => v.pack(b) })
+        let itemsOffset = b.createVector(items.map { v => v.pack(b) })
         let assertParentsOffset = b.createStringVector(assertParents)
-        let diagsOffset = b.createVector(diags.map {v => v.pack(b)})
+        let diagsOffset = b.createVector(diags.map { v => v.pack(b) })
         b.startTable()
         if (let Some(o) <- idOffset) {
             b.addOffset(o)
@@ -846,7 +882,7 @@ public class MultiMacroCallsData {
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let callsOffset = b.createVector(calls.map {v => v.pack(b)})
+        let callsOffset = b.createVector(calls.map { v => v.pack(b) })
         b.startTable()
         b.addOffset(callsOffset)
         b.slot(0)
@@ -926,7 +962,7 @@ public class MacroMsgData {
      * Builds it in `b`, its children first: where it is.
      */
     public func pack(b: FbBuilder): FbOffset {
-        let contentOffset = content.map {v => v.pack(b)}
+        let contentOffset = content.map { v => v.pack(b) }
         b.startTable()
         if (let (Some(v), Some(o)) <- (content, contentOffset)) {
             b.addUInt8(v.tag)

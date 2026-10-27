@@ -17,9 +17,17 @@ func tokensOf(code: String, column: Int64): Array<TokenData> {
  * The SDK the tests run on, and the directory of its runtime for this host: the one that has std.ast.
  */
 func sdkPaths(): MacroServerPaths {
-    let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
-    sdkPaths(home, Directory.readFrom(home.join("runtime").join("lib"))
-        .filter {dir => dir.isDirectory()}.map {dir => dir.path})
+    let home =
+        Path(
+            getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+        )
+    sdkPaths(
+        home,
+        Directory
+            .readFrom(home.join("runtime").join("lib"))
+            .filter { dir => dir.isDirectory() }
+            .map { dir => dir.path }
+    )
 }
 
 /** Selects a runtime with the host architecture and shared-library suffix. */
@@ -32,7 +40,9 @@ func sdkPaths(home: Path, runtimes: Array<Path>): MacroServerPaths {
             return MacroServerPaths.inSdk(home, name)
         }
     }
-    throw IllegalStateException("no runtime for ${hostArch()} (${sharedLibrarySuffix()}) under ${home}")
+    throw IllegalStateException(
+        "no runtime for ${hostArch()} (${sharedLibrarySuffix()}) under ${home}"
+    )
 }
 
 @Test
@@ -41,20 +51,27 @@ class SdkPathsTest {
     func foreignRuntimesAreIgnoredInEitherOrder(): Unit {
         let home = Directory.createTemp(getTempDirectory())
         try {
-            let runtimes = ["linux", "darwin", "windows"].flatMap {os =>
-                ["x86_64", "aarch64"].map {arch =>
-                    let dir = home.join("runtime").join("lib").join("${os}_${arch}_cjnative")
-                    Directory.create(dir, recursive: true)
-                    let suffix = match (os) {
-                        case "linux" => ".so"
-                        case "darwin" => ".dylib"
-                        case _ => ".dll"
+            let runtimes =
+                ["linux", "darwin", "windows"]
+                    .flatMap {
+                        os =>
+                        ["x86_64", "aarch64"]
+                            .map {
+                                arch =>
+                                let dir =
+                                    home.join("runtime").join("lib").join("${os}_${arch}_cjnative")
+                                Directory.create(dir, recursive: true)
+                                let suffix =
+                                    match (os) {
+                                        case "linux" => ".so"
+                                        case "darwin" => ".dylib"
+                                        case _ => ".dll"
+                                    }
+                                File.writeTo(dir.join("libcangjie-std-ast${suffix}"), [])
+                                dir
+                            }
                     }
-                    File.writeTo(dir.join("libcangjie-std-ast${suffix}"), [])
-                    dir
-                }
-            }
-            let reversed = Array(runtimes.size) {i => runtimes[runtimes.size - 1 - i]}
+            let reversed = Array(runtimes.size) { i => runtimes[runtimes.size - 1 - i] }
             for (candidates in [runtimes, reversed]) {
                 let paths = sdkPaths(home, candidates)
                 @Expect(paths.runtimeLib.fileName.endsWith("_${hostArch()}_cjnative"))
@@ -68,14 +85,22 @@ class SdkPathsTest {
 }
 
 func derivingLibrary(paths: MacroServerPaths): String {
-    (paths.stdMacroLibrary("std.deriving") ?? throw IllegalStateException(
-        "no libcangjie-std-deriving in ${paths.runtimeLib}")).toString()
+    (
+        paths.stdMacroLibrary("std.deriving") ??
+            throw IllegalStateException("no libcangjie-std-deriving in ${paths.runtimeLib}")
+    )
+        .toString()
 }
 
 /**
  * `@Derive[<attrs>] <decl>` as a call of std's `Derive`, on line 1 of file 1.
  */
-func deriveCall(paths: MacroServerPaths, attrs: String, decl: String, method!: String = "macroCall_a_Derive_std_deriving"): MacroCallData {
+func deriveCall(
+    paths: MacroServerPaths,
+    attrs: String,
+    decl: String,
+    method!: String = "macroCall_a_Derive_std_deriving"
+): MacroCallData {
     let declColumn = "@Derive[".size + attrs.size + "] ".size + 1
     MacroCallData(
         id: IdInfoData(name: "Derive", pos: PositionData(fileId: 1, line: 1, column: 2)),
@@ -91,7 +116,7 @@ func deriveCall(paths: MacroServerPaths, attrs: String, decl: String, method!: S
 }
 
 func valuesOf(result: MacroResult): Array<String> {
-    result.tks.toArray().map {t => t.value ?? ""}
+    result.tks.toArray().map { t => t.value ?? "" }
 }
 
 /**
@@ -120,7 +145,8 @@ class MacroServerTest {
         let server = startMacroServer(paths)
 
         // act
-        let result = server.connection.expand(deriveCall(paths, "ToString", "class A { let x: Int64 = 1 }"))
+        let result =
+            server.connection.expand(deriveCall(paths, "ToString", "class A { let x: Int64 = 1 }"))
         server.close()
 
         // assert
@@ -139,7 +165,8 @@ class MacroServerTest {
 
         // act
         let failed = server.connection.expand(deriveCall(paths, "NoSuchInterface", "class A {}"))
-        let next = server.connection.expand(deriveCall(paths, "Hashable", "struct P { let x: Int64 = 1 }"))
+        let next =
+            server.connection.expand(deriveCall(paths, "Hashable", "struct P { let x: Int64 = 1 }"))
         server.close()
 
         // assert
