@@ -657,6 +657,50 @@ class InferTest {
     }
 
     @TestCase
+    func aLambdaTakesItsParametersFromAnOptionalFunctionType() {
+        checkInference(
+            #"
+            package m
+            class S {
+                public var f: ?(Int64) -> Int64 = None
+                public var g: (Int64) -> Int64 = {x: Int64 => x}
+            //                                    ^ Int64
+            }
+            func takes(f: ?(Int64, String) -> Bool): Unit {}
+            //         ^ Option<(Int64, String) -> Bool>
+            func returns(): ?(Int64) -> Int64 { {r => r} }
+            //                                   ^ Int64
+            func t(s: S): Unit {
+            //     ^ S
+                let a: ?(Int64) -> Int64 = {x => x}
+            //      ^ Option<(Int64) -> Int64>
+            //                              ^ Int64
+                var b: ?(Int64) -> Int64 = None
+            //      ^ Option<(Int64) -> Int64>
+                b = {y => y}
+            //       ^ Int64
+                s.f = {z => z}
+            //         ^ Int64
+                s.g = {w => w}
+            //         ^ Int64
+                takes({p, q => p > 0 && q.size > 0})
+            //         ^ Int64
+            //            ^ String
+                let nested: ??(Int64) -> Int64 = {n => n}
+            //      ^^^^^^ Option<Option<(Int64) -> Int64>>
+            //                                    ^ Int64
+                let cfunc: ?CFunc<(Int32) -> Int32> = {c => c}
+            //      ^^^^^ Option<CFunc<(Int32) -> Int32>>
+            //                                         ^ Int32
+                let unit: ?(Int64) -> Unit = {u => u + 1}
+            //      ^^^^ Option<(Int64) -> Unit>
+            //                                ^ Int64
+            }
+            "#
+        )
+    }
+
+    @TestCase
     func aPatternBindsThePartsOfTheTypeItMatches() {
         checkInference(
             #"
