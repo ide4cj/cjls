@@ -72,23 +72,22 @@ struct EnumModel {
 }
 
 /**
- * How a field's declared type spells the two independent axes - may the key be absent, and may the
- * value be `null`.
+ * How a field's declared type spells optionality and nullability before applying an initializer.
  */
 enum FieldShape {
     /**
-     * `T`, `Nullable<T>` included: the key is always there. A `Nullable<T>` carries its own `null`.
+     * `T`, `Nullable<T>` included: the key is required unless an initializer supplies a default.
+     * A `Nullable<T>` carries its own `null`.
      */
     | Required
 
     /**
-     * `?T`: absent and `null` both read as `None`.
+     * `?T`: `null` reads as `None`; an absent key uses its initializer or `None`.
      */
     | Optional
 
     /**
-     * `?Nullable<T>`: absent reads as `None` and `null` as `Some(Null)` - the one shape where the
-     * two stay apart.
+     * `?Nullable<T>`: an absent key uses its initializer or `None`; `null` reads as `Some(Null)`.
      */
     | OptionalNullable
 
@@ -296,10 +295,7 @@ private func transparentModelOf(
 
     let field = fields[0]
     let options = memberOptions(field.ident.value)
-    if (
-        options.rename.isSome() || options.skipNone || options.hasDefault ||
-            options.defaultFactory.isSome()
-    ) {
+    if (options.rename.isSome() || options.skipNone) {
         return reportNone(
             field.ident,
             "the field of a `transparent` struct takes no options",
@@ -332,26 +328,12 @@ private func fieldOf(
         return None
     }
 
-    var defaultValue: ?Tokens = None
-    if (let Some(factory) <- options.defaultFactory) {
-        if (options.hasDefault) {
-            return reportNone(
-                declField.ident,
-                "`default` and `default:` cannot be combined",
-                "choose one default source"
-            )
-        }
-        defaultValue = factoryDefault(declField.ident, factory) ?? return None
-    } else if (options.hasDefault) {
-        defaultValue =
-            declField.defaultValue ??
-                return reportNone(
-                    declField.ident,
-                    "`default` needs a constructor default",
-                    "supply an initializer or a `default:` factory"
-                )
-    }
     let (shape, innerType) = shapeOf(declField.fieldType)
+    // An optional None initializer already matches the decoder's absent/null behavior.
+    let defaultValue =
+        declField
+            .defaultValue
+            .filter { value => !(shape.isOptional && value.size == 1 && value[0].value == "None") }
 
     DerivedField(
         ident: declField.ident,
@@ -363,21 +345,6 @@ private func fieldOf(
         skipNone: skipNoneOnType || options.skipNone,
         defaultValue: defaultValue
     )
-}
-
-/**
- * A default factory is a name, not an expression evaluated while the macro expands.
- */
-private func factoryDefault(ident: Token, factory: String): ?Tokens {
-    try {
-        let expr = parseExpr(cangjieLex(factory))
-        if (expr is RefExpr || expr is MemberAccess) {
-            let name = expr.toTokens()
-            return quote($name())
-        }
-    } catch (_: ParseASTException) {}
-    report(ident, "`default:` needs a function name", "use a zero-argument function path")
-    None
 }
 
 /**

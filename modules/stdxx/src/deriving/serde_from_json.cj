@@ -4,7 +4,7 @@ import std.ast.*
 
 /*
  * `FromJson`: a value read straight from an `FjReader` - keys compared where they lie,
- * unknown ones skipped, no tree on the way.
+ * unknown ones skipped unless strict decoding is requested, no tree on the way.
  */
 
 func deriveFromJson(model: DeclModel): Tokens {
@@ -155,7 +155,7 @@ private func fieldReaders(fields: Array<DerivedField>, reader: Tokens): (Tokens,
 }
 
 /**
- * The local a field was read into, as its constructor argument: a required one has to have been there.
+ * The decoded field or its initializer for an absent key; a required field without either fails.
  */
 private func fieldValue(field: DerivedField, typeName: Token): Tokens {
     let local = field.local

@@ -26,11 +26,11 @@ public struct FormatOptions {
      * @throws IllegalArgumentException - if either width is not positive
      */
     public FormatOptions(
-        @Serde[rename: "line_width", default]
+        @Serde[rename: "line_width"]
         public let lineWidth!: Int64 = 100,
-        @Serde[rename: "indent_width", default]
+        @Serde[rename: "indent_width"]
         public let indentWidth!: Int64 = 4,
-        @Serde[rename: "simple_if", default]
+        @Serde[rename: "simple_if"]
         public let simpleIf!: SimpleIf = SimpleIf.Multiline
     ) {
         if (lineWidth <= 0 || indentWidth <= 0) {

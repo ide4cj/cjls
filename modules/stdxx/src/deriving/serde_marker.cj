@@ -13,8 +13,6 @@ const ITEM_VALUE = "value"
 const ITEM_VALUE_IS_INTEGER = "valueIsInteger"
 const ITEM_PAYLOAD = "payload"
 const ITEM_OTHER = "other"
-const ITEM_DEFAULT = "default"
-const ITEM_DEFAULT_FACTORY = "defaultFactory"
 const ITEM_DENY_UNKNOWN_FIELDS = "denyUnknownFields"
 
 /**
@@ -33,8 +31,6 @@ const ITEM_DENY_UNKNOWN_FIELDS = "denyUnknownFields"
  * | struct       | `rename: "delete"`        | the tag's value, with `tag`                              |
  * | struct       | `transparent`             | the struct is its only field on the wire                 |
  * | field        | `rename: "textDocument"`  | the name the field carries on the wire                   |
- * | field        | `default`                 | use the constructor initializer for a missing key       |
- * | field        | `default: "factory"`      | call a zero-argument function for a missing key         |
  * | field        | `skipNone`                | this field omits its key when `None`                     |
  * | enum variant | `rename: "URI"`           | the string the variant is on the wire, or its tag        |
  * | enum variant | `value: -1`               | the integer the variant is on the wire                   |
@@ -85,14 +81,6 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
     let value = argument.expr.toTokens()
 
     match (name) {
-        case "default" =>
-            if (expected(argument, position, [OnField], isFlag, isFlag)) {
-                if (isFlag) {
-                    setItem(ITEM_DEFAULT, "true")
-                } else {
-                    setStringOption(argument, ITEM_DEFAULT_FACTORY, value)
-                }
-            }
         case "denyUnknownFields" =>
             if (expected(argument, position, [OnType], isFlag, true)) {
                 setItem(ITEM_DENY_UNKNOWN_FIELDS, "true")
@@ -134,7 +122,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
                 DiagReportLevel.ERROR,
                 tokens,
                 "`@Serde` has no option `${name}`",
-                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other, default, denyUnknownFields"
+                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other, denyUnknownFields"
             )
     }
 }
@@ -298,8 +286,6 @@ struct MarkerOptions {
         let value!: ?WireValue = None,
         let payload!: Array<String> = [],
         let other!: Bool = false,
-        let hasDefault!: Bool = false,
-        let defaultFactory!: ?String = None,
         let denyUnknownFields!: Bool = false
     ) {}
 }
@@ -336,8 +322,6 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
             },
         payload: stringItemOf(message, ITEM_PAYLOAD).map { payload => payload.split(",") } ?? [],
         other: message.hasItem(ITEM_OTHER),
-        hasDefault: message.hasItem(ITEM_DEFAULT),
-        defaultFactory: stringItemOf(message, ITEM_DEFAULT_FACTORY),
         denyUnknownFields: message.hasItem(ITEM_DENY_UNKNOWN_FIELDS)
     )
 }

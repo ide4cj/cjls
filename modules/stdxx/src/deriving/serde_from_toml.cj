@@ -3,10 +3,10 @@ macro package stdxx.deriving
 import std.ast.*
 
 /*
- * `FromToml`: a value read from a document read by `ftoml`. A table is looked up key by
- * key, so their order does not matter and one no field names is skipped; a required key missing is
- * an error naming it, at its table. An untagged enum tries each variant on the value, which a
- * document makes cheap: nothing is read twice.
+ * `FromToml` reads a parsed document, looking up table keys independently of their order.
+ * Unknown keys are skipped unless strict decoding is requested. A required key missing without
+ * an initializer is an error naming it, at its table. An untagged enum tries each variant on
+ * the same value without reparsing it.
  */
 
 func deriveFromToml(model: DeclModel): Tokens {
@@ -107,7 +107,9 @@ private func tagFromToml(typeName: Token, tag: String, check: Tokens): Tokens {
     )
 }
 
-/** The field's key in `table`, read as its type; `None` for an optional one that is not there. */
+/**
+ * Reads a field by its wire key; an absent key uses its initializer or the type's absence rule.
+ */
 private func fieldFromToml(field: DerivedField, typeName: Token): Tokens {
     let name = field.wireLiteral
     let innerType = field.innerType

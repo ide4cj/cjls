@@ -10,11 +10,9 @@ import stdxx.deriving.*
 @Serde[denyUnknownFields]
 struct StrictDefaults {
     StrictDefaults(
-        @Serde[rename: "line_width", default]
+        @Serde[rename: "line_width"]
         let lineWidth!: Int64 = 100,
-        @Serde[default: "defaultLabel"]
-        let label!: String,
-        @Serde[default]
+        let label!: String = defaultLabel(),
         let optional!: ?Int64 = Some(7)
     ) {}
 }
@@ -26,19 +24,14 @@ private func defaultLabel(): String {
 @DeriveExt[FromJson]
 struct NullableDefaults {
     NullableDefaults(
-        @Serde[default]
         let required!: Nullable<Int64> = Nullable.Value(9),
-        @Serde[default]
         let optional!: ?Nullable<Int64> = Some(Nullable.Value(8))
     ) {}
 }
 
 @DeriveExt[FromJson, FromToml]
 struct LazyDefault {
-    LazyDefault(
-        @Serde[default: "unavailableDefault"]
-        let value!: Int64
-    ) {}
+    LazyDefault(let value!: Int64 = unavailableDefault()) {}
 }
 
 private func unavailableDefault(): Int64 {
@@ -51,10 +44,15 @@ struct RequiredDefault {
 }
 
 @DeriveExt[FromJson, FromToml]
+struct RequiredAndOptional {
+    RequiredAndOptional(let value!: Int64, let optional!: ?Int64) {}
+}
+
+@DeriveExt[FromJson, FromToml]
 @Serde[tag: "kind", rename: "record", denyUnknownFields]
 struct StrictTaggedRecord {
     StrictTaggedRecord(
-        @Serde[rename: "wire_value", default]
+        @Serde[rename: "wire_value"]
         let value!: Int64 = 3
     ) {}
 }
@@ -76,7 +74,7 @@ struct NestedStrictDefaults {
 @Test
 class DeriveDefaultsTest {
     @TestCase
-    func missingFieldsUseExplicitDefaultsInBothFormats(): Unit {
+    func missingFieldsUseConstructorInitializersInBothFormats(): Unit {
         // act
         let json = fromJsonBytes<StrictDefaults>("{}".toArray())
         let toml = fromTomlString<StrictDefaults>("")
@@ -131,16 +129,35 @@ class DeriveDefaultsTest {
         // assert
         @Expect(json.value, 2)
         @Expect(toml.value, 2)
+        @AssertThrows[IllegalStateException](fromJsonBytes<LazyDefault>("{}".toArray()))
+        @AssertThrows[IllegalStateException](fromTomlString<LazyDefault>(""))
         @AssertThrows[FjException](fromJsonBytes<StrictDefaults>(#"{"line_width":"80"}"#.toArray()))
         @AssertThrows[FtException](fromTomlString<StrictDefaults>("line_width = '80'"))
         @AssertThrows[FjException](fromJsonBytes<StrictDefaults>(#"{"line_width":null}"#.toArray()))
     }
 
     @TestCase
-    func constructorDefaultsRemainRequiredWithoutTheMarker(): Unit {
-        // act / assert
-        @AssertThrows[FjException](fromJsonBytes<RequiredDefault>("{}".toArray()))
-        @AssertThrows[FtException](fromTomlString<RequiredDefault>(""))
+    func constructorInitializersSupplyDefaultsWithoutMarkers(): Unit {
+        // act
+        let json = fromJsonBytes<RequiredDefault>("{}".toArray())
+        let toml = fromTomlString<RequiredDefault>("")
+
+        // assert
+        @Expect(json.value, 42)
+        @Expect(toml.value, 42)
+    }
+
+    @TestCase
+    func fieldsWithoutInitializersKeepTheirRequiredAndOptionalRules(): Unit {
+        // act
+        let json = fromJsonBytes<RequiredAndOptional>(#"{"value":5}"#.toArray())
+        let toml = fromTomlString<RequiredAndOptional>("value = 5")
+
+        // assert
+        @Expect(json.optional.isNone())
+        @Expect(toml.optional.isNone())
+        @AssertThrows[FjException](fromJsonBytes<RequiredAndOptional>("{}".toArray()))
+        @AssertThrows[FtException](fromTomlString<RequiredAndOptional>(""))
     }
 
     @TestCase
