@@ -5,6 +5,53 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import ginkgo.*
 
+@Test
+class MacroTokenCallParseTest {
+    @TestCase
+    func tokenInputsKeepNestedCallsAsNodes() {
+        for (input in ["a.@N(b)", "@N(x) <- 1", "o.{ .i.@N(b); .n } <- (9, 8)"]) {
+            // arrange
+            let text = "main() { @M(${input}) }"
+            // act
+            let parsed = parse(text)
+            // assert
+            @Expect(parsed.errors.size, 0)
+            @Expect(parsed.syntaxNode().text(), text)
+            let calls =
+                collectArray(
+                    parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
+                )
+            @Expect(calls.size, 2)
+            @Expect(calls[1].text().startsWith("@N("))
+        }
+    }
+
+    @TestCase
+    func escapedCallsAndStringContentsStayTokens() {
+        // arrange
+        let text = #"main() { @M(a.\@N(b) "@N(x)" /* @N(y) */) }"#
+        // act
+        let parsed = parse(text)
+        // assert
+        @Expect(parsed.errors.size, 0)
+        @Expect(parsed.syntaxNode().text(), text)
+        @Expect(collectArray(parsed.syntaxNode().descendants().filter {n => n.kind == MacroExpandExpr}).size, 1)
+    }
+
+    @TestCase
+    func incompleteNestedHeadsPreserveTheNextDeclaration() {
+        for (input in ["a.@N", "a.@!", "a.@N[x]"]) {
+            // arrange
+            let text = "main() { @M(${input}) }\nfunc after() {}"
+            // act
+            let parsed = parse(text)
+            // assert
+            @Expect(parsed.syntaxNode().text(), text)
+            @Expect(collectArray(parsed.syntaxNode().children().filter {n => n.kind == FuncDecl}).size, 1)
+        }
+    }
+}
+
 /**
  * The tree as nested `(Kind children)`, tokens as their text, trivia left out; then the errors.
  */

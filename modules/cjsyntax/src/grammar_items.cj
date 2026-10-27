@@ -1065,7 +1065,7 @@ func macroArgs(p: P): Unit {
     if (p.hasErrorSince(snapshot)) {
         p.rewind(snapshot)
         p.bump(LParen)
-        balancedTokens(p, LParen, RParen)
+        balancedTokens(p, LParen, RParen, calls: true)
         p.expect(RParen)
     }
     m.complete(p, MacroArgs)
@@ -1075,13 +1075,23 @@ func macroArgs(p: P): Unit {
  * Tokens up to the `close` matching an `open` already consumed, only `open`s and `close`s counted, as the
  * compiler does; `\` escapes the token after it.
  */
-func balancedTokens(p: P, open: SyntaxKind, close: SyntaxKind): Unit {
+func balancedTokens(p: P, open: SyntaxKind, close: SyntaxKind, calls!: Bool = false): Unit {
     var depth = 1
     while (!p.atEof()) {
         if (p.at(Backslash)) {
             p.bumpAny()
             p.bumpAny()
             continue
+        }
+        if (calls && atMacroCall(p)) {
+            // The enclosing DSL need not be an expression for cjc to expand calls in its tokens.
+            // Keep incomplete heads as tokens so a speculative parse cannot consume the enclosing delimiter.
+            let snapshot = p.snapshot()
+            let call = macroExpand(p)
+            if (call.kind == MacroExpandExpr && !p.hasErrorSince(snapshot)) {
+                continue
+            }
+            p.rewind(snapshot)
         }
         if (p.at(Hash)) {
             p.error("expected '#' or a quote in a raw string")

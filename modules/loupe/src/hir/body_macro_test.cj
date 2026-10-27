@@ -26,6 +26,127 @@ func describeCall(db: AnalysisDatabase, one: ServerCall): String {
 @Test
 class BodyMacroCallTest {
     @TestCase
+    func aTopLevelTokenCallReceivesNestedOutputs() {
+        // arrange
+        let (db, file, _) = workspaceMacroDatabase("package m\nimport m.ms.*\n@A(a.@I(1))")
+        let inner = requestNamed(db, file, "I")
+        @Expect(inner.parents, ["A"])
+        // act
+        setMacroOutputs(db, [(inner.call, writtenOutput(inner, "2"))])
+        let outer = requestNamed(db, file, "A")
+        // assert
+        @Expect(outer.input.text, "a.2")
+        @Expect(outer.children, [MacroChild("I", [])])
+    }
+
+    @TestCase
+    func copiedAndGeneratedNestedOutputKeepsItsSourceAndTheInnerHead() {
+        // arrange
+        let (db, file, _) =
+            workspaceMacroDatabase("package m\nimport m.ms.*\nfunc f() { @B(@I(seed)) }")
+        let inner = requestNamed(db, file, "I")
+        let output =
+            MappedText(
+                "seed + 1",
+                inner.input.spans.concat([MappedSpan(TextRange(4, 8), SpanOrigin.FromCall)])
+            )
+        // act
+        setMacroOutputs(db, [(inner.call, MacroOutput(inner.fingerprint, output, [], []))])
+        let outer = requestNamed(db, file, "B")
+        // assert
+        @Expect(outer.input.text, "seed + 1")
+        @Expect(outer.input.originOf(TextRange(0, 4)), inner.input.originOf(TextRange(0, 4)))
+        let text = file.text(db).toString()
+        let head = text.indexOf("@I").getOrThrow() - text.indexOf("func").getOrThrow()
+        @Expect(outer.input.originOf(TextRange(7, 8)), Some(SpanOrigin.FromSource(TextRange(head, head + 2))))
+    }
+
+    @TestCase
+    func aWrittenCallIsNotSentAgainAndAnUnresolvedCallDoesNotBlockItsParent() {
+        // arrange
+        let (db, file, _) =
+            workspaceMacroDatabase("package m\nimport m.ms.*\nfunc f() { @B(@Unknown(1) + @I(2)) }")
+        let inner = requestNamed(db, file, "I")
+        // act
+        setMacroOutputs(db, [(inner.call, writtenOutput(inner, "@I(3)"))])
+        let outer = requestNamed(db, file, "B")
+        // assert
+        @Expect(outer.input.text, "@Unknown(1) + @I(3)")
+        @Expect(serverCalls(db, file).map {one => one.definition.name}, ["I", "B"])
+    }
+
+    @TestCase
+    func nestedOutputsBecomeTheOuterInputAndChildMessages() {
+        for (
+            (source, expected) in [
+                ("@B(@I(1))", "2"),
+                ("@B @I(1)", "2"),
+                ("@B(a.@I(1))", "a.2"),
+                ("@B(@I(1) <- 1)", "2 <- 1")
+            ]
+        ) {
+            // arrange
+            let (db, file, _) =
+                workspaceMacroDatabase("package m\nimport m.ms.*\nfunc f() { ${source} }")
+            @Expect(serverCalls(db, file).map {one => one.definition.name}, ["I", "B"])
+            @Expect(bodyMacroCalls(db, file).map {one => one.holdsCalls}, [false, true])
+            @Expect(macroRequests(db, file).map {one => one.definition.name}, ["I"])
+            let inner = requestNamed(db, file, "I")
+            @Expect(inner.parents, ["B"])
+            let items = [MacroItem("value", MacroItemValue.IntItem(2))]
+            // act
+            setMacroOutputs(db, [(inner.call, writtenOutput(inner, "2", items: items))])
+
+            let outer = requestNamed(db, file, "B")
+            // assert
+            @Expect(outer.input.text, expected)
+            @Expect(outer.children, [MacroChild("I", items)])
+            @Expect(outer.parents, [])
+            setMacroOutputs(db, [(outer.call, writtenOutput(outer, "3"))])
+            @Expect(pendingMacroRequests(db, file).size, 0)
+        }
+    }
+
+    @TestCase
+    func bodyCallsAreComposedIntoMemberAndTypeMacroInputs() {
+        // arrange
+        let (db, file, _) =
+            workspaceMacroDatabase("package m\nimport m.ms.*\n@A class X { @B func f() { @I(1) } }")
+        let inner = requestNamed(db, file, "I")
+        @Expect(inner.parents, ["A", "B"])
+        @Expect(macroRequests(db, file).map {one => one.definition.name}, ["I"])
+        // act
+        setMacroOutputs(db, [(inner.call, writtenOutput(inner, "2"))])
+        let member = requestNamed(db, file, "B")
+        // assert
+        @Expect(member.input.text, "func f() { 2 }")
+        @Expect(member.children, [MacroChild("I", [])])
+        setMacroOutputs(db, [(member.call, writtenOutput(member, "func f() { 3 }"))])
+        let outer = requestNamed(db, file, "A")
+        @Expect(outer.input.text, "class X { func f() { 3 } }")
+        @Expect(outer.children, [MacroChild("I", []), MacroChild("B", [])])
+    }
+
+    @TestCase
+    func grandchildrenAndSiblingsKeepInsideOutLeftToRightOrder() {
+        // arrange
+        let (db, file, _) =
+            workspaceMacroDatabase("package m\nimport m.ms.*\nfunc f() { @A(@B(@I(1)) + @I(2)) }")
+        let requests = macroRequests(db, file)
+        @Expect(requests.map {one => one.definition.name}, ["I", "I"])
+        @Expect(requests[0].parents, ["A", "B"])
+        @Expect(requests[1].parents, ["A"])
+        // act
+        setMacroOutputs(db, requests.map { one => (one.call, writtenOutput(one, one.input.text)) })
+        let middle = requestNamed(db, file, "B")
+        setMacroOutputs(db, [(middle.call, writtenOutput(middle, "3"))])
+        let outer = requestNamed(db, file, "A")
+        // assert
+        @Expect(outer.input.text, "3 + 2")
+        @Expect(outer.children, [MacroChild("I", []), MacroChild("B", []), MacroChild("I", [])])
+    }
+
+    @TestCase
     func callsInAnItemGoBeforeTheCallsOnItInnermostFirst() {
         // arrange
         let (db, file, _) =

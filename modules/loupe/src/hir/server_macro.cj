@@ -609,6 +609,9 @@ class MacroInputComposer {
     private let tree: ItemTree
     private let source: String
     private let served = HashMap<MacroCallKey, ServerCall>()
+    private let bodySyntax = HashMap<MacroCallId, BodyCallSyntax>()
+    private let bodyCalls: Array<(ServerCall, BodyCallSyntax)>
+    private let requests = HashMap<MacroCallId, MacroRequest>()
 
     MacroInputComposer(
         calls: Array<ServerCall>,
@@ -622,6 +625,30 @@ class MacroInputComposer {
         for (one in calls) {
             served[macroCallKeyOf(db, one.call)] = one
         }
+        let walked = HashSet<ItemId>()
+        let nested = ArrayList<(ServerCall, BodyCallSyntax)>()
+        let filter = ActiveFilter.of(db, file)
+        for (one in calls where one.call.inBody(db).isSome()) {
+            let item = one.call.item(db)
+            if (!walked.add(item)) {
+                continue
+            }
+            let node = ids.node(item, root) ?? continue
+            for (found in BodyCallWalker(ids, filter, item).walk(node)) {
+                let key = MacroCallKey(item.toString(), found.index, inBody: Some(found.name))
+                let call = served.get(key) ?? continue
+                bodySyntax[call.call] = found.syntax
+                nested.add((call, found.syntax))
+            }
+        }
+        sort(
+            nested,
+            by: {
+                a: (ServerCall, BodyCallSyntax), b: (ServerCall, BodyCallSyntax) =>
+                a[1].syntax.textRange.start.compare(b[1].syntax.textRange.start)
+            }
+        )
+        bodyCalls = nested.toArray()
     }
 
     /**
@@ -629,6 +656,17 @@ class MacroInputComposer {
      * input of a call on a parameter (D119) is the parameter, as cjc gives it.
      */
     func request(call: ServerCall): ?MacroRequest {
+        if (let Some(cached) <- requests.get(call.call)) {
+            return Some(cached)
+        }
+        let result = buildRequest(call)
+        if (let Some(ready) <- result) {
+            requests[call.call] = ready
+        }
+        result
+    }
+
+    private func buildRequest(call: ServerCall): ?MacroRequest {
         if (call.call.inBody(db).isSome()) {
             return requestInItem(call)
         }
@@ -656,11 +694,13 @@ class MacroInputComposer {
             } else if (let Some(decl) <- macroCall.decl()) {
                 declaration(item, decl.syntax, builder, children)
             } else if (let Some(param) <- macroCall.param()) {
-                builder.copy(param.syntax.textRange)
-                true
+                bodyInput(param.syntax.textRange, builder, children)
             } else if (let Some(args) <- macroCall.macroArgs()) {
-                builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
-                true
+                bodyInput(
+                    innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen),
+                    builder,
+                    children
+                )
             } else {
                 true
             }
@@ -694,14 +734,11 @@ class MacroInputComposer {
     /**
      * The request for `call`, a call in an item (D117): its input what is between its parentheses, or the local
      * declaration it is on; its parents the macros on the items around it, then the calls in the item whose input it
-     * is in. `None` while another call is in its input, which cjc expands first (#371), or once it is gone.
+     * is in. `None` until the calls in its input have outputs, or once it is gone.
      */
     private func requestInItem(call: ServerCall): ?MacroRequest {
         let found = bodyMacroCallOf(db, call.call) ?? return None
-        if (found.holdsCalls) {
-            return None
-        }
-        let syntax = bodyCallSyntaxOf(db, call.call) ?? return None
+        let syntax = bodySyntax.get(call.call) ?? return None
         let anchor = anchorOf(ids, root, call.top) ?? return None
         let attrs =
             syntax
@@ -714,16 +751,20 @@ class MacroInputComposer {
                     builder.build()
                 }
         let builder = MappedTextBuilder(source, anchor)
-        match ((syntax.macroArgs(), syntax.rest())) {
-            case (Some(args), _) =>
-                builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
-            case (None, Some(rest)) => builder.copy(rest.textRange)
-            case _ => ()
+        let children = ArrayList<MacroChild>()
+        let range =
+            match ((syntax.macroArgs(), syntax.rest())) {
+                case (Some(args), _) =>
+                    innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen)
+                case (None, Some(rest)) => rest.textRange
+                case _ => TextRange.at(syntax.syntax.textRange.end, 0)
+            }
+        if (!bodyInput(range, builder, children)) {
+            return None
         }
         let input = builder.build()
         let item = call.call.item(db)
         let parents = parentsOf(call.top, item, macroCountOf(item)).concat(found.around)
-        let children = ArrayList<MacroChild>()
         let fingerprint =
             fingerprintOf(
                 call.definition,
@@ -734,7 +775,43 @@ class MacroInputComposer {
                 children
             )
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
-        MacroRequest(call.call, call.definition, attrs, input, parents, [], fingerprint, current)
+        MacroRequest(
+            call.call,
+            call.definition,
+            attrs,
+            input,
+            parents,
+            children.toArray(),
+            fingerprint,
+            current
+        )
+    }
+
+    /**
+     * Splices source calls into a slice of an input. Replacing the outermost call also replaces its descendants;
+     * their messages still precede its own, as cjc gives an ancestor every nested call's messages.
+     */
+    private func bodyInput(
+        range: TextRange,
+        builder: MappedTextBuilder,
+        children: ArrayList<MacroChild>
+    ): Bool {
+        var at = range.start
+        for ((call, syntax) in bodyCalls) {
+            let span = syntax.syntax.textRange
+            if (span.start < at || span.end > range.end) {
+                continue
+            }
+            let output = macroOutputOf(db, call.call) ?? return false
+            let expansion = output.expansion ?? return false
+            builder.copy(TextRange(at, span.start))
+            builder.paste(expansion, syntax.head())
+            children.add(all: request(call).map { one => one.children } ?? [])
+            children.add(MacroChild(call.definition.name, output.items))
+            at = span.end
+        }
+        builder.copy(TextRange(at, range.end))
+        true
     }
 
     /**
@@ -822,9 +899,7 @@ class MacroInputComposer {
             case Some(decl) =>
                 builder.copy(TextRange(start, decl.syntax.textRange.start))
                 declaration(item, decl.syntax, builder, children) && written()
-            case None =>
-                builder.copy(TextRange(start, last.syntax.textRange.end))
-                true
+            case None => bodyInput(TextRange(start, last.syntax.textRange.end), builder, children)
         }
     }
 
@@ -879,14 +954,15 @@ class MacroInputComposer {
             if (range.start < at || range.end > node.textRange.end) {
                 continue
             }
-            builder.copy(TextRange(at, range.start))
+            if (!bodyInput(TextRange(at, range.start), builder, children)) {
+                return false
+            }
             if (!chainFrom(owner, chain, 0, builder, children)) {
                 return false
             }
             at = range.end
         }
-        builder.copy(TextRange(at, node.textRange.end))
-        true
+        bodyInput(TextRange(at, node.textRange.end), builder, children)
     }
 
     private func membersOf(item: ItemId): Array<Item> {
