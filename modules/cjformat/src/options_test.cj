@@ -6,6 +6,20 @@ import ginkgo.TextRange
 @Test
 class FormatOptionsTest {
     @TestCase
+    func anElseIfChainDoesNotCompactOnlyItsFinalBranches(): Unit {
+        // arrange
+        let source = "let x = if (a) { b } else if (c) { d } else { e }\n"
+        let options = FormatOptions(simpleIf: SimpleIf.Compact)
+
+        // act
+        let formatted = formatText(source, options: options).getOrThrow()
+
+        // assert
+        @Expect(formatted.contains("else if (c) {\n"))
+        @Expect(formattingProblems("else-if", source, options: options), [])
+    }
+
+    @TestCase
     func nestedValueBranchesKeepTheirStructureAndCanonicalLayout(): Unit {
         // arrange
         var expression = "0"

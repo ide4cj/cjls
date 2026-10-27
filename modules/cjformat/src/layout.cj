@@ -70,7 +70,7 @@ class LayoutBuilder {
             case Block | DeclBody | EnumBody | PropBody | MatchBody | ForeignBlock =>
                 body(parts, n.kind)
             case LambdaExpr => lambda(parts)
-            case IfExpr => ifExpression(parts)
+            case IfExpr => ifExpression(n, parts)
             case MatchCase => matchCase(parts)
             case VarDecl | TypeAliasDecl | ResourceDecl => assignment(parts, n.kind)
             case FuncDecl |
@@ -151,19 +151,19 @@ class LayoutBuilder {
         match (p) {
             case SyntaxElement.Node(n) => node(n)
             case SyntaxElement.Token(t) =>
-                if (isComment(t.kind)) {
-                    comment(t)
-                } else {
-                    textDoc(t.text())
-                }
+                if (isComment(t.kind)) { comment(t) } else { textDoc(t.text()) }
         }
     }
 
     /** Only complete, comment-free expression branches may share a line. */
-    private func ifExpression(parts: Array<CjSyntaxElement>): Doc {
+    private func ifExpression(n: CjSyntaxNode, parts: Array<CjSyntaxElement>): Doc {
         match (options.simpleIf) {
             case SimpleIf.Multiline => return group(sequence(parts, IfExpr))
             case _ => ()
+        }
+        // An else-if chain uses one layout throughout, including its final if/else pair.
+        if (n.parent.map { parent => parent.kind == IfExpr } ?? false) {
+            return group(sequence(parts, IfExpr))
         }
         var branches = 0
         for (part in parts) {
@@ -266,12 +266,7 @@ class LayoutBuilder {
         let close = parts.size - 1
         let prefix = sequence(parts[..open], context)
         let content = parts[open + 1..close]
-        let brace =
-            if (open == 0) {
-                textDoc("{")
-            } else {
-                concat([prefix, textDoc(" {")])
-            }
+        let brace = if (open == 0) { textDoc("{") } else { concat([prefix, textDoc(" {")]) }
         if (content.isEmpty()) {
             return concat([brace, textDoc("}")])
         }
@@ -302,17 +297,7 @@ class LayoutBuilder {
             if (bodyStart == 0) {
                 body
             } else {
-                concat(
-                    [
-                        header,
-                        if (mustBreak) {
-                            hardline()
-                        } else {
-                            softline()
-                        },
-                        body
-                    ]
-                )
+                concat([header, if (mustBreak) { hardline() } else { softline() }, body])
             }
         if (content.isEmpty()) {
             return concat([sequence(parts[..open], LambdaExpr), textDoc("{}")])
@@ -322,23 +307,8 @@ class LayoutBuilder {
                 [
                     sequence(parts[..open], LambdaExpr),
                     textDoc("{"),
-                    indent(
-                        concat(
-                            [
-                                if (mustBreak) {
-                                    hardline()
-                                } else {
-                                    softline()
-                                },
-                                inner
-                            ]
-                        )
-                    ),
-                    if (mustBreak) {
-                        hardline()
-                    } else {
-                        softline()
-                    },
+                    indent(concat([if (mustBreak) { hardline() } else { softline() }, inner])),
+                    if (mustBreak) { hardline() } else { softline() },
                     textDoc("}")
                 ]
             )
@@ -356,11 +326,7 @@ class LayoutBuilder {
                     indent(
                         concat(
                             [
-                                if (count > 1) {
-                                    hardline()
-                                } else {
-                                    softline()
-                                },
+                                if (count > 1) { hardline() } else { softline() },
                                 sequence(tail, MatchCase, statements: true)
                             ]
                         )
@@ -394,12 +360,7 @@ class LayoutBuilder {
             if (link.kind == MemberAccessExpr) {
                 hasMember = true
             }
-            let target =
-                if (hasMember) {
-                    suffix
-                } else {
-                    head
-                }
+            let target = if (hasMember) { suffix } else { head }
             if (link.kind == MemberAccessExpr) {
                 target.add(softbreak())
             } else if (link.kind == TrailingLambdaExpr) {
@@ -430,11 +391,7 @@ class LayoutBuilder {
                     element(parts[parts.size - 1])
                 ]
             )
-        if (grouped) {
-            group(doc)
-        } else {
-            doc
-        }
+        if (grouped) { group(doc) } else { doc }
     }
 
     private func sequence(
@@ -511,11 +468,7 @@ class LayoutBuilder {
             if (hasNewline(before, after)) {
                 return sourceBreak(before, after)
             }
-            return if (b == LineComment) {
-                textDoc("")
-            } else {
-                textDoc(" ")
-            }
+            return if (b == LineComment) { textDoc("") } else { textDoc(" ") }
         }
         if (isComment(a)) {
             return if (hasNewline(before, after)) {
@@ -579,10 +532,8 @@ class LayoutBuilder {
             return textDoc("")
         }
         if (b == LParen) {
-            return if (
-                context == EnumCtor || context == EnumPat || context == FuncType ||
-                    context == TypeConvExpr
-            ) {
+            return if (context == EnumCtor || context == EnumPat || context == FuncType ||
+                context == TypeConvExpr) {
                 textDoc("")
             } else {
                 textDoc(" ")
@@ -599,11 +550,7 @@ class LayoutBuilder {
 
     private func sourceBreak(before: CjSyntaxElement, after: CjSyntaxElement): Doc {
         let gap = source[before.textRange.end..startOf(after)]
-        if (gap.count("\n") > 1) {
-            blankline()
-        } else {
-            hardline()
-        }
+        if (gap.count("\n") > 1) { blankline() } else { hardline() }
     }
 
     private func hasNewline(before: CjSyntaxElement, after: CjSyntaxElement): Bool {
@@ -626,12 +573,7 @@ class LayoutBuilder {
                     .add(
                         TextRange(
                             start,
-                            start +
-                                if (t.kind == Whitespace) {
-                                    t.textRange.len
-                                } else {
-                                    0
-                                }
+                            start + if (t.kind == Whitespace) { t.textRange.len } else { 0 }
                         )
                     )
                 isLineStart = false
