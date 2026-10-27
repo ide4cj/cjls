@@ -6,17 +6,86 @@ import std.convert.*
 /**
  * Cangjie's keywords: a name of the schema that is one is written as a raw identifier (`` `type` ``).
  */
-let KEYWORDS: HashSet<String> = HashSet<String>(
-    [
-        "as", "abstract", "break", "Bool", "case", "catch", "class", "const", "continue", "do", "else", "enum",
-        "extend", "false", "finally", "Float16", "Float32", "Float64", "for", "foreign", "func", "if", "import",
-        "in", "init", "inout", "Int16", "Int32", "Int64", "Int8", "interface", "IntNative", "internal", "is",
-        "let", "macro", "main", "match", "mut", "Nothing", "open", "operator", "override", "package", "private",
-        "prop", "protected", "public", "quote", "redef", "return", "Rune", "sealed", "spawn", "static", "struct",
-        "super", "synchronized", "This", "this", "throw", "true", "try", "type", "UInt16", "UInt32", "UInt64",
-        "UInt8", "UIntNative", "Unit", "unsafe", "var", "VArray", "where", "while"
-    ]
-)
+let KEYWORDS: HashSet<String> =
+    HashSet<String>(
+        [
+            "as",
+            "abstract",
+            "break",
+            "Bool",
+            "case",
+            "catch",
+            "class",
+            "const",
+            "continue",
+            "do",
+            "else",
+            "enum",
+            "extend",
+            "false",
+            "finally",
+            "Float16",
+            "Float32",
+            "Float64",
+            "for",
+            "foreign",
+            "func",
+            "if",
+            "import",
+            "in",
+            "init",
+            "inout",
+            "Int16",
+            "Int32",
+            "Int64",
+            "Int8",
+            "interface",
+            "IntNative",
+            "internal",
+            "is",
+            "let",
+            "macro",
+            "main",
+            "match",
+            "mut",
+            "Nothing",
+            "open",
+            "operator",
+            "override",
+            "package",
+            "private",
+            "prop",
+            "protected",
+            "public",
+            "quote",
+            "redef",
+            "return",
+            "Rune",
+            "sealed",
+            "spawn",
+            "static",
+            "struct",
+            "super",
+            "synchronized",
+            "This",
+            "this",
+            "throw",
+            "true",
+            "try",
+            "type",
+            "UInt16",
+            "UInt32",
+            "UInt64",
+            "UInt8",
+            "UIntNative",
+            "Unit",
+            "unsafe",
+            "var",
+            "VArray",
+            "where",
+            "while"
+        ]
+    )
 
 /**
  * What the runtime the views are generated against (`fbs`) declares: a view cannot be named so.
@@ -46,11 +115,7 @@ class Names {
 
     /** `name` as it is written in code: raw if it is a keyword. */
     func raw(name: String): String {
-        if (KEYWORDS.contains(name)) {
-            "`${name}`"
-        } else {
-            name
-        }
+        if (KEYWORDS.contains(name)) { "`${name}`" } else { name }
     }
 
     /** `snake_case` as `snakeCase`, raw if it is a keyword. */
@@ -97,7 +162,9 @@ class Names {
         }
         if (config.writes) {
             for (d in schema.decls where d.kind != EnumDecl && !types.add(dataName(d.name))) {
-                throw ConfigException("`${dataName(d.name)}` is both a declaration and the writer of `${d.name}`")
+                throw ConfigException(
+                    "`${dataName(d.name)}` is both a declaration and the writer of `${d.name}`"
+                )
             }
         }
         for (name in config.open) {
@@ -128,7 +195,8 @@ class Names {
             }
             for (c in constructors where types.contains(c)) {
                 throw ConfigException(
-                    "`${d.name}` has a member `${c}`, which is also a type: rename one (`${d.name}.${c}` or `${c}`)")
+                    "`${d.name}` has a member `${c}`, which is also a type: rename one (`${d.name}.${c}` or `${c}`)"
+                )
             }
         }
     }
@@ -202,11 +270,7 @@ func fieldIds(names: Names, d: Decl): Array<Int64> {
     var next = 0
     for (f in d.fields) {
         ids.add(next)
-        next += if (isUnion(names, f.fbType)) {
-            2
-        } else {
-            1
-        }
+        next += if (isUnion(names, f.fbType)) { 2 } else { 1 }
     }
     ids.toArray()
 }
@@ -250,118 +314,153 @@ func emitEnum(w: CodeWriter, names: Names, d: Decl): Unit {
     let scalar = d.underlying.getOrThrow().cangjie
     let open = names.isOpen(d.name)
     w.doc(d.doc)
-    w.block("public enum ${name}") {
-        for (m in d.members) {
-            w.doc(m.doc)
-            w.line("| ${names.memberName(d.name, m.name)}")
+    w
+        .block("public enum ${name}") {
+            for (m in d.members) {
+                w.doc(m.doc)
+                w.line("| ${names.memberName(d.name, m.name)}")
+            }
+            if (open) {
+                w.doc(["A value this version of the schema does not have."])
+                w.line("| Unknown(${scalar})")
+            }
         }
-        if (open) {
-            w.doc(["A value this version of the schema does not have."])
-            w.line("| Unknown(${scalar})")
-        }
-    }
     w.blank()
     // in the enum's body a member named like a type (`LitConstKind.String`) hides it, not in an extend
-    w.block("extend ${name} <: Hashable & Equatable<${name}> & ToString") {
-        w.block("static func fromValue(value: ${scalar}): ${name}") {
-            w.block("match (value)") {
-                for (m in d.members) {
-                    w.line("case ${m.value} => ${name}.${names.memberName(d.name, m.name)}")
+    w
+        .block("extend ${name} <: Hashable & Equatable<${name}> & ToString") {
+            w
+                .block("static func fromValue(value: ${scalar}): ${name}") {
+                    w
+                        .block("match (value)") {
+                            for (m in d.members) {
+                                w
+                                    .line(
+                                        "case ${m.value} => ${name}.${names.memberName(d.name, m.name)}"
+                                    )
+                            }
+                            if (open) {
+                                w.line("case _ => ${name}.Unknown(value)")
+                            } else {
+                                w
+                                    .line(
+                                        "case _ => throw broken(\"${d.name} has no value \${value}\")"
+                                    )
+                            }
+                        }
                 }
-                if (open) {
-                    w.line("case _ => ${name}.Unknown(value)")
-                } else {
-                    w.line("case _ => throw broken(\"${d.name} has no value \${value}\")")
+            w.blank()
+            w.doc(["Its value in the file."])
+            w
+                .block("public prop value: ${scalar}") {
+                    w
+                        .block("get()") {
+                            w
+                                .block("match (this)") {
+                                    for (m in d.members) {
+                                        w
+                                            .line(
+                                                "case ${name}.${names.memberName(d.name, m.name)} => ${m.value}"
+                                            )
+                                    }
+                                    if (open) {
+                                        w.line("case ${name}.Unknown(v) => v")
+                                    }
+                                }
+                        }
                 }
-            }
-        }
-        w.blank()
-        w.doc(["Its value in the file."])
-        w.block("public prop value: ${scalar}") {
-            w.block("get()") {
-                w.block("match (this)") {
-                    for (m in d.members) {
-                        w.line("case ${name}.${names.memberName(d.name, m.name)} => ${m.value}")
-                    }
-                    if (open) {
-                        w.line("case ${name}.Unknown(v) => v")
-                    }
+            w.blank()
+            w
+                .block("public operator func ==(other: ${name}): Bool") {
+                    w.line("value == other.value")
                 }
-            }
-        }
-        w.blank()
-        w.block("public operator func ==(other: ${name}): Bool") {
-            w.line("value == other.value")
-        }
-        w.blank()
-        w.block("public operator func !=(other: ${name}): Bool") {
-            w.line("value != other.value")
-        }
-        w.blank()
-        w.block("public func hashCode(): Int64") {
-            w.line("Int64(value)")
-        }
-        w.blank()
-        w.block("public func toString(): String") {
-            w.block("match (this)") {
-                for (m in d.members) {
-                    let member = names.memberName(d.name, m.name)
-                    w.line("case ${name}.${member} => ${quoted(member.replace("`", ""))}")
+            w.blank()
+            w
+                .block("public operator func !=(other: ${name}): Bool") {
+                    w.line("value != other.value")
                 }
-                if (open) {
-                    w.line("case ${name}.Unknown(v) => \"Unknown(\${v})\"")
+            w.blank()
+            w.block("public func hashCode(): Int64") { w.line("Int64(value)") }
+            w.blank()
+            w
+                .block("public func toString(): String") {
+                    w
+                        .block("match (this)") {
+                            for (m in d.members) {
+                                let member = names.memberName(d.name, m.name)
+                                w
+                                    .line(
+                                        "case ${name}.${member} => ${quoted(member.replace("`", ""))}"
+                                    )
+                            }
+                            if (open) {
+                                w.line("case ${name}.Unknown(v) => \"Unknown(\${v})\"")
+                            }
+                        }
                 }
-            }
         }
-    }
 }
 
 func emitUnion(w: CodeWriter, names: Names, d: Decl): Unit {
     let name = names.typeName(d.name)
     w.doc(d.doc)
-    w.block("public enum ${name}") {
-        for (m in d.unionMembers) {
-            w.doc(m.doc)
-            w.line("| ${unionConstructor(m)}(${unionMemberType(names, m)})")
-        }
-        w.doc(["A member this version of the schema does not have, by its type."])
-        w.line("| Unknown(UInt8)")
-        w.blank()
-        w.doc(["The union of field `id` (its type; `id + 1` is its value), if it is there."])
-        w.block("static func read(fb: FbTable, id: Int64): ?${name}") {
-            w.line("let tag = fb.scalar(id, 0, readUInt8)")
-            w.block("if (tag == 0)") {
-                w.line("return Option<${name}>.None")
+    w
+        .block("public enum ${name}") {
+            for (m in d.unionMembers) {
+                w.doc(m.doc)
+                w.line("| ${unionConstructor(m)}(${unionMemberType(names, m)})")
             }
-            w.line("let o = fb.offset(id + 1)")
-            w.block("if (o == 0)") {
-                w.line("throw broken(\"${d.name} of type \${tag} has no value\")")
-            }
-            w.line("at(fb.buf, tag, fb.pos + o)")
-        }
-        w.blank()
-        w.doc(["The vector of unions of field `id` (their types; `id + 1` is their values)."])
-        w.block("static func readVector(fb: FbTable, id: Int64): FbVector<${name}>") {
-            w.line("let tags = fb.vector(id, 1, readUInt8)")
-            w.line("let values = fb.vector(id + 1, 4) {_, p => p}")
-            w.block("if (tags.size != values.size)") {
-                w.line("throw broken(\"${d.name}: \${tags.size} types for \${values.size} values\")")
-            }
-            w.line("FbVector<${name}>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}")
-        }
-        w.blank()
-        w.doc(["The member of type `tag` whose offset is stored at `pos`."])
-        w.block("static func at(buf: Array<Byte>, tag: UInt8, pos: Int64): ${name}") {
-            w.block("match (tag)") {
-                var tag = 1
-                for (m in d.unionMembers) {
-                    w.line("case ${tag} => ${name}.${unionConstructor(m)}(${unionMemberRead(names, m)})")
-                    tag++
+            w.doc(["A member this version of the schema does not have, by its type."])
+            w.line("| Unknown(UInt8)")
+            w.blank()
+            w.doc(["The union of field `id` (its type; `id + 1` is its value), if it is there."])
+            w
+                .block("static func read(fb: FbTable, id: Int64): ?${name}") {
+                    w.line("let tag = fb.scalar(id, 0, readUInt8)")
+                    w.block("if (tag == 0)") { w.line("return Option<${name}>.None") }
+                    w.line("let o = fb.offset(id + 1)")
+                    w
+                        .block("if (o == 0)") {
+                            w.line("throw broken(\"${d.name} of type \${tag} has no value\")")
+                        }
+                    w.line("at(fb.buf, tag, fb.pos + o)")
                 }
-                w.line("case _ => ${name}.Unknown(tag)")
-            }
+            w.blank()
+            w.doc(["The vector of unions of field `id` (their types; `id + 1` is their values)."])
+            w
+                .block("static func readVector(fb: FbTable, id: Int64): FbVector<${name}>") {
+                    w.line("let tags = fb.vector(id, 1, readUInt8)")
+                    w.line("let values = fb.vector(id + 1, 4) {_, p => p}")
+                    w
+                        .block("if (tags.size != values.size)") {
+                            w
+                                .line(
+                                    "throw broken(\"${d.name}: \${tags.size} types for \${values.size} values\")"
+                                )
+                        }
+                    w
+                        .line(
+                            "FbVector<${name}>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}"
+                        )
+                }
+            w.blank()
+            w.doc(["The member of type `tag` whose offset is stored at `pos`."])
+            w
+                .block("static func at(buf: Array<Byte>, tag: UInt8, pos: Int64): ${name}") {
+                    w
+                        .block("match (tag)") {
+                            var tag = 1
+                            for (m in d.unionMembers) {
+                                w
+                                    .line(
+                                        "case ${tag} => ${name}.${unionConstructor(m)}(${unionMemberRead(names, m)})"
+                                    )
+                                tag++
+                            }
+                            w.line("case _ => ${name}.Unknown(tag)")
+                        }
+                }
         }
-    }
 }
 
 /**
@@ -377,11 +476,7 @@ func unionConstructor(m: UnionMember): String {
 }
 
 func unionMemberType(names: Names, m: UnionMember): String {
-    if (m.typeName == "string") {
-        "String"
-    } else {
-        names.typeName(m.typeName)
-    }
+    if (m.typeName == "string") { "String" } else { names.typeName(m.typeName) }
 }
 
 func unionMemberRead(names: Names, m: UnionMember): String {
@@ -392,7 +487,10 @@ func unionMemberRead(names: Names, m: UnionMember): String {
     match (names.decl(m.typeName).kind) {
         case TableDecl => "${t}(FbTable.at(buf, pos))"
         case StructDecl => "${t}(buf, follow(buf, pos))"
-        case _ => throw ConfigException("union `${m.name}` holds `${m.typeName}`, neither a table nor a struct")
+        case _ =>
+            throw ConfigException(
+                "union `${m.name}` holds `${m.typeName}`, neither a table nor a struct"
+            )
     }
 }
 
@@ -401,33 +499,38 @@ func emitStruct(w: CodeWriter, names: Names, d: Decl): Unit {
     let layout = structLayout(names, d)
     checkMembers(names, d, ["buf", "pos"])
     w.doc(d.doc)
-    w.block("public struct ${name}") {
-        w.line("${name}(let buf: Array<Byte>, let pos: Int64) {}")
-        for (i in 0..d.fields.size) {
-            let f = d.fields[i]
-            if (f.deprecated) {
-                continue
-            }
-            let at = if (layout.offsets[i] == 0) {
-                "pos"
-            } else {
-                "pos + ${layout.offsets[i]}"
-            }
-            let (fieldType, read) = match (f.fbType) {
-                case ScalarType(s) => (s.cangjie, "${reader(s)}(buf, ${at})")
-                case NamedType(n) =>
-                    let t = names.typeName(n)
-                    let nd = names.decl(n)
-                    match (nd.kind) {
-                        case EnumDecl => (t, "${t}.fromValue(${reader(nd.underlying.getOrThrow())}(buf, ${at}))")
-                        case _ => (t, "${t}(buf, ${at})")
+    w
+        .block("public struct ${name}") {
+            w.line("${name}(let buf: Array<Byte>, let pos: Int64) {}")
+            for (i in 0..d.fields.size) {
+                let f = d.fields[i]
+                if (f.deprecated) {
+                    continue
+                }
+                let at = if (layout.offsets[i] == 0) { "pos" } else { "pos + ${layout.offsets[i]}" }
+                let (fieldType, read) =
+                    match (f.fbType) {
+                        case ScalarType(s) => (s.cangjie, "${reader(s)}(buf, ${at})")
+                        case NamedType(n) =>
+                            let t = names.typeName(n)
+                            let nd = names.decl(n)
+                            match (nd.kind) {
+                                case EnumDecl =>
+                                    (
+                                        t,
+                                        "${t}.fromValue(${reader(nd.underlying.getOrThrow())}(buf, ${at}))"
+                                    )
+                                case _ => (t, "${t}(buf, ${at})")
+                            }
+                        case _ =>
+                            throw ConfigException(
+                                "struct `${d.name}` has a field that is not inline"
+                            )
                     }
-                case _ => throw ConfigException("struct `${d.name}` has a field that is not inline")
+                w.blank()
+                emitProp(w, f, names.fieldName(f.name), fieldType, read)
             }
-            w.blank()
-            emitProp(w, f, names.fieldName(f.name), fieldType, read)
         }
-    }
 }
 
 func emitTable(w: CodeWriter, names: Names, d: Decl): Unit {
@@ -435,34 +538,36 @@ func emitTable(w: CodeWriter, names: Names, d: Decl): Unit {
     let ids = fieldIds(names, d)
     checkMembers(names, d, ["fb"])
     w.doc(d.doc)
-    w.block("public struct ${name}") {
-        w.line("${name}(let fb: FbTable) {}")
-        if (names.schema.rootType == Some(d.name)) {
-            if (let Some(identifier) <- names.schema.fileIdentifier) {
+    w
+        .block("public struct ${name}") {
+            w.line("${name}(let fb: FbTable) {}")
+            if (names.schema.rootType == Some(d.name)) {
+                if (let Some(identifier) <- names.schema.fileIdentifier) {
+                    w.blank()
+                    w.doc(["What a file of this schema has at bytes 4 to 8."])
+                    w.line("static const FILE_IDENTIFIER = ${quoted(identifier)}")
+                }
                 w.blank()
-                w.doc(["What a file of this schema has at bytes 4 to 8."])
-                w.line("static const FILE_IDENTIFIER = ${quoted(identifier)}")
+                w.doc(["The root table of `buf`, nothing checked."])
+                w
+                    .block("static func root(buf: Array<Byte>): ${name}") {
+                        w.line("${name}(FbTable.at(buf, 0))")
+                    }
             }
-            w.blank()
-            w.doc(["The root table of `buf`, nothing checked."])
-            w.block("static func root(buf: Array<Byte>): ${name}") {
-                w.line("${name}(FbTable.at(buf, 0))")
+            for (i in 0..d.fields.size) {
+                let f = d.fields[i]
+                if (f.deprecated) {
+                    continue
+                }
+                var (fieldType, read) = tableField(names, d, f, ids[i])
+                if (let Some(wrapper) <- names.config.wrap.get("${d.name}.${f.name}")) {
+                    fieldType = wrapper
+                    read = "${wrapper}(${read})"
+                }
+                w.blank()
+                emitProp(w, f, names.fieldName(f.name), fieldType, read)
             }
         }
-        for (i in 0..d.fields.size) {
-            let f = d.fields[i]
-            if (f.deprecated) {
-                continue
-            }
-            var (fieldType, read) = tableField(names, d, f, ids[i])
-            if (let Some(wrapper) <- names.config.wrap.get("${d.name}.${f.name}")) {
-                fieldType = wrapper
-                read = "${wrapper}(${read})"
-            }
-            w.blank()
-            emitProp(w, f, names.fieldName(f.name), fieldType, read)
-        }
-    }
 }
 
 /**
@@ -470,7 +575,8 @@ func emitTable(w: CodeWriter, names: Names, d: Decl): Unit {
  */
 func tableField(names: Names, d: Decl, f: Field, id: Int64): (String, String) {
     match (f.fbType) {
-        case ScalarType(s) => (s.cangjie, "fb.scalar(${id}, ${scalarDefault(s, f.defaultValue)}, ${reader(s)})")
+        case ScalarType(s) =>
+            (s.cangjie, "fb.scalar(${id}, ${scalarDefault(s, f.defaultValue)}, ${reader(s)})")
         case StringType => optional(d, f, "String", "fb.string(${id})")
         case NamedType(n) =>
             let t = names.typeName(n)
@@ -478,17 +584,23 @@ func tableField(names: Names, d: Decl, f: Field, id: Int64): (String, String) {
             match (nd.kind) {
                 case EnumDecl =>
                     let s = nd.underlying.getOrThrow()
-                    (t, "${t}.fromValue(fb.scalar(${id}, ${enumDefault(nd, f.defaultValue)}, ${reader(s)}))")
+                    (
+                        t,
+                        "${t}.fromValue(fb.scalar(${id}, ${enumDefault(nd, f.defaultValue)}, ${reader(s)}))"
+                    )
                 case UnionDecl => optional(d, f, t, "${t}.read(fb, ${id})")
-                case StructDecl => optional(d, f, t, "fb.structAt(${id}).map {p => ${t}(fb.buf, p)}")
+                case StructDecl =>
+                    optional(d, f, t, "fb.structAt(${id}).map {p => ${t}(fb.buf, p)}")
                 case TableDecl => optional(d, f, t, "fb.table(${id}).map {x => ${t}(x)}")
             }
         case VectorType(e) =>
             let (elementType, stride, read) = vectorElement(names, e)
-            let vector = match (e) {
-                case NamedType(n) where names.decl(n).kind == UnionDecl => "${elementType}.readVector(fb, ${id})"
-                case _ => "fb.vector(${id}, ${stride}, ${read})"
-            }
+            let vector =
+                match (e) {
+                    case NamedType(n) where names.decl(n).kind == UnionDecl =>
+                        "${elementType}.readVector(fb, ${id})"
+                    case _ => "fb.vector(${id}, ${stride}, ${read})"
+                }
             ("FbVector<${elementType}>", vector)
     }
 }
@@ -547,11 +659,7 @@ func enumDefault(d: Decl, value: ?String): String {
                 case Some(n) => "${n}"
                 case _ => throw ConfigException("`${v}` is not a member of `${d.name}`")
             }
-        case None => if (d.members.isEmpty()) {
-            "0"
-        } else {
-            "${d.members[0].value}"
-        }
+        case None => if (d.members.isEmpty()) { "0" } else { "${d.members[0].value}" }
     }
 }
 
@@ -566,11 +674,7 @@ func checkMembers(names: Names, d: Decl, taken: Array<String>): Unit {
 
 func emitProp(w: CodeWriter, f: Field, name: String, fieldType: String, read: String): Unit {
     w.doc(f.doc)
-    w.block("public prop ${name}: ${fieldType}") {
-        w.block("get()") {
-            w.line(read)
-        }
-    }
+    w.block("public prop ${name}: ${fieldType}") { w.block("get()") { w.line(read) } }
 }
 
 /** The runtime's function reading a `s` where it starts. */

@@ -58,7 +58,9 @@ public class Router {
      * cannot pull them: after every change of the files, for every open document, from a snapshot
      * (D14). When and on which thread is the server's (S7).
      */
-    public func publishDiagnostics(diagnostics: (ServerSnapshot, VfsPath) -> Array<Diagnostic>): Router {
+    public func publishDiagnostics(
+        diagnostics: (ServerSnapshot, VfsPath) -> Array<Diagnostic>
+    ): Router {
         this.diagnostics = diagnostics
         this
     }
@@ -73,43 +75,102 @@ public class Router {
      * @throws IllegalArgumentException - if the method already has a handler
      */
     public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (Context<P>) -> R): Router {
-        add(requests, spec.method, RequestRoute.Exclusive({
-            parts, params, decoded => spec.encodeResult(handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params))))
-        }), inPlace(spec))
+        add(
+            requests,
+            spec.method,
+            RequestRoute
+                .Exclusive(
+                    {
+                        parts, params, decoded =>
+                        spec
+                            .encodeResult(
+                                handler(
+                                    parts
+                                        .context(decodedAs<P>(decoded) ?? spec.decodeParams(params))
+                                )
+                            )
+                    }
+                ),
+            inPlace(spec)
+        )
     }
 
     /**
      * @throws IllegalArgumentException - if the method already has a handler
      */
     public func route<P>(spec: LspInboundNotification<P>, handler: (Context<P>) -> Unit): Router {
-        add(notifications, spec.method, NotificationRoute.Exclusive({
-            parts, params, decoded => handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
-        }), inPlace(spec))
+        add(
+            notifications,
+            spec.method,
+            NotificationRoute
+                .Exclusive(
+                    {
+                        parts, params, decoded =>
+                        handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+                    }
+                ),
+            inPlace(spec)
+        )
     }
 
     /**
      * @throws IllegalArgumentException - if the method already has a handler, or is one of the
      * lifecycle's: whatever arrives after it must see the state it leaves
      */
-    public func route<P, R>(spec: LspInboundRequest<P, R>, handler: (ReadOnlyContext<P>) -> R): Router {
+    public func route<P, R>(
+        spec: LspInboundRequest<P, R>,
+        handler: (ReadOnlyContext<P>) -> R
+    ): Router {
         refuseLifecycle(spec.method)
-        add(requests, spec.method, RequestRoute.ReadOnly({
-            parts, params, decoded => spec.encodeResult(handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params))))
-        }), inPlace(spec))
+        add(
+            requests,
+            spec.method,
+            RequestRoute
+                .ReadOnly(
+                    {
+                        parts, params, decoded =>
+                        spec
+                            .encodeResult(
+                                handler(
+                                    parts
+                                        .context(decodedAs<P>(decoded) ?? spec.decodeParams(params))
+                                )
+                            )
+                    }
+                ),
+            inPlace(spec)
+        )
     }
 
     /**
      * @throws IllegalArgumentException - if the method already has a handler, or is one of the
      * lifecycle's: whatever arrives after it must see the state it leaves
      */
-    public func route<P>(spec: LspInboundNotification<P>, handler: (ReadOnlyContext<P>) -> Unit): Router {
+    public func route<P>(
+        spec: LspInboundNotification<P>,
+        handler: (ReadOnlyContext<P>) -> Unit
+    ): Router {
         refuseLifecycle(spec.method)
-        add(notifications, spec.method, NotificationRoute.ReadOnly({
-            parts, params, decoded => handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
-        }), inPlace(spec))
+        add(
+            notifications,
+            spec.method,
+            NotificationRoute
+                .ReadOnly(
+                    {
+                        parts, params, decoded =>
+                        handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+                    }
+                ),
+            inPlace(spec)
+        )
     }
 
-    private func add<T>(routes: HashMap<String, T>, method: String, route: T, inPlace: (FjReader) -> Any): Router {
+    private func add<T>(
+        routes: HashMap<String, T>,
+        method: String,
+        route: T,
+        inPlace: (FjReader) -> Any
+    ): Router {
         if (routes.contains(method)) {
             throw IllegalArgumentException("two handlers for \"${method}\"")
         }
@@ -161,7 +222,10 @@ enum NotificationRoute {
 }
 
 private func refuseLifecycle(method: String): Unit {
-    if ([InitializeRequestSpec.METHOD, ShutdownRequestSpec.METHOD, ExitNotificationSpec.METHOD].contains(method)) {
+    if (
+        [InitializeRequestSpec.METHOD, ShutdownRequestSpec.METHOD, ExitNotificationSpec.METHOD]
+            .contains(method)
+    ) {
         throw IllegalArgumentException("\"${method}\" cannot be handled with a `ReadOnlyContext`")
     }
 }

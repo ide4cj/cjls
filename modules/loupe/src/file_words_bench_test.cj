@@ -43,7 +43,7 @@ class StdTexts {
             if (let Some(some) <- indexed) {
                 return some
             }
-            let some = texts.map {text => wordsOf(text)}
+            let some = texts.map { text => wordsOf(text) }
             indexed = some
             some
         }
@@ -80,7 +80,9 @@ class FileWordsBench {
             let found = HashSet<UInt64>()
             for (i in 0..lexed.size) {
                 let kind = lexed.kind(i)
-                if (kind == SyntaxKind.Ident || kind == SyntaxKind.DollarIdent || kind.isKeyword()) {
+                if (
+                    kind == SyntaxKind.Ident || kind == SyntaxKind.DollarIdent || kind.isKeyword()
+                ) {
                     found.add(wordHash(lexed.tokenText(i)))
                 }
             }
@@ -92,12 +94,12 @@ class FileWordsBench {
     @Bench
     func aRareNameLookedUpInTheWordsOfEveryFileOfStd(): Int64 {
         let hash = wordHash("getRawArray")
-        stdTexts.words.iterator().filter {words => words.has(hash)}.count()
+        stdTexts.words.iterator().filter { words => words.has(hash) }.count()
     }
 
     @Bench
     func aCommonNameLookedUpInTheWordsOfEveryFileOfStd(): Int64 {
         let hash = wordHash("size")
-        stdTexts.words.iterator().filter {words => words.has(hash)}.count()
+        stdTexts.words.iterator().filter { words => words.has(hash) }.count()
     }
 }

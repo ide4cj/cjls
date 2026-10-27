@@ -12,12 +12,7 @@ import ftoml.parseToml
  * Throws on unreadable files, invalid TOML, unknown keys or invalid values.
  */
 public func optionsFor(path: Path): FormatOptions {
-    let absolute =
-        if (path.isAbsolute()) {
-            path
-        } else {
-            getWorkingDirectory().join(path)
-        }
+    let absolute = if (path.isAbsolute()) { path } else { getWorkingDirectory().join(path) }
     var dir = absolute.normalize().parent
     while (true) {
         let config = dir.join("cjformat.toml")

@@ -28,22 +28,25 @@ public enum ExtendedType <: ToString {
  * alias expanded (`extend Byte` is `UInt8`'s, #277); `None` for one that does not resolve to a type.
  */
 public func extendedTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
-    let named: ?ExtendedType = if (let Binary(pkg, index) <- def.file(db)) {
-        if (def.item(db).kind != ItemKind.Extend) {
-            return None
+    let named: ?ExtendedType =
+        if (let Binary(pkg, index) <- def.file(db)) {
+            if (def.item(db).kind != ItemKind.Extend) {
+                return None
+            }
+            binaryExtendedType(db, pkg, BinaryItem(index, def.item(db)))
+        } else {
+            let sig = signature(db, def)
+            let ty = sig.ty ?? return None
+            match (sig[ty]) {
+                case PathRef(segments) =>
+                    typeOfPath(db, def, segments).map { id => ExtendedType.DeclType(id) }
+                case PrimRef(name) => ExtendedType.PrimType(name)
+                case _ => None
+            }
         }
-        binaryExtendedType(db, pkg, BinaryItem(index, def.item(db)))
-    } else {
-        let sig = signature(db, def)
-        let ty = sig.ty ?? return None
-        match (sig[ty]) {
-            case PathRef(segments) => typeOfPath(db, def, segments).map {id => ExtendedType.DeclType(id)}
-            case PrimRef(name) => ExtendedType.PrimType(name)
-            case _ => None
-        }
-    }
     match (named) {
-        case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias => aliasedTypeOf(db, id)
+        case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias =>
+            aliasedTypeOf(db, id)
         case _ => named
     }
 }
@@ -53,7 +56,7 @@ public func extendedTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
  * declaration, or a type of the language; `None` for any other.
  */
 func aliasedTypeOf(db: AnalysisDatabase, id: DefId): ?ExtendedType {
-    match (signatureTypes(db, id).ty.map {ty => ty.kind(db)}) {
+    match (signatureTypes(db, id).ty.map { ty => ty.kind(db) }) {
         case Some(DeclTy(head, _)) => ExtendedType.DeclType(head)
         case Some(PrimTy(name)) => ExtendedType.PrimType(name)
         case _ => None
@@ -66,7 +69,7 @@ func aliasedTypeOf(db: AnalysisDatabase, id: DefId): ?ExtendedType {
  */
 func typeOfPath(db: AnalysisDatabase, def: DefId, segments: Array<TypeSegment>): ?DefId {
     let scope = typeScopeOf(db, def) ?? return None
-    let found = resolveTypePath(db, scope, segments.map {segment => segment.name})
+    let found = resolveTypePath(db, scope, segments.map { segment => segment.name })
     match (found.get(found.size - 1)) {
         case Some(Resolved(TypeOf(id))) => id
         case _ => None
@@ -78,10 +81,16 @@ func typeOfPath(db: AnalysisDatabase, def: DefId, segments: Array<TypeSegment>):
  * calls of each add (#175).
  */
 @CalcaTracked
-public func packageExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<ExtendedType, Array<DefId>> {
+public func packageExtends(
+    db: AnalysisDatabase,
+    pkg: PackageRef
+): IndexMap<ExtendedType, Array<DefId>> {
     let found = IndexMap<ExtendedType, ArrayList<DefId>>()
     let files = filesOf(db, pkg)
-    for (file in files.concat(files |> flatMap {one: ItemFile => expansionsOf(db, one)} |> collectArray)) {
+    for (
+        file in files
+            .concat(files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray)
+    ) {
         for (item in itemTreeOf(db, file).items where item.kind == ItemKind.Extend) {
             let def = DefId(db, file, item.id)
             if (let Some(ty) <- extendedTypeOf(db, def)) {
@@ -93,7 +102,9 @@ public func packageExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<Exte
             }
         }
     }
-    IndexMap<ExtendedType, Array<DefId>>(found.toArray().map {entry => (entry[0], entry[1].toArray())})
+    IndexMap<ExtendedType, Array<DefId>>(
+        found.toArray().map { entry => (entry[0], entry[1].toArray()) }
+    )
 }
 
 /**
@@ -137,7 +148,7 @@ public enum MemberTarget <: ToString {
 public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<MemberTarget> {
     // in a `common` type, the type a build has: its `specific` one (#318)
     let start = completedType(db, enclosingTypeOf(db, def) ?? return [])
-    lookUpMembers(db, [start], name, sourceFileOf(db, def), LookupTy({=> selfTyAround(db, def)}))
+    lookUpMembers(db, [start], name, sourceFileOf(db, def), LookupTy({ => selfTyAround(db, def) }))
 }
 
 /**
@@ -158,7 +169,7 @@ public func selfTyAround(db: AnalysisDatabase, def: DefId): ?Ty {
  * The package `def` is declared in, if it is a source package.
  */
 func packageOf(db: AnalysisDatabase, def: DefId): ?Package {
-    sourceFileOf(db, def).flatMap {file => packageOfFile(db, file)}
+    sourceFileOf(db, def).flatMap { file => packageOfFile(db, file) }
 }
 
 /**
@@ -175,7 +186,10 @@ func sourceFileOf(db: AnalysisDatabase, def: DefId): ?SourceFile {
 func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
     match (def.file(db)) {
         case Binary(pkg, _) => PackageRef.Binary(pkg)
-        case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}.map {pkg => resolutionPackage(db, pkg)}
+        case file =>
+            scopeFileOf(db, file)
+                .flatMap { one => packageOfFile(db, one) }
+                .map { pkg => resolutionPackage(db, pkg) }
     }
 }
 
@@ -189,9 +203,14 @@ func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
  * instance is none of its (N86), and a function overriding or implementing another hides it
  * (N107): what cjc takes for a name of the type around a body, or after a type.
  */
-public func memberLookup(db: AnalysisDatabase, start: Array<ExtendedType>, name: String,
-    from!: ?SourceFile, on!: ?Ty = None): Array<MemberTarget> {
-    lookUpMembers(db, start, name, from, LookupTy({=> on}))
+public func memberLookup(
+    db: AnalysisDatabase,
+    start: Array<ExtendedType>,
+    name: String,
+    from!: ?SourceFile,
+    on!: ?Ty = None
+): Array<MemberTarget> {
+    lookUpMembers(db, start, name, from, LookupTy({ => on }))
 }
 
 /**
@@ -219,16 +238,22 @@ class LookupTy {
             case TypeNotComputed => ()
         }
         let one = find()
-        found = match (one) {
-            case Some(ty) => ReceiverType(ty)
-            case None => NoReceiverType
-        }
+        found =
+            match (one) {
+                case Some(ty) => ReceiverType(ty)
+                case None => NoReceiverType
+            }
         one
     }
 }
 
-func lookUpMembers(db: AnalysisDatabase, start: Array<ExtendedType>, name: String, from: ?SourceFile,
-    on: LookupTy): Array<MemberTarget> {
+func lookUpMembers(
+    db: AnalysisDatabase,
+    start: Array<ExtendedType>,
+    name: String,
+    from: ?SourceFile,
+    on: LookupTy
+): Array<MemberTarget> {
     let funcs = ArrayList<MemberTarget>()
     var funcLevels = 0
     let seen = HashSet<ExtendedType>(start)
@@ -240,23 +265,29 @@ func lookUpMembers(db: AnalysisDatabase, start: Array<ExtendedType>, name: Strin
             let extends = extendsOn(db, ty, on, from)
             let own = ownMembersNamed(db, ty, name)
             found.add(all: own)
-            if (own.isEmpty() && let DeclType(id) <- ty && let Some(file) <- from &&
-                let Some(context) <- attachedContext(db, file) &&
-                packageRefOf(db, id) == Some(resolutionPackage(db, context)) &&
-                let Some(source) <- sourceDefOf(db, id)) {
+            if (
+                own.isEmpty() && let DeclType(id) <- ty && let Some(file) <- from &&
+                    let Some(context) <- attachedContext(db, file) &&
+                    packageRefOf(db, id) == Some(resolutionPackage(db, context)) &&
+                    let Some(source) <- sourceDefOf(db, id)
+            ) {
                 found.add(all: membersOfItem(db, source, name))
             }
             for (ext in extends) {
                 found.add(all: membersOfItem(db, ext, name))
             }
-            for (one in supertypesOf(db, ty).concat(extends |> flatMap {ext: DefId => supertypes(db, ext)} |> collectArray)
-                where !seen.contains(one)) {
+            for (
+                one in supertypesOf(db, ty)
+                    .concat(
+                        extends |> flatMap { ext: DefId => supertypes(db, ext) } |> collectArray
+                    ) where !seen.contains(one)
+            ) {
                 seen.add(one)
                 next.add(one)
             }
         }
         if (!found.isEmpty()) {
-            let nonFuncs = found.iterator().any {target => !isFuncMember(db, target)}
+            let nonFuncs = found.iterator().any { target => !isFuncMember(db, target) }
             if (funcs.isEmpty() && nonFuncs) {
                 return found.toArray()
             }
@@ -288,18 +319,25 @@ func lookUpMembers(db: AnalysisDatabase, start: Array<ExtendedType>, name: Strin
  * instance of `ty` it is (N86): all of a type of no type parameters; of a generic one, those whose
  * type that instance gives arguments. All if `on` is not known, or no instance of `ty`.
  */
-func extendsOn(db: AnalysisDatabase, ty: ExtendedType, on: LookupTy, from: ?SourceFile): Array<DefId> {
+func extendsOn(
+    db: AnalysisDatabase,
+    ty: ExtendedType,
+    on: LookupTy,
+    from: ?SourceFile
+): Array<DefId> {
     let all = extendsOf(db, ty, from)
-    let id = match (ty) {
-        case DeclType(id) where !all.isEmpty() && !genericsOf(db, id).isEmpty() => id
-        case _ => return all
-    }
+    let id =
+        match (ty) {
+            case DeclType(id) where !all.isEmpty() && !genericsOf(db, id).isEmpty() => id
+            case _ => return all
+        }
     let recv = on.get() ?? return all
-    let instance = match (recv.kind(db)) {
-        case DeclTy(head, _) where head == id => recv
-        case _ => asInstanceOf(db, recv, id, from) ?? return all
-    }
-    all.filter {ext => extendArgs(db, ext, instance).isSome()}
+    let instance =
+        match (recv.kind(db)) {
+            case DeclTy(head, _) where head == id => recv
+            case _ => asInstanceOf(db, recv, id, from) ?? return all
+        }
+    all.filter { ext => extendArgs(db, ext, instance).isSome() }
 }
 
 /**
@@ -307,15 +345,21 @@ func extendsOn(db: AnalysisDatabase, ty: ExtendedType, on: LookupTy, from: ?Sour
  * has: those it overrides or implements (N107). A function's own type parameters are unknown
  * there, as inference compares its candidates.
  */
-func notOverridden(db: AnalysisDatabase, targets: Array<MemberTarget>, recv: Ty, from: ?SourceFile): Array<MemberTarget> {
+func notOverridden(
+    db: AnalysisDatabase,
+    targets: Array<MemberTarget>,
+    recv: Ty,
+    from: ?SourceFile
+): Array<MemberTarget> {
     let kept = ArrayList<MemberTarget>()
     let params = ArrayList<Array<Ty>>()
     for (target in targets) {
         if (let MemberDecl(id) <- target && id.item(db).kind == ItemKind.Func) {
-            let own = signatureTypes(db, id).params.map {
-                one => eraseParams(db, paramOn(db, one, id, recv, from), id)
-            }
-            if (params.iterator().any {other => other == own}) {
+            let own =
+                signatureTypes(db, id)
+                    .params
+                    .map { one => eraseParams(db, paramOn(db, one, id, recv, from), id) }
+            if (params.iterator().any { other => other == own }) {
                 continue
             }
             params.add(own)
@@ -348,14 +392,23 @@ func isFuncMember(db: AnalysisDatabase, target: MemberTarget): Bool {
  * first. What a `.cjo`, compiled against it, sees, and a source file of no package (#319).
  */
 func sdkCore(db: AnalysisDatabase): ?PackageRef {
-    packageIndex(db).packages.get("std.core").flatMap {
-        all => all.iterator().filter {
-            one => match (one.pkg) {
-                case Binary(_) => true
-                case Source(_) => false
-            }
-        }.next()
-    }.map {one => one.pkg}
+    packageIndex(db)
+        .packages
+        .get("std.core")
+        .flatMap {
+            all =>
+            all
+                .iterator()
+                .filter {
+                    one =>
+                    match (one.pkg) {
+                        case Binary(_) => true
+                        case Source(_) => false
+                    }
+                }
+                .next()
+        }
+        .map { one => one.pkg }
 }
 
 /**
@@ -372,14 +425,17 @@ func stdViewerOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
  * types the packages of its interfaces hold (`interfaceExtendsOf`).
  */
 func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array<DefId> {
-    let viewer = from.flatMap {file => packageOfFile(db, file).map {pkg => (pkg, file)}}
-    let typePackage = match (ty) {
-        case DeclType(id) => packageRefOf(db, id)
-        case PrimType(_) => match (viewer) {
-            case Some((pkg, _)) => packageIndex(db).find("std.core", from: resolutionPackage(db, pkg))
-            case None => sdkCore(db)
+    let viewer = from.flatMap { file => packageOfFile(db, file).map { pkg => (pkg, file) } }
+    let typePackage =
+        match (ty) {
+            case DeclType(id) => packageRefOf(db, id)
+            case PrimType(_) =>
+                match (viewer) {
+                    case Some((pkg, _)) =>
+                        packageIndex(db).find("std.core", from: resolutionPackage(db, pkg))
+                    case None => sdkCore(db)
+                }
         }
-    }
     let found = ArrayList<DefId>()
     if (let Some(one) <- typePackage) {
         found.add(all: packageExtends(db, one).get(ty) ?? [])
@@ -390,7 +446,7 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
         }
         found.add(all: interfaceExtendsOf(db, pkg, file).get(ty) ?? [])
     }
-    found.toArray().filter {ext => isExtendSeen(db, ext, ty, viewer)}
+    found.toArray().filter { ext => isExtendSeen(db, ext, ty, viewer) }
 }
 
 /**
@@ -400,7 +456,11 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
  * interface an `extend` lists is `isExtendSeen`'s to tell.
  */
 @CalcaTracked
-public func interfaceExtendsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): IndexMap<ExtendedType, Array<DefId>> {
+public func interfaceExtendsOf(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile
+): IndexMap<ExtendedType, Array<DefId>> {
     let found = IndexMap<ExtendedType, ArrayList<DefId>>()
     for (other in extendPackagesOf(db, pkg, file)) {
         for ((ty, ids) in foreignExtends(db, other)) {
@@ -411,7 +471,9 @@ public func interfaceExtendsOf(db: AnalysisDatabase, pkg: Package, file: SourceF
             }
         }
     }
-    IndexMap<ExtendedType, Array<DefId>>(found.toArray().map {entry => (entry[0], entry[1].toArray())})
+    IndexMap<ExtendedType, Array<DefId>>(
+        found.toArray().map { entry => (entry[0], entry[1].toArray()) }
+    )
 }
 
 /**
@@ -419,14 +481,21 @@ public func interfaceExtendsOf(db: AnalysisDatabase, pkg: Package, file: SourceF
  * `std.core`: the only ones an importer may see through an interface (N83).
  */
 @CalcaTracked
-public func foreignExtends(db: AnalysisDatabase, pkg: PackageRef): IndexMap<ExtendedType, Array<DefId>> {
+public func foreignExtends(
+    db: AnalysisDatabase,
+    pkg: PackageRef
+): IndexMap<ExtendedType, Array<DefId>> {
     let isCore = nameOf(db, pkg) == "std.core"
-    let found = packageExtends(db, pkg).toArray().filter {
-        entry => match (entry[0]) {
-            case DeclType(id) => packageRefOf(db, id) != pkg
-            case PrimType(_) => !isCore
-        }
-    }
+    let found =
+        packageExtends(db, pkg)
+            .toArray()
+            .filter {
+                entry =>
+                match (entry[0]) {
+                    case DeclType(id) => packageRefOf(db, id) != pkg
+                    case PrimType(_) => !isCore
+                }
+            }
     IndexMap<ExtendedType, Array<DefId>>(found)
 }
 
@@ -440,12 +509,14 @@ func extendPackagesOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Arr
     for (names in [imports.file, imports.pkg]) {
         for ((_, all) in names.names) {
             for (one in all) {
-                let ref: ?PackageRef = match (one.target) {
-                    case OfDecl(id) where id.item(db).kind == ItemKind.Interface => packageRefOf(db, id)
-                    // `import m.i`, then `i.I`
-                    case OfPackage(other) => other
-                    case _ => None<PackageRef>
-                }
+                let ref: ?PackageRef =
+                    match (one.target) {
+                        case OfDecl(id) where id.item(db).kind == ItemKind.Interface =>
+                            packageRefOf(db, id)
+                        // `import m.i`, then `i.I`
+                        case OfPackage(other) => other
+                        case _ => None<PackageRef>
+                    }
                 if (let Some(other) <- ref && !found.contains(other)) {
                     found.add(other)
                 }
@@ -483,30 +554,41 @@ public func interfacePackagesOf(db: AnalysisDatabase, pkg: PackageRef): Array<Pa
  * interface's (N83), where the file imports one of the interfaces it lists, and the type (N82). With
  * no file, only the type's package's are.
  */
-func isExtendSeen(db: AnalysisDatabase, ext: DefId, ty: ExtendedType, viewer: ?(Package, SourceFile)): Bool {
+func isExtendSeen(
+    db: AnalysisDatabase,
+    ext: DefId,
+    ty: ExtendedType,
+    viewer: ?(Package, SourceFile)
+): Bool {
     let extPkg = packageRefOf(db, ext) ?? return false
     if (let Some((pkg, _)) <- viewer && extPkg == resolutionPackage(db, pkg)) {
         return true
     }
-    let ofTypesPackage = match (ty) {
-        case DeclType(id) => packageRefOf(db, id) == extPkg
-        case PrimType(_) => nameOf(db, extPkg) == "std.core"
-    }
+    let ofTypesPackage =
+        match (ty) {
+            case DeclType(id) => packageRefOf(db, id) == extPkg
+            case PrimType(_) => nameOf(db, extPkg) == "std.core"
+        }
     if (ofTypesPackage) {
         return true
     }
     let (pkg, file) = viewer ?? return false
     let imports = importsOf(db, pkg, file)
-    let typeSeen = match (ty) {
-        case DeclType(id) => isImported(db, pkg, imports, id)
-        case PrimType(_) => true
-    }
-    typeSeen && supertypes(db, ext).iterator().any {
-        one => match (one) {
+    let typeSeen =
+        match (ty) {
             case DeclType(id) => isImported(db, pkg, imports, id)
-            case PrimType(_) => false
+            case PrimType(_) => true
         }
-    }
+    typeSeen &&
+        supertypes(db, ext)
+            .iterator()
+            .any {
+                one =>
+                match (one) {
+                    case DeclType(id) => isImported(db, pkg, imports, id)
+                    case PrimType(_) => false
+                }
+            }
 }
 
 /**
@@ -530,13 +612,17 @@ func isImported(db: AnalysisDatabase, pkg: Package, imports: ImportLevel, id: De
             }
         }
     }
-    let name = itemOf(db, id).flatMap {item => item.names.get(0)} ?? return false
-    imports.names(db, name).iterator().any {
-        one => match (one.target) {
-            case OfDecl(other) => other == id
-            case OfPackage(_) => false
+    let name = itemOf(db, id).flatMap { item => item.names.get(0) } ?? return false
+    imports
+        .names(db, name)
+        .iterator()
+        .any {
+            one =>
+            match (one.target) {
+                case OfDecl(other) => other == id
+                case OfPackage(_) => false
+            }
         }
-    }
 }
 
 /**
@@ -569,9 +655,10 @@ func membersOfItem(db: AnalysisDatabase, id: DefId, name: String): Array<MemberT
                         found.add(MemberTarget.MemberParam(ctor, local))
                     }
                 }
-            case _ => if (member.names.contains(name)) {
-                found.add(MemberTarget.MemberDecl(DefId(db, file, member.id)))
-            }
+            case _ =>
+                if (member.names.contains(name)) {
+                    found.add(MemberTarget.MemberDecl(DefId(db, file, member.id)))
+                }
         }
     }
     found.add(all: commonMembersNamed(db, id, item, name))
@@ -597,15 +684,19 @@ public func supertypes(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
     match (def.file(db)) {
         case Source(_) | Expansion(_) =>
             let sig = signature(db, def)
-            sig.supers |> filterMap {
-                ty: TypeRefId => match (sig[ty]) {
-                    case PathRef(segments) => typeOfPath(db, def, segments).map {id => ExtendedType.DeclType(id)}
-                    case _ => None
-                }
-            } |> collectArray
-        case Binary(pkg, index) => binarySupertypes(db, pkg, BinaryItem(index, def.item(db))).map {
-            one => ExtendedType.DeclType(one)
-        }
+            sig.supers |>
+                filterMap {
+                    ty: TypeRefId =>
+                    match (sig[ty]) {
+                        case PathRef(segments) =>
+                            typeOfPath(db, def, segments).map { id => ExtendedType.DeclType(id) }
+                        case _ => None
+                    }
+                } |>
+                collectArray
+        case Binary(pkg, index) =>
+            binarySupertypes(db, pkg, BinaryItem(index, def.item(db)))
+                .map { one => ExtendedType.DeclType(one) }
     }
 }
 
@@ -615,9 +706,13 @@ public func supertypes(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
  * names are gathered level by level as the lookup walks, then each is looked up, so that what
  * hides what is the lookup's, N80 included: a member is listed whatever its modifiers.
  */
-public func allMembers(db: AnalysisDatabase, start: Array<ExtendedType>, from!: ?SourceFile,
-    on!: ?Ty = None): Array<MemberTarget> {
-    let lookupTy = LookupTy({=> on})
+public func allMembers(
+    db: AnalysisDatabase,
+    start: Array<ExtendedType>,
+    from!: ?SourceFile,
+    on!: ?Ty = None
+): Array<MemberTarget> {
+    let lookupTy = LookupTy({ => on })
     let found = ArrayList<MemberTarget>()
     for (name in memberNames(db, start, from, lookupTy)) {
         found.add(all: lookUpMembers(db, start, name, from, lookupTy))
@@ -629,12 +724,21 @@ public func allMembers(db: AnalysisDatabase, start: Array<ExtendedType>, from!: 
  * The names the members of `start`, of their `extend`s seen from `from` and of their supertypes
  * have, each once, in the order the lookup meets them.
  */
-func memberNames(db: AnalysisDatabase, start: Array<ExtendedType>, from: ?SourceFile, on: LookupTy): Array<String> {
+func memberNames(
+    db: AnalysisDatabase,
+    start: Array<ExtendedType>,
+    from: ?SourceFile,
+    on: LookupTy
+): Array<String> {
     let names = ArrayList<String>()
     let known = HashSet<String>()
-    let add = {found: Array<String> => for (name in found where known.add(name)) {
-        names.add(name)
-    }}
+    let add =
+        {
+            found: Array<String> =>
+            for (name in found where known.add(name)) {
+                names.add(name)
+            }
+        }
     let seen = HashSet<ExtendedType>(start)
     var level = start
     while (!level.isEmpty()) {
@@ -647,8 +751,12 @@ func memberNames(db: AnalysisDatabase, start: Array<ExtendedType>, from: ?Source
             for (ext in extends) {
                 add(memberNamesOfItem(db, ext))
             }
-            for (one in supertypesOf(db, ty).concat(extends |> flatMap {ext: DefId => supertypes(db, ext)} |> collectArray)
-                where !seen.contains(one)) {
+            for (
+                one in supertypesOf(db, ty)
+                    .concat(
+                        extends |> flatMap { ext: DefId => supertypes(db, ext) } |> collectArray
+                    ) where !seen.contains(one)
+            ) {
                 seen.add(one)
                 next.add(one)
             }

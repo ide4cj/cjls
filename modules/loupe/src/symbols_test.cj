@@ -21,10 +21,12 @@ func databaseOf(texts: Array<String>): AnalysisDatabase {
  * What a search found, as `name in container @ file` lines.
  */
 func search(texts: Array<String>, query: String, limit!: Int64 = 128): Array<String> {
-    let files = Array<FileId>(texts.size) {i => FileId(i)}
-    workspaceSymbols(databaseOf(texts), files, query, limit).map {
-        found => "${found.symbol.name} in ${found.symbol.containerName ?? "-"} @ ${found.fileId.index}"
-    }
+    let files = Array<FileId>(texts.size) { i => FileId(i) }
+    workspaceSymbols(databaseOf(texts), files, query, limit)
+        .map {
+            found =>
+            "${found.symbol.name} in ${found.symbol.containerName ?? "-"} @ ${found.fileId.index}"
+        }
 }
 
 @Test
@@ -32,7 +34,8 @@ class WorkspaceSymbolsTest {
     @TestCase
     func aNameMatchesTheQuerysCharactersInOrderWhateverTheirCase() {
         // act
-        let found = search(["class FooBar {}\nfunc fob() {}\nfunc bof() {}\nfunc other() {}\n"], "FB")
+        let found =
+            search(["class FooBar {}\nfunc fob() {}\nfunc bof() {}\nfunc other() {}\n"], "FB")
 
         // assert
         @Expect(found, ["FooBar in - @ 0", "fob in - @ 0"])
@@ -40,7 +43,8 @@ class WorkspaceSymbolsTest {
 
     @TestCase
     func anEmptyQueryMatchesEveryDeclaration() {
-        checkSymbols(#"
+        checkSymbols(
+            #"
             //- /a.cj
             class A {
             //    ^ Class
@@ -50,19 +54,24 @@ class WorkspaceSymbolsTest {
             //- /b.cj
             let x = 1
             //  ^ Variable
-            "#, "")
+            "#,
+            ""
+        )
     }
 
     @TestCase
     func aMemberIsFoundUnderWhatHoldsIt() {
-        checkSymbols(#"
+        checkSymbols(
+            #"
             class Outer {
                 func target() {}
             //       ^^^^^^ Method in Outer
             }
             enum E { | Target }
             //         ^^^^^^ EnumConstructor in E
-            "#, "target")
+            "#,
+            "target"
+        )
     }
 
     @TestCase
@@ -82,7 +91,7 @@ class WorkspaceSymbolsTest {
 
         // act
         db.setFileText(FileId(0), Rope("func after() {}\nfunc more() {}\n"))
-        let found = workspaceSymbols(db, [FileId(0)], "", 128).map {found => found.symbol.name}
+        let found = workspaceSymbols(db, [FileId(0)], "", 128).map { found => found.symbol.name }
 
         // assert
         @Expect(found, ["after", "more"])

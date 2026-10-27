@@ -28,23 +28,37 @@ public struct CangjieHome {
  * `env` gives the value of an environment variable.
  */
 public func findCangjieHome(option: ?String, env!: (String) -> ?String): ?CangjieHome {
-    let home = match (env("HOME")) {
-        case Some(home) => home
-        case None => env("USERPROFILE")
-    }
-    let candidates: Array<(?String, String)> = [
-        (option, "initializationOptions.cangjieHome"),
-        (env("CANGJIE_HOME"), "CANGJIE_HOME"),
-        (home.map {it => Path(it).join(".cjpm").join("toolchains").join("default").toString()},
-            "the default toolchain of cjsdk"),
-        (cjcOnPath(env("PATH") ?? "").flatMap {cjc => cjc.parent.parent.toString()}.flatMap {
-            home => if (isDirectory(Path(home).join("modules").toString())) {
+    let home =
+        match (env("HOME")) {
+            case Some(home) => home
+            case None => env("USERPROFILE")
+        }
+    let candidates: Array<(?String, String)> =
+        [
+            (option, "initializationOptions.cangjieHome"),
+            (env("CANGJIE_HOME"), "CANGJIE_HOME"),
+            (
                 home
-            } else {
-                None
-            }
-        }, "cjc on PATH")
-    ]
+                    .map {
+                        it =>
+                        Path(it).join(".cjpm").join("toolchains").join("default").toString()
+                    },
+                "the default toolchain of cjsdk"
+            ),
+            (
+                cjcOnPath(env("PATH") ?? "")
+                    .flatMap { cjc => cjc.parent.parent.toString() }
+                    .flatMap {
+                        home =>
+                        if (isDirectory(Path(home).join("modules").toString())) {
+                            home
+                        } else {
+                            None
+                        }
+                    },
+                "cjc on PATH"
+            )
+        ]
     for ((path, source) in candidates) {
         if (let Some(path) <- path) {
             if (isDirectory(path)) {
@@ -60,14 +74,8 @@ public func findCangjieHome(option: ?String, env!: (String) -> ?String): ?Cangji
  * path, and where `std` is taken from, whatever the environment says.
  */
 public func withCangjieHome(env: (String) -> ?String, home: ?CangjieHome): (String) -> ?String {
-    let path = home.map {it => it.path}
-    {
-        name: String => if (name == "CANGJIE_HOME") {
-            path
-        } else {
-            env(name)
-        }
-    }
+    let path = home.map { it => it.path }
+    { name: String => if (name == "CANGJIE_HOME") { path } else { env(name) } }
 }
 
 /**
@@ -93,11 +101,12 @@ public struct CangjieSrc {
  * `env` gives the value of an environment variable.
  */
 public func findCangjieSrc(option: ?String, env!: (String) -> ?String): ?CangjieSrc {
-    let candidates: Array<(?String, String)> = [
-        (option, "initializationOptions.cangjieSrc"),
-        (env("CANGJIE_SRC"), "CANGJIE_SRC"),
-        (env("CANGJIE_HOME").map {home => Path(home).join("src").toString()}, "the SDK")
-    ]
+    let candidates: Array<(?String, String)> =
+        [
+            (option, "initializationOptions.cangjieSrc"),
+            (env("CANGJIE_SRC"), "CANGJIE_SRC"),
+            (env("CANGJIE_HOME").map { home => Path(home).join("src").toString() }, "the SDK")
+        ]
     for ((path, source) in candidates) {
         if (let Some(path) <- path) {
             if (isDirectory(Path(path).join("std").toString())) {
@@ -113,14 +122,8 @@ public func findCangjieSrc(option: ?String, env!: (String) -> ?String): ?Cangjie
  * from, whatever the environment says.
  */
 public func withCangjieSrc(env: (String) -> ?String, src: ?CangjieSrc): (String) -> ?String {
-    let path = src.map {it => it.path}
-    {
-        name: String => if (name == "CANGJIE_SRC") {
-            path
-        } else {
-            env(name)
-        }
-    }
+    let path = src.map { it => it.path }
+    { name: String => if (name == "CANGJIE_SRC") { path } else { env(name) } }
 }
 
 /**
@@ -144,9 +147,12 @@ func cjcOnPath(path: String): ?Path {
  * Whether `path` is absolute and a directory, its links followed: a `FileInfo` is the link's own.
  */
 func isDirectory(path: String): Bool {
-    Path(path).isAbsolute() && (try {
-        exists(path) && FileInfo(canonicalize(Path(path))).isDirectory()
-    } catch (_: FSException) {
-        false
-    })
+    Path(path).isAbsolute() &&
+        (
+            try {
+                exists(path) && FileInfo(canonicalize(Path(path))).isDirectory()
+            } catch (_: FSException) {
+                false
+            }
+        )
 }

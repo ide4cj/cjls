@@ -8,7 +8,12 @@ import std.collection.{ArrayList, enumerate}
  * its fields on the wire.
  */
 struct StructIr {
-    StructIr(let doc: DocIr, let ident!: String, let fields!: Array<FieldIr>, let tag!: ?SerdeTag = None) {}
+    StructIr(
+        let doc: DocIr,
+        let ident!: String,
+        let fields!: Array<FieldIr>,
+        let tag!: ?SerdeTag = None
+    ) {}
 }
 
 struct FieldIr {
@@ -23,18 +28,21 @@ struct FieldIr {
 }
 
 func resolveStruct(cfg: Config, resolver: TypeResolver, structure: Structure): ?StructIr {
-    let ident = match (cfg.typeMap.bind(structure.name)) {
-        case Owned(ident) => ident
-        case _ => return None
-    }
+    let ident =
+        match (cfg.typeMap.bind(structure.name)) {
+            case Owned(ident) => ident
+            case _ => return None
+        }
 
     resolveFields(resolveDoc(structure), ident, resolver.flattenedProperties(structure), resolver)
 }
 
 func resolveLiteral(resolver: TypeResolver, literal: LiteralIr): StructIr {
-    let properties = literal.literal.properties.map {
-        it: Property => DeclaredProperty(declaredBy: literal.ident, property: it)
-    }
+    let properties =
+        literal
+            .literal
+            .properties
+            .map { it: Property => DeclaredProperty(declaredBy: literal.ident, property: it) }
 
     resolveFields(resolveDoc(literal.literal), literal.ident, properties, resolver)
 }
@@ -43,7 +51,12 @@ func resolveLiteral(resolver: TypeResolver, literal: LiteralIr): StructIr {
  * A string literal property is the tag of the struct rather than a field of it: LSP marks
  * `CreateFile` with `kind: 'create'`, and a value that can only ever be one string is no field to set.
  */
-private func resolveFields(doc: DocIr, ident: String, properties: Array<DeclaredProperty>, resolver: TypeResolver): StructIr {
+private func resolveFields(
+    doc: DocIr,
+    ident: String,
+    properties: Array<DeclaredProperty>,
+    resolver: TypeResolver
+): StructIr {
     let fields = ArrayList<FieldIr>()
     var tag: ?SerdeTag = None
     for (declared in properties) {
@@ -53,22 +66,30 @@ private func resolveFields(doc: DocIr, ident: String, properties: Array<Declared
                 throw IllegalStateException("`${ident}` has more than one string literal property")
             }
             if (property.optional ?? false) {
-                throw IllegalStateException("`${ident}.${property.name}` is an optional string literal, which is no tag")
+                throw IllegalStateException(
+                    "`${ident}.${property.name}` is an optional string literal, which is no tag"
+                )
             }
             tag = SerdeTag(field: property.name, value: value)
             continue
         }
 
-        let fieldType = resolver.resolve(property.propertyType, context: declared.declaredBy + property.name.toAsciiPascalCase())
-        fields.add(
-            FieldIr(
-                resolveDoc(property),
-                ident: property.name,
-                fieldType: fieldType,
-                isOptional: property.optional ?? false,
-                qualifiesNone: resolver.hasOwnNone(fieldType)
+        let fieldType =
+            resolver
+                .resolve(
+                    property.propertyType,
+                    context: declared.declaredBy + property.name.toAsciiPascalCase()
+                )
+        fields
+            .add(
+                FieldIr(
+                    resolveDoc(property),
+                    ident: property.name,
+                    fieldType: fieldType,
+                    isOptional: property.optional ?? false,
+                    qualifiesNone: resolver.hasOwnNone(fieldType)
+                )
             )
-        )
     }
 
     StructIr(doc, ident: ident, fields: fields.toArray(), tag: tag)
@@ -95,7 +116,8 @@ extend CjEmitter {
 
             emitln(quote(public $structIdent) + Tokens(Token(LPAREN)))
             indented {
-                => for ((i, field) in structIr.fields |> enumerate) {
+                =>
+                for ((i, field) in structIr.fields |> enumerate) {
                     if (i > 0) {
                         nl()
                     }
@@ -109,13 +131,14 @@ extend CjEmitter {
     private func emitField(field: FieldIr, isLast!: Bool): Unit {
         let fieldIdent = escapedIdent(field.ident)
         let fieldType = field.fieldType
-        var declaration = if (field.isOptional && field.qualifiesNone) {
-            quote(public let $fieldIdent!: ?$fieldType = Option<$fieldType>.None)
-        } else if (field.isOptional) {
-            quote(public let $fieldIdent!: ?$fieldType = None)
-        } else {
-            quote(public let $fieldIdent!: $fieldType)
-        }
+        var declaration =
+            if (field.isOptional && field.qualifiesNone) {
+                quote(public let $fieldIdent!: ?$fieldType = Option<$fieldType>.None)
+            } else if (field.isOptional) {
+                quote(public let $fieldIdent!: ?$fieldType = None)
+            } else {
+                quote(public let $fieldIdent!: $fieldType)
+            }
         if (!isLast) {
             declaration += Tokens(Token(COMMA))
         }

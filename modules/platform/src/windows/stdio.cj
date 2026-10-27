@@ -1,4 +1,4 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 foreign func _read(fd: Int32, buf: CPointer<Byte>, count: UInt32): Int32
@@ -25,5 +25,7 @@ specific unsafe func readStdin(buf: CPointer<Byte>, count: Int64): Int64 {
 }
 
 specific func lastErrno(): Int32 {
-    unsafe { _errno().read() }
+    unsafe {
+        _errno().read()
+    }
 }

@@ -106,7 +106,11 @@ public class Parse<K> <: Equatable<Parse<K>> where K <: Kind<K> {
  * grammar did.
  */
 @Frozen
-public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<K>): Parse<K> where K <: Kind<K> {
+public func buildTree<K>(
+    lexed: Lexed<K>,
+    parser: Parser<K>,
+    rules: TriviaRules<K>
+): Parse<K> where K <: Kind<K> {
     let sink = TreeSink(lexed, rules, parser.errorKind)
     let events = parser.events.toArray()
     for (i in 0..events.size) {
@@ -124,7 +128,7 @@ public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<
                     }
                     events[at] = Tombstone
                 }
-                for (j in kinds.size - 1..=0 : -1) {
+                for (j in kinds.size - 1..=0: -1) {
                     sink.enter(kinds[j])
                 }
             case FinishNode => sink.exit()
@@ -143,8 +147,13 @@ public func buildTree<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<
  * text, so a grammar bug met on one file costs that file its structure, not every query over it.
  */
 @Frozen
-public func parseWith<K>(lexed: Lexed<K>, parser: Parser<K>, rules: TriviaRules<K>, root: K,
-    grammar: (Parser<K>) -> Unit): Parse<K> where K <: Kind<K> {
+public func parseWith<K>(
+    lexed: Lexed<K>,
+    parser: Parser<K>,
+    rules: TriviaRules<K>,
+    root: K,
+    grammar: (Parser<K>) -> Unit
+): Parse<K> where K <: Kind<K> {
     try {
         grammar(parser)
         return buildTree(lexed, parser, rules)
@@ -196,7 +205,8 @@ class TreeSink<K> where K <: Kind<K> {
             while (pos + n < lexed.size && rules.isTrivia(lexed.kind(pos + n))) {
                 n++
             }
-            let trivia = Array<(K, String)>(n) {i => (lexed.kind(pos + i), lexed.tokenText(pos + i))}
+            let trivia =
+                Array<(K, String)>(n) { i => (lexed.kind(pos + i), lexed.tokenText(pos + i)) }
             let attached = rules.attachedTrivia(kind, trivia)
             let outside = n - min(max(attached, 0), n)
             for (_ in 0..outside) {
@@ -259,7 +269,11 @@ class TreeSink<K> where K <: Kind<K> {
             errors.add(SyntaxError(ParseError.Message(e.message), lexed.range(e.tokenIndex)))
         }
         let sorted = errors.toArray()
-        sort(sorted, stable: true, by: {a: SyntaxError<K>, b: SyntaxError<K> => a.range.start.compare(b.range.start)})
+        sort(
+            sorted,
+            stable: true,
+            by: { a: SyntaxError<K>, b: SyntaxError<K> => a.range.start.compare(b.range.start) }
+        )
         Parse(builder.finish(), sorted)
     }
 }

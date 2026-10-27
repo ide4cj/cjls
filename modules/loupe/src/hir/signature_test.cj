@@ -22,7 +22,11 @@ func signaturesOf(fixture: String): Array<String> {
     func render(items: Array<Item>): Unit {
         for (item in items) {
             let sig = signature(db, DefId(db, ItemFile.Source(source), item.id))
-            let list = {ids: Array<TypeRefId> => String.join(ids.map {id => sig.text(id)}, delimiter: ", ")}
+            let list =
+                {
+                    ids: Array<TypeRefId> =>
+                    String.join(ids.map { id => sig.text(id) }, delimiter: ", ")
+                }
             let line = StringBuilder("${item.kind} ${item.names.get(0) ?? "_"}:")
             if (!sig.generics.isEmpty()) {
                 line.append(" <${String.join(sig.generics, delimiter: ", ")}>")
@@ -128,10 +132,14 @@ class SignatureTest {
     @TestCase
     func anEditOfABodyLeavesTheSignatureAndWhatReadItAlone() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             func f(x: Int64): Int64 { x }
-            "#)
+            "#
+                )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()
@@ -149,10 +157,14 @@ class SignatureTest {
     @TestCase
     func anEditOfATypeRunsAgainWhatReadTheSignature() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             package m
             func f(x: Int64): Int64 { x }
-            "#)
+            "#
+                )
         let db = parsed.database()
         let fileId = parsed.files[0].fileId
         let source = db.sourceFile(fileId).getOrThrow()

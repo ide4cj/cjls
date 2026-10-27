@@ -13,7 +13,11 @@ import loupe.vfs.FileId
  * interface, the types below it and the `extend`s declaring it (`subtypesOf`), an `extend` at the type it
  * extends. Nothing for any other name.
  */
-public func implementationsAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): Array<NavigationTarget> {
+public func implementationsAt(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    offset: Int64
+): Array<NavigationTarget> {
     let file = db.sourceFile(fileId) ?? return []
     let token = tokenAt(parse(db, file).syntaxNode(), offset) ?? return []
     if (!isIdent(token)) {
@@ -21,15 +25,17 @@ public func implementationsAt(db: AnalysisDatabase, fileId: FileId, offset: Int6
     }
     let found = ArrayList<NavigationTarget>()
     for (definition in meaningsAt(db, file, token)) {
-        let id = match (definition) {
-            case DeclDef(id) => id
-            case _ => continue
-        }
-        let below = match (id.item(db).kind) {
-            case Func | Prop => overridingMembers(db, id)
-            case Class | Interface => subtypesOf(db, id)
-            case _ => continue
-        }
+        let id =
+            match (definition) {
+                case DeclDef(id) => id
+                case _ => continue
+            }
+        let below =
+            match (id.item(db).kind) {
+                case Func | Prop => overridingMembers(db, id)
+                case Class | Interface => subtypesOf(db, id)
+                case _ => continue
+            }
         for (one in below) {
             if (let Some(target) <- implementationTarget(db, one) && !found.contains(target)) {
                 found.add(target)
@@ -48,9 +54,13 @@ func implementationTarget(db: AnalysisDatabase, id: DefId): ?NavigationTarget {
     }
     let target = declTarget(db, id) ?? return None
     // of a source file's: a `.cjo`'s or an expansion's target is elsewhere than its node
-    let ty = match (id.file(db)) {
-        case Source(_) => itemNodeOf(db, id).flatMap {node => ExtendDecl.cast(node)}.flatMap {decl => decl.ty()}
-        case _ => return target
-    }
+    let ty =
+        match (id.file(db)) {
+            case Source(_) =>
+                itemNodeOf(db, id)
+                    .flatMap { node => ExtendDecl.cast(node) }
+                    .flatMap { decl => decl.ty() }
+            case _ => return target
+        }
     NavigationTarget(target.fileId, target.fullRange, (ty ?? return target).syntax.textRange)
 }

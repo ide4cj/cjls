@@ -13,15 +13,18 @@ const BENCH_READS_PER_READER = 1000
 
 let BENCH_DB = AnalysisDatabase()
 
-let BENCH_FILES = Array<SourceFile>(BENCH_FILE_COUNT) {i => SourceFile(BENCH_DB, FileId(i), Rope())}
+let BENCH_FILES =
+    Array<SourceFile>(BENCH_FILE_COUNT) { i => SourceFile(BENCH_DB, FileId(i), Rope()) }
 
-let BENCH_TABLE = {=>
-    let files = Files()
-    for (file in BENCH_FILES) {
-        files.add(file.fileId(BENCH_DB), file)
-    }
-    files
-}()
+let BENCH_TABLE =
+    {
+        =>
+        let files = Files()
+        for (file in BENCH_FILES) {
+            files.add(file.fileId(BENCH_DB), file)
+        }
+        files
+    }()
 
 let BENCH_MISSING = FileId(BENCH_FILE_COUNT)
 
@@ -52,17 +55,19 @@ class FilesBench {
      */
     @Bench
     func getFromSeveralThreads(): Int64 {
-        let readers = Array(BENCH_READERS) {
-            reader => spawn {
-                var found = 0
-                for (i in 0..BENCH_READS_PER_READER) {
-                    if (BENCH_TABLE.get(FileId((i + reader) % BENCH_FILE_COUNT)).isSome()) {
-                        found++
+        let readers =
+            Array(BENCH_READERS) {
+                reader =>
+                spawn {
+                    var found = 0
+                    for (i in 0..BENCH_READS_PER_READER) {
+                        if (BENCH_TABLE.get(FileId((i + reader) % BENCH_FILE_COUNT)).isSome()) {
+                            found++
+                        }
                     }
+                    found
                 }
-                found
             }
-        }
-        readers.iterator().fold(0) {sum, reader => sum + reader.get()}
+        readers.iterator().fold(0) { sum, reader => sum + reader.get() }
     }
 }

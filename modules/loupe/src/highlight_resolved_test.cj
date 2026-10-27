@@ -15,7 +15,11 @@ import loupe.syntax.parse
  * Checks what each name of `fixture` at its use, and each lone name a pattern binds, is highlighted
  * as is its annotation: `//^ Tag[modifiers]`, `//^ none` for a name given no token.
  */
-func checkHighlight(fixture: String, binaries!: Array<CjoFileRead> = [], models!: Array<BinaryModel> = []): Unit {
+func checkHighlight(
+    fixture: String,
+    binaries!: Array<CjoFileRead> = [],
+    models!: Array<BinaryModel> = []
+): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database(binaries: binaries, models: models)
     let actual = ArrayList<Annotation>()
@@ -25,18 +29,22 @@ func checkHighlight(fixture: String, binaries!: Array<CjoFileRead> = [], models!
             found.add(one.range.start, one)
         }
         let root = parse(db, db.sourceFile(file.fileId).getOrThrow()).syntaxNode()
-        let tokens = root.descendantsWithTokens() |> filterMap {
-            element: SyntaxElement<SyntaxKind> => match (element) {
-                case SyntaxElement.Token(token) where isUse(token) => Some(token)
-                case _ => Option<CjSyntaxToken>.None
-            }
-        }
+        let tokens =
+            root.descendantsWithTokens() |>
+                filterMap {
+                    element: SyntaxElement<SyntaxKind> =>
+                    match (element) {
+                        case SyntaxElement.Token(token) where isUse(token) => Some(token)
+                        case _ => Option<CjSyntaxToken>.None
+                    }
+                }
         for (token in tokens) {
-            let text = match (found.get(token.textRange.start)) {
-                case Some(one) where one.modifiers.isEmpty() => one.tag.toString()
-                case Some(one) => "${one.tag}[${one.modifiers}]"
-                case None => "none"
-            }
+            let text =
+                match (found.get(token.textRange.start)) {
+                    case Some(one) where one.modifiers.isEmpty() => one.tag.toString()
+                    case Some(one) => "${one.tag}[${one.modifiers}]"
+                    case None => "none"
+                }
             actual.add(Annotation(file.fileId, token.textRange, text))
         }
     }
@@ -49,8 +57,11 @@ func checkHighlight(fixture: String, binaries!: Array<CjoFileRead> = [], models!
 func isUse(token: CjSyntaxToken): Bool {
     let name = token.parent
     let owner = name.parent?.kind
-    isIdent(token) && (name.kind == SyntaxKind.NameRef && owner != Some(SyntaxKind.Annotation) ||
-        name.kind == SyntaxKind.Name && owner == Some(SyntaxKind.BindPat))
+    isIdent(token) &&
+        (
+            name.kind == SyntaxKind.NameRef && owner != Some(SyntaxKind.Annotation) ||
+                name.kind == SyntaxKind.Name && owner == Some(SyntaxKind.BindPat)
+        )
 }
 
 /**
@@ -61,7 +72,8 @@ class HighlightResolvedTest {
     @TestCase
     func anInterpolationsNamesKeepTheirSemanticHighlighting() {
         // arrange
-        const FIXTURE = #"
+        const FIXTURE =
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -79,10 +91,11 @@ class HighlightResolvedTest {
     func whatStdsTestMacrosTakeAsCodeByWhatItMeans() {
         // #191: `x in src`'s `x` the parameter, `src` a name around it, `@Configure`'s option its key's property,
         // `@Tag`'s identifiers nothing
-        let binaries = ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"].map {
-            name => stdCjoRead(name, stdCjo(name))
-        }
-        checkHighlight(#"
+        let binaries =
+            ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
+                .map { name => stdCjoRead(name, stdCjo(name)) }
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
               package m
             //        ^ Namespace
@@ -114,12 +127,15 @@ class HighlightResolvedTest {
                   func data(): Array<Int64> { [1, 2] }
             //                 ^^^^^ Struct[DefaultLibrary]
               }
-            "#, binaries: binaries)
+            "#,
+            binaries: binaries
+        )
     }
 
     @TestCase
     func localsAndParametersByWhatDeclaresThem() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -140,12 +156,14 @@ class HighlightResolvedTest {
             //  ^ Variable[Readonly]
             //    ^ Function
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func membersOfTheTypeAroundAndAfterADot() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -183,12 +201,14 @@ class HighlightResolvedTest {
             //                                ^ Parameter
             //                                  ^ Method
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func typesByTheirKindAndTypeParameters() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -207,12 +227,14 @@ class HighlightResolvedTest {
             //                                         ^ TypeParameter
             //                                                        ^ TypeParameter
             //                                                             ^ Interface
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func enumConstructorsInExpressionsAndPatterns() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -234,12 +256,14 @@ class HighlightResolvedTest {
             //                        ^ EnumConstructor
             //                                   ^ Enum
             //                                     ^ EnumConstructor
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func globalsFunctionsAndConstants() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -253,12 +277,14 @@ class HighlightResolvedTest {
             //                    ^ Variable[Mutable]
             //                        ^ Constant[Readonly]
             //                            ^^^ Function[Deprecated]
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameThatMeansNothingIsAnUnresolvedReference() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -271,13 +297,15 @@ class HighlightResolvedTest {
                 nope()
             //  ^^^^ UnresolvedReference
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberNothingHasAfterADotIsNoUnresolvedReference() {
         // a macro called on the type may add it, as `@Derive` does
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -286,13 +314,15 @@ class HighlightResolvedTest {
             //        ^ Class
             //                   ^ Parameter
             //                     ^^^^^^^ none
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameInAPackageCallingAMacroOfItsOwnIsNoUnresolvedReference() {
         // the macro may declare it, and the workspace's are not run yet (#176)
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
               package m
             //        ^ Namespace
@@ -301,12 +331,14 @@ class HighlightResolvedTest {
               class A {}
               func f(): Unit { generated() }
             //                 ^^^^^^^^^ none
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func packagesInTheHeaderImportsAndPaths() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /a.cj module=m package=m.a
             package m.a
             //      ^ Namespace
@@ -334,12 +366,14 @@ class HighlightResolvedTest {
             //        ^ Class
             //            ^ Namespace
             //              ^^^^ Function
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMutablePropertyAndACaughtException() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -353,7 +387,9 @@ class HighlightResolvedTest {
             //          ^ Property[Mutable]
             //                        ^^^^^^^^^ Class[DefaultLibrary]
             }
-            "#, binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+            "#,
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+        )
     }
 }
 
@@ -361,7 +397,8 @@ class HighlightResolvedTest {
 class HighlightStdTest {
     @TestCase
     func aDeclarationOfStdIsOfTheDefaultLibrary() {
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             package m
             //      ^ Namespace
@@ -377,13 +414,16 @@ class HighlightStdTest {
             //  ^^^^^^^ Function[DefaultLibrary]
             //          ^ Variable[Readonly]
             }
-            "#, binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+            "#,
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+        )
     }
 
     @TestCase
     func aNameThatMeansNothingWhereOnlyStdsMacrosAreCalledIsUnresolved() {
         // std's macros declare no name a body uses; a type of the compiler's own is of the default library
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
               package m
             //        ^ Namespace
@@ -397,13 +437,16 @@ class HighlightStdTest {
               func f(xs: Array<Int64>): Unit { missing }
             //           ^^^^^ Struct[DefaultLibrary]
             //                                 ^^^^^^^ UnresolvedReference
-            "#, binaries: ["std.core", "std.deriving"].map {name => stdCjoRead(name, stdCjo(name))})
+            "#,
+            binaries: ["std.core", "std.deriving"].map { name => stdCjoRead(name, stdCjo(name)) }
+        )
     }
 
     @TestCase
     func aQuotesInterpolationsAreHighlightedByMeaningAndItsTokensAreNot() {
         // #195
-        checkHighlight(#"
+        checkHighlight(
+            #"
             //- /main.cj module=m package=m
             macro package m
             //            ^ Namespace
@@ -417,6 +460,8 @@ class HighlightStdTest {
             //                ^^^^^^ Parameter
             //                           ^^^^^ Parameter
             }
-            "#, binaries: ["std.core", "std.ast"].map {name => stdCjoRead(name, stdCjo(name))})
+            "#,
+            binaries: ["std.core", "std.ast"].map { name => stdCjoRead(name, stdCjo(name)) }
+        )
     }
 }

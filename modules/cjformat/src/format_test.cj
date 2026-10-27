@@ -20,11 +20,7 @@ func check(before: String, after: String): Unit {
 func code(text: String): String {
     let lines = text.split("\n")[1..]
     let body =
-        if (lines[lines.size - 1].trimAscii().isEmpty()) {
-            lines[..lines.size - 1]
-        } else {
-            lines
-        }
+        if (lines[lines.size - 1].trimAscii().isEmpty()) { lines[..lines.size - 1] } else { lines }
     let indent =
         body
             .filter { line => !line.trimAscii().isEmpty() }
@@ -35,15 +31,7 @@ func code(text: String): String {
     let joined =
         String
             .join(
-                body
-                    .map {
-                        line =>
-                        if (line.trimAscii().isEmpty()) {
-                            ""
-                        } else {
-                            line[shared..]
-                        }
-                    },
+                body.map { line => if (line.trimAscii().isEmpty()) { "" } else { line[shared..] } },
                 delimiter: "\n"
             )
     "${joined}\n"

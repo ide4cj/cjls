@@ -18,7 +18,7 @@ let itemNamesRuns = AtomicInt64(0)
 @CalcaTracked
 func itemNames(db: AnalysisDatabase, file: SourceFile): Array<String> {
     itemNamesRuns.fetchAdd(1)
-    itemTree(db, file).items.map {item => String.join(item.names, delimiter: ",")}
+    itemTree(db, file).items.map { item => String.join(item.names, delimiter: ",") }
 }
 
 func treeOf(text: String): ItemTree {
@@ -27,7 +27,7 @@ func treeOf(text: String): ItemTree {
 }
 
 func idsOf(text: String): Array<ItemId> {
-    treeOf(text).items.map {item => item.id}
+    treeOf(text).items.map { item => item.id }
 }
 
 @Test
@@ -36,13 +36,18 @@ class ItemTreeTest {
     func anEditInsideABodyLeavesTheItemTreeEqualAndWhatReadItAlone() {
         // arrange
         let db = AnalysisDatabase()
-        let file = db.setFileText(FileId(0), Rope("func f() {\n    1\n}\nclass C {\n    func m() {}\n}\n"))
+        let file =
+            db.setFileText(FileId(0), Rope("func f() {\n    1\n}\nclass C {\n    func m() {}\n}\n"))
         let names = itemNames(db, file)
         let map = itemIdMap(db, file)
         let runs = itemNamesRuns.load()
 
         // act
-        db.setFileText(FileId(0), Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {\n    func m() {}\n}\n"))
+        db
+            .setFileText(
+                FileId(0),
+                Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {\n    func m() {}\n}\n")
+            )
         let again = itemNames(db, file)
         let movedMap = itemIdMap(db, file)
 
@@ -103,7 +108,8 @@ class ItemTreeTest {
     @TestCase
     func membersAreUnderTheirTypeAndNamedByIt() {
         // arrange
-        let text = "class A {\n    func m() {}\n}\nclass B {\n    func m() {}\n}\nenum E {\n    | X | Y(Int64)\n}\n"
+        let text =
+            "class A {\n    func m() {}\n}\nclass B {\n    func m() {}\n}\nenum E {\n    | X | Y(Int64)\n}\n"
 
         // act
         let items = treeOf(text).items
@@ -122,7 +128,8 @@ class ItemTreeTest {
         let before = idsOf("extend C <: Hashable {}\nextend C <: Equatable<C> {}\n")
 
         // act
-        let after = idsOf("extend   C<:Equatable < C > {}\nextend C <: Hashable {\n    func f() {}\n}\n")
+        let after =
+            idsOf("extend   C<:Equatable < C > {}\nextend C <: Hashable {\n    func f() {}\n}\n")
 
         // assert
         @Expect(before[0] != before[1], true)
@@ -195,7 +202,8 @@ class ItemTreeTest {
     @TestCase
     func importsBringOneNameForEachLeafOfTheirBraces() {
         // arrange
-        let text = "macro package org::p.q\npublic import a.b.c\nimport a.{b as x, c.*}\nimport org::m.n\n"
+        let text =
+            "macro package org::p.q\npublic import a.b.c\nimport a.{b as x, c.*}\nimport org::m.n\n"
 
         // act
         let tree = treeOf(text)
@@ -230,10 +238,16 @@ class ItemTreeTest {
     @TestCase
     func aNameInBackquotesIsThatNameWithItsId() {
         // arrange
-        let plain = treeOf("import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\nextend C {}\nlet (y, z) = (1, 2)\n")
+        let plain =
+            treeOf(
+                "import a.b as c\nfunc foo() {}\nclass C {\n    let x = 1\n}\nextend C {}\nlet (y, z) = (1, 2)\n"
+            )
 
         // act
-        let quoted = treeOf("import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\nextend `C` {}\nlet (`y`, z) = (1, 2)\n")
+        let quoted =
+            treeOf(
+                "import `a`.b as `c`\nfunc `foo`() {}\nclass `C` {\n    let `x` = 1\n}\nextend `C` {}\nlet (`y`, z) = (1, 2)\n"
+            )
 
         // assert
         @Expect(quoted.items[0].names, ["foo"])

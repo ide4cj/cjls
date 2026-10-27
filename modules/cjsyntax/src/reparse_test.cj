@@ -43,7 +43,8 @@ class ReparseTest {
         // arrange
         let text = "func a() {\n    let y = 1\n    if (y > 0) {\n        y.\n    }\n    y\n}\n"
         let before = parse(text)
-        let body = before.syntaxNode().descendants().filter {n => n.kind == Block}.next().getOrThrow()
+        let body =
+            before.syntaxNode().descendants().filter { n => n.kind == Block }.next().getOrThrow()
         let statements = collectArray(body.children())
         let edit = TextRange.empty(after(text, "y."))
 
@@ -52,7 +53,8 @@ class ReparseTest {
 
         // assert
         @Expect(reparsed == parse(edited(text, edit, MARKER)))
-        let bodyAfter = reparsed.syntaxNode().descendants().filter {n => n.kind == Block}.next().getOrThrow()
+        let bodyAfter =
+            reparsed.syntaxNode().descendants().filter { n => n.kind == Block }.next().getOrThrow()
         let statementsAfter = collectArray(bodyAfter.children())
         @Expect(statementsAfter.size, statements.size)
         @Expect(refEq(statementsAfter[0].green, statements[0].green))
@@ -181,7 +183,7 @@ func cjFilesUnder(dir: Path, into: ArrayList<Path>): Unit {
  * `.` tokens inside blocks, spread over the file.
  */
 func markerPlaces(root: CjSyntaxNode): Array<Int64> {
-    let blocks = collectArray(root.descendants().filter {n => n.kind == Block})
+    let blocks = collectArray(root.descendants().filter { n => n.kind == Block })
     let places = ArrayList<Int64>()
     if (blocks.isEmpty()) {
         return places.toArray()
@@ -191,7 +193,7 @@ func markerPlaces(root: CjSyntaxNode): Array<Int64> {
     let dots = ArrayList<Int64>()
     for (element in root.descendantsWithTokens()) {
         if (let SyntaxElement.Token(token) <- element) {
-            if (token.kind == Dot && token.ancestors().any {n => n.kind == Block}) {
+            if (token.kind == Dot && token.ancestors().any { n => n.kind == Block }) {
                 dots.add(token.textRange.end)
             }
         }

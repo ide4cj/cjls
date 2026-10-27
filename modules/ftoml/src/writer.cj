@@ -10,7 +10,8 @@ import fnum.{FLOAT64_CHARS_MAX, writeShortest}
  * land in the sub-table, so it throws rather than write something that reads back otherwise.
  */
 
-let HEX_DIGITS: Array<String> = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"]
+let HEX_DIGITS: Array<String> =
+    ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F"]
 
 enum FrameKind {
     /** The document's own table: keys, then headers. */
@@ -75,7 +76,10 @@ public class FtWriter {
     }
 
     private func put(text: String): Unit {
-        let source = unsafe { text.rawData() }
+        let source =
+            unsafe {
+                text.rawData()
+            }
         reserve(source.size)
         source.copyTo(buf, 0, length, source.size)
         length += source.size
@@ -109,7 +113,9 @@ public class FtWriter {
             case RootFrame | BlockFrame =>
                 let name = takeKey()
                 if (frame.hasSubTables) {
-                    throw fail("the key `${name}` would follow a sub-table of its table: write plain keys first")
+                    throw fail(
+                        "the key `${name}` would follow a sub-table of its table: write plain keys first"
+                    )
                 }
                 putKey(name)
                 put(" = ")
@@ -299,16 +305,27 @@ public class FtWriter {
     }
 
     private func keyText(name: String): String {
-        let bare = !name.isEmpty() && name.toArray().iterator().all {
-            b => (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A) || (b >= 0x30 && b <= 0x39) || b == 0x5F ||
-                b == 0x2D
-        }
+        let bare =
+            !name.isEmpty() &&
+                name
+                    .toArray()
+                    .iterator()
+                    .all {
+                        b =>
+                        (b >= 0x41 && b <= 0x5A) || (b >= 0x61 && b <= 0x7A) ||
+                            (b >= 0x30 && b <= 0x39) ||
+                            b == 0x5F ||
+                            b == 0x2D
+                    }
         if (bare) {
             return name
         }
         let mark = length
         quoted(name)
-        let text = unsafe { String.fromUtf8Unchecked(buf[mark..length]) }
+        let text =
+            unsafe {
+                String.fromUtf8Unchecked(buf[mark..length])
+            }
         length = mark
         text
     }
@@ -317,7 +334,10 @@ public class FtWriter {
      * A basic string: `"` and `\` escaped, and every control character, in TOML 1.1's shortest escape.
      */
     private func quoted(value: String): Unit {
-        let source = unsafe { value.rawData() }
+        let source =
+            unsafe {
+                value.rawData()
+            }
         reserve(source.size + 2)
         put(0x22)
         var runStart = 0

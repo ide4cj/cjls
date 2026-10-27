@@ -41,11 +41,7 @@ class CodeWriter <: ToString {
         line("/**")
         for (l in lines) {
             let text = l.replace("/*", "/\\*").replace("*/", "*\\/")
-            if (text.isEmpty()) {
-                line(" *")
-            } else {
-                line(" * ${text}")
-            }
+            if (text.isEmpty()) { line(" *") } else { line(" * ${text}") }
         }
         line(" */")
     }

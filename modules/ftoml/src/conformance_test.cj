@@ -17,7 +17,9 @@ import fnum.parseFloat64
 func tomlTest(): Path {
     let suite = Path(".corpora/toml-test")
     if (!exists(suite)) {
-        throw IllegalStateException("toml-test is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+        throw IllegalStateException(
+            "toml-test is not in .corpora/: run `python3 tests/corpora/fetch.py`"
+        )
     }
     suite.join("tests")
 }
@@ -129,13 +131,14 @@ func scalarMatches(data: FtData, tag: String, text: String): Bool {
 /** The files a version's list names, relative to `tests`. */
 func listed(tests: Path, version: String): Array<String> {
     let list = String.fromUtf8(File.readFrom(tests.join("files-toml-${version}")))
-    list.split("\n").map {line => line.trimAscii()}.filter {line => !line.isEmpty()}
+    list.split("\n").map { line => line.trimAscii() }.filter { line => !line.isEmpty() }
 }
 
 /** What is wrong with the `valid/` file `name`, `None` when it reads as its JSON says. */
 func validFailure(tests: Path, name: String): ?String {
     let bytes = File.readFrom(tests.join(name))
-    let expected = Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
+    let expected =
+        Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
     try {
         differenceOf(parseToml(bytes).root, expected, name)
     } catch (e: Exception) {
@@ -149,11 +152,13 @@ func validFailure(tests: Path, name: String): ?String {
  */
 func writtenFailure(tests: Path, name: String): ?String {
     let bytes = File.readFrom(tests.join(name))
-    let expected = Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
+    let expected =
+        Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
     try {
         let written = toTomlBytes(parseToml(bytes).root)
         try {
-            differenceOf(parseToml(written).root, expected, name).map {d => "${d}, written as:\n${String.fromUtf8(written)}"}
+            differenceOf(parseToml(written).root, expected, name)
+                .map { d => "${d}, written as:\n${String.fromUtf8(written)}" }
         } catch (e: Exception) {
             "${name}: ${e}, written as:\n${String.fromUtf8(written)}"
         }
@@ -178,13 +183,14 @@ func invalidFailure(tests: Path, name: String): ?String {
 func failuresOf(tests: Path, names: Array<String>, validOnly: Bool): Array<String> {
     let failures = ArrayList<String>()
     for (name in names where name.endsWith(".toml")) {
-        let failure = if (name.startsWith("valid/")) {
-            validFailure(tests, name)
-        } else if (validOnly) {
-            Option<String>.None
-        } else {
-            invalidFailure(tests, name)
-        }
+        let failure =
+            if (name.startsWith("valid/")) {
+                validFailure(tests, name)
+            } else if (validOnly) {
+                Option<String>.None
+            } else {
+                invalidFailure(tests, name)
+            }
         if (let Some(f) <- failure) {
             failures.add(f)
         }
@@ -210,10 +216,13 @@ class TomlTestCorpusTest {
     func everyValidFileWrittenBackReadsAsTheSuiteSays() {
         // arrange
         let tests = tomlTest()
-        let names = listed(tests, "1.1.0").filter {name => name.startsWith("valid/") && name.endsWith(".toml")}
+        let names =
+            listed(tests, "1.1.0")
+                .filter { name => name.startsWith("valid/") && name.endsWith(".toml") }
 
         // act
-        let failures = names |> filterMap {name: String => writtenFailure(tests, name)} |> collectArray
+        let failures =
+            names |> filterMap { name: String => writtenFailure(tests, name) } |> collectArray
 
         // assert
         @Expect(failures, Array<String>())

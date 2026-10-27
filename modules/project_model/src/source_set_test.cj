@@ -8,19 +8,39 @@ import loupe.{definitionAt, diagnostics}
 import loupe.db.*
 import loupe.vfs.{readFiles, Vfs, VfsPath}
 
-let MACOS = Cfg([("os", "macOS"), ("arch", "aarch64"), ("env", ""), ("backend", "cjnative"), ("test", "true")])
+let MACOS =
+    Cfg(
+        [
+            ("os", "macOS"),
+            ("arch", "aarch64"),
+            ("env", ""),
+            ("backend", "cjnative"),
+            ("test", "true")
+        ]
+    )
 
-let WINDOWS = Cfg([("os", "Windows"), ("arch", "x86_64"), ("env", "gnu"), ("backend", "cjnative"), ("test", "true")])
+let WINDOWS =
+    Cfg(
+        [
+            ("os", "Windows"),
+            ("arch", "x86_64"),
+            ("env", "gnu"),
+            ("backend", "cjnative"),
+            ("test", "true")
+        ]
+    )
 
 /**
  * A workspace of a multiplatform module `plat`, its sets `common` → `posix` → `linux` or
  * `darwin`, and `windows`, as cjpm 1.3.0-alpha.20261002 builds it, and a module `app` using it.
  */
 func platWorkspace(): VfsPath {
-    tree([
-        ("cjpm.toml", "[workspace]\nmembers = [\"plat\", \"app\"]\n"),
-        ("plat/cjpm.toml",
-            #"
+    tree(
+        [
+            ("cjpm.toml", "[workspace]\nmembers = [\"plat\", \"app\"]\n"),
+            (
+                "plat/cjpm.toml",
+                #"
             [package]
             name = "plat"
             [profile]
@@ -54,35 +74,59 @@ func platWorkspace(): VfsPath {
             name = "windows"
             src-dir = "./src/windows"
             features = ["os.windows"]
-            "#),
-        ("plat/src/common/plat.cj",
-            "@NonProduct\nfeatures {}\npackage plat\n\npublic common func separator(): Rune\n\n" +
-                "public common class Host {\n    public common init()\n    public common func name(): String\n}\n"),
-        ("plat/src/common/util/util.cj", "@NonProduct\nfeatures {}\npackage plat.util\n\npublic func helper() {}\n"),
-        ("plat/src/posix/posix.cj",
-            "@NonProduct\nfeatures { user.plat.posix }\npackage plat\n\npublic specific func separator(): Rune { r'/' }\n"),
-        ("plat/src/linux/linux.cj",
-            "features { user.plat.posix, os.linux }\npackage plat\n\npublic specific class Host {\n" +
-                "    public specific init() {}\n    public specific func name(): String { \"linux\" }\n}\n"),
-        ("plat/src/darwin/darwin.cj",
-            "features { user.plat.posix, os.darwin }\npackage plat\n\npublic specific class Host {\n" +
-                "    public specific init() {}\n    public specific func name(): String { \"darwin\" }\n}\n"),
-        ("plat/src/windows/windows.cj",
-            "features { os.windows }\npackage plat\n\npublic specific func separator(): Rune { r'\\\\' }\n\n" +
-                "public specific class Host {\n    public specific init() {}\n" +
-                "    public specific func name(): String { \"windows\" }\n}\n"),
-        ("app/cjpm.toml", "[package]\nname = \"app\"\n[dependencies]\nplat = { path = \"../plat\" }\n"),
-        ("app/src/main.cj", "package app\n\nimport plat.*\n\nmain(): Int64 {\n    println(Host().name())\n    0\n}\n")
-    ])
+            "#
+            ),
+            (
+                "plat/src/common/plat.cj",
+                "@NonProduct\nfeatures {}\npackage plat\n\npublic common func separator(): Rune\n\n" +
+                    "public common class Host {\n    public common init()\n    public common func name(): String\n}\n"
+            ),
+            (
+                "plat/src/common/util/util.cj",
+                "@NonProduct\nfeatures {}\npackage plat.util\n\npublic func helper() {}\n"
+            ),
+            (
+                "plat/src/posix/posix.cj",
+                "@NonProduct\nfeatures { user.plat.posix }\npackage plat\n\npublic specific func separator(): Rune { r'/' }\n"
+            ),
+            (
+                "plat/src/linux/linux.cj",
+                "features { user.plat.posix, os.linux }\npackage plat\n\npublic specific class Host {\n" +
+                    "    public specific init() {}\n    public specific func name(): String { \"linux\" }\n}\n"
+            ),
+            (
+                "plat/src/darwin/darwin.cj",
+                "features { user.plat.posix, os.darwin }\npackage plat\n\npublic specific class Host {\n" +
+                    "    public specific init() {}\n    public specific func name(): String { \"darwin\" }\n}\n"
+            ),
+            (
+                "plat/src/windows/windows.cj",
+                "features { os.windows }\npackage plat\n\npublic specific func separator(): Rune { r'\\\\' }\n\n" +
+                    "public specific class Host {\n    public specific init() {}\n" +
+                    "    public specific func name(): String { \"windows\" }\n}\n"
+            ),
+            (
+                "app/cjpm.toml",
+                "[package]\nname = \"app\"\n[dependencies]\nplat = { path = \"../plat\" }\n"
+            ),
+            (
+                "app/src/main.cj",
+                "package app\n\nimport plat.*\n\nmain(): Int64 {\n    println(Host().name())\n    0\n}\n"
+            )
+        ]
+    )
 }
 
 /**
  * The inactive files of every module of `model` as `module: file`, relative to `dir`.
  */
 func inactiveOf(model: ProjectModel, dir: VfsPath): Array<String> {
-    model.modules |> flatMap {
-        module: ModuleModel => module.inactive.map {file => "${module.name}: ${relative(file.path, dir)}"}
-    } |> collectArray
+    model.modules |>
+        flatMap {
+            module: ModuleModel =>
+            module.inactive.map { file => "${module.name}: ${relative(file.path, dir)}" }
+        } |>
+        collectArray
 }
 
 @Test
@@ -90,11 +134,22 @@ class SourceSetChainTest {
     @TestCase
     func theHostsFeatureMappedThroughFeaturesPicksTheChain() {
         // arrange
-        let sets = [SourceSet(name: "common", srcDir: "common", featureNames: []),
-            SourceSet(name: "linux", srcDir: "linux", featureNames: ["user.p.posix", "os.linux"]),
-            SourceSet(name: "posix", srcDir: "posix", featureNames: ["user.p.posix"]),
-            SourceSet(name: "windows", srcDir: "windows", featureNames: ["os.windows"])]
-        let features = [Feature(name: "user.p.posix", mapping: []), Feature(name: "os.linux", mapping: ["user.p.posix"])]
+        let sets =
+            [
+                SourceSet(name: "common", srcDir: "common", featureNames: []),
+                SourceSet(
+                    name: "linux",
+                    srcDir: "linux",
+                    featureNames: ["user.p.posix", "os.linux"]
+                ),
+                SourceSet(name: "posix", srcDir: "posix", featureNames: ["user.p.posix"]),
+                SourceSet(name: "windows", srcDir: "windows", featureNames: ["os.windows"])
+            ]
+        let features =
+            [
+                Feature(name: "user.p.posix", mapping: []),
+                Feature(name: "os.linux", mapping: ["user.p.posix"])
+            ]
 
         // act
         let picked = sourceSetChain(sets, features, LINUX)
@@ -109,8 +164,12 @@ class SourceSetChainTest {
     @TestCase
     func twoSetsOfNoCommonParentLeaveTheLaterOutAndSaySo() {
         // arrange
-        let sets = [SourceSet(srcDir: "common", featureNames: []), SourceSet(srcDir: "a", featureNames: ["user.m.a"]),
-            SourceSet(srcDir: "b", featureNames: ["user.m.b"])]
+        let sets =
+            [
+                SourceSet(srcDir: "common", featureNames: []),
+                SourceSet(srcDir: "a", featureNames: ["user.m.a"]),
+                SourceSet(srcDir: "b", featureNames: ["user.m.b"])
+            ]
         let features = [Feature(name: "os.linux", mapping: ["user.m.a", "user.m.b"])]
 
         // act
@@ -159,9 +218,12 @@ class CjpmSourceSetTest {
     @TestCase
     func aFeatureDeclaredByNamesMapsNothingAsInCjpm() {
         // arrange
-        let dir = tree([
-            ("cjpm.toml",
-                #"
+        let dir =
+            tree(
+                [
+                    (
+                        "cjpm.toml",
+                        #"
                 [package]
                 name = "m"
                 [profile]
@@ -184,14 +246,17 @@ class CjpmSourceSetTest {
                 name = "posix"
                 src-dir = "./src/posix"
                 features = ["user.m.posix"]
-                "#),
-            ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
-            ("src/x/b.cj", "features { user.m.x }\npackage m\n"),
-            ("src/posix/c.cj", "features { user.m.posix }\npackage m\n")
-        ])
+                "#
+                    ),
+                    ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+                    ("src/x/b.cj", "features { user.m.x }\npackage m\n"),
+                    ("src/posix/c.cj", "features { user.m.posix }\npackage m\n")
+                ]
+            )
 
         // act
-        let model = loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
+        let model =
+            loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
         removeTree(dir)
 
         // assert - `user.m.x` mapping no `user.m.posix`, the chain cjpm builds
@@ -203,9 +268,12 @@ class CjpmSourceSetTest {
     @TestCase
     func anAlwaysEnabledFeatureAndThoseItMapsTakeTheirSet() {
         // arrange
-        let dir = tree([
-            ("cjpm.toml",
-                #"
+        let dir =
+            tree(
+                [
+                    (
+                        "cjpm.toml",
+                        #"
                 [package]
                 name = "m"
                 always-enabled-features = ["user.m.nightly"]
@@ -224,13 +292,16 @@ class CjpmSourceSetTest {
                 name = "nightly"
                 src-dir = "./src/nightly"
                 features = ["user.m.nightly", "user.m.x11"]
-                "#),
-            ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
-            ("src/nightly/b.cj", "features { user.m.nightly, user.m.x11 }\npackage m\n")
-        ])
+                "#
+                    ),
+                    ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+                    ("src/nightly/b.cj", "features { user.m.nightly, user.m.x11 }\npackage m\n")
+                ]
+            )
 
         // act
-        let model = loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
+        let model =
+            loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
         removeTree(dir)
 
         // assert - as cjpm, which builds `nightly` on every target
@@ -277,11 +348,18 @@ class CjpmSourceSetTest {
     func theProjectWrittenOutListsTheChainAndTheFilesLeftOutAndReadsBackTheSame() {
         // arrange
         let dir = platWorkspace()
-        let model = loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
+        let model =
+            loadCjpmProject(dir.join("cjpm.toml"), env: noEnv, cfg: LINUX).getOrThrow().model
 
         // act
         let text = prettyProjectJson(toProjectJson(model, dir))
-        let again = lowerProjectJson(fromJsonBytes<ProjectJson>(text.toArray()), dir, env: noEnv, cfg: LINUX)
+        let again =
+            lowerProjectJson(
+                fromJsonBytes<ProjectJson>(text.toArray()),
+                dir,
+                env: noEnv,
+                cfg: LINUX
+            )
         removeTree(dir)
 
         // assert

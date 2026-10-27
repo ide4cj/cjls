@@ -23,22 +23,40 @@ struct InterfaceSpec {
  * The interfaces of `cjsyntax.ast`. A view implements one when it has its accessor, an enum when all its variants
  * do; each comes with `AnyHas…`, a view of any node that does.
  */
-let INTERFACES: Array<InterfaceSpec> = [
-    InterfaceSpec("HasName", "A node that declares a name.", Accessor("name", "Name", false)),
-    InterfaceSpec("HasModifiers", "A node that may have modifiers.", Accessor("modifiers", "Modifiers", false)),
-    InterfaceSpec("HasAnnotations", "A node that may have annotations.", Accessor("annotations", "Annotation", true)),
-    InterfaceSpec("HasTypeParams", "A node that may have type parameters.",
-        Accessor("typeParamList", "TypeParamList", false)),
-    InterfaceSpec("HasWhereClause", "A node that may have a `where` clause.",
-        Accessor("whereClause", "WhereClause", false)),
-    InterfaceSpec("HasDocComment", "A node the parser gives the comments right before it, its documentation.",
-        Provided(
-            "Its documentation, in order: the comments before the macro calls around it, outermost first, then before the rest of it.",
-            "func docComments(): Array<${TOKEN_TYPE}>",
-            "docCommentsOf(syntax)",
-            ["Decl", "PackageHeader", "Param"]
-        ))
-]
+let INTERFACES: Array<InterfaceSpec> =
+    [
+        InterfaceSpec("HasName", "A node that declares a name.", Accessor("name", "Name", false)),
+        InterfaceSpec(
+            "HasModifiers",
+            "A node that may have modifiers.",
+            Accessor("modifiers", "Modifiers", false)
+        ),
+        InterfaceSpec(
+            "HasAnnotations",
+            "A node that may have annotations.",
+            Accessor("annotations", "Annotation", true)
+        ),
+        InterfaceSpec(
+            "HasTypeParams",
+            "A node that may have type parameters.",
+            Accessor("typeParamList", "TypeParamList", false)
+        ),
+        InterfaceSpec(
+            "HasWhereClause",
+            "A node that may have a `where` clause.",
+            Accessor("whereClause", "WhereClause", false)
+        ),
+        InterfaceSpec(
+            "HasDocComment",
+            "A node the parser gives the comments right before it, its documentation.",
+            Provided(
+                "Its documentation, in order: the comments before the macro calls around it, outermost first, then before the rest of it.",
+                "func docComments(): Array<${TOKEN_TYPE}>",
+                "docCommentsOf(syntax)",
+                ["Decl", "PackageHeader", "Param"]
+            )
+        )
+    ]
 
 /**
  * An interface, and the views that implement it, in the order of the grammar.
@@ -57,22 +75,25 @@ struct InterfaceIr {
  * @throws GrammarException - if a view a spec names has no rule, or nothing implements a spec
  */
 func interfacesOf(model: Model, specs: Array<InterfaceSpec>): Array<InterfaceIr> {
-    specs.map {
-        spec =>
-        let implementors = match (spec.method) {
-            case Accessor(name, typeName, many) => accessorImplementors(model, name, typeName, many)
-            case Provided(_, _, _, views) => providedImplementors(model, spec.name, views)
+    specs
+        .map {
+            spec =>
+            let implementors =
+                match (spec.method) {
+                    case Accessor(name, typeName, many) =>
+                        accessorImplementors(model, name, typeName, many)
+                    case Provided(_, _, _, views) => providedImplementors(model, spec.name, views)
+                }
+            if (implementors.isEmpty()) {
+                throw GrammarException("nothing implements `${spec.name}`")
+            }
+            InterfaceIr(spec, implementors)
         }
-        if (implementors.isEmpty()) {
-            throw GrammarException("nothing implements `${spec.name}`")
-        }
-        InterfaceIr(spec, implementors)
-    }
 }
 
 func accessorImplementors(model: Model, name: String, typeName: String, many: Bool): Array<String> {
     let nodes = HashSet<String>()
-    for (n in model.nodes where n.fields.any {f => hasAccessor(f, name, typeName, many)}) {
+    for (n in model.nodes where n.fields.any { f => hasAccessor(f, name, typeName, many) }) {
         nodes.add(n.name)
     }
     let decided = HashMap<String, Bool>()
@@ -82,22 +103,24 @@ func accessorImplementors(model: Model, name: String, typeName: String, many: Bo
         }
         // an enum that refers to itself through its variants does not implement it on that account
         decided.add(view, false)
-        let result = match (model.enumOf(view)) {
-            case Some(e) => e.variants.all {v => implements(v.typeName)}
-            case None => nodes.contains(view)
-        }
+        let result =
+            match (model.enumOf(view)) {
+                case Some(e) => e.variants.all { v => implements(v.typeName) }
+                case None => nodes.contains(view)
+            }
         decided.add(view, result)
         result
     }
-    model.grammar.rules.map {r => r.name}.filter {view => implements(view)}
+    model.grammar.rules.map { r => r.name }.filter { view => implements(view) }
 }
 
 func hasAccessor(f: FieldIr, name: String, typeName: String, many: Bool): Bool {
     match (f) {
-        case NodeField(n, t, access) where n == name && t == typeName => match (access) {
-            case First | Nth(_, _) | Between(_, _) => !many
-            case All | AllFrom(_, _) | AllBetween(_, _) => many
-        }
+        case NodeField(n, t, access) where n == name && t == typeName =>
+            match (access) {
+                case First | Nth(_, _) | Between(_, _) => !many
+                case All | AllFrom(_, _) | AllBetween(_, _) => many
+            }
         case _ => false
     }
 }
@@ -113,10 +136,10 @@ func providedImplementors(model: Model, spec: String, views: Array<String>): Arr
         }
     }
     for (view in views) {
-        if (!model.grammar.rules.any {r => r.name == view}) {
+        if (!model.grammar.rules.any { r => r.name == view }) {
             throw GrammarException("`${spec}` names `${view}`, which has no rule")
         }
         add(view)
     }
-    model.grammar.rules.map {r => r.name}.filter {view => result.contains(view)}
+    model.grammar.rules.map { r => r.name }.filter { view => result.contains(view) }
 }

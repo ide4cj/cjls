@@ -44,15 +44,20 @@ public struct SyntaxNodePtr<K> <: ToString where K <: Kind<K> {
  * `--coverage -g` on the pinned SDK (K26). The pointer wrapper and search remain frozen across packages.
  */
 @Frozen
-func resolveSyntaxNode<K>(kind: K, range: TextRange, root: SyntaxNode<K>): ?SyntaxNode<K> where K <: Kind<K> {
+func resolveSyntaxNode<K>(
+    kind: K,
+    range: TextRange,
+    root: SyntaxNode<K>
+): ?SyntaxNode<K> where K <: Kind<K> {
     if (!root.textRange.containsRange(range)) {
         return None
     }
-    var found = if (root.kind == kind && root.textRange == range) {
-        Some(root)
-    } else {
-        None<SyntaxNode<K>>
-    }
+    var found =
+        if (root.kind == kind && root.textRange == range) {
+            Some(root)
+        } else {
+            None<SyntaxNode<K>>
+        }
     // the first child ending at the range's start or after it, by bisection: a node of hundreds of
     // members is not walked from its first one for each
     let green = root.green
@@ -70,8 +75,17 @@ func resolveSyntaxNode<K>(kind: K, range: TextRange, root: SyntaxNode<K>): ?Synt
     var i = low
     while (i < green.childCount && root.offset + green.childOffset(i) <= range.start) {
         let start = root.offset + green.childOffset(i)
-        if (let GreenElement.Node(child) <- green.child(i) && TextRange.at(start, child.textLen).containsRange(range)) {
-            if (let Some(inner) <- resolveSyntaxNode(kind, range, SyntaxNode(child, parent: root, indexInParent: i, offset: start))) {
+        if (
+            let GreenElement.Node(child) <- green.child(i) &&
+                TextRange.at(start, child.textLen).containsRange(range)
+        ) {
+            if (
+                let Some(inner) <- resolveSyntaxNode(
+                    kind,
+                    range,
+                    SyntaxNode(child, parent: root, indexInParent: i, offset: start)
+                )
+            ) {
                 found = inner
             }
         }
@@ -87,7 +101,8 @@ func resolveSyntaxNode<K>(kind: K, range: TextRange, root: SyntaxNode<K>): ?Synt
  * `SyntaxNodePtr<K>` with `K <: Kind<K>`, crashes cjc at -O2 (`CHIR::Type::StripAllRefs`, 1.3.0-alpha
  * nightlies up to 20260925).
  */
-public struct AstPtr<K, N> <: Equatable<AstPtr<K, N>> & Hashable & ToString where K <: Kind<K>, N <: AstNode<K, N> {
+public struct AstPtr<K, N> <: Equatable<AstPtr<K, N>> & Hashable & ToString where K <: Kind<K>,
+    N <: AstNode<K, N> {
     public AstPtr(public let syntax: SyntaxNodePtr<K>) {}
 
     public init(node: N) {

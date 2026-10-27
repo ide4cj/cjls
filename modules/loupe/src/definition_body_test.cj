@@ -11,17 +11,20 @@ import std.unittest.testmacro.*
 class BodyDefinitionTest {
     @TestCase
     func aParameter() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: Int64): Int64 { $0x }
             //     ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLetOfTheBody() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -29,13 +32,15 @@ class BodyDefinitionTest {
             //      ^ def
                 $0x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLetInANestedBlockShadowsAParameter() {
         // N59
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: Int64): Int64 {
@@ -46,13 +51,15 @@ class BodyDefinitionTest {
                 }
                 x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalIsNotSeenBeforeItsDeclaration() {
         // N60
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             let x = "global"
@@ -62,13 +69,15 @@ class BodyDefinitionTest {
                 let x = 1
                 y
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVariableIsNotSeenInItsOwnInitializer() {
         // N61
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             let x = 5
@@ -77,13 +86,15 @@ class BodyDefinitionTest {
                 let x = $0x + 1
                 x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalFunctionCallsItself() {
         // N60
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -93,13 +104,15 @@ class BodyDefinitionTest {
                 }
                 g(3)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalFunctionDoesNotSeeOneDeclaredAfterIt() {
         // N60
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -108,13 +121,15 @@ class BodyDefinitionTest {
                 func b(): Int64 { 1 }
                 a()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func localFunctionsOfOneBlockOverload() {
         // N63
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -124,13 +139,15 @@ class BodyDefinitionTest {
             //       ^ def
                 $0g(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalFunctionAndOneOfThePackageOverload() {
         // N63
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(s: String): Int64 { 0 }
@@ -140,13 +157,15 @@ class BodyDefinitionTest {
             //       ^ def
                 $0g(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalVariableStopsTheFunctions() {
         // N63
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(s: String): Int64 { 0 }
@@ -155,13 +174,15 @@ class BodyDefinitionTest {
             //      ^ def
                 $0g(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVariableOfThePackageStopsTheLocalFunctions() {
         // N63
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             let g = 1
@@ -170,13 +191,15 @@ class BodyDefinitionTest {
             //       ^ def
                 $0g(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalFunctionHidesAConstructor() {
         // N63
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {}
@@ -185,12 +208,14 @@ class BodyDefinitionTest {
             //       ^ def
                 $0A(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLambdasParameterShadowsALocal() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -199,13 +224,15 @@ class BodyDefinitionTest {
             //           ^ def
                 x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBindingOfACaseInItsGuard() {
         // N62
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(o: ?Int64): Int64 {
@@ -215,12 +242,14 @@ class BodyDefinitionTest {
                     case _ => 0
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBindingOfATypePattern() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(o: Int64): Int64 {
@@ -229,64 +258,74 @@ class BodyDefinitionTest {
             //           ^ def
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBindingOfAnIfLetIsNotSeenInItsElse() {
         // N62
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(o: ?Int64): Int64 {
                 if (let Some(v) <- o) { v } else { $0v }
             //                                     ^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBindingOfAnIfLetAlongItsConditions() {
         // N62
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(o: ?Int64): Int64 {
                 if (let Some(a) <- o && $0a > 0) { a } else { 0 }
             //               ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theVariableOfAForIsNotSeenInWhatItIteratesOver() {
         // N62
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: Array<Int64>): Unit {
             //     ^ def
                 for (x in $0x) {}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theVariableOfAForInItsGuard() {
         // N62
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(xs: Array<Int64>): Unit {
                 for (i in xs where $0i > 0) {}
             //       ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theBindingOfACatch() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class E {}
@@ -294,12 +333,14 @@ class BodyDefinitionTest {
                 try {} catch (e: E) { $0e }
             //                ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aResourceInItsTry() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class R {}
@@ -307,34 +348,40 @@ class BodyDefinitionTest {
                 try (r = R()) { $0r }
             //       ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDefaultValueSeesAnEarlierParameter() {
         // N67
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(a: Int64, b!: Int64 = $0a): Int64 { b }
             //     ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameInAnInterpolation() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: Int64): String { "x is ${$0x}" }
             //     ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLoneNameOfAPatternIsAConstructorEvenUnderALocal() {
         // N72
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             enum C { Red | Green }
@@ -346,13 +393,15 @@ class BodyDefinitionTest {
                     case _ => 0
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLoneNameOfAPatternBindsWhenNoConstructorHasIt() {
         // N72
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(): Int64 { 1 }
@@ -362,13 +411,15 @@ class BodyDefinitionTest {
             //           ^ def
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLetOfAConstructorsNameBinds() {
         // N72
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             enum E { None }
@@ -377,13 +428,15 @@ class BodyDefinitionTest {
             //      ^^^^ def
                 $0None
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorOfAnEnumAnotherFileImports() {
         // N73
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /p/e.cj module=m package=m.p
             package m.p
             public enum E { A(Int64) | B }
@@ -396,13 +449,15 @@ class BodyDefinitionTest {
             func f(): Unit {
                 let x = $0A(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorOfAnEnumATestImportsIsNoneOfAFileThatIsNoTest() {
         // N73 within what `cjpm build` compiles: it leaves the `*_test.cj` files out (N164, D129)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /p/e.cj module=m package=m.p
             package m.p
             public enum E { A(Int64) | B }
@@ -415,13 +470,15 @@ class BodyDefinitionTest {
                 let x = $0A(1)
             //          ^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPatternsLoneNameBindsInAFileThatIsNoTestThoughATestImportsAConstructorOfIt() {
         // N72, N73 within what `cjpm build` compiles (N164, D129)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /p/e.cj module=m package=m.p
             package m.p
             public enum E { A(Int64) | B }
@@ -436,13 +493,15 @@ class BodyDefinitionTest {
             //           ^ def
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTestSeesTheConstructorsOfAnEnumAFileThatIsNoTestImports() {
         // N73 under `--test`, which compiles the tests with the package's other files (N164)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /p/e.cj module=m package=m.p
             package m.p
             public enum E { A(Int64) | B }
@@ -455,25 +514,29 @@ class BodyDefinitionTest {
             func f(): Unit {
                 let x = $0A(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeParameterAsAValue() {
         // N74
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             interface I { static func make(): Int64 }
             func f<T>(): Int64 where T <: I { $0T.make() }
             //     ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalShadowsATypeParameterAsAValue() {
         // N74
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f<T>(): Int64 {
@@ -481,13 +544,15 @@ class BodyDefinitionTest {
             //      ^ def
                 $0T.size
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMethodsTypeParameterShadowsAFieldAsAValue() {
         // N74
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             interface I { static func make(): Int64 }
@@ -496,13 +561,15 @@ class BodyDefinitionTest {
                 func f<T>(): Int64 where T <: I { $0T.make() }
             //         ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldShadowsTheClasssTypeParameterAsAValue() {
         // N74
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A<x> {
@@ -510,34 +577,40 @@ class BodyDefinitionTest {
             //      ^ def
                 func f(): Int64 { $0x }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfThePackage() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(): Int64 { 1 }
             //   ^ def
             func f(): Int64 { $0g() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVariableOfThePackageInAnotherOnesInitializer() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             let a = 1
             //  ^ def
             let b = $0a + 1
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeInABody() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {}
@@ -545,13 +618,15 @@ class BodyDefinitionTest {
             func f(): Unit {
                 let c: $0C = C()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeParameterOfALocalFunction() {
         // N68
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Unit {
@@ -561,25 +636,29 @@ class BodyDefinitionTest {
                     y
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeParameterOfTheFunctionInItsBody() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f<T>(x: T): Unit {
             //     ^ def
                 let y: $0T = x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldOfTheClass() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -587,12 +666,14 @@ class BodyDefinitionTest {
             //      ^ def
                 func f(): Int64 { $0x }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalShadowsAField() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -603,12 +684,14 @@ class BodyDefinitionTest {
                     $0x
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aParameterShadowsAField() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -616,13 +699,15 @@ class BodyDefinitionTest {
                 init(x: Int64) { this.x = $0x }
             //       ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldOfTheSuperclass() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             open class B {
@@ -632,13 +717,15 @@ class BodyDefinitionTest {
             class A <: B {
                 func f(): Int64 { $0y }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberShadowsAFunctionOfThePackage() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(s: String): String { s }
@@ -647,13 +734,15 @@ class BodyDefinitionTest {
             //      ^ def
                 func f(): Unit { $0g("") }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInstanceMemberIsFoundInAStaticFunction() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             let x = "g"
@@ -662,13 +751,15 @@ class BodyDefinitionTest {
             //      ^ def
                 static func f(): String { $0x }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateMemberOfTheSuperclassIsFound() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             let y = "g"
@@ -679,13 +770,15 @@ class BodyDefinitionTest {
             class A <: B {
                 func f(): String { $0y }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberFunctionAndOneOfThePackageOverload() {
         // N70; the call takes the one its argument fits (N115)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(s: String): String { s }
@@ -694,13 +787,15 @@ class BodyDefinitionTest {
             //       ^ def
                 func f(): Unit { $0g(1) }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfTheTypeAnExtendExtends() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -710,13 +805,15 @@ class BodyDefinitionTest {
             extend A {
                 func f(): Int64 { $0x }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAnotherExtend() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {}
@@ -727,13 +824,15 @@ class BodyDefinitionTest {
             extend A {
                 func b(): Int64 { $0a() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAnExtendInTheTypesBody() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -743,13 +842,15 @@ class BodyDefinitionTest {
                 func a(): Int64 { 1 }
             //       ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAnExtendOfAPrimitiveType() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             extend Int64 {
@@ -759,13 +860,15 @@ class BodyDefinitionTest {
             extend Int64 {
                 func b(): Int64 { $0a() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDefaultMemberOfAnInterface() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             interface I {
@@ -775,13 +878,15 @@ class BodyDefinitionTest {
             class A <: I {
                 func f(): Int64 { $0a() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAnInterfaceAnExtendAdds() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             interface I {
@@ -793,13 +898,15 @@ class BodyDefinitionTest {
             extend A {
                 func f(): Int64 { $0a() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberParameterOfThePrimaryConstructor() {
         // N69
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -807,13 +914,15 @@ class BodyDefinitionTest {
             //        ^ def
                 func f(): Int64 { $0x }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorOfTheEnumInItsMember() {
         // N69, N72
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             enum C {
@@ -821,12 +930,14 @@ class BodyDefinitionTest {
             //  ^^^ def
                 func f(): Int64 { match (this) { case $0Red => 1 case Green => 2 } }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldInALambdaOfAMethod() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -834,13 +945,15 @@ class BodyDefinitionTest {
             //      ^ def
                 func f(): Int64 { {=> $0x}() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldInAnotherFieldsInitializer() {
         // N71
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -848,12 +961,14 @@ class BodyDefinitionTest {
                 var b = 1
             //      ^ def
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldInAGetter() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -863,12 +978,14 @@ class BodyDefinitionTest {
                     get() { $0x }
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theParameterOfASetter() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -879,13 +996,15 @@ class BodyDefinitionTest {
             //          ^ def
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theTypeExpectedOfACallChoosesTheOverloadByWhatItReturns() {
         // N115
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class S {}
@@ -895,13 +1014,15 @@ class BodyDefinitionTest {
             func g(): Unit {
                 let a: S = $0h(1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func overloadsAsAValueAreTheOneOfTheParametersExpected() {
         // N121
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class S {}
@@ -912,13 +1033,15 @@ class BodyDefinitionTest {
             func g(): Unit {
                 apply($0h)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func overloadsPassedToOverloadsAreTheOneOfTheCandidateTaken() {
         // #243
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {}
@@ -932,13 +1055,15 @@ class BodyDefinitionTest {
             func g(): Unit {
                 app2($0h)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func overloadsPassedToAGenericCallAreTheOnesOfItsOneSolution() {
         // #243: cjc's `GetArgsCombination`
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {}
@@ -953,13 +1078,15 @@ class BodyDefinitionTest {
             func g(): Unit {
                 two($0h, j)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOperatorGoesToTheOperatorFunctionItCalls() {
         // N122
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct V {
@@ -970,13 +1097,15 @@ class BodyDefinitionTest {
             func g(v: V): Unit {
                 let a = v $0+ 1
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func insideAnOperatorOfTwoCharactersGoesToItsFunction() {
         // N122
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct V {
@@ -986,12 +1115,14 @@ class BodyDefinitionTest {
             func g(v: V): Unit {
                 let a = v =$0= v
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameTouchingAnOperatorGoesWhereTheNameIsDeclared() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct V {
@@ -1001,13 +1132,15 @@ class BodyDefinitionTest {
             //     ^ def
                 let a = v$0+v
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anIndexAssignedGoesToTheOperatorTakingAValue() {
         // N124
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class Grid {
@@ -1018,13 +1151,15 @@ class BodyDefinitionTest {
             func g(x: Grid): Unit {
                 x[$01] = 2
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anIndexAssignedByAnOperatorGoesToTheOperatorReadingIt() {
         // #245: `x[1] += 2` is `x.[](1, value: x.[](1) + 2)`, its brackets the inner call, as Kotlin's K2
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class Grid {
@@ -1035,13 +1170,15 @@ class BodyDefinitionTest {
             func g(x: Grid): Unit {
                 x[$01] += 2
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theOperatorOfAnIndexAssignedByItGoesToItAndTheOperatorTakingAValue() {
         // #245: `+=` of `x[0] += v` calls `+` and `[](i, value!)`, as Kotlin's K2
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct V {
@@ -1056,13 +1193,15 @@ class BodyDefinitionTest {
             func g(x: Grid): Unit {
                 x[0] $0+= V()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theIncrementOfAnIndexGoesToTheOperatorTakingAValue() {
         // #245: `x[0]++` is `x[0] += 1`, of the language's `+`
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class Grid {
@@ -1073,13 +1212,15 @@ class BodyDefinitionTest {
             func g(x: Grid): Unit {
                 x[0]$0++
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCompoundAssignmentGoesToTheOperatorItCalls() {
         // N126
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct V {
@@ -1091,13 +1232,15 @@ class BodyDefinitionTest {
                 var v = V()
                 v $0-= v
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theFunctionOfAPipelineGoesToTheOverloadItsLeftChooses() {
         // N128
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(x: Int64): Int64 { x }
@@ -1106,13 +1249,15 @@ class BodyDefinitionTest {
             func f(): Unit {
                 let a = true |> $0g
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberAfterAnOptionalChainGoesToTheOverloadTaken() {
         // N133
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -1123,13 +1268,16 @@ class BodyDefinitionTest {
             func f(a: ?C): Unit {
                 let b = a?.$0g("s")
             }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func aMemberAfterAnOptionalChainGoesNowhereWithoutStdCore() {
         // no `Option`, nor its `Some` and `None`: the left of `?` is of no type
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -1139,13 +1287,15 @@ class BodyDefinitionTest {
                 let b = a?.$0b
             //             ^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anIndexAfterAnOptionalChainGoesToItsOperator() {
         // N133
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -1155,18 +1305,22 @@ class BodyDefinitionTest {
             func f(a: ?C): Unit {
                 let b = a?$0[0]
             }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func anOperatorOfTheLanguageGoesNowhere() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(): Unit {
                 let a = 1 $0+ 2
             //              ^ no definition
             }
-            "#)
+            "#
+        )
     }
 }

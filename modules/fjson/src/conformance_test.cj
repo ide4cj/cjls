@@ -29,7 +29,8 @@ enum Tree {
 /** The value at the reader, containers past `MAX_DEPTH` refused as `skipValue` refuses them. */
 func readTree(r: FjReader, depth: Int64): Tree {
     match (r.peekKind()) {
-        case FjKind.FjObject | FjKind.FjArray where depth >= MAX_DEPTH => throw FjException("nested too deep")
+        case FjKind.FjObject | FjKind.FjArray where depth >= MAX_DEPTH =>
+            throw FjException("nested too deep")
         case FjKind.FjObject =>
             let members = ArrayList<(String, Tree)>()
             r.beginObject()
@@ -53,7 +54,7 @@ func readTree(r: FjReader, depth: Int64): Tree {
         case FjKind.FjNumber =>
             // as `JsonValue` reads one: an integer while it fits an Int64
             let number = r.rawValue()
-            if (number.iterator().any {b => b == 0x2E || b == 0x65 || b == 0x45}) {
+            if (number.iterator().any { b => b == 0x2E || b == 0x65 || b == 0x45 }) {
                 TFloat(FjReader(number).readFloat64())
             } else {
                 try {
@@ -126,10 +127,13 @@ func near(a: Float64, b: Float64, ulps: Int64): Bool {
 
 func sameTree(a: Tree, b: Tree, ulps!: Int64 = 0): Bool {
     match ((a, b)) {
-        case (TObject(x), TObject(y)) => x.size == y.size &&
-            (0..x.size).iterator().all {i => x[i][0] == y[i][0] && sameTree(x[i][1], y[i][1], ulps: ulps)}
-        case (TArray(x), TArray(y)) => x.size == y.size &&
-            (0..x.size).iterator().all {i => sameTree(x[i], y[i], ulps: ulps)}
+        case (TObject(x), TObject(y)) =>
+            x.size == y.size &&
+                (0..x.size)
+                    .iterator()
+                    .all { i => x[i][0] == y[i][0] && sameTree(x[i][1], y[i][1], ulps: ulps) }
+        case (TArray(x), TArray(y)) =>
+            x.size == y.size && (0..x.size).iterator().all { i => sameTree(x[i], y[i], ulps: ulps) }
         case (TString(x), TString(y)) => x == y
         case (TInt(x), TInt(y)) => x == y
         case (TFloat(x), TFloat(y)) => near(x, y, ulps)
@@ -159,8 +163,8 @@ func refusal(read: () -> Unit): ?String {
  */
 func readBothWays(name: String, bytes: Array<Byte>, problems: ArrayList<String>): Bool {
     try {
-        let skipped = refusal {skipAll(bytes)}
-        let built = refusal {treeOf(bytes)}
+        let skipped = refusal { skipAll(bytes) }
+        let built = refusal { treeOf(bytes) }
         if (skipped.isSome() != built.isSome()) {
             problems.add("${name}: skipped ${skipped ?? "fine"}, but read ${built ?? "fine"}")
         }
@@ -178,12 +182,15 @@ func readBothWays(name: String, bytes: Array<Byte>, problems: ArrayList<String>)
 func corpus(dir: String, prefix!: String = ""): Array<(String, Array<Byte>)> {
     let suite = Path(".corpora/JSONTestSuite")
     if (!exists(suite)) {
-        throw IllegalStateException("JSONTestSuite is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+        throw IllegalStateException(
+            "JSONTestSuite is not in .corpora/: run `python3 tests/corpora/fetch.py`"
+        )
     }
     let path = suite.join(dir)
-    Directory.readFrom(path)
-        .filter {info => info.name.startsWith(prefix)}
-        .map {info => (info.name, File.readFrom(path.join(info.name)))}
+    Directory
+        .readFrom(path)
+        .filter { info => info.name.startsWith(prefix) }
+        .map { info => (info.name, File.readFrom(path.join(info.name))) }
 }
 
 func report(problems: ArrayList<String>): String {
@@ -250,8 +257,8 @@ func fromStream(r: JsonReader): Tree {
 /** The tree with every number `0`: what the stream reader is compared on. */
 func withoutNumbers(tree: Tree): Tree {
     match (tree) {
-        case TObject(members) => TObject(members.map {m => (m[0], withoutNumbers(m[1]))})
-        case TArray(items) => TArray(items.map {item => withoutNumbers(item)})
+        case TObject(members) => TObject(members.map { m => (m[0], withoutNumbers(m[1])) })
+        case TArray(items) => TArray(items.map { item => withoutNumbers(item) })
         case TInt(_) | TFloat(_) => TInt(0)
         case _ => tree
     }
@@ -265,7 +272,7 @@ func fromStdx(value: StdxJsonValue): Tree {
                 members.add((key, fromStdx(member)))
             }
             TObject(members.toArray())
-        case a: JsonArray => TArray(a.getItems().toArray().map {item => fromStdx(item)})
+        case a: JsonArray => TArray(a.getItems().toArray().map { item => fromStdx(item) })
         case s: JsonString => TString(s.getValue())
         case i: JsonInt => TInt(i.getValue())
         case f: JsonFloat => TFloat(f.getValue())
@@ -282,8 +289,8 @@ func lastWins(tree: Tree): Tree {
             for ((key, value) in members) {
                 map[key] = lastWins(value)
             }
-            TObject(map.keys().toArray().map {key => (key, map[key])})
-        case TArray(items) => TArray(items.map {item => lastWins(item)})
+            TObject(map.keys().toArray().map { key => (key, map[key]) })
+        case TArray(items) => TArray(items.map { item => lastWins(item) })
         case _ => tree
     }
 }
@@ -291,10 +298,10 @@ func lastWins(tree: Tree): Tree {
 func sortedMembers(tree: Tree): Tree {
     match (tree) {
         case TObject(members) =>
-            let sorted = ArrayList(members.map {m => (m[0], sortedMembers(m[1]))})
-            sort(sorted, by: {a, b => a[0].compare(b[0])}, stable: true)
+            let sorted = ArrayList(members.map { m => (m[0], sortedMembers(m[1])) })
+            sort(sorted, by: { a, b => a[0].compare(b[0]) }, stable: true)
             TObject(sorted.toArray())
-        case TArray(items) => TArray(items.map {item => sortedMembers(item)})
+        case TArray(items) => TArray(items.map { item => sortedMembers(item) })
         case _ => tree
     }
 }
@@ -347,22 +354,23 @@ class JsonTestSuiteTest {
     @TestCase
     func decidesTheImplementationDefinedOnesAsPinned() {
         // arrange
-        let refused = [
-            "i_string_UTF-16LE_with_BOM.json",
-            "i_string_UTF-8_invalid_sequence.json",
-            "i_string_UTF8_surrogate_U+D800.json",
-            "i_string_invalid_utf-8.json",
-            "i_string_iso_latin_1.json",
-            "i_string_lone_utf8_continuation_byte.json",
-            "i_string_not_in_unicode_range.json",
-            "i_string_overlong_sequence_2_bytes.json",
-            "i_string_overlong_sequence_6_bytes.json",
-            "i_string_overlong_sequence_6_bytes_null.json",
-            "i_string_truncated-utf-8.json",
-            "i_string_utf16BE_no_BOM.json",
-            "i_string_utf16LE_no_BOM.json",
-            "i_structure_UTF-8_BOM_empty_object.json"
-        ]
+        let refused =
+            [
+                "i_string_UTF-16LE_with_BOM.json",
+                "i_string_UTF-8_invalid_sequence.json",
+                "i_string_UTF8_surrogate_U+D800.json",
+                "i_string_invalid_utf-8.json",
+                "i_string_iso_latin_1.json",
+                "i_string_lone_utf8_continuation_byte.json",
+                "i_string_not_in_unicode_range.json",
+                "i_string_overlong_sequence_2_bytes.json",
+                "i_string_overlong_sequence_6_bytes.json",
+                "i_string_overlong_sequence_6_bytes_null.json",
+                "i_string_truncated-utf-8.json",
+                "i_string_utf16BE_no_BOM.json",
+                "i_string_utf16LE_no_BOM.json",
+                "i_structure_UTF-8_BOM_empty_object.json"
+            ]
         let problems = ArrayList<String>()
         let files = corpus("test_parsing", prefix: "i_")
 
@@ -388,11 +396,12 @@ class JsonTestSuiteTest {
 
         for ((name, bytes) in corpus("test_parsing")) {
             let theirs = stdxTree(bytes) ?? continue
-            let ours = try {
-                treeOf(bytes)
-            } catch (_: FjException) {
-                continue
-            }
+            let ours =
+                try {
+                    treeOf(bytes)
+                } catch (_: FjException) {
+                    continue
+                }
             compared++
 
             // act
@@ -423,11 +432,12 @@ class JsonTestSuiteTest {
 
         for ((name, bytes) in corpus("test_parsing").concat(corpus("test_transform"))) {
             let theirs = stdxStreamTree(bytes) ?? continue
-            let ours = try {
-                treeOf(bytes)
-            } catch (_: FjException) {
-                continue
-            }
+            let ours =
+                try {
+                    treeOf(bytes)
+                } catch (_: FjException) {
+                    continue
+                }
             compared++
 
             // act
@@ -466,48 +476,63 @@ class JsonTestSuiteTest {
     @TestCase
     func readsTheEdgesAsPinned() {
         // arrange
-        let expected: Array<(String, ?Tree)> = [
-            ("number_-9223372036854775808.json", TArray([TInt(Int64.Min)])),
-            ("number_-9223372036854775809.json", TArray([TFloat(-9223372036854775808.0)])),
-            ("number_1.0.json", TArray([TFloat(1.0)])),
-            ("number_1.000000000000000005.json", TArray([TFloat(1.0)])),
-            ("number_1000000000000000.json", TArray([TInt(1000000000000000)])),
-            ("number_10000000000000000999.json", TArray([TFloat(1e19)])),
-            ("number_1e-999.json", TArray([TFloat(0.0)])),
-            ("number_1e6.json", TArray([TFloat(1e6)])),
-            ("number_9223372036854775807.json", TArray([TInt(Int64.Max)])),
-            ("number_9223372036854775808.json", TArray([TFloat(9223372036854775808.0)])),
-            // keys are bytes: no normalization, and a repeated key is the decoder's (a map keeps the last)
-            ("object_key_nfc_nfd.json", TObject([("\u{E9}", TString("NFC")), ("e\u{301}", TString("NFD"))])),
-            ("object_key_nfd_nfc.json", TObject([("e\u{301}", TString("NFD")), ("\u{E9}", TString("NFC"))])),
-            ("object_same_key_different_values.json", TObject([("a", TInt(1)), ("a", TInt(2))])),
-            ("object_same_key_same_value.json", TObject([("a", TInt(1)), ("a", TInt(1))])),
-            ("object_same_key_unclear_values.json", TObject([("a", TInt(0)), ("a", TInt(0))])),
-            ("string_1_escaped_invalid_codepoint.json", TArray([TString("\u{FFFD}")])),
-            ("string_2_escaped_invalid_codepoints.json", TArray([TString("\u{FFFD}\u{FFFD}")])),
-            ("string_3_escaped_invalid_codepoints.json", TArray([TString("\u{FFFD}\u{FFFD}\u{FFFD}")])),
-            ("string_1_invalid_codepoint.json", None),
-            ("string_2_invalid_codepoints.json", None),
-            ("string_3_invalid_codepoints.json", None),
-            ("string_with_escaped_NULL.json", TArray([TString("A\u{0}B")]))
-        ]
+        let expected: Array<(String, ?Tree)> =
+            [
+                ("number_-9223372036854775808.json", TArray([TInt(Int64.Min)])),
+                ("number_-9223372036854775809.json", TArray([TFloat(-9223372036854775808.0)])),
+                ("number_1.0.json", TArray([TFloat(1.0)])),
+                ("number_1.000000000000000005.json", TArray([TFloat(1.0)])),
+                ("number_1000000000000000.json", TArray([TInt(1000000000000000)])),
+                ("number_10000000000000000999.json", TArray([TFloat(1e19)])),
+                ("number_1e-999.json", TArray([TFloat(0.0)])),
+                ("number_1e6.json", TArray([TFloat(1e6)])),
+                ("number_9223372036854775807.json", TArray([TInt(Int64.Max)])),
+                ("number_9223372036854775808.json", TArray([TFloat(9223372036854775808.0)])),
+                // keys are bytes: no normalization, and a repeated key is the decoder's (a map keeps the last)
+                (
+                    "object_key_nfc_nfd.json",
+                    TObject([("\u{E9}", TString("NFC")), ("e\u{301}", TString("NFD"))])
+                ),
+                (
+                    "object_key_nfd_nfc.json",
+                    TObject([("e\u{301}", TString("NFD")), ("\u{E9}", TString("NFC"))])
+                ),
+                (
+                    "object_same_key_different_values.json",
+                    TObject([("a", TInt(1)), ("a", TInt(2))])
+                ),
+                ("object_same_key_same_value.json", TObject([("a", TInt(1)), ("a", TInt(1))])),
+                ("object_same_key_unclear_values.json", TObject([("a", TInt(0)), ("a", TInt(0))])),
+                ("string_1_escaped_invalid_codepoint.json", TArray([TString("\u{FFFD}")])),
+                ("string_2_escaped_invalid_codepoints.json", TArray([TString("\u{FFFD}\u{FFFD}")])),
+                (
+                    "string_3_escaped_invalid_codepoints.json",
+                    TArray([TString("\u{FFFD}\u{FFFD}\u{FFFD}")])
+                ),
+                ("string_1_invalid_codepoint.json", None),
+                ("string_2_invalid_codepoints.json", None),
+                ("string_3_invalid_codepoints.json", None),
+                ("string_with_escaped_NULL.json", TArray([TString("A\u{0}B")]))
+            ]
         let files = HashMap<String, Array<Byte>>(corpus("test_transform"))
         @Expect(files.size, expected.size)
 
         for ((name, tree) in expected) {
             // act
-            let actual: ?Tree = try {
-                treeOf(files[name])
-            } catch (_: FjException) {
-                None
-            }
+            let actual: ?Tree =
+                try {
+                    treeOf(files[name])
+                } catch (_: FjException) {
+                    None
+                }
 
             // assert
-            let same = match ((actual, tree)) {
-                case (Some(a), Some(e)) => sameTree(a, e)
-                case (None, None) => true
-                case _ => false
-            }
+            let same =
+                match ((actual, tree)) {
+                    case (Some(a), Some(e)) => sameTree(a, e)
+                    case (None, None) => true
+                    case _ => false
+                }
             @Expect(same, true)
             if (!same) {
                 @Expect(name, actual.map(showTree) ?? "refused")
@@ -518,14 +543,44 @@ class JsonTestSuiteTest {
 
 @Test
 class FjFuzzTest {
-    let bytesTried: Array<Byte> = [
-        0x00, 0x09, 0x0A, 0x20, 0x22, 0x2C, 0x2D, 0x2E, 0x30, 0x31, 0x3A, 0x45, 0x5B, 0x5C, 0x5D, 0x65, 0x66,
-        0x6E, 0x74, 0x75, 0x7B, 0x7D, 0x7F, 0x80, 0xBF, 0xC0, 0xC3, 0xED, 0xF0, 0xF4, 0xFF
-    ]
+    let bytesTried: Array<Byte> =
+        [
+            0x00,
+            0x09,
+            0x0A,
+            0x20,
+            0x22,
+            0x2C,
+            0x2D,
+            0x2E,
+            0x30,
+            0x31,
+            0x3A,
+            0x45,
+            0x5B,
+            0x5C,
+            0x5D,
+            0x65,
+            0x66,
+            0x6E,
+            0x74,
+            0x75,
+            0x7B,
+            0x7D,
+            0x7F,
+            0x80,
+            0xBF,
+            0xC0,
+            0xC3,
+            0xED,
+            0xF0,
+            0xF4,
+            0xFF
+        ]
 
     func documents(): Array<(String, Array<Byte>)> {
         corpus("test_parsing", prefix: "y_")
-            .filter {file => file[1].size <= 4096}
+            .filter { file => file[1].size <= 4096 }
             .concat(corpus("test_parsing", prefix: "i_"))
     }
 
@@ -565,7 +620,14 @@ class FjFuzzTest {
 
     @TestCase
     func readsContainersNestedToTheLimitAndRefusesDeeperOnes() {
-        for ((open, close, inner) in [("[", "]", "1"), ("[", "]", ""), (#"{"a":"#, "}", "1"), (#"{"a":"#, "}", "{}")]) {
+        for (
+            (open, close, inner) in [
+                ("[", "]", "1"),
+                ("[", "]", ""),
+                (#"{"a":"#, "}", "1"),
+                (#"{"a":"#, "}", "{}")
+            ]
+        ) {
             for (depth in [MAX_DEPTH - 1, MAX_DEPTH, MAX_DEPTH + 1, 100_000]) {
                 // arrange - `{}` inside is one container more
                 let containers = depth + if (inner == "{}") { 1 } else { 0 }
@@ -575,7 +637,7 @@ class FjFuzzTest {
 
                 // act
                 let read = readBothWays("${depth} × ${open}${inner}", bytes, problems)
-                let raw = refusal {FjReader(bytes).rawValue()}
+                let raw = refusal { FjReader(bytes).rawValue() }
 
                 // assert
                 @Expect(report(problems), "")
@@ -589,27 +651,28 @@ class FjFuzzTest {
     @TestCase
     func readsNumbersOfHugeExponentsOrManyDigits() {
         // arrange
-        let expected: Array<(String, Float64)> = [
-            ("1e99999999999999999999", Float64.Inf),
-            ("-1e99999999999999999999", -Float64.Inf),
-            ("1e-99999999999999999999", 0.0),
-            ("0.${"0" * 5000}1", 0.0),
-            ("1${"0" * 400}", Float64.Inf),
-            ("${"1" * 5000}.5e-4990", 1.1111111111111112e9),
-            ("123456789012345678901234567890", 1.2345678901234568e29)
-        ]
+        let expected: Array<(String, Float64)> =
+            [
+                ("1e99999999999999999999", Float64.Inf),
+                ("-1e99999999999999999999", -Float64.Inf),
+                ("1e-99999999999999999999", 0.0),
+                ("0.${"0" * 5000}1", 0.0),
+                ("1${"0" * 400}", Float64.Inf),
+                ("${"1" * 5000}.5e-4990", 1.1111111111111112e9),
+                ("123456789012345678901234567890", 1.2345678901234568e29)
+            ]
 
         for ((text, value) in expected) {
             // act
-            let actual = try {
-                "${reader(text).readFloat64()}"
-            } catch (e: Exception) {
-                "${e}"
-            }
+            let actual =
+                try {
+                    "${reader(text).readFloat64()}"
+                } catch (e: Exception) {
+                    "${e}"
+                }
 
             // assert
             @Expect(actual, "${value}")
         }
     }
-
 }

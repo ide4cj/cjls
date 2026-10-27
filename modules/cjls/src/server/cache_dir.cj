@@ -52,7 +52,8 @@ let MACRO_BUILD_KEPT = Duration.day * 7
 /**
  * The cache directory tag (https://bford.info/cachedir/), which backup tools skip.
  */
-const CACHEDIR_TAG = "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cjls.\n# For information about cache directory tags see https://bford.info/cachedir/\n"
+const CACHEDIR_TAG =
+    "Signature: 8a477f597d28d172789f06886806bc55\n# This file is a cache directory tag created by cjls.\n# For information about cache directory tags see https://bford.info/cachedir/\n"
 
 /**
  * The cache directories of one server: each opened once in its process, which empties its `expanded/` and removes
@@ -66,7 +67,10 @@ public class CacheDirs {
      * @param env - the environment, which names the user's cache directory
      * @param now - the time, which says how long a `macro-build/<version>` went unused
      */
-    public CacheDirs(private let env: (String) -> ?String, private let now!: () -> DateTime = {=> DateTime.now()}) {}
+    public CacheDirs(
+        private let env: (String) -> ?String,
+        private let now!: () -> DateTime = { => DateTime.now() }
+    ) {}
 
     /**
      * The cache directory of the file at `path`, that of its project (`cacheBaseOf`); `None` for a virtual path, or
@@ -95,7 +99,7 @@ public class CacheDirs {
     }
 
     private func prepare(dir: Path, base: VfsPath, inUserCache!: Bool): Bool {
-        synchronized(mutex) {
+        synchronized (mutex) {
             try {
                 ensureDir(dir)
                 let layout = dir.join("LAYOUT")
@@ -143,7 +147,10 @@ public class CacheDir {
      * @throws IllegalArgumentException - if `name` is no directory's name
      */
     public func macroBuild(name: String, now!: DateTime = DateTime.now()): Path {
-        if (name.isEmpty() || name == "." || name == ".." || name.contains("/") || name.contains("\\")) {
+        if (
+            name.isEmpty() || name == "." || name == ".." || name.contains("/") ||
+                name.contains("\\")
+        ) {
             throw IllegalArgumentException("not a directory's name: ${name}")
         }
         let dir = path.join(MACRO_BUILD_DIR).join(name)
@@ -163,11 +170,15 @@ public class CacheDir {
         }
         var at = VfsPath.file(path.join(EXPANDED_DIR))
         for (i in 0..segments.size) {
-            at = at.join(if (i == segments.size - 1) {
-                segments[i] + EXPANDED_SUFFIX
-            } else {
-                segments[i]
-            })
+            at =
+                at
+                    .join(
+                        if (i == segments.size - 1) {
+                            segments[i] + EXPANDED_SUFFIX
+                        } else {
+                            segments[i]
+                        }
+                    )
         }
         at
     }
@@ -184,7 +195,7 @@ public func cacheBaseOf(path: VfsPath, roots: Array<VfsPath>, env: (String) -> ?
     }
     var root: ?VfsPath = None
     for (one in roots where path.isUnder(one) && one != path) {
-        if (root.map {it => it.toString().size < one.toString().size} ?? true) {
+        if (root.map { it => it.toString().size < one.toString().size } ?? true) {
             root = one
         }
     }
@@ -215,12 +226,17 @@ public func sourceOfExpanded(path: VfsPath): ?VfsPath {
     }
     var dir = path.parent
     while (let Some(at) <- dir) {
-        if (at.name == EXPANDED_DIR && let Some(cache) <- at.parent && let Some(base) <- baseOfCacheDir(cache)) {
+        if (
+            at.name == EXPANDED_DIR && let Some(cache) <- at.parent &&
+                let Some(base) <- baseOfCacheDir(cache)
+        ) {
             let segments = path.segmentsUnder(at) ?? return None
             let last = segments[segments.size - 1]
             let names = segments[..segments.size - 1]
-            return names.iterator().fold(base) {one, name => one.join(name)}.join(
-                last[..last.size - EXPANDED_SUFFIX.size])
+            return names
+                .iterator()
+                .fold(base) { one, name => one.join(name) }
+                .join(last[..last.size - EXPANDED_SUFFIX.size])
         }
         dir = at.parent
     }
@@ -259,11 +275,7 @@ private func baseOfCacheDir(dir: VfsPath): ?VfsPath {
  * directories of one name apart.
  */
 func userCacheEntryOf(base: VfsPath): String {
-    let name = if (base.name.isEmpty() || base.name.contains(":")) {
-        "root"
-    } else {
-        base.name
-    }
+    let name = if (base.name.isEmpty() || base.name.contains(":")) { "root" } else { base.name }
     "${name}-${hexOf(base.toString().hashCode())}"
 }
 
@@ -289,11 +301,12 @@ func pruneMacroBuilds(dir: Path, now: DateTime): Unit {
         return
     }
     for (entry in Directory.readFrom(dir) where entry.isDirectory()) {
-        let used = try {
-            Int64.parse(String.fromUtf8(File.readFrom(entry.path.join(USED_FILE))).trimAscii())
-        } catch (_: Exception) {
-            Int64.Min
-        }
+        let used =
+            try {
+                Int64.parse(String.fromUtf8(File.readFrom(entry.path.join(USED_FILE))).trimAscii())
+            } catch (_: Exception) {
+                Int64.Min
+            }
         if (now.toUnixTimeStamp().toSeconds() - used <= MACRO_BUILD_KEPT.toSeconds()) {
             continue
         }
@@ -337,11 +350,12 @@ private func emptyDir(dir: Path): Unit {
  * itself and its file of that name are left.
  */
 func removeTree(path: Path, keep!: ?String = None): Unit {
-    let info = try {
-        FileInfo(path)
-    } catch (_: FSException) {
-        return
-    }
+    let info =
+        try {
+            FileInfo(path)
+        } catch (_: FSException) {
+            return
+        }
     if (info.isDirectory() && !info.isSymbolicLink()) {
         for (entry in Directory.readFrom(path) where keep != Some(entry.name)) {
             removeTree(entry.path)

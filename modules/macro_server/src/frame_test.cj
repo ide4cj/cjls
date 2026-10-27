@@ -11,7 +11,7 @@ class FrameTest {
         // arrange
         let pipe = ByteBuffer()
         writeMessage(pipe, [1, 2, 3])
-        writeMessage(pipe, Array<Byte>(5000) {i => UInt8(i % 256)})
+        writeMessage(pipe, Array<Byte>(5000) { i => UInt8(i % 256) })
 
         // act
         let first = readMessage(pipe)

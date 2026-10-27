@@ -62,11 +62,7 @@ func formatPaths(
     }
     out.flush()
     err.flush()
-    if (failed) {
-        1
-    } else {
-        0
-    }
+    if (failed) { 1 } else { 0 }
 }
 
 /**

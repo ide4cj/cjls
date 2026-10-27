@@ -11,7 +11,8 @@ import std.unittest.testmacro.*
 class MacroArgumentDefinitionTest {
     @TestCase
     func aLocalInAComparison() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Unit {
@@ -19,12 +20,14 @@ class MacroArgumentDefinitionTest {
             //      ^ def
                 @Expect($0a == 2)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionCalledInTheSecondArgument() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(): Int64 { 1 }
@@ -32,24 +35,28 @@ class MacroArgumentDefinitionTest {
             func f(): Unit {
                 @Expect(1, $0g())
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNamedArgument() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(d: Float64): Unit {
             //     ^ def
                 @Expect(1.0, 1.1, delta: $0d)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalInABlockWithoutAnArrow() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: Int64): Unit {
@@ -58,12 +65,14 @@ class MacroArgumentDefinitionTest {
                     let y = $0x
                 })
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLetOfTheBlockSeenAfterIt() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Unit {
@@ -73,24 +82,28 @@ class MacroArgumentDefinitionTest {
                     throw Exception("${$0y}")
                 })
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theInnerCallOfTwoNested() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(v: Bool): Unit {
             //     ^ def
                 @A[x] @Assert($0v)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAValue() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -100,19 +113,22 @@ class MacroArgumentDefinitionTest {
             func f(c: C): Unit {
                 @Expect(c.$0size, 1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func nothingInArgumentsThatDoNotParse() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(T: Int64): Unit {
                 @M($0T in [Int64])
             //       ^ no definition
             }
-            "#)
+            "#
+        )
     }
 }
 
@@ -123,7 +139,8 @@ class MacroArgumentDefinitionTest {
 class MacroNameDefinitionTest {
     @TestCase
     func aMacroOnADeclarationOfTheFile() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -134,12 +151,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroOnAMember() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -152,12 +171,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroCalledInABody() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -169,12 +190,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroAfterThePackageImportedByItsName() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms
@@ -185,12 +208,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroUnderAnAlias() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M as N
@@ -201,12 +226,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfTheMacrosNameIsNotTheMacro() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -218,12 +245,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallWithAnAttributeGoesToTheMacroThatTakesOne() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -235,12 +264,14 @@ class MacroNameDefinitionTest {
             public macro M(input: Tokens): Tokens { input }
             public macro M(attrs: Tokens, input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallWithoutAnAttributeGoesToTheMacroThatTakesNone() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms
@@ -252,12 +283,14 @@ class MacroNameDefinitionTest {
             public macro M(attrs: Tokens, input: Tokens): Tokens { input }
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallInABodyWithAnAttributeGoesToTheMacroThatTakesOne() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -270,12 +303,14 @@ class MacroNameDefinitionTest {
             public macro M(input: Tokens): Tokens { input }
             public macro M(attrs: Tokens, input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallOfAnAttributeNoMacroTakesGoesToAllOfThem() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -286,12 +321,14 @@ class MacroNameDefinitionTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             //           ^ def
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMacroNotImportedHasNoDefinition() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -303,6 +340,7 @@ class MacroNameDefinitionTest {
             macro package m.ms
             import std.ast.*
             public macro Mac(input: Tokens): Tokens { input }
-            "#)
+            "#
+        )
     }
 }

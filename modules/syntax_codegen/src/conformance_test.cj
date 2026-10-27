@@ -29,7 +29,8 @@ class Conformance {
     let model: Model
     let rules = HashMap<String, Rule>()
     /** what a tree with errors may hold anywhere */
-    let misplaceable = HashSet<String>(["ErrorNode", "PackageHeader", "ImportDecl", "FeaturesDirective"])
+    let misplaceable =
+        HashSet<String>(["ErrorNode", "PackageHeader", "ImportDecl", "FeaturesDirective"])
 
     init() {
         let generated = generate(Path(KINDS_FILE))
@@ -51,7 +52,8 @@ class Conformance {
             let children = ArrayList<Child>()
             for (el in node.childrenWithTokens()) {
                 match (el) {
-                    case SyntaxElement.Node(n) where !strict && misplaceable.contains(n.kind.toString()) => ()
+                    case SyntaxElement.Node(n) where !strict &&
+                            misplaceable.contains(n.kind.toString()) => ()
                     case SyntaxElement.Node(n) => children.add(Child(true, n.kind.toString()))
                     case SyntaxElement.Token(t) where t.kind.isTrivia() => ()
                     case SyntaxElement.Token(t) => children.add(Child(false, t.kind.toString()))
@@ -59,9 +61,13 @@ class Conformance {
             }
             let ends = matches(rule, children, 0, strict)
             if (!ends.contains(children.size)) {
-                let shown = children.toArray().map {c => if (c.isNode) { c.kind } else { "'${c.kind}'" }}
+                let shown =
+                    children.toArray().map { c => if (c.isNode) { c.kind } else { "'${c.kind}'" } }
                 let mode = if (strict) { "" } else { " (with errors)" }
-                result.add("${kind} at ${node.textRange}${mode}: ${String.join(shown, delimiter: " ")}")
+                result
+                    .add(
+                        "${kind} at ${node.textRange}${mode}: ${String.join(shown, delimiter: " ")}"
+                    )
             }
         }
         result
@@ -74,15 +80,20 @@ class Conformance {
         let result = HashSet<Int64>()
         match (rule) {
             case NodeRef(n) =>
-                if (pos < children.size && children[pos].isNode && model.kindsOf(n).contains(children[pos].kind)) {
+                if (
+                    pos < children.size && children[pos].isNode &&
+                        model.kindsOf(n).contains(children[pos].kind)
+                ) {
                     result.add(pos + 1)
                 }
                 if (!strict) {
                     result.add(pos)
                 }
             case TokenRef(t) =>
-                if (pos < children.size && !children[pos].isNode &&
-                    (t == ANY_TOKEN || model.tokenKinds[t] == children[pos].kind)) {
+                if (
+                    pos < children.size && !children[pos].isNode &&
+                        (t == ANY_TOKEN || model.tokenKinds[t] == children[pos].kind)
+                ) {
                     result.add(pos + 1)
                 }
                 if (!strict) {
@@ -99,9 +110,10 @@ class Conformance {
                     result.clear()
                     result.add(all: next)
                 }
-            case Alt(rs) => for (r in rs) {
-                result.add(all: matches(r, children, pos, strict))
-            }
+            case Alt(rs) =>
+                for (r in rs) {
+                    result.add(all: matches(r, children, pos, strict))
+                }
             case Opt(r) =>
                 result.add(pos)
                 result.add(all: matches(r, children, pos, strict))
@@ -235,13 +247,14 @@ class ConformanceTest {
         // act
         var notUtf8 = 0
         for (f in files) {
-            let found = try {
-                sut.check(f)
-            } catch (e: IllegalArgumentException) {
-                // not UTF-8, which a `String` cannot hold
-                notUtf8++
-                ArrayList<String>()
-            }
+            let found =
+                try {
+                    sut.check(f)
+                } catch (e: IllegalArgumentException) {
+                    // not UTF-8, which a `String` cannot hold
+                    notUtf8++
+                    ArrayList<String>()
+                }
             for (v in found) {
                 let kind = v[v.indexOf(": ").getOrThrow() + 2..].split(" ")[0]
                 byKind[kind] = (byKind.get(kind) ?? 0) + 1
@@ -264,7 +277,7 @@ class ConformanceTest {
     func handWrittenAccessorsAreSeenOutsideTheirPackage() {
         // arrange
         let root = parse("main() {\na[1..=n : 2]\n}").syntaxNode()
-        let range = root.descendants().filterMap {n => RangeExpr.cast(n)}.next().getOrThrow()
+        let range = root.descendants().filterMap { n => RangeExpr.cast(n) }.next().getOrThrow()
 
         // act & assert
         @Expect(range.start().map {e => e.toString()}, Some("1"))

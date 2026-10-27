@@ -12,7 +12,7 @@ let CACHE_NOW = DateTime.ofEpoch(second: 1_800_000_000, nanosecond: 0)
 
 func cacheEnv(vars: Array<(String, String)>): (String) -> ?String {
     let map = HashMap<String, String>(vars)
-    {name => map.get(name)}
+    { name => map.get(name) }
 }
 
 func textOf(path: Path): String {
@@ -90,7 +90,7 @@ class CacheDirTest {
         let recent = cache.macroBuild("1.3.0-cjnative", now: CACHE_NOW - Duration.day * 6)
 
         // act
-        CacheDirs(cacheEnv([]), now: {=> CACHE_NOW}).open(VfsPath.file(base)).getOrThrow()
+        CacheDirs(cacheEnv([]), now: { => CACHE_NOW }).open(VfsPath.file(base)).getOrThrow()
 
         // assert
         @Expect(!exists(old))
@@ -107,7 +107,7 @@ class CacheDirTest {
 
         // act
         try {
-            CacheDirs(cacheEnv([]), now: {=> CACHE_NOW}).open(VfsPath.file(base)).getOrThrow()
+            CacheDirs(cacheEnv([]), now: { => CACHE_NOW }).open(VfsPath.file(base)).getOrThrow()
         } finally {
             lock.close()
         }
@@ -133,8 +133,14 @@ class CacheDirTest {
         let base = Directory.createTemp(getTempDirectory())
         writeText(base.join(".cache"), "")
         let user = Directory.createTemp(getTempDirectory())
-        let env = cacheEnv([("XDG_CACHE_HOME", user.toString()), ("HOME", user.toString()),
-            ("LOCALAPPDATA", user.toString())])
+        let env =
+            cacheEnv(
+                [
+                    ("XDG_CACHE_HOME", user.toString()),
+                    ("HOME", user.toString()),
+                    ("LOCALAPPDATA", user.toString())
+                ]
+            )
         let project = VfsPath.file(base)
 
         // act

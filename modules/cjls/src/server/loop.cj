@@ -29,8 +29,12 @@ public class Loop <: FromContext<Loop> {
      * `refreshTokens` asks the client for the semantic tokens of its documents again (D72),
      * `refreshDiagnostics` for their diagnostics (D100).
      */
-    Loop(public let state: ServerState, private let push: ?DiagnosticsPush, private let refreshTokens!: ?() -> Unit = None,
-        private let refreshDiagnostics!: ?() -> Unit = None) {}
+    Loop(
+        public let state: ServerState,
+        private let push: ?DiagnosticsPush,
+        private let refreshTokens!: ?() -> Unit = None,
+        private let refreshDiagnostics!: ?() -> Unit = None
+    ) {}
 
     /**
      * A handler on the loop holds the state already: it calls `start`, never `write`.
@@ -48,7 +52,7 @@ public class Loop <: FromContext<Loop> {
      * @note never from a handler on the loop, nor while holding what such a handler waits for
      */
     public func write<T>(change: (ServerState) -> T): T {
-        synchronized(lock) {
+        synchronized (lock) {
             let openBefore = HashSet<VfsPath>(state.openDocuments.keys())
             try {
                 change(state)
@@ -62,8 +66,8 @@ public class Loop <: FromContext<Loop> {
      * The state as it is between two messages, for a handler running on a thread of its own, or work `start`
      * started.
      */
-    public func snapshot(cancelledBy!: () -> Bool = {=> false}): ServerSnapshot {
-        synchronized(lock) {
+    public func snapshot(cancelledBy!: () -> Bool = { => false }): ServerSnapshot {
+        synchronized (lock) {
             state.snapshot(cancelledBy: cancelledBy)
         }
     }
@@ -73,17 +77,18 @@ public class Loop <: FromContext<Loop> {
      * is an `ERROR` of `logger`, an `Error` as well (S13).
      */
     public func start(logger: Logger, task: () -> Unit): Unit {
-        let future = spawn {
-            try {
-                task()
-            } catch (e: Exception) {
-                logger.error("failed", [("cause", e)])
-            } catch (e: Error) {
-                logger.error("failed", [("cause", ErrorLogValue(e))])
+        let future =
+            spawn {
+                try {
+                    task()
+                } catch (e: Exception) {
+                    logger.error("failed", [("cause", e)])
+                } catch (e: Error) {
+                    logger.error("failed", [("cause", ErrorLogValue(e))])
+                }
             }
-        }
-        synchronized(tasksLock) {
-            tasks.removeIf {task => task.tryGet().isSome()}
+        synchronized (tasksLock) {
+            tasks.removeIf { task => task.tryGet().isSome() }
             tasks.add(future)
         }
     }
@@ -95,11 +100,12 @@ public class Loop <: FromContext<Loop> {
      */
     public func join(): Unit {
         while (true) {
-            let running = synchronized(tasksLock) {
-                let running = tasks.toArray()
-                tasks.clear()
-                running
-            }
+            let running =
+                synchronized (tasksLock) {
+                    let running = tasks.toArray()
+                    tasks.clear()
+                    running
+                }
             if (running.isEmpty()) {
                 return
             }
@@ -128,7 +134,8 @@ public class Loop <: FromContext<Loop> {
         for (path in openBefore where !state.openDocuments.contains(path)) {
             push.clear(path)
         }
-        let opened = state.openDocuments.keys().iterator().any {path => !openBefore.contains(path)}
+        let opened =
+            state.openDocuments.keys().iterator().any { path => !openBefore.contains(path) }
         if (filesChanged || opened) {
             let documents = collectArray(state.openDocuments)
             push.schedule(state.snapshot(), documents)

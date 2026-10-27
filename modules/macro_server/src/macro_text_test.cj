@@ -12,7 +12,7 @@ let AT_START = PositionData(fileId: 1, line: 1, column: 1)
  * A token as a round trip compares them: its kind's name, its `#`s and its value.
  */
 func kindsAndValues(tokens: Array<TokenData>, numbers: TokenNumbers): Array<String> {
-    tokens.map {t => "${numbers.names[Int64(t.kind)]} #${t.delimiterNum} |${t.value ?? ""}|"}
+    tokens.map { t => "${numbers.names[Int64(t.kind)]} #${t.delimiterNum} |${t.value ?? ""}|" }
 }
 
 /**
@@ -21,18 +21,69 @@ func kindsAndValues(tokens: Array<TokenData>, numbers: TokenNumbers): Array<Stri
 func roundTripDifference(text: String, numbers: TokenNumbers): ?String {
     let tokens = macroTokens(text, numbers, AT_START)
     let printed = printMacroTokens(tokens, numbers)
-    firstDifference(kindsAndValues(macroTokens(printed.text, numbers, AT_START), numbers),
-        kindsAndValues(tokens, numbers))
+    firstDifference(
+        kindsAndValues(macroTokens(printed.text, numbers, AT_START), numbers),
+        kindsAndValues(tokens, numbers)
+    )
 }
 
 /**
  * Pieces of Cangjie, those that glue to their neighbours above all, that a random text is made of.
  */
-let PIECES: Array<String> = [
-    ">", "=", ">>", ">=", "!", "in", "?", "??", ".", "..", "a", "b1", "1", "1.5", "$", "x", "@", "#", "(", ")", "[",
-    "]", "<", "-", "*", "&", "|", ":", "\"s\"", "'s'", "\"a\${b}c\"", "#\"r\"#", "\"\"\"\nm\"\"\"", "r'c'", "b'x'",
-    "J\"j\"", "`class`", "_", "true", "=>", "&&", "|>", "::", "\n", "{", "}", ",", ";", "This", "main", "!in "
-]
+let PIECES: Array<String> =
+    [
+        ">",
+        "=",
+        ">>",
+        ">=",
+        "!",
+        "in",
+        "?",
+        "??",
+        ".",
+        "..",
+        "a",
+        "b1",
+        "1",
+        "1.5",
+        "$",
+        "x",
+        "@",
+        "#",
+        "(",
+        ")",
+        "[",
+        "]",
+        "<",
+        "-",
+        "*",
+        "&",
+        "|",
+        ":",
+        "\"s\"",
+        "'s'",
+        "\"a\${b}c\"",
+        "#\"r\"#",
+        "\"\"\"\nm\"\"\"",
+        "r'c'",
+        "b'x'",
+        "J\"j\"",
+        "`class`",
+        "_",
+        "true",
+        "=>",
+        "&&",
+        "|>",
+        "::",
+        "\n",
+        "{",
+        "}",
+        ",",
+        ";",
+        "This",
+        "main",
+        "!in "
+    ]
 
 let SEPARATORS: Array<String> = ["", " ", "\n"]
 
@@ -49,7 +100,12 @@ func piecesText(picks: Array<UInt8>): String {
     text.toString()
 }
 
-func tokenOf(numbers: TokenNumbers, name: String, value: String, delimiterNum!: UInt32 = 1): TokenData {
+func tokenOf(
+    numbers: TokenNumbers,
+    name: String,
+    value: String,
+    delimiterNum!: UInt32 = 1
+): TokenData {
     TokenData(kind: numbers.numberOf(name), value: value, delimiterNum: delimiterNum)
 }
 
@@ -93,7 +149,12 @@ class PrintMacroTokensTest {
     @TestCase
     func eachTokensRangeIsItsTextAndItsPositionsAreTheServers(): Unit {
         // arrange
-        let tokens = macroTokens("f(a, \"s\")\n#\"r\"# . x", numbers, PositionData(fileId: 3, line: 5, column: 7))
+        let tokens =
+            macroTokens(
+                "f(a, \"s\")\n#\"r\"# . x",
+                numbers,
+                PositionData(fileId: 3, line: 5, column: 7)
+            )
 
         // act
         let printed = printMacroTokens(tokens, numbers)
@@ -110,7 +171,8 @@ class PrintMacroTokensTest {
     @TestCase
     func namesAndCallsArePrintedAsWrittenAndOtherTokensASpaceApart(): Unit {
         // arrange
-        let text = "@Derive[ToString]\nextend<T> A<T> <: B<Array<T>> where T <: C { func f(x: T) { x.g(1)[0] + -1 } }"
+        let text =
+            "@Derive[ToString]\nextend<T> A<T> <: B<Array<T>> where T <: C { func f(x: T) { x.g(1)[0] + -1 } }"
 
         // act
         let printed = printMacroTokens(macroTokens(text, numbers, AT_START), numbers)
@@ -123,16 +185,17 @@ class PrintMacroTokensTest {
     @TestCase
     func aLiteralAMacroBuiltIsPrintedSoThatItLexesBack(): Unit {
         // arrange
-        let tokens = [
-            tokenOf(numbers, "STRING_LITERAL", "a\"b"),
-            tokenOf(numbers, "STRING_LITERAL", "a\nb"),
-            tokenOf(numbers, "MULTILINE_STRING", "x\"\"\"y"),
-            tokenOf(numbers, "MULTILINE_RAW_STRING", "q\"#", delimiterNum: 2),
-            tokenOf(numbers, "RUNE_LITERAL", "'"),
-            tokenOf(numbers, "JSTRING_LITERAL", "j"),
-            tokenOf(numbers, "IDENTIFIER", "class"),
-            tokenOf(numbers, "NL", "")
-        ]
+        let tokens =
+            [
+                tokenOf(numbers, "STRING_LITERAL", "a\"b"),
+                tokenOf(numbers, "STRING_LITERAL", "a\nb"),
+                tokenOf(numbers, "MULTILINE_STRING", "x\"\"\"y"),
+                tokenOf(numbers, "MULTILINE_RAW_STRING", "q\"#", delimiterNum: 2),
+                tokenOf(numbers, "RUNE_LITERAL", "'"),
+                tokenOf(numbers, "JSTRING_LITERAL", "j"),
+                tokenOf(numbers, "IDENTIFIER", "class"),
+                tokenOf(numbers, "NL", "")
+            ]
 
         // act
         let printed = printMacroTokens(tokens, numbers)
@@ -150,7 +213,9 @@ class PrintMacroTokensTest {
         // arrange
         let std = Path(".corpora/cangjie_runtime/stdlib")
         if (!exists(std)) {
-            throw IllegalStateException("cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+            throw IllegalStateException(
+                "cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`"
+            )
         }
         let files = ArrayList<Path>()
         cjFilesUnder(Path("modules"), files)
@@ -180,8 +245,16 @@ class PrintMacroTokensTest {
         // arrange
         let paths = sdkPaths()
         let server = startMacroServer(paths)
-        let result = server.connection.expand(
-            deriveCall(paths, "Equatable", "class A { let x: Int64 = 1; let s: String = \"a\" }"))
+        let result =
+            server
+                .connection
+                .expand(
+                    deriveCall(
+                        paths,
+                        "Equatable",
+                        "class A { let x: Int64 = 1; let s: String = \"a\" }"
+                    )
+                )
         server.close()
 
         // act

@@ -1,4 +1,4 @@
-features { user.platform.posix, os.darwin }
+features {user.platform.posix, os.darwin}
 package platform
 
 foreign func __error(): CPointer<Int32>
@@ -20,5 +20,7 @@ public specific func libraryPathVariable(): String {
 }
 
 specific func lastErrno(): Int32 {
-    unsafe { __error().read() }
+    unsafe {
+        __error().read()
+    }
 }

@@ -10,8 +10,16 @@ class CfgTomlTest {
     @TestCase
     func aCfgTomlInAPackagesDirectoryIsItsCfg() {
         // arrange
-        let dir = tree([("src/main.cj", ""), ("src/cfg.toml", "feature = \"fast\"\nlevel = \"2\"\n"), ("src/sub/a.cj", "")])
-        let model = ProjectModel(Cfg([]), [ModuleModel("m", dir, packagesUnder("m", dir.join("src")))])
+        let dir =
+            tree(
+                [
+                    ("src/main.cj", ""),
+                    ("src/cfg.toml", "feature = \"fast\"\nlevel = \"2\"\n"),
+                    ("src/sub/a.cj", "")
+                ]
+            )
+        let model =
+            ProjectModel(Cfg([]), [ModuleModel("m", dir, packagesUnder("m", dir.join("src")))])
         let problems = ArrayList<String>()
 
         // act

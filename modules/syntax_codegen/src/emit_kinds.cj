@@ -37,12 +37,7 @@ func emitKinds(model: Model, header: String, packageName: String): String {
             =>
             let words = kinds.filter { k => k.category == Keyword || k.word }
             for (i in 0..words.size) {
-                let comma =
-                    if (i + 1 < words.size) {
-                        ","
-                    } else {
-                        ""
-                    }
+                let comma = if (i + 1 < words.size) { "," } else { "" }
                 w.line("(${quoted(words[i].text.getOrThrow())}, ${words[i].name})${comma}")
             }
         }
@@ -177,12 +172,7 @@ func emitKinds(model: Model, header: String, packageName: String): String {
             )
             for (i in 0..lexed.size) {
                 let k = lexed[i]
-                let comma =
-                    if (i + 1 < lexed.size) {
-                        ","
-                    } else {
-                        ""
-                    }
+                let comma = if (i + 1 < lexed.size) { "," } else { "" }
                 w.line("(${quoted(k.text.getOrThrow())}.toArray(), ${k.name})${comma}")
             }
         }

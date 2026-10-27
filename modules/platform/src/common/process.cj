@@ -63,11 +63,15 @@ public class ProcessStartException <: Exception {
  * @throws ProcessException - if it cannot be started on POSIX
  * @throws ProcessStartException - if it cannot be started on Windows
  */
-public common func startPiped(program: Path, libDirs: Array<Path>, args: (ChildPipes) -> Array<String>): PipedChild
+public common func startPiped(
+    program: Path,
+    libDirs: Array<Path>,
+    args: (ChildPipes) -> Array<String>
+): PipedChild
 
 /**
  * `dirs` as one list of the platform's, what `startPiped` puts first where shared libraries are looked for.
  */
 func libraryPathOf(dirs: Array<Path>): String {
-    String.join(dirs.map {dir => dir.toString()}, delimiter: pathListSeparator())
+    String.join(dirs.map { dir => dir.toString() }, delimiter: pathListSeparator())
 }

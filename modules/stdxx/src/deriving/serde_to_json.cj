@@ -9,30 +9,34 @@ import std.collection.*
 
 func deriveToJson(model: DeclModel): Tokens {
     let names = KeyNames(model)
-    let body = match (model) {
-        case OfStruct(structModel) => structToJson(structModel, names)
-        case OfEnum(enumModel) => match (enumModel.shape) {
-            case Scalar(isInteger, other) => scalarEnumToJson(enumModel, isInteger, other)
-            case Untagged => untaggedEnumToJson(enumModel)
-            case Tagged(tag) => taggedEnumToJson(enumModel, tag, names)
+    let body =
+        match (model) {
+            case OfStruct(structModel) => structToJson(structModel, names)
+            case OfEnum(enumModel) =>
+                match (enumModel.shape) {
+                    case Scalar(isInteger, other) => scalarEnumToJson(enumModel, isInteger, other)
+                    case Untagged => untaggedEnumToJson(enumModel)
+                    case Tagged(tag) => taggedEnumToJson(enumModel, tag, names)
+                }
         }
-    }
-    let decl = match (model) {
-        case OfStruct(structModel) => structModel.decl
-        case OfEnum(enumModel) => enumModel.decl
-    }
+    let decl =
+        match (model) {
+            case OfStruct(structModel) => structModel.decl
+            case OfEnum(enumModel) => enumModel.decl
+        }
 
     // ahead of the extension: a global is used before it is defined when it comes later in the file
-    names.declarations() + extensionOf(
-        decl,
-        quote(ToJson),
-        {_ => "ToJson"},
-        quote(
-            public func toJson(w: FjWriter): Unit {
-                $body
-            }
+    names.declarations() +
+        extensionOf(
+            decl,
+            quote(ToJson),
+            { _ => "ToJson" },
+            quote(
+                public func toJson(w: FjWriter): Unit {
+                    $body
+                }
+            )
         )
-    )
 }
 
 /**
@@ -45,10 +49,11 @@ class KeyNames {
     private let names = ArrayList<(Token, String)>()
 
     KeyNames(model: DeclModel) {
-        let ident = match (model) {
-            case OfStruct(structModel) => structModel.decl.identifier
-            case OfEnum(enumModel) => enumModel.decl.identifier
-        }
+        let ident =
+            match (model) {
+                case OfStruct(structModel) => structModel.decl.identifier
+                case OfEnum(enumModel) => enumModel.decl.identifier
+            }
         prefix = "FJ_NAME_${stripBackquotes(ident.value)}_"
     }
 
@@ -92,9 +97,10 @@ private func structToJson(model: StructModel, names: KeyNames): Tokens {
         let ident = field.ident
         body += fieldToJson(field, quote(this.$ident), names)
     }
-    body + quote(
-        w.endObject()
-    )
+    body +
+        quote(
+            w.endObject()
+        )
 }
 
 /**
@@ -124,14 +130,14 @@ private func scalarEnumToJson(model: EnumModel, isInteger: Bool, other: ?Derived
         let ident = variant.ident
         let literal = variant.value.literal
         cases += if (isInteger) {
-            quote(
-                case $ident => w.int64($literal)
-            )
-        } else {
-            quote(
-                case $ident => w.string($literal)
-            )
-        }
+                quote(
+                    case $ident => w.int64($literal)
+                )
+            } else {
+                quote(
+                    case $ident => w.string($literal)
+                )
+            }
     }
     if (let Some(o) <- other) {
         let ident = o.ident
@@ -198,12 +204,13 @@ private func taggedEnumToJson(model: EnumModel, tag: String, names: KeyNames): T
         for ((i, field) in variant.payloadFields |> enumerate) {
             fields += fieldToJson(field, bindings[i], names)
         }
-        let pattern = if (bindings.size == 0) {
-            quote($ident)
-        } else {
-            let payload = commaSeparated(bindings)
-            quote($ident($payload))
-        }
+        let pattern =
+            if (bindings.size == 0) {
+                quote($ident)
+            } else {
+                let payload = commaSeparated(bindings)
+                quote($ident($payload))
+            }
         cases += quote(
             case $pattern =>
                 w.beginObject()

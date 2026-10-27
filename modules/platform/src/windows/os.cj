@@ -1,4 +1,4 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 import std.fs.Path
@@ -45,11 +45,7 @@ public specific func canonicalPath(path: Path): Path {
 }
 
 public specific func pathOfFileUriPath(uriPath: String): String {
-    if (uriPath.size >= 3 && uriPath[2] == b':') {
-        uriPath[1..]
-    } else {
-        uriPath
-    }
+    if (uriPath.size >= 3 && uriPath[2] == b':') { uriPath[1..] } else { uriPath }
 }
 
 public specific func fileUriPathOf(path: Path): String {

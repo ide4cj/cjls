@@ -33,8 +33,8 @@ class SyntaxTest {
     @TestCase
     func childrenSkipTokensAndChildrenWithTokensDoNot() {
         // act
-        let nodes = collectArray(root.children().map {n => n.kind.toString()})
-        let all = collectArray(root.childrenWithTokens().map {el => el.kind.toString()})
+        let nodes = collectArray(root.children().map { n => n.kind.toString() })
+        let all = collectArray(root.childrenWithTokens().map { el => el.kind.toString() })
 
         // assert
         @Expect(String.join(nodes, delimiter: ","), "Inner,Leaf")
@@ -76,15 +76,26 @@ class SyntaxTest {
     @TestCase
     func descendantsAreInPreorder() {
         // act
-        let nodes = collectArray(root.descendants().map {n => n.kind.toString()})
-        let tokens = collectArray(root.descendantsWithTokens().filter {el => el.asToken().isSome()}
-            .map {el => el.toString()})
-        let events = collectArray(inner().preorder().map {
-            e => match (e) {
-                case Enter(n) => "+${n.kind}"
-                case Leave(n) => "-${n.kind}"
-            }
-        })
+        let nodes = collectArray(root.descendants().map { n => n.kind.toString() })
+        let tokens =
+            collectArray(
+                root
+                    .descendantsWithTokens()
+                    .filter { el => el.asToken().isSome() }
+                    .map { el => el.toString() }
+            )
+        let events =
+            collectArray(
+                inner()
+                    .preorder()
+                    .map {
+                        e =>
+                        match (e) {
+                            case Enter(n) => "+${n.kind}"
+                            case Leave(n) => "-${n.kind}"
+                        }
+                    }
+            )
 
         // assert
         @Expect(String.join(nodes, delimiter: ","), "Root,Inner,Leaf,Leaf")

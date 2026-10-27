@@ -19,8 +19,32 @@ const FLOAT64_SIGN_BIT: UInt64 = 0x8000_0000_0000_0000
 const MANTISSA_MASK: UInt64 = 0x000F_FFFF_FFFF_FFFF
 
 /** `10^e` for 0 <= e <= 22, every one exact in a `Float64`. */
-let POW10_EXACT: Array<Float64> = [1e0, 1e1, 1e2, 1e3, 1e4, 1e5, 1e6, 1e7, 1e8, 1e9, 1e10, 1e11, 1e12, 1e13, 1e14,
-    1e15, 1e16, 1e17, 1e18, 1e19, 1e20, 1e21, 1e22]
+let POW10_EXACT: Array<Float64> =
+    [
+        1e0,
+        1e1,
+        1e2,
+        1e3,
+        1e4,
+        1e5,
+        1e6,
+        1e7,
+        1e8,
+        1e9,
+        1e10,
+        1e11,
+        1e12,
+        1e13,
+        1e14,
+        1e15,
+        1e16,
+        1e17,
+        1e18,
+        1e19,
+        1e20,
+        1e21,
+        1e22
+    ]
 
 /**
  * `bytes[from..to]` as the nearest `Float64`, ties to even: `[+-]? digits ('.' digits)? ([eE]
@@ -37,7 +61,10 @@ public func parseFloat64(bytes: Array<Byte>, from: Int64, to: Int64): Float64 {
 
 /** `text` as the nearest `Float64`: `parseFloat64` over its bytes. */
 public func parseFloat64(text: String): Float64 {
-    let bytes = unsafe { text.rawData() }
+    let bytes =
+        unsafe {
+            text.rawData()
+        }
     parseFloat64(bytes, 0, bytes.size)
 }
 
@@ -78,11 +105,7 @@ struct Decimal {
             let b = bytes[i]
             if (b >= 0x30 && b <= 0x39) {
                 let d = UInt64(b - 0x30)
-                if (afterPoint) {
-                    fractionDigits++
-                } else {
-                    integerDigits++
-                }
+                if (afterPoint) { fractionDigits++ } else { integerDigits++ }
                 if (mantissa == 0 && d == 0) {
                     // a leading zero: a place after the point, nothing before it
                     if (afterPoint) {
@@ -163,7 +186,8 @@ struct Decimal {
         if (!truncated && mantissa <= (1 << 53) && exponent >= -22 && exponent <= 22) {
             // both exact, so one rounding: the product's or the quotient's
             let m = Float64(mantissa)
-            let value = if (exponent < 0) { m / POW10_EXACT[-exponent] } else { m * POW10_EXACT[exponent] }
+            let value =
+                if (exponent < 0) { m / POW10_EXACT[-exponent] } else { m * POW10_EXACT[exponent] }
             return value.toBits()
         }
         if (let Some(bits) <- eiselLemire(mantissa, exponent)) {
@@ -215,11 +239,7 @@ struct Decimal {
 
         var num = BigInt.parse(text, radix: 10)
         var den = BigInt(1)
-        if (e >= 0) {
-            num = num * BigInt(10) ** UInt64(e)
-        } else {
-            den = BigInt(10) ** UInt64(-e)
-        }
+        if (e >= 0) { num = num * BigInt(10) ** UInt64(e) } else { den = BigInt(10) ** UInt64(-e) }
         // q = num / (den * 2^k), in [2^52, 2^53) unless subnormal
         var k = num.bitLen - den.bitLen - 53
         if (k < -1074) {

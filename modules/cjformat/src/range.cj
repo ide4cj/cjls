@@ -86,11 +86,7 @@ private func formatNode(
             .print(
                 LayoutBuilder(text, options: options).node(selected, includeLeading: true),
                 indentation: position.indentation,
-                column: if (isLineStart) {
-                    0
-                } else {
-                    position.column
-                },
+                column: if (isLineStart) { 0 } else { position.column },
                 lineIndent: position.lineIndent,
                 reserved: position.reserved
             )
@@ -101,28 +97,12 @@ private func formatNode(
     if (to < text.size && text[to] != b'\n' && text[to] != b'\r') {
         to = nodeRange.end
     }
-    var output =
-        if (isLineStart) {
-            result
-        } else {
-            result.trimAsciiStart()
-        }
+    var output = if (isLineStart) { result } else { result.trimAsciiStart() }
     if (text[to..].trimAscii().isEmpty()) {
         to = text.size
         output = "${output.trimAsciiEnd()}${lineBreakIn(text)}"
     }
-    replacement(
-        text,
-        TextRange(
-            if (isLineStart) {
-                from
-            } else {
-                nodeRange.start
-            },
-            to
-        ),
-        output
-    )
+    replacement(text, TextRange(if (isLineStart) { from } else { nodeRange.start }, to), output)
 }
 
 /**

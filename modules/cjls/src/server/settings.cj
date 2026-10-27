@@ -14,36 +14,79 @@ import project_model.expandPath
  */
 public const SETTINGS_SECTION = "cjls"
 
-let LINKED_PROJECTS = Setting<Array<VfsPath>>("linkedProjects",
-    "Projects to load, as rust-analyzer's: each an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides.",
-    JsonValue.JsonObject([("type", JsonValue.JsonString("array")),
-        ("items", JsonValue.JsonObject([("type", JsonValue.JsonString("string"))])),
-        ("default", JsonValue.JsonArray([]))]),
-    [], readPaths)
+let LINKED_PROJECTS =
+    Setting<Array<VfsPath>>(
+        "linkedProjects",
+        "Projects to load, as rust-analyzer's: each an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI of a `cj-project.json`, or of a directory to find a project in. Under a root without a `cj-project.json`, they replace finding one there; outside every root, they are loaded besides.",
+        JsonValue
+            .JsonObject(
+                [
+                    ("type", JsonValue.JsonString("array")),
+                    ("items", JsonValue.JsonObject([("type", JsonValue.JsonString("string"))])),
+                    ("default", JsonValue.JsonArray([]))
+                ]
+            ),
+        [],
+        readPaths
+    )
 
-let CANGJIE_HOME = Setting<?String>("cangjieHome",
-    "The Cangjie SDK, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`. `std` is taken from it, and `\${CANGJIE_HOME}` in a project's paths expands to it.",
-    optionalPathSchema(), Option<String>.None, readOptionalPath)
+let CANGJIE_HOME =
+    Setting<?String>(
+        "cangjieHome",
+        "The Cangjie SDK, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI: looked for first, before `CANGJIE_HOME`, cjsdk's default toolchain and `cjc` on `PATH`. `std` is taken from it, and `\${CANGJIE_HOME}` in a project's paths expands to it.",
+        optionalPathSchema(),
+        Option<String>.None,
+        readOptionalPath
+    )
 
-let CANGJIE_SRC = Setting<?String>("cangjieSrc",
-    "The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`.",
-    optionalPathSchema(), Option<String>.None, readOptionalPath)
+let CANGJIE_SRC =
+    Setting<?String>(
+        "cangjieSrc",
+        "The sources of the SDK's version, a directory holding `std/` as `cangjie_runtime`'s `stdlib/libs` does, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI: looked for first, before `CANGJIE_SRC` and the SDK's `src`. Go to definition on a declaration of `std` goes there; `cjls fetch-src` puts them in the SDK's `src`.",
+        optionalPathSchema(),
+        Option<String>.None,
+        readOptionalPath
+    )
 
-let NEW_FILE_PACKAGE = Setting<Bool>("newFilePackage",
-    "Whether a new file starts with its package line: a document opened blank in a package's directory, or in a directory a module names its packages after, is given the line `package <name>` (`macro package <name>` in a macro package) once the project is loaded.",
-    JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
-    true, readBool)
+let NEW_FILE_PACKAGE =
+    Setting<Bool>(
+        "newFilePackage",
+        "Whether a new file starts with its package line: a document opened blank in a package's directory, or in a directory a module names its packages after, is given the line `package <name>` (`macro package <name>` in a macro package) once the project is loaded.",
+        JsonValue
+            .JsonObject(
+                [("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]
+            ),
+        true,
+        readBool
+    )
 
-let MACRO_EXPANSION = Setting<Bool>("macroExpansion",
-    "Whether macros are run in the SDK's `LSPMacroServer`: the workspace's, whose packages cjls builds with the SDK's `cjc` into the project's `.cache/cjls/macro-build` and which run the workspace's code, and std's, from the SDK's libraries. Off, an item under a macro of the workspace is read as written, and std's macros are expanded by cjls itself, signatures only.",
-    JsonValue.JsonObject([("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]),
-    true, readBool)
+let MACRO_EXPANSION =
+    Setting<Bool>(
+        "macroExpansion",
+        "Whether macros are run in the SDK's `LSPMacroServer`: the workspace's, whose packages cjls builds with the SDK's `cjc` into the project's `.cache/cjls/macro-build` and which run the workspace's code, and std's, from the SDK's libraries. Off, an item under a macro of the workspace is read as written, and std's macros are expanded by cjls itself, signatures only.",
+        JsonValue
+            .JsonObject(
+                [("type", JsonValue.JsonString("boolean")), ("default", JsonValue.JsonBool(true))]
+            ),
+        true,
+        readBool
+    )
 
-let MACRO_CALL_TIMEOUT = Setting<Int64>("macroCallTimeout",
-    "How many seconds a macro call may run: past it, the macro server is ended, and the call reported as failed until its input or its macro changes.",
-    JsonValue.JsonObject([("type", JsonValue.JsonString("integer")), ("minimum", JsonValue.JsonInteger(1)),
-        ("default", JsonValue.JsonInteger(10))]),
-    10, readPositive)
+let MACRO_CALL_TIMEOUT =
+    Setting<Int64>(
+        "macroCallTimeout",
+        "How many seconds a macro call may run: past it, the macro server is ended, and the call reported as failed until its input or its macro changes.",
+        JsonValue
+            .JsonObject(
+                [
+                    ("type", JsonValue.JsonString("integer")),
+                    ("minimum", JsonValue.JsonInteger(1)),
+                    ("default", JsonValue.JsonInteger(10))
+                ]
+            ),
+        10,
+        readPositive
+    )
 
 /**
  * What the user sets for the server: what `initializationOptions` holds at first, then the client's
@@ -101,16 +144,31 @@ public struct Settings {
  * setting, its type, default and description.
  */
 public func settingsSchema(): JsonValue {
-    let properties = [LINKED_PROJECTS.property(), CANGJIE_HOME.property(), CANGJIE_SRC.property(),
-        NEW_FILE_PACKAGE.property(), MACRO_EXPANSION.property(), MACRO_CALL_TIMEOUT.property()]
-    JsonValue.JsonObject([
-        ("$schema", JsonValue.JsonString("http://json-schema.org/draft-07/schema#")),
-        ("title", JsonValue.JsonString("cjls")),
-        ("description", JsonValue.JsonString(
-            "The settings of cjls, the Cangjie language server: its `initializationOptions`, and the section `cjls` of the client's configuration.")),
-        ("type", JsonValue.JsonString("object")),
-        ("properties", JsonValue.JsonObject(properties))
-    ])
+    let properties =
+        [
+            LINKED_PROJECTS.property(),
+            CANGJIE_HOME.property(),
+            CANGJIE_SRC.property(),
+            NEW_FILE_PACKAGE.property(),
+            MACRO_EXPANSION.property(),
+            MACRO_CALL_TIMEOUT.property()
+        ]
+    JsonValue
+        .JsonObject(
+            [
+                ("$schema", JsonValue.JsonString("http://json-schema.org/draft-07/schema#")),
+                ("title", JsonValue.JsonString("cjls")),
+                (
+                    "description",
+                    JsonValue
+                        .JsonString(
+                            "The settings of cjls, the Cangjie language server: its `initializationOptions`, and the section `cjls` of the client's configuration."
+                        )
+                ),
+                ("type", JsonValue.JsonString("object")),
+                ("properties", JsonValue.JsonObject(properties))
+            ]
+        )
 }
 
 /**
@@ -138,12 +196,13 @@ class Setting<T> {
     func read(json: JsonValue, problems: ArrayList<String>): T {
         match (json.get(key)) {
             case None | Some(JsonValue.JsonNull) => default
-            case Some(value) => match (parse(key, value, problems)) {
-                case ParsedSetting(parsed) => parsed
-                case InvalidSetting =>
-                    problems.add("`${key}` is not ${typeOf()}: ${value}")
-                    default
-            }
+            case Some(value) =>
+                match (parse(key, value, problems)) {
+                    case ParsedSetting(parsed) => parsed
+                    case InvalidSetting =>
+                        problems.add("`${key}` is not ${typeOf()}: ${value}")
+                        default
+                }
         }
     }
 
@@ -151,7 +210,13 @@ class Setting<T> {
      * The property of the schema this setting is.
      */
     func property(): (String, JsonValue) {
-        (key, JsonValue.JsonObject(schema.asObject().concat([("description", JsonValue.JsonString(description))])))
+        (
+            key,
+            JsonValue
+                .JsonObject(
+                    schema.asObject().concat([("description", JsonValue.JsonString(description))])
+                )
+        )
     }
 
     private func typeOf(): String {
@@ -165,8 +230,17 @@ class Setting<T> {
 }
 
 func optionalPathSchema(): JsonValue {
-    JsonValue.JsonObject([("type", JsonValue.JsonArray([JsonValue.JsonString("string"), JsonValue.JsonString("null")])),
-        ("default", JsonValue.JsonNull)])
+    JsonValue
+        .JsonObject(
+            [
+                (
+                    "type",
+                    JsonValue
+                        .JsonArray([JsonValue.JsonString("string"), JsonValue.JsonString("null")])
+                ),
+                ("default", JsonValue.JsonNull)
+            ]
+        )
 }
 
 /**
@@ -196,7 +270,7 @@ func readPositive(_: String, value: JsonValue, _: ArrayList<String>): SettingPar
 func readPath(key: String, value: JsonValue, problems: ArrayList<String>): ?String {
     match (value) {
         case JsonValue.JsonString(text) where text.startsWith("file:") =>
-            VfsPath.fromUri(text).filePath.map {path => path.toString()}
+            VfsPath.fromUri(text).filePath.map { path => path.toString() }
         case JsonValue.JsonString(text) =>
             let expansionProblems = ArrayList<String>()
             let path = expandPath(text, getVariable, expansionProblems)
@@ -216,7 +290,11 @@ func readPath(key: String, value: JsonValue, problems: ArrayList<String>): ?Stri
 /**
  * The path `value` names, as `readPath` reads it, for a setting that may be none.
  */
-func readOptionalPath(key: String, value: JsonValue, problems: ArrayList<String>): SettingParse<?String> {
+func readOptionalPath(
+    key: String,
+    value: JsonValue,
+    problems: ArrayList<String>
+): SettingParse<?String> {
     let path = readPath(key, value, problems) ?? return InvalidSetting
     ParsedSetting(Some(path))
 }
@@ -225,16 +303,23 @@ func readOptionalPath(key: String, value: JsonValue, problems: ArrayList<String>
  * The paths a list names, each an absolute path or a `file:` URI; an item that is neither is left
  * out, and `problems` told of it. `InvalidSetting` for anything but a list.
  */
-func readPaths(key: String, value: JsonValue, problems: ArrayList<String>): SettingParse<Array<VfsPath>> {
-    let items = match (value) {
-        case JsonValue.JsonArray(items) => items
-        case _ => return InvalidSetting
-    }
+func readPaths(
+    key: String,
+    value: JsonValue,
+    problems: ArrayList<String>
+): SettingParse<Array<VfsPath>> {
+    let items =
+        match (value) {
+            case JsonValue.JsonArray(items) => items
+            case _ => return InvalidSetting
+        }
     let paths = ArrayList<VfsPath>()
     for (item in items) {
         match (readPath(key, item, problems)) {
             case Some(path) => paths.add(VfsPath.file(path))
-            case None => problems.add("an item of `${key}` is not an absolute path or a `file:` URI: ${item}")
+            case None =>
+                problems
+                    .add("an item of `${key}` is not an absolute path or a `file:` URI: ${item}")
         }
     }
     ParsedSetting(paths.toArray())

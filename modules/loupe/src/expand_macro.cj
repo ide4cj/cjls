@@ -90,19 +90,22 @@ public struct ExpandedMacro {
  * macro the analysis does not know (an unresolved name), or on a member whose type has no call the server runs
  * (`@DeriveExclude` but under `@Derive`, D98's consequence), has no expansion.
  */
-public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inBody!: Bool = true): ?MacroCallAt {
+public func macroCallAt(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    offset: Int64,
+    inBody!: Bool = true
+): ?MacroCallAt {
     let file = db.sourceFile(fileId) ?? return None
-    let candidates = match (macroCallUnder(db, file, offset)) {
-        case Some(under) where inBody || under[0].inBody(db).isNone() => [under]
-        case _ => Array<(MacroCallId, TextRange)>()
-    }
+    let candidates =
+        match (macroCallUnder(db, file, offset)) {
+            case Some(under) where inBody || under[0].inBody(db).isNone() => [under]
+            case _ => Array<(MacroCallId, TextRange)>()
+        }
     for ((under, range) in candidates.concat(macroCallsAround(db, file, offset, inBody))) {
         let call = readCallOf(db, under) ?? continue
-        let focus = if (call == under) {
-            None<TextRange>
-        } else {
-            expansionRangeOf(db, call, range)
-        }
+        let focus =
+            if (call == under) { None<TextRange> } else { expansionRangeOf(db, call, range) }
         return MacroCallAt(call, range, focus: focus)
     }
     None
@@ -116,10 +119,10 @@ public func macroCallAt(db: AnalysisDatabase, fileId: FileId, offset: Int64, inB
 public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMacro {
     let file = call.file(db)
     if (call.inBody(db).isSome()) {
-        if (!serverCalls(db, file).iterator().any {one => one.call == call}) {
+        if (!serverCalls(db, file).iterator().any { one => one.call == call }) {
             return None
         }
-        let output = macroOutputOf(db, call).flatMap {one => one.expansion} ?? return None
+        let output = macroOutputOf(db, call).flatMap { one => one.expansion } ?? return None
         let (name, range) = macroCallHeadOf(db, call) ?? return None
         return ExpandedMacro(name, range, output.text, ExpansionKind.ServerExpansion)
     }
@@ -127,18 +130,11 @@ public func expandedMacro(db: AnalysisDatabase, call: MacroCallId): ?ExpandedMac
         return None
     }
     let (name, range) = macroCallHeadOf(db, call) ?? return None
-    let answered = serverCalls(db, file).iterator().any {one => one.read && one.call == call} &&
-        macroOutputOf(db, call).flatMap {output => output.expansion}.isSome()
-    let kind = if (answered) {
-        ExpansionKind.ServerExpansion
-    } else {
-        ExpansionKind.OwnExpansion
-    }
+    let answered =
+        serverCalls(db, file).iterator().any { one => one.read && one.call == call } &&
+            macroOutputOf(db, call).flatMap { output => output.expansion }.isSome()
+    let kind = if (answered) { ExpansionKind.ServerExpansion } else { ExpansionKind.OwnExpansion }
     let expansion = macroExpansion(db, call)
-    let declaration = if (expansion.replaces) {
-        None<String>
-    } else {
-        declarationUnder(db, call)
-    }
+    let declaration = if (expansion.replaces) { None<String> } else { declarationUnder(db, call) }
     ExpandedMacro(name, range, expansion.text, kind, declaration: declaration)
 }

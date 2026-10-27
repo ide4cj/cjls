@@ -23,7 +23,11 @@ const BUILD_SCRIPT = "build.cj"
  *
  * @throws ProjectException - if the file cannot be read
  */
-public func loadCjpmProject(file: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg()): ?ProjectLoad {
+public func loadCjpmProject(
+    file: VfsPath,
+    env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg()
+): ?ProjectLoad {
     let path = file.filePath ?? return None
     if (!isFile(path)) {
         return None
@@ -40,7 +44,7 @@ public func loadCjpmProject(file: VfsPath, env!: (String) -> ?String, cfg!: Cfg 
         lowering.buildScript(dir, manifest, true)
     }
     let binaries = ArrayList<BinaryModel>()
-    if (!lowering.modules.iterator().any {module => module.name == "std"}) {
+    if (!lowering.modules.iterator().any { module => module.name == "std" }) {
         if (let Some(std) <- loading.stdBinary()) {
             binaries.add(std)
         }
@@ -84,12 +88,16 @@ class CjpmLowering {
      */
     private let reached = HashMap<VfsPath, ?String>()
 
-    CjpmLowering(private let loading: Loading, private let root: VfsPath, private let manifest: Manifest) {
+    CjpmLowering(
+        private let loading: Loading,
+        private let root: VfsPath,
+        private let manifest: Manifest
+    ) {
         let members = ArrayList<VfsPath>()
         if (manifest.pkg.isSome()) {
             members.add(root)
         }
-        for (member in manifest.workspace.flatMap {workspace => workspace.members} ?? []) {
+        for (member in manifest.workspace.flatMap { workspace => workspace.members } ?? []) {
             members.add(loading.resolve(root, member))
         }
         this.members = members.toArray()
@@ -107,34 +115,41 @@ class CjpmLowering {
             return name
         }
         reached.add(dir, None)
-        let manifest = if (dir == root) {
-            this.manifest
-        } else {
-            try {
-                readManifest(dir.join("cjpm.toml"))
-            } catch (e: ProjectException) {
-                loading.problems.add(e.message)
-                return None
+        let manifest =
+            if (dir == root) {
+                this.manifest
+            } else {
+                try {
+                    readManifest(dir.join("cjpm.toml"))
+                } catch (e: ProjectException) {
+                    loading.problems.add(e.message)
+                    return None
+                }
             }
-        }
-        let pkg = match (manifest.pkg) {
-            case Some(pkg) => pkg
-            case None =>
-                loading.problems.add("${dir.join("cjpm.toml")} has no [package]")
-                return None
-        }
-        let name = match (pkg.organization) {
-            case Some(org) where !org.trimAscii().isEmpty() => "${org.trimAscii()}::${pkg.name}"
-            case _ => pkg.name
-        }
+        let pkg =
+            match (manifest.pkg) {
+                case Some(pkg) => pkg
+                case None =>
+                    loading.problems.add("${dir.join("cjpm.toml")} has no [package]")
+                    return None
+            }
+        let name =
+            match (pkg.organization) {
+                case Some(org) where !org.trimAscii().isEmpty() => "${org.trimAscii()}::${pkg.name}"
+                case _ => pkg.name
+            }
         reached.add(dir, name)
         let deps = ArrayList<String>()
         for ((key, dep) in dependencies(manifest)) {
             match (dep) {
                 case Table(table) where table.path.isSome() =>
                     deps.add(module(loading.resolve(dir, table.path.getOrThrow())) ?? key)
-                case _ => loading.problems.add(
-                    "dependency `${key}` of `${name}` is left out: only path dependencies are read, not git or version ones")
+                case _ =>
+                    loading
+                        .problems
+                        .add(
+                            "dependency `${key}` of `${name}` is left out: only path dependencies are read, not git or version ones"
+                        )
             }
         }
         let member = members.contains(dir)
@@ -151,13 +166,31 @@ class CjpmLowering {
         let (sources, found, inactive) = sourcesOf(name, dir, manifest, pkg)
         let packages = ArrayList<PackageModel>()
         for (pkg in found) {
-            let files = pkg.files.filter {file => file != script}
+            let files = pkg.files.filter { file => file != script }
             if (!files.isEmpty()) {
-                packages.add(PackageModel(pkg.name, pkg.dir, files, noPrelude: pkg.noPrelude, isMacro: pkg.isMacro))
+                packages
+                    .add(
+                        PackageModel(
+                            pkg.name,
+                            pkg.dir,
+                            files,
+                            noPrelude: pkg.noPrelude,
+                            isMacro: pkg.isMacro
+                        )
+                    )
             }
         }
-        modules.add(ModuleModel(name, sources, packages.toArray(), deps: unique.toArray(), member: member,
-            inactive: inactive.filter {file => file.path != script}))
+        modules
+            .add(
+                ModuleModel(
+                    name,
+                    sources,
+                    packages.toArray(),
+                    deps: unique.toArray(),
+                    member: member,
+                    inactive: inactive.filter { file => file.path != script }
+                )
+            )
         buildScript(dir, manifest, member)
         name
     }
@@ -169,23 +202,34 @@ class CjpmLowering {
      * named after its directory under the set's, in the directory of the first (#318). The files of
      * the sets left out are inactive, each with why.
      */
-    private func sourcesOf(name: String, dir: VfsPath, manifest: Manifest, pkg: ManifestPackage): (VfsPath,
-        Array<PackageModel>, Array<InactiveFile>) {
+    private func sourcesOf(
+        name: String,
+        dir: VfsPath,
+        manifest: Manifest,
+        pkg: ManifestPackage
+    ): (VfsPath, Array<PackageModel>, Array<InactiveFile>) {
         let sets = manifest.sourceSets ?? []
         if (sets.isEmpty()) {
-            let srcDir = match (pkg.srcDir) {
-                case Some(src) where !src.trimAscii().isEmpty() => src.trimAscii()
-                case _ => "src"
-            }
+            let srcDir =
+                match (pkg.srcDir) {
+                    case Some(src) where !src.trimAscii().isEmpty() => src.trimAscii()
+                    case _ => "src"
+                }
             let sources = loading.resolve(dir, srcDir)
             return (sources, packagesUnder(name, sources), [])
         }
-        let picked = sourceSetChain(sets, manifest.featureTables ?? [], loading.cfg, always: pkg.alwaysEnabledFeatures ?? [])
+        let picked =
+            sourceSetChain(
+                sets,
+                manifest.featureTables ?? [],
+                loading.cfg,
+                always: pkg.alwaysEnabledFeatures ?? []
+            )
         loading.problems.add(all: picked.problems)
         let merged = ArrayList<(String, VfsPath, ArrayList<VfsPath>)>()
         for (set in picked.chain) {
             for (one in packagesUnder(name, loading.resolve(dir, set.srcDir))) {
-                match (merged.iterator().filter {kept => kept[0] == one.name}.next()) {
+                match (merged.iterator().filter { kept => kept[0] == one.name }.next()) {
                     case Some((_, _, files)) => files.add(all: one.files)
                     case None => merged.add((one.name, one.dir, ArrayList<VfsPath>(one.files)))
                 }
@@ -194,11 +238,15 @@ class CjpmLowering {
         let inactive = ArrayList<InactiveFile>()
         for ((set, reason) in picked.left) {
             for (one in packagesUnder(name, loading.resolve(dir, set.srcDir))) {
-                inactive.add(all: one.files.map {file => InactiveFile(file, reason)})
+                inactive.add(all: one.files.map { file => InactiveFile(file, reason) })
             }
         }
-        let root = picked.chain.get(0).map {set => loading.resolve(dir, set.srcDir)} ?? dir
-        (root, merged.toArray().map {one => PackageModel(one[0], one[1], one[2].toArray())}, inactive.toArray())
+        let root = picked.chain.get(0).map { set => loading.resolve(dir, set.srcDir) } ?? dir
+        (
+            root,
+            merged.toArray().map { one => PackageModel(one[0], one[1], one[2].toArray()) },
+            inactive.toArray()
+        )
     }
 
     /**
@@ -208,22 +256,34 @@ class CjpmLowering {
      */
     func buildScript(dir: VfsPath, manifest: Manifest, member: Bool): Unit {
         let script = dir.join(BUILD_SCRIPT)
-        if (!(script.filePath.map {path => isFile(path)} ?? false)) {
+        if (!(script.filePath.map { path => isFile(path) } ?? false)) {
             return
         }
         let deps = ArrayList<String>()
         let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
-        sort(sorted, by: {a, b => a[0].compare(b[0])})
+        sort(sorted, by: { a, b => a[0].compare(b[0]) })
         for ((key, dep) in sorted) {
             match (dep) {
                 case Table(table) where table.path.isSome() =>
                     deps.add(module(loading.resolve(dir, table.path.getOrThrow())) ?? key)
-                case _ => loading.problems.add(
-                    "script dependency `${key}` of ${script} is left out: only path dependencies are read, not git or version ones")
+                case _ =>
+                    loading
+                        .problems
+                        .add(
+                            "script dependency `${key}` of ${script} is left out: only path dependencies are read, not git or version ones"
+                        )
             }
         }
-        modules.add(ModuleModel(DEFAULT_PACKAGE, dir, [PackageModel(DEFAULT_PACKAGE, dir, [script])], deps: deps.toArray(),
-            member: member))
+        modules
+            .add(
+                ModuleModel(
+                    DEFAULT_PACKAGE,
+                    dir,
+                    [PackageModel(DEFAULT_PACKAGE, dir, [script])],
+                    deps: deps.toArray(),
+                    member: member
+                )
+            )
     }
 
     /**
@@ -233,12 +293,18 @@ class CjpmLowering {
     private func dependencies(manifest: Manifest): Array<(String, Dependency)> {
         let all = HashMap<String, Dependency>()
         let target = targetOf(manifest)
-        for (table in [manifest.dependencies, manifest.testDependencies, target.flatMap {it => it.dependencies},
-            target.flatMap {it => it.testDependencies}]) {
+        for (
+            table in [
+                manifest.dependencies,
+                manifest.testDependencies,
+                target.flatMap { it => it.dependencies },
+                target.flatMap { it => it.testDependencies }
+            ]
+        ) {
             all.add(all: table ?? HashMap<String, Dependency>())
         }
         let sorted = all.toArray()
-        sort(sorted, by: {a, b => a[0].compare(b[0])})
+        sort(sorted, by: { a, b => a[0].compare(b[0]) })
         sorted
     }
 
@@ -248,7 +314,7 @@ class CjpmLowering {
      * module of `package-option`.
      */
     private func binaryDeps(manifest: Manifest, dir: VfsPath): Array<String> {
-        let bin = targetOf(manifest).flatMap {target => target.binDependencies} ?? return []
+        let bin = targetOf(manifest).flatMap { target => target.binDependencies } ?? return []
         let names = ArrayList<String>()
         for (option in bin.pathOption ?? []) {
             let path = loading.resolve(dir, option)
@@ -267,7 +333,7 @@ class CjpmLowering {
         sort(modules)
         for (module in modules) {
             let packages = byModule[module].toArray()
-            sort(packages, by: {a, b => a.name.compare(b.name)})
+            sort(packages, by: { a, b => a.name.compare(b.name) })
             names.add(module)
             addBinary(BinaryModel(module, [], packages: packages))
         }
@@ -275,14 +341,14 @@ class CjpmLowering {
     }
 
     private func addBinary(binary: BinaryModel): Unit {
-        if (!binaries.iterator().any {kept => kept.name == binary.name}) {
+        if (!binaries.iterator().any { kept => kept.name == binary.name }) {
             binaries.add(binary)
         }
     }
 
     private func targetOf(manifest: Manifest): ?Target {
         let triple = cjpmTriple(loading.cfg) ?? return None
-        manifest.target.flatMap {targets => targets.get(triple)}
+        manifest.target.flatMap { targets => targets.get(triple) }
     }
 }
 
@@ -303,15 +369,20 @@ public func moduleOf(pkg: String): String {
 @DeriveExt[FromToml]
 struct Manifest {
     Manifest(
-        @Serde[rename: "package"] let pkg!: ?ManifestPackage = None,
+        @Serde[rename: "package"]
+        let pkg!: ?ManifestPackage = None,
         let workspace!: ?Workspace = None,
         let dependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "test-dependencies"] let testDependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "script-dependencies"] let scriptDependencies!: ?HashMap<String, Dependency> = None,
+        @Serde[rename: "test-dependencies"]
+        let testDependencies!: ?HashMap<String, Dependency> = None,
+        @Serde[rename: "script-dependencies"]
+        let scriptDependencies!: ?HashMap<String, Dependency> = None,
         let target!: ?HashMap<String, Target> = None,
-        @Serde[rename: "source-set"] let sourceSets!: ?Array<SourceSet> = None,
+        @Serde[rename: "source-set"]
+        let sourceSets!: ?Array<SourceSet> = None,
         // not `features`: see `SourceSet.featureNames`
-        @Serde[rename: "feature"] let featureTables!: ?Array<Feature> = None
+        @Serde[rename: "feature"]
+        let featureTables!: ?Array<Feature> = None
     ) {}
 }
 
@@ -320,8 +391,10 @@ struct ManifestPackage {
     ManifestPackage(
         let name!: String,
         let organization!: ?String = None,
-        @Serde[rename: "src-dir"] let srcDir!: ?String = None,
-        @Serde[rename: "always-enabled-features"] let alwaysEnabledFeatures!: ?Array<String> = None
+        @Serde[rename: "src-dir"]
+        let srcDir!: ?String = None,
+        @Serde[rename: "always-enabled-features"]
+        let alwaysEnabledFeatures!: ?Array<String> = None
     ) {}
 }
 
@@ -352,15 +425,19 @@ struct DependencyTable {
 struct Target {
     Target(
         let dependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "test-dependencies"] let testDependencies!: ?HashMap<String, Dependency> = None,
-        @Serde[rename: "bin-dependencies"] let binDependencies!: ?BinDependencies = None
+        @Serde[rename: "test-dependencies"]
+        let testDependencies!: ?HashMap<String, Dependency> = None,
+        @Serde[rename: "bin-dependencies"]
+        let binDependencies!: ?BinDependencies = None
     ) {}
 }
 
 @DeriveExt[FromToml]
 struct BinDependencies {
     BinDependencies(
-        @Serde[rename: "path-option"] let pathOption!: ?Array<String> = None,
-        @Serde[rename: "package-option"] let packageOption!: ?HashMap<String, String> = None
+        @Serde[rename: "path-option"]
+        let pathOption!: ?Array<String> = None,
+        @Serde[rename: "package-option"]
+        let packageOption!: ?HashMap<String, String> = None
     ) {}
 }

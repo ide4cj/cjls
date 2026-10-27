@@ -10,22 +10,25 @@ import std.ast.*
  */
 
 func deriveFromToml(model: DeclModel): Tokens {
-    let (decl, body) = match (model) {
-        case OfStruct(structModel) => (structModel.decl, structFromToml(structModel))
-        case OfEnum(enumModel) =>
-            let body = match (enumModel.shape) {
-                case Scalar(isInteger, other) => scalarEnumFromToml(enumModel, isInteger, other)
-                case Untagged => untaggedEnumFromToml(enumModel)
-                case Tagged(tag) => taggedEnumFromToml(enumModel, tag)
-            }
-            (enumModel.decl, body)
-    }
+    let (decl, body) =
+        match (model) {
+            case OfStruct(structModel) => (structModel.decl, structFromToml(structModel))
+            case OfEnum(enumModel) =>
+                let body =
+                    match (enumModel.shape) {
+                        case Scalar(isInteger, other) =>
+                            scalarEnumFromToml(enumModel, isInteger, other)
+                        case Untagged => untaggedEnumFromToml(enumModel)
+                        case Tagged(tag) => taggedEnumFromToml(enumModel, tag)
+                    }
+                (enumModel.decl, body)
+        }
     let selfType = selfTypeOf(decl)
 
     extensionOf(
         decl,
         quote(FromToml<$selfType>),
-        {param => "FromToml<${param}>"},
+        { param => "FromToml<${param}>" },
         quote(
             public static func fromToml(v: FtValue): $selfType {
                 $body
@@ -54,23 +57,28 @@ private func structFromToml(model: StructModel): Tokens {
     let typeName = typeNameOf(model.decl)
     var tagCheck = Tokens()
     if (let Some((tag, value)) <- model.tag) {
-        tagCheck = tagFromToml(typeName, tag, quote(
-            if (tag != $(Token(TokenKind.STRING_LITERAL, value))) {
-                throw tagValue.error($(Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` ${tag}: ")) + tag)
-            }
-        ))
+        tagCheck =
+            tagFromToml(
+                typeName,
+                tag,
+                quote(
+                    if (tag != $(Token(TokenKind.STRING_LITERAL, value))) {
+                        throw tagValue.error($(Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` ${tag}: ")) + tag)
+                    }
+                )
+            )
     }
-    let ctorArgs = commaSeparated(
-        model.fields.map {
-            field =>
-            let value = fieldFromToml(field, typeName)
-            let ident = field.ident
-            if (field.isNamed) {
-                quote($ident: $value)
-            } else {
-                value
-            }
-        })
+    let ctorArgs =
+        commaSeparated(
+            model
+                .fields
+                .map {
+                    field =>
+                    let value = fieldFromToml(field, typeName)
+                    let ident = field.ident
+                    if (field.isNamed) { quote($ident: $value) } else { value }
+                }
+        )
 
     quote(
         let table = v.asTable()
@@ -124,33 +132,31 @@ private func scalarEnumFromToml(model: EnumModel, isInteger: Bool, other: ?Deriv
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` value: ")
     cases += match (other) {
-        case Some(o) where isInteger =>
-            let ident = o.ident
-            let payloadType = o.payloadTypes[0]
-            let outOfRange = Token(TokenKind.STRING_LITERAL, "`${typeName.value}` value out of range: ")
-            quote(
-                case value => $ident(
-                    try {
-                        $payloadType(value)
-                    } catch (_: OverflowException) {
-                        throw v.error($outOfRange + value.toString())
-                    }
+            case Some(o) where isInteger =>
+                let ident = o.ident
+                let payloadType = o.payloadTypes[0]
+                let outOfRange =
+                    Token(TokenKind.STRING_LITERAL, "`${typeName.value}` value out of range: ")
+                quote(
+                    case value => $ident(
+                        try {
+                            $payloadType(value)
+                        } catch (_: OverflowException) {
+                            throw v.error($outOfRange + value.toString())
+                        }
+                    )
                 )
-            )
-        case Some(o) =>
-            let ident = o.ident
-            quote(
-                case value => $ident(value)
-            )
-        case None => quote(
-            case value => throw v.error($unexpected + value.toString())
-        )
-    }
-    let read = if (isInteger) {
-        quote(v.asInteger())
-    } else {
-        quote(v.asString())
-    }
+            case Some(o) =>
+                let ident = o.ident
+                quote(
+                    case value => $ident(value)
+                )
+            case None =>
+                quote(
+                    case value => throw v.error($unexpected + value.toString())
+                )
+        }
+    let read = if (isInteger) { quote(v.asInteger()) } else { quote(v.asString()) }
 
     quote(
         match ($read) {
@@ -179,13 +185,15 @@ private func untaggedEnumFromToml(model: EnumModel): Tokens {
         }
 
         let count = Token(TokenKind.INTEGER_LITERAL, "${variant.payloadTypes.size}")
-        let args = commaSeparated(
-            Array(variant.payloadTypes.size) {
-                i =>
-                let payloadType = variant.payloadTypes[i]
-                let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
-                quote($payloadType.fromToml(items[$index]))
-            })
+        let args =
+            commaSeparated(
+                Array(variant.payloadTypes.size) {
+                    i =>
+                    let payloadType = variant.payloadTypes[i]
+                    let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
+                    quote($payloadType.fromToml(items[$index]))
+                }
+            )
         attempts += quote(
             try {
                 let items = v.asArray()
@@ -195,7 +203,8 @@ private func untaggedEnumFromToml(model: EnumModel): Tokens {
             } catch (_: Exception) {}
         )
     }
-    let unmatched = Token(TokenKind.STRING_LITERAL, "no `${typeName.value}` variant matched the value")
+    let unmatched =
+        Token(TokenKind.STRING_LITERAL, "no `${typeName.value}` variant matched the value")
 
     quote(
         $attempts
@@ -217,7 +226,8 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
             continue
         }
 
-        let args = commaSeparated(variant.payloadFields.map {field => fieldFromToml(field, typeName)})
+        let args =
+            commaSeparated(variant.payloadFields.map { field => fieldFromToml(field, typeName) })
         cases += quote(
             case $literal => $ident($args)
         )

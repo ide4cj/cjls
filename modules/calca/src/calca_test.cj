@@ -24,13 +24,13 @@ class Events {
     private let events = ArrayList<String>()
 
     func add(event: String): Unit {
-        synchronized(lock) {
+        synchronized (lock) {
             events.add(event)
         }
     }
 
     func take(): Array<String> {
-        synchronized(lock) {
+        synchronized (lock) {
             let taken = events.toArray()
             events.clear()
             taken
@@ -79,7 +79,10 @@ class TestDatabase <: TestDb {
     /**
      * A snapshot, parking where this handle does unless given a `Parking` of its own.
      */
-    func snapshot(cancelledBy!: () -> Bool = {=> false}, parking!: ?Parking = None): TestDatabase {
+    func snapshot(
+        cancelledBy!: () -> Bool = { => false },
+        parking!: ?Parking = None
+    ): TestDatabase {
         TestDatabase(storage_.snapshot(cancelledBy: cancelledBy), events, parking ?? this.parking)
     }
 }
@@ -156,10 +159,11 @@ func spawnParkedLength(snapshot: TestDatabase, file: SourceFile): Future<Bool> {
  * `parkedLength` on a handle of its own, released as soon as it parks.
  */
 func parkedLengthOf(db: TestDatabase, file: SourceFile): Int64 {
-    let released = spawn {
-        db.parking.parked.remove()
-        db.parking.released.add(())
-    }
+    let released =
+        spawn {
+            db.parking.parked.remove()
+            db.parking.released.add(())
+        }
     let length = parkedLength(db.snapshot(), file)
     released.get()
     length
@@ -208,11 +212,7 @@ func first(db: TestDb, mode: Mode): Int64 {
 
 @CalcaTracked
 func second(db: TestDb, mode: Mode): Int64 {
-    if (mode.cyclic(db)) {
-        first(db, mode)
-    } else {
-        0
-    }
+    if (mode.cyclic(db)) { first(db, mode) } else { 0 }
 }
 
 @CalcaTracked
@@ -527,9 +527,7 @@ class CalcaTest {
         db.parking.parked.remove()
 
         // act
-        let write = spawn {
-            file.setText(db).to("bye")
-        }
+        let write = spawn { file.setText(db).to("bye") }
         waitForPendingWrite(probe)
         let blocked = write.tryGet().isNone()
         db.parking.released.add(())
@@ -552,9 +550,7 @@ class CalcaTest {
         let late = db.snapshot()
         let reader = spawnParkedLength(snapshot, file)
         db.parking.parked.remove()
-        let write = spawn {
-            file.setText(db).to("bye")
-        }
+        let write = spawn { file.setText(db).to("bye") }
         waitForPendingWrite(late)
 
         // act, assert
@@ -573,14 +569,17 @@ class CalcaTest {
         let snapshot = db.snapshot()
         let changing = LinkedBlockingQueue<Unit>(1)
         let finish = LinkedBlockingQueue<Unit>(1)
-        let write = spawn {
-            db.storage.batch {
-                let old = file.setText(db).to("bye")
-                changing.add(())
-                finish.remove()
-                old
+        let write =
+            spawn {
+                db
+                    .storage
+                    .batch {
+                        let old = file.setText(db).to("bye")
+                        changing.add(())
+                        finish.remove()
+                        old
+                    }
             }
-        }
         changing.remove()
 
         // act, assert - would hang if the snapshot waited for the write to end
@@ -597,7 +596,7 @@ class CalcaTest {
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let stop = AtomicBool(false)
-        let snapshot = db.snapshot(cancelledBy: {=> stop.load()})
+        let snapshot = db.snapshot(cancelledBy: { => stop.load() })
         let reader = spawnParkedLength(snapshot, file)
         db.parking.parked.remove()
 
@@ -723,7 +722,12 @@ class CalcaTest {
         let db = TestDatabase()
 
         // act
-        let results = [nameLength(db, Name(db, "abc")), nameLength(db, Name(db, "abc")), nameLength(db, Name(db, "de"))]
+        let results =
+            [
+                nameLength(db, Name(db, "abc")),
+                nameLength(db, Name(db, "abc")),
+                nameLength(db, Name(db, "de"))
+            ]
 
         // assert
         @Expect(results, [3, 3, 2])

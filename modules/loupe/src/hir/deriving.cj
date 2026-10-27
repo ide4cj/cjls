@@ -72,14 +72,20 @@ enum Derivable {
      */
     func membersOf(selfTy: String): Array<String> {
         let body = stubBody("    ", "@Derive")
-        let operators = {ops: Array<String> => ops.map {op => "public operator func ${op}(other: ${selfTy}): Bool ${body}"}}
+        let operators =
+            {
+                ops: Array<String> =>
+                ops.map { op => "public operator func ${op}(other: ${selfTy}): Bool ${body}" }
+            }
         match (this) {
             case DeriveEquatable => operators(["==", "!="])
             case DeriveHashable => ["public func hashCode(): Int64 ${body}"]
             case DeriveToString => ["public func toString(): String ${body}"]
-            case DeriveComparable => ["public func compare(other: ${selfTy}): Ordering ${body}"].concat(
-                operators(["<", "<=", ">", ">="]))
-            case DeriveArbitrary => ["public static func arbitrary(random: RandomSource): Generator<${selfTy}> ${body}"]
+            case DeriveComparable =>
+                ["public func compare(other: ${selfTy}): Ordering ${body}"]
+                    .concat(operators(["<", "<=", ">", ">="]))
+            case DeriveArbitrary =>
+                ["public static func arbitrary(random: RandomSource): Generator<${selfTy}> ${body}"]
             case DeriveShrink => ["public func shrink(): Iterable<${selfTy}> ${body}"]
         }
     }
@@ -93,13 +99,19 @@ enum Derivable {
  * names, and every body, each a comment (`stubBody`). `None` for a type whose name is not written yet.
  */
 func deriveExpansion(decl: Decl, call: MacroExpandDecl): ?Expansion {
-    let name = AnyHasName.cast(decl.syntax).flatMap {it => it.name()}.flatMap {name => name.identToken()} ?? return None
+    let name =
+        AnyHasName
+            .cast(decl.syntax)
+            .flatMap { it => it.name() }
+            .flatMap { name => name.identToken() } ??
+            return None
     let generics = genericsOf(decl)
-    let entries = match (call.macroAttr()) {
-        case Some(attr) => deriveEntries(attr)
-        case None => Array<DeriveEntry>()
-    }
-    let listsEquatable = entries.iterator().any {entry => entry.name == "Equatable"}
+    let entries =
+        match (call.macroAttr()) {
+            case Some(attr) => deriveEntries(attr)
+            case None => Array<DeriveEntry>()
+        }
+    let listsEquatable = entries.iterator().any { entry => entry.name == "Equatable" }
     let text = StringBuilder()
     let origins = ArrayList<ExpansionOrigin>()
     for (i in 0..entries.size) {
@@ -118,29 +130,33 @@ func deriveExpansion(decl: Decl, call: MacroExpandDecl): ?Expansion {
  * Appends to `text` the `extend` of `derivable` of the type `name` of the type parameters `generics`, those `bounds`
  * names bound by them.
  */
-func appendExtend(text: StringBuilder, name: String, generics: Array<String>, derivable: Derivable,
-    bounds: Array<(String, String)>): Unit {
+func appendExtend(
+    text: StringBuilder,
+    name: String,
+    generics: Array<String>,
+    derivable: Derivable,
+    bounds: Array<(String, String)>
+): Unit {
     let params = String.join(generics, delimiter: ", ")
-    let selfTy = if (generics.isEmpty()) {
-        name
-    } else {
-        "${name}<${params}>"
-    }
+    let selfTy = if (generics.isEmpty()) { name } else { "${name}<${params}>" }
     if (generics.isEmpty()) {
         text.append("extend ${selfTy}")
     } else {
         text.append("extend<${params}> ${selfTy}")
     }
     text.append(" <: ${derivable.superOf(selfTy)}")
-    let constraints = generics |> flatMap {
-        param: String =>
-        let written = bounds.filter {bound => identName(bound[0]) == identName(param)}
-        if (written.isEmpty()) {
-            ["${param} <: ${derivable.defaultBound(param)}"]
-        } else {
-            written.map {bound => "${param} <: ${bound[1]}"}
-        }
-    } |> collectArray
+    let constraints =
+        generics |>
+            flatMap {
+                param: String =>
+                let written = bounds.filter { bound => identName(bound[0]) == identName(param) }
+                if (written.isEmpty()) {
+                    ["${param} <: ${derivable.defaultBound(param)}"]
+                } else {
+                    written.map { bound => "${param} <: ${bound[1]}" }
+                }
+            } |>
+            collectArray
     if (!constraints.isEmpty()) {
         text.append(" where ${String.join(constraints, delimiter: ", ")}")
     }
@@ -196,16 +212,13 @@ func tokensOf(node: CjSyntaxNode): Array<CjSyntaxToken> {
  */
 func tokensInside(node: CjSyntaxNode, open: SyntaxKind, close: SyntaxKind): Array<CjSyntaxToken> {
     let tokens = tokensOf(node)
-    let start = if (tokens.size > 0 && tokens[0].kind == open) {
-        1
-    } else {
-        0
-    }
-    let end = if (tokens.size > start && tokens[tokens.size - 1].kind == close) {
-        tokens.size - 1
-    } else {
-        tokens.size
-    }
+    let start = if (tokens.size > 0 && tokens[0].kind == open) { 1 } else { 0 }
+    let end =
+        if (tokens.size > start && tokens[tokens.size - 1].kind == close) {
+            tokens.size - 1
+        } else {
+            tokens.size
+        }
     tokens[start..end]
 }
 
@@ -274,8 +287,10 @@ class DeriveAttrParser {
         if (at(index + 1, SyntaxKind.LtColon)) {
             return index + 2
         }
-        if (at(index + 1, SyntaxKind.Lt) && at(index + 2, SyntaxKind.Colon) &&
-            tokens[index + 1].textRange.end == tokens[index + 2].textRange.start) {
+        if (
+            at(index + 1, SyntaxKind.Lt) && at(index + 2, SyntaxKind.Colon) &&
+                tokens[index + 1].textRange.end == tokens[index + 2].textRange.start
+        ) {
             return index + 3
         }
         None

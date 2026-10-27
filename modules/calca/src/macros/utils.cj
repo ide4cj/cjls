@@ -43,30 +43,28 @@ func mangled(name: String, types: Array<Tokens>): String {
 private func escapeInto(out: StringBuilder, text: String): Unit {
     for (rune in text.runes()) {
         let code = UInt32(rune)
-        let sign = match (rune) {
-            case '_' => "__"
-            case '<' => "_L"
-            case '>' => "_G"
-            case ',' => "_C"
-            case '?' => "_Q"
-            case '.' => "_D"
-            case '(' => "_P"
-            case ')' => "_R"
-            case '-' => "_M"
-            // letters and digits, and whatever is past ASCII, which only an identifier holds
-            case _ where code > 0x7F || rune.isAsciiLetter() || rune.isAsciiNumber() => rune.toString()
-            case _ => "_X${code}_"
-        }
+        let sign =
+            match (rune) {
+                case '_' => "__"
+                case '<' => "_L"
+                case '>' => "_G"
+                case ',' => "_C"
+                case '?' => "_Q"
+                case '.' => "_D"
+                case '(' => "_P"
+                case ')' => "_R"
+                case '-' => "_M"
+                // letters and digits, and whatever is past ASCII, which only an identifier holds
+                case _ where code > 0x7F || rune.isAsciiLetter() || rune.isAsciiNumber() =>
+                    rune.toString()
+                case _ => "_X${code}_"
+            }
         out.append(sign)
     }
 }
 
 func capitalized(name: String): String {
-    if (name.isEmpty()) {
-        name
-    } else {
-        name[0..1].toAsciiUpper() + name[1..]
-    }
+    if (name.isEmpty()) { name } else { name[0..1].toAsciiUpper() + name[1..] }
 }
 
 /**
@@ -88,7 +86,11 @@ func plainStruct(input: Tokens, macroName: String): ?StructDecl {
  * The fields of a type whose fields live in the database, and the rest of its members, kept as they
  * are. `None` once a field that cannot be one was reported.
  */
-func storedFields(decl: StructDecl, macroName: String, initializers!: Bool = false): ?(ArrayList<VarDecl>, Tokens) {
+func storedFields(
+    decl: StructDecl,
+    macroName: String,
+    initializers!: Bool = false
+): ?(ArrayList<VarDecl>, Tokens) {
     let fields = ArrayList<VarDecl>()
     var kept = Tokens()
     var initialized = false
@@ -101,9 +103,12 @@ func storedFields(decl: StructDecl, macroName: String, initializers!: Bool = fal
                 if (hasInitializer(field)) {
                     initialized = true
                 } else if (initialized) {
-                    diagReport(DiagReportLevel.ERROR, field.toTokens(),
+                    diagReport(
+                        DiagReportLevel.ERROR,
+                        field.toTokens(),
                         "a `@${macroName}` field with an initializer is after those without one",
-                        "its value is a named parameter of the constructor")
+                        "its value is a named parameter of the constructor"
+                    )
                     return None
                 }
                 fields.add(field)
@@ -117,21 +122,35 @@ func storedFields(decl: StructDecl, macroName: String, initializers!: Bool = fal
  * Whether `field` is declared with a value.
  */
 func hasInitializer(field: VarDecl): Bool {
-    isPresent {=> field.expr}
+    isPresent { => field.expr }
 }
 
 private func isFieldValid(field: VarDecl, macroName: String, initializers: Bool): Bool {
     if (!initializers && hasInitializer(field)) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "a `@${macroName}` field has no initializer",
-            "its value is given to the constructor")
+        diagReport(
+            DiagReportLevel.ERROR,
+            field.toTokens(),
+            "a `@${macroName}` field has no initializer",
+            "its value is given to the constructor"
+        )
         return false
     }
-    if (!isPresent {=> field.declType}) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "a `@${macroName}` field declares its type", "")
+    if (!isPresent { => field.declType }) {
+        diagReport(
+            DiagReportLevel.ERROR,
+            field.toTokens(),
+            "a `@${macroName}` field declares its type",
+            ""
+        )
         return false
     }
     for (modifier in field.modifiers where modifier.keyword.kind == TokenKind.STATIC) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "a `@${macroName}` type has no static fields", "")
+        diagReport(
+            DiagReportLevel.ERROR,
+            field.toTokens(),
+            "a `@${macroName}` type has no static fields",
+            ""
+        )
         return false
     }
     true
@@ -155,8 +174,15 @@ private func isPresent<T>(read: () -> T): Bool {
  * described by that ingredient, and the members the user wrote, `kept`. Its supertypes are the
  * identity ones, `identity` after them (`& InternedValue`), then those the user wrote.
  */
-func identityStruct(decl: StructDecl, ingredient: Tokens, params: Tokens, create: Tokens, accessors: Tokens,
-    kept: Tokens, identity!: Tokens = quote()): Tokens {
+func identityStruct(
+    decl: StructDecl,
+    ingredient: Tokens,
+    params: Tokens,
+    create: Tokens,
+    accessors: Tokens,
+    kept: Tokens,
+    identity!: Tokens = quote()
+): Tokens {
     let visibility = modifiersOf(decl.modifiers)
     let name = decl.identifier
     var superTypes = quote(Hashable & Equatable<$name> & ToString $identity)
@@ -208,7 +234,11 @@ func nameLiteral(name: Token): Token {
  * a tuple cannot be. A tracked function's key, `holdsInterned`, also tells which of them are
  * interned values (`InternedFields`), found out at run time: a macro sees only tokens.
  */
-func fieldsStruct(name: Token, fields: Array<(Token, Tokens)>, holdsInterned!: Bool = false): Tokens {
+func fieldsStruct(
+    name: Token,
+    fields: Array<(Token, Tokens)>,
+    holdsInterned!: Bool = false
+): Tokens {
     var params = Tokens()
     var hashes = Tokens()
     var equal = quote(true)
@@ -223,15 +253,19 @@ func fieldsStruct(name: Token, fields: Array<(Token, Tokens)>, holdsInterned!: B
         }
         keys += quote(calcaKeyOf($ident))
     }
-    let (superTypes, interned) = if (holdsInterned) {
-        (quote(& InternedFields), quote(
-            public func calcaInterned(): Array<?DatabaseKey> {
-                [$keys]
-            }
-        ))
-    } else {
-        (quote(), quote())
-    }
+    let (superTypes, interned) =
+        if (holdsInterned) {
+            (
+                quote(& InternedFields),
+                quote(
+                    public func calcaInterned(): Array<?DatabaseKey> {
+                        [$keys]
+                    }
+                )
+            )
+        } else {
+            (quote(), quote())
+        }
     quote(
         struct $name <: Hashable & Equatable<$name> $superTypes {
             $name($params) {}
