@@ -140,7 +140,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
     }
 
     public func add(all!: Collection<(K, V)>): Unit {
-        all.iterator().forEach {entry => add(entry[0], entry[1])}
+        all.iterator().forEach { entry => add(entry[0], entry[1]) }
     }
 
     /**
@@ -152,7 +152,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
 
     public func remove(all!: Collection<K>): Unit {
         let doomed = HashSet(all)
-        removeIf {key, _ => doomed.contains(key)}
+        removeIf { key, _ => doomed.contains(key) }
     }
 
     /**
@@ -192,7 +192,7 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
      * Keeps the order of the rest. If `predicate` throws, the map is left as it was.
      */
     public func removeIf(predicate: (K, V) -> Bool): Unit {
-        let kept = entries.filter {entry => !predicate(entry[0], entry[1])}
+        let kept = entries.filter { entry => !predicate(entry[0], entry[1]) }
         if (kept.size == entries.size) {
             return
         }
@@ -234,17 +234,21 @@ public class IndexMap<K, V> <: Map<K, V> where K <: Hashable & Equatable<K> {
     }
 }
 
-extend<K, V> IndexMap<K, V> <: ToString where K <: Hashable & Equatable<K> & ToString, V <: ToString {
+extend<K, V> IndexMap<K, V> <: ToString where K <: Hashable & Equatable<K> & ToString,
+    V <: ToString {
     /**
      * As `HashMap` renders: `[(k, v), (k, v)]`, in order.
      */
     public func toString(): String {
-        let rendered = entries.iterator().map {entry => "(${entry[0]}, ${entry[1]})"} |> collectString(delimiter: ", ")
+        let rendered =
+            entries.iterator().map { entry => "(${entry[0]}, ${entry[1]})" } |>
+                collectString(delimiter: ", ")
         "[${rendered}]"
     }
 }
 
-extend<K, V> IndexMap<K, V> <: Equatable<IndexMap<K, V>> where K <: Hashable & Equatable<K>, V <: Equatable<V> {
+extend<K, V> IndexMap<K, V> <: Equatable<IndexMap<K, V>> where K <: Hashable & Equatable<K>,
+    V <: Equatable<V> {
     /**
      * The same entries in the same order: unlike `HashMap`'s, the order counts.
      */
@@ -281,7 +285,7 @@ class Keys<K, V> <: EquatableCollection<K> where K <: Hashable & Equatable<K> {
     }
 
     public func iterator(): Iterator<K> {
-        map.entries.iterator().map {entry => entry[0]}
+        map.entries.iterator().map { entry => entry[0] }
     }
 
     public func contains(element: K): Bool {
@@ -307,7 +311,7 @@ class Values<K, V> <: Collection<V> where K <: Hashable & Equatable<K> {
     }
 
     public func iterator(): Iterator<V> {
-        map.entries.iterator().map {entry => entry[1]}
+        map.entries.iterator().map { entry => entry[1] }
     }
 }
 

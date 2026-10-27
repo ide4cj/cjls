@@ -51,8 +51,20 @@ class ConcurrentIndexMapTest {
         let made = ArrayList<String>()
 
         // act
-        let (thereIndex, thereValue) = map.getOrAdd("a") {=> made.add("a"); 2}
-        let (newIndex, newValue) = map.getOrAdd("b") {=> made.add("b"); 3}
+        let (thereIndex, thereValue) =
+            map
+                .getOrAdd("a") {
+                    =>
+                    made.add("a");
+                    2
+                }
+        let (newIndex, newValue) =
+            map
+                .getOrAdd("b") {
+                    =>
+                    made.add("b");
+                    3
+                }
 
         // assert
         @Expect((thereIndex, thereValue) == (0, 1))
@@ -84,7 +96,7 @@ class ConcurrentIndexMapTest {
         }
 
         // act
-        let keys = map.iterator().map {entry => entry[0]} |> collectArray
+        let keys = map.iterator().map { entry => entry[0] } |> collectArray
 
         // assert
         @Expect(keys, ["c", "a", "b"])
@@ -97,15 +109,17 @@ class ConcurrentIndexMapTest {
         let start = SyncCounter(1)
 
         // act: four threads adding the same 2000 keys, each in its own order
-        let threads = Array(4) {
-            thread => spawn {
-                start.waitUntilZero()
-                for (i in 0..2000) {
-                    let key = if (thread % 2 == 0) { i } else { 1999 - i }
-                    map.addIfAbsent(key, key)
+        let threads =
+            Array(4) {
+                thread =>
+                spawn {
+                    start.waitUntilZero()
+                    for (i in 0..2000) {
+                        let key = if (thread % 2 == 0) { i } else { 1999 - i }
+                        map.addIfAbsent(key, key)
+                    }
                 }
             }
-        }
         start.dec()
         for (thread in threads) {
             thread.get()

@@ -17,18 +17,40 @@ import cjls.server.*
  * `initializationOptions`, which answers `workspace/configuration` if `pulls`, and takes a
  * registration for `didChangeConfiguration` if `registers`.
  */
-func initializedWithSettings(root: Path, options: ?JsonValue, pulls!: Bool = false, registers!: Bool = false): Loop {
+func initializedWithSettings(
+    root: Path,
+    options: ?JsonValue,
+    pulls!: Bool = false,
+    registers!: Bool = false
+): Loop {
     let state = ServerState()
-    handleInitialize(state, Client(), NoopLogger(), InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-        capabilities: ClientCapabilities(workspace: WorkspaceClientCapabilities(configuration: pulls,
-            didChangeConfiguration: DidChangeConfigurationClientCapabilities(dynamicRegistration: registers))),
-        workspaceFolders: Some(Nullable.Value([WorkspaceFolder(uri: uriOf(root), name: "ws")])),
-        initializationOptions: options))
+    handleInitialize(
+        state,
+        Client(),
+        NoopLogger(),
+        InitializeParams(
+            processId: Nullable.Null,
+            rootUri: Nullable.Null,
+            capabilities: ClientCapabilities(
+                workspace: WorkspaceClientCapabilities(
+                    configuration: pulls,
+                    didChangeConfiguration: DidChangeConfigurationClientCapabilities(
+                        dynamicRegistration: registers
+                    )
+                )
+            ),
+            workspaceFolders: Some(Nullable.Value([WorkspaceFolder(uri: uriOf(root), name: "ws")])),
+            initializationOptions: options
+        )
+    )
     Loop(state)
 }
 
 func linking(project: Path): JsonValue {
-    JsonValue.JsonObject([("linkedProjects", JsonValue.JsonArray([JsonValue.JsonString(project.toString())]))])
+    JsonValue
+        .JsonObject(
+            [("linkedProjects", JsonValue.JsonArray([JsonValue.JsonString(project.toString())]))]
+        )
 }
 
 /**
@@ -36,13 +58,16 @@ func linking(project: Path): JsonValue {
  * other request with `null`.
  */
 func configurationTransport(section: JsonValue): AnsweringTransport {
-    AnsweringTransport(result: {
-        request => if (request.method == ConfigurationRequestSpec.METHOD) {
-            RawJson.of(JsonValue.JsonArray([section]))
-        } else {
-            RawJson.NULL
+    AnsweringTransport(
+        result: {
+            request =>
+            if (request.method == ConfigurationRequestSpec.METHOD) {
+                RawJson.of(JsonValue.JsonArray([section]))
+            } else {
+                RawJson.NULL
+            }
         }
-    })
+    )
 }
 
 /**
@@ -59,7 +84,7 @@ func requestsOf(transport: AnsweringTransport): Array<RequestBody> {
 }
 
 func methodsOf(requests: Array<RequestBody>, method: String): Array<RequestBody> {
-    requests.filter {request => request.method == method}
+    requests.filter { request => request.method == method }
 }
 
 @Test
@@ -102,7 +127,8 @@ class InitialSettingsTest {
         let root = workspaceOf([])
 
         // act
-        let loop = initializedWithSettings(root, Option<JsonValue>.None, pulls: true, registers: true)
+        let loop =
+            initializedWithSettings(root, Option<JsonValue>.None, pulls: true, registers: true)
 
         // assert
         @Expect(loop.state.pullsSettings)
@@ -164,8 +190,12 @@ class PulledSettingsTest {
         let linked = workspaceOf([])
         let sdk = workspaceOf([])
         let loop = initializedWithSettings(root, linking(linked), pulls: true)
-        let client = answeredClientOn(configurationTransport(
-            JsonValue.JsonObject([("cangjieHome", JsonValue.JsonString(sdk.toString()))])))
+        let client =
+            answeredClientOn(
+                configurationTransport(
+                    JsonValue.JsonObject([("cangjieHome", JsonValue.JsonString(sdk.toString()))])
+                )
+            )
 
         // act
         initialized(loop, client, NoopLogger(), InitializedParams())
@@ -188,7 +218,12 @@ class PulledSettingsTest {
         let client = answeredClientOn(transport)
 
         // act
-        handleDidChangeConfiguration(loop, client, NoopLogger(), DidChangeConfigurationParams(settings: JsonValue.JsonNull))
+        handleDidChangeConfiguration(
+            loop,
+            client,
+            NoopLogger(),
+            DidChangeConfigurationParams(settings: JsonValue.JsonNull)
+        )
         loop.join()
         client.close()
 
@@ -209,7 +244,12 @@ class PulledSettingsTest {
         let client = answeredClientOn(AnsweringTransport(refuses: true))
 
         // act
-        handleDidChangeConfiguration(loop, client, NoopLogger(), DidChangeConfigurationParams(settings: JsonValue.JsonNull))
+        handleDidChangeConfiguration(
+            loop,
+            client,
+            NoopLogger(),
+            DidChangeConfigurationParams(settings: JsonValue.JsonNull)
+        )
         loop.join()
         client.close()
 
@@ -227,7 +267,12 @@ class PulledSettingsTest {
         let loop = initializedWithSettings(root, linking(linked), pulls: true)
 
         // act: a client not connected takes no request
-        handleDidChangeConfiguration(loop, Client(), NoopLogger(), DidChangeConfigurationParams(settings: JsonValue.JsonNull))
+        handleDidChangeConfiguration(
+            loop,
+            Client(),
+            NoopLogger(),
+            DidChangeConfigurationParams(settings: JsonValue.JsonNull)
+        )
         loop.join()
 
         // assert
@@ -246,7 +291,12 @@ class PulledSettingsTest {
         let client = answeredClientOn(transport)
 
         // act
-        handleDidChangeConfiguration(loop, client, NoopLogger(), DidChangeConfigurationParams(settings: JsonValue.JsonNull))
+        handleDidChangeConfiguration(
+            loop,
+            client,
+            NoopLogger(),
+            DidChangeConfigurationParams(settings: JsonValue.JsonNull)
+        )
         client.close()
         loop.join()
 
@@ -270,8 +320,14 @@ class PushedSettingsTest {
         let client = answeredClientOn(transport)
 
         // act
-        handleDidChangeConfiguration(loop, client, NoopLogger(),
-            DidChangeConfigurationParams(settings: JsonValue.JsonObject([("cjls", linking(linked))])))
+        handleDidChangeConfiguration(
+            loop,
+            client,
+            NoopLogger(),
+            DidChangeConfigurationParams(
+                settings: JsonValue.JsonObject([("cjls", linking(linked))])
+            )
+        )
         loop.join()
         client.close()
 
@@ -290,8 +346,23 @@ class PushedSettingsTest {
         let loop = initializedWithSettings(root, Option<JsonValue>.None)
 
         // act
-        handleDidChangeConfiguration(loop, Client(), NoopLogger(), DidChangeConfigurationParams(
-            settings: JsonValue.JsonObject([("cjls", JsonValue.JsonObject([("newFilePackage", JsonValue.JsonBool(false))]))])))
+        handleDidChangeConfiguration(
+            loop,
+            Client(),
+            NoopLogger(),
+            DidChangeConfigurationParams(
+                settings: JsonValue
+                    .JsonObject(
+                        [
+                            (
+                                "cjls",
+                                JsonValue
+                                    .JsonObject([("newFilePackage", JsonValue.JsonBool(false))])
+                            )
+                        ]
+                    )
+            )
+        )
         loop.join()
 
         // assert
@@ -309,7 +380,12 @@ class PushedSettingsTest {
         let loop = initializedWithSettings(root, linking(linked))
 
         // act
-        handleDidChangeConfiguration(loop, Client(), NoopLogger(), DidChangeConfigurationParams(settings: settings))
+        handleDidChangeConfiguration(
+            loop,
+            Client(),
+            NoopLogger(),
+            DidChangeConfigurationParams(settings: settings)
+        )
         loop.join()
 
         // assert
@@ -334,12 +410,21 @@ class SettingsRegistrationTest {
         client.close()
 
         // assert
-        let registrations = methodsOf(requestsOf(transport), RegistrationRequestSpec.METHOD).flatMap {
-            request => request.params.getOrThrow().read<RegistrationParams>().registrations
-        }.filter {registration => registration.method == DidChangeConfigurationNotificationSpec.METHOD}
+        let registrations =
+            methodsOf(requestsOf(transport), RegistrationRequestSpec.METHOD)
+                .flatMap {
+                    request =>
+                    request.params.getOrThrow().read<RegistrationParams>().registrations
+                }
+                .filter {
+                    registration =>
+                    registration.method == DidChangeConfigurationNotificationSpec.METHOD
+                }
         @Expect(registrations.size, 1)
-        let options = RawJson.of(registrations[0].registerOptions.getOrThrow())
-            .read<DidChangeConfigurationRegistrationOptions>()
+        let options =
+            RawJson
+                .of(registrations[0].registerOptions.getOrThrow())
+                .read<DidChangeConfigurationRegistrationOptions>()
         @Expect(match (options.section) {
             case Some(StringOrStrings.AsString("cjls")) => true
             case _ => false
@@ -362,9 +447,12 @@ class SettingsRegistrationTest {
         // assert
         let requests = requestsOf(transport)
         @Expect(methodsOf(requests, ConfigurationRequestSpec.METHOD).size, 0)
-        let registered = methodsOf(requests, RegistrationRequestSpec.METHOD).flatMap {
-            request => request.params.getOrThrow().read<RegistrationParams>().registrations
-        }
+        let registered =
+            methodsOf(requests, RegistrationRequestSpec.METHOD)
+                .flatMap {
+                    request =>
+                    request.params.getOrThrow().read<RegistrationParams>().registrations
+                }
         @Expect(!registered.any {registration => registration.method == DidChangeConfigurationNotificationSpec.METHOD})
         remove(root, recursive: true)
     }

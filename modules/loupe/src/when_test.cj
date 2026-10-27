@@ -7,89 +7,106 @@ import std.unittest.testmacro.*
 class WhenDiagnosticsTest {
     @TestCase
     func codeAFalseWhenIsOnIsInactiveWithTheReason() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux
               @When[os == "Windows"] func f() {}
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux"
               @When[os == "Linux"] func f() {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConditionInParenthesesOfAPackageWithoutACfgReadsTheProjects() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj
               @When[(os == "Windows")] func f() {}
               @When[(os != "Windows")] func f() {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func eachConditionMakingItFalseIsAReason() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux,arch:x86_64
               @When[os == "Windows" || arch == "arm"] let a = 1
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux" and arch is "x86_64"
               @When[os == "Linux" && arch == "arm"] let b = 1
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: arch is "x86_64"
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func testAndDebugAreFlags() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=test:true
               @When[!test] let a = 1
             //^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: test is set
               @When[debug] let b = 1
             //^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: debug is not set
               @When[test && !debug] let c = 1
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aVersionIsComparedByItsNumbers() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=cjc_version:1.3.0-alpha.20261002
               @When[cjc_version >= "1.4.0"] let a = 1
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: cjc_version is "1.3.0-alpha.20261002"
               @When[cjc_version == "1.3.0"] let b = 1
               @When[cjc_version < "1.10.0"] let c = 1
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConditionOfACfgTomlIsKnown() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=feature:fast
               @When[feature == "slow"] let a = 1
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: feature is "fast"
               @When[feature == "fast"] let b = 1
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func nothingInsideInactiveCodeIsReported() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux
               @When[os == "Windows"] class A { @When[os == "linux"] func f() {} }
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux"
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConditionNoValueIsKnownOfIsActive() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux
               @When[env == "ohos"] let a = 1
               @When[os == "Windows" && env == "ohos"] let b = 1
             //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux"
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func whatCjcRejectsIsAnErrorAndItsCodeOutButNotGreyed() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux
             @When[os == "linux"] let a = 1
             //    ^^^^^^^^^^^^^ error: builtin condition 'os' do not support 'linux', supported listed: 'Windows Linux macOS iOS'
@@ -107,27 +124,32 @@ class WhenDiagnosticsTest {
             //    ^^^^^^^ error: conditional compilation not support this expression
             @When[os == "linux" || os == "Linux"] let h = 1
             //    ^^^^^^^^^^^^^ error: builtin condition 'os' do not support 'linux', supported listed: 'Windows Linux macOS iOS'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConditionTheCfgDoesNotSetIsActiveAndNoError() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux
             @When[feature == "fast"] let a = 1
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aWhenOnAParameterOrALocalIsChecked() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /main.cj cfg=os:Linux
             func f(@When[os == "Windows"] a: Int64, b: Int64) {
             //     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux"
                 @When[os == "Windows"] let x = 1
             //  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux"
             }
-            "#)
+            "#
+        )
     }
 }
 
@@ -135,7 +157,8 @@ class WhenDiagnosticsTest {
 class WhenResolutionTest {
     @TestCase
     func aCallTakesTheTwinOfTheCfg() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m cfg=os:Linux
             package m
             @When[os == "Windows"]
@@ -144,12 +167,14 @@ class WhenResolutionTest {
             func f(): Int64 { 2 }
             //   ^ def
             func g() { $0f() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeTakesTheTwinOfTheCfg() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m cfg=os:Linux
             package m
             @When[os == "Windows"]
@@ -158,12 +183,14 @@ class WhenResolutionTest {
             class C {}
             //    ^ def
             func g(c: $0C) {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportAFalseWhenIsOnBringsNothing() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /m/a/a.cj module=m package=m.a
             package m.a
             public func h(): Int64 { 1 }
@@ -178,12 +205,14 @@ class WhenResolutionTest {
             @When[os == "Windows"]
             import m.b.*
             func g() { $0h() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberTakesTheTwinOfTheCfg() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m cfg=os:Linux
             package m
             class C {
@@ -194,12 +223,14 @@ class WhenResolutionTest {
                 func m(): Int64 { 2 }
             }
             func g(c: C) { c.$0m() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalTakesTheTwinOfTheCfg() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m cfg=os:Linux
             package m
             func g(): Int64 {
@@ -210,12 +241,14 @@ class WhenResolutionTest {
                 let x = 2
                 $0x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTwinWhoseConditionCjcRejectsIsOutAsInCjc() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m cfg=os:Linux
             package m
             @When[os == "linux"]
@@ -224,16 +257,19 @@ class WhenResolutionTest {
             func f(): Int64 { 2 }
             //   ^ def
             func g() { $0f() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aParameterTakesTheTwinOfTheCfg() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m cfg=os:Linux
             package m
             func g(@When[os == "Linux"] x: Int64, @When[os == "Windows"] x: String): Int64 { $0x }
             //                          ^ def
-            "#)
+            "#
+        )
     }
 }

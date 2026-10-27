@@ -133,7 +133,7 @@ class IndexMapTest {
         let map = mapOf(["a", "b", "c", "d", "e"])
 
         // act
-        map.removeIf {_, value => value % 2 == 1}
+        map.removeIf { _, value => value % 2 == 1 }
 
         // assert
         @Expect(["a", "c", "e"], keysOf(map))
@@ -281,29 +281,30 @@ class IndexMapModelTest {
             let key = code / 4 % 8
             let position = positionIn(model, key)
             // what the model had under the key: what `add` replaces and a removal returns
-            let expected = position.map {i => model[i][1]}
-            let actual = match (code % 4) {
-                case 0 | 1 =>
-                    match (position) {
-                        case Some(i) => model[i] = (key, step)
-                        case None => model.add((key, step))
-                    }
-                    map.add(key, step)
-                case 2 =>
-                    if (let Some(i) <- position) {
-                        model.remove(at: i)
-                    }
-                    map.shiftRemove(key)
-                case _ =>
-                    if (let Some(i) <- position) {
-                        let last = model[model.size - 1]
-                        model.remove(at: model.size - 1)
-                        if (i < model.size) {
-                            model[i] = last
+            let expected = position.map { i => model[i][1] }
+            let actual =
+                match (code % 4) {
+                    case 0 | 1 =>
+                        match (position) {
+                            case Some(i) => model[i] = (key, step)
+                            case None => model.add((key, step))
                         }
-                    }
-                    map.swapRemove(key)
-            }
+                        map.add(key, step)
+                    case 2 =>
+                        if (let Some(i) <- position) {
+                            model.remove(at: i)
+                        }
+                        map.shiftRemove(key)
+                    case _ =>
+                        if (let Some(i) <- position) {
+                            let last = model[model.size - 1]
+                            model.remove(at: model.size - 1)
+                            if (i < model.size) {
+                                model[i] = last
+                            }
+                        }
+                        map.swapRemove(key)
+                }
 
             // assert
             @Assert(expected, actual)

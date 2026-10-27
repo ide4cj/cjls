@@ -92,7 +92,10 @@ public class ItemIdMap <: Equatable<ItemIdMap> {
     /**
      * The ids and pointers in the order the items are in the file, a parent before its members.
      */
-    private ItemIdMap(private let ids: Array<ItemId>, private let ptrs: Array<SyntaxNodePtr<SyntaxKind>>) {
+    private ItemIdMap(
+        private let ids: Array<ItemId>,
+        private let ptrs: Array<SyntaxNodePtr<SyntaxKind>>
+    ) {
         for (i in 0..ids.size) {
             byId.add(ids[i], ptrs[i])
             byPtr.add(ptrs[i], ids[i])
@@ -106,7 +109,8 @@ public class ItemIdMap <: Equatable<ItemIdMap> {
         let builder = ItemIdBuilder()
         if (let Some(root) <- SourceFileNode.cast(tree.syntaxNode())) {
             for (decl in root.importDecls()) {
-                builder.add(None, ItemKind.Import, compactText(decl.importTree()?.syntax), decl.syntax)
+                builder
+                    .add(None, ItemKind.Import, compactText(decl.importTree()?.syntax), decl.syntax)
             }
             builder.addItems(None, root.decls())
         }
@@ -158,7 +162,7 @@ public class ItemIdMap <: Equatable<ItemIdMap> {
      * The node of `id` under `root`, the tree this was made of, `None` if no item has it.
      */
     public func node(id: ItemId, root: CjSyntaxNode): ?CjSyntaxNode {
-        ptr(id).flatMap {ptr => ptr.tryToNode(root)}
+        ptr(id).flatMap { ptr => ptr.tryToNode(root) }
     }
 
     public operator func ==(other: ItemIdMap): Bool {
@@ -242,7 +246,8 @@ struct ItemSyntax {
             case Decl.AsMainDecl(_) => "main"
             case Decl.AsInitDecl(_) => "init"
             case Decl.AsFinalizerDecl(_) => "~init"
-            case Decl.AsExtendDecl(it) => compactText(it.ty()?.syntax) + compactText(it.typeBoundList()?.syntax)
+            case Decl.AsExtendDecl(it) =>
+                compactText(it.ty()?.syntax) + compactText(it.typeBoundList()?.syntax)
             case Decl.AsVarDecl(it) where it.name().isNone() => compactText(it.pattern()?.syntax)
             case Decl.AsMacroExpandDecl(it) => macroName(it)
             case _ => AnyHasName.cast(decl.syntax)?.name()?.text() ?? ""
@@ -253,14 +258,15 @@ struct ItemSyntax {
      * What it declares inside: a type's members.
      */
     func members(): Iterator<Decl> {
-        let decls = match (decl) {
-            case Decl.AsClassDecl(it) => it.declBody()?.decls()
-            case Decl.AsInterfaceDecl(it) => it.declBody()?.decls()
-            case Decl.AsStructDecl(it) => it.declBody()?.decls()
-            case Decl.AsExtendDecl(it) => it.declBody()?.decls()
-            case Decl.AsEnumDecl(it) => it.enumBody()?.decls()
-            case _ => None<Iterator<Decl>>
-        }
+        let decls =
+            match (decl) {
+                case Decl.AsClassDecl(it) => it.declBody()?.decls()
+                case Decl.AsInterfaceDecl(it) => it.declBody()?.decls()
+                case Decl.AsStructDecl(it) => it.declBody()?.decls()
+                case Decl.AsExtendDecl(it) => it.declBody()?.decls()
+                case Decl.AsEnumDecl(it) => it.enumBody()?.decls()
+                case _ => None<Iterator<Decl>>
+            }
         decls ?? Array<Decl>().iterator()
     }
 }
@@ -277,34 +283,46 @@ func itemsIn(decls: Iterator<Decl>): Array<ItemSyntax> {
     items.toArray()
 }
 
-private func collectItem(decl: Decl, macroCalls: Array<MacroExpandDecl>, items: ArrayList<ItemSyntax>,
-    inForeignBlock!: Bool): Unit {
-    let kind = match (decl) {
-        case Decl.AsMacroExpandDecl(call) => match (call.decl()) {
-            case Some(inner) => return collectItem(inner, macroCalls.concat([call]), items, inForeignBlock: inForeignBlock)
-            case None => ItemKind.MacroCall
+private func collectItem(
+    decl: Decl,
+    macroCalls: Array<MacroExpandDecl>,
+    items: ArrayList<ItemSyntax>,
+    inForeignBlock!: Bool
+): Unit {
+    let kind =
+        match (decl) {
+            case Decl.AsMacroExpandDecl(call) =>
+                match (call.decl()) {
+                    case Some(inner) =>
+                        return collectItem(
+                            inner,
+                            macroCalls.concat([call]),
+                            items,
+                            inForeignBlock: inForeignBlock
+                        )
+                    case None => ItemKind.MacroCall
+                }
+            case Decl.AsForeignBlock(block) =>
+                for (inner in block.decls()) {
+                    collectItem(inner, macroCalls, items, inForeignBlock: true)
+                }
+                return
+            case Decl.AsFuncDecl(_) => ItemKind.Func
+            case Decl.AsMainDecl(_) => ItemKind.Main
+            case Decl.AsMacroDecl(_) => ItemKind.Macro
+            case Decl.AsClassDecl(_) => ItemKind.Class
+            case Decl.AsInterfaceDecl(_) => ItemKind.Interface
+            case Decl.AsStructDecl(_) => ItemKind.Struct
+            case Decl.AsEnumDecl(_) => ItemKind.Enum
+            case Decl.AsExtendDecl(_) => ItemKind.Extend
+            case Decl.AsTypeAliasDecl(_) => ItemKind.TypeAlias
+            case Decl.AsVarDecl(_) => ItemKind.Var
+            case Decl.AsPropDecl(_) => ItemKind.Prop
+            case Decl.AsInitDecl(_) => ItemKind.Init
+            case Decl.AsFinalizerDecl(_) => ItemKind.Finalizer
+            case Decl.AsPrimaryInitDecl(_) => ItemKind.PrimaryInit
+            case Decl.AsEnumCtor(_) => ItemKind.EnumCtor
         }
-        case Decl.AsForeignBlock(block) =>
-            for (inner in block.decls()) {
-                collectItem(inner, macroCalls, items, inForeignBlock: true)
-            }
-            return
-        case Decl.AsFuncDecl(_) => ItemKind.Func
-        case Decl.AsMainDecl(_) => ItemKind.Main
-        case Decl.AsMacroDecl(_) => ItemKind.Macro
-        case Decl.AsClassDecl(_) => ItemKind.Class
-        case Decl.AsInterfaceDecl(_) => ItemKind.Interface
-        case Decl.AsStructDecl(_) => ItemKind.Struct
-        case Decl.AsEnumDecl(_) => ItemKind.Enum
-        case Decl.AsExtendDecl(_) => ItemKind.Extend
-        case Decl.AsTypeAliasDecl(_) => ItemKind.TypeAlias
-        case Decl.AsVarDecl(_) => ItemKind.Var
-        case Decl.AsPropDecl(_) => ItemKind.Prop
-        case Decl.AsInitDecl(_) => ItemKind.Init
-        case Decl.AsFinalizerDecl(_) => ItemKind.Finalizer
-        case Decl.AsPrimaryInitDecl(_) => ItemKind.PrimaryInit
-        case Decl.AsEnumCtor(_) => ItemKind.EnumCtor
-    }
     items.add(ItemSyntax(kind, decl, macroCalls, inForeignBlock))
 }
 
@@ -312,7 +330,8 @@ private func collectItem(decl: Decl, macroCalls: Array<MacroExpandDecl>, items: 
  * The macro a call names, as written: `Derive`, `a.b.M`.
  */
 func macroName(call: MacroExpandDecl): String {
-    call.nameRefs() |> map {name => name.text()} |> collectArray |> {names => String.join(names, delimiter: ".")}
+    call.nameRefs() |> map { name => name.text() } |> collectArray |>
+        { names => String.join(names, delimiter: ".") }
 }
 
 /**

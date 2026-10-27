@@ -13,7 +13,7 @@ public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
 
     @Frozen
     static func wordsOf(kinds: Array<K>): Array<UInt64> {
-        let size = kinds.iterator().fold(0) {size, k => max(size, k.ordinal() / 64 + 1)}
+        let size = kinds.iterator().fold(0) { size, k => max(size, k.ordinal() / 64 + 1) }
         let words = Array<UInt64>(size, repeat: 0)
         for (k in kinds) {
             words[k.ordinal() / 64] |= 1 << UInt64(k.ordinal() % 64)
@@ -35,16 +35,12 @@ public struct TokenSet<K> <: Equatable<TokenSet<K>> where K <: Kind<K> {
     @Frozen
     public func union(other: TokenSet<K>): TokenSet<K> {
         let size = max(words.size, other.words.size)
-        TokenSet<K>(words: Array<UInt64>(size) {i => wordAt(i) | other.wordAt(i)})
+        TokenSet<K>(words: Array<UInt64>(size) { i => wordAt(i) | other.wordAt(i) })
     }
 
     @Frozen
     func wordAt(i: Int64): UInt64 {
-        if (i < words.size) {
-            words[i]
-        } else {
-            0
-        }
+        if (i < words.size) { words[i] } else { 0 }
     }
 
     @Frozen

@@ -120,12 +120,12 @@ public class ConcurrentIndexMap<K, V> where K <: Hashable & Equatable<K> {
      */
     public func iterator(): Iterator<(K, V)> {
         let size = count.load()
-        (0..size).iterator().map {index => entry(index)}
+        (0..size).iterator().map { index => entry(index) }
     }
 
     public func toArray(): Array<(K, V)> {
         let size = count.load()
-        Array(size) {index => entry(index)}
+        Array(size) { index => entry(index) }
     }
 
     @Frozen
@@ -137,7 +137,7 @@ public class ConcurrentIndexMap<K, V> where K <: Hashable & Equatable<K> {
     }
 
     func append(key: K, value: V): (Int64, ?V) {
-        synchronized(lock) {
+        synchronized (lock) {
             // another thread may have added it meanwhile; a lookup and an add, not one
             // `entryView`, which costs more than the hash it saves (`ConcurrentIndexMapInsertBench`)
             if (let Some(index) <- indices.get(key)) {
@@ -228,10 +228,10 @@ public class ConcurrentIndexSet<T> where T <: Hashable & Equatable<T> {
      * The elements there when it was called, in order.
      */
     public func iterator(): Iterator<T> {
-        map.iterator().map {entry => entry[0]}
+        map.iterator().map { entry => entry[0] }
     }
 
     public func toArray(): Array<T> {
-        map.toArray().map {entry => entry[0]}
+        map.toArray().map { entry => entry[0] }
     }
 }

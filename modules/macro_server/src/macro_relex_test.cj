@@ -24,8 +24,36 @@ func relexSources(): Array<String> {
             ()
         }
     }
-    sources.add(all: ["x", "é", "`Int8`", "`class`", "true", "false", "1", "1.5", "0xff", "2i8", "1e3",
-        "\"s\"", "'s'", "r'c'", "b'x'", "J\"j\"", "#\"raw\"#", "\"\"\"\ntext\"\"\"", "a.b", "a + b", "Array<Int8>", "!in ", "1.5x..", "1.5x..=", "1.5x..2"])
+    sources
+        .add(
+            all: [
+                "x",
+                "é",
+                "`Int8`",
+                "`class`",
+                "true",
+                "false",
+                "1",
+                "1.5",
+                "0xff",
+                "2i8",
+                "1e3",
+                "\"s\"",
+                "'s'",
+                "r'c'",
+                "b'x'",
+                "J\"j\"",
+                "#\"raw\"#",
+                "\"\"\"\ntext\"\"\"",
+                "a.b",
+                "a + b",
+                "Array<Int8>",
+                "!in ",
+                "1.5x..",
+                "1.5x..=",
+                "1.5x..2"
+            ]
+        )
     sources.toArray()
 }
 
@@ -42,11 +70,15 @@ func sdkWireTokens(source: String): Array<TokenData> {
         // about a residual adjacent pair in isolation, so its answer cannot depend on the preceding pair.
         if (i + 1 < tokens.size && ["GE", "RSHIFT_ASSIGN"].contains(t.kind.toString())) {
             let next = tokens[i + 1]
-            let startsArrow = i + 2 < tokens.size && tokens[i + 2].kind.toString() == "DOUBLE_ARROW" &&
-                next.pos.line == tokens[i + 2].pos.line && next.pos.column + 1 == tokens[i + 2].pos.column
+            let startsArrow =
+                i + 2 < tokens.size && tokens[i + 2].kind.toString() == "DOUBLE_ARROW" &&
+                    next.pos.line == tokens[i + 2].pos.line &&
+                    next.pos.column + 1 == tokens[i + 2].pos.column
             // In `>=>=>`, the middle `>` already belongs to the SDK's second recombined pair.
-            if (!startsArrow && next.kind.toString() == "GT" && t.pos.line == next.pos.line &&
-                t.pos.column + Int32(t.value.size) == next.pos.column) {
+            if (
+                !startsArrow && next.kind.toString() == "GT" && t.pos.line == next.pos.line &&
+                    t.pos.column + Int32(t.value.size) == next.pos.column
+            ) {
                 for (relexed in cangjieLex("${t.value}${next.value}")) {
                     normalized.add(relexed)
                 }
@@ -57,9 +89,16 @@ func sdkWireTokens(source: String): Array<TokenData> {
         normalized.add(t)
         i++
     }
-    normalized.toArray().map {t =>
-        TokenData(kind: KIND_NUMBERS[t.kind.toString()], value: t.value, delimiterNum: UInt32(t.delimiterNum))
-    }
+    normalized
+        .toArray()
+        .map {
+            t =>
+            TokenData(
+                kind: KIND_NUMBERS[t.kind.toString()],
+                value: t.value,
+                delimiterNum: UInt32(t.delimiterNum)
+            )
+        }
 }
 
 /**
@@ -78,18 +117,19 @@ func sdkProcessed(tokens: Array<TokenData>, relexIdentifiers!: Bool): Array<Stri
             out.add(all: sdkProcessed(sdkWireTokens(t.value ?? ""), relexIdentifiers: false))
             continue
         }
-        let atoms: Array<String> = match (name) {
-            case "COALESCING" => ["QUEST |?|", "joint QUEST |?|"]
-            case "RSHIFT" => ["GT |>|", "joint GT |>|"]
-            case "RSHIFT_ASSIGN" => ["GT |>|", "joint GT |>|", "joint ASSIGN |=|"]
-            case "GE" => ["GT |>|", "joint ASSIGN |=|"]
-            // ParseAtom accepts both UNIT_LITERAL and the lexer's `(` `)` as the same unit constant.
-            case "UNIT_LITERAL" => ["LPAREN |(|", "RPAREN |)|"]
-            case "COMMENT" | "END" => []
-            case "NL" => ["NL"]
-            case "MULTILINE_RAW_STRING" => ["${name} #${t.delimiterNum} |${t.value ?? ""}|"]
-            case _ => ["${name} |${t.value ?? ""}|"]
-        }
+        let atoms: Array<String> =
+            match (name) {
+                case "COALESCING" => ["QUEST |?|", "joint QUEST |?|"]
+                case "RSHIFT" => ["GT |>|", "joint GT |>|"]
+                case "RSHIFT_ASSIGN" => ["GT |>|", "joint GT |>|", "joint ASSIGN |=|"]
+                case "GE" => ["GT |>|", "joint ASSIGN |=|"]
+                // ParseAtom accepts both UNIT_LITERAL and the lexer's `(` `)` as the same unit constant.
+                case "UNIT_LITERAL" => ["LPAREN |(|", "RPAREN |)|"]
+                case "COMMENT" | "END" => []
+                case "NL" => ["NL"]
+                case "MULTILINE_RAW_STRING" => ["${name} #${t.delimiterNum} |${t.value ?? ""}|"]
+                case _ => ["${name} |${t.value ?? ""}|"]
+            }
         out.add(all: atoms)
     }
     out.toArray()
@@ -99,12 +139,13 @@ func sdkProcessed(tokens: Array<TokenData>, relexIdentifiers!: Bool): Array<Stri
 func relexDifference(tokens: Array<TokenData>): ?String {
     let expected = sdkProcessed(tokens, relexIdentifiers: true)
     let printed = printMacroTokens(tokens, RELEX_NUMBERS).text
-    let actual = try {
-        sdkProcessed(sdkWireTokens(printed), relexIdentifiers: false)
-    } catch (_: Exception) {
-        return "SDK rejected printed text: ${printed}; expected ${expected}"
-    }
-    firstDifference(actual, expected).map {difference => "${printed}: ${difference}"}
+    let actual =
+        try {
+            sdkProcessed(sdkWireTokens(printed), relexIdentifiers: false)
+        } catch (_: Exception) {
+            return "SDK rejected printed text: ${printed}; expected ${expected}"
+        }
+    firstDifference(actual, expected).map { difference => "${printed}: ${difference}" }
 }
 
 /** Chooses ordinary SDK tokens or a constructed identifier containing their entire source. */
@@ -134,15 +175,19 @@ class MacroRelexTest {
             if (value.isEmpty()) {
                 continue
             }
-            let lexed = try {
-                sdkWireTokens(value)
-            } catch (_: Exception) {
-                continue
-            }
+            let lexed =
+                try {
+                    sdkWireTokens(value)
+                } catch (_: Exception) {
+                    continue
+                }
             // These experimental kinds have no spelling in the SDK's active source dialect. Their values
             // still participate as constructed identifiers; forcing the inactive kind cannot round-trip.
-            if (["PERFORM", "RESUME", "THROWING", "HANDLE"].contains(numbers.names[i]) && lexed.size == 1 &&
-                lexed[0].kind == numbers.numberOf("IDENTIFIER")) {
+            if (
+                ["PERFORM", "RESUME", "THROWING", "HANDLE"].contains(numbers.names[i]) &&
+                    lexed.size == 1 &&
+                    lexed[0].kind == numbers.numberOf("IDENTIFIER")
+            ) {
                 continue
             }
             @Expect(relexDifference([TokenData(kind: UInt8(i), value: value)]), None<String>)
@@ -157,7 +202,9 @@ class MacroRelexTest {
     @TestCase[source in RELEX_SOURCES]
     func relexingPreservesBoundariesWithNeighbouringTokens(source: String): Unit {
         let token = tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)
-        for (neighbour in ["x", "1", ".", "(", "[", ">", "?", ":", ";", "!in ", "@", "$", "#\"x\"#"]) {
+        for (
+            neighbour in ["x", "1", ".", "(", "[", ">", "?", ":", ";", "!in ", "@", "$", "#\"x\"#"]
+        ) {
             let others = sdkWireTokens(neighbour)
             @Expect(relexDifference([token].concat(others)), None<String>)
             @Expect(relexDifference(others.concat([token])), None<String>)
@@ -166,8 +213,13 @@ class MacroRelexTest {
 
     @TestCase
     func relexedTokensKeepPositionsInsideTheOriginalValue(): Unit {
-        let token = TokenData(kind: RELEX_NUMBERS.numberOf("IDENTIFIER"), value: "a.b",
-            begin: PositionData(fileId: 7, line: 3, column: 5), end: PositionData(fileId: 7, line: 3, column: 8))
+        let token =
+            TokenData(
+                kind: RELEX_NUMBERS.numberOf("IDENTIFIER"),
+                value: "a.b",
+                begin: PositionData(fileId: 7, line: 3, column: 5),
+                end: PositionData(fileId: 7, line: 3, column: 8)
+            )
         let printed = printMacroTokens([token], RELEX_NUMBERS)
         @Expect(printed.text, "a.b")
         @Expect(printed.tokens.map {t => printed.text[t.range.start..t.range.end]}, ["a", ".", "b"])
@@ -198,7 +250,11 @@ class MacroRelexTest {
     func shortGreaterAndEqualRunsKeepSdkMeaning(): Unit {
         for (width in 1..=10) {
             for (bits in 0..(1 << width)) {
-                let source = String.join(Array(width) {i => if ((bits & (1 << i)) == 0) { ">" } else { "=" }})
+                let source =
+                    String
+                        .join(
+                            Array(width) { i => if ((bits & (1 << i)) == 0) { ">" } else { "=" } }
+                        )
                 @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
             }
         }
@@ -219,15 +275,14 @@ struct RelexChoices <: ToString {
 
 extend RelexChoices <: Arbitrary<RelexChoices> {
     public static func arbitrary(random: RandomSource): Generator<RelexChoices> {
-        Generators.generate {
-            RelexChoices(Array(random.nextInt64(33)) {_ => random.suggestUInt16()})
-        }
+        Generators
+            .generate { RelexChoices(Array(random.nextInt64(33)) { _ => random.suggestUInt16() }) }
     }
 }
 
 extend RelexChoices <: Shrink<RelexChoices> {
     public func shrink(): Iterable<RelexChoices> {
-        picks.shrink() |> map {values: Array<UInt16> => RelexChoices(values)}
+        picks.shrink() |> map { values: Array<UInt16> => RelexChoices(values) }
     }
 }
 

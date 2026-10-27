@@ -11,7 +11,8 @@ import std.unittest.testmacro.*
 class QuoteDefinitionTest {
     @TestCase
     func aParameterInAnInterpolation() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -19,12 +20,14 @@ class QuoteDefinitionTest {
             //             ^^^^^ def
                 quote(f($($0input)))
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLocalNamedByADollar() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -33,12 +36,14 @@ class QuoteDefinitionTest {
             //      ^^^^ def
                 quote(let $0$name = 1)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBackquotedNameNamedByADollar() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -46,12 +51,14 @@ class QuoteDefinitionTest {
             //             ^^^^^ def
                 quote($0$`input`)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameInAQuoteInAnInterpolation() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -59,12 +66,14 @@ class QuoteDefinitionTest {
             //             ^^^^^ def
                 quote(a + $(quote(b + $0$input)))
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameOutsideTheInterpolationsHasNoDefinition() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -72,12 +81,14 @@ class QuoteDefinitionTest {
                 quote($0input + $input)
             //          ^^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anEscapedDollarIsATokenWithNoDefinition() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -85,6 +96,7 @@ class QuoteDefinitionTest {
                 quote(\$0$input)
             //           ^^^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 }

@@ -33,12 +33,14 @@ func rootOf(db: AnalysisDatabase, file: SourceFile): CjSyntaxNode {
 @CalcaTracked
 func functions(db: AnalysisDatabase, file: SourceFile): Array<AstPtr<SyntaxKind, FuncDecl>> {
     let root = parse(db, file).syntaxNode()
-    collectArray(root.descendants().filterMap {node => FuncDecl.cast(node)}.map {decl => AstPtr(decl)})
+    collectArray(
+        root.descendants().filterMap { node => FuncDecl.cast(node) }.map { decl => AstPtr(decl) }
+    )
 }
 
 func functionNames(db: AnalysisDatabase, file: SourceFile): Array<String> {
     let root = parse(db, file).syntaxNode()
-    functions(db, file).map {ptr => ptr.toNode(root).name()?.toString() ?? ""}
+    functions(db, file).map { ptr => ptr.toNode(root).name()?.toString() ?? "" }
 }
 
 /**

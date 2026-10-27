@@ -23,11 +23,7 @@ public class NodeCache<K> where K <: Kind<K> {
     @Frozen
     public func node(kind: K, children: Array<GreenElement<K>>): GreenNode<K> {
         let candidate = GreenNode<K>.measure(children, kind)
-        if (children.size > MAX_CACHED_CHILDREN) {
-            candidate
-        } else {
-            intern(nodes, candidate)
-        }
+        if (children.size > MAX_CACHED_CHILDREN) { candidate } else { intern(nodes, candidate) }
     }
 }
 

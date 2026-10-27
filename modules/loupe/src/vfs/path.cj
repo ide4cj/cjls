@@ -47,25 +47,22 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      * The path a `file:` URI names, anything else a virtual path of the URI itself.
      */
     public static func fromUri(uri: String): VfsPath {
-        let url = try {
-            URL.parse(uri)
-        } catch (_: UrlSyntaxException) {
-            return virtual(uri)
-        } catch (_: IllegalArgumentException) {
-            // an escape that spells no UTF-8
-            return virtual(uri)
-        }
+        let url =
+            try {
+                URL.parse(uri)
+            } catch (_: UrlSyntaxException) {
+                return virtual(uri)
+            } catch (_: IllegalArgumentException) {
+                // an escape that spells no UTF-8
+                return virtual(uri)
+            }
         // the host is empty, or `localhost`, for a file on this machine
         let local = url.hostName.isEmpty() || url.hostName == "localhost"
         if (url.scheme != "file" || !local || url.path.isEmpty()) {
             return virtual(uri)
         }
         let path = Path(pathOfFileUriPath(url.path))
-        if (path.isAbsolute()) {
-            file(path)
-        } else {
-            virtual(uri)
-        }
+        if (path.isAbsolute()) { file(path) } else { virtual(uri) }
     }
 
     /**
@@ -73,11 +70,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
      */
     public prop filePath: ?Path {
         get() {
-            if (onDisk) {
-                Path(text)
-            } else {
-                None
-            }
+            if (onDisk) { Path(text) } else { None }
         }
     }
 
@@ -127,11 +120,7 @@ public struct VfsPath <: Hashable & Equatable<VfsPath> & ToString {
             if (!onDisk) {
                 return text
             }
-            if (parent.isNone()) {
-                ""
-            } else {
-                Path(text).fileName
-            }
+            if (parent.isNone()) { "" } else { Path(text).fileName }
         }
     }
 

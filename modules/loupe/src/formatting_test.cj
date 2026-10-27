@@ -19,7 +19,7 @@ class FormattingTest {
         let edits = formatting(db, FileId(0))
 
         // assert
-        @Expect(edits, Some([TextEdit(TextRange(10, 11), "\n    "), TextEdit(TextRange(12, 15), "\n")]))
+        @Expect(edits, Some([TextEdit(TextRange(11, 14), "    x")]))
     }
 
     @TestCase

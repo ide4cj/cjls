@@ -83,7 +83,8 @@ func serverMacroOf(db: AnalysisDatabase, resolution: Resolution): ?ServerMacro {
     let decl = macroDeclsOf(resolution).get(0) ?? return None
     match (packageRefOf(db, decl)) {
         case Some(Source(pkg)) => ServerMacro(WorkspacePackage(pkg), name)
-        case Some(Binary(binary)) where binary.binary(db) == "std" => ServerMacro(StdPackage(binary), name)
+        case Some(Binary(binary)) where binary.binary(db) == "std" =>
+            ServerMacro(StdPackage(binary), name)
         case _ => None
     }
 }
@@ -120,34 +121,44 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
         inItems[one.item] = calls
     }
     let pkg = packageOfFile(db, file)
-    let addInItem = {
-        item: ItemId, top: ItemId =>
-        let calls = inItems.get(item) ?? return ()
-        for (one in calls) {
-            let owner = pkg ?? break
-            let path = one.name.split(".")
-            let definition = serverMacroOf(db, resolveMacroPath(db, owner, file, path)[path.size - 1]) ?? continue
-            // std's expression calls keep their fallback until #375 sends them to the server
-            if (definition.isStd) {
-                continue
+    let addInItem =
+        {
+            item: ItemId, top: ItemId =>
+            let calls = inItems.get(item) ?? return ()
+            for (one in calls) {
+                let owner = pkg ?? break
+                let path = one.name.split(".")
+                let definition =
+                    serverMacroOf(db, resolveMacroPath(db, owner, file, path)[path.size - 1]) ??
+                        continue
+                // std's expression calls keep their fallback until #375 sends them to the server
+                if (definition.isStd) {
+                    continue
+                }
+                found
+                    .add(
+                        ServerCall(
+                            MacroCallId(db, file, item, one.index, Some(one.name)),
+                            definition,
+                            top,
+                            false
+                        )
+                    )
             }
-            found.add(ServerCall(MacroCallId(db, file, item, one.index, Some(one.name)), definition, top, false))
         }
-    }
     for (item in itemTree(db, file).items) {
-        let own: Array<ServerCall> = if (hasMacroCalls(item)) {
-            serverCallsOn(db, file, item, item.id, true)
-        } else {
-            []
-        }
+        let own: Array<ServerCall> =
+            if (hasMacroCalls(item)) { serverCallsOn(db, file, item, item.id, true) } else { [] }
         // a call on the item itself, whose input the members' calls are part of; not one on its parameters alone
-        let read = own.iterator().any {one => one.read}
+        let read = own.iterator().any { one => one.read }
         for (member in item.members) {
             addInItem(member.id, item.id)
             if (hasMacroCalls(member)) {
-                found.add(all: serverCallsOn(db, file, member, item.id, false).filter {
-                    one => read || !one.definition.isStd
-                })
+                found
+                    .add(
+                        all: serverCallsOn(db, file, member, item.id, false)
+                            .filter { one => read || !one.definition.isStd }
+                    )
             }
         }
         addInItem(item.id, item.id)
@@ -167,7 +178,13 @@ func hasMacroCalls(item: Item): Bool {
  * The calls the server runs on `item`, under the top-level item `top`: those on its parameters (D119), then its
  * own, innermost first.
  */
-func serverCallsOn(db: AnalysisDatabase, file: SourceFile, item: Item, top: ItemId, isTop: Bool): Array<ServerCall> {
+func serverCallsOn(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    item: Item,
+    top: ItemId,
+    isTop: Bool
+): Array<ServerCall> {
     let resolutions = macrosOf(db, DefId(db, ItemFile.Source(file), item.id))
     // the chains, by the range of their indices: the item's own first, then its parameters'
     let chains = ArrayList<(Int64, Int64)>([(0, item.macros.size)])
@@ -187,10 +204,17 @@ func serverCallsOn(db: AnalysisDatabase, file: SourceFile, item: Item, top: Item
                 calls.add((i, definition))
             }
         }
-        for (j in calls.size - 1..=0 : -1) {
+        for (j in calls.size - 1..=0: -1) {
             let (index, definition) = calls[j]
-            found.add(ServerCall(MacroCallId(db, file, item.id, index, None), definition, top,
-                isTop && c == 0 && j == 0))
+            found
+                .add(
+                    ServerCall(
+                        MacroCallId(db, file, item.id, index, None),
+                        definition,
+                        top,
+                        isTop && c == 0 && j == 0
+                    )
+                )
         }
     }
     found.toArray()
@@ -215,7 +239,7 @@ public func macroOutputOf(db: AnalysisDatabase, call: MacroCallId): ?MacroOutput
  * The last expansion of `call` by the macro server that succeeded, if there is one.
  */
 func serverExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?MappedText {
-    macroOutputOf(db, call).flatMap {output => output.expansion}
+    macroOutputOf(db, call).flatMap { output => output.expansion }
 }
 
 /**
@@ -224,8 +248,14 @@ func serverExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?MappedText {
  *
  * @throws IllegalStateException - if `db` is a snapshot, or a query is running on it
  */
-public func setMacroOutputs(db: AnalysisDatabase, answers: Array<(MacroCallId, MacroOutput)>): Unit {
-    setMacroOutputsByKey(db, answers.map {answer => (answer[0].file(db), macroCallKeyOf(db, answer[0]), answer[1])})
+public func setMacroOutputs(
+    db: AnalysisDatabase,
+    answers: Array<(MacroCallId, MacroOutput)>
+): Unit {
+    setMacroOutputsByKey(
+        db,
+        answers.map { answer => (answer[0].file(db), macroCallKeyOf(db, answer[0]), answer[1]) }
+    )
 }
 
 /**
@@ -234,17 +264,21 @@ public func setMacroOutputs(db: AnalysisDatabase, answers: Array<(MacroCallId, M
  *
  * @throws IllegalStateException - if `db` is a snapshot, or a query is running on it
  */
-public func setMacroOutputsByKey(db: AnalysisDatabase, answers: Array<(SourceFile, MacroCallKey, MacroOutput)>): Unit {
+public func setMacroOutputsByKey(
+    db: AnalysisDatabase,
+    answers: Array<(SourceFile, MacroCallKey, MacroOutput)>
+): Unit {
     let byFile = HashMap<SourceFile, MacroOutputs>()
     for ((file, key, output) in answers) {
         let outputs = byFile.get(file) ?? file.macroOutputs(db)
         byFile[file] = outputs.withOutput(key, output)
     }
-    db.batch {
-        for ((file, outputs) in byFile) {
-            file.setMacroOutputs(db).to(outputs)
+    db
+        .batch {
+            for ((file, outputs) in byFile) {
+                file.setMacroOutputs(db).to(outputs)
+            }
         }
-    }
 }
 
 /**
@@ -286,7 +320,7 @@ public func macroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRe
         return []
     }
     let composer = MacroInputComposer(calls, db, file)
-    calls |> filterMap {call: ServerCall => composer.request(call)} |> collectArray
+    calls |> filterMap { call: ServerCall => composer.request(call) } |> collectArray
 }
 
 /**
@@ -294,14 +328,20 @@ public func macroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRe
  */
 public func pendingMacroRequests(db: AnalysisDatabase, file: SourceFile): Array<MacroRequest> {
     // a file with no macro call, most of them, runs no query of its own: the host asks after every edit
-    let calls = itemTree(db, file).items.iterator().any {
-        item => hasMacroCalls(item) || item.members.iterator().any {member => hasMacroCalls(member)}
-    }
+    let calls =
+        itemTree(db, file)
+            .items
+            .iterator()
+            .any {
+                item =>
+                hasMacroCalls(item) ||
+                    item.members.iterator().any { member => hasMacroCalls(member) }
+            }
     // those in items (D117) found by their own walk, once the items have none
     if (!calls && bodyMacroCalls(db, file).isEmpty()) {
         return []
     }
-    macroRequests(db, file).filter {request => !request.current}
+    macroRequests(db, file).filter { request => !request.current }
 }
 
 /**
@@ -312,15 +352,17 @@ public func readServerCallsOf(db: AnalysisDatabase, file: SourceFile): Array<Mac
     if (file.macroOutputs(db).size == 0) {
         return []
     }
-    serverCalls(db, file) |> filter {one: ServerCall => one.read} |> map {one: ServerCall => one.call} |>
-        filter {call: MacroCallId => serverExpansionOf(db, call).isSome()} |> collectArray
+    serverCalls(db, file) |> filter { one: ServerCall => one.read } |>
+        map { one: ServerCall => one.call } |>
+        filter { call: MacroCallId => serverExpansionOf(db, call).isSome() } |>
+        collectArray
 }
 
 /**
  * The expansion of `call` if it is a call the macro server ran that the analysis reads, which replaces its item.
  */
 func serverCallExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?Expansion {
-    if (!serverCalls(db, call.file(db)).iterator().any {one => one.read && one.call == call}) {
+    if (!serverCalls(db, call.file(db)).iterator().any { one => one.read && one.call == call }) {
         return None
     }
     let output = serverExpansionOf(db, call) ?? return None
@@ -332,17 +374,18 @@ func serverCallExpansionOf(db: AnalysisDatabase, call: MacroCallId): ?Expansion 
  * the server ran replaces, read by the analysis: what its macros add is read from that expansion.
  */
 func isReplacedByServerExpansion(db: AnalysisDatabase, def: DefId): Bool {
-    let file = match (def.file(db)) {
-        case Source(file) => file
-        case _ => return false
-    }
+    let file =
+        match (def.file(db)) {
+            case Source(file) => file
+            case _ => return false
+        }
     if (file.macroOutputs(db).size == 0) {
         return false
     }
     let top = (parentOf(db, def) ?? def).item(db)
-    serverCalls(db, file).iterator().any {
-        one => one.read && one.top == top && serverExpansionOf(db, one.call).isSome()
-    }
+    serverCalls(db, file)
+        .iterator()
+        .any { one => one.read && one.top == top && serverExpansionOf(db, one.call).isSome() }
 }
 
 /**
@@ -354,17 +397,35 @@ public func expandedDeclOf(db: AnalysisDatabase, def: DefId): ?DefId {
     if (!isReplacedByServerExpansion(db, def)) {
         return None
     }
-    let file = match (def.file(db)) {
-        case Source(file) => file
-        case _ => return None
-    }
+    let file =
+        match (def.file(db)) {
+            case Source(file) => file
+            case _ => return None
+        }
     let top = (parentOf(db, def) ?? def).item(db)
-    let call = (serverCalls(db, file).iterator().filter {one => one.read && one.top == top}.next() ?? return None).call
+    let call =
+        (
+            serverCalls(db, file).iterator().filter { one => one.read && one.top == top }.next() ??
+                return None
+        )
+            .call
     let node = itemIdMap(db, file).node(def.item(db), parse(db, file).syntaxNode()) ?? return None
-    let name = AnyHasName.cast(node).flatMap {it => it.name()}?.syntax.textRange ?? return None
-    let items = expansionItemTree(db, call).items |> flatMap {item: Item => [item].concat(item.members)} |>
-        map {item: Item => item.id} |> collectArray
-    let item = (items |> filter {id: ItemId => expansionOrigin(db, call, id).map {origin => origin[0]} == name} |> first) ?? return None
+    let name = AnyHasName.cast(node).flatMap { it => it.name() }?.syntax.textRange ?? return None
+    let items =
+        expansionItemTree(db, call).items |>
+            flatMap { item: Item => [item].concat(item.members) } |>
+            map { item: Item => item.id } |>
+            collectArray
+    let item =
+        (
+            items |>
+                filter {
+                    id: ItemId =>
+                    expansionOrigin(db, call, id).map { origin => origin[0] } == name
+                } |>
+                first
+        ) ??
+            return None
     DefId(db, ItemFile.Expansion(call), item)
 }
 
@@ -374,8 +435,11 @@ public func expandedDeclOf(db: AnalysisDatabase, def: DefId): ?DefId {
  */
 @Derive[Equatable]
 public struct MacroCallDiagnostic {
-    public MacroCallDiagnostic(public let range: TextRange, public let severity: MacroSeverity,
-        public let message: String) {}
+    public MacroCallDiagnostic(
+        public let range: TextRange,
+        public let severity: MacroSeverity,
+        public let message: String
+    ) {}
 }
 
 /**
@@ -400,30 +464,44 @@ public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Macr
         if (output.diagnostics.isEmpty() && one.call.inBody(db).isNone()) {
             continue
         }
-        let head = if (one.call.inBody(db).isSome()) {
-            (bodyCallSyntaxOf(db, one.call) ?? continue).head()
-        } else {
-            let node = ids.node(one.call.item(db), root) ?? continue
-            macroHeadOf(macroCallAt(node, one.call.index(db)) ?? continue)
-        }
-        if (one.call.inBody(db).isSome() && output.expansion.isSome() &&
-            !output.diagnostics.any {diagnostic => diagnostic.severity == MacroSeverity.MacroError}) {
+        let head =
+            if (one.call.inBody(db).isSome()) {
+                (bodyCallSyntaxOf(db, one.call) ?? continue).head()
+            } else {
+                let node = ids.node(one.call.item(db), root) ?? continue
+                macroHeadOf(macroCallAt(node, one.call.index(db)) ?? continue)
+            }
+        if (
+            one.call.inBody(db).isSome() && output.expansion.isSome() &&
+                !output
+                    .diagnostics
+                    .any { diagnostic => diagnostic.severity == MacroSeverity.MacroError }
+        ) {
             for (error in expansionParse(db, one.call).errors) {
-                found.add(MacroCallDiagnostic(head, MacroSeverity.MacroError, "macro expansion: ${message(error.error)}"))
+                found
+                    .add(
+                        MacroCallDiagnostic(
+                            head,
+                            MacroSeverity.MacroError,
+                            "macro expansion: ${message(error.error)}"
+                        )
+                    )
             }
         }
         let anchor = anchorOf(ids, root, one.top) ?? continue
         for (diagnostic in output.diagnostics) {
-            let range = match (diagnostic.origin) {
-                case Some(FromSource(range)) where anchor + range.end <= size => TextRange(anchor + range.start,
-                    anchor + range.end)
-                case _ => head
-            }
-            let message = if (diagnostic.hint.isEmpty()) {
-                diagnostic.message
-            } else {
-                "${diagnostic.message}: ${diagnostic.hint}"
-            }
+            let range =
+                match (diagnostic.origin) {
+                    case Some(FromSource(range)) where anchor + range.end <= size =>
+                        TextRange(anchor + range.start, anchor + range.end)
+                    case _ => head
+                }
+            let message =
+                if (diagnostic.hint.isEmpty()) {
+                    diagnostic.message
+                } else {
+                    "${diagnostic.message}: ${diagnostic.hint}"
+                }
             found.add(MacroCallDiagnostic(range, diagnostic.severity, message))
         }
     }
@@ -448,7 +526,7 @@ func macroHeadOf(call: MacroExpandDecl): TextRange {
     if (let Some(attr) <- call.macroAttr()) {
         return TextRange(start, attr.syntax.textRange.end)
     }
-    let names = call.nameRefs() |> map {name => name.syntax.textRange.end} |> collectArray
+    let names = call.nameRefs() |> map { name => name.syntax.textRange.end } |> collectArray
     TextRange(start, names.get(names.size - 1) ?? (call.atToken()?.textRange.end ?? start))
 }
 
@@ -470,8 +548,13 @@ class MappedTextBuilder {
             return
         }
         text.append(source[range.start..range.end])
-        spans.add(MappedSpan(TextRange.at(size, range.len), SpanOrigin.FromSource(TextRange.at(range.start - anchor,
-            range.len))))
+        spans
+            .add(
+                MappedSpan(
+                    TextRange.at(size, range.len),
+                    SpanOrigin.FromSource(TextRange.at(range.start - anchor, range.len))
+                )
+            )
         size += range.len
     }
 
@@ -481,10 +564,12 @@ class MappedTextBuilder {
     func paste(output: MappedText, head: TextRange): Unit {
         text.append(output.text)
         for (span in output.spans) {
-            let origin = match (span.origin) {
-                case FromCall => SpanOrigin.FromSource(TextRange(head.start - anchor, head.end - anchor))
-                case other => other
-            }
+            let origin =
+                match (span.origin) {
+                    case FromCall =>
+                        SpanOrigin.FromSource(TextRange(head.start - anchor, head.end - anchor))
+                    case other => other
+                }
             spans.add(MappedSpan(TextRange(span.range.start + size, span.range.end + size), origin))
         }
         size += output.text.size
@@ -500,14 +585,17 @@ class MappedTextBuilder {
  * last if it is `close`. Not the first `close` among its tokens, which may be one nested in it (`@M[a: [1]]`).
  */
 func innerRangeOf(node: CjSyntaxNode, open: SyntaxKind, close: SyntaxKind): TextRange {
-    let start = match (node.firstToken()) {
-        case Some(first) where first.kind == open => first.textRange.end
-        case _ => node.textRange.start
-    }
-    let end = match (node.lastToken()) {
-        case Some(last) where last.kind == close && last.textRange.start >= start => last.textRange.start
-        case _ => node.textRange.end
-    }
+    let start =
+        match (node.firstToken()) {
+            case Some(first) where first.kind == open => first.textRange.end
+            case _ => node.textRange.start
+        }
+    let end =
+        match (node.lastToken()) {
+            case Some(last) where last.kind == close && last.textRange.start >= start =>
+                last.textRange.start
+            case _ => node.textRange.end
+        }
     TextRange(start, end)
 }
 
@@ -522,7 +610,11 @@ class MacroInputComposer {
     private let source: String
     private let served = HashMap<MacroCallKey, ServerCall>()
 
-    MacroInputComposer(calls: Array<ServerCall>, private let db: AnalysisDatabase, private let file: SourceFile) {
+    MacroInputComposer(
+        calls: Array<ServerCall>,
+        private let db: AnalysisDatabase,
+        private let file: SourceFile
+    ) {
         root = parse(db, file).syntaxNode()
         ids = itemIdMap(db, file)
         tree = itemTree(db, file)
@@ -546,36 +638,57 @@ class MacroInputComposer {
         let node = ids.node(item, root) ?? return None
         let (chain, position) = macroCallChainAt(node, index) ?? return None
         let macroCall = chain.calls[position]
-        let attrs = macroCall.macroAttr().map {
-            attr =>
-            let builder = MappedTextBuilder(source, anchor)
-            builder.copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
-            builder.build()
-        }
+        let attrs =
+            macroCall
+                .macroAttr()
+                .map {
+                    attr =>
+                    let builder = MappedTextBuilder(source, anchor)
+                    builder
+                        .copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
+                    builder.build()
+                }
         let builder = MappedTextBuilder(source, anchor)
         let children = ArrayList<MacroChild>()
-        let ready = if (position + 1 < chain.calls.size) {
-            chainFrom(item, chain, position + 1, builder, children)
-        } else if (let Some(decl) <- macroCall.decl()) {
-            declaration(item, decl.syntax, builder, children)
-        } else if (let Some(param) <- macroCall.param()) {
-            builder.copy(param.syntax.textRange)
-            true
-        } else if (let Some(args) <- macroCall.macroArgs()) {
-            builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
-            true
-        } else {
-            true
-        }
+        let ready =
+            if (position + 1 < chain.calls.size) {
+                chainFrom(item, chain, position + 1, builder, children)
+            } else if (let Some(decl) <- macroCall.decl()) {
+                declaration(item, decl.syntax, builder, children)
+            } else if (let Some(param) <- macroCall.param()) {
+                builder.copy(param.syntax.textRange)
+                true
+            } else if (let Some(args) <- macroCall.macroArgs()) {
+                builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
+                true
+            } else {
+                true
+            }
         if (!ready) {
             return None
         }
         let input = builder.build()
         let parents = parentsOf(call.top, item, index)
-        let fingerprint = fingerprintOf(call.definition, call.definition.libraryStamp(db), attrs, input, parents,
-            children)
+        let fingerprint =
+            fingerprintOf(
+                call.definition,
+                call.definition.libraryStamp(db),
+                attrs,
+                input,
+                parents,
+                children
+            )
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
-        MacroRequest(call.call, call.definition, attrs, input, parents, children.toArray(), fingerprint, current)
+        MacroRequest(
+            call.call,
+            call.definition,
+            attrs,
+            input,
+            parents,
+            children.toArray(),
+            fingerprint,
+            current
+        )
     }
 
     /**
@@ -590,15 +703,20 @@ class MacroInputComposer {
         }
         let syntax = bodyCallSyntaxOf(db, call.call) ?? return None
         let anchor = anchorOf(ids, root, call.top) ?? return None
-        let attrs = syntax.macroAttr().map {
-            attr =>
-            let builder = MappedTextBuilder(source, anchor)
-            builder.copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
-            builder.build()
-        }
+        let attrs =
+            syntax
+                .macroAttr()
+                .map {
+                    attr =>
+                    let builder = MappedTextBuilder(source, anchor)
+                    builder
+                        .copy(innerRangeOf(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
+                    builder.build()
+                }
         let builder = MappedTextBuilder(source, anchor)
         match ((syntax.macroArgs(), syntax.rest())) {
-            case (Some(args), _) => builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
+            case (Some(args), _) =>
+                builder.copy(innerRangeOf(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen))
             case (None, Some(rest)) => builder.copy(rest.textRange)
             case _ => ()
         }
@@ -606,8 +724,15 @@ class MacroInputComposer {
         let item = call.call.item(db)
         let parents = parentsOf(call.top, item, macroCountOf(item)).concat(found.around)
         let children = ArrayList<MacroChild>()
-        let fingerprint = fingerprintOf(call.definition, call.definition.libraryStamp(db), attrs, input, parents,
-            children)
+        let fingerprint =
+            fingerprintOf(
+                call.definition,
+                call.definition.libraryStamp(db),
+                attrs,
+                input,
+                parents,
+                children
+            )
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
         MacroRequest(call.call, call.definition, attrs, input, parents, [], fingerprint, current)
     }
@@ -634,20 +759,37 @@ class MacroInputComposer {
      * run failed, is expanded as cjc expands it before the calls around it (D114): its head left out, the `extend`s
      * it adds after what it is on (`deriveExpansion`, signatures only).
      */
-    private func chainFrom(item: ItemId, chain: MacroCallChain, from: Int64, builder: MappedTextBuilder,
-        children: ArrayList<MacroChild>): Bool {
+    private func chainFrom(
+        item: ItemId,
+        chain: MacroCallChain,
+        from: Int64,
+        builder: MappedTextBuilder,
+        children: ArrayList<MacroChild>
+    ): Bool {
         let calls = chain.calls
         var start = calls[from].syntax.textRange.start
         let derived = ArrayList<(Expansion, TextRange)>()
-        let written = {
-            =>
-            for (i in 0..derived.size) {
-                let (expansion, head) = derived[derived.size - 1 - i]
-                builder.paste(MappedText("\n" + expansion.text, [MappedSpan(TextRange(0, expansion.text.size + 1),
-                    SpanOrigin.FromCall)]), head)
+        let written =
+            {
+                =>
+                for (i in 0..derived.size) {
+                    let (expansion, head) = derived[derived.size - 1 - i]
+                    builder
+                        .paste(
+                            MappedText(
+                                "\n" + expansion.text,
+                                [
+                                    MappedSpan(
+                                        TextRange(0, expansion.text.size + 1),
+                                        SpanOrigin.FromCall
+                                    )
+                                ]
+                            ),
+                            head
+                        )
+                }
+                true
             }
-            true
-        }
         for (i in from..calls.size) {
             let key = MacroCallKey(item.toString(), chain.base + i)
             if (let Some(inner) <- served.get(key)) {
@@ -656,7 +798,7 @@ class MacroInputComposer {
                     builder.copy(TextRange(start, calls[i].syntax.textRange.start))
                     builder.paste(expansion, macroHeadOf(calls[i]))
                     // what the calls nested in it set as well, as cjc gives an outer call every call inside it
-                    children.add(all: request(inner).map {one => one.children} ?? [])
+                    children.add(all: request(inner).map { one => one.children } ?? [])
                     children.add(MacroChild(inner.definition.name, output.items))
                     return written()
                 }
@@ -670,8 +812,9 @@ class MacroInputComposer {
                 builder.copy(TextRange(start, head.start))
                 derived.add((expansion, head))
                 // from what follows the head: the next call, or the declaration
-                start = calls.get(i + 1).map {next => next.syntax.textRange.start} ??
-                    calls[i].decl().map {decl => decl.syntax.textRange.start} ?? head.end
+                start =
+                    calls.get(i + 1).map { next => next.syntax.textRange.start } ??
+                        calls[i].decl().map { decl => decl.syntax.textRange.start } ?? head.end
             }
         }
         let last = calls[calls.size - 1]
@@ -689,12 +832,13 @@ class MacroInputComposer {
      * What `call`, at `index` on `item`, adds after its declaration if it is std's `@Derive`.
      */
     private func derivedBy(item: ItemId, index: Int64, call: MacroExpandDecl): ?Expansion {
-        let resolution = macrosOf(db, DefId(db, ItemFile.Source(file), item)).get(index) ?? return None
+        let resolution =
+            macrosOf(db, DefId(db, ItemFile.Source(file), item)).get(index) ?? return None
         match (stdMacroOf(db, resolution)) {
             case Some(DeriveMacro) => ()
             case _ => return None
         }
-        let decl = ids.node(item, root).flatMap {node => Decl.cast(node)} ?? return None
+        let decl = ids.node(item, root).flatMap { node => Decl.cast(node) } ?? return None
         deriveExpansion(decl, call)
     }
 
@@ -702,8 +846,12 @@ class MacroInputComposer {
      * Writes the declaration `node` of `item`: each chain of macro calls in it as its calls, those on its parameters
      * (D119) and, for each member, those on the member, or on its parameters when it has none of its own.
      */
-    private func declaration(item: ItemId, node: CjSyntaxNode, builder: MappedTextBuilder,
-        children: ArrayList<MacroChild>): Bool {
+    private func declaration(
+        item: ItemId,
+        node: CjSyntaxNode,
+        builder: MappedTextBuilder,
+        children: ArrayList<MacroChild>
+    ): Bool {
         let chains = ArrayList<(ItemId, MacroCallChain)>()
         for (chain in macroCallChainsOf(node) where !chain.onItem) {
             chains.add((item, chain))
@@ -711,14 +859,20 @@ class MacroInputComposer {
         for (member in membersOf(item) where hasMacroCalls(member)) {
             let memberNode = ids.node(member.id, root) ?? continue
             // the member's own calls reach its parameters' through its declaration
-            for (chain in macroCallChainsOf(memberNode) where chain.onItem == !member.macros.isEmpty()) {
+            for (
+                chain in macroCallChainsOf(memberNode) where chain.onItem ==
+                    !member.macros.isEmpty()
+            ) {
                 chains.add((member.id, chain))
             }
         }
-        sort(chains, by: {
-            a: (ItemId, MacroCallChain), b: (ItemId, MacroCallChain) =>
-            a[1].calls[0].syntax.textRange.start.compare(b[1].calls[0].syntax.textRange.start)
-        })
+        sort(
+            chains,
+            by: {
+                a: (ItemId, MacroCallChain), b: (ItemId, MacroCallChain) =>
+                a[1].calls[0].syntax.textRange.start.compare(b[1].calls[0].syntax.textRange.start)
+            }
+        )
         var at = node.textRange.start
         for ((owner, chain) in chains) {
             let range = chain.calls[0].syntax.textRange
@@ -752,7 +906,7 @@ class MacroInputComposer {
             if (top == item) {
                 names.add(all: macrosAround(one, index))
             } else {
-                names.add(all: one.macros.map {name => lastSegmentOf(name)})
+                names.add(all: one.macros.map { name => lastSegmentOf(name) })
                 for (member in one.members where member.id == item) {
                     names.add(all: macrosAround(member, index))
                 }
@@ -767,13 +921,13 @@ class MacroInputComposer {
      */
     private func macrosAround(item: Item, index: Int64): Array<String> {
         if (index < item.macros.size) {
-            return item.macros[0..index].map {name => lastSegmentOf(name)}
+            return item.macros[0..index].map { name => lastSegmentOf(name) }
         }
-        let names = ArrayList<String>(item.macros.map {name => lastSegmentOf(name)})
+        let names = ArrayList<String>(item.macros.map { name => lastSegmentOf(name) })
         var base = item.macros.size
         for (chain in item.paramMacros) {
             if (index < base + chain.size) {
-                names.add(all: chain[0..index - base].map {name => lastSegmentOf(name)})
+                names.add(all: chain[0..index - base].map { name => lastSegmentOf(name) })
                 break
             }
             base += chain.size
@@ -790,14 +944,20 @@ func lastSegmentOf(path: String): String {
 /**
  * What tells one request from another: everything the macro reads, and the library it runs from.
  */
-func fingerprintOf(definition: ServerMacro, library: Int64, attrs: ?MappedText, input: MappedText,
-    parents: Array<String>, children: ArrayList<MacroChild>): Int64 {
+func fingerprintOf(
+    definition: ServerMacro,
+    library: Int64,
+    attrs: ?MappedText,
+    input: MappedText,
+    parents: Array<String>,
+    children: ArrayList<MacroChild>
+): Int64 {
     let text = StringBuilder()
     text.append(definition.name)
     text.append("\u{0}")
     text.append(library)
     text.append("\u{0}")
-    text.append(attrs.map {one => "[${one.text}]"} ?? "")
+    text.append(attrs.map { one => "[${one.text}]" } ?? "")
     text.append("\u{0}")
     text.append(input.text)
     for (parent in parents) {

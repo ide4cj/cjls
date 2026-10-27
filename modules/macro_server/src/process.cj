@@ -9,18 +9,18 @@ import platform.{ChildPipes, PipedChild, startPiped}
  * `Tokens.inc` cjc's token kinds are numbered by (`TokenNumbers`).
  */
 public struct MacroServerPaths {
-    public MacroServerPaths(public let server!: Path, public let cjc!: Path, public let runtimeLib!: Path,
-        public let tokensInc!: Path) {}
+    public MacroServerPaths(
+        public let server!: Path,
+        public let cjc!: Path,
+        public let runtimeLib!: Path,
+        public let tokensInc!: Path
+    ) {}
 
     /**
      * Those of the SDK at `home` for the host `target` (`linux_x86_64_cjnative`).
      */
     public static func inSdk(home: Path, target: String): MacroServerPaths {
-        let exe = if (target.startsWith("windows")) {
-            ".exe"
-        } else {
-            ""
-        }
+        let exe = if (target.startsWith("windows")) { ".exe" } else { "" }
         MacroServerPaths(
             server: home.join("tools").join("bin").join("LSPMacroServer${exe}"),
             cjc: home.join("bin").join("cjc${exe}"),
@@ -105,6 +105,11 @@ func macroServerLibraryDirs(paths: MacroServerPaths): Array<Path> {
  * @throws ProcessStartException - if it cannot be started on Windows
  */
 public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
-    let child = startPiped(paths.server, macroServerLibraryDirs(paths), {pipes => macroServerArgs(paths, pipes)})
+    let child =
+        startPiped(
+            paths.server,
+            macroServerLibraryDirs(paths),
+            { pipes => macroServerArgs(paths, pipes) }
+        )
     MacroServerProcess(child, MacroConnection(child.fromChild, child.toChild))
 }

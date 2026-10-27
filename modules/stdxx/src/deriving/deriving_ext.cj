@@ -9,16 +9,37 @@ const DERIVE_EXT_MACRO = "DeriveExt"
  * One interface `@DeriveExt` implements: its name, the markers it reads, and what it generates.
  */
 struct Derivation {
-    Derivation(let name!: String, let markers!: Array<String>, let derive!: (DeriveContext) -> Tokens) {}
+    Derivation(
+        let name!: String,
+        let markers!: Array<String>,
+        let derive!: (DeriveContext) -> Tokens
+    ) {}
 }
 
 /** What `@DeriveExt` can derive. A new derivation is a line here and a function of the context. */
-let DERIVATIONS: Array<Derivation> = [
-    Derivation(name: "ToJson", markers: [SERDE_MARKER], derive: {context => serde(context, deriveToJson)}),
-    Derivation(name: "FromJson", markers: [SERDE_MARKER], derive: {context => serde(context, deriveFromJson)}),
-    Derivation(name: "ToToml", markers: [SERDE_MARKER], derive: {context => serdeToml(context, deriveToToml)}),
-    Derivation(name: "FromToml", markers: [SERDE_MARKER], derive: {context => serdeToml(context, deriveFromToml)})
-]
+let DERIVATIONS: Array<Derivation> =
+    [
+        Derivation(
+            name: "ToJson",
+            markers: [SERDE_MARKER],
+            derive: { context => serde(context, deriveToJson) }
+        ),
+        Derivation(
+            name: "FromJson",
+            markers: [SERDE_MARKER],
+            derive: { context => serde(context, deriveFromJson) }
+        ),
+        Derivation(
+            name: "ToToml",
+            markers: [SERDE_MARKER],
+            derive: { context => serdeToml(context, deriveToToml) }
+        ),
+        Derivation(
+            name: "FromToml",
+            markers: [SERDE_MARKER],
+            derive: { context => serdeToml(context, deriveFromToml) }
+        )
+    ]
 
 /**
  * Generates the interface implementations named in the attributes as extensions of the annotated
@@ -40,14 +61,15 @@ public macro DeriveExt(attrs: Tokens, input: Tokens): Tokens {
         if (attr.kind != TokenKind.IDENTIFIER) {
             continue
         }
-        match (DERIVATIONS.filter {derivation => derivation.name == attr.value}.first) {
+        match (DERIVATIONS.filter { derivation => derivation.name == attr.value }.first) {
             case Some(derivation) => requested.add(derivation)
-            case None => diagReport(
-                DiagReportLevel.ERROR,
-                Tokens(attr),
-                "`@DeriveExt` cannot derive `${attr.value}`",
-                "it knows: ${String.join(DERIVATIONS.map {derivation => derivation.name}, delimiter: ", ")}"
-            )
+            case None =>
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    Tokens(attr),
+                    "`@DeriveExt` cannot derive `${attr.value}`",
+                    "it knows: ${String.join(DERIVATIONS.map {derivation => derivation.name}, delimiter: ", ")}"
+                )
         }
     }
 
@@ -55,7 +77,8 @@ public macro DeriveExt(attrs: Tokens, input: Tokens): Tokens {
         return input
     }
 
-    let names = String.join(requested.toArray().map {derivation => derivation.name}, delimiter: ", ")
+    let names =
+        String.join(requested.toArray().map { derivation => derivation.name }, delimiter: ", ")
     let markers = Markers(knownMarkers())
     let read = ArrayList<String>()
     for (derivation in requested) {

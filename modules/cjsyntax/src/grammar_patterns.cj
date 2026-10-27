@@ -3,12 +3,14 @@ package cjsyntax
 import ginkgo.TokenSet
 import ginkgo.parsing.*
 
-let PATTERN_RECOVERY = TokenSet<SyntaxKind>([Comma, RParen, Pipe, FatArrow, WhereKw, InKw, LArrow, Eq, Colon, RBrace])
+let PATTERN_RECOVERY =
+    TokenSet<SyntaxKind>([Comma, RParen, Pipe, FatArrow, WhereKw, InKw, LArrow, Eq, Colon, RBrace])
 
 func pattern(p: P): Unit {
     match (p.current()) {
-        case _ where p.atAny(LITERALS) || p.at(StringStart) || (p.at(Minus) && p.nthAtAny(1, [IntLit, FloatLit])) ||
-            (p.at(LParen) && p.nthAt(1, RParen)) =>
+        case _ where p.atAny(LITERALS) || p.at(StringStart) ||
+                (p.at(Minus) && p.nthAtAny(1, [IntLit, FloatLit])) ||
+                (p.at(LParen) && p.nthAt(1, RParen)) =>
             let m = p.start()
             if (p.at(StringStart)) {
                 stringLit(p)
@@ -33,7 +35,8 @@ func pattern(p: P): Unit {
             let m = p.start()
             patternList(p)
             m.complete(p, TuplePat)
-        case _ where atName(p, 0) && (p.nthAt(1, LParen) || p.nthAt(1, Lt) || p.nthAt(1, Dot)) => enumPattern(p)
+        case _ where atName(p, 0) && (p.nthAt(1, LParen) || p.nthAt(1, Lt) || p.nthAt(1, Dot)) =>
+            enumPattern(p)
         case _ where atName(p, 0) && p.nthAt(1, Colon) =>
             let m = p.start()
             name(p)

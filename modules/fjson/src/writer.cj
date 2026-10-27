@@ -2,7 +2,8 @@ package fjson
 
 import fnum.{FLOAT64_CHARS_MAX, writeShortest}
 
-let HEX: Array<Byte> = [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66]
+let HEX: Array<Byte> =
+    [0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37, 0x38, 0x39, 0x61, 0x62, 0x63, 0x64, 0x65, 0x66]
 
 /**
  * A JSON writer into one growing byte buffer: no tree, no `String` of the whole, numbers written
@@ -174,7 +175,10 @@ public class FjWriter {
     }
 
     private func literal(text: String): Unit {
-        let source = unsafe { text.rawData() }
+        let source =
+            unsafe {
+                text.rawData()
+            }
         reserve(source.size)
         source.copyTo(buf, 0, length, source.size)
         length += source.size
@@ -182,14 +186,15 @@ public class FjWriter {
 
     /** `value` in decimal; the caller has reserved its 20 bytes. */
     private func digits(value: Int64): Unit {
-        var magnitude = if (value < 0) {
-            buf[length] = 0x2D
-            length++
-            // Int64.Min has no positive Int64
-            UInt64(-(value + 1)) + 1
-        } else {
-            UInt64(value)
-        }
+        var magnitude =
+            if (value < 0) {
+                buf[length] = 0x2D
+                length++
+                // Int64.Min has no positive Int64
+                UInt64(-(value + 1)) + 1
+            } else {
+                UInt64(value)
+            }
         var count = 1
         var probe = magnitude
         while (probe >= 10) {
@@ -206,7 +211,10 @@ public class FjWriter {
     }
 
     private func quoted(value: String): Unit {
-        let source = unsafe { value.rawData() }
+        let source =
+            unsafe {
+                value.rawData()
+            }
         let n = source.size
         reserve(n + 2)
         buf[length] = QUOTE
@@ -231,16 +239,17 @@ public class FjWriter {
     private func escape(b: Byte): Unit {
         reserve(6)
         buf[length] = BACKSLASH
-        let short: Byte = match (b) {
-            case 0x22 => 0x22
-            case 0x5C => 0x5C
-            case 0x08 => 0x62
-            case 0x0C => 0x66
-            case 0x0A => 0x6E
-            case 0x0D => 0x72
-            case 0x09 => 0x74
-            case _ => 0
-        }
+        let short: Byte =
+            match (b) {
+                case 0x22 => 0x22
+                case 0x5C => 0x5C
+                case 0x08 => 0x62
+                case 0x0C => 0x66
+                case 0x0A => 0x6E
+                case 0x0D => 0x72
+                case 0x09 => 0x74
+                case _ => 0
+            }
         if (short != 0) {
             buf[length + 1] = short
             length += 2

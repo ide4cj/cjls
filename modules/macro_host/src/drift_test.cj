@@ -11,12 +11,20 @@ import cjsyntax.parse as parseCangjie
 import ginkgo.SyntaxNode
 import loupe.db.*
 import loupe.fixture.*
-import loupe.hir.{expandedCalls, ItemId, itemTree, macroExpansion, pendingMacroRequests, setMacroOutputsByKey}
+import loupe.hir.{
+    expandedCalls,
+    ItemId,
+    itemTree,
+    macroExpansion,
+    pendingMacroRequests,
+    setMacroOutputsByKey
+}
 
 /**
  * Every case of std's macros cjls expands itself (#175), in one file.
  */
-const STD_MACRO_CASES = #"
+const STD_MACRO_CASES =
+    #"
     //- /main.cj module=m package=m
     package m
     import std.deriving.*
@@ -68,8 +76,23 @@ const STD_MACRO_CASES = #"
 /**
  * The modifiers a header may start with, which std and cjls write in orders of their own.
  */
-let MODIFIERS = ["public", "private", "protected", "internal", "static", "open", "override", "redef", "abstract",
-    "sealed", "operator", "unsafe", "mut", "const"]
+let MODIFIERS =
+    [
+        "public",
+        "private",
+        "protected",
+        "internal",
+        "static",
+        "open",
+        "override",
+        "redef",
+        "abstract",
+        "sealed",
+        "operator",
+        "unsafe",
+        "mut",
+        "const"
+    ]
 
 /**
  * Where cjls's own expansion is known to differ from std's in what it declares, each with why; one that no longer
@@ -77,13 +100,14 @@ let MODIFIERS = ["public", "private", "protected", "internal", "static", "open",
  * a registration in `extend TestPackage`), which an expansion added after the item cannot: cjls declares the
  * supertype and the members in an `extend` of its own (#175).
  */
-let KNOWN_DIFFERENCES = [
-    "Cases: extendCases<:TestClass",
-    "Cases: publicfuncasTestSuite():TestSuite",
-    "Cases: publicfuncregisterCases():Unit",
-    "alone: publicfuncasTestSuite():TestSuite",
-    "alone: publicfuncregisterTestCase_alone():Unit"
-]
+let KNOWN_DIFFERENCES =
+    [
+        "Cases: extendCases<:TestClass",
+        "Cases: publicfuncasTestSuite():TestSuite",
+        "Cases: publicfuncregisterCases():Unit",
+        "alone: publicfuncasTestSuite():TestSuite",
+        "alone: publicfuncregisterTestCase_alone():Unit"
+    ]
 
 /**
  * What `text` declares: the header of each declaration up to its body, and of the members of each type and `extend`
@@ -97,15 +121,26 @@ func headersOf(text: String): Array<String> {
 
 func addHeaders(node: SyntaxNode<SyntaxKind>, found: ArrayList<String>): Unit {
     for (child in node.children() where Decl.cast(child).isSome()) {
-        let body = child.children().filter {
-            one => match (one.kind) {
-                case SyntaxKind.DeclBody | SyntaxKind.EnumBody | SyntaxKind.Block | SyntaxKind.PropBody => true
-                case _ => false
-            }
-        }.next()
+        let body =
+            child
+                .children()
+                .filter {
+                    one =>
+                    match (one.kind) {
+                        case SyntaxKind.DeclBody |
+                            SyntaxKind.EnumBody |
+                            SyntaxKind.Block |
+                            SyntaxKind.PropBody => true
+                        case _ => false
+                    }
+                }
+                .next()
         let end = (body?.textRange.start ?? child.textRange.end) - child.textRange.start
         found.add(normalized(child.text()[..end]))
-        if (let Some(members) <- body && (members.kind == SyntaxKind.DeclBody || members.kind == SyntaxKind.EnumBody)) {
+        if (
+            let Some(members) <- body &&
+                (members.kind == SyntaxKind.DeclBody || members.kind == SyntaxKind.EnumBody)
+        ) {
             addHeaders(members, found)
         }
     }
@@ -151,9 +186,12 @@ class StdExpansionDriftTest {
     func whatCjlsDeclaresForStdsMacrosTheSdksStdDeclaresToo() {
         // arrange
         let parsed = Fixture.parse(STD_MACRO_CASES)
-        let db = parsed.database(binaries: ["std.core", "std.deriving", "std.unittest", "std.unittest.testmacro"].map {
-            name => stdCjoRead(name, stdCjo(name))
-        })
+        let db =
+            parsed
+                .database(
+                    binaries: ["std.core", "std.deriving", "std.unittest", "std.unittest.testmacro"]
+                        .map { name => stdCjoRead(name, stdCjo(name)) }
+                )
         let file = db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow()
         let own = ArrayList<(ItemId, String)>()
         for (call in expandedCalls(db, file)) {
@@ -166,8 +204,16 @@ class StdExpansionDriftTest {
 
         // act
         while (!pendingMacroRequests(db, file).isEmpty()) {
-            let requests = sendableRequests(db, [file], HashMap<Package, MacroLibrary>(),
-                stdLibrary: {pkg => paths.stdMacroLibrary(pkg).map {path => path.toString()}})
+            let requests =
+                sendableRequests(
+                    db,
+                    [file],
+                    HashMap<Package, MacroLibrary>(),
+                    stdLibrary: {
+                        pkg =>
+                        paths.stdMacroLibrary(pkg).map { path => path.toString() }
+                    }
+                )
             setMacroOutputsByKey(db, expandAll(db, requests, testNumbers(), servers))
         }
         servers.close()
@@ -183,7 +229,7 @@ class StdExpansionDriftTest {
         }
         let known = HashSet<String>(KNOWN_DIFFERENCES)
         @Expect(String.join(differing.toArray().filter {one => !known.contains(one)}, delimiter: "\n"), "")
-        let gone = KNOWN_DIFFERENCES.filter {one => !differing.contains(one)}
+        let gone = KNOWN_DIFFERENCES.filter { one => !differing.contains(one) }
         @Expect(String.join(gone, delimiter: "\n"), "")
     }
 }

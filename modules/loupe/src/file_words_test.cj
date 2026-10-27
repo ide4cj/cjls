@@ -11,7 +11,10 @@ class FileWordsTest {
         // arrange - a two-byte character before the word moves where a chunk may end
         let filler = String.join(Array<String>(1500, repeat: "é "))
         let first = Rope(filler).chunks().next().getOrThrow().size
-        for (at in first - 8..first + 8 where at >= 0 && at < filler.size && (filler[at] & 0xC0) != 0x80) {
+        for (
+            at in first - 8..first + 8 where at >= 0 && at < filler.size &&
+                (filler[at] & 0xC0) != 0x80
+        ) {
             let text = Rope(filler[..at] + " needle " + filler[at..])
 
             // act
@@ -27,8 +30,10 @@ class FileWordsTest {
     @TestCase
     func aNameIsAWordWhereverTheLexerCutsOne() {
         // arrange
-        let text = Rope(
-            "let a = `b` + \$c + \"\${d}e\" + f.size\n// g\nlet 数组→ = public\nlet sizeOf = 1\n")
+        let text =
+            Rope(
+                "let a = `b` + \$c + \"\${d}e\" + f.size\n// g\nlet 数组→ = public\nlet sizeOf = 1\n"
+            )
 
         // act
         let words = wordsOf(text)

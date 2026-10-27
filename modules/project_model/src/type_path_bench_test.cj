@@ -25,7 +25,10 @@ func defsOf(ws: BenchWorkspace, file: SourceFile): Array<DefId> {
  * Each path in a type of a signature of the workspace that does not resolve, by `onFailed`; how many
  * segments do.
  */
-func resolveEveryTypePath(ws: BenchWorkspace, onFailed!: (SourceFile, String, PathResolution) -> Unit = {_, _, _ => ()}): Int64 {
+func resolveEveryTypePath(
+    ws: BenchWorkspace,
+    onFailed!: (SourceFile, String, PathResolution) -> Unit = { _, _, _ => () }
+): Int64 {
     var resolved = 0
     for ((_, file, _) in ws.files) {
         for (def in defsOf(ws, file)) {
@@ -33,7 +36,7 @@ func resolveEveryTypePath(ws: BenchWorkspace, onFailed!: (SourceFile, String, Pa
             let scope = typeScopeOf(ws.db, def) ?? continue
             for (ty in sig.types) {
                 if (let PathRef(segments) <- ty) {
-                    let names = segments.map {segment => segment.name}
+                    let names = segments.map { segment => segment.name }
                     for (resolution in resolveTypePath(ws.db, scope, names)) {
                         match (resolution) {
                             case Resolved(_) => resolved++

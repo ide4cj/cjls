@@ -21,8 +21,14 @@ class MappedTextTest {
     @TestCase
     func aRangeInASpanOfAnotherLengthIsAllOfItsOrigin() {
         // arrange
-        let mapped = MappedText("\"a\" x", [MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(10, 15))),
-            MappedSpan(TextRange(4, 5), SpanOrigin.FromCall)])
+        let mapped =
+            MappedText(
+                "\"a\" x",
+                [
+                    MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(10, 15))),
+                    MappedSpan(TextRange(4, 5), SpanOrigin.FromCall)
+                ]
+            )
 
         // act
         let string = mapped.originOf(TextRange(1, 2))
@@ -38,12 +44,25 @@ class MappedTextTest {
     @TestCase
     func aFailedRunKeepsTheExpansionOfTheLastThatSucceeded() {
         // arrange
-        let outputs = MacroOutputs().withOutput(MacroCallKey("Class#1/0", 0),
-            MacroOutput(1, MappedText.fromSource("x", 0), [MacroItem("k", MacroItemValue.IntItem(1))], []))
-        let failed = MacroOutput(2, None, [], [MacroDiagnostic(MacroSeverity.MacroError, None, "no", "")])
+        let outputs =
+            MacroOutputs()
+                .withOutput(
+                    MacroCallKey("Class#1/0", 0),
+                    MacroOutput(
+                        1,
+                        MappedText.fromSource("x", 0),
+                        [MacroItem("k", MacroItemValue.IntItem(1))],
+                        []
+                    )
+                )
+        let failed =
+            MacroOutput(2, None, [], [MacroDiagnostic(MacroSeverity.MacroError, None, "no", "")])
 
         // act
-        let after = outputs.withOutput(MacroCallKey("Class#1/0", 0), failed).get(MacroCallKey("Class#1/0", 0))
+        let after =
+            outputs
+                .withOutput(MacroCallKey("Class#1/0", 0), failed)
+                .get(MacroCallKey("Class#1/0", 0))
 
         // assert
         @Expect(after?.fingerprint, Some(2))

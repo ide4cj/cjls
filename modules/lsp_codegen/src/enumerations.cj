@@ -4,9 +4,16 @@ import std.ast.*
 import stdxx.IntegerOrString
 
 struct EnumIr {
-    EnumIr(let base: EnumBase, let doc: DocIr, let shape!: EnumShape = Declared, let isOpen!: Bool = false,
-        let ident!: String, let variants!: Array<EnumVariantIr>, let derives!: Array<DeriveIr> = [],
-        let catchAll!: ?EnumCatchAllIr = None) {}
+    EnumIr(
+        let base: EnumBase,
+        let doc: DocIr,
+        let shape!: EnumShape = Declared,
+        let isOpen!: Bool = false,
+        let ident!: String,
+        let variants!: Array<EnumVariantIr>,
+        let derives!: Array<DeriveIr> = [],
+        let catchAll!: ?EnumCatchAllIr = None
+    ) {}
 }
 
 /**
@@ -48,43 +55,60 @@ enum EnumBase {
 }
 
 func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
-    let (ident, shape, declared) = match (cfg.typeMap.bind(enumeration.name)) {
-        case Owned(ident) => (ident, Declared, Array<String>())
-        case Extern(target, declared) => (enumeration.name, Adopted(target), declared)
-        case Aliased(_) | Skipped => return None
-    }
-    for (name in declared where !enumeration.values.any {it => it.name == name}) {
-        throw IllegalStateException("`types.${enumeration.name}.declared` names `${name}`, which it does not have")
+    let (ident, shape, declared) =
+        match (cfg.typeMap.bind(enumeration.name)) {
+            case Owned(ident) => (ident, Declared, Array<String>())
+            case Extern(target, declared) => (enumeration.name, Adopted(target), declared)
+            case Aliased(_) | Skipped => return None
+        }
+    for (name in declared where !enumeration.values.any { it => it.name == name }) {
+        throw IllegalStateException(
+            "`types.${enumeration.name}.declared` names `${name}`, which it does not have"
+        )
     }
 
-    let base = match (enumeration.enumerationType.name) {
-        case String => StringBase
-        case Integer => Int32Base
-        case UInteger => UInt32Base
-    }
+    let base =
+        match (enumeration.enumerationType.name) {
+            case String => StringBase
+            case Integer => Int32Base
+            case UInteger => UInt32Base
+        }
 
     let isOpen = enumeration.supportsCustomValues ?? false
     // only a closed enumeration we declare becomes an `enum`: an open one is a struct around its
     // value, and both it and an adopted one carry their constants as `static` members
-    let (derives, asConstructors): (Array<DeriveIr>, Bool) = match (shape) {
-        case Declared => ([Json(SerdeTypeOptions(transparent: isOpen)), DeriveIr.Equatable,
-            DeriveIr.Hashable], !isOpen)
-        case Adopted(_) => ([], false)
-    }
+    let (derives, asConstructors): (Array<DeriveIr>, Bool) =
+        match (shape) {
+            case Declared =>
+                (
+                    [
+                        Json(SerdeTypeOptions(transparent: isOpen)),
+                        DeriveIr.Equatable,
+                        DeriveIr.Hashable
+                    ],
+                    !isOpen
+                )
+            case Adopted(_) => ([], false)
+        }
 
-    let variants = enumeration.values
-        .filter {it => !declared.contains(it.name)}
-        .map {it => resolveEnumVariant(it, asConstructor: asConstructors)}
+    let variants =
+        enumeration
+            .values
+            .filter { it => !declared.contains(it.name) }
+            .map { it => resolveEnumVariant(it, asConstructor: asConstructors) }
     var catchAll: ?EnumCatchAllIr = None
     if (asConstructors) {
-        if (variants.any {it => it.ident == CATCH_ALL_IDENT}) {
-            throw IllegalStateException("`${enumeration.name}` defines `${CATCH_ALL_IDENT}` itself, which is taken by the catch-all variant")
+        if (variants.any { it => it.ident == CATCH_ALL_IDENT }) {
+            throw IllegalStateException(
+                "`${enumeration.name}` defines `${CATCH_ALL_IDENT}` itself, which is taken by the catch-all variant"
+            )
         }
-        catchAll = EnumCatchAllIr(
-            DocIr(documentation: "A value this version of the protocol does not define."),
-            ident: CATCH_ALL_IDENT,
-            serde: SerdeMemberOptions(other: true)
-        )
+        catchAll =
+            EnumCatchAllIr(
+                DocIr(documentation: "A value this version of the protocol does not define."),
+                ident: CATCH_ALL_IDENT,
+                serde: SerdeMemberOptions(other: true)
+            )
     }
 
     EnumIr(
@@ -100,20 +124,22 @@ func resolveEnum(cfg: Config, enumeration: Enumeration): ?EnumIr {
 }
 
 private func resolveEnumVariant(entry: EnumerationEntry, asConstructor!: Bool): EnumVariantIr {
-    let ident = if (asConstructor) {
-        entry.name.toAsciiPascalCase()
-    } else {
-        entry.name.toAsciiUpperSnakeCase()
-    }
+    let ident =
+        if (asConstructor) {
+            entry.name.toAsciiPascalCase()
+        } else {
+            entry.name.toAsciiUpperSnakeCase()
+        }
 
-    let serde: ?SerdeMemberOptions = if (!asConstructor) {
-        None
-    } else if (entry.value == ident) {
-        // the macro already puts a variant on the wire under its identifier
-        SerdeMemberOptions()
-    } else {
-        SerdeMemberOptions(value: entry.value)
-    }
+    let serde: ?SerdeMemberOptions =
+        if (!asConstructor) {
+            None
+        } else if (entry.value == ident) {
+            // the macro already puts a variant on the wire under its identifier
+            SerdeMemberOptions()
+        } else {
+            SerdeMemberOptions(value: entry.value)
+        }
 
     EnumVariantIr(resolveDoc(entry), ident: ident, value: entry.value, serde: serde)
 }
@@ -125,11 +151,7 @@ extend CjEmitter {
             case Adopted(target) => emitAdoptedVariants(enumIr, target)
             case Declared =>
                 emitDerives(enumIr.derives)
-                if (enumIr.isOpen) {
-                    emitOpenEnum(enumIr)
-                } else {
-                    emitClosedEnum(enumIr)
-                }
+                if (enumIr.isOpen) { emitOpenEnum(enumIr) } else { emitClosedEnum(enumIr) }
         }
     }
 
@@ -139,7 +161,8 @@ extend CjEmitter {
 
         emit(quote(sealed interface $interfaceIdent))
         blockln {
-            => for (variant in adopted.variants) {
+            =>
+            for (variant in adopted.variants) {
                 emitAdoptedVariant(variant, targetType)
                 nl()
             }
@@ -177,7 +200,9 @@ extend CjEmitter {
         let enumVariantValue = literalOf(openEnumVariant.value)
 
         emitDoc(openEnumVariant.doc)
-        emitln(quote(public static const $enumVariantIdent: $enumIdent = $enumIdent($enumVariantValue)))
+        emitln(
+            quote(public static const $enumVariantIdent: $enumIdent = $enumIdent($enumVariantValue))
+        )
     }
 
     private func emitClosedEnum(closedEnum: EnumIr): Unit {
@@ -215,10 +240,12 @@ extend CjEmitter {
 
 extend EnumBase <: ToTokens {
     public func toTokens(): Tokens {
-        Tokens(match (this) {
-            case StringBase => Token(IDENTIFIER, "String")
-            case Int32Base => Token(INT32)
-            case UInt32Base => Token(UINT32)
-        })
+        Tokens(
+            match (this) {
+                case StringBase => Token(IDENTIFIER, "String")
+                case Int32Base => Token(INT32)
+                case UInt32Base => Token(UINT32)
+            }
+        )
     }
 }

@@ -5,90 +5,91 @@ package cjsyntax
 import std.collection.HashMap
 import ginkgo.Kind
 
-let KEYWORDS: HashMap<String, SyntaxKind> = HashMap<String, SyntaxKind>(
-    [
-        ("_", Underscore),
-        ("Int8", Int8Kw),
-        ("Int16", Int16Kw),
-        ("Int32", Int32Kw),
-        ("Int64", Int64Kw),
-        ("IntNative", IntNativeKw),
-        ("UInt8", UInt8Kw),
-        ("UInt16", UInt16Kw),
-        ("UInt32", UInt32Kw),
-        ("UInt64", UInt64Kw),
-        ("UIntNative", UIntNativeKw),
-        ("Float16", Float16Kw),
-        ("Float32", Float32Kw),
-        ("Float64", Float64Kw),
-        ("Rune", RuneKw),
-        ("Bool", BoolKw),
-        ("Nothing", NothingKw),
-        ("Unit", UnitKw),
-        ("struct", StructKw),
-        ("enum", EnumKw),
-        ("VArray", VArrayKw),
-        ("This", ThisTypeKw),
-        ("package", PackageKw),
-        ("import", ImportKw),
-        ("class", ClassKw),
-        ("interface", InterfaceKw),
-        ("func", FuncKw),
-        ("macro", MacroKw),
-        ("quote", QuoteKw),
-        ("let", LetKw),
-        ("var", VarKw),
-        ("const", ConstKw),
-        ("type", TypeKw),
-        ("init", InitKw),
-        ("this", ThisKw),
-        ("super", SuperKw),
-        ("if", IfKw),
-        ("else", ElseKw),
-        ("case", CaseKw),
-        ("try", TryKw),
-        ("catch", CatchKw),
-        ("finally", FinallyKw),
-        ("for", ForKw),
-        ("do", DoKw),
-        ("while", WhileKw),
-        ("throw", ThrowKw),
-        ("return", ReturnKw),
-        ("continue", ContinueKw),
-        ("break", BreakKw),
-        ("in", InKw),
-        ("match", MatchKw),
-        ("where", WhereKw),
-        ("extend", ExtendKw),
-        ("with", WithKw),
-        ("prop", PropKw),
-        ("static", StaticKw),
-        ("public", PublicKw),
-        ("private", PrivateKw),
-        ("internal", InternalKw),
-        ("protected", ProtectedKw),
-        ("override", OverrideKw),
-        ("redef", RedefKw),
-        ("abstract", AbstractKw),
-        ("sealed", SealedKw),
-        ("open", OpenKw),
-        ("foreign", ForeignKw),
-        ("inout", InoutKw),
-        ("mut", MutKw),
-        ("unsafe", UnsafeKw),
-        ("operator", OperatorKw),
-        ("spawn", SpawnKw),
-        ("synchronized", SynchronizedKw),
-        ("main", MainKw),
-        ("is", IsKw),
-        ("as", AsKw),
-        ("true", TrueKw),
-        ("false", FalseKw),
-        ("common", CommonKw),
-        ("specific", SpecificKw),
-        ("features", FeaturesKw)
-    ]
-)
+let KEYWORDS: HashMap<String, SyntaxKind> =
+    HashMap<String, SyntaxKind>(
+        [
+            ("_", Underscore),
+            ("Int8", Int8Kw),
+            ("Int16", Int16Kw),
+            ("Int32", Int32Kw),
+            ("Int64", Int64Kw),
+            ("IntNative", IntNativeKw),
+            ("UInt8", UInt8Kw),
+            ("UInt16", UInt16Kw),
+            ("UInt32", UInt32Kw),
+            ("UInt64", UInt64Kw),
+            ("UIntNative", UIntNativeKw),
+            ("Float16", Float16Kw),
+            ("Float32", Float32Kw),
+            ("Float64", Float64Kw),
+            ("Rune", RuneKw),
+            ("Bool", BoolKw),
+            ("Nothing", NothingKw),
+            ("Unit", UnitKw),
+            ("struct", StructKw),
+            ("enum", EnumKw),
+            ("VArray", VArrayKw),
+            ("This", ThisTypeKw),
+            ("package", PackageKw),
+            ("import", ImportKw),
+            ("class", ClassKw),
+            ("interface", InterfaceKw),
+            ("func", FuncKw),
+            ("macro", MacroKw),
+            ("quote", QuoteKw),
+            ("let", LetKw),
+            ("var", VarKw),
+            ("const", ConstKw),
+            ("type", TypeKw),
+            ("init", InitKw),
+            ("this", ThisKw),
+            ("super", SuperKw),
+            ("if", IfKw),
+            ("else", ElseKw),
+            ("case", CaseKw),
+            ("try", TryKw),
+            ("catch", CatchKw),
+            ("finally", FinallyKw),
+            ("for", ForKw),
+            ("do", DoKw),
+            ("while", WhileKw),
+            ("throw", ThrowKw),
+            ("return", ReturnKw),
+            ("continue", ContinueKw),
+            ("break", BreakKw),
+            ("in", InKw),
+            ("match", MatchKw),
+            ("where", WhereKw),
+            ("extend", ExtendKw),
+            ("with", WithKw),
+            ("prop", PropKw),
+            ("static", StaticKw),
+            ("public", PublicKw),
+            ("private", PrivateKw),
+            ("internal", InternalKw),
+            ("protected", ProtectedKw),
+            ("override", OverrideKw),
+            ("redef", RedefKw),
+            ("abstract", AbstractKw),
+            ("sealed", SealedKw),
+            ("open", OpenKw),
+            ("foreign", ForeignKw),
+            ("inout", InoutKw),
+            ("mut", MutKw),
+            ("unsafe", UnsafeKw),
+            ("operator", OperatorKw),
+            ("spawn", SpawnKw),
+            ("synchronized", SynchronizedKw),
+            ("main", MainKw),
+            ("is", IsKw),
+            ("as", AsKw),
+            ("true", TrueKw),
+            ("false", FalseKw),
+            ("common", CommonKw),
+            ("specific", SpecificKw),
+            ("features", FeaturesKw)
+        ]
+    )
 
 /**
  * Every kind of token and node in a syntax tree.
@@ -1042,15 +1043,85 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
      */
     public func isKeyword(): Bool {
         match (this) {
-            case Int8Kw | Int16Kw | Int32Kw | Int64Kw | IntNativeKw | UInt8Kw | UInt16Kw | UInt32Kw | UInt64Kw
-                | UIntNativeKw | Float16Kw | Float32Kw | Float64Kw | RuneKw | BoolKw | NothingKw | UnitKw | StructKw
-                | EnumKw | VArrayKw | ThisTypeKw | PackageKw | ImportKw | ClassKw | InterfaceKw | FuncKw | MacroKw
-                | QuoteKw | LetKw | VarKw | ConstKw | TypeKw | InitKw | ThisKw | SuperKw | IfKw | ElseKw | CaseKw
-                | TryKw | CatchKw | FinallyKw | ForKw | DoKw | WhileKw | ThrowKw | ReturnKw | ContinueKw | BreakKw
-                | InKw | MatchKw | WhereKw | ExtendKw | WithKw | PropKw | StaticKw | PublicKw | PrivateKw | InternalKw
-                | ProtectedKw | OverrideKw | RedefKw | AbstractKw | SealedKw | OpenKw | ForeignKw | InoutKw | MutKw
-                | UnsafeKw | OperatorKw | SpawnKw | SynchronizedKw | MainKw | IsKw | AsKw | TrueKw | FalseKw | CommonKw
-                | SpecificKw | FeaturesKw => true
+            case Int8Kw |
+                Int16Kw |
+                Int32Kw |
+                Int64Kw |
+                IntNativeKw |
+                UInt8Kw |
+                UInt16Kw |
+                UInt32Kw |
+                UInt64Kw |
+                UIntNativeKw |
+                Float16Kw |
+                Float32Kw |
+                Float64Kw |
+                RuneKw |
+                BoolKw |
+                NothingKw |
+                UnitKw |
+                StructKw |
+                EnumKw |
+                VArrayKw |
+                ThisTypeKw |
+                PackageKw |
+                ImportKw |
+                ClassKw |
+                InterfaceKw |
+                FuncKw |
+                MacroKw |
+                QuoteKw |
+                LetKw |
+                VarKw |
+                ConstKw |
+                TypeKw |
+                InitKw |
+                ThisKw |
+                SuperKw |
+                IfKw |
+                ElseKw |
+                CaseKw |
+                TryKw |
+                CatchKw |
+                FinallyKw |
+                ForKw |
+                DoKw |
+                WhileKw |
+                ThrowKw |
+                ReturnKw |
+                ContinueKw |
+                BreakKw |
+                InKw |
+                MatchKw |
+                WhereKw |
+                ExtendKw |
+                WithKw |
+                PropKw |
+                StaticKw |
+                PublicKw |
+                PrivateKw |
+                InternalKw |
+                ProtectedKw |
+                OverrideKw |
+                RedefKw |
+                AbstractKw |
+                SealedKw |
+                OpenKw |
+                ForeignKw |
+                InoutKw |
+                MutKw |
+                UnsafeKw |
+                OperatorKw |
+                SpawnKw |
+                SynchronizedKw |
+                MainKw |
+                IsKw |
+                AsKw |
+                TrueKw |
+                FalseKw |
+                CommonKw |
+                SpecificKw |
+                FeaturesKw => true
             case _ => false
         }
     }
@@ -1060,8 +1131,18 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
      */
     public func isContextualKeyword(): Bool {
         match (this) {
-            case PublicKw | PrivateKw | InternalKw | ProtectedKw | OverrideKw | RedefKw | AbstractKw | SealedKw | OpenKw
-                | CommonKw | SpecificKw | FeaturesKw => true
+            case PublicKw |
+                PrivateKw |
+                InternalKw |
+                ProtectedKw |
+                OverrideKw |
+                RedefKw |
+                AbstractKw |
+                SealedKw |
+                OpenKw |
+                CommonKw |
+                SpecificKw |
+                FeaturesKw => true
             case _ => false
         }
     }
@@ -1071,12 +1152,70 @@ public enum SyntaxKind <: Equatable<SyntaxKind> & Hashable {
      */
     public func isPunctuation(): Bool {
         match (this) {
-            case Dot | Comma | LParen | RParen | LBracket | RBracket | LBrace | RBrace | StarStar | Star | Percent
-                | Slash | Plus | Minus | PlusPlus | MinusMinus | AmpAmp | PipePipe | PipeGt | TildeGt | Bang | Amp
-                | Pipe | Caret | Tilde | LtLt | Colon | ColonColon | Semicolon | Eq | PlusEq | MinusEq | StarEq
-                | StarStarEq | SlashEq | PercentEq | AmpAmpEq | PipePipeEq | AmpEq | PipeEq | CaretEq | LtLtEq | Arrow
-                | LArrow | FatArrow | DotDot | DotDotEq | DotDotDot | Hash | At | AtBang | Question | Lt | Gt | LtEq
-                | LtColon | EqEq | BangEq | Dollar | Backslash | GtGt | GtEq | GtGtEq | QuestionQuestion => true
+            case Dot |
+                Comma |
+                LParen |
+                RParen |
+                LBracket |
+                RBracket |
+                LBrace |
+                RBrace |
+                StarStar |
+                Star |
+                Percent |
+                Slash |
+                Plus |
+                Minus |
+                PlusPlus |
+                MinusMinus |
+                AmpAmp |
+                PipePipe |
+                PipeGt |
+                TildeGt |
+                Bang |
+                Amp |
+                Pipe |
+                Caret |
+                Tilde |
+                LtLt |
+                Colon |
+                ColonColon |
+                Semicolon |
+                Eq |
+                PlusEq |
+                MinusEq |
+                StarEq |
+                StarStarEq |
+                SlashEq |
+                PercentEq |
+                AmpAmpEq |
+                PipePipeEq |
+                AmpEq |
+                PipeEq |
+                CaretEq |
+                LtLtEq |
+                Arrow |
+                LArrow |
+                FatArrow |
+                DotDot |
+                DotDotEq |
+                DotDotDot |
+                Hash |
+                At |
+                AtBang |
+                Question |
+                Lt |
+                Gt |
+                LtEq |
+                LtColon |
+                EqEq |
+                BangEq |
+                Dollar |
+                Backslash |
+                GtGt |
+                GtEq |
+                GtGtEq |
+                QuestionQuestion => true
             case _ => false
         }
     }
@@ -1249,65 +1388,66 @@ extend SyntaxKind <: Kind<SyntaxKind> {}
 /**
  * The punctuation the lexer cuts out of the text, the longest first: it takes the first that matches.
  */
-let LEXED_PUNCTUATION: Array<(Array<Byte>, SyntaxKind)> = [
-    ("**=".toArray(), StarStarEq),
-    ("&&=".toArray(), AmpAmpEq),
-    ("||=".toArray(), PipePipeEq),
-    ("<<=".toArray(), LtLtEq),
-    ("..=".toArray(), DotDotEq),
-    ("...".toArray(), DotDotDot),
-    ("**".toArray(), StarStar),
-    ("++".toArray(), PlusPlus),
-    ("--".toArray(), MinusMinus),
-    ("&&".toArray(), AmpAmp),
-    ("||".toArray(), PipePipe),
-    ("|>".toArray(), PipeGt),
-    ("~>".toArray(), TildeGt),
-    ("<<".toArray(), LtLt),
-    ("::".toArray(), ColonColon),
-    ("+=".toArray(), PlusEq),
-    ("-=".toArray(), MinusEq),
-    ("*=".toArray(), StarEq),
-    ("/=".toArray(), SlashEq),
-    ("%=".toArray(), PercentEq),
-    ("&=".toArray(), AmpEq),
-    ("|=".toArray(), PipeEq),
-    ("^=".toArray(), CaretEq),
-    ("->".toArray(), Arrow),
-    ("<-".toArray(), LArrow),
-    ("=>".toArray(), FatArrow),
-    ("..".toArray(), DotDot),
-    ("@!".toArray(), AtBang),
-    ("<=".toArray(), LtEq),
-    ("<:".toArray(), LtColon),
-    ("==".toArray(), EqEq),
-    ("!=".toArray(), BangEq),
-    (".".toArray(), Dot),
-    (",".toArray(), Comma),
-    ("(".toArray(), LParen),
-    (")".toArray(), RParen),
-    ("[".toArray(), LBracket),
-    ("]".toArray(), RBracket),
-    ("{".toArray(), LBrace),
-    ("}".toArray(), RBrace),
-    ("*".toArray(), Star),
-    ("%".toArray(), Percent),
-    ("/".toArray(), Slash),
-    ("+".toArray(), Plus),
-    ("-".toArray(), Minus),
-    ("!".toArray(), Bang),
-    ("&".toArray(), Amp),
-    ("|".toArray(), Pipe),
-    ("^".toArray(), Caret),
-    ("~".toArray(), Tilde),
-    (":".toArray(), Colon),
-    (";".toArray(), Semicolon),
-    ("=".toArray(), Eq),
-    ("#".toArray(), Hash),
-    ("@".toArray(), At),
-    ("?".toArray(), Question),
-    ("<".toArray(), Lt),
-    (">".toArray(), Gt),
-    ("\$".toArray(), Dollar),
-    ("\\".toArray(), Backslash)
-]
+let LEXED_PUNCTUATION: Array<(Array<Byte>, SyntaxKind)> =
+    [
+        ("**=".toArray(), StarStarEq),
+        ("&&=".toArray(), AmpAmpEq),
+        ("||=".toArray(), PipePipeEq),
+        ("<<=".toArray(), LtLtEq),
+        ("..=".toArray(), DotDotEq),
+        ("...".toArray(), DotDotDot),
+        ("**".toArray(), StarStar),
+        ("++".toArray(), PlusPlus),
+        ("--".toArray(), MinusMinus),
+        ("&&".toArray(), AmpAmp),
+        ("||".toArray(), PipePipe),
+        ("|>".toArray(), PipeGt),
+        ("~>".toArray(), TildeGt),
+        ("<<".toArray(), LtLt),
+        ("::".toArray(), ColonColon),
+        ("+=".toArray(), PlusEq),
+        ("-=".toArray(), MinusEq),
+        ("*=".toArray(), StarEq),
+        ("/=".toArray(), SlashEq),
+        ("%=".toArray(), PercentEq),
+        ("&=".toArray(), AmpEq),
+        ("|=".toArray(), PipeEq),
+        ("^=".toArray(), CaretEq),
+        ("->".toArray(), Arrow),
+        ("<-".toArray(), LArrow),
+        ("=>".toArray(), FatArrow),
+        ("..".toArray(), DotDot),
+        ("@!".toArray(), AtBang),
+        ("<=".toArray(), LtEq),
+        ("<:".toArray(), LtColon),
+        ("==".toArray(), EqEq),
+        ("!=".toArray(), BangEq),
+        (".".toArray(), Dot),
+        (",".toArray(), Comma),
+        ("(".toArray(), LParen),
+        (")".toArray(), RParen),
+        ("[".toArray(), LBracket),
+        ("]".toArray(), RBracket),
+        ("{".toArray(), LBrace),
+        ("}".toArray(), RBrace),
+        ("*".toArray(), Star),
+        ("%".toArray(), Percent),
+        ("/".toArray(), Slash),
+        ("+".toArray(), Plus),
+        ("-".toArray(), Minus),
+        ("!".toArray(), Bang),
+        ("&".toArray(), Amp),
+        ("|".toArray(), Pipe),
+        ("^".toArray(), Caret),
+        ("~".toArray(), Tilde),
+        (":".toArray(), Colon),
+        (";".toArray(), Semicolon),
+        ("=".toArray(), Eq),
+        ("#".toArray(), Hash),
+        ("@".toArray(), At),
+        ("?".toArray(), Question),
+        ("<".toArray(), Lt),
+        (">".toArray(), Gt),
+        ("\$".toArray(), Dollar),
+        ("\\".toArray(), Backslash)
+    ]

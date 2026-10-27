@@ -15,7 +15,8 @@ import std.collection.*
  */
 func serdeToml(context: DeriveContext, derive: (DeclModel) -> Tokens): Tokens {
     serde(context) {
-        model => if (context.memo<Bool>("toml") {=> holdsNoNull(model)}) {
+        model =>
+        if (context.memo<Bool>("toml") { => holdsNoNull(model) }) {
             derive(model)
         } else {
             Tokens()
@@ -25,27 +26,34 @@ func serdeToml(context: DeriveContext, derive: (DeclModel) -> Tokens): Tokens {
 
 /** Whether no field or payload is a `Nullable`, reported where one is. */
 private func holdsNoNull(model: DeclModel): Bool {
-    let (fields, payloadTypes) = match (model) {
-        case OfStruct(structModel) => (structModel.fields, Array<(Token, Tokens)>())
-        case OfEnum(enumModel) =>
-            let fields = ArrayList<DerivedField>()
-            let payloadTypes = ArrayList<(Token, Tokens)>()
-            for (variant in enumModel.variants) {
-                fields.add(all: variant.payloadFields)
-                for (payloadType in variant.payloadTypes) {
-                    payloadTypes.add((variant.ident, payloadType))
+    let (fields, payloadTypes) =
+        match (model) {
+            case OfStruct(structModel) => (structModel.fields, Array<(Token, Tokens)>())
+            case OfEnum(enumModel) =>
+                let fields = ArrayList<DerivedField>()
+                let payloadTypes = ArrayList<(Token, Tokens)>()
+                for (variant in enumModel.variants) {
+                    fields.add(all: variant.payloadFields)
+                    for (payloadType in variant.payloadTypes) {
+                        payloadTypes.add((variant.ident, payloadType))
+                    }
                 }
-            }
-            (fields.toArray(), payloadTypes.toArray())
-    }
+                (fields.toArray(), payloadTypes.toArray())
+        }
     for (field in fields where isNullable(field.innerType)) {
-        report(field.ident, "TOML has no `null`: a `Nullable` has nothing to be written as",
-            "declare it `?T`, left out when `None`")
+        report(
+            field.ident,
+            "TOML has no `null`: a `Nullable` has nothing to be written as",
+            "declare it `?T`, left out when `None`"
+        )
         return false
     }
     for ((ident, payloadType) in payloadTypes where isNullable(payloadType)) {
-        report(ident, "TOML has no `null`: a `Nullable` payload has nothing to be written as",
-            "carry `T`, and a variant without it")
+        report(
+            ident,
+            "TOML has no `null`: a `Nullable` payload has nothing to be written as",
+            "carry `T`, and a variant without it"
+        )
         return false
     }
     true
@@ -56,21 +64,25 @@ private func isNullable(tokens: Tokens): Bool {
 }
 
 func deriveToToml(model: DeclModel): Tokens {
-    let (decl, body, shape) = match (model) {
-        case OfStruct(structModel) => (structModel.decl, structToToml(structModel), structShape(structModel))
-        case OfEnum(enumModel) =>
-            let (body, shape) = match (enumModel.shape) {
-                case Scalar(isInteger, other) => (scalarEnumToToml(enumModel, isInteger, other), quote(FtShape.Inline))
-                case Untagged => untaggedEnumToToml(enumModel)
-                case Tagged(tag) => (taggedEnumToToml(enumModel, tag), quote(FtShape.Table))
-            }
-            (enumModel.decl, body, shape)
-    }
+    let (decl, body, shape) =
+        match (model) {
+            case OfStruct(structModel) =>
+                (structModel.decl, structToToml(structModel), structShape(structModel))
+            case OfEnum(enumModel) =>
+                let (body, shape) =
+                    match (enumModel.shape) {
+                        case Scalar(isInteger, other) =>
+                            (scalarEnumToToml(enumModel, isInteger, other), quote(FtShape.Inline))
+                        case Untagged => untaggedEnumToToml(enumModel)
+                        case Tagged(tag) => (taggedEnumToToml(enumModel, tag), quote(FtShape.Table))
+                    }
+                (enumModel.decl, body, shape)
+        }
 
     extensionOf(
         decl,
         quote(ToToml),
-        {_ => "ToToml"},
+        { _ => "ToToml" },
         quote(
             public func toToml(w: FtWriter): Unit {
                 $body
@@ -104,10 +116,11 @@ private func structToToml(model: StructModel): Tokens {
     if (let Some((tag, value)) <- model.tag) {
         body += tagToToml(tag, Token(TokenKind.STRING_LITERAL, value))
     }
-    body += fieldsToToml(model.fields.map {field => (field, quote(this.$(field.ident)))})
-    body + quote(
-        w.endTable()
-    )
+    body += fieldsToToml(model.fields.map { field => (field, quote(this.$(field.ident))) })
+    body +
+        quote(
+            w.endTable()
+        )
 }
 
 private func tagToToml(tag: String, literal: Tokens): Tokens {
@@ -153,14 +166,14 @@ private func scalarEnumToToml(model: EnumModel, isInteger: Bool, other: ?Derived
         let ident = variant.ident
         let literal = variant.value.literal
         cases += if (isInteger) {
-            quote(
-                case $ident => w.int64($literal)
-            )
-        } else {
-            quote(
-                case $ident => w.string($literal)
-            )
-        }
+                quote(
+                    case $ident => w.int64($literal)
+                )
+            } else {
+                quote(
+                    case $ident => w.string($literal)
+                )
+            }
     }
     if (let Some(o) <- other) {
         let ident = o.ident
@@ -209,21 +222,24 @@ private func untaggedEnumToToml(model: EnumModel): (Tokens, Tokens) {
                 $items
                 w.endArray()
         )
-        let wildcards = commaSeparated(bindings.map {_ => Tokens(Token(TokenKind.WILDCARD, "_"))})
+        let wildcards = commaSeparated(bindings.map { _ => Tokens(Token(TokenKind.WILDCARD, "_")) })
         shapes += quote(
             case $ident($wildcards) => FtShape.Inline
         )
     }
 
-    (quote(
-        match (this) {
-            $cases
-        }
-    ), quote(
-        match (this) {
-            $shapes
-        }
-    ))
+    (
+        quote(
+            match (this) {
+                $cases
+            }
+        ),
+        quote(
+            match (this) {
+                $shapes
+            }
+        )
+    )
 }
 
 /** A table: the tag, then the payloads as the keys beside it. */
@@ -232,13 +248,17 @@ private func taggedEnumToToml(model: EnumModel, tag: String): Tokens {
     for (variant in model.variants) {
         let ident = variant.ident
         let bindings = variant.payloadBindings()
-        let fields = fieldsToToml(Array(variant.payloadFields.size) {i => (variant.payloadFields[i], bindings[i])})
-        let pattern = if (bindings.size == 0) {
-            quote($ident)
-        } else {
-            let payload = commaSeparated(bindings)
-            quote($ident($payload))
-        }
+        let fields =
+            fieldsToToml(
+                Array(variant.payloadFields.size) { i => (variant.payloadFields[i], bindings[i]) }
+            )
+        let pattern =
+            if (bindings.size == 0) {
+                quote($ident)
+            } else {
+                let payload = commaSeparated(bindings)
+                quote($ident($payload))
+            }
         let tagged = tagToToml(tag, variant.value.literal)
         cases += quote(
             case $pattern =>

@@ -83,7 +83,9 @@ class ParseFloat64Test {
     @TestCase
     func whatIsNotADecimalIsRefused() {
         // act, assert
-        for (text in ["", "-", ".5", "5.", "1e", "1e+", "1.2.3", "1x", "0x10", "inf", "nan", " 1"]) {
+        for (
+            text in ["", "-", ".5", "5.", "1e", "1e+", "1.2.3", "1x", "0x10", "inf", "nan", " 1"]
+        ) {
             @AssertThrows[IllegalArgumentException](parseFloat64(text))
         }
     }
@@ -111,7 +113,8 @@ class ParseFloat64Test {
 
         for (i in 0..20000) {
             // short and long mantissas, exponents to the ends of the range and past them
-            let count = if (i % 4 == 0) { 17 + random.nextInt64(40) } else { 1 + random.nextInt64(19) }
+            let count =
+                if (i % 4 == 0) { 17 + random.nextInt64(40) } else { 1 + random.nextInt64(19) }
             let text = randomDecimal(random, count, 330)
 
             // act, assert
@@ -135,18 +138,26 @@ class ParseFloat64Test {
             }
             let bits = value.toBits()
             let ieeeExponent = Int64((bits >> 52) & 0x7FF)
-            let (m2, e2) = if (ieeeExponent == 0) {
-                (bits & 0x000F_FFFF_FFFF_FFFF, -1074)
-            } else {
-                ((bits & 0x000F_FFFF_FFFF_FFFF) | 0x0010_0000_0000_0000, ieeeExponent - 1075)
-            }
+            let (m2, e2) =
+                if (ieeeExponent == 0) {
+                    (bits & 0x000F_FFFF_FFFF_FFFF, -1074)
+                } else {
+                    ((bits & 0x000F_FFFF_FFFF_FFFF) | 0x0010_0000_0000_0000, ieeeExponent - 1075)
+                }
             // (2 * m2 + 1) * 2^(e2 - 1), exactly, as a decimal: times 5^n / 10^n when e2 - 1 < 0
-            let (digits, exponent) = if (e2 - 1 >= 0) {
-                (BigInt(Int64(2 * m2 + 1)) * pow(2, e2 - 1), 0)
-            } else {
-                (BigInt(Int64(2 * m2 + 1)) * pow(5, 1 - e2), e2 - 1)
-            }
-            for (text in ["${digits}e${exponent}", "${digits}1e${exponent - 1}", "${digits - BigInt(1)}9e${exponent - 1}"]) {
+            let (digits, exponent) =
+                if (e2 - 1 >= 0) {
+                    (BigInt(Int64(2 * m2 + 1)) * pow(2, e2 - 1), 0)
+                } else {
+                    (BigInt(Int64(2 * m2 + 1)) * pow(5, 1 - e2), e2 - 1)
+                }
+            for (
+                text in [
+                    "${digits}e${exponent}",
+                    "${digits}1e${exponent - 1}",
+                    "${digits - BigInt(1)}9e${exponent - 1}"
+                ]
+            ) {
                 // act, assert
                 @Assert(readsCorrectly(text))
             }

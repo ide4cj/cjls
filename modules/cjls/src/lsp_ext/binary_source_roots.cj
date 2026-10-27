@@ -15,17 +15,24 @@ protected struct BinarySourceRootsParams {
 /**
  * Reports actual source directories without changing their file identities or permissions.
  */
-protected struct BinarySourceRootsNotificationSpec <: LspOutboundNotification<BinarySourceRootsParams> {
+protected struct BinarySourceRootsNotificationSpec <:
+    LspOutboundNotification<BinarySourceRootsParams> {
     public static prop METHOD: String {
-        get() { "cjls/binarySourceRoots" }
+        get() {
+            "cjls/binarySourceRoots"
+        }
     }
 
     public static prop DIRECTION: MessageDirection {
-        get() { MessageDirection.ServerToClient }
+        get() {
+            MessageDirection.ServerToClient
+        }
     }
 
     public prop method: String {
-        get() { METHOD }
+        get() {
+            METHOD
+        }
     }
 
     public func encodeParams(params: BinarySourceRootsParams): RawJson {

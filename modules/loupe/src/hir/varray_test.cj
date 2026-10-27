@@ -8,7 +8,8 @@ import loupe.fixture.*
 class VArrayConstructorsTest {
     @TestCase
     func directConstructorsGiveTheirInitializerItsExpectedType() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             func element(i: Int64): Int8 { Int8(i) }
             //           ^ Int64
@@ -27,12 +28,14 @@ class VArrayConstructorsTest {
                 let e = VArray<Int8, $2>(element)
             //      ^ VArray<Int8, $2>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aliasesConstructTheExpandedType() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             type Pair = VArray<Int8, $2>
             type Other = Pair
@@ -48,12 +51,14 @@ class VArrayConstructorsTest {
                 let d: ?Pair = Other(repeat: 1)
             //      ^ Option<VArray<Int8, $2>>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func qualifiedAliasesResolveWhileALocalValueKeepsItsOwnCallSignature() {
-        checkInference(#"
+        checkInference(
+            #"
             //- /types.cj module=m package=m.types
             package m.types
             public type Pair = VArray<Int8, $2>
@@ -73,12 +78,14 @@ class VArrayConstructorsTest {
                 let c = Two(1)
             //      ^ Int64
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorKeepsItsTypeWhileOuterOverloadsAreTried() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             type Pair = VArray<Int8, $2>
             func choose(a: Pair): Int8 { a[0] }
@@ -90,6 +97,7 @@ class VArrayConstructorsTest {
             //      ^^^^^^ Int8
             //                             ^ Int64
             }
-            "#)
+            "#
+        )
     }
 }

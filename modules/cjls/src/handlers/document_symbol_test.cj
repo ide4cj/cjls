@@ -7,8 +7,14 @@ import cjls.lsp_types.*
 import cjls.server.*
 
 func documentSymbols(state: ServerState, uri: String): ?Array<DocumentSymbol> {
-    match (handleDocumentSymbol(state.snapshot(), DocumentSymbolParams(textDocument: TextDocumentIdentifier(uri: uri)))) {
-        case Nullable.Value(SymbolInformationsOrDocumentSymbols.AsDocumentSymbols(symbols)) => symbols
+    match (
+        handleDocumentSymbol(
+            state.snapshot(),
+            DocumentSymbolParams(textDocument: TextDocumentIdentifier(uri: uri))
+        )
+    ) {
+        case Nullable.Value(SymbolInformationsOrDocumentSymbols.AsDocumentSymbols(symbols)) =>
+            symbols
         case _ => None
     }
 }

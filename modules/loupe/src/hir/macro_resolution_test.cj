@@ -24,21 +24,31 @@ func macrosNamed(fixture: String, name: String): Array<String> {
         }
         None
     }
-    let item = find(itemTreeOf(db, file).items) ?? throw FixtureException("no ${name} in the fixture")
-    macrosOf(db, DefId(db, file, item.id)).map {
-        resolution => match (resolution) {
-            case Found(ids) => String.join(ids.map {
-                id =>
-                let origin = match (id.file(db)) {
-                    case Binary(_, _) => "cjo"
-                    case Source(_) => "source"
-                    case Expansion(_) => "expansion"
-                }
-                "${origin} ${nameOfDef(db, id)}"
-            }, delimiter: ", ")
-            case other => other.toString()
+    let item =
+        find(itemTreeOf(db, file).items) ?? throw FixtureException("no ${name} in the fixture")
+    macrosOf(db, DefId(db, file, item.id))
+        .map {
+            resolution =>
+            match (resolution) {
+                case Found(ids) =>
+                    String
+                        .join(
+                            ids
+                                .map {
+                                    id =>
+                                    let origin =
+                                        match (id.file(db)) {
+                                            case Binary(_, _) => "cjo"
+                                            case Source(_) => "source"
+                                            case Expansion(_) => "expansion"
+                                        }
+                                    "${origin} ${nameOfDef(db, id)}"
+                                },
+                            delimiter: ", "
+                        )
+                case other => other.toString()
+            }
         }
-    }
 }
 
 @Test
@@ -46,13 +56,17 @@ class MacroResolutionTest {
     @TestCase
     func stdsDeriveThroughAGlob() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Equatable]
             class C {}
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["cjo Derive"])
@@ -61,13 +75,17 @@ class MacroResolutionTest {
     @TestCase
     func aMacroOfAPackageImportedByItsName() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving
             @deriving.Derive[Equatable]
             class C {}
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["cjo Derive"])
@@ -76,7 +94,9 @@ class MacroResolutionTest {
     @TestCase
     func aPathWithSpacesAndBackquotesIsItsNames() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving
@@ -84,7 +104,9 @@ class MacroResolutionTest {
             @ deriving . `Derive`[Equatable]
             @`Derive`[Hashable]
             class C {}
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["cjo Derive", "cjo Derive"])
@@ -93,13 +115,17 @@ class MacroResolutionTest {
     @TestCase
     func aMacroUnderAnAlias() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.Derive as D
             @D[Equatable]
             class C {}
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["cjo Derive"])
@@ -108,12 +134,16 @@ class MacroResolutionTest {
     @TestCase
     func aMacroNotImportedIsNotFound() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             @Derive[Equatable]
             class C {}
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["not found"])
@@ -122,14 +152,18 @@ class MacroResolutionTest {
     @TestCase
     func aFunctionOfTheMacrosNameHidesNothing() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             func Derive(): Unit {}
             @Derive[Equatable]
             class C {}
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["cjo Derive"])
@@ -138,7 +172,9 @@ class MacroResolutionTest {
     @TestCase
     func aUsersDeriveIsNotStds() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -149,7 +185,9 @@ class MacroResolutionTest {
             import std.ast.*
             public macro Derive(attr: Tokens, input: Tokens): Tokens { input }
             public macro M(input: Tokens): Tokens { input }
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["source Derive"])
@@ -158,7 +196,9 @@ class MacroResolutionTest {
     @TestCase
     func theMacrosOfADeclarationOutermostFirst() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -171,7 +211,9 @@ class MacroResolutionTest {
             import std.ast.*
             public macro Derive(attr: Tokens, input: Tokens): Tokens { input }
             public macro M(input: Tokens): Tokens { input }
-            "#, "C")
+            "#,
+                "C"
+            )
 
         // assert
         @Expect(macros, ["source M", "cjo Derive"])
@@ -180,7 +222,9 @@ class MacroResolutionTest {
     @TestCase
     func aMacroOnAMember() {
         // act
-        let macros = macrosNamed(#"
+        let macros =
+            macrosNamed(
+                #"
             //- /main.cj module=m package=m
             package m
             import m.ms.M
@@ -193,7 +237,9 @@ class MacroResolutionTest {
             import std.ast.*
             public macro Derive(attr: Tokens, input: Tokens): Tokens { input }
             public macro M(input: Tokens): Tokens { input }
-            "#, "f")
+            "#,
+                "f"
+            )
 
         // assert
         @Expect(macros, ["source M"])

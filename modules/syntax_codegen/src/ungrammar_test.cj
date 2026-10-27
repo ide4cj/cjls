@@ -61,7 +61,10 @@ class UngrammarTest {
     @TestCase
     func onlyCommentsOnLinesOfTheirOwnRightAboveARuleDocumentIt() {
         // act
-        let sut = parseGrammar("// a file header\n\n// what A is\n// in two lines\nA = 'a'\nB = 'b' // trailing\nC = 'c'")
+        let sut =
+            parseGrammar(
+                "// a file header\n\n// what A is\n// in two lines\nA = 'a'\nB = 'b' // trailing\nC = 'c'"
+            )
 
         // assert
         @Expect(sut.rules[0].doc, ["what A is", "in two lines"])

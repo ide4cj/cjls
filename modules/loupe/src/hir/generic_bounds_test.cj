@@ -9,7 +9,8 @@ import loupe.fixture.{Fixture, stdCjo, stdCjoRead}
 class GenericBoundsTest {
     @TestCase
     func anInterfacesWhereBoundsItsArgument() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface R<T> where T <: Comparable<T> {
                 static func top(): T
@@ -22,12 +23,14 @@ class GenericBoundsTest {
                 let c: Comparable<T> = a
             //      ^ Comparable<T>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func transitiveBoundsSupplyMembersAndGenericCallArguments() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface Make<X> {
                 static func make(): X
@@ -45,13 +48,15 @@ class GenericBoundsTest {
                 let c = use(x)
             //      ^ T
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInterfacesWhereSuppliesAnUpperBoundForCallInference() {
         // The pinned cjc infers Base even without a value argument or an expected type.
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface R<X> where X <: Base {}
             open class Base <: R<Base> {}
@@ -60,32 +65,40 @@ class GenericBoundsTest {
                 let value = make()
             //      ^^^^^ Option<Base>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func eachInterfaceInstanceBoundsItsOwnArgument() {
-        checkBounds(#"
+        checkBounds(
+            #"
             package m
             interface C<X> {}
             interface R<X> where X <: C<X> {}
             func f<T, U>(): Unit where T <: R<T> & R<U> {}
-            "#, [["R<T>", "R<U>", "C<T>"], ["C<U>"]])
+            "#,
+            [["R<T>", "R<U>", "C<T>"], ["C<U>"]]
+        )
     }
 
     @TestCase
     func aConstraintOnAnotherArgumentDoesNotBoundTheReceiver() {
-        checkBounds(#"
+        checkBounds(
+            #"
             package m
             interface C<X> {}
             interface R<X> where X <: C<X> {}
             func f<T, U>(): Unit where T <: R<U> {}
-            "#, [["R<U>"], ["C<U>"]])
+            "#,
+            [["R<U>"], ["C<U>"]]
+        )
     }
 
     @TestCase
     func aRecursiveInterfaceWithPermutedArgumentsAddsBothBounds() {
-        checkInference(#"
+        checkInference(
+            #"
             package m
             interface R<A, B> where B <: R<B, A> & Comparable<B> {}
             func f<T, U>(a: T, b: U): Unit where T <: R<T, U> {
@@ -96,28 +109,35 @@ class GenericBoundsTest {
                 let right = b > b
             //      ^^^^^ Bool
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFiniteGrowthOfArgumentsIsExpandedUntilItRepeats() {
-        checkBounds(#"
+        checkBounds(
+            #"
             package m
             interface Box<X> {}
             interface Tag<X> {}
             interface R<A, B, C> where A <: R<A, Box<C>, C> & Tag<B> {}
             func f<T, U, V>(): Unit where T <: R<T, U, V> {}
-            "#, [["R<T, U, V>", "R<T, Box<V>, V>", "Tag<U>", "Tag<Box<V>>"], [], []])
+            "#,
+            [["R<T, U, V>", "R<T, Box<V>, V>", "Tag<U>", "Tag<Box<V>>"], [], []]
+        )
     }
 
     @TestCase
     func growingBoundsDiscardPartialResultsAndMarkEveryParameterUnknown() {
-        let (db, def) = boundsFixture(#"
+        let (db, def) =
+            boundsFixture(
+                #"
             package m
             interface Box<X> {}
             interface R<A, B> where A <: R<A, Box<B>> {}
             func f<T, U>(): Unit where T <: R<T, U> {}
-            "#)
+            "#
+            )
         let result = genericBounds(db, def)
         let unknown = Ty(db, UnknownTy(UnknownReason.GenericBoundsLimit))
         @Expect(result.size, 2)
@@ -132,7 +152,8 @@ class GenericBoundsTest {
 
     @TestCase
     func growingBoundsPropagateUnknownThroughMembersOperatorsAndCalls() {
-        let text = #"
+        let text =
+            #"
             package m
             interface Box<X> {}
             interface R<A, B> where A <: R<A, Box<B>> {}
@@ -163,35 +184,51 @@ class GenericBoundsTest {
 
     @TestCase
     func aConcreteSubjectAddsNoFurtherAssumptions() {
-        checkBounds(#"
+        checkBounds(
+            #"
             package m
             interface Box<X> {}
             interface R<X> where X <: R<Box<X>> {}
             func f<T>(): Unit where T <: R<T> {}
-            "#, [["R<T>", "R<Box<T>>"]])
+            "#,
+            [["R<T>", "R<Box<T>>"]]
+        )
     }
 
     @TestCase
     func mutuallyRecursiveInterfaceBoundsTerminate() {
-        checkBounds(#"
+        checkBounds(
+            #"
             package m
             interface A<X> where X <: B<X> {}
             interface B<X> where X <: A<X> {}
             func f<T>(): Unit where T <: A<T> {}
-            "#, [["A<T>", "B<T>"]])
+            "#,
+            [["A<T>", "B<T>"]]
+        )
     }
 }
 
 func checkBounds(text: String, expected: Array<Array<String>>): Unit {
     let (db, def) = boundsFixture(text)
-    let actual = Array(genericsOf(db, def).size) {i => headTysOf(db, Ty(db, ParamTy(def, i))).map {ty => ty.text(db)}}
+    let actual =
+        Array(genericsOf(db, def).size) {
+            i =>
+            headTysOf(db, Ty(db, ParamTy(def, i))).map { ty => ty.text(db) }
+        }
     @Expect(actual, expected)
 }
 
 func boundsFixture(text: String, binaries!: Array<String> = []): (AnalysisDatabase, DefId) {
     let fixture = Fixture.parse(text)
-    let db = fixture.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
+    let db = fixture.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
-    let item = itemTree(db, source).items.iterator().filter {one => one.names.contains("f")}.next().getOrThrow()
+    let item =
+        itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.names.contains("f") }
+            .next()
+            .getOrThrow()
     (db, DefId(db, ItemFile.Source(source), item.id))
 }

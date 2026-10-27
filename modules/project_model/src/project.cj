@@ -43,13 +43,16 @@ public enum ProjectSource <: ToString {
  * not there. None of it stops the load: what is missing is left out.
  */
 public struct ProjectLoad {
-    public ProjectLoad(public let model: ProjectModel, public let source: ProjectSource,
+    public ProjectLoad(
+        public let model: ProjectModel,
+        public let source: ProjectSource,
         public let problems: Array<String>,
         /**
          * Whether files of the source were left out of the model, past the budget: a document
          * opened among them is not in it (D80).
          */
-        public let partial!: Bool = false) {}
+        public let partial!: Bool = false
+    ) {}
 }
 
 /**
@@ -78,11 +81,7 @@ class Loading {
      */
     func resolve(base: VfsPath, text: String): VfsPath {
         let expanded = expandPath(text, env, problems)
-        if (Path(expanded).isAbsolute()) {
-            VfsPath.file(expanded)
-        } else {
-            base.join(expanded)
-        }
+        if (Path(expanded).isAbsolute()) { VfsPath.file(expanded) } else { base.join(expanded) }
     }
 
     /**
@@ -90,18 +89,20 @@ class Loading {
      * `$CANGJIE_SRC/std`, if they are there.
      */
     func stdBinary(): ?BinaryModel {
-        let home = match (env("CANGJIE_HOME")) {
-            case Some(home) where Path(home).isAbsolute() => home
-            case _ =>
-                problems.add("no Cangjie SDK is found: `std` is not")
-                return None
-        }
+        let home =
+            match (env("CANGJIE_HOME")) {
+                case Some(home) where Path(home).isAbsolute() => home
+                case _ =>
+                    problems.add("no Cangjie SDK is found: `std` is not")
+                    return None
+            }
         let target = sdkTarget(cfg) ?? return None
-        let sources = match (env("CANGJIE_SRC")) {
-            case Some(src) where isDirectory(Path(src).join("std").toString()) =>
-                sourcesOf("std", VfsPath.file(src).join("std"))
-            case _ => Option<BinarySources>.None
-        }
+        let sources =
+            match (env("CANGJIE_SRC")) {
+                case Some(src) where isDirectory(Path(src).join("std").toString()) =>
+                    sourcesOf("std", VfsPath.file(src).join("std"))
+                case _ => Option<BinarySources>.None
+            }
         BinaryModel("std", [VfsPath.file(home).join("modules/${target}/std")], sources: sources)
     }
 }
@@ -114,8 +115,13 @@ class Loading {
  *
  * `env` gives the value of an environment variable, for `${VAR}` and `CANGJIE_HOME`.
  */
-public func findProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg(),
-    budget!: Int64 = Int64.Max, open!: Array<VfsPath> = []): ProjectLoad {
+public func findProject(
+    root: VfsPath,
+    env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg(),
+    budget!: Int64 = Int64.Max,
+    open!: Array<VfsPath> = []
+): ProjectLoad {
     let problems = ArrayList<String>()
     if (let Some(found) <- manifestProject(root, env, cfg, problems)) {
         return found
@@ -130,9 +136,18 @@ public func findProject(root: VfsPath, env!: (String) -> ?String, cfg!: Cfg = ho
  * problems of those that cannot be read added to `problems`; `None` if neither is there or can be
  * read.
  */
-func manifestProject(dir: VfsPath, env: (String) -> ?String, cfg: Cfg, problems: ArrayList<String>): ?ProjectLoad {
-    for (load in [{=> loadProjectJson(dir.join(PROJECT_JSON), env: env, cfg: cfg)},
-        {=> loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cfg)}]) {
+func manifestProject(
+    dir: VfsPath,
+    env: (String) -> ?String,
+    cfg: Cfg,
+    problems: ArrayList<String>
+): ?ProjectLoad {
+    for (
+        load in [
+            { => loadProjectJson(dir.join(PROJECT_JSON), env: env, cfg: cfg) },
+            { => loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cfg) }
+        ]
+    ) {
         try {
             if (let Some(found) <- load()) {
                 problems.add(all: found.problems)
@@ -171,7 +186,9 @@ public func projectDirOf(path: VfsPath, root: VfsPath, env!: (String) -> ?String
 }
 
 private func hasManifest(dir: VfsPath): Bool {
-    [PROJECT_JSON, "cjpm.toml"].iterator().any {name => dir.join(name).filePath.map {file => isFile(file)} ?? false}
+    [PROJECT_JSON, "cjpm.toml"]
+        .iterator()
+        .any { name => dir.join(name).filePath.map { file => isFile(file) } ?? false }
 }
 
 /**
@@ -185,14 +202,16 @@ private func workspaceOf(dir: VfsPath, root: VfsPath, env: (String) -> ?String):
     var above = dir.parent
     while (let Some(at) <- above) {
         let manifest = at.join("cjpm.toml")
-        if (manifest.filePath.map {file => isFile(file)} ?? false) {
-            let members = try {
-                readManifest(manifest).workspace.flatMap {workspace => workspace.members} ?? []
-            } catch (_: ProjectException) {
-                Array<String>()
-            }
+        if (manifest.filePath.map { file => isFile(file) } ?? false) {
+            let members =
+                try {
+                    readManifest(manifest).workspace.flatMap { workspace => workspace.members } ??
+                        []
+                } catch (_: ProjectException) {
+                    Array<String>()
+                }
             let loading = Loading(env, hostCfg())
-            if (members.iterator().any {member => loading.resolve(at, member) == dir}) {
+            if (members.iterator().any { member => loading.resolve(at, member) == dir }) {
                 return at
             }
         }
@@ -209,18 +228,23 @@ private func workspaceOf(dir: VfsPath, root: VfsPath, env: (String) -> ?String):
  *
  * @throws ProjectException - if it cannot be read
  */
-public func loadProjectJson(file: VfsPath, env!: (String) -> ?String, cfg!: Cfg = hostCfg()): ?ProjectLoad {
+public func loadProjectJson(
+    file: VfsPath,
+    env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg()
+): ?ProjectLoad {
     let path = file.filePath ?? return None
     if (!isFile(path)) {
         return None
     }
-    let json = try {
-        fromJsonBytes<ProjectJson>(File.readFrom(path))
-    } catch (e: FSException) {
-        throw ProjectException("${file}: ${e.message}")
-    } catch (e: Exception) {
-        throw ProjectException("${file}: not a project: ${e.message}")
-    }
+    let json =
+        try {
+            fromJsonBytes<ProjectJson>(File.readFrom(path))
+        } catch (e: FSException) {
+            throw ProjectException("${file}: ${e.message}")
+        } catch (e: Exception) {
+            throw ProjectException("${file}: not a project: ${e.message}")
+        }
     let base = file.parent.getOrThrow()
     let loading = Loading(env, cfg)
     let model = lowerProjectJson(json, base, loading)
@@ -230,50 +254,86 @@ public func loadProjectJson(file: VfsPath, env!: (String) -> ?String, cfg!: Cfg 
 /**
  * The project `json` describes, its paths relative to `base`.
  */
-public func lowerProjectJson(json: ProjectJson, base: VfsPath, env!: (String) -> ?String,
-    cfg!: Cfg = hostCfg()): ProjectModel {
+public func lowerProjectJson(
+    json: ProjectJson,
+    base: VfsPath,
+    env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg()
+): ProjectModel {
     lowerProjectJson(json, base, Loading(env, cfg))
 }
 
 func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): ProjectModel {
     let cfg = loading.cfg.overriddenBy(cfgOf(json.cfg))
-    let modules = (json.modules ?? []).map {
-        module =>
-        let root = loading.resolve(base, module.root)
-        let packages = match (module.packages) {
-            case Some(packages) => packages.map {
-                pkg =>
-                let dir = match (pkg.dir) {
-                    case Some(dir) => loading.resolve(base, dir)
-                    case None => packageDir(module.name, root, pkg.name, loading)
-                }
-                let files = match (pkg.files) {
-                    case Some(files) => files.map {file => loading.resolve(dir, file)}
-                    case None => cangjieFilesIn(dir)
-                }
-                PackageModel(pkg.name, dir, files, noPrelude: pkg.noPrelude ?? false, isMacro: pkg.`macro`)
+    let modules =
+        (json.modules ?? [])
+            .map {
+                module =>
+                let root = loading.resolve(base, module.root)
+                let packages =
+                    match (module.packages) {
+                        case Some(packages) =>
+                            packages
+                                .map {
+                                    pkg =>
+                                    let dir =
+                                        match (pkg.dir) {
+                                            case Some(dir) => loading.resolve(base, dir)
+                                            case None =>
+                                                packageDir(module.name, root, pkg.name, loading)
+                                        }
+                                    let files =
+                                        match (pkg.files) {
+                                            case Some(files) =>
+                                                files.map { file => loading.resolve(dir, file) }
+                                            case None => cangjieFilesIn(dir)
+                                        }
+                                    PackageModel(
+                                        pkg.name,
+                                        dir,
+                                        files,
+                                        noPrelude: pkg.noPrelude ?? false,
+                                        isMacro: pkg.`macro`
+                                    )
+                                }
+                        case None => packagesUnder(module.name, root)
+                    }
+                ModuleModel(
+                    module.name,
+                    root,
+                    packages,
+                    deps: module.deps ?? [],
+                    member: module.member ?? true,
+                    cfg: module.cfg.map { own => cfg.overriddenBy(cfgOf(own)) },
+                    inactive: (module.inactive ?? [])
+                        .map { file => InactiveFile(loading.resolve(base, file.file), file.reason) }
+                )
             }
-            case None => packagesUnder(module.name, root)
-        }
-        ModuleModel(module.name, root, packages, deps: module.deps ?? [], member: module.member ?? true,
-            cfg: module.cfg.map {own => cfg.overriddenBy(cfgOf(own))},
-            inactive: (module.inactive ?? []).map {file => InactiveFile(loading.resolve(base, file.file), file.reason)})
-    }
     let binaries = ArrayList<BinaryModel>()
     // `std` is a module of the project, or a binary it names, or else the SDK's
-    let named = (json.binaries ?? []).iterator().any {binary => binary.name == "std"}
-    if (!named && !modules.iterator().any {module => module.name == "std"}) {
+    let named = (json.binaries ?? []).iterator().any { binary => binary.name == "std" }
+    if (!named && !modules.iterator().any { module => module.name == "std" }) {
         if (let Some(std) <- loading.stdBinary()) {
             binaries.add(std)
         }
     }
     for (binary in json.binaries ?? []) {
-        let packages = (binary.packages ?? HashMap<String, String>()).toArray().map {
-            pkg => BinaryPackage(pkg[0], loading.resolve(base, pkg[1]))
-        }
-        sort(packages, by: {a, b => a.name.compare(b.name)})
-        binaries.add(BinaryModel(binary.name, (binary.paths ?? []).map {path => loading.resolve(base, path)},
-            packages: packages, sources: binary.sources.map {dir => sourcesOf(binary.name, loading.resolve(base, dir))}))
+        let packages =
+            (binary.packages ?? HashMap<String, String>())
+                .toArray()
+                .map { pkg => BinaryPackage(pkg[0], loading.resolve(base, pkg[1])) }
+        sort(packages, by: { a, b => a.name.compare(b.name) })
+        binaries
+            .add(
+                BinaryModel(
+                    binary.name,
+                    (binary.paths ?? []).map { path => loading.resolve(base, path) },
+                    packages: packages,
+                    sources: binary
+                        .sources
+                        .map { dir => sourcesOf(binary.name, loading.resolve(base, dir)) }
+                )
+            )
     }
     ProjectModel(cfg, modules, binaries: binaries.toArray())
 }
@@ -283,38 +343,60 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
  * relative to `base` where they are under it, absolute elsewhere.
  */
 public func toProjectJson(model: ProjectModel, base: VfsPath): ProjectJson {
-    let modules = model.modules.map {
-        module => ModuleJson(
-            name: module.name,
-            root: relative(module.root, base),
-            packages: module.packages.map {
-                pkg => PackageJson(
-                    name: pkg.name,
-                    dir: relative(pkg.dir, base),
-                    files: pkg.files.map {file => relativeUp(file, pkg.dir, base)},
-                    noPrelude: pkg.noPrelude,
-                    `macro`: pkg.isMacro
+    let modules =
+        model
+            .modules
+            .map {
+                module =>
+                ModuleJson(
+                    name: module.name,
+                    root: relative(module.root, base),
+                    packages: module
+                        .packages
+                        .map {
+                            pkg =>
+                            PackageJson(
+                                name: pkg.name,
+                                dir: relative(pkg.dir, base),
+                                files: pkg.files.map { file => relativeUp(file, pkg.dir, base) },
+                                noPrelude: pkg.noPrelude,
+                                `macro`: pkg.isMacro
+                            )
+                        },
+                    deps: module.deps,
+                    member: module.member,
+                    cfg: module.cfg.map { cfg => jsonOf(cfg) },
+                    inactive: if (module.inactive.isEmpty()) {
+                        None
+                    } else {
+                        module
+                            .inactive
+                            .map {
+                                file =>
+                                InactiveFileJson(
+                                    file: relative(file.path, base),
+                                    reason: file.reason
+                                )
+                            }
+                    }
                 )
-            },
-            deps: module.deps,
-            member: module.member,
-            cfg: module.cfg.map {cfg => jsonOf(cfg)},
-            inactive: if (module.inactive.isEmpty()) {
-                None
-            } else {
-                module.inactive.map {file => InactiveFileJson(file: relative(file.path, base), reason: file.reason)}
             }
-        )
-    }
-    let binaries = model.binaries.map {
-        binary =>
-        let packages = HashMap<String, String>()
-        for (pkg in binary.packages) {
-            packages.add(pkg.name, relative(pkg.path, base))
-        }
-        BinaryJson(name: binary.name, paths: binary.paths.map {path => relative(path, base)}, packages: packages,
-            sources: binary.sources.map {sources => relative(sources.dir, base)})
-    }
+    let binaries =
+        model
+            .binaries
+            .map {
+                binary =>
+                let packages = HashMap<String, String>()
+                for (pkg in binary.packages) {
+                    packages.add(pkg.name, relative(pkg.path, base))
+                }
+                BinaryJson(
+                    name: binary.name,
+                    paths: binary.paths.map { path => relative(path, base) },
+                    packages: packages,
+                    sources: binary.sources.map { sources => relative(sources.dir, base) }
+                )
+            }
     ProjectJson(cfg: jsonOf(model.cfg), modules: modules, binaries: binaries)
 }
 
@@ -343,7 +425,7 @@ func relativeUp(path: VfsPath, dir: VfsPath, base: VfsPath): String {
     }
     match (path.segmentsUnder(above)) {
         case Some(segments) where above.isUnder(base) || above == base =>
-            String.join(Array(ups) {_ => ".."}.concat(segments), delimiter: "/")
+            String.join(Array(ups) { _ => ".." }.concat(segments), delimiter: "/")
         case _ => relative(path, dir)
     }
 }
@@ -369,7 +451,9 @@ func packageDir(module: String, root: VfsPath, name: String, loading: Loading): 
         return root
     }
     if (!name.startsWith(module + ".")) {
-        loading.problems.add("package `${name}` is not of module `${module}`: it is taken to be in ${root}")
+        loading
+            .problems
+            .add("package `${name}` is not of module `${module}`: it is taken to be in ${root}")
         return root
     }
     root.join(name[module.size + 1..].replace(".", "/"))
@@ -407,10 +491,11 @@ private func collectPackages(name: String, dir: VfsPath, packages: ArrayList<Pac
  * The `*.cj` right in `dir`, in the order of their names; none if it cannot be listed.
  */
 func cangjieFilesIn(dir: VfsPath): Array<VfsPath> {
-    let files = entriesOf(dir).filter {entry => entry.isRegular() && isCangjieFile(entry.name)}.map {
-        entry => VfsPath.file(entry.path)
-    }
-    sort(files, by: {a, b => a.toString().compare(b.toString())})
+    let files =
+        entriesOf(dir)
+            .filter { entry => entry.isRegular() && isCangjieFile(entry.name) }
+            .map { entry => VfsPath.file(entry.path) }
+    sort(files, by: { a, b => a.toString().compare(b.toString()) })
     files
 }
 
@@ -419,10 +504,14 @@ func cangjieFilesIn(dir: VfsPath): Array<VfsPath> {
  * followed.
  */
 func subdirectories(dir: VfsPath): Array<VfsPath> {
-    let dirs = entriesOf(dir).filter {
-        entry => !entry.isSymbolicLink() && entry.isDirectory() && isScanned(entry.name)
-    }.map {entry => VfsPath.file(entry.path)}
-    sort(dirs, by: {a, b => a.toString().compare(b.toString())})
+    let dirs =
+        entriesOf(dir)
+            .filter {
+                entry =>
+                !entry.isSymbolicLink() && entry.isDirectory() && isScanned(entry.name)
+            }
+            .map { entry => VfsPath.file(entry.path) }
+    sort(dirs, by: { a, b => a.toString().compare(b.toString()) })
     dirs
 }
 
@@ -454,19 +543,26 @@ func entriesOf(dir: VfsPath): Array<FileInfo> {
  * manifest in it, found from a document opened (`projectDirOf`, #265); one whose manifest is gone
  * is no project.
  */
-public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (String) -> ?String,
-    cfg!: Cfg = hostCfg(), budget!: Int64 = Int64.Max, open!: Array<VfsPath> = [],
-    found!: Array<VfsPath> = []): Array<ProjectLoad> {
+public func findProjects(
+    roots: Array<VfsPath>,
+    linked: Array<VfsPath>,
+    env!: (String) -> ?String,
+    cfg!: Cfg = hostCfg(),
+    budget!: Int64 = Int64.Max,
+    open!: Array<VfsPath> = [],
+    found!: Array<VfsPath> = []
+): Array<ProjectLoad> {
     let loads = ArrayList<ProjectLoad>()
     for (root in roots) {
-        let under = linked.filter {path => path.isUnder(root)}
-        if (under.isEmpty() || (root.join(PROJECT_JSON).filePath.map {path => isFile(path)} ?? false)) {
+        let under = linked.filter { path => path.isUnder(root) }
+        if (under.isEmpty() ||
+            (root.join(PROJECT_JSON).filePath.map { path => isFile(path) } ?? false)) {
             loads.add(findProject(root, env: env, cfg: cfg, budget: budget, open: open))
         } else {
-            loads.add(all: under.map {path => linkedProject(path, env, cfg, budget, open)})
+            loads.add(all: under.map { path => linkedProject(path, env, cfg, budget, open) })
         }
     }
-    for (path in linked where !roots.iterator().any {root => path.isUnder(root)}) {
+    for (path in linked where !roots.iterator().any { root => path.isUnder(root) }) {
         loads.add(linkedProject(path, env, cfg, budget, open))
     }
     for (dir in found) {
@@ -474,7 +570,14 @@ public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (S
         match (manifestProject(dir, env, cfg, problems)) {
             case Some(load) => loads.add(load)
             case None where !problems.isEmpty() =>
-                loads.add(ProjectLoad(ProjectModel(cfg, []), CjpmManifest(dir.join("cjpm.toml")), problems.toArray()))
+                loads
+                    .add(
+                        ProjectLoad(
+                            ProjectModel(cfg, []),
+                            CjpmManifest(dir.join("cjpm.toml")),
+                            problems.toArray()
+                        )
+                    )
             case None => ()
         }
     }
@@ -485,9 +588,14 @@ public func findProjects(roots: Array<VfsPath>, linked: Array<VfsPath>, env!: (S
  * The project `path` names: a `cj-project.json`, or a directory to find one in. One that cannot be
  * read is no project, and says why.
  */
-func linkedProject(path: VfsPath, env: (String) -> ?String, cfg: Cfg, budget: Int64,
-    open: Array<VfsPath>): ProjectLoad {
-    let isProjectFile = path.filePath.map {file => isFile(file)} ?? false
+func linkedProject(
+    path: VfsPath,
+    env: (String) -> ?String,
+    cfg: Cfg,
+    budget: Int64,
+    open: Array<VfsPath>
+): ProjectLoad {
+    let isProjectFile = path.filePath.map { file => isFile(file) } ?? false
     if (!isProjectFile) {
         return findProject(path, env: env, cfg: cfg, budget: budget, open: open)
     }

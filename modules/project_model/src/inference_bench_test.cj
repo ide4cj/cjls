@@ -13,7 +13,10 @@ import loupe.syntax.parse
  * Each expression of a body of the workspace of no type known, by `onUnknown`; how many expressions
  * there are.
  */
-func inferEveryBody(ws: BenchWorkspace, onUnknown!: (SourceFile, DefId, ExprId) -> Unit = {_, _, _ => ()}): Int64 {
+func inferEveryBody(
+    ws: BenchWorkspace,
+    onUnknown!: (SourceFile, DefId, ExprId) -> Unit = { _, _, _ => () }
+): Int64 {
     var count = 0
     for ((_, file, _) in ws.files) {
         for (def in defsOf(ws, file)) {
@@ -45,21 +48,26 @@ class InferenceBench {
  * The expressions `id` holds, in the body `hir`.
  */
 func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
-    let opt = {one: ?ExprId => match (one) {
-        case Some(e) => [e]
-        case None => Array<ExprId>()
-    }}
-    let ofArgs = {args: Array<CallArg> => args.map {arg => arg.expr}}
-    let ofArms = {
-        arms: Array<MatchArm> =>
-        let found = ArrayList<ExprId>()
-        for (arm in arms) {
-            found.add(all: opt(arm.guard))
-            found.add(all: opt(arm.condition))
-            found.add(arm.body)
+    let opt =
+        {
+            one: ?ExprId =>
+            match (one) {
+                case Some(e) => [e]
+                case None => Array<ExprId>()
+            }
         }
-        found.toArray()
-    }
+    let ofArgs = { args: Array<CallArg> => args.map { arg => arg.expr } }
+    let ofArms =
+        {
+            arms: Array<MatchArm> =>
+            let found = ArrayList<ExprId>()
+            for (arm in arms) {
+                found.add(all: opt(arm.guard))
+                found.add(all: opt(arm.condition))
+                found.add(arm.body)
+            }
+            found.toArray()
+        }
     match (hir[id]) {
         case StrExpr(parts) => parts
         case QuoteExpr(parts) => parts
@@ -81,8 +89,13 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
         case MatchExpr(scrutinee, arms) => opt(scrutinee).concat(ofArms(arms))
         case QuestMatchExpr(selector, arms) => [selector].concat(ofArms(arms))
         case TryExpr(resources, tried, catches, cleanup) =>
-            resources.map {one => one.value}.concat([tried]).concat(catches.map {one => one.body}).concat(opt(cleanup))
-        case ForExpr(_, iterated, guard, loopBody) => [iterated].concat(opt(guard)).concat([loopBody])
+            resources
+                .map { one => one.value }
+                .concat([tried])
+                .concat(catches.map { one => one.body })
+                .concat(opt(cleanup))
+        case ForExpr(_, iterated, guard, loopBody) =>
+            [iterated].concat(opt(guard)).concat([loopBody])
         case WhileExpr(condition, loopBody) => [condition, loopBody]
         case DoWhileExpr(loopBody, condition) => [loopBody, condition]
         case SynchronizedExpr(lock, block) => [lock, block]
@@ -111,23 +124,32 @@ func childrenOf(hir: Body, id: ExprId): Array<ExprId> {
  * What `id`, an expression of no type known of the body of `def` none of whose children is one, is,
  * as #48's step 8c′ counted them before the error type was split (D77).
  */
-func rootKindOf(db: AnalysisDatabase, def: DefId, hir: Body, result: InferenceResult, id: ExprId): String {
+func rootKindOf(
+    db: AnalysisDatabase,
+    def: DefId,
+    hir: Body,
+    result: InferenceResult,
+    id: ExprId
+): String {
     match (hir[id]) {
         case MacroExpr(_) => "macro call"
         case QuoteExpr(_) => "quote"
-        case PathExpr(name, _) => match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(id), name)) {
-            case Values(targets) where targets.size == 1 => match (targets[0]) {
-                case LocalOf(_) => "local"
-                case _ => "name found"
+        case PathExpr(name, _) =>
+            match (resolveBodyName(db, def, exprScopes(db, def).scopeOf(id), name)) {
+                case Values(targets) where targets.size == 1 =>
+                    match (targets[0]) {
+                        case LocalOf(_) => "local"
+                        case _ => "name found"
+                    }
+                case InFile(Found(_)) => "name found"
+                case _ => "name not found"
             }
-            case InFile(Found(_)) => "name found"
-            case _ => "name not found"
-        }
-        case FieldExpr(_, _, _) => match (resolveField(db, def, id)) {
-            case OfValue where result.fieldOf(id).isNone() => "member not found"
-            case OfValue => "member found"
-            case _ => "member of a type or package"
-        }
+        case FieldExpr(_, _, _) =>
+            match (resolveField(db, def, id)) {
+                case OfValue where result.fieldOf(id).isNone() => "member not found"
+                case OfValue => "member found"
+                case _ => "member of a type or package"
+            }
         case CallExpr(_, _) => "call not solved"
         case LambdaExpr(_, _) => "lambda"
         case LitExpr(_) => "literal"
@@ -145,17 +167,14 @@ func rootKindOf(db: AnalysisDatabase, def: DefId, hir: Body, result: InferenceRe
 func textOf(ws: BenchWorkspace, file: SourceFile, def: DefId, id: ExprId): String {
     let db = ws.db
     let origin = bodyWithSourceMap(db, def).sourceMap.exprs.get(id.index) ?? return "?"
-    let source = match (origin) {
-        case WrittenSource(source) => source
-        case _ => return "no node"
-    }
+    let source =
+        match (origin) {
+            case WrittenSource(source) => source
+            case _ => return "no node"
+        }
     let node = source.node(db, def.file(db)) ?? return "?"
     let text = node.text().replace("\n", " ")
-    let short = if (text.size > 100) {
-        text[..100]
-    } else {
-        text
-    }
+    let short = if (text.size > 100) { text[..100] } else { text }
     "${ws.paths.path(file.fileId(db))}@${node.textRange.start}: ${short}"
 }
 
@@ -201,51 +220,63 @@ func censusOf(ws: BenchWorkspace): Census {
                 if (let FieldExpr(receiver, _, _) <- hir[ExprId(i)]) {
                     match (resolveField(db, def, ExprId(i))) {
                         case PackageMembers(_) | TypeMembers(_) => qualifiers.add(receiver.index)
-                        case NoField => match (receiverOf(db, def, receiver)) {
-                            case PackageReceiver(_) | TypesReceiver(_) => qualifiers.add(receiver.index)
-                            case _ => ()
-                        }
+                        case NoField =>
+                            match (receiverOf(db, def, receiver)) {
+                                case PackageReceiver(_) | TypesReceiver(_) =>
+                                    qualifiers.add(receiver.index)
+                                case _ => ()
+                            }
                         case _ => ()
                     }
                 }
             }
-            let isUnknownAt = {id: ExprId => match (result[id]) {
-                case Some(ty) => isUnknown(db, ty)
-                case None => false
-            }}
+            let isUnknownAt =
+                {
+                    id: ExprId =>
+                    match (result[id]) {
+                        case Some(ty) => isUnknown(db, ty)
+                        case None => false
+                    }
+                }
             for (i in 0..hir.exprs.size) {
                 let id = ExprId(i)
-                let ty = match (result[id]) {
-                    case Some(one) => one
-                    case None =>
-                        census.noValue++
-                        if (!qualifiers.contains(i)) {
-                            census.wrongNoValue.add("${def}: ${i}")
-                        }
-                        continue
-                }
+                let ty =
+                    match (result[id]) {
+                        case Some(one) => one
+                        case None =>
+                            census.noValue++
+                            if (!qualifiers.contains(i)) {
+                                census.wrongNoValue.add("${def}: ${i}")
+                            }
+                            continue
+                    }
                 if (!isUnknown(db, ty)) {
                     continue
                 }
                 census.unknown++
-                let kind = match (ty.kind(db)) {
-                    case TodoTy(why) => "todo(${why})"
-                    case UnknownTy(why) => "unknown(${why})"
-                    case _ => "error"
-                }
-                let isCascade = childrenOf(hir, id).iterator().any {one => isUnknownAt(one)}
-                let key = if (isCascade) {
-                    "${kind} cascade"
-                } else {
-                    let rootKind = rootKindOf(db, def, hir, result, id)
-                    if (kind == "error") {
-                        census.errorRoots.add(ErrorRoot(rootKind, file, def, id))
+                let kind =
+                    match (ty.kind(db)) {
+                        case TodoTy(why) => "todo(${why})"
+                        case UnknownTy(why) => "unknown(${why})"
+                        case _ => "error"
                     }
-                    "${kind} root ${rootKind}"
-                }
+                let isCascade = childrenOf(hir, id).iterator().any { one => isUnknownAt(one) }
+                let key =
+                    if (isCascade) {
+                        "${kind} cascade"
+                    } else {
+                        let rootKind = rootKindOf(db, def, hir, result, id)
+                        if (kind == "error") {
+                            census.errorRoots.add(ErrorRoot(rootKind, file, def, id))
+                        }
+                        "${kind} root ${rootKind}"
+                    }
                 census.add(key)
-                if (let Some(prefix) <- getVariable("CJLS_CENSUS_SAMPLES") && key.startsWith(prefix) &&
-                    census.counts[key] <= 12) {
+                if (
+                    let Some(prefix) <- getVariable("CJLS_CENSUS_SAMPLES") &&
+                        key.startsWith(prefix) &&
+                        census.counts[key] <= 12
+                ) {
                     println("sample [${key}] ${textOf(ws, file, def, id)}")
                 }
                 census.add(kind)
@@ -270,9 +301,11 @@ class InferenceCensusTest {
             return
         }
         let census = censusOf(workspace())
-        println("census: ${census.total} expressions, ${census.unknown} of no type known, ${census.noValue} no value")
+        println(
+            "census: ${census.total} expressions, ${census.unknown} of no type known, ${census.noValue} no value"
+        )
         let keys = census.counts.keys().toArray()
-        sort(keys, by: {a: String, b: String => a.compare(b)})
+        sort(keys, by: { a: String, b: String => a.compare(b) })
         for (key in keys) {
             println("census: ${key}: ${census.counts[key]}")
         }

@@ -7,7 +7,8 @@ import std.unittest.testmacro.*
 class DelegationDefinitionTest {
     @TestCase
     func superSelectsTheCalledOverload() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /base.cj module=m package=m
             package m
             open class Base {
@@ -20,12 +21,15 @@ class DelegationDefinitionTest {
             class Child <: Base {
                 init() { su$0per(1) }
             }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func thisSelectsTheCalledOverload() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -34,23 +38,28 @@ class DelegationDefinitionTest {
             //  ^^^^ def
                 init() { th$0is(1) }
             }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func superFindsTheOnlyConstructor() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             open class Base { init() {} }
             //                ^^^^ def
             class Child <: Base { init() { $0super() } }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func thisFindsThePrimaryConstructor() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -58,12 +67,15 @@ class DelegationDefinitionTest {
             //  ^ def
                 init() { this$0(1) }
             }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func superSubstitutesTheGenericSuperclass() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             open class Base<T> {
@@ -72,12 +84,15 @@ class DelegationDefinitionTest {
                 init(x: String) {}
             }
             class Child <: Base<Int64> { init() { $0super(1) } }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func thisInAGenericClass() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C<T> {
@@ -85,23 +100,29 @@ class DelegationDefinitionTest {
             //  ^^^^ def
                 init(x: T, unused: Int64) { $0this(x) }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func superFindsABinaryConstructorInItsSources() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             class E <: Exception {
                 init() { $0super("message") }
             }
-            "#, ["std.core"], ["core/exception.cj: init in `public init(message: String) {`"])
+            "#,
+            ["std.core"],
+            ["core/exception.cj: init in `public init(message: String) {`"]
+        )
     }
 
     @TestCase
     func aClassCallGoesToItsChosenConstructor() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -110,12 +131,15 @@ class DelegationDefinitionTest {
             //  ^^^^ def
             }
             func f(): C { $0C(1) }
-            "#, std: ["std.core"])
+            "#,
+            std: ["std.core"]
+        )
     }
 
     @TestCase
     func anImplicitConstructorHasNoWrittenTarget() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             open class Base {}
@@ -123,12 +147,14 @@ class DelegationDefinitionTest {
                 init() { $0super() }
             //             ^^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBareThisHasNoConstructorTarget() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -136,12 +162,14 @@ class DelegationDefinitionTest {
                 func f(): C { $0this }
             //                  ^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aSuperReceiverHasNoConstructorTarget() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             open class Base { init() {} let x = 1 }
@@ -150,12 +178,14 @@ class DelegationDefinitionTest {
                 func f(): Int64 { $0super.x }
             //                      ^^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anUnresolvedDelegationHasNoTarget() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             open class Base { init(x: Int64) {} }
@@ -163,6 +193,7 @@ class DelegationDefinitionTest {
                 init() { $0super() }
             //             ^^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 }

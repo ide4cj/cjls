@@ -17,9 +17,12 @@ import cjls.lsp_types.Range as LspRange
  * `cjHeapSize=4GB cjpm bench '--filter=JsonCodecBench.*'`
  */
 
-let BENCH_KEYSTROKE: Array<Byte> = ##"{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","version":42},"contentChanges":[{"range":{"start":{"line":120,"character":17},"end":{"line":120,"character":17}},"rangeLength":0,"text":"a"}]}}"##.toArray()
+let BENCH_KEYSTROKE: Array<Byte> =
+    ##"{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","version":42},"contentChanges":[{"range":{"start":{"line":120,"character":17},"end":{"line":120,"character":17}},"rangeLength":0,"text":"a"}]}}"##
+        .toArray()
 
-let BENCH_KEYSTROKE_PARAMS: ?RawJson = fromJsonBytes<Body>(BENCH_KEYSTROKE).getNotificationBodyOrThrow().params
+let BENCH_KEYSTROKE_PARAMS: ?RawJson =
+    fromJsonBytes<Body>(BENCH_KEYSTROKE).getNotificationBodyOrThrow().params
 
 let BENCH_KEYSTROKE_PARAMS_BYTES: Array<Byte> = (BENCH_KEYSTROKE_PARAMS ?? RawJson.NULL).bytes
 
@@ -27,60 +30,101 @@ let BENCH_KEYSTROKE_PARAMS_BYTES: Array<Byte> = (BENCH_KEYSTROKE_PARAMS ?? RawJs
 let BENCH_READER = FjReader(Array<Byte>())
 
 // the route's readers of params in place, one per method, as `Router` keeps them (D73)
-let BENCH_PARAMS_READERS: HashMap<String, (FjReader) -> Any> = HashMap<String, (FjReader) -> Any>(
-    [(DidChangeTextDocumentNotificationSpec.METHOD, {
-        r =>
-        let params: Any = DidChangeTextDocumentNotificationSpec().decodeParams(r)
-        params
-    })])
+let BENCH_PARAMS_READERS: HashMap<String, (FjReader) -> Any> =
+    HashMap<String, (FjReader) -> Any>(
+        [
+            (
+                DidChangeTextDocumentNotificationSpec.METHOD,
+                {
+                    r =>
+                    let params: Any = DidChangeTextDocumentNotificationSpec().decodeParams(r)
+                    params
+                }
+            )
+        ]
+    )
 
-let BENCH_PARAMS_READER: (String) -> Option<(FjReader) -> Any> = {method => BENCH_PARAMS_READERS.get(method)}
+let BENCH_PARAMS_READER: (String) -> Option<(FjReader) -> Any> =
+    { method => BENCH_PARAMS_READERS.get(method) }
 
 /** The server's path since D73: the envelope read with the params in place, the route taking them decoded. */
 func keystrokeReadInPlace(): DidChangeTextDocumentParams {
     BENCH_READER.reset(BENCH_KEYSTROKE)
     let (body, decoded) = Body.read(BENCH_READER, BENCH_PARAMS_READER)
     let note = body.getNotificationBodyOrThrow()
-    let typed: ?DidChangeTextDocumentParams = match (decoded) {
-        case Some(value) => value as DidChangeTextDocumentParams
-        case None => None
-    }
+    let typed: ?DidChangeTextDocumentParams =
+        match (decoded) {
+            case Some(value) => value as DidChangeTextDocumentParams
+            case None => None
+        }
     typed ?? DidChangeTextDocumentNotificationSpec().decodeParams(note.params)
 }
 
 // JSON string content, escapes included: quotes, backslashes, a tab, Cyrillic and an emoji
 const BENCH_LINE = #"    let s = \"a \\\"quoted\\\" \\\\ path\tтекст 😀\"; // комментарий\n"#
 
-let BENCH_OPEN: Array<Byte> = (##"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","languageId":"cangjie","version":1,"text":""## +
-    BENCH_LINE * (65536 / BENCH_LINE.size) + ##""}}}"##).toArray()
+let BENCH_OPEN: Array<Byte> =
+    (
+        ##"{"jsonrpc":"2.0","method":"textDocument/didOpen","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","languageId":"cangjie","version":1,"text":""## +
+            BENCH_LINE * (65536 / BENCH_LINE.size) +
+            ##""}}}"##
+    )
+        .toArray()
 
 func benchPosition(line: UInt32, character: UInt32): Position {
     Position(line: line, character: character)
 }
 
-let BENCH_SYMBOLS: Nullable<SymbolInformationsOrDocumentSymbols> = Nullable.Value(
-    SymbolInformationsOrDocumentSymbols.AsDocumentSymbols(
-        Array<DocumentSymbol>(50) {
-            c =>
-            let methods = Array<DocumentSymbol>(10) {
-                m =>
-                let line = UInt32(c * 100 + m * 9 + 1)
-                DocumentSymbol(name: "method${m}OfClass${c}", detail: "(a: Int64, b: String): Unit", kind: SymbolKind.Method,
-                    range: LspRange(start: benchPosition(line, 4), end: benchPosition(line + 7, 5)),
-                    selectionRange: LspRange(start: benchPosition(line, 9), end: benchPosition(line, 20)))
-            }
-            let line = UInt32(c * 100)
-            DocumentSymbol(name: "Class${c}", kind: SymbolKind.Class,
-                range: LspRange(start: benchPosition(line, 0), end: benchPosition(line + 95, 1)),
-                selectionRange: LspRange(start: benchPosition(line, 6), end: benchPosition(line, 12)), children: methods)
-        }))
+let BENCH_SYMBOLS: Nullable<SymbolInformationsOrDocumentSymbols> =
+    Nullable
+        .Value(
+            SymbolInformationsOrDocumentSymbols
+                .AsDocumentSymbols(
+                    Array<DocumentSymbol>(50) {
+                        c =>
+                        let methods =
+                            Array<DocumentSymbol>(10) {
+                                m =>
+                                let line = UInt32(c * 100 + m * 9 + 1)
+                                DocumentSymbol(
+                                    name: "method${m}OfClass${c}",
+                                    detail: "(a: Int64, b: String): Unit",
+                                    kind: SymbolKind.Method,
+                                    range: LspRange(
+                                        start: benchPosition(line, 4),
+                                        end: benchPosition(line + 7, 5)
+                                    ),
+                                    selectionRange: LspRange(
+                                        start: benchPosition(line, 9),
+                                        end: benchPosition(line, 20)
+                                    )
+                                )
+                            }
+                        let line = UInt32(c * 100)
+                        DocumentSymbol(
+                            name: "Class${c}",
+                            kind: SymbolKind.Class,
+                            range: LspRange(
+                                start: benchPosition(line, 0),
+                                end: benchPosition(line + 95, 1)
+                            ),
+                            selectionRange: LspRange(
+                                start: benchPosition(line, 6),
+                                end: benchPosition(line, 12)
+                            ),
+                            children: methods
+                        )
+                    }
+                )
+        )
 
 @Test
 class JsonCodecBench {
     @Bench
     func readKeystroke(): DidChangeTextDocumentParams {
         let body = fromJsonBytes<Body>(BENCH_KEYSTROKE)
-        DidChangeTextDocumentNotificationSpec().decodeParams(body.getNotificationBodyOrThrow().params)
+        DidChangeTextDocumentNotificationSpec()
+            .decodeParams(body.getNotificationBodyOrThrow().params)
     }
 
     // the two passes of `readKeystroke` apart: the envelope's, skipping `params` into a slice, and the route's
@@ -145,7 +189,10 @@ class JsonCodecBench {
     @Bench
     func writeSymbols(): Array<Byte> {
         let result = DocumentSymbolRequestSpec().encodeResult(BENCH_SYMBOLS)
-        toJsonBytes(ResponseBody(Nullable.Value(IntegerOrString.Integer(7)), ResultOrError.Result(result)).enveloped())
+        toJsonBytes(
+            ResponseBody(Nullable.Value(IntegerOrString.Integer(7)), ResultOrError.Result(result))
+                .enveloped()
+        )
     }
 }
 
@@ -156,7 +203,8 @@ class JsonCodecAllocationBench {
     @Bench
     func readKeystroke(): DidChangeTextDocumentParams {
         let body = fromJsonBytes<Body>(BENCH_KEYSTROKE)
-        DidChangeTextDocumentNotificationSpec().decodeParams(body.getNotificationBodyOrThrow().params)
+        DidChangeTextDocumentNotificationSpec()
+            .decodeParams(body.getNotificationBodyOrThrow().params)
     }
 
     @Bench

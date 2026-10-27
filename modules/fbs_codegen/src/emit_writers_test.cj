@@ -22,10 +22,14 @@ class EmitWritersTest {
     @TestCase
     func aTablesChildrenAreBuiltBeforeItAndItsFieldsSlottedByTheirIds() {
         // act
-        let sut = writersOf("table C {} union U { C } table T { u: U; s: string; v: [int]; c: C; n: short = 3; }")
+        let sut =
+            writersOf(
+                "table C {} union U { C } table T { u: U; s: string; v: [int]; c: C; n: short = 3; }"
+            )
 
         // assert
-        let start = sut.indexOf("b.startTable()\nif (let (Some(v), Some(o)) <- (u, uOffset))").getOrThrow()
+        let start =
+            sut.indexOf("b.startTable()\nif (let (Some(v), Some(o)) <- (u, uOffset))").getOrThrow()
         @Expect(sut.indexOf("let uOffset = u.map {v => v.pack(b)}").getOrThrow() < start)
         @Expect(sut.indexOf("let sOffset = s.map {v => b.createString(v)}").getOrThrow() < start)
         @Expect(sut.indexOf("let vOffset = b.endVector(v.size)").getOrThrow() < start)
@@ -37,7 +41,10 @@ class EmitWritersTest {
     @TestCase
     func aFieldThatMayBeAbsentDefaultsToItsSchemasDefaultOrNone() {
         // act
-        let sut = writersOf("enum E : byte { A, B } table T { n: uint = 1; e: E = B; s: string; v: [string]; r: string (required); }")
+        let sut =
+            writersOf(
+                "enum E : byte { A, B } table T { n: uint = 1; e: E = B; s: string; v: [string]; r: string (required); }"
+            )
 
         // assert
         @Expect(sut.contains("public let n!: UInt32 = 1"))
@@ -63,9 +70,11 @@ class EmitWritersTest {
     @TestCase
     func aStructsEnumAndStructFieldsAndARequiredStructOrUnionAreWritten() {
         // act
-        let sut = writersOf(
-            "enum E : short { A } struct P { x: int; } struct S { e: E; p: P; } table C {} union U { C } " +
-                "table T { es: [E]; s: S (required); u: U (required); }")
+        let sut =
+            writersOf(
+                "enum E : short { A } struct P { x: int; } struct S { e: E; p: P; } table C {} union U { C } " +
+                    "table T { es: [E]; s: S (required); u: U (required); }"
+            )
 
         // assert
         @Expect(sut.contains("writeInt16(buf, pos + 0, e.value)\np.writeTo(buf, pos + 4)"))

@@ -17,7 +17,12 @@ public class FjException <: Exception {
 }
 
 public enum FjKind {
-    | FjObject | FjArray | FjString | FjNumber | FjBool | FjNull
+    | FjObject
+    | FjArray
+    | FjString
+    | FjNumber
+    | FjBool
+    | FjNull
 }
 
 /** How many containers deep `skipValue` and `rawValue` go: a value nested deeper is refused. */
@@ -76,11 +81,7 @@ public class FjReader {
     private func ws(): Unit {
         while (pos < bytes.size) {
             let b = bytes[pos]
-            if (b == 0x20 || b == 0x0A || b == 0x0D || b == 0x09) {
-                pos++
-            } else {
-                return
-            }
+            if (b == 0x20 || b == 0x0A || b == 0x0D || b == 0x09) { pos++ } else { return }
         }
     }
 
@@ -183,7 +184,9 @@ public class FjReader {
     @Frozen
     public func key(): String {
         let source = if (keyInScratch) { scratch } else { bytes }
-        unsafe { String.fromUtf8Unchecked(source[keyStart..keyStart + keyLength]) }
+        unsafe {
+            String.fromUtf8Unchecked(source[keyStart..keyStart + keyLength])
+        }
     }
 
     @Frozen
@@ -218,10 +221,14 @@ public class FjReader {
         let end = scanPlain(start)
         if (end < bytes.size && bytes[end] == QUOTE) {
             pos = end + 1
-            return unsafe { String.fromUtf8Unchecked(bytes[start..end]) }
+            return unsafe {
+                String.fromUtf8Unchecked(bytes[start..end])
+            }
         }
         let length = unescape(start, end)
-        unsafe { String.fromUtf8Unchecked(scratch[0..length]) }
+        unsafe {
+            String.fromUtf8Unchecked(scratch[0..length])
+        }
     }
 
     private func reserve(length: Int64, extra: Int64): Unit {
@@ -283,12 +290,13 @@ public class FjReader {
                         // U+FFFD, as `TextEncoder` makes it: one UTF-16 unit for one, so the
                         // client's positions still hold; the escape after a lone high one is read
                         // on its own
-                        let low: UInt32 = if (cp <= 0xDBFF && i + 6 <= bytes.size && bytes[i] == BACKSLASH &&
-                            bytes[i + 1] == 0x75) {
-                            hex4(i + 2)
-                        } else {
-                            0
-                        }
+                        let low: UInt32 =
+                            if (cp <= 0xDBFF && i + 6 <= bytes.size && bytes[i] == BACKSLASH &&
+                                bytes[i + 1] == 0x75) {
+                                hex4(i + 2)
+                            } else {
+                                0
+                            }
                         if (low >= 0xDC00 && low <= 0xDFFF) {
                             cp = 0x10000 + ((cp - 0xD800) << 10) + (low - 0xDC00)
                             i += 6
@@ -332,16 +340,17 @@ public class FjReader {
         var v: UInt32 = 0
         for (k in 0..4) {
             let c = bytes[at + k]
-            let d: UInt32 = if (c >= 0x30 && c <= 0x39) {
-                UInt32(c - 0x30)
-            } else if (c >= 0x61 && c <= 0x66) {
-                UInt32(c - 0x61 + 10)
-            } else if (c >= 0x41 && c <= 0x46) {
-                UInt32(c - 0x41 + 10)
-            } else {
-                pos = at + k
-                throw fail("invalid hex digit")
-            }
+            let d: UInt32 =
+                if (c >= 0x30 && c <= 0x39) {
+                    UInt32(c - 0x30)
+                } else if (c >= 0x61 && c <= 0x66) {
+                    UInt32(c - 0x61 + 10)
+                } else if (c >= 0x41 && c <= 0x46) {
+                    UInt32(c - 0x41 + 10)
+                } else {
+                    pos = at + k
+                    throw fail("invalid hex digit")
+                }
             v = v * 16 + d
         }
         v

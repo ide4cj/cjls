@@ -35,7 +35,7 @@ class SyntaxNodePtrTest {
     func anEmptyNodeBetweenTwoTokensIsFound() {
         // arrange
         let root = sampleTree()
-        let empty = root.descendants().filter {n => n.textRange.isEmpty()}.next().getOrThrow()
+        let empty = root.descendants().filter { n => n.textRange.isEmpty() }.next().getOrThrow()
 
         // act
         let found = SyntaxNodePtr(Leaf, TextRange.empty(3)).toNode(root)
@@ -76,7 +76,7 @@ class SyntaxNodePtrTest {
         // arrange
         let first = sampleTree()
         let second = sampleTree()
-        let node = first.descendants().filter {n => n.kind == Inner}.next().getOrThrow()
+        let node = first.descendants().filter { n => n.kind == Inner }.next().getOrThrow()
         let ptr = SyntaxNodePtr(node)
 
         // act
@@ -103,7 +103,7 @@ class SyntaxNodePtrTest {
     func pointersAreEqualByKindAndRange() {
         // arrange
         let root = sampleTree()
-        let inner = root.descendants().filter {n => n.kind == Inner}.next().getOrThrow()
+        let inner = root.descendants().filter { n => n.kind == Inner }.next().getOrThrow()
 
         // act, assert
         @Expect(SyntaxNodePtr(inner), SyntaxNodePtr(Inner, inner.textRange))
@@ -119,7 +119,10 @@ class AstPtrTest {
     func anAstPtrResolvesToItsView() {
         // arrange
         let root = sampleTree()
-        let view = Nested.cast(root.descendants().filter {n => n.kind == Inner}.next().getOrThrow()).getOrThrow()
+        let view =
+            Nested
+                .cast(root.descendants().filter { n => n.kind == Inner }.next().getOrThrow())
+                .getOrThrow()
 
         // act
         let found = AstPtr<TestKind, Nested>(view).toNode(root)
@@ -143,7 +146,8 @@ class AstPtrTest {
         // arrange
         let inners = stackedTree(Inner, Inner)
         let leaves = stackedTree(Leaf, Leaf)
-        let ptr = AstPtr<TestKind, Nested>(Nested.cast(inners.firstChild().getOrThrow()).getOrThrow())
+        let ptr =
+            AstPtr<TestKind, Nested>(Nested.cast(inners.firstChild().getOrThrow()).getOrThrow())
 
         // act, assert
         @AssertThrows[IllegalArgumentException](ptr.toNode(leaves))

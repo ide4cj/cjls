@@ -92,10 +92,20 @@ func resolveDoc(notification: Notification): DocIr {
     )
 }
 
-private func docOf(documentation!: ?String, since!: ?String, sinceTags!: ?Array<String>, proposed!: ?Bool,
-    deprecated!: ?String) {
-    DocIr(documentation: documentation, since: since, sinceTags: sinceTags, proposed: proposed ?? false,
-        deprecated: deprecated)
+private func docOf(
+    documentation!: ?String,
+    since!: ?String,
+    sinceTags!: ?Array<String>,
+    proposed!: ?Bool,
+    deprecated!: ?String
+) {
+    DocIr(
+        documentation: documentation,
+        since: since,
+        sinceTags: sinceTags,
+        proposed: proposed ?? false,
+        deprecated: deprecated
+    )
 }
 
 extend CjEmitter {
@@ -123,9 +133,10 @@ private func collectLines(doc: DocIr): Array<String> {
     // `documentation`. Emitting the field unconditionally would print half of them twice.
     let tags = ArrayList<String>()
     match (doc.sinceTags) {
-        case Some(all) where all.size > 1 => for (tag in all) {
-            tags.add("@since ${tag}")
-        }
+        case Some(all) where all.size > 1 =>
+            for (tag in all) {
+                tags.add("@since ${tag}")
+            }
         case _ =>
             if (let Some(since) <- doc.since) {
                 tags.add("@since ${since}")

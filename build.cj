@@ -22,11 +22,7 @@ func forgetAnotherCompiler(): Unit {
     if (let Some(v) <- version && exists(STAMP) && String.fromUtf8(File.readFrom(STAMP)) == v) {
         return
     }
-    if (exists(TARGET)) {
-        forgetCaches(Path(TARGET))
-    } else {
-        Directory.create(TARGET)
-    }
+    if (exists(TARGET)) { forgetCaches(Path(TARGET)) } else { Directory.create(TARGET) }
     match (version) {
         case Some(v) => File.writeTo(STAMP, v.toArray())
         // not knowing is not the same compiler: the next build starts from scratch too
@@ -52,11 +48,7 @@ func forgetCaches(dir: Path): Unit {
 func compilerVersion(): ?String {
     try {
         let (code, out, _) = executeWithOutput("cjc", ["--version"])
-        if (code == 0) {
-            String.fromUtf8(out)
-        } else {
-            None
-        }
+        if (code == 0) { String.fromUtf8(out) } else { None }
     } catch (e: Exception) {
         None
     }

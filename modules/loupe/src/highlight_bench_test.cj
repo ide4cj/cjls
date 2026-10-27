@@ -13,8 +13,13 @@ import loupe.vfs.FileId
  * The sources of `dir` but the tests, under `/<module>/…`, of the package `pkg`, as fixture files.
  */
 func fixtureFiles(text: StringBuilder, module: String, deps: String, dir: Path, pkg: String): Unit {
-    let files = Directory.readFrom(dir).filter {info => info.isRegular() && info.name.endsWith(".cj") &&
-        !info.name.endsWith("_test.cj")}
+    let files =
+        Directory
+            .readFrom(dir)
+            .filter {
+                info =>
+                info.isRegular() && info.name.endsWith(".cj") && !info.name.endsWith("_test.cj")
+            }
     for (info in files) {
         text.append("//- /${module}/${pkg}/${info.name} module=${module} package=${pkg}${deps}\n")
         text.append(String.fromUtf8(File.readFrom(info.path)))
@@ -39,12 +44,21 @@ class HighlightBenchState {
         let text = StringBuilder()
         fixtureFiles(text, "ginkgo", "", Path("modules/ginkgo/src"), "ginkgo")
         fixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src"), "cjsyntax")
-        fixtureFiles(text, "cjsyntax", " deps=ginkgo", Path("modules/cjsyntax/src/ast"), "cjsyntax.ast")
+        fixtureFiles(
+            text,
+            "cjsyntax",
+            " deps=ginkgo",
+            Path("modules/cjsyntax/src/ast"),
+            "cjsyntax.ast"
+        )
         let fixture = Fixture.parse(text.toString())
         nodesFile = fixture.file("/cjsyntax/cjsyntax.ast/nodes.cj").fileId
-        db = fixture.database(binaries: ["std.core", "std.collection"].map {
-            name => stdCjoRead(name, stdCjo(name))
-        })
+        db =
+            fixture
+                .database(
+                    binaries: ["std.core", "std.collection"]
+                        .map { name => stdCjoRead(name, stdCjo(name)) }
+                )
         let source = db.sourceFile(nodesFile).getOrThrow().text(db).toString()
         let at = source.lastIndexOf("\n    }\n").getOrThrow()
         texts = [source, source[..at] + " " + source[at..]]

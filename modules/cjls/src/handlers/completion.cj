@@ -16,27 +16,51 @@ import cjls.macros.LspHandler
  * the server does not know, or in an expanded file, which is read-only.
  */
 @LspHandler[readonly]
-func handleCompletion(snap: ServerSnapshot, params: CompletionParams): Nullable<CompletionItemsOrCompletionList> {
+func handleCompletion(
+    snap: ServerSnapshot,
+    params: CompletionParams
+): Nullable<CompletionItemsOrCompletionList> {
     let uri = params.textDocument.uri
     if (isExpandedDocument(uri)) {
         return Nullable.Null
     }
     let file = fileOf(snap, uri) ?? return Nullable.Null
-    let result = completionsAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position)) ??
-        return Nullable.Null
-    let range = lspRange(file.text(snap.analysis), result.range.start, result.range.end, snap.encoding)
+    let result =
+        completionsAt(
+            snap.analysis,
+            file.fileId(snap.analysis),
+            offsetOf(snap, file, params.position)
+        ) ??
+            return Nullable.Null
+    let range =
+        lspRange(file.text(snap.analysis), result.range.start, result.range.end, snap.encoding)
     let width = "${result.items.size}".size
-    let items = Array<CompletionItem>(result.items.size) {
-        index =>
-        let item = result.items[index]
-        let count = if (item.overloadCount > 1) { Some("${item.overloadCount} overloads") } else { None<String> }
-        CompletionItem(label: item.label, labelDetails: completionLabelDetails(item, snap), detail: count,
-            kind: completionItemKind(item.kind),
-            sortText: "${index}".padStart(width, padding: "0"),
-            textEdit: TextEditOrInsertReplaceEdit.AsTextEdit(TextEdit(range: range, newText: item.label)),
-            data: completionData(uri, params.position, index, item.overloadCount))
-    }
-    Nullable.Value(CompletionItemsOrCompletionList.AsCompletionList(CompletionList(isIncomplete: false, items: items)))
+    let items =
+        Array<CompletionItem>(result.items.size) {
+            index =>
+            let item = result.items[index]
+            let count =
+                if (item.overloadCount > 1) {
+                    Some("${item.overloadCount} overloads")
+                } else {
+                    None<String>
+                }
+            CompletionItem(
+                label: item.label,
+                labelDetails: completionLabelDetails(item, snap),
+                detail: count,
+                kind: completionItemKind(item.kind),
+                sortText: "${index}".padStart(width, padding: "0"),
+                textEdit: TextEditOrInsertReplaceEdit
+                    .AsTextEdit(TextEdit(range: range, newText: item.label)),
+                data: completionData(uri, params.position, index, item.overloadCount)
+            )
+        }
+    Nullable
+        .Value(
+            CompletionItemsOrCompletionList
+                .AsCompletionList(CompletionList(isIncomplete: false, items: items))
+        )
 }
 
 /**
@@ -65,30 +89,64 @@ func handleCompletionResolve(snap: ServerSnapshot, item: CompletionItem): Comple
         return item
     }
     let detail = details[0]
-    let documentation = if (candidate.overloadCount > 1) {
-        Some(StringOrMarkupContent.AsMarkupContent(hoverContent(details, snap.completionMarkdown)))
-    } else {
-        detail.doc.map {
-            doc => StringOrMarkupContent.AsMarkupContent(MarkupContent(kind: if (snap.completionMarkdown) {
-                MarkupKind.Markdown
-            } else {
-                MarkupKind.PlainText
-            }, value: doc))
+    let documentation =
+        if (candidate.overloadCount > 1) {
+            Some(
+                StringOrMarkupContent
+                    .AsMarkupContent(hoverContent(details, snap.completionMarkdown))
+            )
+        } else {
+            detail
+                .doc
+                .map {
+                    doc =>
+                    StringOrMarkupContent
+                        .AsMarkupContent(
+                            MarkupContent(
+                                kind: if (snap.completionMarkdown) {
+                                    MarkupKind.Markdown
+                                } else {
+                                    MarkupKind.PlainText
+                                },
+                                value: doc
+                            )
+                        )
+                }
         }
-    }
-    CompletionItem(label: item.label, labelDetails: item.labelDetails, kind: item.kind, tags: item.tags,
-        detail: if (candidate.overloadCount > 1) { Some("${candidate.overloadCount} overloads") } else { Some(detail.code) },
-        documentation: documentation, deprecated: item.deprecated, preselect: item.preselect,
-        sortText: item.sortText, filterText: item.filterText, insertText: item.insertText,
-        insertTextFormat: item.insertTextFormat, insertTextMode: item.insertTextMode, textEdit: item.textEdit,
-        textEditText: item.textEditText, additionalTextEdits: item.additionalTextEdits,
-        commitCharacters: item.commitCharacters, command: item.command, data: item.data)
+    CompletionItem(
+        label: item.label,
+        labelDetails: item.labelDetails,
+        kind: item.kind,
+        tags: item.tags,
+        detail: if (candidate.overloadCount > 1) {
+            Some("${candidate.overloadCount} overloads")
+        } else {
+            Some(detail.code)
+        },
+        documentation: documentation,
+        deprecated: item.deprecated,
+        preselect: item.preselect,
+        sortText: item.sortText,
+        filterText: item.filterText,
+        insertText: item.insertText,
+        insertTextFormat: item.insertTextFormat,
+        insertTextMode: item.insertTextMode,
+        textEdit: item.textEdit,
+        textEditText: item.textEditText,
+        additionalTextEdits: item.additionalTextEdits,
+        commitCharacters: item.commitCharacters,
+        command: item.command,
+        data: item.data
+    )
 }
 
 /**
  * Keep the label itself available for matching and insertion, including for older clients.
  */
-func completionLabelDetails(item: AnalysisCompletion, snap: ServerSnapshot): ?CompletionItemLabelDetails {
+func completionLabelDetails(
+    item: AnalysisCompletion,
+    snap: ServerSnapshot
+): ?CompletionItemLabelDetails {
     if (snap.completionLabelDetails && item.overloadCount > 1) {
         Some(CompletionItemLabelDetails(detail: " (${item.overloadCount} overloads)"))
     } else {
@@ -101,7 +159,8 @@ func completionLabelDetails(item: AnalysisCompletion, snap: ServerSnapshot): ?Co
  */
 func completionItemKind(kind: CompletionKind): CompletionItemKind {
     match (kind) {
-        case CompletionKind.LocalItem | CompletionKind.ParamItem | CompletionKind.VarItem => CompletionItemKind.Variable
+        case CompletionKind.LocalItem | CompletionKind.ParamItem | CompletionKind.VarItem =>
+            CompletionItemKind.Variable
         case CompletionKind.FuncItem => CompletionItemKind.Function
         case CompletionKind.PropItem => CompletionItemKind.Property
         case CompletionKind.CtorItem => CompletionItemKind.Constructor
@@ -118,22 +177,45 @@ func completionItemKind(kind: CompletionKind): CompletionItemKind {
 /**
  * Where a completion item came from, for `completionItem/resolve`, whose request carries the item alone.
  */
-func completionData(uri: DocumentUri, position: Position, index: Int64, overloadCount: Int64): LSPAny {
-    JsonValue.JsonObject([("uri", JsonValue.JsonString(uri)),
-        ("line", JsonValue.JsonInteger(Int64(position.line))),
-        ("character", JsonValue.JsonInteger(Int64(position.character))), ("index", JsonValue.JsonInteger(index)),
-        ("overloads", JsonValue.JsonInteger(overloadCount))])
+func completionData(
+    uri: DocumentUri,
+    position: Position,
+    index: Int64,
+    overloadCount: Int64
+): LSPAny {
+    JsonValue
+        .JsonObject(
+            [
+                ("uri", JsonValue.JsonString(uri)),
+                ("line", JsonValue.JsonInteger(Int64(position.line))),
+                ("character", JsonValue.JsonInteger(Int64(position.character))),
+                ("index", JsonValue.JsonInteger(index)),
+                ("overloads", JsonValue.JsonInteger(overloadCount))
+            ]
+        )
 }
 
 func completionDataOf(data: ?LSPAny): ?(DocumentUri, Position, Int64, Int64) {
     let fields = data ?? return None
-    let (uri, line, character, index, overloadCount) = match ((fields.get("uri"), fields.get("line"), fields.get("character"),
-        fields.get("index"), fields.get("overloads"))) {
-        case (Some(JsonValue.JsonString(uri)), Some(JsonValue.JsonInteger(line)),
-            Some(JsonValue.JsonInteger(character)), Some(JsonValue.JsonInteger(index)),
-            Some(JsonValue.JsonInteger(overloadCount))) => (uri, line, character, index, overloadCount)
-        case _ => return None
-    }
+    let (uri, line, character, index, overloadCount) =
+        match (
+            (
+                fields.get("uri"),
+                fields.get("line"),
+                fields.get("character"),
+                fields.get("index"),
+                fields.get("overloads")
+            )
+        ) {
+            case (
+                    Some(JsonValue.JsonString(uri)),
+                    Some(JsonValue.JsonInteger(line)),
+                    Some(JsonValue.JsonInteger(character)),
+                    Some(JsonValue.JsonInteger(index)),
+                    Some(JsonValue.JsonInteger(overloadCount))
+                ) => (uri, line, character, index, overloadCount)
+            case _ => return None
+        }
     if (line < 0 || character < 0 || line > Int64(UInt32.Max) || character > Int64(UInt32.Max)) {
         return None
     }

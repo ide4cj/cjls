@@ -36,8 +36,8 @@ public struct Cfg {
         for ((key, value) in options) {
             byKey[key] = value
         }
-        let sorted = byKey.toArray().map {option => CfgOption(option[0], option[1])}
-        sort(sorted, by: {a, b => a.key.compare(b.key)})
+        let sorted = byKey.toArray().map { option => CfgOption(option[0], option[1]) }
+        sort(sorted, by: { a, b => a.key.compare(b.key) })
         this.options = sorted
     }
 
@@ -55,9 +55,11 @@ public struct Cfg {
      * These options, with those of `overrides` in place of any of the same key.
      */
     public func overriddenBy(overrides: Cfg): Cfg {
-        Cfg(options.map {option => (option.key, option.value)}.concat(overrides.options.map {
-            option => (option.key, option.value)
-        }))
+        Cfg(
+            options
+                .map { option => (option.key, option.value) }
+                .concat(overrides.options.map { option => (option.key, option.value) })
+        )
     }
 }
 
@@ -239,12 +241,21 @@ public struct ProjectModel {
      * module's build leaves out.
      */
     public func covers(file: VfsPath): Bool {
-        modules.iterator().any {
-            module => module.packages.iterator().any {pkg => pkg.files.contains(file)} ||
-                module.inactive.iterator().any {one => one.path == file}
-        } || binaries.iterator().any {
-            binary => (binary.sources?.packages ?? []).iterator().any {pkg => pkg.files.contains(file)}
-        }
+        modules
+            .iterator()
+            .any {
+                module =>
+                module.packages.iterator().any { pkg => pkg.files.contains(file) } ||
+                    module.inactive.iterator().any { one => one.path == file }
+            } ||
+            binaries
+                .iterator()
+                .any {
+                    binary =>
+                    (binary.sources?.packages ?? [])
+                        .iterator()
+                        .any { pkg => pkg.files.contains(file) }
+                }
     }
 
     /**
@@ -258,16 +269,26 @@ public struct ProjectModel {
         let binaries = ArrayList<BinaryModel>()
         for (project in projects) {
             for (module in project.modules) {
-                match (modules.iterator().enumerate().filter {kept => kept[1].key == module.key}.next()) {
+                match (
+                    modules
+                        .iterator()
+                        .enumerate()
+                        .filter { kept => kept[1].key == module.key }
+                        .next()
+                ) {
                     case Some((index, kept)) => modules[index] = kept.including(module.packages)
                     case None => modules.add(module)
                 }
             }
-            for (binary in project.binaries where !binaries.iterator().any {kept => kept.name == binary.name}) {
+            for (
+                binary in project.binaries where !binaries
+                    .iterator()
+                    .any { kept => kept.name == binary.name }
+            ) {
                 binaries.add(binary)
             }
         }
-        let first = projects.iterator().next().map {project => project.cfg} ?? cfg
+        let first = projects.iterator().next().map { project => project.cfg } ?? cfg
         ProjectModel(first, modules.toArray(), binaries: binaries.toArray())
     }
 
@@ -286,14 +307,19 @@ public struct ProjectModel {
             }
         }
         var nearest: ?(String, Array<String>) = None
-        for (module in modules where module.name != DEFAULT_PACKAGE && module.namesPackagesByDirectory()) {
+        for (
+            module in modules where module.name != DEFAULT_PACKAGE &&
+                module.namesPackagesByDirectory()
+        ) {
             let segments = dir.segmentsUnder(module.root) ?? continue
-            if (nearest.map {kept => segments.size < kept[1].size} ?? true) {
+            if (nearest.map { kept => segments.size < kept[1].size } ?? true) {
                 nearest = (module.name, segments)
             }
         }
         match (nearest) {
-            case Some((name, segments)) where segments.iterator().all {segment => isIdentifier(segment)} =>
+            case Some((name, segments)) where segments
+                    .iterator()
+                    .all { segment => isIdentifier(segment) } =>
                 String.join([name].concat(segments), delimiter: ".")
             case _ => None
         }
@@ -309,7 +335,7 @@ public struct ProjectModel {
             for (dir in binary.paths) {
                 files.add(all: cjoFilesIn(binary.name, dir))
             }
-            files.add(all: binary.packages.map {pkg => CjoFile(binary.name, pkg.name, pkg.path)})
+            files.add(all: binary.packages.map { pkg => CjoFile(binary.name, pkg.name, pkg.path) })
         }
         files.toArray()
     }
@@ -329,12 +355,16 @@ extend ModuleModel {
      * Whether each of its packages is named as its directory under the root: `a.b.c` in `<root>/b/c`.
      */
     func namesPackagesByDirectory(): Bool {
-        packages.iterator().all {
-            pkg => match (pkg.dir.segmentsUnder(root)) {
-                case Some(segments) => pkg.name == String.join([name].concat(segments), delimiter: ".")
-                case None => false
+        packages
+            .iterator()
+            .all {
+                pkg =>
+                match (pkg.dir.segmentsUnder(root)) {
+                    case Some(segments) =>
+                        pkg.name == String.join([name].concat(segments), delimiter: ".")
+                    case None => false
+                }
             }
-        }
     }
 
     /**
@@ -343,16 +373,33 @@ extend ModuleModel {
     func including(packages: Array<PackageModel>): ModuleModel {
         let merged = ArrayList<PackageModel>(this.packages)
         for (pkg in packages) {
-            match (merged.iterator().enumerate().filter {kept => kept[1].name == pkg.name}.next()) {
+            match (
+                merged.iterator().enumerate().filter { kept => kept[1].name == pkg.name }.next()
+            ) {
                 case Some((index, kept)) =>
                     let files = ArrayList<VfsPath>(kept.files)
-                    files.add(all: pkg.files.filter {file => !kept.files.contains(file)})
-                    merged[index] = PackageModel(kept.name, kept.dir, files.toArray(), noPrelude: kept.noPrelude,
-                        isMacro: kept.isMacro, cfg: kept.cfg)
+                    files.add(all: pkg.files.filter { file => !kept.files.contains(file) })
+                    merged[index] =
+                        PackageModel(
+                            kept.name,
+                            kept.dir,
+                            files.toArray(),
+                            noPrelude: kept.noPrelude,
+                            isMacro: kept.isMacro,
+                            cfg: kept.cfg
+                        )
                 case None => merged.add(pkg)
             }
         }
-        ModuleModel(name, root, merged.toArray(), deps: deps, member: member, cfg: cfg, inactive: inactive)
+        ModuleModel(
+            name,
+            root,
+            merged.toArray(),
+            deps: deps,
+            member: member,
+            cfg: cfg,
+            inactive: inactive
+        )
     }
 }
 
@@ -381,8 +428,12 @@ public struct Project {
  */
 @Derive[Equatable]
 public struct BinarySourceFile {
-    public BinarySourceFile(public let binary: String, public let name: String, public let fileId: FileId,
-        public let context!: ?Package = None) {}
+    public BinarySourceFile(
+        public let binary: String,
+        public let name: String,
+        public let fileId: FileId,
+        public let context!: ?Package = None
+    ) {}
 }
 
 /**
@@ -465,8 +516,15 @@ public struct BinaryPackageFile {
  * durability of each file, its module's. Used on the root handle alone.
  */
 class Projects {
-    var project: ?(Project, Cfg, Array<Module>, Array<BinaryModel>, Array<BinaryPackageFile>,
-        Array<BinarySourceFile>) = None
+    var project: ?(
+        Project,
+        Cfg,
+        Array<Module>,
+        Array<BinaryModel>,
+        Array<BinaryPackageFile>,
+        Array<BinarySourceFile>
+    ) =
+        None
     let modules = HashMap<ModuleKey, (Module, ModuleModel)>()
     let packages = HashMap<PackageKey, (Package, PackageModel, Durability)>()
     /**
@@ -486,11 +544,7 @@ class Projects {
  * updated.
  */
 func binaryDurability(name: String): Durability {
-    if (name == "std") {
-        Durability.High
-    } else {
-        Durability.Medium
-    }
+    if (name == "std") { Durability.High } else { Durability.Medium }
 }
 
 /**
@@ -514,9 +568,16 @@ struct PackageKey {
  * ASCII (Cangjie takes Unicode identifiers).
  */
 func isIdentifier(name: String): Bool {
-    !name.isEmpty() && name.toArray().iterator().enumerate().all {
-        at => let byte = at[1]
-        (byte >= b'a' && byte <= b'z') || (byte >= b'A' && byte <= b'Z') || byte == b'_' || byte >= 0x80 ||
-            (at[0] > 0 && byte >= b'0' && byte <= b'9')
-    }
+    !name.isEmpty() &&
+        name
+            .toArray()
+            .iterator()
+            .enumerate()
+            .all {
+                at =>
+                let byte = at[1]
+                (byte >= b'a' && byte <= b'z') || (byte >= b'A' && byte <= b'Z') || byte == b'_' ||
+                    byte >= 0x80 ||
+                    (at[0] > 0 && byte >= b'0' && byte <= b'9')
+            }
 }

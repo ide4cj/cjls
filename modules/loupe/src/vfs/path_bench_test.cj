@@ -4,11 +4,11 @@ import std.env.getTempDirectory
 import std.unittest.*
 import std.unittest.testmacro.*
 
-let BENCH_PATHS = ["src/main.cj", "проект/a b.cj", "src/./app/../lib.cj"].map {
-    name => getTempDirectory().join(name).toString()
-}
+let BENCH_PATHS =
+    ["src/main.cj", "проект/a b.cj", "src/./app/../lib.cj"]
+        .map { name => getTempDirectory().join(name).toString() }
 
-let BENCH_URIS = BENCH_PATHS.map {path => VfsPath.file(path).toUri()}
+let BENCH_URIS = BENCH_PATHS.map { path => VfsPath.file(path).toUri() }
 
 let BENCH_PAIR = (VfsPath.file(BENCH_PATHS[0]), VfsPath.file(BENCH_PATHS[1]))
 

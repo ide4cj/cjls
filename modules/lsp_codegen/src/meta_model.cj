@@ -97,7 +97,8 @@ struct Structure {
 struct Enumeration {
     Enumeration(
         let name!: String,
-        @Serde[rename: "type"] let enumerationType!: EnumerationType,
+        @Serde[rename: "type"]
+        let enumerationType!: EnumerationType,
         let values!: Array<EnumerationEntry>,
 
         /**
@@ -117,7 +118,8 @@ struct Enumeration {
 struct TypeAlias {
     TypeAlias(
         let name!: String,
-        @Serde[rename: "type"] let typeAliasType!: Type,
+        @Serde[rename: "type"]
+        let typeAliasType!: Type,
         let documentation!: ?String = None,
         let since!: ?String = None,
         let sinceTags!: ?Array<String> = None,
@@ -246,7 +248,8 @@ struct StructureLiteral {
 struct Property {
     Property(
         let name!: String,
-        @Serde[rename: "type"] let propertyType!: Type,
+        @Serde[rename: "type"]
+        let propertyType!: Type,
         let optional!: ?Bool = None,
         let documentation!: ?String = None,
         let since!: ?String = None,

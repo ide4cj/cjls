@@ -43,19 +43,19 @@ class IndexSetUnderMutex <: BenchInterner {
     let lock = Mutex()
 
     public func lookup(path: VfsPath): ?Int64 {
-        synchronized(lock) {
+        synchronized (lock) {
             paths.indexOf(path)
         }
     }
 
     public func intern(path: VfsPath): Int64 {
-        synchronized(lock) {
+        synchronized (lock) {
             paths.addWithIndex(path)[0]
         }
     }
 
     public func path(id: Int64): ?VfsPath {
-        synchronized(lock) {
+        synchronized (lock) {
             paths.getAt(id)
         }
     }
@@ -67,7 +67,7 @@ class IndexSetUnderReadWriteLock <: BenchInterner {
     let lock = ReadWriteLock()
 
     public func lookup(path: VfsPath): ?Int64 {
-        synchronized(lock.readLock) {
+        synchronized (lock.readLock) {
             paths.indexOf(path)
         }
     }
@@ -75,14 +75,15 @@ class IndexSetUnderReadWriteLock <: BenchInterner {
     public func intern(path: VfsPath): Int64 {
         match (lookup(path)) {
             case Some(id) => id
-            case None => synchronized(lock.writeLock) {
-                paths.addWithIndex(path)[0]
-            }
+            case None =>
+                synchronized (lock.writeLock) {
+                    paths.addWithIndex(path)[0]
+                }
         }
     }
 
     public func path(id: Int64): ?VfsPath {
-        synchronized(lock.readLock) {
+        synchronized (lock.readLock) {
             paths.getAt(id)
         }
     }
@@ -102,17 +103,18 @@ class TwoConcurrentHashMaps <: BenchInterner {
     public func intern(path: VfsPath): Int64 {
         match (ids.get(path)) {
             case Some(id) => id
-            case None => synchronized(lock) {
-                match (ids.get(path)) {
-                    case Some(id) => id
-                    case None =>
-                        let id = count
-                        paths.add(id, path)
-                        ids.add(path, id)
-                        count++
-                        id
+            case None =>
+                synchronized (lock) {
+                    match (ids.get(path)) {
+                        case Some(id) => id
+                        case None =>
+                            let id = count
+                            paths.add(id, path)
+                            ids.add(path, id)
+                            count++
+                            id
+                    }
                 }
-            }
         }
     }
 
@@ -157,16 +159,17 @@ class InternerVariant <: ToString {
     }
 }
 
-let INTERNER_VARIANTS = [
-    InternerVariant("IndexSetAlone", {=> IndexSetAlone()}, shared: false),
-    InternerVariant("IndexSetUnderMutex", {=> IndexSetUnderMutex()}),
-    InternerVariant("IndexSetUnderReadWriteLock", {=> IndexSetUnderReadWriteLock()}),
-    InternerVariant("TwoConcurrentHashMaps", {=> TwoConcurrentHashMaps()}),
-    InternerVariant("PathInterner", {=> PathInternerAsIs()})
-]
+let INTERNER_VARIANTS =
+    [
+        InternerVariant("IndexSetAlone", { => IndexSetAlone() }, shared: false),
+        InternerVariant("IndexSetUnderMutex", { => IndexSetUnderMutex() }),
+        InternerVariant("IndexSetUnderReadWriteLock", { => IndexSetUnderReadWriteLock() }),
+        InternerVariant("TwoConcurrentHashMaps", { => TwoConcurrentHashMaps() }),
+        InternerVariant("PathInterner", { => PathInternerAsIs() })
+    ]
 
 // the ones safe to write to while others read
-let SHARED_INTERNER_VARIANTS = INTERNER_VARIANTS.filter {variant => variant.shared}
+let SHARED_INTERNER_VARIANTS = INTERNER_VARIANTS.filter { variant => variant.shared }
 
 /**
  * Every way of interning paths, on the operations `PathInterner` does: which a shared interner
@@ -212,18 +215,24 @@ class InternerBench {
     @Bench[variant in INTERNER_VARIANTS]
     func lookUpFromSeveralThreads(variant: InternerVariant): Int64 {
         let interner = variant.filled
-        let readers = Array(BENCH_READERS) {
-            reader => spawn {
-                var found = 0
-                for (i in 0..BENCH_READS_PER_READER) {
-                    if (interner.lookup(BENCH_INTERNED[(i + reader) % BENCH_PATH_COUNT]).isSome()) {
-                        found++
+        let readers =
+            Array(BENCH_READERS) {
+                reader =>
+                spawn {
+                    var found = 0
+                    for (i in 0..BENCH_READS_PER_READER) {
+                        if (
+                            interner
+                                .lookup(BENCH_INTERNED[(i + reader) % BENCH_PATH_COUNT])
+                                .isSome()
+                        ) {
+                            found++
+                        }
                     }
+                    found
                 }
-                found
             }
-        }
-        readers.iterator().fold(0) {sum, reader => sum + reader.get()}
+        readers.iterator().fold(0) { sum, reader => sum + reader.get() }
     }
 
     /**
@@ -234,55 +243,71 @@ class InternerBench {
     @Bench[variant in SHARED_INTERNER_VARIANTS]
     func internWhileSeveralThreadsLookUp(variant: InternerVariant): Int64 {
         let interner = variant.make()
-        let readers = Array(BENCH_READERS) {
-            reader => spawn {
-                var found = 0
-                for (i in 0..BENCH_READS_PER_READER) {
-                    if (interner.lookup(BENCH_INTERNED[(i + reader) % BENCH_PATH_COUNT]).isSome()) {
-                        found++
+        let readers =
+            Array(BENCH_READERS) {
+                reader =>
+                spawn {
+                    var found = 0
+                    for (i in 0..BENCH_READS_PER_READER) {
+                        if (
+                            interner
+                                .lookup(BENCH_INTERNED[(i + reader) % BENCH_PATH_COUNT])
+                                .isSome()
+                        ) {
+                            found++
+                        }
                     }
+                    found
                 }
-                found
             }
-        }
         for (path in BENCH_INTERNED) {
             interner.intern(path)
         }
-        readers.iterator().fold(0) {sum, reader => sum + reader.get()}
+        readers.iterator().fold(0) { sum, reader => sum + reader.get() }
     }
 }
 
-let BENCH_INT_SET = IndexSet<Int64>(Array(BENCH_PATH_COUNT) {i => i})
+let BENCH_INT_SET = IndexSet<Int64>(Array(BENCH_PATH_COUNT) { i => i })
 
-let BENCH_INT_MAP = HashMap<Int64, Int64>((0..BENCH_PATH_COUNT).iterator().map {i => (i, i)} |> collectArray)
+let BENCH_INT_MAP =
+    HashMap<Int64, Int64>((0..BENCH_PATH_COUNT).iterator().map { i => (i, i) } |> collectArray)
 
-let BENCH_INT_CONCURRENT_SET = {=>
-    let set = ConcurrentIndexSet<Int64>()
-    for (i in 0..BENCH_PATH_COUNT) {
-        set.add(i)
-    }
-    set
-}()
+let BENCH_INT_CONCURRENT_SET =
+    {
+        =>
+        let set = ConcurrentIndexSet<Int64>()
+        for (i in 0..BENCH_PATH_COUNT) {
+            set.add(i)
+        }
+        set
+    }()
 
-let BENCH_INT_CONCURRENT_MAP = {=>
-    let map = ConcurrentHashMap<Int64, Int64>()
-    for (i in 0..BENCH_PATH_COUNT) {
-        map.add(i, i)
-    }
-    map
-}()
+let BENCH_INT_CONCURRENT_MAP =
+    {
+        =>
+        let map = ConcurrentHashMap<Int64, Int64>()
+        for (i in 0..BENCH_PATH_COUNT) {
+            map.add(i, i)
+        }
+        map
+    }()
 
 let BENCH_PATH_SET = IndexSet<VfsPath>(BENCH_INTERNED)
 
-let BENCH_PATH_MAP = HashMap<VfsPath, Int64>(BENCH_INTERNED.iterator().enumerate().map {entry => (entry[1], entry[0])} |> collectArray)
+let BENCH_PATH_MAP =
+    HashMap<VfsPath, Int64>(
+        BENCH_INTERNED.iterator().enumerate().map { entry => (entry[1], entry[0]) } |> collectArray
+    )
 
-let BENCH_PATH_CONCURRENT_SET = {=>
-    let set = ConcurrentIndexSet<VfsPath>()
-    for (path in BENCH_INTERNED) {
-        set.add(path)
-    }
-    set
-}()
+let BENCH_PATH_CONCURRENT_SET =
+    {
+        =>
+        let set = ConcurrentIndexSet<VfsPath>()
+        for (path in BENCH_INTERNED) {
+            set.add(path)
+        }
+        set
+    }()
 
 /**
  * One call into `index_map` from another package, no interface in between, against the std map it

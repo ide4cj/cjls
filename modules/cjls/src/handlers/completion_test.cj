@@ -10,10 +10,20 @@ import loupe.vfs.VfsPath
 import rope.Rope
 import stdxx.Nullable
 
-func completionOf(state: ServerState, path: Path, line: UInt32, character: UInt32): Array<CompletionItem> {
-    let answer = handleCompletion(state.snapshot(),
-        CompletionParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-            position: Position(line: line, character: character)))
+func completionOf(
+    state: ServerState,
+    path: Path,
+    line: UInt32,
+    character: UInt32
+): Array<CompletionItem> {
+    let answer =
+        handleCompletion(
+            state.snapshot(),
+            CompletionParams(
+                textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+                position: Position(line: line, character: character)
+            )
+        )
     match (answer) {
         case Nullable.Value(CompletionItemsOrCompletionList.AsCompletionList(list)) =>
             @Assert(!list.isIncomplete)
@@ -27,15 +37,18 @@ func completionOf(state: ServerState, path: Path, line: UInt32, character: UInt3
  * An item as `label kind sortText range`.
  */
 func summaryOf(item: CompletionItem): String {
-    let range = match (item.textEdit) {
-        case Some(TextEditOrInsertReplaceEdit.AsTextEdit(edit)) => "${at(edit.range.start)}-${at(edit.range.end)}"
-        case _ => "no edit"
-    }
-    let kind = match (item.kind) {
-        case Some(CompletionItemKind.Function) => "function"
-        case Some(CompletionItemKind.Variable) => "variable"
-        case _ => "other"
-    }
+    let range =
+        match (item.textEdit) {
+            case Some(TextEditOrInsertReplaceEdit.AsTextEdit(edit)) =>
+                "${at(edit.range.start)}-${at(edit.range.end)}"
+            case _ => "no edit"
+        }
+    let kind =
+        match (item.kind) {
+            case Some(CompletionItemKind.Function) => "function"
+            case Some(CompletionItemKind.Variable) => "variable"
+            case _ => "other"
+        }
     "${item.label} ${kind} ${item.sortText ?? "-"} ${range}"
 }
 
@@ -48,7 +61,8 @@ func itemNamed(items: Array<CompletionItem>, label: String): CompletionItem {
 
 @Test
 class CompletionHandlerTest {
-    let file = "struct Point {\n    /** How far right. */\n    public let x: Int64 = 1\n    public func norm(): Int64 { x }\n}\nfunc f() {\n    let p = Point()\n    p.n\n}\n"
+    let file =
+        "struct Point {\n    /** How far right. */\n    public let x: Int64 = 1\n    public func norm(): Int64 { x }\n}\nfunc f() {\n    let p = Point()\n    p.n\n}\n"
 
     @TestCase
     func aDotListsTheMembersReplacingTheNameTypedInTheirOrder() {
@@ -101,7 +115,8 @@ class CompletionHandlerTest {
     @TestCase[markdown in [true, false], labelDetails in [true, false]]
     func overloadsShareOneItemAndResolveEverySignatureAndDoc(markdown: Bool, labelDetails: Bool) {
         // arrange
-        let source = #"struct Printer {
+        let source =
+            #"struct Printer {
     /** Print a number. */
     public func print(value: Int64): Unit {}
     /** Print text. */
@@ -115,7 +130,7 @@ func use(p: Printer) { p.pr }
 
         // act
         let items = completionOf(state, dir.join("a.cj"), 6, 27)
-        let prints = items.filter {item => item.label == "print"}
+        let prints = items.filter { item => item.label == "print" }
 
         // assert
         @Assert(prints.size == 1)
@@ -152,13 +167,27 @@ func use(p: Printer) { p.pr }
     func labelDetailsAreNegotiatedAndKeptInTheSnapshot(support: ?Bool) {
         // arrange
         let state = ServerState()
-        let capabilities = ClientCapabilities(textDocument: TextDocumentClientCapabilities(
-            completion: CompletionClientCapabilities(completionItem: ClientCompletionItemOptions(
-                labelDetailsSupport: support))))
+        let capabilities =
+            ClientCapabilities(
+                textDocument: TextDocumentClientCapabilities(
+                    completion: CompletionClientCapabilities(
+                        completionItem: ClientCompletionItemOptions(labelDetailsSupport: support)
+                    )
+                )
+            )
 
         // act
-        let result = handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null, capabilities: capabilities))
+        let result =
+            handleInitialize(
+                state,
+                Client(),
+                NoopLogger(),
+                InitializeParams(
+                    processId: Nullable.Null,
+                    rootUri: Nullable.Null,
+                    capabilities: capabilities
+                )
+            )
 
         // assert
         @Expect(state.snapshot().completionLabelDetails, support ?? false)
@@ -169,7 +198,8 @@ func use(p: Printer) { p.pr }
     @TestCase
     func resolvingAfterTheOverloadCountChangesLeavesTheOldItemAlone() {
         // arrange
-        let source = #"struct Printer {
+        let source =
+            #"struct Printer {
     public func print(value: Int64): Unit {}
     public func print(value: Bool): Unit {}
 }
@@ -182,7 +212,11 @@ func use(p: Printer) { p.pr }
         @Assert(item.labelDetails.isSome())
 
         // act
-        state.setFileContents(VfsPath.file(path), Rope(source.replace("public func print(value: Bool): Unit {}", "")))
+        state
+            .setFileContents(
+                VfsPath.file(path),
+                Rope(source.replace("public func print(value: Bool): Unit {}", ""))
+            )
         let resolved = handleCompletionResolve(state.snapshot(), item)
 
         // assert
@@ -221,8 +255,16 @@ func use(p: Printer) { p.pr }
         let state = ServerState()
 
         // act
-        handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null, capabilities: capabilities))
+        handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
+            )
+        )
 
         // assert
         @Expect(state.completionMarkdown, markdown)

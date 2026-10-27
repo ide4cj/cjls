@@ -14,26 +14,42 @@ import cjls.server.*
  * none.
  */
 func shown(range: FoldingRange): String {
-    let column = {character: ?UInt32 => character.map {it => ":${it}"} ?? ""}
-    let kind = range.kind.map {it => " ${it.value}"} ?? ""
+    let column = { character: ?UInt32 => character.map { it => ":${it}" } ?? "" }
+    let kind = range.kind.map { it => " ${it.value}" } ?? ""
     "${range.startLine}${column(range.startCharacter)}..${range.endLine}${column(range.endCharacter)}${kind}"
 }
 
-func shownFolds(text: String, folds: Array<Fold>, encoding!: Encoding = Encoding.Utf16,
-    lineFoldingOnly!: Bool = true, limit!: ?Int64 = None): Array<String> {
-    foldingRanges(Rope(text), folds, encoding, lineFoldingOnly, limit).map {it => shown(it)}
+func shownFolds(
+    text: String,
+    folds: Array<Fold>,
+    encoding!: Encoding = Encoding.Utf16,
+    lineFoldingOnly!: Bool = true,
+    limit!: ?Int64 = None
+): Array<String> {
+    foldingRanges(Rope(text), folds, encoding, lineFoldingOnly, limit).map { it => shown(it) }
 }
 
 func documentFolds(state: ServerState, uri: String): ?Array<String> {
-    match (handleFoldingRange(state.snapshot(), FoldingRangeParams(textDocument: TextDocumentIdentifier(uri: uri)))) {
-        case Nullable.Value(ranges) => ranges.map {it => shown(it)}
+    match (
+        handleFoldingRange(
+            state.snapshot(),
+            FoldingRangeParams(textDocument: TextDocumentIdentifier(uri: uri))
+        )
+    ) {
+        case Nullable.Value(ranges) => ranges.map { it => shown(it) }
         case Nullable.Null => None
     }
 }
 
 func foldingCapabilities(lineFoldingOnly: ?Bool, rangeLimit: ?UInt32): ClientCapabilities {
-    ClientCapabilities(textDocument: TextDocumentClientCapabilities(
-        foldingRange: FoldingRangeClientCapabilities(lineFoldingOnly: lineFoldingOnly, rangeLimit: rangeLimit)))
+    ClientCapabilities(
+        textDocument: TextDocumentClientCapabilities(
+            foldingRange: FoldingRangeClientCapabilities(
+                lineFoldingOnly: lineFoldingOnly,
+                rangeLimit: rangeLimit
+            )
+        )
+    )
 }
 
 @Test
@@ -47,8 +63,13 @@ class FoldingRangeTranslationTest {
         let (encoding, expected) = row
 
         // act
-        let result = shownFolds("😀 {\n}", [Fold(TextRange(5, 8), FoldKind.Block)], encoding: encoding,
-            lineFoldingOnly: false)
+        let result =
+            shownFolds(
+                "😀 {\n}",
+                [Fold(TextRange(5, 8), FoldKind.Block)],
+                encoding: encoding,
+                lineFoldingOnly: false
+            )
 
         // assert
         @Expect(result, [expected])
@@ -58,8 +79,12 @@ class FoldingRangeTranslationTest {
     func aClientFoldingLinesOnlyGetsLinesAndKindsForCommentsAndImportsAlone() {
         // arrange
         let text = "// a\n// b\nimport a.b\nimport c.d\nmain() {\n}"
-        let folds = [Fold(TextRange(0, 9), FoldKind.Comment), Fold(TextRange(10, 31), FoldKind.Imports),
-            Fold(TextRange(39, 42), FoldKind.Block)]
+        let folds =
+            [
+                Fold(TextRange(0, 9), FoldKind.Comment),
+                Fold(TextRange(10, 31), FoldKind.Imports),
+                Fold(TextRange(39, 42), FoldKind.Block)
+            ]
 
         // act
         let result = shownFolds(text, folds)
@@ -72,7 +97,8 @@ class FoldingRangeTranslationTest {
     func aFoldFollowedOnItsLastLineEndsALineEarlier() {
         // arrange - `} else {`, then a `}` with only spaces after it
         let text = "if (c) {\n    a\n} else {\n    b\n}  "
-        let folds = [Fold(TextRange(7, 16), FoldKind.Block), Fold(TextRange(22, 31), FoldKind.Block)]
+        let folds =
+            [Fold(TextRange(7, 16), FoldKind.Block), Fold(TextRange(22, 31), FoldKind.Block)]
 
         // act
         let result = shownFolds(text, folds)
@@ -84,8 +110,11 @@ class FoldingRangeTranslationTest {
     @TestCase
     func aFoldLeftWithOneLineIsDropped() {
         // act
-        let result = shownFolds("f({\n}, {\n})", [Fold(TextRange(2, 5), FoldKind.Block), Fold(TextRange(7, 10),
-            FoldKind.Block)])
+        let result =
+            shownFolds(
+                "f({\n}, {\n})",
+                [Fold(TextRange(2, 5), FoldKind.Block), Fold(TextRange(7, 10), FoldKind.Block)]
+            )
 
         // assert - the second ends with `)` after it
         @Expect(result, Array<String>())
@@ -95,8 +124,12 @@ class FoldingRangeTranslationTest {
     func theLimitKeepsTheFirstByStart() {
         // arrange
         let text = "{\n{\n}\n}\n{\n}"
-        let folds = [Fold(TextRange(0, 7), FoldKind.Block), Fold(TextRange(2, 5), FoldKind.Block),
-            Fold(TextRange(8, 11), FoldKind.Block)]
+        let folds =
+            [
+                Fold(TextRange(0, 7), FoldKind.Block),
+                Fold(TextRange(2, 5), FoldKind.Block),
+                Fold(TextRange(8, 11), FoldKind.Block)
+            ]
 
         // act
         let result = shownFolds(text, folds, lineFoldingOnly: false, limit: 2)
@@ -129,13 +162,23 @@ class FoldingRangeTest {
     @TestCase
     func foldingIsAdvertised() {
         // act
-        let result = handleInitialize(ServerState(), Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-                capabilities: ClientCapabilities()))
+        let result =
+            handleInitialize(
+                ServerState(),
+                Client(),
+                NoopLogger(),
+                InitializeParams(
+                    processId: Nullable.Null,
+                    rootUri: Nullable.Null,
+                    capabilities: ClientCapabilities()
+                )
+            )
 
         // assert
         match (result.capabilities.foldingRangeProvider) {
-            case Some(BooleanOrFoldingRangeOptionsOrFoldingRangeRegistrationOptions.AsBoolean(it)) => @Expect(it)
+            case Some(
+                    BooleanOrFoldingRangeOptionsOrFoldingRangeRegistrationOptions.AsBoolean(it)
+                ) => @Expect(it)
             case _ => @Fail("no folding advertised")
         }
     }
@@ -151,9 +194,16 @@ class FoldingRangeTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-                capabilities: capabilities))
+        handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
+            )
+        )
 
         // assert
         @Expect(state.lineFoldingOnly, lineFoldingOnly)

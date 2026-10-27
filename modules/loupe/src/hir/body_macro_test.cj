@@ -14,16 +14,8 @@ import loupe.fixture.*
  * A call of `serverCalls` as a line: its macro, its ordinal, `/` if it is in its item (D117), `!` if it is read.
  */
 func describeCall(db: AnalysisDatabase, one: ServerCall): String {
-    let inItem = if (one.call.inBody(db).isSome()) {
-        "/"
-    } else {
-        ""
-    }
-    let read = if (one.read) {
-        "!"
-    } else {
-        ""
-    }
+    let inItem = if (one.call.inBody(db).isSome()) { "/" } else { "" }
+    let read = if (one.read) { "!" } else { "" }
     "${one.definition.name}${one.call.index(db)}${inItem}${read}"
 }
 
@@ -36,17 +28,20 @@ class BodyMacroCallTest {
     @TestCase
     func callsInAnItemGoBeforeTheCallsOnItInnermostFirst() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             @A class X {
                 func f(): Int64 { @B(@I(1)) }
                 let y = @I(2)
             }
-            "#)
+            "#
+            )
 
         // act
-        let calls = serverCalls(db, file).map {one => describeCall(db, one)}
+        let calls = serverCalls(db, file).map { one => describeCall(db, one) }
 
         // assert: `y`'s `@I` is the first of its own item
         @Expect(calls, ["I0/", "B0/", "I0/", "A0!"])
@@ -55,7 +50,9 @@ class BodyMacroCallTest {
     @TestCase
     func aCallIsKeyedByItsItemItsMacrosNameAndItsOrdinalAmongTheCallsOfThatName() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
@@ -63,10 +60,11 @@ class BodyMacroCallTest {
                 @I(2)
                 @B(3)
             }
-            "#)
+            "#
+            )
 
         // act
-        let keys = serverCalls(db, file).map {one => macroCallKeyOf(db, one.call)}
+        let keys = serverCalls(db, file).map { one => macroCallKeyOf(db, one.call) }
 
         // assert
         @Expect(keys.map {key => "${key.inBody ?? "-"}#${key.index}"}, ["B#0", "I#0", "B#1"])
@@ -76,13 +74,16 @@ class BodyMacroCallTest {
     @TestCase
     func aKeyFindsItsCallAfterAnEditElsewhereAndNoneOnceItIsGone() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
                 @B(1)
             }
-            "#)
+            "#
+            )
         let call = serverCalls(db, file)[0].call
         let key = macroCallKeyOf(db, call)
 
@@ -100,16 +101,19 @@ class BodyMacroCallTest {
     @TestCase
     func theInputIsWhatTheParenthesesHoldAndTheParentsTheCallsAroundIt() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             @A class X {
                 @I func f(): Int64 { @M[x](1 + 2) }
             }
-            "#)
+            "#
+            )
 
         // act
-        let requests = macroRequests(db, file).map {request => describe(request)}
+        let requests = macroRequests(db, file).map { request => describe(request) }
 
         // assert
         @Expect(requests[0], "M[x] <1 + 2> parents=A,I children=")
@@ -118,14 +122,17 @@ class BodyMacroCallTest {
     @TestCase
     func aCallWithAnotherInItsInputIsNotAskedUntilNestingIsExpanded() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Int64 { @B(@I(1)) }
-            "#)
+            "#
+            )
 
         // act
-        let requests = macroRequests(db, file).map {request => describe(request)}
+        let requests = macroRequests(db, file).map { request => describe(request) }
 
         // assert
         @Expect(requests, ["I <1> parents=B children="])
@@ -134,16 +141,19 @@ class BodyMacroCallTest {
     @TestCase
     func aCallOnALocalDeclarationIsGivenTheDeclaration() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
                 @I func local() {}
             }
-            "#)
+            "#
+            )
 
         // act
-        let requests = macroRequests(db, file).map {request => describe(request)}
+        let requests = macroRequests(db, file).map { request => describe(request) }
 
         // assert
         @Expect(requests, ["I <func local() {}> parents= children="])
@@ -152,7 +162,9 @@ class BodyMacroCallTest {
     @TestCase
     func aCallUnderAFalseWhenOrOfStdIsNotAsked() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             import std.unittest.testmacro.*
@@ -162,10 +174,13 @@ class BodyMacroCallTest {
                 @Expect(1, 1)
                 @I(2)
             }
-            "#, std: ["std.unittest", "std.unittest.testmacro"], cfg: "os:Linux")
+            "#,
+                std: ["std.unittest", "std.unittest.testmacro"],
+                cfg: "os:Linux"
+            )
 
         // act
-        let calls = serverCalls(db, file).map {one => describeCall(db, one)}
+        let calls = serverCalls(db, file).map { one => describeCall(db, one) }
 
         // assert
         @Expect(calls, ["I0/"])
@@ -174,14 +189,22 @@ class BodyMacroCallTest {
     @TestCase
     func anAnswerMakesTheRequestCurrentAndItsDiagnosticsAreOnTheCallsHead() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Int64 { @B(1) }
-            "#)
+            "#
+            )
         let request = requestNamed(db, file, "B")
-        let output = MacroOutput(request.fingerprint, MappedText("(1) + 0", []), [],
-            [MacroDiagnostic(MacroSeverity.MacroError, None, "not a number", "")])
+        let output =
+            MacroOutput(
+                request.fingerprint,
+                MappedText("(1) + 0", []),
+                [],
+                [MacroDiagnostic(MacroSeverity.MacroError, None, "not a number", "")]
+            )
 
         // act
         setMacroOutputs(db, [(request.call, output)])
@@ -199,11 +222,15 @@ class BodyMacroExpansionTest {
     @TestCase
     func anExpressionIsTypedFromItsCurrentExpansion() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit { let x = @B(1 + 2) }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let request = requestNamed(db, file, "B")
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
         @Expect(inferBody(db, def).locals[0].kind(db), TyKind.TodoTy(Todo.MacroCall))
@@ -215,7 +242,12 @@ class BodyMacroExpansionTest {
 
         // assert
         @Expect(inferred.locals[0].text(db), "Bool")
-        let expanded = lowered.sourceMap.exprs.filterMap {one => one.written}.filter {one => one.expansion == request.call}
+        let expanded =
+            lowered
+                .sourceMap
+                .exprs
+                .filterMap { one => one.written }
+                .filter { one => one.expansion == request.call }
         @Expect(expanded.size, 1)
         @Expect(expanded[0].node(db, def.file(db)).getOrThrow().text(), "true")
         @Expect(lowered.sourceMap.exprAtSource(expanded[0]).isSome())
@@ -226,7 +258,9 @@ class BodyMacroExpansionTest {
     @TestCase
     func statementExpansionsDeclareNamesInTheSurroundingBlock() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(seed: Int64): Int64 {
@@ -234,10 +268,19 @@ class BodyMacroExpansionTest {
                 let result = made
                 result
             }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let request = requestNamed(db, file, "B")
-        setMacroOutputs(db, [(request.call, writtenOutput(request,
-            "func local(): Int64 { seed }\nlet made = local()"))])
+        setMacroOutputs(
+            db,
+            [
+                (
+                    request.call,
+                    writtenOutput(request, "func local(): Int64 { seed }\nlet made = local()")
+                )
+            ]
+        )
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
 
         // act
@@ -253,19 +296,27 @@ class BodyMacroExpansionTest {
     @TestCase
     func twoOutputsAtTheSameOffsetsHaveDifferentSources() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit { let a = @B(0); let b = @I(0) }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let first = requestNamed(db, file, "B")
         let second = requestNamed(db, file, "I")
-        setMacroOutputs(db, [(first.call, writtenOutput(first, "1")), (second.call, writtenOutput(second, "2"))])
+        setMacroOutputs(
+            db,
+            [(first.call, writtenOutput(first, "1")), (second.call, writtenOutput(second, "2"))]
+        )
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
 
         // act
         let map = bodyWithSourceMap(db, def).sourceMap
-        let sources = map.exprs.filterMap {one => one.written}.filter {one => one.expansion.isSome()}
+        let sources =
+            map.exprs.filterMap { one => one.written }.filter { one => one.expansion.isSome() }
 
         // assert
         @Expect(sources.size, 2)
@@ -277,11 +328,15 @@ class BodyMacroExpansionTest {
     @TestCase
     func anEditMakesTheOldExpressionExpansionUnread() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit { let x = @B(1) }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let request = requestNamed(db, file, "B")
         setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
@@ -297,19 +352,35 @@ class BodyMacroExpansionTest {
     @TestCase
     func aFailedRunDoesNotReadTheRetainedExpressionOutput() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit { let x = @B(1) }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let request = requestNamed(db, file, "B")
         setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
         @Expect(inferBody(db, def).locals[0].text(db), "Bool")
 
         // act
-        setMacroOutputs(db, [(request.call, MacroOutput(request.fingerprint, None, [],
-            [MacroDiagnostic(MacroSeverity.MacroError, None, "failed", "")]))])
+        setMacroOutputs(
+            db,
+            [
+                (
+                    request.call,
+                    MacroOutput(
+                        request.fingerprint,
+                        None,
+                        [],
+                        [MacroDiagnostic(MacroSeverity.MacroError, None, "failed", "")]
+                    )
+                )
+            ]
+        )
 
         // assert
         @Expect(macroOutputOf(db, request.call).getOrThrow().expansion.isSome())
@@ -319,14 +390,18 @@ class BodyMacroExpansionTest {
     @TestCase
     func aMacroOnALocalDeclarationReplacesItWithStatements() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Int64 {
                 @B func old(): Bool { true }
                 made
             }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let request = requestNamed(db, file, "B")
         setMacroOutputs(db, [(request.call, writtenOutput(request, "let made = 1"))])
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
@@ -344,15 +419,26 @@ class BodyMacroExpansionTest {
     @TestCase
     func speculativeLoweringReadsNoExpansion() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit { let x = @B(1) }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let request = requestNamed(db, file, "B")
         setMacroOutputs(db, [(request.call, writtenOutput(request, "true"))])
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
-        let decl = Decl.cast(itemIdMap(db, file).node(def.item(db), parse(db, file).syntaxNode()).getOrThrow()).getOrThrow()
+        let decl =
+            Decl
+                .cast(
+                    itemIdMap(db, file)
+                        .node(def.item(db), parse(db, file).syntaxNode())
+                        .getOrThrow()
+                )
+                .getOrThrow()
 
         // act
         let speculative = lowerBody(decl)
@@ -365,17 +451,26 @@ class BodyMacroExpansionTest {
     @TestCase
     func patternsLocalsAndTypesAreQualifiedByTheirExpansion() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             func f(): Unit {
                 if (true) { @B(0) } else { @I(0) }
             }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let first = requestNamed(db, file, "B")
         let second = requestNamed(db, file, "I")
-        setMacroOutputs(db, [(first.call, writtenOutput(first, "let made: Int64 = 1")),
-            (second.call, writtenOutput(second, "let made: Int64 = 2"))])
+        setMacroOutputs(
+            db,
+            [
+                (first.call, writtenOutput(first, "let made: Int64 = 1")),
+                (second.call, writtenOutput(second, "let made: Int64 = 2"))
+            ]
+        )
         let def = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
 
         // act
@@ -383,7 +478,7 @@ class BodyMacroExpansionTest {
 
         // assert
         for (sources in [map.pats, map.locals, map.types]) {
-            let present = sources.filterMap {one => one.written}
+            let present = sources.filterMap { one => one.written }
             @Expect(present.size, 2)
             @Expect(present[0].ptr, present[1].ptr)
             @Expect(present[0].expansion, Some(first.call))
@@ -398,16 +493,25 @@ class BodyMacroExpansionTest {
     @TestCase
     func initializersAndParameterDefaultsReadTheirExpansions() {
         // arrange
-        let (db, file, _) = workspaceMacroDatabase(#"
+        let (db, file, _) =
+            workspaceMacroDatabase(
+                #"
             package m
             import m.ms.*
             let value = @B(0)
             func f(arg: Int64 = @I(0)): Int64 { arg }
-            "#, std: ["std.core"])
+            "#,
+                std: ["std.core"]
+            )
         let initializer = requestNamed(db, file, "B")
         let defaultValue = requestNamed(db, file, "I")
-        setMacroOutputs(db, [(initializer.call, writtenOutput(initializer, "true")),
-            (defaultValue.call, writtenOutput(defaultValue, "2"))])
+        setMacroOutputs(
+            db,
+            [
+                (initializer.call, writtenOutput(initializer, "true")),
+                (defaultValue.call, writtenOutput(defaultValue, "2"))
+            ]
+        )
         let value = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "value").id)
         let f = DefId(db, ItemFile.Source(file), named(itemTree(db, file).items, "f").id)
 
@@ -421,5 +525,4 @@ class BodyMacroExpansionTest {
         @Expect(inferred[expr].getOrThrow().text(db), "Int64")
         @Expect(inferred.diagnostics.size, 0)
     }
-
 }

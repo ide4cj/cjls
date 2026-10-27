@@ -89,22 +89,27 @@ class FakeTransport <: JsonRpcTransport {
      */
     public func read(paramsReader: (String) -> Option<(FjReader) -> Any>): ?(Body, ?Any) {
         let body = read() ?? return None
-        let decoded = match (body) {
-            case Request(req) => decodedInPlace(req.method, req.params, paramsReader)
-            case Notification(note) => decodedInPlace(note.method, note.params, paramsReader)
-            case Response(_) => Option<Any>.None
-        }
+        let decoded =
+            match (body) {
+                case Request(req) => decodedInPlace(req.method, req.params, paramsReader)
+                case Notification(note) => decodedInPlace(note.method, note.params, paramsReader)
+                case Response(_) => Option<Any>.None
+            }
         (body, decoded)
     }
 
-    private func decodedInPlace(method: String, params: ?RawJson,
-        paramsReader: (String) -> Option<(FjReader) -> Any>): ?Any {
+    private func decodedInPlace(
+        method: String,
+        params: ?RawJson,
+        paramsReader: (String) -> Option<(FjReader) -> Any>
+    ): ?Any {
         match ((paramsReader(method), params)) {
-            case (Some(readInPlace), Some(raw)) => try {
-                readInPlace(FjReader(raw.bytes))
-            } catch (_: Exception) {
-                None
-            }
+            case (Some(readInPlace), Some(raw)) =>
+                try {
+                    readInPlace(FjReader(raw.bytes))
+                } catch (_: Exception) {
+                    None
+                }
             case _ => None
         }
     }
@@ -123,11 +128,10 @@ class FakeTransport <: JsonRpcTransport {
  * with it. Notification methods are recorded so a test can wait for one to land.
  */
 class FakeHandler <: Handler {
-    var onRequestFn: (String, ?RawJson, CancellationToken) -> ResultOrError = {
-        _, _, _ => Result(rawJson("null"))
-    }
-    var onNotificationFn: (String, ?RawJson) -> Unit = {_, _ => ()}
-    var paramsReaderFn: (String) -> Option<(FjReader) -> Any> = {_ => None}
+    var onRequestFn: (String, ?RawJson, CancellationToken) -> ResultOrError =
+        { _, _, _ => Result(rawJson("null")) }
+    var onNotificationFn: (String, ?RawJson) -> Unit = { _, _ => () }
+    var paramsReaderFn: (String) -> Option<(FjReader) -> Any> = { _ => None }
     var inPlace = false
 
     let notified = LinkedBlockingQueue<String>()
@@ -150,7 +154,11 @@ class FakeHandler <: Handler {
             return
         }
         spawn {
-            request.respondWith {=> onRequestFn(request.method, request.params, request.cancellation)}
+            request
+                .respondWith {
+                    =>
+                    onRequestFn(request.method, request.params, request.cancellation)
+                }
         }
     }
 
@@ -189,7 +197,7 @@ class AnswerThenThrowHandler <: Handler {
  * second rather than tens of millions of frames.
  */
 func deeper(depth: Int64): Int64 {
-    var kept = VArray<Int64, $1024>(repeat: 0)
+    var kept = VArray <Int64, $1024>(repeat: 0)
     kept[depth % 1024] = depth
     let below = deeper(depth + 1)
     depth - below + kept[(below & 0x7fff_ffff) % 1024]
@@ -207,7 +215,7 @@ func unserved(handler: Handler): (Connection, FakeTransport) {
 
 func serving(handler: Handler): (Connection, FakeTransport) {
     let (connection, transport) = unserved(handler)
-    spawn {connection.serve()}
+    spawn { connection.serve() }
     (connection, transport)
 }
 
@@ -217,9 +225,11 @@ class ConnectionServeRequestTest {
     func aRequestIsAnsweredUnderItsIdWithWhatTheHandlerGives() {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {
-            method, params, _ => Result(RawJson.of("${method}:${fieldOf(params, "a").asInteger()}"))
-        }
+        handler.onRequestFn =
+            {
+                method, params, _ =>
+                Result(RawJson.of("${method}:${fieldOf(params, "a").asInteger()}"))
+            }
         let (_, transport) = serving(handler)
         let params = rawJson(#"{"a":42}"#)
 
@@ -236,17 +246,21 @@ class ConnectionServeRequestTest {
     func paramsTheHandlersReaderDecodedInPlaceReachItWithTheMessage() {
         // arrange - the handler reads "m"'s params as a tree, and nothing else's
         let handler = FakeHandler()
-        handler.paramsReaderFn = {
-            method => if (method == "m") {
-                Some<(FjReader) -> Any>({
-                    r =>
-                    let tree: Any = JsonValue.fromJson(r)
-                    tree
-                })
-            } else {
-                None
+        handler.paramsReaderFn =
+            {
+                method =>
+                if (method == "m") {
+                    Some<(FjReader) -> Any>(
+                        {
+                            r =>
+                            let tree: Any = JsonValue.fromJson(r)
+                            tree
+                        }
+                    )
+                } else {
+                    None
+                }
             }
-        }
         let (_, transport) = serving(handler)
 
         // act
@@ -267,13 +281,15 @@ class ConnectionServeRequestTest {
         // `onRequest`, where the connection answers for it
         let handler = FakeHandler()
         handler.inPlace = inPlace
-        handler.onRequestFn = {
-            method, _, _ => if (method == "rpc") {
-                throw RpcException(ErrorCode.METHOD_NOT_FOUND, "no such method")
-            } else {
-                throw IllegalStateException("handler blew up")
+        handler.onRequestFn =
+            {
+                method, _, _ =>
+                if (method == "rpc") {
+                    throw RpcException(ErrorCode.METHOD_NOT_FOUND, "no such method")
+                } else {
+                    throw IllegalStateException("handler blew up")
+                }
             }
-        }
         let (_, transport) = serving(handler)
 
         // act
@@ -296,13 +312,11 @@ class ConnectionServeRequestTest {
         // `respondWith`, one in place out of `onRequest`, on the read loop
         let handler = FakeHandler()
         handler.inPlace = inPlace
-        handler.onRequestFn = {
-            method, _, _ => if (method == "deep") {
-                overflowTheStack()
-            } else {
-                Result(RawJson.of(42))
+        handler.onRequestFn =
+            {
+                method, _, _ =>
+                if (method == "deep") { overflowTheStack() } else { Result(RawJson.of(42)) }
             }
-        }
         let (_, transport) = serving(handler)
 
         // act
@@ -323,12 +337,13 @@ class ConnectionServeRequestTest {
         let started = LinkedBlockingQueue<Bool>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
-        handler.onRequestFn = {
-            _, _, _ =>
-            started.add(true)
-            release.remove()
-            Result(RawJson.of(42))
-        }
+        handler.onRequestFn =
+            {
+                _, _, _ =>
+                started.add(true)
+                release.remove()
+                Result(RawJson.of(42))
+            }
         let (_, transport) = serving(handler)
 
         // act
@@ -348,7 +363,7 @@ class ConnectionServeRequestTest {
     func anIdCanBeReusedOnceItsRequestIsAnswered() {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(RawJson.of(42))}
+        handler.onRequestFn = { _, _, _ => Result(RawJson.of(42)) }
         let (_, transport) = serving(handler)
 
         // act
@@ -369,9 +384,9 @@ class ConnectionServeNotificationTest {
     func aNotificationReachesTheHandlerAndIsNeverAnsweredEvenIfItFails(failing: Bool) {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(RawJson.of(42))}
+        handler.onRequestFn = { _, _, _ => Result(RawJson.of(42)) }
         if (failing) {
-            handler.onNotificationFn = {_, _ => throw IllegalStateException("handler blew up")}
+            handler.onNotificationFn = { _, _ => throw IllegalStateException("handler blew up") }
         }
         let (_, transport) = serving(handler)
 
@@ -390,8 +405,8 @@ class ConnectionServeNotificationTest {
     func aNotificationThatOverflowsItsStackLeavesTheLoopReading() {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, _ => Result(RawJson.of(42))}
-        handler.onNotificationFn = {_, _ => overflowTheStack()}
+        handler.onRequestFn = { _, _, _ => Result(RawJson.of(42)) }
+        handler.onNotificationFn = { _, _ => overflowTheStack() }
         let (_, transport) = serving(handler)
 
         // act
@@ -413,11 +428,12 @@ class ConnectionDeliveryOrderTest {
         // is the order the handler saw them in
         let handler = FakeHandler()
         handler.inPlace = true
-        handler.onRequestFn = {
-            method, _, _ =>
-            handler.notified.add(method)
-            Result(rawJson("null"))
-        }
+        handler.onRequestFn =
+            {
+                method, _, _ =>
+                handler.notified.add(method)
+                Result(rawJson("null"))
+            }
         let (_, transport) = serving(handler)
         let methods = ["note1", "request1", "note2", "note3", "request2", "note4"]
 
@@ -515,11 +531,21 @@ class ConnectionServeRecoveryTest {
     @TestCase
     func aFrameOverTheLimitIsAnsweredAndTheNextOneRead() {
         // arrange
-        let input = framed([##"{"jsonrpc":"2.0","id":1,"method":"big"}"##, ##"{"jsonrpc":"2.0","method":"next"}"##])
+        let input =
+            framed(
+                [
+                    ##"{"jsonrpc":"2.0","id":1,"method":"big"}"##,
+                    ##"{"jsonrpc":"2.0","method":"next"}"##
+                ]
+            )
         let output = ByteBuffer()
         let handler = FakeHandler()
-        let connection = Connection(FramedJsonRpcTransport(input, output, getGlobalLogger(), bodyBytesMax: 34),
-            handler, getGlobalLogger())
+        let connection =
+            Connection(
+                FramedJsonRpcTransport(input, output, getGlobalLogger(), bodyBytesMax: 34),
+                handler,
+                getGlobalLogger()
+            )
 
         // act
         connection.serve()
@@ -548,7 +574,11 @@ class ConnectionServeRecoveryTest {
         let (_, transport) = serving(handler)
 
         // act
-        transport.feed(ResponseBody(id, ResultOrError.Error(ResponseError(ErrorCode.PARSE_ERROR, "x"))).enveloped())
+        transport
+            .feed(
+                ResponseBody(id, ResultOrError.Error(ResponseError(ErrorCode.PARSE_ERROR, "x")))
+                    .enveloped()
+            )
         transport.feed(NotificationBody("next").enveloped())
 
         // assert - the loop is still alive
@@ -564,12 +594,13 @@ class ConnectionCancelTest {
         let started = LinkedBlockingQueue<Bool>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
-        handler.onRequestFn = {
-            _, _, cancel =>
-            started.add(true)
-            release.remove()
-            Result(RawJson.of(cancel.isCancelled))
-        }
+        handler.onRequestFn =
+            {
+                _, _, cancel =>
+                started.add(true)
+                release.remove()
+                Result(RawJson.of(cancel.isCancelled))
+            }
         let (connection, transport) = serving(handler)
 
         // act
@@ -587,7 +618,7 @@ class ConnectionCancelTest {
     func cancelOfAnIdNotInFlightDoesNotPoisonIt() {
         // arrange
         let handler = FakeHandler()
-        handler.onRequestFn = {_, _, cancel => Result(RawJson.of(cancel.isCancelled))}
+        handler.onRequestFn = { _, _, cancel => Result(RawJson.of(cancel.isCancelled)) }
         let (connection, transport) = serving(handler)
 
         // act
@@ -643,9 +674,14 @@ class ConnectionOutboundTest {
         // act
         let pending = connection.request<RawJson, Int64>("ask", emptyParams())
         transport.nextWritten()
-        transport.feed(
-            ResponseBody(Value(pending.id), ResultOrError.Error(ResponseError(ErrorCode.INVALID_PARAMS, "bad params")))
-                .enveloped())
+        transport
+            .feed(
+                ResponseBody(
+                    Value(pending.id),
+                    ResultOrError.Error(ResponseError(ErrorCode.INVALID_PARAMS, "bad params"))
+                )
+                    .enveloped()
+            )
 
         // assert
         let e = @AssertThrows[RpcException](pending.await())
@@ -784,11 +820,7 @@ class ConnectionCloseTest {
         transport.nextWritten()
 
         // act
-        if (byPeer) {
-            transport.hangUp()
-        } else {
-            connection.close()
-        }
+        if (byPeer) { transport.hangUp() } else { connection.close() }
 
         // assert
         let e = @AssertThrows[RpcException](pending.await())
@@ -801,12 +833,13 @@ class ConnectionCloseTest {
         let started = LinkedBlockingQueue<CancellationToken>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
-        handler.onRequestFn = {
-            _, _, cancel =>
-            started.add(cancel)
-            release.remove()
-            Result(rawJson("null"))
-        }
+        handler.onRequestFn =
+            {
+                _, _, cancel =>
+                started.add(cancel)
+                release.remove()
+                Result(rawJson("null"))
+            }
         let (connection, transport) = serving(handler)
         transport.feed(RequestBody(Integer(7), "slow").enveloped())
         let token = started.remove()
@@ -825,12 +858,13 @@ class ConnectionCloseTest {
         let started = LinkedBlockingQueue<CancellationToken>()
         let release = LinkedBlockingQueue<Bool>()
         let handler = FakeHandler()
-        handler.onRequestFn = {
-            _, _, cancel =>
-            started.add(cancel)
-            release.remove()
-            Result(rawJson("null"))
-        }
+        handler.onRequestFn =
+            {
+                _, _, cancel =>
+                started.add(cancel)
+                release.remove()
+                Result(rawJson("null"))
+            }
         let (connection, transport) = unserved(handler)
         transport.feed(RequestBody(Integer(7), "slow").enveloped())
         transport.hangUp()
