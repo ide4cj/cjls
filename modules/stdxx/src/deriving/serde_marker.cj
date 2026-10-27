@@ -13,6 +13,9 @@ const ITEM_VALUE = "value"
 const ITEM_VALUE_IS_INTEGER = "valueIsInteger"
 const ITEM_PAYLOAD = "payload"
 const ITEM_OTHER = "other"
+const ITEM_DEFAULT = "default"
+const ITEM_DEFAULT_FACTORY = "defaultFactory"
+const ITEM_DENY_UNKNOWN_FIELDS = "denyUnknownFields"
 
 /**
  * Configures what `@DeriveExt` generates for the declaration it sits on:
@@ -23,12 +26,15 @@ const ITEM_OTHER = "other"
  *
  * | on           | option                    | meaning                                                  |
  * |--------------|---------------------------|----------------------------------------------------------|
+ * | type         | `denyUnknownFields`       | reject unknown fields in objects/tables on read         |
  * | type         | `skipNone`                | every optional field omits its key when `None`           |
  * | type         | `tag: "kind"`             | the type is internally tagged by that field              |
  * | enum         | `untagged`                | the variant is whichever one the value reads as          |
  * | struct       | `rename: "delete"`        | the tag's value, with `tag`                              |
  * | struct       | `transparent`             | the struct is its only field on the wire                 |
  * | field        | `rename: "textDocument"`  | the name the field carries on the wire                   |
+ * | field        | `default`                 | use the constructor initializer for a missing key       |
+ * | field        | `default: "factory"`      | call a zero-argument function for a missing key         |
  * | field        | `skipNone`                | this field omits its key when `None`                     |
  * | enum variant | `rename: "URI"`           | the string the variant is on the wire, or its tag        |
  * | enum variant | `value: -1`               | the integer the variant is on the wire                   |
@@ -79,6 +85,18 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
     let value = argument.expr.toTokens()
 
     match (name) {
+        case "default" =>
+            if (expected(argument, position, [OnField], isFlag, isFlag)) {
+                if (isFlag) {
+                    setItem(ITEM_DEFAULT, "true")
+                } else {
+                    setStringOption(argument, ITEM_DEFAULT_FACTORY, value)
+                }
+            }
+        case "denyUnknownFields" =>
+            if (expected(argument, position, [OnType], isFlag, true)) {
+                setItem(ITEM_DENY_UNKNOWN_FIELDS, "true")
+            }
         case "rename" =>
             if (expected(argument, position, [OnType, OnField, OnVariant], isFlag, false)) {
                 setStringOption(argument, ITEM_RENAME, value)
@@ -116,7 +134,7 @@ private func applyOption(argument: Argument, position: MarkerPosition): Unit {
                 DiagReportLevel.ERROR,
                 tokens,
                 "`@Serde` has no option `${name}`",
-                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other"
+                "it takes: rename, skipNone, tag, untagged, transparent, value, payload, other, default, denyUnknownFields"
             )
     }
 }
@@ -279,7 +297,10 @@ struct MarkerOptions {
         let untagged!: Bool = false,
         let value!: ?WireValue = None,
         let payload!: Array<String> = [],
-        let other!: Bool = false
+        let other!: Bool = false,
+        let hasDefault!: Bool = false,
+        let defaultFactory!: ?String = None,
+        let denyUnknownFields!: Bool = false
     ) {}
 }
 
@@ -314,7 +335,10 @@ private func optionsOf(message: MacroMessage): MarkerOptions {
                 WireValue.of(value, message.getString(ITEM_VALUE_IS_INTEGER) == "true")
             },
         payload: stringItemOf(message, ITEM_PAYLOAD).map { payload => payload.split(",") } ?? [],
-        other: message.hasItem(ITEM_OTHER)
+        other: message.hasItem(ITEM_OTHER),
+        hasDefault: message.hasItem(ITEM_DEFAULT),
+        defaultFactory: stringItemOf(message, ITEM_DEFAULT_FACTORY),
+        denyUnknownFields: message.hasItem(ITEM_DENY_UNKNOWN_FIELDS)
     )
 }
 

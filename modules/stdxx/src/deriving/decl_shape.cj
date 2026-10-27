@@ -22,6 +22,7 @@ struct DeclField {
     DeclField(
         let ident!: Token,
         let fieldType!: Tokens,
+        let defaultValue!: ?Tokens,
         /** Declared with `let` or `var`: a bare parameter is gone once the constructor returns. */
         let isMember!: Bool,
         let isMutable!: Bool,
@@ -98,6 +99,11 @@ private func fieldOf(param: FuncParam): DeclField {
     DeclField(
         ident: param.identifier,
         fieldType: param.paramType.toTokens(),
+        defaultValue: if (param.assign.kind == TokenKind.ASSIGN) {
+            Some(param.expr.toTokens())
+        } else {
+            None
+        },
         isMember: head
             .map { token => token.kind == TokenKind.LET || token.kind == TokenKind.VAR } ??
             false,

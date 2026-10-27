@@ -39,7 +39,8 @@ struct StructModel {
          * The tag field's name and this struct's value in it.
          */
         let tag!: ?(String, String),
-        let transparent!: Bool
+        let transparent!: Bool,
+        let denyUnknownFields!: Bool = false
     ) {}
 }
 
@@ -65,7 +66,8 @@ struct EnumModel {
         let decl!: EnumDecl,
         let variants!: Array<DerivedVariant>,
         let shape!: EnumShape,
-        let skipNone!: Bool
+        let skipNone!: Bool,
+        let denyUnknownFields!: Bool = false
     ) {}
 }
 
@@ -116,7 +118,8 @@ struct DerivedField {
          */
         let innerType!: Tokens,
         let shape!: FieldShape,
-        let skipNone!: Bool
+        let skipNone!: Bool,
+        let defaultValue!: ?Tokens = None
     ) {}
 
     prop wireLiteral: Token {
@@ -253,7 +256,13 @@ private func structModelOf(
                 (tag, rename ?? stripBackquotes(typeIdent.value))
         }
 
-    StructModel(decl: decl, fields: fields.toArray(), tag: tag, transparent: false)
+    StructModel(
+        decl: decl,
+        fields: fields.toArray(),
+        tag: tag,
+        transparent: false,
+        denyUnknownFields: typeOptions.denyUnknownFields
+    )
 }
 
 /**
@@ -274,7 +283,10 @@ private func transparentModelOf(
             "`${typeIdent.value}` declares ${fields.size}"
         )
     }
-    if (typeOptions.skipNone || typeOptions.tag.isSome() || typeOptions.rename.isSome()) {
+    if (
+        typeOptions.skipNone || typeOptions.tag.isSome() || typeOptions.rename.isSome() ||
+            typeOptions.denyUnknownFields
+    ) {
         return reportNone(
             typeIdent,
             "`transparent` takes no other option on the type",
@@ -284,7 +296,10 @@ private func transparentModelOf(
 
     let field = fields[0]
     let options = memberOptions(field.ident.value)
-    if (options.rename.isSome() || options.skipNone) {
+    if (
+        options.rename.isSome() || options.skipNone || options.hasDefault ||
+            options.defaultFactory.isSome()
+    ) {
         return reportNone(
             field.ident,
             "the field of a `transparent` struct takes no options",
@@ -317,6 +332,25 @@ private func fieldOf(
         return None
     }
 
+    var defaultValue: ?Tokens = None
+    if (let Some(factory) <- options.defaultFactory) {
+        if (options.hasDefault) {
+            return reportNone(
+                declField.ident,
+                "`default` and `default:` cannot be combined",
+                "choose one default source"
+            )
+        }
+        defaultValue = factoryDefault(declField.ident, factory) ?? return None
+    } else if (options.hasDefault) {
+        defaultValue =
+            declField.defaultValue ??
+                return reportNone(
+                    declField.ident,
+                    "`default` needs a constructor default",
+                    "supply an initializer or a `default:` factory"
+                )
+    }
     let (shape, innerType) = shapeOf(declField.fieldType)
 
     DerivedField(
@@ -326,8 +360,24 @@ private func fieldOf(
         fieldType: declField.fieldType,
         innerType: innerType,
         shape: shape,
-        skipNone: skipNoneOnType || options.skipNone
+        skipNone: skipNoneOnType || options.skipNone,
+        defaultValue: defaultValue
     )
+}
+
+/**
+ * A default factory is a name, not an expression evaluated while the macro expands.
+ */
+private func factoryDefault(ident: Token, factory: String): ?Tokens {
+    try {
+        let expr = parseExpr(cangjieLex(factory))
+        if (expr is RefExpr || expr is MemberAccess) {
+            let name = expr.toTokens()
+            return quote($name())
+        }
+    } catch (_: ParseASTException) {}
+    report(ident, "`default:` needs a function name", "use a zero-argument function path")
+    None
 }
 
 /**
@@ -384,6 +434,13 @@ private func enumModelOf(
         return reportNone(decl, "an enum is either `untagged` or has a `tag`", "drop one of them")
     }
 
+    if (typeOptions.denyUnknownFields && typeOptions.tag.isNone()) {
+        return reportNone(
+            decl,
+            "`denyUnknownFields` needs object fields",
+            "use it on a struct or a tagged enum"
+        )
+    }
     let variants = ArrayList<DerivedVariant>()
     var other: ?DerivedVariant = None
     for (declVariant in declVariants) {
@@ -559,7 +616,8 @@ private func enumModelOf(
         decl: decl,
         variants: variants.toArray(),
         shape: shape,
-        skipNone: typeOptions.skipNone
+        skipNone: typeOptions.skipNone,
+        denyUnknownFields: typeOptions.denyUnknownFields
     )
 }
 

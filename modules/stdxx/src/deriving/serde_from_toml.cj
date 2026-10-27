@@ -68,6 +68,12 @@ private func structFromToml(model: StructModel): Tokens {
                 )
             )
     }
+    let unknownCheck =
+        rejectUnknownTomlFields(
+            model.fields,
+            model.tag.map { pair => pair[0] },
+            denyUnknownFields: model.denyUnknownFields
+        )
     let ctorArgs =
         commaSeparated(
             model
@@ -83,6 +89,7 @@ private func structFromToml(model: StructModel): Tokens {
     quote(
         let table = v.asTable()
         $tagCheck
+        $unknownCheck
         $selfType($ctorArgs)
     )
 }
@@ -104,6 +111,20 @@ private func tagFromToml(typeName: Token, tag: String, check: Tokens): Tokens {
 private func fieldFromToml(field: DerivedField, typeName: Token): Tokens {
     let name = field.wireLiteral
     let innerType = field.innerType
+    if (let Some(defaultValue) <- field.defaultValue) {
+        let read =
+            if (field.shape.isOptional) {
+                quote(Some($innerType.fromToml(item)))
+            } else {
+                quote($innerType.fromToml(item))
+            }
+        return quote(
+            match (table.get($name)) {
+                case Some(item) => $read
+                case None => $defaultValue
+            }
+        )
+    }
     if (field.shape.isOptional) {
         quote(
             match (table.get($name)) {
@@ -220,16 +241,32 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
         let ident = variant.ident
         let literal = variant.value.literal
         if (variant.payloadFields.isEmpty()) {
+            let unknownCheck =
+                rejectUnknownTomlFields(
+                    variant.payloadFields,
+                    Some(tag),
+                    denyUnknownFields: model.denyUnknownFields
+                )
             cases += quote(
-                case $literal => $ident
+                case $literal =>
+                    $unknownCheck
+                    $ident
             )
             continue
         }
 
+        let unknownCheck =
+            rejectUnknownTomlFields(
+                variant.payloadFields,
+                Some(tag),
+                denyUnknownFields: model.denyUnknownFields
+            )
         let args =
             commaSeparated(variant.payloadFields.map { field => fieldFromToml(field, typeName) })
         cases += quote(
-            case $literal => $ident($args)
+            case $literal =>
+                $unknownCheck
+                $ident($args)
         )
     }
     let unexpected = Token(TokenKind.STRING_LITERAL, "unexpected `${typeName.value}` ${tag}: ")
@@ -241,6 +278,35 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
         match (tag) {
             $cases
             case other => throw tagValue.error($unexpected + other)
+        }
+    )
+}
+
+/**
+ * Uses wire names, including the discriminator, and retains the offending value's source span.
+ */
+private func rejectUnknownTomlFields(
+    fields: Array<DerivedField>,
+    tag: ?String,
+    denyUnknownFields!: Bool
+): Tokens {
+    if (!denyUnknownFields) {
+        return Tokens()
+    }
+    var known = quote(false)
+    for (field in fields) {
+        let name = field.wireLiteral
+        known += quote(|| key == $name)
+    }
+    if (let Some(tagName) <- tag) {
+        let name = Token(TokenKind.STRING_LITERAL, tagName)
+        known += quote(|| key == $name)
+    }
+    quote(
+        for ((key, item) in table) {
+            if (!($known)) {
+                throw item.error("unknown field: " + key)
+            }
         }
     )
 }

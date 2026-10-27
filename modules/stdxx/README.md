@@ -32,8 +32,8 @@ initializers reach no user code.
 
 ## Absent and null
 
-A constructor default does not make a field optional; its type does. JSON reads
-unknown keys by skipping them and writes known keys in declaration order. These
+A constructor default alone does not make a field optional; its type does. JSON
+reads unknown keys by skipping them and writes known keys in declaration order. These
 four shapes preserve the protocol's independent optional and nullable axes:
 
 | Shape | Type | Read | Write |
@@ -53,6 +53,35 @@ name, so an import alias under `?` loses the distinction and reads explicit
 TOML has no null. Its derives diagnose `Nullable` fields and payloads, omit `None`
 regardless of `skipNone`, and order plain keys before tables and arrays of tables.
 An untagged value's `tomlShape` determines where it is written.
+
+## Defaults and strict fields
+
+`@Serde[default]` on a primary-constructor field explicitly uses its constructor
+initializer when the key is absent. The field must have an initializer; its
+expression must also be valid in the generated static decoder, independently of
+other constructor parameters. `@Serde[default: "factory"]` instead calls the
+named zero-argument function (a qualified name such as `Defaults.width` is legal).
+The two forms are mutually exclusive and do not change serialization.
+
+Both JSON and TOML evaluate a default only for a missing key. Present values are
+still type-checked; explicit JSON `null` keeps the field's existing null semantics
+and never selects a default. Unmarked required fields remain required even when
+the constructor has an initializer.
+
+`@Serde[denyUnknownFields]` on an object struct/class or tagged enum rejects keys
+outside its wire field names and discriminator. Unknown keys remain ignored
+without the marker. Each tagged enum variant accepts only its own payload keys;
+empty variants accept only the tag. Nested types retain their own policy. TOML
+errors retain the offending value's source location. Strictness is not meaningful
+for scalar/untagged enums or transparent structs and is diagnosed there.
+
+```cangjie
+@DeriveExt[FromJson, FromToml]
+@Serde[denyUnknownFields]
+struct Policy {
+    Policy(@Serde[rename: "line_width", default] let lineWidth!: Int64 = 100) {}
+}
+```
 
 ## Tags and unions
 

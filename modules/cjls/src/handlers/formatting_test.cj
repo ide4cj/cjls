@@ -1,15 +1,15 @@
 package cjls.handlers
 
+import std.env.getTempDirectory
+import std.fs.{Directory, File}
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjls.lsp_types.*
 import cjls.lsp_types.Range as LspRange
 import cjls.server.ServerState
-import stdxx.Nullable
-import std.env.getTempDirectory
-import std.fs.{Directory, File}
-import loupe.vfs.VfsPath
 import jsonrpc.RpcException
+import loupe.vfs.VfsPath
+import stdxx.Nullable
 
 /**
  * The handler edits for the open document, or no answer when formatting is refused.
