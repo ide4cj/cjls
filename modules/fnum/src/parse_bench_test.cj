@@ -11,9 +11,9 @@ import std.unittest.testmacro.*
  * `cjpm bench '--filter=ParseFloat64Bench*'`
  */
 
-let RANDOM_DECIMALS: Array<String> = RANDOM_FLOATS.map {v => formatShortest(v)}
+let RANDOM_DECIMALS: Array<String> = RANDOM_FLOATS.map { v => formatShortest(v) }
 
-let SHORT_DECIMALS: Array<String> = SHORT_FLOATS.map {v => formatShortest(v)}
+let SHORT_DECIMALS: Array<String> = SHORT_FLOATS.map { v => formatShortest(v) }
 
 var parseSink = 0.0
 

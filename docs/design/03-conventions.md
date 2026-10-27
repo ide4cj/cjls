@@ -40,6 +40,7 @@ Constraint kinds and how to revise them are defined in the
 | C30 | [Narrow exceptions](#c30-narrow-exceptions) | Convention |
 | C31 | [Types and function size](#c31-types-and-function-size) | Convention |
 | C33 | [Arrange, act and assert](#c33-arrange-act-and-assert) | Convention |
+| C34 | [Formatting](#c34-formatting) | Design choice |
 
 ### C1: Implicit constructors
 
@@ -435,3 +436,27 @@ calls such as `checkDiagnostics(...)`: those helpers already combine setup,
 execution and assertions, and the fixture describes the expected behavior.
 A test that constructs a fixture and then performs operations or assertions
 still uses the AAA comments.
+
+### C34: Formatting
+
+`cjformat` chooses line breaks at 100 Unicode scalar columns with four-space
+indentation by default, identically in the CLI, LSP and all generators (D150, D152).
+The nearest `cjformat.toml` sets `line_width`, `indent_width` and `simple_if`;
+see [formatter configuration](../formatting.md). Short lists and single-expression lambdas flatten; long lists
+break between elements, chains before dots, operators after their token.
+Nonempty declaration and control-flow bodies have one statement per line, except
+comment-free single-expression `if/else` branches in `simple_if = "compact"` mode
+when the complete expression fits.
+Commas and other significant tokens are preserved. Indivisible text may overflow.
+
+Comments retain source order and their leading/trailing/dangling placement.
+Blank lines are capped at one; nonempty files end with one newline in their
+original LF/CRLF convention. String contents and interpolations are verbatim;
+macro token-tree layout is preserved, shifting only indentation as a whole.
+Syntax errors refuse formatting of the entire file. Range formatting replaces a
+complete enclosing statement/declaration or body, possibly beyond the selection.
+
+Generated files follow the same style. Build `syntax_codegen` against checked-in
+syntax before changing its output; restore unbuildable generated syntax before
+rebuilding the generator. The formatter is a library dependency of generators,
+which must not invoke an SDK formatter or the language-server executable.

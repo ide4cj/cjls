@@ -7,25 +7,38 @@ import stdxx.Nullable
 import cjls.lsp_types.*
 import cjls.server.*
 
-func referencesOf(state: ServerState, path: Path, line: UInt32, character: UInt32,
-    includeDeclaration!: Bool = true): Nullable<Array<Location>> {
-    handleReferences(state.snapshot(), ReferenceParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-        position: Position(line: line, character: character),
-        context: ReferenceContext(includeDeclaration: includeDeclaration)))
+func referencesOf(
+    state: ServerState,
+    path: Path,
+    line: UInt32,
+    character: UInt32,
+    includeDeclaration!: Bool = true
+): Nullable<Array<Location>> {
+    handleReferences(
+        state.snapshot(),
+        ReferenceParams(
+            textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+            position: Position(line: line, character: character),
+            context: ReferenceContext(includeDeclaration: includeDeclaration)
+        )
+    )
 }
 
 /**
  * `locations` as `file line:character-line:character`, the file by its name, to compare.
  */
 func placesOf(answer: Nullable<Array<Location>>): Array<String> {
-    let locations = match (answer) {
-        case Nullable.Value(locations) => locations
-        case _ => throw AssertException("no references")
-    }
-    locations.map {
-        one => let parts = one.uri.split("/")
-        "${parts[parts.size - 1]} ${at(one.range.start)}-${at(one.range.end)}"
-    }
+    let locations =
+        match (answer) {
+            case Nullable.Value(locations) => locations
+            case _ => throw AssertException("no references")
+        }
+    locations
+        .map {
+            one =>
+            let parts = one.uri.split("/")
+            "${parts[parts.size - 1]} ${at(one.range.start)}-${at(one.range.end)}"
+        }
 }
 
 @Test
@@ -33,10 +46,13 @@ class ReferencesHandlerTest {
     @TestCase
     func theUsesInEveryFileAreTheirRangesWithTheDeclarationWhenAskedFor() {
         // arrange - the emoji is two UTF-16 units and four bytes; the file asked in comes first
-        let (state, dir) = loaded([
-            ("a.cj", "package m\npublic func f(): String { \"😀\" }\n"),
-            ("b.cj", "package m\nfunc g(): String { \"😀\" + f() + f() }\n")
-        ])
+        let (state, dir) =
+            loaded(
+                [
+                    ("a.cj", "package m\npublic func f(): String { \"😀\" }\n"),
+                    ("b.cj", "package m\nfunc g(): String { \"😀\" + f() + f() }\n")
+                ]
+            )
 
         // act
         let all = referencesOf(state, dir.join("b.cj"), 1, 26)

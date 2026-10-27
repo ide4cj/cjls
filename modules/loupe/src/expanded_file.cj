@@ -10,7 +10,7 @@ import loupe.syntax.parse
 import loupe.vfs.FileId
 
 /**
- * The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D60), its
+ * The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D150), its
  * trailing whitespace left out; as the macro wrote it if it does not format. Its bytes that are not whitespace are
  * those of the text the macro wrote (`expandedMacro`), in order: that is how an offset goes from one to the other.
  */
@@ -84,11 +84,7 @@ func across(offset: Int64, from: Array<Int64>, to: Array<Int64>): Int64 {
     var high = from.size
     while (low < high) {
         let middle = (low + high) / 2
-        if (from[middle] < offset) {
-            low = middle + 1
-        } else {
-            high = middle
-        }
+        if (from[middle] < offset) { low = middle + 1 } else { high = middle }
     }
     if (low < from.size && from[low] == offset) {
         to[low]
@@ -141,18 +137,27 @@ public class ExpandedFile {
      * What `offset` is at: the piece it is in, or the one it ends; `None` in what the analysis wrote.
      */
     public func placeOf(offset: Int64): ?ExpandedPlace {
-        for (segment in segments where segment.range.start <= offset && offset <= segment.range.end) {
+        for (
+            segment in segments where segment.range.start <= offset && offset <= segment.range.end
+        ) {
             // at the end of a piece, the next one's start if it is one
-            if (offset == segment.range.end && segments.iterator().any {
-                one => one.range.start == offset && !one.range.isEmpty() && !isWritten(one)
-            }) {
+            if (
+                offset == segment.range.end &&
+                    segments
+                        .iterator()
+                        .any {
+                            one =>
+                            one.range.start == offset && !one.range.isEmpty() && !isWritten(one)
+                        }
+            ) {
                 continue
             }
             let within = offset - segment.range.start
             match (segment.origin) {
                 case Written => continue
                 case Copied(start) => return ExpandedPlace.InSource(start + within)
-                case Shown(call, shown) => return ExpandedPlace.InExpansion(call, shown.toWritten(within))
+                case Shown(call, shown) =>
+                    return ExpandedPlace.InExpansion(call, shown.toWritten(within))
             }
         }
         None
@@ -163,8 +168,10 @@ public class ExpandedFile {
      */
     public func fromSource(range: TextRange): ?TextRange {
         for (segment in segments) {
-            if (let Copied(start) <- segment.origin && start <= range.start && range.end <= start +
-                segment.range.len) {
+            if (
+                let Copied(start) <- segment.origin && start <= range.start &&
+                    range.end <= start + segment.range.len
+            ) {
                 return range.shift(segment.range.start - start)
             }
         }
@@ -219,28 +226,47 @@ public func expandFile(db: AnalysisDatabase, fileId: FileId, header: String): ?E
     for (call in expandedCalls(db, file)) {
         let expanded = expandedMacro(db, call) ?? continue
         let item = call.item(db)
-        let top = (itemTree(db, file).items |> filter {
-            one: Item => one.id == item || one.members.iterator().any {member => member.id == item}
-        } |> first) ?? continue
+        let top =
+            (
+                itemTree(db, file).items |>
+                    filter {
+                        one: Item =>
+                        one.id == item || one.members.iterator().any { member => member.id == item }
+                    } |>
+                    first
+            ) ??
+                continue
         let range = ids.node(top.id, root)?.textRange ?? continue
-        match (tops |> filter {one: (TextRange, ArrayList<(MacroCallId, ExpandedMacro)>) => one[0] == range} |> first) {
+        match (
+            tops |>
+                filter {
+                    one: (TextRange, ArrayList<(MacroCallId, ExpandedMacro)>) =>
+                    one[0] == range
+                } |>
+                first
+        ) {
             case Some((_, calls)) => calls.add((call, expanded))
-            case None => tops.add((range, ArrayList<(MacroCallId, ExpandedMacro)>([(call, expanded)])))
+            case None =>
+                tops.add((range, ArrayList<(MacroCallId, ExpandedMacro)>([(call, expanded)])))
         }
     }
     if (tops.isEmpty()) {
         return None
     }
     let sorted = tops.toArray()
-    sort(sorted, key: {one: (TextRange, ArrayList<(MacroCallId, ExpandedMacro)>) => one[0].start})
+    sort(sorted, key: { one: (TextRange, ArrayList<(MacroCallId, ExpandedMacro)>) => one[0].start })
     let builder = ExpandedFileBuilder()
     builder.write(header + "\n")
     var at = 0
     for ((range, calls) in sorted) {
-        let replacing = calls |> filter {
-            one: (MacroCallId, ExpandedMacro) => one[1].kind == ExpansionKind.ServerExpansion &&
-                macroExpansion(db, one[0]).replaces
-        } |> first
+        let replacing =
+            calls |>
+                filter {
+                    one: (MacroCallId, ExpandedMacro) =>
+                    one[1].kind == ExpansionKind.ServerExpansion &&
+                        macroExpansion(db, one[0]).replaces
+                } |>
+                first
         if (let Some((call, expanded)) <- replacing) {
             builder.copy(source, at, expanded.range.start)
             builder.write("// ${callText(source, expanded)} expanded by cjls\n")
@@ -249,10 +275,13 @@ public func expandFile(db: AnalysisDatabase, fileId: FileId, header: String): ?E
             builder.copy(source, at, range.end)
         }
         at = range.end
-        let added = calls.toArray().filter {one => one[1].kind == ExpansionKind.OwnExpansion}
-        sort(added, key: {one: (MacroCallId, ExpandedMacro) => one[1].range.start})
+        let added = calls.toArray().filter { one => one[1].kind == ExpansionKind.OwnExpansion }
+        sort(added, key: { one: (MacroCallId, ExpandedMacro) => one[1].range.start })
         for ((call, expanded) in added) {
-            builder.write("\n\n// ${callText(source, expanded)} expanded by cjls: its own, signatures only, no bodies\n")
+            builder
+                .write(
+                    "\n\n// ${callText(source, expanded)} expanded by cjls: its own, signatures only, no bodies\n"
+                )
             builder.show(call, ShownExpansion.of(expanded.text))
         }
     }

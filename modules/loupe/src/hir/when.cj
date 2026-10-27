@@ -44,23 +44,26 @@ public enum CfgExpr {
         match (this) {
             case CfgCompare(key, op, value) =>
                 let actual = cfg.get(key) ?? return None
-                let order = if (key == CJC_VERSION) {
-                    compareVersions(actual, value) ?? return None
-                } else {
-                    actual.compare(value)
-                }
+                let order =
+                    if (key == CJC_VERSION) {
+                        compareVersions(actual, value) ?? return None
+                    } else {
+                        actual.compare(value)
+                    }
                 Some(holds(op, order))
             case CfgFlag(name, negated) => Some(((cfg.get(name) ?? "") == FLAG_SET) != negated)
-            case CfgAnd(left, right) => match ((left.evaluate(cfg), right.evaluate(cfg))) {
-                case (Some(false), _) | (_, Some(false)) => Some(false)
-                case (Some(true), Some(true)) => Some(true)
-                case _ => None
-            }
-            case CfgOr(left, right) => match ((left.evaluate(cfg), right.evaluate(cfg))) {
-                case (Some(true), _) | (_, Some(true)) => Some(true)
-                case (Some(false), Some(false)) => Some(false)
-                case _ => None
-            }
+            case CfgAnd(left, right) =>
+                match ((left.evaluate(cfg), right.evaluate(cfg))) {
+                    case (Some(false), _) | (_, Some(false)) => Some(false)
+                    case (Some(true), Some(true)) => Some(true)
+                    case _ => None
+                }
+            case CfgOr(left, right) =>
+                match ((left.evaluate(cfg), right.evaluate(cfg))) {
+                    case (Some(true), _) | (_, Some(true)) => Some(true)
+                    case (Some(false), Some(false)) => Some(false)
+                    case _ => None
+                }
             case CfgInvalid => Some(false)
         }
     }
@@ -86,20 +89,21 @@ public enum CfgExpr {
         if (evaluate(cfg) != Some(false)) {
             return
         }
-        let reason = match (this) {
-            case CfgCompare(key, _, _) => "${key} is \"${cfg.get(key) ?? ""}\""
-            case CfgFlag(name, true) => "${name} is set"
-            case CfgFlag(name, false) => "${name} is not set"
-            case CfgAnd(left, right) =>
-                left.collectWhyFalse(cfg, reasons)
-                right.collectWhyFalse(cfg, reasons)
-                return
-            case CfgOr(left, right) =>
-                left.collectWhyFalse(cfg, reasons)
-                right.collectWhyFalse(cfg, reasons)
-                return
-            case CfgInvalid => return
-        }
+        let reason =
+            match (this) {
+                case CfgCompare(key, _, _) => "${key} is \"${cfg.get(key) ?? ""}\""
+                case CfgFlag(name, true) => "${name} is set"
+                case CfgFlag(name, false) => "${name} is not set"
+                case CfgAnd(left, right) =>
+                    left.collectWhyFalse(cfg, reasons)
+                    right.collectWhyFalse(cfg, reasons)
+                    return
+                case CfgOr(left, right) =>
+                    left.collectWhyFalse(cfg, reasons)
+                    right.collectWhyFalse(cfg, reasons)
+                    return
+                case CfgInvalid => return
+            }
         if (!reasons.contains(reason)) {
             reasons.add(reason)
         }
@@ -109,25 +113,27 @@ public enum CfgExpr {
 /**
  * The conditions cjc knows, and the operators each takes: `debug` and `test` none, they are flags.
  */
-let BUILTIN_OPS: Array<(String, Array<String>)> = [
-    ("backend", ["==", "!="]),
-    ("arch", ["==", "!="]),
-    ("os", ["==", "!="]),
-    (CJC_VERSION, ["==", "!=", "<", "<=", ">", ">="]),
-    ("debug", []),
-    ("test", []),
-    ("env", ["==", "!="])
-]
+let BUILTIN_OPS: Array<(String, Array<String>)> =
+    [
+        ("backend", ["==", "!="]),
+        ("arch", ["==", "!="]),
+        ("os", ["==", "!="]),
+        (CJC_VERSION, ["==", "!=", "<", "<=", ">", ">="]),
+        ("debug", []),
+        ("test", []),
+        ("env", ["==", "!="])
+    ]
 
 /**
  * The values cjc takes of the conditions it knows all values of.
  */
-let BUILTIN_VALUES: Array<(String, Array<String>)> = [
-    ("backend", ["cjnative"]),
-    ("arch", ["x86_64", "aarch64", "arm"]),
-    ("os", ["Windows", "Linux", "macOS", "iOS"]),
-    ("env", ["", "gnu", "ohos", "simulator", "android"])
-]
+let BUILTIN_VALUES: Array<(String, Array<String>)> =
+    [
+        ("backend", ["cjnative"]),
+        ("arch", ["x86_64", "aarch64", "arm"]),
+        ("os", ["Windows", "Linux", "macOS", "iOS"]),
+        ("env", ["", "gnu", "ohos", "simulator", "android"])
+    ]
 
 const INVALID_EXPR = "conditional compilation not support this expression"
 
@@ -147,8 +153,15 @@ private func builtinValues(key: String): ?Array<String> {
 
 private func holds(op: String, order: Ordering): Bool {
     match ((op, order)) {
-        case ("==", Ordering.EQ) | ("!=", Ordering.LT) | ("!=", Ordering.GT) | ("<", Ordering.LT) | ("<=", Ordering.LT) |
-            ("<=", Ordering.EQ) | (">", Ordering.GT) | (">=", Ordering.GT) | (">=", Ordering.EQ) => true
+        case ("==", Ordering.EQ) |
+            ("!=", Ordering.LT) |
+            ("!=", Ordering.GT) |
+            ("<", Ordering.LT) |
+            ("<=", Ordering.LT) |
+            ("<=", Ordering.EQ) |
+            (">", Ordering.GT) |
+            (">=", Ordering.GT) |
+            (">=", Ordering.EQ) => true
         case _ => false
     }
 }
@@ -194,9 +207,14 @@ private func versionOf(text: String): ?Array<Int64> {
  */
 private func isVersionLiteral(text: String): Bool {
     let parts = text.split(".")
-    parts.size == 3 && parts.iterator().all {
-        part => part.size >= 1 && part.size <= 2 && part.iterator().all {byte => byte >= b'0' && byte <= b'9'}
-    }
+    parts.size == 3 &&
+        parts
+            .iterator()
+            .all {
+                part =>
+                part.size >= 1 && part.size <= 2 &&
+                    part.iterator().all { byte => byte >= b'0' && byte <= b'9' }
+            }
 }
 
 /**
@@ -212,7 +230,9 @@ public struct WhenError {
  */
 public func whenOf(node: CjSyntaxNode): ?AnnotationNode {
     let annotated = AnyHasAnnotations.cast(node) ?? return None
-    for (annotation in annotated.annotations() where (annotation.nameRef()?.text() ?? "") == "When") {
+    for (
+        annotation in annotated.annotations() where (annotation.nameRef()?.text() ?? "") == "When"
+    ) {
         return annotation
     }
     None
@@ -222,7 +242,7 @@ public func whenOf(node: CjSyntaxNode): ?AnnotationNode {
  * The condition of `node`'s `@When`, `None` if it has none.
  */
 public func conditionOf(node: CjSyntaxNode): ?CfgExpr {
-    whenOf(node).map {annotation => WhenLowering().lower(annotation)}
+    whenOf(node).map { annotation => WhenLowering().lower(annotation) }
 }
 
 /**
@@ -232,10 +252,18 @@ class WhenLowering {
     let errors = ArrayList<WhenError>()
 
     func lower(annotation: AnnotationNode): CfgExpr {
-        let arg = annotation.annotationArgList().flatMap {list => list.args().next()}.flatMap {arg => arg.expr()}
+        let arg =
+            annotation
+                .annotationArgList()
+                .flatMap { list => list.args().next() }
+                .flatMap { arg => arg.expr() }
         match (arg) {
             case Some(expr) => condition(expr)
-            case None => invalid(annotation.syntax, "conditional compilation should have condition expression")
+            case None =>
+                invalid(
+                    annotation.syntax,
+                    "conditional compilation should have condition expression"
+                )
         }
     }
 
@@ -246,22 +274,26 @@ class WhenLowering {
 
     private func condition(expr: AstExpr): CfgExpr {
         match (expr) {
-            case AstExpr.AsParenExpr(it) => match (it.expr()) {
-                case Some(inner) => condition(inner)
-                case None => invalid(it.syntax, INVALID_EXPR)
-            }
-            case AstExpr.AsRefExpr(it) => match (flagOf(it)) {
-                case Some(name) => CfgFlag(name, false)
-                case None => invalid(it.syntax, INVALID_EXPR)
-            }
-            // only `debug` and `test` take a `!`, and only right before them
-            case AstExpr.AsUnaryExpr(it) => match ((it.op()?.text(), it.expr())) {
-                case (Some("!"), Some(AstExpr.AsRefExpr(ref))) => match (flagOf(ref)) {
-                    case Some(name) => CfgFlag(name, true)
+            case AstExpr.AsParenExpr(it) =>
+                match (it.expr()) {
+                    case Some(inner) => condition(inner)
                     case None => invalid(it.syntax, INVALID_EXPR)
                 }
-                case _ => invalid(it.syntax, INVALID_EXPR)
-            }
+            case AstExpr.AsRefExpr(it) =>
+                match (flagOf(it)) {
+                    case Some(name) => CfgFlag(name, false)
+                    case None => invalid(it.syntax, INVALID_EXPR)
+                }
+            // only `debug` and `test` take a `!`, and only right before them
+            case AstExpr.AsUnaryExpr(it) =>
+                match ((it.op()?.text(), it.expr())) {
+                    case (Some("!"), Some(AstExpr.AsRefExpr(ref))) =>
+                        match (flagOf(ref)) {
+                            case Some(name) => CfgFlag(name, true)
+                            case None => invalid(it.syntax, INVALID_EXPR)
+                        }
+                    case _ => invalid(it.syntax, INVALID_EXPR)
+                }
             case AstExpr.AsBinExpr(it) => binary(it)
             case _ => invalid(expr.syntax, INVALID_EXPR)
         }
@@ -280,41 +312,47 @@ class WhenLowering {
         match (op) {
             // cjc evaluates both sides, and reports what is wrong in either
             case "&&" | "||" =>
-                let left = it.lhs().map {one => condition(one)} ?? CfgInvalid
-                let right = it.rhs().map {one => condition(one)} ?? CfgInvalid
-                if (op == "&&") {
-                    CfgAnd(left, right)
-                } else {
-                    CfgOr(left, right)
-                }
+                let left = it.lhs().map { one => condition(one) } ?? CfgInvalid
+                let right = it.rhs().map { one => condition(one) } ?? CfgInvalid
+                if (op == "&&") { CfgAnd(left, right) } else { CfgOr(left, right) }
             case "==" | "!=" | "<" | "<=" | ">" | ">=" => comparison(it, op)
             case _ => invalid(it.syntax, INVALID_EXPR)
         }
     }
 
     private func comparison(it: BinExpr, op: String): CfgExpr {
-        let key = match (it.lhs()) {
-            case Some(AstExpr.AsRefExpr(ref)) => ref.nameRef()?.text()
-            case _ => None<String>
-        }
+        let key =
+            match (it.lhs()) {
+                case Some(AstExpr.AsRefExpr(ref)) => ref.nameRef()?.text()
+                case _ => None<String>
+            }
         let name = key ?? return invalid(it.syntax, INVALID_EXPR)
-        let value = match (it.rhs()) {
-            case Some(AstExpr.AsStringLit(lit)) => contentOf(lit)
-            case _ => None<String>
-        }
-        let text = value ??
-            return invalid(it.rhs().map {rhs => rhs.syntax} ?? it.syntax,
-                "conditional compilation's condition value should be string literal without interpolation")
+        let value =
+            match (it.rhs()) {
+                case Some(AstExpr.AsStringLit(lit)) => contentOf(lit)
+                case _ => None<String>
+            }
+        let text =
+            value ??
+                return invalid(
+                    it.rhs().map { rhs => rhs.syntax } ?? it.syntax,
+                    "conditional compilation's condition value should be string literal without interpolation"
+                )
         // cjc's order: the condition, its value, then the operator
         if (let Some(values) <- builtinValues(name) && !values.contains(text)) {
-            return invalid(it.syntax,
-                "builtin condition '${name}' do not support '${text}', supported listed: '${String.join(values, delimiter: " ")}'")
+            return invalid(
+                it.syntax,
+                "builtin condition '${name}' do not support '${text}', supported listed: '${String.join(values, delimiter: " ")}'"
+            )
         }
         if (name == CJC_VERSION && !isVersionLiteral(text)) {
             return invalid(it.syntax, "cjc version's format should be 'xx.xx.xx'")
         }
         if (let Some(ops) <- builtinOps(name) && !ops.contains(op)) {
-            return invalid(it.syntax, "conditional compilation '${name}' not support this op '${op}'")
+            return invalid(
+                it.syntax,
+                "conditional compilation '${name}' not support this op '${op}'"
+            )
         }
         CfgCompare(name, op, text)
     }
@@ -345,10 +383,11 @@ public func cfgOfFile(db: AnalysisDatabase, file: SourceFile): Cfg {
     let fileId = file.fileId(db)
     for (module in project.modules(db)) {
         for (pkg in module.packages(db) where pkg.files(db).contains(fileId)) {
-            let ofModule = match (module.cfg(db)) {
-                case Some(own) => own
-                case None => project.cfg(db)
-            }
+            let ofModule =
+                match (module.cfg(db)) {
+                    case Some(own) => own
+                    case None => project.cfg(db)
+                }
             return match (pkg.cfg(db)) {
                 case Some(own) => ofModule.overriddenBy(own)
                 case None => ofModule
@@ -366,28 +405,44 @@ public func cfgOfFile(db: AnalysisDatabase, file: SourceFile): Cfg {
 @CalcaTracked
 public func activeItemTree(db: AnalysisDatabase, file: SourceFile): ItemTree {
     let tree = itemTree(db, file)
-    if (!tree.imports.iterator().any {one => one.condition.isSome()} && !hasConditions(tree.items)) {
+    if (
+        !tree.imports.iterator().any { one => one.condition.isSome() } && !hasConditions(tree.items)
+    ) {
         return tree
     }
     let cfg = cfgOfFile(db, file)
-    ItemTree(packageHeader: tree.packageHeader,
-        imports: tree.imports.filter {one => one.condition.map {it => it.isActive(cfg)} ?? true},
-        items: activeItems(tree.items, cfg))
+    ItemTree(
+        packageHeader: tree.packageHeader,
+        imports: tree
+            .imports
+            .filter { one => one.condition.map { it => it.isActive(cfg) } ?? true },
+        items: activeItems(tree.items, cfg)
+    )
 }
 
 private func hasConditions(items: Array<Item>): Bool {
-    items.iterator().any {item => item.condition.isSome() || hasConditions(item.members)}
+    items.iterator().any { item => item.condition.isSome() || hasConditions(item.members) }
 }
 
 private func activeItems(items: Array<Item>, cfg: Cfg): Array<Item> {
-    items.filter {item => item.condition.map {it => it.isActive(cfg)} ?? true}.map {
-        item => if (hasConditions(item.members)) {
-            Item(item.id, item.names, item.modifiers, item.macros, activeItems(item.members, cfg),
-                condition: item.condition, paramMacros: item.paramMacros)
-        } else {
-            item
+    items
+        .filter { item => item.condition.map { it => it.isActive(cfg) } ?? true }
+        .map {
+            item =>
+            if (hasConditions(item.members)) {
+                Item(
+                    item.id,
+                    item.names,
+                    item.modifiers,
+                    item.macros,
+                    activeItems(item.members, cfg),
+                    condition: item.condition,
+                    paramMacros: item.paramMacros
+                )
+            } else {
+                item
+            }
         }
-    }
 }
 
 /**
@@ -436,7 +491,7 @@ public class ActiveFilter {
      * The filter of `file`: `cfgOfFile`, read at the first `@When`.
      */
     public static func of(db: AnalysisDatabase, file: SourceFile): ActiveFilter {
-        ActiveFilter(Some({=> cfgOfFile(db, file)}))
+        ActiveFilter(Some({ => cfgOfFile(db, file) }))
     }
 }
 
@@ -462,7 +517,10 @@ public struct InactiveCode {
  */
 @Derive[Equatable]
 public struct WhenDiagnostics {
-    public WhenDiagnostics(public let inactive: Array<InactiveCode>, public let errors: Array<WhenError>) {}
+    public WhenDiagnostics(
+        public let inactive: Array<InactiveCode>,
+        public let errors: Array<WhenError>
+    ) {}
 }
 
 /**

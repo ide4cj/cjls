@@ -19,9 +19,14 @@ class LoopTest {
         let loop = Loop(state, DiagnosticsPush(textAsDiagnostic, clientOn(transport), NoopLogger()))
 
         // act
-        loop.start(NoopLogger()) {
-            loop.write {state: ServerState => state.setFileContents(PUSHED_PATH, Rope("written"))}
-        }
+        loop
+            .start(NoopLogger()) {
+                loop
+                    .write {
+                        state: ServerState =>
+                        state.setFileContents(PUSHED_PATH, Rope("written"))
+                    }
+            }
         loop.join()
 
         // assert
@@ -38,14 +43,17 @@ class LoopTest {
         // what setting the state up changed
         state.takeFilesChanged()
         let refreshed = ArrayList<Bool>()
-        let loop = Loop(state, Option<DiagnosticsPush>.None, refreshTokens: {=> refreshed.add(true)})
+        let loop =
+            Loop(state, Option<DiagnosticsPush>.None, refreshTokens: { => refreshed.add(true) })
 
         // act
-        loop.write {
-            state: ServerState => if (changes) {
-                state.setFileContents(PUSHED_PATH, Rope("written"))
+        loop
+            .write {
+                state: ServerState =>
+                if (changes) {
+                    state.setFileContents(PUSHED_PATH, Rope("written"))
+                }
             }
-        }
 
         // assert
         @Expect(refreshed.size, asked)
@@ -60,14 +68,21 @@ class LoopTest {
         // what setting the state up changed
         state.takeFilesChanged()
         let refreshed = ArrayList<Bool>()
-        let loop = Loop(state, Option<DiagnosticsPush>.None, refreshDiagnostics: {=> refreshed.add(true)})
+        let loop =
+            Loop(
+                state,
+                Option<DiagnosticsPush>.None,
+                refreshDiagnostics: { => refreshed.add(true) }
+            )
 
         // act
-        loop.write {
-            state: ServerState => if (changes) {
-                state.setFileContents(PUSHED_PATH, Rope("written"))
+        loop
+            .write {
+                state: ServerState =>
+                if (changes) {
+                    state.setFileContents(PUSHED_PATH, Rope("written"))
+                }
             }
-        }
 
         // assert
         @Expect(refreshed.size, asked)
@@ -80,20 +95,20 @@ class LoopTest {
         let entered = LinkedBlockingQueue<Bool>()
         let release = LinkedBlockingQueue<Bool>()
         let order = LinkedBlockingQueue<String>()
-        loop.start(NoopLogger()) {
-            loop.write {
-                _: ServerState =>
-                entered.add(true)
-                release.remove()
-                order.add("first")
+        loop
+            .start(NoopLogger()) {
+                loop
+                    .write {
+                        _: ServerState =>
+                        entered.add(true)
+                        release.remove()
+                        order.add("first")
+                    }
             }
-        }
         entered.remove()
 
         // act
-        loop.start(NoopLogger()) {
-            loop.write {_: ServerState => order.add("second")}
-        }
+        loop.start(NoopLogger()) { loop.write { _: ServerState => order.add("second") } }
         release.add(true)
         loop.join()
 
@@ -109,9 +124,7 @@ class LoopTest {
         let logger = RecordingLogger()
 
         // act
-        loop.start(logger) {
-            throw IllegalStateException("broken")
-        }
+        loop.start(logger) { throw IllegalStateException("broken") }
         loop.join()
 
         // assert
@@ -127,11 +140,10 @@ class LoopTest {
         let ran = ArrayList<String>()
 
         // act
-        loop.start(NoopLogger()) {
-            loop.start(NoopLogger()) {
-                loop.write {_: ServerState => ran.add("inner")}
+        loop
+            .start(NoopLogger()) {
+                loop.start(NoopLogger()) { loop.write { _: ServerState => ran.add("inner") } }
             }
-        }
         loop.join()
 
         // assert

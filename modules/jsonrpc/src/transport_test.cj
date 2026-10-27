@@ -21,7 +21,7 @@ func framed(payload: Array<Byte>): ByteBuffer {
  */
 func framed(payloads: Array<String>): ByteBuffer {
     let bytes = ByteBuffer()
-    payloads.forEach {payload => bytes.write(readToEnd(framed(payload.toArray())))}
+    payloads.forEach { payload => bytes.write(readToEnd(framed(payload.toArray()))) }
     bytes
 }
 
@@ -67,8 +67,15 @@ class JsonRpcTransportReadTest {
     @TestCase
     func aReadConsumesExactlyOneFrame() {
         // arrange
-        let transport = reading(
-            framed([##"{"jsonrpc":"2.0","id":1,"method":"first"}"##, ##"{"jsonrpc":"2.0","method":"second"}"##]))
+        let transport =
+            reading(
+                framed(
+                    [
+                        ##"{"jsonrpc":"2.0","id":1,"method":"first"}"##,
+                        ##"{"jsonrpc":"2.0","method":"second"}"##
+                    ]
+                )
+            )
 
         // act
         let first = transport.read().getOrThrow()
@@ -95,11 +102,16 @@ class JsonRpcTransportReadTest {
     @TestCase
     func aFrameArrivingInShortReadsIsReassembled() {
         // arrange - larger than the buffered stream's own buffer, so a read has to go past it
-        let payload = "{\"jsonrpc\":\"2.0\",\"method\":\"m\",\"params\":{\"pad\":\"${"x" * 100000}\"}}"
+        let payload =
+            "{\"jsonrpc\":\"2.0\",\"method\":\"m\",\"params\":{\"pad\":\"${"x" * 100000}\"}}"
         let bytes = readToEnd(framed(payload))
 
         // act
-        let note = reading(ChunkedInputStream(bytes, 4096)).read().getOrThrow().getNotificationBodyOrThrow()
+        let note =
+            reading(ChunkedInputStream(bytes, 4096))
+                .read()
+                .getOrThrow()
+                .getNotificationBodyOrThrow()
 
         // assert
         @Expect(100000, fieldOf(note.params, "pad").asString().size)
@@ -146,7 +158,8 @@ class JsonRpcTransportDecodeErrorTest {
     @TestCase
     func aFrameThatDoesNotDecodeLeavesTheStreamInSync() {
         // arrange
-        let transport = reading(framed(["", "not json", "[1,2,3]", ##"{"jsonrpc":"2.0","method":"m"}"##]))
+        let transport =
+            reading(framed(["", "not json", "[1,2,3]", ##"{"jsonrpc":"2.0","method":"m"}"##]))
 
         // act
         @AssertThrows[RpcException](transport.read())
@@ -164,9 +177,19 @@ class JsonRpcTransportSizeLimitTest {
     @TestCase[chunk in [ 1, 3, 4096 ]]
     func aFrameOverTheLimitIsRefusedAndTheNextOneRead(chunk: Int64) {
         // arrange - skipped in short reads too, as a pipe under load hands them out
-        let bytes = readToEnd(framed([##"{"jsonrpc":"2.0","method":"big"}"##, ##"{"jsonrpc":"2.0","method":"m"}"##]))
-        let transport = FramedJsonRpcTransport(ChunkedInputStream(bytes, chunk), ByteBuffer(), getGlobalLogger(),
-            bodyBytesMax: 30)
+        let bytes =
+            readToEnd(
+                framed(
+                    [##"{"jsonrpc":"2.0","method":"big"}"##, ##"{"jsonrpc":"2.0","method":"m"}"##]
+                )
+            )
+        let transport =
+            FramedJsonRpcTransport(
+                ChunkedInputStream(bytes, chunk),
+                ByteBuffer(),
+                getGlobalLogger(),
+                bodyBytesMax: 30
+            )
 
         // act
         let e = @AssertThrows[RpcException](transport.read())
@@ -181,8 +204,13 @@ class JsonRpcTransportSizeLimitTest {
     @TestCase
     func aFrameAtTheLimitIsRead() {
         // arrange
-        let transport = FramedJsonRpcTransport(framed(##"{"jsonrpc":"2.0","method":"m"}"##), ByteBuffer(),
-            getGlobalLogger(), bodyBytesMax: 30)
+        let transport =
+            FramedJsonRpcTransport(
+                framed(##"{"jsonrpc":"2.0","method":"m"}"##),
+                ByteBuffer(),
+                getGlobalLogger(),
+                bodyBytesMax: 30
+            )
 
         // act
         let note = transport.read().getOrThrow().getNotificationBodyOrThrow()

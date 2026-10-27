@@ -51,7 +51,15 @@ public struct MappedText {
      * Text all of which comes from the source at `origin`, relative to the top-level item, as one span.
      */
     public static func fromSource(text: String, origin: Int64): MappedText {
-        MappedText(text, [MappedSpan(TextRange.at(0, text.size), SpanOrigin.FromSource(TextRange.at(origin, text.size)))])
+        MappedText(
+            text,
+            [
+                MappedSpan(
+                    TextRange.at(0, text.size),
+                    SpanOrigin.FromSource(TextRange.at(origin, text.size))
+                )
+            ]
+        )
     }
 
     /**
@@ -145,8 +153,8 @@ public struct MacroOutput {
      */
     public func after(previous: ?MacroOutput): MacroOutput {
         match ((expansion, previous)) {
-            case (None, Some(old)) where old.expansion.isSome() => MacroOutput(fingerprint, old.expansion, old.items,
-                diagnostics)
+            case (None, Some(old)) where old.expansion.isSome() =>
+                MacroOutput(fingerprint, old.expansion, old.items, diagnostics)
             case _ => this
         }
     }
@@ -159,7 +167,11 @@ public struct MacroOutput {
  */
 @Derive[Equatable, Hashable]
 public struct MacroCallKey <: ToString {
-    public MacroCallKey(public let item: String, public let index: Int64, public let inBody!: ?String = None) {}
+    public MacroCallKey(
+        public let item: String,
+        public let index: Int64,
+        public let inBody!: ?String = None
+    ) {}
 
     public func toString(): String {
         match (inBody) {

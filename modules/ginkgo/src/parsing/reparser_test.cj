@@ -74,7 +74,8 @@ class ReparserTest {
         let before = toyParse(text)
 
         // act
-        let after = toyReparser().reparse(before, TextRange.empty(text.indexOf("4").getOrThrow()), "5 + ")
+        let after =
+            toyReparser().reparse(before, TextRange.empty(text.indexOf("4").getOrThrow()), "5 + ")
 
         // assert
         @Expect(after.isNone())

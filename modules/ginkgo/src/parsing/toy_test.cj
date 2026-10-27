@@ -110,37 +110,38 @@ func toyLex(text: String): Lexed<Toy> {
     while (i < bytes.size) {
         let start = i
         let b = bytes[i]
-        let kind = if (b >= b'0' && b <= b'9') {
-            while (i < bytes.size && bytes[i] >= b'0' && bytes[i] <= b'9') {
+        let kind =
+            if (b >= b'0' && b <= b'9') {
+                while (i < bytes.size && bytes[i] >= b'0' && bytes[i] <= b'9') {
+                    i++
+                }
+                Num
+            } else if (b == b' ') {
+                while (i < bytes.size && bytes[i] == b' ') {
+                    i++
+                }
+                Ws
+            } else if (b == b'\n') {
+                while (i < bytes.size && bytes[i] == b'\n') {
+                    i++
+                }
+                Newline
+            } else if (b == b'#') {
+                while (i < bytes.size && bytes[i] != b'\n') {
+                    i++
+                }
+                Comment
+            } else {
                 i++
+                match (b) {
+                    case b'+' => Plus
+                    case b'*' => Star
+                    case b'>' => Gt
+                    case b'(' => LParen
+                    case b')' => RParen
+                    case _ => Bad
+                }
             }
-            Num
-        } else if (b == b' ') {
-            while (i < bytes.size && bytes[i] == b' ') {
-                i++
-            }
-            Ws
-        } else if (b == b'\n') {
-            while (i < bytes.size && bytes[i] == b'\n') {
-                i++
-            }
-            Newline
-        } else if (b == b'#') {
-            while (i < bytes.size && bytes[i] != b'\n') {
-                i++
-            }
-            Comment
-        } else {
-            i++
-            match (b) {
-                case b'+' => Plus
-                case b'*' => Star
-                case b'>' => Gt
-                case b'(' => LParen
-                case b')' => RParen
-                case _ => Bad
-            }
-        }
         lexed.push(kind, i - start)
         if (kind == Bad) {
             lexed.error("unknown character")
@@ -175,7 +176,7 @@ func toyRoot(p: Parser<Toy>): Unit {
 
 func toyInput(lexed: Lexed<Toy>): Input<Toy> {
     let trivia = ToyTrivia()
-    lexed.toInput({k => trivia.isTrivia(k)}, {k => k == Newline})
+    lexed.toInput({ k => trivia.isTrivia(k) }, { k => k == Newline })
 }
 
 func toyParser(lexed: Lexed<Toy>): Parser<Toy> {
@@ -183,26 +184,28 @@ func toyParser(lexed: Lexed<Toy>): Parser<Toy> {
 }
 
 func toyExpr(p: Parser<Toy>, minPower: Int64): Unit {
-    var lhs = if (p.at(Num)) {
-        let m = p.start()
-        p.bump(Num)
-        m.complete(p, Lit)
-    } else if (p.at(LParen)) {
-        toyGroup(p)
-    } else {
-        p.errAndBump("expected a number")
-        return
-    }
-    while (true) {
-        let (power, op, n) = if (p.at(Star)) {
-            (3, Star, 1)
-        } else if (p.at(Plus)) {
-            (2, Plus, 1)
-        } else if (p.atComposite([Gt, Gt])) {
-            (1, Shr, 2)
+    var lhs =
+        if (p.at(Num)) {
+            let m = p.start()
+            p.bump(Num)
+            m.complete(p, Lit)
+        } else if (p.at(LParen)) {
+            toyGroup(p)
         } else {
+            p.errAndBump("expected a number")
             return
         }
+    while (true) {
+        let (power, op, n) =
+            if (p.at(Star)) {
+                (3, Star, 1)
+            } else if (p.at(Plus)) {
+                (2, Plus, 1)
+            } else if (p.atComposite([Gt, Gt])) {
+                (1, Shr, 2)
+            } else {
+                return
+            }
         if (power <= minPower) {
             return
         }

@@ -9,18 +9,27 @@ import loupe.fixture.*
  */
 func checkDiagnostics(fixture: String, binaries!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
+    let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let actual = ArrayList<Annotation>()
     for (file in parsed.files) {
-        actual.add(all: diagnostics(db, file.fileId).map {
-            diagnostic =>
-            let severity = match (diagnostic.severity) {
-                case Error => "error"
-                case Warning => "warning"
-                case Hint => "hint"
-            }
-            Annotation(file.fileId, diagnostic.range, "${severity}: ${diagnostic.message}")
-        })
+        actual
+            .add(
+                all: diagnostics(db, file.fileId)
+                    .map {
+                        diagnostic =>
+                        let severity =
+                            match (diagnostic.severity) {
+                                case Error => "error"
+                                case Warning => "warning"
+                                case Hint => "hint"
+                            }
+                        Annotation(
+                            file.fileId,
+                            diagnostic.range,
+                            "${severity}: ${diagnostic.message}"
+                        )
+                    }
+            )
     }
     expectAnnotations(fixture, actual.toArray())
 }
@@ -31,13 +40,28 @@ func checkDiagnostics(fixture: String, binaries!: Array<String> = []): Unit {
  */
 func checkSymbols(fixture: String, query: String): Unit {
     let parsed = Fixture.parse(fixture)
-    let found = workspaceSymbols(parsed.database(), parsed.files.map {file => file.fileId}, query, Int64.Max)
-    expectAnnotations(fixture, found.map {
-        found =>
-        let container = match (found.symbol.containerName) {
-            case Some(name) => " in ${name}"
-            case None => ""
-        }
-        Annotation(found.fileId, found.symbol.selectionRange, "${found.symbol.kind}${container}")
-    })
+    let found =
+        workspaceSymbols(
+            parsed.database(),
+            parsed.files.map { file => file.fileId },
+            query,
+            Int64.Max
+        )
+    expectAnnotations(
+        fixture,
+        found
+            .map {
+                found =>
+                let container =
+                    match (found.symbol.containerName) {
+                        case Some(name) => " in ${name}"
+                        case None => ""
+                    }
+                Annotation(
+                    found.fileId,
+                    found.symbol.selectionRange,
+                    "${found.symbol.kind}${container}"
+                )
+            }
+    )
 }

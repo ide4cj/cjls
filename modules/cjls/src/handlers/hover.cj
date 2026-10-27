@@ -19,10 +19,16 @@ func handleHover(snap: ServerSnapshot, params: HoverParams): Nullable<Hover> {
         return hoverInView(snap, view, params.position)
     }
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
-    let hover = hoverAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position)) ??
-        return Nullable.Null
+    let hover =
+        hoverAt(snap.analysis, file.fileId(snap.analysis), offsetOf(snap, file, params.position)) ??
+            return Nullable.Null
     let text = file.text(snap.analysis)
-    Nullable.Value(Hover(contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
-        hoverContent(hover, snap.hoverMarkdown)),
-        range: lspRange(text, hover.range.start, hover.range.end, snap.encoding)))
+    Nullable
+        .Value(
+            Hover(
+                contents: MarkupContentOrMarkedStringOrMarkedStrings
+                    .AsMarkupContent(hoverContent(hover, snap.hoverMarkdown)),
+                range: lspRange(text, hover.range.start, hover.range.end, snap.encoding)
+            )
+        )
 }

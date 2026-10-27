@@ -19,11 +19,7 @@ func label(db: TestDb, file: SourceFile): String {
 @CalcaTracked
 func label(db: TestDb, mode: Mode): String {
     db.log("label(${mode})")
-    if (mode.cyclic(db)) {
-        "cyclic"
-    } else {
-        "plain"
-    }
+    if (mode.cyclic(db)) { "cyclic" } else { "plain" }
 }
 
 @CalcaTracked
@@ -69,8 +65,16 @@ class OverloadTest {
         let mode = Mode(db, true)
 
         // act
-        let results = [label(db), label(db, file), label(db, mode), label(db, file, 2), label(db, mode, 2),
-            label(db, Some(1)), label(db, Some("x"))]
+        let results =
+            [
+                label(db),
+                label(db, file),
+                label(db, mode),
+                label(db, file, 2),
+                label(db, mode, 2),
+                label(db, Some(1)),
+                label(db, Some("x"))
+            ]
 
         // assert
         @Expect(results, ["none", "a.cj", "cyclic", "a.", "cy", "Some(1)", "x"])

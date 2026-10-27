@@ -10,17 +10,21 @@ const BENCH_READERS = 4
 
 const BENCH_READS_PER_READER = 1000
 
-let BENCH_INTERNED = Array<VfsPath>(BENCH_PATH_COUNT) {
-    i => VfsPath.file(getTempDirectory().join("src/file_${i}.cj").toString())
-}
-
-let BENCH_INTERNER = {=>
-    let interner = PathInterner()
-    for (path in BENCH_INTERNED) {
-        interner.intern(path)
+let BENCH_INTERNED =
+    Array<VfsPath>(BENCH_PATH_COUNT) {
+        i =>
+        VfsPath.file(getTempDirectory().join("src/file_${i}.cj").toString())
     }
-    interner
-}()
+
+let BENCH_INTERNER =
+    {
+        =>
+        let interner = PathInterner()
+        for (path in BENCH_INTERNED) {
+            interner.intern(path)
+        }
+        interner
+    }()
 
 let BENCH_UNSEEN = VfsPath.file(getTempDirectory().join("src/unseen.cj").toString())
 
@@ -59,17 +63,23 @@ class PathInternerBench {
      */
     @Bench
     func lookUpFromSeveralThreads(): Int64 {
-        let readers = Array(BENCH_READERS) {
-            reader => spawn {
-                var found = 0
-                for (i in 0..BENCH_READS_PER_READER) {
-                    if (BENCH_INTERNER.lookup(BENCH_INTERNED[(i + reader) % BENCH_PATH_COUNT]).isSome()) {
-                        found++
+        let readers =
+            Array(BENCH_READERS) {
+                reader =>
+                spawn {
+                    var found = 0
+                    for (i in 0..BENCH_READS_PER_READER) {
+                        if (
+                            BENCH_INTERNER
+                                .lookup(BENCH_INTERNED[(i + reader) % BENCH_PATH_COUNT])
+                                .isSome()
+                        ) {
+                            found++
+                        }
                     }
+                    found
                 }
-                found
             }
-        }
-        readers.iterator().fold(0) {sum, reader => sum + reader.get()}
+        readers.iterator().fold(0) { sum, reader => sum + reader.get() }
     }
 }

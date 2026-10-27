@@ -1,4 +1,4 @@
-features { user.platform.posix, os.linux }
+features {user.platform.posix, os.linux}
 package platform
 
 import std.fs.Path

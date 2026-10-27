@@ -13,7 +13,8 @@ class PathExpansionTest {
         let home = getTempDirectory().join("user name").toString()
         let problems = ArrayList<String>()
         for (key in ["HOME", "USERPROFILE"]) {
-            let env: (String) -> ?String = {name: String => if (name == key) { Some(home) } else { None }}
+            let env: (String) -> ?String =
+                { name: String => if (name == key) { Some(home) } else { None } }
             @Expect(expandPath("~", env, problems), home)
             @Expect(expandPath("~/sdk", env, problems), getTempDirectory().join("user name").join("sdk").toString())
         }
@@ -25,12 +26,16 @@ class PathExpansionTest {
     @TestCase
     func valuesAreInsertedOnceAndNamesHaveShellBoundaries() {
         let problems = ArrayList<String>()
-        let env: (String) -> ?String = {name: String => match (name) {
-            case "ROOT" => Some("~/with $LITERAL")
-            case "ROOT_2" => Some("two")
-            case "EMPTY" => Some("")
-            case _ => None
-        }}
+        let env: (String) -> ?String =
+            {
+                name: String =>
+                match (name) {
+                    case "ROOT" => Some("~/with $LITERAL")
+                    case "ROOT_2" => Some("two")
+                    case "EMPTY" => Some("")
+                    case _ => None
+                }
+            }
         @Expect(expandPath("$ROOT/\${ROOT_2}/$EMPTY", env, problems), "~/with $LITERAL/two/")
         @Expect(expandPath("\${ROOT}/$ROOT_2", env, problems), "~/with $LITERAL/two")
         @Expect(expandPath("目录/$ROOT_2/файл", env, problems), "目录/two/файл")
@@ -42,7 +47,11 @@ class PathExpansionTest {
     func projectPathsUseTheSameExpansionAndKeepRelativePaths() {
         let base = VfsPath.file(getTempDirectory()).join("project")
         let home = VfsPath.file(getTempDirectory()).join("home")
-        let loading = Loading({name: String => if (name == "HOME") { Some(home.toString()) } else { None }}, hostCfg())
+        let loading =
+            Loading(
+                { name: String => if (name == "HOME") { Some(home.toString()) } else { None } },
+                hostCfg()
+            )
         @Expect(loading.resolve(base, "~/src"), home.join("src"))
         @Expect(loading.resolve(base, "$HOME/src"), home.join("src"))
         @Expect(loading.resolve(base, "\${HOME}/src"), home.join("src"))

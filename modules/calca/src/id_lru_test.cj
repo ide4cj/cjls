@@ -43,7 +43,7 @@ class IdLruTest {
         let evicted = ArrayList<Int64>()
 
         // act
-        lru.trim {id => evicted.add(id.index)}
+        lru.trim { id => evicted.add(id.index) }
 
         // assert
         @Expect([1, 2], evicted.toArray())
@@ -56,7 +56,7 @@ class IdLruTest {
         // arrange
         let lru = IdLru(0)
         touch(lru, [4])
-        lru.trim {_ => ()}
+        lru.trim { _ => () }
 
         // act
         touch(lru, [2, 4])
@@ -115,6 +115,6 @@ class IdLruTest {
     }
 
     private func indices(lru: IdLru): Array<Int64> {
-        collectArray(lru).map {id => id.index}
+        collectArray(lru).map { id => id.index }
     }
 }

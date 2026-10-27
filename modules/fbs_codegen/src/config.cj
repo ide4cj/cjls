@@ -13,13 +13,17 @@ struct Config {
     Config(
         let schema!: String,
         let output!: String,
-        @Serde[rename: "package"] let packageName!: String,
+        @Serde[rename: "package"]
+        let packageName!: String,
         // enums whose reader takes a value it does not know as `Unknown(value)`; the others throw on one
-        @Serde[rename: "open"] let openEnums!: ?Array<String> = None,
+        @Serde[rename: "open"]
+        let openEnums!: ?Array<String> = None,
         // Cangjie names for declarations (`Generic`) or enum members (`TypeKind.Generic`) of the schema
-        @Serde[rename: "rename"] let renames!: ?HashMap<String, String> = None,
+        @Serde[rename: "rename"]
+        let renames!: ?HashMap<String, String> = None,
         // fields (`Decl.attributes`) read through a hand-written type, whose constructor takes the field's value
-        @Serde[rename: "wrap"] let wraps!: ?HashMap<String, String> = None,
+        @Serde[rename: "wrap"]
+        let wraps!: ?HashMap<String, String> = None,
         // a `<Name>Data` to write for each declaration but an enum, besides the views
         let write!: ?Bool = None
     ) {}
@@ -67,11 +71,7 @@ struct Inputs {
 
     static func load(path: Path): Inputs {
         let config = fromTomlBytes<Config>(File.readFrom(path))
-        let dir = if (path.parent.isEmpty()) {
-            Path(".")
-        } else {
-            path.parent
-        }
+        let dir = if (path.parent.isEmpty()) { Path(".") } else { path.parent }
         let schema = parseSchema(String.fromUtf8(File.readFrom(dir.join(config.schema))))
         Inputs(dir: dir, config: config, schema: schema)
     }

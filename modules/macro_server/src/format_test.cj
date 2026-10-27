@@ -12,34 +12,41 @@ class FormatTest {
     @TestCase
     func aCallIsReadBackAsItWasWritten(): Unit {
         // arrange
-        let call = MacroCallData(
-            id: IdInfoData(name: "Derive", pos: position(1, 2)),
-            hasAttrs: true,
-            args: [TokenData(kind: 7, value: "x", begin: position(2, 1), end: position(2, 2))],
-            attrs: [TokenData(kind: 8, value: "ToString", delimiterNum: 1)],
-            parentNames: ["Outer"],
-            childMsges: [
-                ChildMsgData(
-                    childName: "Inner",
-                    items: [
-                        ItemInfoData(key: "n", value: OptionValueData.AsIValue(IntValueData(val: -5))),
-                        ItemInfoData(key: "s", value: OptionValueData.AsSValue("text"))
-                    ]
-                )
-            ],
-            methodName: "macroCall_a_Derive_std_deriving",
-            packageName: "std.deriving",
-            libPath: "/sdk/libcangjie-std-deriving.so",
-            begin: position(1, 1),
-            end: position(3, 2)
-        )
-        let bytes = MacroMsgData(content: MsgContentData.AsMultiCalls(MultiMacroCallsData(calls: [call]))).toBytes()
+        let call =
+            MacroCallData(
+                id: IdInfoData(name: "Derive", pos: position(1, 2)),
+                hasAttrs: true,
+                args: [TokenData(kind: 7, value: "x", begin: position(2, 1), end: position(2, 2))],
+                attrs: [TokenData(kind: 8, value: "ToString", delimiterNum: 1)],
+                parentNames: ["Outer"],
+                childMsges: [
+                    ChildMsgData(
+                        childName: "Inner",
+                        items: [
+                            ItemInfoData(
+                                key: "n",
+                                value: OptionValueData.AsIValue(IntValueData(val: -5))
+                            ),
+                            ItemInfoData(key: "s", value: OptionValueData.AsSValue("text"))
+                        ]
+                    )
+                ],
+                methodName: "macroCall_a_Derive_std_deriving",
+                packageName: "std.deriving",
+                libPath: "/sdk/libcangjie-std-deriving.so",
+                begin: position(1, 1),
+                end: position(3, 2)
+            )
+        let bytes =
+            MacroMsgData(content: MsgContentData.AsMultiCalls(MultiMacroCallsData(calls: [call])))
+                .toBytes()
 
         // act
-        let read = match (MacroMsg.root(bytes).content) {
-            case Some(MsgContent.AsMultiCalls(m)) => m.calls[0]
-            case _ => throw IllegalStateException("no multiCalls")
-        }
+        let read =
+            match (MacroMsg.root(bytes).content) {
+                case Some(MsgContent.AsMultiCalls(m)) => m.calls[0]
+                case _ => throw IllegalStateException("no multiCalls")
+            }
 
         // assert
         @Expect(read.id?.name, Some("Derive"))
@@ -79,13 +86,23 @@ class FormatTest {
     @TestCase
     func aDefaultScalarIsNotStoredAndReadsAsItsDefault(): Unit {
         // arrange
-        let bytes = MacroMsgData(content: MsgContentData.AsMultiCalls(MultiMacroCallsData(calls: [MacroCallData(args: [TokenData(delimiterNum: 1)])]))).toBytes()
+        let bytes =
+            MacroMsgData(
+                content: MsgContentData
+                    .AsMultiCalls(
+                        MultiMacroCallsData(
+                            calls: [MacroCallData(args: [TokenData(delimiterNum: 1)])]
+                        )
+                    )
+            )
+                .toBytes()
 
         // act
-        let token = match (MacroMsg.root(bytes).content) {
-            case Some(MsgContent.AsMultiCalls(m)) => m.calls[0].args[0]
-            case _ => throw IllegalStateException("no multiCalls")
-        }
+        let token =
+            match (MacroMsg.root(bytes).content) {
+                case Some(MsgContent.AsMultiCalls(m)) => m.calls[0].args[0]
+                case _ => throw IllegalStateException("no multiCalls")
+            }
 
         // assert
         @Expect(token.fb.offset(4), 0)

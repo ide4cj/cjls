@@ -10,7 +10,8 @@ class ConstructorDefinitionTest {
         let (argument, index) = row
         let intTarget = if (index == 0) { "//  ^^^^ def" } else { "" }
         let boolTarget = if (index == 1) { "//  ^^^^ def" } else { "" }
-        checkDefinition("""
+        checkDefinition(
+            """
             //- /main.cj module=m package=m
             package m
             class C {
@@ -20,12 +21,14 @@ class ConstructorDefinitionTest {
             ${boolTarget}
             }
             func f() { $0C(${argument}) }
-            """)
+            """
+        )
     }
 
     @TestCase
     func aSingleConstructorIsRecordedToo() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct C {
@@ -33,12 +36,14 @@ class ConstructorDefinitionTest {
             //  ^^^^ def
             }
             func f() { $0C(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrimaryConstructorGoesToItsName() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -46,12 +51,14 @@ class ConstructorDefinitionTest {
             //  ^ def
             }
             func f() { $0C(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aQualifiedGenericCallGoesToItsConstructor() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C<T> {
@@ -63,12 +70,14 @@ class ConstructorDefinitionTest {
             package m
             import m.a
             func f() { a.$0C<Int64>(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasCallGoesToTheUnderlyingConstructor() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -77,23 +86,27 @@ class ConstructorDefinitionTest {
             }
             type A = C
             func f() { $0A(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImplicitConstructorGoesToItsType() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {}
             //    ^ def
             func f() { $0C() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAmbiguousCallGoesToItsType() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -102,12 +115,14 @@ class ConstructorDefinitionTest {
                 init(x: Int16) {}
             }
             func f() { $0C(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCallWithNoMatchingConstructorGoesToItsType() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -116,12 +131,14 @@ class ConstructorDefinitionTest {
                 init(x: Bool) {}
             }
             func f() { $0C(1, 2) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeAnnotationStillGoesToTheType() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -129,12 +146,14 @@ class ConstructorDefinitionTest {
                 init(x: Int64) {}
             }
             func f(x: $0C) {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInitDeclarationGoesToItsType() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -142,24 +161,28 @@ class ConstructorDefinitionTest {
                 init() {}
                 public $0init(x: Int64) {}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrimaryConstructorDeclarationGoesToItsType() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             struct C {
             //     ^ def
                 $0C(x: Int64) {}
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func constructorCallsRemainReferencesToTheType() {
-        checkReferences(#"
+        checkReferences(
+            #"
             //- /main.cj module=m package=m
             package m
             class $0C {
@@ -171,12 +194,14 @@ class ConstructorDefinitionTest {
             //        ^ text
             //             ^ read
             //                   ^ read
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorCallStillHoversTheType() {
-        checkHover(#"
+        checkHover(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -184,16 +209,21 @@ class ConstructorDefinitionTest {
             }
             func f() { $0C(1) }
             //         ^ class C in m
-            "#)
+            "#
+        )
     }
 
     @TestCase[row in [("1", 0), ("true", 1), ("1, true", 2)], qualifier in ["", "E."]]
-    func enumConstructorOverloadsAreChosenByArgumentTypeAndArity(row: (String, Int64), qualifier: String) {
+    func enumConstructorOverloadsAreChosenByArgumentTypeAndArity(
+        row: (String, Int64),
+        qualifier: String
+    ) {
         let (arguments, index) = row
         let intTarget = if (index == 0) { "//    ^ def" } else { "" }
         let boolTarget = if (index == 1) { "//    ^ def" } else { "" }
         let pairTarget = if (index == 2) { "//    ^ def" } else { "" }
-        checkDefinition("""
+        checkDefinition(
+            """
             //- /main.cj module=m package=m
             package m
             enum E {
@@ -205,24 +235,28 @@ class ConstructorDefinitionTest {
             ${pairTarget}
             }
             func f() { ${qualifier}$0C(${arguments}) }
-            """)
+            """
+        )
     }
 
     @TestCase
     func anExpectedEnumTypeChoosesBetweenConstructorsOfDifferentEnums() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             enum A { C(Int64) }
             enum B { C(Int64) }
             //       ^ def
             func f(): B { $0C(1) }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anEnumConstructorDeclarationGoesToItsEnum() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /main.cj module=m package=m
             package m
             enum E {
@@ -230,18 +264,21 @@ class ConstructorDefinitionTest {
                 | C(Int64)
                 | $0C(Bool)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aBinaryConstructorGoesToItsAttachedSource() {
-        checkDefinitionInStd(#"
+        checkDefinitionInStd(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.collection.ArrayList
             func f() { $0ArrayList<Int64>() }
-            "#, ["std.core", "std.collection"],
-            ["collection/array_list.cj: init in `public init() {`"])
+            "#,
+            ["std.core", "std.collection"],
+            ["collection/array_list.cj: init in `public init() {`"]
+        )
     }
-
 }

@@ -52,11 +52,7 @@ class VerifyBench {
     func everyBodyAfterAnUnrelatedEdit(): Int64 {
         let state = VERIFY_BENCH_STATE
         state.edits++
-        state.edited.setText(state.db).to(if (state.edits % 2 == 0) {
-            "a"
-        } else {
-            "b"
-        })
+        state.edited.setText(state.db).to(if (state.edits % 2 == 0) { "a" } else { "b" })
         var sum = 0
         for (at in 0..VERIFY_BENCH_BODIES) {
             sum += benchBody(state.db, at)

@@ -121,8 +121,8 @@ inspection:
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
 
-The Cangjie runtime is linked statically and the server runs without an SDK
-environment; generators still need the SDK because they invoke `cjfmt`. Linux
+The Cangjie runtime is linked statically: the server and generators run without
+an SDK environment. Generators link the same `cjformat` library as the server. Linux
 executables still use system glibc and libstdc++. Release builds use Ubuntu 22.04
 and check the executable in a clean Ubuntu 22.04 container with `libstdc++6`
 installed; a local build on a newer system may require newer system libraries.
@@ -131,6 +131,8 @@ To run the same compatibility check locally (requires Docker):
 ```bash
 bash .github/scripts/check-linux-compat.sh target/release/bin/cjls
 ```
+
+Project formatting policy is documented in [Formatter configuration](formatting.md).
 
 ## Choose checks for a change
 
@@ -197,6 +199,10 @@ target/release/bin/cjls fmt --check .
 python3 scripts/docs.py check
 ```
 
+Use `git blame --ignore-revs-file .git-blame-ignore-revs <file>` to look through
+the repository-wide formatting migration. Keep its recorded hash aligned with
+the final commit if the migration is squash-merged or rebased.
+
 For changes to `scripts/docs.py`, also run:
 
 ```bash
@@ -220,7 +226,9 @@ python3 .github/scripts/coverage.py coverage/coverage.json
 ```
 
 `-g` disables release optimization; never benchmark that build. Coverage excludes
-the `gate`-tagged corpus checks; ordinary full tests retain them.
+the `gate`-tagged corpus checks; ordinary full tests retain them. The formatter's repository/corpus preservation checks
+are gates too: instrumented whole-repository formatting can exceed the per-case
+coverage timeout; focused formatter tests still run under coverage.
 The [coverage reporter](../.github/scripts/coverage.py) defines exclusions for
 generated, macro and test-support code. Its percentage is the project's measure.
 Read uncovered changed lines in `coverage/index.html`. Do not infer correctness
@@ -301,7 +309,7 @@ does not prevent running the generator. Read the relevant module notes first.
 Generator tests compare checked-in output; syntax conformance checks trees
 against the ungrammar. The compiler corpus/oracle harness is not fully checked
 in yet (#114); do not claim it ran from the normal suite. Generator CLI/check
-mode and formatting changes are tracked separately in #112 and #359.
+mode changes remain tracked in #112. Formatting uses the shared library (D150).
 
 ## Toolchain constraints
 

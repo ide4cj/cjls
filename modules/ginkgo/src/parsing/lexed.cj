@@ -22,7 +22,9 @@ public class Lexed<K> where K <: Kind<K> {
     @Frozen
     public func push(kind: K, len: Int64): Unit {
         if (len <= 0 || end + len > text.size) {
-            throw IllegalArgumentException("A token of ${len} bytes at ${end} does not fit a text of ${text.size}")
+            throw IllegalArgumentException(
+                "A token of ${len} bytes at ${end} does not fit a text of ${text.size}"
+            )
         }
         kinds.add(kind)
         starts.add(end)
@@ -85,8 +87,11 @@ public class Lexed<K> where K <: Kind<K> {
      * to ask about: a name that is a keyword in some places only.
      */
     @Frozen
-    public func toInput(isTrivia: (K) -> Bool, isNewline: (K) -> Bool,
-        contextual!: (K, String) -> ?K = {_, _ => None}): Input<K> {
+    public func toInput(
+        isTrivia: (K) -> Bool,
+        isNewline: (K) -> Bool,
+        contextual!: (K, String) -> ?K = { _, _ => None }
+    ): Input<K> {
         let input = Input<K>()
         var afterTrivia = false
         var afterNewline = false
@@ -144,11 +149,7 @@ public class Input<K> where K <: Kind<K> {
 
     @Frozen
     public func contextualKind(i: Int64): ?K {
-        if (i < contextualKinds.size) {
-            contextualKinds[i]
-        } else {
-            None
-        }
+        if (i < contextualKinds.size) { contextualKinds[i] } else { None }
     }
 
     /**

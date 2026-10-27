@@ -47,11 +47,7 @@ extend SourceFile {
 extend Mode {
     @CalcaTracked[cycleResult: fallbackDepth]
     func depth(db: TestDb): Int64 {
-        if (cyclic(db)) {
-            depth(db) + 1
-        } else {
-            0
-        }
+        if (cyclic(db)) { depth(db) + 1 } else { 0 }
     }
 }
 
@@ -156,7 +152,12 @@ class MethodTest {
         let b = SourceFile(db, "b.cj", "hi")
 
         // act
-        let results = [SourceFile.totalSize(db, a, b), SourceFile.totalSize(db, a, b), SourceFile.totalSize(db, b, a)]
+        let results =
+            [
+                SourceFile.totalSize(db, a, b),
+                SourceFile.totalSize(db, a, b),
+                SourceFile.totalSize(db, b, a)
+            ]
 
         // assert
         @Expect(results, [7, 7, 7])

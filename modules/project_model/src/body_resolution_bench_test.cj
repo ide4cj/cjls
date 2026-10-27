@@ -10,7 +10,10 @@ import loupe.hir.*
  * Each name used in a body of the workspace that resolves to nothing, or to an ambiguity, by
  * `onFailed`; how many do resolve. A name after a `.` is inference's, not counted.
  */
-func resolveEveryBodyName(ws: BenchWorkspace, onFailed!: (SourceFile, DefId, String, BodyResolution) -> Unit = {_, _, _, _ => ()}): Int64 {
+func resolveEveryBodyName(
+    ws: BenchWorkspace,
+    onFailed!: (SourceFile, DefId, String, BodyResolution) -> Unit = { _, _, _, _ => () }
+): Int64 {
     var resolved = 0
     for ((_, file, _) in ws.files) {
         for (def in defsOf(ws, file)) {
@@ -21,7 +24,8 @@ func resolveEveryBodyName(ws: BenchWorkspace, onFailed!: (SourceFile, DefId, Str
                     let resolution = resolveBodyName(ws.db, def, scopes.scopeOf(ExprId(i)), name)
                     match (resolution) {
                         case Values(_) => resolved++
-                        case InFile(Found(_)) | InFile(FoundPackage(_)) | InFile(Ctors(_, _)) => resolved++
+                        case InFile(Found(_)) | InFile(FoundPackage(_)) | InFile(Ctors(_, _)) =>
+                            resolved++
                         case _ => onFailed(file, def, name, resolution)
                     }
                 }

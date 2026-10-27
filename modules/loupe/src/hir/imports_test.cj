@@ -20,9 +20,10 @@ import loupe.vfs.FileId
  */
 func leavesOf(tree: ImportTree, leaves: ArrayList<ImportTree>): Unit {
     match (tree.importTreeList()) {
-        case Some(list) => for (inner in list.importTrees()) {
-            leavesOf(inner, leaves)
-        }
+        case Some(list) =>
+            for (inner in list.importTrees()) {
+                leavesOf(inner, leaves)
+            }
         case None => leaves.add(tree)
     }
 }
@@ -34,10 +35,11 @@ func tightRange(node: CjSyntaxNode): TextRange {
     var range: ?TextRange = None
     for (element in node.descendantsWithTokens()) {
         if (let SyntaxElement.Token(token) <- element && !token.kind.isTrivia()) {
-            range = match (range) {
-                case Some(r) => TextRange(r.start, token.textRange.end)
-                case None => token.textRange
-            }
+            range =
+                match (range) {
+                    case Some(r) => TextRange(r.start, token.textRange.end)
+                    case None => token.textRange
+                }
         }
     }
     range.getOrThrow()
@@ -48,7 +50,7 @@ func tightRange(node: CjSyntaxNode): TextRange {
  */
 func declaredName(db: AnalysisDatabase, def: DefId): String {
     let tree = itemTreeOf(db, def.file(db))
-    tree.items.iterator().filter {item => item.id == def.item(db)}.next().getOrThrow().names[0]
+    tree.items.iterator().filter { item => item.id == def.item(db) }.next().getOrThrow().names[0]
 }
 
 /**
@@ -60,7 +62,8 @@ func checkImport(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let file = parsed.files.iterator().filter {file => file.fileId == cursor.fileId}.next().getOrThrow()
+    let file =
+        parsed.files.iterator().filter { file => file.fileId == cursor.fileId }.next().getOrThrow()
     let source = db.sourceFile(file.fileId).getOrThrow()
     let root = parse(db, source).syntaxNode()
     let ids = itemIdMap(db, source)
@@ -73,24 +76,22 @@ func checkImport(fixture: String): Unit {
             if (cursor.offset < range.start || range.end < cursor.offset) {
                 continue
             }
-            let annotations = match (resolveImport(db, packageOf(db, file), path, importLevelOf(item))) {
-                case ToPackage(name, pkg) => [Annotation(file.fileId, range, "package ${nameOf(db, pkg)} as ${name}")]
-                case ToNames(_, names) =>
-                    let found = ArrayList<Annotation>()
-                    for ((name, defs) in names) {
-                        for (def in defs) {
-                            let own = declaredName(db, def)
-                            let text = if (own == name) {
-                                "def"
-                            } else {
-                                "def as ${name}"
+            let annotations =
+                match (resolveImport(db, packageOf(db, file), path, importLevelOf(item))) {
+                    case ToPackage(name, pkg) =>
+                        [Annotation(file.fileId, range, "package ${nameOf(db, pkg)} as ${name}")]
+                    case ToNames(_, names) =>
+                        let found = ArrayList<Annotation>()
+                        for ((name, defs) in names) {
+                            for (def in defs) {
+                                let own = declaredName(db, def)
+                                let text = if (own == name) { "def" } else { "def as ${name}" }
+                                found.add(annotationOn(db, def, own, text))
                             }
-                            found.add(annotationOn(db, def, own, text))
                         }
-                    }
-                    found.toArray()
-                case Unresolved(error) => [Annotation(file.fileId, range, "error: ${error}")]
-            }
+                        found.toArray()
+                    case Unresolved(error) => [Annotation(file.fileId, range, "error: ${error}")]
+                }
             expectAnnotations(fixture, annotations)
             return
         }
@@ -114,7 +115,8 @@ class ImportsTest {
     @TestCase
     func aNameImportedBringsEveryOverloadOfIt() {
         // N5
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public func f(x: Int64) {}
@@ -124,13 +126,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.a.$0f
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameImportedUnderAnAliasIsBroughtAsTheAlias() {
         // N6
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -138,13 +142,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.a.C as $0D
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPathNamingAPackageBringsThePackageUnderItsLastSegment() {
         // N7
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -152,13 +158,15 @@ class ImportsTest {
             package m
             import m.$0a
             //     ^^^ package m.a as a
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageImportedUnderAnAliasIsBroughtAsTheAlias() {
         // N8
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -166,13 +174,15 @@ class ImportsTest {
             package m
             import m.$0a as z
             //     ^^^^^^^^^^ package m.a as z
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGlobFromAnotherPackageOfTheModuleBringsItsPublicAndProtectedDeclarations() {
         // N10, N2, N3: m is m.a's parent, not its child, so m.a's internal ones are not seen
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class Pub {}
@@ -184,13 +194,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.a.$0*
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGlobFromAPackageUnderTheImportedOneBringsItsInternalDeclarations() {
         // N2
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             class Int {}
@@ -199,13 +211,15 @@ class ImportsTest {
             //- /a/b/b.cj module=m package=m.a.b
             package m.a.b
             import m.a.$0*
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGlobFromAnotherModuleBringsThePublicDeclarationsAlone() {
         // N3, N4
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class Pub {}
@@ -214,12 +228,14 @@ class ImportsTest {
             //- /main.cj module=n package=n deps=m
             package n
             import m.a.$0*
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageOfAModuleNotAmongTheDepsIsNotFound() {
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -227,23 +243,27 @@ class ImportsTest {
             package n
             import m.a.$0X
             //     ^^^^^ error: can not find package 'm.a'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anImportOfAPackageThatIsNotIsAnError() {
-        checkImport(#"
+        checkImport(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.zz.$0*
             //     ^^^^^^ error: can not find package 'm.zz'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameThePackageDoesNotDeclareIsAnErrorAtTheImport() {
         // N35
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -251,13 +271,15 @@ class ImportsTest {
             package m
             import m.a.$0Nope
             //     ^^^^^^^^^^ error: 'Nope' is not accessible in package 'm.a'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorIsNotImportedByItsName() {
         // N38: it comes with its enum
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public enum Color { | Red | Green }
@@ -265,13 +287,15 @@ class ImportsTest {
             package m
             import m.a.$0Red
             //     ^^^^^^^^^ error: 'Red' is not accessible in package 'm.a'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPlainImportIsNotExported() {
         // N11
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -282,13 +306,15 @@ class ImportsTest {
             package m
             import m.b.$0X
             //     ^^^^^ error: 'X' is not accessible in package 'm.b'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInternalReExportIsSeenByAPackageUnderTheReExportingOne() {
         // N11
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -299,13 +325,15 @@ class ImportsTest {
             //- /b/c/c.cj module=m package=m.b.c
             package m.b.c
             import m.b.$0X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInternalReExportIsNotSeenByASiblingPackage() {
         // N11
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -316,26 +344,30 @@ class ImportsTest {
             package m.d
             import m.b.$0X
             //     ^^^^^ error: 'X' is not accessible in package 'm.b'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aReExportOfADeclarationNarrowerThanItBringsNothing() {
         // N37: `public import` of an internal X leaves it out, even in m.a.b itself, silently
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             class X {}
             //- /a/b/b.cj module=m package=m.a.b
             package m.a.b
             public import m.a.$0X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func reExportsChainAcrossPackages() {
         // N28
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -349,13 +381,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.c.$0X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGlobBringsWhatThePackageReExports() {
         // N29
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -368,13 +402,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.b.$0*
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPathIsAPackageBeforeItIsADeclaration() {
         // N30
-        checkImport(#"
+        checkImport(
+            #"
             //- /p/p.cj module=m package=m.p
             package m.p
             public func q(): Int64 { 1 }
@@ -385,13 +421,15 @@ class ImportsTest {
             package m
             import m.p.$0q
             //     ^^^^^ package m.p.q as q
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageIsNotReExported() {
         // N31
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -399,13 +437,15 @@ class ImportsTest {
             package m.b
             public import m.$0a
             //            ^^^ error: imported package name 'm.a' cannot be re-exported
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aReExportUnderAnAliasExportsTheAlias() {
         // N32
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -416,13 +456,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.b.$0Y
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aReExportUnderAnAliasDoesNotExportTheOriginalName() {
         // N32
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -433,13 +475,15 @@ class ImportsTest {
             package m
             import m.b.$0X
             //     ^^^^^ error: 'X' is not accessible in package 'm.b'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageExportsItsOwnDeclarationAndTheOneItReExportsOfOneName() {
         // N33: within m.b its own X shadows the import; its importers get both, an ambiguity at the use
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -452,13 +496,15 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.b.$0X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDeclarationReExportedTwiceIsExportedOnce() {
         // N34
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class X {}
@@ -470,25 +516,29 @@ class ImportsTest {
             //- /main.cj module=m package=m
             package m
             import m.b.$0X
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPackageImportingItselfIsAnError() {
         // N47
-        checkImport(#"
+        checkImport(
+            #"
             //- /b/b.cj module=m package=m.b
             package m.b
             public import m.b.$0*
             //            ^^^^^ error: package 'm.b' should not import itself
             public class X {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func packagesReExportingEachOtherAreACycle() {
         // N36
-        checkImport(#"
+        checkImport(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public import m.b.*
@@ -500,18 +550,23 @@ class ImportsTest {
             package m
             import m.a.$0X
             //     ^^^^^ error: cyclic dependency through 'm.a'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDeclarationAddedToAPackageLeavesTheExportsOfOneReExportingAnotherNameAlone() {
         // arrange
-        let parsed = Fixture.parse(#"
+        let parsed =
+            Fixture
+                .parse(
+                    #"
             //- /a/a.cj module=m package=m.a
             public class X {}
             //- /b/b.cj module=m package=m.b
             public import m.a.X
-            "#)
+            "#
+                )
         let db = parsed.database()
         let b = packageOf(db, parsed.files[1])
         let names = exportedNames(db, b)

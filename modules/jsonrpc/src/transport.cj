@@ -48,8 +48,12 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
     /**
      * @param bodyBytesMax - the largest content read; one over it is skipped and refused
      */
-    public FramedJsonRpcTransport(private let source: InputStream, private let sink: OutputStream,
-        private let logger: Logger, private let bodyBytesMax!: Int64 = BODY_BYTES_MAX) {
+    public FramedJsonRpcTransport(
+        private let source: InputStream,
+        private let sink: OutputStream,
+        private let logger: Logger,
+        private let bodyBytesMax!: Int64 = BODY_BYTES_MAX
+    ) {
         this.input = BufferedInputStream(source)
         this.output = BufferedOutputStream(sink)
     }
@@ -106,8 +110,10 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         if (count > bodyBytesMax) {
             // the length is known, so the stream stays in sync past the content left unread
             skipExactly(count)
-            throw RpcException(ErrorCode.INVALID_REQUEST,
-                "JSON-RPC body size limit exceeded: expected at most ${bodyBytesMax}, got ${count} bytes")
+            throw RpcException(
+                ErrorCode.INVALID_REQUEST,
+                "JSON-RPC body size limit exceeded: expected at most ${bodyBytesMax}, got ${count} bytes"
+            )
         }
         let payload = readExactly(count)
         reader.reset(payload)
@@ -118,9 +124,15 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         } catch (e: FjException) {
             // read in one pass, a message does not say which it failed at: the JSON or the message
             if (!isJson(payload)) {
-                throw RpcException(ErrorCode.PARSE_ERROR, "JSON-RPC content is not valid JSON\nCause: ${e.message}")
+                throw RpcException(
+                    ErrorCode.PARSE_ERROR,
+                    "JSON-RPC content is not valid JSON\nCause: ${e.message}"
+                )
             }
-            throw RpcException(ErrorCode.INVALID_REQUEST, "JSON-RPC content is not a valid message\nCause: ${e.message}")
+            throw RpcException(
+                ErrorCode.INVALID_REQUEST,
+                "JSON-RPC content is not a valid message\nCause: ${e.message}"
+            )
         }
     }
 
@@ -131,7 +143,7 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         if (isClosed()) {
             throw TransportException("JSON-RPC transport is closed")
         }
-        synchronized(writing) {
+        synchronized (writing) {
             writer.clear()
             msg.toJson(writer)
             let payload = writer.bytes()
@@ -165,7 +177,9 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         let readBytes = input.read(res)
 
         if (readBytes < count) {
-            throw TransportException("JSON-RPC content truncated: expected ${count} bytes, got ${readBytes}")
+            throw TransportException(
+                "JSON-RPC content truncated: expected ${count} bytes, got ${readBytes}"
+            )
         }
 
         res
@@ -183,7 +197,9 @@ public class FramedJsonRpcTransport <: JsonRpcTransport {
         while (skipped < count) {
             let readBytes = input.read(chunk[..min(count - skipped, chunk.size)])
             if (readBytes == 0) {
-                throw TransportException("JSON-RPC content truncated: expected ${count} bytes, got ${skipped}")
+                throw TransportException(
+                    "JSON-RPC content truncated: expected ${count} bytes, got ${skipped}"
+                )
             }
             skipped += readBytes
         }

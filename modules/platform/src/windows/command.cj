@@ -1,4 +1,4 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 import std.collection.*
@@ -57,7 +57,7 @@ func quoteWindowsArg(arg: String): String {
  * The command line of `args`, the program first, each quoted as `CommandLineToArgvW` reads it back.
  */
 func windowsCommandLine(args: Array<String>): String {
-    String.join(args.map {a => quoteWindowsArg(a)}, delimiter: " ")
+    String.join(args.map { a => quoteWindowsArg(a) }, delimiter: " ")
 }
 
 /**
@@ -75,11 +75,17 @@ func windowsEnvironment(variables: Array<(String, String)>, libDir: String): Arr
             entries.add((name, value))
         }
     }
-    entries.add(("PATH", match (path) {
-        case Some(p) where !p.isEmpty() => "${libDir};${p}"
-        case _ => libDir
-    }))
-    sort(entries, by: {a, b => a[0].toAsciiUpper().compare(b[0].toAsciiUpper())}, stable: true)
+    entries
+        .add(
+            (
+                "PATH",
+                match (path) {
+                    case Some(p) where !p.isEmpty() => "${libDir};${p}"
+                    case _ => libDir
+                }
+            )
+        )
+    sort(entries, by: { a, b => a[0].toAsciiUpper().compare(b[0].toAsciiUpper()) }, stable: true)
     let block = ArrayList<UInt16>()
     for ((name, value) in entries) {
         block.add(all: utf16("${name}=${value}"))

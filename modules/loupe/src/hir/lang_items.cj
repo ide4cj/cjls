@@ -122,11 +122,17 @@ public func langItem(db: AnalysisDatabase, from: PackageRef, item: LangItem): ?D
         let parent = langItem(db, from, owner) ?? return None
         let members = declItemOf(db, parent)?.members ?? return None
         let file = parent.file(db)
-        return members.iterator().map {member => DefId(db, file, member.id)}.filter {
-            one => one.item(db).kind == item.kind() && isNamed(db, one, item.name())
-        }.next()
+        return members
+            .iterator()
+            .map { member => DefId(db, file, member.id) }
+            .filter { one => one.item(db).kind == item.kind() && isNamed(db, one, item.name()) }
+            .next()
     }
     let core = packageIndex(db).find(item.pkg(), from: from) ?? return None
     let defs = packageExports(db, core).names.get(item.name()) ?? return None
-    defs.iterator().filter {one => one.id.item(db).kind == item.kind()}.next().map {one => one.id}
+    defs
+        .iterator()
+        .filter { one => one.id.item(db).kind == item.kind() }
+        .next()
+        .map { one => one.id }
 }

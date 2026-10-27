@@ -11,14 +11,14 @@ import cjsyntax.{parse, SyntaxKind}
  */
 func first<T>(text: String): T where T <: AstNode<SyntaxKind, T> {
     let root = parse("main() {\n${text}\n}").syntaxNode()
-    root.descendants().filterMap {n => T.cast(n)}.next().getOrThrow()
+    root.descendants().filterMap { n => T.cast(n) }.next().getOrThrow()
 }
 
 /**
  * The first node of `text` that is a `T`, `text` a whole file.
  */
 func declared<T>(text: String): T where T <: AstNode<SyntaxKind, T> {
-    parse(text).syntaxNode().descendants().filterMap {n => T.cast(n)}.next().getOrThrow()
+    parse(text).syntaxNode().descendants().filterMap { n => T.cast(n) }.next().getOrThrow()
 }
 
 func declsOf(text: String): Array<Decl> {
@@ -26,19 +26,23 @@ func declsOf(text: String): Array<Decl> {
 }
 
 func texts<T>(items: Iterator<T>): Array<String> where T <: ToString {
-    collectArray(items.map {i => i.toString()})
+    collectArray(items.map { i => i.toString() })
 }
 
 func text<T>(item: ?T): ?String where T <: ToString {
-    item.map {i => i.toString()}
+    item.map { i => i.toString() }
 }
 
 /**
  * The doc comments of each constructor of the enum `text` declares, in order.
  */
 func enumCtorDocs(text: String): Array<Array<String>> {
-    parse(text).syntaxNode().descendants() |> filter {node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.EnumCtor} |>
-        map {node: SyntaxNode<SyntaxKind> => AnyHasDocComment.cast(node).getOrThrow().docComments().map {t => t.text()}} |>
+    parse(text).syntaxNode().descendants() |>
+        filter { node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.EnumCtor } |>
+        map {
+            node: SyntaxNode<SyntaxKind> =>
+            AnyHasDocComment.cast(node).getOrThrow().docComments().map { t => t.text() }
+        } |>
         collectArray
 }
 
@@ -196,7 +200,8 @@ class AstTest {
     @TestCase
     func aFunctionHasItsNameParametersAndBody() {
         // act
-        let root = parse("public func f<T>(a: Int64, b!: T = x): Unit where T <: A { a }").syntaxNode()
+        let root =
+            parse("public func f<T>(a: Int64, b!: T = x): Unit where T <: A { a }").syntaxNode()
         let sut = SourceFile.cast(root).getOrThrow().decls().next().getOrThrow()
 
         // assert
@@ -214,7 +219,8 @@ class AstTest {
     @TestCase
     func aStatementIsADeclarationOrAnExpression() {
         // act
-        let sut = collectArray(first<IfExpr>("if (a) {\nlet x = 1\nx\n}").then().getOrThrow().stmts())
+        let sut =
+            collectArray(first<IfExpr>("if (a) {\nlet x = 1\nx\n}").then().getOrThrow().stmts())
 
         // assert
         @Expect(sut.size, 2)
@@ -258,7 +264,10 @@ class AstTest {
     @TestCase
     func anOperatorIsNamedByItsTokens() {
         // act
-        let sut = declared<FuncDecl>("class C {\n    operator func [](i: Int64): Int64 { i }\n}").name().getOrThrow()
+        let sut =
+            declared<FuncDecl>("class C {\n    operator func [](i: Int64): Int64 { i }\n}")
+                .name()
+                .getOrThrow()
 
         // assert
         @Expect(sut.text(), "[]")
@@ -267,7 +276,10 @@ class AstTest {
     @TestCase
     func modifiersTellTheVisibilityAndWhatElseIsWritten() {
         // act
-        let sut = declared<FuncDecl>("class C {\n    protected static func f() {}\n}").modifiers().getOrThrow()
+        let sut =
+            declared<FuncDecl>("class C {\n    protected static func f() {}\n}")
+                .modifiers()
+                .getOrThrow()
 
         // assert
         @Expect(sut.visibility().map {t => t.kind}, Some(SyntaxKind.ProtectedKw))
@@ -295,7 +307,12 @@ class AstTest {
         let decls = declsOf("class C {}\nlet x = 1\nextend C {}\nfunc `f`() {}\n")
 
         // act
-        let sut = decls.map {d => AnyHasName.cast(d.syntax).flatMap {it => it.name()}.map {n => n.text()}}
+        let sut =
+            decls
+                .map {
+                    d =>
+                    AnyHasName.cast(d.syntax).flatMap { it => it.name() }.map { n => n.text() }
+                }
 
         // assert
         @Expect(sut, [Some("C"), Some("x"), None, Some("f")])
@@ -314,7 +331,8 @@ class AstTest {
     @TestCase
     func anEnumConstructorHasTheCommentsBeforeItsPipe() {
         // arrange
-        let text = "enum E {\n    /** a */\n    | A\n    // b\n    | /* c */ B(Int64)\n\n    // not\n\n    | C\n}\n"
+        let text =
+            "enum E {\n    /** a */\n    | A\n    // b\n    | /* c */ B(Int64)\n\n    // not\n\n    | C\n}\n"
 
         // act
         let sut = enumCtorDocs(text)
@@ -335,7 +353,10 @@ class AstTest {
     @TestCase
     func anEnumConstructorWithAnAnnotationOrInAMacroCallHasTheCommentsBeforeItsPipe() {
         // act
-        let sut = enumCtorDocs("enum E {\n    // a\n    | @Deprecated A\n    // b\n    | @M B\n    // c\n    | @M[x] @N C\n}\n")
+        let sut =
+            enumCtorDocs(
+                "enum E {\n    // a\n    | @Deprecated A\n    // b\n    | @M B\n    // c\n    | @M[x] @N C\n}\n"
+            )
 
         // assert
         @Expect(sut, [["// a"], ["// b"], ["// c"]])
@@ -347,10 +368,11 @@ class AstTest {
         let call = declsOf("/** outer */\n@A\n// inner\n@B[x]\nclass C {}\n")[0]
 
         // act
-        let sut = match (MacroExpandDecl.cast(call.syntax).flatMap {it => it.decl()}) {
-            case Some(Decl.AsMacroExpandDecl(it)) => it.decl().getOrThrow()
-            case _ => throw Exception("no declaration in two macro calls")
-        }
+        let sut =
+            match (MacroExpandDecl.cast(call.syntax).flatMap { it => it.decl() }) {
+                case Some(Decl.AsMacroExpandDecl(it)) => it.decl().getOrThrow()
+                case _ => throw Exception("no declaration in two macro calls")
+            }
 
         // assert
         @Expect(sut.docComments().map {t => t.text()}, ["/** outer */", "// inner"])
@@ -360,13 +382,19 @@ class AstTest {
     @TestCase
     func aParameterHasTheCommentsRightBeforeItAsItsDocumentationAndThoseBeforeAMacroCallOnIt() {
         // arrange
-        let text = "struct S {\n    S(\n        /** a */\n        let a: Int64,\n        // b\n        @M let b: Int64,\n\n" +
-            "        // not\n\n        c: Int64\n    ) {}\n}\n"
+        let text =
+            "struct S {\n    S(\n        /** a */\n        let a: Int64,\n        // b\n        @M let b: Int64,\n\n" +
+                "        // not\n\n        c: Int64\n    ) {}\n}\n"
 
         // act
-        let sut = parse(text).syntaxNode().descendants() |> filter {node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.Param} |>
-            map {node: SyntaxNode<SyntaxKind> => AnyHasDocComment.cast(node).getOrThrow().docComments().map {t => t.text()}} |>
-            collectArray
+        let sut =
+            parse(text).syntaxNode().descendants() |>
+                filter { node: SyntaxNode<SyntaxKind> => node.kind == SyntaxKind.Param } |>
+                map {
+                    node: SyntaxNode<SyntaxKind> =>
+                    AnyHasDocComment.cast(node).getOrThrow().docComments().map { t => t.text() }
+                } |>
+                collectArray
 
         // assert
         @Expect(sut, [["/** a */"], ["// b"], Array<String>()])
@@ -375,10 +403,13 @@ class AstTest {
     @TestCase
     func theParametersWrittenAreThoseOfTheListAndThoseInMacroCallsInOrder() {
         // arrange
-        let list = declared<ParamList>("struct S {\n    S(let a: Int64, @M let b: Int64, @A[x] @B let c: Int64, d: Int64) {}\n}\n")
+        let list =
+            declared<ParamList>(
+                "struct S {\n    S(let a: Int64, @M let b: Int64, @A[x] @B let c: Int64, d: Int64) {}\n}\n"
+            )
 
         // act
-        let sut = list.writtenParams().map {param => param.name()?.text() ?? "_"}
+        let sut = list.writtenParams().map { param => param.name()?.text() ?? "_" }
 
         // assert
         @Expect(sut, ["a", "b", "c", "d"])

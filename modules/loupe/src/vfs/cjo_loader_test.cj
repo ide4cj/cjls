@@ -9,7 +9,10 @@ import std.unittest.testmacro.*
  * The bytes of `<name>.cjo` of the SDK's std, of whichever target it has first.
  */
 func sdkCjo(name: String): Array<Byte> {
-    let home = Path(getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK"))
+    let home =
+        Path(
+            getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+        )
     for (target in Directory.readFrom(home.join("modules")) where target.isDirectory()) {
         let file = target.path.join("std").join("${name}.cjo")
         if (exists(file)) {
@@ -37,7 +40,15 @@ class CjoLoaderTest {
     @TestCase
     func everyCjoOfADirectoryIsAPackageNamedAsItsFile() {
         // arrange
-        let dir = tree([("std.io.cjo", ""), ("std.core.cjo", ""), ("libstd.core.a", ""), ("sub/std.deep.cjo", "")])
+        let dir =
+            tree(
+                [
+                    ("std.io.cjo", ""),
+                    ("std.core.cjo", ""),
+                    ("libstd.core.a", ""),
+                    ("sub/std.deep.cjo", "")
+                ]
+            )
 
         // act
         let files = cjoFilesIn("std", VfsPath.file(dir))
@@ -83,7 +94,7 @@ class CjoLoaderTest {
         let stamp = readCjoFiles([file]).files[0].stamp
 
         // act
-        let read = readCjoFiles([file], unchanged: {_, now => now == stamp})
+        let read = readCjoFiles([file], unchanged: { _, now => now == stamp })
         remove(dir, recursive: true)
 
         // assert
@@ -127,7 +138,17 @@ class CjoLoaderTest {
     @TestCase
     func aFileThatIsNotThereIsLeftOut() {
         // act
-        let read = readCjoFiles([CjoFile("std", "std.gone", VfsPath.file(getTempDirectory().join("no-such-cjls-dir").join("std.gone.cjo")))])
+        let read =
+            readCjoFiles(
+                [
+                    CjoFile(
+                        "std",
+                        "std.gone",
+                        VfsPath
+                            .file(getTempDirectory().join("no-such-cjls-dir").join("std.gone.cjo"))
+                    )
+                ]
+            )
 
         // assert
         @Expect(read.files.isEmpty())

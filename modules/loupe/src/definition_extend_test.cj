@@ -12,7 +12,8 @@ class ExtendDefinitionTest {
     @TestCase
     func anExtendOfTheBodysPackageOfATypeOfAnother() {
         // N81
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -24,13 +25,15 @@ class ExtendDefinitionTest {
             //              ^ def
             }
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfTheTypesPackageInAFileImportingNothingElse() {
         // N81
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -44,13 +47,15 @@ class ExtendDefinitionTest {
             package m
             import m.a.C
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfNoInterfaceOfAThirdPackageIsNotSeen() {
         // N81
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -67,13 +72,15 @@ class ExtendDefinitionTest {
             import m.b.*
             func g(): Int64 { C.$0e() }
             //                  ^ no definition
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfNoInterfaceOfATypeOfTheLanguageIsSeenInItsPackage() {
         // N81
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             extend Int64 {
@@ -81,14 +88,16 @@ class ExtendDefinitionTest {
             //                     ^^^^^ def
             }
             func g(): Int64 { Int64.$0seven() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfNoInterfaceOfATypeOfTheLanguageIsNotSeenOutsideItsPackage() {
         // N81: cjc's "undeclared identifier 'seven'", a glob of its package or not; only `std.core`'s
         // are seen everywhere (N84)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             extend Int64 {
@@ -100,13 +109,15 @@ class ExtendDefinitionTest {
             import m.a.*
             func g(): Int64 { Int64.$0seven() }
             //                        ^^^^^ no definition
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageThroughTheInterfaceImported() {
         // N82
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -125,13 +136,15 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i.I
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageThroughAGlob() {
         // N82
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -150,13 +163,15 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i.*
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageThroughAnAlias() {
         // N82
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -175,13 +190,15 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i.I as J
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageThroughAPublicImportOfAnotherFile() {
         // N82: a re-export is seen in every file of the package (N11)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -202,13 +219,15 @@ class ExtendDefinitionTest {
             package m
             import m.a.C
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageIsNotSeenThroughAnotherFilesImport() {
         // N82
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -229,13 +248,15 @@ class ExtendDefinitionTest {
             import m.a.C
             func g(): Int64 { C.$0e() }
             //                  ^ no definition
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageIsNotSeenWithoutTheInterface() {
         // N82: another name of the interface's package is not enough
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -255,13 +276,15 @@ class ExtendDefinitionTest {
             import m.i.other
             func g(): Int64 { C.$0e() }
             //                  ^ no definition
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfAnInterfacesPackageIsNotSeenThroughASuperInterface() {
         // N82: the interfaces it lists, not those they inherit
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -281,14 +304,16 @@ class ExtendDefinitionTest {
             import m.i.I
             func g(): Int64 { C.$0e() }
             //                  ^ no definition
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfNoInterfaceOfAnExtendSeenThroughOneIsFound() {
         // N82, N80: cjc finds it, then says it "is not a member": only its interfaces' members are
         // accessible, which is checked after the lookup
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -305,13 +330,15 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i.I
             func g(): Int64 { C.$0other() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDefaultMemberOfAnInterfaceAnExtendBrings() {
         // N82: default ones included
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -328,13 +355,15 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i.I
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendSeenThroughASealedInterfaceAGlobImports() {
         // N82, N87: `sealed` is `public`, a glob brings it to a package `internal` does not reach
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -351,13 +380,15 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i.*
             func g(): Int64 { C.$0e() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendOfASuperclassSeenThroughAnInterfaceByThis() {
         // N82, N79: `this` sees the extends of its supertypes the file sees
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public open class C {}
@@ -378,14 +409,16 @@ class ExtendDefinitionTest {
             class D <: C {
                 func g(): Int64 { this.$0e() }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendThroughAnInterfaceOfAPackageImportedByItsName() {
         // cjc's `IsDeclAccessible`: the interface's package imported as `import m.i`, the interface
         // `i.I` seen through it (D53)
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C {}
@@ -404,6 +437,7 @@ class ExtendDefinitionTest {
             import m.a.C
             import m.i
             func g(c: C): Int64 { c.$0e() }
-            "#)
+            "#
+        )
     }
 }

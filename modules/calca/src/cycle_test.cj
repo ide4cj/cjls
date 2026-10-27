@@ -7,11 +7,7 @@ import calca.macros.*
 @CalcaTracked[cycleResult: headFallback]
 func head(db: TestDb, mode: Mode): Int64 {
     db.log("head")
-    if (mode.cyclic(db)) {
-        tail(db, mode) + 1
-    } else {
-        10
-    }
+    if (mode.cyclic(db)) { tail(db, mode) + 1 } else { 10 }
 }
 
 func headFallback(_: TestDb, _: Mode): Int64 {

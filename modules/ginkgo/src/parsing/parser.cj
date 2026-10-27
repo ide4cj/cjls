@@ -60,11 +60,7 @@ public class Parser<K> where K <: Kind<K> {
             throw IllegalStateException("The parser is stuck at token ${pos}")
         }
         let i = pos + n
-        if (i < input.size) {
-            input.kind(i)
-        } else {
-            eof
-        }
+        if (i < input.size) { input.kind(i) } else { eof }
     }
 
     @Frozen
@@ -259,11 +255,7 @@ public class Parser<K> where K <: Kind<K> {
 
     @Frozen
     public func errRecover(message: String, recovery: TokenSet<K>): Unit {
-        if (atAny(recovery) || atEof()) {
-            error(message)
-        } else {
-            errAndBump(message)
-        }
+        if (atAny(recovery) || atEof()) { error(message) } else { errAndBump(message) }
     }
 
     /**

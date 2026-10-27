@@ -79,8 +79,13 @@ public struct ImportedNames {
  * The `ImportedNames` of `imports`, each with its file, made in the package `from`; `implicit`, the globs no line
  * writes (the prelude), after those of their own.
  */
-func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(ItemFile, ImportItem)>,
-    implicit: Array<Glob>, stage: ScopeStage): ImportedNames {
+func collectImports(
+    db: AnalysisDatabase,
+    from: PackageRef,
+    imports: Array<(ItemFile, ImportItem)>,
+    implicit: Array<Glob>,
+    stage: ScopeStage
+): ImportedNames {
     let names = IndexMap<String, ArrayList<Imported>>()
     let ctors = IndexMap<String, ArrayList<DefId>>()
     let globs = ArrayList<Glob>()
@@ -90,10 +95,22 @@ func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(Item
         for (i in 0..item.paths.size) {
             let site = ImportSite(file, item.id, i, level)
             match (targetOf(db, from, item.paths[i], level)) {
-                case PackageOf(name, pkg) => entryOf(names, name).add(Imported(ScopeTarget.OfPackage(pkg), site))
-                case GlobOf(pkg, full) => globs.add(Glob(pkg, relationOf(fromName, full), level, site))
+                case PackageOf(name, pkg) =>
+                    entryOf(names, name).add(Imported(ScopeTarget.OfPackage(pkg), site))
+                case GlobOf(pkg, full) =>
+                    globs.add(Glob(pkg, relationOf(fromName, full), level, site))
                 case NameOf(pkg, pkgName, name, alias) =>
-                    if (let ToNames(_, brought) <- namesOf(db, from, pkg, pkgName, level, (name, alias), stage: stage)) {
+                    if (
+                        let ToNames(_, brought) <- namesOf(
+                            db,
+                            from,
+                            pkg,
+                            pkgName,
+                            level,
+                            (name, alias),
+                            stage: stage
+                        )
+                    ) {
                         for ((each, ids) in brought) {
                             let entry = entryOf(names, each)
                             for (id in ids) {
@@ -109,7 +126,11 @@ func collectImports(db: AnalysisDatabase, from: PackageRef, imports: Array<(Item
         }
     }
     globs.add(all: implicit)
-    ImportedNames(frozen(names) {list => list.toArray()}, frozen(ctors) {list => list.toArray()}, globs.toArray())
+    ImportedNames(
+        frozen(names) { list => list.toArray() },
+        frozen(ctors) { list => list.toArray() },
+        globs.toArray()
+    )
 }
 
 /**
@@ -124,7 +145,11 @@ public func packageImports(db: AnalysisDatabase, pkg: PackageRef): ImportedNames
  * What `pkg` re-exports, the names of the packages they name read at `stage`.
  */
 @CalcaTracked[cycleResult: importsOnCycle]
-public func packageImportsAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): ImportedNames {
+public func packageImportsAt(
+    db: AnalysisDatabase,
+    pkg: PackageRef,
+    stage: ScopeStage
+): ImportedNames {
     let imports = ArrayList<(ItemFile, ImportItem)>()
     for (file in filesOf(db, pkg)) {
         for (item in itemTreeOf(db, file).imports where importLevelOf(item) != Visibility.Private) {
@@ -173,15 +198,21 @@ public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile):
     }
     let from = resolutionPackage(db, pkg)
     let name = pkg.name(db)
-    TEST_IMPORTS |> filterMap {
-        imported: String => packageIndex(db).find(imported, from: from).flatMap {
-            found => if (found == from) {
-                None<Glob>
-            } else {
-                Glob(found, relationOf(name, imported), Visibility.Private, None)
-            }
-        }
-    } |> collectArray
+    TEST_IMPORTS |>
+        filterMap {
+            imported: String =>
+            packageIndex(db)
+                .find(imported, from: from)
+                .flatMap {
+                    found =>
+                    if (found == from) {
+                        None<Glob>
+                    } else {
+                        Glob(found, relationOf(name, imported), Visibility.Private, None)
+                    }
+                }
+        } |>
+        collectArray
 }
 
 /**
@@ -205,13 +236,26 @@ public func fileImports(db: AnalysisDatabase, pkg: Package, file: SourceFile): I
  * `stage`.
  */
 @CalcaTracked
-public func fileImportsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stage: ScopeStage): ImportedNames {
+public func fileImportsAt(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile,
+    stage: ScopeStage
+): ImportedNames {
     let own = ItemFile.Source(file)
-    let imports = activeItemTree(db, file).imports.filter {item => importLevelOf(item) == Visibility.Private}.map {
-        item => (own, item)
-    }
-    let prelude = preludeOf(db, pkg).map {glob => [glob]} ?? []
-    collectImports(db, resolutionPackage(db, pkg), imports, prelude.concat(testImportsOf(db, pkg, file)), stage)
+    let imports =
+        activeItemTree(db, file)
+            .imports
+            .filter { item => importLevelOf(item) == Visibility.Private }
+            .map { item => (own, item) }
+    let prelude = preludeOf(db, pkg).map { glob => [glob] } ?? []
+    collectImports(
+        db,
+        resolutionPackage(db, pkg),
+        imports,
+        prelude.concat(testImportsOf(db, pkg, file)),
+        stage
+    )
 }
 
 /**
@@ -270,8 +314,17 @@ public func importsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Imp
 /**
  * The level of imports of `file`, of `pkg`, the packages it names read at `stage`.
  */
-public func importsAt(db: AnalysisDatabase, pkg: Package, file: SourceFile, stage: ScopeStage): ImportLevel {
-    ImportLevel(fileImportsAt(db, pkg, file, stage), packageImportsAt(db, resolutionPackage(db, pkg), stage), stage: stage)
+public func importsAt(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile,
+    stage: ScopeStage
+): ImportLevel {
+    ImportLevel(
+        fileImportsAt(db, pkg, file, stage),
+        packageImportsAt(db, resolutionPackage(db, pkg), stage),
+        stage: stage
+    )
 }
 
 /**
@@ -358,7 +411,10 @@ func isFunc(target: ScopeTarget, db: AnalysisDatabase): Bool {
  */
 @Derive[Equatable]
 public struct CtorImports {
-    public CtorImports(public let ctors: IndexMap<String, Array<DefId>>, public let globs: Array<Glob>) {}
+    public CtorImports(
+        public let ctors: IndexMap<String, Array<DefId>>,
+        public let globs: Array<Glob>
+    ) {}
 
     /**
      * The constructors named `name`, each once.
@@ -366,8 +422,13 @@ public struct CtorImports {
     public func named(db: AnalysisDatabase, name: String): Array<DefId> {
         let found = ArrayList<DefId>(ctors.get(name) ?? [])
         for (glob in globs) {
-            for (id in visibleOf(packageExports(db, glob.pkg).ctors.get(name) ?? [], glob.relation, glob.level)
-                where !found.contains(id)) {
+            for (
+                id in visibleOf(
+                    packageExports(db, glob.pkg).ctors.get(name) ?? [],
+                    glob.relation,
+                    glob.level
+                ) where !found.contains(id)
+            ) {
                 found.add(id)
             }
         }
@@ -391,10 +452,12 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
     let ctors = IndexMap<String, ArrayList<DefId>>()
     let globs = ArrayList<Glob>()
     let tests = pkg.testFiles(db)
-    let files = pkg.files(db) |> filter {fileId: FileId => ofTests || !tests.contains(fileId)} |>
-        filterMap {fileId => db.sourceFile(fileId)}
-    let levels = (files |> map {file => fileImports(db, pkg, file)} |> collectArray).concat(
-        [packageImports(db, resolutionPackage(db, pkg))])
+    let files =
+        pkg.files(db) |> filter { fileId: FileId => ofTests || !tests.contains(fileId) } |>
+            filterMap { fileId => db.sourceFile(fileId) }
+    let levels =
+        (files |> map { file => fileImports(db, pkg, file) } |> collectArray)
+            .concat([packageImports(db, resolutionPackage(db, pkg))])
     for (names in levels) {
         for ((name, ids) in names.ctors) {
             let entry = entryOf(ctors, name)
@@ -402,13 +465,18 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
                 entry.add(id)
             }
         }
-        for (glob in names.globs where !globs.iterator().any {
-            one => one.pkg == glob.pkg && one.relation == glob.relation && one.level == glob.level
-        }) {
+        for (
+            glob in names.globs where !globs
+                .iterator()
+                .any {
+                    one =>
+                    one.pkg == glob.pkg && one.relation == glob.relation && one.level == glob.level
+                }
+        ) {
             globs.add(Glob(glob.pkg, glob.relation, glob.level, None))
         }
     }
-    CtorImports(frozen(ctors) {list => list.toArray()}, globs.toArray())
+    CtorImports(frozen(ctors) { list => list.toArray() }, globs.toArray())
 }
 
 /**
@@ -418,22 +486,43 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
  * constructors (N45, N46), of the enums any file of the package imports (N73). Functions gather
  * over the first two (N14).
  */
-public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports: ImportLevel, name: String,
-    ns: Namespace, ctorImports!: CtorImports, source!: ?ItemFile = None): Resolution {
-    let own = (defs.names.get(name) ?? []).filter {
-        def => (def.visibility != Visibility.Private || def.id.file(db) == from || Some(def.id.file(db)) == source) && isIn(def.id.item(db).kind, ns)
-    }.map {def => def.id}
+public func lookUpIn(
+    db: AnalysisDatabase,
+    defs: DefMap,
+    from: ItemFile,
+    imports: ImportLevel,
+    name: String,
+    ns: Namespace,
+    ctorImports!: CtorImports,
+    source!: ?ItemFile = None
+): Resolution {
+    let own =
+        (defs.names.get(name) ?? [])
+            .filter {
+                def =>
+                (
+                    def.visibility != Visibility.Private || def.id.file(db) == from ||
+                        Some(def.id.file(db)) == source
+                ) &&
+                    isIn(def.id.item(db).kind, ns)
+            }
+            .map { def => def.id }
     let imported = ArrayList<ScopeTarget>()
-    for (one in imports.names(db, name) where isIn(one.target, db, ns) && !imported.contains(one.target)) {
+    for (
+        one in imports.names(db, name) where isIn(one.target, db, ns) &&
+            !imported.contains(one.target)
+    ) {
         imported.add(one.target)
     }
     if (!own.isEmpty()) {
-        if (!own.iterator().all {id => id.item(db).kind == ItemKind.Func}) {
+        if (!own.iterator().all { id => id.item(db).kind == ItemKind.Func }) {
             return Resolution.Found(own)
         }
         let funcs = ArrayList<DefId>(own)
         for (target in imported) {
-            if (let OfDecl(id) <- target && id.item(db).kind == ItemKind.Func && !funcs.contains(id)) {
+            if (
+                let OfDecl(id) <- target && id.item(db).kind == ItemKind.Func && !funcs.contains(id)
+            ) {
                 funcs.add(id)
             }
         }
@@ -446,20 +535,30 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
         }
     }
     if (imported.size > 1) {
-        if (imported.iterator().all {target => isFunc(target, db)}) {
-            return Resolution.Found(imported.toArray().map {target => match (target) {
-                case OfDecl(id) => id
-                case OfPackage(_) => throw IllegalStateException("a package among functions")
-            }})
+        if (imported.iterator().all { target => isFunc(target, db) }) {
+            return Resolution
+                .Found(
+                    imported
+                        .toArray()
+                        .map {
+                            target =>
+                            match (target) {
+                                case OfDecl(id) => id
+                                case OfPackage(_) =>
+                                    throw IllegalStateException("a package among functions")
+                            }
+                        }
+                )
         }
         return Resolution.Ambiguous(imported.toArray())
     }
     if (ns != Namespace.Values) {
         return Resolution.NotFound
     }
-    let ownCtors = (defs.ctors.get(name) ?? []).filter {
-        def => def.visibility != Visibility.Private || def.id.file(db) == from
-    }.map {def => def.id}
+    let ownCtors =
+        (defs.ctors.get(name) ?? [])
+            .filter { def => def.visibility != Visibility.Private || def.id.file(db) == from }
+            .map { def => def.id }
     let ctorsOfImports = ctorImports.named(db, name)
     if (ownCtors.isEmpty() && ctorsOfImports.isEmpty()) {
         Resolution.NotFound
@@ -473,19 +572,30 @@ public func lookUpIn(db: AnalysisDatabase, defs: DefMap, from: ItemFile, imports
  * every name, and a declaration added to the package runs again only what read a name it changes.
  */
 @CalcaTracked
-public func lookUp(db: AnalysisDatabase, pkg: Package, file: SourceFile, name: String, ns: Namespace): Resolution {
+public func lookUp(
+    db: AnalysisDatabase,
+    pkg: Package,
+    file: SourceFile,
+    name: String,
+    ns: Namespace
+): Resolution {
     // a macro's name among what the files write: what is expanded depends on it (#175)
-    let stage = if (ns == Namespace.Macros) {
-        ScopeStage.Written
-    } else {
-        ScopeStage.Expanded
-    }
+    let stage = if (ns == Namespace.Macros) { ScopeStage.Written } else { ScopeStage.Expanded }
     // constructors are values: a macro's lookup reads none
-    let ctorImports = if (ns == Namespace.Values) {
-        ctorImportsOf(db, pkg, file)
-    } else {
-        CtorImports(IndexMap<String, Array<DefId>>(), [])
-    }
-    lookUpIn(db, defMapAt(db, PackageRef.Source(pkg), stage), resolutionFile(db, file), importsAt(db, pkg, file, stage),
-        name, ns, ctorImports: ctorImports, source: ItemFile.Source(file))
+    let ctorImports =
+        if (ns == Namespace.Values) {
+            ctorImportsOf(db, pkg, file)
+        } else {
+            CtorImports(IndexMap<String, Array<DefId>>(), [])
+        }
+    lookUpIn(
+        db,
+        defMapAt(db, PackageRef.Source(pkg), stage),
+        resolutionFile(db, file),
+        importsAt(db, pkg, file, stage),
+        name,
+        ns,
+        ctorImports: ctorImports,
+        source: ItemFile.Source(file)
+    )
 }

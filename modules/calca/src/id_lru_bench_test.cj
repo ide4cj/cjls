@@ -66,27 +66,15 @@ class HashLru<T> where T <: Hashable & Equatable<T> {
     private func append(slot: Int64): Unit {
         prev[slot] = newest
         next[slot] = NO_ID
-        if (newest == NO_ID) {
-            oldest = slot
-        } else {
-            next[newest] = slot
-        }
+        if (newest == NO_ID) { oldest = slot } else { next[newest] = slot }
         newest = slot
     }
 
     private func unlink(slot: Int64): Unit {
         let before = prev[slot]
         let after = next[slot]
-        if (before == NO_ID) {
-            oldest = after
-        } else {
-            next[before] = after
-        }
-        if (after == NO_ID) {
-            newest = before
-        } else {
-            prev[after] = before
-        }
+        if (before == NO_ID) { oldest = after } else { next[before] = after }
+        if (after == NO_ID) { newest = before } else { prev[after] = before }
     }
 }
 
@@ -132,16 +120,15 @@ class ArenaList<T> {
     }
 
     func popFront(): ?T {
-        if (front == NO_ID) {
-            None
-        } else {
-            release(front)
-        }
+        if (front == NO_ID) { None } else { release(front) }
     }
 
     private func check(handle: (Int64, Int64)): Int64 {
         let (slot, generation) = handle
-        if (slot < 0 || slot >= values.size || generations[slot] != generation || values[slot].isNone()) {
+        if (
+            slot < 0 || slot >= values.size || generations[slot] != generation ||
+                values[slot].isNone()
+        ) {
             throw NoneValueException("${slot}#${generation} is not in the list")
         }
         slot
@@ -175,27 +162,15 @@ class ArenaList<T> {
     private func link(slot: Int64): Unit {
         prev[slot] = back
         next[slot] = NO_ID
-        if (back == NO_ID) {
-            front = slot
-        } else {
-            next[back] = slot
-        }
+        if (back == NO_ID) { front = slot } else { next[back] = slot }
         back = slot
     }
 
     private func unlink(slot: Int64): Unit {
         let before = prev[slot]
         let after = next[slot]
-        if (before == NO_ID) {
-            front = after
-        } else {
-            next[before] = after
-        }
-        if (after == NO_ID) {
-            back = before
-        } else {
-            prev[after] = before
-        }
+        if (before == NO_ID) { front = after } else { next[before] = after }
+        if (after == NO_ID) { back = before } else { prev[after] = before }
     }
 }
 
@@ -286,17 +261,15 @@ class HashLinkedListLru<T> where T <: Hashable & Equatable<T> {
 /**
  * The keys fetched in one revision: 4096 fetches over 256 keys, half of them among the first 64.
  */
-let BENCH_IDS: Array<Id> = {
-    =>
-    let random = Random(42)
-    Array<Id>(4096) {
-        _ => Id(if (random.nextBool()) {
-            random.nextInt64(64)
-        } else {
-            random.nextInt64(256)
-        })
-    }
-}()
+let BENCH_IDS: Array<Id> =
+    {
+        =>
+        let random = Random(42)
+        Array<Id>(4096) {
+            _ =>
+            Id(if (random.nextBool()) { random.nextInt64(64) } else { random.nextInt64(256) })
+        }
+    }()
 
 const BENCH_CAPACITY = 128
 
@@ -314,7 +287,7 @@ class IdLruBench {
             lru.touch(id)
         }
         let evicted = ArrayList<Id>()
-        lru.trim {id => evicted.add(id)}
+        lru.trim { id => evicted.add(id) }
         evicted.size
     }
 
@@ -325,7 +298,7 @@ class IdLruBench {
             lru.touch(id)
         }
         let evicted = ArrayList<Id>()
-        lru.trim {id => evicted.add(id)}
+        lru.trim { id => evicted.add(id) }
         evicted.size
     }
 
@@ -336,7 +309,7 @@ class IdLruBench {
             lru.touch(id)
         }
         let evicted = ArrayList<Id>()
-        lru.trim {id => evicted.add(id)}
+        lru.trim { id => evicted.add(id) }
         evicted.size
     }
 
@@ -347,7 +320,7 @@ class IdLruBench {
             lru.touch(id)
         }
         let evicted = ArrayList<Id>()
-        lru.trim {id => evicted.add(id)}
+        lru.trim { id => evicted.add(id) }
         evicted.size
     }
 
@@ -358,7 +331,7 @@ class IdLruBench {
             lru.touch(id)
         }
         let evicted = ArrayList<Id>()
-        lru.trim {id => evicted.add(id)}
+        lru.trim { id => evicted.add(id) }
         evicted.size
     }
 }
@@ -375,7 +348,7 @@ func benchLength(db: TestDb, file: SourceFile): Int64 {
 
 let BENCH_DB = TestDatabase()
 
-let BENCH_FILES = Array<SourceFile>(256) {i => SourceFile(BENCH_DB, "${i}.cj", "text ${i}")}
+let BENCH_FILES = Array<SourceFile>(256) { i => SourceFile(BENCH_DB, "${i}.cj", "text ${i}") }
 
 /**
  * Fetches that hit, with `lru` (large enough to evict nothing) and without: what a touch adds to

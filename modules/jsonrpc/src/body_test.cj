@@ -106,17 +106,21 @@ class BodyCodecTest {
     @TestCase
     func paramsAfterTheMethodAreReadInPlaceByTheMethodsReaderAndKeptAsBytesToo() {
         // arrange
-        let readers: (String) -> Option<(FjReader) -> Any> = {
-            method => if (method == "m") {
-                Some<(FjReader) -> Any>({
-                    r =>
-                    let tree: Any = JsonValue.fromJson(r)
-                    tree
-                })
-            } else {
-                None
+        let readers: (String) -> Option<(FjReader) -> Any> =
+            {
+                method =>
+                if (method == "m") {
+                    Some<(FjReader) -> Any>(
+                        {
+                            r =>
+                            let tree: Any = JsonValue.fromJson(r)
+                            tree
+                        }
+                    )
+                } else {
+                    None
+                }
             }
-        }
         let frame = ##"{"jsonrpc":"2.0","method":"m","params": {"a": [1, 2]},"id":3}"##
 
         // act
@@ -134,17 +138,26 @@ class BodyCodecTest {
     func paramsBeforeTheMethodOrOfAMethodWithoutAReaderStayBytes() {
         // arrange
         let asked = ArrayList<String>()
-        let readers: (String) -> Option<(FjReader) -> Any> = {
-            method =>
-            asked.add(method)
-            Some<(FjReader) -> Any>({_ => throw IllegalStateException("never called")})
-        }
+        let readers: (String) -> Option<(FjReader) -> Any> =
+            {
+                method =>
+                asked.add(method)
+                Some<(FjReader) -> Any>({ _ => throw IllegalStateException("never called") })
+            }
 
         // act
-        let (early, decodedEarly) = Body.read(
-            FjReader(##"{"params": {"a": 1}, "method": "m", "jsonrpc": "2.0"}"##.toArray()), readers)
-        let (_, decodedUnrouted) = Body.read(
-            FjReader(##"{"jsonrpc": "2.0", "method": "n", "params": {"a": 1}}"##.toArray()), {_ => None})
+        let (early, decodedEarly) =
+            Body
+                .read(
+                    FjReader(##"{"params": {"a": 1}, "method": "m", "jsonrpc": "2.0"}"##.toArray()),
+                    readers
+                )
+        let (_, decodedUnrouted) =
+            Body
+                .read(
+                    FjReader(##"{"jsonrpc": "2.0", "method": "n", "params": {"a": 1}}"##.toArray()),
+                    { _ => None }
+                )
 
         // assert
         @Expect(decodedEarly.isNone())
@@ -156,19 +169,29 @@ class BodyCodecTest {
     @TestCase
     func aReaderThatThrowsPartWayLeavesTheParamsTheirBytes() {
         // arrange - the reader takes the first key and gives up inside the object
-        let readers: (String) -> Option<(FjReader) -> Any> = {
-            _ => Some<(FjReader) -> Any>({
-                r =>
-                r.beginObject()
-                r.nextKey()
-                r.skipValue()
-                throw FjException("not what I expected")
-            })
-        }
+        let readers: (String) -> Option<(FjReader) -> Any> =
+            {
+                _ =>
+                Some<(FjReader) -> Any>(
+                    {
+                        r =>
+                        r.beginObject()
+                        r.nextKey()
+                        r.skipValue()
+                        throw FjException("not what I expected")
+                    }
+                )
+            }
 
         // act
-        let (body, decoded) = Body.read(
-            FjReader(##"{"jsonrpc":"2.0","method":"m","params":{"a":1,"b":2},"id":4}"##.toArray()), readers)
+        let (body, decoded) =
+            Body
+                .read(
+                    FjReader(
+                        ##"{"jsonrpc":"2.0","method":"m","params":{"a":1,"b":2},"id":4}"##.toArray()
+                    ),
+                    readers
+                )
 
         // assert
         @Expect(decoded.isNone())
@@ -198,8 +221,10 @@ class BodyCodecTest {
 
         // act
         let onRequest = @AssertThrows[UnexpectedVariantException](request.getResponseBodyOrThrow())
-        let onNotification = @AssertThrows[UnexpectedVariantException](notification.getRequestBodyOrThrow())
-        let onResponse = @AssertThrows[UnexpectedVariantException](response.getNotificationBodyOrThrow())
+        let onNotification =
+            @AssertThrows[UnexpectedVariantException](notification.getRequestBodyOrThrow())
+        let onResponse =
+            @AssertThrows[UnexpectedVariantException](response.getNotificationBodyOrThrow())
 
         // assert
         @Expect("expected `Response` variant, got `Request`", onRequest.message)

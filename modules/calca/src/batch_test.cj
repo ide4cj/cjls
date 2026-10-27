@@ -13,7 +13,7 @@ func totalLength(db: TestDb, a: SourceFile, b: SourceFile): Int64 {
 @CalcaTracked
 func batchesAnInput(db: TestDb, file: SourceFile): Int64 {
     match (db as TestDatabase) {
-        case Some(writable) => writable.storage.batch {file.setText(writable).to("")}
+        case Some(writable) => writable.storage.batch { file.setText(writable).to("") }
         case None => ()
     }
     0
@@ -31,11 +31,13 @@ class BatchTest {
         let before = db.storage.runtime.revision
 
         // act
-        db.storage.batch {
-            a.setText(db).to("aa")
-            b.setText(db).to("bb")
-            c.setText(db).to("cc")
-        }
+        db
+            .storage
+            .batch {
+                a.setText(db).to("aa")
+                b.setText(db).to("bb")
+                c.setText(db).to("cc")
+            }
 
         // assert
         @Expect(db.storage.runtime.revision, before + 1)
@@ -53,10 +55,12 @@ class BatchTest {
         db.events.take()
 
         // act
-        db.storage.batch {
-            a.setText(db).to("aa")
-            b.setText(db).to("bbb")
-        }
+        db
+            .storage
+            .batch {
+                a.setText(db).to("aa")
+                b.setText(db).to("bbb")
+            }
 
         // assert
         @AssertThrows[CancelledException](totalLength(snapshot, a, b))
@@ -71,10 +75,13 @@ class BatchTest {
         let a = SourceFile(db, "a.cj", "a")
 
         // act
-        let created = db.storage.batch {
-            a.setText(db).to("aa")
-            SourceFile(db, "b.cj", "bbb")
-        }
+        let created =
+            db
+                .storage
+                .batch {
+                    a.setText(db).to("aa")
+                    SourceFile(db, "b.cj", "bbb")
+                }
 
         // assert
         @Expect(created.text(db), "bbb")
@@ -86,9 +93,7 @@ class BatchTest {
         // arrange
         let db = TestDatabase()
         let a = SourceFile(db, "a.cj", "a")
-        let created = db.storage.batch {
-            SourceFile(db, "b.cj", "bb")
-        }
+        let created = db.storage.batch { SourceFile(db, "b.cj", "bb") }
         @Expect(length(db, created), 2)
         db.events.take()
 

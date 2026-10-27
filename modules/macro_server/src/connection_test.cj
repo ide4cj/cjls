@@ -17,7 +17,10 @@ func answered(answers: Array<Array<Byte>>): (MacroConnection, ByteBuffer) {
 }
 
 func resultMessage(status: UInt8): Array<Byte> {
-    MacroMsgData(content: MsgContentData.AsMacroResult(MacroResultData(status: status, tks: [TokenData(value: "x")])))
+    MacroMsgData(
+        content: MsgContentData
+            .AsMacroResult(MacroResultData(status: status, tks: [TokenData(value: "x")]))
+    )
         .toBytes()
 }
 
@@ -35,7 +38,8 @@ class MacroConnectionTest {
         @Expect(result.status, MACRO_FAILED)
         @Expect(result.tks[0].value, Some("x"))
         match (MacroMsg.root(readMessage(output).getOrThrow()).content) {
-            case Some(MsgContent.AsMultiCalls(m)) => @Expect(m.calls.toArray().map {c => c.methodName}, [Some("m")])
+            case Some(MsgContent.AsMultiCalls(m)) =>
+                @Expect(m.calls.toArray().map {c => c.methodName}, [Some("m")])
             case _ => @Fail("no multiCalls")
         }
         match (MacroMsg.root(readMessage(output).getOrThrow()).content) {

@@ -33,12 +33,13 @@ public class StdinStream <: InputStream {
             // and no idle worker wakes to take it — so a hover could wait for the next message forever.
             // Giving way here first runs what this thread spawned or woke. To go once the SDK is fixed.
             sleep(Duration.Zero)
-            let n = unsafe {
-                let raw = acquireArrayRawData(buffer)
-                let n = readStdin(raw.pointer, buffer.size)
-                releaseArrayRawData(raw)
-                n
-            }
+            let n =
+                unsafe {
+                    let raw = acquireArrayRawData(buffer)
+                    let n = readStdin(raw.pointer, buffer.size)
+                    releaseArrayRawData(raw)
+                    n
+                }
             if (n >= 0) {
                 return n
             }

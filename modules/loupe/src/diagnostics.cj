@@ -28,8 +28,12 @@ public enum Severity {
  */
 @Derive[Equatable]
 public struct Diagnostic {
-    public Diagnostic(public let range: TextRange, public let severity: Severity, public let message: String,
-        public let unnecessary!: Bool = false) {}
+    public Diagnostic(
+        public let range: TextRange,
+        public let severity: Severity,
+        public let message: String,
+        public let unnecessary!: Bool = false
+    ) {}
 }
 
 /**
@@ -47,43 +51,82 @@ public struct Diagnostic {
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
     let result = ArrayList<Diagnostic>()
-    result.add(all: parse(db, file).errors.map {error => Diagnostic(error.range, Severity.Error, message(error.error))})
+    result
+        .add(
+            all: parse(db, file)
+                .errors
+                .map { error => Diagnostic(error.range, Severity.Error, message(error.error)) }
+        )
     // a file the build leaves out is all inactive, and nothing in it is checked
     if (let Some(reason) <- inactiveReasonOf(db, file)) {
-        result.add(Diagnostic(codeRange(parse(db, file).syntaxNode()), Severity.Hint, "code is inactive: ${reason}",
-            unnecessary: true))
+        result
+            .add(
+                Diagnostic(
+                    codeRange(parse(db, file).syntaxNode()),
+                    Severity.Hint,
+                    "code is inactive: ${reason}",
+                    unnecessary: true
+                )
+            )
         return result.toArray()
     }
     let conditional = whenDiagnostics(db, file)
-    result.add(all: conditional.errors.map {error => Diagnostic(error.range, Severity.Error, error.message)})
-    result.add(all: conditional.inactive.map {
-        code => Diagnostic(code.range, Severity.Hint,
-            "code is inactive due to @When: ${String.join(code.reasons, delimiter: " and ")}", unnecessary: true)
-    })
+    result
+        .add(
+            all: conditional
+                .errors
+                .map { error => Diagnostic(error.range, Severity.Error, error.message) }
+        )
+    result
+        .add(
+            all: conditional
+                .inactive
+                .map {
+                    code =>
+                    Diagnostic(
+                        code.range,
+                        Severity.Hint,
+                        "code is inactive due to @When: ${String.join(code.reasons, delimiter: " and ")}",
+                        unnecessary: true
+                    )
+                }
+        )
     let root = parse(db, file).syntaxNode()
     if (let Some(message) <- packageHeaderError(db, file)) {
         if (let Some(header) <- (AstSourceFile.cast(root)?.packageHeader() ?? None)) {
-            let range = header.macroToken()?.textRange ?? header.packageToken()?.textRange ??
-                header.syntax.textRange
+            let range =
+                header.macroToken()?.textRange ??
+                    header.packageToken()?.textRange ?? header.syntax.textRange
             result.add(Diagnostic(range, Severity.Error, message))
         }
     }
     result.add(all: scopeDiagnosticsOf(db, file, root))
-    result.add(all: macroDiagnostics(db, file).map {
-        one =>
-        let severity = match (one.severity) {
-            case MacroError => Severity.Error
-            case MacroWarning => Severity.Warning
-        }
-        Diagnostic(one.range, severity, one.message)
-    })
+    result
+        .add(
+            all: macroDiagnostics(db, file)
+                .map {
+                    one =>
+                    let severity =
+                        match (one.severity) {
+                            case MacroError => Severity.Error
+                            case MacroWarning => Severity.Warning
+                        }
+                    Diagnostic(one.range, severity, one.message)
+                }
+        )
     let read = readServerCallsOf(db, file)
-    for (def in bodiesOf(db, ItemFile.Source(file), leavingOut: read.map {call => call.item(db)})) {
+    for (
+        def in bodiesOf(db, ItemFile.Source(file), leavingOut: read.map { call => call.item(db) })
+    ) {
         result.add(all: inferenceDiagnostics(db, def, root))
     }
     result.add(all: expansionDiagnostics(db, file, read))
     let sorted = result.toArray()
-    sort(sorted, stable: true, by: {a: Diagnostic, b: Diagnostic => a.range.start.compare(b.range.start)})
+    sort(
+        sorted,
+        stable: true,
+        by: { a: Diagnostic, b: Diagnostic => a.range.start.compare(b.range.start) }
+    )
     sorted
 }
 
@@ -113,7 +156,11 @@ func bodiesOf(db: AnalysisDatabase, file: ItemFile, leavingOut!: Array<ItemId> =
  * head of the call, as `macroDiagnostics` puts the macro's own. None of an output older than the text, whose spans may
  * no longer say where the text is: its item has none until the server answers again.
  */
-func expansionDiagnostics(db: AnalysisDatabase, file: SourceFile, read: Array<MacroCallId>): Array<Diagnostic> {
+func expansionDiagnostics(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    read: Array<MacroCallId>
+): Array<Diagnostic> {
     if (read.isEmpty()) {
         return []
     }
@@ -127,7 +174,14 @@ func expansionDiagnostics(db: AnalysisDatabase, file: SourceFile, read: Array<Ma
         let root = expansionParse(db, call).syntaxNode()
         for (def in bodiesOf(db, ItemFile.Expansion(call))) {
             for (one in inferenceDiagnostics(db, def, root)) {
-                found.add(Diagnostic(sourceRangeOf(db, call, one.range) ?? head, one.severity, one.message))
+                found
+                    .add(
+                        Diagnostic(
+                            sourceRangeOf(db, call, one.range) ?? head,
+                            one.severity,
+                            one.message
+                        )
+                    )
             }
         }
     }
@@ -144,78 +198,103 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
         return []
     }
     let lowered = bodyWithSourceMap(db, def)
-    let nodeOf = {
-        id: ExprId =>
-        let origin = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
-        let source = match (origin) {
-            case WrittenSource(source) => source
-            case _ => return None<CjSyntaxNode>
+    let nodeOf =
+        {
+            id: ExprId =>
+            let origin = lowered.sourceMap.exprs.get(id.index) ?? return None<CjSyntaxNode>
+            let source =
+                match (origin) {
+                    case WrittenSource(source) => source
+                    case _ => return None<CjSyntaxNode>
+                }
+            if (lowered.sourceMap.exprAtSource(source) != Some(id)) {
+                return None<CjSyntaxNode>
+            }
+            if (source.expansion.isSome()) {
+                source.node(db, def.file(db))
+            } else {
+                source.ptr.tryToNode(root)
+            }
         }
-        if (lowered.sourceMap.exprAtSource(source) != Some(id)) {
-            return None<CjSyntaxNode>
-        }
-        if (source.expansion.isSome()) { source.node(db, def.file(db)) } else { source.ptr.tryToNode(root) }
-    }
     let found = ArrayList<Diagnostic>()
-    let report = {id: ExprId, range: TextRange, message: String =>
-        let source = match (lowered.sourceMap.exprs.get(id.index)) {
-            case Some(WrittenSource(source)) => source
-            case _ => return
+    let report =
+        {
+            id: ExprId, range: TextRange, message: String =>
+            let source =
+                match (lowered.sourceMap.exprs.get(id.index)) {
+                    case Some(WrittenSource(source)) => source
+                    case _ => return
+                }
+            let mapped =
+                if (let Some(call) <- source.expansion) {
+                    sourceRangeOf(db, call, range) ?? (macroCallHeadOf(db, call) ?? return)[1]
+                } else {
+                    range
+                }
+            found.add(Diagnostic(mapped, Severity.Error, message))
         }
-        let mapped = if (let Some(call) <- source.expansion) {
-            sourceRangeOf(db, call, range) ?? (macroCallHeadOf(db, call) ?? return)[1]
-        } else { range }
-        found.add(Diagnostic(mapped, Severity.Error, message))
-    }
     for (diagnostic in inferred.diagnostics) {
         match (diagnostic) {
             case TypeMismatch(id, expected, actual) =>
                 let node = nodeOf(id) ?? continue
-                let message = match ((lowered.body[id], actual.kind(db))) {
-                    case (LitExpr(_), PrimTy(name)) where name.startsWith("Int") || name.startsWith("UInt") =>
-                        "cannot convert an integer literal to type '${expected.text(db)}'"
-                    case _ => "mismatched types: expected '${expected.text(db)}', found '${actual.text(db)}'"
-                }
+                let message =
+                    match ((lowered.body[id], actual.kind(db))) {
+                        case (LitExpr(_), PrimTy(name)) where name.startsWith("Int") ||
+                                name.startsWith("UInt") =>
+                            "cannot convert an integer literal to type '${expected.text(db)}'"
+                        case _ =>
+                            "mismatched types: expected '${expected.text(db)}', found '${actual.text(db)}'"
+                    }
                 report(id, node.textRange, message)
             case VArraySizeMismatch(id, expected, actual) =>
                 let node = nodeOf(id) ?? continue
-                report(id, node.textRange,
-                    "mismatch 'VArray' type's size: expected size is ${expected}, found ${actual}")
+                report(
+                    id,
+                    node.textRange,
+                    "mismatch 'VArray' type's size: expected size is ${expected}, found ${actual}"
+                )
             case ArgCount(call, params, given) =>
                 let node = nodeOf(call) ?? continue
                 let taken = params.size
-                let list = String.join(params.map {one => one.text(db)}, delimiter: ", ")
-                let what = match ((given < taken, given - taken == 1 || taken - given == 1)) {
-                    case (true, true) => "missing argument"
-                    case (true, false) => "missing arguments"
-                    case (false, true) => "extra argument given"
-                    case (false, false) => "extra arguments given"
-                }
-                let plural = if (taken == 1) {
-                    ""
-                } else {
-                    "s"
-                }
-                report(call, TextRange(argsStart(node), node.textRange.end),
-                    "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}")
+                let list = String.join(params.map { one => one.text(db) }, delimiter: ", ")
+                let what =
+                    match ((given < taken, given - taken == 1 || taken - given == 1)) {
+                        case (true, true) => "missing argument"
+                        case (true, false) => "missing arguments"
+                        case (false, true) => "extra argument given"
+                        case (false, false) => "extra arguments given"
+                    }
+                let plural = if (taken == 1) { "" } else { "s" }
+                report(
+                    call,
+                    TextRange(argsStart(node), node.textRange.end),
+                    "${what} for parameter list '(${list})' in call: expected ${taken} argument${plural}, found ${given}"
+                )
             case ArgName(call, at, why) =>
                 let node = nodeOf(call) ?? continue
                 let range = argRange(node, at) ?? continue
-                let message = match (why) {
-                    case UnknownName(name) => "unknown named argument prefix '${name}:'"
-                    case NameTwice(name) => "named argument prefix '${name}:' cannot appeared more than once in call"
-                    case NeedsName(names) =>
-                        let prefixes = String.join(names.map {name => "'${name}:'"}, delimiter: " or ")
-                        "missing argument prefix ${prefixes} for named parameter"
-                    case NameOfValue => "named argument cannot be used in variable function call"
-                }
+                let message =
+                    match (why) {
+                        case UnknownName(name) => "unknown named argument prefix '${name}:'"
+                        case NameTwice(name) =>
+                            "named argument prefix '${name}:' cannot appeared more than once in call"
+                        case NeedsName(names) =>
+                            let prefixes =
+                                String.join(names.map { name => "'${name}:'" }, delimiter: " or ")
+                            "missing argument prefix ${prefixes} for named parameter"
+                        case NameOfValue =>
+                            "named argument cannot be used in variable function call"
+                    }
                 report(call, range, message)
             case InvalidBinaryOperator(id, left, right) =>
                 let node = nodeOf(id) ?? continue
                 // at the operator, as cjc's
                 let op = (BinExpr.cast(node)?.op() ?? None) ?? continue
-                report(id, op.textRange,
-                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'")
+                report(
+                    id,
+                    op.textRange,
+                    "invalid binary operator '${op.text()}' on type '${left.text(db)}' and '${right.text(db)}'"
+                )
         }
     }
     found.toArray()
@@ -226,10 +305,11 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
  */
 func argRange(node: CjSyntaxNode, at: Int64): ?TextRange {
     let trailing = TrailingLambdaExpr.cast(node)
-    let args: Array<Arg> = match (callArgList(node)) {
-        case Some(list) => list.args() |> collectArray
-        case _ => []
-    }
+    let args: Array<Arg> =
+        match (callArgList(node)) {
+            case Some(list) => list.args() |> collectArray
+            case _ => []
+        }
     match (args.get(at)) {
         case Some(arg) => arg.syntax.textRange
         case None => (trailing?.lambda()?.syntax.textRange)
@@ -249,8 +329,10 @@ func argsStart(node: CjSyntaxNode): Int64 {
  * The written argument list of an ordinary or built-in call, before a trailing lambda if present.
  */
 func callArgList(node: CjSyntaxNode): ?AstArgList {
-    let callee = TrailingLambdaExpr.cast(node).flatMap {one => one.callee()}.map {one => one.syntax} ?? node
-    callee.children() |> filterMap {child: CjSyntaxNode => AstArgList.cast(child)} |> first
+    let callee =
+        TrailingLambdaExpr.cast(node).flatMap { one => one.callee() }.map { one => one.syntax } ??
+            node
+    callee.children() |> filterMap { child: CjSyntaxNode => AstArgList.cast(child) } |> first
 }
 
 /**
@@ -258,7 +340,11 @@ func callArgList(node: CjSyntaxNode): ?AstArgList {
  * its last name, a name brought twice or shadowed at that name, a declaration at its name; and the
  * `common` declarations no `specific` one completes, at their names (#318).
  */
-func scopeDiagnosticsOf(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode): Array<Diagnostic> {
+func scopeDiagnosticsOf(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    root: CjSyntaxNode
+): Array<Diagnostic> {
     let pkg = packageOfFile(db, file) ?? return []
     let ids = itemIdMap(db, file)
     let found = ArrayList<Diagnostic>()
@@ -267,26 +353,25 @@ func scopeDiagnosticsOf(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNo
         found.add(Diagnostic(declNameRange(node), Severity.Error, one.message))
     }
     for (one in scopeDiagnostics(db, pkg, file)) {
-        let range = match (one.at) {
-            case AtImport(site) =>
-                let decl = ids.node(site.item, root).flatMap {node => ImportDecl.cast(node)} ?? continue
-                let tree = decl.importTree() ?? continue
-                let leaf = importLeaf(tree, site.path) ?? continue
-                if (one.problem.isWarning()) {
-                    nameOfLeaf(leaf)
-                } else {
-                    TextRange(tree.syntax.textRange.start, nameOfLeaf(leaf).end)
-                }
-            case AtDecl(def, _) =>
-                let node = ids.node(def.item(db), root) ?? continue
-                let name = AnyHasName.cast(node).flatMap {it => it.name()}
-                name?.syntax.textRange ?? continue
-        }
-        let severity = if (one.problem.isWarning()) {
-            Severity.Warning
-        } else {
-            Severity.Error
-        }
+        let range =
+            match (one.at) {
+                case AtImport(site) =>
+                    let decl =
+                        ids.node(site.item, root).flatMap { node => ImportDecl.cast(node) } ??
+                            continue
+                    let tree = decl.importTree() ?? continue
+                    let leaf = importLeaf(tree, site.path) ?? continue
+                    if (one.problem.isWarning()) {
+                        nameOfLeaf(leaf)
+                    } else {
+                        TextRange(tree.syntax.textRange.start, nameOfLeaf(leaf).end)
+                    }
+                case AtDecl(def, _) =>
+                    let node = ids.node(def.item(db), root) ?? continue
+                    let name = AnyHasName.cast(node).flatMap { it => it.name() }
+                    name?.syntax.textRange ?? continue
+            }
+        let severity = if (one.problem.isWarning()) { Severity.Warning } else { Severity.Error }
         found.add(Diagnostic(range, severity, one.problem.message()))
     }
     found.toArray()
@@ -315,10 +400,11 @@ func codeRange(root: CjSyntaxNode): TextRange {
  * neither.
  */
 func declNameRange(node: CjSyntaxNode): TextRange {
-    if (let Some(name) <- AnyHasName.cast(node).flatMap {it => it.name()}) {
+    if (let Some(name) <- AnyHasName.cast(node).flatMap { it => it.name() }) {
         return name.syntax.textRange
     }
-    InitDecl.cast(node).flatMap {decl => decl.initToken()}.map {token => token.textRange} ?? node.textRange
+    InitDecl.cast(node).flatMap { decl => decl.initToken() }.map { token => token.textRange } ??
+        node.textRange
 }
 
 /**
@@ -328,9 +414,10 @@ func importLeaf(tree: ImportTree, index: Int64): ?ImportTree {
     let leaves = ArrayList<ImportTree>()
     func add(one: ImportTree): Unit {
         match (one.importTreeList()) {
-            case Some(list) => for (inner in list.importTrees()) {
-                add(inner)
-            }
+            case Some(list) =>
+                for (inner in list.importTrees()) {
+                    add(inner)
+                }
             case None => leaves.add(one)
         }
     }
@@ -342,7 +429,7 @@ func importLeaf(tree: ImportTree, index: Int64): ?ImportTree {
  * The name a leaf of an import brings: its alias, else its last name, else its `*`.
  */
 func nameOfLeaf(leaf: ImportTree): TextRange {
-    if (let Some(name) <- leaf.importAlias().flatMap {alias => alias.name()}) {
+    if (let Some(name) <- leaf.importAlias().flatMap { alias => alias.name() }) {
         return name.syntax.textRange
     }
     var last: ?TextRange = None

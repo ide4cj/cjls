@@ -13,9 +13,11 @@ func folded(text: String): Array<String> {
     let db = AnalysisDatabase()
     db.setFileText(FileId(0), Rope(text))
     let bytes = text.toArray()
-    foldingRanges(db, FileId(0)).map {
-        it => "${it} ${String.fromUtf8(bytes[it.range.start..it.range.end]).replace("\n", "⏎")}"
-    }
+    foldingRanges(db, FileId(0))
+        .map {
+            it =>
+            "${it} ${String.fromUtf8(bytes[it.range.start..it.range.end]).replace("\n", "⏎")}"
+        }
 }
 
 @Test
@@ -59,7 +61,10 @@ class FoldingRangesTest {
     @TestCase
     func importsOneUnderTheOtherAreOneFoldABlankLineParts() {
         // act
-        let result = folded("package p\nimport a.b\nimport c.{\n    d,\n    e\n}\n\nimport f.g\nimport h.i\n")
+        let result =
+            folded(
+                "package p\nimport a.b\nimport c.{\n    d,\n    e\n}\n\nimport f.g\nimport h.i\n"
+            )
 
         // assert - a list of names folds inside
         @Expect(result, [
@@ -78,7 +83,10 @@ class FoldingRangesTest {
     @TestCase
     func listsLiteralsLambdasAndMatchesFold() {
         // act
-        let result = folded("main() {\n    f(\n        1\n    )\n    let a = [\n        (1,\n        2)\n    ]\n    match (a) {\n        case _ =>\n            g { x =>\n                x\n            }\n    }\n    \"\"\"\n    s\n    \"\"\"\n}")
+        let result =
+            folded(
+                "main() {\n    f(\n        1\n    )\n    let a = [\n        (1,\n        2)\n    ]\n    match (a) {\n        case _ =>\n            g { x =>\n                x\n            }\n    }\n    \"\"\"\n    s\n    \"\"\"\n}"
+            )
 
         // assert
         @Expect(result, [

@@ -10,16 +10,24 @@ import loupe.hir.*
  * The source body currently reading `call`; stale and unavailable outputs keep the call-site fallback.
  */
 func bodyOfExpressionExpansion(db: AnalysisDatabase, call: MacroCallId): ?DefId {
-    if (call.inBody(db).isNone()) { return None }
+    if (call.inBody(db).isNone()) {
+        return None
+    }
     let def = DefId(db, ItemFile.Source(call.file(db)), call.item(db))
     let map = bodyWithSourceMap(db, def).sourceMap
     for (sources in [map.exprs, map.locals, map.types]) {
-        if (sources.any {one =>
-            match (one) {
-                case WrittenSource(source) => source.expansion == call
-                case SyntheticSource => false
-            }
-        }) { return def }
+        if (
+            sources
+                .any {
+                    one =>
+                    match (one) {
+                        case WrittenSource(source) => source.expansion == call
+                        case SyntheticSource => false
+                    }
+                }
+        ) {
+            return def
+        }
     }
     None
 }
@@ -46,15 +54,23 @@ enum CallSiteName {
  * itself declares, which only a body reading a current expansion knows, and for a call that is no expression (on a local
  * declaration).
  */
-func callSiteNameOf(db: AnalysisDatabase, call: MacroCallId, token: CjSyntaxToken, offset: Int64): ?CallSiteName {
+func callSiteNameOf(
+    db: AnalysisDatabase,
+    call: MacroCallId,
+    token: CjSyntaxToken,
+    offset: Int64
+): ?CallSiteName {
     if (call.inBody(db).isNone()) {
         return None
     }
-    if (let Some(source) <- sourceRangeOf(db, call, token.textRange) && source.len == token.textRange.len) {
+    if (
+        let Some(source) <- sourceRangeOf(db, call, token.textRange) &&
+            source.len == token.textRange.len
+    ) {
         return CallSiteName.AtSource(source.start + offset - token.textRange.start)
     }
     let name = NameRef.cast(token.parent) ?? return None
-    if (!(name.syntax.parent.map {one => RefExpr.canCast(one.kind)} ?? false)) {
+    if (!(name.syntax.parent.map { one => RefExpr.canCast(one.kind) } ?? false)) {
         return None
     }
     let text = name.text()
@@ -71,25 +87,28 @@ func callSiteNameOf(db: AnalysisDatabase, call: MacroCallId, token: CjSyntaxToke
  * Whether a declaration under `root` declares `text`: a local, a parameter, a function.
  */
 func declares(root: CjSyntaxNode, text: String): Bool {
-    root.descendants().any {node => node.kind == SyntaxKind.Name && (Name.cast(node)?.text() ?? "") == text}
+    root
+        .descendants()
+        .any { node => node.kind == SyntaxKind.Name && (Name.cast(node)?.text() ?? "") == text }
 }
 
 /**
  * The hover of `token`, at `offset` of the expansion of `call`, as where the call stands (`callSiteNameOf`), its range
  * the token's.
  */
-func hoverAtCallSite(db: AnalysisDatabase, call: MacroCallId, token: CjSyntaxToken, offset: Int64): ?HoverResult {
+func hoverAtCallSite(
+    db: AnalysisDatabase,
+    call: MacroCallId,
+    token: CjSyntaxToken,
+    offset: Int64
+): ?HoverResult {
     match (callSiteNameOf(db, call, token, offset)) {
-        case Some(AtSource(at)) => hoverIn(db, ItemFile.Source(call.file(db)), at).map {
-            found => HoverResult(token.textRange, found.items)
-        }
+        case Some(AtSource(at)) =>
+            hoverIn(db, ItemFile.Source(call.file(db)), at)
+                .map { found => HoverResult(token.textRange, found.items) }
         case Some(AtCall(def, resolution)) =>
             let items = Hovers(db, def, token).ofResolution(resolution)
-            if (items.isEmpty()) {
-                None
-            } else {
-                HoverResult(token.textRange, items)
-            }
+            if (items.isEmpty()) { None } else { HoverResult(token.textRange, items) }
         case None => None
     }
 }

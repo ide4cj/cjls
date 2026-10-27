@@ -3,18 +3,32 @@ package lsp_codegen
 import std.ast.*
 import std.collection.{ArrayList, HashSet}
 import std.fs.Path
+import cjformat.formatText
+import cjformat.config.optionsFor
 
 struct CjFile {
     CjFile(let path: Path, let contents: String) {}
 }
 
+/**
+ * Produces formatted files in memory; rejects invalid source before any output is written.
+ * @throws IllegalStateException - if output does not parse or declaration paths collide
+ */
 func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
     let resolver = TypeResolver(mm, cfg)
-    let files = ArrayList<CjFile>(mm.enumerations.filterMap {it: Enumeration => resolveEnum(cfg, it)}.map {
-        enumIr: EnumIr => cjFileOf(cfg, mm, enumIr.ident) {emitter => emitter.emitEnum(enumIr)}
-    })
+    let files =
+        ArrayList<CjFile>(
+            mm
+                .enumerations
+                .filterMap { it => resolveEnum(cfg, it) }
+                .map {
+                    enumIr =>
+                    cjFileOf(cfg, mm, enumIr.ident) { emitter => emitter.emitEnum(enumIr) }
+                }
+        )
 
-    let structs = ArrayList<StructIr>(mm.structures.filterMap {it: Structure => resolveStruct(cfg, resolver, it)})
+    let structs =
+        ArrayList<StructIr>(mm.structures.filterMap { it => resolveStruct(cfg, resolver, it) })
     let aliasLines = resolveAliases(cfg, resolver, mm)
     let messages = resolveMessages(resolver, mm)
     // a literal may hold further literals and unions of its own, met only once it is resolved
@@ -24,20 +38,43 @@ func generateCjFiles(cfg: Config, mm: MetaModel): Array<CjFile> {
         resolvedLiterals++
     }
 
-    files.add(all: structs.toArray().map {
-        structIr: StructIr => cjFileOf(cfg, mm, structIr.ident) {emitter => emitter.emitStruct(structIr)}
-    })
-    files.add(all: resolver.unions.map {
-        unionIr: UnionIr => cjFileOf(cfg, mm, unionIr.ident) {emitter => emitter.emitUnion(unionIr)}
-    })
-    files.add(all: messages.map {
-        messageIr: MessageIr => cjFileOf(cfg, mm, messageIr.ident) {emitter => emitter.emitMessage(messageIr)}
-    })
+    files
+        .add(
+            all: structs
+                .toArray()
+                .map {
+                    structIr =>
+                    cjFileOf(cfg, mm, structIr.ident) { emitter => emitter.emitStruct(structIr) }
+                }
+        )
+    files
+        .add(
+            all: resolver
+                .unions
+                .map {
+                    unionIr =>
+                    cjFileOf(cfg, mm, unionIr.ident) { emitter => emitter.emitUnion(unionIr) }
+                }
+        )
+    files
+        .add(
+            all: messages
+                .map {
+                    messageIr =>
+                    cjFileOf(cfg, mm, messageIr.ident) { emitter => emitter.emitMessage(messageIr) }
+                }
+        )
     let configuredAliases = cfg.typeMap.aliases()
     if (!configuredAliases.isEmpty() || !aliasLines.isEmpty()) {
-        files.add(cjFileOf(cfg, mm, "aliases") {emitter => emitter.emitAliases(configuredAliases, aliasLines)})
+        files
+            .add(
+                cjFileOf(cfg, mm, "aliases") {
+                    emitter =>
+                    emitter.emitAliases(configuredAliases, aliasLines)
+                }
+            )
     }
-    files.add(cjFileOf(cfg, mm, "spec") {emitter => emitter.emitSpecDeclarations()})
+    files.add(cjFileOf(cfg, mm, "spec") { emitter => emitter.emitSpecDeclarations() })
     checkUniquePaths(files)
 
     files.toArray()
@@ -56,21 +93,48 @@ private func checkUniquePaths(files: ArrayList<CjFile>): Unit {
     }
 }
 
-private func cjFileOf(cfg: Config, mm: MetaModel, ident: String, body: (CjEmitter) -> Unit): CjFile {
-    let contents = emittedBy {
-        emitter =>
-        emitter.emitPreamble(mm.metaData.version, Token(PACKAGE_IDENTIFIER, cfg.outputPackage), cfg.imports)
-        body(emitter)
-    }
+/**
+ * Emits and formats one declaration.
+ *
+ * @throws IllegalStateException - if the emitted source does not parse
+ */
+private func cjFileOf(
+    cfg: Config,
+    mm: MetaModel,
+    ident: String,
+    body: (CjEmitter) -> Unit
+): CjFile {
+    let contents =
+        emittedBy {
+            emitter =>
+            emitter
+                .emitPreamble(
+                    mm.metaData.version,
+                    Token(PACKAGE_IDENTIFIER, cfg.outputPackage),
+                    cfg.imports
+                )
+            body(emitter)
+        }
 
-    CjFile(cfg.outputDir.join("${ident.toAsciiLowerSnakeCase()}.cj"), contents)
+    CjFile(
+        cfg.outputDir.join("${ident.toAsciiLowerSnakeCase()}.cj"),
+        formatText(
+            contents,
+            options: optionsFor(cfg.outputDir.join("${ident.toAsciiLowerSnakeCase()}.cj"))
+        ) ??
+            throw IllegalStateException("generated code does not parse: ${ident}")
+    )
 }
 
 /**
  * `public type <name> = <target>` for every alias we own that is not a union - a union alias names
  * the enum declared for it instead.
  */
-private func resolveAliases(cfg: Config, resolver: TypeResolver, mm: MetaModel): Array<(DocIr, String, TypeIr)> {
+private func resolveAliases(
+    cfg: Config,
+    resolver: TypeResolver,
+    mm: MetaModel
+): Array<(DocIr, String, TypeIr)> {
     let lines = ArrayList<(DocIr, String, TypeIr)>()
     for (alias in mm.typeAliases) {
         let target = resolver.resolve(alias.typeAliasType, context: alias.name)
@@ -84,7 +148,8 @@ private func resolveAliases(cfg: Config, resolver: TypeResolver, mm: MetaModel):
     lines.toArray()
 }
 
-private const SPEC_DECLARATIONS = """
+private const SPEC_DECLARATIONS =
+    """
 /**
  * A message of the protocol. A value of it names the message where its handler is registered -
  * `.route(InitializeRequestSpec(), handleInitialize)` - and brings its method and types along.
@@ -214,7 +279,10 @@ func decodeMessageParams<P>(r: FjReader): P where P <: FromJson<P> {
 """
 
 extend CjEmitter {
-    func emitAliases(configured: Array<(String, String)>, generated: Array<(DocIr, String, TypeIr)>): Unit {
+    func emitAliases(
+        configured: Array<(String, String)>,
+        generated: Array<(DocIr, String, TypeIr)>
+    ): Unit {
         for ((lspName, target) in configured) {
             let aliasIdent = escapedIdent(lspName)
             let targetType = Token(IDENTIFIER, target)
@@ -224,7 +292,7 @@ extend CjEmitter {
             let aliasIdent = escapedIdent(ident)
             nl()
             emitDoc(doc)
-            // verbatim: cjfmt leaves the spaces `Tokens` puts around `<` and `>` in a type alias
+            // Keep the alias as source; the common formatter decides its spacing.
             emitln("public type ${aliasIdent.value} = ${target}")
         }
     }
@@ -238,7 +306,8 @@ public enum MessageDirection {
     | ServerToClient
     | Both
 }
-        ))
+        )
+        )
         nl()
         // verbatim: `quote` has no way to spell a doc comment, and these carry the contract
         emit(SPEC_DECLARATIONS)

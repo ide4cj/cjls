@@ -89,13 +89,16 @@ public func isWorkspaceDirectory(path: VfsPath, roots: Array<VfsPath>): Bool {
  * Whether the walk of `roots` reaches `path`: under one of them, through directories it goes into.
  */
 private func isReached(path: VfsPath, roots: Array<VfsPath>): Bool {
-    roots.iterator().any {
-        root => match (path.segmentsUnder(root)) {
-            case Some(segments) where segments.size > 0 =>
-                segments[..segments.size - 1].iterator().all {name => isScanned(name)}
-            case _ => false
+    roots
+        .iterator()
+        .any {
+            root =>
+            match (path.segmentsUnder(root)) {
+                case Some(segments) where segments.size > 0 =>
+                    segments[..segments.size - 1].iterator().all { name => isScanned(name) }
+                case _ => false
+            }
         }
-    }
 }
 
 /**
@@ -119,11 +122,12 @@ private class Walk {
     Walk(private var budget: Int64) {}
 
     func readDirectory(dir: Path): Unit {
-        let entries = try {
-            Directory.readFrom(dir)
-        } catch (_: FSException) {
-            return
-        }
+        let entries =
+            try {
+                Directory.readFrom(dir)
+            } catch (_: FSException) {
+                return
+            }
         for (entry in entries where !entry.isSymbolicLink()) {
             if (entry.isDirectory()) {
                 if (isScanned(entry.name)) {
@@ -157,7 +161,7 @@ private class Walk {
 private func outermost(roots: Array<VfsPath>): Array<VfsPath> {
     let kept = ArrayList<VfsPath>()
     for (root in roots) {
-        let inside = roots.iterator().any {other => other != root && root.isUnder(other)}
+        let inside = roots.iterator().any { other => other != root && root.isUnder(other) }
         if (!inside && !kept.contains(root)) {
             kept.add(root)
         }
@@ -188,7 +192,11 @@ public struct CjoFile {
  * A `.cjo` read, and its stamp then; `bytes` are `None` for one unchanged, which is not read again.
  */
 public struct CjoFileRead {
-    public CjoFileRead(public let file: CjoFile, public let stamp: FileStamp, public let bytes: ?Array<Byte>) {}
+    public CjoFileRead(
+        public let file: CjoFile,
+        public let stamp: FileStamp,
+        public let bytes: ?Array<Byte>
+    ) {}
 }
 
 /**
@@ -219,15 +227,20 @@ public struct CjoRead {
  */
 public func cjoFilesIn(binary: String, dir: VfsPath): Array<CjoFile> {
     let path = dir.filePath ?? return []
-    let entries = try {
-        Directory.readFrom(path)
-    } catch (_: FSException) {
-        return []
-    }
-    let files = entries.filter {entry => entry.isRegular() && entry.name.endsWith(CJO_SUFFIX)}.map {
-        entry => CjoFile(binary, entry.name.removeSuffix(CJO_SUFFIX), VfsPath.file(entry.path))
-    }
-    sort(files, by: {a, b => a.name.compare(b.name)})
+    let entries =
+        try {
+            Directory.readFrom(path)
+        } catch (_: FSException) {
+            return []
+        }
+    let files =
+        entries
+            .filter { entry => entry.isRegular() && entry.name.endsWith(CJO_SUFFIX) }
+            .map {
+                entry =>
+                CjoFile(binary, entry.name.removeSuffix(CJO_SUFFIX), VfsPath.file(entry.path))
+            }
+    sort(files, by: { a, b => a.name.compare(b.name) })
     files
 }
 
@@ -239,8 +252,11 @@ public func cjoFilesIn(binary: String, dir: VfsPath): Array<CjoFile> {
  *
  * Touches nothing but the disk, so any thread may call it.
  */
-public func readCjoFiles(files: Array<CjoFile>, unchanged!: (CjoFile, FileStamp) -> Bool = {_, _ => false},
-    budget!: Int64 = Int64.Max): CjoRead {
+public func readCjoFiles(
+    files: Array<CjoFile>,
+    unchanged!: (CjoFile, FileStamp) -> Bool = { _, _ => false },
+    budget!: Int64 = Int64.Max
+): CjoRead {
     let read = ArrayList<CjoFileRead>()
     let problems = ArrayList<String>()
     let seen = HashSet<VfsPath>()
@@ -248,12 +264,13 @@ public func readCjoFiles(files: Array<CjoFile>, unchanged!: (CjoFile, FileStamp)
     var truncated = false
     for (file in files where seen.add(file.path)) {
         let path = file.path.filePath ?? continue
-        let stamp = try {
-            let info = FileInfo(path)
-            FileStamp(info.size, info.lastModificationTime)
-        } catch (_: FSException) {
-            continue
-        }
+        let stamp =
+            try {
+                let info = FileInfo(path)
+                FileStamp(info.size, info.lastModificationTime)
+            } catch (_: FSException) {
+                continue
+            }
         if (stamp.size > left) {
             truncated = true
             continue
@@ -263,11 +280,12 @@ public func readCjoFiles(files: Array<CjoFile>, unchanged!: (CjoFile, FileStamp)
             read.add(CjoFileRead(file, stamp, None))
             continue
         }
-        let bytes = try {
-            File.readFrom(path)
-        } catch (_: FSException) {
-            continue
-        }
+        let bytes =
+            try {
+                File.readFrom(path)
+            } catch (_: FSException) {
+                continue
+            }
         // written again since its stamp was taken
         if (bytes.size > left) {
             truncated = true

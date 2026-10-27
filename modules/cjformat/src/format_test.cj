@@ -1,15 +1,16 @@
 package cjformat
 
-import std.collection.*
+import std.collection.min
 import std.unittest.*
 import std.unittest.testmacro.*
 
 /**
  * `before` formatted is `after`, and `after` is left as it is.
  */
-func check(before: String, after: String) {
+func check(before: String, after: String): Unit {
     @Expect(formatText(before), Some(after))
     @Expect(formatText(after), Some(after))
+    @Expect(formattingProblems("fixture", before), [])
 }
 
 /**
@@ -18,422 +19,232 @@ func check(before: String, after: String) {
  */
 func code(text: String): String {
     let lines = text.split("\n")[1..]
-    let body = if (lines[lines.size - 1].trimAscii().isEmpty()) { lines[..lines.size - 1] } else { lines }
-    let indent = body.filter {line => !line.trimAscii().isEmpty()}
-        .map {line => line.size - line.trimAsciiStart().size}
-        .iterator() |> min
+    let body =
+        if (lines[lines.size - 1].trimAscii().isEmpty()) { lines[..lines.size - 1] } else { lines }
+    let indent =
+        body
+            .filter { line => !line.trimAscii().isEmpty() }
+            .map { line => line.size - line.trimAsciiStart().size }
+            .iterator() |>
+            min
     let shared = indent ?? 0
-    String.join(body.map {line => if (line.trimAscii().isEmpty()) { "" } else { line[shared..] }}, delimiter: "\n") +
-        "\n"
+    let joined =
+        String
+            .join(
+                body.map { line => if (line.trimAscii().isEmpty()) { "" } else { line[shared..] } },
+                delimiter: "\n"
+            )
+    "${joined}\n"
 }
 
 @Test
 class FormatTest {
     @TestCase
-    func aBlockIsIndentedOneLevelPerBrace() {
+    func shortListsAndExpressionsIgnoreTheAuthorsLineBreaks(): Unit {
         check(
-            code(#"
-            class A {
-            func f() {
-                      let x = 1
-              }
-            }
-            "#),
-            code(#"
-            class A {
-                func f() {
-                    let x = 1
-                }
-            }
-            "#))
-    }
-
-    @TestCase
-    func aLineCarryingAStatementOnIsOneLevelIn() {
+            "func f(a: Int64,\n b: Int64) {\nlet x=g(a, h(b,\nc))\n}\n",
+            "func f(a: Int64, b: Int64) {\n    let x = g(a, h(b, c))\n}\n"
+        )
         check(
-            code(#"
-            func f() {
-                let x = a +
-                b
-                Router()
-                .route(x)
-                .route(y)
-            }
-            "#),
-            code(#"
-            func f() {
-                let x = a +
-                    b
-                Router()
-                    .route(x)
-                    .route(y)
-            }
-            "#))
+            "func f() {\nlet x=a +\nb\nRouter()\n.route(x)\n.route(y)\n}\n",
+            "func f() {\n    let x = a + b\n    Router().route(x).route(y)\n}\n"
+        )
     }
 
     @TestCase
-    func bracketsOpenedOnOneLineIndentOneLevel() {
+    func longListsBreakOneElementPerLineAtTheFixedWidth(): Unit {
+        // arrange
+        let a = "firstArgumentWithAVeryLongDescriptiveName"
+        let b = "secondArgumentWithAVeryLongDescriptiveName"
+        let c = "thirdArgumentWithAVeryLongDescriptiveName"
+        let source = "func f() { call(${a}, ${b}, ${c}) }"
+        let expected =
+            "func f() {\n    call(\n        ${a},\n        ${b},\n        ${c}\n    )\n}\n"
+
+        // act
+        let formatted = formatText(source)
+        let problems = formattingProblems("fixture", source)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        @Expect(problems, [])
+    }
+
+    @TestCase
+    func declarationsAndEmptyBodiesHaveOneLayout(): Unit {
         check(
-            code(#"
-            func f() {
-                let r = g(a, h(b,
-                c))
-                let s = g(
-                h(
-                b
-                )
-                )
-            }
-            "#),
-            code(#"
-            func f() {
-                let r = g(a, h(b,
-                    c))
-                let s = g(
-                    h(
-                        b
-                    )
-                )
-            }
-            "#))
+            "class A <: B\n{ func f():Unit\n{ if(a)\n{ g() } else { h() } } }",
+            "class A <: B {\n    func f(): Unit {\n        if (a) {\n            g()\n        } else {\n            h()\n        }\n    }\n}\n"
+        )
+        check("func f() { }", "func f() {}\n")
     }
 
     @TestCase
-    func aBodyIsIndentedFromItsDeclarationsFirstLine() {
+    func lambdasFlattenOnlyWhenTheyHaveOneStatement(): Unit {
         check(
-            code(#"
-            func f(a: Int64,
-            b: Int64): Int64 {
-            a
-            }
-            "#),
-            code(#"
-            func f(a: Int64,
-                b: Int64): Int64 {
-                a
-            }
-            "#))
-    }
-
-    @TestCase
-    func aConditionBrokenInsideItsParenthesesIsOneLevelIn() {
+            "func f() {\nxs\n.map { x =>\nx\n}\ng(a, { y =>\ny\n})\n}",
+            "func f() {\n    xs.map { x => x }\n    g(a, { y => y })\n}\n"
+        )
         check(
-            code(#"
-            func f() {
-                if (a &&
-                        b) {
-                    c
-                }
-            }
-            "#),
-            code(#"
-            func f() {
-                if (a &&
-                    b) {
-                    c
-                }
-            }
-            "#))
+            "let f = { x: Int64 => a(x); b(x) }",
+            "let f =\n    {\n        x: Int64 =>\n        a(x);\n        b(x)\n    }\n"
+        )
     }
 
     @TestCase
-    func whatFollowsTheArrowOfACaseIsOneLevelIn() {
+    func matchArmsKeepTheirStatementBoundaries(): Unit {
         check(
-            code(#"
-            func f() {
-                match (x) {
-                case 1 =>
-                if (y) {
-                z
-                }
-                case 2 | 3 |
-                4 => w
-                }
-            }
-            "#),
-            code(#"
-            func f() {
-                match (x) {
-                    case 1 =>
-                        if (y) {
-                            z
-                        }
-                    case 2 | 3 |
-                        4 => w
-                }
-            }
-            "#))
+            "func f() { match(x) { case 1 => a; b\ncase 2 | 3 => c } }",
+            "func f() {\n    match (x) {\n        case 1 =>\n            a;\n            b\n        case 2 | 3 => c\n    }\n}\n"
+        )
     }
 
     @TestCase
-    func aLambdaIsIndentedFromItsLine() {
+    func commentsStayOnTheirSideOfTokens(): Unit {
         check(
-            code(#"
-            func f() {
-                xs
-                    .map { x =>
-                    x
-                    }
-                g(a, { y =>
-                y
-                })
-            }
-            "#),
-            code(#"
-            func f() {
-                xs
-                    .map { x =>
-                        x
-                    }
-                g(a, { y =>
-                    y
-                })
-            }
-            "#))
-    }
-
-    @TestCase
-    func aLambdasStatementsAreAtTheLevelOfParametersOnALineOfTheirOwn() {
+            "let a = 1 // a\nlet b = 2 // b\n\n// c\nlet c = 3\n",
+            "let a = 1 // a\nlet b = 2 // b\n\n// c\nlet c = 3\n"
+        )
         check(
-            code(#"
-            func f() {
-                g {
-                    x: Int64 =>
-                        x
-                }
-            }
-            "#),
-            code(#"
-            func f() {
-                g {
-                    x: Int64 =>
-                    x
-                }
-            }
-            "#))
-    }
-
-    @TestCase
-    func insideBracketsALineCarryingAnElementOnIsOneLevelIn() {
+            "func f() { g(a, // first\nb) }",
+            "func f() {\n    g(\n        a, // first\n        b\n    )\n}\n"
+        )
+        check("func f() { /* empty */ }", "func f() {\n    /* empty */\n}\n")
         check(
-            code(#"
-            func f() {
-                g(
-                    "a" +
-                    "b",
-                    c)
-                let m: HashMap<String,
-                Int64> = h()
-            }
-            "#),
-            code(#"
-            func f() {
-                g(
-                    "a" +
-                        "b",
-                    c)
-                let m: HashMap<String,
-                    Int64> = h()
-            }
-            "#))
+            "func f() {\nif(a) // c\n{g()}\n}",
+            "func f() {\n    if (a) // c\n    {\n        g()\n    }\n}\n"
+        )
     }
 
     @TestCase
-    func annotationsCommentsAndAMacroNameDoNotMakeADeclarationACarriedLine() {
+    func macrosKeepTheirTokenLayoutAndMoveAsAWhole(): Unit {
         check(
-            code(#"
-            @Test
-            class A {
-                /**
-                  * doc
-                  */
-                @Deprecated
-                  public func f() {}
-            }
-            "#),
-            code(#"
-            @Test
-            class A {
-                /**
-                  * doc
-                  */
-                @Deprecated
-                public func f() {}
-            }
-            "#))
-    }
-
-    @TestCase
-    func whatAMacroReadsAsTokensMovesAsAWhole() {
+            "class A {\n  @TestCase[x in [\n        1,\n      2\n  ]]\n  func f(x: Int64) {\n      @Expect(x,\n         x)\n  }\n}\n",
+            "class A {\n    @TestCase[x in [\n          1,\n        2\n    ]]\n    func f(x: Int64) {\n        @Expect(x,\n           x)\n    }\n}\n"
+        )
         check(
-            code(#"
-            class A {
-              @TestCase[x in [
-                    1,
-                  2
-              ]]
-              func f(x: Int64) {
-                  @Expect(x,
-                     x)
-              }
-            }
-            "#),
-            code(#"
-            class A {
-                @TestCase[x in [
-                      1,
-                    2
-                ]]
-                func f(x: Int64) {
-                    @Expect(x,
-                       x)
-                }
-            }
-            "#))
+            "func f() {\n        @M(\n  x\n          y)\n}\n",
+            "func f() {\n    @M(\nx\n        y)\n}\n"
+        )
     }
 
     @TestCase
-    func aMultiLineStringIsLeftAlone() {
-        let source = "func f() {\n    let s = \"\"\"\n  a  \n        b\n\"\"\"\n}\n"
-        check(source, source)
-    }
-
-    @TestCase
-    func aBlockCommentMovesWithItsFirstLine() {
+    func aQuoteOnAContinuationFrameUsesItsActualLineIndent(): Unit {
         check(
-            "func f() {\n/*\n * a  \n */\n}\n",
-            "func f() {\n    /*\n     * a\n     */\n}\n")
+            "func f() {\n    x += quote(\n        y\n    )\n}\n",
+            "func f() {\n    x += quote(\n        y\n    )\n}\n"
+        )
     }
 
     @TestCase
-    func aBlockCommentsLinesKeepTheirAlignmentWhereTheShiftWouldPassTheMargin() {
+    func multilineStringsAndInterpolationsAreNotRewritten(): Unit {
+        // arrange
+        let value = "func f() {\n    let s = \"\"\"\n  a  \n        b\n\"\"\"\n}\n"
+
+        // act
+        let problems = formattingProblems("string", value)
+        let formatted = formatText(value).getOrThrow()
+
+        // assert
+        @Expect(problems, [])
+        @Expect(formatted.contains("\"\"\"\n  a  \n        b\n\"\"\""))
+        check(#"let x = "${a+  b}""#, #"let x = "${a+  b}""# + "\n")
+    }
+
+    @TestCase
+    func blockCommentsMoveWithoutLosingInternalAlignment(): Unit {
+        check("func f() {\n/*\n * a  \n */\n}\n", "func f() {\n    /*\n     * a\n     */\n}\n")
         check(
-            code(#"
-            class A {
-                    /*
-              a
-                b
-                    */
-            }
-            "#),
-            code(#"
-            class A {
-                /*
-            a
-              b
-                  */
-            }
-            "#))
+            "class A {\n        /*\n  a\n    b\n        */\n}\n",
+            "class A {\n    /*\na\n  b\n      */\n}\n"
+        )
     }
 
     @TestCase
-    func whatAMacroReadsAsTokensKeepsItsAlignmentWhereTheShiftWouldPassTheMargin() {
-        check(
-            code(#"
-            func f() {
-                    @M(
-              x
-                      y)
-            }
-            "#),
-            code(#"
-            func f() {
-                @M(
-            x
-                    y)
-            }
-            "#))
-    }
-
-    @TestCase
-    func aBodysBraceOnALineOfItsOwnJoinsTheLineBefore() {
-        check(
-            code(#"
-            class A <: B
-            {
-                func f(): Unit
-                {
-                    if (a)
-                    {
-                        g()
-                    } else
-                        {
-                        h()
-                    }
-                    match (a)
-
-                    {
-                        case _ => ()
-                    }
-                }
-            }
-            "#),
-            code(#"
-            class A <: B {
-                func f(): Unit {
-                    if (a) {
-                        g()
-                    } else {
-                        h()
-                    }
-                    match (a) {
-                        case _ => ()
-                    }
-                }
-            }
-            "#))
-    }
-
-    @TestCase
-    func aBodysBraceAfterALineCommentIsAtTheLevelOfItsStatement() {
-        check(
-            code(#"
-            func f() {
-                if (a) // c
-                    {
-                    g()
-                }
-            }
-            "#),
-            code(#"
-            func f() {
-                if (a) // c
-                {
-                    g()
-                }
-            }
-            "#))
-    }
-
-    @TestCase
-    func aLambdasBraceKeepsItsLine() {
-        let source = code(#"
-            func f() {
-                let g =
-                    {x: Int64 => x}
-            }
-            "#)
-        check(source, source)
-    }
-
-    @TestCase
-    func trailingWhitespaceGoesAndBlankLinesAreKeptToOne() {
+    func blankLinesAreKeptToOneAndTheFileEndsWithANewline(): Unit {
         check("\n\nlet a = 1   \n\n\n\nlet b = 2 // c  \n\n", "let a = 1\n\nlet b = 2 // c\n")
-    }
-
-    @TestCase
-    func theFileEndsInOneLineBreak() {
         check("let a = 1", "let a = 1\n")
         check("", "")
+        check("   \n", "")
     }
 
     @TestCase
-    func crlfLineBreaksAreKept() {
+    func crlfLineBreaksAreKept(): Unit {
         check("func f() {\r\nx\r\n}", "func f() {\r\n    x\r\n}\r\n")
     }
 
     @TestCase
-    func aFileWithSyntaxErrorsIsNotFormatted() {
-        @Expect(formatText("func f( {"), None)
+    func separateMinusTokensNeverBecomeADecrement(): Unit {
+        check("let x = - - - 1", "let x = - - -1\n")
+    }
+
+    @TestCase
+    func comparisonsInTuplesDoNotBecomeGenericCalls(): Unit {
+        // arrange
+        let text = "func f() { (a < b, c >\n(d)) }"
+
+        // act
+        let problems = formattingProblems("generic follower", text)
+        let formatted = formatText(text).getOrThrow()
+
+        // assert
+        @Expect(problems, [])
+        @Expect(formatted.contains("c >\n"))
+    }
+
+    @TestCase
+    func aLongSignatureBreaksParametersBeforeItsShortReturnType(): Unit {
+        // arrange
+        let source =
+            "func longFunctionName(first: LongParameterType, second: LongParameterType): Option<LongReturnType> {}"
+        let expected =
+            "func longFunctionName(\n    first: LongParameterType,\n    second: LongParameterType\n): Option<LongReturnType> {}\n"
+
+        // act
+        let formatted = formatText(source)
+        let problems = formattingProblems("fixture", source)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        @Expect(problems, [])
+    }
+
+    @TestCase
+    func longChainsBreakBeforeDotsAndUseOneContinuationIndent(): Unit {
+        // arrange
+        let a = "firstVeryLongDescriptiveMethodName"
+        let b = "secondVeryLongDescriptiveMethodName"
+        let c = "thirdVeryLongDescriptiveMethodName"
+        let source = "func f() { value.${a}().${b}().${c}() }"
+        let expected =
+            "func f() {\n    value\n        .${a}()\n        .${b}()\n        .${c}()\n}\n"
+
+        // act
+        let formatted = formatText(source)
+        let problems = formattingProblems("fixture", source)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        @Expect(problems, [])
+    }
+
+    @TestCase
+    func annotationsDoNotForceAShortSignatureToBreak(): Unit {
+        check(
+            "@Frozen\nfunc f(x:Int64):Int64 {x}",
+            "@Frozen\nfunc f(x: Int64): Int64 {\n    x\n}\n"
+        )
+    }
+
+    @TestCase
+    func syntaxErrorsRefuseTheWholeFile(): Unit {
+        // arrange
+        let source = "func f( {"
+
+        // act
+        let formatted = formatText(source)
+
+        // assert
+        @Expect(formatted, None)
     }
 }

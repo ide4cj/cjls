@@ -38,8 +38,11 @@ func relaunchWithLargerHeap(logger: Logger): ?Int64 {
     try {
         Some(relaunch())
     } catch (e: Exception) {
-        logger.warn("could not start over with a larger heap: running on the default one",
-            [(HEAP_SIZE_VARIABLE, HEAP_SIZE), ("cause", e)])
+        logger
+            .warn(
+                "could not start over with a larger heap: running on the default one",
+                [(HEAP_SIZE_VARIABLE, HEAP_SIZE), ("cause", e)]
+            )
         None
     }
 }

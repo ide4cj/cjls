@@ -1,4 +1,4 @@
-features { os.windows }
+features {os.windows}
 package platform
 
 import std.unittest.*
@@ -19,16 +19,20 @@ class JobExtendedLimitsTest {
     @TestCase
     func holdsTheLimitFlagsWhereWindowsReadsThem() {
         // arrange
-        let limits = unsafe { LibC.malloc<JobExtendedLimits>() }
+        let limits =
+            unsafe {
+                LibC.malloc<JobExtendedLimits>()
+            }
 
         // act
-        let flags = unsafe {
-            limits.write(JobExtendedLimits(JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE))
-            // `LimitFlags` is a `DWORD` 16 bytes in: after two `LARGE_INTEGER`s
-            let read = CPointer<UInt32>(limits).read(4)
-            LibC.free(limits)
-            read
-        }
+        let flags =
+            unsafe {
+                limits.write(JobExtendedLimits(JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE))
+                // `LimitFlags` is a `DWORD` 16 bytes in: after two `LARGE_INTEGER`s
+                let read = CPointer<UInt32>(limits).read(4)
+                LibC.free(limits)
+                read
+            }
 
         // assert
         @Expect(flags, JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE)
@@ -46,13 +50,24 @@ class KillOnCloseJobTest {
     @TestCase
     func closingTheLastHandleTerminatesTheProcessesInTheJob() {
         // arrange: `cmd` reads commands from a stdin that never ends, since its pipe stays open
-        let child = launch("cmd.exe", [], stdIn: ProcessRedirect.Pipe, stdOut: ProcessRedirect.Discard,
-            stdErr: ProcessRedirect.Discard)
+        let child =
+            launch(
+                "cmd.exe",
+                [],
+                stdIn: ProcessRedirect.Pipe,
+                stdOut: ProcessRedirect.Discard,
+                stdErr: ProcessRedirect.Discard
+            )
         let job = KillOnCloseJob()
-        let process = unsafe { OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, 0, UInt32(child.pid)) }
+        let process =
+            unsafe {
+                OpenProcess(PROCESS_SET_QUOTA | PROCESS_TERMINATE, 0, UInt32(child.pid))
+            }
         @Assert(!process.isNull())
         job.assign(process)
-        unsafe { CloseHandle(process) }
+        unsafe {
+            CloseHandle(process)
+        }
 
         // act
         job.close()

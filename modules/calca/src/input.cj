@@ -13,7 +13,11 @@ public class InputIngredient {
     /**
      * A `singleton` has at most one row per database, which `single` finds.
      */
-    public InputIngredient(let name: String, let fields: Array<String>, let singleton!: Bool = false) {
+    public InputIngredient(
+        let name: String,
+        let fields: Array<String>,
+        let singleton!: Bool = false
+    ) {
         base = reserveIngredients(1 + fields.size)
     }
 
@@ -35,26 +39,30 @@ public class InputIngredient {
                 // changed in one the batch rolls back if it sets nothing, and so in the next
                 return add(storage.runtime, durability, fill, revision - 1)
             }
-            return storage.read {
-                add(storage.runtime, durability, fill, storage.runtime.revision)
-            }
+            return storage.read { add(storage.runtime, durability, fill, storage.runtime.revision) }
         }
-        storage.write {
-            revision =>
-            let id = add(storage.runtime, durability, fill, revision)
-            let table = table(storage.runtime)
-            synchronized(table.lock) {
-                table.createdAt = revision
+        storage
+            .write {
+                revision =>
+                let id = add(storage.runtime, durability, fill, revision)
+                let table = table(storage.runtime)
+                synchronized (table.lock) {
+                    table.createdAt = revision
+                }
+                // what looked for it read nothing of the row yet, so of no durability in particular
+                storage.runtime.changed(Durability.High, revision)
+                id
             }
-            // what looked for it read nothing of the row yet, so of no durability in particular
-            storage.runtime.changed(Durability.High, revision)
-            id
-        }
     }
 
-    private func add(runtime: Runtime, durability: Durability, fill: (InputRow) -> Unit, createdAt: Int64): Id {
+    private func add(
+        runtime: Runtime,
+        durability: Durability,
+        fill: (InputRow) -> Unit,
+        createdAt: Int64
+    ): Id {
         let table = table(runtime)
-        synchronized(table.lock) {
+        synchronized (table.lock) {
             if (singleton && table.rows > 0) {
                 throw IllegalStateException("${name} is a singleton, and there is one already")
             }
@@ -74,15 +82,18 @@ public class InputIngredient {
         let outermost = storage.beginOperation()
         try {
             let table = table(storage.runtime)
-            let (created, createdAt) = synchronized(table.lock) {
-                (table.rows > 0, table.createdAt)
-            }
-            storage.reportRead(DatabaseKey(base, Id(0)), ASK_THE_INGREDIENT, Durability.High, createdAt)
-            if (created) {
-                Id(0)
-            } else {
-                None
-            }
+            let (created, createdAt) =
+                synchronized (table.lock) {
+                    (table.rows > 0, table.createdAt)
+                }
+            storage
+                .reportRead(
+                    DatabaseKey(base, Id(0)),
+                    ASK_THE_INGREDIENT,
+                    Durability.High,
+                    createdAt
+                )
+            if (created) { Id(0) } else { None }
         } finally {
             storage.endOperation(outermost)
         }
@@ -116,13 +127,14 @@ public class InputIngredient {
 
     @Frozen
     func table(runtime: Runtime): InputTable {
-        runtime.existing<InputTable>(base) ?? runtime.ingredient(base) {=> InputTable(this)}
+        runtime.existing<InputTable>(base) ?? runtime.ingredient(base) { => InputTable(this) }
     }
 
     @Frozen
     func column<T>(runtime: Runtime, field: Int64): InputColumn<T> {
         let index = base + 1 + field
-        runtime.existing<InputColumn<T>>(index) ?? runtime.ingredient(index) {=> InputColumn<T>(table(runtime), index, fields[field])}
+        runtime.existing<InputColumn<T>>(index) ??
+            runtime.ingredient(index) { => InputColumn<T>(table(runtime), index, fields[field]) }
     }
 }
 
@@ -130,8 +142,13 @@ public class InputIngredient {
  * The row `InputIngredient.create` is adding.
  */
 public class InputRow {
-    InputRow(private let ingredient: InputIngredient, private let runtime: Runtime, private let id: Id,
-        private let durability: Durability, private let createdAt: Int64) {}
+    InputRow(
+        private let ingredient: InputIngredient,
+        private let runtime: Runtime,
+        private let id: Id,
+        private let durability: Durability,
+        private let createdAt: Int64
+    ) {}
 
     public func put<T>(field: Int64, value: T): Unit {
         ingredient.column<T>(runtime, field).push(id, Stamp(value, createdAt, durability))
@@ -166,12 +183,13 @@ public class Setter<T> {
      * @throws IllegalStateException - if the handle is a snapshot, or is inside a query
      */
     public func to(value: T): T {
-        storage.write {
-            revision =>
-            let old = column.replace(id, value, durability, revision)
-            storage.runtime.changed(max(old.durability, durability ?? old.durability), revision)
-            old.value
-        }
+        storage
+            .write {
+                revision =>
+                let old = column.replace(id, value, durability, revision)
+                storage.runtime.changed(max(old.durability, durability ?? old.durability), revision)
+                old.value
+            }
     }
 }
 
@@ -193,7 +211,7 @@ class InputTable <: Ingredient {
      * Whether the singleton was created since: what looking for it records.
      */
     public func maybeChangedAfter(_: Database, _: Id, revision: Int64): Bool {
-        synchronized(lock) {
+        synchronized (lock) {
             createdAt > revision
         }
     }
@@ -217,10 +235,17 @@ class InputColumn<T> <: Ingredient {
 
     @Frozen
     func get(storage: Storage, id: Id): T {
-        let stamp = synchronized(table.lock) {
-            stamps[id.index]
-        }
-        storage.reportRead(DatabaseKey(index, id), ASK_THE_INGREDIENT, stamp.durability, stamp.changedAt)
+        let stamp =
+            synchronized (table.lock) {
+                stamps[id.index]
+            }
+        storage
+            .reportRead(
+                DatabaseKey(index, id),
+                ASK_THE_INGREDIENT,
+                stamp.durability,
+                stamp.changedAt
+            )
         stamp.value
     }
 
@@ -229,7 +254,9 @@ class InputColumn<T> <: Ingredient {
      */
     func push(id: Id, stamp: Stamp<T>): Unit {
         if (id.index != stamps.size) {
-            throw IllegalStateException("${table.ingredient.name}.${field} is given row ${id} where row ${stamps.size} is due")
+            throw IllegalStateException(
+                "${table.ingredient.name}.${field} is given row ${id} where row ${stamps.size} is due"
+            )
         }
         stamps.add(stamp)
     }
@@ -238,7 +265,7 @@ class InputColumn<T> <: Ingredient {
      * Returns the stamp replaced.
      */
     func replace(id: Id, value: T, durability: ?Durability, revision: Int64): Stamp<T> {
-        synchronized(table.lock) {
+        synchronized (table.lock) {
             let old = stamps[id.index]
             stamps[id.index] = Stamp(value, revision, durability ?? old.durability)
             old
@@ -246,7 +273,7 @@ class InputColumn<T> <: Ingredient {
     }
 
     public func maybeChangedAfter(_: Database, id: Id, revision: Int64): Bool {
-        synchronized(table.lock) {
+        synchronized (table.lock) {
             stamps[id.index].changedAt > revision
         }
     }

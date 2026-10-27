@@ -34,7 +34,8 @@ class DeriveJsonStructTest {
     @TestCase
     func keysAreReadInAnyOrderAndUnknownOnesSkipped() {
         // act
-        let position = read<DerivedPosition>(#" { "extra": {"a": [1, "x"]}, "character" : 14, "line": 3 } "#)
+        let position =
+            read<DerivedPosition>(#" { "extra": {"a": [1, "x"]}, "character" : 14, "line": 3 } "#)
 
         // assert
         @Expect(3, position.line)
@@ -112,7 +113,8 @@ class DeriveJsonNullabilityTest {
     @TestCase
     func anExplicitNullReadsAsNoneRatherThanThrowing() {
         // act
-        let restored = read<DerivedShapes>(#"{"required": "r", "nullable": null, "optional": null}"#)
+        let restored =
+            read<DerivedShapes>(#"{"required": "r", "nullable": null, "optional": null}"#)
 
         // assert
         @Expect(restored.optional.isNone())
@@ -129,8 +131,10 @@ class DeriveJsonNullabilityTest {
     func anOptionalNullableTellsAbsentFromNull() {
         // act
         let absent = read<DerivedShapes>(#"{"required": "r", "nullable": null}"#)
-        let null = read<DerivedShapes>(#"{"required": "r", "nullable": null, "optionalNullable": null}"#)
-        let value = read<DerivedShapes>(#"{"required": "r", "nullable": null, "optionalNullable": "v"}"#)
+        let null =
+            read<DerivedShapes>(#"{"required": "r", "nullable": null, "optionalNullable": null}"#)
+        let value =
+            read<DerivedShapes>(#"{"required": "r", "nullable": null, "optionalNullable": "v"}"#)
 
         // assert
         @Expect(absent.optionalNullable.isNone())
@@ -387,7 +391,8 @@ class DeriveJsonTaggedStructTest {
     @TestCase
     func aTaggedStructRoundTrips() {
         // act
-        let restored = read<DerivedDeleteFile>(json(DerivedDeleteFile(uri: "file:///a", recursive: true)))
+        let restored =
+            read<DerivedDeleteFile>(json(DerivedDeleteFile(uri: "file:///a", recursive: true)))
 
         // assert
         @Expect("file:///a", restored.uri)
@@ -397,7 +402,8 @@ class DeriveJsonTaggedStructTest {
     @TestCase
     func aForeignOrAbsentTagThrows() {
         // act
-        let onOtherTag = @AssertThrows[FjException](read<DerivedCreateFile>(#"{"kind": "delete", "uri": "file:///a"}"#))
+        let onOtherTag =
+            @AssertThrows[FjException](read<DerivedCreateFile>(#"{"kind": "delete", "uri": "file:///a"}"#))
         let onAbsent = @AssertThrows[FjException](read<DerivedCreateFile>(#"{"uri": "file:///a"}"#))
 
         // assert

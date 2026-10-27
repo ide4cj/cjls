@@ -97,11 +97,7 @@ func lexGrammar(text: String): ArrayList<GToken> {
             comment.add(String.fromUtf8(bytes[start..pos]).trimAscii())
             commentEnd = line
         } else {
-            let doc = if (commentEnd == line - 1) {
-                comment.toArray()
-            } else {
-                Array<String>()
-            }
+            let doc = if (commentEnd == line - 1) { comment.toArray() } else { Array<String>() }
             commentEnd = -1
             comment = ArrayList<String>()
             if (isIdentByte(b)) {
@@ -128,11 +124,16 @@ func lexGrammar(text: String): ArrayList<GToken> {
                 }
                 pos++
                 tokens.add(GToken(GQuoted, String.fromUtf8(sb.toArray()), line, doc))
-            } else if (b == b'=' || b == b'|' || b == b'(' || b == b')' || b == b'?' || b == b'*' || b == b':') {
+            } else if (
+                b == b'=' || b == b'|' || b == b'(' || b == b')' || b == b'?' || b == b'*' ||
+                    b == b':'
+            ) {
                 pos++
                 tokens.add(GToken(GPunct, String.fromUtf8([b]), line, doc))
             } else {
-                throw GrammarException("line ${line}: unexpected character '${String.fromUtf8([b])}'")
+                throw GrammarException(
+                    "line ${line}: unexpected character '${String.fromUtf8([b])}'"
+                )
             }
         }
     }
@@ -181,11 +182,7 @@ class GrammarParser {
     }
 
     func line(): Int64 {
-        if (pos < tokens.size) {
-            tokens[pos].line
-        } else {
-            tokens[tokens.size - 1].line
-        }
+        if (pos < tokens.size) { tokens[pos].line } else { tokens[tokens.size - 1].line }
     }
 
     func alternatives(): Rule {
@@ -197,11 +194,7 @@ class GrammarParser {
             pos++
             alts.add(sequence())
         }
-        if (alts.size == 1) {
-            alts[0]
-        } else {
-            Alt(alts.toArray())
-        }
+        if (alts.size == 1) { alts[0] } else { Alt(alts.toArray()) }
     }
 
     func sequence(): Rule {
@@ -239,7 +232,9 @@ class GrammarParser {
         match (t.kind) {
             case GIdent where pos + 1 < tokens.size && tokens[pos + 1].isPunct(":") =>
                 pos += 2
-                let inner = postfixed() ?? throw GrammarException("line ${t.line}: expected a rule after `${t.text}:`")
+                let inner =
+                    postfixed() ??
+                        throw GrammarException("line ${t.line}: expected a rule after `${t.text}:`")
                 Labeled(t.text, inner)
             case GIdent =>
                 pos++

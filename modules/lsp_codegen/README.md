@@ -8,8 +8,7 @@ than generated files; the shared policy and verification are in
 
 ## Regeneration
 
-Run from the repository root with the SDK environment loaded (`cjfmt` is invoked
-by the generator):
+Build from the repository root with the SDK environment loaded:
 
 ```bash
 cjpm build
@@ -20,8 +19,9 @@ target/release/bin/lsp_codegen modules/lsp_codegen/metaModel.json -c modules/cjl
 Build first: deleting output temporarily prevents the workspace from building,
 so `cjpm run` cannot bootstrap regeneration. The generator does not prune old
 files. Review the output, run generator tests and build/test a consumer as
-Development requires; formatter exit status alone does not prove valid output
-([K12](../../docs/sdk-issues.md#k12)).
+Development requires. The shared `cjformat` library formats each file in memory
+and rejects syntax errors before writing. The built generator needs no SDK
+environment; valid syntax alone does not establish type correctness.
 
 The config's `output-subpackage` combines with `[package].name` from its adjacent
 `cjpm.toml`. `src-dir` comes from config, then manifest, then `src`; relative

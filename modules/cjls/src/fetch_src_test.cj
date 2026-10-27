@@ -6,11 +6,13 @@ import std.fs.{Directory, File, Path, exists}
 import std.io.ByteBuffer
 import platform.executableFile
 
-const NOTES = """
+const NOTES =
+    """
 {"tag_name":"1.3.0-alpha.20261002001050","body":"## Cangjie Nightly Build Version: **1.3.0-alpha.20261002001050**\\n\\n## Commit IDs / 构建提交ID\\n\\n- **cangjie_compiler**: `514a5a209e42`\\n- **cangjie_runtime**: `5d555bcc34d6`\\n- **cangjie_tools**: `3009d063056e`\\n"}
 """
 
-const VERSION_OUTPUT = "Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)\nTarget: x86_64-unknown-linux-gnu\n"
+const VERSION_OUTPUT =
+    "Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)\nTarget: x86_64-unknown-linux-gnu\n"
 
 /**
  * The network, `tar` and `cjc` of a test: `pages` by URL, an archive that unpacks into `tree`
@@ -44,7 +46,7 @@ class FakeSrcHost <: SrcHost {
     public func unpack(archive: Path, into: Path): Bool {
         asked.add("unpack")
         for ((path, text) in tree) {
-            let file = path.split("/").fold(into) {dir, name => dir.join(name)}
+            let file = path.split("/").fold(into) { dir, name => dir.join(name) }
             Directory.create(file.parent, recursive: true)
             File.writeTo(file, text.toArray())
         }
@@ -52,15 +54,18 @@ class FakeSrcHost <: SrcHost {
     }
 }
 
-const GITHUB_NOTES = "https://api.github.com/repos/cangjie-bot/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
-const GITCODE_NOTES = "https://api.gitcode.com/api/v5/repos/Cangjie/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
+const GITHUB_NOTES =
+    "https://api.github.com/repos/cangjie-bot/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
+const GITCODE_NOTES =
+    "https://api.gitcode.com/api/v5/repos/Cangjie/nightly_build/releases/tags/1.3.0-alpha.20261002001050"
 
-let RUNTIME_TREE = [
-    ("cangjie_runtime-5d555bcc34d6/LICENSE", "license"),
-    ("cangjie_runtime-5d555bcc34d6/stdlib/libs/CMakeLists.txt", ""),
-    ("cangjie_runtime-5d555bcc34d6/stdlib/libs/std/core/string.cj", "package std.core\n"),
-    ("cangjie_runtime-5d555bcc34d6/runtime/src/gc.cpp", "")
-]
+let RUNTIME_TREE =
+    [
+        ("cangjie_runtime-5d555bcc34d6/LICENSE", "license"),
+        ("cangjie_runtime-5d555bcc34d6/stdlib/libs/CMakeLists.txt", ""),
+        ("cangjie_runtime-5d555bcc34d6/stdlib/libs/std/core/string.cj", "package std.core\n"),
+        ("cangjie_runtime-5d555bcc34d6/runtime/src/gc.cpp", "")
+    ]
 
 func sdkHome(): Path {
     let home = Directory.createTemp(getTempDirectory())
@@ -135,8 +140,13 @@ class FetchSrcTest {
         // arrange
         let home = sdkHome()
         let dir = home.join("src")
-        fetchSrc(home, dir, FakeSrcHost(VERSION_OUTPUT, HashMap([(GITHUB_NOTES, NOTES)]), RUNTIME_TREE),
-            ByteBuffer(), ByteBuffer())
+        fetchSrc(
+            home,
+            dir,
+            FakeSrcHost(VERSION_OUTPUT, HashMap([(GITHUB_NOTES, NOTES)]), RUNTIME_TREE),
+            ByteBuffer(),
+            ByteBuffer()
+        )
         let host = FakeSrcHost(VERSION_OUTPUT, HashMap([(GITHUB_NOTES, NOTES)]), RUNTIME_TREE)
 
         // act
@@ -220,8 +230,12 @@ class FetchSrcTest {
     func anArchiveWithoutStdIsAFailureLeavingNothing() {
         // arrange
         let home = sdkHome()
-        let host = FakeSrcHost(VERSION_OUTPUT, HashMap([(GITHUB_NOTES, NOTES)]),
-            [("cangjie_runtime-5d555bcc34d6/README.md", "")])
+        let host =
+            FakeSrcHost(
+                VERSION_OUTPUT,
+                HashMap([(GITHUB_NOTES, NOTES)]),
+                [("cangjie_runtime-5d555bcc34d6/README.md", "")]
+            )
 
         // act
         let exitCode = fetchSrc(home, home.join("src"), host, ByteBuffer(), ByteBuffer())

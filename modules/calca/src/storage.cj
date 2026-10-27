@@ -73,7 +73,7 @@ public class Storage {
     private var depth: Int64 = 0
 
     public init() {
-        this(Runtime(), None, {=> false})
+        this(Runtime(), None, { => false })
     }
 
     /**
@@ -81,7 +81,7 @@ public class Storage {
      * reads. Its queries throw `CancelledException` too once `cancelledBy` gives `true`: how
      * whoever asked for the answer (an editor's `$/cancelRequest`) stops a computation of it midway.
      */
-    public func snapshot(cancelledBy!: () -> Bool = {=> false}): Storage {
+    public func snapshot(cancelledBy!: () -> Bool = { => false }): Storage {
         Storage(runtime, pinned ?? runtime.revision, cancelledBy)
     }
 
@@ -199,15 +199,16 @@ public class Storage {
             return change()
         }
         checkWritable("change")
-        runtime.write {
-            revision =>
-            batching = revision
-            try {
-                change()
-            } finally {
-                batching = None
+        runtime
+            .write {
+                revision =>
+                batching = revision
+                try {
+                    change()
+                } finally {
+                    batching = None
+                }
             }
-        }
     }
 
     /**
@@ -236,23 +237,28 @@ public class Storage {
      * @throws CycleException - if it already is, and a query on the cycle has no fallback
      */
     func enter(key: DatabaseKey): Unit {
-        let entered = match (active.get(key)) {
-            case Some(depth) => depth
-            case None =>
-                active.add(key, stack.size)
-                return
-        }
+        let entered =
+            match (active.get(key)) {
+                case Some(depth) => depth
+                case None =>
+                    active.add(key, stack.size)
+                    return
+            }
         if (entered >= stack.size || stack[entered].key != key) {
             throw unwinding(VerifyingCycleException(key), from: entered)
         }
         let participants = stack.toArray()[entered..]
-        if (!participants.iterator().all {frame => runtime.ingredientAt(frame.key.ingredient).hasFallback()}) {
-            let path = participants.map {frame => describe(frame.key)}
+        if (
+            !participants
+                .iterator()
+                .all { frame => runtime.ingredientAt(frame.key.ingredient).hasFallback() }
+        ) {
+            let path = participants.map { frame => describe(frame.key) }
             let closed = ArrayList<String>(path)
             closed.add(describe(key))
             throw CycleException("cycle: ${String.join(closed.toArray(), delimiter: " -> ")}", path)
         }
-        let cycle = HashSet<DatabaseKey>(participants.map {frame => frame.key})
+        let cycle = HashSet<DatabaseKey>(participants.map { frame => frame.key })
         let union = ActiveQuery(key)
         for (frame in participants) {
             union.absorb(frame, cycle)
@@ -271,7 +277,7 @@ public class Storage {
      * or it was asked to stop
      */
     func giveWay(): Unit {
-        runtime.giveWay(handle) {=> unwindIfCancelled()}
+        runtime.giveWay(handle) { => unwindIfCancelled() }
     }
 
     /**
@@ -390,7 +396,7 @@ class ActiveQuery {
      * and on none of the queries on it, whose values are all fallbacks.
      */
     func enterCycle(union: ActiveQuery, cycle: HashSet<DatabaseKey>): Unit {
-        let kept = dependencies.toArray().filter {dependency => !cycle.contains(dependency.key)}
+        let kept = dependencies.toArray().filter { dependency => !cycle.contains(dependency.key) }
         dependencies.clear()
         seen.clear()
         for (dependency in kept) {
