@@ -17,7 +17,7 @@ import cjls.server.*
  */
 func packageLineOnOpen(loop: Loop, client: Client, logger: Logger, path: VfsPath): Unit {
     let state = loop.state
-    if (state.fileContents(path).map {text => !isBlank(text)} ?? true) {
+    if (state.fileContents(path).map { text => !isBlank(text) } ?? true) {
         return
     }
     if (state.loading) {
@@ -36,9 +36,12 @@ func packageLineOnOpen(loop: Loop, client: Client, logger: Logger, path: VfsPath
 func packageLinesAfterLoad(state: ServerState): Array<ApplyWorkspaceEditParams> {
     let opened = collectArray(state.blankDuringLoad)
     state.blankDuringLoad.clear()
-    collectArray(opened.iterator().filter {it => state.openDocuments.get(it[0]) == Some(it[1])}.filterMap {
-        it => packageLineEdit(state, it[0])
-    })
+    collectArray(
+        opened
+            .iterator()
+            .filter { it => state.openDocuments.get(it[0]) == Some(it[1]) }
+            .filterMap { it => packageLineEdit(state, it[0]) }
+    )
 }
 
 /**
@@ -61,13 +64,25 @@ func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditPara
     let start = Position(line: 0, character: 0)
     let edit = TextEdit(range: LspRange(start: start, end: start), newText: "${line}\n")
     let uri = path.toUri()
-    let workspaceEdit = if (state.versionedEdits) {
-        let document = TextDocumentEdit(textDocument: OptionalVersionedTextDocumentIdentifier(uri: uri,
-            version: Nullable.Value(version)), edits: [TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(edit)])
-        WorkspaceEdit(documentChanges: [TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile.AsTextDocumentEdit(document)])
-    } else {
-        WorkspaceEdit(changes: HashMap<DocumentUri, Array<TextEdit>>([(uri, [edit])]))
-    }
+    let workspaceEdit =
+        if (state.versionedEdits) {
+            let document =
+                TextDocumentEdit(
+                    textDocument: OptionalVersionedTextDocumentIdentifier(
+                        uri: uri,
+                        version: Nullable.Value(version)
+                    ),
+                    edits: [TextEditOrAnnotatedTextEditOrSnippetTextEdit.AsTextEdit(edit)]
+                )
+            WorkspaceEdit(
+                documentChanges: [
+                    TextDocumentEditOrCreateFileOrRenameFileOrDeleteFile
+                        .AsTextDocumentEdit(document)
+                ]
+            )
+        } else {
+            WorkspaceEdit(changes: HashMap<DocumentUri, Array<TextEdit>>([(uri, [edit])]))
+        }
     ApplyWorkspaceEditParams(label: line, edit: workspaceEdit)
 }
 
@@ -76,31 +91,43 @@ func packageLineEdit(state: ServerState, path: VfsPath): ?ApplyWorkspaceEditPara
  * applied is a `DEBUG` of `logger`, as a document typed in since is no failure.
  */
 func applyEdit(loop: Loop, client: Client, logger: Logger, edit: ApplyWorkspaceEditParams): Unit {
-    let answer = try {
-        client.request(ApplyWorkspaceEditRequestSpec(), edit)
-    } catch (e: Exception) {
-        logger.warn("the edit was not sent", [("error", e.message)])
-        return
-    }
-    loop.start(logger) {
-        let result = try {
-            answer.await()
+    let answer =
+        try {
+            client.request(ApplyWorkspaceEditRequestSpec(), edit)
         } catch (e: Exception) {
-            logger.debug("the edit was not answered", [("error", e.message)])
+            logger.warn("the edit was not sent", [("error", e.message)])
             return
         }
-        if (!result.applied) {
-            logger.debug("the edit was not applied", [("label", edit.label ?? ""),
-                ("reason", result.failureReason ?? "")])
+    loop
+        .start(logger) {
+            let result =
+                try {
+                    answer.await()
+                } catch (e: Exception) {
+                    logger.debug("the edit was not answered", [("error", e.message)])
+                    return
+                }
+            if (!result.applied) {
+                logger
+                    .debug(
+                        "the edit was not applied",
+                        [("label", edit.label ?? ""), ("reason", result.failureReason ?? "")]
+                    )
+            }
         }
-    }
 }
 
 /**
  * Whether `text` is whitespace alone: Neovim opens a file new, or empty, as `"\n"`.
  */
 func isBlank(text: Rope): Bool {
-    text.chunks().all {
-        chunk => chunk.toArray().iterator().all {byte => byte == b' ' || byte == b'\t' || byte == b'\n' || byte == b'\r'}
-    }
+    text
+        .chunks()
+        .all {
+            chunk =>
+            chunk
+                .toArray()
+                .iterator()
+                .all { byte => byte == b' ' || byte == b'\t' || byte == b'\n' || byte == b'\r' }
+        }
 }

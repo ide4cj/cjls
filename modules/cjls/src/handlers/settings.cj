@@ -13,7 +13,12 @@ import cjls.macros.LspHandler
  * does not answer it sends them here, under the section `cjls`.
  */
 @LspHandler
-func handleDidChangeConfiguration(loop: Loop, client: Client, logger: Logger, params: DidChangeConfigurationParams): Unit {
+func handleDidChangeConfiguration(
+    loop: Loop,
+    client: Client,
+    logger: Logger,
+    params: DidChangeConfigurationParams
+): Unit {
     if (loop.state.pullsSettings) {
         pullSettings(loop, client, logger)
     } else if (let Some(section) <- params.settings.get(SETTINGS_SECTION)) {
@@ -27,7 +32,8 @@ func handleDidChangeConfiguration(loop: Loop, client: Client, logger: Logger, pa
  */
 func initialSettings(options: ?JsonValue, client: Client, logger: Logger): Settings {
     let problems = ArrayList<String>()
-    let settings = options.flatMap {options => settingsOf(options, "`initializationOptions`", problems)}
+    let settings =
+        options.flatMap { options => settingsOf(options, "`initializationOptions`", problems) }
     reportSettingsProblems(client, logger, problems)
     settings ?? Settings()
 }
@@ -60,32 +66,44 @@ func pullSettings(loop: Loop, client: Client, logger: Logger): Unit {
         return
     }
     let pull = state.beginSettingsPull()
-    let answer = try {
-        client.request(ConfigurationRequestSpec(),
-            ConfigurationParams(items: [ConfigurationItem(section: SETTINGS_SECTION)]))
-    } catch (e: Exception) {
-        logger.warn("the settings were not asked for", [("error", e.message)])
-        return
-    }
-    loop.start(logger) {
-        let sections = try {
-            answer.await()
+    let answer =
+        try {
+            client
+                .request(
+                    ConfigurationRequestSpec(),
+                    ConfigurationParams(items: [ConfigurationItem(section: SETTINGS_SECTION)])
+                )
         } catch (e: Exception) {
-            if (client.isClosed()) {
-                logger.debug("the settings were not answered", [("reason", "the connection is closed")])
-            } else {
-                logger.warn("the settings were not answered", [("error", e.message)])
-            }
+            logger.warn("the settings were not asked for", [("error", e.message)])
             return
         }
-        if (let Some(section) <- sections.first) {
-            loop.write {
-                state: ServerState => if (state.isLastSettingsPull(pull)) {
-                    changeSettings(loop, client, logger, section)
+    loop
+        .start(logger) {
+            let sections =
+                try {
+                    answer.await()
+                } catch (e: Exception) {
+                    if (client.isClosed()) {
+                        logger
+                            .debug(
+                                "the settings were not answered",
+                                [("reason", "the connection is closed")]
+                            )
+                    } else {
+                        logger.warn("the settings were not answered", [("error", e.message)])
+                    }
+                    return
                 }
+            if (let Some(section) <- sections.first) {
+                loop
+                    .write {
+                        state: ServerState =>
+                        if (state.isLastSettingsPull(pull)) {
+                            changeSettings(loop, client, logger, section)
+                        }
+                    }
             }
         }
-    }
 }
 
 /**
@@ -102,8 +120,11 @@ func changeSettings(loop: Loop, client: Client, logger: Logger, section: JsonVal
             let before = state.settings
             state.settings = settings
             logger.info("the settings changed")
-            if (settings.linkedProjects != before.linkedProjects || settings.cangjieHome != before.cangjieHome ||
-                settings.cangjieSrc != before.cangjieSrc) {
+            if (
+                settings.linkedProjects != before.linkedProjects ||
+                    settings.cangjieHome != before.cangjieHome ||
+                    settings.cangjieSrc != before.cangjieSrc
+            ) {
                 startLoad(loop, client, logger)
             }
         case _ => ()
@@ -118,9 +139,20 @@ func watchSettings(state: ServerState, client: Client, logger: Logger): Unit {
     if (!state.registersSettings) {
         return
     }
-    let registration = DidChangeConfigurationNotificationSpec().registration(state.registrationId(),
-        DidChangeConfigurationRegistrationOptions(section: StringOrStrings.AsString(SETTINGS_SECTION)))
-    client.request(RegistrationRequestSpec(), RegistrationParams(registrations: [registration]), logger)
+    let registration =
+        DidChangeConfigurationNotificationSpec()
+            .registration(
+                state.registrationId(),
+                DidChangeConfigurationRegistrationOptions(
+                    section: StringOrStrings.AsString(SETTINGS_SECTION)
+                )
+            )
+    client
+        .request(
+            RegistrationRequestSpec(),
+            RegistrationParams(registrations: [registration]),
+            logger
+        )
 }
 
 /**
@@ -133,5 +165,9 @@ func reportSettingsProblems(client: Client, logger: Logger, problems: ArrayList<
     for (problem in problems) {
         logger.warn("a setting is not taken", [("problem", problem)])
     }
-    showWarning(client, logger, "cjls: settings not taken: ${String.join(problems.toArray(), delimiter: "; ")}")
+    showWarning(
+        client,
+        logger,
+        "cjls: settings not taken: ${String.join(problems.toArray(), delimiter: "; ")}"
+    )
 }

@@ -42,7 +42,8 @@ class IntegerOrStringTest {
     @TestCase
     func askingForTheOtherVariantThrows() {
         // act
-        let onString = @AssertThrows[UnexpectedVariantException](IntegerOrString.String("1").getIntegerOrThrow())
+        let onString =
+            @AssertThrows[UnexpectedVariantException](IntegerOrString.String("1").getIntegerOrThrow())
         let onInteger = @AssertThrows[UnexpectedVariantException](Integer(1).getStringOrThrow())
 
         // assert

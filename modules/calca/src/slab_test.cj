@@ -31,7 +31,7 @@ class SlabTest {
     func theSlotVacatedLastIsTakenFirst() {
         // arrange
         let slab = Slab<Int64>()
-        let ids = Array<Id>(6, {i => slab.insert(i)})
+        let ids = Array<Id>(6, { i => slab.insert(i) })
         slab.remove(ids[3])
         slab.remove(ids[5])
 

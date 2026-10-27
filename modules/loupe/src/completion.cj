@@ -20,27 +20,105 @@ const COMPLETION_MARKER = "cjlsCompletionMarker"
 /**
  * The keywords that start an expression or a statement, offered where a name would be.
  */
-let EXPRESSION_KEYWORDS = ["if", "match", "for", "while", "do", "let", "var", "func", "return", "break", "continue",
-    "this", "super", "true", "false", "spawn", "try", "throw", "unsafe"]
+let EXPRESSION_KEYWORDS =
+    [
+        "if",
+        "match",
+        "for",
+        "while",
+        "do",
+        "let",
+        "var",
+        "func",
+        "return",
+        "break",
+        "continue",
+        "this",
+        "super",
+        "true",
+        "false",
+        "spawn",
+        "try",
+        "throw",
+        "unsafe"
+    ]
 
 /**
  * The keywords that start a member of a type, its modifiers among them, offered between members.
  */
-let MEMBER_KEYWORDS = ["func", "let", "var", "prop", "init", "operator", "const", "static", "public", "private",
-    "protected", "internal", "open", "override", "redef", "mut", "unsafe"]
+let MEMBER_KEYWORDS =
+    [
+        "func",
+        "let",
+        "var",
+        "prop",
+        "init",
+        "operator",
+        "const",
+        "static",
+        "public",
+        "private",
+        "protected",
+        "internal",
+        "open",
+        "override",
+        "redef",
+        "mut",
+        "unsafe"
+    ]
 
 /**
  * The keywords that start a declaration of a file, its modifiers among them; `import` and
  * `package` where the file's preamble may still have one.
  */
-let TOP_LEVEL_KEYWORDS = ["func", "class", "struct", "interface", "enum", "extend", "type", "let", "var", "const",
-    "main", "macro", "public", "private", "protected", "internal", "open", "abstract", "sealed", "foreign", "unsafe"]
+let TOP_LEVEL_KEYWORDS =
+    [
+        "func",
+        "class",
+        "struct",
+        "interface",
+        "enum",
+        "extend",
+        "type",
+        "let",
+        "var",
+        "const",
+        "main",
+        "macro",
+        "public",
+        "private",
+        "protected",
+        "internal",
+        "open",
+        "abstract",
+        "sealed",
+        "foreign",
+        "unsafe"
+    ]
 
 /**
  * The primitive types, keywords offered where a type is.
  */
-let PRIM_TYPE_NAMES = ["Int8", "Int16", "Int32", "Int64", "IntNative", "UInt8", "UInt16", "UInt32", "UInt64",
-    "UIntNative", "Float16", "Float32", "Float64", "Rune", "Bool", "Nothing", "Unit"]
+let PRIM_TYPE_NAMES =
+    [
+        "Int8",
+        "Int16",
+        "Int32",
+        "Int64",
+        "IntNative",
+        "UInt8",
+        "UInt16",
+        "UInt32",
+        "UInt64",
+        "UIntNative",
+        "Float16",
+        "Float32",
+        "Float64",
+        "Rune",
+        "Bool",
+        "Nothing",
+        "Unit"
+    ]
 
 /**
  * What a completion item is, for the client to show it as one.
@@ -134,17 +212,21 @@ public func completionsAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): 
     }
     let realRoot = before.syntaxNode()
     let parent = marker.parent
-    let items = if (parent.kind == SyntaxKind.NameRef) {
-        nameRefCompletions(db, file, realRoot, offset, parent)
-    } else if (parent.kind == SyntaxKind.ErrorNode) {
-        keywordCompletions(parent, marker)
-    } else if (parent.kind == SyntaxKind.Name && (parent.parent?.kind ?? SyntaxKind.ErrorNode) == SyntaxKind.EnumCtor) {
-        strayCtorCompletions(parent.parent.getOrThrow(), marker)
-    } else if (parent.kind == SyntaxKind.Name) {
-        overrideCompletions(db, file, realRoot, offset, parent)
-    } else {
-        None<Array<CompletionItem>>
-    }
+    let items =
+        if (parent.kind == SyntaxKind.NameRef) {
+            nameRefCompletions(db, file, realRoot, offset, parent)
+        } else if (parent.kind == SyntaxKind.ErrorNode) {
+            keywordCompletions(parent, marker)
+        } else if (
+            parent.kind == SyntaxKind.Name &&
+                (parent.parent?.kind ?? SyntaxKind.ErrorNode) == SyntaxKind.EnumCtor
+        ) {
+            strayCtorCompletions(parent.parent.getOrThrow(), marker)
+        } else if (parent.kind == SyntaxKind.Name) {
+            overrideCompletions(db, file, realRoot, offset, parent)
+        } else {
+            None<Array<CompletionItem>>
+        }
     CompletionResult(TextRange(marker.textRange.start, offset), ranked(items ?? return None))
 }
 
@@ -152,14 +234,34 @@ public func completionsAt(db: AnalysisDatabase, fileId: FileId, offset: Int64): 
  * The completions at the name `nameRef` of the speculative tree, by what it is the name of: a
  * member after a `.`, a name of a body, a type, a segment of an import (#401).
  */
-func nameRefCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSyntaxNode, offset: Int64,
-    nameRef: CjSyntaxNode): ?Array<CompletionItem> {
+func nameRefCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    realRoot: CjSyntaxNode,
+    offset: Int64,
+    nameRef: CjSyntaxNode
+): ?Array<CompletionItem> {
     let node = nameRef.parent ?? return None
     if (let Some(access) <- MemberAccessExpr.cast(node)) {
-        dotCompletions(db, file, defAround(db, file, realRoot, offset) ?? return None, realRoot, access)
+        dotCompletions(
+            db,
+            file,
+            defAround(db, file, realRoot, offset) ?? return None,
+            realRoot,
+            access
+        )
     } else if (RefExpr.canCast(node.kind)) {
-        scopeCompletions(db, file, defAround(db, file, realRoot, offset) ?? return None, realRoot, node)
-    } else if (node.kind == SyntaxKind.PathSegment && (node.parent?.kind ?? SyntaxKind.ErrorNode) == SyntaxKind.PathType) {
+        scopeCompletions(
+            db,
+            file,
+            defAround(db, file, realRoot, offset) ?? return None,
+            realRoot,
+            node
+        )
+    } else if (
+        node.kind == SyntaxKind.PathSegment &&
+            (node.parent?.kind ?? SyntaxKind.ErrorNode) == SyntaxKind.PathType
+    ) {
         typeCompletions(db, file, defAround(db, file, realRoot, offset), node)
     } else if (node.kind == SyntaxKind.ImportTree) {
         importCompletions(db, file, nameRef, node)
@@ -174,7 +276,12 @@ func nameRefCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSynt
  * on. An overload group resolves every declaration, in list order. Empty if none can be shown.
  * Asked for one item at a time, when the client shows it.
  */
-public func completionDetails(db: AnalysisDatabase, fileId: FileId, offset: Int64, item: CompletionItem): Array<HoverItem> {
+public func completionDetails(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    offset: Int64,
+    item: CompletionItem
+): Array<HoverItem> {
     let file = db.sourceFile(fileId) ?? return []
     let def = defAround(db, file, parse(db, file).syntaxNode(), offset) ?? return []
     let hovers = Hovers(db, def, None)
@@ -187,13 +294,14 @@ public func completionDetails(db: AnalysisDatabase, fileId: FileId, offset: Int6
         }
         return details.toArray()
     }
-    let detail: ?HoverItem = match (item.source) {
-        case DeclSource(id, recv) => hovers.declItem(id, recv)
-        case LocalSource(owner, local) => hovers.localItem(owner, local)
-        case MemberParamSource(ctor, local, recv) => hovers.memberParamItem(ctor, local, recv)
-        case _ => None
-    }
-    detail.map {one => [one]} ?? []
+    let detail: ?HoverItem =
+        match (item.source) {
+            case DeclSource(id, recv) => hovers.declItem(id, recv)
+            case LocalSource(owner, local) => hovers.localItem(owner, local)
+            case MemberParamSource(ctor, local, recv) => hovers.memberParamItem(ctor, local, recv)
+            case _ => None
+        }
+    detail.map { one => [one] } ?? []
 }
 
 /**
@@ -211,11 +319,12 @@ func rightTokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
  * The item the cursor at `offset` is in, of the file's own tree.
  */
 func defAround(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode, offset: Int64): ?DefId {
-    let token = match (root.tokenAtOffset(offset)) {
-        case Single(token) => token
-        case Between(left, _) => left
-        case NoToken => return None
-    }
+    let token =
+        match (root.tokenAtOffset(offset)) {
+            case Single(token) => token
+            case Between(left, _) => left
+            case NoToken => return None
+        }
     itemAround(db, ItemFile.Source(file), token.parent)
 }
 
@@ -227,10 +336,11 @@ func realNodeAt(root: CjSyntaxNode, range: TextRange, kind: SyntaxKind): ?CjSynt
     if (!root.textRange.containsRange(range)) {
         return None
     }
-    var node = match (root.coveringElement(range)) {
-        case SyntaxElement.Node(n) => Some(n)
-        case SyntaxElement.Token(t) => Some(t.parent)
-    }
+    var node =
+        match (root.coveringElement(range)) {
+            case SyntaxElement.Node(n) => Some(n)
+            case SyntaxElement.Token(t) => Some(t.parent)
+        }
     while (let Some(n) <- node) {
         if (n.textRange == range && n.kind == kind) {
             return n
@@ -247,24 +357,31 @@ func realNodeAt(root: CjSyntaxNode, range: TextRange, kind: SyntaxKind): ?CjSynt
  * The completions after the `.` of `access`, of the speculative tree: of what its receiver, which
  * the file's own tree has too, stands for (D52).
  */
-func dotCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRoot: CjSyntaxNode,
-    access: MemberAccessExpr): Array<CompletionItem> {
+func dotCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    def: DefId,
+    realRoot: CjSyntaxNode,
+    access: MemberAccessExpr
+): Array<CompletionItem> {
     let receiver = (access.receiver() ?? return []).syntax
     let real = realNodeAt(realRoot, receiver.textRange, receiver.kind) ?? return []
     let expr = bodyWithSourceMap(db, def).sourceMap.exprAt(SyntaxNodePtr(real)) ?? return []
     let from = scopeFileOf(db, ItemFile.Source(file))
     // `this` and `super` name the type around (N79) but are values of it: its instance members
-    let isObject = match (body(db, def)[expr]) {
-        case ThisExpr | SuperExpr => true
-        case _ => false
-    }
+    let isObject =
+        match (body(db, def)[expr]) {
+            case ThisExpr | SuperExpr => true
+            case _ => false
+        }
     match (receiverOf(db, def, expr)) {
         case PackageReceiver(pkg) => packageMembers(db, file, pkg)
         case TypesReceiver(types) =>
             let on = receiverTyOf(db, def, expr)
             allMembers(db, types, from: from, on: on) |>
-                filter {target: MemberTarget => isStaticMember(db, target) != isObject} |>
-                filterMap {target: MemberTarget => memberItem(db, def, target, on, 80)} |> collectArray
+                filter { target: MemberTarget => isStaticMember(db, target) != isObject } |>
+                filterMap { target: MemberTarget => memberItem(db, def, target, on, 80) } |>
+                collectArray
         case ValueReceiver =>
             let ty = inferBody(db, def)[expr] ?? return []
             valueMembers(db, file, def, ty)
@@ -276,16 +393,27 @@ func dotCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRoot
  * The members of a value of the type `ty`: those of its heads, a type parameter's bounds', that
  * are not static (cjc: `object cannot access static member`).
  */
-func valueMembers(db: AnalysisDatabase, file: SourceFile, def: DefId, ty: Ty): Array<CompletionItem> {
+func valueMembers(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    def: DefId,
+    ty: Ty
+): Array<CompletionItem> {
     let from = scopeFileOf(db, ItemFile.Source(file))
     let found = ArrayList<CompletionItem>()
     for (head in headTysOf(db, ty)) {
-        let start = match (head.kind(db)) {
-            case DeclTy(id, _) => ExtendedType.DeclType(id)
-            case PrimTy(name) => ExtendedType.PrimType(name)
-            case _ => continue
-        }
-        for (target in allMembers(db, [start], from: from, on: head) where !isStaticMember(db, target)) {
+        let start =
+            match (head.kind(db)) {
+                case DeclTy(id, _) => ExtendedType.DeclType(id)
+                case PrimTy(name) => ExtendedType.PrimType(name)
+                case _ => continue
+            }
+        for (
+            target in allMembers(db, [start], from: from, on: head) where !isStaticMember(
+                db,
+                target
+            )
+        ) {
             if (let Some(item) <- memberItem(db, def, target, head, 80)) {
                 found.add(item)
             }
@@ -298,12 +426,20 @@ func valueMembers(db: AnalysisDatabase, file: SourceFile, def: DefId, ty: Ty): A
  * The declarations of `pkg` after its name and a `.`, those the file's package sees (N76): no
  * constructor, no package under it; its types alone with `typesOnly`.
  */
-func packageMembers(db: AnalysisDatabase, file: SourceFile, pkg: PackageRef, typesOnly!: Bool = false): Array<CompletionItem> {
+func packageMembers(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    pkg: PackageRef,
+    typesOnly!: Bool = false
+): Array<CompletionItem> {
     let from = packageOfFile(db, file) ?? return []
     let relation = relationOf(from.name(db), nameOf(db, pkg))
     let found = ArrayList<CompletionItem>()
     for ((name, defs) in packageExports(db, pkg).names) {
-        for (id in visibleOf(defs, relation, Visibility.Private) where !typesOnly || isTypeItem(id.item(db).kind)) {
+        for (
+            id in visibleOf(defs, relation, Visibility.Private) where !typesOnly ||
+                isTypeItem(id.item(db).kind)
+        ) {
             if (let Some(item) <- declCompletion(db, id, name, 80)) {
                 found.add(item)
             }
@@ -319,7 +455,8 @@ func packageMembers(db: AnalysisDatabase, file: SourceFile, pkg: PackageRef, typ
 func isStaticMember(db: AnalysisDatabase, target: MemberTarget): Bool {
     match (target) {
         case MemberDecl(id) =>
-            id.item(db).kind == ItemKind.EnumCtor || (declItemOf(db, id)?.has(Modifier.Static) ?? false)
+            id.item(db).kind == ItemKind.EnumCtor ||
+                (declItemOf(db, id)?.has(Modifier.Static) ?? false)
         case MemberParam(_, _) => false
     }
 }
@@ -330,7 +467,13 @@ func isStaticMember(db: AnalysisDatabase, target: MemberTarget): Bool {
  * lookup finds whatever its modifiers, the use checks): a `private` member inside its type, a
  * `protected` one in its package or a subtype, an `internal` one as its package is seen.
  */
-func memberItem(db: AnalysisDatabase, def: DefId, target: MemberTarget, recv: ?Ty, relevance: Int64): ?CompletionItem {
+func memberItem(
+    db: AnalysisDatabase,
+    def: DefId,
+    target: MemberTarget,
+    recv: ?Ty,
+    relevance: Int64
+): ?CompletionItem {
     match (target) {
         case MemberDecl(id) =>
             let item = declItemOf(db, id) ?? return None
@@ -352,14 +495,24 @@ func memberItem(db: AnalysisDatabase, def: DefId, target: MemberTarget, recv: ?T
  */
 func isAccessibleMember(db: AnalysisDatabase, def: DefId, id: DefId, item: Item): Bool {
     let owner = parentOf(db, id)
-    let ownerType = owner.flatMap {one => ownerTypeOf(db, one)}
+    let ownerType = owner.flatMap { one => ownerTypeOf(db, one) }
     let around = enclosingTypeOf(db, def)
     match (visibilityOf(item)) {
         case Visibility.Private => owner.isSome() && owner == parentOf(db, def)
-        case Visibility.Protected => samePackage(db, def, id) || (ownerType.isSome() && around.isSome() &&
-            isSubtypeOf(db, around.getOrThrow(), ownerType.getOrThrow()))
-        case level => level.isSeen(by: relationOf(packageNameOf(db, def) ?? return false,
-            packageNameOf(db, id) ?? return false))
+        case Visibility.Protected =>
+            samePackage(db, def, id) ||
+                (
+                    ownerType.isSome() && around.isSome() &&
+                        isSubtypeOf(db, around.getOrThrow(), ownerType.getOrThrow())
+                )
+        case level =>
+            level
+                .isSeen(
+                    by: relationOf(
+                        packageNameOf(db, def) ?? return false,
+                        packageNameOf(db, id) ?? return false
+                    )
+                )
     }
 }
 
@@ -386,10 +539,11 @@ func isSubtypeOf(db: AnalysisDatabase, ty: ExtendedType, other: ExtendedType): B
         }
         let next = ArrayList<ExtendedType>()
         for (one in level) {
-            let supers = match (one) {
-                case DeclType(id) => supertypes(db, id)
-                case PrimType(_) => Array<ExtendedType>()
-            }
+            let supers =
+                match (one) {
+                    case DeclType(id) => supertypes(db, id)
+                    case PrimType(_) => Array<ExtendedType>()
+                }
             for (sup in supers where seen.add(sup)) {
                 next.add(sup)
             }
@@ -412,7 +566,7 @@ func samePackage(db: AnalysisDatabase, a: DefId, b: DefId): Bool {
 func packageNameOf(db: AnalysisDatabase, id: DefId): ?String {
     match (id.file(db)) {
         case Binary(binary, _) => binary.name(db)
-        case file => scopeFileOf(db, file).flatMap {one => packageOfFile(db, one)}?.name(db)
+        case file => scopeFileOf(db, file).flatMap { one => packageOfFile(db, one) }?.name(db)
     }
 }
 
@@ -420,7 +574,12 @@ func packageNameOf(db: AnalysisDatabase, id: DefId): ?String {
  * The declaration `id` as the item named `name`, of a scope, at `relevance`; `None` for what is
  * never completed, an import or a macro call.
  */
-func declCompletion(db: AnalysisDatabase, id: DefId, name: String, relevance: Int64): ?CompletionItem {
+func declCompletion(
+    db: AnalysisDatabase,
+    id: DefId,
+    name: String,
+    relevance: Int64
+): ?CompletionItem {
     let kind = kindOfItem(id.item(db).kind) ?? return None
     CompletionItem(name, kind, relevance, DeclSource(id, None))
 }
@@ -447,8 +606,13 @@ func kindOfItem(kind: ItemKind): ?CompletionKind {
  * use in one; the file's scope, its package's declarations, its imports and their globs, the
  * prelude last; and the keywords.
  */
-func scopeCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRoot: CjSyntaxNode,
-    nameRef: CjSyntaxNode): Array<CompletionItem> {
+func scopeCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    def: DefId,
+    realRoot: CjSyntaxNode,
+    nameRef: CjSyntaxNode
+): Array<CompletionItem> {
     let found = ArrayList<CompletionItem>()
     let own = ItemFile.Source(file)
     localCompletions(db, file, def, realRoot, nameRef, found)
@@ -484,14 +648,21 @@ func scopeCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
  * constructors its package imports (N73), its globs' exports, the prelude's last. With `typesOnly`,
  * the types and the packages it imports alone, what a type's path may start with.
  */
-func fileScopeCompletions(db: AnalysisDatabase, file: SourceFile, found: ArrayList<CompletionItem>,
-    typesOnly!: Bool): Unit {
+func fileScopeCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    found: ArrayList<CompletionItem>,
+    typesOnly!: Bool
+): Unit {
     let own = ItemFile.Source(file)
-    let wanted = {id: DefId => !typesOnly || isTypeItem(id.item(db).kind)}
+    let wanted = { id: DefId => !typesOnly || isTypeItem(id.item(db).kind) }
     let pkg = packageOfFile(db, file) ?? return
     let declared = defMap(db, PackageRef.Source(pkg))
     for ((name, defs) in declared.names) {
-        for (one in defs where (one.visibility != Visibility.Private || one.id.file(db) == own) && wanted(one.id)) {
+        for (
+            one in defs where (one.visibility != Visibility.Private || one.id.file(db) == own) &&
+                wanted(one.id)
+        ) {
             if (let Some(item) <- declCompletion(db, one.id, name, 60)) {
                 found.add(item)
             }
@@ -501,21 +672,22 @@ func fileScopeCompletions(db: AnalysisDatabase, file: SourceFile, found: ArrayLi
     for ((name, imported) in imports.names) {
         for (one in imported) {
             match (one.target) {
-                case OfDecl(id) => if (wanted(id)) {
-                    if (let Some(item) <- declCompletion(db, id, name, 50)) {
-                        found.add(item)
+                case OfDecl(id) =>
+                    if (wanted(id)) {
+                        if (let Some(item) <- declCompletion(db, id, name, 50)) {
+                            found.add(item)
+                        }
                     }
-                }
                 case OfPackage(_) => found.add(CompletionItem(name, PkgItem, 50, NoSource))
             }
         }
     }
     let prelude = preludeOf(db, pkg)
-    let relevanceOf = {glob: Glob => if (prelude.map {one => one.pkg == glob.pkg} ?? false) {
-        30
-    } else {
-        40
-    }}
+    let relevanceOf =
+        {
+            glob: Glob =>
+            if (prelude.map { one => one.pkg == glob.pkg } ?? false) { 30 } else { 40 }
+        }
     for (glob in imports.globs) {
         for ((name, defs) in packageExports(db, glob.pkg).names) {
             for (id in visibleOf(defs, glob.relation, glob.level) where wanted(id)) {
@@ -562,12 +734,23 @@ func isTypeItem(kind: ItemKind): Bool {
  * walked from the expression the name is (D50); each local the file's own body has it as, by the
  * node declaring it, which is before the cursor and so the same in both trees.
  */
-func localCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRoot: CjSyntaxNode,
-    nameRef: CjSyntaxNode, into: ArrayList<CompletionItem>): Unit {
+func localCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    def: DefId,
+    realRoot: CjSyntaxNode,
+    nameRef: CjSyntaxNode,
+    into: ArrayList<CompletionItem>
+): Unit {
     let (_, ids) = syntaxOf(db, ItemFile.Source(file)) ?? return
     let start = (ids.node(def.item(db), realRoot) ?? return).textRange.start
-    let decl = (nameRef.ancestors() |> filter {one: CjSyntaxNode => one.textRange.start == start} |>
-        filterMap {one: CjSyntaxNode => Decl.cast(one)} |> first) ?? return
+    let decl =
+        (
+            nameRef.ancestors() |> filter { one: CjSyntaxNode => one.textRange.start == start } |>
+                filterMap { one: CjSyntaxNode => Decl.cast(one) } |>
+                first
+        ) ??
+            return
     let speculative = lowerBody(decl, active: ActiveFilter.of(db, file))
     let real = bodyWithSourceMap(db, def).sourceMap
     let scopes = scopesOf(speculative.body)
@@ -581,18 +764,21 @@ func localCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
             if (!seen.add(declared.name)) {
                 continue
             }
-            let kind = match (declared.kind) {
-                case ParamLocal | LambdaParamLocal => ParamItem
-                case FuncLocal => FuncItem
-                case _ => LocalItem
-            }
-            let source = match (speculative.sourceMap.locals.get(local.index)) {
-                case Some(WrittenSource(source)) => match (real.localAtSource(source)) {
-                    case Some(one) => LocalSource(def, one)
-                    case None => NoSource
+            let kind =
+                match (declared.kind) {
+                    case ParamLocal | LambdaParamLocal => ParamItem
+                    case FuncLocal => FuncItem
+                    case _ => LocalItem
                 }
-                case _ => NoSource
-            }
+            let source =
+                match (speculative.sourceMap.locals.get(local.index)) {
+                    case Some(WrittenSource(source)) =>
+                        match (real.localAtSource(source)) {
+                            case Some(one) => LocalSource(def, one)
+                            case None => NoSource
+                        }
+                    case _ => NoSource
+                }
             into.add(CompletionItem(declared.name, kind, 100 - depth, source))
         }
         for (generic in scope.generics) {
@@ -607,11 +793,20 @@ func localCompletions(db: AnalysisDatabase, file: SourceFile, def: DefId, realRo
  * types of the file's scope, the packages it imports, the primitive types; after a package's name
  * and a `.`, the types it exports (N51, N52: a path's qualifier is an imported package).
  */
-func typeCompletions(db: AnalysisDatabase, file: SourceFile, def: ?DefId, segment: CjSyntaxNode): ?Array<CompletionItem> {
+func typeCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    def: ?DefId,
+    segment: CjSyntaxNode
+): ?Array<CompletionItem> {
     let path = segment.parent ?? return None
-    let before = path.children() |> filter {
-        one: CjSyntaxNode => one.kind == SyntaxKind.PathSegment && one.textRange.end <= segment.textRange.start
-    } |> collectArray
+    let before =
+        path.children() |>
+            filter {
+                one: CjSyntaxNode =>
+                one.kind == SyntaxKind.PathSegment && one.textRange.end <= segment.textRange.start
+            } |>
+            collectArray
     let found = ArrayList<CompletionItem>()
     if (before.size == 1) {
         let qualifier = before[0].firstToken()?.text() ?? return None
@@ -626,7 +821,7 @@ func typeCompletions(db: AnalysisDatabase, file: SourceFile, def: ?DefId, segmen
     if (before.size > 1) {
         return None
     }
-    if (let Some(scope) <- def.flatMap {one => typeScopeOf(db, one)}) {
+    if (let Some(scope) <- def.flatMap { one => typeScopeOf(db, one) }) {
         for (i in 0..scope.generics.size) {
             for (name in scope.generics[i].names) {
                 found.add(CompletionItem(name, TypeParamItem, 85 - 10 * i, NoSource))
@@ -645,7 +840,12 @@ func typeCompletions(db: AnalysisDatabase, file: SourceFile, def: ?DefId, segmen
  * next segment of each package the file's module may import (D46) whose name starts with what is
  * written before it, and after a package's full name and a `.`, what that package exports.
  */
-func importCompletions(db: AnalysisDatabase, file: SourceFile, nameRef: CjSyntaxNode, tree: CjSyntaxNode): ?Array<CompletionItem> {
+func importCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    nameRef: CjSyntaxNode,
+    tree: CjSyntaxNode
+): ?Array<CompletionItem> {
     let prefix = importPrefix(nameRef, tree)
     let pkg = packageOfFile(db, file) ?? return None
     let from = PackageRef.Source(pkg)
@@ -653,8 +853,11 @@ func importCompletions(db: AnalysisDatabase, file: SourceFile, nameRef: CjSyntax
     let scope = index.scopes.get(index.owners.get(from) ?? return None) ?? return None
     let own = pkg.name(db)
     let found = ArrayList<CompletionItem>()
-    for ((name, candidates) in index.packages where name != own && name.size > prefix.size && name.startsWith(prefix)) {
-        if (candidates.iterator().any {one => scope.contains(one.owner)}) {
+    for (
+        (name, candidates) in index.packages where name != own && name.size > prefix.size &&
+            name.startsWith(prefix)
+    ) {
+        if (candidates.iterator().any { one => scope.contains(one.owner) }) {
             found.add(CompletionItem(nextSegment(name[prefix.size..]), PkgItem, 70, NoSource))
         }
     }
@@ -722,14 +925,15 @@ func keywordCompletions(error: CjSyntaxNode, marker: CjSyntaxToken): ?Array<Comp
         return None
     }
     let container = error.parent ?? return None
-    let keywords = if (container.kind == SyntaxKind.DeclBody || container.kind == SyntaxKind.EnumBody) {
-        MEMBER_KEYWORDS
-    } else if (container.kind == SyntaxKind.SourceFile) {
-        TOP_LEVEL_KEYWORDS.concat(preambleKeywords(container, error))
-    } else {
-        return None
-    }
-    keywords.map {keyword => CompletionItem(keyword, KeywordItem, 10, NoSource)}
+    let keywords =
+        if (container.kind == SyntaxKind.DeclBody || container.kind == SyntaxKind.EnumBody) {
+            MEMBER_KEYWORDS
+        } else if (container.kind == SyntaxKind.SourceFile) {
+            TOP_LEVEL_KEYWORDS.concat(preambleKeywords(container, error))
+        } else {
+            return None
+        }
+    keywords.map { keyword => CompletionItem(keyword, KeywordItem, 10, NoSource) }
 }
 
 /**
@@ -742,11 +946,14 @@ func strayCtorCompletions(ctor: CjSyntaxNode, marker: CjSyntaxToken): ?Array<Com
     if (!isKeywordTyped(ctor, marker)) {
         return None
     }
-    let before = ctor.siblingsWithTokens(Direction.Prev) |> skip(1) |>
-        filter {element: SyntaxElement<SyntaxKind> => !element.kind.isTrivia()} |> first
+    let before =
+        ctor.siblingsWithTokens(Direction.Prev) |> skip(1) |>
+            filter { element: SyntaxElement<SyntaxKind> => !element.kind.isTrivia() } |>
+            first
     match (before) {
-        case Some(element) where element.kind != SyntaxKind.Pipe && element.kind != SyntaxKind.LBrace =>
-            MEMBER_KEYWORDS.map {keyword => CompletionItem(keyword, KeywordItem, 10, NoSource)}
+        case Some(element) where element.kind != SyntaxKind.Pipe &&
+                element.kind != SyntaxKind.LBrace =>
+            MEMBER_KEYWORDS.map { keyword => CompletionItem(keyword, KeywordItem, 10, NoSource) }
         case _ => None
     }
 }
@@ -756,7 +963,8 @@ func strayCtorCompletions(ctor: CjSyntaxNode, marker: CjSyntaxToken): ?Array<Com
  * `str|uct`, it is no keyword typed.
  */
 func isKeywordTyped(node: CjSyntaxNode, marker: CjSyntaxToken): Bool {
-    (node.firstToken()?.textRange.start ?? -1) == marker.textRange.start && marker.text().endsWith(COMPLETION_MARKER)
+    (node.firstToken()?.textRange.start ?? -1) == marker.textRange.start &&
+        marker.text().endsWith(COMPLETION_MARKER)
 }
 
 /**
@@ -766,7 +974,10 @@ func isKeywordTyped(node: CjSyntaxNode, marker: CjSyntaxToken): Bool {
 func preambleKeywords(file: CjSyntaxNode, error: CjSyntaxNode): Array<String> {
     var started = false
     var imported = false
-    for (one in file.children() where one.textRange.end <= error.textRange.start && one.kind != SyntaxKind.ErrorNode) {
+    for (
+        one in file.children() where one.textRange.end <= error.textRange.start &&
+            one.kind != SyntaxKind.ErrorNode
+    ) {
         if (one.kind == SyntaxKind.PackageHeader || one.kind == SyntaxKind.ImportDecl) {
             imported = true
         } else if (one.kind != SyntaxKind.FeaturesDirective) {
@@ -787,16 +998,22 @@ func preambleKeywords(file: CjSyntaxNode, error: CjSyntaxNode): Array<String> {
  * the speculative tree: the members of that kind of its supertypes a declaration there may
  * override or redefine, static ones after `static`, and not one the type declares already.
  */
-func overrideCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSyntaxNode, offset: Int64,
-    name: CjSyntaxNode): ?Array<CompletionItem> {
+func overrideCompletions(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    realRoot: CjSyntaxNode,
+    offset: Int64,
+    name: CjSyntaxNode
+): ?Array<CompletionItem> {
     let decl = name.parent ?? return None
-    let kind = if (decl.kind == SyntaxKind.FuncDecl) {
-        ItemKind.Func
-    } else if (decl.kind == SyntaxKind.PropDecl) {
-        ItemKind.Prop
-    } else {
-        return None
-    }
+    let kind =
+        if (decl.kind == SyntaxKind.FuncDecl) {
+            ItemKind.Func
+        } else if (decl.kind == SyntaxKind.PropDecl) {
+            ItemKind.Prop
+        } else {
+            return None
+        }
     if ((decl.parent?.kind ?? SyntaxKind.ErrorNode) != SyntaxKind.DeclBody) {
         return None
     }
@@ -809,14 +1026,19 @@ func overrideCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSyn
     let from = scopeFileOf(db, ItemFile.Source(file))
     let found = ArrayList<CompletionItem>()
     for (target in allMembers(db, supertypes(db, around), from: from)) {
-        let id = match (target) {
-            case MemberDecl(id) => id
-            case MemberParam(_, _) => continue
-        }
+        let id =
+            match (target) {
+                case MemberDecl(id) => id
+                case MemberParam(_, _) => continue
+            }
         let item = declItemOf(db, id) ?? continue
         let label = item.names.get(0) ?? continue
-        if (item.kind != kind || item.has(Modifier.Static) != isStatic || declared.contains(label) ||
-            visibilityOf(item) == Visibility.Private || !isOverridable(db, id, item)) {
+        if (
+            item.kind != kind || item.has(Modifier.Static) != isStatic ||
+                declared.contains(label) ||
+                visibilityOf(item) == Visibility.Private ||
+                !isOverridable(db, id, item)
+        ) {
             continue
         }
         found.add(CompletionItem(label, kindOfItem(kind) ?? continue, 80, DeclSource(id, None)))
@@ -830,12 +1052,15 @@ func overrideCompletions(db: AnalysisDatabase, file: SourceFile, realRoot: CjSyn
 func typeDefOf(db: AnalysisDatabase, def: DefId): ?DefId {
     match (def.item(db).kind) {
         case Class | Interface | Struct | Enum | Extend => def
-        case _ => parentOf(db, def).flatMap {
-            parent => match (parent.item(db).kind) {
-                case Class | Interface | Struct | Enum | Extend => Some(parent)
-                case _ => None
-            }
-        }
+        case _ =>
+            parentOf(db, def)
+                .flatMap {
+                    parent =>
+                    match (parent.item(db).kind) {
+                        case Class | Interface | Struct | Enum | Extend => Some(parent)
+                        case _ => None
+                    }
+                }
     }
 }
 
@@ -871,20 +1096,26 @@ func hasModifier(decl: CjSyntaxNode, text: String): Bool {
  */
 func ranked(items: Array<CompletionItem>): Array<CompletionItem> {
     let sorted = items.clone()
-    sort(sorted, stable: true, by: {
-        a: CompletionItem, b: CompletionItem => match (b.relevance.compare(a.relevance)) {
-            case Ordering.EQ => a.label.compare(b.label)
-            case other => other
+    sort(
+        sorted,
+        stable: true,
+        by: {
+            a: CompletionItem, b: CompletionItem =>
+            match (b.relevance.compare(a.relevance)) {
+                case Ordering.EQ => a.label.compare(b.label)
+                case other => other
+            }
         }
-    })
+    )
     let seen = HashSet<String>()
     let kept = ArrayList<CompletionItem>()
     for (item in sorted) {
-        let key = match ((item.kind, item.source)) {
-            case (FuncItem, DeclSource(id, _)) => "${item.label}#${id.hashCode()}"
-            case (CtorItem, DeclSource(id, _)) => "${item.label}#${id.hashCode()}"
-            case _ => "${item.label}#${item.kind}"
-        }
+        let key =
+            match ((item.kind, item.source)) {
+                case (FuncItem, DeclSource(id, _)) => "${item.label}#${id.hashCode()}"
+                case (CtorItem, DeclSource(id, _)) => "${item.label}#${id.hashCode()}"
+                case _ => "${item.label}#${item.kind}"
+            }
         if (seen.add(key)) {
             kept.add(item)
         }

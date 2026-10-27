@@ -4,8 +4,18 @@ import std.collection.*
 import std.deriving.*
 import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasTypeParams, AnyHasWhereClause, Decl, GenericConstraint, NamedType, ParamList, PathSegment, Type,
-    TypeBoundList, TypeParam}
+import cjsyntax.ast.{
+    AnyHasTypeParams,
+    AnyHasWhereClause,
+    Decl,
+    GenericConstraint,
+    NamedType,
+    ParamList,
+    PathSegment,
+    Type,
+    TypeBoundList,
+    TypeParam
+}
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
@@ -122,15 +132,23 @@ public struct Signature {
      * `id` as written, but for whitespace and parameter names: `a.C<?Int64>`, `(Int64) -> Unit`.
      */
     public func text(id: TypeRefId): String {
-        let list = {ids: Array<TypeRefId> => String.join(ids.map {one => text(one)}, delimiter: ", ")}
+        let list =
+            { ids: Array<TypeRefId> => String.join(ids.map { one => text(one) }, delimiter: ", ") }
         match (this[id]) {
-            case PathRef(segments) => String.join(segments.map {
-                segment => if (segment.args.isEmpty()) {
-                    segment.name
-                } else {
-                    "${segment.name}<${list(segment.args)}>"
-                }
-            }, delimiter: ".")
+            case PathRef(segments) =>
+                String
+                    .join(
+                        segments
+                            .map {
+                                segment =>
+                                if (segment.args.isEmpty()) {
+                                    segment.name
+                                } else {
+                                    "${segment.name}<${list(segment.args)}>"
+                                }
+                            },
+                        delimiter: "."
+                    )
             case PrimRef(name) => name
             case TupleRef(elements) => "(${list(elements)})"
             case FuncRef(params, ret) => "(${list(params)}) -> ${text(ret)}"
@@ -166,7 +184,10 @@ public struct SignatureSourceMap {
  */
 @Derive[Equatable]
 public struct LoweredSignature {
-    public LoweredSignature(public let signature: Signature, public let sourceMap: SignatureSourceMap) {}
+    public LoweredSignature(
+        public let signature: Signature,
+        public let sourceMap: SignatureSourceMap
+    ) {}
 }
 
 /**
@@ -176,11 +197,12 @@ public struct LoweredSignature {
 @CalcaTracked
 public func signatureWithSourceMap(db: AnalysisDatabase, def: DefId): LoweredSignature {
     if (let Some((root, ids)) <- syntaxOf(db, def.file(db))) {
-        if (let Some(decl) <- ids.node(def.item(db), root).flatMap {node => Decl.cast(node)}) {
-            let active = match (def.file(db)) {
-                case Source(file) => ActiveFilter.of(db, file)
-                case _ => ALL_ACTIVE
-            }
+        if (let Some(decl) <- ids.node(def.item(db), root).flatMap { node => Decl.cast(node) }) {
+            let active =
+                match (def.file(db)) {
+                    case Source(file) => ActiveFilter.of(db, file)
+                    case _ => ALL_ACTIVE
+                }
             return lowerSignature(decl, active: active)
         }
     }
@@ -201,39 +223,76 @@ public func signature(db: AnalysisDatabase, def: DefId): Signature {
  */
 func lowerSignature(decl: Decl, active!: ActiveFilter = ALL_ACTIVE): LoweredSignature {
     let lowering = SignatureLowering(active: active)
-    let generics = match (AnyHasTypeParams.cast(decl.syntax).flatMap {it => it.typeParamList()}) {
-        case Some(list) => list.typeParams() |> map {param: TypeParam => param.name()?.text() ?? ""} |> collectArray
-        case None => Array<String>()
-    }
+    let generics =
+        match (AnyHasTypeParams.cast(decl.syntax).flatMap { it => it.typeParamList() }) {
+            case Some(list) =>
+                list.typeParams() |> map { param: TypeParam => param.name()?.text() ?? "" } |>
+                    collectArray
+            case None => Array<String>()
+        }
     var params = Array<TypeRefId>()
     var ty: ?TypeRefId = None
     var supers = Array<TypeRefId>()
     match (decl) {
-        case Decl.AsFuncDecl(it) => (params, ty) = (lowering.params(it.paramLists()), lowering.retType(it.retType().flatMap {ret => ret.ty()}))
-        case Decl.AsMainDecl(it) => (params, ty) = (lowering.params(it.paramLists()), lowering.retType(it.retType().flatMap {ret => ret.ty()}))
-        case Decl.AsMacroDecl(it) => (params, ty) = (lowering.params(it.paramLists()), lowering.retType(it.retType().flatMap {ret => ret.ty()}))
+        case Decl.AsFuncDecl(it) =>
+            (params, ty) =
+                (
+                    lowering.params(it.paramLists()),
+                    lowering.retType(it.retType().flatMap { ret => ret.ty() })
+                )
+        case Decl.AsMainDecl(it) =>
+            (params, ty) =
+                (
+                    lowering.params(it.paramLists()),
+                    lowering.retType(it.retType().flatMap { ret => ret.ty() })
+                )
+        case Decl.AsMacroDecl(it) =>
+            (params, ty) =
+                (
+                    lowering.params(it.paramLists()),
+                    lowering.retType(it.retType().flatMap { ret => ret.ty() })
+                )
         case Decl.AsInitDecl(it) => params = lowering.params(it.paramLists())
         case Decl.AsPrimaryInitDecl(it) => params = lowering.params(it.paramLists())
         case Decl.AsClassDecl(it) => supers = lowering.bounds(it.typeBoundList())
         case Decl.AsInterfaceDecl(it) => supers = lowering.bounds(it.typeBoundList())
         case Decl.AsStructDecl(it) => supers = lowering.bounds(it.typeBoundList())
         case Decl.AsEnumDecl(it) => supers = lowering.bounds(it.typeBoundList())
-        case Decl.AsExtendDecl(it) => (ty, supers) = (lowering.lower(it.ty()), lowering.bounds(it.typeBoundList()))
+        case Decl.AsExtendDecl(it) =>
+            (ty, supers) = (lowering.lower(it.ty()), lowering.bounds(it.typeBoundList()))
         case Decl.AsTypeAliasDecl(it) => ty = lowering.lower(it.ty())
         case Decl.AsVarDecl(it) => ty = lowering.retType(it.ty())
         case Decl.AsPropDecl(it) => ty = lowering.lower(it.ty())
-        case Decl.AsEnumCtor(it) => params = it.types() |> map {one => lowering.lower(one)} |> collectArray
+        case Decl.AsEnumCtor(it) =>
+            params = it.types() |> map { one => lowering.lower(one) } |> collectArray
         case _ => ()
     }
-    let bounds = match (AnyHasWhereClause.cast(decl.syntax).flatMap {it => it.whereClause()}) {
-        case Some(clause) => clause.genericConstraints() |> map {
-            constraint: GenericConstraint => TypeBound(lowering.lower(constraint.ty()), lowering.bounds(constraint.typeBoundList()))
-        } |> collectArray
-        case None => Array<TypeBound>()
-    }
+    let bounds =
+        match (AnyHasWhereClause.cast(decl.syntax).flatMap { it => it.whereClause() }) {
+            case Some(clause) =>
+                clause.genericConstraints() |>
+                    map {
+                        constraint: GenericConstraint =>
+                        TypeBound(
+                            lowering.lower(constraint.ty()),
+                            lowering.bounds(constraint.typeBoundList())
+                        )
+                    } |>
+                    collectArray
+            case None => Array<TypeBound>()
+        }
     LoweredSignature(
-        Signature(generics: generics, types: lowering.types.toArray(), params: params, paramNames: lowering.names, paramDefaults: lowering.defaults,
-            isCVariadic: lowering.isCVariadic, ty: ty, supers: supers, bounds: bounds),
+        Signature(
+            generics: generics,
+            types: lowering.types.toArray(),
+            params: params,
+            paramNames: lowering.names,
+            paramDefaults: lowering.defaults,
+            isCVariadic: lowering.isCVariadic,
+            ty: ty,
+            supers: supers,
+            bounds: bounds
+        ),
         SignatureSourceMap(lowering.ptrs.toArray())
     )
 }
@@ -265,14 +324,10 @@ class SignatureLowering {
                 }
                 withDefault.add(param.eqToken().isSome())
                 ids.add(lower(param.ty()))
-                found.add(if (param.bangToken().isSome()) {
-                    param.name()?.text()
-                } else {
-                    None
-                })
+                found.add(if (param.bangToken().isSome()) { param.name()?.text() } else { None })
             }
         }
-        if (found.iterator().any {one => one.isSome()}) {
+        if (found.iterator().any { one => one.isSome() }) {
             names = found.toArray()
             defaults = withDefault.toArray()
         }
@@ -283,12 +338,12 @@ class SignatureLowering {
      * A type that may be left out, a return type or a variable's: `None` then.
      */
     func retType(ty: ?Type): ?TypeRefId {
-        ty.map {one => lower(one)}
+        ty.map { one => lower(one) }
     }
 
     func bounds(list: ?TypeBoundList): Array<TypeRefId> {
         let types = list?.types() ?? return []
-        types |> map {one => lower(one)} |> collectArray
+        types |> map { one => lower(one) } |> collectArray
     }
 
     func lower(ty: ?Type): TypeRefId {
@@ -299,23 +354,40 @@ class SignatureLowering {
     }
 
     private func lowerType(ty: Type): TypeRefId {
-        let lowered = match (ty) {
-            case Type.AsPathType(it) => TypeRef.PathRef(it.pathSegments() |> map {
-                segment: PathSegment =>
-                let args = match (segment.typeArgList()) {
-                    case Some(list) => list.types() |> map {arg: Type => lower(arg)} |> collectArray
-                    case None => Array<TypeRefId>()
-                }
-                TypeSegment(segment.nameRef()?.text() ?? "", args)
-            } |> collectArray)
-            case Type.AsPrimType(it) => TypeRef.PrimRef(it.keyword()?.text() ?? "")
-            case Type.AsTupleType(it) => TypeRef.TupleRef(elements(it.syntax, None))
-            case Type.AsParenType(it) => return lower(it.ty() ?? it.namedType().flatMap {named => named.ty()})
-            case Type.AsFuncType(it) => TypeRef.FuncRef(elements(it.syntax, it.arrowToken()?.textRange.start), lower(it.ret()))
-            case Type.AsOptionType(it) => TypeRef.OptionRef(lower(it.ty()))
-            case Type.AsThisType(_) => TypeRef.ThisRef
-            case Type.AsVArrayType(it) => TypeRef.VArrayRef(lower(it.ty()), it.intLitToken()?.text())
-        }
+        let lowered =
+            match (ty) {
+                case Type.AsPathType(it) =>
+                    TypeRef
+                        .PathRef(
+                            it.pathSegments() |>
+                                map {
+                                    segment: PathSegment =>
+                                    let args =
+                                        match (segment.typeArgList()) {
+                                            case Some(list) =>
+                                                list.types() |> map { arg: Type => lower(arg) } |>
+                                                    collectArray
+                                            case None => Array<TypeRefId>()
+                                        }
+                                    TypeSegment(segment.nameRef()?.text() ?? "", args)
+                                } |>
+                                collectArray
+                        )
+                case Type.AsPrimType(it) => TypeRef.PrimRef(it.keyword()?.text() ?? "")
+                case Type.AsTupleType(it) => TypeRef.TupleRef(elements(it.syntax, None))
+                case Type.AsParenType(it) =>
+                    return lower(it.ty() ?? it.namedType().flatMap { named => named.ty() })
+                case Type.AsFuncType(it) =>
+                    TypeRef
+                        .FuncRef(
+                            elements(it.syntax, it.arrowToken()?.textRange.start),
+                            lower(it.ret())
+                        )
+                case Type.AsOptionType(it) => TypeRef.OptionRef(lower(it.ty()))
+                case Type.AsThisType(_) => TypeRef.ThisRef
+                case Type.AsVArrayType(it) =>
+                    TypeRef.VArrayRef(lower(it.ty()), it.intLitToken()?.text())
+            }
         add(lowered, SyntaxNodePtr(ty.syntax))
     }
 

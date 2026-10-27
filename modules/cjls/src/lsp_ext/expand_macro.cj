@@ -10,7 +10,8 @@ import cjls.lsp_types.{LspInboundRequest, MessageDirection, TextDocumentPosition
  * `cjls/expandMacro`: what the macro call at a position expands to, as rust-analyzer's
  * `rust-analyzer/expandMacro` answers it (`docs/lsp-extensions.md`).
  */
-public struct ExpandMacroRequestSpec <: LspInboundRequest<TextDocumentPositionParams, Nullable<MacroExpansion>> {
+public struct ExpandMacroRequestSpec <:
+    LspInboundRequest<TextDocumentPositionParams, Nullable<MacroExpansion>> {
     public static prop METHOD: String {
         get() {
             "cjls/expandMacro"

@@ -57,7 +57,12 @@ public interface FromReadOnlyContext<T> {
  * A context but for its params, which the route decodes, knowing their type.
  */
 class Parts {
-    Parts(let loop: Loop, let client: Client, let cancellation: CancellationToken, let logger: Logger) {}
+    Parts(
+        let loop: Loop,
+        let client: Client,
+        let cancellation: CancellationToken,
+        let logger: Logger
+    ) {}
 
     func context<P>(params: P): Context<P> {
         Context(params, loop, client, cancellation, logger)
@@ -65,8 +70,12 @@ class Parts {
 }
 
 class ReadOnlyParts {
-    ReadOnlyParts(let snapshot: ServerSnapshot, let client: Client, let cancellation: CancellationToken,
-        let logger: Logger) {}
+    ReadOnlyParts(
+        let snapshot: ServerSnapshot,
+        let client: Client,
+        let cancellation: CancellationToken,
+        let logger: Logger
+    ) {}
 
     func context<P>(params: P): ReadOnlyContext<P> {
         ReadOnlyContext(params, snapshot, client, cancellation, logger)
@@ -76,7 +85,9 @@ class ReadOnlyParts {
 /**
  * Never cancelled for a notification.
  */
-extend CancellationToken <: FromContext<CancellationToken> & FromReadOnlyContext<CancellationToken> {
+extend CancellationToken <:
+    FromContext<CancellationToken> &
+    FromReadOnlyContext<CancellationToken> {
     public static func from<P>(ctx: Context<P>): CancellationToken {
         ctx.cancellation
     }
@@ -148,7 +159,7 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      */
     public func request<P, R>(spec: LspOutboundRequest<P, R>, params: P): PendingAnswer<R> {
         let pending = connected().request<RawJson, RawJson>(spec.method, spec.encodeParams(params))
-        PendingAnswer<R>(pending, {result => spec.decodeResult(result)})
+        PendingAnswer<R>(pending, { result => spec.decodeResult(result) })
     }
 
     /**
@@ -158,12 +169,13 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
      */
     public func request<P>(spec: LspOutboundRequest<P, Unit>, params: P, logger: Logger): Unit {
         let method = spec.method
-        let answer = try {
-            request(spec, params)
-        } catch (e: Exception) {
-            requestFailed(method, e, logger)
-            return
-        }
+        let answer =
+            try {
+                request(spec, params)
+            } catch (e: Exception) {
+                requestFailed(method, e, logger)
+                return
+            }
         spawn {
             try {
                 answer.await()
@@ -177,7 +189,11 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
 
     private func requestFailed(method: String, e: Exception, logger: Logger): Unit {
         if (isClosed()) {
-            logger.debug("request dropped", [("request", method), ("reason", "the connection is closed")])
+            logger
+                .debug(
+                    "request dropped",
+                    [("request", method), ("reason", "the connection is closed")]
+                )
         } else {
             logger.warn("request failed", [("request", method), ("error", e.message)])
         }
@@ -202,7 +218,7 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
     }
 
     private func connected(): Connection {
-        connection.getOrThrow {=> IllegalStateException("the client is not connected yet")}
+        connection.getOrThrow { => IllegalStateException("the client is not connected yet") }
     }
 }
 
@@ -213,7 +229,10 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
  * forwards to).
  */
 public struct PendingAnswer<R> {
-    PendingAnswer(private let pending: PendingRequest<RawJson>, private let decode: (RawJson) -> R) {}
+    PendingAnswer(
+        private let pending: PendingRequest<RawJson>,
+        private let decode: (RawJson) -> R
+    ) {}
 
     public prop id: RequestId {
         get() {

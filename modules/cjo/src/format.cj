@@ -185,13 +185,13 @@ public struct Constraint {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(0).map {p => Position(fb.buf, p)}
+            fb.structAt(0).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -234,7 +234,7 @@ public struct Generics {
 
     public prop constraints: FbVector<Constraint> {
         get() {
-            fb.vector(1, 4, {b, p => Constraint(FbTable.at(b, p))})
+            fb.vector(1, 4, { b, p => Constraint(FbTable.at(b, p)) })
         }
     }
 }
@@ -260,7 +260,7 @@ public struct FuncBody {
 
     public prop paramLists: FbVector<FuncParamList> {
         get() {
-            fb.vector(0, 4, {b, p => FuncParamList(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => FuncParamList(FbTable.at(b, p)) })
         }
     }
 
@@ -365,11 +365,14 @@ public enum ConstValue {
      */
     static func readVector(fb: FbTable, id: Int64): FbVector<ConstValue> {
         let tags = fb.vector(id, 1, readUInt8)
-        let values = fb.vector(id + 1, 4) {_, p => p}
+        let values = fb.vector(id + 1, 4) { _, p => p }
         if (tags.size != values.size) {
             throw broken("ConstValue: ${tags.size} types for ${values.size} values")
         }
-        FbVector<ConstValue>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}
+        FbVector<ConstValue>(fb.buf, values.start, values.size, 4) {
+            b, p =>
+            at(b, tags[(p - values.start) / 4], p)
+        }
     }
 
     /**
@@ -551,7 +554,7 @@ public struct CompositeValue {
 
     public prop fields: FbVector<MemberValue> {
         get() {
-            fb.vector(1, 4, {b, p => MemberValue(FbTable.at(b, p))})
+            fb.vector(1, 4, { b, p => MemberValue(FbTable.at(b, p)) })
         }
     }
 }
@@ -613,7 +616,7 @@ public struct ClassInfo {
 
     public prop adInfo: ?AutoDiffInfo {
         get() {
-            fb.table(2).map {x => AutoDiffInfo(x)}
+            fb.table(2).map { x => AutoDiffInfo(x) }
         }
     }
 
@@ -681,7 +684,7 @@ public struct StructInfo {
 
     public prop adInfo: ?AutoDiffInfo {
         get() {
-            fb.table(2).map {x => AutoDiffInfo(x)}
+            fb.table(2).map { x => AutoDiffInfo(x) }
         }
     }
 }
@@ -703,7 +706,7 @@ public struct EnumInfo {
 
     public prop adInfo: ?AutoDiffInfo {
         get() {
-            fb.table(2).map {x => AutoDiffInfo(x)}
+            fb.table(2).map { x => AutoDiffInfo(x) }
         }
     }
 
@@ -721,7 +724,7 @@ public struct EnumInfo {
 
     public prop ellipsisPos: ?Position {
         get() {
-            fb.structAt(5).map {p => Position(fb.buf, p)}
+            fb.structAt(5).map { p => Position(fb.buf, p) }
         }
     }
 }
@@ -802,7 +805,7 @@ public struct VarWithPatternInfo {
      */
     public prop irrefutablePattern: ?Pattern {
         get() {
-            fb.table(2).map {x => Pattern(x)}
+            fb.table(2).map { x => Pattern(x) }
         }
     }
 
@@ -1224,7 +1227,7 @@ public struct FuncInfo {
 
     public prop funcBody: ?FuncBody {
         get() {
-            fb.table(0).map {x => FuncBody(x)}
+            fb.table(0).map { x => FuncBody(x) }
         }
     }
 
@@ -1242,7 +1245,7 @@ public struct FuncInfo {
 
     public prop adInfo: ?AutoDiffInfo {
         get() {
-            fb.table(3).map {x => AutoDiffInfo(x)}
+            fb.table(3).map { x => AutoDiffInfo(x) }
         }
     }
 
@@ -1437,11 +1440,14 @@ public enum DeclInfo {
      */
     static func readVector(fb: FbTable, id: Int64): FbVector<DeclInfo> {
         let tags = fb.vector(id, 1, readUInt8)
-        let values = fb.vector(id + 1, 4) {_, p => p}
+        let values = fb.vector(id + 1, 4) { _, p => p }
         if (tags.size != values.size) {
             throw broken("DeclInfo: ${tags.size} types for ${values.size} values")
         }
-        FbVector<DeclInfo>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}
+        FbVector<DeclInfo>(fb.buf, values.start, values.size, 4) {
+            b, p =>
+            at(b, tags[(p - values.start) / 4], p)
+        }
     }
 
     /**
@@ -1492,25 +1498,25 @@ public struct Decl {
 
     public prop genericDecl: ?FullId {
         get() {
-            fb.table(3).map {x => FullId(x)}
+            fb.table(3).map { x => FullId(x) }
         }
     }
 
     public prop generic: ?Generics {
         get() {
-            fb.table(4).map {x => Generics(x)}
+            fb.table(4).map { x => Generics(x) }
         }
     }
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(5).map {p => Position(fb.buf, p)}
+            fb.structAt(5).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(6).map {p => Position(fb.buf, p)}
+            fb.structAt(6).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -1522,7 +1528,7 @@ public struct Decl {
 
     public prop identifierPos: ?Position {
         get() {
-            fb.structAt(8).map {p => Position(fb.buf, p)}
+            fb.structAt(8).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -1534,7 +1540,7 @@ public struct Decl {
 
     public prop annotations: FbVector<Anno> {
         get() {
-            fb.vector(10, 4, {b, p => Anno(FbTable.at(b, p))})
+            fb.vector(10, 4, { b, p => Anno(FbTable.at(b, p)) })
         }
     }
 
@@ -1576,7 +1582,7 @@ public struct Decl {
 
     public prop hash: ?DeclHash {
         get() {
-            fb.structAt(15).map {p => DeclHash(fb.buf, p)}
+            fb.structAt(15).map { p => DeclHash(fb.buf, p) }
         }
     }
 
@@ -1594,7 +1600,7 @@ public struct Decl {
      */
     public prop dependencies: FbVector<FullId> {
         get() {
-            fb.vector(18, 4, {b, p => FullId(FbTable.at(b, p))})
+            fb.vector(18, 4, { b, p => FullId(FbTable.at(b, p)) })
         }
     }
 }
@@ -1702,7 +1708,7 @@ public struct Anno {
 
     public prop args: FbVector<AnnoArg> {
         get() {
-            fb.vector(2, 4, {b, p => AnnoArg(FbTable.at(b, p))})
+            fb.vector(2, 4, { b, p => AnnoArg(FbTable.at(b, p)) })
         }
     }
 
@@ -1711,7 +1717,7 @@ public struct Anno {
      */
     public prop target: ?FullId {
         get() {
-            fb.table(3).map {x => FullId(x)}
+            fb.table(3).map { x => FullId(x) }
         }
     }
 }
@@ -2236,11 +2242,14 @@ public enum ExprInfo {
      */
     static func readVector(fb: FbTable, id: Int64): FbVector<ExprInfo> {
         let tags = fb.vector(id, 1, readUInt8)
-        let values = fb.vector(id + 1, 4) {_, p => p}
+        let values = fb.vector(id + 1, 4) { _, p => p }
         if (tags.size != values.size) {
             throw broken("ExprInfo: ${tags.size} types for ${values.size} values")
         }
-        FbVector<ExprInfo>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}
+        FbVector<ExprInfo>(fb.buf, values.start, values.size, 4) {
+            b, p =>
+            at(b, tags[(p - values.start) / 4], p)
+        }
     }
 
     /**
@@ -2263,7 +2272,8 @@ public enum ExprInfo {
             case 13 => ExprInfo.AsMatchInfo(MatchInfo(FbTable.at(buf, pos)))
             case 14 => ExprInfo.AsBlockInfo(BlockInfo(FbTable.at(buf, pos)))
             case 15 => ExprInfo.AsTryInfo(TryInfo(FbTable.at(buf, pos)))
-            case 16 => ExprInfo.AsLetPatternDestructorInfo(LetPatternDestructorInfo(FbTable.at(buf, pos)))
+            case 16 =>
+                ExprInfo.AsLetPatternDestructorInfo(LetPatternDestructorInfo(FbTable.at(buf, pos)))
             case 17 => ExprInfo.AsForInInfo(ForInInfo(FbTable.at(buf, pos)))
             case 18 => ExprInfo.AsMatchCaseInfo(MatchCaseInfo(FbTable.at(buf, pos)))
             case 19 => ExprInfo.AsSpawnInfo(SpawnInfo(FbTable.at(buf, pos)))
@@ -2355,7 +2365,7 @@ public struct ReferenceInfo {
 
     public prop target: ?FullId {
         get() {
-            fb.table(1).map {x => FullId(x)}
+            fb.table(1).map { x => FullId(x) }
         }
     }
 
@@ -2386,7 +2396,7 @@ public struct LambdaInfo {
      */
     public prop funcBody: FuncBody {
         get() {
-            FbTable.required(fb.table(0).map {x => FuncBody(x)}, "LambdaInfo", "funcBody")
+            FbTable.required(fb.table(0).map { x => FuncBody(x) }, "LambdaInfo", "funcBody")
         }
     }
 
@@ -2418,7 +2428,7 @@ public struct ArrayInfo {
 
     public prop initFunc: ?FullId {
         get() {
-            fb.table(0).map {x => FullId(x)}
+            fb.table(0).map { x => FullId(x) }
         }
     }
 
@@ -2493,13 +2503,13 @@ public struct TryInfo {
      */
     public prop resources: FbVector<FullId> {
         get() {
-            fb.vector(0, 4, {b, p => FullId(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => FullId(FbTable.at(b, p)) })
         }
     }
 
     public prop patterns: FbVector<Pattern> {
         get() {
-            fb.vector(1, 4, {b, p => Pattern(FbTable.at(b, p))})
+            fb.vector(1, 4, { b, p => Pattern(FbTable.at(b, p)) })
         }
     }
 }
@@ -2509,7 +2519,7 @@ public struct LetPatternDestructorInfo {
 
     public prop patterns: FbVector<Pattern> {
         get() {
-            fb.vector(0, 4, {b, p => Pattern(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => Pattern(FbTable.at(b, p)) })
         }
     }
 }
@@ -2519,7 +2529,7 @@ public struct ForInInfo {
 
     public prop pattern: ?Pattern {
         get() {
-            fb.table(0).map {x => Pattern(x)}
+            fb.table(0).map { x => Pattern(x) }
         }
     }
 
@@ -2535,7 +2545,7 @@ public struct MatchCaseInfo {
 
     public prop patterns: FbVector<Pattern> {
         get() {
-            fb.vector(0, 4, {b, p => Pattern(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => Pattern(FbTable.at(b, p)) })
         }
     }
 }
@@ -2545,7 +2555,7 @@ public struct SpawnInfo {
 
     public prop future: ?FullId {
         get() {
-            fb.table(0).map {x => FullId(x)}
+            fb.table(0).map { x => FullId(x) }
         }
     }
 }
@@ -2561,13 +2571,13 @@ public struct Expr {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(2).map {p => Position(fb.buf, p)}
+            fb.structAt(2).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -2693,19 +2703,19 @@ public struct Pattern {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(2).map {p => Position(fb.buf, p)}
+            fb.structAt(2).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop patterns: FbVector<Pattern> {
         get() {
-            fb.vector(3, 4, {b, p => Pattern(FbTable.at(b, p))})
+            fb.vector(3, 4, { b, p => Pattern(FbTable.at(b, p)) })
         }
     }
 
@@ -2988,11 +2998,14 @@ public enum SemaTyInfo {
      */
     static func readVector(fb: FbTable, id: Int64): FbVector<SemaTyInfo> {
         let tags = fb.vector(id, 1, readUInt8)
-        let values = fb.vector(id + 1, 4) {_, p => p}
+        let values = fb.vector(id + 1, 4) { _, p => p }
         if (tags.size != values.size) {
             throw broken("SemaTyInfo: ${tags.size} types for ${values.size} values")
         }
-        FbVector<SemaTyInfo>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}
+        FbVector<SemaTyInfo>(fb.buf, values.start, values.size, 4) {
+            b, p =>
+            at(b, tags[(p - values.start) / 4], p)
+        }
     }
 
     /**
@@ -3042,7 +3055,7 @@ public struct CompositeTyInfo {
 
     public prop declPtr: ?FullId {
         get() {
-            fb.table(0).map {x => FullId(x)}
+            fb.table(0).map { x => FullId(x) }
         }
     }
 
@@ -3058,7 +3071,7 @@ public struct GenericTyInfo {
 
     public prop declPtr: ?FullId {
         get() {
-            fb.table(0).map {x => FullId(x)}
+            fb.table(0).map { x => FullId(x) }
         }
     }
 
@@ -3163,13 +3176,13 @@ public struct ImportSpec {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(0).map {p => Position(fb.buf, p)}
+            fb.structAt(0).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 
@@ -3221,7 +3234,7 @@ public struct Imports {
 
     public prop importSpecs: FbVector<ImportSpec> {
         get() {
-            fb.vector(0, 4, {b, p => ImportSpec(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => ImportSpec(FbTable.at(b, p)) })
         }
     }
 }
@@ -3391,7 +3404,7 @@ public struct FeaturesSet {
 
     public prop features: FbVector<FeatureId> {
         get() {
-            fb.vector(0, 4, {b, p => FeatureId(FbTable.at(b, p))})
+            fb.vector(0, 4, { b, p => FeatureId(FbTable.at(b, p)) })
         }
     }
 }
@@ -3401,7 +3414,7 @@ public struct FeaturesDirective {
 
     public prop featuresSet: ?FeaturesSet {
         get() {
-            fb.table(0).map {x => FeaturesSet(x)}
+            fb.table(0).map { x => FeaturesSet(x) }
         }
     }
 }
@@ -3417,19 +3430,19 @@ public struct FileInfo {
 
     public prop begin: ?Position {
         get() {
-            fb.structAt(1).map {p => Position(fb.buf, p)}
+            fb.structAt(1).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop end: ?Position {
         get() {
-            fb.structAt(2).map {p => Position(fb.buf, p)}
+            fb.structAt(2).map { p => Position(fb.buf, p) }
         }
     }
 
     public prop feature: ?FeaturesDirective {
         get() {
-            fb.table(3).map {x => FeaturesDirective(x)}
+            fb.table(3).map { x => FeaturesDirective(x) }
         }
     }
 }
@@ -3544,7 +3557,7 @@ public struct Package {
      */
     public prop cjoVersion: ?CjoVersion {
         get() {
-            fb.structAt(1).map {p => CjoVersion(fb.buf, p)}
+            fb.structAt(1).map { p => CjoVersion(fb.buf, p) }
         }
     }
 
@@ -3589,7 +3602,7 @@ public struct Package {
      */
     public prop allFileImports: FbVector<Imports> {
         get() {
-            fb.vector(6, 4, {b, p => Imports(FbTable.at(b, p))})
+            fb.vector(6, 4, { b, p => Imports(FbTable.at(b, p)) })
         }
     }
 
@@ -3598,7 +3611,7 @@ public struct Package {
      */
     public prop allTypes: FbVector<SemaTy> {
         get() {
-            fb.vector(7, 4, {b, p => SemaTy(FbTable.at(b, p))})
+            fb.vector(7, 4, { b, p => SemaTy(FbTable.at(b, p)) })
         }
     }
 
@@ -3607,7 +3620,7 @@ public struct Package {
      */
     public prop allDecls: FbVector<Decl> {
         get() {
-            fb.vector(8, 4, {b, p => Decl(FbTable.at(b, p))})
+            fb.vector(8, 4, { b, p => Decl(FbTable.at(b, p)) })
         }
     }
 
@@ -3616,7 +3629,7 @@ public struct Package {
      */
     public prop allExprs: FbVector<Expr> {
         get() {
-            fb.vector(9, 4, {b, p => Expr(FbTable.at(b, p))})
+            fb.vector(9, 4, { b, p => Expr(FbTable.at(b, p)) })
         }
     }
 
@@ -3625,7 +3638,7 @@ public struct Package {
      */
     public prop allValues: FbVector<CompositeValue> {
         get() {
-            fb.vector(10, 4, {b, p => CompositeValue(FbTable.at(b, p))})
+            fb.vector(10, 4, { b, p => CompositeValue(FbTable.at(b, p)) })
         }
     }
 
@@ -3655,7 +3668,7 @@ public struct Package {
      */
     public prop allFileInfo: FbVector<FileInfo> {
         get() {
-            fb.vector(14, 4, {b, p => FileInfo(FbTable.at(b, p))})
+            fb.vector(14, 4, { b, p => FileInfo(FbTable.at(b, p)) })
         }
     }
 
@@ -3670,7 +3683,7 @@ public struct Package {
 
     public prop options: ?CompilationOptions {
         get() {
-            fb.table(16).map {x => CompilationOptions(x)}
+            fb.table(16).map { x => CompilationOptions(x) }
         }
     }
 }

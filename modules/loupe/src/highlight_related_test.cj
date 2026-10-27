@@ -12,9 +12,16 @@ func checkHighlightRelated(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let found = highlightRelated(db, cursor.fileId, cursor.offset).map {
-        one => Annotation(cursor.fileId, one.range, one.access.map {access => access.toString()} ?? "text")
-    }
+    let found =
+        highlightRelated(db, cursor.fileId, cursor.offset)
+            .map {
+                one =>
+                Annotation(
+                    cursor.fileId,
+                    one.range,
+                    one.access.map { access => access.toString() } ?? "text"
+                )
+            }
     expectAnnotations(fixture, found)
 }
 
@@ -22,7 +29,8 @@ func checkHighlightRelated(fixture: String): Unit {
 class HighlightRelatedTest {
     @TestCase
     func aLocalShadowedInAnInnerScopeHighlightsOnlyItsOwnUses() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: Int64): Int64 {
@@ -35,12 +43,14 @@ class HighlightRelatedTest {
                 }
                 x
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFieldWrittenThroughThisIsWritten() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             class C {
@@ -55,12 +65,14 @@ class HighlightRelatedTest {
             //        ^ read
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberReachedThroughAValueOfAnotherTypeIsNotHighlighted() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             class A {
@@ -75,12 +87,14 @@ class HighlightRelatedTest {
             //      ^ read
             //                  ^ read
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func compoundAssignmentsIncrementsAndTuplesAssignedToWrite() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -97,12 +111,14 @@ class HighlightRelatedTest {
                 $0i
             //    ^ read
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aLetIsNotWrittenAtItsDeclaration() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
@@ -112,13 +128,15 @@ class HighlightRelatedTest {
             //    ^ read
             //        ^ read
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func ofOverloadsOnlyTheOneACallTakes() {
         // as definitionAt: the overload `calleeOf` chose, not every function of the name
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             func g(n: Int64): Int64 { n }
@@ -135,12 +153,14 @@ class HighlightRelatedTest {
                 g(3) + g(false)
             //  ^ read
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDeclarationHighlightsItsUses() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             func $0g(n: Int64): Int64 { n }
@@ -151,12 +171,14 @@ class HighlightRelatedTest {
             //  ^ read
                 g(true)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeIsHighlightedInSignaturesAndBodies() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             class K {}
@@ -168,12 +190,14 @@ class HighlightRelatedTest {
             //             ^ text
                 other
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeParameterIsHighlightedInItsDeclarationAndItsMembers() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             class Box<T> {
@@ -192,12 +216,14 @@ class HighlightRelatedTest {
                 }
             }
             func id<T>(x: T): T { x }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aParameterOfAPrimaryConstructorIsAMember() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             class P {
@@ -212,24 +238,28 @@ class HighlightRelatedTest {
                 p.$0x
             //      ^ read
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameMeaningNothingHighlightsNothing() {
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(): Int64 {
                 $0nothing + nothing
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aParameterNamedInAQuoteIsHighlightedInItsInterpolationsOnly() {
         // #195: `input` outside them is a token of what the macro builds
-        checkHighlightRelated(#"
+        checkHighlightRelated(
+            #"
             //- /main.cj module=m package=m
             macro package m
             import std.ast.*
@@ -239,6 +269,7 @@ class HighlightRelatedTest {
             //                ^^^^^^ read
             //                             ^^^^^ read
             }
-            "#)
+            "#
+        )
     }
 }

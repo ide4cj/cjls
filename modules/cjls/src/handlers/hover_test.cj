@@ -10,8 +10,13 @@ import cjls.lsp_types.*
 import cjls.server.*
 
 func hoverOf(state: ServerState, path: Path, line: UInt32, character: UInt32): Nullable<Hover> {
-    handleHover(state.snapshot(), HoverParams(textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-        position: Position(line: line, character: character)))
+    handleHover(
+        state.snapshot(),
+        HoverParams(
+            textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+            position: Position(line: line, character: character)
+        )
+    )
 }
 
 /**
@@ -19,18 +24,20 @@ func hoverOf(state: ServerState, path: Path, line: UInt32, character: UInt32): N
  */
 func markupOf(answer: Nullable<Hover>): (MarkupContent, String) {
     match (answer) {
-        case Nullable.Value(hover) => match (hover.contents) {
-            case MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(content) =>
-                (content, hover.range.map {it => "${at(it.start)}-${at(it.end)}"} ?? "")
-            case _ => throw AssertException("not markup")
-        }
+        case Nullable.Value(hover) =>
+            match (hover.contents) {
+                case MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(content) =>
+                    (content, hover.range.map { it => "${at(it.start)}-${at(it.end)}" } ?? "")
+                case _ => throw AssertException("not markup")
+            }
         case _ => throw AssertException("no hover")
     }
 }
 
 @Test
 class HoverHandlerTest {
-    let file = "/** Twice `n`. */\nfunc twice(n: Int64): Int64 { n * 2 }\nfunc f() {\n    twice(1)\n}\n"
+    let file =
+        "/** Twice `n`. */\nfunc twice(n: Int64): Int64 { n * 2 }\nfunc f() {\n    twice(1)\n}\n"
 
     @TestCase
     func aCallShowsWhereItsFunctionIsItsDeclarationAndItsDocInMarkdown() {
@@ -99,9 +106,16 @@ class HoverHandlerTest {
         let state = ServerState()
 
         // act
-        handleInitialize(state, Client(), NoopLogger(),
-            InitializeParams(processId: Nullable.Null, rootUri: Nullable.Null,
-                capabilities: capabilities))
+        handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
+            )
+        )
 
         // assert
         @Expect(state.hoverMarkdown, markdown)

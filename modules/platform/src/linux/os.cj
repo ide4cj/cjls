@@ -1,4 +1,4 @@
-features { user.platform.posix, os.linux }
+features {user.platform.posix, os.linux}
 package platform
 
 foreign func __errno_location(): CPointer<Int32>
@@ -20,5 +20,7 @@ public specific func libraryPathVariable(): String {
 }
 
 specific func lastErrno(): Int32 {
-    unsafe { __errno_location().read() }
+    unsafe {
+        __errno_location().read()
+    }
 }

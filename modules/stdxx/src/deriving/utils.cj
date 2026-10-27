@@ -18,25 +18,21 @@ func bodyDeclsOf(decl: Decl): ?ArrayList<Decl> {
 }
 
 func primaryCtorOf(decl: Decl): ?PrimaryCtorDecl {
-    (bodyDeclsOf(decl) ?? return None).filterMap {member => member as PrimaryCtorDecl}.first
+    (bodyDeclsOf(decl) ?? return None).filterMap { member => member as PrimaryCtorDecl }.first
 }
 
 /**
  * The `<T, U>` fragment of a generic declaration, empty for a non-generic one.
  */
 func typeArgsOf(decl: Decl): Tokens {
-    if (decl.isGenericDecl) {
-        decl.genericParam.toTokens()
-    } else {
-        Tokens()
-    }
+    if (decl.isGenericDecl) { decl.genericParam.toTokens() } else { Tokens() }
 }
 
 /**
  * The first identifier of a token sequence - the name of whatever it declares.
  */
 func identOf(tokens: Tokens): ?Token {
-    tokens |> filter {token: Token => token.kind == TokenKind.IDENTIFIER} |> first
+    tokens |> filter { token: Token => token.kind == TokenKind.IDENTIFIER } |> first
 }
 
 /**
@@ -85,13 +81,28 @@ func firstDuplicate(entries: Array<(String, Token)>): ?(String, Token) {
  * `let` just as `let x!: T` does.
  */
 func headTokenOf(tokens: Tokens): ?Token {
-    tokens |> filter {token: Token => !isModifier(token)} |> first
+    tokens |> filter { token: Token => !isModifier(token) } |> first
 }
 
 private func isModifier(token: Token): Bool {
     match (token.value) {
-        case "public" | "protected" | "private" | "internal" | "open" | "sealed" | "abstract" | "static" | "override"
-            | "redef" | "mut" | "unsafe" | "foreign" | "const" | "operator" | "common" | "specific" => true
+        case "public" |
+            "protected" |
+            "private" |
+            "internal" |
+            "open" |
+            "sealed" |
+            "abstract" |
+            "static" |
+            "override" |
+            "redef" |
+            "mut" |
+            "unsafe" |
+            "foreign" |
+            "const" |
+            "operator" |
+            "common" |
+            "specific" => true
         case _ => false
     }
 }

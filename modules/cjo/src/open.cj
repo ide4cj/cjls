@@ -71,12 +71,13 @@ public func openCjo(bytes: Array<Byte>): Package {
     if (root + 4 > bytes.size) {
         throw NotCjoException()
     }
-    let (pkg, version) = try {
-        let pkg = Package.root(bytes)
-        (pkg, pkg.cjoVersion)
-    } catch (_: IndexOutOfBoundsException) {
-        throw NotCjoException()
-    }
+    let (pkg, version) =
+        try {
+            let pkg = Package.root(bytes)
+            (pkg, pkg.cjoVersion)
+        } catch (_: IndexOutOfBoundsException) {
+            throw NotCjoException()
+        }
     match (version) {
         case Some(v) where v.majorNum != CJO_MAJOR => throw CjoVersionException(v.majorNum)
         case Some(_) => pkg

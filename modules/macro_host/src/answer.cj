@@ -25,20 +25,46 @@ public interface Expander {
  * the expansion printed as text, each token's span saying where it comes from, or none for a call that failed; the
  * items it set; what it reported, or that it failed if it said nothing.
  */
-public func outputOf(request: MacroRequest, layout: WireLayout, outcome: CallOutcome, numbers: TokenNumbers): MacroOutput {
+public func outputOf(
+    request: MacroRequest,
+    layout: WireLayout,
+    outcome: CallOutcome,
+    numbers: TokenNumbers
+): MacroOutput {
     let name = request.definition.name
-    let result = match (outcome) {
-        case Answered(result) => result
-        case Unanswered(reason) => return MacroOutput(request.fingerprint, None, [],
-            [MacroDiagnostic(MacroSeverity.MacroError, SpanOrigin.FromCall, "@${name} was not expanded: ${reason}", "")])
-    }
+    let result =
+        match (outcome) {
+            case Answered(result) => result
+            case Unanswered(reason) =>
+                return MacroOutput(
+                    request.fingerprint,
+                    None,
+                    [],
+                    [
+                        MacroDiagnostic(
+                            MacroSeverity.MacroError,
+                            SpanOrigin.FromCall,
+                            "@${name} was not expanded: ${reason}",
+                            ""
+                        )
+                    ]
+                )
+        }
     let diagnostics = ArrayList<MacroDiagnostic>()
     for (diagnostic in result.diags) {
         diagnostics.add(diagnosticOf(diagnostic, layout, name))
     }
     if (result.status == MACRO_FAILED) {
         if (diagnostics.isEmpty()) {
-            diagnostics.add(MacroDiagnostic(MacroSeverity.MacroError, SpanOrigin.FromCall, "@${name} failed", ""))
+            diagnostics
+                .add(
+                    MacroDiagnostic(
+                        MacroSeverity.MacroError,
+                        SpanOrigin.FromCall,
+                        "@${name} failed",
+                        ""
+                    )
+                )
         }
         return MacroOutput(request.fingerprint, None, [], diagnostics.toArray())
     }
@@ -48,8 +74,12 @@ public func outputOf(request: MacroRequest, layout: WireLayout, outcome: CallOut
             items.add(one)
         }
     }
-    MacroOutput(request.fingerprint, mappedTextOf(printMacroTokens(result.tks, numbers), layout), items.toArray(),
-        diagnostics.toArray())
+    MacroOutput(
+        request.fingerprint,
+        mappedTextOf(printMacroTokens(result.tks, numbers), layout),
+        items.toArray(),
+        diagnostics.toArray()
+    )
 }
 
 /**
@@ -68,41 +98,50 @@ func mappedTextOf(printed: PrintedTokens, layout: WireLayout): MappedText {
 
 func diagnosticOf(diagnostic: Diagnostic, layout: WireLayout, name: String): MacroDiagnostic {
     // std.ast's `DiagReportLevel.ERROR.level()`
-    let severity = if (diagnostic.diagSeverity == 0) {
-        MacroSeverity.MacroError
-    } else {
-        MacroSeverity.MacroWarning
-    }
-    let origin = diagnostic.begin.flatMap {
-        begin =>
-        let size = match (diagnostic.end) {
-            case Some(end) where end.line == begin.line && end.column > begin.column => Int64(end.column - begin.column)
-            case _ => 1
+    let severity =
+        if (diagnostic.diagSeverity == 0) {
+            MacroSeverity.MacroError
+        } else {
+            MacroSeverity.MacroWarning
         }
-        layout.originOf(begin.line, begin.column, size)
-    }
+    let origin =
+        diagnostic
+            .begin
+            .flatMap {
+                begin =>
+                let size =
+                    match (diagnostic.end) {
+                        case Some(end) where end.line == begin.line && end.column > begin.column =>
+                            Int64(end.column - begin.column)
+                        case _ => 1
+                    }
+                layout.originOf(begin.line, begin.column, size)
+            }
     var message = diagnostic.errorMessage ?? ""
     let hint = diagnostic.mainHint ?? ""
     // The macro's name is available here, unlike in the shared LSP conversion.
     if (message.isEmpty() && hint.isEmpty()) {
-        message = if (severity == MacroSeverity.MacroError) {
-            "@${name} reported an error"
-        } else {
-            "@${name} reported a warning"
-        }
+        message =
+            if (severity == MacroSeverity.MacroError) {
+                "@${name} reported an error"
+            } else {
+                "@${name} reported a warning"
+            }
     }
     MacroDiagnostic(severity, origin, message, hint)
 }
 
 func itemOf(item: ItemInfo, layout: WireLayout, numbers: TokenNumbers): ?MacroItem {
     let key = item.key ?? return None
-    let value = match (item.value) {
-        case Some(AsSValue(text)) => MacroItemValue.StringItem(text)
-        case Some(AsIValue(n)) => MacroItemValue.IntItem(n.val)
-        case Some(AsBValue(flag)) => MacroItemValue.BoolItem(flag.val)
-        case Some(AsTValue(tokens)) => MacroItemValue.TokensItem(mappedTextOf(printMacroTokens(tokens.val, numbers),
-            layout))
-        case _ => return None
-    }
+    let value =
+        match (item.value) {
+            case Some(AsSValue(text)) => MacroItemValue.StringItem(text)
+            case Some(AsIValue(n)) => MacroItemValue.IntItem(n.val)
+            case Some(AsBValue(flag)) => MacroItemValue.BoolItem(flag.val)
+            case Some(AsTValue(tokens)) =>
+                MacroItemValue
+                    .TokensItem(mappedTextOf(printMacroTokens(tokens.val, numbers), layout))
+            case _ => return None
+        }
     MacroItem(key, value)
 }

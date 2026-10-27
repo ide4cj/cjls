@@ -5,8 +5,21 @@ import std.deriving.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{ImportAlias, Name, identText, isIdent}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
-import loupe.hir.{DefId, Item, ItemFile, ItemKind, PackageRef, Visibility, itemTreeOf, packageIndex, packageOfFile, parentOf, relationOf,
-    scopeFileOf, visibilityOf}
+import loupe.hir.{
+    DefId,
+    Item,
+    ItemFile,
+    ItemKind,
+    PackageRef,
+    Visibility,
+    itemTreeOf,
+    packageIndex,
+    packageOfFile,
+    parentOf,
+    relationOf,
+    scopeFileOf,
+    visibilityOf
+}
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
@@ -16,8 +29,12 @@ import loupe.vfs.FileId
  */
 @Derive[Equatable]
 public struct Reference {
-    public Reference(public let fileId: FileId, public let range: TextRange, public let access: ?ReferenceAccess,
-        public let isDeclaration: Bool) {}
+    public Reference(
+        public let fileId: FileId,
+        public let range: TextRange,
+        public let access: ?ReferenceAccess,
+        public let isDeclaration: Bool
+    ) {}
 }
 
 /**
@@ -37,25 +54,32 @@ public func findReferences(db: AnalysisDatabase, fileId: FileId, offset: Int64):
         return []
     }
     let names = searchedNames(db, identText(token), meant)
-    let hashes = names.map {name => wordHash(name)}
-    searchScope(db, meant, file) |> filter {
-        one: SourceFile => let words = fileWords(db, one)
-        hashes.iterator().any {hash => words.has(hash)}
-    } |> flatMap {
-        one: SourceFile =>
-        let id = one.fileId(db)
-        let root = parse(db, one).syntaxNode()
-        namesMeaning(db, one, root, names.concat(aliasesIn(db, one, root, names, meant)), meant).map {
-            found: CjSyntaxToken => Reference(id, found.textRange, accessOf(found), declares(found))
-        }
-    } |> collectArray
+    let hashes = names.map { name => wordHash(name) }
+    searchScope(db, meant, file) |>
+        filter {
+            one: SourceFile =>
+            let words = fileWords(db, one)
+            hashes.iterator().any { hash => words.has(hash) }
+        } |>
+        flatMap {
+            one: SourceFile =>
+            let id = one.fileId(db)
+            let root = parse(db, one).syntaxNode()
+            namesMeaning(db, one, root, names.concat(aliasesIn(db, one, root, names, meant)), meant)
+                .map {
+                    found: CjSyntaxToken =>
+                    Reference(id, found.textRange, accessOf(found), declares(found))
+                }
+        } |>
+        collectArray
 }
 
 /**
  * Whether the name `token` is the one a declaration gives, a local's included; an import's alias is a use.
  */
 func declares(token: CjSyntaxToken): Bool {
-    Name.canCast(token.parent.kind) && !(token.parent.parent.map {node => ImportAlias.canCast(node.kind)} ?? false)
+    Name.canCast(token.parent.kind) &&
+        !(token.parent.parent.map { node => ImportAlias.canCast(node.kind) } ?? false)
 }
 
 /**
@@ -66,8 +90,11 @@ func declares(token: CjSyntaxToken): Bool {
 func searchedNames(db: AnalysisDatabase, spelled: String, meant: Array<Definition>): Array<String> {
     let names = ArrayList<String>([spelled])
     for (definition in meant) {
-        if (let DeclDef(id) <- definition && let Some(item) <- itemIn(db, id) && item.names.size == 1 &&
-            !names.contains(item.names[0])) {
+        if (
+            let DeclDef(id) <- definition && let Some(item) <- itemIn(db, id) &&
+                item.names.size == 1 &&
+                !names.contains(item.names[0])
+        ) {
             names.add(item.names[0])
         }
     }
@@ -78,14 +105,29 @@ func searchedNames(db: AnalysisDatabase, spelled: String, meant: Array<Definitio
  * The aliases the imports of `file`, whose tree is `root`, give a declaration of `meant` other than `names`: `bar`
  * of `import a.foo as bar`, which its uses in the file are spelled as.
  */
-func aliasesIn(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode, names: Array<String>,
-    meant: Array<Definition>): Array<String> {
-    root.descendants() |> filterMap {
-        node: CjSyntaxNode => ImportAlias.cast(node).flatMap {alias => alias.name()}.flatMap {name => name.identToken()}
-    } |> filter {
-        alias: CjSyntaxToken => !names.contains(identText(alias)) &&
-            meaningsAt(db, file, alias).any {definition: Definition => meant.contains(definition)}
-    } |> map {alias: CjSyntaxToken => identText(alias)} |> collectArray
+func aliasesIn(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    root: CjSyntaxNode,
+    names: Array<String>,
+    meant: Array<Definition>
+): Array<String> {
+    root.descendants() |>
+        filterMap {
+            node: CjSyntaxNode =>
+            ImportAlias
+                .cast(node)
+                .flatMap { alias => alias.name() }
+                .flatMap { name => name.identToken() }
+        } |>
+        filter {
+            alias: CjSyntaxToken =>
+            !names.contains(identText(alias)) &&
+                meaningsAt(db, file, alias)
+                    .any { definition: Definition => meant.contains(definition) }
+        } |>
+        map { alias: CjSyntaxToken => identText(alias) } |>
+        collectArray
 }
 
 /**
@@ -97,7 +139,11 @@ func aliasesIn(db: AnalysisDatabase, file: SourceFile, root: CjSyntaxNode, names
  * (`isSeen`) in the modules that may import its (`PackageIndex.scopes`). `from` among them in any case, then the
  * project's order.
  */
-func searchScope(db: AnalysisDatabase, meant: Array<Definition>, from: SourceFile): Array<SourceFile> {
+func searchScope(
+    db: AnalysisDatabase,
+    meant: Array<Definition>,
+    from: SourceFile
+): Array<SourceFile> {
     let packages = ArrayList<(Package, String)>()
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db)) {
@@ -111,9 +157,10 @@ func searchScope(db: AnalysisDatabase, meant: Array<Definition>, from: SourceFil
     for (definition in meant) {
         match (definition) {
             // a parameter of a primary constructor may be a member, named through a value anywhere
-            case LocalDef(def, _) where def.item(db).kind == ItemKind.PrimaryInit => for ((pkg, _) in packages) {
-                scope.addPackage(pkg)
-            }
+            case LocalDef(def, _) where def.item(db).kind == ItemKind.PrimaryInit =>
+                for ((pkg, _) in packages) {
+                    scope.addPackage(pkg)
+                }
             case LocalDef(def, _) => scope.add(scopeFileOf(db, def.file(db)))
             case DeclDef(id) => declScope(db, id, packages, scope)
             // `meaningsAt` has a member parameter as the local it is
@@ -127,7 +174,12 @@ func searchScope(db: AnalysisDatabase, meant: Array<Definition>, from: SourceFil
  * Adds to `scope` the files a use of the declaration `id` may be in (`searchScope`), `packages` those of the project
  * with the names of their modules.
  */
-func declScope(db: AnalysisDatabase, id: DefId, packages: ArrayList<(Package, String)>, scope: FileScope): Unit {
+func declScope(
+    db: AnalysisDatabase,
+    id: DefId,
+    packages: ArrayList<(Package, String)>,
+    scope: FileScope
+): Unit {
     let item = itemIn(db, id) ?? return ()
     let visibility = visibilityOf(item)
     let file = scopeFileOf(db, id.file(db))
@@ -141,17 +193,20 @@ func declScope(db: AnalysisDatabase, id: DefId, packages: ArrayList<(Package, St
         }
         return
     }
-    let (ref, declaring) = match (id.file(db)) {
-        case ItemFile.Binary(pkg, _) => (PackageRef.Binary(pkg), pkg.name(db))
-        case _ =>
-            // a file of no package: its own names only
-            let pkg = file.flatMap {one => packageOfFile(db, one)} ?? return scope.add(file)
-            (PackageRef.Source(pkg), pkg.name(db))
-    }
+    let (ref, declaring) =
+        match (id.file(db)) {
+            case ItemFile.Binary(pkg, _) => (PackageRef.Binary(pkg), pkg.name(db))
+            case _ =>
+                // a file of no package: its own names only
+                let pkg = file.flatMap { one => packageOfFile(db, one) } ?? return scope.add(file)
+                (PackageRef.Source(pkg), pkg.name(db))
+        }
     let index = packageIndex(db)
     let owner = index.owners.get(ref) ?? return ()
-    for ((pkg, module) in packages where (index.scopes.get(module)?.contains(owner) ?? false) &&
-        visibility.isSeen(by: relationOf(pkg.name(db), declaring))) {
+    for (
+        (pkg, module) in packages where (index.scopes.get(module)?.contains(owner) ?? false) &&
+            visibility.isSeen(by: relationOf(pkg.name(db), declaring))
+    ) {
         scope.addPackage(pkg)
     }
 }

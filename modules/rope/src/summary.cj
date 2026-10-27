@@ -65,8 +65,12 @@ public struct TextSummary {
     }
 
     public operator func +(other: TextSummary): TextSummary {
-        TextSummary(bytes: bytes + other.bytes, utf16: utf16 + other.utf16, chars: chars + other.chars,
-            lineBreaks: lineBreaks + other.lineBreaks)
+        TextSummary(
+            bytes: bytes + other.bytes,
+            utf16: utf16 + other.utf16,
+            chars: chars + other.chars,
+            lineBreaks: lineBreaks + other.lineBreaks
+        )
     }
 }
 

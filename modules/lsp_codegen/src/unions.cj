@@ -13,9 +13,11 @@ extend CjEmitter {
         emitDerives([Json(SerdeTypeOptions(untagged: true))])
         emit(quote(public enum $unionIdent))
         blockln {
-            => for (variant in unionIr.variants) {
+            =>
+            for (variant in unionIr.variants) {
                 let variantIdent = escapedIdent(variant.ident)
-                let payloads = joined(variant.payloads.map {it: TypeIr => it.toTokens()}) ?? Tokens()
+                let payloads =
+                    joined(variant.payloads.map { it: TypeIr => it.toTokens() }) ?? Tokens()
                 emitln(quote(| $variantIdent($payloads)))
             }
         }

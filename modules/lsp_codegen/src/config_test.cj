@@ -78,7 +78,8 @@ class ConfigLoadTest {
     @TestCase
     func anAbsoluteSrcDirIsLeftAlone() {
         // arrange
-        let cfg = "[general]\nsrc-dir = \"${ROOT}tmp/elsewhere\"\noutput-subpackage = \"lsp_types\"\n"
+        let cfg =
+            "[general]\nsrc-dir = \"${ROOT}tmp/elsewhere\"\noutput-subpackage = \"lsp_types\"\n"
 
         withConfigDir(cfg, manifest: DEMO_MANIFEST) {
             cfgPath, _ =>

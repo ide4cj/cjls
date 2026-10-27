@@ -1,7 +1,7 @@
 package fbs_codegen
 
 /**
- * Builds a Cangjie file a line at a time, indented by blocks; `cjfmt` has the last word on its layout.
+ * Builds a Cangjie file a line at a time, indented by blocks; `cjformat` has the last word on its layout.
  */
 class CodeWriter <: ToString {
     let sb = StringBuilder()
@@ -41,11 +41,7 @@ class CodeWriter <: ToString {
         line("/**")
         for (l in lines) {
             let text = l.replace("/*", "/\\*").replace("*/", "*\\/")
-            if (text.isEmpty()) {
-                line(" *")
-            } else {
-                line(" * ${text}")
-            }
+            if (text.isEmpty()) { line(" *") } else { line(" * ${text}") }
         }
         line(" */")
     }

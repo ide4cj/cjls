@@ -63,7 +63,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
      * Whether every element of this set is in `other`, whatever the order.
      */
     public func subsetOf(other: ReadOnlySet<T>): Bool {
-        size <= other.size && iterator().all {element => other.contains(element)}
+        size <= other.size && iterator().all { element => other.contains(element) }
     }
 
     /**
@@ -108,7 +108,7 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
     }
 
     public func add(all!: Collection<T>): Unit {
-        all.iterator().forEach {element => add(element)}
+        all.iterator().forEach { element => add(element) }
     }
 
     /**
@@ -144,14 +144,14 @@ public class IndexSet<T> <: Set<T> where T <: Hashable & Equatable<T> {
      * Keeps the order of the rest. If `predicate` throws, the set is left as it was.
      */
     public func removeIf(predicate: (T) -> Bool): Unit {
-        map.removeIf {element, _ => predicate(element)}
+        map.removeIf { element, _ => predicate(element) }
     }
 
     /**
      * Keeps only the elements also in `all`, in their order.
      */
     public func retain(all!: Set<T>): Unit {
-        removeIf {element => !all.contains(element)}
+        removeIf { element => !all.contains(element) }
     }
 
     public func clear(): Unit {

@@ -69,7 +69,8 @@ class Slab<T> {
                 freeHead = next
                 slots[index] = SlabOccupied(generation, value)
                 Id(index, generation: generation)
-            case SlabOccupied(_, _) => throw IllegalStateException("slot ${index} is on the free list, and occupied")
+            case SlabOccupied(_, _) =>
+                throw IllegalStateException("slot ${index} is on the free list, and occupied")
         }
     }
 

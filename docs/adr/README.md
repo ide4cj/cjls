@@ -168,3 +168,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0147](0147-sdk-source-context.md) | Binary sources resolve in a detached context with canonical binary declarations | proposed |
 | [0148](0148-interpolation-delimiters.md) | Highlight interpolation delimiters over editor grammars | accepted |
 | [0149](0149-group-completion-overloads.md) | Completion groups overloads by the name it inserts and resolves their signatures together | accepted |
+| [0150](0150-width-driven-formatting.md) | The formatter decides line breaks from syntax and a fixed width | accepted |
+| [0152](0152-formatter-settings.md) | Project formatter policy has three explicit settings | accepted |

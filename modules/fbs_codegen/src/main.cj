@@ -7,12 +7,13 @@ import std.fs.*
  * `fbs_codegen <config>`: writes the views of the schema the config names.
  */
 main(args: Array<String>): Int64 {
-    let config = try {
-        parseConfigPath(args)
-    } catch (e: ArgumentParseException) {
-        eprintln("error: ${e.message}\nusage: fbs_codegen <config>")
-        return 2
-    }
+    let config =
+        try {
+            parseConfigPath(args)
+        } catch (e: ArgumentParseException) {
+            eprintln("error: ${e.message}\nusage: fbs_codegen <config>")
+            return 2
+        }
     try {
         let file = generate(config)
         writeFormatted(file.path, file.contents)

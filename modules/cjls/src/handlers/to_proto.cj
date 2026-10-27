@@ -2,8 +2,20 @@ package cjls.handlers
 
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, PositionCursor, Rope}
-import loupe.{FileSymbol, Fold, FoldKind, HighlightedRange, HighlightModifier, HighlightModifiers, HighlightTag,
-    NavigationTarget, Severity, StructureKind, StructureNode, TextRange}
+import loupe.{
+    FileSymbol,
+    Fold,
+    FoldKind,
+    HighlightedRange,
+    HighlightModifier,
+    HighlightModifiers,
+    HighlightTag,
+    NavigationTarget,
+    Severity,
+    StructureKind,
+    StructureNode,
+    TextRange
+}
 import loupe.{HoverItem, HoverResult, Reference, RelatedHighlight, ReferenceAccess}
 import loupe.Diagnostic as LoupeDiagnostic
 import loupe.TextEdit as LoupeTextEdit
@@ -32,8 +44,13 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): Docume
         name: node.name,
         kind: symbolKind(node.kind),
         range: lspRange(text, node.range.start, node.range.end, encoding),
-        selectionRange: lspRange(text, node.selectionRange.start, node.selectionRange.end, encoding),
-        children: node.children.map {child => documentSymbol(text, child, encoding)}
+        selectionRange: lspRange(
+            text,
+            node.selectionRange.start,
+            node.selectionRange.end,
+            encoding
+        ),
+        children: node.children.map { child => documentSymbol(text, child, encoding) }
     )
 }
 
@@ -43,8 +60,12 @@ func documentSymbol(text: Rope, node: StructureNode, encoding: Encoding): Docume
  */
 func selectionRange(text: Rope, ranges: Array<TextRange>, encoding: Encoding): SelectionRange {
     var outer = None<SelectionRange>
-    for (i in ranges.size - 1..=0 : -1) {
-        outer = SelectionRange(range: lspRange(text, ranges[i].start, ranges[i].end, encoding), parent: outer)
+    for (i in ranges.size - 1..=0: -1) {
+        outer =
+            SelectionRange(
+                range: lspRange(text, ranges[i].start, ranges[i].end, encoding),
+                parent: outer
+            )
     }
     outer.getOrThrow()
 }
@@ -53,13 +74,28 @@ func selectionRange(text: Rope, ranges: Array<TextRange>, encoding: Encoding): S
  * A declaration found in the file at `uri`, whose text is `text`: located at its name, where an
  * editor jumps to.
  */
-func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding: Encoding): WorkspaceSymbol {
+func workspaceSymbol(
+    text: Rope,
+    uri: DocumentUri,
+    symbol: FileSymbol,
+    encoding: Encoding
+): WorkspaceSymbol {
     WorkspaceSymbol(
         name: symbol.name,
         kind: symbolKind(symbol.kind),
         containerName: symbol.containerName,
-        location: LocationOrLocationUriOnly.AsLocation(Location(uri: uri,
-            range: lspRange(text, symbol.selectionRange.start, symbol.selectionRange.end, encoding)))
+        location: LocationOrLocationUriOnly
+            .AsLocation(
+                Location(
+                    uri: uri,
+                    range: lspRange(
+                        text,
+                        symbol.selectionRange.start,
+                        symbol.selectionRange.end,
+                        encoding
+                    )
+                )
+            )
     )
 }
 
@@ -67,11 +103,21 @@ func workspaceSymbol(text: Rope, uri: DocumentUri, symbol: FileSymbol, encoding:
  * A declaration `target` goes to, in the file at `uri` whose text is `text`: the whole of it, and
  * its name to select.
  */
-func locationLink(text: Rope, uri: DocumentUri, target: NavigationTarget, encoding: Encoding): LocationLink {
+func locationLink(
+    text: Rope,
+    uri: DocumentUri,
+    target: NavigationTarget,
+    encoding: Encoding
+): LocationLink {
     LocationLink(
         targetUri: uri,
         targetRange: lspRange(text, target.fullRange.start, target.fullRange.end, encoding),
-        targetSelectionRange: lspRange(text, target.focusRange.start, target.focusRange.end, encoding)
+        targetSelectionRange: lspRange(
+            text,
+            target.focusRange.start,
+            target.focusRange.end,
+            encoding
+        )
     )
 }
 
@@ -79,8 +125,16 @@ func locationLink(text: Rope, uri: DocumentUri, target: NavigationTarget, encodi
  * A declaration `target` goes to, for a client that takes no links: at its name, where an editor
  * jumps to.
  */
-func location(text: Rope, uri: DocumentUri, target: NavigationTarget, encoding: Encoding): Location {
-    Location(uri: uri, range: lspRange(text, target.focusRange.start, target.focusRange.end, encoding))
+func location(
+    text: Rope,
+    uri: DocumentUri,
+    target: NavigationTarget,
+    encoding: Encoding
+): Location {
+    Location(
+        uri: uri,
+        range: lspRange(text, target.focusRange.start, target.focusRange.end, encoding)
+    )
 }
 
 /**
@@ -93,13 +147,21 @@ func location(text: Rope, uri: DocumentUri, reference: Reference, encoding: Enco
 /**
  * A name meaning what the one asked about does: a read, a write, or text, LSP's default, for neither.
  */
-func documentHighlight(text: Rope, highlight: RelatedHighlight, encoding: Encoding): DocumentHighlight {
-    let kind = match (highlight.access) {
-        case Some(ReadAccess) => DocumentHighlightKind.Read
-        case Some(WriteAccess) => DocumentHighlightKind.Write
-        case None => DocumentHighlightKind.Text
-    }
-    DocumentHighlight(range: lspRange(text, highlight.range.start, highlight.range.end, encoding), kind: kind)
+func documentHighlight(
+    text: Rope,
+    highlight: RelatedHighlight,
+    encoding: Encoding
+): DocumentHighlight {
+    let kind =
+        match (highlight.access) {
+            case Some(ReadAccess) => DocumentHighlightKind.Read
+            case Some(WriteAccess) => DocumentHighlightKind.Write
+            case None => DocumentHighlightKind.Text
+        }
+    DocumentHighlight(
+        range: lspRange(text, highlight.range.start, highlight.range.end, encoding),
+        kind: kind
+    )
 }
 
 /**
@@ -115,39 +177,32 @@ func hoverContent(hover: HoverResult, markdown: Bool): MarkupContent {
  * Declarations with their paths and docs, shared by hover and grouped completion documentation.
  */
 func hoverContent(items: Array<HoverItem>, markdown: Bool): MarkupContent {
-    let parts = items.map {
-        item: HoverItem =>
-        let lines = ArrayList<String>()
-        if (let Some(path) <- item.path) {
-            lines.add(codeBlock(path, markdown))
-        }
-        lines.add(codeBlock(item.code, markdown))
-        if (let Some(doc) <- item.doc) {
-            lines.add(if (markdown) {
-                "---\n\n${doc}"
-            } else {
-                "\n${doc}"
-            })
-        }
-        String.join(lines.toArray(), delimiter: if (markdown) {
-            "\n\n"
-        } else {
-            "\n"
-        })
-    }
+    let parts =
+        items
+            .map {
+                item: HoverItem =>
+                let lines = ArrayList<String>()
+                if (let Some(path) <- item.path) {
+                    lines.add(codeBlock(path, markdown))
+                }
+                lines.add(codeBlock(item.code, markdown))
+                if (let Some(doc) <- item.doc) {
+                    lines.add(if (markdown) { "---\n\n${doc}" } else { "\n${doc}" })
+                }
+                String.join(lines.toArray(), delimiter: if (markdown) { "\n\n" } else { "\n" })
+            }
     if (markdown) {
-        MarkupContent(kind: MarkupKind.Markdown, value: String.join(parts, delimiter: "\n\n---\n\n"))
+        MarkupContent(
+            kind: MarkupKind.Markdown,
+            value: String.join(parts, delimiter: "\n\n---\n\n")
+        )
     } else {
         MarkupContent(kind: MarkupKind.PlainText, value: String.join(parts, delimiter: "\n\n"))
     }
 }
 
 func codeBlock(code: String, markdown: Bool): String {
-    if (markdown) {
-        "```cangjie\n${code}\n```"
-    } else {
-        code
-    }
+    if (markdown) { "```cangjie\n${code}\n```" } else { code }
 }
 
 /**
@@ -162,7 +217,8 @@ func symbolKind(kind: StructureKind): SymbolKind {
         case StructureKind.Enum => SymbolKind.Enum
         case StructureKind.EnumConstructor => SymbolKind.EnumMember
         case StructureKind.Extension => SymbolKind.Namespace
-        case StructureKind.Function | StructureKind.Macro | StructureKind.Main => SymbolKind.Function
+        case StructureKind.Function | StructureKind.Macro | StructureKind.Main =>
+            SymbolKind.Function
         case StructureKind.Method | StructureKind.Finalizer => SymbolKind.Method
         case StructureKind.Constructor => SymbolKind.Constructor
         case StructureKind.Property => SymbolKind.Property
@@ -179,7 +235,13 @@ func symbolKind(kind: StructureKind): SymbolKind {
  * followed on that line, as by `} else {`, ends a line earlier, and is left out once a single line
  * is all it has. No more than `limit`, the first by start.
  */
-func foldingRanges(text: Rope, folds: Array<Fold>, encoding: Encoding, lineFoldingOnly: Bool, limit: ?Int64): Array<FoldingRange> {
+func foldingRanges(
+    text: Rope,
+    folds: Array<Fold>,
+    encoding: Encoding,
+    lineFoldingOnly: Bool,
+    limit: ?Int64
+): Array<FoldingRange> {
     let result = ArrayList<FoldingRange>()
     for (fold in folds) {
         if (let Some(limit) <- limit && result.size >= limit) {
@@ -189,17 +251,33 @@ func foldingRanges(text: Rope, folds: Array<Fold>, encoding: Encoding, lineFoldi
         let end = text.positionOf(fold.range.end, encoding)
         let kind = foldingRangeKind(fold.kind)
         if (!lineFoldingOnly) {
-            result.add(FoldingRange(startLine: UInt32(start.line), startCharacter: UInt32(start.column),
-                endLine: UInt32(end.line), endCharacter: UInt32(end.column), kind: kind))
+            result
+                .add(
+                    FoldingRange(
+                        startLine: UInt32(start.line),
+                        startCharacter: UInt32(start.column),
+                        endLine: UInt32(end.line),
+                        endCharacter: UInt32(end.column),
+                        kind: kind
+                    )
+                )
             continue
         }
-        let endLine = if (followedOnItsLine(text, fold.range.end, end.line)) {
-            end.line - 1
-        } else {
-            end.line
-        }
+        let endLine =
+            if (followedOnItsLine(text, fold.range.end, end.line)) {
+                end.line - 1
+            } else {
+                end.line
+            }
         if (endLine > start.line) {
-            result.add(FoldingRange(startLine: UInt32(start.line), endLine: UInt32(endLine), kind: kind))
+            result
+                .add(
+                    FoldingRange(
+                        startLine: UInt32(start.line),
+                        endLine: UInt32(endLine),
+                        kind: kind
+                    )
+                )
         }
     }
     result.toArray()
@@ -209,7 +287,11 @@ func foldingRanges(text: Rope, folds: Array<Fold>, encoding: Encoding, lineFoldi
  * Whether anything but spaces follows `offset` on `line`, its line.
  */
 func followedOnItsLine(text: Rope, offset: Int64, line: Int64): Bool {
-    text.slice(offset..text.lineEnd(line)).toString().toRuneArray().any {it => !it.isAsciiWhiteSpace()}
+    text
+        .slice(offset..text.lineEnd(line))
+        .toString()
+        .toRuneArray()
+        .any { it => !it.isAsciiWhiteSpace() }
 }
 
 /**
@@ -225,21 +307,18 @@ func foldingRangeKind(kind: FoldKind): ?FoldingRangeKind {
 
 func diagnostic(text: Rope, diagnostic: LoupeDiagnostic, encoding: Encoding): Diagnostic {
     // VS Code rejects empty messages; vscode-languageclient then strands this document's diagnostic pull.
-    let message = if (diagnostic.message.isEmpty()) {
-        "diagnostic reported without a message"
-    } else {
-        diagnostic.message
-    }
+    let message =
+        if (diagnostic.message.isEmpty()) {
+            "diagnostic reported without a message"
+        } else {
+            diagnostic.message
+        }
     Diagnostic(
         range: lspRange(text, diagnostic.range.start, diagnostic.range.end, encoding),
         severity: diagnosticSeverity(diagnostic.severity),
         source: "cjls",
         message: StringOrMarkupContent.AsString(message),
-        tags: if (diagnostic.unnecessary) {
-            Some([DiagnosticTag.Unnecessary])
-        } else {
-            None
-        }
+        tags: if (diagnostic.unnecessary) { Some([DiagnosticTag.Unnecessary]) } else { None }
     )
 }
 
@@ -260,36 +339,63 @@ let UNRESOLVED_REFERENCE = SemanticTokenTypes("unresolvedReference")
  * The token types the server sends, LSP's own but one, `unresolvedReference` (D19, D72); a token's
  * type is its index here.
  */
-let TOKEN_TYPES = [SemanticTokenTypes.KEYWORD, SemanticTokenTypes.COMMENT, SemanticTokenTypes.STRING,
-    SemanticTokenTypes.NUMBER, SemanticTokenTypes.OPERATOR, SemanticTokenTypes.DECORATOR,
-    SemanticTokenTypes.MACRO, SemanticTokenTypes.TYPE, SemanticTokenTypes.CLASS,
-    SemanticTokenTypes.INTERFACE, SemanticTokenTypes.STRUCT, SemanticTokenTypes.ENUM,
-    SemanticTokenTypes.ENUM_MEMBER, SemanticTokenTypes.TYPE_PARAMETER, SemanticTokenTypes.FUNCTION,
-    SemanticTokenTypes.METHOD, SemanticTokenTypes.PROPERTY, SemanticTokenTypes.VARIABLE,
-    SemanticTokenTypes.PARAMETER, SemanticTokenTypes.NAMESPACE, UNRESOLVED_REFERENCE]
+let TOKEN_TYPES =
+    [
+        SemanticTokenTypes.KEYWORD,
+        SemanticTokenTypes.COMMENT,
+        SemanticTokenTypes.STRING,
+        SemanticTokenTypes.NUMBER,
+        SemanticTokenTypes.OPERATOR,
+        SemanticTokenTypes.DECORATOR,
+        SemanticTokenTypes.MACRO,
+        SemanticTokenTypes.TYPE,
+        SemanticTokenTypes.CLASS,
+        SemanticTokenTypes.INTERFACE,
+        SemanticTokenTypes.STRUCT,
+        SemanticTokenTypes.ENUM,
+        SemanticTokenTypes.ENUM_MEMBER,
+        SemanticTokenTypes.TYPE_PARAMETER,
+        SemanticTokenTypes.FUNCTION,
+        SemanticTokenTypes.METHOD,
+        SemanticTokenTypes.PROPERTY,
+        SemanticTokenTypes.VARIABLE,
+        SemanticTokenTypes.PARAMETER,
+        SemanticTokenTypes.NAMESPACE,
+        UNRESOLVED_REFERENCE
+    ]
 
 /**
  * The modifiers, LSP's own but one, `mutable` (D72); a token's modifiers are bits by their index here.
  */
-let TOKEN_MODIFIERS = [(SemanticTokenModifiers.DECLARATION, HighlightModifier.Declaration),
-    (SemanticTokenModifiers.DOCUMENTATION, HighlightModifier.Documentation),
-    (SemanticTokenModifiers.READONLY, HighlightModifier.Readonly),
-    (SemanticTokenModifiers.STATIC, HighlightModifier.Static),
-    (SemanticTokenModifiers.DEPRECATED, HighlightModifier.Deprecated),
-    (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary),
-    (SemanticTokenModifiers("mutable"), HighlightModifier.Mutable)]
+let TOKEN_MODIFIERS =
+    [
+        (SemanticTokenModifiers.DECLARATION, HighlightModifier.Declaration),
+        (SemanticTokenModifiers.DOCUMENTATION, HighlightModifier.Documentation),
+        (SemanticTokenModifiers.READONLY, HighlightModifier.Readonly),
+        (SemanticTokenModifiers.STATIC, HighlightModifier.Static),
+        (SemanticTokenModifiers.DEPRECATED, HighlightModifier.Deprecated),
+        (SemanticTokenModifiers.DEFAULT_LIBRARY, HighlightModifier.DefaultLibrary),
+        (SemanticTokenModifiers("mutable"), HighlightModifier.Mutable)
+    ]
 
 /**
  * The modifiers a kind of symbol adds to its type, which LSP has none of: a constructor, a `method`,
  * and a constant, a `readonly` `variable`, by what the editors' grammars name them (D105). Their bits
  * follow those of `TOKEN_MODIFIERS`.
  */
-let KIND_MODIFIERS = [(SemanticTokenModifiers("constructor"), StructureKind.Constructor),
-    (SemanticTokenModifiers("constant"), StructureKind.Constant)]
+let KIND_MODIFIERS =
+    [
+        (SemanticTokenModifiers("constructor"), StructureKind.Constructor),
+        (SemanticTokenModifiers("constant"), StructureKind.Constant)
+    ]
 
 func semanticTokensLegend(): SemanticTokensLegend {
-    SemanticTokensLegend(tokenTypes: TOKEN_TYPES.map {it => it.value},
-        tokenModifiers: TOKEN_MODIFIERS.map {it => it[0].value}.concat(KIND_MODIFIERS.map {it => it[0].value}))
+    SemanticTokensLegend(
+        tokenTypes: TOKEN_TYPES.map { it => it.value },
+        tokenModifiers: TOKEN_MODIFIERS
+            .map { it => it[0].value }
+            .concat(KIND_MODIFIERS.map { it => it[0].value })
+    )
 }
 
 /**
@@ -303,7 +409,8 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
         case HighlightTag.Comment => SemanticTokenTypes.COMMENT
         case HighlightTag.StringLiteral => SemanticTokenTypes.STRING
         case HighlightTag.NumberLiteral => SemanticTokenTypes.NUMBER
-        case HighlightTag.Operator | HighlightTag.InterpolationDelimiter => SemanticTokenTypes.OPERATOR
+        case HighlightTag.Operator | HighlightTag.InterpolationDelimiter =>
+            SemanticTokenTypes.OPERATOR
         case HighlightTag.BuiltinAnnotation => SemanticTokenTypes.DECORATOR
         case HighlightTag.MacroCall => SemanticTokenTypes.MACRO
         case HighlightTag.BuiltinType | HighlightTag.TypeName => SemanticTokenTypes.TYPE
@@ -311,20 +418,21 @@ func tokenType(tag: HighlightTag): SemanticTokenTypes {
         case HighlightTag.Parameter => SemanticTokenTypes.PARAMETER
         case HighlightTag.Namespace => SemanticTokenTypes.NAMESPACE
         case HighlightTag.UnresolvedReference => UNRESOLVED_REFERENCE
-        case HighlightTag.Symbol(kind) => match (kind) {
-            case StructureKind.Class => SemanticTokenTypes.CLASS
-            case StructureKind.Interface => SemanticTokenTypes.INTERFACE
-            case StructureKind.Struct => SemanticTokenTypes.STRUCT
-            case StructureKind.Enum => SemanticTokenTypes.ENUM
-            case StructureKind.EnumConstructor => SemanticTokenTypes.ENUM_MEMBER
-            case StructureKind.Extension | StructureKind.TypeAlias => SemanticTokenTypes.TYPE
-            case StructureKind.Function | StructureKind.Main => SemanticTokenTypes.FUNCTION
-            case StructureKind.Method | StructureKind.Constructor | StructureKind.Finalizer =>
-                SemanticTokenTypes.METHOD
-            case StructureKind.Macro => SemanticTokenTypes.MACRO
-            case StructureKind.Property | StructureKind.Field => SemanticTokenTypes.PROPERTY
-            case StructureKind.Variable | StructureKind.Constant => SemanticTokenTypes.VARIABLE
-        }
+        case HighlightTag.Symbol(kind) =>
+            match (kind) {
+                case StructureKind.Class => SemanticTokenTypes.CLASS
+                case StructureKind.Interface => SemanticTokenTypes.INTERFACE
+                case StructureKind.Struct => SemanticTokenTypes.STRUCT
+                case StructureKind.Enum => SemanticTokenTypes.ENUM
+                case StructureKind.EnumConstructor => SemanticTokenTypes.ENUM_MEMBER
+                case StructureKind.Extension | StructureKind.TypeAlias => SemanticTokenTypes.TYPE
+                case StructureKind.Function | StructureKind.Main => SemanticTokenTypes.FUNCTION
+                case StructureKind.Method | StructureKind.Constructor | StructureKind.Finalizer =>
+                    SemanticTokenTypes.METHOD
+                case StructureKind.Macro => SemanticTokenTypes.MACRO
+                case StructureKind.Property | StructureKind.Field => SemanticTokenTypes.PROPERTY
+                case StructureKind.Variable | StructureKind.Constant => SemanticTokenTypes.VARIABLE
+            }
     }
 }
 
@@ -337,13 +445,19 @@ func overSyntax(tokens: Array<HighlightedRange>, augments: Bool): Array<Highligh
     if (!augments) {
         return tokens
     }
-    tokens.filter {
-        token => !token.modifiers.isEmpty() || match (token.tag) {
-            case HighlightTag.Keyword | HighlightTag.Comment | HighlightTag.StringLiteral |
-                HighlightTag.NumberLiteral | HighlightTag.Operator => false
-            case _ => true
+    tokens
+        .filter {
+            token =>
+            !token.modifiers.isEmpty() ||
+                match (token.tag) {
+                    case HighlightTag.Keyword |
+                        HighlightTag.Comment |
+                        HighlightTag.StringLiteral |
+                        HighlightTag.NumberLiteral |
+                        HighlightTag.Operator => false
+                    case _ => true
+                }
         }
-    }
 }
 
 func tokenTypeIndex(tag: HighlightTag): UInt32 {
@@ -373,7 +487,12 @@ func tokenModifierBits(tag: HighlightTag, modifiers: HighlightModifiers): UInt32
  * start relative to the token before, columns of `encoding`. A token over several lines is cut at
  * each line's end, unless the client takes it whole (`multiline`).
  */
-func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encoding, multiline: Bool): SemanticTokens {
+func semanticTokens(
+    text: Rope,
+    tokens: Array<HighlightedRange>,
+    encoding: Encoding,
+    multiline: Bool
+): SemanticTokens {
     let data = SemanticTokensData()
     // the tokens come in the order of the text, none overlapping, and so do the line ends inside them
     let positions = PositionCursor(text, encoding)
@@ -387,19 +506,22 @@ func semanticTokens(text: Rope, tokens: Array<HighlightedRange>, encoding: Encod
         if (start.line == end.line) {
             data.add(start, end.column - start.column, tokenKind, modifiers)
         } else if (multiline) {
-            data.add(start, positions.unitsBefore(token.range.end) - startUnits, tokenKind, modifiers)
+            data
+                .add(
+                    start,
+                    positions.unitsBefore(token.range.end) - startUnits,
+                    tokenKind,
+                    modifiers
+                )
         } else {
             for (line in start.line..=end.line) {
-                let from = if (line == start.line) {
-                    start.column
-                } else {
-                    0
-                }
-                let to = if (line == end.line) {
-                    end.column
-                } else {
-                    lineEnds.positionOf(text.lineEnd(line)).column
-                }
+                let from = if (line == start.line) { start.column } else { 0 }
+                let to =
+                    if (line == end.line) {
+                        end.column
+                    } else {
+                        lineEnds.positionOf(text.lineEnd(line)).column
+                    }
                 if (to > from) {
                     data.add(LineColumn(line, from), to - from, tokenKind, modifiers)
                 }
@@ -419,11 +541,7 @@ class SemanticTokensData {
      */
     func add(start: LineColumn, length: Int64, tokenKind: UInt32, modifiers: UInt32): Unit {
         let deltaLine = start.line - line
-        let deltaStart = if (deltaLine == 0) {
-            start.column - column
-        } else {
-            start.column
-        }
+        let deltaStart = if (deltaLine == 0) { start.column - column } else { start.column }
         data.add(all: [UInt32(deltaLine), UInt32(deltaStart), UInt32(length), tokenKind, modifiers])
         line = start.line
         column = start.column

@@ -7,7 +7,8 @@ import std.unittest.testmacro.*
 class VArrayConstructorDiagnosticsTest {
     @TestCase
     func validConstructorFormsHaveNoDiagnostics() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             type Pair = VArray<Int8, $2>
             func element(i: Int64): Int8 { Int8(i) }
@@ -25,12 +26,15 @@ class VArrayConstructorDiagnosticsTest {
                 let zero = VArray<Int8, $ 0>(repeat: 1)
                 let picked = choose(Pair { i => 1 })
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func repeatAndInitializerArgumentsAreCheckedAgainstTheirParameters() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             type Pair = VArray<Int8, $2>
             func test(s: String): Unit {
@@ -45,12 +49,15 @@ class VArrayConstructorDiagnosticsTest {
                 let e = VArray<Int8, $2>({ i: Int8 => i })
             //                           ^^^^^^^^^^^^^^^^ error: mismatched types: expected '(Int64) -> Int8', found '(Int8) -> Int8'
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func constructorArgumentsHaveTheRequiredCountAndNames() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             package m
             type Pair = VArray<Int8, $2>
             func test(): Unit {
@@ -65,6 +72,8 @@ class VArrayConstructorDiagnosticsTest {
                 let e = VArray<Int8, $2>(repeat: 1) { i => 1 }
             //                          ^^^^^^^^^^^^^^^^^^^^^^ error: extra argument given for parameter list '(Int8)' in call: expected 1 argument, found 2
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 }

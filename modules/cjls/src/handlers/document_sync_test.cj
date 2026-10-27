@@ -15,23 +15,51 @@ const URI = "file:///nowhere/a.cj"
 
 func opened(text: String, uri!: String = URI): ServerState {
     let state = ServerState()
-    handleDidOpen(Loop(state), Client(), NoopLogger(), DidOpenTextDocumentParams(
-        textDocument: TextDocumentItem(uri: uri, languageId: LanguageKind("cangjie"), version: 1, text: text)))
+    handleDidOpen(
+        Loop(state),
+        Client(),
+        NoopLogger(),
+        DidOpenTextDocumentParams(
+            textDocument: TextDocumentItem(
+                uri: uri,
+                languageId: LanguageKind("cangjie"),
+                version: 1,
+                text: text
+            )
+        )
+    )
     state
 }
 
 /**
  * A change replacing `from..to`, each a line and a column, with `text`.
  */
-func partial(text: String, from!: (UInt32, UInt32), to!: (UInt32, UInt32)): TextDocumentContentChangeEvent {
-    TextDocumentContentChangeEvent.AsTextDocumentContentChangePartial(TextDocumentContentChangePartial(
-        range: LspRange(start: Position(line: from[0], character: from[1]), end: Position(line: to[0], character: to[1])),
-        text: text))
+func partial(
+    text: String,
+    from!: (UInt32, UInt32),
+    to!: (UInt32, UInt32)
+): TextDocumentContentChangeEvent {
+    TextDocumentContentChangeEvent
+        .AsTextDocumentContentChangePartial(
+            TextDocumentContentChangePartial(
+                range: LspRange(
+                    start: Position(line: from[0], character: from[1]),
+                    end: Position(line: to[0], character: to[1])
+                ),
+                text: text
+            )
+        )
 }
 
 func change(state: ServerState, changes: Array<TextDocumentContentChangeEvent>): Unit {
-    handleDidChange(state, NoopLogger(), DidChangeTextDocumentParams(
-        textDocument: VersionedTextDocumentIdentifier(uri: URI, version: 2), contentChanges: changes))
+    handleDidChange(
+        state,
+        NoopLogger(),
+        DidChangeTextDocumentParams(
+            textDocument: VersionedTextDocumentIdentifier(uri: URI, version: 2),
+            contentChanges: changes
+        )
+    )
 }
 
 func textOf(state: ServerState): ?String {
@@ -70,11 +98,14 @@ class DocumentSyncTest {
         let state = opened("let a = 1\nlet b = 2\n")
 
         // act
-        change(state, [
-            partial("x", from: (0, 4), to: (0, 5)),
-            partial("// b\n", from: (1, 0), to: (1, 0)),
-            partial("3", from: (2, 8), to: (2, 9))
-        ])
+        change(
+            state,
+            [
+                partial("x", from: (0, 4), to: (0, 5)),
+                partial("// b\n", from: (1, 0), to: (1, 0)),
+                partial("3", from: (2, 8), to: (2, 9))
+            ]
+        )
 
         // assert
         @Expect(textOf(state), Some("let x = 1\n// b\nlet b = 3\n"))
@@ -87,8 +118,16 @@ class DocumentSyncTest {
         let state = opened("old")
 
         // act
-        change(state, [TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
-            TextDocumentContentChangeWholeDocument(text: "new")), partial("er", from: (0, 3), to: (0, 3))])
+        change(
+            state,
+            [
+                TextDocumentContentChangeEvent
+                    .AsTextDocumentContentChangeWholeDocument(
+                        TextDocumentContentChangeWholeDocument(text: "new")
+                    ),
+                partial("er", from: (0, 3), to: (0, 3))
+            ]
+        )
 
         // assert
         @Expect(textOf(state), Some("newer"))
@@ -116,7 +155,10 @@ class DocumentSyncTest {
         let state = opened("abc")
 
         // act
-        change(state, [partial("x", from: (0, 0), to: (0, 1)), partial("y", from: (0, 2), to: (0, 1))])
+        change(
+            state,
+            [partial("x", from: (0, 0), to: (0, 1)), partial("y", from: (0, 2), to: (0, 1))]
+        )
 
         // assert
         @Expect(textOf(state), Some("abc"))
@@ -142,7 +184,10 @@ class DocumentSyncTest {
         let file = state.snapshot().sourceFile(VfsPath.fromUri(URI)).getOrThrow()
 
         // act
-        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: URI)))
+        handleDidClose(
+            state,
+            DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: URI))
+        )
 
         // assert
         @Expect(textOf(state), None<String>)
@@ -160,7 +205,10 @@ class DocumentSyncTest {
         let state = opened("in the editor", uri: uri)
 
         // act
-        handleDidClose(state, DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uri)))
+        handleDidClose(
+            state,
+            DidCloseTextDocumentParams(textDocument: TextDocumentIdentifier(uri: uri))
+        )
         remove(dir, recursive: true)
 
         // assert

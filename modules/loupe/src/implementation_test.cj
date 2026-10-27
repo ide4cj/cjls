@@ -14,10 +14,12 @@ import loupe.syntax.parse
  */
 func checkHierarchy(fixture: String, binaries!: Array<String> = []): Unit {
     let parsed = Fixture.parse(fixture)
-    let db = parsed.database(binaries: binaries.map {name => stdCjoRead(name, stdCjo(name))})
+    let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let file = db.sourceFile(cursor.fileId).getOrThrow()
-    let token = tokenAt(parse(db, file).syntaxNode(), cursor.offset) ?? throw FixtureException("no name at $0")
+    let token =
+        tokenAt(parse(db, file).syntaxNode(), cursor.offset) ??
+            throw FixtureException("no name at $0")
     let annotations = ArrayList<Annotation>()
     for (definition in meaningsAt(db, file, token)) {
         if (let DeclDef(id) <- definition) {
@@ -37,7 +39,8 @@ func checkHierarchy(fixture: String, binaries!: Array<String> = []): Unit {
 class ImplementationTest {
     @TestCase
     func aClassMemberOverridesWithoutTheKeywordAndASameNamedOverloadDoesNot() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             open class Base {
@@ -52,12 +55,14 @@ class ImplementationTest {
                 public override func f(n: Int64): Int64 { n + 2 }
             //                       ^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInterfaceMemberIsImplementedByAClassAndAStruct() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface I {
@@ -71,12 +76,14 @@ class ImplementationTest {
                 public func g(): Int64 { 2 }
             //              ^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aClassMemberImplementsWhatAnInterfaceOfItsSupertypeDeclares() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface I {
@@ -91,13 +98,15 @@ class ImplementationTest {
                 public func g(): Int64 { 2 }
             //              ^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendInAnotherPackageImplementsWithTheTypesMemberAndItsOwn() {
         // cjc takes an `extend` of an interface in the type's package or the interface's only
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public interface I {
@@ -122,12 +131,14 @@ class ImplementationTest {
                 public func g(): Int64 { 2 }
             //              ^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAnExtendImplementsWhatTheExtendDeclares() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public interface I {
@@ -139,12 +150,14 @@ class ImplementationTest {
             extend Int64 <: I {
                 public func $0g(): Int64 { this }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAClassImplementsWhatAnExtendInAnotherPackageDeclares() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public interface I {
@@ -165,12 +178,14 @@ class ImplementationTest {
                 public func g(): Int64 { 2 }
             //              ^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypesMemberImplementsWhatAnExtendItsFileSeesDeclares() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface I {
@@ -183,12 +198,14 @@ class ImplementationTest {
             //- /b.cj module=m package=m
             package m
             extend C <: I {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theImplementationsOfAnInterfaceAreTheTypesBelowItAndTheExtendsDeclaringIt() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public interface $0I {}
@@ -201,12 +218,14 @@ class ImplementationTest {
             import m.a.C
             class D <: C {}
             //    ^ impl
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func ofAGenericSupertypeTheParametersAreSeenWithItsArguments() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface G<T> {
@@ -222,12 +241,14 @@ class ImplementationTest {
             //              ^ impl
                 public func h(x: U): Int64 { 1 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aMemberOfAGenericSupertypeIsFoundUpWithItsArguments() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface G<T> {
@@ -237,12 +258,14 @@ class ImplementationTest {
             class X <: G<Int64> {
                 public func $0h(x: Int64): Int64 { x }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOverloadOfAGenericSupertypesMemberIsNotFoundUp() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface G<T> {
@@ -252,12 +275,14 @@ class ImplementationTest {
                 public func h(x: Int64): Int64 { x }
                 public func $0h(x: Bool): Int64 { 0 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aStaticMemberIsRedefinedWithOrWithoutTheKeyword() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             open class Base {
@@ -271,12 +296,14 @@ class ImplementationTest {
                 public redef static func t(): Int64 { 3 }
             //                           ^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anInterfacesStaticMemberCalledThroughATypeParameterIsImplemented() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface S {
@@ -289,12 +316,14 @@ class ImplementationTest {
             func viaT<T>(): Int64 where T <: S {
                 T.$0s()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPropertyIsImplemented() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface P {
@@ -306,12 +335,14 @@ class ImplementationTest {
                     get() { 3 }
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGenericFunctionIsImplementedWhateverItsTypeParametersAreNamed() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface I {
@@ -321,12 +352,14 @@ class ImplementationTest {
                 public func id<U>(x: U): U { x }
             //              ^^ impl
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeBelowAnInterfaceOnTwoPathsIsFoundOnce() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             interface $0I {}
@@ -336,47 +369,59 @@ class ImplementationTest {
             //        ^ impl
             class C <: J & K {}
             //    ^ impl
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theImplementationsOfAnInterfaceOfStdAreLookedForInTheProjectAndInStd() {
         // std's own, whose sources are not read here, have nowhere to go
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             class C <: $0ToString {
             //    ^ impl
                 public func toString(): String { "" }
             }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 
     @TestCase
     func aStructALocalAndAnOperatorHaveNoImplementations() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             struct $0S {}
-            "#)
-        checkHierarchy(#"
+            "#
+        )
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             func f(): Unit { let $0x = 1 }
-            "#)
-        checkHierarchy(#"
+            "#
+        )
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             func f(): Int64 { 1 $0+ 2 }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameThatIsNoMemberHasNoImplementations() {
-        checkHierarchy(#"
+        checkHierarchy(
+            #"
             //- /a.cj module=m package=m
             package m
             func $0top(): Int64 { 1 }
-            "#)
+            "#
+        )
     }
 }

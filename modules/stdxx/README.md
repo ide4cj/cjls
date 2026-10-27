@@ -32,9 +32,11 @@ initializers reach no user code.
 
 ## Absent and null
 
-A constructor default does not make a field optional; its type does. JSON reads
-unknown keys by skipping them and writes known keys in declaration order. These
-four shapes preserve the protocol's independent optional and nullable axes:
+A constructor initializer supplies a missing field's default. Without an
+initializer, the field's type determines whether it may be absent. JSON ignores
+unknown keys unless strict decoding is requested and writes known keys in
+declaration order. Without initializers, these four shapes preserve the
+protocol's independent optional and nullable axes:
 
 | Shape | Type | Read | Write |
 |---|---|---|---|
@@ -53,6 +55,35 @@ name, so an import alias under `?` loses the distinction and reads explicit
 TOML has no null. Its derives diagnose `Nullable` fields and payloads, omit `None`
 regardless of `skipNone`, and order plain keys before tables and arrays of tables.
 An untagged value's `tomlShape` determines where it is written.
+
+## Defaults and strict fields
+
+A primary-constructor field's initializer supplies its value when the key is
+absent, in both JSON and TOML. No marker is needed. A function call in the
+initializer acts as a default factory and runs only for an absent key.
+The initializer expression must also be valid in the generated static decoder,
+independently of other constructor parameters.
+
+Present values are still type-checked; explicit JSON `null` keeps the field's
+existing null semantics and never selects a default. Without an initializer,
+required fields reject missing keys and optional fields use `None`. Defaults do
+not change serialization. A transparent struct reads its sole field from the
+value itself, so there is no missing key for an initializer to fill.
+
+`@Serde[denyUnknownFields]` on an object struct/class or tagged enum rejects keys
+outside its wire field names and discriminator. Unknown keys remain ignored
+without the marker. Each tagged enum variant accepts only its own payload keys;
+empty variants accept only the tag. Nested types retain their own policy. TOML
+errors retain the offending value's source location. Strictness is not meaningful
+for scalar/untagged enums or transparent structs and is diagnosed there.
+
+```cangjie
+@DeriveExt[FromJson, FromToml]
+@Serde[denyUnknownFields]
+struct Policy {
+    Policy(@Serde[rename: "line_width"] let lineWidth!: Int64 = 100) {}
+}
+```
 
 ## Tags and unions
 

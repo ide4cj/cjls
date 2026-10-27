@@ -35,10 +35,11 @@ func groupCompletionOverloads(items: Array<CompletionItem>): Array<CompletionIte
     let groups = HashMap<String, ArrayList<CompletionOverload>>()
     for (item in items) {
         let key = completionOverloadKey(item) ?? continue
-        let decl = match (item.source) {
-            case DeclSource(id, recv) => CompletionOverload(id, recv)
-            case _ => continue
-        }
+        let decl =
+            match (item.source) {
+                case DeclSource(id, recv) => CompletionOverload(id, recv)
+                case _ => continue
+            }
         if (let Some(group) <- groups.get(key)) {
             group.add(decl)
         } else {
@@ -48,9 +49,18 @@ func groupCompletionOverloads(items: Array<CompletionItem>): Array<CompletionIte
     let emitted = HashSet<String>()
     let result = ArrayList<CompletionItem>()
     for (item in items) {
-        if (let Some(key) <- completionOverloadKey(item) && let Some(group) <- groups.get(key) && group.size > 1) {
+        if (let Some(key) <- completionOverloadKey(item) && let Some(group) <- groups.get(key) &&
+            group.size > 1) {
             if (emitted.add(key)) {
-                result.add(CompletionItem(item.label, item.kind, item.relevance, OverloadSource(group.toArray())))
+                result
+                    .add(
+                        CompletionItem(
+                            item.label,
+                            item.kind,
+                            item.relevance,
+                            OverloadSource(group.toArray())
+                        )
+                    )
             }
         } else {
             result.add(item)

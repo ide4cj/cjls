@@ -42,8 +42,12 @@ func annotationOn(db: AnalysisDatabase, def: DefId, name: String, text: String):
                 }
             }
             throw FixtureException("no ${name} in the declaration of ${def}")
-        case ItemFile.Binary(_, _) => throw FixtureException("${def} is of a .cjo, which a fixture has none of")
-        case ItemFile.Expansion(_) => throw FixtureException("${def} is of an expansion, which the fixtures of this check have none of")
+        case ItemFile.Binary(_, _) =>
+            throw FixtureException("${def} is of a .cjo, which a fixture has none of")
+        case ItemFile.Expansion(_) =>
+            throw FixtureException(
+                "${def} is of an expansion, which the fixtures of this check have none of"
+            )
     }
 }
 
@@ -66,17 +70,36 @@ func checkDefMap(fixture: String): Unit {
         seen.add(pkg)
         let map = defMap(db, pkg)
         for ((name, defs) in map.names) {
-            actual.add(all: defs.map {def => annotationOn(db, def.id, name, "${def.visibility}")})
+            actual.add(all: defs.map { def => annotationOn(db, def.id, name, "${def.visibility}") })
         }
         for ((name, defs) in map.ctors) {
-            actual.add(all: defs.map {def => annotationOn(db, def.id, name, "ctor ${def.visibility}")})
+            actual
+                .add(
+                    all: defs
+                        .map { def => annotationOn(db, def.id, name, "ctor ${def.visibility}") }
+                )
         }
         for ((name, defs) in map.commons) {
-            actual.add(all: defs.map {def => annotationOn(db, def.id, name, "common ${def.visibility}")})
+            actual
+                .add(
+                    all: defs
+                        .map { def => annotationOn(db, def.id, name, "common ${def.visibility}") }
+                )
         }
-        actual.add(all: map.errors.map {
-            error => annotationOn(db, error.def, error.name, "error: redefinition of '${error.name}'")
-        })
+        actual
+            .add(
+                all: map
+                    .errors
+                    .map {
+                        error =>
+                        annotationOn(
+                            db,
+                            error.def,
+                            error.name,
+                            "error: redefinition of '${error.name}'"
+                        )
+                    }
+            )
     }
     expectAnnotations(fixture, actual.toArray())
 }
@@ -89,7 +112,8 @@ func checkLookUp(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let file = parsed.files.iterator().filter {file => file.fileId == cursor.fileId}.next().getOrThrow()
+    let file =
+        parsed.files.iterator().filter { file => file.fileId == cursor.fileId }.next().getOrThrow()
     let source = db.sourceFile(file.fileId).getOrThrow()
     var name: ?String = None
     for (element in parse(db, source).syntaxNode().descendantsWithTokens()) {
@@ -101,7 +125,7 @@ func checkLookUp(fixture: String): Unit {
     }
     let wanted = name ?? throw FixtureException("no token at $0")
     let found = defMap(db, packageOf(db, file)).lookUp(db, wanted, from: ItemFile.Source(source))
-    expectAnnotations(fixture, found.map {def => annotationOn(db, def, wanted, "def")})
+    expectAnnotations(fixture, found.map { def => annotationOn(db, def, wanted, "def") })
 }
 
 let defMapReaderRuns = AtomicInt64(0)
@@ -119,7 +143,8 @@ func defMapNames(db: AnalysisDatabase, pkg: PackageRef): Array<String> {
 class DefMapTest {
     @TestCase
     func aPackagesDeclarationsAreItsNamesWithTheirVisibilityAndNotTheirMembers() {
-        checkDefMap(#"
+        checkDefMap(
+            #"
             class A {
             //    ^ internal
                 func m() {}
@@ -134,13 +159,15 @@ class DefMapTest {
             //   ^ internal
             //      ^ internal
             extend A {}
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCommonDeclarationASpecificCompletesIsPutAsideAndNoRedefinition() {
         // #318: of the same name and kind only; an enum's constructors are its specific's
-        checkDefMap(#"
+        checkDefMap(
+            #"
             //- /common/a.cj
             public common class Host {
             //                  ^^^^ common public
@@ -162,26 +189,30 @@ class DefMapTest {
             public specific enum E { | A }
             //                   ^ public
             //                         ^ ctor public
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func overloadsInSeveralFilesAreOneName() {
         // N21
-        checkDefMap(#"
+        checkDefMap(
+            #"
             //- /a.cj
             func f(x: Int64) {}
             //   ^ internal
             //- /b.cj
             func f(x: String) {}
             //   ^ internal
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameTakenByAnythingButAFunctionIsRedefinedByEveryLaterDeclaration() {
         // N19, N20
-        checkDefMap(#"
+        checkDefMap(
+            #"
             //- /a.cj
             class A {}
             //    ^ internal
@@ -199,13 +230,15 @@ class DefMapTest {
             class T {}
             //    ^ error: redefinition of 'T'
             //    ^ internal
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateDeclarationTakesItsNameInThePackageAndOverloadsOthers() {
         // N22, N23
-        checkDefMap(#"
+        checkDefMap(
+            #"
             //- /a.cj
             private class P {}
             //            ^ private
@@ -217,13 +250,15 @@ class DefMapTest {
             //    ^ internal
             func g(x: String) {}
             //   ^ internal
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anEnumsConstructorsAreALevelOfTheirOwnWithTheEnumsVisibility() {
         // N24, N27
-        checkDefMap(#"
+        checkDefMap(
+            #"
             enum Color { | Red | Green }
             //   ^^^^^ internal
             //             ^^^ ctor internal
@@ -236,35 +271,41 @@ class DefMapTest {
             public enum Pub { | One }
             //          ^^^ public
             //                  ^^^ ctor public
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateDeclarationIsSeenInItsFile() {
         // N1
-        checkLookUp(#"
+        checkLookUp(
+            #"
             //- /a.cj
             private func p() {}
             //           ^ def
             func useHere() { $0p() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPrivateDeclarationIsNotSeenInAnotherFileOfItsPackage() {
         // N1
-        checkLookUp(#"
+        checkLookUp(
+            #"
             //- /a.cj
             private func p() {}
             //- /b.cj
             func useOther() { $0p() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func overloadsSeenFromAnotherFileLeaveOutThePrivateOnes() {
         // N23
-        checkLookUp(#"
+        checkLookUp(
+            #"
             //- /a.cj
             private func g(x: Int64) {}
             func g(x: Bool) {}
@@ -273,39 +314,46 @@ class DefMapTest {
             func g(x: String) {}
             //   ^ def
             func use() { $0g("s") }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aDeclarationHidesTheConstructorsOfItsName() {
         // N25
-        checkLookUp(#"
+        checkLookUp(
+            #"
             enum Color { | Red | Green }
             func Red() {}
             //   ^^^ def
             func use() { R$0ed() }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aConstructorIsFoundWhenNoDeclarationHasItsName() {
-        checkLookUp(#"
+        checkLookUp(
+            #"
             enum Color { | Red | Green }
             //                   ^^^^^ def
             func use() { Gr$0een }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theConstructorsOfTwoEnumsAreBothFoundForTheUseToTellApart() {
         // N26
-        checkLookUp(#"
+        checkLookUp(
+            #"
             enum C1 { | Same }
             //          ^^^^ def
             enum C2 { | Same }
             //          ^^^^ def
             func use() { Sa$0me }
-            "#)
+            "#
+        )
     }
 
     @TestCase
@@ -318,7 +366,11 @@ class DefMapTest {
         let runs = defMapReaderRuns.load()
 
         // act
-        db.setFileText(parsed.files[0].fileId, Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {}\n"))
+        db
+            .setFileText(
+                parsed.files[0].fileId,
+                Rope("func f() {\n    let x = 1 + 2\n    x\n}\nclass C {}\n")
+            )
         let again = defMapNames(db, pkg)
 
         // assert

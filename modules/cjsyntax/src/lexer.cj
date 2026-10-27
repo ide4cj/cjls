@@ -22,14 +22,19 @@ public func tokenize(text: String): Lexed<SyntaxKind> {
  * `LEXED_PUNCTUATION` by its first byte, each still longest first: a token is looked for among the few
  * starting as it does.
  */
-let PUNCTUATION_BY_FIRST_BYTE: Array<Array<(Array<Byte>, SyntaxKind)>> = {
-    =>
-    let buckets = Array<ArrayList<(Array<Byte>, SyntaxKind)>>(256) {_ => ArrayList<(Array<Byte>, SyntaxKind)>()}
-    for ((text, kind) in LEXED_PUNCTUATION) {
-        buckets[Int64(text[0])].add((text, kind))
-    }
-    buckets.map {bucket => bucket.toArray()}
-}()
+let PUNCTUATION_BY_FIRST_BYTE: Array<Array<(Array<Byte>, SyntaxKind)>> =
+    {
+        =>
+        let buckets =
+            Array<ArrayList<(Array<Byte>, SyntaxKind)>>(256) {
+                _ =>
+                ArrayList<(Array<Byte>, SyntaxKind)>()
+            }
+        for ((text, kind) in LEXED_PUNCTUATION) {
+            buckets[Int64(text[0])].add((text, kind))
+        }
+        buckets.map { bucket => bucket.toArray() }
+    }()
 
 /**
  * The lexer's context: code, whose `{`s it counts to find the `}` ending an interpolation, or a string.
@@ -55,28 +60,23 @@ class Lexer {
     func run(): Lexed<SyntaxKind> {
         while (pos < bytes.size) {
             let frame = frames[frames.size - 1]
-            if (frame.inString) {
-                stringPiece(frame)
-            } else {
-                codeToken(frame)
-            }
+            if (frame.inString) { stringPiece(frame) } else { codeToken(frame) }
         }
         if (frames.size > 1 && lexed.size > 0) {
-            lexed.error(if (frames[frames.size - 1].inString) {
-                "unterminated string"
-            } else {
-                "unterminated interpolation"
-            })
+            lexed
+                .error(
+                    if (frames[frames.size - 1].inString) {
+                        "unterminated string"
+                    } else {
+                        "unterminated interpolation"
+                    }
+                )
         }
         lexed
     }
 
     func peek(n: Int64): Byte {
-        if (pos + n < bytes.size) {
-            bytes[pos + n]
-        } else {
-            0
-        }
+        if (pos + n < bytes.size) { bytes[pos + n] } else { 0 }
     }
 
     func emit(kind: SyntaxKind, start: Int64): Unit {
@@ -98,7 +98,8 @@ class Lexer {
     }
 
     func atClosingQuote(frame: Frame): Bool {
-        peek(0) == frame.quoteChar && (!frame.multiline || (peek(1) == frame.quoteChar && peek(2) == frame.quoteChar))
+        peek(0) == frame.quoteChar &&
+            (!frame.multiline || (peek(1) == frame.quoteChar && peek(2) == frame.quoteChar))
     }
 
     func stringPiece(frame: Frame): Unit {
@@ -122,7 +123,10 @@ class Lexer {
         }
         var problem = None<String>
         while (pos < bytes.size) {
-            if (atClosingQuote(frame) || (peek(0) == b'$' && peek(1) == b'{') || (!frame.multiline && atLineBreak())) {
+            if (
+                atClosingQuote(frame) || (peek(0) == b'$' && peek(1) == b'{') ||
+                    (!frame.multiline && atLineBreak())
+            ) {
                 break
             }
             if (peek(0) == b'\\') {
@@ -208,7 +212,11 @@ class Lexer {
                 } else {
                     identifierRest()
                     if (SyntaxKind.keyword(String.fromUtf8(bytes[start + 1..pos])).isSome()) {
-                        emitError(DollarIdent, start, "expected an identifier after '$', found a keyword")
+                        emitError(
+                            DollarIdent,
+                            start,
+                            "expected an identifier after '$', found a keyword"
+                        )
                     } else {
                         emit(DollarIdent, start)
                     }
@@ -301,11 +309,7 @@ class Lexer {
             return
         }
         var problem = None<String>
-        if (peek(0) == b'\\') {
-            problem = escapeSequence()
-        } else {
-            pos += utf8Len(bytes[pos])
-        }
+        if (peek(0) == b'\\') { problem = escapeSequence() } else { pos += utf8Len(bytes[pos]) }
         if (peek(0) == quoteChar) {
             pos++
             match (problem) {
@@ -487,7 +491,7 @@ class Lexer {
             pos++
         }
         let text = String.fromUtf8(bytes[start..pos])
-        allowed.any {a => a == text}
+        allowed.any { a => a == text }
     }
 }
 
@@ -501,12 +505,13 @@ func isName(text: String): Bool {
     }
     var first = true
     for (r in text.runes()) {
-        let ok = if (UInt32(r) < 0x80) {
-            let b = UInt8(UInt32(r))
-            isAsciiIdentStart(b) || (!first && isAsciiDigit(b))
-        } else {
-            isIdentLike(r)
-        }
+        let ok =
+            if (UInt32(r) < 0x80) {
+                let b = UInt8(UInt32(r))
+                isAsciiIdentStart(b) || (!first && isAsciiDigit(b))
+            } else {
+                isIdentLike(r)
+            }
         if (!ok) {
             return false
         }
@@ -540,12 +545,23 @@ public func isIdentLike(r: Rune): Bool {
         return false
     }
     let c = UInt32(r)
-    let excluded = (c >= 0x80 && c <= 0xBF && c != 0xAA && c != 0xB5 && c != 0xB7 && c != 0xBA) ||
-        c == 0xD7 || c == 0xF7 || (c >= 0x2000 && c <= 0x206F && c != 0x200C && c != 0x200D && c != 0x203F &&
-            c != 0x2040 && c != 0x2054) || (c >= 0x2190 && c <= 0x2BFF) || (c >= 0x3000 && c <= 0x303F) ||
-        (c >= 0xFE10 && c <= 0xFE1F) || (c >= 0xFE30 && c <= 0xFE6F) || (c >= 0xFF01 && c <= 0xFF0F) ||
-        (c >= 0xFF1A && c <= 0xFF20) || (c >= 0xFF3B && c <= 0xFF40) || (c >= 0xFF5B && c <= 0xFF65) ||
-        (c >= 0x1F000 && c <= 0x1FAFF)
+    let excluded =
+        (c >= 0x80 && c <= 0xBF && c != 0xAA && c != 0xB5 && c != 0xB7 && c != 0xBA) || c == 0xD7 ||
+            c == 0xF7 ||
+            (
+                c >= 0x2000 && c <= 0x206F && c != 0x200C && c != 0x200D && c != 0x203F &&
+                    c != 0x2040 &&
+                    c != 0x2054
+            ) ||
+            (c >= 0x2190 && c <= 0x2BFF) ||
+            (c >= 0x3000 && c <= 0x303F) ||
+            (c >= 0xFE10 && c <= 0xFE1F) ||
+            (c >= 0xFE30 && c <= 0xFE6F) ||
+            (c >= 0xFF01 && c <= 0xFF0F) ||
+            (c >= 0xFF1A && c <= 0xFF20) ||
+            (c >= 0xFF3B && c <= 0xFF40) ||
+            (c >= 0xFF5B && c <= 0xFF65) ||
+            (c >= 0x1F000 && c <= 0x1FAFF)
     !excluded
 }
 

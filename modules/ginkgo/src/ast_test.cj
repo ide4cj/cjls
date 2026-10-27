@@ -15,11 +15,7 @@ struct Nested <: AstNode<TestKind, Nested> {
     }
 
     public static func cast(node: SyntaxNode<TestKind>): ?Nested {
-        if (canCast(node.kind)) {
-            Nested(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Nested(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<TestKind> {
@@ -30,7 +26,7 @@ struct Nested <: AstNode<TestKind, Nested> {
 }
 
 func kindsOf(nodes: Iterator<Nested>): Array<TestKind> {
-    collectArray(nodes.map {n => n.syntax.kind})
+    collectArray(nodes.map { n => n.syntax.kind })
 }
 
 @Test

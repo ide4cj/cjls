@@ -2,8 +2,18 @@ package loupe.hir
 
 import std.collection.*
 import cjsyntax.{CjSyntaxToken, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, AnyHasTypeParams, ClassDecl, Decl, FuncDecl, MacroArgs, MacroExpandDecl, ParamList, TypeParam,
-    identText}
+import cjsyntax.ast.{
+    AnyHasName,
+    AnyHasTypeParams,
+    ClassDecl,
+    Decl,
+    FuncDecl,
+    MacroArgs,
+    MacroExpandDecl,
+    ParamList,
+    TypeParam,
+    identText
+}
 
 // What `std.unittest.testmacro`'s macros declare (#175), read from cangjie_runtime's `testmacro` and checked with
 // `cjc --debug-macro` (1.3.0-alpha.20260918): the declarations a name can reach, each body a comment (`stubBody`). Left
@@ -33,11 +43,7 @@ func testClassExpansion(decl: Decl, template!: Bool): ?Expansion {
     if (let Some(clause) <- cls.whereClause()) {
         text.append(" ${tokensText(tokensOf(clause.syntax))}")
     }
-    let macroName = if (template) {
-        "@TestTemplate"
-    } else {
-        "@Test"
-    }
+    let macroName = if (template) { "@TestTemplate" } else { "@Test" }
     text.append(" {\n    public func asTestSuite(): TestSuite ${stubBody("    ", macroName)}\n}\n")
     let origins = ArrayList<ExpansionOrigin>([ExpansionOrigin.OfMacro])
     if (!template && hasConstructorOfNoParameters(cls)) {
@@ -57,7 +63,10 @@ func testFuncExpansion(decl: Decl): ?Expansion {
     }
     let name = "TestCase_${identText(nameTokenOf(decl) ?? return None)}"
     let text = StringBuilder()
-    text.append("class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite ${stubBody("    ", "@Test")}\n}\n")
+    text
+        .append(
+            "class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite ${stubBody("    ", "@Test")}\n}\n"
+        )
     appendRegistration(text, "TestPackageExtension_${name}", "register${name}", "@Test")
     Expansion(text.toString(), Array(3, repeat: ExpansionOrigin.OfMacro))
 }
@@ -88,7 +97,7 @@ func strategyExpansion(decl: Decl): ?Expansion {
         text.append("${tokensText(tokensOf(modifiers.syntax))} ")
     }
     text.append("let ${name}")
-    if (let Some(ty) <- fn.retType().flatMap {it => it.ty()}) {
+    if (let Some(ty) <- fn.retType().flatMap { it => it.ty() }) {
         text.append(": DataStrategyProcessor<${tokensText(tokensOf(ty.syntax))}>")
     }
     text.append("\n")
@@ -102,9 +111,9 @@ func strategyExpansion(decl: Decl): ?Expansion {
  */
 func optionExpansion(call: MacroExpandDecl): ?Expansion {
     let attr = call.macroAttr() ?? return None
-    let types = splitAtCommas(tokensInside(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket)).map {
-        tokens => "KeyFor<${tokensText(tokens)}>"
-    }
+    let types =
+        splitAtCommas(tokensInside(attr.syntax, SyntaxKind.LBracket, SyntaxKind.RBracket))
+            .map { tokens => "KeyFor<${tokensText(tokens)}>" }
     if (types.isEmpty()) {
         return None
     }
@@ -112,19 +121,16 @@ func optionExpansion(call: MacroExpandDecl): ?Expansion {
     let name = identText(token)
     let runes = name.toRuneArray()
     let key = "Key${String(runes[..1]).toAsciiUpper()}${String(runes[1..])}"
-    let access = if (isPublic) {
-        "public "
-    } else {
-        ""
-    }
-    let text = "${access}struct ${key} <: ${String.join(types, delimiter: " & ")} {\n" +
-        "    public static prop ${token.text()}: ${key} {\n" +
-        "        get() ${stubBody("        ", "@UnittestOption")}\n" +
-        "    }\n" +
-        "    public prop name: String {\n" +
-        "        get() ${stubBody("        ", "@UnittestOption")}\n" +
-        "    }\n" +
-        "}\n"
+    let access = if (isPublic) { "public " } else { "" }
+    let text =
+        "${access}struct ${key} <: ${String.join(types, delimiter: " & ")} {\n" +
+            "    public static prop ${token.text()}: ${key} {\n" +
+            "        get() ${stubBody("        ", "@UnittestOption")}\n" +
+            "    }\n" +
+            "    public prop name: String {\n" +
+            "        get() ${stubBody("        ", "@UnittestOption")}\n" +
+            "    }\n" +
+            "}\n"
     Expansion(text, [ExpansionOrigin.OfOption])
 }
 
@@ -135,11 +141,7 @@ func optionExpansion(call: MacroExpandDecl): ?Expansion {
 func optionNameOf(args: MacroArgs): ?(CjSyntaxToken, Bool) {
     let tokens = tokensInside(args.syntax, SyntaxKind.LParen, SyntaxKind.RParen)
     let isPublic = tokens.size > 0 && tokens[0].kind == SyntaxKind.PublicKw
-    let at = if (isPublic) {
-        1
-    } else {
-        0
-    }
+    let at = if (isPublic) { 1 } else { 0 }
     if (at < tokens.size && tokens[at].kind == SyntaxKind.Ident) {
         (tokens[at], isPublic)
     } else {
@@ -151,18 +153,32 @@ func optionNameOf(args: MacroArgs): ?(CjSyntaxToken, Bool) {
  * Appends to `text` the registration `@Test` and `@TestBuilder` add: an interface `extension` of one function
  * `register`, and the `extend` of `TestPackage` that implements it, its body a comment naming `macroName`.
  */
-func appendRegistration(text: StringBuilder, extension: String, register: String, macroName: String): Unit {
+func appendRegistration(
+    text: StringBuilder,
+    extension: String,
+    register: String,
+    macroName: String
+): Unit {
     text.append("interface ${extension} {\n    func ${register}(): Unit\n}\n")
-    text.append("extend TestPackage <: ${extension} {\n    public func ${register}(): Unit ${stubBody("    ", macroName)}\n}\n")
+    text
+        .append(
+            "extend TestPackage <: ${extension} {\n    public func ${register}(): Unit ${stubBody("    ", macroName)}\n}\n"
+        )
 }
 
 /**
  * The names of the type parameters of `decl`, as written.
  */
 func genericsOf(decl: Decl): Array<String> {
-    match (AnyHasTypeParams.cast(decl.syntax).flatMap {it => it.typeParamList()}) {
-        case Some(list) => list.typeParams() |> filterMap {param: TypeParam => param.name().flatMap {name => name.identToken()}} |>
-            map {token: CjSyntaxToken => token.text()} |> collectArray
+    match (AnyHasTypeParams.cast(decl.syntax).flatMap { it => it.typeParamList() }) {
+        case Some(list) =>
+            list.typeParams() |>
+                filterMap {
+                    param: TypeParam =>
+                    param.name().flatMap { name => name.identToken() }
+                } |>
+                map { token: CjSyntaxToken => token.text() } |>
+                collectArray
         case None => Array<String>()
     }
 }
@@ -180,14 +196,17 @@ func hasConstructorOfNoParameters(cls: ClassDecl): Bool {
             case _ => ()
         }
     }
-    paramLists.isEmpty() || paramLists.iterator().any {list => list.map {it => it.writtenParams().isEmpty()} ?? true}
+    paramLists.isEmpty() ||
+        paramLists
+            .iterator()
+            .any { list => list.map { it => it.writtenParams().isEmpty() } ?? true }
 }
 
 /**
  * The token of the name `decl` declares, if it is written.
  */
 func nameTokenOf(decl: Decl): ?CjSyntaxToken {
-    AnyHasName.cast(decl.syntax).flatMap {it => it.name()}.flatMap {name => name.identToken()}
+    AnyHasName.cast(decl.syntax).flatMap { it => it.name() }.flatMap { name => name.identToken() }
 }
 
 /**

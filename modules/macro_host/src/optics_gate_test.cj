@@ -16,7 +16,9 @@ import loupe.vfs.VfsPath
 func opticsDir(): VfsPath {
     let dir = getWorkingDirectory().join(".corpora").join("Optics")
     if (!exists(dir.join("cjpm.toml"))) {
-        throw IllegalStateException("Optics is not in .corpora/: run `python3 tests/corpora/fetch.py`")
+        throw IllegalStateException(
+            "Optics is not in .corpora/: run `python3 tests/corpora/fetch.py`"
+        )
     }
     VfsPath.file(dir)
 }
@@ -42,16 +44,21 @@ class OpticsGateTest {
     @TestCase
     func opticsHasOnlyTheFindingsOfKnownGaps() {
         let found = gateFindings(opticsDir())
-        let lines = String.fromUtf8(File.readFrom(knownOfOptics())).replace("\r\n", "\n").split("\n")
-        let header = lines.filter {line => line.startsWith("#")}
+        let lines =
+            String.fromUtf8(File.readFrom(knownOfOptics())).replace("\r\n", "\n").split("\n")
+        let header = lines.filter { line => line.startsWith("#") }
         let why = HashMap<String, String>()
         for (line in lines where !line.startsWith("#") && !line.isEmpty()) {
             let parts = line.split("  # ", 2)
             why[parts[0]] = parts.get(1) ?? "?"
         }
         if (getVariable(UPDATE_EXPECT).isSome()) {
-            let written = found.map {one => "${one}  # ${why.get(one) ?? "?"}"}
-            File.writeTo(knownOfOptics(), (String.join(header.concat(written), delimiter: "\n") + "\n").toArray())
+            let written = found.map { one => "${one}  # ${why.get(one) ?? "?"}" }
+            File
+                .writeTo(
+                    knownOfOptics(),
+                    (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
+                )
             return
         }
         let known = why.keys().toArray()

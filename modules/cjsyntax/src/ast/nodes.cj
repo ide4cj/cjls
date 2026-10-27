@@ -6,41 +6,135 @@ import std.deriving.*
 import ginkgo.*
 import cjsyntax.SyntaxKind
 
-let NAME_SYMBOL = TokenSet<SyntaxKind>(
-    [SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.LParen, SyntaxKind.RParen, SyntaxKind.GtGt, SyntaxKind.GtEq,
-        SyntaxKind.Bang, SyntaxKind.Plus, SyntaxKind.Minus, SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash,
-        SyntaxKind.Percent, SyntaxKind.LtLt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.EqEq,
-        SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.Tilde])
+let NAME_SYMBOL =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.LBracket,
+            SyntaxKind.RBracket,
+            SyntaxKind.LParen,
+            SyntaxKind.RParen,
+            SyntaxKind.GtGt,
+            SyntaxKind.GtEq,
+            SyntaxKind.Bang,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.LtLt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.Tilde
+        ]
+    )
 
-let PRIM_TYPE_KEYWORD = TokenSet<SyntaxKind>(
-    [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
-        SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
-        SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
-        SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+let PRIM_TYPE_KEYWORD =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.Int8Kw,
+            SyntaxKind.Int16Kw,
+            SyntaxKind.Int32Kw,
+            SyntaxKind.Int64Kw,
+            SyntaxKind.IntNativeKw,
+            SyntaxKind.UInt8Kw,
+            SyntaxKind.UInt16Kw,
+            SyntaxKind.UInt32Kw,
+            SyntaxKind.UInt64Kw,
+            SyntaxKind.UIntNativeKw,
+            SyntaxKind.Float16Kw,
+            SyntaxKind.Float32Kw,
+            SyntaxKind.Float64Kw,
+            SyntaxKind.RuneKw,
+            SyntaxKind.BoolKw,
+            SyntaxKind.NothingKw,
+            SyntaxKind.UnitKw
+        ]
+    )
 
 let FUNC_TYPE_TYPES_END = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
 
 let FUNC_TYPE_RET_START = TokenSet<SyntaxKind>([SyntaxKind.RParen, SyntaxKind.Arrow])
 
-let LITERAL_PAT_VALUE = TokenSet<SyntaxKind>(
-    [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
-        SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+let LITERAL_PAT_VALUE =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.IntLit,
+            SyntaxKind.FloatLit,
+            SyntaxKind.RuneLit,
+            SyntaxKind.ByteLit,
+            SyntaxKind.RawStringLit,
+            SyntaxKind.TrueKw,
+            SyntaxKind.FalseKw
+        ]
+    )
 
-let LITERAL_VALUE = TokenSet<SyntaxKind>(
-    [SyntaxKind.IntLit, SyntaxKind.FloatLit, SyntaxKind.RuneLit, SyntaxKind.ByteLit, SyntaxKind.RawStringLit,
-        SyntaxKind.TrueKw, SyntaxKind.FalseKw])
+let LITERAL_VALUE =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.IntLit,
+            SyntaxKind.FloatLit,
+            SyntaxKind.RuneLit,
+            SyntaxKind.ByteLit,
+            SyntaxKind.RawStringLit,
+            SyntaxKind.TrueKw,
+            SyntaxKind.FalseKw
+        ]
+    )
 
-let TRAILING_LAMBDA_EXPR_LAMBDA = TokenSet<SyntaxKind>(
-    [SyntaxKind.LambdaExpr, SyntaxKind.Literal, SyntaxKind.StringLit, SyntaxKind.RefExpr, SyntaxKind.MemberAccessExpr,
-        SyntaxKind.CallExpr, SyntaxKind.TrailingLambdaExpr, SyntaxKind.IndexExpr, SyntaxKind.OptionalExpr,
-        SyntaxKind.UnaryExpr, SyntaxKind.BinExpr, SyntaxKind.IsExpr, SyntaxKind.AsExpr, SyntaxKind.RangeExpr,
-        SyntaxKind.PostfixExpr, SyntaxKind.ParenExpr, SyntaxKind.TupleExpr, SyntaxKind.ArrayExpr, SyntaxKind.UnitExpr,
-        SyntaxKind.IfExpr, SyntaxKind.LetExpr, SyntaxKind.MatchExpr, SyntaxKind.TryExpr, SyntaxKind.ForInExpr,
-        SyntaxKind.WhileExpr, SyntaxKind.DoWhileExpr, SyntaxKind.ThrowExpr, SyntaxKind.ReturnExpr, SyntaxKind.BreakExpr,
-        SyntaxKind.ContinueExpr, SyntaxKind.SpawnExpr, SyntaxKind.SynchronizedExpr, SyntaxKind.UnsafeExpr,
-        SyntaxKind.ThisExpr, SyntaxKind.SuperExpr, SyntaxKind.WildcardExpr, SyntaxKind.TypeConvExpr,
-        SyntaxKind.PrimTypeExpr, SyntaxKind.VArrayExpr, SyntaxKind.QuoteExpr, SyntaxKind.MacroExpandExpr,
-        SyntaxKind.MacroExpandDecl])
+let TRAILING_LAMBDA_EXPR_LAMBDA =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.LambdaExpr,
+            SyntaxKind.Literal,
+            SyntaxKind.StringLit,
+            SyntaxKind.RefExpr,
+            SyntaxKind.MemberAccessExpr,
+            SyntaxKind.CallExpr,
+            SyntaxKind.TrailingLambdaExpr,
+            SyntaxKind.IndexExpr,
+            SyntaxKind.OptionalExpr,
+            SyntaxKind.UnaryExpr,
+            SyntaxKind.BinExpr,
+            SyntaxKind.IsExpr,
+            SyntaxKind.AsExpr,
+            SyntaxKind.RangeExpr,
+            SyntaxKind.PostfixExpr,
+            SyntaxKind.ParenExpr,
+            SyntaxKind.TupleExpr,
+            SyntaxKind.ArrayExpr,
+            SyntaxKind.UnitExpr,
+            SyntaxKind.IfExpr,
+            SyntaxKind.LetExpr,
+            SyntaxKind.MatchExpr,
+            SyntaxKind.TryExpr,
+            SyntaxKind.ForInExpr,
+            SyntaxKind.WhileExpr,
+            SyntaxKind.DoWhileExpr,
+            SyntaxKind.ThrowExpr,
+            SyntaxKind.ReturnExpr,
+            SyntaxKind.BreakExpr,
+            SyntaxKind.ContinueExpr,
+            SyntaxKind.SpawnExpr,
+            SyntaxKind.SynchronizedExpr,
+            SyntaxKind.UnsafeExpr,
+            SyntaxKind.ThisExpr,
+            SyntaxKind.SuperExpr,
+            SyntaxKind.WildcardExpr,
+            SyntaxKind.TypeConvExpr,
+            SyntaxKind.PrimTypeExpr,
+            SyntaxKind.VArrayExpr,
+            SyntaxKind.QuoteExpr,
+            SyntaxKind.MacroExpandExpr,
+            SyntaxKind.MacroExpandDecl
+        ]
+    )
 
 let INDEX_EXPR_BASE_END = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
 
@@ -48,32 +142,131 @@ let INDEX_EXPR_INDICES_START = TokenSet<SyntaxKind>([SyntaxKind.LBracket])
 
 let UNARY_EXPR_OP = TokenSet<SyntaxKind>([SyntaxKind.Minus, SyntaxKind.Bang])
 
-let BIN_EXPR_LHS_END = TokenSet<SyntaxKind>(
-    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
-        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
-        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
-        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
-        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
-        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
-        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let BIN_EXPR_LHS_END =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.LtLt,
+            SyntaxKind.GtGt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.GtEq,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.AmpAmp,
+            SyntaxKind.PipePipe,
+            SyntaxKind.QuestionQuestion,
+            SyntaxKind.PipeGt,
+            SyntaxKind.TildeGt,
+            SyntaxKind.Eq,
+            SyntaxKind.PlusEq,
+            SyntaxKind.MinusEq,
+            SyntaxKind.StarEq,
+            SyntaxKind.StarStarEq,
+            SyntaxKind.SlashEq,
+            SyntaxKind.PercentEq,
+            SyntaxKind.AmpAmpEq,
+            SyntaxKind.PipePipeEq,
+            SyntaxKind.AmpEq,
+            SyntaxKind.PipeEq,
+            SyntaxKind.CaretEq,
+            SyntaxKind.LtLtEq,
+            SyntaxKind.GtGtEq
+        ]
+    )
 
-let BIN_EXPR_OP = TokenSet<SyntaxKind>(
-    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
-        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
-        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
-        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
-        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
-        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
-        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let BIN_EXPR_OP =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.LtLt,
+            SyntaxKind.GtGt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.GtEq,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.AmpAmp,
+            SyntaxKind.PipePipe,
+            SyntaxKind.QuestionQuestion,
+            SyntaxKind.PipeGt,
+            SyntaxKind.TildeGt,
+            SyntaxKind.Eq,
+            SyntaxKind.PlusEq,
+            SyntaxKind.MinusEq,
+            SyntaxKind.StarEq,
+            SyntaxKind.StarStarEq,
+            SyntaxKind.SlashEq,
+            SyntaxKind.PercentEq,
+            SyntaxKind.AmpAmpEq,
+            SyntaxKind.PipePipeEq,
+            SyntaxKind.AmpEq,
+            SyntaxKind.PipeEq,
+            SyntaxKind.CaretEq,
+            SyntaxKind.LtLtEq,
+            SyntaxKind.GtGtEq
+        ]
+    )
 
-let BIN_EXPR_RHS_START = TokenSet<SyntaxKind>(
-    [SyntaxKind.StarStar, SyntaxKind.Star, SyntaxKind.Slash, SyntaxKind.Percent, SyntaxKind.Plus, SyntaxKind.Minus,
-        SyntaxKind.LtLt, SyntaxKind.GtGt, SyntaxKind.Lt, SyntaxKind.LtEq, SyntaxKind.Gt, SyntaxKind.GtEq,
-        SyntaxKind.EqEq, SyntaxKind.BangEq, SyntaxKind.Amp, SyntaxKind.Caret, SyntaxKind.Pipe, SyntaxKind.AmpAmp,
-        SyntaxKind.PipePipe, SyntaxKind.QuestionQuestion, SyntaxKind.PipeGt, SyntaxKind.TildeGt, SyntaxKind.Eq,
-        SyntaxKind.PlusEq, SyntaxKind.MinusEq, SyntaxKind.StarEq, SyntaxKind.StarStarEq, SyntaxKind.SlashEq,
-        SyntaxKind.PercentEq, SyntaxKind.AmpAmpEq, SyntaxKind.PipePipeEq, SyntaxKind.AmpEq, SyntaxKind.PipeEq,
-        SyntaxKind.CaretEq, SyntaxKind.LtLtEq, SyntaxKind.GtGtEq])
+let BIN_EXPR_RHS_START =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.StarStar,
+            SyntaxKind.Star,
+            SyntaxKind.Slash,
+            SyntaxKind.Percent,
+            SyntaxKind.Plus,
+            SyntaxKind.Minus,
+            SyntaxKind.LtLt,
+            SyntaxKind.GtGt,
+            SyntaxKind.Lt,
+            SyntaxKind.LtEq,
+            SyntaxKind.Gt,
+            SyntaxKind.GtEq,
+            SyntaxKind.EqEq,
+            SyntaxKind.BangEq,
+            SyntaxKind.Amp,
+            SyntaxKind.Caret,
+            SyntaxKind.Pipe,
+            SyntaxKind.AmpAmp,
+            SyntaxKind.PipePipe,
+            SyntaxKind.QuestionQuestion,
+            SyntaxKind.PipeGt,
+            SyntaxKind.TildeGt,
+            SyntaxKind.Eq,
+            SyntaxKind.PlusEq,
+            SyntaxKind.MinusEq,
+            SyntaxKind.StarEq,
+            SyntaxKind.StarStarEq,
+            SyntaxKind.SlashEq,
+            SyntaxKind.PercentEq,
+            SyntaxKind.AmpAmpEq,
+            SyntaxKind.PipePipeEq,
+            SyntaxKind.AmpEq,
+            SyntaxKind.PipeEq,
+            SyntaxKind.CaretEq,
+            SyntaxKind.LtLtEq,
+            SyntaxKind.GtGtEq
+        ]
+    )
 
 let RANGE_EXPR_START_END = TokenSet<SyntaxKind>([SyntaxKind.DotDot, SyntaxKind.DotDotEq])
 
@@ -103,11 +296,28 @@ let SPAWN_EXPR_CONTEXT_START = TokenSet<SyntaxKind>([SyntaxKind.LParen])
 
 let SPAWN_EXPR_CONTEXT_END = TokenSet<SyntaxKind>([SyntaxKind.RParen])
 
-let PRIM_TYPE_EXPR_KEYWORD = TokenSet<SyntaxKind>(
-    [SyntaxKind.Int8Kw, SyntaxKind.Int16Kw, SyntaxKind.Int32Kw, SyntaxKind.Int64Kw, SyntaxKind.IntNativeKw,
-        SyntaxKind.UInt8Kw, SyntaxKind.UInt16Kw, SyntaxKind.UInt32Kw, SyntaxKind.UInt64Kw, SyntaxKind.UIntNativeKw,
-        SyntaxKind.Float16Kw, SyntaxKind.Float32Kw, SyntaxKind.Float64Kw, SyntaxKind.RuneKw, SyntaxKind.BoolKw,
-        SyntaxKind.NothingKw, SyntaxKind.UnitKw])
+let PRIM_TYPE_EXPR_KEYWORD =
+    TokenSet<SyntaxKind>(
+        [
+            SyntaxKind.Int8Kw,
+            SyntaxKind.Int16Kw,
+            SyntaxKind.Int32Kw,
+            SyntaxKind.Int64Kw,
+            SyntaxKind.IntNativeKw,
+            SyntaxKind.UInt8Kw,
+            SyntaxKind.UInt16Kw,
+            SyntaxKind.UInt32Kw,
+            SyntaxKind.UInt64Kw,
+            SyntaxKind.UIntNativeKw,
+            SyntaxKind.Float16Kw,
+            SyntaxKind.Float32Kw,
+            SyntaxKind.Float64Kw,
+            SyntaxKind.RuneKw,
+            SyntaxKind.BoolKw,
+            SyntaxKind.NothingKw,
+            SyntaxKind.UnitKw
+        ]
+    )
 
 let DATA_ARG_PARAM_END = TokenSet<SyntaxKind>([SyntaxKind.InKw])
 
@@ -131,21 +341,32 @@ public struct AnyHasName <: AstNode<SyntaxKind, AnyHasName> & HasName & ToString
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.ImportAlias | SyntaxKind.FuncDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.TypeAliasDecl
-                | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
-                | SyntaxKind.TypeParam | SyntaxKind.Param | SyntaxKind.NamedType | SyntaxKind.BindPat
-                | SyntaxKind.TypePat | SyntaxKind.CatchPat | SyntaxKind.ResourceDecl | SyntaxKind.LambdaParam => true
+            case SyntaxKind.ImportAlias |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.TypeParam |
+                SyntaxKind.Param |
+                SyntaxKind.NamedType |
+                SyntaxKind.BindPat |
+                SyntaxKind.TypePat |
+                SyntaxKind.CatchPat |
+                SyntaxKind.ResourceDecl |
+                SyntaxKind.LambdaParam => true
             case _ => false
         }
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasName {
-        if (canCast(node.kind)) {
-            AnyHasName(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnyHasName(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -181,22 +402,35 @@ public struct AnyHasModifiers <: AstNode<SyntaxKind, AnyHasModifiers> & HasModif
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.SourceFile | SyntaxKind.FeaturesDirective | SyntaxKind.PackageHeader | SyntaxKind.ImportDecl
-                | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl | SyntaxKind.PropAccessor | SyntaxKind.Param => true
+            case SyntaxKind.SourceFile |
+                SyntaxKind.FeaturesDirective |
+                SyntaxKind.PackageHeader |
+                SyntaxKind.ImportDecl |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.PropAccessor |
+                SyntaxKind.Param => true
             case _ => false
         }
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasModifiers {
-        if (canCast(node.kind)) {
-            AnyHasModifiers(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnyHasModifiers(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -227,27 +461,44 @@ public interface HasAnnotations {
  * Any node that is a `HasAnnotations`, viewed as one.
  */
 @Derive[Equatable, Hashable]
-public struct AnyHasAnnotations <: AstNode<SyntaxKind, AnyHasAnnotations> & HasAnnotations & ToString {
+public struct AnyHasAnnotations <:
+    AstNode<SyntaxKind, AnyHasAnnotations> &
+    HasAnnotations &
+    ToString {
     AnyHasAnnotations(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.SourceFile | SyntaxKind.FeaturesDirective | SyntaxKind.PackageHeader | SyntaxKind.ImportDecl
-                | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl | SyntaxKind.PropAccessor | SyntaxKind.Param | SyntaxKind.LambdaExpr => true
+            case SyntaxKind.SourceFile |
+                SyntaxKind.FeaturesDirective |
+                SyntaxKind.PackageHeader |
+                SyntaxKind.ImportDecl |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.PropAccessor |
+                SyntaxKind.Param |
+                SyntaxKind.LambdaExpr => true
             case _ => false
         }
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasAnnotations {
-        if (canCast(node.kind)) {
-            AnyHasAnnotations(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnyHasAnnotations(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -283,19 +534,24 @@ public struct AnyHasTypeParams <: AstNode<SyntaxKind, AnyHasTypeParams> & HasTyp
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl => true
             case _ => false
         }
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasTypeParams {
-        if (canCast(node.kind)) {
-            AnyHasTypeParams(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnyHasTypeParams(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -326,24 +582,31 @@ public interface HasWhereClause {
  * Any node that is a `HasWhereClause`, viewed as one.
  */
 @Derive[Equatable, Hashable]
-public struct AnyHasWhereClause <: AstNode<SyntaxKind, AnyHasWhereClause> & HasWhereClause & ToString {
+public struct AnyHasWhereClause <:
+    AstNode<SyntaxKind, AnyHasWhereClause> &
+    HasWhereClause &
+    ToString {
     AnyHasWhereClause(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl => true
             case _ => false
         }
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasWhereClause {
-        if (canCast(node.kind)) {
-            AnyHasWhereClause(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnyHasWhereClause(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -384,21 +647,31 @@ public struct AnyHasDocComment <: AstNode<SyntaxKind, AnyHasDocComment> & HasDoc
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.PackageHeader | SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl
-                | SyntaxKind.ClassDecl | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl
-                | SyntaxKind.ExtendDecl | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl
-                | SyntaxKind.InitDecl | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor
-                | SyntaxKind.ForeignBlock | SyntaxKind.MacroExpandDecl | SyntaxKind.Param => true
+            case SyntaxKind.PackageHeader |
+                SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.Param => true
             case _ => false
         }
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnyHasDocComment {
-        if (canCast(node.kind)) {
-            AnyHasDocComment(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnyHasDocComment(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -413,7 +686,11 @@ public struct AnyHasDocComment <: AstNode<SyntaxKind, AnyHasDocComment> & HasDoc
 }
 
 @Derive[Equatable, Hashable]
-public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & HasModifiers & HasAnnotations & ToString {
+public struct SourceFile <:
+    AstNode<SyntaxKind, SourceFile> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     SourceFile(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -421,11 +698,7 @@ public struct SourceFile <: AstNode<SyntaxKind, SourceFile> & HasModifiers & Has
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?SourceFile {
-        if (canCast(node.kind)) {
-            SourceFile(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { SourceFile(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -483,11 +756,7 @@ public struct ExprFile <: AstNode<SyntaxKind, ExprFile> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ExprFile {
-        if (canCast(node.kind)) {
-            ExprFile(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ExprFile(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -517,11 +786,7 @@ public struct StmtsFile <: AstNode<SyntaxKind, StmtsFile> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?StmtsFile {
-        if (canCast(node.kind)) {
-            StmtsFile(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { StmtsFile(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -548,7 +813,11 @@ public struct StmtsFile <: AstNode<SyntaxKind, StmtsFile> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasModifiers & HasAnnotations & ToString {
+public struct FeaturesDirective <:
+    AstNode<SyntaxKind, FeaturesDirective> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     FeaturesDirective(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -556,11 +825,7 @@ public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasM
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?FeaturesDirective {
-        if (canCast(node.kind)) {
-            FeaturesDirective(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { FeaturesDirective(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -615,7 +880,12 @@ public struct FeaturesDirective <: AstNode<SyntaxKind, FeaturesDirective> & HasM
 }
 
 @Derive[Equatable, Hashable]
-public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct PackageHeader <:
+    AstNode<SyntaxKind, PackageHeader> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     PackageHeader(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -623,11 +893,7 @@ public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & HasModifiers
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PackageHeader {
-        if (canCast(node.kind)) {
-            PackageHeader(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PackageHeader(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -674,7 +940,11 @@ public struct PackageHeader <: AstNode<SyntaxKind, PackageHeader> & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & HasModifiers & HasAnnotations & ToString {
+public struct ImportDecl <:
+    AstNode<SyntaxKind, ImportDecl> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     ImportDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -682,11 +952,7 @@ public struct ImportDecl <: AstNode<SyntaxKind, ImportDecl> & HasModifiers & Has
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ImportDecl {
-        if (canCast(node.kind)) {
-            ImportDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ImportDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -728,11 +994,7 @@ public struct ImportTree <: AstNode<SyntaxKind, ImportTree> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ImportTree {
-        if (canCast(node.kind)) {
-            ImportTree(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ImportTree(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -787,11 +1049,7 @@ public struct ImportTreeList <: AstNode<SyntaxKind, ImportTreeList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ImportTreeList {
-        if (canCast(node.kind)) {
-            ImportTreeList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ImportTreeList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -834,11 +1092,7 @@ public struct ImportAlias <: AstNode<SyntaxKind, ImportAlias> & HasName & ToStri
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ImportAlias {
-        if (canCast(node.kind)) {
-            ImportAlias(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ImportAlias(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -872,11 +1126,7 @@ public struct Name <: AstNode<SyntaxKind, Name> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Name {
-        if (canCast(node.kind)) {
-            Name(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Name(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -910,11 +1160,7 @@ public struct NameRef <: AstNode<SyntaxKind, NameRef> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?NameRef {
-        if (canCast(node.kind)) {
-            NameRef(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { NameRef(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -945,11 +1191,7 @@ public struct Annotation <: AstNode<SyntaxKind, Annotation> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Annotation {
-        if (canCast(node.kind)) {
-            Annotation(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Annotation(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -984,11 +1226,7 @@ public struct AnnotationArgList <: AstNode<SyntaxKind, AnnotationArgList> & ToSt
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AnnotationArgList {
-        if (canCast(node.kind)) {
-            AnnotationArgList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AnnotationArgList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1031,11 +1269,7 @@ public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Modifiers {
-        if (canCast(node.kind)) {
-            Modifiers(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Modifiers(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1193,8 +1427,14 @@ public struct Modifiers <: AstNode<SyntaxKind, Modifiers> & ToString {
     }
 }
 
-public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & HasDocComment & Equatable<Decl> &
-    Hashable & ToString {
+public enum Decl <:
+    AstNode<SyntaxKind, Decl> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    Equatable<Decl> &
+    Hashable &
+    ToString {
     | AsFuncDecl(FuncDecl)
     | AsMainDecl(MainDecl)
     | AsMacroDecl(MacroDecl)
@@ -1215,11 +1455,23 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & 
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl => true
             case _ => false
         }
     }
@@ -1333,7 +1585,15 @@ public enum Decl <: AstNode<SyntaxKind, Decl> & HasModifiers & HasAnnotations & 
 }
 
 @Derive[Equatable, Hashable]
-public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct FuncDecl <:
+    AstNode<SyntaxKind, FuncDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     FuncDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1341,11 +1601,7 @@ public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & HasName & HasModifiers
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?FuncDecl {
-        if (canCast(node.kind)) {
-            FuncDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { FuncDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1396,7 +1652,14 @@ public struct FuncDecl <: AstNode<SyntaxKind, FuncDecl> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct MainDecl <:
+    AstNode<SyntaxKind, MainDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     MainDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1404,11 +1667,7 @@ public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & HasModifiers & HasAnno
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MainDecl {
-        if (canCast(node.kind)) {
-            MainDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MainDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1455,7 +1714,15 @@ public struct MainDecl <: AstNode<SyntaxKind, MainDecl> & HasModifiers & HasAnno
 }
 
 @Derive[Equatable, Hashable]
-public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct MacroDecl <:
+    AstNode<SyntaxKind, MacroDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     MacroDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1463,11 +1730,7 @@ public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & HasName & HasModifie
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MacroDecl {
-        if (canCast(node.kind)) {
-            MacroDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MacroDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1518,7 +1781,15 @@ public struct MacroDecl <: AstNode<SyntaxKind, MacroDecl> & HasName & HasModifie
 }
 
 @Derive[Equatable, Hashable]
-public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct ClassDecl <:
+    AstNode<SyntaxKind, ClassDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     ClassDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1526,11 +1797,7 @@ public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & HasName & HasModifie
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ClassDecl {
-        if (canCast(node.kind)) {
-            ClassDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ClassDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1577,7 +1844,15 @@ public struct ClassDecl <: AstNode<SyntaxKind, ClassDecl> & HasName & HasModifie
 }
 
 @Derive[Equatable, Hashable]
-public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct InterfaceDecl <:
+    AstNode<SyntaxKind, InterfaceDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     InterfaceDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1585,11 +1860,7 @@ public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & HasName & Ha
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?InterfaceDecl {
-        if (canCast(node.kind)) {
-            InterfaceDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { InterfaceDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1636,7 +1907,15 @@ public struct InterfaceDecl <: AstNode<SyntaxKind, InterfaceDecl> & HasName & Ha
 }
 
 @Derive[Equatable, Hashable]
-public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct StructDecl <:
+    AstNode<SyntaxKind, StructDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     StructDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1644,11 +1923,7 @@ public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & HasName & HasModif
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?StructDecl {
-        if (canCast(node.kind)) {
-            StructDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { StructDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1695,7 +1970,15 @@ public struct StructDecl <: AstNode<SyntaxKind, StructDecl> & HasName & HasModif
 }
 
 @Derive[Equatable, Hashable]
-public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct EnumDecl <:
+    AstNode<SyntaxKind, EnumDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     EnumDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1703,11 +1986,7 @@ public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & HasName & HasModifiers
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?EnumDecl {
-        if (canCast(node.kind)) {
-            EnumDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { EnumDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1754,7 +2033,14 @@ public struct EnumDecl <: AstNode<SyntaxKind, EnumDecl> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct ExtendDecl <:
+    AstNode<SyntaxKind, ExtendDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     ExtendDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1762,11 +2048,7 @@ public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & HasModifiers & Has
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ExtendDecl {
-        if (canCast(node.kind)) {
-            ExtendDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ExtendDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1813,7 +2095,14 @@ public struct ExtendDecl <: AstNode<SyntaxKind, ExtendDecl> & HasModifiers & Has
 }
 
 @Derive[Equatable, Hashable]
-public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasDocComment & ToString {
+public struct TypeAliasDecl <:
+    AstNode<SyntaxKind, TypeAliasDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasDocComment &
+    ToString {
     TypeAliasDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1821,11 +2110,7 @@ public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & HasName & Ha
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypeAliasDecl {
-        if (canCast(node.kind)) {
-            TypeAliasDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypeAliasDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1871,7 +2156,13 @@ public struct TypeAliasDecl <: AstNode<SyntaxKind, TypeAliasDecl> & HasName & Ha
  * `let`, `var` or `const`, of a name or a pattern
  */
 @Derive[Equatable, Hashable]
-public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct VarDecl <:
+    AstNode<SyntaxKind, VarDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     VarDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1879,11 +2170,7 @@ public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & HasName & HasModifiers &
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?VarDecl {
-        if (canCast(node.kind)) {
-            VarDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { VarDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1938,7 +2225,13 @@ public struct VarDecl <: AstNode<SyntaxKind, VarDecl> & HasName & HasModifiers &
 }
 
 @Derive[Equatable, Hashable]
-public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct PropDecl <:
+    AstNode<SyntaxKind, PropDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     PropDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -1946,11 +2239,7 @@ public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & HasName & HasModifiers
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PropDecl {
-        if (canCast(node.kind)) {
-            PropDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PropDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -1993,7 +2282,14 @@ public struct PropDecl <: AstNode<SyntaxKind, PropDecl> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct InitDecl <:
+    AstNode<SyntaxKind, InitDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     InitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2001,11 +2297,7 @@ public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & HasModifiers & HasAnno
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?InitDecl {
-        if (canCast(node.kind)) {
-            InitDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { InitDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2055,7 +2347,14 @@ public struct InitDecl <: AstNode<SyntaxKind, InitDecl> & HasModifiers & HasAnno
  * `~init`
  */
 @Derive[Equatable, Hashable]
-public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct FinalizerDecl <:
+    AstNode<SyntaxKind, FinalizerDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     FinalizerDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2063,11 +2362,7 @@ public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & HasModifiers
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?FinalizerDecl {
-        if (canCast(node.kind)) {
-            FinalizerDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { FinalizerDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2121,7 +2416,15 @@ public struct FinalizerDecl <: AstNode<SyntaxKind, FinalizerDecl> & HasModifiers
  * a primary constructor, named as its type
  */
 @Derive[Equatable, Hashable]
-public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & HasName & HasModifiers & HasAnnotations & HasTypeParams & HasWhereClause & HasDocComment & ToString {
+public struct PrimaryInitDecl <:
+    AstNode<SyntaxKind, PrimaryInitDecl> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasTypeParams &
+    HasWhereClause &
+    HasDocComment &
+    ToString {
     PrimaryInitDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2129,11 +2432,7 @@ public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & HasName 
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PrimaryInitDecl {
-        if (canCast(node.kind)) {
-            PrimaryInitDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PrimaryInitDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2180,7 +2479,13 @@ public struct PrimaryInitDecl <: AstNode<SyntaxKind, PrimaryInitDecl> & HasName 
 }
 
 @Derive[Equatable, Hashable]
-public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct EnumCtor <:
+    AstNode<SyntaxKind, EnumCtor> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     EnumCtor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2188,11 +2493,7 @@ public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & HasName & HasModifiers
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?EnumCtor {
-        if (canCast(node.kind)) {
-            EnumCtor(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { EnumCtor(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2239,7 +2540,12 @@ public struct EnumCtor <: AstNode<SyntaxKind, EnumCtor> & HasName & HasModifiers
 }
 
 @Derive[Equatable, Hashable]
-public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct ForeignBlock <:
+    AstNode<SyntaxKind, ForeignBlock> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     ForeignBlock(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2247,11 +2553,7 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & HasModifiers &
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ForeignBlock {
-        if (canCast(node.kind)) {
-            ForeignBlock(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ForeignBlock(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2297,7 +2599,12 @@ public struct ForeignBlock <: AstNode<SyntaxKind, ForeignBlock> & HasModifiers &
  * a macro call on a declaration
  */
 @Derive[Equatable, Hashable]
-public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct MacroExpandDecl <:
+    AstNode<SyntaxKind, MacroExpandDecl> &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     MacroExpandDecl(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2305,11 +2612,7 @@ public struct MacroExpandDecl <: AstNode<SyntaxKind, MacroExpandDecl> & HasModif
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MacroExpandDecl {
-        if (canCast(node.kind)) {
-            MacroExpandDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MacroExpandDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2379,11 +2682,7 @@ public struct DeclBody <: AstNode<SyntaxKind, DeclBody> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?DeclBody {
-        if (canCast(node.kind)) {
-            DeclBody(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { DeclBody(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2426,11 +2725,7 @@ public struct EnumBody <: AstNode<SyntaxKind, EnumBody> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?EnumBody {
-        if (canCast(node.kind)) {
-            EnumBody(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { EnumBody(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2489,11 +2784,7 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PropBody {
-        if (canCast(node.kind)) {
-            PropBody(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PropBody(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2531,7 +2822,11 @@ public struct PropBody <: AstNode<SyntaxKind, PropBody> & ToString {
  * `get()` or `set(v)` in a property
  */
 @Derive[Equatable, Hashable]
-public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & HasModifiers & HasAnnotations & ToString {
+public struct PropAccessor <:
+    AstNode<SyntaxKind, PropAccessor> &
+    HasModifiers &
+    HasAnnotations &
+    ToString {
     PropAccessor(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2539,11 +2834,7 @@ public struct PropAccessor <: AstNode<SyntaxKind, PropAccessor> & HasModifiers &
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PropAccessor {
-        if (canCast(node.kind)) {
-            PropAccessor(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PropAccessor(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2586,11 +2877,7 @@ public struct TypeParamList <: AstNode<SyntaxKind, TypeParamList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypeParamList {
-        if (canCast(node.kind)) {
-            TypeParamList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypeParamList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2633,11 +2920,7 @@ public struct TypeParam <: AstNode<SyntaxKind, TypeParam> & HasName & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypeParam {
-        if (canCast(node.kind)) {
-            TypeParam(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypeParam(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2664,11 +2947,7 @@ public struct WhereClause <: AstNode<SyntaxKind, WhereClause> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?WhereClause {
-        if (canCast(node.kind)) {
-            WhereClause(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { WhereClause(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2707,11 +2986,7 @@ public struct GenericConstraint <: AstNode<SyntaxKind, GenericConstraint> & ToSt
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?GenericConstraint {
-        if (canCast(node.kind)) {
-            GenericConstraint(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { GenericConstraint(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2745,11 +3020,7 @@ public struct TypeBoundList <: AstNode<SyntaxKind, TypeBoundList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypeBoundList {
-        if (canCast(node.kind)) {
-            TypeBoundList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypeBoundList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2788,11 +3059,7 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ParamList {
-        if (canCast(node.kind)) {
-            ParamList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ParamList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2831,7 +3098,13 @@ public struct ParamList <: AstNode<SyntaxKind, ParamList> & ToString {
 }
 
 @Derive[Equatable, Hashable]
-public struct Param <: AstNode<SyntaxKind, Param> & HasName & HasModifiers & HasAnnotations & HasDocComment & ToString {
+public struct Param <:
+    AstNode<SyntaxKind, Param> &
+    HasName &
+    HasModifiers &
+    HasAnnotations &
+    HasDocComment &
+    ToString {
     Param(let node: SyntaxNode<SyntaxKind>) {}
 
     public static func canCast(kind: SyntaxKind): Bool {
@@ -2839,11 +3112,7 @@ public struct Param <: AstNode<SyntaxKind, Param> & HasName & HasModifiers & Has
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Param {
-        if (canCast(node.kind)) {
-            Param(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Param(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2914,11 +3183,7 @@ public struct RetType <: AstNode<SyntaxKind, RetType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?RetType {
-        if (canCast(node.kind)) {
-            RetType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { RetType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2949,11 +3214,7 @@ public struct Block <: AstNode<SyntaxKind, Block> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Block {
-        if (canCast(node.kind)) {
-            Block(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Block(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -2993,21 +3254,64 @@ public enum Stmt <: AstNode<SyntaxKind, Stmt> & Equatable<Stmt> & Hashable & ToS
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.FuncDecl | SyntaxKind.MainDecl | SyntaxKind.MacroDecl | SyntaxKind.ClassDecl
-                | SyntaxKind.InterfaceDecl | SyntaxKind.StructDecl | SyntaxKind.EnumDecl | SyntaxKind.ExtendDecl
-                | SyntaxKind.TypeAliasDecl | SyntaxKind.VarDecl | SyntaxKind.PropDecl | SyntaxKind.InitDecl
-                | SyntaxKind.FinalizerDecl | SyntaxKind.PrimaryInitDecl | SyntaxKind.EnumCtor | SyntaxKind.ForeignBlock
-                | SyntaxKind.MacroExpandDecl | SyntaxKind.Literal | SyntaxKind.StringLit | SyntaxKind.RefExpr
-                | SyntaxKind.MemberAccessExpr | SyntaxKind.CallExpr | SyntaxKind.TrailingLambdaExpr
-                | SyntaxKind.IndexExpr | SyntaxKind.OptionalExpr | SyntaxKind.UnaryExpr | SyntaxKind.BinExpr
-                | SyntaxKind.IsExpr | SyntaxKind.AsExpr | SyntaxKind.RangeExpr | SyntaxKind.PostfixExpr
-                | SyntaxKind.ParenExpr | SyntaxKind.TupleExpr | SyntaxKind.ArrayExpr | SyntaxKind.UnitExpr
-                | SyntaxKind.IfExpr | SyntaxKind.LetExpr | SyntaxKind.MatchExpr | SyntaxKind.TryExpr
-                | SyntaxKind.ForInExpr | SyntaxKind.WhileExpr | SyntaxKind.DoWhileExpr | SyntaxKind.ThrowExpr
-                | SyntaxKind.ReturnExpr | SyntaxKind.BreakExpr | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr
-                | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr
-                | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr
-                | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr | SyntaxKind.MacroExpandExpr => true
+            case SyntaxKind.FuncDecl |
+                SyntaxKind.MainDecl |
+                SyntaxKind.MacroDecl |
+                SyntaxKind.ClassDecl |
+                SyntaxKind.InterfaceDecl |
+                SyntaxKind.StructDecl |
+                SyntaxKind.EnumDecl |
+                SyntaxKind.ExtendDecl |
+                SyntaxKind.TypeAliasDecl |
+                SyntaxKind.VarDecl |
+                SyntaxKind.PropDecl |
+                SyntaxKind.InitDecl |
+                SyntaxKind.FinalizerDecl |
+                SyntaxKind.PrimaryInitDecl |
+                SyntaxKind.EnumCtor |
+                SyntaxKind.ForeignBlock |
+                SyntaxKind.MacroExpandDecl |
+                SyntaxKind.Literal |
+                SyntaxKind.StringLit |
+                SyntaxKind.RefExpr |
+                SyntaxKind.MemberAccessExpr |
+                SyntaxKind.CallExpr |
+                SyntaxKind.TrailingLambdaExpr |
+                SyntaxKind.IndexExpr |
+                SyntaxKind.OptionalExpr |
+                SyntaxKind.UnaryExpr |
+                SyntaxKind.BinExpr |
+                SyntaxKind.IsExpr |
+                SyntaxKind.AsExpr |
+                SyntaxKind.RangeExpr |
+                SyntaxKind.PostfixExpr |
+                SyntaxKind.ParenExpr |
+                SyntaxKind.TupleExpr |
+                SyntaxKind.ArrayExpr |
+                SyntaxKind.UnitExpr |
+                SyntaxKind.IfExpr |
+                SyntaxKind.LetExpr |
+                SyntaxKind.MatchExpr |
+                SyntaxKind.TryExpr |
+                SyntaxKind.ForInExpr |
+                SyntaxKind.WhileExpr |
+                SyntaxKind.DoWhileExpr |
+                SyntaxKind.ThrowExpr |
+                SyntaxKind.ReturnExpr |
+                SyntaxKind.BreakExpr |
+                SyntaxKind.ContinueExpr |
+                SyntaxKind.SpawnExpr |
+                SyntaxKind.SynchronizedExpr |
+                SyntaxKind.UnsafeExpr |
+                SyntaxKind.LambdaExpr |
+                SyntaxKind.ThisExpr |
+                SyntaxKind.SuperExpr |
+                SyntaxKind.WildcardExpr |
+                SyntaxKind.TypeConvExpr |
+                SyntaxKind.PrimTypeExpr |
+                SyntaxKind.VArrayExpr |
+                SyntaxKind.QuoteExpr |
+                SyntaxKind.MacroExpandExpr => true
             case _ => false
         }
     }
@@ -3060,8 +3364,14 @@ public enum Type <: AstNode<SyntaxKind, Type> & Equatable<Type> & Hashable & ToS
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.PathType | SyntaxKind.PrimType | SyntaxKind.TupleType | SyntaxKind.ParenType
-                | SyntaxKind.FuncType | SyntaxKind.OptionType | SyntaxKind.ThisType | SyntaxKind.VArrayType => true
+            case SyntaxKind.PathType |
+                SyntaxKind.PrimType |
+                SyntaxKind.TupleType |
+                SyntaxKind.ParenType |
+                SyntaxKind.FuncType |
+                SyntaxKind.OptionType |
+                SyntaxKind.ThisType |
+                SyntaxKind.VArrayType => true
             case _ => false
         }
     }
@@ -3121,11 +3431,7 @@ public struct PathType <: AstNode<SyntaxKind, PathType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PathType {
-        if (canCast(node.kind)) {
-            PathType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PathType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3160,11 +3466,7 @@ public struct PathSegment <: AstNode<SyntaxKind, PathSegment> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PathSegment {
-        if (canCast(node.kind)) {
-            PathSegment(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PathSegment(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3195,11 +3497,7 @@ public struct PrimType <: AstNode<SyntaxKind, PrimType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PrimType {
-        if (canCast(node.kind)) {
-            PrimType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PrimType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3226,11 +3524,7 @@ public struct TupleType <: AstNode<SyntaxKind, TupleType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TupleType {
-        if (canCast(node.kind)) {
-            TupleType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TupleType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3280,11 +3574,7 @@ public struct NamedType <: AstNode<SyntaxKind, NamedType> & HasName & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?NamedType {
-        if (canCast(node.kind)) {
-            NamedType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { NamedType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3319,11 +3609,7 @@ public struct ParenType <: AstNode<SyntaxKind, ParenType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ParenType {
-        if (canCast(node.kind)) {
-            ParenType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ParenType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3366,11 +3652,7 @@ public struct FuncType <: AstNode<SyntaxKind, FuncType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?FuncType {
-        if (canCast(node.kind)) {
-            FuncType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { FuncType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3425,11 +3707,7 @@ public struct OptionType <: AstNode<SyntaxKind, OptionType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?OptionType {
-        if (canCast(node.kind)) {
-            OptionType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { OptionType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3460,11 +3738,7 @@ public struct ThisType <: AstNode<SyntaxKind, ThisType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ThisType {
-        if (canCast(node.kind)) {
-            ThisType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ThisType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3491,11 +3765,7 @@ public struct VArrayType <: AstNode<SyntaxKind, VArrayType> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?VArrayType {
-        if (canCast(node.kind)) {
-            VArrayType(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { VArrayType(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3546,11 +3816,7 @@ public struct TypeArgList <: AstNode<SyntaxKind, TypeArgList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypeArgList {
-        if (canCast(node.kind)) {
-            TypeArgList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypeArgList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3594,8 +3860,12 @@ public enum Pattern <: AstNode<SyntaxKind, Pattern> & Equatable<Pattern> & Hasha
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.WildcardPat | SyntaxKind.LiteralPat | SyntaxKind.BindPat | SyntaxKind.TypePat
-                | SyntaxKind.TuplePat | SyntaxKind.EnumPat => true
+            case SyntaxKind.WildcardPat |
+                SyntaxKind.LiteralPat |
+                SyntaxKind.BindPat |
+                SyntaxKind.TypePat |
+                SyntaxKind.TuplePat |
+                SyntaxKind.EnumPat => true
             case _ => false
         }
     }
@@ -3651,11 +3921,7 @@ public struct WildcardPat <: AstNode<SyntaxKind, WildcardPat> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?WildcardPat {
-        if (canCast(node.kind)) {
-            WildcardPat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { WildcardPat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3682,11 +3948,7 @@ public struct LiteralPat <: AstNode<SyntaxKind, LiteralPat> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?LiteralPat {
-        if (canCast(node.kind)) {
-            LiteralPat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { LiteralPat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3732,11 +3994,7 @@ public struct BindPat <: AstNode<SyntaxKind, BindPat> & HasName & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?BindPat {
-        if (canCast(node.kind)) {
-            BindPat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { BindPat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3763,11 +4021,7 @@ public struct TypePat <: AstNode<SyntaxKind, TypePat> & HasName & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypePat {
-        if (canCast(node.kind)) {
-            TypePat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypePat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3806,11 +4060,7 @@ public struct TuplePat <: AstNode<SyntaxKind, TuplePat> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TuplePat {
-        if (canCast(node.kind)) {
-            TuplePat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TuplePat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3853,11 +4103,7 @@ public struct EnumPat <: AstNode<SyntaxKind, EnumPat> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?EnumPat {
-        if (canCast(node.kind)) {
-            EnumPat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { EnumPat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -3912,11 +4158,7 @@ public struct CatchPat <: AstNode<SyntaxKind, CatchPat> & HasName & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?CatchPat {
-        if (canCast(node.kind)) {
-            CatchPat(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { CatchPat(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4004,17 +4246,48 @@ public enum Expr <: AstNode<SyntaxKind, Expr> & Equatable<Expr> & Hashable & ToS
 
     public static func canCast(kind: SyntaxKind): Bool {
         match (kind) {
-            case SyntaxKind.Literal | SyntaxKind.StringLit | SyntaxKind.RefExpr | SyntaxKind.MemberAccessExpr
-                | SyntaxKind.CallExpr | SyntaxKind.TrailingLambdaExpr | SyntaxKind.IndexExpr | SyntaxKind.OptionalExpr
-                | SyntaxKind.UnaryExpr | SyntaxKind.BinExpr | SyntaxKind.IsExpr | SyntaxKind.AsExpr
-                | SyntaxKind.RangeExpr | SyntaxKind.PostfixExpr | SyntaxKind.ParenExpr | SyntaxKind.TupleExpr
-                | SyntaxKind.ArrayExpr | SyntaxKind.UnitExpr | SyntaxKind.IfExpr | SyntaxKind.LetExpr
-                | SyntaxKind.MatchExpr | SyntaxKind.TryExpr | SyntaxKind.ForInExpr | SyntaxKind.WhileExpr
-                | SyntaxKind.DoWhileExpr | SyntaxKind.ThrowExpr | SyntaxKind.ReturnExpr | SyntaxKind.BreakExpr
-                | SyntaxKind.ContinueExpr | SyntaxKind.SpawnExpr | SyntaxKind.SynchronizedExpr | SyntaxKind.UnsafeExpr
-                | SyntaxKind.LambdaExpr | SyntaxKind.ThisExpr | SyntaxKind.SuperExpr | SyntaxKind.WildcardExpr
-                | SyntaxKind.TypeConvExpr | SyntaxKind.PrimTypeExpr | SyntaxKind.VArrayExpr | SyntaxKind.QuoteExpr
-                | SyntaxKind.MacroExpandExpr | SyntaxKind.MacroExpandDecl => true
+            case SyntaxKind.Literal |
+                SyntaxKind.StringLit |
+                SyntaxKind.RefExpr |
+                SyntaxKind.MemberAccessExpr |
+                SyntaxKind.CallExpr |
+                SyntaxKind.TrailingLambdaExpr |
+                SyntaxKind.IndexExpr |
+                SyntaxKind.OptionalExpr |
+                SyntaxKind.UnaryExpr |
+                SyntaxKind.BinExpr |
+                SyntaxKind.IsExpr |
+                SyntaxKind.AsExpr |
+                SyntaxKind.RangeExpr |
+                SyntaxKind.PostfixExpr |
+                SyntaxKind.ParenExpr |
+                SyntaxKind.TupleExpr |
+                SyntaxKind.ArrayExpr |
+                SyntaxKind.UnitExpr |
+                SyntaxKind.IfExpr |
+                SyntaxKind.LetExpr |
+                SyntaxKind.MatchExpr |
+                SyntaxKind.TryExpr |
+                SyntaxKind.ForInExpr |
+                SyntaxKind.WhileExpr |
+                SyntaxKind.DoWhileExpr |
+                SyntaxKind.ThrowExpr |
+                SyntaxKind.ReturnExpr |
+                SyntaxKind.BreakExpr |
+                SyntaxKind.ContinueExpr |
+                SyntaxKind.SpawnExpr |
+                SyntaxKind.SynchronizedExpr |
+                SyntaxKind.UnsafeExpr |
+                SyntaxKind.LambdaExpr |
+                SyntaxKind.ThisExpr |
+                SyntaxKind.SuperExpr |
+                SyntaxKind.WildcardExpr |
+                SyntaxKind.TypeConvExpr |
+                SyntaxKind.PrimTypeExpr |
+                SyntaxKind.VArrayExpr |
+                SyntaxKind.QuoteExpr |
+                SyntaxKind.MacroExpandExpr |
+                SyntaxKind.MacroExpandDecl => true
             case _ => false
         }
     }
@@ -4142,11 +4415,7 @@ public struct Literal <: AstNode<SyntaxKind, Literal> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Literal {
-        if (canCast(node.kind)) {
-            Literal(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Literal(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4173,11 +4442,7 @@ public struct StringLit <: AstNode<SyntaxKind, StringLit> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?StringLit {
-        if (canCast(node.kind)) {
-            StringLit(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { StringLit(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4220,11 +4485,7 @@ public struct Interpolation <: AstNode<SyntaxKind, Interpolation> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Interpolation {
-        if (canCast(node.kind)) {
-            Interpolation(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Interpolation(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4267,11 +4528,7 @@ public struct RefExpr <: AstNode<SyntaxKind, RefExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?RefExpr {
-        if (canCast(node.kind)) {
-            RefExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { RefExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4302,11 +4559,7 @@ public struct MemberAccessExpr <: AstNode<SyntaxKind, MemberAccessExpr> & ToStri
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MemberAccessExpr {
-        if (canCast(node.kind)) {
-            MemberAccessExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MemberAccessExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4345,11 +4598,7 @@ public struct CallExpr <: AstNode<SyntaxKind, CallExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?CallExpr {
-        if (canCast(node.kind)) {
-            CallExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { CallExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4380,11 +4629,7 @@ public struct ArgList <: AstNode<SyntaxKind, ArgList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ArgList {
-        if (canCast(node.kind)) {
-            ArgList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ArgList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4427,11 +4672,7 @@ public struct Arg <: AstNode<SyntaxKind, Arg> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Arg {
-        if (canCast(node.kind)) {
-            Arg(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Arg(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4470,11 +4711,7 @@ public struct TrailingLambdaExpr <: AstNode<SyntaxKind, TrailingLambdaExpr> & To
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TrailingLambdaExpr {
-        if (canCast(node.kind)) {
-            TrailingLambdaExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TrailingLambdaExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4505,11 +4742,7 @@ public struct IndexExpr <: AstNode<SyntaxKind, IndexExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?IndexExpr {
-        if (canCast(node.kind)) {
-            IndexExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { IndexExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4559,11 +4792,7 @@ public struct OptionalExpr <: AstNode<SyntaxKind, OptionalExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?OptionalExpr {
-        if (canCast(node.kind)) {
-            OptionalExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { OptionalExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4594,11 +4823,7 @@ public struct UnaryExpr <: AstNode<SyntaxKind, UnaryExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?UnaryExpr {
-        if (canCast(node.kind)) {
-            UnaryExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { UnaryExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4632,11 +4857,7 @@ public struct BinExpr <: AstNode<SyntaxKind, BinExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?BinExpr {
-        if (canCast(node.kind)) {
-            BinExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { BinExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4671,11 +4892,7 @@ public struct IsExpr <: AstNode<SyntaxKind, IsExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?IsExpr {
-        if (canCast(node.kind)) {
-            IsExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { IsExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4710,11 +4927,7 @@ public struct AsExpr <: AstNode<SyntaxKind, AsExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?AsExpr {
-        if (canCast(node.kind)) {
-            AsExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { AsExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4752,11 +4965,7 @@ public struct RangeExpr <: AstNode<SyntaxKind, RangeExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?RangeExpr {
-        if (canCast(node.kind)) {
-            RangeExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { RangeExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4802,11 +5011,7 @@ public struct PostfixExpr <: AstNode<SyntaxKind, PostfixExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PostfixExpr {
-        if (canCast(node.kind)) {
-            PostfixExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PostfixExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4837,11 +5042,7 @@ public struct ParenExpr <: AstNode<SyntaxKind, ParenExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ParenExpr {
-        if (canCast(node.kind)) {
-            ParenExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ParenExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4876,11 +5077,7 @@ public struct TupleExpr <: AstNode<SyntaxKind, TupleExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TupleExpr {
-        if (canCast(node.kind)) {
-            TupleExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TupleExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4923,11 +5120,7 @@ public struct ArrayExpr <: AstNode<SyntaxKind, ArrayExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ArrayExpr {
-        if (canCast(node.kind)) {
-            ArrayExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ArrayExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -4970,11 +5163,7 @@ public struct UnitExpr <: AstNode<SyntaxKind, UnitExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?UnitExpr {
-        if (canCast(node.kind)) {
-            UnitExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { UnitExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5005,11 +5194,7 @@ public struct IfExpr <: AstNode<SyntaxKind, IfExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?IfExpr {
-        if (canCast(node.kind)) {
-            IfExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { IfExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5067,11 +5252,7 @@ public struct LetExpr <: AstNode<SyntaxKind, LetExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?LetExpr {
-        if (canCast(node.kind)) {
-            LetExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { LetExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5118,11 +5299,7 @@ public struct MatchExpr <: AstNode<SyntaxKind, MatchExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MatchExpr {
-        if (canCast(node.kind)) {
-            MatchExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MatchExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5165,11 +5342,7 @@ public struct MatchBody <: AstNode<SyntaxKind, MatchBody> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MatchBody {
-        if (canCast(node.kind)) {
-            MatchBody(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MatchBody(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5212,11 +5385,7 @@ public struct MatchCase <: AstNode<SyntaxKind, MatchCase> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MatchCase {
-        if (canCast(node.kind)) {
-            MatchCase(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MatchCase(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5282,11 +5451,7 @@ public struct Guard <: AstNode<SyntaxKind, Guard> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?Guard {
-        if (canCast(node.kind)) {
-            Guard(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { Guard(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5317,11 +5482,7 @@ public struct TryExpr <: AstNode<SyntaxKind, TryExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TryExpr {
-        if (canCast(node.kind)) {
-            TryExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TryExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5364,11 +5525,7 @@ public struct ResourceList <: AstNode<SyntaxKind, ResourceList> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ResourceList {
-        if (canCast(node.kind)) {
-            ResourceList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ResourceList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5414,11 +5571,7 @@ public struct ResourceDecl <: AstNode<SyntaxKind, ResourceDecl> & HasName & ToSt
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ResourceDecl {
-        if (canCast(node.kind)) {
-            ResourceDecl(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ResourceDecl(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5461,11 +5614,7 @@ public struct CatchClause <: AstNode<SyntaxKind, CatchClause> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?CatchClause {
-        if (canCast(node.kind)) {
-            CatchClause(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { CatchClause(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5508,11 +5657,7 @@ public struct FinallyClause <: AstNode<SyntaxKind, FinallyClause> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?FinallyClause {
-        if (canCast(node.kind)) {
-            FinallyClause(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { FinallyClause(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5543,11 +5688,7 @@ public struct ForInExpr <: AstNode<SyntaxKind, ForInExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ForInExpr {
-        if (canCast(node.kind)) {
-            ForInExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ForInExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5602,11 +5743,7 @@ public struct WhileExpr <: AstNode<SyntaxKind, WhileExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?WhileExpr {
-        if (canCast(node.kind)) {
-            WhileExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { WhileExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5649,11 +5786,7 @@ public struct DoWhileExpr <: AstNode<SyntaxKind, DoWhileExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?DoWhileExpr {
-        if (canCast(node.kind)) {
-            DoWhileExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { DoWhileExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5700,11 +5833,7 @@ public struct ThrowExpr <: AstNode<SyntaxKind, ThrowExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ThrowExpr {
-        if (canCast(node.kind)) {
-            ThrowExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ThrowExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5735,11 +5864,7 @@ public struct ReturnExpr <: AstNode<SyntaxKind, ReturnExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ReturnExpr {
-        if (canCast(node.kind)) {
-            ReturnExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ReturnExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5770,11 +5895,7 @@ public struct BreakExpr <: AstNode<SyntaxKind, BreakExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?BreakExpr {
-        if (canCast(node.kind)) {
-            BreakExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { BreakExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5801,11 +5922,7 @@ public struct ContinueExpr <: AstNode<SyntaxKind, ContinueExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ContinueExpr {
-        if (canCast(node.kind)) {
-            ContinueExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ContinueExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5835,11 +5952,7 @@ public struct SpawnExpr <: AstNode<SyntaxKind, SpawnExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?SpawnExpr {
-        if (canCast(node.kind)) {
-            SpawnExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { SpawnExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5878,11 +5991,7 @@ public struct SynchronizedExpr <: AstNode<SyntaxKind, SynchronizedExpr> & ToStri
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?SynchronizedExpr {
-        if (canCast(node.kind)) {
-            SynchronizedExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { SynchronizedExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5925,11 +6034,7 @@ public struct UnsafeExpr <: AstNode<SyntaxKind, UnsafeExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?UnsafeExpr {
-        if (canCast(node.kind)) {
-            UnsafeExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { UnsafeExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -5960,11 +6065,7 @@ public struct LambdaExpr <: AstNode<SyntaxKind, LambdaExpr> & HasAnnotations & T
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?LambdaExpr {
-        if (canCast(node.kind)) {
-            LambdaExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { LambdaExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6019,11 +6120,7 @@ public struct LambdaParamList <: AstNode<SyntaxKind, LambdaParamList> & ToString
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?LambdaParamList {
-        if (canCast(node.kind)) {
-            LambdaParamList(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { LambdaParamList(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6058,11 +6155,7 @@ public struct LambdaParam <: AstNode<SyntaxKind, LambdaParam> & HasName & ToStri
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?LambdaParam {
-        if (canCast(node.kind)) {
-            LambdaParam(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { LambdaParam(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6101,11 +6194,7 @@ public struct ThisExpr <: AstNode<SyntaxKind, ThisExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?ThisExpr {
-        if (canCast(node.kind)) {
-            ThisExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { ThisExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6132,11 +6221,7 @@ public struct SuperExpr <: AstNode<SyntaxKind, SuperExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?SuperExpr {
-        if (canCast(node.kind)) {
-            SuperExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { SuperExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6163,11 +6248,7 @@ public struct WildcardExpr <: AstNode<SyntaxKind, WildcardExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?WildcardExpr {
-        if (canCast(node.kind)) {
-            WildcardExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { WildcardExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6194,11 +6275,7 @@ public struct TypeConvExpr <: AstNode<SyntaxKind, TypeConvExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypeConvExpr {
-        if (canCast(node.kind)) {
-            TypeConvExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypeConvExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6240,11 +6317,7 @@ public struct PrimTypeExpr <: AstNode<SyntaxKind, PrimTypeExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?PrimTypeExpr {
-        if (canCast(node.kind)) {
-            PrimTypeExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { PrimTypeExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6271,11 +6344,7 @@ public struct VArrayExpr <: AstNode<SyntaxKind, VArrayExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?VArrayExpr {
-        if (canCast(node.kind)) {
-            VArrayExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { VArrayExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6306,11 +6375,7 @@ public struct QuoteExpr <: AstNode<SyntaxKind, QuoteExpr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?QuoteExpr {
-        if (canCast(node.kind)) {
-            QuoteExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { QuoteExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6352,11 +6417,7 @@ public struct QuoteInterpolation <: AstNode<SyntaxKind, QuoteInterpolation> & To
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?QuoteInterpolation {
-        if (canCast(node.kind)) {
-            QuoteInterpolation(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { QuoteInterpolation(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6399,11 +6460,7 @@ public struct MacroExpandExpr <: AstNode<SyntaxKind, MacroExpandExpr> & ToString
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MacroExpandExpr {
-        if (canCast(node.kind)) {
-            MacroExpandExpr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MacroExpandExpr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6461,11 +6518,7 @@ public struct MacroAttr <: AstNode<SyntaxKind, MacroAttr> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MacroAttr {
-        if (canCast(node.kind)) {
-            MacroAttr(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MacroAttr(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6519,11 +6572,7 @@ public struct DataArg <: AstNode<SyntaxKind, DataArg> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?DataArg {
-        if (canCast(node.kind)) {
-            DataArg(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { DataArg(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6561,11 +6610,7 @@ public struct TypesArg <: AstNode<SyntaxKind, TypesArg> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?TypesArg {
-        if (canCast(node.kind)) {
-            TypesArg(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { TypesArg(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {
@@ -6603,11 +6648,7 @@ public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & ToString {
     }
 
     public static func cast(node: SyntaxNode<SyntaxKind>): ?MacroArgs {
-        if (canCast(node.kind)) {
-            MacroArgs(node)
-        } else {
-            None
-        }
+        if (canCast(node.kind)) { MacroArgs(node) } else { None }
     }
 
     public prop syntax: SyntaxNode<SyntaxKind> {

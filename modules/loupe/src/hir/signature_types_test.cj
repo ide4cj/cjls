@@ -36,7 +36,13 @@ func checkSignatureTypes(fixture: String): Unit {
 /**
  * Adds the annotations of `item` and of its members to `actual`.
  */
-func annotate(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode, item: Item, actual: ArrayList<Annotation>): Unit {
+func annotate(
+    db: AnalysisDatabase,
+    source: SourceFile,
+    root: CjSyntaxNode,
+    item: Item,
+    actual: ArrayList<Annotation>
+): Unit {
     if (item.kind == ItemKind.Import || item.kind == ItemKind.MacroCall) {
         return
     }
@@ -46,20 +52,27 @@ func annotate(db: AnalysisDatabase, source: SourceFile, root: CjSyntaxNode, item
     let lowered = signatureWithSourceMap(db, def)
     let ptrs = lowered.sourceMap.ptrs
     // an `extend` has no name: the type it extends stands for it
-    let extended = lowered.signature.ty.flatMap {ty => ptrs.get(ty.index)}.flatMap {ptr => ptr}.flatMap {
-        ptr => ptr.tryToNode(root)
-    }.map {node => node.textRange}
+    let extended =
+        lowered
+            .signature
+            .ty
+            .flatMap { ty => ptrs.get(ty.index) }
+            .flatMap { ptr => ptr }
+            .flatMap { ptr => ptr.tryToNode(root) }
+            .map { node => node.textRange }
     if (let Some(node) <- itemIdMap(db, source).node(item.id, root)) {
-        let name = AnyHasName.cast(node).flatMap {it => it.name()}.map {it => it.syntax.textRange}
-        let range = if (item.kind == ItemKind.Extend) {
-            extended
-        } else {
-            name
-        } ?? node.firstToken().getOrThrow().textRange
+        let name =
+            AnyHasName.cast(node).flatMap { it => it.name() }.map { it => it.syntax.textRange }
+        let range =
+            if (item.kind == ItemKind.Extend) { extended } else { name } ??
+                node.firstToken().getOrThrow().textRange
         actual.add(Annotation(fileId, range, types.text(db, item.kind)))
     }
     for (error in types.errors) {
-        if (let Some(ptr) <- ptrs.get(error.at.index).flatMap {one => one} && let Some(node) <- ptr.tryToNode(root)) {
+        if (
+            let Some(ptr) <- ptrs.get(error.at.index).flatMap { one => one } &&
+                let Some(node) <- ptr.tryToNode(root)
+        ) {
             actual.add(Annotation(fileId, node.textRange, "error: ${error.message()}"))
         }
     }
@@ -88,16 +101,19 @@ func paramTyCount(db: AnalysisDatabase, def: DefId): Int64 {
 class SignatureTypesTest {
     @TestCase
     func aFunctionOfTypesOfTheLanguage() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             func f(a: Int64, b: (Bool, Rune), c: (Int64) -> Unit): Float64 { 1.0 }
             //   ^ (Int64, (Bool, Rune), (Int64) -> Unit) -> Float64
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func typesOfThePackageAndTheirArguments() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             class C<T> {}
             //    ^ C<T> <: Object
@@ -105,12 +121,14 @@ class SignatureTypesTest {
             //     ^ S
             func f(a: C<S>, b: C<C<Int64>>): Unit {}
             //   ^ (C<S>, C<C<Int64>>) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeOfAnotherPackageByItsQualifier() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class C<T> {}
@@ -120,22 +138,26 @@ class SignatureTypesTest {
             import m.a
             func f(x: a.C<Int64>): Unit {}
             //   ^ (C<Int64>) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anOptionTypeIsStdCoresOption() {
         // N58
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             func f(a: ?Int64, b: ??String): Unit {}
             //   ^ (Option<Int64>, Option<Option<String>>) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeItsSupertypesAndItsBounds() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             interface I<T> {}
             //        ^ I<T>
@@ -143,12 +165,14 @@ class SignatureTypesTest {
             //        ^ J
             open class C<T> <: I<T> & J where T <: J {}
             //         ^ C<T> <: Object & I<T> & J where T <: J
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theMembersOfAGenericType() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             class C<T> {
             //    ^ C<T> <: Object
@@ -169,12 +193,14 @@ class SignatureTypesTest {
                     }
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func theConstructorsOfAnEnum() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             enum E<T> {
             //   ^ E<T>
@@ -183,12 +209,14 @@ class SignatureTypesTest {
                 | B
             //    ^ E<T>
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anExtendItsTypeAndItsInterfaces() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             interface I {}
             //        ^ I
@@ -196,12 +224,14 @@ class SignatureTypesTest {
             //    ^ C<T> <: Object
             extend<T> C<T> <: I {}
             //        ^^^^ <T> C<T> <: I
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aTypeNotWrittenIsInferences() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             let x = 1
             //  ^ _
@@ -209,13 +239,15 @@ class SignatureTypesTest {
             //   ^ () -> _
                 1
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func typesWhoseSupertypesNameEachOtherAreNoCycle() {
         // A24
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             interface I<T> {}
             //        ^ I<T>
@@ -223,12 +255,14 @@ class SignatureTypesTest {
             //    ^ A <: Object & I<B>
             class B <: I<A> {}
             //    ^ B <: Object & I<A>
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasIsExpandedItsArgumentsSubstituted() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type P<T> = (T, T)
             //   ^ <T> = (T, T)
@@ -236,12 +270,14 @@ class SignatureTypesTest {
             //   ^ ((Int64, Int64)) -> (Bool, Bool)
                 (true, false)
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasOfAnAlias() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type A<T> = Array<T>
             //   ^ <T> = Array<T>
@@ -249,36 +285,42 @@ class SignatureTypesTest {
             //   ^ = Array<Int64>
             func f(b: B): Unit {}
             //   ^ (Array<Int64>) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasOfAParameterItDoesNotUse() {
         // cjc warns "type arg(s) Generics-T are not used"
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type U<T> = Int64
             //   ^ <T> = Int64
             func f(a: U<String>): Unit {}
             //   ^ (Int64) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasOfStdCore() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             func f(b: Byte): UInt {
             //   ^ (UInt8) -> UInt64
                 0
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCycleOfAliases() {
         // N92
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type X = Y
             //   ^ = {unknown}
@@ -288,13 +330,15 @@ class SignatureTypesTest {
             //       ^ error: type cycle detected: 'Y->X->Y'
             func f(x: X): Unit {}
             //   ^ ({unknown}) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCycleIsNamedPastTheAliasesOffIt() {
         // N92: `Byte` and `W` lead nowhere, the search goes on to `Y`
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type W = Int64
             //   ^ = Int64
@@ -304,13 +348,15 @@ class SignatureTypesTest {
             type Y = X
             //   ^ = {unknown}
             //       ^ error: type cycle detected: 'Y->X->Y'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasThatLeadsIntoACycleIsOnOne() {
         // N92: `Z` is on `X`'s cycle as well, though `X`'s is named by `Y`
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type X = (Y, Z)
             //   ^ = {unknown}
@@ -321,13 +367,15 @@ class SignatureTypesTest {
             type Z = X
             //   ^ = {unknown}
             //       ^ error: type cycle detected: 'Z->X->Z'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCycleThroughTheArgumentsOfAGenericAlias() {
         // N92: a path's arguments are searched before it
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type A<T> = (T, AX)
             //   ^ <T> = {unknown}
@@ -338,13 +386,15 @@ class SignatureTypesTest {
             type AY = AX
             //   ^^ = {unknown}
             //        ^^ error: type cycle detected: 'AY->AX->AY'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasOnACycleKeepsItsOtherErrors() {
         // N89, N92, N93
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type X = (Nope, X, Y)
             //   ^ = {unknown}
@@ -354,13 +404,15 @@ class SignatureTypesTest {
             type Y = X
             //   ^ = {unknown}
             //       ^ error: type cycle detected: 'Y->X->Y'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aNameThatIsNoType() {
         // N94: a constructor cjc counts as no name
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public func h(): Unit {}
@@ -382,13 +434,15 @@ class SignatureTypesTest {
             //                    ^ error: 'a' is not a type
             //                          ^^^ error: undeclared type name 'Red'
             //                                  ^^^ error: 'h' is not a type
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aPathOfSegmentsNotResolved() {
         // N89, N94, N95: each segment not resolved, up to the end
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             public class K {}
@@ -412,47 +466,55 @@ class SignatureTypesTest {
             //                                                          ^^^^^^^^ error: undeclared type name 'Nope'
             //                                                          ^^^^^^^^ error: undeclared type name 'Z'
             //                                                                       ^^^^^ error: undeclared type name 'Q'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aCFuncTakesOneTypeArgument() {
         // N96: cjc counts `CFunc`'s arguments before it asks for any
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             foreign func h(a: CFunc, b: CFunc<Int64, Int64>): Unit
             //           ^ ({unknown}, {unknown}) -> Unit
             //                ^^^^^ error: type argument's number does not match type parameter's number
             //                          ^^^^^^^^^^^^^^^^^^^ error: type argument's number does not match type parameter's number
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anAliasDoesNotSeeItsOwnName() {
         // N93: cjc says no more of `X` than of `Nope`
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             type X = Array<X>
             //   ^ = Array<{unknown}>
             //             ^ error: undeclared type name 'X'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func anUndeclaredType() {
         // N89
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             func f(a: Nope): Unit {}
             //   ^ ({unknown}) -> Unit
             //        ^^^^ error: undeclared type name 'Nope'
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aGenericTypeOfNoArguments() {
         // N90
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             class C<T> {}
             //    ^ C<T> <: Object
@@ -470,13 +532,15 @@ class SignatureTypesTest {
             extend C {}
             //     ^ C<{unknown}>
             //     ^ error: generic type should be used with type argument
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func tooManyOrTooFewTypeArguments() {
         // N91
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             class K {}
             //    ^ K <: Object
@@ -487,13 +551,15 @@ class SignatureTypesTest {
             //           ^^^^^^^^ error: type argument's number does not match type parameter's number
             //                        ^^^^^^^^ error: type argument's number does not match type parameter's number
             //                                     ^^^^^^^^ error: type argument's number does not match type parameter's number
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func thisIsTheReturnTypeOfAnInstanceFunctionOfAClass() {
         // N88
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             open class C {
             //         ^ C <: Object
@@ -502,13 +568,15 @@ class SignatureTypesTest {
                     this
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func thisAnywhereElseIsAnError() {
         // N88
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             interface I {
             //        ^ I
@@ -540,23 +608,28 @@ class SignatureTypesTest {
                     C()
                 }
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func typesOfTheCompilersOwn() {
-        checkSignatureTypes(#"
+        checkSignatureTypes(
+            #"
             package m
             func f(a: VArray<Int64, $2>, b: CPointer<Int8>, c: CString, d: CFunc<(Int64) -> Unit>): Unit {}
             //   ^ (VArray<Int64, $2>, CPointer<Int8>, CString, CFunc<(Int64) -> Unit>) -> Unit
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionsTypeParameterIsItsOwnNotItsTypes() {
         // N55
         // arrange
-        let (db, _, c) = declOf(#"
+        let (db, _, c) =
+            declOf(
+                #"
             package m
             class C<T> {
                 func f<T>(x: T): T {
@@ -566,8 +639,14 @@ class SignatureTypesTest {
                     x
                 }
             }
-            "#, "C")
-        let member = {name: String => DefId(db, c.file(db), named(itemOf(db, c).getOrThrow().members, name).id)}
+            "#,
+                "C"
+            )
+        let member =
+            {
+                name: String =>
+                DefId(db, c.file(db), named(itemOf(db, c).getOrThrow().members, name).id)
+            }
         let (f, g) = (member("f"), member("g"))
         // act
         let ofF = signatureTypes(db, f).params[0].kind(db)
@@ -580,11 +659,15 @@ class SignatureTypesTest {
     @TestCase
     func equalTypesAreOneId() {
         // arrange
-        let (db, _, f) = declOf(#"
+        let (db, _, f) =
+            declOf(
+                #"
             package m
             class C<T> {}
             func f(a: C<Int64>, b: C<Int64>, c: C<Bool>): Unit {}
-            "#, "f")
+            "#,
+                "f"
+            )
         // act
         let params = signatureTypes(db, f).params
         // assert
@@ -595,16 +678,22 @@ class SignatureTypesTest {
     @TestCase
     func anEditOfABodyLeavesTheSignatureTypesAndWhatReadThemAlone() {
         // arrange
-        let (db, source, f) = declOf(#"
+        let (db, source, f) =
+            declOf(
+                #"
             package m
             func f(a: Int64): Int64 {
                 a
             }
-            "#, "f")
+            "#,
+                "f"
+            )
         paramTyCount(db, f)
         let before = signatureTypesReaderRuns.load()
         // act
-        source.setText(db).to(Rope("package m\n\n// moved\nfunc f(a: Int64): Int64 {\n    a + 1\n}\n"))
+        source
+            .setText(db)
+            .to(Rope("package m\n\n// moved\nfunc f(a: Int64): Int64 {\n    a + 1\n}\n"))
         paramTyCount(db, f)
         // assert
         @Expect(signatureTypesReaderRuns.load(), before)
@@ -613,12 +702,16 @@ class SignatureTypesTest {
     @TestCase
     func anEditOfATypeRunsAgainWhatReadTheSignatureTypes() {
         // arrange
-        let (db, source, f) = declOf(#"
+        let (db, source, f) =
+            declOf(
+                #"
             package m
             func f(a: Int64): Int64 {
                 a
             }
-            "#, "f")
+            "#,
+                "f"
+            )
         paramTyCount(db, f)
         let before = signatureTypesReaderRuns.load()
         // act
@@ -639,9 +732,19 @@ class BinarySignatureTypesTest {
         // arrange
         let (db, core) = stdPackage("std.core")
         let option = exportOf(db, core, "Option")
-        let getOrThrow = DefId(db, option.file(db), itemOf(db, option).getOrThrow().members.iterator().filter {
-            member => member.names == ["getOrThrow"]
-        }.next().getOrThrow().id)
+        let getOrThrow =
+            DefId(
+                db,
+                option.file(db),
+                itemOf(db, option)
+                    .getOrThrow()
+                    .members
+                    .iterator()
+                    .filter { member => member.names == ["getOrThrow"] }
+                    .next()
+                    .getOrThrow()
+                    .id
+            )
         // act
         let ofOption = signatureTypes(db, option)
         let ofGetOrThrow = signatureTypes(db, getOrThrow)
@@ -667,9 +770,9 @@ class BinarySignatureTypesTest {
         // arrange
         let (db, core) = stdPackage("std.core")
         // act
-        let texts = (packageExports(db, core).names.get("println") ?? []).map {
-            def => signatureTypes(db, def.id).text(db, ItemKind.Func)
-        }
+        let texts =
+            (packageExports(db, core).names.get("println") ?? [])
+                .map { def => signatureTypes(db, def.id).text(db, ItemKind.Func) }
         // assert
         @Expect(texts.contains("(String) -> Unit"), true)
         @Expect(texts.contains("<T>(T) -> Unit where T <: ToString"), true)
@@ -694,7 +797,8 @@ class BinarySignatureTypesTest {
         // arrange: `String.toArray(): Array<Byte>`, `Byte` an alias in the `.cjo`'s types
         let (db, core) = stdPackage("std.core")
         let string = exportOf(db, core, "String")
-        let toArray = DefId(db, string.file(db), named(itemOf(db, string).getOrThrow().members, "toArray").id)
+        let toArray =
+            DefId(db, string.file(db), named(itemOf(db, string).getOrThrow().members, "toArray").id)
         // act
         let text = signatureTypes(db, toArray).text(db, ItemKind.Func)
         // assert
@@ -718,9 +822,9 @@ class BinarySignatureTypesTest {
         let (db, collection) = stdPackage("std.collection", others: ["std.core"])
         let hashMap = exportOf(db, collection, "HashMap")
         // act
-        let texts = (packageExtends(db, collection).get(ExtendedType.DeclType(hashMap)) ?? []).map {
-            def => signatureTypes(db, def).text(db, ItemKind.Extend)
-        }
+        let texts =
+            (packageExtends(db, collection).get(ExtendedType.DeclType(hashMap)) ?? [])
+                .map { def => signatureTypes(db, def).text(db, ItemKind.Extend) }
         // assert
         @Expect(texts.contains("<K, V> HashMap<K, V> <: Equatable<HashMap<K, V>> where V <: Equatable<V>"), true)
     }
@@ -730,11 +834,18 @@ class BinarySignatureTypesTest {
         // std.collection refers to std.core's Array, but std.core is unavailable here.
         let (db, collection) = stdPackage("std.collection")
         let list = exportOf(db, collection, "ArrayList")
-        let toArray = DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
-        let reason = signatureTypes(db, toArray).ty.map {ty => match (ty.kind(db)) {
-            case UnknownTy(why) => why.toString()
-            case _ => "not unknown"
-        }}
+        let toArray =
+            DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
+        let reason =
+            signatureTypes(db, toArray)
+                .ty
+                .map {
+                    ty =>
+                    match (ty.kind(db)) {
+                        case UnknownTy(why) => why.toString()
+                        case _ => "not unknown"
+                    }
+                }
         @Expect(reason, Some("binary type"))
     }
 
@@ -743,7 +854,8 @@ class BinarySignatureTypesTest {
         // arrange: `ArrayList.toArray` of std.collection, its `Array` std.core's
         let (db, collection) = stdPackage("std.collection", others: ["std.core"])
         let list = exportOf(db, collection, "ArrayList")
-        let toArray = DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
+        let toArray =
+            DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
         // act
         let text = signatureTypes(db, toArray).text(db, ItemKind.Func)
         // assert
@@ -755,7 +867,8 @@ class BinarySignatureTypesTest {
  * A database of the packages `name` and `others` of std, and the first.
  */
 func stdPackage(name: String, others!: Array<String> = []): (AnalysisDatabase, PackageRef) {
-    let reads: Array<CjoFileRead> = [name].concat(others).map {one => stdCjoRead(one, stdCjo(one))}
+    let reads: Array<CjoFileRead> =
+        [name].concat(others).map { one => stdCjoRead(one, stdCjo(one)) }
     let parsed = Fixture.parse("package m\n")
     let db = parsed.database(binaries: reads)
     let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()

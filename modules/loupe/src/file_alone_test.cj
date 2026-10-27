@@ -11,7 +11,8 @@ import std.unittest.testmacro.*
 class FileAloneTest {
     @TestCase
     func itsOwnNamesAndAnImportedPackageOfStdAreTypedAndNoneOfTheProjects() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /src/app.cj
             public func rootFn(): Int64 { 1 }
             //- /scripts/x.cj root=/scripts/x.cj
@@ -31,12 +32,15 @@ class FileAloneTest {
             //                  ^^^^^^^^^ error: mismatched types: expected 'String', found 'Int64'
                 let c: String = rootFn()
             }
-            "#, binaries: ["std.core", "std.collection"])
+            "#,
+            binaries: ["std.core", "std.collection"]
+        )
     }
 
     @TestCase
     func aFunctionOfTheProjectGoesNowhere() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /src/app.cj
             public func rootFn(): Int64 { 1 }
             //- /scripts/x.cj root=/scripts/x.cj
@@ -44,12 +48,14 @@ class FileAloneTest {
                 let local = root$0Fn()
             //              ^^^^^^^^ no definition
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFunctionOfItsOwnIsTheOneItGoesToWhereTheProjectHasOneOfItsName() {
-        checkDefinition(#"
+        checkDefinition(
+            #"
             //- /src/app.cj
             public func own(): Int64 { 1 }
             //- /scripts/x.cj root=/scripts/x.cj
@@ -58,12 +64,14 @@ class FileAloneTest {
             main() {
                 let local = own$0()
             }
-            "#)
+            "#
+        )
     }
 
     @TestCase
     func aFileAloneOfAModulesNameLeavesThatModuleItsDeps() {
-        checkDiagnostics(#"
+        checkDiagnostics(
+            #"
             //- /lib/lib.cj module=lib package=lib
             package lib
             public func helper(): Int64 { 1 }
@@ -78,6 +86,8 @@ class FileAloneTest {
             //- /x.cj module=app package=app.x root=/x.cj
             package app.x
             func g(): Int64 { 1 }
-            "#, binaries: ["std.core"])
+            "#,
+            binaries: ["std.core"]
+        )
     }
 }

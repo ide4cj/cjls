@@ -99,7 +99,8 @@ struct Dependency {
         match (edge.changedAfter(revision, runtime.revision)) {
             case EdgeChanged => true
             case EdgeUnchanged => false
-            case EdgeUnknown => runtime.ingredientAt(key.ingredient).maybeChangedAfter(db, key.id, revision)
+            case EdgeUnknown =>
+                runtime.ingredientAt(key.ingredient).maybeChangedAfter(db, key.id, revision)
         }
     }
 }
@@ -118,7 +119,7 @@ class Runtime {
     /**
      * For every durability, the last revision in which an input of at least that durability changed.
      */
-    private let lastChanged = Array<AtomicInt64>(DURABILITIES, {_ => AtomicInt64(FIRST_REVISION)})
+    private let lastChanged = Array<AtomicInt64>(DURABILITIES, { _ => AtomicInt64(FIRST_REVISION) })
 
     /**
      * Copied on write, so the lookup every query makes takes no lock.
@@ -184,19 +185,27 @@ class Runtime {
 
     @Frozen
     func ingredient<I>(index: Int64, create: () -> I): I where I <: Ingredient {
-        let found = match (lookup(index)) {
-            case Some(ingredient) => ingredient
-            case None => synchronized(tableLock) {
-                match (lookup(index)) {
-                    case Some(ingredient) => ingredient
-                    case None =>
-                        let created = create()
-                        register(index, created)
-                        created
-                }
+        let found =
+            match (lookup(index)) {
+                case Some(ingredient) => ingredient
+                case None =>
+                    synchronized (tableLock) {
+                        match (lookup(index)) {
+                            case Some(ingredient) => ingredient
+                            case None =>
+                                let created = create()
+                                register(index, created)
+                                created
+                        }
+                    }
             }
-        }
-        (found as I).getOrThrow {=> IllegalStateException("ingredient ${index} is ${found.describe(Id(0))}'s, of another type")}
+        (found as I)
+            .getOrThrow {
+                =>
+                IllegalStateException(
+                    "ingredient ${index} is ${found.describe(Id(0))}'s, of another type"
+                )
+            }
     }
 
     /**
@@ -219,7 +228,8 @@ class Runtime {
     }
 
     func ingredientAt(index: Int64): Ingredient {
-        lookup(index).getOrThrow {=> IllegalStateException("no ingredient ${index} in this database")}
+        lookup(index)
+            .getOrThrow { => IllegalStateException("no ingredient ${index} in this database") }
     }
 
     @Frozen
@@ -229,7 +239,8 @@ class Runtime {
 
     private func register(index: Int64, ingredient: Ingredient): Unit {
         let entries = table.load().entries
-        let grown = Array<?Ingredient>(max(entries.size, index + 1), {i => entries.get(i) ?? None})
+        let grown =
+            Array<?Ingredient>(max(entries.size, index + 1), { i => entries.get(i) ?? None })
         grown[index] = ingredient
         table.store(IngredientTable(grown))
     }
@@ -260,7 +271,7 @@ class Runtime {
                 throw CancelledException()
             }
             // the root handle waits for the write to end, and reads the revision it opens
-            synchronized(gate) {}
+            synchronized (gate) {}
         }
     }
 
@@ -268,7 +279,7 @@ class Runtime {
     func endRead(): Unit {
         if (inFlight.fetchSub(1) == 1 && writePending.load()) {
             // the write looks at the count under the same lock, so it cannot miss this
-            synchronized(drainLock) {
+            synchronized (drainLock) {
                 drained.notifyAll()
             }
         }
@@ -284,10 +295,10 @@ class Runtime {
      * interned, while the revision aged the interned values.
      */
     func write<T>(change: (Int64) -> T): T {
-        synchronized(gate) {
+        synchronized (gate) {
             writePending.store(true)
             try {
-                synchronized(drainLock) {
+                synchronized (drainLock) {
                     while (inFlight.load() > 0) {
                         drained.wait()
                     }
@@ -340,7 +351,7 @@ class Runtime {
      * @throws GiveWayException - if `owner` waits, through others or not, for `waiter`
      */
     func startWaiting(waiter: Int64, owner: Int64, key: DatabaseKey): Unit {
-        synchronized(waitLock) {
+        synchronized (waitLock) {
             if (let Some((known, awaited)) <- waitsFor.get(waiter)) {
                 if (known == owner && awaited == key) {
                     return
@@ -362,7 +373,7 @@ class Runtime {
     }
 
     func stopWaiting(waiter: Int64): Unit {
-        synchronized(waitLock) {
+        synchronized (waitLock) {
             waitsFor.remove(waiter)
         }
     }
@@ -372,7 +383,7 @@ class Runtime {
      * has woken to see it.
      */
     func released(key: DatabaseKey): Unit {
-        synchronized(waitLock) {
+        synchronized (waitLock) {
             if (waitsFor.isEmpty()) {
                 return
             }
@@ -397,12 +408,13 @@ class Runtime {
      */
     func giveWay(waiter: Int64, unwindIfCancelled: () -> Unit): Unit {
         while (true) {
-            let waiting = synchronized(waitLock) {
-                if (waitsFor.contains(waiter)) {
-                    waitReleased.wait(timeout: CLAIM_WAIT)
+            let waiting =
+                synchronized (waitLock) {
+                    if (waitsFor.contains(waiter)) {
+                        waitReleased.wait(timeout: CLAIM_WAIT)
+                    }
+                    waitsFor.contains(waiter)
                 }
-                waitsFor.contains(waiter)
-            }
             if (!waiting) {
                 return
             }
@@ -419,7 +431,7 @@ class Runtime {
      * How many handles wait for another's memo: for tests, to know one got there.
      */
     func waiting(): Int64 {
-        synchronized(waitLock) {
+        synchronized (waitLock) {
             waitsFor.size
         }
     }

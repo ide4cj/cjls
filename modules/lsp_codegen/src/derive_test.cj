@@ -10,13 +10,14 @@ class EmitDerivesTest {
     func aTaggedStructNamesItsTagAndValue() {
         // arrange
         let options = SerdeTypeOptions(tag: SerdeTag(field: "kind", value: "create"))
-        let expected = """
+        let expected =
+            """
 @DeriveExt[ToJson, FromJson]
 @Serde[tag: "kind", rename: "create"]
 """
 
         // act
-        let actual = emittedBy {emitter => emitter.emitDerives([DeriveIr.Json(options)])}
+        let actual = emittedBy { emitter => emitter.emitDerives([DeriveIr.Json(options)]) }
 
         // assert
         @PowerAssert(expected, actual)
@@ -26,13 +27,14 @@ class EmitDerivesTest {
     func noOptionsLeaveNoMarker() {
         // arrange
         let derives = [DeriveIr.Json(SerdeTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable]
-        let expected = """
+        let expected =
+            """
 @DeriveExt[ToJson, FromJson]
 @Derive[Equatable, Hashable]
 """
 
         // act
-        let actual = emittedBy {emitter => emitter.emitDerives(derives)}
+        let actual = emittedBy { emitter => emitter.emitDerives(derives) }
 
         // assert
         @PowerAssert(expected, actual)
@@ -41,7 +43,8 @@ class EmitDerivesTest {
     @TestCase
     func aMemberMarkerListsItsValueAndOther() {
         // act
-        let actual = serdeMarkerOf(SerdeMemberOptions(value: IntegerOrString.Integer(1), other: true))
+        let actual =
+            serdeMarkerOf(SerdeMemberOptions(value: IntegerOrString.Integer(1), other: true))
 
         // assert
         @Expect("@Serde[value: 1, other]", actual.toString())
@@ -59,13 +62,18 @@ class EmitDerivesTest {
     @TestCase
     func aUnionIsUntagged() {
         // arrange
-        let expected = """
+        let expected =
+            """
 @DeriveExt[ToJson, FromJson]
 @Serde[untagged]
 """
 
         // act
-        let actual = emittedBy {emitter => emitter.emitDerives([DeriveIr.Json(SerdeTypeOptions(untagged: true))])}
+        let actual =
+            emittedBy {
+                emitter =>
+                emitter.emitDerives([DeriveIr.Json(SerdeTypeOptions(untagged: true))])
+            }
 
         // assert
         @PowerAssert(expected, actual)

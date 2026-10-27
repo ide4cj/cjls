@@ -45,35 +45,59 @@ enum Scope {
      */
     func allows(kind: SyntaxKind): Bool {
         match (this) {
-            case InTopLevel => match (kind) {
-                case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor => false
-                case _ => true
-            }
-            case InForeignBlock => match (kind) {
-                case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor | PackageHeader | ImportDecl |
-                    FeaturesDirective => false
-                case _ => true
-            }
-            case InClassBody => match (kind) {
-                case FuncDecl | VarDecl | PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | MacroExpandDecl => true
-                case _ => false
-            }
-            case InStructBody => match (kind) {
-                case FuncDecl | VarDecl | PropDecl | InitDecl | PrimaryInitDecl | MacroExpandDecl => true
-                case _ => false
-            }
-            case InInterfaceBody | InExtendBody => match (kind) {
-                case FuncDecl | PropDecl | MacroExpandDecl => true
-                case _ => false
-            }
-            case InEnumBody => match (kind) {
-                case FuncDecl | PropDecl | EnumCtor | MacroExpandDecl => true
-                case _ => false
-            }
-            case InBlock => match (kind) {
-                case FuncDecl | VarDecl | MacroExpandDecl => true
-                case _ => false
-            }
+            case InTopLevel =>
+                match (kind) {
+                    case PropDecl | InitDecl | FinalizerDecl | PrimaryInitDecl | EnumCtor => false
+                    case _ => true
+                }
+            case InForeignBlock =>
+                match (kind) {
+                    case PropDecl |
+                        InitDecl |
+                        FinalizerDecl |
+                        PrimaryInitDecl |
+                        EnumCtor |
+                        PackageHeader |
+                        ImportDecl |
+                        FeaturesDirective => false
+                    case _ => true
+                }
+            case InClassBody =>
+                match (kind) {
+                    case FuncDecl |
+                        VarDecl |
+                        PropDecl |
+                        InitDecl |
+                        FinalizerDecl |
+                        PrimaryInitDecl |
+                        MacroExpandDecl => true
+                    case _ => false
+                }
+            case InStructBody =>
+                match (kind) {
+                    case FuncDecl |
+                        VarDecl |
+                        PropDecl |
+                        InitDecl |
+                        PrimaryInitDecl |
+                        MacroExpandDecl => true
+                    case _ => false
+                }
+            case InInterfaceBody | InExtendBody =>
+                match (kind) {
+                    case FuncDecl | PropDecl | MacroExpandDecl => true
+                    case _ => false
+                }
+            case InEnumBody =>
+                match (kind) {
+                    case FuncDecl | PropDecl | EnumCtor | MacroExpandDecl => true
+                    case _ => false
+                }
+            case InBlock =>
+                match (kind) {
+                    case FuncDecl | VarDecl | MacroExpandDecl => true
+                    case _ => false
+                }
             case InParams | InMacroInput => true
         }
     }
@@ -125,8 +149,10 @@ struct DeclContext {
      * a foreign block or with `foreign` it is foreign; `common` and annotations like `@Intrinsic` allow it too.
      */
     func bodyOptional(): Bool {
-        mods.isForeign || mods.isPlatform || annotated || scope == InClassBody || scope == InInterfaceBody ||
-            scope == InForeignBlock || scope == InMacroInput
+        mods.isForeign || mods.isPlatform || annotated || scope == InClassBody ||
+            scope == InInterfaceBody ||
+            scope == InForeignBlock ||
+            scope == InMacroInput
     }
 }
 
@@ -166,11 +192,14 @@ func exprFile(p: P): Unit {
     let found = expr(p, Restrictions.NONE)
     if (!p.atEof()) {
         let rest = p.start()
-        p.error(if (found) {
-            "expected the end of the expression"
-        } else {
-            "expected an expression"
-        })
+        p
+            .error(
+                if (found) {
+                    "expected the end of the expression"
+                } else {
+                    "expected an expression"
+                }
+            )
         while (!p.atEof()) {
             p.bumpAny()
         }
@@ -224,12 +253,14 @@ func declaration(p: P, scope: Scope, preamble!: ?Preamble = None): Unit {
 }
 
 func checkPreamble(p: P, preamble: Preamble, kind: SyntaxKind): Unit {
-    let (stage, message) = match (kind) {
-        case FeaturesDirective => (0, "the features directive must come first in a file")
-        case PackageHeader => (1, "the package header must come before imports and declarations")
-        case ImportDecl => (2, "imports must come before declarations")
-        case _ => (3, "")
-    }
+    let (stage, message) =
+        match (kind) {
+            case FeaturesDirective => (0, "the features directive must come first in a file")
+            case PackageHeader =>
+                (1, "the package header must come before imports and declarations")
+            case ImportDecl => (2, "imports must come before declarations")
+            case _ => (3, "")
+        }
     if (preamble.stage > stage) {
         p.error(message)
     } else if (kind == PackageHeader && preamble.stage == stage) {
@@ -247,7 +278,16 @@ func atDeclStart(p: P): Bool {
         return !(p.at(UnsafeKw) && p.nthAt(1, LBrace))
     }
     match (p.current()) {
-        case FuncKw | MacroKw | LetKw | VarKw | EnumKw | TypeKw | StructKw | ClassKw | InterfaceKw | MainKw |
+        case FuncKw |
+            MacroKw |
+            LetKw |
+            VarKw |
+            EnumKw |
+            TypeKw |
+            StructKw |
+            ClassKw |
+            InterfaceKw |
+            MainKw |
             ExtendKw => true
         case _ => false
     }
@@ -257,8 +297,21 @@ func atDeclStart(p: P): Bool {
  * The keywords starting a declaration only a file holds (a foreign block aside): the compiler rejects each in a
  * block and in a type's body.
  */
-let TOP_LEVEL_ONLY = TokenSet<SyntaxKind>([ClassKw, StructKw, InterfaceKw, EnumKw, ExtendKw, TypeKw, MainKw, MacroKw,
-    ImportKw, PackageKw])
+let TOP_LEVEL_ONLY =
+    TokenSet<SyntaxKind>(
+        [
+            ClassKw,
+            StructKw,
+            InterfaceKw,
+            EnumKw,
+            ExtendKw,
+            TypeKw,
+            MainKw,
+            MacroKw,
+            ImportKw,
+            PackageKw
+        ]
+    )
 
 /**
  * Whether a line starts here with a declaration only a file holds, behind builtin annotations and modifiers. Such
@@ -327,7 +380,7 @@ func declKind(p: P, scope: Scope, mods: ModifierInfo): ?SyntaxKind {
         case LBrace where mods.isForeign => ForeignBlock
         case At | AtBang where atMacroCall(p) => MacroExpandDecl
         case _ where (scope == InClassBody || scope == InStructBody) && atName(p, 0) &&
-            (p.nthAt(1, LParen) || p.nthAt(1, Lt)) => PrimaryInitDecl
+                (p.nthAt(1, LParen) || p.nthAt(1, Lt)) => PrimaryInitDecl
         case _ where scope == InEnumBody && atName(p, 0) => EnumCtor
         case _ where mods.lastConst && (atName(p, 0) || p.at(Underscore) || p.at(LParen)) => VarDecl
         case _ => None
@@ -395,7 +448,12 @@ func modifiers(p: P): ModifierInfo {
         p.bumpAny()
     }
     m.complete(p, Modifiers)
-    ModifierInfo(isForeign: isForeign, lastConst: lastConst, isOperator: isOperator, isPlatform: isPlatform)
+    ModifierInfo(
+        isForeign: isForeign,
+        lastConst: lastConst,
+        isOperator: isOperator,
+        isPlatform: isPlatform
+    )
 }
 
 func funcDecl(p: P, m: Marker, ctx: DeclContext): Unit {
@@ -405,8 +463,28 @@ func funcDecl(p: P, m: Marker, ctx: DeclContext): Unit {
     m.complete(p, FuncDecl)
 }
 
-let OVERLOADABLE_OPERATORS = TokenSet<SyntaxKind>([Bang, Plus, Minus, StarStar, Star, Slash, Percent, LtLt, Lt, LtEq,
-    Gt, EqEq, BangEq, Amp, Caret, Pipe, Tilde])
+let OVERLOADABLE_OPERATORS =
+    TokenSet<SyntaxKind>(
+        [
+            Bang,
+            Plus,
+            Minus,
+            StarStar,
+            Star,
+            Slash,
+            Percent,
+            LtLt,
+            Lt,
+            LtEq,
+            Gt,
+            EqEq,
+            BangEq,
+            Amp,
+            Caret,
+            Pipe,
+            Tilde
+        ]
+    )
 
 /**
  * A name, `main`, or for an `operator func`, the operator: `[]`, `()`, `>>`, `>=` and the plain ones.
@@ -419,8 +497,9 @@ func funcName(p: P, isOperator: Bool): Unit {
         return
     }
     let m = p.start()
-    let operatorAhead = (p.at(LBracket) && p.nthAt(1, RBracket)) || p.at(LParen) && p.nthAt(1, RParen) ||
-        p.atAny(OVERLOADABLE_OPERATORS)
+    let operatorAhead =
+        (p.at(LBracket) && p.nthAt(1, RBracket)) || p.at(LParen) && p.nthAt(1, RParen) ||
+            p.atAny(OVERLOADABLE_OPERATORS)
     if (!isOperator && operatorAhead) {
         p.error("only an operator function is named by an operator")
     }
@@ -556,11 +635,7 @@ func whereClause(p: P): Unit {
     while (true) {
         let c = p.start()
         typ(p)
-        if (p.at(LtColon)) {
-            typeBoundList(p)
-        } else {
-            p.error("expected '<:'")
-        }
+        if (p.at(LtColon)) { typeBoundList(p) } else { p.error("expected '<:'") }
         c.complete(p, GenericConstraint)
         if (!p.eat(Comma)) {
             break
@@ -688,7 +763,10 @@ func typeAliasDecl(p: P, m: Marker): Unit {
  * After `let`, `var`, or a `const` modifier: a name or an irrefutable pattern, a type, an initializer.
  */
 func varDecl(p: P, m: Marker): Unit {
-    if (p.at(Underscore) || p.at(LParen) || (atName(p, 0) && (p.nthAt(1, LParen) || p.nthAt(1, Dot) || p.nthAt(1, Lt)))) {
+    if (
+        p.at(Underscore) || p.at(LParen) ||
+            (atName(p, 0) && (p.nthAt(1, LParen) || p.nthAt(1, Dot) || p.nthAt(1, Lt)))
+    ) {
         pattern(p)
     } else if (!name(p)) {
         p.error("expected a name or a pattern")
@@ -705,11 +783,7 @@ func varDecl(p: P, m: Marker): Unit {
 func propDecl(p: P, m: Marker, ctx: DeclContext): Unit {
     p.bump(PropKw)
     expectName(p)
-    if (p.eat(Colon)) {
-        typ(p)
-    } else {
-        p.error("expected ':'")
-    }
+    if (p.eat(Colon)) { typ(p) } else { p.error("expected ':'") }
     if (p.at(LBrace)) {
         propBody(p)
     } else if (!ctx.bodyOptional()) {
@@ -734,11 +808,7 @@ func propBody(p: P): Unit {
             while (p.at(LParen)) {
                 paramList(p, false)
             }
-            if (p.at(LBrace)) {
-                block(p)
-            } else {
-                p.error("expected '{'")
-            }
+            if (p.at(LBrace)) { block(p) } else { p.error("expected '{'") }
             a.complete(p, PropAccessor)
         } else {
             a.abandon(p)

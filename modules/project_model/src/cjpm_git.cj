@@ -22,7 +22,9 @@ class CjpmGit {
             initialize()
             let lock = this.lock ?? throw ProjectException("no usable cjpm.lock")
             let entries = if (script) { lock.scripts } else { lock.requires }
-            let entry = entries.flatMap {all => all.get(name)} ?? throw ProjectException("no locked entry")
+            let entry =
+                entries.flatMap { all => all.get(name) } ??
+                    throw ProjectException("no locked entry")
             let selected = gitSelection(entry, lock.version)
             let url = declared.git.getOrThrow()
             if (url.removeSuffix(".git") != selected[0].removeSuffix(".git")) {
@@ -48,7 +50,8 @@ class CjpmGit {
                 return packageAt(checkout, name)
             }
             // cjpm names Git workspaces by the URL's Cangjie hash, rather than by a member.
-            let workspace = cache.join("git").join("workspace-${selected[0].hashCode()}").join(selected[1])
+            let workspace =
+                cache.join("git").join("workspace-${selected[0].hashCode()}").join(selected[1])
             if (isFile(workspace.join("cjpm.toml").filePath.getOrThrow())) {
                 return packageAt(workspace, name)
             }
@@ -63,7 +66,11 @@ class CjpmGit {
             throw ProjectException("checkout ${checkout} is missing")
         } catch (e: Exception) {
             let kind = if (script) { "script dependency" } else { "dependency" }
-            loading.problems.add("Git ${kind} `${name}` is left out: ${e.message}; run `cjpm update` in ${root}")
+            loading
+                .problems
+                .add(
+                    "Git ${kind} `${name}` is left out: ${e.message}; run `cjpm update` in ${root}"
+                )
             None
         }
     }
@@ -95,10 +102,10 @@ class CjpmGit {
             }
             return dir
         }
-        for (member in manifest.workspace.flatMap {it => it.members} ?? []) {
+        for (member in manifest.workspace.flatMap { it => it.members } ?? []) {
             let path = loading.resolve(dir, member)
             let candidate = readManifest(path.join("cjpm.toml"))
-            if (candidate.pkg.map {pkg => packageName(pkg) == name} ?? false) {
+            if (candidate.pkg.map { pkg => packageName(pkg) == name } ?? false) {
                 return path
             }
         }
@@ -118,18 +125,27 @@ private func packageName(pkg: ManifestPackage): String {
  */
 func gitCacheName(name: String): String {
     let parts = name.split("::")
-    if (parts.isEmpty() || parts.size > 2 || parts.iterator().any {
-        part => part.isEmpty() || part == "." || part == ".." || part.contains("/") || part.contains("\\")
-    }) {
+    if (
+        parts.isEmpty() || parts.size > 2 ||
+            parts
+                .iterator()
+                .any {
+                    part =>
+                    part.isEmpty() || part == "." || part == ".." || part.contains("/") ||
+                        part.contains("\\")
+                }
+    ) {
         throw ProjectException("invalid dependency name `${name}`")
     }
     if (parts.size == 2) { "${parts[1]}@${parts[0]}" } else { name }
 }
 
 func gitCommit(commit: String): Bool {
-    !commit.isEmpty() && commit.size <= 64 && commit.toArray().iterator().all {
-        byte => (byte >= b'0' && byte <= b'9') || (byte >= b'a' && byte <= b'f')
-    }
+    !commit.isEmpty() && commit.size <= 64 &&
+        commit
+            .toArray()
+            .iterator()
+            .all { byte => (byte >= b'0' && byte <= b'9') || (byte >= b'a' && byte <= b'f') }
 }
 
 /**
@@ -192,33 +208,47 @@ private func gitDecodeSelector(text: String): String {
 }
 
 private func gitHex(byte: Byte): Byte {
-    if (byte >= b'0' && byte <= b'9') { return byte - b'0' }
-    if (byte >= b'a' && byte <= b'f') { return byte - b'a' + 10 }
-    if (byte >= b'A' && byte <= b'F') { return byte - b'A' + 10 }
+    if (byte >= b'0' && byte <= b'9') {
+        return byte - b'0'
+    }
+    if (byte >= b'a' && byte <= b'f') {
+        return byte - b'a' + 10
+    }
+    if (byte >= b'A' && byte <= b'F') {
+        return byte - b'A' + 10
+    }
     throw ProjectException("invalid escaped Git selector")
 }
 
 func repositoryCache(loading: Loading, root: VfsPath): ?VfsPath {
-    let homeText = match (loading.env("HOME")) {
-        case Some(text) => Some(text)
-        case None => loading.env("USERPROFILE")
-    }
-    let home = homeText.map {text => loading.resolve(root, text)}
-    let sdk = loading.env("CANGJIE_HOME").map {text => loading.resolve(root, text)}
-    let candidates = [Some(root.join("cangjie-repo.toml")), home.map {it => it.join(".cjpm/cangjie-repo.toml")},
-        sdk.map {it => it.join("tools/config/cangjie-repo.toml")}]
+    let homeText =
+        match (loading.env("HOME")) {
+            case Some(text) => Some(text)
+            case None => loading.env("USERPROFILE")
+        }
+    let home = homeText.map { text => loading.resolve(root, text) }
+    let sdk = loading.env("CANGJIE_HOME").map { text => loading.resolve(root, text) }
+    let candidates =
+        [
+            Some(root.join("cangjie-repo.toml")),
+            home.map { it => it.join(".cjpm/cangjie-repo.toml") },
+            sdk.map { it => it.join("tools/config/cangjie-repo.toml") }
+        ]
     for (candidate in candidates) {
         if (let Some(file) <- candidate) {
-            if (!isFile(file.filePath.getOrThrow())) { continue }
-            let config = fromTomlBytes<CjpmRepositoryConfig>(File.readFrom(file.filePath.getOrThrow()))
-            let path = config.repository.flatMap {it => it.cache}.flatMap {it => it.path} ?? ""
+            if (!isFile(file.filePath.getOrThrow())) {
+                continue
+            }
+            let config =
+                fromTomlBytes<CjpmRepositoryConfig>(File.readFrom(file.filePath.getOrThrow()))
+            let path = config.repository.flatMap { it => it.cache }.flatMap { it => it.path } ?? ""
             if (!path.isEmpty()) {
                 return loading.resolve(file.parent.getOrThrow(), path)
             }
-            return home.map {it => it.join(".cjpm")}
+            return home.map { it => it.join(".cjpm") }
         }
     }
-    home.map {it => it.join(".cjpm")}
+    home.map { it => it.join(".cjpm") }
 }
 
 @DeriveExt[FromToml]

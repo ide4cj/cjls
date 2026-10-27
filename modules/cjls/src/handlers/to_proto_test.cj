@@ -11,7 +11,9 @@ import cjls.lsp_types.*
 class DiagnosticConversionTest {
     @TestCase[row in [(Severity.Error, DiagnosticSeverity.Error), (Severity.Warning, DiagnosticSeverity.Warning),
         (Severity.Hint, DiagnosticSeverity.Hint)]]
-    func anEmptyMessageHasAFallbackWhateverItsSourceOrSeverity(row: (Severity, DiagnosticSeverity)) {
+    func anEmptyMessageHasAFallbackWhateverItsSourceOrSeverity(
+        row: (Severity, DiagnosticSeverity)
+    ) {
         // arrange
         let (severity, expectedSeverity) = row
         let input = LoupeDiagnostic(TextRange(1, 4), severity, "", unnecessary: true)
@@ -34,7 +36,12 @@ class DiagnosticConversionTest {
     @TestCase[text in ["the reported error", " ", "\n"]]
     func aNonemptyMessageIsPreservedVerbatim(text: String) {
         // act
-        let result = diagnostic(Rope("hello"), LoupeDiagnostic(TextRange(0, 5), Severity.Error, text), Encoding.Utf16)
+        let result =
+            diagnostic(
+                Rope("hello"),
+                LoupeDiagnostic(TextRange(0, 5), Severity.Error, text),
+                Encoding.Utf16
+            )
 
         // assert
         @Expect(match (result.message) {

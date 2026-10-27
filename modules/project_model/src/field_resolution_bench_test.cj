@@ -10,8 +10,10 @@ import loupe.hir.*
  * Each name after a `.` in a body of the workspace that resolves to nothing, by `onFailed`; how many
  * name a declaration of a package or a member of a type, and how many follow a value (inference's).
  */
-func resolveEveryField(ws: BenchWorkspace,
-    onFailed!: (SourceFile, DefId, ExprId) -> Unit = {_, _, _ => ()}): (Int64, Int64) {
+func resolveEveryField(
+    ws: BenchWorkspace,
+    onFailed!: (SourceFile, DefId, ExprId) -> Unit = { _, _, _ => () }
+): (Int64, Int64) {
     var resolved = 0
     var ofValues = 0
     for ((_, file, _) in ws.files) {

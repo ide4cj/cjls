@@ -30,22 +30,32 @@ public macro CalcaInterned(input: Tokens): Tokens {
 }
 
 public macro CalcaInterned(attrs: Tokens, input: Tokens): Tokens {
-    let revisions = match (attrs.size) {
-        case 1 where attrs[0].value == "forever" => quote(, revisions: Option<Int64>.None)
-        // a literal has no sign, `-` is a token of its own
-        case 3 where attrs[0].value == "revisions" && attrs[1].kind == TokenKind.COLON && attrs[2].kind ==
-            TokenKind.INTEGER_LITERAL && attrs[2].value != "0" =>
-            let count = attrs[2]
-            quote(, revisions: Option<Int64>.Some($count))
-        case _ where attrs.size > 0 && attrs[0].value == "revisions" =>
-            diagReport(DiagReportLevel.ERROR, attrs,
-                "`revisions` takes how many active revisions a value may go unused, at least 1: `revisions: 3`",
-                "to keep every value, `@CalcaInterned[forever]`")
-            return input
-        case _ =>
-            diagReport(DiagReportLevel.ERROR, attrs, "`@CalcaInterned` takes `revisions: N` or `forever`", "")
-            return input
-    }
+    let revisions =
+        match (attrs.size) {
+            case 1 where attrs[0].value == "forever" => quote(, revisions: Option<Int64>.None)
+            // a literal has no sign, `-` is a token of its own
+            case 3 where attrs[0].value == "revisions" && attrs[1].kind == TokenKind.COLON &&
+                    attrs[2].kind == TokenKind.INTEGER_LITERAL &&
+                    attrs[2].value != "0" =>
+                let count = attrs[2]
+                quote(, revisions: Option<Int64>.Some($count))
+            case _ where attrs.size > 0 && attrs[0].value == "revisions" =>
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "`revisions` takes how many active revisions a value may go unused, at least 1: `revisions: 3`",
+                    "to keep every value, `@CalcaInterned[forever]`"
+                )
+                return input
+            case _ =>
+                diagReport(
+                    DiagReportLevel.ERROR,
+                    attrs,
+                    "`@CalcaInterned` takes `revisions: N` or `forever`",
+                    ""
+                )
+                return input
+        }
     interned(input, revisions)
 }
 
@@ -53,8 +63,12 @@ private func interned(input: Tokens, revisions: Tokens): Tokens {
     let decl = plainStruct(input, "CalcaInterned") ?? return input
     let (fields, kept) = storedFields(decl, "CalcaInterned") ?? return input
     for (field in fields where field.keyword.kind == TokenKind.VAR) {
-        diagReport(DiagReportLevel.ERROR, field.toTokens(), "an interned value never changes: its fields are `let`",
-            "for a value that changes, use `@CalcaInput`")
+        diagReport(
+            DiagReportLevel.ERROR,
+            field.toTokens(),
+            "an interned value never changes: its fields are `let`",
+            "for a value that changes, use `@CalcaInput`"
+        )
         return input
     }
 
@@ -83,6 +97,17 @@ private func interned(input: Tokens, revisions: Tokens): Tokens {
 
     let ingredient = quote(InternedIngredient<$key>($(nameLiteral(name)) $revisions))
     let create = quote(CALCA_INGREDIENT.intern(db, $key($args)))
-    identityStruct(decl, ingredient, params, create, accessors, kept, identity: quote(& InternedValue)) +
-        fieldsStruct(key, fields.toArray().map {field => (field.identifier, field.declType.toTokens())})
+    identityStruct(
+        decl,
+        ingredient,
+        params,
+        create,
+        accessors,
+        kept,
+        identity: quote(& InternedValue)
+    ) +
+        fieldsStruct(
+            key,
+            fields.toArray().map { field => (field.identifier, field.declType.toTokens()) }
+        )
 }

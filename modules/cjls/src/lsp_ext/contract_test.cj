@@ -43,9 +43,11 @@ func recordedHash(doc: String): String {
 /** FNV-1a over the package's sources, sorted by name, without their tests; `\r` left out, as a Windows checkout adds it. */
 @OverflowWrapping
 func sourcesHash(): String {
-    let names = Directory.readFrom(SOURCES)
-        .map {info => info.name}
-        .filter {name => name.endsWith(".cj") && !name.endsWith("_test.cj")}
+    let names =
+        Directory
+            .readFrom(SOURCES)
+            .map { info => info.name }
+            .filter { name => name.endsWith(".cj") && !name.endsWith("_test.cj") }
     sort(names)
     var hash: UInt64 = 0xcbf29ce484222325
     for (name in names) {

@@ -70,7 +70,7 @@ public func foldingRanges(db: AnalysisDatabase, fileId: FileId): Array<Fold> {
     let folder = Folder(db, file.text(db))
     folder.walk(parse(db, file).syntaxNode())
     let result = folder.result
-    sort(result, stable: true, by: {a: Fold, b: Fold => a.range.start.compare(b.range.start)})
+    sort(result, stable: true, by: { a: Fold, b: Fold => a.range.start.compare(b.range.start) })
     result.toArray()
 }
 
@@ -79,11 +79,20 @@ public func foldingRanges(db: AnalysisDatabase, fileId: FileId): Array<Fold> {
  */
 func foldKindOf(kind: SyntaxKind): ?FoldKind {
     match (kind) {
-        case SyntaxKind.DeclBody | SyntaxKind.EnumBody | SyntaxKind.PropBody | SyntaxKind.Block |
-            SyntaxKind.LambdaExpr | SyntaxKind.MatchBody => FoldKind.Block
+        case SyntaxKind.DeclBody |
+            SyntaxKind.EnumBody |
+            SyntaxKind.PropBody |
+            SyntaxKind.Block |
+            SyntaxKind.LambdaExpr |
+            SyntaxKind.MatchBody => FoldKind.Block
         case SyntaxKind.MatchCase => FoldKind.MatchArm
-        case SyntaxKind.ArgList | SyntaxKind.ParamList | SyntaxKind.TypeArgList | SyntaxKind.TypeParamList |
-            SyntaxKind.AnnotationArgList | SyntaxKind.MacroArgs | SyntaxKind.ImportTreeList => FoldKind.ArgList
+        case SyntaxKind.ArgList |
+            SyntaxKind.ParamList |
+            SyntaxKind.TypeArgList |
+            SyntaxKind.TypeParamList |
+            SyntaxKind.AnnotationArgList |
+            SyntaxKind.MacroArgs |
+            SyntaxKind.ImportTreeList => FoldKind.ArgList
         case SyntaxKind.ArrayExpr | SyntaxKind.TupleExpr => FoldKind.ArrayLiteral
         case SyntaxKind.StringLit => FoldKind.StringLiteral
         case _ => None
@@ -102,9 +111,10 @@ class Folder {
         imports(root)
         for (element in root.descendantsWithTokens()) {
             match (element) {
-                case SyntaxElement.Node(node) => if (let Some(kind) <- foldKindOf(node.kind)) {
-                    add(node.textRange, kind)
-                }
+                case SyntaxElement.Node(node) =>
+                    if (let Some(kind) <- foldKindOf(node.kind)) {
+                        add(node.textRange, kind)
+                    }
                 case SyntaxElement.Token(token) => visit(token)
             }
         }
@@ -118,11 +128,14 @@ class Folder {
         var run: ?TextRange = None
         for (element in root.childrenWithTokens()) {
             match (element) {
-                case SyntaxElement.Node(node) where node.kind == SyntaxKind.ImportDecl => run = match (run) {
-                    case Some(it) => TextRange(it.start, node.textRange.end)
-                    case None => node.textRange
-                }
-                case SyntaxElement.Token(token) where isSpacing(token) || token.kind == SyntaxKind.Semicolon => ()
+                case SyntaxElement.Node(node) where node.kind == SyntaxKind.ImportDecl =>
+                    run =
+                        match (run) {
+                            case Some(it) => TextRange(it.start, node.textRange.end)
+                            case None => node.textRange
+                        }
+                case SyntaxElement.Token(token) where isSpacing(token) ||
+                        token.kind == SyntaxKind.Semicolon => ()
                 case _ =>
                     if (let Some(it) <- run) {
                         add(it, FoldKind.Imports)
@@ -141,10 +154,12 @@ class Folder {
             db.unwindIfCancelled()
         }
         match (token.kind) {
-            case SyntaxKind.LineComment => comments = match (comments) {
-                case Some(it) => TextRange(it.start, token.textRange.end)
-                case None => token.textRange
-            }
+            case SyntaxKind.LineComment =>
+                comments =
+                    match (comments) {
+                        case Some(it) => TextRange(it.start, token.textRange.end)
+                        case None => token.textRange
+                    }
             case _ where isSpacing(token) => ()
             case _ =>
                 endComments()
@@ -160,7 +175,8 @@ class Folder {
      * What may stand between two comments, or two imports, of one fold: no blank line.
      */
     private func isSpacing(token: CjSyntaxToken): Bool {
-        token.kind == SyntaxKind.Whitespace || token.kind == SyntaxKind.Newline && token.text().count("\n") <= 1
+        token.kind == SyntaxKind.Whitespace ||
+            token.kind == SyntaxKind.Newline && token.text().count("\n") <= 1
     }
 
     private func endComments(): Unit {

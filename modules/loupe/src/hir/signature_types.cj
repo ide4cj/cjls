@@ -63,7 +63,8 @@ public struct TyError {
             case UndeclaredType(name) => "undeclared type name '${name}'"
             case NotAType(name) => "'${name}' is not a type"
             case NeedsTypeArgs => "generic type should be used with type argument"
-            case WrongTypeArgCount => "type argument's number does not match type parameter's number"
+            case WrongTypeArgCount =>
+                "type argument's number does not match type parameter's number"
             case ThisNotAllowed(here) where here => "'This' type is not allowed here"
             case ThisNotAllowed(_) => "'This' type is not allowed"
             case TypeCycle(names) => "type cycle detected: '${String.join(names, delimiter: "->")}'"
@@ -154,32 +155,39 @@ public struct SignatureTypes {
      * Array<T>`, `C<T> <: I<T> where T <: J`, `= (Int64, Int64)`; `_` for a type not written.
      */
     public func text(db: AnalysisDatabase, kind: ItemKind): String {
-        let list = {tys: Array<Ty>, delimiter: String => String.join(tys.map {one => one.text(db)}, delimiter: delimiter)}
-        let generic = if (generics.isEmpty()) {
-            ""
-        } else {
-            "<${String.join(generics, delimiter: ", ")}>"
-        }
-        let declared = ty.map {one => one.text(db)} ?? "_"
-        let inherited = if (supers.isEmpty()) {
-            ""
-        } else {
-            " <: ${list(supers, " & ")}"
-        }
-        let head = match (kind) {
-            case Func | Main | Macro | Init | PrimaryInit | Finalizer => "${generic}(${list(params, ", ")}) -> ${declared}"
-            case EnumCtor where params.isEmpty() => declared
-            case EnumCtor => "(${list(params, ", ")}) -> ${declared}"
-            case Class | Interface | Struct | Enum | BuiltIn => declared + inherited
-            case Extend => "${generic} ${declared}${inherited}".trimAscii()
-            case TypeAlias => "${generic} = ${declared}".trimAscii()
-            case _ => declared
-        }
+        let list =
+            {
+                tys: Array<Ty>, delimiter: String =>
+                String.join(tys.map { one => one.text(db) }, delimiter: delimiter)
+            }
+        let generic =
+            if (generics.isEmpty()) { "" } else { "<${String.join(generics, delimiter: ", ")}>" }
+        let declared = ty.map { one => one.text(db) } ?? "_"
+        let inherited = if (supers.isEmpty()) { "" } else { " <: ${list(supers, " & ")}" }
+        let head =
+            match (kind) {
+                case Func | Main | Macro | Init | PrimaryInit | Finalizer =>
+                    "${generic}(${list(params, ", ")}) -> ${declared}"
+                case EnumCtor where params.isEmpty() => declared
+                case EnumCtor => "(${list(params, ", ")}) -> ${declared}"
+                case Class | Interface | Struct | Enum | BuiltIn => declared + inherited
+                case Extend => "${generic} ${declared}${inherited}".trimAscii()
+                case TypeAlias => "${generic} = ${declared}".trimAscii()
+                case _ => declared
+            }
         if (bounds.isEmpty()) {
             head
         } else {
-            head + " where " + String.join(bounds.map {bound => "${bound.ty.text(db)} <: ${list(bound.bounds, " & ")}"},
-                delimiter: ", ")
+            head + " where " +
+                String
+                    .join(
+                        bounds
+                            .map {
+                                bound =>
+                                "${bound.ty.text(db)} <: ${list(bound.bounds, " & ")}"
+                            },
+                        delimiter: ", "
+                    )
         }
     }
 }
@@ -194,7 +202,8 @@ public struct SignatureTypes {
 public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
     match (def.file(db)) {
         case Source(_) | Expansion(_) => SourceTyLowering(db, def).lower()
-        case Binary(pkg, index) => lowerBinarySignature(db, def, pkg, BinaryItem(index, def.item(db)))
+        case Binary(pkg, index) =>
+            lowerBinarySignature(db, def, pkg, BinaryItem(index, def.item(db)))
     }
 }
 
@@ -205,10 +214,12 @@ public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
 func signatureTypesOnCycle(db: AnalysisDatabase, def: DefId): SignatureTypes {
     let sig = signature(db, def)
     let cycle = aliasCycleOf(db, def) ?? [def, def]
-    let errors = match (sig.ty) {
-        case Some(at) => [TyError(at, TyErrorKind.TypeCycle(cycle.map {id => aliasName(db, id)}))]
-        case None => Array<TyError>()
-    }
+    let errors =
+        match (sig.ty) {
+            case Some(at) =>
+                [TyError(at, TyErrorKind.TypeCycle(cycle.map { id => aliasName(db, id) }))]
+            case None => Array<TyError>()
+        }
     SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors)
 }
 
@@ -225,7 +236,12 @@ func aliasCycleOf(db: AnalysisDatabase, def: DefId): ?Array<DefId> {
  * A path of aliases from `from` to `to`, each named by the type of the one before, through none of
  * `visited`; `from` first, `to` last.
  */
-func aliasPath(db: AnalysisDatabase, from: DefId, to: DefId, visited: HashSet<DefId>): ?Array<DefId> {
+func aliasPath(
+    db: AnalysisDatabase,
+    from: DefId,
+    to: DefId,
+    visited: HashSet<DefId>
+): ?Array<DefId> {
     for (next in aliasesNamedBy(db, from)) {
         if (next == to) {
             return [from, to]
@@ -241,7 +257,7 @@ func aliasPath(db: AnalysisDatabase, from: DefId, to: DefId, visited: HashSet<De
 }
 
 func aliasName(db: AnalysisDatabase, def: DefId): String {
-    declItemOf(db, def).flatMap {item => item.names.get(0)} ?? ""
+    declItemOf(db, def).flatMap { item => item.names.get(0) } ?? ""
 }
 
 /**
@@ -254,9 +270,11 @@ func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
     let found = ArrayList<DefId>()
     for (ty in sig.types) {
         if (let PathRef(segments) <- ty) {
-            let resolved = resolveTypePath(db, scope, segments.map {segment => segment.name})
-            if (let Some(Resolved(TypeOf(id))) <- resolved.get(resolved.size - 1) && id != def &&
-                id.item(db).kind == ItemKind.TypeAlias) {
+            let resolved = resolveTypePath(db, scope, segments.map { segment => segment.name })
+            if (
+                let Some(Resolved(TypeOf(id))) <- resolved.get(resolved.size - 1) && id != def &&
+                    id.item(db).kind == ItemKind.TypeAlias
+            ) {
                 found.add(id)
             }
         }
@@ -282,12 +300,17 @@ public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
  * declaration it does not have, or bytes that break where they are read.
  */
 @CalcaTracked
-func binaryGenericsOf(db: AnalysisDatabase, pkg: BinaryPackageFile, item: BinaryItem): Array<String> {
+func binaryGenericsOf(
+    db: AnalysisDatabase,
+    pkg: BinaryPackageFile,
+    item: BinaryItem
+): Array<String> {
     let index = binaryExports(db, pkg).declIndex(item) ?? return []
     let bytes = pkg.bytes(db)
     try {
         let cjo = openCjo(bytes)
-        genericDeclsOf(cjo.allDecls[index]).map {param => cjo.allDecls[Int64(param) - 1].identifier ?? ""}
+        genericDeclsOf(cjo.allDecls[index])
+            .map { param => cjo.allDecls[Int64(param) - 1].identifier ?? "" }
     } catch (_: FbException) {
         []
     } catch (_: IndexOutOfBoundsException) {
@@ -307,7 +330,7 @@ public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
     let parent = parentOf(db, def) ?? return None
     let id = def.item(db)
     let owner = itemOf(db, parent) ?? return None
-    owner.members.iterator().filter {member => member.id == id}.next()
+    owner.members.iterator().filter { member => member.id == id }.next()
 }
 
 /**
@@ -318,7 +341,7 @@ func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
     let owner = canonicalDef(db, def)
     let count = genericsOf(db, owner).size
     let head = specificOf(db, owner) ?? owner
-    Ty(db, DeclTy(head, Array(count) {i => Ty(db, ParamTy(owner, i))}))
+    Ty(db, DeclTy(head, Array(count) { i => Ty(db, ParamTy(owner, i)) }))
 }
 
 /**
@@ -350,11 +373,7 @@ class SourceTyLowering {
         inBody = false
         scope = typeScopeOf(db, def)
         parent = scope?.generics.get(1)?.owner
-        cycle = if (def.item(db).kind == ItemKind.TypeAlias) {
-            aliasCycleOf(db, def)
-        } else {
-            None
-        }
+        cycle = if (def.item(db).kind == ItemKind.TypeAlias) { aliasCycleOf(db, def) } else { None }
     }
 
     /**
@@ -380,39 +399,58 @@ class SourceTyLowering {
 
     func lower(): SignatureTypes {
         let kind = def.item(db).kind
-        let params = sig.params.map {id => lowerAt(id)}
-        let ty = match (kind) {
-            case Class | Interface | Struct | Enum => selfTyOf(db, def)
-            case Init | PrimaryInit | EnumCtor => match (parent) {
-                case Some(one) => selfTyOf(db, one)
-                case None => Ty(db, ErrorTy)
+        let params = sig.params.map { id => lowerAt(id) }
+        let ty =
+            match (kind) {
+                case Class | Interface | Struct | Enum => selfTyOf(db, def)
+                case Init | PrimaryInit | EnumCtor =>
+                    match (parent) {
+                        case Some(one) => selfTyOf(db, one)
+                        case None => Ty(db, ErrorTy)
+                    }
+                case _ => sig.ty.map { id => lowerAt(id) }
             }
-            case _ => sig.ty.map {id => lowerAt(id)}
-        }
-        let written = sig.supers.map {id => lowerAt(id)}
-        let supers = if (kind == ItemKind.Class) {
-            withSuperclass(written)
-        } else {
-            written
-        }
-        let bounds = sig.bounds.map {bound => TyBound(lowerAt(bound.ty), bound.bounds.map {id => lowerAt(id)})}
+        let written = sig.supers.map { id => lowerAt(id) }
+        let supers = if (kind == ItemKind.Class) { withSuperclass(written) } else { written }
+        let bounds =
+            sig
+                .bounds
+                .map { bound => TyBound(lowerAt(bound.ty), bound.bounds.map { id => lowerAt(id) }) }
         if (let Some(names) <- cycle && let Some(at) <- sig.ty) {
-            errors.add(TyError(at, TyErrorKind.TypeCycle(names.map {id => aliasName(db, id)})))
-            return SignatureTypes(generics: sig.generics, ty: Ty(db, ErrorTy), errors: errors.toArray(),
-                typePaths: typePaths())
+            errors.add(TyError(at, TyErrorKind.TypeCycle(names.map { id => aliasName(db, id) })))
+            return SignatureTypes(
+                generics: sig.generics,
+                ty: Ty(db, ErrorTy),
+                errors: errors.toArray(),
+                typePaths: typePaths()
+            )
         }
-        SignatureTypes(generics: sig.generics, params: params, paramNames: sig.paramNames, paramDefaults: sig.paramDefaults,
-            isCVariadic: sig.isCVariadic, ty: ty, supers: supers, bounds: bounds, errors: errors.toArray(),
-            typePaths: typePaths())
+        SignatureTypes(
+            generics: sig.generics,
+            params: params,
+            paramNames: sig.paramNames,
+            paramDefaults: sig.paramDefaults,
+            isCVariadic: sig.isCVariadic,
+            ty: ty,
+            supers: supers,
+            bounds: bounds,
+            errors: errors.toArray(),
+            typePaths: typePaths()
+        )
     }
 
     /**
      * What each segment of each path lowered so far names, sorted by the type.
      */
     func typePaths(): Array<TypePathTarget> {
-        let found = paths |> map {entry: (Int64, Array<PathResolution>) => TypePathTarget(TypeRefId(entry[0]), entry[1])} |>
-            collectArray
-        sort(found, by: {a: TypePathTarget, b: TypePathTarget => a.ty.index.compare(b.ty.index)})
+        let found =
+            paths |>
+                map {
+                    entry: (Int64, Array<PathResolution>) =>
+                    TypePathTarget(TypeRefId(entry[0]), entry[1])
+                } |>
+                collectArray
+        sort(found, by: { a: TypePathTarget, b: TypePathTarget => a.ty.index.compare(b.ty.index) })
         found
     }
 
@@ -421,13 +459,18 @@ class SourceTyLowering {
      * (N79): cjc adds it, and a `.cjo` keeps it.
      */
     private func withSuperclass(supers: Array<Ty>): Array<Ty> {
-        let named = supers.iterator().any {
-            one => match (one.kind(db)) {
-                case DeclTy(id, _) => id.item(db).kind == ItemKind.Class
-                case _ => false
-            }
-        }
-        let object = scope.flatMap {one => langItem(db, PackageRef.Source(one.pkg), LangItem.ObjectClass)}
+        let named =
+            supers
+                .iterator()
+                .any {
+                    one =>
+                    match (one.kind(db)) {
+                        case DeclTy(id, _) => id.item(db).kind == ItemKind.Class
+                        case _ => false
+                    }
+                }
+        let object =
+            scope.flatMap { one => langItem(db, PackageRef.Source(one.pkg), LangItem.ObjectClass) }
         match (object) {
             case Some(id) where !named && id != def => [Ty(db, DeclTy(id, []))].concat(supers)
             case _ => supers
@@ -438,27 +481,29 @@ class SourceTyLowering {
      * The type `id` of the signature, or of the body.
      */
     private func lowerAt(id: TypeRefId): Ty {
-        let kind = match (types[id.index]) {
-            case PrimRef(name) where name.isEmpty() => ErrorTy
-            case PrimRef(name) => PrimTy(name)
-            case TupleRef(elements) => TupleTy(elements.map {one => lowerAt(one)})
-            case FuncRef(params, ret) => FuncTy(params.map {one => lowerAt(one)}, lowerAt(ret), false)
-            case OptionRef(inner) =>
-                let element = lowerAt(inner)
-                match (optionDecl()) {
-                    case Some(option) => DeclTy(option, [element])
-                    case None => UnknownTy(UnknownReason.NoStd)
-                }
-            case ThisRef => thisAt(id)
-            case VArrayRef(element, size) =>
-                let lowered = lowerAt(element)
-                match (size.flatMap {text: String => Int64.tryParse(text)}) {
-                    case Some(n) => VArrayTy(lowered, n)
-                    case None => ErrorTy
-                }
-            case PathRef(segments) => return lowerPath(id, segments)
-            case MissingRef => ErrorTy
-        }
+        let kind =
+            match (types[id.index]) {
+                case PrimRef(name) where name.isEmpty() => ErrorTy
+                case PrimRef(name) => PrimTy(name)
+                case TupleRef(elements) => TupleTy(elements.map { one => lowerAt(one) })
+                case FuncRef(params, ret) =>
+                    FuncTy(params.map { one => lowerAt(one) }, lowerAt(ret), false)
+                case OptionRef(inner) =>
+                    let element = lowerAt(inner)
+                    match (optionDecl()) {
+                        case Some(option) => DeclTy(option, [element])
+                        case None => UnknownTy(UnknownReason.NoStd)
+                    }
+                case ThisRef => thisAt(id)
+                case VArrayRef(element, size) =>
+                    let lowered = lowerAt(element)
+                    match (size.flatMap { text: String => Int64.tryParse(text) }) {
+                        case Some(n) => VArrayTy(lowered, n)
+                        case None => ErrorTy
+                    }
+                case PathRef(segments) => return lowerPath(id, segments)
+                case MissingRef => ErrorTy
+            }
         Ty(db, kind)
     }
 
@@ -466,11 +511,17 @@ class SourceTyLowering {
      * `This` at `id`: allowed as the whole return type of an instance function of a class (N88).
      */
     private func thisAt(id: TypeRefId): TyKind {
-        let owner = parent.filter {one => one.item(db).kind == ItemKind.Class}
+        let owner = parent.filter { one => one.item(db).kind == ItemKind.Class }
         let isMethod = def.item(db).kind == ItemKind.Func && owner.isSome()
-        let isStatic = owner.flatMap {one => itemOf(db, one)}.flatMap {
-            item => item.members.iterator().filter {member => member.id == def.item(db)}.next()
-        }.map {member => member.has(Modifier.Static)} ?? false
+        let isStatic =
+            owner
+                .flatMap { one => itemOf(db, one) }
+                .flatMap {
+                    item =>
+                    item.members.iterator().filter { member => member.id == def.item(db) }.next()
+                }
+                .map { member => member.has(Modifier.Static) } ??
+                false
         if (!inBody && isMethod && !isStatic && sig.ty == Some(id)) {
             return ThisTy
         }
@@ -484,18 +535,20 @@ class SourceTyLowering {
      */
     private func lowerPath(id: TypeRefId, segments: Array<TypeSegment>): Ty {
         let last = segments.get(segments.size - 1) ?? return Ty(db, ErrorTy)
-        let args = last.args.map {arg => lowerAt(arg)}
+        let args = last.args.map { arg => lowerAt(arg) }
         let typeScope = scope ?? return Ty(db, ErrorTy)
-        let names = segments.map {segment => segment.name}
-        let resolved = if (inBody) {
-            resolveBodyTypePath(db, def, id, names)
-        } else {
-            resolveTypePath(db, typeScope, names)
-        }
+        let names = segments.map { segment => segment.name }
+        let resolved =
+            if (inBody) {
+                resolveBodyTypePath(db, def, id, names)
+            } else {
+                resolveTypePath(db, typeScope, names)
+            }
         paths.add(id.index, resolved)
         match (resolved.get(resolved.size - 1)) {
             // an alias does not see its own name in its type (N93)
-            case Some(Resolved(TypeOf(target))) where target == def && target.item(db).kind == ItemKind.TypeAlias =>
+            case Some(Resolved(TypeOf(target))) where target == def &&
+                    target.item(db).kind == ItemKind.TypeAlias =>
                 errors.add(TyError(id, TyErrorKind.UndeclaredType(last.name)))
                 Ty(db, ErrorTy)
             case Some(Resolved(TypeOf(target))) => applied(id, target, args)
@@ -519,22 +572,34 @@ class SourceTyLowering {
      * to one ambiguous: a name of nothing (N89), of something but a type (N94), or one after a type
      * or a type parameter (N95).
      */
-    private func unresolved(id: TypeRefId, typeScope: TypeScope, segments: Array<TypeSegment>,
-        resolved: Array<PathResolution>): Unit {
+    private func unresolved(
+        id: TypeRefId,
+        typeScope: TypeScope,
+        segments: Array<TypeSegment>,
+        resolved: Array<PathResolution>
+    ): Unit {
         for (i in 0..resolved.size) {
             let name = segments[i].name
             match (resolved[i]) {
                 case UnresolvedPath =>
-                    let named = match (resolved.get(i - 1)) {
-                        case None => isValueNamed(typeScope, name)
-                        case Some(Resolved(QualifierOf(pkg))) => isExportNamed(typeScope, pkg, name)
-                        case _ => false
-                    }
-                    errors.add(TyError(id, if (named) {
-                        TyErrorKind.NotAType(name)
-                    } else {
-                        TyErrorKind.UndeclaredType(name)
-                    }))
+                    let named =
+                        match (resolved.get(i - 1)) {
+                            case None => isValueNamed(typeScope, name)
+                            case Some(Resolved(QualifierOf(pkg))) =>
+                                isExportNamed(typeScope, pkg, name)
+                            case _ => false
+                        }
+                    errors
+                        .add(
+                            TyError(
+                                id,
+                                if (named) {
+                                    TyErrorKind.NotAType(name)
+                                } else {
+                                    TyErrorKind.UndeclaredType(name)
+                                }
+                            )
+                        )
                 case Resolved(_) => ()
                 case _ => return
             }
@@ -557,7 +622,8 @@ class SourceTyLowering {
      */
     private func isExportNamed(typeScope: TypeScope, pkg: PackageRef, name: String): Bool {
         let relation = relationOf(typeScope.pkg.name(db), nameOf(db, pkg))
-        !visibleOf(packageExports(db, pkg).names.get(name) ?? [], relation, Visibility.Private).isEmpty()
+        !visibleOf(packageExports(db, pkg).names.get(name) ?? [], relation, Visibility.Private)
+            .isEmpty()
     }
 
     /**
@@ -568,26 +634,34 @@ class SourceTyLowering {
     private func applied(id: TypeRefId, target: DefId, args: Array<Ty>): Ty {
         let isCFunc = target.item(db).kind == ItemKind.BuiltIn && isNamed(db, target, "CFunc")
         let count = genericsOf(db, target).size
-        let fitted = if (args.size == count) {
-            args
-        } else {
-            errors.add(TyError(id, if (args.isEmpty() && !isCFunc) {
-                TyErrorKind.NeedsTypeArgs
+        let fitted =
+            if (args.size == count) {
+                args
             } else {
-                TyErrorKind.WrongTypeArgCount
-            }))
-            Array(count) {i => args.get(i) ?? Ty(db, ErrorTy)}
-        }
+                errors
+                    .add(
+                        TyError(
+                            id,
+                            if (args.isEmpty() && !isCFunc) {
+                                TyErrorKind.NeedsTypeArgs
+                            } else {
+                                TyErrorKind.WrongTypeArgCount
+                            }
+                        )
+                    )
+                Array(count) { i => args.get(i) ?? Ty(db, ErrorTy) }
+            }
         match (target.item(db).kind) {
-            case TypeAlias where cycle.isSome() && aliasPath(db, target, def, HashSet<DefId>([target])).isSome() =>
-                Ty(db, ErrorTy)
+            case TypeAlias where cycle.isSome() &&
+                    aliasPath(db, target, def, HashSet<DefId>([target])).isSome() => Ty(db, ErrorTy)
             case TypeAlias =>
                 let aliased = signatureTypes(db, target).ty ?? Ty(db, ErrorTy)
                 substitute(db, aliased, target, fitted)
-            case BuiltIn where isCFunc => match (fitted.get(0).map {one => one.kind(db)}) {
-                case Some(FuncTy(params, ret, _)) => Ty(db, FuncTy(params, ret, true))
-                case _ => Ty(db, ErrorTy)
-            }
+            case BuiltIn where isCFunc =>
+                match (fitted.get(0).map { one => one.kind(db) }) {
+                    case Some(FuncTy(params, ret, _)) => Ty(db, FuncTy(params, ret, true))
+                    case _ => Ty(db, ErrorTy)
+                }
             case _ => Ty(db, DeclTy(target, fitted))
         }
     }
@@ -603,12 +677,20 @@ class SourceTyLowering {
  * resolved; an empty one for a declaration it does not have, or bytes that break where they are
  * read.
  */
-func lowerBinarySignature(db: AnalysisDatabase, def: DefId, pkg: BinaryPackageFile, item: BinaryItem): SignatureTypes {
+func lowerBinarySignature(
+    db: AnalysisDatabase,
+    def: DefId,
+    pkg: BinaryPackageFile,
+    item: BinaryItem
+): SignatureTypes {
     let index = binaryExports(db, pkg).declIndex(item) ?? return SignatureTypes()
     let parent = parentOf(db, def)
-    let parentIndex = parent.flatMap {
-        one => binaryExports(db, pkg).declIndex(BinaryItem(item.file, one.item(db)))
-    }
+    let parentIndex =
+        parent
+            .flatMap {
+                one =>
+                binaryExports(db, pkg).declIndex(BinaryItem(item.file, one.item(db)))
+            }
     let bytes = pkg.bytes(db)
     // what the bytes throw alone: a calca call under it unwinds through (A21)
     try {
@@ -643,8 +725,15 @@ class BinaryTyLowering {
      */
     private let lowering = HashSet<UInt32>()
 
-    BinaryTyLowering(index: Int64, parent: ?DefId, parentIndex: ?Int64, private let db: AnalysisDatabase,
-        private let pkg: BinaryPackageFile, private let cjo: CjoPackage, private let def: DefId) {
+    BinaryTyLowering(
+        index: Int64,
+        parent: ?DefId,
+        parentIndex: ?Int64,
+        private let db: AnalysisDatabase,
+        private let pkg: BinaryPackageFile,
+        private let cjo: CjoPackage,
+        private let def: DefId
+    ) {
         decl = cjo.allDecls[index]
         imports = cjo.imports.toArray()
         let all = ArrayList<(DefId, Array<UInt32>)>([(def, genericDeclsOf(decl))])
@@ -655,36 +744,58 @@ class BinaryTyLowering {
     }
 
     func lower(): SignatureTypes {
-        let generics = genericDeclsOf(decl).map {param => cjo.allDecls[Int64(param) - 1].identifier ?? ""}
+        let generics =
+            genericDeclsOf(decl).map { param => cjo.allDecls[Int64(param) - 1].identifier ?? "" }
         // those cjc adds to an `extend` of a generic type, its type's bounds, are no source's
-        let written = (decl.generic?.constraints.toArray() ?? []).filter {constraint => !constraint.isImplicitlyIntroduced}
-        let bounds = written.map {
-            constraint => TyBound(lowerAt(constraint.`type`), constraint.uppers.toArray().map {upper => lowerAt(upper)})
-        }
-        let supers = match (decl.info) {
-            case Some(DeclInfo.AsClassInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsInterfaceInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsStructInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsEnumInfo(it)) => it.inheritedTypes.toArray()
-            case Some(DeclInfo.AsExtendInfo(it)) => it.inheritedTypes.toArray()
-            case _ => Array<UInt32>()
-        }.map {ty => lowerAt(ty)}
-        let declared = match (decl.info) {
-            case Some(DeclInfo.AsAliasInfo(it)) => it.aliasedTy
-            case _ => decl.`type`
-        }
-        // a function's type is a function's: its parameters and its return type
-        let (params, ty) = match (semaTyOf(declared)) {
-            case Some(semaTy) where semaTy.kind == TypeKind.Func && isCallable(def.item(db).kind) =>
-                let ret = match (semaTy.info) {
-                    case Some(SemaTyInfo.AsFuncTyInfo(info)) => lowerAt(info.retType)
-                    case _ => Ty(db, UnknownTy(UnknownReason.BinaryType))
+        let written =
+            (decl.generic?.constraints.toArray() ?? [])
+                .filter { constraint => !constraint.isImplicitlyIntroduced }
+        let bounds =
+            written
+                .map {
+                    constraint =>
+                    TyBound(
+                        lowerAt(constraint.`type`),
+                        constraint.uppers.toArray().map { upper => lowerAt(upper) }
+                    )
                 }
-                (semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}, ret)
-            case _ => (Array<Ty>(), lowerAt(declared))
-        }
-        SignatureTypes(generics: generics, params: params, paramNames: paramNames(), paramDefaults: paramDefaults(), ty: ty, supers: supers,
-            bounds: bounds)
+        let supers =
+            match (decl.info) {
+                case Some(DeclInfo.AsClassInfo(it)) => it.inheritedTypes.toArray()
+                case Some(DeclInfo.AsInterfaceInfo(it)) => it.inheritedTypes.toArray()
+                case Some(DeclInfo.AsStructInfo(it)) => it.inheritedTypes.toArray()
+                case Some(DeclInfo.AsEnumInfo(it)) => it.inheritedTypes.toArray()
+                case Some(DeclInfo.AsExtendInfo(it)) => it.inheritedTypes.toArray()
+                case _ => Array<UInt32>()
+            }
+                .map { ty => lowerAt(ty) }
+        let declared =
+            match (decl.info) {
+                case Some(DeclInfo.AsAliasInfo(it)) => it.aliasedTy
+                case _ => decl.`type`
+            }
+        // a function's type is a function's: its parameters and its return type
+        let (params, ty) =
+            match (semaTyOf(declared)) {
+                case Some(semaTy) where semaTy.kind == TypeKind.Func &&
+                        isCallable(def.item(db).kind) =>
+                    let ret =
+                        match (semaTy.info) {
+                            case Some(SemaTyInfo.AsFuncTyInfo(info)) => lowerAt(info.retType)
+                            case _ => Ty(db, UnknownTy(UnknownReason.BinaryType))
+                        }
+                    (semaTy.typeArgs.toArray().map { arg => lowerAt(arg) }, ret)
+                case _ => (Array<Ty>(), lowerAt(declared))
+            }
+        SignatureTypes(
+            generics: generics,
+            params: params,
+            paramNames: paramNames(),
+            paramDefaults: paramDefaults(),
+            ty: ty,
+            supers: supers,
+            bounds: bounds
+        )
     }
 
     /**
@@ -692,10 +803,12 @@ class BinaryTyLowering {
      * is a constant, but marks each `HasInitial`; none if none is passed by name.
      */
     private func paramDefaults(): Array<Bool> {
-        let lists = match (decl.info) {
-            case Some(DeclInfo.AsFuncInfo(it)) => (it.funcBody ?? return []).paramLists.toArray()
-            case _ => return []
-        }
+        let lists =
+            match (decl.info) {
+                case Some(DeclInfo.AsFuncInfo(it)) =>
+                    (it.funcBody ?? return []).paramLists.toArray()
+                case _ => return []
+            }
         let found = ArrayList<Bool>()
         var isNamed = false
         for (list in lists) {
@@ -709,33 +822,31 @@ class BinaryTyLowering {
                 }
             }
         }
-        if (isNamed) {
-            found.toArray()
-        } else {
-            []
-        }
+        if (isNamed) { found.toArray() } else { [] }
     }
 
     private func paramNames(): Array<?String> {
-        let lists = match (decl.info) {
-            case Some(DeclInfo.AsFuncInfo(it)) => (it.funcBody ?? return []).paramLists.toArray()
-            case _ => return []
-        }
+        let lists =
+            match (decl.info) {
+                case Some(DeclInfo.AsFuncInfo(it)) =>
+                    (it.funcBody ?? return []).paramLists.toArray()
+                case _ => return []
+            }
         let names = ArrayList<?String>()
         for (list in lists) {
             for (param in list.params) {
                 let one = cjo.allDecls[Int64(param) - 1]
-                names.add(match (one.info) {
-                    case Some(DeclInfo.AsParamInfo(it)) where it.isNamedParam => one.identifier
-                    case _ => None
-                })
+                names
+                    .add(
+                        match (one.info) {
+                            case Some(DeclInfo.AsParamInfo(it)) where it.isNamedParam =>
+                                one.identifier
+                            case _ => None
+                        }
+                    )
             }
         }
-        if (names.iterator().any {one => one.isSome()}) {
-            names.toArray()
-        } else {
-            []
-        }
+        if (names.iterator().any { one => one.isSome() }) { names.toArray() } else { [] }
     }
 
     /**
@@ -755,48 +866,51 @@ class BinaryTyLowering {
 
     private func lowerSemaTy(index: UInt32): Ty {
         let semaTy = semaTyOf(index) ?? return Ty(db, UnknownTy(UnknownReason.BinaryType))
-        let args = semaTy.typeArgs.toArray().map {arg => lowerAt(arg)}
-        let kind = match (semaTy.kind) {
-            case TypeKind.Tuple => TupleTy(args)
-            case TypeKind.Func => match (semaTy.info) {
-                case Some(SemaTyInfo.AsFuncTyInfo(info)) => FuncTy(args, lowerAt(info.retType), info.isC)
+        let args = semaTy.typeArgs.toArray().map { arg => lowerAt(arg) }
+        let kind =
+            match (semaTy.kind) {
+                case TypeKind.Tuple => TupleTy(args)
+                case TypeKind.Func =>
+                    match (semaTy.info) {
+                        case Some(SemaTyInfo.AsFuncTyInfo(info)) =>
+                            FuncTy(args, lowerAt(info.retType), info.isC)
+                        case _ => UnknownTy(UnknownReason.BinaryType)
+                    }
+                case TypeKind.Enum | TypeKind.Struct | TypeKind.Class | TypeKind.Interface =>
+                    match (semaTy.info) {
+                        case Some(SemaTyInfo.AsCompositeTyInfo(info)) where info.isThisTy => ThisTy
+                        case _ => declTyOf(binaryTypeRef(cjo, imports, index), args)
+                    }
+                case TypeKind.CPointer | TypeKind.CString =>
+                    declTyOf(binaryTypeRef(cjo, imports, index), args)
+                case TypeKind.Array => return rawArrayOf(args, dimsOf(semaTy.info))
+                case TypeKind.`VArray` =>
+                    match (args.get(0)) {
+                        case Some(element) => VArrayTy(element, dimsOf(semaTy.info))
+                        case None => UnknownTy(UnknownReason.BinaryType)
+                    }
+                case TypeKind.Generic =>
+                    match (semaTy.info) {
+                        case Some(SemaTyInfo.AsGenericTyInfo(info)) => paramOf(info.declPtr)
+                        case _ => UnknownTy(UnknownReason.BinaryType)
+                    }
+                // an alias, which cjc keeps in the types it writes: `Array<Byte>`
+                case TypeKind.Type => return aliasOf(binaryTypeRef(cjo, imports, index), args)
+                // `Unit` to `Bool`: the types of the language
+                case kind where kind.value >= 1 && kind.value <= 17 => PrimTy(kind.toString())
+                // an invalid one, one a newer format added
                 case _ => UnknownTy(UnknownReason.BinaryType)
             }
-            case TypeKind.Enum | TypeKind.Struct | TypeKind.Class | TypeKind.Interface => match (semaTy.info) {
-                case Some(SemaTyInfo.AsCompositeTyInfo(info)) where info.isThisTy => ThisTy
-                case _ => declTyOf(binaryTypeRef(cjo, imports, index), args)
-            }
-            case TypeKind.CPointer | TypeKind.CString => declTyOf(binaryTypeRef(cjo, imports, index), args)
-            case TypeKind.Array => return rawArrayOf(args, dimsOf(semaTy.info))
-            case TypeKind.`VArray` => match (args.get(0)) {
-                case Some(element) => VArrayTy(element, dimsOf(semaTy.info))
-                case None => UnknownTy(UnknownReason.BinaryType)
-            }
-            case TypeKind.Generic => match (semaTy.info) {
-                case Some(SemaTyInfo.AsGenericTyInfo(info)) => paramOf(info.declPtr)
-                case _ => UnknownTy(UnknownReason.BinaryType)
-            }
-            // an alias, which cjc keeps in the types it writes: `Array<Byte>`
-            case TypeKind.Type => return aliasOf(binaryTypeRef(cjo, imports, index), args)
-            // `Unit` to `Bool`: the types of the language
-            case kind where kind.value >= 1 && kind.value <= 17 => PrimTy(kind.toString())
-            // an invalid one, one a newer format added
-            case _ => UnknownTy(UnknownReason.BinaryType)
-        }
         Ty(db, kind)
     }
 
     private func semaTyOf(index: UInt32): ?SemaTy {
         let types = cjo.allTypes
-        if (index == 0 || Int64(index) > types.size) {
-            None
-        } else {
-            types[Int64(index) - 1]
-        }
+        if (index == 0 || Int64(index) > types.size) { None } else { types[Int64(index) - 1] }
     }
 
     private func declTyOf(ref: ?BinaryTypeRef, args: Array<Ty>): TyKind {
-        match (ref.flatMap {one => resolveBinaryType(db, pkg, one)}) {
+        match (ref.flatMap { one => resolveBinaryType(db, pkg, one) }) {
             case Some(DeclType(id)) => DeclTy(id, args)
             case _ => UnknownTy(UnknownReason.BinaryType)
         }
@@ -806,9 +920,14 @@ class BinaryTyLowering {
      * The alias `ref` names applied to `args`, expanded as a source's is.
      */
     private func aliasOf(ref: ?BinaryTypeRef, args: Array<Ty>): Ty {
-        match (ref.flatMap {one => resolveBinaryType(db, pkg, one)}) {
+        match (ref.flatMap { one => resolveBinaryType(db, pkg, one) }) {
             case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias =>
-                substitute(db, signatureTypes(db, id).ty ?? Ty(db, UnknownTy(UnknownReason.BinaryType)), id, args)
+                substitute(
+                    db,
+                    signatureTypes(db, id).ty ?? Ty(db, UnknownTy(UnknownReason.BinaryType)),
+                    id,
+                    args
+                )
             case _ => Ty(db, UnknownTy(UnknownReason.BinaryType))
         }
     }
@@ -822,10 +941,11 @@ class BinaryTyLowering {
             return Ty(db, UnknownTy(UnknownReason.BinaryType))
         }
         let element = args.get(0) ?? return Ty(db, UnknownTy(UnknownReason.BinaryType))
-        let rawArray = match (resolveBinaryType(db, pkg, BinaryTypeRef.BuiltInRef("RawArray"))) {
-            case Some(DeclType(id)) => id
-            case _ => return Ty(db, UnknownTy(UnknownReason.BinaryType))
-        }
+        let rawArray =
+            match (resolveBinaryType(db, pkg, BinaryTypeRef.BuiltInRef("RawArray"))) {
+                case Some(DeclType(id)) => id
+                case _ => return Ty(db, UnknownTy(UnknownReason.BinaryType))
+            }
         var ty = element
         for (_ in 0..max(dims, 1)) {
             ty = Ty(db, DeclTy(rawArray, [ty]))
@@ -854,7 +974,7 @@ class BinaryTyLowering {
  * Whether the item of `def` is named `name`.
  */
 func isNamed(db: AnalysisDatabase, def: DefId, name: String): Bool {
-    declItemOf(db, def).map {item => item.names.contains(name)} ?? false
+    declItemOf(db, def).map { item => item.names.contains(name) } ?? false
 }
 
 /**

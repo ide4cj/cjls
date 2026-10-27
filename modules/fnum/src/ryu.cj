@@ -80,11 +80,7 @@ func mulShift64(m: UInt64, mulLo: UInt64, mulHi: UInt64, j: Int64): UInt64 {
     let (high1, low1) = umul128(m, mulHi)
     let (high0, _) = umul128(m, mulLo)
     let sum = high0 + low1
-    let high = if (sum < high0) {
-        high1 + 1
-    } else {
-        high1
-    }
+    let high = if (sum < high0) { high1 + 1 } else { high1 }
     let dist = UInt64(j - 64)
     (high << (64 - dist)) | (sum >> dist)
 }
@@ -93,19 +89,19 @@ func mulShift64(m: UInt64, mulLo: UInt64, mulHi: UInt64, j: Int64): UInt64 {
 @OverflowWrapping
 func d2d(ieeeMantissa: UInt64, ieeeExponent: Int64): (UInt64, Int64) {
     // two more bits, for the bounds
-    let (e2, m2) = if (ieeeExponent == 0) {
-        (1 - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS - 2, ieeeMantissa)
-    } else {
-        (ieeeExponent - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS - 2, (1 << UInt64(DOUBLE_MANTISSA_BITS)) | ieeeMantissa)
-    }
+    let (e2, m2) =
+        if (ieeeExponent == 0) {
+            (1 - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS - 2, ieeeMantissa)
+        } else {
+            (
+                ieeeExponent - DOUBLE_BIAS - DOUBLE_MANTISSA_BITS - 2,
+                (1 << UInt64(DOUBLE_MANTISSA_BITS)) | ieeeMantissa
+            )
+        }
     let acceptBounds = (m2 & 1) == 0
 
     let mv = 4 * m2
-    let mmShift: UInt64 = if (ieeeMantissa != 0 || ieeeExponent <= 1) {
-        1
-    } else {
-        0
-    }
+    let mmShift: UInt64 = if (ieeeMantissa != 0 || ieeeExponent <= 1) { 1 } else { 0 }
 
     var vr: UInt64 = 0
     var vp: UInt64 = 0
@@ -114,11 +110,7 @@ func d2d(ieeeMantissa: UInt64, ieeeExponent: Int64): (UInt64, Int64) {
     var vmIsTrailingZeros = false
     var vrIsTrailingZeros = false
     if (e2 >= 0) {
-        let q = log10Pow2(e2) - if (e2 > 3) {
-            1
-        } else {
-            0
-        }
+        let q = log10Pow2(e2) - if (e2 > 3) { 1 } else { 0 }
         e10 = q
         let k = RYU_POW5_INV_BITCOUNT + pow5bits(q) - 1
         let i = -e2 + q + k
@@ -138,11 +130,7 @@ func d2d(ieeeMantissa: UInt64, ieeeExponent: Int64): (UInt64, Int64) {
             }
         }
     } else {
-        let q = log10Pow5(-e2) - if (-e2 > 1) {
-            1
-        } else {
-            0
-        }
+        let q = log10Pow5(-e2) - if (-e2 > 1) { 1 } else { 0 }
         e10 = q + e2
         let i = -e2 - q
         let k = pow5bits(i) - RYU_POW5_BITCOUNT
@@ -197,11 +185,7 @@ func d2d(ieeeMantissa: UInt64, ieeeExponent: Int64): (UInt64, Int64) {
         }
         // vr + 1 if vr is outside the bounds or has to round up
         let up = (vr == vm && (!acceptBounds || !vmIsTrailingZeros)) || lastRemovedDigit >= 5
-        output = if (up) {
-            vr + 1
-        } else {
-            vr
-        }
+        output = if (up) { vr + 1 } else { vr }
     } else {
         // the common case
         var roundUp = false
@@ -220,11 +204,7 @@ func d2d(ieeeMantissa: UInt64, ieeeExponent: Int64): (UInt64, Int64) {
             vm /= 10
             removed++
         }
-        output = if (vr == vm || roundUp) {
-            vr + 1
-        } else {
-            vr
-        }
+        output = if (vr == vm || roundUp) { vr + 1 } else { vr }
     }
     (output, e10 + removed)
 }
@@ -260,13 +240,14 @@ func writeExponent(buf: Array<Byte>, at: Int64, e: Int64): Int64 {
         i++
         magnitude = -e
     }
-    let length = if (magnitude >= 100) {
-        3
-    } else if (magnitude >= 10) {
-        2
-    } else {
-        1
-    }
+    let length =
+        if (magnitude >= 100) {
+            3
+        } else if (magnitude >= 10) {
+            2
+        } else {
+            1
+        }
     writeDigits(buf, i + length, UInt64(magnitude))
     i + length
 }
@@ -282,7 +263,9 @@ public func formatShortest(value: Float64): String {
     }
     let buf = Array<Byte>(FLOAT64_CHARS_MAX, repeat: 0)
     let end = writeShortest(buf, 0, value)
-    unsafe { String.fromUtf8Unchecked(buf[0..end]) }
+    unsafe {
+        String.fromUtf8Unchecked(buf[0..end])
+    }
 }
 
 /**
@@ -306,7 +289,8 @@ public func writeShortest(buf: Array<Byte>, at: Int64, value: Float64): Int64 {
         return i + 3
     }
 
-    let (output, exponent) = smallInteger(ieeeMantissa, ieeeExponent) ?? d2d(ieeeMantissa, ieeeExponent)
+    let (output, exponent) =
+        smallInteger(ieeeMantissa, ieeeExponent) ?? d2d(ieeeMantissa, ieeeExponent)
     let length = decimalLength17(output)
     // 10^(kk - 1) <= value < 10^kk
     let kk = length + exponent

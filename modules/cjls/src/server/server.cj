@@ -32,9 +32,21 @@ class Server <: Handler {
     private let loop: Loop
 
     Server(private let router: Router, private let client: Client, private let logger: Logger) {
-        let push = router.diagnostics.map {diagnostics => DiagnosticsPush(diagnostics, client, logger)}
-        loop = Loop(router.state, push, refreshTokens: {=> client.request(SemanticTokensRefreshRequestSpec(), (), logger)},
-            refreshDiagnostics: {=> client.request(DiagnosticRefreshRequestSpec(), (), logger)})
+        let push =
+            router.diagnostics.map { diagnostics => DiagnosticsPush(diagnostics, client, logger) }
+        loop =
+            Loop(
+                router.state,
+                push,
+                refreshTokens: {
+                    =>
+                    client.request(SemanticTokensRefreshRequestSpec(), (), logger)
+                },
+                refreshDiagnostics: {
+                    =>
+                    client.request(DiagnosticRefreshRequestSpec(), (), logger)
+                }
+            )
     }
 
     /**
@@ -42,11 +54,7 @@ class Server <: Handler {
      */
     prop exitCode: Int64 {
         get() {
-            if (shutDownCleanly) {
-                0
-            } else {
-                1
-            }
+            if (shutDownCleanly) { 0 } else { 1 }
         }
     }
 
@@ -60,23 +68,43 @@ class Server <: Handler {
         match (router.requests.get(request.method)) {
             case None =>
                 logger.debug("no handler")
-                request.respond(
-                    ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no handler for \"${request.method}\"")))
+                request
+                    .respond(
+                        ResultOrError
+                            .Error(
+                                ResponseError(
+                                    ErrorCode.METHOD_NOT_FOUND,
+                                    "no handler for \"${request.method}\""
+                                )
+                            )
+                    )
             case Some(Exclusive(handler)) =>
                 let parts = Parts(loop, client, request.cancellation, logger)
-                if (loop.write {_ => answer(request, logger) {handler(parts, request.params, request.decodedParams)}}) {
+                if (
+                    loop
+                        .write {
+                            _ =>
+                            answer(request, logger) {
+                                handler(parts, request.params, request.decodedParams)
+                            }
+                        }
+                ) {
                     advance(request.method)
                 }
             case Some(ReadOnly(handler)) =>
                 // taken here, on the read loop, so it holds what every message before this one did
                 let cancellation = request.cancellation
-                let cancelledBy = {=> cancellation.isCancelled}
+                let cancelledBy = { => cancellation.isCancelled }
                 let snapshot = loop.snapshot(cancelledBy: cancelledBy)
                 spawn {
                     answer(request, logger) {
                         runAgainOnAChange(snapshot, loop, cancelledBy, logger) {
-                            snapshot => handler(ReadOnlyParts(snapshot, client, cancellation, logger), request.params,
-                                request.decodedParams)
+                            snapshot =>
+                            handler(
+                                ReadOnlyParts(snapshot, client, cancellation, logger),
+                                request.params,
+                                request.decodedParams
+                            )
                         }
                     }
                 }
@@ -108,18 +136,31 @@ class Server <: Handler {
         router.paramsReaders.get(method)
     }
 
-    private func dispatch(method: String, params: ?RawJson, decodedParams: ?Any, logger: Logger): Unit {
+    private func dispatch(
+        method: String,
+        params: ?RawJson,
+        decodedParams: ?Any,
+        logger: Logger
+    ): Unit {
         let cancellation = CancellationToken()
         match (router.notifications.get(method)) {
             // the `$/` ones are the protocol's own, and a server is free to ignore them
             case None => logger.debug("no handler")
             case Some(Exclusive(handler)) =>
-                loop.write {_ => run(logger) {handler(Parts(loop, client, cancellation, logger), params, decodedParams)}}
+                loop
+                    .write {
+                        _ =>
+                        run(logger) {
+                            handler(
+                                Parts(loop, client, cancellation, logger),
+                                params,
+                                decodedParams
+                            )
+                        }
+                    }
             case Some(ReadOnly(handler)) =>
                 let parts = ReadOnlyParts(loop.snapshot(), client, cancellation, logger)
-                spawn {
-                    run(logger) {handler(parts, params, decodedParams)}
-                }
+                spawn { run(logger) { handler(parts, params, decodedParams) } }
         }
     }
 
@@ -129,7 +170,8 @@ class Server <: Handler {
                 ResponseError(ErrorCode.SERVER_NOT_INITIALIZED, "the server is not initialized yet")
             case Initialized where method == InitializeRequestSpec.METHOD =>
                 ResponseError(ErrorCode.INVALID_REQUEST, "the server is already initialized")
-            case ShuttingDown | Exited => ResponseError(ErrorCode.INVALID_REQUEST, "the server is shutting down")
+            case ShuttingDown | Exited =>
+                ResponseError(ErrorCode.INVALID_REQUEST, "the server is shutting down")
             case _ => None
         }
     }
@@ -159,8 +201,13 @@ class Server <: Handler {
  * given `ContentModified` for a completion shows nothing and asks nothing more. A request the client cancelled
  * is not run again: its `CancelledException` goes through, to `cancelledError`.
  */
-private func runAgainOnAChange(first: ServerSnapshot, loop: Loop, cancelledBy: () -> Bool, logger: Logger,
-    query: (ServerSnapshot) -> RawJson): RawJson {
+private func runAgainOnAChange(
+    first: ServerSnapshot,
+    loop: Loop,
+    cancelledBy: () -> Bool,
+    logger: Logger,
+    query: (ServerSnapshot) -> RawJson
+): RawJson {
     try {
         query(first)
     } catch (e: CancelledException) {
@@ -196,17 +243,18 @@ private func cancelledError(request: InboundRequest, logger: Logger): ResponseEr
  */
 private func answer(request: InboundRequest, logger: Logger, handler: () -> RawJson): Bool {
     let start = MonoTime.now()
-    let answer = try {
-        ResultOrError.Result(handler())
-    } catch (_: CancelledException) {
-        ResultOrError.Error(cancelledError(request, logger))
-    } catch (e: Exception) {
-        logFailure(logger, e)
-        ResultOrError.Error(responseErrorOf(e))
-    } catch (e: Error) {
-        logFailure(logger, e)
-        ResultOrError.Error(responseErrorOf(e))
-    }
+    let answer =
+        try {
+            ResultOrError.Result(handler())
+        } catch (_: CancelledException) {
+            ResultOrError.Error(cancelledError(request, logger))
+        } catch (e: Exception) {
+            logFailure(logger, e)
+            ResultOrError.Error(responseErrorOf(e))
+        } catch (e: Error) {
+            logFailure(logger, e)
+            ResultOrError.Error(responseErrorOf(e))
+        }
     request.respond(answer)
     logger.debug("answered", [("took", MonoTime.now() - start)])
     answer.isResult()

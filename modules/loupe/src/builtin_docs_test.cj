@@ -12,8 +12,10 @@ class BuiltinDocsTest {
         let names = HashSet<String>()
 
         // act
-        let twice = builtinDocs() |> filter {doc: BuiltinDoc => !names.add(doc.name)} |>
-            map {doc: BuiltinDoc => doc.name} |> collectArray
+        let twice =
+            builtinDocs() |> filter { doc: BuiltinDoc => !names.add(doc.name) } |>
+                map { doc: BuiltinDoc => doc.name } |>
+                collectArray
 
         // assert
         @Expect(twice, Array<String>())

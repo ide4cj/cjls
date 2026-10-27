@@ -3,8 +3,10 @@ package cjsyntax
 import ginkgo.TokenSet
 import ginkgo.parsing.*
 
-let TYPE_RECOVERY = TokenSet<SyntaxKind>([Comma, Gt, RParen, RBracket, LBrace, RBrace, Eq, Semicolon, Arrow,
-    WhereKw, Amp, LtColon])
+let TYPE_RECOVERY =
+    TokenSet<SyntaxKind>(
+        [Comma, Gt, RParen, RBracket, LBrace, RBrace, Eq, Semicolon, Arrow, WhereKw, Amp, LtColon]
+    )
 
 /**
  * A type; the kind of its node, `ErrorNode` if there is none.
@@ -91,17 +93,18 @@ func parenType(p: P): SyntaxKind {
         }
     }
     p.expect(RParen)
-    let kind = if (p.eat(Arrow)) {
-        typ(p)
-        FuncType
-    } else if (count == 1) {
-        ParenType
-    } else if (count > 1) {
-        TupleType
-    } else {
-        p.error("expected '->'")
-        FuncType
-    }
+    let kind =
+        if (p.eat(Arrow)) {
+            typ(p)
+            FuncType
+        } else if (count == 1) {
+            ParenType
+        } else if (count > 1) {
+            TupleType
+        } else {
+            p.error("expected '->'")
+            FuncType
+        }
     m.complete(p, kind)
     kind
 }
