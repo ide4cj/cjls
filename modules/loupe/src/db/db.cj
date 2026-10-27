@@ -2,7 +2,6 @@ package loupe.db
 
 import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
 import std.collection.concurrent.ConcurrentHashMap
-import std.sort.sort
 import calca.*
 import calca.macros.*
 import rope.Rope
@@ -254,11 +253,6 @@ public class AnalysisDatabase <: Database {
 
     private func setPackage(module: ModuleKey, model: PackageModel, files: Array<FileId>, durability: Durability,
         binary!: ?BinaryPackageFile = None): Package {
-        // Header consistency follows cjc's path order, independently of project/load order.
-        // Keep the original ids aligned with model.files for testFilesOf.
-        let order = Array<Int64>(model.files.size, {i => i})
-        sort(order, by: {a, b => model.files[a].toString().compare(model.files[b].toString())})
-        let orderedFiles = order.map {i => files[i]}
         let key = PackageKey(module, model.name)
         let packages = if (binary.isSome()) { projects.binarySourcePackages } else { projects.packages }
         match (packages.get(key)) {
@@ -272,7 +266,8 @@ public class AnalysisDatabase <: Database {
                     pkg.setDir(this).withDurability(durability).to(model.dir)
                 }
                 if (old.files != model.files || moved) {
-                    pkg.setFiles(this).withDurability(durability).to(orderedFiles)
+                    pkg.setFiles(this).withDurability(durability).to(files)
+                    pkg.setFilePaths(this).withDurability(durability).to(model.files)
                 }
                 let testsChanged = old.files.filter {file => isTestFile(file)} != model.files.filter {
                     file => isTestFile(file)
@@ -292,8 +287,9 @@ public class AnalysisDatabase <: Database {
                 packages.add(key, (pkg, model, durability))
                 pkg
             case None =>
-                let pkg = Package(this, model.name, model.dir, orderedFiles, model.noPrelude, model.isMacro,
-                    model.cfg, testFiles: testFilesOf(model, files), binary: binary, durability: durability)
+                let pkg = Package(this, model.name, model.dir, files, model.files, model.noPrelude, model.isMacro,
+                    model.cfg, testFiles: testFilesOf(model, files), binary: binary,
+                    durability: durability)
                 packages.add(key, (pkg, model, durability))
                 if (let Some(one) <- binary) { projects.contextBinaries[pkg] = one }
                 pkg

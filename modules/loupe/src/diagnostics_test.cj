@@ -882,6 +882,21 @@ class PackageHeaderDiagnosticsTest {
         @Expect(firstErrors.isEmpty())
         @Expect(secondErrors.map {one => one.message},
             ["package name with macro should be consistent in the same package."])
+
+        // act: removing the first header makes the later macro header the reference
+        db.setFileText(first, Rope(""))
+        let afterRemoval = diagnostics(db, second)
+
+        // assert
+        @Expect(afterRemoval.isEmpty())
+
+        // act: restoring an earlier ordinary header changes the reference again
+        db.setFileText(first, Rope("package m"))
+        let afterRestore = diagnostics(db, second)
+
+        // assert
+        @Expect(afterRestore.map {one => one.message},
+            ["package name with macro should be consistent in the same package."])
     }
 
     @TestCase
