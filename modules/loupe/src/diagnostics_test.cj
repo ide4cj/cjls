@@ -181,6 +181,29 @@ class InferenceDiagnosticsTest {
     }
 
     @TestCase
+    func anOptionalFunctionContextStillChecksALambdasReturnType() {
+        checkDiagnostics(
+            #"
+            package m
+            func takes(f: ?(Int64) -> Int64): Unit {}
+            func g(): Unit {
+                let good: ?(Int64) -> Int64 = {x => x + 1}
+                let nested: ??(Int64) -> Int64 = {x => x}
+                let cfunc: ?CFunc<(Int32) -> Int32> = {x => x}
+                let unit: ?(Int64) -> Unit = {x => x + 1}
+                let ordinary: (Int64) -> Unit = {x => x + 1}
+                takes({x => x})
+                let bad: ?(Int64) -> Int64 = {x => "s"}
+            //                                     ^^^ error: mismatched types: expected 'Int64', found 'String'
+                takes({x => "s"})
+            //              ^^^ error: mismatched types: expected 'Int64', found 'String'
+            }
+            "#,
+            binaries: ["std.core"]
+        )
+    }
+
+    @TestCase
     func aValueOfAnotherTypeThanTheOneExpectedIsAMismatch() {
         checkDiagnostics(
             #"
@@ -927,7 +950,35 @@ class PackageHeaderDiagnosticsTest {
             macro package m
             //- /b.cj module=m package=m
               package m
-            //^^^^^^^ error: file in macro package 'm' must declare 'macro package'
+            //^^^^^^^ error: package name with macro should be consistent in the same package.
+            "#
+        )
+    }
+
+    @TestCase
+    func aMacroHeaderInAnOrdinaryPackageIsAnError() {
+        checkDiagnostics(
+            #"
+            //- /main.cj module=m package=m
+            package m
+            main() {}
+            //- /tmp.cj module=m package=m
+              macro package m
+            //^^^^^ error: package name with macro should be consistent in the same package.
+            "#
+        )
+    }
+
+    @TestCase
+    func libraryHeadersAreComparedInPathOrderRatherThanLoadOrder() {
+        checkDiagnostics(
+            #"
+            //- /b.cj module=m package=m
+              macro package m
+            //^^^^^ error: package name with macro should be consistent in the same package.
+            //- /a.cj module=m package=m
+            package m
+            public func value(): Int64 { 1 }
             "#
         )
     }
@@ -969,13 +1020,13 @@ class PackageHeaderDiagnosticsTest {
         // assert
         @Expect(before.isEmpty())
 
-        // act: another file makes this a macro package
+        // act: the first file sets the expected header kind
         db.setFileText(first, Rope("macro package m"))
         let inconsistent = diagnostics(db, second)
 
         // assert
         @Expect(inconsistent.map {one => one.message},
-            ["file in macro package 'm' must declare 'macro package'"])
+            ["package name with macro should be consistent in the same package."])
 
         // act: restoring the header clears the cached diagnostic
         db.setFileText(first, Rope("package m"))
@@ -983,6 +1034,31 @@ class PackageHeaderDiagnosticsTest {
 
         // assert
         @Expect(restored.isEmpty())
+
+        // act: a later macro header must not change the first file's diagnostic
+        db.setFileText(second, Rope("macro package m"))
+        let firstErrors = diagnostics(db, first)
+        let secondErrors = diagnostics(db, second)
+
+        // assert
+        @Expect(firstErrors.isEmpty())
+        @Expect(secondErrors.map {one => one.message},
+            ["package name with macro should be consistent in the same package."])
+
+        // act: removing the first header makes the later macro header the reference
+        db.setFileText(first, Rope(""))
+        let afterRemoval = diagnostics(db, second)
+
+        // assert
+        @Expect(afterRemoval.isEmpty())
+
+        // act: restoring an earlier ordinary header changes the reference again
+        db.setFileText(first, Rope("package m"))
+        let afterRestore = diagnostics(db, second)
+
+        // assert
+        @Expect(afterRestore.map {one => one.message},
+            ["package name with macro should be consistent in the same package."])
     }
 
     @TestCase

@@ -179,7 +179,9 @@ func changesProject(state: ServerState, event: FileEvent, roots: Array<VfsPath>)
     let path = VfsPath.fromUri(event.uri)
     match (event.`type`) {
         case _ where state.binaryWatch?.covers(path) ?? false => true
-        case _ where path.name == "cjpm.toml" || path.name == PROJECT_JSON ||
+        case _ where path.name == "cjpm.toml" || path.name == "cjpm.lock" ||
+                path.name == "cangjie-repo.toml" ||
+                path.name == PROJECT_JSON ||
                 path.name == CFG_TOML => true
         case FileChangeType.Changed => false
         case _ where isCangjieFile(path.name) => true
@@ -839,6 +841,8 @@ func watcherRegistration(id: String, root: VfsPath, relative: Bool): Registratio
             ("**/*", comeOrGone),
             ("**/*.cj", WatchKind.CHANGE),
             ("**/cjpm.toml", WatchKind.CHANGE),
+            ("**/cjpm.lock", WatchKind.CHANGE),
+            ("**/cangjie-repo.toml", WatchKind.CHANGE),
             ("**/${PROJECT_JSON}", WatchKind.CHANGE),
             ("**/${CFG_TOML}", WatchKind.CHANGE)
         ]

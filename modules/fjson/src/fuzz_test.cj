@@ -2,6 +2,7 @@ package fjson
 
 import std.collection.*
 import std.convert.*
+import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
 import std.unittest.prop_test.*
@@ -174,11 +175,10 @@ func fuzzSeeds(): Array<Array<Byte>> {
     if (let Some(seeds) <- fuzzSeedsRead) {
         return seeds
     }
-    let seeds =
-        corpus("test_parsing", prefix: "y_")
-            .concat(corpus("test_parsing", prefix: "i_"))
-            .map { file => file[1] }
-            .filter { bytes => bytes.size <= 4096 }
+    let files = corpus("test_parsing", prefix: "y_").concat(corpus("test_parsing", prefix: "i_"))
+    // A random seed selects indices; filesystem enumeration must not change their meaning.
+    sort(files, key: { file => file[0] })
+    let seeds = files.map { file => file[1] }.filter { bytes => bytes.size <= 4096 }
     fuzzSeedsRead = seeds
     seeds
 }
@@ -238,6 +238,22 @@ func mutate(seed: Array<Byte>, random: RandomSource): Mutant {
 @Test
 @Configure[randomSeed: 42, coverageGuided: true, generationSteps: 20000]
 class FjCoverageGuidedFuzzTest {
+    @TestCase[depth in [500, MAX_DEPTH, MAX_DEPTH + 1]]
+    func readsDeepContainersWithoutUsingTheCallStack(depth: Int64) {
+        for ((open, close) in [("[", "]"), (#"{"key":"#, "}")]) {
+            // arrange
+            let source = "${open * depth}0${close * depth}"
+            let problems = ArrayList<String>()
+
+            // act
+            let read = readBothWays("${depth} nested ${open}", source.toArray(), problems)
+
+            // assert
+            @Expect(report(problems), "")
+            @Expect(read, depth <= MAX_DEPTH)
+        }
+    }
+
     /** Whatever the bytes, both ways of reading them end alike, in the value or in `FjException`. */
     @TestCase[mutant in random()]
     func readsOrRefusesMutatedDocumentsAlike(mutant: Mutant) {

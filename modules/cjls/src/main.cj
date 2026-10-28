@@ -52,7 +52,6 @@ func runServer(logger: Logger): Int64 {
     logger.info("started", [("heap", getMaxHeapSize())])
     // stdout is the wire: nothing else may write to it
     let state = ServerState()
-    // the parameters are an error type to loupe, expected in an `Option` of their function type (#453)
     state.startsMacros =
         {
             loop, logger =>

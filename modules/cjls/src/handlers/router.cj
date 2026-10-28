@@ -39,6 +39,7 @@ public func router(): Router {
         .route(WorkspaceSymbolRequestSpec(), handleWorkspaceSymbol)
         .route(DocumentSymbolRequestSpec(), handleDocumentSymbol)
         .route(DefinitionRequestSpec(), handleDefinition)
+        .route(TypeDefinitionRequestSpec(), handleTypeDefinition)
         .route(DocumentHighlightRequestSpec(), handleDocumentHighlight)
         .route(ReferencesRequestSpec(), handleReferences)
         .route(ImplementationRequestSpec(), handleImplementation)
@@ -72,6 +73,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             ),
         documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
         definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
+        typeDefinitionProvider: BooleanOrTypeDefinitionOptionsOrTypeDefinitionRegistrationOptions
+            .AsBoolean(true),
         documentHighlightProvider: BooleanOrDocumentHighlightOptions.AsBoolean(true),
         referencesProvider: BooleanOrReferenceOptions.AsBoolean(true),
         implementationProvider: BooleanOrImplementationOptionsOrImplementationRegistrationOptions

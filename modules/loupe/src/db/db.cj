@@ -364,6 +364,7 @@ public class AnalysisDatabase <: Database {
                 }
                 if (old.files != model.files || moved) {
                     pkg.setFiles(this).withDurability(durability).to(files)
+                    pkg.setFilePaths(this).withDurability(durability).to(model.files)
                 }
                 let testsChanged =
                     old.files.filter { file => isTestFile(file) } !=
@@ -389,6 +390,7 @@ public class AnalysisDatabase <: Database {
                         model.name,
                         model.dir,
                         files,
+                        model.files,
                         model.noPrelude,
                         model.isMacro,
                         model.cfg,
