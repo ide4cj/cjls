@@ -5,6 +5,7 @@
 // CJC: audit error: the pattern in this variable declaration can not match its type
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: redefinition of declaration 'x'
+// KNOWN-MISSING: d0 issue=539
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

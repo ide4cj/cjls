@@ -4,6 +4,7 @@
 // CJC: audit error: can not access field 'x'
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: can not access field 'x'
+// KNOWN-MISSING: d0 issue=541
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

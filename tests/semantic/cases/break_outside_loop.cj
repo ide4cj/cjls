@@ -4,6 +4,7 @@
 // CJC: audit error: 'break' or 'continue' must be used inside a loop
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: 'break' or 'continue' must be used inside a loop
+// KNOWN-MISSING: d0 issue=536
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

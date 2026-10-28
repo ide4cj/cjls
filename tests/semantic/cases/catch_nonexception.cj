@@ -4,6 +4,7 @@
 // CJC: audit error: the exception catch type must be class and extends from core.Exception or core.Error
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: the exception catch type must be class and extends from core.Exception or core.Error
+// KNOWN-MISSING: d0 issue=543
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

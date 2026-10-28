@@ -4,6 +4,7 @@
 // CJC: audit error: cannot assign to immutable value
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: cannot assign to immutable value
+// KNOWN-MISSING: d0 issue=529
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

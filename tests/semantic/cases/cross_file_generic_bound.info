@@ -4,6 +4,7 @@
 // CJC: audit error: generics type arguments do not match the constraint of 'Class-Box<Generics-T>'
 // SOURCE: src/main.cj inputs/cross_file_generic_bound/broken/src/main.cj
 // EXPECT: d0 s0 error: generics type arguments do not match the constraint of 'Class-Box<Generics-T>'
+// KNOWN-MISSING: d0 issue=540
 // SOURCE: src/declarations.cj inputs/cross_file_generic_bound/broken/src/declarations.cj
 // STEP: fixed
 // CJC: audit clean

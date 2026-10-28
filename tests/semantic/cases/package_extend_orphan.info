@@ -1,0 +1,20 @@
+// An extension must belong to the type or interface package.
+// ISSUE: 528
+// PACKAGE: api api
+// PACKAGE: contracts contracts
+// PACKAGE: app app depends=api,contracts
+// STEP: broken
+// CJC: api clean
+// CJC: contracts clean
+// CJC: app error: imported type 'C' cannot extend imported interface
+// SOURCE: api/src/main.cj inputs/package_extend_orphan/broken/api/src/main.cj
+// SOURCE: contracts/src/main.cj inputs/package_extend_orphan/broken/contracts/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_extend_orphan/broken/app/src/main.cj
+// EXPECT: orphan type error: imported type 'C' cannot extend imported interface
+// KNOWN-MISSING: orphan issue=557
+// STEP: fixed
+// CJC: api clean
+// CJC: contracts clean
+// CJC: app clean
+// SOURCE: app/src/main.cj inputs/package_extend_orphan/fixed/app/src/main.cj
+// STEP: restored FROM broken

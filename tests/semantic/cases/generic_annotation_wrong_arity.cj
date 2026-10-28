@@ -4,6 +4,7 @@
 // CJC: audit error: type argument's number does not match type parameter's number
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: type argument's number does not match type parameter's number
+// KNOWN-MISSING: d0 issue=540
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

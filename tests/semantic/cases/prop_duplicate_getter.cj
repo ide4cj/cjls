@@ -4,6 +4,7 @@
 // CJC: audit error: duplicated 'get' in prop
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: duplicated 'get' in prop
+// KNOWN-MISSING: d0 issue=531
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

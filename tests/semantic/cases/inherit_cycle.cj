@@ -5,6 +5,7 @@
 // CJC: audit error: recursive constructor calling detected
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: inheritance cycle detected: 'A->B->A'
+// KNOWN-MISSING: d0 issue=538
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

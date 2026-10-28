@@ -4,6 +4,7 @@
 // CJC: audit error: 'override' function 'f' does not have an overridden function in its supertype
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: 'override' function 'f' does not have an overridden function in its supertype
+// KNOWN-MISSING: d0 issue=538
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

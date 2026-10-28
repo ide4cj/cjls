@@ -1,0 +1,22 @@
+// A glob import must not export a plain extension of a foreign type.
+// ISSUE: 541
+// PACKAGE: api api
+// PACKAGE: extensions extensions depends=api
+// PACKAGE: app app depends=api,extensions
+// STEP: broken
+// CJC: api clean
+// CJC: extensions clean
+// CJC: app error: 'e' is not a member of class 'C'
+// SOURCE: api/src/main.cj inputs/package_extend_plain/broken/api/src/main.cj
+// SOURCE: extensions/src/main.cj inputs/package_extend_plain/broken/extensions/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_extend_plain/broken/app/src/main.cj
+// EXPECT: member member error: 'e' is not a member of class 'C'
+// KNOWN-MISSING: member issue=541
+// STEP: fixed
+// CJC: api clean
+// CJC: extensions clean
+// CJC: app clean
+// SOURCE: api/src/main.cj inputs/package_extend_plain/fixed/api/src/main.cj
+// SOURCE: extensions/src/main.cj inputs/package_extend_plain/fixed/extensions/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_extend_plain/broken/app/src/main.cj
+// STEP: restored FROM broken

@@ -4,6 +4,7 @@
 // CJC: audit error: instance member variable 'x' cannot be modified in immutable function
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: instance member variable 'x' cannot be modified in immutable function
+// KNOWN-MISSING: d0 issue=533
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

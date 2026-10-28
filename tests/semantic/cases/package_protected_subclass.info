@@ -1,0 +1,8 @@
+// ISSUE: 541
+// PACKAGE: api api
+// PACKAGE: app app depends=api
+// STEP: control
+// CJC: api clean
+// CJC: app clean
+// SOURCE: api/src/main.cj inputs/package_protected_subclass/api/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_protected_subclass/app/src/main.cj

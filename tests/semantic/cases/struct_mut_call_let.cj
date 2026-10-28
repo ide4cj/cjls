@@ -4,6 +4,7 @@
 // CJC: audit error: cannot use mutable function on immutable value
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: cannot use mutable function on immutable value
+// KNOWN-MISSING: d0 issue=533
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

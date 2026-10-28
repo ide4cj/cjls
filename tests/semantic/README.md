@@ -5,6 +5,8 @@ complementing the accepted-source corpus gate (#114). It retains all 92 isolated
 programs from the 2026-10-28 [audit](https://github.com/ide4cj/cjls/issues/527),
 corrected counterparts, and three cross-file declaration checks. Two additional
 scenarios exercise file lifecycle and a dependency between packages.
+Ten more scenarios cover inference, visibility and extension rules across
+independently compiled packages, including three-package dependency graphs.
 The harness needs Python 3.10+ and no Python packages.
 
 ## Run from a clean checkout
@@ -21,7 +23,7 @@ python3 tests/semantic/oracle.py --sdk "$CANGJIE_HOME" --output target/semantic-
 PowerShell uses `python` and `--sdk "$env:CANGJIE_HOME"`. The default server is
 `target/release/bin/cjls` (`cjls.exe` on Windows); `--server` selects another build.
 Build that binary from the recorded checkout revision before running. The report
-records the revision, local changes, server SHA-256 and scenario/baseline hashes;
+records the revision, local changes, server SHA-256 and scenario hashes;
 a supplied binary's commit cannot be inferred from its filename. CI uses the
 same commit's Build artifact. Use a new output directory for each run: existing
 evidence is never overwritten. `--case return_wrong_type` selects one scenario;
@@ -88,6 +90,8 @@ both forms is an error.
 | `SOURCE: workspace/path.cj input/path.cj` | Replace/create a workspace file and its LSP expectations using a native fixture source |
 | `SOURCE: workspace/path.cj %f` | Use this `.cj` entry's body; unavailable in `.info` |
 | `EXPECT: id marker error: message` | One exact LSP error in the preceding SOURCE, at its named marker; `warning` is also supported |
+| `KNOWN-MISSING: id issue=number` | Attribute one missing EXPECT diagnostic of this SOURCE to an issue |
+| `KNOWN-EXTRA: marker issue=number error: message` | Attribute one exact extra diagnostic of this SOURCE to an issue; `warning` is also supported |
 | `DELETE-FILE: path.cj` | Remove an existing file and its expectations |
 | `PLATFORMS: linux darwin win32` | Optional applicability, before steps |
 | `SKIP-REASON: explanation` | Required when applicability is restricted |
@@ -183,20 +187,61 @@ report contains semantic roots. The malformed `open final` syntax control retain
 its exact parser diagnostics. Float32 overflow remains a warning-only compiler
 control with an empty desired LSP report; it must not become an LSP error.
 
-`baseline.json` contains **only known discrepancies**, attributed to their issue
-and explicitly named steps. `missing` lists diagnostic IDs from those steps;
-messages and ranges are resolved from the scenario, not duplicated. `extra`
-contains exact extra diagnostics, including source file and UTF-16 range. IDs and
-step references are validated before execution. Baselines never suppress an
-entire failing test.
+Known differences live beside the corresponding EXPECT in the scenario header
+or descriptor, rather than in a separate baseline file:
+
+```text
+// EXPECT: access receiver error: can not access field 'x'
+// KNOWN-MISSING: access issue=541
+// KNOWN-EXTRA: body issue=544 error: mismatched types: expected 'Int64', found 'String'
+```
+
+`KNOWN-MISSING` names one diagnostic ID of the current SOURCE. `KNOWN-EXTRA`
+specifies one extra diagnostic at a source marker, so even its range follows
+source edits without numeric coordinates. Its marker can differ from the desired
+diagnostic's marker: the existing duplicate mismatch roots cover the whole body.
+Each directive requires its own positive issue number. Repeat KNOWN-EXTRA to
+record multiple identical extra diagnostics. Messages, severities, files, ranges
+and multiplicity remain exact; no directive suppresses an entire test.
+
+Known differences follow the source's expectations through inherited steps and
+`STEP: restored FROM broken`. Replacing a SOURCE or deleting its file clears both
+its expectations and its known differences; redeclare them where needed. A SOURCE
+can reference the same input to clear expectations after a provider-only repair:
+identical resulting text sends no document edit to the consumer.
 
 Comparison is a multiset operation: order is irrelevant, duplicates matter. New
 differences and unexpected fixes both fail. There is no count threshold or
-automatic baseline-update option. When implementing a check, review its
-expectation against the pinned compiler, remove its baseline discrepancy and
-retain the rejected/corrected example. Do not bless new differences for a green
-run. Offline tests plant missing/duplicate diagnostics and check stale baseline
-references, changed message/severity/range, source mapping and edit notifications.
+automatic acceptance option. When implementing a check, review its expectation
+against the pinned compiler, remove its KNOWN directive and retain the
+rejected/corrected example. Do not bless new differences for a green run.
+Reports include issue-attributed known differences for each step; the scenario
+hash covers their directives as well as source inputs. Offline tests plant
+missing, duplicate and unrelated diagnostics, validate stale references and
+exercise source replacement, deletion, restoration and edit notifications.
+
+## Cross-package coverage
+
+The runner compiles each PACKAGE separately, supplies its declared transitive
+dependencies and loads all projects through ordinary path dependencies in one
+server session. Unrelated projects do not enter a compiler invocation's import
+paths. The scenarios check the complete workspace, including provider files:
+
+| Scenarios | Contract |
+|---|---|
+| `package_generic_inference`, `package_transitive_inference` | Infer a local from an imported generic call; propagate a bridge's changed return type through a three-package graph |
+| `package_visibility_private`, `package_visibility_internal`, `package_visibility_protected` | Reject external field access, then clear diagnostics after only the provider makes the field public |
+| `package_protected_subclass` | Allow protected field access inside a subclass in another package |
+| `package_extend_interface_import` | Enable a third package's extension through explicit, glob and aliased interface imports; another file's import does not enable it |
+| `package_extend_plain` | A glob does not export a foreign plain extension; an extension in the type's package is available |
+| `package_extend_interface_members` | Only the interface's members are exported by a foreign extension; changing the interface repairs the unchanged consumer |
+| `package_extend_orphan` | Reject extending an imported type by an imported interface; allow a local interface |
+
+These cases cover separate package projects, not every language/package rule.
+Nested subpackages within one project and macro build pipelines remain outside
+this format. Compiler-confirmed missing access/member diagnostics are tracked
+by #541; the extension ownership diagnostic is tracked by #557. They have exact
+KNOWN-MISSING directives; clean controls remain fully checked.
 
 ## CI and applicability
 

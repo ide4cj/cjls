@@ -2,13 +2,15 @@
 
 import argparse
 import contextlib
+import copy
 import io
 from pathlib import Path
 import tempfile
 import textwrap
 import unittest
+from unittest.mock import AsyncMock, patch
 
-from oracle import apply_step, prepare_workspace, read_json, run, validate
+from oracle import apply_step, compile_step, prepare_workspace, read_json, run
 from scenarios import load_scenarios, parse_scenario as parse_descriptor, relative_path, source_markers
 
 
@@ -207,18 +209,36 @@ class ScenarioTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'put Cangjie source'):
                 load_scenarios(root)
 
-    def test_stale_baseline_steps_and_diagnostic_ids_fail(self):
+    def test_known_directives_require_live_references_and_issue(self):
         # arrange
-        case = parse_scenario(SIMPLE, 'example')
-        entry = {'issue': 528, 'steps': ['initial'], 'missing': [], 'extra': [
-            {'file': 'src/main.cj', 'range': [0, 0, 0, 0], 'severity': 1, 'message': 'example'}]}
-        for field, value in [('missing', ['absent']), ('steps', ['absent'])]:
-            with self.subTest(field=field):
-                baseline = {'example': {**entry, field: value}}
+        for directive in ("KNOWN-MISSING: absent issue=528", "KNOWN-MISSING: d issue=0",
+                          "KNOWN-EXTRA: absent issue=528 error: example"):
+            with self.subTest(directive=directive):
+                text = SIMPLE + "// " + directive + "\n"
 
                 # act / assert
-                with self.assertRaisesRegex(ValueError, 'orphan baseline'):
-                    validate([case], baseline)
+                with self.assertRaises(ValueError):
+                    parse_scenario(text, "invalid")
+
+    def test_known_differences_follow_source_replacement_deletion_and_restore(self):
+        # arrange
+        text = SIMPLE.replace("main.cj\n", "marked.cj\n")
+        text += "// EXPECT: d result error: example\n// KNOWN-MISSING: d issue=529\n"
+        text += "// KNOWN-EXTRA: result issue=544 warning: extra\n"
+        text += "// STEP: fixed\n// CJC: audit clean\n// SOURCE: src/main.cj main.cj\n"
+        text += "// STEP: restored FROM initial\n"
+        text += "// STEP: deleted\n// CJC: audit clean\n// DELETE-FILE: src/main.cj\n"
+        text += "// SOURCE: src/other.cj other.cj\n"
+
+        # act
+        case = parse_scenario(text, "known")
+
+        # assert
+        initial, fixed, restored, deleted = case["steps"]
+        self.assertEqual(initial["known"], restored["known"])
+        self.assertEqual(fixed["known"], {"missing": [], "extra": []})
+        self.assertEqual(deleted["known"], {"missing": [], "extra": []})
+        self.assertEqual(initial["known"]["extra"][0]["range"], [1, 18, 1, 19])
 
     def test_dependency_projects_have_real_manifests_and_all_initial_files(self):
         # arrange
@@ -285,6 +305,53 @@ class EditTest(unittest.IsolatedAsyncioTestCase):
                              ['textDocument/didChange', 'textDocument/didChange'])
             self.assertTrue(all(message['params']['uri'].endswith('/src/declarations.cj')
                                 for message in rpc.messages))
+
+    async def test_compiler_imports_transitive_dependencies_without_unrelated_packages(self):
+        # arrange
+        case = next(case for case in load_scenarios(Path(__file__).parent / "cases")
+                    if case["id"] == "package_transitive_inference")
+        case = copy.deepcopy(case)
+        case["packages"].insert(0, {"name": "unrelated", "root": "unrelated", "dependencies": []})
+        step = case["steps"][1]
+        step["files"]["unrelated/src/main.cj"] = "package unrelated\n"
+        step["compiler"]["unrelated"] = []
+        with tempfile.TemporaryDirectory() as folder:
+            output = Path(folder)
+            command = AsyncMock(return_value=(0, "", ""))
+
+            # act
+            with patch("oracle.command", command):
+                results = await compile_step(case, step, output / "sdk", output, {}, 30)
+            app = next(result for result in results if result["package"] == "app")
+            libraries = [argument for argument in app["command"] if argument.startswith("-l")]
+
+            # assert
+            self.assertEqual([result["package"] for result in results],
+                             ["unrelated", "api", "bridge", "app"])
+            self.assertEqual(libraries, ["-lapi", "-lbridge"])
+            self.assertTrue(all("failure" not in result for result in results))
+
+    async def test_provider_repairs_do_not_send_consumer_edits(self):
+        # arrange
+        cases = load_scenarios(Path(__file__).parent / "cases")
+        names = {"package_visibility_private", "package_visibility_internal",
+                 "package_visibility_protected", "package_transitive_inference",
+                 "package_extend_interface_members", "package_extend_plain"}
+        for case in (case for case in cases if case["id"] in names):
+            with self.subTest(case=case["id"]), tempfile.TemporaryDirectory() as folder:
+                broken, fixed = case["steps"][:2]
+                rpc = RecordingLsp()
+
+                # act
+                await apply_step(rpc, Path(folder), broken["files"], fixed, 2)
+                edits = [message["params"]["uri"] for message in rpc.messages]
+
+                # assert
+                self.assertTrue(edits)
+                self.assertTrue(all("/app/" not in uri for uri in edits))
+                self.assertEqual(fixed["expected"], [])
+                self.assertTrue(all(message["method"] == "textDocument/didChange"
+                                    for message in rpc.messages))
 
     async def test_creation_and_deletion_send_lifecycle_notifications(self):
         # arrange

@@ -4,6 +4,7 @@
 // CJC: audit error: lambda capturing mutable variables needs to be called directly
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: lambda capturing mutable variables needs to be called directly
+// KNOWN-MISSING: d0 issue=535
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

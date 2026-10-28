@@ -60,11 +60,12 @@ def parse_scenario(text, ident, read_source):
     file = None
     source = []
     expectations = []
+    missing, extra = [], []
     touched = set()
     block_comment = False
 
     def finish_file():
-        nonlocal file, source, expectations
+        nonlocal file, source, expectations, missing, extra
         if file is None:
             return
         clean, spans = source_markers("".join(source))
@@ -75,7 +76,23 @@ def parse_scenario(text, ident, read_source):
                 raise ValueError(f"unknown source marker: {span}")
             step["expected"].append({"id": name, "file": file, "range": spans[span],
                                      "severity": SEVERITY[severity], "message": message})
-        file, source, expectations = None, [], []
+        for kind in ("missing", "extra"):
+            step["known"][kind] = [d for d in step["known"][kind] if d["file"] != file]
+        ids = {item[0] for item in expectations}
+        missing_ids = set()
+        for name, issue in missing:
+            if name not in ids:
+                raise ValueError(f"unknown known-missing diagnostic: {name}")
+            if name in missing_ids:
+                raise ValueError(f"duplicate known-missing diagnostic: {name}")
+            missing_ids.add(name)
+            step["known"]["missing"].append({"id": name, "issue": issue, "file": file})
+        for span, issue, severity, message in extra:
+            if span not in spans:
+                raise ValueError(f"unknown source marker: {span}")
+            step["known"]["extra"].append({"file": file, "range": spans[span],
+                                         "issue": issue, "severity": SEVERITY[severity], "message": message})
+        file, source, expectations, missing, extra = None, [], [], [], []
 
     def finish_step():
         finish_file()
@@ -134,7 +151,8 @@ def parse_scenario(text, ident, read_source):
                 else:
                     origin = case["steps"][-1] if case["steps"] else {}
                     step = {"files": copy.deepcopy(origin.get("files", {})),
-                            "expected": copy.deepcopy(origin.get("expected", [])), "compiler": {}}
+                            "expected": copy.deepcopy(origin.get("expected", [])), "compiler": {},
+                            "known": copy.deepcopy(origin.get("known", {"missing": [], "extra": []}))}
                 step["name"] = parts[0]
                 touched = set()
             elif key == "SOURCE" and step is not None:
@@ -153,11 +171,25 @@ def parse_scenario(text, ident, read_source):
                 touched.add(path)
                 del step["files"][path]
                 step["expected"] = [d for d in step["expected"] if d["file"] != path]
+                for kind in ("missing", "extra"):
+                    step["known"][kind] = [d for d in step["known"][kind] if d["file"] != path]
             elif key == "EXPECT" and file is not None:
                 match = re.fullmatch(r"(\w+) (\w+) (error|warning): (.+)", value)
                 if not match:
                     raise ValueError("EXPECT needs diagnostic_id marker_id error|warning: message")
                 expectations.append(match.groups())
+            elif key == "KNOWN-MISSING" and file is not None:
+                match = re.fullmatch(r"(\w+) issue=([1-9][0-9]*)", value)
+                if not match:
+                    raise ValueError("KNOWN-MISSING needs diagnostic_id issue=number")
+                name, issue = match.groups()
+                missing.append((name, int(issue)))
+            elif key == "KNOWN-EXTRA" and file is not None:
+                match = re.fullmatch(r"(\w+) issue=([1-9][0-9]*) (error|warning): (.+)", value)
+                if not match:
+                    raise ValueError("KNOWN-EXTRA needs marker_id issue=number error|warning: message")
+                span, issue, severity, message = match.groups()
+                extra.append((span, int(issue), severity, message))
             elif key == "CJC" and step is not None:
                 finish_file()
                 package, contract = value.split(" ", 1)

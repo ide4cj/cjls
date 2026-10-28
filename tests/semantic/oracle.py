@@ -59,22 +59,21 @@ def desired(step):
     return [{key: value for key, value in item.items() if key != "id"} for item in step["expected"]]
 
 
-def baseline_delta(case, step, baseline):
-    known = baseline.get(case["id"])
-    if known is None or step["name"] not in known["steps"]:
-        return {"missing": [], "extra": []}
+def known_delta(step):
     expectations = {item["id"]: {key: value for key, value in item.items() if key != "id"}
                     for item in step["expected"]}
-    return {"missing": sorted((expectations[name] for name in known["missing"]), key=canonical),
-            "extra": sorted(known["extra"], key=canonical)}
+    return {"missing": sorted((expectations[item["id"]] for item in step["known"]["missing"]), key=canonical),
+            "extra": sorted(({key: value for key, value in item.items() if key != "issue"}
+                             for item in step["known"]["extra"]), key=canonical)}
 
 
-def check_baseline(case, step, actual, baseline):
+def check_known(case, step, actual):
     delta = discrepancy(desired(step), actual)
-    expected_delta = baseline_delta(case, step, baseline)
+    expected_delta = known_delta(step)
     if delta != expected_delta:
         raise AssertionError(f"{case['id']}/{step['name']}: new or unexpectedly fixed discrepancy; "
-                             f"expected {expected_delta!r}, observed {delta!r}")
+                             f"expected {expected_delta!r}, observed {delta!r}; "
+                             "remove stale KNOWN directives when a discrepancy is fixed")
     return delta
 
 
@@ -84,31 +83,10 @@ def compiler_diagnostics(output):
             for level, message in re.findall(r"^(error|warning): (.+)$", output, re.MULTILINE)]
 
 
-def validate(fixtures, baseline):
-    cases = {case["id"]: case for case in fixtures}
-    if not fixtures or len(cases) != len(fixtures) or set(baseline) - cases.keys():
-        raise ValueError("no scenarios, duplicate fixture IDs or orphan baseline entries")
-    for name, entry in baseline.items():
-        case = cases[name]
-        if entry["issue"] != case["issue"]:
-            raise ValueError(f"{name}: baseline issue attribution changed")
-        if not entry["missing"] and not entry["extra"]:
-            raise ValueError(f"{name}: remove fixed baseline entries")
-        steps = {step["name"]: step for step in case["steps"]}
-        if not entry["steps"] or set(entry["steps"]) - steps.keys():
-            raise ValueError(f"{name}: orphan baseline steps")
-        for step_name in entry["steps"]:
-            step = steps[step_name]
-            if set(entry["missing"]) - {item["id"] for item in step["expected"]}:
-                raise ValueError(f"{name}/{step_name}: orphan baseline diagnostic IDs")
-            for diagnostic in entry["extra"]:
-                lines = step["files"][diagnostic["file"]].split("\n")
-                a, b, c, d = diagnostic["range"]
-                if not (0 <= a <= c < len(lines) and 0 <= b <= len(lines[a].encode("utf-16-le")) // 2
-                        and 0 <= d <= len(lines[c].encode("utf-16-le")) // 2 and (a, b) <= (c, d)):
-                    raise ValueError(f"{name}: invalid baseline range")
-                if not diagnostic["message"] or diagnostic["severity"] not in (1, 2):
-                    raise ValueError(f"{name}: invalid baseline diagnostic")
+def validate(fixtures):
+    ids = [case["id"] for case in fixtures]
+    if not ids or len(set(ids)) != len(ids):
+        raise ValueError("no scenarios or duplicate fixture IDs")
 
 
 async def kill_tree(process):
@@ -333,7 +311,7 @@ async def apply_step(rpc, workspace, previous, step, version):
             await rpc.change(path, source, version)
 
 
-async def run_case(case, baseline, binary, sdk, output, env, timeout, report):
+async def run_case(case, binary, sdk, output, env, timeout, report):
     output.mkdir(parents=True)
     workspace = output / "workspace"
     previous = prepare_workspace(case, workspace)
@@ -342,7 +320,8 @@ async def run_case(case, baseline, binary, sdk, output, env, timeout, report):
     compiled = {}
     async with server(binary, sdk, workspace, output, env, timeout, previous) as rpc:
         for version, step in enumerate(case["steps"], 2):
-            observed = {"phase": step["name"], "changed_files": [], "deleted_files": []}
+            observed = {"phase": step["name"], "changed_files": [], "deleted_files": [],
+                        "known_differences": step["known"]}
             item["phases"].append(observed)
             key = canonical({"files": step["files"], "compiler": step["compiler"]})
             if key in compiled:
@@ -366,7 +345,7 @@ async def run_case(case, baseline, binary, sdk, output, env, timeout, report):
                 observed["diagnostics"][name] = diagnostics
                 actual.extend({"file": name, **compact(d)} for d in diagnostics)
             try:
-                observed["discrepancy"] = check_baseline(case, step, actual, baseline)
+                observed["discrepancy"] = check_known(case, step, actual)
             except AssertionError as error:
                 report["failures"].append(str(error))
 
@@ -380,8 +359,8 @@ async def run(args):
     output.mkdir(parents=True, exist_ok=False)
     report = {"schema": 2, "status": "failed", "cases": [], "failures": [], "skips": []}
     try:
-        fixtures, baseline = load_scenarios(HERE / "cases"), read_json(HERE / "baseline.json")
-        validate(fixtures, baseline)
+        fixtures = load_scenarios(HERE / "cases")
+        validate(fixtures)
         if args.case:
             fixtures = [case for case in fixtures if case["id"] in args.case]
             if set(args.case) - {case["id"] for case in fixtures}:
@@ -406,7 +385,6 @@ async def run(args):
             "scenarios_sha256": hashlib.sha256("".join(
                 path.relative_to(HERE).as_posix() + "\0" + path.read_text(encoding="utf-8")
                 for path in fixture_files(HERE / "cases")).encode()).hexdigest(),
-            "baseline_sha256": hashlib.sha256((HERE / "baseline.json").read_bytes()).hexdigest(),
         }
         if status or f"Compiler: {pin} (" not in version:
             raise ValueError(f"compiler does not match repository SDK pin {pin}: {version}{stderr}")
@@ -417,7 +395,7 @@ async def run(args):
                                         "platform": sys.platform, "sdk": pin})
                 continue
             try:
-                await run_case(case, baseline, binary, sdk, output / "cases" / case["id"],
+                await run_case(case, binary, sdk, output / "cases" / case["id"],
                                env, args.timeout, report)
             except Exception as error:
                 report["failures"].append(f"{case['id']}: {type(error).__name__}: {error}")

@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-from oracle import HERE, check_baseline, command, compiler_diagnostics, desired, read_json, validate
+from oracle import HERE, check_known, command, compiler_diagnostics, desired, validate
 from scenarios import load_scenarios
 
 
@@ -23,16 +23,15 @@ def failure(operation):
 class OracleTest(unittest.TestCase):
     def setUp(self):
         self.fixtures = load_scenarios(HERE / "cases")
-        self.baseline = read_json(HERE / "baseline.json")
         self.exact = next(case for case in self.fixtures if case["id"] == "return_wrong_type")
         self.step = self.exact["steps"][0]
 
     def test_fixture_contract(self):
         # arrange
-        fixtures, baseline = self.fixtures, self.baseline
+        fixtures = self.fixtures
 
         # act
-        error = failure(lambda: validate(fixtures, baseline))
+        error = failure(lambda: validate(fixtures))
 
         # assert
         self.assertIsNone(error)
@@ -42,7 +41,7 @@ class OracleTest(unittest.TestCase):
         actual = desired(self.step)
 
         # act
-        delta = check_baseline(self.exact, self.step, actual, self.baseline)
+        delta = check_known(self.exact, self.step, actual)
 
         # assert
         self.assertEqual(delta, {"missing": [], "extra": []})
@@ -52,7 +51,7 @@ class OracleTest(unittest.TestCase):
         actual = []
 
         # act
-        error = failure(lambda: check_baseline(self.exact, self.step, actual, self.baseline))
+        error = failure(lambda: check_known(self.exact, self.step, actual))
 
         # assert
         self.assertIsInstance(error, AssertionError)
@@ -63,7 +62,7 @@ class OracleTest(unittest.TestCase):
         actual = desired(self.step) * 2
 
         # act
-        error = failure(lambda: check_baseline(self.exact, self.step, actual, self.baseline))
+        error = failure(lambda: check_known(self.exact, self.step, actual))
 
         # assert
         self.assertIsInstance(error, AssertionError)
@@ -79,29 +78,29 @@ class OracleTest(unittest.TestCase):
                 actual[0][key] = value
 
                 # act
-                error = failure(lambda: check_baseline(self.exact, self.step, actual, self.baseline))
+                error = failure(lambda: check_known(self.exact, self.step, actual))
 
                 # assert
                 self.assertIsInstance(error, AssertionError)
 
-    def test_unexpectedly_fixed_baseline_fails(self):
+    def test_unexpectedly_fixed_known_difference_fails(self):
         # arrange
         case = next(case for case in self.fixtures if case["id"] == "field_missing_class")
         actual = desired(case["steps"][0])
 
         # act
-        error = failure(lambda: check_baseline(case, case["steps"][0], actual, self.baseline))
+        error = failure(lambda: check_known(case, case["steps"][0], actual))
 
         # assert
         self.assertIsInstance(error, AssertionError)
         self.assertIn("unexpectedly fixed", str(error))
 
-    def test_extra_duplicate_baseline_cannot_silently_disappear(self):
+    def test_known_extra_duplicate_cannot_silently_disappear(self):
         # arrange
         case = next(case for case in self.fixtures if case["id"] == "control_mismatch")
 
         # act
-        error = failure(lambda: check_baseline(case, case["steps"][0], desired(case["steps"][0]), self.baseline))
+        error = failure(lambda: check_known(case, case["steps"][0], desired(case["steps"][0])))
 
         # assert
         self.assertIsInstance(error, AssertionError)
@@ -130,16 +129,44 @@ class OracleTest(unittest.TestCase):
             {"severity": "warning", "message": "magnitude too large"},
         ])
 
-    def test_orphan_baseline_fails(self):
+    def test_duplicate_scenario_fails(self):
         # arrange
-        baseline = {**self.baseline, "deleted_fixture": {"issue": 528, "missing": [], "extra": []}}
+        fixtures = self.fixtures + [self.exact]
 
         # act
-        error = failure(lambda: validate(self.fixtures, baseline))
+        error = failure(lambda: validate(fixtures))
 
         # assert
         self.assertIsInstance(error, ValueError)
-        self.assertIn("orphan", str(error))
+        self.assertIn("duplicate", str(error))
+
+    def test_known_missing_does_not_hide_an_unrelated_extra(self):
+        # arrange
+        case = next(case for case in self.fixtures if case["id"] == "field_missing_class")
+        step = case["steps"][0]
+        actual = [{**desired(step)[0], "message": "unrelated regression"}]
+
+        # act
+        error = failure(lambda: check_known(case, step, actual))
+
+        # assert
+        self.assertIsInstance(error, AssertionError)
+
+    def test_known_extra_keeps_its_own_range_and_multiplicity(self):
+        # arrange
+        case = next(case for case in self.fixtures if case["id"] == "control_mismatch")
+        step = case["steps"][0]
+        extra = {key: value for key, value in step["known"]["extra"][0].items() if key != "issue"}
+        actual = desired(step) + [extra]
+
+        # act
+        delta = check_known(case, step, actual)
+        duplicate_error = failure(lambda: check_known(case, step, actual + [extra]))
+
+        # assert
+        self.assertNotEqual(extra["range"], desired(step)[0]["range"])
+        self.assertEqual(delta["extra"], [extra])
+        self.assertIsInstance(duplicate_error, AssertionError)
 
 
 class ProcessTest(unittest.IsolatedAsyncioTestCase):

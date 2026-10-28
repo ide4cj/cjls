@@ -4,6 +4,7 @@
 // CJC: audit error: recursive constructor calling detected
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: recursive constructor calling detected
+// KNOWN-MISSING: d0 issue=530
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

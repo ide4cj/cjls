@@ -4,6 +4,7 @@
 // CJC: audit error: call to 'super' must be first expression in constructor of class 'C'
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: call to 'super' must be first expression in constructor of class 'C'
+// KNOWN-MISSING: d0 issue=530
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

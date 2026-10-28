@@ -4,6 +4,7 @@
 // CJC: audit error: super class 'B' is not inheritable
 // SOURCE: src/main.cj inputs/cross_file_inheritance/broken/src/main.cj
 // EXPECT: d0 s0 error: super class 'B' is not inheritable
+// KNOWN-MISSING: d0 issue=538
 // SOURCE: src/declarations.cj inputs/cross_file_inheritance/broken/src/declarations.cj
 // STEP: fixed
 // CJC: audit clean

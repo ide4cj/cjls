@@ -4,6 +4,7 @@
 // CJC: audit error: 'this' is not allowed to be accessed before all member variables are initialized
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: 'this' is not allowed to be accessed before all member variables are initialized
+// KNOWN-MISSING: d0 issue=529
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

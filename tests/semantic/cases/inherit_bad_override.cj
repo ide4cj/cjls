@@ -4,6 +4,7 @@
 // CJC: audit error: return type of 'f' is not identical or not a subtype of the overridden/redefined/implement function
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: return type of 'f' is not identical or not a subtype of the overridden/redefined/implement function
+// KNOWN-MISSING: d0 issue=538
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

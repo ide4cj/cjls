@@ -279,7 +279,7 @@ python3 tests/semantic/oracle.py --sdk "$CANGJIE_HOME" --output target/semantic-
 ```
 
 Use a new output directory for each run. Known missing/extra diagnostics are an
-issue-attributed, bidirectional baseline: new discrepancies and unexpected fixes
+issue-attributed KNOWN directives beside their expectations: new discrepancies and unexpected fixes
 fail. The separate Semantic oracle CI job retains compiler/server logs and a
 machine-readable report, including in the CI invoked before release publication.
 It supplements the existing accepted-source gates; it does not change default

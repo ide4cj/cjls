@@ -4,6 +4,7 @@
 // CJC: audit error: there is no non-parameter constructor in super class, please invoke super call explicitly
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: there is no non-parameter constructor in super class, please invoke super call explicitly
+// KNOWN-MISSING: d0 issue=530
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

@@ -4,6 +4,7 @@
 // CJC: audit error: non-static variable 'this' cannot be referenced from a static context
 // SOURCE: src/main.cj %f
 // EXPECT: d0 s0 error: non-static variable 'this' cannot be referenced from a static context
+// KNOWN-MISSING: d0 issue=541
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean
