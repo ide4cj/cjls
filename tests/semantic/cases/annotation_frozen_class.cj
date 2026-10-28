@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: class cannot be modified with '@Frozen'
 // SOURCE: src/main.cj %f
-// KNOWN-MISSING: d0 issue=423
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean
