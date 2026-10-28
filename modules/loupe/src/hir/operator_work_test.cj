@@ -14,13 +14,18 @@ class OperatorInferenceWorkTest {
         let chain = "v" + " + v" * 31
         let expression = if (contextual) { "(${chain}) % 1" } else { chain }
         let returned = if (contextual) { "UInt64" } else { "V" }
+        let expectedCallees = if (contextual) { 32 } else { 31 }
         let parsed =
             Fixture
                 .parse(
-                    "package m\n" + "struct V {\n" + "    operator func +(rhs: V): V { this }\n" +
-                        "    operator func %(rhs: Int64): UInt64 { 0 }\n" +
-                        "}\n" +
-                        "func chain(v: V): ${returned} { ${expression} }\n"
+                    """
+                    package m
+                    struct V {
+                        operator func +(rhs: V): V { this }
+                        operator func %(rhs: Int64): UInt64 { 0 }
+                    }
+                    func chain(v: V): ${returned} { ${expression} }
+                    """
                 )
         let db = parsed.database()
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
@@ -44,7 +49,7 @@ class OperatorInferenceWorkTest {
         // assert
         @Expect(result.diagnostics, [])
         @Expect(result.ty.getOrThrow().text(db), returned)
-        @Expect(result.callees.size, if (contextual) { 32 } else { 31 })
+        @Expect(result.callees.size, expectedCallees)
         @Expect(checks.load() <= limit, true)
     }
 }
