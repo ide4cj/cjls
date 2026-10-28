@@ -345,6 +345,20 @@ func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
 }
 
 /**
+ * Resolves one written signature or body type, including alias arguments, for position-based APIs.
+ */
+protected func writtenTypeOf(
+    db: AnalysisDatabase,
+    def: DefId,
+    id: TypeRefId,
+    inBody!: Bool = false
+): Ty {
+    let lowering =
+        if (inBody) { SourceTyLowering(db, def, body(db, def)) } else { SourceTyLowering(db, def) }
+    lowering.lowerType(id)
+}
+
+/**
  * One source declaration's signature as it is lowered, or the types its body writes: its types, by
  * id, and the errors found.
  */

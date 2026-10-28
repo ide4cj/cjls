@@ -49,6 +49,13 @@ func handleInitialize(
     state.lineFoldingOnly = folding.flatMap { it => it.lineFoldingOnly } ?? false
     state.foldingRangeLimit = folding.flatMap { it => it.rangeLimit }.map { it => Int64(it) }
     state.locationLinks = takesLocationLinks(params.capabilities)
+    state.typeDefinitionLinks =
+        params
+            .capabilities
+            .textDocument
+            .flatMap { it => it.typeDefinition }
+            .flatMap { it => it.linkSupport } ??
+            false
     state.hoverMarkdown = takesHoverMarkdown(params.capabilities)
     state.completionMarkdown = takesCompletionMarkdown(params.capabilities)
     state.completionLabelDetails =
