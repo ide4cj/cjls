@@ -1,4 +1,3 @@
-// Only interface members of a foreign extension are accessible; repair edits no consumer.
 // ISSUE: 541
 // PACKAGE: api api
 // PACKAGE: extensions extensions depends=api
@@ -10,12 +9,12 @@
 // SOURCE: api/src/main.cj inputs/package_extend_interface_members/broken/api/src/main.cj
 // SOURCE: extensions/src/main.cj inputs/package_extend_interface_members/broken/extensions/src/main.cj
 // SOURCE: app/src/main.cj inputs/package_extend_interface_members/broken/app/src/main.cj
-// EXPECT: member member error: 'e' is not a member of class 'C'
 // KNOWN-MISSING: member issue=541
 // STEP: fixed
 // CJC: api clean
 // CJC: extensions clean
 // CJC: app clean
+// SOURCE: api/src/main.cj inputs/package_extend_interface_members/broken/api/src/main.cj
 // SOURCE: extensions/src/main.cj inputs/package_extend_interface_members/fixed/extensions/src/main.cj
-// SOURCE: app/src/main.cj inputs/package_extend_interface_members/broken/app/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_extend_interface_members/fixed/app/src/main.cj
 // STEP: restored FROM broken

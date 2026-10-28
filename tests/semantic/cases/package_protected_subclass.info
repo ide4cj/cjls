@@ -4,5 +4,5 @@
 // STEP: control
 // CJC: api clean
 // CJC: app clean
-// SOURCE: api/src/main.cj inputs/package_protected_subclass/api/src/main.cj
-// SOURCE: app/src/main.cj inputs/package_protected_subclass/app/src/main.cj
+// SOURCE: api/src/main.cj inputs/package_protected_subclass/control/api/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_protected_subclass/control/app/src/main.cj

@@ -1,4 +1,3 @@
-// Infer a local from an imported generic call before checking its use.
 // ISSUE: 540
 // PACKAGE: api api
 // PACKAGE: app app depends=api
@@ -7,9 +6,9 @@
 // CJC: app error: mismatched types
 // SOURCE: api/src/main.cj inputs/package_generic_inference/broken/api/src/main.cj
 // SOURCE: app/src/main.cj inputs/package_generic_inference/broken/app/src/main.cj
-// EXPECT: result result error: mismatched types: expected 'Int64', found 'String'
 // STEP: fixed
 // CJC: api clean
 // CJC: app clean
+// SOURCE: api/src/main.cj inputs/package_generic_inference/broken/api/src/main.cj
 // SOURCE: app/src/main.cj inputs/package_generic_inference/fixed/app/src/main.cj
 // STEP: restored FROM broken

@@ -1,2 +1,3 @@
 package audit
-func f(): Int64 { return /*@s0*/value()/*@/s0*/ }
+func f(): Int64 { return value() }
+//                       ^^^^^^^ d0 error: mismatched types: expected 'Int64', found 'String'

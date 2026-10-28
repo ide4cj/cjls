@@ -1,16 +1,18 @@
 """Text scenarios inspired by cangjie_test_framework's comment directives.
 
 Each step is a complete workspace snapshot; only changed text is sent over LSP.
-Source markers are removed before either consumer sees the text.
+Annotation lines are removed before either consumer sees the text.
 """
 
+from bisect import bisect_right
 import copy
+import os
 from pathlib import PurePosixPath
 import re
 
 
 DIRECTIVE = re.compile(r"^// ([A-Z][A-Z-]*): ?(.*)$")
-MARKER = re.compile(r"/\*@(/?)([a-zA-Z][a-zA-Z0-9_]*)\*/")
+ANNOTATION = re.compile(r"^(\s*//[ \t]*)(\^+|\|)[ \t]+(\w+) (error|warning): (.+)$")
 NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]*\Z")
 SEVERITY = {"error": 1, "warning": 2}
 
@@ -25,32 +27,52 @@ def relative_path(value, allow_dot=False):
     return value
 
 
-def source_markers(text):
-    """Return unmarked source and named, half-open UTF-16 ranges (including points)."""
-    chunks, starts, spans = [], {}, {}
-    line = column = offset = 0
-    for marker in MARKER.finditer(text):
-        chunk = text[offset:marker.start()]
-        chunks.append(chunk)
-        pieces = chunk.split("\n")
-        if len(pieces) > 1:
-            line += len(pieces) - 1
-            column = 0
-        column += len(pieces[-1].encode("utf-16-le")) // 2
-        closing, name = marker.groups()
-        if closing:
-            if name not in starts:
-                raise ValueError(f"unopened source marker: {name}")
-            spans[name] = [*starts.pop(name), line, column]
+def source_annotations(text):
+    """Read loupe-style carets/bars in scalar columns, returning UTF-16 diagnostics.
+
+    Consecutive annotations refer to the preceding non-annotation line. A common
+    source margin is removed so code can be indented to annotate its first column.
+    """
+    lines, annotations = [], []
+    for number, raw in enumerate(text.splitlines(keepends=True), 1):
+        match = ANNOTATION.fullmatch(raw.rstrip("\r\n"))
+        if match:
+            if not lines:
+                raise ValueError(f"annotation at line {number} has no source above it")
+            prefix, marks, ident, severity, message = match.groups()
+            annotations.append((len(lines) - 1, len(prefix), 0 if marks == "|" else len(marks),
+                                ident, severity, message))
+        elif re.match(r"^\s*//[ \t]*[\^|]", raw):
+            raise ValueError(f"invalid diagnostic annotation at line {number}")
         else:
-            if name in starts or name in spans:
-                raise ValueError(f"duplicate source marker: {name}")
-            starts[name] = [line, column]
-        offset = marker.end()
-    if starts:
-        raise ValueError(f"unclosed source markers: {sorted(starts)}")
-    chunks.append(text[offset:])
-    return "".join(chunks), spans
+            lines.append(raw)
+    prefixes = [re.match(r"[ \t]*", line).group() for line in lines if line.strip()]
+    margin = os.path.commonprefix(prefixes) if prefixes else ""
+    clean = [line[len(margin):] if line.startswith(margin) else line for line in lines]
+    source = "".join(clean)
+    starts = [0]
+    for line in clean:
+        starts.append(starts[-1] + len(line))
+
+    def position(offset):
+        if not 0 <= offset <= len(source):
+            raise ValueError("annotation extends beyond the source")
+        line = min(bisect_right(starts, offset) - 1, len(clean) - 1)
+        # A final newline makes EOF the start of one more LSP line.
+        if offset == len(source) and source.endswith("\n"):
+            return [len(clean), 0]
+        return [line, len(source[starts[line]:offset].encode("utf-16-le")) // 2]
+
+    diagnostics, ids = [], set()
+    for line, column, length, ident, severity, message in annotations:
+        column -= len(margin)
+        if column < 0 or ident in ids:
+            raise ValueError("annotation points into the removed margin or duplicates a diagnostic ID")
+        ids.add(ident)
+        start = starts[line] + column
+        diagnostics.append({"id": ident, "range": [*position(start), *position(start + length)],
+                            "severity": SEVERITY[severity], "message": message})
+    return source, diagnostics
 
 
 def parse_scenario(text, ident, read_source):
@@ -59,40 +81,31 @@ def parse_scenario(text, ident, read_source):
     step = None
     file = None
     source = []
-    expectations = []
     missing, extra = [], []
     touched = set()
     block_comment = False
 
     def finish_file():
-        nonlocal file, source, expectations, missing, extra
+        nonlocal file, source, missing, extra
         if file is None:
             return
-        clean, spans = source_markers("".join(source))
+        clean, diagnostics = source_annotations("".join(source))
         step["files"][file] = clean
         step["expected"] = [d for d in step["expected"] if d["file"] != file]
-        for name, span, severity, message in expectations:
-            if span not in spans:
-                raise ValueError(f"unknown source marker: {span}")
-            step["expected"].append({"id": name, "file": file, "range": spans[span],
-                                     "severity": SEVERITY[severity], "message": message})
-        for kind in ("missing", "extra"):
+        by_id = {item["id"]: item for item in diagnostics}
+        for kind, entries in (("missing", missing), ("extra", extra)):
+            ids = [name for name, _ in entries]
+            if len(set(ids)) != len(ids) or set(ids) - by_id.keys():
+                raise ValueError(f"duplicate or unknown known-{kind} diagnostic ID")
             step["known"][kind] = [d for d in step["known"][kind] if d["file"] != file]
-        ids = {item[0] for item in expectations}
-        missing_ids = set()
-        for name, issue in missing:
-            if name not in ids:
-                raise ValueError(f"unknown known-missing diagnostic: {name}")
-            if name in missing_ids:
-                raise ValueError(f"duplicate known-missing diagnostic: {name}")
-            missing_ids.add(name)
-            step["known"]["missing"].append({"id": name, "issue": issue, "file": file})
-        for span, issue, severity, message in extra:
-            if span not in spans:
-                raise ValueError(f"unknown source marker: {span}")
-            step["known"]["extra"].append({"file": file, "range": spans[span],
-                                         "issue": issue, "severity": SEVERITY[severity], "message": message})
-        file, source, expectations, missing, extra = None, [], [], [], []
+        extra_ids = {name for name, _ in extra}
+        if extra_ids & {name for name, _ in missing}:
+            raise ValueError("a diagnostic cannot be both known-missing and known-extra")
+        step["expected"].extend({"file": file, **item} for item in diagnostics if item["id"] not in extra_ids)
+        step["known"]["missing"].extend({"id": name, "file": file, "issue": issue} for name, issue in missing)
+        step["known"]["extra"].extend({"file": file, "issue": issue,
+            **{key: value for key, value in by_id[name].items() if key != "id"}} for name, issue in extra)
+        file, source, missing, extra = None, [], [], []
 
     def finish_step():
         finish_file()
@@ -112,6 +125,8 @@ def parse_scenario(text, ident, read_source):
                 continue
             match = DIRECTIVE.fullmatch(raw.rstrip("\r\n"))
             if not match:
+                if re.match(r"^\s*//[ \t]*[\^|]", raw):
+                    raise ValueError("diagnostic annotations belong below .cj source, not in a runner header")
                 if raw.strip() and not raw.startswith("//"):
                     raise ValueError("put Cangjie source in a .cj file, not the descriptor")
                 continue
@@ -173,23 +188,12 @@ def parse_scenario(text, ident, read_source):
                 step["expected"] = [d for d in step["expected"] if d["file"] != path]
                 for kind in ("missing", "extra"):
                     step["known"][kind] = [d for d in step["known"][kind] if d["file"] != path]
-            elif key == "EXPECT" and file is not None:
-                match = re.fullmatch(r"(\w+) (\w+) (error|warning): (.+)", value)
-                if not match:
-                    raise ValueError("EXPECT needs diagnostic_id marker_id error|warning: message")
-                expectations.append(match.groups())
-            elif key == "KNOWN-MISSING" and file is not None:
+            elif key in ("KNOWN-MISSING", "KNOWN-EXTRA") and file is not None:
                 match = re.fullmatch(r"(\w+) issue=([1-9][0-9]*)", value)
                 if not match:
-                    raise ValueError("KNOWN-MISSING needs diagnostic_id issue=number")
+                    raise ValueError(f"{key} needs diagnostic_id issue=number")
                 name, issue = match.groups()
-                missing.append((name, int(issue)))
-            elif key == "KNOWN-EXTRA" and file is not None:
-                match = re.fullmatch(r"(\w+) issue=([1-9][0-9]*) (error|warning): (.+)", value)
-                if not match:
-                    raise ValueError("KNOWN-EXTRA needs marker_id issue=number error|warning: message")
-                span, issue, severity, message = match.groups()
-                extra.append((span, int(issue), severity, message))
+                (missing if key == "KNOWN-MISSING" else extra).append((name, int(issue)))
             elif key == "CJC" and step is not None:
                 finish_file()
                 package, contract = value.split(" ", 1)

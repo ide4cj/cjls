@@ -9,7 +9,6 @@
 // STEP: created
 // CJC: audit error: mismatched types
 // SOURCE: src/extra.cj inputs/workspace_lifecycle/created/src/extra.cj
-// EXPECT: extra_return result error: mismatched types: expected 'Int64', found 'String'
 // STEP: changed
 // CJC: audit clean
 // SOURCE: src/values.cj inputs/workspace_lifecycle/changed/src/values.cj

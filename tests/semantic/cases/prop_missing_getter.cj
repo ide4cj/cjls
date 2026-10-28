@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: property must have accessors
 // SOURCE: src/main.cj %f
-// EXPECT: d0 s0 error: property must have accessors
 // KNOWN-MISSING: d0 issue=531
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
@@ -11,4 +10,5 @@
 // SOURCE: src/main.cj inputs/prop_missing_getter/fixed/src/main.cj
 // STEP: restored FROM broken
 package audit
-class C { /*@s0*/mut prop x: Int64 { set(v) {} }/*@/s0*/ }
+class C { mut prop x: Int64 { set(v) {} } }
+//        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ d0 error: property must have accessors

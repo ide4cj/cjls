@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: function 'f' has overload conflicts
 // SOURCE: src/main.cj %f
-// EXPECT: d0 s0 error: function 'f' has overload conflicts
 // KNOWN-MISSING: d0 issue=539
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
@@ -11,4 +10,5 @@
 // SOURCE: src/main.cj inputs/duplicate_function/fixed/src/main.cj
 // STEP: restored FROM broken
 package audit
-func f(): Int64 { 1 }; func /*@s0*/f/*@/s0*/(): Int64 { 2 }
+func f(): Int64 { 1 }; func f(): Int64 { 2 }
+//                          ^ d0 error: function 'f' has overload conflicts

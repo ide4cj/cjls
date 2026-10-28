@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: non-exhaustive patterns
 // SOURCE: src/main.cj %f
-// EXPECT: d0 s0 error: non-exhaustive patterns
 // KNOWN-MISSING: d0 issue=537
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
@@ -11,4 +10,5 @@
 // SOURCE: src/main.cj inputs/match_nonexhaustive/fixed/src/main.cj
 // STEP: restored FROM broken
 package audit
-func f(b: Bool): Int64 { match (/*@s0*/b/*@/s0*/) { case true => 1 } }
+func f(b: Bool): Int64 { match (b) { case true => 1 } }
+//                              ^ d0 error: non-exhaustive patterns

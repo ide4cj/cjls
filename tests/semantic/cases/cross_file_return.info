@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: mismatched types
 // SOURCE: src/main.cj inputs/cross_file_return/broken/src/main.cj
-// EXPECT: d0 s0 error: mismatched types: expected 'Int64', found 'String'
 // SOURCE: src/declarations.cj inputs/cross_file_return/broken/src/declarations.cj
 // STEP: fixed
 // CJC: audit clean

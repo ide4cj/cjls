@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: 'break' or 'continue' must be used inside a loop
 // SOURCE: src/main.cj %f
-// EXPECT: d0 s0 error: 'break' or 'continue' must be used inside a loop
 // KNOWN-MISSING: d0 issue=536
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
@@ -11,4 +10,5 @@
 // SOURCE: src/main.cj inputs/continue_outside_loop/fixed/src/main.cj
 // STEP: restored FROM broken
 package audit
-func f(): Unit { /*@s0*/c/*@/s0*/ontinue }
+func f(): Unit { continue }
+//               ^ d0 error: 'break' or 'continue' must be used inside a loop

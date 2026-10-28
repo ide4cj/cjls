@@ -89,37 +89,53 @@ both forms is an error.
 | `CJC: package warning: message` | Warning headline; warning-only compilation must exit 0 |
 | `SOURCE: workspace/path.cj input/path.cj` | Replace/create a workspace file and its LSP expectations using a native fixture source |
 | `SOURCE: workspace/path.cj %f` | Use this `.cj` entry's body; unavailable in `.info` |
-| `EXPECT: id marker error: message` | One exact LSP error in the preceding SOURCE, at its named marker; `warning` is also supported |
-| `KNOWN-MISSING: id issue=number` | Attribute one missing EXPECT diagnostic of this SOURCE to an issue |
-| `KNOWN-EXTRA: marker issue=number error: message` | Attribute one exact extra diagnostic of this SOURCE to an issue; `warning` is also supported |
+| `KNOWN-MISSING: id issue=number` | Attribute one missing diagnostic annotation of this SOURCE to an issue |
+| `KNOWN-EXTRA: id issue=number` | Treat one diagnostic annotation of this SOURCE as a known extra, attributed to an issue |
 | `DELETE-FILE: path.cj` | Remove an existing file and its expectations |
 | `PLATFORMS: linux darwin win32` | Optional applicability, before steps |
 | `SKIP-REASON: explanation` | Required when applicability is restricted |
 
-A SOURCE's expectations end at the next source, compiler, deletion or step
-directive. Unrecognized uppercase directives fail rather than silently dropping
-a check. Fixture references must stay inside the descriptor's directory and end
-in `.cj`. Missing inputs fail validation before any processes start.
+Each SOURCE takes its LSP expectations from annotations in the input file.
+Replacing the source replaces those expectations too. Unrecognized uppercase
+directives fail rather than silently dropping a check. Fixture references must
+stay inside the descriptor's directory and end in `.cj`. Missing inputs fail
+validation before any processes start.
 
-Range annotations are legal Cangjie block comments:
+Diagnostic annotations follow `loupe.fixture`: carets on a separate comment line
+point at the source above them. The annotation includes a stable diagnostic ID
+for known-difference references, severity and message:
 
 ```cangjie
-func f(): Int64 { return /*@result*/"wrong"/*@/result*/ }
+func f(): Int64 { return "wrong" }
+//                       ^^^^^^^ return_type error: mismatched types: expected 'Int64', found 'String'
 ```
 
-The corresponding header/descriptor expectation is:
+Use `|` for an empty range, as in the parser-error controls. Consecutive annotation
+lines refer to the same preceding non-annotation line, allowing overlapping or
+duplicate diagnostic ranges with distinct IDs. Columns count Unicode scalars as
+written, **including the `//` prefix**, just like loupe. The runner translates
+positions to UTF-16 for LSP, including non-BMP characters. A range can extend past
+its source line into subsequent source text; extending beyond the entire source
+is an error.
 
-```text
-// EXPECT: return_type result error: mismatched types: expected 'Int64', found 'String'
+To annotate the first two columns, indent the source by a common margin:
+
+```cangjie
+  @Frozen class C {}
+//^ frozen error: class cannot be modified with '@Frozen'
 ```
 
-Reserved markers `/*@name*/.../*@/name*/` are removed without adding whitespace
-before either consumer receives the source. They define half-open ranges in
-that resulting source, including empty, multiline and overlapping spans.
-Coordinates are computed in UTF-16, including non-BMP characters. Marker names
-are unique within a source; diagnostic IDs are unique within a step. Several
-diagnostics can reference one marker. Replacing annotations without changing
-the resulting text does not generate a document edit.
+The runner removes that common source margin and the annotation lines before
+passing identical text to the compiler and server. It adjusts annotation columns
+for the removed margin. Diagnostic IDs are unique within a step. Malformed,
+detached, out-of-bounds or duplicate-ID annotations fail before execution. Changing
+only annotations does not generate a document edit. Annotation lines belong under
+source in `.cj`, never in `.info` or a runner header. There are no inline source
+markers or separate header EXPECT directives.
+
+Keep format-on-save disabled for fixture sources: a formatter treats annotation
+lines as ordinary comments and may reflow the code they point at. Carets make the
+range visible beside the code; they do not make arbitrary formatting preserve it.
 
 Native `.cj` files retain editor language recognition and highlighting. Repository
 format checks target `build.cj` and `modules`, excluding these fixtures' deliberate
@@ -187,37 +203,40 @@ report contains semantic roots. The malformed `open final` syntax control retain
 its exact parser diagnostics. Float32 overflow remains a warning-only compiler
 control with an empty desired LSP report; it must not become an LSP error.
 
-Known differences live beside the corresponding EXPECT in the scenario header
-or descriptor, rather than in a separate baseline file:
+Known differences live in SOURCE-scoped directives in the scenario header or
+descriptor. Both reference IDs on caret/bar annotations beside the source:
 
 ```text
-// EXPECT: access receiver error: can not access field 'x'
+// SOURCE: src/main.cj inputs/main.cj
 // KNOWN-MISSING: access issue=541
-// KNOWN-EXTRA: body issue=544 error: mismatched types: expected 'Int64', found 'String'
+// KNOWN-EXTRA: duplicate_body issue=544
 ```
 
-`KNOWN-MISSING` names one diagnostic ID of the current SOURCE. `KNOWN-EXTRA`
-specifies one extra diagnostic at a source marker, so even its range follows
-source edits without numeric coordinates. Its marker can differ from the desired
-diagnostic's marker: the existing duplicate mismatch roots cover the whole body.
-Each directive requires its own positive issue number. Repeat KNOWN-EXTRA to
-record multiple identical extra diagnostics. Messages, severities, files, ranges
-and multiplicity remain exact; no directive suppresses an entire test.
+`KNOWN-MISSING` says that one desired diagnostic is currently absent.
+`KNOWN-EXTRA` classifies an annotation as an exact extra diagnostic instead of a
+desired diagnostic. Its annotation carries the message, severity and range in the
+same format as desired diagnostics; no numeric coordinates are maintained.
+The existing duplicate mismatch roots annotate the whole body, separately from
+the desired expression range. Multiple identical extras use distinct annotation
+IDs. Each directive needs its own positive issue number. Duplicate, unknown or
+conflicting references fail before execution. No directive suppresses an entire
+test.
 
 Known differences follow the source's expectations through inherited steps and
 `STEP: restored FROM broken`. Replacing a SOURCE or deleting its file clears both
-its expectations and its known differences; redeclare them where needed. A SOURCE
-can reference the same input to clear expectations after a provider-only repair:
-identical resulting text sends no document edit to the consumer.
+its expectations and its known differences; redeclare them where needed. After a
+provider-only repair, a consumer input can keep identical code with no diagnostic
+annotations: the driver updates expectations without sending a document edit.
 
 Comparison is a multiset operation: order is irrelevant, duplicates matter. New
 differences and unexpected fixes both fail. There is no count threshold or
 automatic acceptance option. When implementing a check, review its expectation
 against the pinned compiler, remove its KNOWN directive and retain the
-rejected/corrected example. Do not bless new differences for a green run.
-Reports include issue-attributed known differences for each step; the scenario
-hash covers their directives as well as source inputs. Offline tests plant
-missing, duplicate and unrelated diagnostics, validate stale references and
+rejected/corrected example. Remove a KNOWN-EXTRA annotation when that extra is
+fixed; a fixed KNOWN-MISSING annotation becomes an ordinary desired diagnostic.
+Do not bless new differences for a green run. Reports include issue-attributed
+known differences for each step; scenario hashes cover directives and source
+inputs. Offline tests plant missing, duplicate and unrelated diagnostics and
 exercise source replacement, deletion, restoration and edit notifications.
 
 ## Cross-package coverage
