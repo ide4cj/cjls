@@ -181,6 +181,29 @@ class InferenceDiagnosticsTest {
     }
 
     @TestCase
+    func anOptionalFunctionContextStillChecksALambdasReturnType() {
+        checkDiagnostics(
+            #"
+            package m
+            func takes(f: ?(Int64) -> Int64): Unit {}
+            func g(): Unit {
+                let good: ?(Int64) -> Int64 = {x => x + 1}
+                let nested: ??(Int64) -> Int64 = {x => x}
+                let cfunc: ?CFunc<(Int32) -> Int32> = {x => x}
+                let unit: ?(Int64) -> Unit = {x => x + 1}
+                let ordinary: (Int64) -> Unit = {x => x + 1}
+                takes({x => x})
+                let bad: ?(Int64) -> Int64 = {x => "s"}
+            //                                     ^^^ error: mismatched types: expected 'Int64', found 'String'
+                takes({x => "s"})
+            //              ^^^ error: mismatched types: expected 'Int64', found 'String'
+            }
+            "#,
+            binaries: ["std.core"]
+        )
+    }
+
+    @TestCase
     func aValueOfAnotherTypeThanTheOneExpectedIsAMismatch() {
         checkDiagnostics(
             #"

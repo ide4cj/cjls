@@ -1573,18 +1573,19 @@ class Inference {
     }
 
     /**
-     * A lambda: its parameters of the types they write, else of the function type expected; it
-     * returns what that type does, else the join of its block's type and its `return`s' (N103).
+     * A lambda: its parameters of the types they write, else of the function type expected through
+     * `Option` boxing; its return type expected, else the join of its block and `return`s (N103).
      */
     private func lambdaTy(params: Array<BodyParam>, block: ExprId, expected: ?Ty): Ty {
+        let target = expected.map { one => unboxed(one).kind(db) }
         let wanted: ?(Array<Ty>, ?Ty) =
-            match (expected.map { one => one.kind(db) }) {
+            match (target) {
                 case Some(FuncTy(tys, ret, _)) where tys.size == params.size => (tys, ret)
                 case _ => None
             }
         // a lambda where a `CFunc` is expected is one (N141)
         let isC =
-            match (expected.map { one => one.kind(db) }) {
+            match (target) {
                 case Some(FuncTy(_, _, true)) => true
                 case _ => false
             }
@@ -1794,7 +1795,7 @@ class Inference {
                 // else alone, of its default type, the right not told anything (N125)
                 infer(lhs, None)
             } else {
-                let synthesized = infer(lhs, if (isComparison) { None } else { primOnly(expected) })
+                let synthesized = infer(lhs, if (isComparison) { None } else { primOnly(kept) })
                 if (isPrim(synthesized) || isTuple(synthesized)) {
                     // but a comparison: `==` of a type takes one of that type
                     let found =
