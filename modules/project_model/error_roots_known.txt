@@ -28,4 +28,4 @@ modules/loupe/src/hir/item_id.cj: local: 1  # standalone pipeline lambda (#248)
 modules/loupe/src/hir/ty_relations.cj: local: 4  # macro-member TodoTy becomes ErrorTy in iterator callbacks (#552)
 modules/macro_host/src/host.cj: local: 1  # Option.flatMap callback result propagates to library pattern (#551)
 modules/macro_host/src/host.cj: member found: 2
-modules/platform/src/posix/relaunch.cj: name found: 2
+modules/platform/src/posix/relaunch.cj: name found: 1
