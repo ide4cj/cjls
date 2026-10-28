@@ -491,7 +491,14 @@ class BinaryLowerer {
                 members.add(item)
             }
         }
-        Item(id, names, modifiersOf(attributes, info), [], members.toArray())
+        Item(
+            id,
+            names,
+            modifiersOf(attributes, info),
+            [],
+            members.toArray(),
+            isC: attributes.has(Attribute.C)
+        )
     }
 
     /**

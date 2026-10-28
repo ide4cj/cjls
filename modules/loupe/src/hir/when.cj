@@ -437,7 +437,8 @@ private func activeItems(items: Array<Item>, cfg: Cfg): Array<Item> {
                     item.macros,
                     activeItems(item.members, cfg),
                     condition: item.condition,
-                    paramMacros: item.paramMacros
+                    paramMacros: item.paramMacros,
+                    isC: item.isC
                 )
             } else {
                 item

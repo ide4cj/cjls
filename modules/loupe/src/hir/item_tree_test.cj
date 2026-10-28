@@ -9,6 +9,7 @@ import cjsyntax.parse as parseText
 import rope.Rope
 import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.fixture.Fixture
 
 let itemNamesRuns = AtomicInt64(0)
 
@@ -32,6 +33,43 @@ func idsOf(text: String): Array<ItemId> {
 
 @Test
 class ItemTreeTest {
+    @TestCase
+    func theCAnnotationIsKeptApartFromWorkspaceMacros() {
+        // act
+        let tree =
+            treeOf("@C func callback(value: Int32): Int32 { value }\n@C @Wrap struct Record {}\n")
+
+        // assert
+        @Expect(tree.items[0].isC)
+        @Expect(tree.items[0].macros.isEmpty())
+        @Expect(tree.items[1].isC)
+        @Expect(tree.items[1].macros, ["Wrap"])
+    }
+
+    @TestCase
+    func filteringConditionalMembersPreservesTheCAnnotation() {
+        // arrange
+        let parsed =
+            Fixture
+                .parse(
+                    #"
+            //- /main.cj cfg=os:Linux
+            @C struct Record {
+                @When[os == "Linux"] var value: Int64 = 0
+            }
+            "#
+                )
+        let db = parsed.database()
+        let file = db.sourceFile(parsed.files[0].fileId).getOrThrow()
+
+        // act
+        let tree = activeItemTree(db, file)
+
+        // assert
+        @Expect(tree.items[0].isC)
+        @Expect(tree.items[0].members.size, 1)
+    }
+
     @TestCase
     func anEditInsideABodyLeavesTheItemTreeEqualAndWhatReadItAlone() {
         // arrange

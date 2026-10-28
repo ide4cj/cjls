@@ -158,7 +158,11 @@ public struct Item {
          * The macros called on each parameter of its own parameter lists that has any, in the
          * parameters' order, each outermost first: `@M let x` of a primary constructor (D119).
          */
-        public let paramMacros!: Array<Array<String>> = []
+        public let paramMacros!: Array<Array<String>> = [],
+        /**
+         * Whether the declaration has the built-in `@C` annotation, distinct from a macro call.
+         */
+        public let isC!: Bool = false
     ) {}
 
     public prop kind: ItemKind {
@@ -265,7 +269,20 @@ private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
                 macrosOfItem,
                 lowerItems(item.members(), ids),
                 condition: conditionOf(outermost),
-                paramMacros: paramMacros
+                paramMacros: paramMacros,
+                isC: item
+                    .decl
+                    .annotations()
+                    .any { annotation => annotation.nameRef()?.text() == Some("C") } ||
+                    item
+                        .macroCalls
+                        .iterator()
+                        .any {
+                            call =>
+                            call
+                                .annotations()
+                                .any { annotation => annotation.nameRef()?.text() == Some("C") }
+                        }
             )
         }
 }
