@@ -472,6 +472,10 @@ public struct Package {
     public let name: String
     public var dir: VfsPath
     public var files: Array<FileId>
+    /**
+     * Paths aligned with `files`, for queries whose results depend on file names.
+     */
+    public var filePaths: Array<VfsPath>
     public var noPrelude: Bool
     public var isMacro: ?Bool
     public var cfg: ?Cfg
