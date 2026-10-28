@@ -114,6 +114,19 @@ class OracleTest(unittest.TestCase):
         # assert
         self.assertEqual(diagnostics, [{"severity": "warning", "message": "magnitude too large"}])
 
+    def test_windows_compiler_headlines_have_the_same_contract(self):
+        # arrange: subprocess logs are retained as bytes, including Windows CRLF.
+        output = "error: mismatched types\r\n ==> main.cj:2:1:\r\nwarning: magnitude too large\r\n"
+
+        # act
+        diagnostics = compiler_diagnostics(output)
+
+        # assert
+        self.assertEqual(diagnostics, [
+            {"severity": "error", "message": "mismatched types"},
+            {"severity": "warning", "message": "magnitude too large"},
+        ])
+
     def test_orphan_baseline_fails(self):
         # arrange
         baseline = {**self.baseline, "deleted_fixture": {"issue": 528, "missing": [], "extra": []}}

@@ -66,6 +66,7 @@ def check_baseline(case, actual, baseline):
 
 
 def compiler_diagnostics(output):
+    output = output.replace("\r\n", "\n")
     return [{"severity": level, "message": message}
             for level, message in re.findall(r"^(error|warning): (.+)$", output, re.MULTILINE)]
 
