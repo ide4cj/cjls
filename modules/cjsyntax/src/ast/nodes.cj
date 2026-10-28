@@ -6665,6 +6665,10 @@ public struct MacroArgs <: AstNode<SyntaxKind, MacroArgs> & ToString {
         astToken(node, SyntaxKind.LParen)
     }
 
+    public func macroExpandExprs(): Iterator<MacroExpandExpr> {
+        astChildren<SyntaxKind, MacroExpandExpr>(node)
+    }
+
     public func rParenToken(): ?SyntaxToken<SyntaxKind> {
         astToken(node, SyntaxKind.RParen)
     }

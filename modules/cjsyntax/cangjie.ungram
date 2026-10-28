@@ -503,4 +503,4 @@ TypesArg =
 // `(...)` after a macro name: an argument list when the tokens parse as one, before any expansion
 MacroArgs =
   ArgList
-| '(' 'AnyToken'* ')'
+| '(' ('AnyToken' | MacroExpandExpr)* ')'

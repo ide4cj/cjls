@@ -1,13 +1,13 @@
 package loupe.hir
 
-import std.collection.*
+import std.collection.{ArrayList, HashMap, collectArray, filter, filterMap, first, map}
 import std.deriving.*
-import ginkgo.{SyntaxNodePtr, TextRange}
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Decl, MacroArgs, MacroAttr, MacroExpandDecl, MacroExpandExpr, NameRef}
 import calca.*
 import calca.macros.*
-import loupe.db.*
+import cjsyntax.{CjSyntaxNode, SyntaxKind}
+import cjsyntax.ast.{Decl, MacroArgs, MacroAttr, MacroExpandDecl, MacroExpandExpr, NameRef}
+import ginkgo.{SyntaxNodePtr, TextRange}
+import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
 
 /**
@@ -29,9 +29,8 @@ public struct BodyMacroCall {
 
 /**
  * The macros called in the items of `file`, out of a false `@When`, as cjc runs them: item by item, a top-level item
- * before its members, and in an item innermost first, then left to right. A call in the tokens of arguments that do not
- * parse (D59) is no node, so none; nor one on a parameter, a call on its item (D119), nor a top-level call on no
- * declaration, whose arguments are its own call's input (D98).
+ * before its members, and in an item innermost first, then left to right. Calls in token inputs are nodes too;
+ * not one on a parameter, a call on its item (D119). A top-level call's input is walked under that call's item key.
  */
 @CalcaTracked
 public func bodyMacroCalls(db: AnalysisDatabase, file: SourceFile): Array<BodyMacroCall> {
@@ -40,11 +39,17 @@ public func bodyMacroCalls(db: AnalysisDatabase, file: SourceFile): Array<BodyMa
     let filter = ActiveFilter.of(db, file)
     let found = ArrayList<BodyMacroCall>()
     for (top in activeItemTree(db, file).items) {
-        for (item in [top].concat(top.members) where item.kind != ItemKind.MacroCall) {
+        for (item in [top].concat(top.members)) {
             let node = ids.node(item.id, root) ?? continue
-            for (one in BodyCallWalker(ids, filter, item.id).walk(node)) {
-                found.add(BodyMacroCall(item.id, one.name, one.index, one.around, one.holdsCalls))
-            }
+            found
+                .add(
+                    all: BodyCallWalker(ids, filter, item.id)
+                        .walk(node)
+                        .map {
+                            one =>
+                            BodyMacroCall(item.id, one.name, one.index, one.around, one.holdsCalls)
+                        }
+                )
         }
     }
     found.toArray()
