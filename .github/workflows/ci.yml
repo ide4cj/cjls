@@ -256,6 +256,9 @@ jobs:
         with:
           name: cjls-${{ runner.os }}
           path: bin
+      - name: Test oracle contracts and platform process cleanup
+        shell: bash
+        run: python -m unittest discover -s tests/semantic -p '*_test.py'
       - name: Compiler and LSP matrix
         shell: bash
         run: |
