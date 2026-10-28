@@ -7,6 +7,7 @@ import std.unittest.testmacro.*
 class EnumConstructorContextTest {
     @TestCase
     func unqualifiedConstructorsInferTheirOwnEnumArgumentsInsideTheEnum() {
+        // arrange
         // cjc accepts this specialization-changing method, as std.core's Option.map does.
         let (db, _, owner) =
             declOf(
@@ -31,12 +32,18 @@ class EnumConstructorContextTest {
             )
         for (member in itemOf(db, owner).getOrThrow().members where member.kind == ItemKind.Func) {
             let method = DefId(db, owner.file(db), member.id)
-            @Expect(inferBody(db, method).diagnostics.size, 0)
+
+            // act
+            let result = inferBody(db, method)
+
+            // assert
+            @Expect(result.diagnostics.size, 0)
         }
     }
 
     @TestCase
     func anExtendsReceiverDoesNotFixAnUnqualifiedConstructorsArguments() {
+        // arrange
         let (db, file, _) =
             declOf(
                 #"
@@ -55,11 +62,17 @@ class EnumConstructorContextTest {
             )
         let extended = itemTree(db, file).items.filter { item => item.kind == ItemKind.Extend }[0]
         let method = DefId(db, ItemFile.Source(file), extended.members[0].id)
-        @Expect(inferBody(db, method).diagnostics.size, 0)
+
+        // act
+        let result = inferBody(db, method)
+
+        // assert
+        @Expect(result.diagnostics.size, 0)
     }
 
     @TestCase
     func anExplicitEnumQualifierStillFixesTheConstructorArguments() {
+        // arrange
         let (db, _, method) =
             declOf(
                 #"
@@ -69,10 +82,14 @@ class EnumConstructorContextTest {
             "#,
                 "wrong"
             )
+
+        // act
         let diagnostics = inferBody(db, method).diagnostics
-        @Expect(!diagnostics.isEmpty())
+
+        // assert
+        // Duplicate expression/body reports are tracked separately in #544.
+        @Expect(diagnostics.size, 2)
         for (diagnostic in diagnostics) {
-            // Duplicate expression/body reports are tracked separately in #544.
             match (diagnostic) {
                 case TypeMismatch(_, expected, found) =>
                     @Expect(expected.text(db), "Box<Int64>")

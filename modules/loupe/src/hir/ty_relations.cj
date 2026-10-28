@@ -206,18 +206,22 @@ func asInstanceOf(db: AnalysisDatabase, ty: Ty, target: DefId, from: ?SourceFile
 }
 
 /**
- * `ty` and its supertypes, level by level, each once, and each declaration's own once: supertypes
- * of a cycle cjc reports (`A<T> <: B<A<T>>`, `B<T> <: A<B<T>>`) would grow without end.
+ * `ty` and its supertypes, level by level, each once, expanding each declaration or compiler-owned
+ * head once: invalid cyclic supertypes can otherwise keep growing fresh generic instances.
  */
 func allSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Array<Ty> {
     let found = ArrayList<Ty>([ty])
     let seen = HashSet<Ty>([ty])
     let expanded = HashSet<DefId>()
+    let expandedBuiltIns = HashSet<CompilerType>()
     var at = 0
     while (at < found.size) {
         let one = found[at]
         at++
         if (let DeclTy(id, _) <- one.kind(db) && !expanded.add(id)) {
+            continue
+        }
+        if (let BuiltInTy(head, _) <- one.kind(db) && !expandedBuiltIns.add(head)) {
             continue
         }
         for (next in directSupertypes(db, one, from) where !seen.contains(next)) {
