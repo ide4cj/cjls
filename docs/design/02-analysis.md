@@ -223,10 +223,14 @@ error by its fallback (A14, D55).
 
 ### A26: Call local type variables
 
-A type variable (`InferTy`) lives in the call that made it, while that call is inferred: an
-argument is checked only against a type of none, an unknown one an error type, and the call's
-type and its callee's hold none; none is ever in an `InferenceResult` or another query's result
-(D57).
+A type variable (`InferTy`) lives while its generic call is inferred. When that call is
+itself a callee, its returned function's applications share the same variables and solve
+with both the inner and outer arguments (N131, #246). A standalone call still solves alone,
+including fallback to its declared bounds.
+
+Arguments are checked only against types without variables, an unsolved one an error type.
+Every application and callee is recorded with its solved type; no variable reaches an
+`InferenceResult` or another query's result (D57).
 
 ### A27: Isolate overload candidates
 
