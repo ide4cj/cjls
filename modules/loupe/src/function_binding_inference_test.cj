@@ -7,7 +7,7 @@ import loupe.hir.*
 import rope.Rope
 
 @Test
-class PythonBindingInferenceTest {
+class FunctionBindingInferenceTest {
     @TestCase
     func addingTheCAnnotationInvalidatesTheCallbackType() {
         // arrange
