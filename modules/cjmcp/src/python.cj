@@ -19,8 +19,6 @@ import std.fs.Path
 @When[os == "Linux"]
 import py_interop.*
 @When[os == "Linux"]
-import py_interop.Reference
-@When[os == "Linux"]
 import py_interop.internal_macros.*
 
 // Redirect file descriptors as well as Python streams: subprocesses, native extensions and native

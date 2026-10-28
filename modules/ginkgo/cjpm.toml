@@ -13,7 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
-python_export = { path = "../python_export" }
+py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "06d296137f4f8451bf6cfc53b686f29569772e50", output-type = "static" }
 
 # `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
 [target.aarch64-apple-darwin.release]
@@ -24,6 +24,3 @@ compile-option = "-O2"
 
 [target.x86_64-w64-mingw32.release]
 compile-option = "-O2"
-
-[target.x86_64-unknown-linux-gnu.dependencies]
-py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "52a03ddf236d5706df3e0c6965351d6656f00201", output-type = "static" }

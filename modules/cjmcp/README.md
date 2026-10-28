@@ -16,8 +16,8 @@ cjpm build -m modules/cjmcp
 cjHeapSize=2GB target/release/bin/cjmcp --dir /absolute/path/to/project
 ```
 
-`py_interop` is built statically from a pinned revision of the runtime-interaction
-fix branch. CPython itself is loaded dynamically; `PYTHON_DYNLIB` can select its
+`py_interop` is built statically from a pinned fork revision with runtime and
+binding-generation fixes. CPython itself is loaded dynamically; `PYTHON_DYNLIB` can select its
 shared library explicitly. SDK discovery follows `project_model`; set
 `CANGJIE_HOME` if automatic discovery does not find the SDK to analyze against.
 The 2 GB heap setting is recommended for workspaces (the runtime defaults to
@@ -58,7 +58,7 @@ result = [
 ]
 ```
 
-`node` is a native `loupe.StructureNode` exported as a read-only native object through `py_interop`, and
+`node` is a native `loupe.StructureNode` exported through `py_interop`, and
 `node.range` is the original `ginkgo.TextRange`. They are not JSON dictionaries.
 The initial API is deliberately small:
 
@@ -76,8 +76,9 @@ The initial API is deliberately small:
 
 `TextRange`, `StructureNode`, `StructureKind`, `Diagnostic`, `Severity`,
 `HoverResult`, `HoverItem` and `Location` are available in the script namespace
-for type checks. Analysis values are created by the workspace. `Location`
-translates loupe's navigation identity to a path; the other result classes above are exported original types.
+for type checks. Analysis queries return native values; exported constructors
+and methods are also available. `Location` translates loupe's navigation identity
+to a path; the other result classes above are exported original types.
 This is not yet a binding of every public loupe API.
 
 Paths are absolute or relative to `--dir` (the working directory by default).
@@ -101,14 +102,15 @@ SDK macro execution, file watching, editor buffers, cancellation, HTTP and
 parallel requests are outside this first experiment. loupe's existing macro
 fallbacks still apply, but answers around macro-generated code can be incomplete.
 
-The `python_export` macro adds Python bindings to selected original analysis
-classes on a native Linux build and passes declarations through on other native
-platforms. `runPython` returns an unsupported-platform tool error there. Cross
-compilation of the Python exports has not been verified. The result macro is
-limited to the selected non-generic result types and payload-free enums. It
-exposes fields/properties and enum names, rather than every native method. Its
-consumers import `py_interop.*` and alias `py_interop.Reference` as
-`PythonInteropReference` to avoid loupe's existing `Reference` type.
+`@DerivePython` from `py_interop` exports the selected original analysis types,
+including their constructors, fields, properties and methods. Immutable fields
+remain read-only. The bindings are built on all native platforms; `runPython`
+currently supports native Linux x86_64 and returns an unsupported-platform tool
+error elsewhere. Cross compilation of the Python exports has not been verified.
+Place `@DerivePython` below `@Derive[Equatable]` to avoid a compiler crash
+when exporting generated equality operators. The root `loupe` package uses
+`-O0` because its combined bindings still crash the pinned optimizer; analysis
+subpackages retain `-O2`. See [K28](../../docs/sdk-issues.md#k28) for the measured scope.
 
 Proxy lifetime is still experimental: the pinned `py_interop` registry retains
 exported native values, and reclaiming those entries is not implemented here.

@@ -1,10 +1,11 @@
 # ginkgo
 
 `ginkgo` owns language-independent lossless trees and parser machinery;
-[`cjsyntax`](../cjsyntax/README.md) owns the Cangjie grammar. Its tree algorithms are independent of project models. This experiment adds `python_export`
-and Linux-only static `py_interop` dependencies to expose the original
-`TextRange` to embedded Python. Python is initialized by `cjmcp`, not by tree
-construction. See the [experiment contract](../cjmcp/README.md).
+[`cjsyntax`](../cjsyntax/README.md) owns the Cangjie grammar. Its tree algorithms
+are independent of project models. This experiment adds a static `py_interop`
+dependency to expose the original `TextRange` to embedded Python. Python is
+initialized by `cjmcp`, not by tree construction. See the
+[experiment contract](../cjmcp/README.md).
 
 Tree kinds stay generic over `K <: Kind<K>` rather than becoming a
 language-specific or raw integer representation.

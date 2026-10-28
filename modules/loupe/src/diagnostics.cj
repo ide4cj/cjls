@@ -1,11 +1,6 @@
 package loupe
 
-import python_export.*
-@When[os == "Linux"]
 import py_interop.*
-@When[os == "Linux"]
-import py_interop.Reference as PythonInteropReference
-@When[os == "Linux"]
 import py_interop.internal_macros.*
 
 import std.collection.*
@@ -21,8 +16,8 @@ import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
-@PythonExport
 @Derive[Equatable]
+@DerivePython
 public enum Severity {
     | Error
     | Warning
@@ -35,8 +30,8 @@ public enum Severity {
  * included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves
  * out, which an editor shows faded.
  */
-@PythonExport
 @Derive[Equatable]
+@DerivePython
 public struct Diagnostic {
     public Diagnostic(
         public let range: TextRange,

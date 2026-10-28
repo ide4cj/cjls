@@ -461,6 +461,25 @@ call yields `First, Second, First, Second`; omitting `restartWorkspace()` reprod
 IDs rather than requiring the SDK defect to persist. macOS, Windows and other SDK
 versions remain unverified by this local probe.
 
+<a id="k29"></a>
+### K29
+
+On Linux x86_64 with `1.3.0-alpha.20261014001050`, compiling the root `loupe`
+package with `@DerivePython` on its analysis result types crashes cjc with
+SIGSEGV when all bindings are enabled together. Each file's binding group and
+each pair of groups compile separately at `-O0`. Placing `@DerivePython` below
+`@Derive[Equatable]` makes the combined package compile at `-O0`; wrapping the
+generated equality extensions crashes even without optimization. With that
+annotation order fixed, `-O1` and `-O2` still crash the compiler. Increasing the
+macro runtime heap to 2 GB did not resolve the unoptimized failure.
+
+The `loupe` manifest selects `-O0` for that package alone. Its HIR, syntax,
+database and other subpackages retain the normal release optimization. Python
+bindings use the dependency's `DerivePython` directly. The independent interop
+example with exported structs, enums and a recursive class compiles, so this
+observation does not establish a general restriction or an SDK-only reproducer
+of the optimizer failure. Other SDK versions and native platforms are unverified.
+
 ## Reconciliation and remaining work
 
 This registry starts #332's document, not its probe implementation. None of

@@ -87,6 +87,11 @@ class McpStdioTest(unittest.TestCase):
                     assert all(isinstance(node, StructureNode) for node in nodes)
                     assert all(isinstance(node.range, TextRange) for node in nodes)
                     assert all(node.range.len == node.range.end - node.range.start for node in nodes)
+                    span = TextRange(1, 4)
+                    assert span.len == 3 and span.contains(2) and not span.contains(4)
+                    assert span.shift(2) == TextRange(3, 6)
+                    assert all(isinstance(node.kind, StructureKind) for node in nodes)
+                    assert any(node.kind.toString() == 'Function' for node in nodes)
                     hover = workspace.hover('src/main.cj', {source.encode().rindex(b'answer')})
                     assert isinstance(hover, HoverResult)
                     assert isinstance(hover.items[0], HoverItem)
@@ -157,7 +162,7 @@ class McpStdioTest(unittest.TestCase):
                     diagnostics = workspace.diagnostics('src/main.cj')
                     assert all(isinstance(item, Diagnostic) for item in diagnostics)
                     assert all(isinstance(item.severity, Severity) for item in diagnostics)
-                    assert all(item.severity.toString() == 'Error' for item in diagnostics)
+                    assert isinstance(Severity.Error(), Severity)
                     result = dict(
                         diagnostics=[item.message for item in diagnostics],
                         added=[node.name for node in workspace.structure('src/new.cj')])

@@ -1,4 +1,4 @@
 version = 0
 
 [requires]
-  py_interop = {git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "52a03ddf236d5706df3e0c6965351d6656f00201", output-type = "static"}
+  py_interop = {git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "06d296137f4f8451bf6cfc53b686f29569772e50", output-type = "static"}

@@ -1,11 +1,6 @@
 package loupe
 
-import python_export.*
-@When[os == "Linux"]
 import py_interop.*
-@When[os == "Linux"]
-import py_interop.Reference as PythonInteropReference
-@When[os == "Linux"]
 import py_interop.internal_macros.*
 
 import std.collection.*
@@ -17,8 +12,8 @@ import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 
-@PythonExport
 @Derive[Equatable]
+@DerivePython
 public enum StructureKind <: ToString {
     | Class
     | Interface
@@ -65,7 +60,7 @@ public enum StructureKind <: ToString {
  * One declaration of a file's outline. `range` is the whole of it, doc comment included;
  * `selectionRange`, inside it, is its name.
  */
-@PythonExport
+@DerivePython
 public class StructureNode {
     public StructureNode(
         public let name: String,

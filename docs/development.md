@@ -344,7 +344,7 @@ The table below identifies the constraints to preserve in this checkout.
 |---|---|
 | `cjls` links `--static` | The server must run without SDK env |
 | Preserve the Linux release baseline and runtime-container check | System glibc/libstdc++ remain dynamic; C32, D142 |
-| Per-target release `-O2`, except `platform`'s `-O1` | `-g` builds must stay unoptimized (D51); [K14](sdk-issues.md#k14), D102 |
+| Per-target release `-O2`, except `platform`'s `-O1` and root `loupe`'s `-O0` | `-g` builds must stay unoptimized (D51); [K14](sdk-issues.md#k14), [K28](sdk-issues.md#k28), D102 |
 | Keep module/root `-Woff unused`; other warnings remain enabled | Existing generated/macro warnings; `-m` reads module settings (D97) |
 | No LTO or `-dead_strip` | [K5](sdk-issues.md#k5), [K6](sdk-issues.md#k6), D20 |
 | No `std.ast` reachable from runtime packages | Avoid linking the compiler parser into the server |

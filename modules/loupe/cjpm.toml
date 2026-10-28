@@ -10,10 +10,11 @@ output-type = "static"
 compile-option = "-Woff unused"
 override-compile-option = ""
 link-option = ""
-package-configuration = {}
+# Only the API package: generated Python bindings crash the optimizer (K28).
+package-configuration = { loupe = { compile-option = "-O0" } }
 
 [dependencies]
-python_export = { path = "../python_export" }
+py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "06d296137f4f8451bf6cfc53b686f29569772e50", output-type = "static" }
 calca = { path = "../calca" }
 cjformat = { path = "../cjformat" }
 cjo = { path = "../cjo" }
@@ -48,6 +49,3 @@ path-option = [
 path-option = [
     "${CANGJIE_HOME}/third_party/stdx/windows_x86_64_cjnative/static/stdx",
 ]
-
-[target.x86_64-unknown-linux-gnu.dependencies]
-py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "52a03ddf236d5706df3e0c6965351d6656f00201", output-type = "static" }
