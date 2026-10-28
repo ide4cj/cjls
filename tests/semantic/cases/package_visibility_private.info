@@ -1,0 +1,15 @@
+// ISSUE: 541
+// PACKAGE: api api
+// PACKAGE: app app depends=api
+// STEP: broken
+// CJC: api clean
+// CJC: app error: can not access field 'x'
+// SOURCE: api/src/main.cj inputs/package_visibility_private/broken/api/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_visibility_private/broken/app/src/main.cj
+// KNOWN-MISSING: access issue=541
+// STEP: fixed
+// CJC: api clean
+// CJC: app clean
+// SOURCE: api/src/main.cj inputs/package_visibility_private/fixed/api/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_visibility_private/fixed/app/src/main.cj
+// STEP: restored FROM broken

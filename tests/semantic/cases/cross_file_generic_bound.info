@@ -1,0 +1,12 @@
+// ISSUE: 540
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: generics type arguments do not match the constraint of 'Class-Box<Generics-T>'
+// SOURCE: src/main.cj inputs/cross_file_generic_bound/broken/src/main.cj
+// KNOWN-MISSING: d0 issue=540
+// SOURCE: src/declarations.cj inputs/cross_file_generic_bound/broken/src/declarations.cj
+// STEP: fixed
+// CJC: audit clean
+// SOURCE: src/main.cj inputs/cross_file_generic_bound/fixed/src/main.cj
+// SOURCE: src/declarations.cj inputs/cross_file_generic_bound/fixed/src/declarations.cj
+// STEP: restored FROM broken

@@ -1,0 +1,19 @@
+// Three files initially; the fourth is created and deleted while main.cj stays open.
+// ISSUE: 528
+// PACKAGE: audit .
+// STEP: initial
+// CJC: audit clean
+// SOURCE: src/main.cj inputs/workspace_lifecycle/initial/src/main.cj
+// SOURCE: src/values.cj inputs/workspace_lifecycle/initial/src/values.cj
+// SOURCE: src/spare.cj inputs/workspace_lifecycle/initial/src/spare.cj
+// STEP: created
+// CJC: audit error: mismatched types
+// SOURCE: src/extra.cj inputs/workspace_lifecycle/created/src/extra.cj
+// STEP: changed
+// CJC: audit clean
+// SOURCE: src/values.cj inputs/workspace_lifecycle/changed/src/values.cj
+// SOURCE: src/extra.cj inputs/workspace_lifecycle/changed/src/extra.cj
+// STEP: deleted
+// CJC: audit clean
+// DELETE-FILE: src/extra.cj
+// STEP: restored FROM initial

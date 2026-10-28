@@ -1,0 +1,12 @@
+// ISSUE: 538
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: super class 'B' is not inheritable
+// SOURCE: src/main.cj inputs/cross_file_inheritance/broken/src/main.cj
+// KNOWN-MISSING: d0 issue=538
+// SOURCE: src/declarations.cj inputs/cross_file_inheritance/broken/src/declarations.cj
+// STEP: fixed
+// CJC: audit clean
+// SOURCE: src/main.cj inputs/cross_file_inheritance/fixed/src/main.cj
+// SOURCE: src/declarations.cj inputs/cross_file_inheritance/fixed/src/declarations.cj
+// STEP: restored FROM broken

@@ -1,0 +1,19 @@
+// ISSUE: 540
+// PACKAGE: api api
+// PACKAGE: bridge bridge depends=api
+// PACKAGE: app app depends=bridge
+// STEP: broken
+// CJC: api clean
+// CJC: bridge clean
+// CJC: app error: mismatched types
+// SOURCE: api/src/main.cj inputs/package_transitive_inference/broken/api/src/main.cj
+// SOURCE: bridge/src/main.cj inputs/package_transitive_inference/broken/bridge/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_transitive_inference/broken/app/src/main.cj
+// STEP: fixed
+// CJC: api clean
+// CJC: bridge clean
+// CJC: app clean
+// SOURCE: api/src/main.cj inputs/package_transitive_inference/broken/api/src/main.cj
+// SOURCE: bridge/src/main.cj inputs/package_transitive_inference/fixed/bridge/src/main.cj
+// SOURCE: app/src/main.cj inputs/package_transitive_inference/fixed/app/src/main.cj
+// STEP: restored FROM broken

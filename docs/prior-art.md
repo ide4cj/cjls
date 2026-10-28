@@ -25,6 +25,7 @@ Looked at, not references:
 | [sourcekit-lsp](https://github.com/swiftlang/sourcekit-lsp) | Swift is as near to Cangjie as Kotlin, but the server is a wrapper over the compiler (`sourcekitd`) and a build's index store, as R4 is over cjc |
 | [HLS / ghcide](https://github.com/haskell/haskell-language-server) | incrementality from a build system (Shake), not from queries |
 | [cjlsp](https://github.com/XYZboom/cjlsp) | Cangjie in Rust, own lexer/parser/sema, written in three days (2026-08-28..30) to pass `cangjie_test`'s LSP cases, then paused: a test of a hypothesis, not a product. Worth reading for the macro ABI (`docs/windows-macros.md`, #47) and the std sources it downloads (#49) |
+| [cangjie_test_framework](https://gitcode.com/Cangjie/cangjie_test_framework) | Comment directives, auxiliary files and compiler-failure expectations inform the [semantic oracle](../tests/semantic/README.md). Its package snapshots, exact LSP diagnostic comparison and editing steps are specific to cjls; this is not a Maple-compatible runner |
 
 ## Comparison
 

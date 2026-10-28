@@ -116,7 +116,7 @@ inspection:
 | Command after building | Purpose |
 |---|---|
 | `target/release/bin/cjls project --dir <dir>` | Print the detected project as `cj-project.json` |
-| `target/release/bin/cjls fmt --check .` | Report source files that need formatting; exit nonzero if any |
+| `target/release/bin/cjls fmt --check build.cj modules` | Report source files that need formatting; exit nonzero if any |
 | `target/release/bin/cjls fmt <path>...` | Format selected files in place |
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
@@ -195,7 +195,7 @@ also checks analysis after SDK macro expansion; see the
 
 ```bash
 cjpm build
-target/release/bin/cjls fmt --check .
+target/release/bin/cjls fmt --check build.cj modules
 python3 scripts/docs.py check
 ```
 
@@ -263,6 +263,28 @@ cases (otherwise `CANGJIE_HOME`). Keep the SDK and std corpus available: those
 cases can skip when missing; review skips before claiming full coverage.
 Editor-client tests live in their own repositories; paired branch conventions
 are in D32 and [the org guide](https://github.com/ide4cj/.github/blob/main/CONTRIBUTING.md).
+
+### Negative semantic compiler oracle
+
+The [negative semantic matrix](../tests/semantic/README.md) checks native `.cj`
+runner headers and separate `.info` workspace scenarios against the pinned
+compiler and the built server. Scenarios declare whole packages, exact diagnostics
+and editing steps; source ranges are
+marked in the code rather than maintained as numeric offsets:
+
+```bash
+cjpm build
+python3 -m unittest discover -s tests/semantic -p '*_test.py'
+python3 tests/semantic/oracle.py --sdk "$CANGJIE_HOME" --output target/semantic-oracle
+```
+
+Use a new output directory for each run. Known missing/extra diagnostics are an
+issue-attributed KNOWN directives beside their expectations: new discrepancies and unexpected fixes
+fail. The separate Semantic oracle CI job retains compiler/server logs and a
+machine-readable report, including in the CI invoked before release publication.
+It supplements the existing accepted-source gates; it does not change default
+`cjpm test` selection while #66's tier decision is pending. See the matrix's
+README for focused selection, cross-file edits, timeouts and SDK applicability.
 
 ### Fuzzing and performance
 
