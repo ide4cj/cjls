@@ -5,6 +5,7 @@
 # it would be without the gate and commented with the gap's issue at the root (D108, D121); #48 is
 # done with it empty.
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=ErrorRootsGateTest.*'` writes it.
+# Local-root attribution and all inspected positions: error_roots_audit.md (#425).
 modules/cjls/src/command.cj: member found: 1
 modules/cjls/src/fetch_src.cj: other: 1
 modules/cjls/src/handlers/document_sync.cj: member found: 2
@@ -22,24 +23,24 @@ modules/cjls/src/server/context.cj: member found: 3
 modules/cjls/src/server/loop.cj: member found: 1
 modules/cjls/src/server/push.cj: member found: 6
 modules/cjls/src/server/server_test.cj: member found: 3
-modules/loupe/src/definition.cj: local: 4
+modules/loupe/src/definition.cj: local: 4  # pipeline skip loses its element type; propagated param uses (#246)
 modules/loupe/src/definition.cj: operator ??: 1
-modules/loupe/src/hir/binary.cj: local: 1
-modules/loupe/src/hir/body.cj: local: 16
+modules/loupe/src/hir/binary.cj: local: 1  # Option.flatMap loses its callback result argument (#551)
+modules/loupe/src/hir/body.cj: local: 16  # pipeline filter/map callback inputs and their local cascades (#246)
 modules/loupe/src/hir/body_test.cj: index: 2
-modules/loupe/src/hir/body_test.cj: local: 11
-modules/loupe/src/hir/def_map.cj: local: 2
+modules/loupe/src/hir/body_test.cj: local: 11  # pipeline filter index and its destructured/pattern-bound cascades (#246)
+modules/loupe/src/hir/def_map.cj: local: 2  # pipeline filterMap/map callback inputs (#246)
 modules/loupe/src/hir/expansion.cj: index: 2
-modules/loupe/src/hir/expansion.cj: local: 4
+modules/loupe/src/hir/expansion.cj: local: 4  # pipeline map and fold callback inputs, plus last binding cascade (#246)
 modules/loupe/src/hir/expansion.cj: operator ??: 1
-modules/loupe/src/hir/item_id.cj: local: 2
-modules/loupe/src/hir/item_tree.cj: local: 5
-modules/loupe/src/hir/macro_call.cj: local: 1
-modules/loupe/src/hir/scope.cj: local: 14
-modules/loupe/src/hir/server_macro.cj: local: 1
-modules/loupe/src/hir/signature.cj: local: 2
-modules/loupe/src/hir/ty_relations.cj: local: 4
-modules/macro_host/src/host.cj: local: 1
+modules/loupe/src/hir/item_id.cj: local: 2  # pipeline map callback (#246); standalone pipeline lambda (#248)
+modules/loupe/src/hir/item_tree.cj: local: 5  # pipeline map callback and import-tree binding cascade (#246)
+modules/loupe/src/hir/macro_call.cj: local: 1  # pipeline map callback (#246)
+modules/loupe/src/hir/scope.cj: local: 14  # pipeline filterMap/map callbacks and names/ids/glob cascades (#246)
+modules/loupe/src/hir/server_macro.cj: local: 1  # pipeline map callback (#246)
+modules/loupe/src/hir/signature.cj: local: 2  # pipeline map callbacks (#246)
+modules/loupe/src/hir/ty_relations.cj: local: 4  # macro-member TodoTy becomes ErrorTy in iterator callbacks (#552)
+modules/macro_host/src/host.cj: local: 1  # Option.flatMap callback result propagates to library pattern (#551)
 modules/macro_host/src/host.cj: member found: 2
 modules/platform/src/posix/relaunch.cj: name found: 2
-modules/rope/src/node.cj: local: 1
+modules/rope/src/node.cj: local: 1  # pipeline fold callback input (#246)

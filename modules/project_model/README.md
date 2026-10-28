@@ -112,3 +112,8 @@ described in [analysis tests](../../docs/design/02-analysis.md#analysis-tests).
 Do not bless new baseline entries as part of a documentation or loader cleanup.
 Performance scenarios use the neighboring benchmarks under the shared
 [measurement procedure](../../docs/procedures.md#benchmark-isolation).
+
+The [local error-root audit](error_roots_audit.md) attributes every current
+`local` root to its cause. Inline baseline explanations survive count updates;
+new local groups need an explanation before the gate passes. Attribution does
+not relax the requirement to eliminate the underlying gaps before Cleanup.
