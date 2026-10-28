@@ -72,13 +72,13 @@ def __cjmcp_run(code, workspace, classes):
             result=result, error=error), allow_nan=False)
 "#
 
-/** Python owns a handle to the live workspace; analysis results keep their original Cangjie types. */
+/** A stable workspace handle; reload replaces its disk revision while preserving existing proxies. */
 @When[os == "Linux"]
 @DerivePython
-class PythonWorkspace {
-    private var current: ?Workspace = None
+class Workspace {
+    private var current: ?WorkspaceState = None
 
-    PythonWorkspace(private let directory: String) {}
+    Workspace(private let directory: String) {}
 
     public prop root: String {
         get() {
@@ -101,7 +101,7 @@ class PythonWorkspace {
     }
 
     public func reload(): Unit {
-        current = Workspace(VfsPath.file(directory))
+        current = WorkspaceState(VfsPath.file(directory))
     }
 
     public func structure(path: String): Array<StructureNode> {
@@ -132,14 +132,14 @@ class PythonWorkspace {
             }
     }
 
-    private func loaded(): Workspace {
+    private func loaded(): WorkspaceState {
         if (current.isNone()) {
             reload()
         }
         current.getOrThrow()
     }
 
-    private func resolve(written: String): (Workspace, FileId) {
+    private func resolve(written: String): (WorkspaceState, FileId) {
         let view = loaded()
         let path =
             if (Path(written).isAbsolute()) {
@@ -152,7 +152,7 @@ class PythonWorkspace {
         (view, id)
     }
 
-    private func position(path: String, offset: Int64): (Workspace, FileId) {
+    private func position(path: String, offset: Int64): (WorkspaceState, FileId) {
         let (view, file) = resolve(path)
         let text = view.vfs.fileContents(file).getOrThrow().toString().toArray()
         if (
@@ -177,13 +177,13 @@ class PythonLocation {
 
 @When[os == "Linux"]
 class PythonSession {
-    private let workspace: PythonWorkspace
+    private let workspace: Workspace
     private var runner: ?PyObj = None
     private var workspaceProxy: ?PyObj = None
     private var types: ?PyObj = None
 
     PythonSession(root: VfsPath) {
-        workspace = PythonWorkspace(root.toString())
+        workspace = Workspace(root.toString())
     }
 
     func run(code: String): JsonValue {

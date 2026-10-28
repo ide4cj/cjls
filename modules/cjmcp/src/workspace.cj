@@ -8,13 +8,13 @@ import loupe.vfs.*
 import project_model.*
 
 /** One disk revision; replacing it on reload also discards cached queries for removed files. */
-class Workspace {
+class WorkspaceState {
     let db = AnalysisDatabase()
     let vfs = Vfs()
     let files: Array<VfsPath>
     let problems: Array<String>
 
-    Workspace(let root: VfsPath) {
+    WorkspaceState(let root: VfsPath) {
         if (
             !exists(root.toString()) || !FileInfo(canonicalize(Path(root.toString()))).isDirectory()
         ) {
