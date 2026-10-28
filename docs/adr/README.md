@@ -171,3 +171,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0150](0150-width-driven-formatting.md) | The formatter decides line breaks from syntax and a fixed width | accepted |
 | [0152](0152-formatter-settings.md) | Project formatter policy has three explicit settings | accepted |
 | [0153](0153-nested-source-macro-inputs.md) | Source macro inputs compose nested calls inside out, including token DSLs | proposed |
+| [0154](0154-compiler-owned-types.md) | Compiler-owned types have semantic heads and scoped declarations | accepted |
