@@ -461,19 +461,19 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
     let file = id.file(db)
     let item = declItemOf(db, id) ?? return None
     var modifiers = HighlightModifiers.NONE
-    let source =
+    let source: ?Decl =
         match (file) {
             case CompilerBuiltIns(_) =>
                 modifiers = modifiers.plus(HighlightModifier.DefaultLibrary)
-                Option<Decl>.None
+                None
             case Source(_) => nodeOf(db, id).flatMap { found => Decl.cast(found[1]) }
             case Binary(pkg, _) =>
                 if (pkg.binary(db) == "std") {
                     modifiers = modifiers.plus(HighlightModifier.DefaultLibrary)
                 }
-                Option<Decl>.None
+                None
             // what `@Derive` adds: no modifier its call writes (#175)
-            case Expansion(_) => Option<Decl>.None
+            case Expansion(_) => None
         }
     if (item.has(Modifier.Static)) {
         modifiers = modifiers.plus(HighlightModifier.Static)

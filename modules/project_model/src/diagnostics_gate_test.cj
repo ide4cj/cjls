@@ -1,9 +1,9 @@
 package project_model
 
-import std.collection.*
+import std.collection.{ArrayList, HashMap}
 import std.convert.Parsable
 import std.env.getVariable
-import std.fs.*
+import std.fs.{Directory, File, Path}
 import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -69,6 +69,9 @@ let STD_GATE_CFG =
         ]
     )
 
+/**
+ * Loads the pinned std sources, including std.core, under the gate's fixed target configuration.
+ */
 func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
     let dir = stdSourcesDir()
     let byPackage = HashMap<String, ArrayList<VfsPath>>()

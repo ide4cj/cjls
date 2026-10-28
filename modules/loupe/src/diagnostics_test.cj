@@ -699,7 +699,7 @@ class StdFalseMismatchesTest {
     }
 
     @TestCase
-    func primitiveOperatorFallbackDoesNotCheckTheReceiverAgainstItsResult() {
+    func primitiveOperatorFallbackDoesNotCheckTheReceiverAgainstItsResult(): Unit {
         checkDiagnostics(
             #"
             package m

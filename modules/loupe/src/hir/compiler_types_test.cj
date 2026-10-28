@@ -2,13 +2,13 @@ package loupe.hir
 
 import std.unittest.*
 import std.unittest.testmacro.*
-import loupe.fixture.*
+import loupe.fixture.{Fixture, FixtureException}
 import rope.Rope
 
 @Test
 class CompilerTypesTest {
     @TestCase
-    func sourceCoreResolvesPointersAndTheirGenericMembers() {
+    func sourceCoreResolvesPointersAndTheirGenericMembers(): Unit {
         checkInference(
             #"
             //- /std/core/core.cj module=std package=std.core
@@ -48,7 +48,7 @@ class CompilerTypesTest {
     }
 
     @TestCase
-    func signaturesUseSemanticHeadsAndKeepTypeErrors() {
+    func signaturesUseSemanticHeadsAndKeepTypeErrors(): Unit {
         // arrange
         let (db, file, good) =
             declOf(
@@ -68,7 +68,12 @@ class CompilerTypesTest {
 
         // act
         let goodSignature = signatureTypes(db, good)
-        let pkg = PackageRef.Source(packageOfFile(db, file).getOrThrow())
+        let pkg =
+            PackageRef
+                .Source(
+                    packageOfFile(db, file)
+                        .getOrThrow { FixtureException("good must belong to std.core") }
+                )
         let typo = signatureTypes(db, exportOf(db, pkg, "typo"))
         let missing = signatureTypes(db, exportOf(db, pkg, "missing"))
 
@@ -84,7 +89,7 @@ class CompilerTypesTest {
     }
 
     @TestCase
-    func binaryAndSourceBuiltinsHaveTheSameHeads() {
+    func binaryAndSourceBuiltinsHaveTheSameHeads(): Unit {
         // arrange
         let (db, core) = stdPackage("std.core")
         for (
@@ -113,7 +118,7 @@ class CompilerTypesTest {
     }
 
     @TestCase
-    func invalidBuiltinSupertypeCyclesStopAfterEachHead() {
+    func invalidBuiltinSupertypeCyclesStopAfterEachHead(): Unit {
         // arrange
         let (db, file, _) =
             declOf(
@@ -137,7 +142,7 @@ class CompilerTypesTest {
     }
 
     @TestCase
-    func builtinVisibilityAndTyposUseOrdinaryScopeRules() {
+    func builtinVisibilityAndTyposUseOrdinaryScopeRules(): Unit {
         // arrange
         let fixture =
             Fixture
@@ -151,10 +156,18 @@ class CompilerTypesTest {
             "#
                 )
         let db = fixture.database()
-        let core = db.sourceFile(fixture.files[0].fileId).getOrThrow()
-        let user = db.sourceFile(fixture.files[1].fileId).getOrThrow()
-        let corePkg = packageOfFile(db, core).getOrThrow()
-        let userPkg = packageOfFile(db, user).getOrThrow()
+        let core =
+            db
+                .sourceFile(fixture.files[0].fileId)
+                .getOrThrow { FixtureException("fixture must contain std.core") }
+        let user =
+            db
+                .sourceFile(fixture.files[1].fileId)
+                .getOrThrow { FixtureException("fixture must contain app") }
+        let corePkg =
+            packageOfFile(db, core).getOrThrow { FixtureException("core must belong to std.core") }
+        let userPkg =
+            packageOfFile(db, user).getOrThrow { FixtureException("user must belong to app") }
         for (name in ["CPointer", "CString", "RawArray", "CFunc", "VArray"]) {
             // act
             let found = lookUp(db, corePkg, core, name, Namespace.Types)

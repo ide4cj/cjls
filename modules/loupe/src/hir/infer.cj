@@ -1802,32 +1802,45 @@ class Inference {
                 let context: ?Ty = if (isComparison) { None } else { primOnly(kept) }
                 let synthesized: ?Ty =
                     if (context.isNone()) { Some(infer(lhs, None)) } else { None }
-                let found =
-                    builtin {
-                        =>
-                        let left = synthesized ?? infer(lhs, context)
-                        if (!isPrim(left) && !isTuple(left)) {
-                            return None
-                        }
-                        // A comparison's right side takes the left's type too.
-                        let wanted =
-                            if (isComparison) {
-                                rightExpected(op, left)
-                            } else {
-                                primOnly(rightExpected(op, left))
-                            }
-                        let right = infer(rhs, wanted)
-                        if (let Some(one) <- wanted && !fits(right, one)) {
-                            return None
-                        }
-                        builtinTy(op, left, right)
-                    }
+                let found = builtinBinaryTy(op, lhs, rhs, context, synthesized)
                 if (let Some(ty) <- found) {
                     return ty
                 }
                 synthesized ?? infer(lhs, None)
             }
         operatorTy(id, left, op, [CallArg(None, rhs)], expected)
+    }
+
+    /**
+     * Tries a primitive or tuple operator, rolling back contextual operand inference on failure.
+     * Reuses a context-free left operand so overload fallback need not infer its subtree again.
+     */
+    private func builtinBinaryTy(
+        op: String,
+        lhs: ExprId,
+        rhs: ExprId,
+        context: ?Ty,
+        synthesized: ?Ty
+    ): ?Ty {
+        builtin {
+            =>
+            let left = synthesized ?? infer(lhs, context)
+            if (!isPrim(left) && !isTuple(left)) {
+                return None
+            }
+            // A comparison's right side takes the left's type too.
+            let wanted =
+                if (COMPARISONS.contains(op)) {
+                    rightExpected(op, left)
+                } else {
+                    primOnly(rightExpected(op, left))
+                }
+            let right = infer(rhs, wanted)
+            if (let Some(one) <- wanted && !fits(right, one)) {
+                return None
+            }
+            builtinTy(op, left, right)
+        }
     }
 
     /**

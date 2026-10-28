@@ -2,11 +2,12 @@ package loupe.hir
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import loupe.fixture.FixtureException
 
 @Test
 class EnumConstructorContextTest {
     @TestCase
-    func unqualifiedConstructorsInferTheirOwnEnumArgumentsInsideTheEnum() {
+    func unqualifiedConstructorsInferTheirOwnEnumArgumentsInsideTheEnum(): Unit {
         // arrange
         // cjc accepts this specialization-changing method, as std.core's Option.map does.
         let (db, _, owner) =
@@ -30,19 +31,20 @@ class EnumConstructorContextTest {
             "#,
                 "Box"
             )
-        for (member in itemOf(db, owner).getOrThrow().members where member.kind == ItemKind.Func) {
+        let item = itemOf(db, owner).getOrThrow { FixtureException("fixture must declare Box") }
+        for (member in item.members where member.kind == ItemKind.Func) {
             let method = DefId(db, owner.file(db), member.id)
 
             // act
             let result = inferBody(db, method)
 
             // assert
-            @Expect(result.diagnostics.size, 0)
+            @Expect(result.diagnostics, [])
         }
     }
 
     @TestCase
-    func anExtendsReceiverDoesNotFixAnUnqualifiedConstructorsArguments() {
+    func anExtendsReceiverDoesNotFixAnUnqualifiedConstructorsArguments(): Unit {
         // arrange
         let (db, file, _) =
             declOf(
@@ -67,11 +69,11 @@ class EnumConstructorContextTest {
         let result = inferBody(db, method)
 
         // assert
-        @Expect(result.diagnostics.size, 0)
+        @Expect(result.diagnostics, [])
     }
 
     @TestCase
-    func anExplicitEnumQualifierStillFixesTheConstructorArguments() {
+    func anExplicitEnumQualifierStillFixesTheConstructorArguments(): Unit {
         // arrange
         let (db, _, method) =
             declOf(

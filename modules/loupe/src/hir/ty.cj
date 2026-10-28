@@ -54,7 +54,9 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      * A declaration and its type arguments: a class, interface, struct or enum.
      */
     | DeclTy(DefId, Array<Ty>)
-    /** Compiler-owned pointers, C strings and raw arrays, independent of scoped declarations. */
+    /**
+     * Compiler-owned pointers, C strings and raw arrays, independent of scoped declarations.
+     */
     | BuiltInTy(CompilerType, Array<Ty>)
     | TupleTy(Array<Ty>)
     /**
