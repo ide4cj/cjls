@@ -37,3 +37,14 @@ final output location and format in memory without a formatter subprocess.
 Library callers pass `FormatOptions` to `format`, `formatText` or `formatRange`.
 These functions do not read files. `cjformat.config.optionsFor` is the explicit
 filesystem loader for callers that need project discovery.
+
+## Repository checks
+
+CI and the pre-push hook check `build.cj` and `modules` explicitly. The native
+Cangjie inputs under `tests/semantic/cases` are negative oracle fixtures: syntax
+errors, source layout and comment annotations are intentional and must remain
+verbatim. Format individual product files or use:
+
+```bash
+target/release/bin/cjls fmt --check build.cj modules
+```

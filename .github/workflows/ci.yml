@@ -186,8 +186,7 @@ jobs:
         run: uv run --project tests/e2e --locked pytest tests/e2e
         shell: bash
 
-  # every Cangjie file as `cjls fmt` leaves it (D150), with the binary the build made: no SDK, no
-  # compile of its own
+  # Product sources, excluding negative oracle fixtures with intentional syntax/layout.
   format:
     name: Format
     needs: build
@@ -201,7 +200,7 @@ jobs:
           path: bin
       - run: chmod +x bin/cjls
       - name: cjls fmt --check
-        run: bin/cjls fmt --check .
+        run: bin/cjls fmt --check build.cj modules
 
   # a report per commit, kept as an artifact; the times are only reported, shared runners are too
   # noisy to fail on (D23), the queries executed are held to tests/perf/thresholds.toml (D81)

@@ -1,9 +1,0 @@
-// ISSUE: 532
-// PACKAGE: audit .
-// STEP: control
-// CJC: audit clean
-// SEPARATE-FILE: src/main.cj
-package audit
-func f(): Unit { var x = 1; x = 2 }
-// SEPARATE-FILE: src/declarations.cj
-package audit

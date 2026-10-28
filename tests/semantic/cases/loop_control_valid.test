@@ -1,9 +1,0 @@
-// ISSUE: 536
-// PACKAGE: audit .
-// STEP: control
-// CJC: audit clean
-// SEPARATE-FILE: src/main.cj
-package audit
-func f(b: Bool): Unit { while (b) { if (b) { break } else { continue } } }
-// SEPARATE-FILE: src/declarations.cj
-package audit

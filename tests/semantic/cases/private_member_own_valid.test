@@ -1,9 +1,0 @@
-// ISSUE: 541
-// PACKAGE: audit .
-// STEP: control
-// CJC: audit clean
-// SEPARATE-FILE: src/main.cj
-package audit
-class C { private let x = 1; func f(): Int64 { x } }
-// SEPARATE-FILE: src/declarations.cj
-package audit

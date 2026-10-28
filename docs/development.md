@@ -116,7 +116,7 @@ inspection:
 | Command after building | Purpose |
 |---|---|
 | `target/release/bin/cjls project --dir <dir>` | Print the detected project as `cj-project.json` |
-| `target/release/bin/cjls fmt --check .` | Report source files that need formatting; exit nonzero if any |
+| `target/release/bin/cjls fmt --check build.cj modules` | Report source files that need formatting; exit nonzero if any |
 | `target/release/bin/cjls fmt <path>...` | Format selected files in place |
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
@@ -195,7 +195,7 @@ also checks analysis after SDK macro expansion; see the
 
 ```bash
 cjpm build
-target/release/bin/cjls fmt --check .
+target/release/bin/cjls fmt --check build.cj modules
 python3 scripts/docs.py check
 ```
 
@@ -266,9 +266,10 @@ are in D32 and [the org guide](https://github.com/ide4cj/.github/blob/main/CONTR
 
 ### Negative semantic compiler oracle
 
-The [negative semantic matrix](../tests/semantic/README.md) checks readable `.test`
-workspace scenarios against the pinned compiler and the built server. Scenarios
-declare whole packages, exact diagnostics and editing steps; source ranges are
+The [negative semantic matrix](../tests/semantic/README.md) checks native `.cj`
+runner headers and separate `.info` workspace scenarios against the pinned
+compiler and the built server. Scenarios declare whole packages, exact diagnostics
+and editing steps; source ranges are
 marked in the code rather than maintained as numeric offsets:
 
 ```bash

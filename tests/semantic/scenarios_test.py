@@ -9,7 +9,7 @@ import textwrap
 import unittest
 
 from oracle import apply_step, prepare_workspace, read_json, run, validate
-from scenarios import load_scenarios, parse_scenario, relative_path, source_markers
+from scenarios import load_scenarios, parse_scenario as parse_descriptor, relative_path, source_markers
 
 
 SIMPLE = """\
@@ -17,16 +17,23 @@ SIMPLE = """\
 // PACKAGE: audit .
 // STEP: initial
 // CJC: audit clean
-// SEPARATE-FILE: src/main.cj
-package audit
-func f(): Int64 { 1 }
+// SOURCE: src/main.cj main.cj
 """
+SOURCES = {
+    'main.cj': 'package audit\nfunc f(): Int64 { 1 }\n',
+    'marked.cj': 'package audit\nfunc f(): Int64 { /*@result*/1/*@/result*/ }\n',
+    'other.cj': 'package audit\nlet value = /*@value*/1/*@/value*/\n',
+}
+
+
+def parse_scenario(text, ident):
+    return parse_descriptor(text, ident, SOURCES.__getitem__)
 
 
 class ScenarioTest(unittest.TestCase):
     def test_markers_preserve_source_and_map_utf16_multiline_points_and_overlaps(self):
         # arrange
-        text = 'let x = "😀"; <@outer>a<@inner>b\nc<@/outer>d<@/inner><@point><@/point>\n'
+        text = 'let x = "😀"; /*@outer*/a/*@inner*/b\nc/*@/outer*/d/*@/inner*//*@point*//*@/point*/\n'
 
         # act
         source, spans = source_markers(text)
@@ -38,7 +45,7 @@ class ScenarioTest(unittest.TestCase):
 
     def test_broken_markers_fail(self):
         # arrange
-        examples = ('<@a>x', '<@/a>', '<@a><@a>x<@/a>', '<@a>x<@/a><@a>y<@/a>')
+        examples = ('/*@a*/x', '/*@/a*/', '/*@a*//*@a*/x/*@/a*/', '/*@a*/x/*@/a*//*@a*/y/*@/a*/')
         for text in examples:
             with self.subTest(text=text):
                 # act / assert
@@ -56,10 +63,9 @@ class ScenarioTest(unittest.TestCase):
 
     def test_unchanged_source_replaces_expectations_without_becoming_an_edit(self):
         # arrange
-        text = SIMPLE.replace('Int64 { 1 }', 'Int64 { <@result>1<@/result> }')
+        text = SIMPLE.replace('main.cj\n', 'marked.cj\n')
         text += '// EXPECT: result result warning: example\n'
-        text += '// STEP: next\n// CJC: audit clean\n// SEPARATE-FILE: src/main.cj\n'
-        text += 'package audit\nfunc f(): Int64 { 1 }\n'
+        text += '// STEP: next\n// CJC: audit clean\n// SOURCE: src/main.cj main.cj\n'
         text += '// STEP: restored FROM initial\n'
 
         # act
@@ -79,9 +85,7 @@ class ScenarioTest(unittest.TestCase):
         text = SIMPLE + textwrap.dedent('''\
             // STEP: added
             // CJC: audit clean
-            // SEPARATE-FILE: src/other.cj
-            package audit
-            func other(): Int64 { 2 }
+            // SOURCE: src/other.cj other.cj
             // STEP: removed
             // CJC: audit clean
             // DELETE-FILE: src/other.cj
@@ -106,7 +110,7 @@ class ScenarioTest(unittest.TestCase):
             SIMPLE + '// STEP: restored FROM missing\n',
             SIMPLE + '// STEP: initial\n',
             SIMPLE + '// DELETE-FILE: src/absent.cj\n',
-            SIMPLE + '// SEPARATE-FILE: src/main.cj\n',
+            SIMPLE + '// SOURCE: src/main.cj main.cj\n',
             SIMPLE.replace('src/main.cj', 'other/main.cj'),
             SIMPLE.replace('audit clean', 'audit error: problem'),
             SIMPLE.replace('// ISSUE: 528\n', ''),
@@ -121,9 +125,7 @@ class ScenarioTest(unittest.TestCase):
     def test_diagnostics_can_belong_to_any_file(self):
         # arrange
         text = SIMPLE + textwrap.dedent('''\
-            // SEPARATE-FILE: src/other.cj
-            package audit
-            let value = <@value>1<@/value>
+            // SOURCE: src/other.cj other.cj
             // EXPECT: other value warning: example
             ''')
 
@@ -138,13 +140,72 @@ class ScenarioTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             path = Path(folder)
             (path / 'nested').mkdir()
-            (path / 'nested' / 'example.test').write_text(SIMPLE)
+            (path / 'nested' / 'example.info').write_text(SIMPLE)
+            (path / 'nested' / 'main.cj').write_text(SOURCES['main.cj'])
 
             # act
             cases = load_scenarios(path)
 
             # assert
             self.assertEqual(cases[0]['id'], 'nested/example')
+
+    def test_native_header_and_info_produce_the_same_model(self):
+        # arrange
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            native, separate = root / 'native', root / 'separate'
+            native.mkdir()
+            separate.mkdir()
+            source = SOURCES['marked.cj']
+            header = SIMPLE.replace('main.cj main.cj', 'main.cj %f')
+            header += '// EXPECT: result result warning: example\n'
+            license = '/*\n * Example license header.\n */\n'
+            (native / 'example.cj').write_text(license + header + source)
+            (separate / 'example.info').write_text(license + header.replace('%f', 'input.cj'))
+            (separate / 'input.cj').write_text(source)
+
+            # act
+            inline = load_scenarios(native)
+            sidecar = load_scenarios(separate)
+
+            # assert
+            self.assertEqual(inline, sidecar)
+            self.assertEqual(len(sidecar), 1)
+            self.assertEqual(inline[0]['steps'][0]['files']['src/main.cj'], SOURCES['main.cj'])
+
+    def test_duplicate_entry_forms_fail_instead_of_running_twice(self):
+        # arrange
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'example.cj').write_text(SIMPLE.replace('main.cj main.cj', 'main.cj %f')
+                                           + SOURCES['main.cj'])
+            (root / 'example.info').write_text(SIMPLE)
+            (root / 'main.cj').write_text(SOURCES['main.cj'])
+
+            # act / assert
+            with self.assertRaisesRegex(ValueError, 'same scenario'):
+                load_scenarios(root)
+
+    def test_invalid_external_sources_and_inline_info_code_fail(self):
+        # arrange
+        for reference in ('%f', '../main.cj', 'missing.cj', 'other.info'):
+            with self.subTest(reference=reference), tempfile.TemporaryDirectory() as folder:
+                root = Path(folder)
+                (root / 'example.info').write_text(SIMPLE.replace('main.cj main.cj',
+                                                                 f'main.cj {reference}'))
+
+                # act / assert
+                with self.assertRaises(ValueError):
+                    load_scenarios(root)
+        # arrange
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            (root / 'example.info').write_text(SIMPLE + SOURCES['main.cj'])
+            (root / 'main.cj').write_text(SOURCES['main.cj'])
+
+            # act / assert
+            with self.assertRaisesRegex(ValueError, 'put Cangjie source'):
+                load_scenarios(root)
 
     def test_stale_baseline_steps_and_diagnostic_ids_fail(self):
         # arrange

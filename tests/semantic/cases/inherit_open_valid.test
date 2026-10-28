@@ -1,9 +1,0 @@
-// ISSUE: 538
-// PACKAGE: audit .
-// STEP: control
-// CJC: audit clean
-// SEPARATE-FILE: src/main.cj
-package audit
-open class B {}; class C <: B {}
-// SEPARATE-FILE: src/declarations.cj
-package audit

@@ -10,7 +10,7 @@ import re
 
 
 DIRECTIVE = re.compile(r"^// ([A-Z][A-Z-]*): ?(.*)$")
-MARKER = re.compile(r"<@(/?)([a-zA-Z][a-zA-Z0-9_]*)>")
+MARKER = re.compile(r"/\*@(/?)([a-zA-Z][a-zA-Z0-9_]*)\*/")
 NAME = re.compile(r"[a-zA-Z][a-zA-Z0-9_]*\Z")
 SEVERITY = {"error": 1, "warning": 2}
 
@@ -53,14 +53,15 @@ def source_markers(text):
     return "".join(chunks), spans
 
 
-def parse_scenario(text, ident):
-    """Parse one .test file, reporting malformed directives with source line numbers."""
+def parse_scenario(text, ident, read_source):
+    """Parse a runner header or .info descriptor with a fixture-relative source loader."""
     case = {"id": ident, "issue": None, "packages": [], "steps": []}
     step = None
     file = None
     source = []
     expectations = []
     touched = set()
+    block_comment = False
 
     def finish_file():
         nonlocal file, source, expectations
@@ -87,12 +88,15 @@ def parse_scenario(text, ident):
 
     for number, raw in enumerate(text.splitlines(keepends=True), 1):
         try:
+            if block_comment or raw.lstrip().startswith("/*"):
+                block_comment = "*/" not in raw
+                if not block_comment and raw.split("*/", 1)[1].strip():
+                    raise ValueError("source after a descriptor block comment")
+                continue
             match = DIRECTIVE.fullmatch(raw.rstrip("\r\n"))
             if not match:
-                if file is not None:
-                    source.append(raw)
-                elif raw.strip() and not raw.startswith("//"):
-                    raise ValueError("source outside SEPARATE-FILE")
+                if raw.strip() and not raw.startswith("//"):
+                    raise ValueError("put Cangjie source in a .cj file, not the descriptor")
                 continue
             key, value = match.groups()
             if key == "ISSUE" and step is None and case["issue"] is None:
@@ -133,12 +137,14 @@ def parse_scenario(text, ident):
                             "expected": copy.deepcopy(origin.get("expected", [])), "compiler": {}}
                 step["name"] = parts[0]
                 touched = set()
-            elif key == "SEPARATE-FILE" and step is not None:
+            elif key == "SOURCE" and step is not None:
                 finish_file()
-                file = relative_path(value)
+                destination, reference = value.split()
+                file = relative_path(destination)
                 if not file.endswith(".cj") or file in touched:
-                    raise ValueError("SEPARATE-FILE needs a unique .cj path in this step")
+                    raise ValueError("SOURCE needs a unique workspace .cj path in this step")
                 touched.add(file)
+                source = [read_source(reference)]
             elif key == "DELETE-FILE" and step is not None:
                 finish_file()
                 path = relative_path(value)
@@ -169,8 +175,10 @@ def parse_scenario(text, ident):
                         {"severity": severity, "message": message})
             else:
                 raise ValueError(f"unexpected directive: {key}")
-        except (ValueError, KeyError) as error:
+        except (ValueError, KeyError, OSError) as error:
             raise ValueError(f"{ident}:{number}: {error}") from error
+    if block_comment:
+        raise ValueError(f"{ident}: unclosed descriptor block comment")
     finish_step()
     validate_scenario(case)
     return case
@@ -212,7 +220,51 @@ def validate_scenario(case):
         raise ValueError(f"{case['id']}: rejected scenario needs a clean corrected control")
 
 
+def split_header(text):
+    """Separate leading comments (including license blocks) from a native source body."""
+    lines = text.splitlines(keepends=True)
+    end = 0
+    block_comment = False
+    while end < len(lines):
+        line = lines[end].lstrip()
+        if block_comment or line.startswith("/*"):
+            if "*/" in line and line.split("*/", 1)[1].strip():
+                break
+            block_comment = "*/" not in line
+        elif line.strip() and not line.startswith("//"):
+            break
+        end += 1
+    return "".join(lines[:end]), "".join(lines[end:])
+
+
+def fixture_files(folder):
+    """All descriptors and native sources, including auxiliary inputs, for evidence hashes."""
+    return sorted(path for path in folder.rglob("*") if path.suffix in (".cj", ".info"))
+
+
 def load_scenarios(folder):
-    """Discover scenarios recursively; relative paths (without .test) are stable IDs."""
-    return [parse_scenario(path.read_text(encoding="utf-8"), path.relative_to(folder).with_suffix("").as_posix())
-            for path in sorted(folder.rglob("*.test"))]
+    """Discover .info descriptors and .cj runner headers; auxiliary sources are not tests."""
+    cases, ids = [], set()
+    for path in fixture_files(folder):
+        text = path.read_text(encoding="utf-8")
+        header, body = split_header(text)
+        if path.suffix == ".cj" and not any(DIRECTIVE.fullmatch(line) for line in header.splitlines()):
+            continue
+        ident = path.relative_to(folder).with_suffix("").as_posix()
+        if ident in ids:
+            raise ValueError(f"{ident}: both .cj and .info define the same scenario")
+        ids.add(ident)
+
+        def read_source(reference):
+            if reference == "%f":
+                if path.suffix != ".cj":
+                    raise ValueError("%f requires a .cj runner header")
+                return body
+            relative_path(reference)
+            source_path = path.parent / reference
+            if source_path.suffix != ".cj" or not source_path.resolve().is_relative_to(path.parent.resolve()):
+                raise ValueError(f"source must be a fixture-relative .cj file: {reference}")
+            return source_path.read_text(encoding="utf-8")
+
+        cases.append(parse_scenario(header if path.suffix == ".cj" else text, ident, read_source))
+    return cases

@@ -15,7 +15,7 @@ import signal
 import subprocess
 import sys
 
-from scenarios import load_scenarios
+from scenarios import fixture_files, load_scenarios
 
 
 HERE = Path(__file__).resolve().parent
@@ -405,7 +405,7 @@ async def run(args):
             "python": sys.version, "command": sys.argv, "timeout_seconds": args.timeout,
             "scenarios_sha256": hashlib.sha256("".join(
                 path.relative_to(HERE).as_posix() + "\0" + path.read_text(encoding="utf-8")
-                for path in sorted((HERE / "cases").rglob("*.test"))).encode()).hexdigest(),
+                for path in fixture_files(HERE / "cases")).encode()).hexdigest(),
             "baseline_sha256": hashlib.sha256((HERE / "baseline.json").read_bytes()).hexdigest(),
         }
         if status or f"Compiler: {pin} (" not in version:

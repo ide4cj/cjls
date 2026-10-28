@@ -5,8 +5,8 @@ set -e
 # wait on each other for good (#342); Windows looks for cjc.exe, not the shim
 export PATH="$(pwd)/.github/actions/setup-cangjie/shim:$PATH"
 
-# every Cangjie file as `cjls fmt` leaves it, as CI's Format job holds it (D150); first, failing fast
-target/release/bin/cjls fmt --check .
+# Product sources; negative oracle fixtures keep intentional syntax and layout.
+target/release/bin/cjls fmt --check build.cj modules
 
 python3 tests/corpora/fetch.py
 # a directory of its own: tests and builds sharing one undo each other's incremental cache (D27)

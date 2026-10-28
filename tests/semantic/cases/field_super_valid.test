@@ -1,9 +1,0 @@
-// ISSUE: 530
-// PACKAGE: audit .
-// STEP: control
-// CJC: audit clean
-// SEPARATE-FILE: src/main.cj
-package audit
-open class B { init(x: Int64) {} }; class C <: B { init() { super(1) } }
-// SEPARATE-FILE: src/declarations.cj
-package audit

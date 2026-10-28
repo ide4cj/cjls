@@ -29,35 +29,52 @@ repeat `--case` to select more. A selected run is not the full release matrix.
 
 ## Text scenarios
 
-Each `cases/**/*.test` is one workspace scenario. Its relative path without
-`.test` is its stable ID. The format takes comment directives, auxiliary files
-and expected compiler failures from
+Scenarios have two entry forms. A small test keeps runner directives in its
+native `.cj` header; a multifile/editing scenario uses a separate `.info`
+descriptor referring to ordinary `.cj` sources. Both load into the same package,
+file, step and diagnostic model. No suite configuration file is needed.
+
+The format takes comment directives, auxiliary sources and expected compiler
+failures from
 [cangjie_test_framework](https://gitcode.com/Cangjie/cangjie_test_framework),
-and explicit source ranges from the project's `loupe.fixture` approach.
-It is a project-specific format, not a compatible implementation of Maple or lit.
-The small driver handles package compilation and LSP editing directly; test
-authors do not need shell pipelines or raw JSON-RPC transcripts.
+and explicit source ranges from the project's `loupe.fixture` approach. This is
+a project-specific driver rather than a Maple/lit-compatible runner. Authors do
+not need shell pipelines or raw JSON-RPC transcripts.
 
-For example, a complete rejected/corrected/restored scenario is:
+A complete single-file control, `example.cj`, can contain:
 
-```text
-// ISSUE: 544
+```cangjie
+// ISSUE: 528
 // PACKAGE: audit .
-// STEP: broken
-// CJC: audit error: mismatched types
-// SEPARATE-FILE: src/main.cj
-package audit
-func f(): Int64 { return <@result>"wrong"<@/result> }
-// EXPECT: return_type result error: mismatched types: expected 'Int64', found 'String'
-// STEP: fixed
+// STEP: control
 // CJC: audit clean
-// SEPARATE-FILE: src/main.cj
+// SOURCE: src/main.cj %f
 package audit
-func f(): Int64 { return 1 }
-// STEP: restored FROM broken
+func f(): Int64 { 1 }
 ```
 
-The directive vocabulary is deliberately limited:
+`%f` means the body of this `.cj` entry, following its leading comments/blank
+lines. Leading block comments such as license headers are also supported. All
+runner directives belong in the header, before Cangjie source. Headers can
+reference additional `.cj` files for corrections or declarations; see
+[return_wrong_type.cj](cases/return_wrong_type.cj).
+
+Alternatively, `example.info` can describe the same control:
+
+```text
+// ISSUE: 528
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SOURCE: src/main.cj inputs/main.cj
+```
+
+Here `inputs/main.cj` contains the ordinary `package audit` and function shown
+above. References are relative to the descriptor's directory. Source files are
+always native `.cj`; `.info` holds directives/comments only. Auxiliary sources
+without runner headers are not independently discovered as tests. The entry's
+relative path without its extension is its stable ID; defining the same ID in
+both forms is an error.
 
 | Directive | Meaning |
 |---|---|
@@ -68,35 +85,54 @@ The directive vocabulary is deliberately limited:
 | `CJC: package clean` | Require exit 0 with no compiler diagnostics |
 | `CJC: package error: message` | Expected compiler headline; repeat for additional errors or warnings |
 | `CJC: package warning: message` | Warning headline; warning-only compilation must exit 0 |
-| `SEPARATE-FILE: path.cj` | Replace or create this file's source and LSP expectations |
-| `EXPECT: id marker error: message` | One exact LSP error at the named source marker; `warning` is also supported |
+| `SOURCE: workspace/path.cj input/path.cj` | Replace/create a workspace file and its LSP expectations using a native fixture source |
+| `SOURCE: workspace/path.cj %f` | Use this `.cj` entry's body; unavailable in `.info` |
+| `EXPECT: id marker error: message` | One exact LSP error in the preceding SOURCE, at its named marker; `warning` is also supported |
 | `DELETE-FILE: path.cj` | Remove an existing file and its expectations |
 | `PLATFORMS: linux darwin win32` | Optional applicability, before steps |
 | `SKIP-REASON: explanation` | Required when applicability is restricted |
 
-A file section ends at the next file, compiler, deletion or step directive.
-`EXPECT` directives are metadata within that file section. All directive lines
-are removed; other lines, including blank lines, remain source. Unrecognized
-uppercase directives fail rather than silently dropping a check.
+A SOURCE's expectations end at the next source, compiler, deletion or step
+directive. Unrecognized uppercase directives fail rather than silently dropping
+a check. Fixture references must stay inside the descriptor's directory and end
+in `.cj`. Missing inputs fail validation before any processes start.
 
-Markers `<@name>...<@/name>` are removed without adding whitespace. They define
-half-open ranges in the resulting source, including empty ranges and multiline
-or overlapping spans. Coordinates are computed in UTF-16, including non-BMP
-characters. Each marker name is unique within its file; each diagnostic ID is
-unique within a step. Several diagnostics can reference the same marker.
-Comments and markers are reserved fixture syntax, not sent to either consumer.
-Files use `.test` so the repository formatter leaves malformed source and
-intentional whitespace untouched. No source is escaped into JSON strings.
+Range annotations are legal Cangjie block comments:
 
-Every normal step needs an explicit compiler contract for every package. Every
+```cangjie
+func f(): Int64 { return /*@result*/"wrong"/*@/result*/ }
+```
+
+The corresponding header/descriptor expectation is:
+
+```text
+// EXPECT: return_type result error: mismatched types: expected 'Int64', found 'String'
+```
+
+Reserved markers `/*@name*/.../*@/name*/` are removed without adding whitespace
+before either consumer receives the source. They define half-open ranges in
+that resulting source, including empty, multiline and overlapping spans.
+Coordinates are computed in UTF-16, including non-BMP characters. Marker names
+are unique within a source; diagnostic IDs are unique within a step. Several
+diagnostics can reference one marker. Replacing annotations without changing
+the resulting text does not generate a document edit.
+
+Native `.cj` files retain editor language recognition and highlighting. Repository
+format checks target `build.cj` and `modules`, excluding these fixtures' deliberate
+syntax errors and whitespace. The existing accepted-source gates load workspace
+member packages, so fixture inputs outside those members do not enter their
+corpus. Sources remain unescaped and readable; headers and range annotations are
+removed only in the generated oracle workspace.
+
+Every normal step needs an explicit compiler contract for every package. A
 scenario with a rejected compilation also needs a clean compiler/LSP control.
-There is no hardcoded number of source files or editing steps. One package per
-project is currently supported, with non-overlapping project directories and
-explicit path dependencies. Arbitrary build commands, macro build pipelines and
-nested subpackages are outside this initial format.
-See [package_dependency.test](cases/package_dependency.test) for two-file package
+There is no hardcoded number of files or editing steps. One package per project
+is currently supported, with non-overlapping project directories and explicit
+path dependencies. Arbitrary build commands, macro build pipelines and nested
+subpackages are outside this initial format.
+See [package_dependency.info](cases/package_dependency.info) for two-file package
 compilation and downstream invalidation, and
-[workspace_lifecycle.test](cases/workspace_lifecycle.test) for file creation,
+[workspace_lifecycle.info](cases/workspace_lifecycle.info) for creation, correction,
 deletion and multiple edits.
 
 ## Compiler and server execution
