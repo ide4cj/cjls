@@ -2665,8 +2665,7 @@ class Inference {
         // a `foreign` function, or one `@C`, is a `CFunc` as a value (N141)
         let isC =
             match (itemOf(db, id)) {
-                case Some(item) =>
-                    item.modifiers.contains(Modifier.Foreign) || item.macros.contains("C")
+                case Some(item) => item.modifiers.contains(Modifier.Foreign) || item.isC
                 case None => false
             }
         Callable(
@@ -2679,6 +2678,17 @@ class Inference {
             defaults: sig.paramDefaults,
             isCVariadic: sig.isCVariadic
         )
+    }
+
+    /**
+     * Explicit type arguments exclude overloads of a different generic arity before scope levels
+     * decide: a nongeneric member must not hide an imported generic function.
+     */
+    private func functionCallables(id: DefId, explicit: Array<Ty>, recv: ?Ty): Array<Callable> {
+        if (!explicit.isEmpty() && explicit.size != genericsOf(db, id).size) {
+            return []
+        }
+        [funcCallable(id, explicit, recv)]
     }
 
     /**
@@ -2816,7 +2826,7 @@ class Inference {
         callArgs!: Array<CallArg> = []
     ): Array<Callable> {
         match (id.item(db).kind) {
-            case Func => [funcCallable(id, explicit, None)]
+            case Func => functionCallables(id, explicit, None)
             case Class | Struct =>
                 let (args, open) = openTypeArgsOf(id, explicit, expected)
                 initCallables(id, args, open: open)
@@ -2860,7 +2870,7 @@ class Inference {
         match (target) {
             case MemberDecl(id) =>
                 match (id.item(db).kind) {
-                    case Func => [funcCallable(id, explicit, recv)]
+                    case Func => functionCallables(id, explicit, recv)
                     case EnumCtor =>
                         match (ctorCallable(id, explicit, recv, expected)) {
                             case Some(one) => [one]

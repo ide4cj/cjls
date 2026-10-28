@@ -57,6 +57,20 @@ func everyItem(trees: Array<ItemTree>): Array<Item> {
 @Test
 class BinaryItemTreeTest {
     @TestCase
+    func cAnnotatedFunctionsKeepTheirCallingConvention() {
+        // arrange
+        let db = AnalysisDatabase()
+        let pkg = binaryPackage(db, "std.core", stdCjo("std.core"))
+
+        // act
+        let items = everyItem(binaryItemTrees(db, pkg))
+
+        // assert
+        @Expect(named(items, "throwImplicitException").isC)
+        @Expect(!named(items, "throwArithmeticException").isC)
+    }
+
+    @TestCase
     func aTypeOfABinaryPackageIsAnItemOfTheFileItBeganIn() {
         // arrange
         let db = AnalysisDatabase()

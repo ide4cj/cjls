@@ -5,5 +5,3 @@
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=DiagnosticsGateTest.*'` writes it.
 ast/ffi.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
 ast/tokens.cj:12: can not find package 'flatbuffers'  # the corpus: flatbuffers is no package of std's sources, nor of the SDK
-runtime/runtime_signal.cj:141: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
-runtime/runtime_signal.cj:39: mismatched types: expected 'CFunc<(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool>', found '(Int32, CPointer<Unit>, CPointer<Unit>) -> Bool'  # #149: @When's twins, both declared
