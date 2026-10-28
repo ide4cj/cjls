@@ -172,3 +172,5 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0152](0152-formatter-settings.md) | Project formatter policy has three explicit settings | accepted |
 | [0153](0153-nested-source-macro-inputs.md) | Source macro inputs compose nested calls inside out, including token DSLs | proposed |
 | [0154](0154-compiler-owned-types.md) | Compiler-owned types have semantic heads and scoped declarations | accepted |
+| [0155](0155-dependency-resolution-scopes.md) | Independent dependency selections retain module and source context | accepted; workspace library switches reuse the SDK process; K28 remains open by D156 |
+| [0156](0156-reuse-workspace-macro-process.md) | Workspace macro libraries reuse one SDK process despite K28 | accepted |
