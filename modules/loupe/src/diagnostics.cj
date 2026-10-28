@@ -38,13 +38,13 @@ public struct Diagnostic {
 
 /**
  * What is wrong in a file, in the order of the text: what the lexer and the parser found, what its
- * `@When`s say (the code they leave out, what cjc rejects in them), what is wrong with its scope, what
+ * `@When`s say (the code they leave out, what cjc rejects in them), what is wrong with its declarations and scope, what
  * the workspace's macros reported running its calls, and what inference found in its bodies, those of an item the
  * macro server's output replaces in that output (D132); for a file
  * the build leaves out (#318), what the parser found and that it is inactive. Empty for a file the
  * database does not know.
  *
- * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `scopeDiagnostics`,
+ * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `declarationDiagnostics`, `scopeDiagnostics`,
  * `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects
  * their results (A11).
  */
@@ -100,6 +100,7 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
             result.add(Diagnostic(range, Severity.Error, message))
         }
     }
+    result.add(all: declarationDiagnostics(db, file))
     result.add(all: scopeDiagnosticsOf(db, file, root))
     result
         .add(
