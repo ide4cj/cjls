@@ -2,14 +2,16 @@ package loupe.hir
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parseExpr, parseStmts}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
-import cjsyntax.parse as parseText
 import calca.*
 import calca.macros.*
+import cjsyntax.parse as parseText
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parseExpr, parseStmts}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigin}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A macro called in a source file, interned: the file and the item, and which of its calls. On the item (#175), the
@@ -18,6 +20,7 @@ import loupe.syntax.parse
  * written (`inBody`) and its ordinal among the calls of that name there (`index`), in the order their `@`s are
  * written. What a call on an item adds is `ItemFile.Expansion` of it.
  */
+@DerivePython[opaque]
 @CalcaInterned
 public struct MacroCallId {
     public let file: SourceFile
@@ -30,8 +33,8 @@ public struct MacroCallId {
  * What written in a macro call an item of its expansion comes from, where go to definition goes for it or a member
  * of it.
  */
-@Derive[Equatable]
-public enum ExpansionOrigin {
+@DerivePython
+public enum ExpansionOrigin <: Equatable<ExpansionOrigin> {
     /**
      * The interface of `@Derive[...]` at this index there.
      */
@@ -48,6 +51,21 @@ public enum ExpansionOrigin {
      * The option `@UnittestOption[...](...)` names.
      */
     | OfOption
+
+    public operator func ==(other: ExpansionOrigin): Bool {
+        match ((this, other)) {
+            case (ExpansionOrigin.OfEntry(left0), ExpansionOrigin.OfEntry(right0)) =>
+                left0 == right0
+            case (ExpansionOrigin.OfMacro, ExpansionOrigin.OfMacro) => true
+            case (ExpansionOrigin.OfName, ExpansionOrigin.OfName) => true
+            case (ExpansionOrigin.OfOption, ExpansionOrigin.OfOption) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ExpansionOrigin): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -57,14 +75,23 @@ public enum ExpansionOrigin {
  * it becomes). One the macro server ran (#176), of the workspace or of std, is its whole output, replacing the item,
  * and says where each of its tokens comes from by `spans` instead of `origins`.
  */
-@Derive[Equatable]
-public struct Expansion {
+@DerivePython
+public struct Expansion <: Equatable<Expansion> {
     public Expansion(
         public let text: String,
         public let origins: Array<ExpansionOrigin>,
         public let replaces!: Bool = false,
         public let spans!: Array<MappedSpan> = []
     ) {}
+
+    public operator func ==(other: Expansion): Bool {
+        text == other.text && origins == other.origins && replaces == other.replaces &&
+            spans == other.spans
+    }
+
+    public operator func !=(other: Expansion): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -344,8 +371,8 @@ public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
 /**
  * What the output of a macro call is parsed as, by where the call stands (D117): rust-analyzer's `ExpandTo`.
  */
-@Derive[Equatable]
-public enum ExpandTo <: ToString {
+@DerivePython
+public enum ExpandTo <: ToString & Equatable<ExpandTo> {
     /**
      * Declarations, as a file holds them (`parse`): a call on an item.
      */
@@ -366,6 +393,19 @@ public enum ExpandTo <: ToString {
             case ToExpr => "ToExpr"
             case ToStmts => "ToStmts"
         }
+    }
+
+    public operator func ==(other: ExpandTo): Bool {
+        match ((this, other)) {
+            case (ExpandTo.ToItems, ExpandTo.ToItems) => true
+            case (ExpandTo.ToExpr, ExpandTo.ToExpr) => true
+            case (ExpandTo.ToStmts, ExpandTo.ToStmts) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ExpandTo): Bool {
+        !(this == other)
     }
 }
 

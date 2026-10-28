@@ -1,8 +1,6 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     AnyHasName,
@@ -22,16 +20,19 @@ import cjsyntax.ast.{
     identText,
     isIdent
 }
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{BodySource, DefId, ItemFile, LocalFunc, TypeTarget, bodyWithSourceMap, itemIdMap}
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * How a name reaches what it means: reads it, or gives it a value.
  */
-@Derive[Equatable]
-public enum ReferenceAccess <: ToString {
+@DerivePython
+public enum ReferenceAccess <: ToString & Equatable<ReferenceAccess> {
     | ReadAccess
     | WriteAccess
 
@@ -41,15 +42,35 @@ public enum ReferenceAccess <: ToString {
             case WriteAccess => "write"
         }
     }
+
+    public operator func ==(other: ReferenceAccess): Bool {
+        match ((this, other)) {
+            case (ReferenceAccess.ReadAccess, ReferenceAccess.ReadAccess) => true
+            case (ReferenceAccess.WriteAccess, ReferenceAccess.WriteAccess) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ReferenceAccess): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A name of the file meaning what the one asked about does, and how it reaches it; `None` for a name
  * that neither reads nor writes: a declaration but of a `var`, a name in a type or a pattern.
  */
-@Derive[Equatable]
-public struct RelatedHighlight {
+@DerivePython
+public struct RelatedHighlight <: Equatable<RelatedHighlight> {
     public RelatedHighlight(public let range: TextRange, public let access: ?ReferenceAccess) {}
+
+    public operator func ==(other: RelatedHighlight): Bool {
+        range == other.range && access == other.access
+    }
+
+    public operator func !=(other: RelatedHighlight): Bool {
+        !(this == other)
+    }
 }
 
 /**

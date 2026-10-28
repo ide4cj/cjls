@@ -1,14 +1,15 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import calca.*
 import calca.macros.*
+import cjsyntax.CjSyntaxNode
+import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The `common` declarations `def`, a `specific` one, completes (#318): of its package, its name and
@@ -127,9 +128,17 @@ func memberItemOf(db: AnalysisDatabase, parent: DefId, def: DefId): ?Item {
  * A `common` declaration no `specific` one completes, though it needs one, as cjc says it: `'common'
  * function 'f' can not find 'specific' match`.
  */
-@Derive[Equatable]
-public struct NoSpecific {
+@DerivePython
+public struct NoSpecific <: Equatable<NoSpecific> {
     public NoSpecific(public let def: DefId, public let message: String) {}
+
+    public operator func ==(other: NoSpecific): Bool {
+        def == other.def && message == other.message
+    }
+
+    public operator func !=(other: NoSpecific): Bool {
+        !(this == other)
+    }
 }
 
 /**

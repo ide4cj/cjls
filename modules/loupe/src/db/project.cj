@@ -7,6 +7,8 @@ import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.vfs.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The package of a file with no `package` line, as cjc names it.
@@ -16,17 +18,25 @@ const DEFAULT_PACKAGE = "default"
 /**
  * One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
  */
-@Derive[Equatable]
-public struct CfgOption {
+@DerivePython
+public struct CfgOption <: Equatable<CfgOption> {
     public CfgOption(public let key: String, public let value: String) {}
+
+    public operator func ==(other: CfgOption): Bool {
+        key == other.key && value == other.value
+    }
+
+    public operator func !=(other: CfgOption): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What `@When` is evaluated against: `os`, `arch`, `backend` and whatever else a build sets, each
  * key once, in the order of the keys.
  */
-@Derive[Equatable]
-public struct Cfg {
+@DerivePython
+public struct Cfg <: Equatable<Cfg> {
     public let options: Array<CfgOption>
 
     /**
@@ -61,6 +71,14 @@ public struct Cfg {
                 .map { option => (option.key, option.value) }
                 .concat(overrides.options.map { option => (option.key, option.value) })
         )
+    }
+
+    public operator func ==(other: Cfg): Bool {
+        options == other.options
+    }
+
+    public operator func !=(other: Cfg): Bool {
+        !(this == other)
     }
 }
 
@@ -485,6 +503,7 @@ public struct InactiveSourceFile {
  * in its module. Its files are an input of their own, not found from their texts: a file deleted is an
  * empty text (A5), which nothing tells from an empty file.
  */
+@DerivePython[opaque]
 @CalcaInput
 public struct Package {
     public let name: String
@@ -518,6 +537,7 @@ public struct Package {
  * `Vfs`, which holds what an editor may open and edit as text (D38). One per binary, package and
  * file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes.
  */
+@DerivePython[opaque]
 @CalcaInput
 public struct BinaryPackageFile {
     /**

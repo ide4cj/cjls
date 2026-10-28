@@ -2,28 +2,37 @@ package loupe.hir
 
 import std.collection.*
 import std.convert.Parsable
-import std.deriving.*
 import std.sort.sort
 import calca.*
 import calca.macros.*
-import cjo.{Attribute, DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
+import cjo.{Attribute, DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A type and its bounds, `T <: A & B` of a `where`, as types.
  */
-@Derive[Equatable]
-public struct TyBound {
+@DerivePython
+public struct TyBound <: Equatable<TyBound> {
     public TyBound(public let ty: Ty, public let bounds: Array<Ty>) {}
+
+    public operator func ==(other: TyBound): Bool {
+        ty == other.ty && bounds == other.bounds
+    }
+
+    public operator func !=(other: TyBound): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Why a type of a signature is an error, as cjc says it.
  */
-@Derive[Equatable]
-public enum TyErrorKind {
+@DerivePython
+public enum TyErrorKind <: Equatable<TyErrorKind> {
     /**
      * A path whose name is no type of the scope (N89), an alias's own in its type (N93).
      */
@@ -49,13 +58,31 @@ public enum TyErrorKind {
      * An alias that expands to itself, by the names around the cycle (N92).
      */
     | TypeCycle(Array<String>)
+
+    public operator func ==(other: TyErrorKind): Bool {
+        match ((this, other)) {
+            case (TyErrorKind.UndeclaredType(left0), TyErrorKind.UndeclaredType(right0)) =>
+                left0 == right0
+            case (TyErrorKind.NotAType(left0), TyErrorKind.NotAType(right0)) => left0 == right0
+            case (TyErrorKind.NeedsTypeArgs, TyErrorKind.NeedsTypeArgs) => true
+            case (TyErrorKind.WrongTypeArgCount, TyErrorKind.WrongTypeArgCount) => true
+            case (TyErrorKind.ThisNotAllowed(left0), TyErrorKind.ThisNotAllowed(right0)) =>
+                left0 == right0
+            case (TyErrorKind.TypeCycle(left0), TyErrorKind.TypeCycle(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: TyErrorKind): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A type of a signature that is an error: the type, by its id in the signature, and why.
  */
-@Derive[Equatable]
-public struct TyError {
+@DerivePython
+public struct TyError <: Equatable<TyError> {
     public TyError(public let at: TypeRefId, public let kind: TyErrorKind) {}
 
     public func message(): String {
@@ -70,6 +97,14 @@ public struct TyError {
             case TypeCycle(names) => "type cycle detected: '${String.join(names, delimiter: "->")}'"
         }
     }
+
+    public operator func ==(other: TyError): Bool {
+        at == other.at && kind == other.kind
+    }
+
+    public operator func !=(other: TyError): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -80,17 +115,25 @@ public struct TyError {
  * What each segment of the path of a type names, as lowering it resolved it: what highlighting and go to definition
  * read, not resolving it again.
  */
-@Derive[Equatable]
-public struct TypePathTarget <: ByIndex {
+@DerivePython
+public struct TypePathTarget <: ByIndex & Equatable<TypePathTarget> {
     public TypePathTarget(public let ty: TypeRefId, public let resolution: Array<PathResolution>) {}
 
     public func keyIndex(): Int64 {
         ty.index
     }
+
+    public operator func ==(other: TypePathTarget): Bool {
+        ty == other.ty && resolution == other.resolution
+    }
+
+    public operator func !=(other: TypePathTarget): Bool {
+        !(this == other)
+    }
 }
 
-@Derive[Equatable]
-public struct SignatureTypes {
+@DerivePython
+public struct SignatureTypes <: Equatable<SignatureTypes> {
     public SignatureTypes(
         /**
          * Its type parameters by name, in order: a `ParamTy` of it is by its place among them.
@@ -154,6 +197,7 @@ public struct SignatureTypes {
      * The signature as a declaration of `kind` reads, for a test or a hover: `<T>(T, Int64) ->
      * Array<T>`, `C<T> <: I<T> where T <: J`, `= (Int64, Int64)`; `_` for a type not written.
      */
+    @PyIgnore
     public func text(db: AnalysisDatabase, kind: ItemKind): String {
         let list =
             {
@@ -189,6 +233,21 @@ public struct SignatureTypes {
                         delimiter: ", "
                     )
         }
+    }
+
+    public operator func ==(other: SignatureTypes): Bool {
+        generics == other.generics && params == other.params && paramNames == other.paramNames &&
+            paramDefaults == other.paramDefaults &&
+            isCVariadic == other.isCVariadic &&
+            ty == other.ty &&
+            supers == other.supers &&
+            bounds == other.bounds &&
+            errors == other.errors &&
+            typePaths == other.typePaths
+    }
+
+    public operator func !=(other: SignatureTypes): Bool {
+        !(this == other)
     }
 }
 

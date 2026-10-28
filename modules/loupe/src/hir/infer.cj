@@ -1,11 +1,12 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import std.sort.*
 import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 let INTEGER_TYPES =
     [
@@ -29,20 +30,28 @@ let ARITHMETIC = ["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>"]
 /**
  * The members the name after the `.` of a value names, found from the value's type (N75).
  */
-@Derive[Equatable]
-public struct FieldTargets <: ByIndex {
+@DerivePython
+public struct FieldTargets <: ByIndex & Equatable<FieldTargets> {
     public FieldTargets(public let expr: ExprId, public let targets: Array<MemberTarget>) {}
 
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: FieldTargets): Bool {
+        expr == other.expr && targets == other.targets
+    }
+
+    public operator func !=(other: FieldTargets): Bool {
+        !(this == other)
     }
 }
 
 /**
  * The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation.
  */
-@Derive[Equatable]
-public struct CalleeTarget <: ByIndex {
+@DerivePython
+public struct CalleeTarget <: ByIndex & Equatable<CalleeTarget> {
     public CalleeTarget(
         public let expr: ExprId,
         public let decl: DefId,
@@ -52,18 +61,34 @@ public struct CalleeTarget <: ByIndex {
     public func keyIndex(): Int64 {
         expr.index
     }
+
+    public operator func ==(other: CalleeTarget): Bool {
+        expr == other.expr && decl == other.decl && isInitializer == other.isInitializer
+    }
+
+    public operator func !=(other: CalleeTarget): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a name the body uses as a value means, as inference resolved it: what highlighting and go to
  * definition read, not resolving it again.
  */
-@Derive[Equatable]
-public struct NameTarget <: ByIndex {
+@DerivePython
+public struct NameTarget <: ByIndex & Equatable<NameTarget> {
     public NameTarget(public let expr: ExprId, public let resolution: BodyResolution) {}
 
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: NameTarget): Bool {
+        expr == other.expr && resolution == other.resolution
+    }
+
+    public operator func !=(other: NameTarget): Bool {
+        !(this == other)
     }
 }
 
@@ -71,12 +96,20 @@ public struct NameTarget <: ByIndex {
  * What the name after the `.` of an expression means, as inference resolved it before the types: a
  * member of a package or of types, or one of a value, which `FieldTargets` tells.
  */
-@Derive[Equatable]
-public struct AccessTarget <: ByIndex {
+@DerivePython
+public struct AccessTarget <: ByIndex & Equatable<AccessTarget> {
     public AccessTarget(public let expr: ExprId, public let resolution: FieldResolution) {}
 
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: AccessTarget): Bool {
+        expr == other.expr && resolution == other.resolution
+    }
+
+    public operator func !=(other: AccessTarget): Bool {
+        !(this == other)
     }
 }
 
@@ -111,8 +144,8 @@ func findByIndex<T>(sorted: Array<T>, index: Int64): ?T where T <: ByIndex {
  * What inference finds wrong in a body, by the expression it is about, as rust-analyzer's
  * `InferenceDiagnostic`: where it is written is the source map's to say.
  */
-@Derive[Equatable]
-public enum InferenceDiagnostic {
+@DerivePython
+public enum InferenceDiagnostic <: Equatable<InferenceDiagnostic> {
     /**
      * A value of the type `found` where `expected` is (cjc's "mismatched types"): both known wholly.
      */
@@ -136,13 +169,43 @@ public enum InferenceDiagnostic {
      * the right: the expression, the left's type and the right's (cjc's "invalid binary operator").
      */
     | InvalidBinaryOperator(ExprId, Ty, Ty)
+
+    public operator func ==(other: InferenceDiagnostic): Bool {
+        match ((this, other)) {
+            case (
+                    InferenceDiagnostic.TypeMismatch(left0, left1, left2),
+                    InferenceDiagnostic.TypeMismatch(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.VArraySizeMismatch(left0, left1, left2),
+                    InferenceDiagnostic.VArraySizeMismatch(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.ArgCount(left0, left1, left2),
+                    InferenceDiagnostic.ArgCount(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.ArgName(left0, left1, left2),
+                    InferenceDiagnostic.ArgName(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    InferenceDiagnostic.InvalidBinaryOperator(left0, left1, left2),
+                    InferenceDiagnostic.InvalidBinaryOperator(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: InferenceDiagnostic): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156).
  */
-@Derive[Equatable]
-public enum ArgNameError {
+@DerivePython
+public enum ArgNameError <: Equatable<ArgNameError> {
     /**
      * A name none of the parameters passed by name has (cjc: "unknown named argument").
      */
@@ -161,18 +224,41 @@ public enum ArgNameError {
      * cannot be used in variable function call").
      */
     | NameOfValue
+
+    public operator func ==(other: ArgNameError): Bool {
+        match ((this, other)) {
+            case (ArgNameError.UnknownName(left0), ArgNameError.UnknownName(right0)) =>
+                left0 == right0
+            case (ArgNameError.NameTwice(left0), ArgNameError.NameTwice(right0)) => left0 == right0
+            case (ArgNameError.NeedsName(left0), ArgNameError.NeedsName(right0)) => left0 == right0
+            case (ArgNameError.NameOfValue, ArgNameError.NameOfValue) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ArgNameError): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Where each argument of a call goes, by its callee: the place of its parameter among those of
  * what the call takes (#254).
  */
-@Derive[Equatable]
-public struct ArgTarget <: ByIndex {
+@DerivePython
+public struct ArgTarget <: ByIndex & Equatable<ArgTarget> {
     public ArgTarget(public let expr: ExprId, public let params: Array<Int64>) {}
 
     public func keyIndex(): Int64 {
         expr.index
+    }
+
+    public operator func ==(other: ArgTarget): Bool {
+        expr == other.expr && params == other.params
+    }
+
+    public operator func !=(other: ArgTarget): Bool {
+        !(this == other)
     }
 }
 
@@ -182,8 +268,8 @@ public struct ArgTarget <: ByIndex {
  * overload each call of several takes. A type not found is an error, or one the analysis cannot
  * find, and why (D77).
  */
-@Derive[Equatable]
-public struct InferenceResult {
+@DerivePython
+public struct InferenceResult <: Equatable<InferenceResult> {
     public InferenceResult(
         /**
          * `None` for a type or a package before a `.`: no value (D77).
@@ -328,6 +414,23 @@ public struct InferenceResult {
             case Some(one) => one.resolution
             case None => None
         }
+    }
+
+    public operator func ==(other: InferenceResult): Bool {
+        exprs == other.exprs && pats == other.pats && locals == other.locals &&
+            fields == other.fields &&
+            callees == other.callees &&
+            setters == other.setters &&
+            args == other.args &&
+            names == other.names &&
+            accesses == other.accesses &&
+            typePaths == other.typePaths &&
+            ty == other.ty &&
+            diagnostics == other.diagnostics
+    }
+
+    public operator func !=(other: InferenceResult): Bool {
+        !(this == other)
     }
 }
 
