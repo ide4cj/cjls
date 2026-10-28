@@ -467,7 +467,8 @@ class ProjectLoadTest {
                         case _ => ""
                     }
                 }
-        @Expect(watched, ["**/* 5", "**/*.cj 2", "**/cjpm.toml 2", "**/cj-project.json 2", "**/cfg.toml 2"])
+        @Expect(watched, ["**/* 5", "**/*.cj 2", "**/cjpm.toml 2", "**/cjpm.lock 2", "**/cangjie-repo.toml 2",
+            "**/cj-project.json 2", "**/cfg.toml 2"])
     }
 
     @TestCase
