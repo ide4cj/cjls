@@ -11,21 +11,16 @@ import loupe.vfs.VfsPath
  * project's lock owns transitive selections too; a dependency's own lock is not authoritative.
  */
 class CjpmGit {
-    private var initialized = false
-    private var lock: ?CjpmLock = None
-    private var cache: ?VfsPath = None
+    private let resolution: CjpmResolution
 
-    CjpmGit(private let loading: Loading, private let root: VfsPath) {}
+    CjpmGit(private let loading: Loading, private let root: VfsPath) {
+        resolution = CjpmResolution(loading, root)
+    }
 
     func resolve(name: String, declared: DependencyTable, script!: Bool): ?VfsPath {
         try {
-            initialize()
-            let lock = this.lock ?? throw ProjectException("no usable cjpm.lock")
-            let entries = if (script) { lock.scripts } else { lock.requires }
-            let entry =
-                entries.flatMap { all => all.get(name) } ??
-                    throw ProjectException("no locked entry")
-            let selected = gitSelection(entry, lock.version)
+            let (entry, version, cache) = resolution.entry(name, script: script)
+            let selected = gitSelection(entry, version)
             let url = declared.git.getOrThrow()
             if (url.removeSuffix(".git") != selected[0].removeSuffix(".git")) {
                 throw ProjectException("the locked Git URL differs from cjpm.toml")
@@ -43,7 +38,6 @@ class CjpmGit {
                     throw ProjectException("the locked tag differs from cjpm.toml")
                 }
             }
-            let cache = this.cache ?? throw ProjectException("no repository cache location")
             let safeName = gitCacheName(name)
             let checkout = cache.join("git").join(safeName).join(selected[1])
             if (isFile(checkout.join("cjpm.toml").filePath.getOrThrow())) {
@@ -75,24 +69,6 @@ class CjpmGit {
         }
     }
 
-    private func initialize(): Unit {
-        if (initialized) {
-            return
-        }
-        initialized = true
-        let file = root.join("cjpm.lock")
-        try {
-            let lock = fromTomlBytes<CjpmLock>(File.readFrom(file.filePath.getOrThrow()))
-            if (lock.version != 0 && lock.version != 1) {
-                throw ProjectException("unsupported lock version ${lock.version}")
-            }
-            this.lock = lock
-        } catch (e: Exception) {
-            throw ProjectException("cannot read ${file}: ${e.message}")
-        }
-        cache = repositoryCache(loading, root)
-    }
-
     private func packageAt(dir: VfsPath, name: String): VfsPath {
         let manifest = readManifest(dir.join("cjpm.toml"))
         if (let Some(pkg) <- manifest.pkg) {
@@ -113,7 +89,7 @@ class CjpmGit {
     }
 }
 
-private func packageName(pkg: ManifestPackage): String {
+func packageName(pkg: ManifestPackage): String {
     match (pkg.organization) {
         case Some(org) where !org.trimAscii().isEmpty() => "${org.trimAscii()}::${pkg.name}"
         case _ => pkg.name

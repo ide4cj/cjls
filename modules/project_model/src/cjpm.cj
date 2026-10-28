@@ -18,8 +18,8 @@ const BUILD_SCRIPT = "build.cj"
  * of the workspace, and one per source dependency, reached from them, which is no member; and one
  * per `build.cj`. A multiplatform module's packages are those of the chain of source sets the
  * target of `cfg` takes, the files of the others inactive (#318). A
- * Git dependency is read from cjpm's locked checkout; missing locks/checkouts and unsupported
- * registry dependencies are reported in the problems.
+ * Git or registry dependency is read from cjpm's locked cache; missing or stale locks and
+ * downloaded sources are reported in the problems.
  *
  * @throws ProjectException - if the file cannot be read
  */
@@ -88,6 +88,7 @@ class CjpmLowering {
      */
     private let reached = HashMap<VfsPath, ?String>()
     private let git: CjpmGit
+    private let registry: CjpmRegistry
 
     CjpmLowering(
         private let loading: Loading,
@@ -95,6 +96,7 @@ class CjpmLowering {
         private let manifest: Manifest
     ) {
         git = CjpmGit(loading, root)
+        registry = CjpmRegistry(loading, root)
         let members = ArrayList<VfsPath>()
         if (manifest.pkg.isSome()) {
             members.add(root)
@@ -160,11 +162,11 @@ class CjpmLowering {
                         }
                     }
                 case _ =>
-                    loading
-                        .problems
-                        .add(
-                            "dependency `${key}` of `${name}` is left out: registry dependencies are not read"
-                        )
+                    if (let Some(path) <- registry.resolve(key, dep, script: forScript)) {
+                        if (let Some(name) <- module(path, forScript: forScript)) {
+                            deps.add(name)
+                        }
+                    }
             }
         }
         let member = members.contains(dir)
@@ -295,11 +297,11 @@ class CjpmLowering {
                         }
                     }
                 case _ =>
-                    loading
-                        .problems
-                        .add(
-                            "script dependency `${key}` of ${script} is left out: registry dependencies are not read"
-                        )
+                    if (let Some(path) <- registry.resolve(key, dep, script: true)) {
+                        if (let Some(name) <- module(path, forScript: true)) {
+                            deps.add(name)
+                        }
+                    }
             }
         }
         modules
@@ -419,6 +421,7 @@ struct ManifestPackage {
     ManifestPackage(
         let name!: String,
         let organization!: ?String = None,
+        let version!: ?String = None,
         @Serde[rename: "src-dir"]
         let srcDir!: ?String = None,
         @Serde[rename: "always-enabled-features"]
@@ -449,7 +452,9 @@ struct DependencyTable {
         let branch!: ?String = None,
         let tag!: ?String = None,
         let commitId!: ?String = None,
-        let source!: ?String = None
+        let source!: ?String = None,
+        let version!: ?String = None,
+        let checksum!: ?String = None
     ) {}
 }
 

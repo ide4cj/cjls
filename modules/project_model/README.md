@@ -15,11 +15,11 @@ the next source. Linked projects and directories discovered from an open documen
 enter through the same normalization. Keep selection and fallback behavior in
 this layer, rather than duplicating it in LSP handlers (D33, D88).
 
-Git dependencies use the entry project's `cjpm.lock` (v0 or v1) and the checkout
-already downloaded by cjpm. Ordinary/test dependencies use `requires`; build
+Git and registry dependencies use the entry project's `cjpm.lock` (v0 or v1)
+and sources already downloaded by cjpm. Ordinary/test dependencies use `requires`; build
 script dependencies and their transitive imports use `scripts`. A dependency's
-own lock does not override the entry project's resolution. The loader checks
-the declared URL and selector against the lock, then reads the exact cached
+own lock does not override the entry project's resolution. For Git, the loader
+checks the declared URL and selector against the lock, then reads the exact cached
 commit, including members of Git workspaces. It never fetches or runs build
 scripts during discovery. Missing or stale locks/checkouts produce recoverable
 problems directing the user to `cjpm update`.
@@ -28,10 +28,35 @@ The repository cache follows `cangjie-repo.toml` precedence: project, user
 `~/.cjpm`, then SDK `tools/config`. Relative cache paths are relative to the
 configuration file; an empty or absent path defaults to `~/.cjpm` (HOME, else
 USERPROFILE). Project-local config and lock changes reload the project.
-Registry dependencies remain unsupported (#514); workspace dependency
-inheritance, replacements and mode-specific sections are tracked by #515–#517.
+Registry declarations accept a version string or `{version = "..."}`. Versions
+are numeric `major.minor.patch` triplets; constraints are exact versions or
+comma-separated unions of intervals, such as `1.2.3, [2.0.0, 3.0.0), (4.0.0,)`.
+The loader checks the locked version against the constraint, then reads
+`repository/source/<organization or default>/<name>-<version>` beneath the cache.
+It verifies the downloaded manifest's qualified name and version. Missing,
+malformed or incompatible entries remain recoverable loading problems. A v1
+registry entry also needs a `registry+` source and cjpm's checksum metadata;
+this loader does not revalidate the original archive checksum against extracted
+sources (they are different byte streams).
+
+The declaration forms and interval syntax were checked with the pinned
+`cjpm 1.3.0-alpha.06` (SDK `1.3.0-alpha.20261014001050`): valid examples reach
+registry lookup, while `^1.2.3`, `~1.2.3`, `1.2` and `01.2.3` fail validation.
+Cache layout and v0/v1 interpretation follow the current
+[cjpm source](https://github.com/cangjielanguage/cangjie_tools/tree/9a9a0ef227629ef765214d25a75d7b031b184af8/cjpm/src)
+(`config/dep_version.cj`, `config/lock.cj`, `implement/dep_engine.cj` and
+`implement/depot.cj`) and the
+[manual](https://github.com/cangjielanguage/cangjie_docs/blob/main/docs/tools/source_en/cmd-tools/cjpm_manual.md#lock-file-description).
+The source accepts an empty v1 checksum when the registry index omits it; the
+manual describes stricter generation. Discovery accepts the source's format
+without claiming archive verification.
+
+Workspace dependency inheritance, replacements and mode-specific sections are
+tracked by #515–#517.
 The model still shares import scopes for modules of the same name: distinct
 versions in the source and build-script graphs need scope isolation (#515).
+A cached directory reached by both graphs is currently traversed only on its
+first visit, so its transitive dependencies also retain that first scope.
 
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does
@@ -87,3 +112,8 @@ described in [analysis tests](../../docs/design/02-analysis.md#analysis-tests).
 Do not bless new baseline entries as part of a documentation or loader cleanup.
 Performance scenarios use the neighboring benchmarks under the shared
 [measurement procedure](../../docs/procedures.md#benchmark-isolation).
+
+The [local error-root audit](error_roots_audit.md) attributes every current
+`local` root to its cause. Inline baseline explanations survive count updates;
+new local groups need an explanation before the gate passes. Attribution does
+not relax the requirement to eliminate the underlying gaps before Cleanup.
