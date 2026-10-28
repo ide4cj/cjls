@@ -1,2 +1,3 @@
 package audit
-class C <: /*@s0*/B/*@/s0*/ {}
+class C <: B {}
+//         ^ d0 error: super class 'B' is not inheritable

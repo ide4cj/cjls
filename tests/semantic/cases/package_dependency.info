@@ -17,5 +17,4 @@
 // CJC: app error: mismatched types
 // SOURCE: api/src/value.cj inputs/package_dependency/incompatible/api/src/value.cj
 // SOURCE: app/src/main.cj inputs/package_dependency/incompatible/app/src/main.cj
-// EXPECT: return result error: mismatched types: expected 'Int64', found 'String'
 // STEP: restored FROM initial

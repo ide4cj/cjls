@@ -3,11 +3,11 @@
 // STEP: broken
 // CJC: audit error: cannot assign to immutable value
 // SOURCE: src/main.cj %f
-// EXPECT: d0 s0 error: cannot assign to immutable value
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean
 // SOURCE: src/main.cj inputs/write_let/fixed/src/main.cj
 // STEP: restored FROM broken
 package audit
-func f(): Unit { let x = 1; /*@s0*/x = 2/*@/s0*/ }
+func f(): Unit { let x = 1; x = 2 }
+//                          ^^^^^ d0 error: cannot assign to immutable value

@@ -87,35 +87,51 @@ both forms is an error.
 | `CJC: package warning: message` | Warning headline; warning-only compilation must exit 0 |
 | `SOURCE: workspace/path.cj input/path.cj` | Replace/create a workspace file and its LSP expectations using a native fixture source |
 | `SOURCE: workspace/path.cj %f` | Use this `.cj` entry's body; unavailable in `.info` |
-| `EXPECT: id marker error: message` | One exact LSP error in the preceding SOURCE, at its named marker; `warning` is also supported |
 | `DELETE-FILE: path.cj` | Remove an existing file and its expectations |
 | `PLATFORMS: linux darwin win32` | Optional applicability, before steps |
 | `SKIP-REASON: explanation` | Required when applicability is restricted |
 
-A SOURCE's expectations end at the next source, compiler, deletion or step
-directive. Unrecognized uppercase directives fail rather than silently dropping
-a check. Fixture references must stay inside the descriptor's directory and end
-in `.cj`. Missing inputs fail validation before any processes start.
+Each SOURCE takes its LSP expectations from annotations in the input file.
+Replacing the source replaces those expectations too. Unrecognized uppercase
+directives fail rather than silently dropping a check. Fixture references must
+stay inside the descriptor's directory and end in `.cj`. Missing inputs fail
+validation before any processes start.
 
-Range annotations are legal Cangjie block comments:
+Diagnostic annotations follow `loupe.fixture`: carets on a separate comment line
+point at the source above them. The annotation includes a stable diagnostic ID
+for baseline references, severity and message:
 
 ```cangjie
-func f(): Int64 { return /*@result*/"wrong"/*@/result*/ }
+func f(): Int64 { return "wrong" }
+//                       ^^^^^^^ return_type error: mismatched types: expected 'Int64', found 'String'
 ```
 
-The corresponding header/descriptor expectation is:
+Use `|` for an empty range, as in the parser-error controls. Consecutive annotation
+lines refer to the same preceding non-annotation line, allowing overlapping or
+duplicate diagnostic ranges with distinct IDs. Columns count Unicode scalars as
+written, **including the `//` prefix**, just like loupe. The runner translates
+positions to UTF-16 for LSP, including non-BMP characters. A range can extend past
+its source line into subsequent source text; extending beyond the entire source
+is an error.
 
-```text
-// EXPECT: return_type result error: mismatched types: expected 'Int64', found 'String'
+To annotate the first two columns, indent the source by a common margin:
+
+```cangjie
+  @Frozen class C {}
+//^ frozen error: class cannot be modified with '@Frozen'
 ```
 
-Reserved markers `/*@name*/.../*@/name*/` are removed without adding whitespace
-before either consumer receives the source. They define half-open ranges in
-that resulting source, including empty, multiline and overlapping spans.
-Coordinates are computed in UTF-16, including non-BMP characters. Marker names
-are unique within a source; diagnostic IDs are unique within a step. Several
-diagnostics can reference one marker. Replacing annotations without changing
-the resulting text does not generate a document edit.
+The runner removes that common source margin and the annotation lines before
+passing identical text to the compiler and server. It adjusts annotation columns
+for the removed margin. Diagnostic IDs are unique within a step. Malformed,
+detached, out-of-bounds or duplicate-ID annotations fail before execution. Changing
+only annotations does not generate a document edit. Annotation lines belong under
+source in `.cj`, never in `.info` or a runner header. There are no inline source
+markers or separate header EXPECT directives.
+
+Keep format-on-save disabled for fixture sources: a formatter treats annotation
+lines as ordinary comments and may reflow the code they point at. Carets make the
+range visible beside the code; they do not make arbitrary formatting preserve it.
 
 Native `.cj` files retain editor language recognition and highlighting. Repository
 format checks target `build.cj` and `modules`, excluding these fixtures' deliberate

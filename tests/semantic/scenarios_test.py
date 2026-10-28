@@ -9,7 +9,7 @@ import textwrap
 import unittest
 
 from oracle import apply_step, prepare_workspace, read_json, run, validate
-from scenarios import load_scenarios, parse_scenario as parse_descriptor, relative_path, source_markers
+from scenarios import load_scenarios, parse_scenario as parse_descriptor, relative_path, source_annotations
 
 
 SIMPLE = """\
@@ -21,8 +21,8 @@ SIMPLE = """\
 """
 SOURCES = {
     'main.cj': 'package audit\nfunc f(): Int64 { 1 }\n',
-    'marked.cj': 'package audit\nfunc f(): Int64 { /*@result*/1/*@/result*/ }\n',
-    'other.cj': 'package audit\nlet value = /*@value*/1/*@/value*/\n',
+    'marked.cj': 'package audit\nfunc f(): Int64 { 1 }\n//                ^ result warning: example\n',
+    'other.cj': 'package audit\nlet value = 1\n//          ^ other warning: example\n',
 }
 
 
@@ -31,26 +31,47 @@ def parse_scenario(text, ident):
 
 
 class ScenarioTest(unittest.TestCase):
-    def test_markers_preserve_source_and_map_utf16_multiline_points_and_overlaps(self):
+    def test_carets_map_scalar_columns_to_utf16_multiline_points_and_overlaps(self):
         # arrange
-        text = 'let x = "😀"; /*@outer*/a/*@inner*/b\nc/*@/outer*/d/*@/inner*//*@point*//*@/point*/\n'
+        text = ('let x = "😀"; ab\n'
+                '//           ^^^^ outer error: outer\n'
+                '//            ^^^^ inner warning: inner\n'
+                'cd\n'
+                '//| point error: point\n')
 
         # act
-        source, spans = source_markers(text)
+        source, diagnostics = source_annotations(text)
 
         # assert
         self.assertEqual(source, 'let x = "😀"; ab\ncd\n')
-        self.assertEqual(spans, {"outer": [0, 14, 1, 1], "inner": [0, 15, 1, 2],
-                                 "point": [1, 2, 1, 2]})
+        self.assertEqual(diagnostics, [
+            {'id': 'outer', 'range': [0, 14, 1, 1], 'severity': 1, 'message': 'outer'},
+            {'id': 'inner', 'range': [0, 15, 1, 2], 'severity': 2, 'message': 'inner'},
+            {'id': 'point', 'range': [1, 2, 1, 2], 'severity': 1, 'message': 'point'},
+        ])
 
-    def test_broken_markers_fail(self):
+    def test_invalid_or_detached_annotations_fail(self):
         # arrange
-        examples = ('/*@a*/x', '/*@/a*/', '/*@a*//*@a*/x/*@/a*/', '/*@a*/x/*@/a*//*@a*/y/*@/a*/')
+        examples = ('//^ d error: no source\n',
+                    'let x = 1\n//     ^ missing message\n',
+                    'let x = 1\n//                       ^ d error: outside source\n',
+                    '  a\n//^ d error: first\n//^ d error: duplicate\n')
         for text in examples:
             with self.subTest(text=text):
                 # act / assert
                 with self.assertRaises(ValueError):
-                    source_markers(text)
+                    source_annotations(text)
+
+    def test_common_margin_allows_annotations_at_the_first_column(self):
+        # arrange
+        text = '  package audit\n  let value = 1\n//^^^ binding error: example\n'
+
+        # act
+        source, diagnostics = source_annotations(text)
+
+        # assert
+        self.assertEqual(source, 'package audit\nlet value = 1\n')
+        self.assertEqual(diagnostics[0]['range'], [1, 0, 1, 3])
 
     def test_nonportable_and_escaping_paths_fail(self):
         # arrange
@@ -64,7 +85,6 @@ class ScenarioTest(unittest.TestCase):
     def test_unchanged_source_replaces_expectations_without_becoming_an_edit(self):
         # arrange
         text = SIMPLE.replace('main.cj\n', 'marked.cj\n')
-        text += '// EXPECT: result result warning: example\n'
         text += '// STEP: next\n// CJC: audit clean\n// SOURCE: src/main.cj main.cj\n'
         text += '// STEP: restored FROM initial\n'
 
@@ -107,6 +127,7 @@ class ScenarioTest(unittest.TestCase):
             SIMPLE.replace('// CJC: audit clean\n', '// CJC: audit clean\n// CJC: audit warning: example\n'),
             SIMPLE.replace('// CJC:', '// CJJ:'),
             SIMPLE + '// EXPECT: d missing error: problem\n',
+            SIMPLE + '//^ d error: misplaced annotation\n',
             SIMPLE + '// STEP: restored FROM missing\n',
             SIMPLE + '// STEP: initial\n',
             SIMPLE + '// DELETE-FILE: src/absent.cj\n',
@@ -126,7 +147,6 @@ class ScenarioTest(unittest.TestCase):
         # arrange
         text = SIMPLE + textwrap.dedent('''\
             // SOURCE: src/other.cj other.cj
-            // EXPECT: other value warning: example
             ''')
 
         # act
@@ -158,7 +178,6 @@ class ScenarioTest(unittest.TestCase):
             separate.mkdir()
             source = SOURCES['marked.cj']
             header = SIMPLE.replace('main.cj main.cj', 'main.cj %f')
-            header += '// EXPECT: result result warning: example\n'
             license = '/*\n * Example license header.\n */\n'
             (native / 'example.cj').write_text(license + header + source)
             (separate / 'example.info').write_text(license + header.replace('%f', 'input.cj'))
