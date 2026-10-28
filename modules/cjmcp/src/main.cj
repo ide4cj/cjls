@@ -3,9 +3,8 @@ package cjmcp
 import std.collection.ArrayList
 import std.env.{getStdErr, getStdOut, getWorkingDirectory}
 import std.fs.Path
-import fjson.JsonValue
-import platform.{StdinStream, useBinaryStdio}
 import loupe.vfs.VfsPath
+import platform.{StdinStream, useBinaryStdio}
 
 main(args: Array<String>): Int64 {
     if (args == ["--help"]) {
@@ -39,6 +38,10 @@ main(args: Array<String>): Int64 {
     }
 }
 
+/**
+ * Read newline-delimited requests and write responses after Python output capture is restored.
+ * @throws IllegalArgumentException - if a message exceeds 8 MiB or EOF truncates a message
+ */
 func serveStdio(server: McpServer): Unit {
     useBinaryStdio()
     let input = StdinStream()
@@ -53,7 +56,7 @@ func serveStdio(server: McpServer): Unit {
         for (byte in buffer[..count]) {
             if (byte == 10) {
                 if (let Some(response) <- server.handle(line.toArray())) {
-                    output.write(response.toString() + "\n")
+                    output.write("${response}\n")
                     output.flush()
                 }
                 line.clear()

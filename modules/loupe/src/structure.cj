@@ -1,15 +1,14 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjParse, CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl, identText}
-import loupe.vfs.FileId
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 @DerivePython
 public enum StructureKind <: ToString & Equatable<StructureKind> {

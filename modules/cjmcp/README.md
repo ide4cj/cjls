@@ -66,7 +66,7 @@ The workspace handle provides:
 |---|---|
 | `root` | Absolute root path |
 | `problems` | Loading problems; inspect before trusting cross-package answers |
-| `macrosExpanded` | `False` in this experiment |
+| `hasExpandedMacros` | `False` in this experiment |
 | `files()` | Source paths of the loaded project |
 | `structure(path)` | Native `StructureNode` objects with nested `children` |
 | `diagnostics(path)` | Native `Diagnostic` objects |
@@ -111,7 +111,7 @@ are available. Array indices correspond to the matching `Body` arrays.
 `typeKind(ty)` returns a native `TyKind`, with variant classes such as
 `TyKind.PrimTy` and `TyKind.DeclTy`. Python pattern matching and `isinstance` work
 on returned variants; payloads are `field0`, `field1`, etc. `typeText(ty)` formats
-a type and `typeUnknown(ty)` checks whether it is unknown. Preserve the distinction
+a type and `isTypeUnknown(ty)` checks whether it is unknown. Preserve the distinction
 between user errors (`ErrorTy`), unsupported features (`TodoTy`) and missing inputs
 or inference limits (`UnknownTy`). `internType`, `substituteType` and `headTypes`
 allow further type queries within the same revision.
@@ -190,7 +190,7 @@ standard deriving or special trait modes.
 Calca identities use `@DerivePython[opaque]` above their identity-generating macro.
 Descriptors configure callbacks lazily when their Python class is initialized.
 The full workspace builds at normal release `-O2`; no `loupe` optimization override
-is required. See [K28](../../docs/sdk-issues.md#k28) for the earlier compiler failures
+is required. See [K29](../../docs/sdk-issues.md#k29) for the earlier compiler failures
 and the validated workaround in binding generation.
 
 Proxy lifetime is still experimental: the pinned `py_interop` registry retains

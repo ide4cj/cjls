@@ -1,14 +1,13 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A package of either kind, as name resolution takes it: one of the project's sources, or one
@@ -141,7 +140,7 @@ public struct Def <: ToString & Equatable<Def> {
     }
 
     public operator func ==(other: Def): Bool {
-        this.id == other.id && this.visibility == other.visibility
+        id == other.id && visibility == other.visibility
     }
 
     public operator func !=(other: Def): Bool {
@@ -162,7 +161,7 @@ public struct Redefinition <: ToString & Equatable<Redefinition> {
     }
 
     public operator func ==(other: Redefinition): Bool {
-        this.def == other.def && this.name == other.name
+        def == other.def && name == other.name
     }
 
     public operator func !=(other: Redefinition): Bool {

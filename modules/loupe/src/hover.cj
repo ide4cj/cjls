@@ -1,11 +1,7 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxNodePtr, TextRange}
 import cjo.{DeclInfo, openCjo}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
@@ -22,10 +18,13 @@ import cjsyntax.ast.{
     RefExpr,
     VarDecl
 }
+import ginkgo.{SyntaxNodePtr, TextRange}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands
@@ -36,7 +35,7 @@ public struct HoverResult <: Equatable<HoverResult> {
     public HoverResult(public let range: TextRange, public let items: Array<HoverItem>) {}
 
     public operator func ==(other: HoverResult): Bool {
-        this.range == other.range && this.items == other.items
+        range == other.range && items == other.items
     }
 
     public operator func !=(other: HoverResult): Bool {
@@ -69,7 +68,7 @@ public struct HoverItem <: Equatable<HoverItem> {
     ) {}
 
     public operator func ==(other: HoverItem): Bool {
-        this.code == other.code && this.path == other.path && this.doc == other.doc
+        code == other.code && path == other.path && doc == other.doc
     }
 
     public operator func !=(other: HoverItem): Bool {

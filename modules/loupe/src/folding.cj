@@ -1,16 +1,15 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.sort.*
-import ginkgo.SyntaxElement
-import rope.Rope
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import loupe.vfs.FileId
+import ginkgo.SyntaxElement
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
+import rope.Rope
 
 /**
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.
@@ -77,7 +76,7 @@ public struct Fold <: ToString & Equatable<Fold> {
     }
 
     public operator func ==(other: Fold): Bool {
-        this.range == other.range && this.kind == other.kind
+        range == other.range && kind == other.kind
     }
 
     public operator func !=(other: Fold): Bool {

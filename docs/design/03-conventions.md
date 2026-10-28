@@ -376,7 +376,7 @@ A whole package, `import pkg.*`, only where its names are not the file's choice:
 (what a generator writes imports as it likes); a generated package read as a vocabulary,
 `cjls.lsp_types.*` (C8) and `cjsyntax.ast.*`; `std.ast.*` in a macro package; test files;
 a package whose names a macro's expansion needs (`fjson.*` and `stdxx.deriving.*` under
-`@DeriveExt`).
+`@DeriveExt`, `py_interop.*` under `@DerivePython`).
 
 A clash is settled by an alias (C8): a name imported explicitly beside a `*` that also exports
 it is ambiguous at every use.

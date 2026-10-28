@@ -1,10 +1,9 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import loupe.db.{AnalysisDatabase, Package}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What the left of a `.` in a body stands for, as far as names tell (N75–N79).

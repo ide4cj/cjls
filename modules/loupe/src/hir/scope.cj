@@ -1,8 +1,5 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -10,6 +7,8 @@ import calca.macros.*
 import index_map.IndexMap
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The path of an import a name came by: its file, its import, the path's index in it, and the
@@ -25,8 +24,7 @@ public struct ImportSite <: Equatable<ImportSite> {
     ) {}
 
     public operator func ==(other: ImportSite): Bool {
-        this.file == other.file && this.item == other.item && this.path == other.path &&
-            this.level == other.level
+        file == other.file && item == other.item && path == other.path && level == other.level
     }
 
     public operator func !=(other: ImportSite): Bool {
@@ -83,7 +81,7 @@ public struct Imported <: Equatable<Imported> {
     public Imported(public let target: ScopeTarget, public let site: ?ImportSite) {}
 
     public operator func ==(other: Imported): Bool {
-        this.target == other.target && this.site == other.site
+        target == other.target && site == other.site
     }
 
     public operator func !=(other: Imported): Bool {
@@ -107,8 +105,7 @@ public struct Glob <: Equatable<Glob> {
     ) {}
 
     public operator func ==(other: Glob): Bool {
-        this.pkg == other.pkg && this.relation == other.relation && this.level == other.level &&
-            this.site == other.site
+        pkg == other.pkg && relation == other.relation && level == other.level && site == other.site
     }
 
     public operator func !=(other: Glob): Bool {

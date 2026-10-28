@@ -1,12 +1,11 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What a segment of a path in a type names.

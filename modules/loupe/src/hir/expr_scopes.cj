@@ -1,12 +1,11 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A scope of a body, by its place among the body's scopes.
@@ -16,7 +15,7 @@ public struct ScopeId <: Equatable<ScopeId> & Hashable & ToString {
     public ScopeId(public let index: Int64) {}
 
     public operator func ==(other: ScopeId): Bool {
-        this.index == other.index
+        index == other.index
     }
 
     public operator func !=(other: ScopeId): Bool {
@@ -25,12 +24,12 @@ public struct ScopeId <: Equatable<ScopeId> & Hashable & ToString {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.index)
+        hasher.write(index)
         hasher.finish()
     }
 
     public func toString(): String {
-        "ScopeId(index: ${this.index})"
+        "ScopeId(index: ${index})"
     }
 }
 
@@ -51,9 +50,8 @@ public struct ScopeData <: Equatable<ScopeData> {
     ) {}
 
     public operator func ==(other: ScopeData): Bool {
-        this.parent == other.parent && this.entries == other.entries &&
-            this.genericsOf == other.genericsOf &&
-            this.generics == other.generics
+        parent == other.parent && entries == other.entries && genericsOf == other.genericsOf &&
+            generics == other.generics
     }
 
     public operator func !=(other: ScopeData): Bool {
@@ -105,8 +103,7 @@ public struct ExprScopes <: Equatable<ExprScopes> {
     }
 
     public operator func ==(other: ExprScopes): Bool {
-        this.scopes == other.scopes && this.exprScopes == other.exprScopes &&
-            this.typeScopes == other.typeScopes
+        scopes == other.scopes && exprScopes == other.exprScopes && typeScopes == other.typeScopes
     }
 
     public operator func !=(other: ExprScopes): Bool {

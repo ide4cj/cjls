@@ -1,14 +1,13 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.db.AnalysisDatabase
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The full name of `pkg`, as its files declare it: `std.collection`, `org::a.b`.
@@ -28,7 +27,7 @@ public struct IndexedPackage <: Equatable<IndexedPackage> {
     public IndexedPackage(public let pkg: PackageRef, public let owner: String) {}
 
     public operator func ==(other: IndexedPackage): Bool {
-        this.pkg == other.pkg && this.owner == other.owner
+        pkg == other.pkg && owner == other.owner
     }
 
     public operator func !=(other: IndexedPackage): Bool {

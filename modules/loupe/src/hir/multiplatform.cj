@@ -1,16 +1,15 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import calca.*
 import calca.macros.*
+import cjsyntax.CjSyntaxNode
+import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The `common` declarations `def`, a `specific` one, completes (#318): of its package, its name and
@@ -134,7 +133,7 @@ public struct NoSpecific <: Equatable<NoSpecific> {
     public NoSpecific(public let def: DefId, public let message: String) {}
 
     public operator func ==(other: NoSpecific): Bool {
-        this.def == other.def && this.message == other.message
+        def == other.def && message == other.message
     }
 
     public operator func !=(other: NoSpecific): Bool {

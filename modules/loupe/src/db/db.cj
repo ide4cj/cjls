@@ -1,14 +1,13 @@
 package loupe.db
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.vfs.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import rope.Rope
 
 /**

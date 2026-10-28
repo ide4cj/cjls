@@ -1,17 +1,16 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.sort.*
-import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind, reparse}
 import cjsyntax.ast.{Decl, MemberAccessExpr, RefExpr}
+import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TextRange, TokenAtOffset}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The name completion inserts at the cursor to parse the file as if one were there, R1's
@@ -254,8 +253,8 @@ public struct CompletionItem <: Equatable<CompletionItem> {
     }
 
     public operator func ==(other: CompletionItem): Bool {
-        this.label == other.label && this.kind == other.kind && this.relevance == other.relevance &&
-            this.source == other.source
+        label == other.label && kind == other.kind && relevance == other.relevance &&
+            source == other.source
     }
 
     public operator func !=(other: CompletionItem): Bool {
@@ -272,7 +271,7 @@ public struct CompletionResult <: Equatable<CompletionResult> {
     public CompletionResult(public let range: TextRange, public let items: Array<CompletionItem>) {}
 
     public operator func ==(other: CompletionResult): Bool {
-        this.range == other.range && this.items == other.items
+        range == other.range && items == other.items
     }
 
     public operator func !=(other: CompletionResult): Bool {

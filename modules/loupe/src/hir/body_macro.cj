@@ -1,8 +1,5 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.{ArrayList, HashMap, collectArray, filter, filterMap, first, map}
 import calca.*
 import calca.macros.*
@@ -11,6 +8,8 @@ import cjsyntax.ast.{Decl, MacroArgs, MacroAttr, MacroExpandDecl, MacroExpandExp
 import ginkgo.{SyntaxNodePtr, TextRange}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A macro called in an item, in a body or an initializer, not on the item (D117), as `bodyMacroCalls` finds it: its
@@ -29,9 +28,9 @@ public struct BodyMacroCall <: Equatable<BodyMacroCall> {
     ) {}
 
     public operator func ==(other: BodyMacroCall): Bool {
-        this.item == other.item && this.name == other.name && this.index == other.index &&
-            this.around == other.around &&
-            this.holdsCalls == other.holdsCalls
+        item == other.item && name == other.name && index == other.index &&
+            around == other.around &&
+            holdsCalls == other.holdsCalls
     }
 
     public operator func !=(other: BodyMacroCall): Bool {

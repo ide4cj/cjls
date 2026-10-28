@@ -1,16 +1,15 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.sort.sort
-import ginkgo.TextRange
 import cjformat.formatText
+import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D150), its

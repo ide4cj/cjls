@@ -1,16 +1,15 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.unicode.*
 import calca.*
 import calca.macros.*
-import ginkgo.TextRange
 import cjsyntax.parse as parseText
-import loupe.vfs.FileId
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, SourceFile}
+import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the
@@ -27,9 +26,9 @@ public struct FileSymbol <: Equatable<FileSymbol> {
     ) {}
 
     public operator func ==(other: FileSymbol): Bool {
-        this.name == other.name && this.kind == other.kind && this.range == other.range &&
-            this.selectionRange == other.selectionRange &&
-            this.containerName == other.containerName
+        name == other.name && kind == other.kind && range == other.range &&
+            selectionRange == other.selectionRange &&
+            containerName == other.containerName
     }
 
     public operator func !=(other: FileSymbol): Bool {

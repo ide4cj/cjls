@@ -1,12 +1,9 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.SourceFile as SourceFileNode
 import cjsyntax.ast.{
     AnyHasName,
     AnyHasTypeParams,
@@ -21,11 +18,13 @@ import cjsyntax.ast.{
     UnaryExpr,
     isIdent
 }
-import cjsyntax.ast.SourceFile as SourceFileNode
+import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A declaration a request goes to: its file, its whole node, and its name, what an editor selects;
@@ -43,9 +42,8 @@ public struct NavigationTarget <: Equatable<NavigationTarget> {
     ) {}
 
     public operator func ==(other: NavigationTarget): Bool {
-        this.fileId == other.fileId && this.fullRange == other.fullRange &&
-            this.focusRange == other.focusRange &&
-            this.expansion == other.expansion
+        fileId == other.fileId && fullRange == other.fullRange && focusRange == other.focusRange &&
+            expansion == other.expansion
     }
 
     public operator func !=(other: NavigationTarget): Bool {

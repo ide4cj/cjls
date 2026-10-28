@@ -1,8 +1,7 @@
 package ginkgo
 
-import std.collection.*
 import py_interop.*
-import py_interop.internal_macros.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A half-open range `[start, end)` of UTF-8 byte offsets into the text a tree was built from.

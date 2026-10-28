@@ -105,7 +105,7 @@ class McpStdioTest(unittest.TestCase):
                         'hover': hover.items[0].code,
                         'target': location.path,
                         'problems': workspace.problems,
-                        'macrosExpanded': workspace.macrosExpanded,
+                        'hasExpandedMacros': workspace.hasExpandedMacros,
                         'diagnostics': [item.message for item in workspace.diagnostics('src/main.cj')],
                     }}
                     print('прямые объекты loupe')
@@ -120,7 +120,7 @@ class McpStdioTest(unittest.TestCase):
                 self.assertIn("answer", data["hover"])
                 self.assertEqual(data["target"], str(root / "src/helper.cj"))
                 self.assertEqual(data["diagnostics"], [])
-                self.assertFalse(data["macrosExpanded"])
+                self.assertFalse(data["hasExpandedMacros"])
                 self.assertIn("прямые объекты loupe", native["stdout"])
 
                 # act - inspect generic inference and its HIR, then navigate the selected callee
@@ -164,7 +164,7 @@ class McpStdioTest(unittest.TestCase):
                         case _:
                             raise AssertionError('inferred enum lost its variant')
                     assert analysis.typeText(analysis.internType(TyKind.PrimTy('Bool'))) == 'Bool'
-                    assert not analysis.typeUnknown(inferred.locals[local])
+                    assert not analysis.isTypeUnknown(inferred.locals[local])
                     assert inferred.diagnostics == []
                     assert isinstance(analysis.signature(answer), Signature)
                     assert isinstance(analysis.signatureTypes(answer), SignatureTypes)

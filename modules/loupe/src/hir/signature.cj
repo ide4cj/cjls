@@ -1,11 +1,9 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
-import ginkgo.SyntaxNodePtr
+import calca.*
+import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{
     AnyHasTypeParams,
@@ -19,9 +17,10 @@ import cjsyntax.ast.{
     TypeBoundList,
     TypeParam
 }
-import calca.*
-import calca.macros.*
+import ginkgo.SyntaxNodePtr
 import loupe.db.AnalysisDatabase
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A type of a signature, by its place among the signature's `types`.
@@ -31,7 +30,7 @@ public struct TypeRefId <: Equatable<TypeRefId> & Hashable & ToString {
     public TypeRefId(public let index: Int64) {}
 
     public operator func ==(other: TypeRefId): Bool {
-        this.index == other.index
+        index == other.index
     }
 
     public operator func !=(other: TypeRefId): Bool {
@@ -40,12 +39,12 @@ public struct TypeRefId <: Equatable<TypeRefId> & Hashable & ToString {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.index)
+        hasher.write(index)
         hasher.finish()
     }
 
     public func toString(): String {
-        "TypeRefId(index: ${this.index})"
+        "TypeRefId(index: ${index})"
     }
 }
 
@@ -57,7 +56,7 @@ public struct TypeSegment <: Equatable<TypeSegment> {
     public TypeSegment(public let name: String, public let args: Array<TypeRefId>) {}
 
     public operator func ==(other: TypeSegment): Bool {
-        this.name == other.name && this.args == other.args
+        name == other.name && args == other.args
     }
 
     public operator func !=(other: TypeSegment): Bool {
@@ -124,7 +123,7 @@ public struct TypeBound <: Equatable<TypeBound> {
     public TypeBound(public let ty: TypeRefId, public let bounds: Array<TypeRefId>) {}
 
     public operator func ==(other: TypeBound): Bool {
-        this.ty == other.ty && this.bounds == other.bounds
+        ty == other.ty && bounds == other.bounds
     }
 
     public operator func !=(other: TypeBound): Bool {
@@ -217,14 +216,13 @@ public struct Signature <: Equatable<Signature> {
     }
 
     public operator func ==(other: Signature): Bool {
-        this.generics == other.generics && this.types == other.types &&
-            this.params == other.params &&
-            this.paramNames == other.paramNames &&
-            this.paramDefaults == other.paramDefaults &&
-            this.isCVariadic == other.isCVariadic &&
-            this.ty == other.ty &&
-            this.supers == other.supers &&
-            this.bounds == other.bounds
+        generics == other.generics && types == other.types && params == other.params &&
+            paramNames == other.paramNames &&
+            paramDefaults == other.paramDefaults &&
+            isCVariadic == other.isCVariadic &&
+            ty == other.ty &&
+            supers == other.supers &&
+            bounds == other.bounds
     }
 
     public operator func !=(other: Signature): Bool {

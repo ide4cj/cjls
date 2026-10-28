@@ -1,12 +1,11 @@
 package loupe.vfs
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
 import index_map.IndexMap
 import index_map.concurrent.ConcurrentIndexSet
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import rope.Rope
 
 /**
@@ -22,7 +21,7 @@ public struct FileId <: ToString & Hashable & Equatable<FileId> {
     }
 
     public operator func ==(other: FileId): Bool {
-        this.index == other.index
+        index == other.index
     }
 
     public operator func !=(other: FileId): Bool {
@@ -31,7 +30,7 @@ public struct FileId <: ToString & Hashable & Equatable<FileId> {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.index)
+        hasher.write(index)
         hasher.finish()
     }
 }

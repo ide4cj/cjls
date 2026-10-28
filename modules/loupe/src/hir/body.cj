@@ -1,12 +1,13 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
-import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
+import calca.*
+import calca.macros.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
+import cjsyntax.ast.Expr as AstExpr
+import cjsyntax.ast.Param as AstParam
+import cjsyntax.ast.Stmt as AstStmt
 import cjsyntax.ast.{
     Arg,
     ArgList,
@@ -34,13 +35,11 @@ import cjsyntax.ast.{
     TypesArg,
     identText
 }
-import cjsyntax.ast.Expr as AstExpr
-import cjsyntax.ast.Stmt as AstStmt
-import cjsyntax.ast.Param as AstParam
-import calca.*
-import calca.macros.*
+import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, MacroSeverity}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * An expression of a body, by its place among the body's `exprs`.
@@ -50,7 +49,7 @@ public struct ExprId <: Equatable<ExprId> & Hashable & ToString {
     public ExprId(public let index: Int64) {}
 
     public operator func ==(other: ExprId): Bool {
-        this.index == other.index
+        index == other.index
     }
 
     public operator func !=(other: ExprId): Bool {
@@ -59,12 +58,12 @@ public struct ExprId <: Equatable<ExprId> & Hashable & ToString {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.index)
+        hasher.write(index)
         hasher.finish()
     }
 
     public func toString(): String {
-        "ExprId(index: ${this.index})"
+        "ExprId(index: ${index})"
     }
 }
 
@@ -76,7 +75,7 @@ public struct PatId <: Equatable<PatId> & Hashable & ToString {
     public PatId(public let index: Int64) {}
 
     public operator func ==(other: PatId): Bool {
-        this.index == other.index
+        index == other.index
     }
 
     public operator func !=(other: PatId): Bool {
@@ -85,12 +84,12 @@ public struct PatId <: Equatable<PatId> & Hashable & ToString {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.index)
+        hasher.write(index)
         hasher.finish()
     }
 
     public func toString(): String {
-        "PatId(index: ${this.index})"
+        "PatId(index: ${index})"
     }
 }
 
@@ -102,7 +101,7 @@ public struct LocalId <: Equatable<LocalId> & Hashable & ToString {
     public LocalId(public let index: Int64) {}
 
     public operator func ==(other: LocalId): Bool {
-        this.index == other.index
+        index == other.index
     }
 
     public operator func !=(other: LocalId): Bool {
@@ -111,12 +110,12 @@ public struct LocalId <: Equatable<LocalId> & Hashable & ToString {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.index)
+        hasher.write(index)
         hasher.finish()
     }
 
     public func toString(): String {
-        "LocalId(index: ${this.index})"
+        "LocalId(index: ${index})"
     }
 }
 
@@ -179,7 +178,7 @@ public struct Local <: Equatable<Local> {
     ) {}
 
     public operator func ==(other: Local): Bool {
-        this.name == other.name && this.kind == other.kind && this.lone == other.lone
+        name == other.name && kind == other.kind && lone == other.lone
     }
 
     public operator func !=(other: Local): Bool {
@@ -208,10 +207,9 @@ public struct BodyParam <: Equatable<BodyParam> {
     ) {}
 
     public operator func ==(other: BodyParam): Bool {
-        this.local == other.local && this.ty == other.ty &&
-            this.defaultValue == other.defaultValue &&
-            this.isMember == other.isMember &&
-            this.passedBy == other.passedBy
+        local == other.local && ty == other.ty && defaultValue == other.defaultValue &&
+            isMember == other.isMember &&
+            passedBy == other.passedBy
     }
 
     public operator func !=(other: BodyParam): Bool {
@@ -237,11 +235,10 @@ public struct LocalFunc <: Equatable<LocalFunc> {
     ) {}
 
     public operator func ==(other: LocalFunc): Bool {
-        this.local == other.local && this.generics == other.generics &&
-            this.params == other.params &&
-            this.ret == other.ret &&
-            this.body == other.body &&
-            this.bounds == other.bounds
+        local == other.local && generics == other.generics && params == other.params &&
+            ret == other.ret &&
+            body == other.body &&
+            bounds == other.bounds
     }
 
     public operator func !=(other: LocalFunc): Bool {
@@ -290,8 +287,8 @@ public struct CallArg <: Equatable<CallArg> {
     ) {}
 
     public operator func ==(other: CallArg): Bool {
-        this.name == other.name && this.expr == other.expr && this.isInout == other.isInout &&
-            this.isTrailing == other.isTrailing
+        name == other.name && expr == other.expr && isInout == other.isInout &&
+            isTrailing == other.isTrailing
     }
 
     public operator func !=(other: CallArg): Bool {
@@ -312,8 +309,8 @@ public struct MatchArm <: Equatable<MatchArm> {
     ) {}
 
     public operator func ==(other: MatchArm): Bool {
-        this.pats == other.pats && this.guard == other.guard && this.condition == other.condition &&
-            this.body == other.body
+        pats == other.pats && guard == other.guard && condition == other.condition &&
+            body == other.body
     }
 
     public operator func !=(other: MatchArm): Bool {
@@ -330,7 +327,7 @@ public struct Resource <: Equatable<Resource> {
     ) {}
 
     public operator func ==(other: Resource): Bool {
-        this.local == other.local && this.ty == other.ty && this.value == other.value
+        local == other.local && ty == other.ty && value == other.value
     }
 
     public operator func !=(other: Resource): Bool {
@@ -347,7 +344,7 @@ public struct CatchArm <: Equatable<CatchArm> {
     ) {}
 
     public operator func ==(other: CatchArm): Bool {
-        this.local == other.local && this.types == other.types && this.body == other.body
+        local == other.local && types == other.types && body == other.body
     }
 
     public operator func !=(other: CatchArm): Bool {
@@ -576,7 +573,7 @@ public struct MacroCall <: Equatable<MacroCall> {
     ) {}
 
     public operator func ==(other: MacroCall): Bool {
-        this.path == other.path && this.attr == other.attr && this.args == other.args
+        path == other.path && attr == other.attr && args == other.args
     }
 
     public operator func !=(other: MacroCall): Bool {
@@ -634,7 +631,7 @@ public struct DeclAttr <: Equatable<DeclAttr> {
     public DeclAttr(public let path: Array<String>, public let args: Array<AttrArg>) {}
 
     public operator func ==(other: DeclAttr): Bool {
-        this.path == other.path && this.args == other.args
+        path == other.path && args == other.args
     }
 
     public operator func !=(other: DeclAttr): Bool {
@@ -747,13 +744,13 @@ public struct Body <: Equatable<Body> {
     }
 
     public operator func ==(other: Body): Bool {
-        this.exprs == other.exprs && this.pats == other.pats && this.locals == other.locals &&
-            this.funcs == other.funcs &&
-            this.types == other.types &&
-            this.params == other.params &&
-            this.value == other.value &&
-            this.accessors == other.accessors &&
-            this.attrs == other.attrs
+        exprs == other.exprs && pats == other.pats && locals == other.locals &&
+            funcs == other.funcs &&
+            types == other.types &&
+            params == other.params &&
+            value == other.value &&
+            accessors == other.accessors &&
+            attrs == other.attrs
     }
 
     public operator func !=(other: Body): Bool {
@@ -977,7 +974,7 @@ public struct LoweredBody <: Equatable<LoweredBody> {
     public LoweredBody(public let body: Body, public let sourceMap: BodySourceMap) {}
 
     public operator func ==(other: LoweredBody): Bool {
-        this.body == other.body && this.sourceMap == other.sourceMap
+        body == other.body && sourceMap == other.sourceMap
     }
 
     public operator func !=(other: LoweredBody): Bool {

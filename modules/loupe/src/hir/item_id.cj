@@ -1,17 +1,16 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr}
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, identText}
-import cjsyntax.ast.SourceFile as SourceFileNode
 import calca.*
 import calca.macros.*
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
+import cjsyntax.ast.SourceFile as SourceFileNode
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, identText}
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;
@@ -132,7 +131,7 @@ public struct ItemId <: ToString & Equatable<ItemId> & Hashable {
     }
 
     public operator func ==(other: ItemId): Bool {
-        this.kind == other.kind && this.hash == other.hash && this.index == other.index
+        kind == other.kind && hash == other.hash && index == other.index
     }
 
     public operator func !=(other: ItemId): Bool {
@@ -141,9 +140,9 @@ public struct ItemId <: ToString & Equatable<ItemId> & Hashable {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.kind.hashCode())
-        hasher.write(this.hash)
-        hasher.write(this.index)
+        hasher.write(kind.hashCode())
+        hasher.write(hash)
+        hasher.write(index)
         hasher.finish()
     }
 }

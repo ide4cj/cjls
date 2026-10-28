@@ -1,10 +1,12 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
-/** File-qualified source adapter: the generic syntax pointer stays inside loupe. */
+/**
+ * File-qualified source adapter: the generic syntax pointer stays inside loupe.
+ */
 @DerivePython
 public class PythonBodySource {
     @PyIgnore

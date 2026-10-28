@@ -1,13 +1,12 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).

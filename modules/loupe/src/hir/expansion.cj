@@ -1,18 +1,17 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parseExpr, parseStmts}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
-import cjsyntax.parse as parseText
 import calca.*
 import calca.macros.*
+import cjsyntax.parse as parseText
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind, parseExpr, parseStmts}
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, MatchCase}
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, MappedSpan, MappedText, SourceFile, SpanOrigin}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A macro called in a source file, interned: the file and the item, and which of its calls. On the item (#175), the
@@ -86,9 +85,8 @@ public struct Expansion <: Equatable<Expansion> {
     ) {}
 
     public operator func ==(other: Expansion): Bool {
-        this.text == other.text && this.origins == other.origins &&
-            this.replaces == other.replaces &&
-            this.spans == other.spans
+        text == other.text && origins == other.origins && replaces == other.replaces &&
+            spans == other.spans
     }
 
     public operator func !=(other: Expansion): Bool {

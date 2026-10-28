@@ -1,7 +1,7 @@
 package loupe
 
 import py_interop.*
-import py_interop.internal_macros.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What the language builds in and no source declares — a type that is a keyword, a type of the compiler's own, an

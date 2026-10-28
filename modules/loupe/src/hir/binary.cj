@@ -1,12 +1,11 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
+import cjo.Decl as CjoDecl
+import cjo.Package as CjoPackage
 import cjo.{
     AccessLevel,
     AccessModifier,
@@ -22,9 +21,9 @@ import cjo.{
     SemaTyInfo,
     TypeKind
 }
-import cjo.Decl as CjoDecl
-import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * Where an item is declared: a source file, a file of a package compiled already, by its index
@@ -310,7 +309,7 @@ public struct BinaryItem <: ToString & Equatable<BinaryItem> & Hashable {
     }
 
     public operator func ==(other: BinaryItem): Bool {
-        this.file == other.file && this.id == other.id
+        file == other.file && id == other.id
     }
 
     public operator func !=(other: BinaryItem): Bool {
@@ -319,8 +318,8 @@ public struct BinaryItem <: ToString & Equatable<BinaryItem> & Hashable {
 
     public func hashCode(): Int64 {
         var hasher = DefaultHasher()
-        hasher.write(this.file)
-        hasher.write(this.id.hashCode())
+        hasher.write(file)
+        hasher.write(id.hashCode())
         hasher.finish()
     }
 }

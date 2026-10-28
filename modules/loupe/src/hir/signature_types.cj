@@ -1,17 +1,16 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.convert.Parsable
 import std.sort.sort
 import calca.*
 import calca.macros.*
-import cjo.{Attribute, DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
+import cjo.{Attribute, DeclInfo, FbException, FullId, openCjo, SemaTy, SemaTyInfo, TypeKind}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A type and its bounds, `T <: A & B` of a `where`, as types.
@@ -21,7 +20,7 @@ public struct TyBound <: Equatable<TyBound> {
     public TyBound(public let ty: Ty, public let bounds: Array<Ty>) {}
 
     public operator func ==(other: TyBound): Bool {
-        this.ty == other.ty && this.bounds == other.bounds
+        ty == other.ty && bounds == other.bounds
     }
 
     public operator func !=(other: TyBound): Bool {
@@ -100,7 +99,7 @@ public struct TyError <: Equatable<TyError> {
     }
 
     public operator func ==(other: TyError): Bool {
-        this.at == other.at && this.kind == other.kind
+        at == other.at && kind == other.kind
     }
 
     public operator func !=(other: TyError): Bool {
@@ -125,7 +124,7 @@ public struct TypePathTarget <: ByIndex & Equatable<TypePathTarget> {
     }
 
     public operator func ==(other: TypePathTarget): Bool {
-        this.ty == other.ty && this.resolution == other.resolution
+        ty == other.ty && resolution == other.resolution
     }
 
     public operator func !=(other: TypePathTarget): Bool {
@@ -237,15 +236,14 @@ public struct SignatureTypes <: Equatable<SignatureTypes> {
     }
 
     public operator func ==(other: SignatureTypes): Bool {
-        this.generics == other.generics && this.params == other.params &&
-            this.paramNames == other.paramNames &&
-            this.paramDefaults == other.paramDefaults &&
-            this.isCVariadic == other.isCVariadic &&
-            this.ty == other.ty &&
-            this.supers == other.supers &&
-            this.bounds == other.bounds &&
-            this.errors == other.errors &&
-            this.typePaths == other.typePaths
+        generics == other.generics && params == other.params && paramNames == other.paramNames &&
+            paramDefaults == other.paramDefaults &&
+            isCVariadic == other.isCVariadic &&
+            ty == other.ty &&
+            supers == other.supers &&
+            bounds == other.bounds &&
+            errors == other.errors &&
+            typePaths == other.typePaths
     }
 
     public operator func !=(other: SignatureTypes): Bool {

@@ -1,11 +1,10 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A declaration of std the language itself means, whatever a file's scope names: what the syntax is

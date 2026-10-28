@@ -1,10 +1,6 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
-import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     Arg,
@@ -17,8 +13,11 @@ import cjsyntax.ast.{
     PathSegment,
     RefExpr
 }
+import ginkgo.SyntaxNodePtr
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a

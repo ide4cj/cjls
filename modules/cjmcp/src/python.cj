@@ -1,7 +1,9 @@
 package cjmcp
 
-import fjson.*
+import std.fs.Path
+import fjson.{JsonValue, fromJsonBytes}
 import ginkgo.TextRange
+import loupe.diagnostics as fileDiagnostics
 import loupe.{
     Diagnostic,
     HoverItem,
@@ -13,18 +15,16 @@ import loupe.{
     fileStructure,
     hoverAt
 }
-import loupe.diagnostics as fileDiagnostics
 import loupe.vfs.{FileId, VfsPath}
-import loupe.*
-import loupe.hir.*
-import std.fs.Path
 @When[os == "Linux"]
 import py_interop.*
 @When[os == "Linux"]
-import py_interop.internal_macros.*
+import py_interop.internal_macros.DerivePython
 
-// Redirect file descriptors as well as Python streams: subprocesses, native extensions and native
-// callbacks must not write onto the MCP wire. The protocol loop writes only after these are restored.
+/**
+ * Redirect file descriptors as well as Python streams so native output stays off the MCP wire.
+ * The protocol loop writes only after the descriptors are restored.
+ */
 @When[os == "Linux"]
 const PYTHON_RUNNER =
     #"
@@ -74,7 +74,9 @@ def __cjmcp_run(code, workspace, classes):
             result=result, error=error), allow_nan=False)
 "#
 
-/** A stable workspace handle; reload replaces its disk revision while preserving existing proxies. */
+/**
+ * A stable workspace handle; reload replaces its disk revision while preserving existing proxies.
+ */
 @When[os == "Linux"]
 @DerivePython
 class Workspace {
@@ -92,7 +94,7 @@ class Workspace {
             loaded().problems
         }
     }
-    public prop macrosExpanded: Bool {
+    public prop hasExpandedMacros: Bool {
         get() {
             false
         }
@@ -134,7 +136,9 @@ class Workspace {
             }
     }
 
-    /** Capture a disk revision; it remains usable after workspace.reload(). */
+    /**
+     * Capture a disk revision; it remains usable after workspace.reload().
+     */
     public func analysis(): AnalysisRevision {
         AnalysisRevision(loaded())
     }
@@ -143,7 +147,7 @@ class Workspace {
         if (current.isNone()) {
             reload()
         }
-        current.getOrThrow()
+        current.getOrThrow { IllegalStateException("workspace was not loaded after reload") }
     }
 
     private func resolve(written: String): (WorkspaceState, FileId) {
@@ -161,7 +165,13 @@ class Workspace {
 
     private func position(path: String, offset: Int64): (WorkspaceState, FileId) {
         let (view, file) = resolve(path)
-        let text = view.vfs.fileContents(file).getOrThrow().toString().toArray()
+        let text =
+            view
+                .vfs
+                .fileContents(file)
+                .getOrThrow { IllegalStateException("loaded file has no contents") }
+                .toString()
+                .toArray()
         if (
             offset < 0 || offset > text.size ||
                 (offset < text.size && (text[offset] & 0xC0) == 0x80)
@@ -174,7 +184,7 @@ class Workspace {
 
 @When[os == "Linux"]
 @DerivePython
-class PythonLocation {
+struct PythonLocation {
     PythonLocation(
         public let path: String,
         public let range: TextRange,
@@ -216,7 +226,20 @@ class PythonSession {
             runner = Python.eval("__cjmcp_run")
         }
         let output =
-            runner.getOrThrow()([PyString(code), workspaceProxy.getOrThrow(), types.getOrThrow()])
+            runner
+                .getOrThrow { IllegalStateException("Python runner was not initialized") }(
+                    [
+                        PyString(code),
+                        workspaceProxy
+                            .getOrThrow {
+                                IllegalStateException("Python workspace proxy was not initialized")
+                            },
+                        types
+                            .getOrThrow {
+                                IllegalStateException("Python types were not initialized")
+                            }
+                    ]
+                )
         fromJsonBytes<JsonValue>(output.toString().toArray())
     }
 }

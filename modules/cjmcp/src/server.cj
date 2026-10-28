@@ -1,6 +1,6 @@
 package cjmcp
 
-import fjson.*
+import fjson.{JsonValue, fromJsonBytes}
 import loupe.vfs.VfsPath
 
 class McpException <: Exception {
@@ -13,7 +13,9 @@ class McpException <: Exception {
     }
 }
 
-/** A sequential session: no query can overlap a workspace reload. */
+/**
+ * A sequential session: no query can overlap a workspace reload.
+ */
 class McpServer {
     private var isInitialized = false
     private var isReady = false
@@ -136,7 +138,10 @@ class McpServer {
             if (python.isNone()) {
                 python = PythonSession(root)
             }
-            let result = python.getOrThrow().run(code)
+            let result =
+                python
+                    .getOrThrow { IllegalStateException("Python session was not initialized") }
+                    .run(code)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
             toolResult(obj([("error", JsonString(e.message))]), error: true)
@@ -144,10 +149,16 @@ class McpServer {
     }
 }
 
+/**
+ * Build a JSON object from its named members.
+ */
 func obj(members: Array<(String, JsonValue)>): JsonValue {
     JsonObject(members)
 }
 
+/**
+ * Wrap a Python result as MCP text and structured content.
+ */
 func toolResult(value: JsonValue, error!: Bool): JsonValue {
     obj(
         [
@@ -163,6 +174,9 @@ func toolResult(value: JsonValue, error!: Bool): JsonValue {
     )
 }
 
+/**
+ * Build a JSON-RPC error response with the original request ID.
+ */
 func failure(id: JsonValue, code: Int64, message: String): JsonValue {
     obj(
         [
@@ -173,6 +187,9 @@ func failure(id: JsonValue, code: Int64, message: String): JsonValue {
     )
 }
 
+/**
+ * Describe the runPython tool and its argument schema.
+ */
 func tools(): JsonValue {
     let code =
         obj(
@@ -215,6 +232,9 @@ func tools(): JsonValue {
     JsonArray([tool])
 }
 
+/**
+ * Whether the JSON value is a string.
+ */
 func isString(value: JsonValue): Bool {
     match (value) {
         case JsonString(_) => true
@@ -222,6 +242,9 @@ func isString(value: JsonValue): Bool {
     }
 }
 
+/**
+ * Whether the JSON value is an object.
+ */
 func isObject(value: JsonValue): Bool {
     match (value) {
         case JsonObject(_) => true
@@ -229,6 +252,9 @@ func isObject(value: JsonValue): Bool {
     }
 }
 
+/**
+ * Whether the value is a supported JSON-RPC request ID.
+ */
 func isValidId(value: JsonValue): Bool {
     match (value) {
         case JsonInteger(_) => true

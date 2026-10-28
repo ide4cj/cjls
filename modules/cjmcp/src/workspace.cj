@@ -1,13 +1,22 @@
 package cjmcp
 
-import std.collection.*
+import std.collection.ArrayList
 import std.env.getVariable
 import std.fs.{canonicalize, exists, FileInfo, Path}
 import loupe.db.AnalysisDatabase
-import loupe.vfs.*
-import project_model.*
+import loupe.vfs.{Vfs, VfsPath, readCjoFiles, readFile}
+import project_model.{
+    findCangjieHome,
+    findCangjieSrc,
+    findProject,
+    withCangjieHome,
+    withCangjieSrc,
+    withPackageCfgs
+}
 
-/** One disk revision; replacing it on reload also discards cached queries for removed files. */
+/**
+ * One disk revision; replacing it on reload also discards cached queries for removed files.
+ */
 class WorkspaceState {
     let db = AnalysisDatabase()
     let vfs = Vfs()

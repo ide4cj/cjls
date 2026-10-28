@@ -1,9 +1,8 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import loupe.db.{AnalysisDatabase, Package}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * Compiler-owned type heads; declaration identities only provide scoped names and navigation.

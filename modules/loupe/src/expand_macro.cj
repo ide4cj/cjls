@@ -1,12 +1,11 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position
@@ -33,7 +32,7 @@ public struct MacroCallAt <: Equatable<MacroCallAt> {
     ) {}
 
     public operator func ==(other: MacroCallAt): Bool {
-        this.call == other.call && this.range == other.range && this.focus == other.focus
+        call == other.call && range == other.range && focus == other.focus
     }
 
     public operator func !=(other: MacroCallAt): Bool {
@@ -104,9 +103,8 @@ public struct ExpandedMacro <: Equatable<ExpandedMacro> {
     ) {}
 
     public operator func ==(other: ExpandedMacro): Bool {
-        this.name == other.name && this.range == other.range && this.text == other.text &&
-            this.kind == other.kind &&
-            this.declaration == other.declaration
+        name == other.name && range == other.range && text == other.text && kind == other.kind &&
+            declaration == other.declaration
     }
 
     public operator func !=(other: ExpandedMacro): Bool {

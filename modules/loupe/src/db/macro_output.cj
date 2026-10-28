@@ -1,11 +1,10 @@
 package loupe.db
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.HashMap
 import std.deriving.*
 import ginkgo.TextRange
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * Where a piece of a macro call's input or output comes from (#176).
@@ -54,7 +53,7 @@ public struct MappedSpan <: ToString & Equatable<MappedSpan> {
     }
 
     public operator func ==(other: MappedSpan): Bool {
-        this.range == other.range && this.origin == other.origin
+        range == other.range && origin == other.origin
     }
 
     public operator func !=(other: MappedSpan): Bool {
@@ -103,7 +102,7 @@ public struct MappedText <: Equatable<MappedText> {
     }
 
     public operator func ==(other: MappedText): Bool {
-        this.text == other.text && this.spans == other.spans
+        text == other.text && spans == other.spans
     }
 
     public operator func !=(other: MappedText): Bool {
@@ -160,7 +159,7 @@ public struct MacroItem <: ToString & Equatable<MacroItem> {
     }
 
     public operator func ==(other: MacroItem): Bool {
-        this.key == other.key && this.value == other.value
+        key == other.key && value == other.value
     }
 
     public operator func !=(other: MacroItem): Bool {
@@ -202,9 +201,8 @@ public struct MacroDiagnostic <: Equatable<MacroDiagnostic> {
     ) {}
 
     public operator func ==(other: MacroDiagnostic): Bool {
-        this.severity == other.severity && this.origin == other.origin &&
-            this.message == other.message &&
-            this.hint == other.hint
+        severity == other.severity && origin == other.origin && message == other.message &&
+            hint == other.hint
     }
 
     public operator func !=(other: MacroDiagnostic): Bool {

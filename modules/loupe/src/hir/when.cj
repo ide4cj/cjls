@@ -1,19 +1,18 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.convert.Parsable
-import ginkgo.TextRange
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.{AnyHasAnnotations, BinExpr, RefExpr, StringLit}
-import cjsyntax.ast.Annotation as AnnotationNode
-import cjsyntax.ast.Expr as AstExpr
 import calca.*
 import calca.macros.*
+import cjsyntax.CjSyntaxNode
+import cjsyntax.ast.Annotation as AnnotationNode
+import cjsyntax.ast.Expr as AstExpr
+import cjsyntax.ast.{AnyHasAnnotations, BinExpr, RefExpr, StringLit}
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 const CJC_VERSION = "cjc_version"
 
@@ -248,7 +247,7 @@ public struct WhenError <: Equatable<WhenError> {
     public WhenError(public let range: TextRange, public let message: String) {}
 
     public operator func ==(other: WhenError): Bool {
-        this.range == other.range && this.message == other.message
+        range == other.range && message == other.message
     }
 
     public operator func !=(other: WhenError): Bool {
@@ -540,7 +539,7 @@ public struct InactiveCode <: Equatable<InactiveCode> {
     public InactiveCode(public let range: TextRange, public let reasons: Array<String>) {}
 
     public operator func ==(other: InactiveCode): Bool {
-        this.range == other.range && this.reasons == other.reasons
+        range == other.range && reasons == other.reasons
     }
 
     public operator func !=(other: InactiveCode): Bool {
@@ -563,7 +562,7 @@ public struct WhenDiagnostics <: Equatable<WhenDiagnostics> {
     ) {}
 
     public operator func ==(other: WhenDiagnostics): Bool {
-        this.inactive == other.inactive && this.errors == other.errors
+        inactive == other.inactive && errors == other.errors
     }
 
     public operator func !=(other: WhenDiagnostics): Bool {

@@ -1,10 +1,6 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     AnyHasName,
@@ -24,10 +20,13 @@ import cjsyntax.ast.{
     identText,
     isIdent
 }
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.{BodySource, DefId, ItemFile, LocalFunc, TypeTarget, bodyWithSourceMap, itemIdMap}
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * How a name reaches what it means: reads it, or gives it a value.
@@ -66,7 +65,7 @@ public struct RelatedHighlight <: Equatable<RelatedHighlight> {
     public RelatedHighlight(public let range: TextRange, public let access: ?ReferenceAccess) {}
 
     public operator func ==(other: RelatedHighlight): Bool {
-        this.range == other.range && this.access == other.access
+        range == other.range && access == other.access
     }
 
     public operator func !=(other: RelatedHighlight): Bool {

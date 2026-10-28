@@ -1,38 +1,101 @@
 package cjmcp
 
-import std.collection.*
+import std.collection.ArrayList
 import std.fs.Path
 import ginkgo.TextRange
-import loupe.*
 import loupe.Reference as AnalysisReference
-import loupe.db.SourceFile
-import loupe.hir.*
 import loupe.completionDetails as nativeCompletionDetails
-import loupe.hir.supertypes as nativeSupertypes
+import loupe.{
+    CompletionItem,
+    CompletionResult,
+    ExpandedFile,
+    ExpandedMacro,
+    Fold,
+    FoundSymbol,
+    HighlightedRange,
+    HoverItem,
+    MacroCallAt,
+    NavigationTarget,
+    RelatedHighlight,
+    completionsAt,
+    expandFile,
+    expandedMacro,
+    extendSelection,
+    findReferences,
+    foldingRanges,
+    highlight,
+    highlightRelated,
+    implementationsAt,
+    macroCallAt,
+    typeDefinitionAt,
+    workspaceSymbols
+}
+import loupe.db.SourceFile
 import loupe.hir.body as nativeBody
-import loupe.hir.signatureTypes as nativeSignatureTypes
 import loupe.hir.signature as nativeSignature
+import loupe.hir.signatureTypes as nativeSignatureTypes
+import loupe.hir.supertypes as nativeSupertypes
 import loupe.hir.whenDiagnostics as nativeWhenDiagnostics
-import loupe.syntax.parse
+import loupe.hir.{
+    Body,
+    BodyMacroCall,
+    DefId,
+    ExprId,
+    ExprScopes,
+    ExtendedType,
+    FieldResolution,
+    InferenceResult,
+    Item,
+    ItemFile,
+    ItemId,
+    LoweredBody,
+    MacroCallId,
+    MemberTarget,
+    Receiver,
+    Signature,
+    SignatureTypes,
+    Ty,
+    TyKind,
+    TypeScope,
+    WhenDiagnostics,
+    bodyMacroCalls,
+    bodyWithSourceMap,
+    declaredTyOf,
+    exprScopes,
+    headTysOf,
+    inferBody,
+    isUnknown,
+    itemOf,
+    itemTreeOf,
+    membersNamed,
+    parentOf,
+    receiverOf,
+    receiverTyOf,
+    resolveField,
+    substitute,
+    typeScopeOf
+}
 import loupe.vfs.{FileId, VfsPath}
 @When[os == "Linux"]
 import py_interop.*
 @When[os == "Linux"]
-import py_interop.internal_macros.*
+import py_interop.internal_macros.DerivePython
 
-/** A retained database revision: query its identities through the revision that produced them. */
+/**
+ * A retained database revision: query its identities through the revision that produced them.
+ */
 @When[os == "Linux"]
 @DerivePython
 class AnalysisRevision {
-    private let state: WorkspaceState
-
     @PyIgnore
-    AnalysisRevision(state: WorkspaceState) {
-        this.state = state
-    }
+    AnalysisRevision(private let state: WorkspaceState) {}
 
     public func declarations(path: String): Array<DefId> {
-        let file = state.db.sourceFile(resolve(path)).getOrThrow()
+        let file =
+            state
+                .db
+                .sourceFile(resolve(path))
+                .getOrThrow { IllegalArgumentException("file has no source analysis: ${path}") }
         let result = ArrayList<DefId>()
         collect(ItemFile.Source(file), itemTreeOf(state.db, ItemFile.Source(file)).items, result)
         result.toArray()
@@ -45,10 +108,22 @@ class AnalysisRevision {
         typeScopeOf(state.db, def)
     }
     public func whenDiagnostics(path: String): WhenDiagnostics {
-        nativeWhenDiagnostics(state.db, state.db.sourceFile(resolve(path)).getOrThrow())
+        nativeWhenDiagnostics(
+            state.db,
+            state
+                .db
+                .sourceFile(resolve(path))
+                .getOrThrow { IllegalArgumentException("file has no source analysis: ${path}") }
+        )
     }
     public func bodyMacros(path: String): Array<BodyMacroCall> {
-        bodyMacroCalls(state.db, state.db.sourceFile(resolve(path)).getOrThrow())
+        bodyMacroCalls(
+            state.db,
+            state
+                .db
+                .sourceFile(resolve(path))
+                .getOrThrow { IllegalArgumentException("file has no source analysis: ${path}") }
+        )
     }
     public func signature(def: DefId): Signature {
         nativeSignature(state.db, def)
@@ -80,7 +155,7 @@ class AnalysisRevision {
     public func typeText(ty: Ty): String {
         ty.text(state.db)
     }
-    public func typeUnknown(ty: Ty): Bool {
+    public func isTypeUnknown(ty: Ty): Bool {
         isUnknown(state.db, ty)
     }
     public func internType(kind: TyKind): Ty {
@@ -114,7 +189,11 @@ class AnalysisRevision {
         file.fileId(state.db)
     }
     public func text(path: String): String {
-        state.vfs.fileContents(resolve(path)).getOrThrow().toString()
+        state
+            .vfs
+            .fileContents(resolve(path))
+            .getOrThrow { IllegalStateException("loaded file has no contents") }
+            .toString()
     }
     public func parent(def: DefId): ?DefId {
         parentOf(state.db, def)
@@ -129,7 +208,9 @@ class AnalysisRevision {
         state.vfs.paths.path(file).toString()
     }
 
-    /** Written ranges by expression index; None marks synthetic expressions. */
+    /**
+     * Written ranges by expression index; None marks synthetic expressions.
+     */
     public func expressionRanges(def: DefId): Array<?TextRange> {
         bodyWithSourceMap(state.db, def)
             .sourceMap
@@ -211,7 +292,13 @@ class AnalysisRevision {
     }
     private func position(path: String, offset: Int64): FileId {
         let file = resolve(path)
-        let text = state.vfs.fileContents(file).getOrThrow().toString().toArray()
+        let text =
+            state
+                .vfs
+                .fileContents(file)
+                .getOrThrow { IllegalStateException("loaded file has no contents") }
+                .toString()
+                .toArray()
         if (
             offset < 0 || offset > text.size ||
                 (offset < text.size && (text[offset] & 0xC0) == 0x80)

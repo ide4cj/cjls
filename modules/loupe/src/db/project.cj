@@ -1,8 +1,5 @@
 package loupe.db
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.deriving.*
 import std.sort.*
@@ -10,6 +7,8 @@ import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.vfs.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The package of a file with no `package` line, as cjc names it.
@@ -24,7 +23,7 @@ public struct CfgOption <: Equatable<CfgOption> {
     public CfgOption(public let key: String, public let value: String) {}
 
     public operator func ==(other: CfgOption): Bool {
-        this.key == other.key && this.value == other.value
+        key == other.key && value == other.value
     }
 
     public operator func !=(other: CfgOption): Bool {
@@ -75,7 +74,7 @@ public struct Cfg <: Equatable<Cfg> {
     }
 
     public operator func ==(other: Cfg): Bool {
-        this.options == other.options
+        options == other.options
     }
 
     public operator func !=(other: Cfg): Bool {

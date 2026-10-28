@@ -1,13 +1,12 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.sort.*
 import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 let INTEGER_TYPES =
     [
@@ -40,7 +39,7 @@ public struct FieldTargets <: ByIndex & Equatable<FieldTargets> {
     }
 
     public operator func ==(other: FieldTargets): Bool {
-        this.expr == other.expr && this.targets == other.targets
+        expr == other.expr && targets == other.targets
     }
 
     public operator func !=(other: FieldTargets): Bool {
@@ -64,8 +63,7 @@ public struct CalleeTarget <: ByIndex & Equatable<CalleeTarget> {
     }
 
     public operator func ==(other: CalleeTarget): Bool {
-        this.expr == other.expr && this.decl == other.decl &&
-            this.isInitializer == other.isInitializer
+        expr == other.expr && decl == other.decl && isInitializer == other.isInitializer
     }
 
     public operator func !=(other: CalleeTarget): Bool {
@@ -86,7 +84,7 @@ public struct NameTarget <: ByIndex & Equatable<NameTarget> {
     }
 
     public operator func ==(other: NameTarget): Bool {
-        this.expr == other.expr && this.resolution == other.resolution
+        expr == other.expr && resolution == other.resolution
     }
 
     public operator func !=(other: NameTarget): Bool {
@@ -107,7 +105,7 @@ public struct AccessTarget <: ByIndex & Equatable<AccessTarget> {
     }
 
     public operator func ==(other: AccessTarget): Bool {
-        this.expr == other.expr && this.resolution == other.resolution
+        expr == other.expr && resolution == other.resolution
     }
 
     public operator func !=(other: AccessTarget): Bool {
@@ -256,7 +254,7 @@ public struct ArgTarget <: ByIndex & Equatable<ArgTarget> {
     }
 
     public operator func ==(other: ArgTarget): Bool {
-        this.expr == other.expr && this.params == other.params
+        expr == other.expr && params == other.params
     }
 
     public operator func !=(other: ArgTarget): Bool {
@@ -419,16 +417,16 @@ public struct InferenceResult <: Equatable<InferenceResult> {
     }
 
     public operator func ==(other: InferenceResult): Bool {
-        this.exprs == other.exprs && this.pats == other.pats && this.locals == other.locals &&
-            this.fields == other.fields &&
-            this.callees == other.callees &&
-            this.setters == other.setters &&
-            this.args == other.args &&
-            this.names == other.names &&
-            this.accesses == other.accesses &&
-            this.typePaths == other.typePaths &&
-            this.ty == other.ty &&
-            this.diagnostics == other.diagnostics
+        exprs == other.exprs && pats == other.pats && locals == other.locals &&
+            fields == other.fields &&
+            callees == other.callees &&
+            setters == other.setters &&
+            args == other.args &&
+            names == other.names &&
+            accesses == other.accesses &&
+            typePaths == other.typePaths &&
+            ty == other.ty &&
+            diagnostics == other.diagnostics
     }
 
     public operator func !=(other: InferenceResult): Bool {

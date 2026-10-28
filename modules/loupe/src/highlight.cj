@@ -1,8 +1,5 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import cjo.DeclInfo
 import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TokenSet}
@@ -14,6 +11,8 @@ import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What a token is: by the tree, and a name at its use by what it means (D72). In a file of no
@@ -191,7 +190,7 @@ public struct HighlightModifiers <: ToString & Equatable<HighlightModifiers> {
     }
 
     public operator func ==(other: HighlightModifiers): Bool {
-        this.bits == other.bits
+        bits == other.bits
     }
 
     public operator func !=(other: HighlightModifiers): Bool {
@@ -219,7 +218,7 @@ public struct HighlightedRange <: ToString & Equatable<HighlightedRange> {
     }
 
     public operator func ==(other: HighlightedRange): Bool {
-        this.range == other.range && this.tag == other.tag && this.modifiers == other.modifiers
+        range == other.range && tag == other.tag && modifiers == other.modifiers
     }
 
     public operator func !=(other: HighlightedRange): Bool {

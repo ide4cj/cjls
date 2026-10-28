@@ -1,12 +1,14 @@
 package cjmcp
 
-import std.collection.*
 import std.env.getTempDirectory
 import std.unittest.*
 import std.unittest.testmacro.*
-import fjson.*
+import fjson.JsonValue
 import loupe.vfs.VfsPath
 
+/**
+ * Send a protocol request with a fixed test ID and require a response.
+ */
 func request(server: McpServer, method: String, params!: JsonValue = obj([])): JsonValue {
     server
         .handle(
@@ -21,9 +23,12 @@ func request(server: McpServer, method: String, params!: JsonValue = obj([])): J
                 .toString()
                 .toArray()
         )
-        .getOrThrow()
+        .getOrThrow { IllegalStateException("test request did not produce a response") }
 }
 
+/**
+ * Initialize a test session with a future version to exercise version negotiation.
+ */
 func initialize(server: McpServer): JsonValue {
     request(
         server,
@@ -38,6 +43,9 @@ func initialize(server: McpServer): JsonValue {
     )
 }
 
+/**
+ * Create a test session that completed initialization.
+ */
 func readyServer(): McpServer {
     let server = McpServer(VfsPath.file(getTempDirectory()))
     initialize(server)
@@ -87,7 +95,16 @@ class McpServerTest {
             ]
 
         // act
-        let responses = bad.map { line => server.handle(line.toArray()).getOrThrow() }
+        let responses =
+            bad
+                .map {
+                    line =>
+                    server
+                        .handle(line.toArray())
+                        .getOrThrow {
+                            IllegalStateException("test request did not produce a response")
+                        }
+                }
         let ping = request(server, "ping")
 
         // assert

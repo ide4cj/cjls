@@ -1,8 +1,5 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{ImportAlias, Name, identText, isIdent}
@@ -24,6 +21,8 @@ import loupe.hir.{
 }
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as
@@ -39,8 +38,8 @@ public struct Reference <: Equatable<Reference> {
     ) {}
 
     public operator func ==(other: Reference): Bool {
-        this.fileId == other.fileId && this.range == other.range && this.access == other.access &&
-            this.isDeclaration == other.isDeclaration
+        fileId == other.fileId && range == other.range && access == other.access &&
+            isDeclaration == other.isDeclaration
     }
 
     public operator func !=(other: Reference): Bool {

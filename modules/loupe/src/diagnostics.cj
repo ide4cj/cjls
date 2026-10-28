@@ -1,8 +1,5 @@
 package loupe
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, message}
@@ -14,6 +11,8 @@ import loupe.db.{AnalysisDatabase, MacroSeverity, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 @DerivePython
 public enum Severity <: Equatable<Severity> {
@@ -51,9 +50,8 @@ public struct Diagnostic <: Equatable<Diagnostic> {
     ) {}
 
     public operator func ==(other: Diagnostic): Bool {
-        this.range == other.range && this.severity == other.severity &&
-            this.message == other.message &&
-            this.unnecessary == other.unnecessary
+        range == other.range && severity == other.severity && message == other.message &&
+            unnecessary == other.unnecessary
     }
 
     public operator func !=(other: Diagnostic): Bool {

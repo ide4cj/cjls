@@ -1,13 +1,12 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What is wrong with a file's scope, as cjc and cjpm report it.
@@ -107,7 +106,7 @@ public struct ScopeDiagnostic <: Equatable<ScopeDiagnostic> {
     public ScopeDiagnostic(public let at: ScopeProblemAt, public let problem: ScopeProblem) {}
 
     public operator func ==(other: ScopeDiagnostic): Bool {
-        this.at == other.at && this.problem == other.problem
+        at == other.at && problem == other.problem
     }
 
     public operator func !=(other: ScopeDiagnostic): Bool {

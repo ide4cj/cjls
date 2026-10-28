@@ -1,17 +1,16 @@
 package loupe.hir
 
-import py_interop.*
-import py_interop.internal_macros.*
-
 import std.collection.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr}
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, Decl, ImportTree, Modifiers, NameRef, Pattern, VarDecl}
-import cjsyntax.ast.SourceFile as SourceFileNode
 import calca.*
 import calca.macros.*
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
+import cjsyntax.ast.SourceFile as SourceFileNode
+import cjsyntax.ast.{AnyHasName, Decl, ImportTree, Modifiers, NameRef, Pattern, VarDecl}
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A modifier, as written before a declaration.
@@ -123,8 +122,7 @@ public struct PackageItem <: Equatable<PackageItem> {
     ) {}
 
     public operator func ==(other: PackageItem): Bool {
-        this.name == other.name && this.isMacro == other.isMacro &&
-            this.modifiers == other.modifiers
+        name == other.name && isMacro == other.isMacro && modifiers == other.modifiers
     }
 
     public operator func !=(other: PackageItem): Bool {
@@ -145,7 +143,7 @@ public struct ImportPath <: Equatable<ImportPath> {
     ) {}
 
     public operator func ==(other: ImportPath): Bool {
-        this.segments == other.segments && this.alias == other.alias && this.isGlob == other.isGlob
+        segments == other.segments && alias == other.alias && isGlob == other.isGlob
     }
 
     public operator func !=(other: ImportPath): Bool {
@@ -169,8 +167,8 @@ public struct ImportItem <: Equatable<ImportItem> {
     ) {}
 
     public operator func ==(other: ImportItem): Bool {
-        this.id == other.id && this.modifiers == other.modifiers && this.paths == other.paths &&
-            this.condition == other.condition
+        id == other.id && modifiers == other.modifiers && paths == other.paths &&
+            condition == other.condition
     }
 
     public operator func !=(other: ImportItem): Bool {
@@ -234,11 +232,11 @@ public struct Item <: Equatable<Item> {
     }
 
     public operator func ==(other: Item): Bool {
-        this.id == other.id && this.names == other.names && this.modifiers == other.modifiers &&
-            this.macros == other.macros &&
-            this.members == other.members &&
-            this.condition == other.condition &&
-            this.paramMacros == other.paramMacros
+        id == other.id && names == other.names && modifiers == other.modifiers &&
+            macros == other.macros &&
+            members == other.members &&
+            condition == other.condition &&
+            paramMacros == other.paramMacros
     }
 
     public operator func !=(other: Item): Bool {
@@ -300,8 +298,7 @@ public struct ItemTree <: Equatable<ItemTree> {
     }
 
     public operator func ==(other: ItemTree): Bool {
-        this.packageHeader == other.packageHeader && this.imports == other.imports &&
-            this.items == other.items
+        packageHeader == other.packageHeader && imports == other.imports && items == other.items
     }
 
     public operator func !=(other: ItemTree): Bool {
