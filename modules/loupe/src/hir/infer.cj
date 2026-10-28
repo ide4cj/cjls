@@ -1795,31 +1795,52 @@ class Inference {
                 // else alone, of its default type, the right not told anything (N125)
                 infer(lhs, None)
             } else {
-                let synthesized = infer(lhs, if (isComparison) { None } else { primOnly(kept) })
-                if (isPrim(synthesized) || isTuple(synthesized)) {
-                    // but a comparison: `==` of a type takes one of that type
-                    let found =
-                        builtin {
-                            =>
-                            let wanted =
-                                if (isComparison) {
-                                    rightExpected(op, synthesized)
-                                } else {
-                                    primOnly(rightExpected(op, synthesized))
-                                }
-                            let right = infer(rhs, wanted)
-                            if (let Some(one) <- wanted && !fits(right, one)) {
-                                return None
-                            }
-                            builtinTy(op, synthesized, right)
-                        }
-                    if (let Some(ty) <- found) {
-                        return ty
-                    }
+                // An extension can return a different primitive from its receiver, so only
+                // contextual operand inference belongs to the rollbackable built-in trial.
+                // Repeating context-free inference would double the work at each operator in
+                // a left-associated chain of nonprimitive overloads.
+                let context: ?Ty = if (isComparison) { None } else { primOnly(kept) }
+                let synthesized: ?Ty =
+                    if (context.isNone()) { Some(infer(lhs, None)) } else { None }
+                let found = builtinBinaryTy(op, lhs, rhs, context, synthesized)
+                if (let Some(ty) <- found) {
+                    return ty
                 }
-                synthesized
+                synthesized ?? infer(lhs, None)
             }
         operatorTy(id, left, op, [CallArg(None, rhs)], expected)
+    }
+
+    /**
+     * Tries a primitive or tuple operator, rolling back contextual operand inference on failure.
+     * Reuses a context-free left operand so overload fallback need not infer its subtree again.
+     */
+    private func builtinBinaryTy(
+        op: String,
+        lhs: ExprId,
+        rhs: ExprId,
+        context: ?Ty,
+        synthesized: ?Ty
+    ): ?Ty {
+        builtin {
+            =>
+            let left = synthesized ?? infer(lhs, context)
+            if (!isPrim(left) && !isTuple(left)) {
+                return None
+            }
+            // A comparison's right side takes the left's type too.
+            let wanted =
+                if (COMPARISONS.contains(op)) {
+                    rightExpected(op, left)
+                } else {
+                    primOnly(rightExpected(op, left))
+                }
+            let right = infer(rhs, wanted)
+            if (let Some(one) <- wanted && !fits(right, one)) {
+                return None
+            }
+            builtinTy(op, left, right)
+        }
     }
 
     /**
@@ -2215,6 +2236,7 @@ class Inference {
                 match (head.kind(db)) {
                     case DeclTy(id, _) => ExtendedType.DeclType(id)
                     case PrimTy(name) => ExtendedType.PrimType(name)
+                    case BuiltInTy(kind, _) => ExtendedType.BuiltInHead(kind)
                     case _ => continue
                 }
             let found = ArrayList<Callable>()
@@ -2456,6 +2478,9 @@ class Inference {
             case Values(targets) where targets.size == 1 =>
                 match (targets[0]) {
                     case LocalOf(local) => locals[local.index]
+                    // An unqualified constructor can instantiate another enum specialization.
+                    case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind == ItemKind.EnumCtor =>
+                        declValueTy(ctor, explicit, expected)
                     case MemberOf(target) => memberValueTy(target, thisTy())
                     case DeclOf(decl) => declValueTy(decl, explicit, expected)
                     case TypeParamOf(_) => error
@@ -3986,6 +4011,13 @@ class Inference {
                                         .add(
                                             all: localCallables(local).map { one => one.at(level) }
                                         )
+                                case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind ==
+                                        ItemKind.EnumCtor =>
+                                    found
+                                        .add(
+                                            all: declCallables(ctor, explicit, expected)
+                                                .map { one => one.at(MEMBER_LEVEL) }
+                                        )
                                 case MemberOf(member) =>
                                     found
                                         .add(
@@ -4151,6 +4183,7 @@ class Inference {
                 match (head.kind(db)) {
                     case DeclTy(id, _) => ExtendedType.DeclType(id)
                     case PrimTy(prim) => ExtendedType.PrimType(prim)
+                    case BuiltInTy(kind, _) => ExtendedType.BuiltInHead(kind)
                     case _ => continue
                 }
             let targets = memberLookup(db, [start], name, from: from, on: head)
@@ -4206,7 +4239,13 @@ class Inference {
      */
     private func typeOfDecl(id: DefId, explicit: Array<Ty>, expected: ?Ty): Ty {
         match (id.item(db).kind) {
-            case Class | Interface | Struct | Enum | BuiltIn =>
+            case BuiltIn =>
+                compilerTy(
+                    db,
+                    compilerTypeOf(db, id) ?? return error,
+                    typeArgsOf(id, explicit, expected)
+                )
+            case Class | Interface | Struct | Enum =>
                 Ty(db, DeclTy(id, typeArgsOf(id, explicit, expected)))
             case TypeAlias =>
                 let aliased = signatureTypes(db, id).ty ?? return error

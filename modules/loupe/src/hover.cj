@@ -728,6 +728,7 @@ class Hovers {
      */
     private func varKeyword(id: DefId): String {
         match (id.file(db)) {
+            case CompilerBuiltIns(_) => ""
             case Source(_) | Expansion(_) =>
                 let (root, ids) = syntaxOf(db, id.file(db)) ?? return ""
                 keywordOf(VarDecl.cast(ids.node(id.item(db), root) ?? return "") ?? return "")
@@ -812,6 +813,7 @@ class Hovers {
         let pkg =
             match (id.file(db)) {
                 case Binary(binary, _) => binary.name(db)
+                case CompilerBuiltIns(pkg) => pkg.name(db)
                 case file =>
                     scopeFileOf(db, file).flatMap { one => packageOfFile(db, one) }?.name(db)
             }
@@ -845,6 +847,7 @@ class Hovers {
     private func docOf(id: DefId): ?String {
         let node =
             match (id.file(db)) {
+                case CompilerBuiltIns(_) => return None
                 case Source(_) => (nodeOf(db, id) ?? return None)[1]
                 case Binary(pkg, file) =>
                     let target = binaryTarget(db, pkg, file, id.item(db)) ?? return None

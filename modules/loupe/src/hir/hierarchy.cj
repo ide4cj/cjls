@@ -94,7 +94,7 @@ public func overridingMembers(db: AnalysisDatabase, member: DefId): Array<DefId>
                 let ownHolders =
                     match (extended) {
                         case DeclType(id) => [id]
-                        case PrimType(_) => Array<DefId>()
+                        case PrimType(_) | BuiltInHead(_) => Array<DefId>()
                     }
                 (
                     signatureTypes(db, sub).ty ?? continue,

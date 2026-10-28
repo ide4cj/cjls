@@ -196,7 +196,8 @@ func namedTyOf(db: AnalysisDatabase, def: DefId, id: DefId, args: Array<TypeRefI
             Array(count) { _ => Ty(db, ErrorTy) }
         }
     match (id.item(db).kind) {
-        case Class | Interface | Struct | Enum | BuiltIn => Ty(db, DeclTy(id, applied))
+        case BuiltIn => compilerTypeOf(db, id).map { kind => compilerTy(db, kind, applied) }
+        case Class | Interface | Struct | Enum => Ty(db, DeclTy(id, applied))
         case TypeAlias =>
             signatureTypes(db, id).ty.map { aliased => substitute(db, aliased, id, applied) }
         case _ => None
@@ -208,7 +209,9 @@ func namedTyOf(db: AnalysisDatabase, def: DefId, id: DefId, args: Array<TypeRefI
  */
 func receiverOfDecl(db: AnalysisDatabase, id: DefId): Receiver {
     match (id.item(db).kind) {
-        case Class | Interface | Struct | Enum | BuiltIn => TypesReceiver([DeclType(id)])
+        case BuiltIn =>
+            compilerTypeOf(db, id).map { kind => TypesReceiver([BuiltInHead(kind)]) } ?? NoReceiver
+        case Class | Interface | Struct | Enum => TypesReceiver([DeclType(id)])
         case TypeAlias =>
             match (aliasedTypeOf(db, id)) {
                 case Some(ty) => TypesReceiver([ty])

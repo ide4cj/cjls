@@ -44,6 +44,7 @@ class FieldResolutionTest {
                                 case DeclType(id) =>
                                     itemOf(db, id).flatMap { item => item.names.get(0) } ?? ""
                                 case PrimType(name) => name
+                                case BuiltInHead(kind) => kind.toString()
                             }
                         }
                 case _ => Array<String>()
@@ -154,7 +155,7 @@ class FieldResolutionTest {
         // assert
         @Expect(extended.contains("Int64"), true)
         @Expect(extended.contains("Struct Array"), true)
-        @Expect(extended.contains("BuiltIn CPointer"), true)
+        @Expect(extended.contains("CPointer"), true)
     }
 }
 
@@ -225,5 +226,6 @@ func describe(db: AnalysisDatabase, ty: ExtendedType): String {
         case DeclType(id) =>
             "${id.item(db).kind} ${itemOf(db, id).flatMap {item => item.names.get(0)} ?? ""}"
         case PrimType(name) => name
+        case BuiltInHead(kind) => kind.toString()
     }
 }

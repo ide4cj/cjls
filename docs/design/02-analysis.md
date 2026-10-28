@@ -241,8 +241,11 @@ A declaration of std.core the syntax means (`Option` of `?T`, `composition` of `
 a literal, `Iterable` of `for-in`) is `langItem`'s, whatever a file's scope names and whatever
 its visibility; nothing else looks one up by name.
 
-A type of the compiler's own (`CPointer`, `CString`) is no lang item: a file names it through
-its scope (D66).
+A type of the compiler's own (`CPointer`, `CString`, `RawArray`, `VArray`, `CFunc`) is no lang
+item: a file names it through its scope (D66, D154). Source `std.core` receives synthetic scoped
+`BuiltIn` declarations; `RawArray` is internal and the others public. Binary `BuiltInDecl`s
+retain scoped identity and navigation metadata. Semantic types and extension heads are independent
+of those declarations, so source and binary signatures agree without an SDK `std.core.cjo`.
 
 A source file of no package finds them, as the `extend`s of a type of the language, in the SDK's
 binary `std.core` (`sdkCore`, #319).

@@ -7,19 +7,11 @@ import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
 import loupe.{diagnostics, Severity}
-import loupe.db.{
-    AnalysisDatabase,
-    BinaryModel,
-    BinaryPackage,
-    Cfg,
-    ModuleModel,
-    PackageModel,
-    ProjectModel
-}
+import loupe.db.{AnalysisDatabase, Cfg, ModuleModel, PackageModel, ProjectModel}
 import loupe.fixture.{stdSourcesDir, UPDATE_EXPECT}
 import loupe.hir.{bodyWithSourceMap, macroCallHeadOf, sourceRangeOf}
 import loupe.syntax.parse
-import loupe.vfs.{isCangjieFile, PathInterner, readCjoFiles, readFiles, Vfs, VfsPath}
+import loupe.vfs.{isCangjieFile, PathInterner, readFiles, Vfs, VfsPath}
 
 /**
  * Each diagnostic of the files of `db` among `files`, as `path:line: message`, the path relative to
@@ -62,11 +54,6 @@ func declaredPackageOf(file: Path): ?String {
 }
 
 /**
- * std's sources, `.corpora/`'s at the nightly's commit (D65), a module of their own: each package of
- * them but `std.core`, read from the SDK's `.cjo` while the compiler's own types are not types of
- * the analysis's (#218).
- */
-/**
  * What std's sources are analyzed under by the gate on every host, as `std_diagnostics_known.txt` is
  * written: Linux on x86_64. `@When` picks which of std's twins are read.
  */
@@ -81,6 +68,9 @@ let STD_GATE_CFG =
         ]
     )
 
+/**
+ * Loads the pinned std sources, including std.core, under the gate's fixed target configuration.
+ */
 func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
     let dir = stdSourcesDir()
     let byPackage = HashMap<String, ArrayList<VfsPath>>()
@@ -101,27 +91,15 @@ func stdFromSources(): (AnalysisDatabase, PathInterner, Array<VfsPath>) {
         byPackage
             .keys()
             .toArray()
-            .filter { name => name != "std.core" }
             .map {
                 name =>
                 let files = byPackage[name].toArray()
                 PackageModel(name, files[0].parent.getOrThrow(), files)
             }
-    let home =
-        getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
-    let target =
-        Directory.readFrom(Path(home).join("modules")).filter { info => info.isDirectory() }[0].name
-    let core =
-        VfsPath.file(Path(home).join("modules").join(target).join("std").join("std.core.cjo"))
-    let model =
-        ProjectModel(
-            STD_GATE_CFG,
-            [ModuleModel("std", dir, packages)],
-            binaries: [BinaryModel("std", [], packages: [BinaryPackage("std.core", core)])]
-        )
+    let model = ProjectModel(STD_GATE_CFG, [ModuleModel("std", dir, packages)])
     let db = AnalysisDatabase()
     let vfs = Vfs()
-    db.setProject(model, vfs.paths, binaries: readCjoFiles(model.cjoFiles()).files)
+    db.setProject(model, vfs.paths)
     for ((path, text) in readFiles(model.files()).files) {
         vfs.setFileContents(path, text)
     }

@@ -258,7 +258,13 @@ public func defMapAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): 
     if (let Binary(_) <- pkg && stage == ScopeStage.Written) {
         return defMapAt(db, pkg, ScopeStage.Expanded)
     }
-    let files = filesOf(db, pkg)
+    let ordinary = filesOf(db, pkg)
+    let files =
+        if (let Source(source) <- pkg && source.name(db) == "std.core") {
+            [ItemFile.CompilerBuiltIns(source)].concat(ordinary)
+        } else {
+            ordinary
+        }
     if (stage == ScopeStage.Written) {
         return collectDefMap(db, files.map { file => (file, itemTreeOf(db, file)) })
     }

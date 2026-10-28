@@ -406,6 +406,7 @@ func valueMembers(
             match (head.kind(db)) {
                 case DeclTy(id, _) => ExtendedType.DeclType(id)
                 case PrimTy(name) => ExtendedType.PrimType(name)
+                case BuiltInTy(kind, _) => ExtendedType.BuiltInHead(kind)
                 case _ => continue
             }
         for (
@@ -522,7 +523,8 @@ func isAccessibleMember(db: AnalysisDatabase, def: DefId, id: DefId, item: Item)
 func ownerTypeOf(db: AnalysisDatabase, owner: DefId): ?ExtendedType {
     match (owner.item(db).kind) {
         case Extend => extendedTypeOf(db, owner)
-        case Class | Interface | Struct | Enum | BuiltIn => ExtendedType.DeclType(owner)
+        case BuiltIn => compilerTypeOf(db, owner).map { kind => ExtendedType.BuiltInHead(kind) }
+        case Class | Interface | Struct | Enum => ExtendedType.DeclType(owner)
         case _ => None
     }
 }
@@ -542,7 +544,7 @@ func isSubtypeOf(db: AnalysisDatabase, ty: ExtendedType, other: ExtendedType): B
             let supers =
                 match (one) {
                     case DeclType(id) => supertypes(db, id)
-                    case PrimType(_) => Array<ExtendedType>()
+                    case PrimType(_) | BuiltInHead(_) => Array<ExtendedType>()
                 }
             for (sup in supers where seen.add(sup)) {
                 next.add(sup)
@@ -566,6 +568,7 @@ func samePackage(db: AnalysisDatabase, a: DefId, b: DefId): Bool {
 func packageNameOf(db: AnalysisDatabase, id: DefId): ?String {
     match (id.file(db)) {
         case Binary(binary, _) => binary.name(db)
+        case CompilerBuiltIns(pkg) => pkg.name(db)
         case file => scopeFileOf(db, file).flatMap { one => packageOfFile(db, one) }?.name(db)
     }
 }
