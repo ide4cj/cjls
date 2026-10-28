@@ -18,6 +18,7 @@ package-configuration = { cjmcp = { compile-option = "--static -Woff driver-arg"
 ginkgo = { path = "../ginkgo" }
 fjson = { path = "../fjson" }
 loupe = { path = "../loupe" }
+macro_host = { path = "../macro_host" }
 platform = { path = "../platform" }
 project_model = { path = "../project_model" }
 
