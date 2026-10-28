@@ -45,6 +45,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Test scripts/docs.py
         run: python3 -m unittest discover -s scripts -p '*_test.py'
+      - name: Test semantic oracle contracts
+        run: python3 -m unittest discover -s tests/semantic -p '*_test.py'
       # every ADR number and rule id once, every ADR header readable; on a PR, its ADR numbers
       # not taken by an older open PR (D56)
       - name: Every id once
@@ -235,3 +237,34 @@ jobs:
           path: |
             perf.json
             perf-logs
+
+  semantic-oracle:
+    name: Semantic oracle (${{ matrix.os }})
+    needs: build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    # Same temporary SDK GC exception as the other macOS checks (#466).
+    continue-on-error: ${{ matrix.os == 'macos-latest' }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      - uses: actions/download-artifact@v8
+        with:
+          name: cjls-${{ runner.os }}
+          path: bin
+      - name: Compiler and LSP matrix
+        shell: bash
+        run: |
+          server="bin/cjls${{ runner.os == 'Windows' && '.exe' || '' }}"
+          chmod +x "$server"
+          python tests/semantic/oracle.py --server "$server" --output target/semantic-oracle
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: semantic-oracle-${{ runner.os }}-${{ github.sha }}
+          path: target/semantic-oracle
+          if-no-files-found: error

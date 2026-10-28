@@ -1,0 +1,994 @@
+{
+  "control_mismatch": {
+    "issue": 544,
+    "missing": [],
+    "extra": [
+      {
+        "message": "mismatched types: expected 'Int64', found 'String'",
+        "severity": 1,
+        "range": [
+          1,
+          16,
+          1,
+          27
+        ]
+      }
+    ]
+  },
+  "field_missing_class": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "the uninitialized member variable 'x' is not initialized in the constructor of class or struct",
+        "severity": 1,
+        "range": [
+          1,
+          24,
+          1,
+          25
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_missing_struct": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "the uninitialized member variable 'x' is not initialized in the constructor of class or struct",
+        "severity": 1,
+        "range": [
+          1,
+          25,
+          1,
+          26
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_branch_missing": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "the uninitialized member variable 'x' is not initialized in the constructor of class or struct",
+        "severity": 1,
+        "range": [
+          1,
+          24,
+          1,
+          25
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_double_init": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "cannot assign to immutable value",
+        "severity": 1,
+        "range": [
+          1,
+          40,
+          1,
+          45
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_read_before_init": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "variable 'x' is used before initialization",
+        "severity": 1,
+        "range": [
+          1,
+          51,
+          1,
+          52
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_this_escape": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "'this' is not allowed to be accessed before all member variables are initialized",
+        "severity": 1,
+        "range": [
+          1,
+          37,
+          1,
+          38
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_decl_order": {
+    "issue": 529,
+    "missing": [
+      {
+        "message": "variable 'b' is used before initialization",
+        "severity": 1,
+        "range": [
+          1,
+          18,
+          1,
+          19
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_delegation_cycle": {
+    "issue": 530,
+    "missing": [
+      {
+        "message": "recursive constructor calling detected",
+        "severity": 1,
+        "range": [
+          1,
+          10,
+          1,
+          14
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_super_missing": {
+    "issue": 530,
+    "missing": [
+      {
+        "message": "there is no non-parameter constructor in super class, please invoke super call explicitly",
+        "severity": 1,
+        "range": [
+          1,
+          51,
+          1,
+          55
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "field_super_late": {
+    "issue": 530,
+    "missing": [
+      {
+        "message": "call to 'super' must be first expression in constructor of class 'C'",
+        "severity": 1,
+        "range": [
+          1,
+          64,
+          1,
+          65
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_mut_get_only": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "property must have accessors",
+        "severity": 1,
+        "range": [
+          1,
+          10,
+          1,
+          43
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_immutable_setter": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "immutable property cannot have setter",
+        "severity": 1,
+        "range": [
+          1,
+          10,
+          1,
+          49
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_missing_getter": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "property must have accessors",
+        "severity": 1,
+        "range": [
+          1,
+          10,
+          1,
+          41
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_duplicate_getter": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "duplicated 'get' in prop",
+        "severity": 1,
+        "range": [
+          1,
+          38,
+          1,
+          41
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_accessor_name": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "expected 'get' or 'set' in prop body, found 'foo'",
+        "severity": 1,
+        "range": [
+          1,
+          26,
+          1,
+          29
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_getter_params": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "getter cannot have parameter",
+        "severity": 1,
+        "range": [
+          1,
+          26,
+          1,
+          27
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "prop_setter_arity": {
+    "issue": 531,
+    "missing": [
+      {
+        "message": "setter can only accept 1 parameter",
+        "severity": 1,
+        "range": [
+          1,
+          45,
+          1,
+          51
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "write_let": {
+    "issue": 532,
+    "missing": [
+      {
+        "message": "cannot assign to immutable value",
+        "severity": 1,
+        "range": [
+          1,
+          28,
+          1,
+          33
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "write_param": {
+    "issue": 532,
+    "missing": [
+      {
+        "message": "cannot assign to immutable value",
+        "severity": 1,
+        "range": [
+          1,
+          25,
+          1,
+          30
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "write_let_field": {
+    "issue": 532,
+    "missing": [
+      {
+        "message": "cannot assign to immutable value",
+        "severity": 1,
+        "range": [
+          1,
+          38,
+          1,
+          43
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "write_readonly_prop": {
+    "issue": 532,
+    "missing": [
+      {
+        "message": "cannot assign to immutable value",
+        "severity": 1,
+        "range": [
+          1,
+          58,
+          1,
+          63
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "write_literal": {
+    "issue": 532,
+    "missing": [
+      {
+        "message": "invalid left-hand expression of assignment '='",
+        "severity": 1,
+        "range": [
+          1,
+          19,
+          1,
+          20
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "write_call": {
+    "issue": 532,
+    "missing": [
+      {
+        "message": "invalid left-hand expression of assignment '='",
+        "severity": 1,
+        "range": [
+          1,
+          44,
+          1,
+          45
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "struct_mut_method_missing": {
+    "issue": 533,
+    "missing": [
+      {
+        "message": "instance member variable 'x' cannot be modified in immutable function",
+        "severity": 1,
+        "range": [
+          1,
+          39,
+          1,
+          40
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "struct_mut_call_let": {
+    "issue": 533,
+    "missing": [
+      {
+        "message": "cannot use mutable function on immutable value",
+        "severity": 1,
+        "range": [
+          1,
+          84,
+          1,
+          85
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "local_uninitialized": {
+    "issue": 534,
+    "missing": [
+      {
+        "message": "variable 'x' is used before initialization",
+        "severity": 1,
+        "range": [
+          1,
+          32,
+          1,
+          33
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "local_branch_init": {
+    "issue": 534,
+    "missing": [
+      {
+        "message": "variable 'x' is used before initialization",
+        "severity": 1,
+        "range": [
+          1,
+          57,
+          1,
+          58
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "local_capture_var": {
+    "issue": 535,
+    "missing": [
+      {
+        "message": "lambda capturing mutable variables needs to be called directly",
+        "severity": 1,
+        "range": [
+          1,
+          36,
+          1,
+          44
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "return_missing_path": {
+    "issue": 544,
+    "missing": [],
+    "extra": [
+      {
+        "message": "mismatched types: expected 'Int64', found 'Unit'",
+        "severity": 1,
+        "range": [
+          1,
+          23,
+          1,
+          46
+        ]
+      }
+    ]
+  },
+  "break_outside_loop": {
+    "issue": 536,
+    "missing": [
+      {
+        "message": "'break' or 'continue' must be used inside a loop",
+        "severity": 1,
+        "range": [
+          1,
+          17,
+          1,
+          18
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "continue_outside_loop": {
+    "issue": 536,
+    "missing": [
+      {
+        "message": "'break' or 'continue' must be used inside a loop",
+        "severity": 1,
+        "range": [
+          1,
+          17,
+          1,
+          18
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "match_nonexhaustive": {
+    "issue": 537,
+    "missing": [
+      {
+        "message": "non-exhaustive patterns",
+        "severity": 1,
+        "range": [
+          1,
+          32,
+          1,
+          33
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "inherit_final_class": {
+    "issue": 538,
+    "missing": [
+      {
+        "message": "super class 'B' is not inheritable",
+        "severity": 1,
+        "range": [
+          1,
+          23,
+          1,
+          24
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "inherit_missing_member": {
+    "issue": 538,
+    "missing": [
+      {
+        "message": "class 'C' missing abstract modifier, otherwise abstract function or property should be implemented",
+        "severity": 1,
+        "range": [
+          1,
+          33,
+          1,
+          48
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "inherit_bad_override": {
+    "issue": 538,
+    "missing": [
+      {
+        "message": "return type of 'f' is not identical or not a subtype of the overridden/redefined/implement function",
+        "severity": 1,
+        "range": [
+          1,
+          88,
+          1,
+          89
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "inherit_override_nonexistent": {
+    "issue": 538,
+    "missing": [
+      {
+        "message": "'override' function 'f' does not have an overridden function in its supertype",
+        "severity": 1,
+        "range": [
+          1,
+          10,
+          1,
+          11
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "inherit_cycle": {
+    "issue": 538,
+    "missing": [
+      {
+        "message": "inheritance cycle detected: 'A->B->A'",
+        "severity": 1,
+        "range": [
+          1,
+          0,
+          1,
+          1
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "duplicate_field": {
+    "issue": 539,
+    "missing": [
+      {
+        "message": "redefinition of declaration 'x'",
+        "severity": 1,
+        "range": [
+          1,
+          25,
+          1,
+          26
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "duplicate_local": {
+    "issue": 539,
+    "missing": [
+      {
+        "message": "redefinition of declaration 'x'",
+        "severity": 1,
+        "range": [
+          1,
+          32,
+          1,
+          33
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "duplicate_function": {
+    "issue": 539,
+    "missing": [
+      {
+        "message": "function 'f' has overload conflicts",
+        "severity": 1,
+        "range": [
+          1,
+          28,
+          1,
+          29
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "generic_bad_bound": {
+    "issue": 540,
+    "missing": [
+      {
+        "message": "generics type arguments do not match the constraint of 'Class-Box<Generics-T>'",
+        "severity": 1,
+        "range": [
+          1,
+          66,
+          1,
+          67
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "generic_wrong_arity": {
+    "issue": 540,
+    "missing": [
+      {
+        "message": "type argument's number does not match type parameter's number",
+        "severity": 1,
+        "range": [
+          1,
+          42,
+          1,
+          60
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "static_this": {
+    "issue": 541,
+    "missing": [
+      {
+        "message": "non-static variable 'this' cannot be referenced from a static context",
+        "severity": 1,
+        "range": [
+          1,
+          38,
+          1,
+          39
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "private_member": {
+    "issue": 541,
+    "missing": [
+      {
+        "message": "can not access field 'x'",
+        "severity": 1,
+        "range": [
+          1,
+          53,
+          1,
+          54
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "integer_overflow": {
+    "issue": 542,
+    "missing": [
+      {
+        "message": "the number '128' exceeds the value range of type 'Int8'",
+        "severity": 1,
+        "range": [
+          1,
+          17,
+          1,
+          20
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "unknown_name": {
+    "issue": 541,
+    "missing": [
+      {
+        "message": "undeclared identifier 'missing'",
+        "severity": 1,
+        "range": [
+          1,
+          17,
+          1,
+          18
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "unknown_member": {
+    "issue": 541,
+    "missing": [
+      {
+        "message": "'missing' is not a member of class 'C'",
+        "severity": 1,
+        "range": [
+          1,
+          35,
+          1,
+          42
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "pattern_duplicate_binding": {
+    "issue": 539,
+    "missing": [
+      {
+        "message": "redefinition of declaration 'x'",
+        "severity": 1,
+        "range": [
+          1,
+          25,
+          1,
+          26
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "global_forward_reference": {
+    "issue": 534,
+    "missing": [
+      {
+        "message": "variable 'b' is used before being defined",
+        "severity": 1,
+        "range": [
+          1,
+          8,
+          1,
+          9
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "generic_type_annotation_bad_bound": {
+    "issue": 540,
+    "missing": [
+      {
+        "message": "generics type arguments do not match the constraint of 'Class-Box<Generics-T>'",
+        "severity": 1,
+        "range": [
+          1,
+          51,
+          1,
+          52
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "generic_function_explicit_bad_bound": {
+    "issue": 540,
+    "missing": [
+      {
+        "message": "generics type arguments do not match the constraint of '(Generics-T) -> Unit'",
+        "severity": 1,
+        "range": [
+          1,
+          65,
+          1,
+          66
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "generic_annotation_wrong_arity": {
+    "issue": 540,
+    "missing": [
+      {
+        "message": "type argument's number does not match type parameter's number",
+        "severity": 1,
+        "range": [
+          1,
+          27,
+          1,
+          45
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "integer_overflow_suffix": {
+    "issue": 542,
+    "missing": [
+      {
+        "message": "the number '128i8' exceeds the value range of type 'Int8'",
+        "severity": 1,
+        "range": [
+          1,
+          25,
+          1,
+          30
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "integer_underflow": {
+    "issue": 542,
+    "missing": [
+      {
+        "message": "the number '-129' exceeds the value range of type 'Int8'",
+        "severity": 1,
+        "range": [
+          1,
+          17,
+          1,
+          21
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "match_wrong_pattern_type": {
+    "issue": 537,
+    "missing": [
+      {
+        "message": "cannot convert an integer literal to type 'Bool'",
+        "severity": 1,
+        "range": [
+          1,
+          42,
+          1,
+          43
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "match_enum_nonexhaustive": {
+    "issue": 537,
+    "missing": [
+      {
+        "message": "non-exhaustive patterns",
+        "severity": 1,
+        "range": [
+          1,
+          47,
+          1,
+          48
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "throw_nonexception": {
+    "issue": 543,
+    "missing": [
+      {
+        "message": "the object thrown must derive from `core.Exception`",
+        "severity": 1,
+        "range": [
+          1,
+          17,
+          1,
+          18
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "catch_nonexception": {
+    "issue": 543,
+    "missing": [
+      {
+        "message": "the exception catch type must be class and extends from core.Exception or core.Error",
+        "severity": 1,
+        "range": [
+          1,
+          46,
+          1,
+          47
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "annotation_frozen_class": {
+    "issue": 423,
+    "missing": [
+      {
+        "message": "class cannot be modified with '@Frozen'",
+        "severity": 1,
+        "range": [
+          1,
+          0,
+          1,
+          1
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "cross_file_inheritance": {
+    "issue": 538,
+    "missing": [
+      {
+        "message": "super class 'B' is not inheritable",
+        "severity": 1,
+        "range": [
+          1,
+          11,
+          1,
+          12
+        ]
+      }
+    ],
+    "extra": []
+  },
+  "cross_file_generic_bound": {
+    "issue": 540,
+    "missing": [
+      {
+        "message": "generics type arguments do not match the constraint of 'Class-Box<Generics-T>'",
+        "severity": 1,
+        "range": [
+          1,
+          14,
+          1,
+          15
+        ]
+      }
+    ],
+    "extra": []
+  }
+}

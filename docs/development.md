@@ -264,6 +264,25 @@ cases can skip when missing; review skips before claiming full coverage.
 Editor-client tests live in their own repositories; paired branch conventions
 are in D32 and [the org guide](https://github.com/ide4cj/.github/blob/main/CONTRIBUTING.md).
 
+### Negative semantic compiler oracle
+
+The [negative semantic matrix](../tests/semantic/README.md) checks rejected source
+programs and corrected controls against the pinned compiler and the built server:
+
+```bash
+cjpm build
+python3 -m unittest discover -s tests/semantic -p '*_test.py'
+python3 tests/semantic/oracle.py --sdk "$CANGJIE_HOME" --output target/semantic-oracle
+```
+
+Use a new output directory for each run. Known missing/extra diagnostics are an
+issue-attributed, bidirectional baseline: new discrepancies and unexpected fixes
+fail. The separate Semantic oracle CI job retains compiler/server logs and a
+machine-readable report, including in the CI invoked before release publication.
+It supplements the existing accepted-source gates; it does not change default
+`cjpm test` selection while #66's tier decision is pending. See the matrix's
+README for focused selection, cross-file edits, timeouts and SDK applicability.
+
 ### Fuzzing and performance
 
 In Bash, with the corpora already fetched:
