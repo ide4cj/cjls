@@ -61,7 +61,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K25](#k25) | `genericConstraint.toTokens()` throws | Iterate constraints |
 | [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
 | [K27](#k27) | `cangjieLex` skips consecutive arrow recombination | Re-lex affected adjacent pairs in the test oracle |
-| [K28](#k28) | Macro server reuses conflicting loaded package code | Restart workspace server when the selected library path changes |
+| [K28](#k28) | Macro server reuses conflicting loaded package code | Known risk; no automatic restart on library switches |
 
 ## Evidence and use
 
@@ -443,17 +443,23 @@ own static `leaf` library whose `which()` returns respectively 1 or 2, both use
 the first helper's result in one server process. Direct macro package names and
 paths cannot establish that their transitive libraries are compatible.
 
-[`MacroServers`](../modules/macro_host/src/host.cj) tracks the selected workspace
-library path and restarts the workspace server whenever that path changes. It
-reuses the process for repeated calls to the same library; switching libraries
-costs a process restart even when their helpers would be compatible. This retains
-one workspace process without assuming compatibility from direct package names.
-The std server remains independent (K23).
-[`SameNameMacroLibraryTest`](../modules/macro_host/src/same_name_test.cj)
+The per-library-switch restart workaround was removed for its process-startup
+cost ([D156](adr/0156-reuse-workspace-macro-process.md),
+[PR #563](https://github.com/ide4cj/cjls/pull/563)).
+[`MacroLibrarySwitchBench`](../modules/macro_host/src/library_switch_bench_test.cj)
+retains the comparison workloads; that PR records approximate measurements under
+ambient load, not a quiet-machine performance claim. Workspace libraries now share
+one process even when their paths differ. This accepts the risk of an expansion
+using previously loaded code; it does not establish an SDK fix. The std server
+remains independent (K23), and explicit restarts after library rebuilds remain.
+
+[`SameNameMacroLibraryTest.explicitRestartLoadsEachSelectedLibrary`](../modules/macro_host/src/same_name_test.cj)
 builds both libraries and their helpers with the SDK and alternates between them
-for identical and distinct macro package names, checking the generated
-declarations. The process workaround does not establish a general SDK
-fix; macOS, Windows and other SDK versions are unverified by this local probe.
+for identical and distinct macro package names. Explicitly restarting before each
+call yields `First, Second, First, Second`; omitting `restartWorkspace()` reproduces
+`First, First, First, First` on the pin. The process-reuse test checks SDK process
+IDs rather than requiring the SDK defect to persist. macOS, Windows and other SDK
+versions remain unverified by this local probe.
 
 ## Reconciliation and remaining work
 
