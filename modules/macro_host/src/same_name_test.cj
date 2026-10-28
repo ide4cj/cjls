@@ -8,11 +8,13 @@ import std.unittest.testmacro.*
 import stdx.log.NoopLogger
 import macro_server.*
 
-/** A different direct package name must not hide the conflicting linked helper package. */
+/**
+ * A different direct package name must not hide the conflicting linked helper package.
+ */
 func conflictingLibraries(
     root: Path,
     toolchain: SdkToolchain,
-    sameName: Bool
+    sameName!: Bool
 ): Array<(String, String)> {
     let found = ArrayList<(String, String)>()
     for (name in ["First", "Second"]) {
@@ -51,6 +53,9 @@ func conflictingLibraries(
     found.toArray()
 }
 
+/**
+ * Creates the same macro request against an explicitly selected library.
+ */
 func conflictingLibraryCall(library: String, pkg: String, numbers: TokenNumbers): MacroCallData {
     MacroCallData(
         id: IdInfoData(name: "Which", pos: PositionData(fileId: 1, line: 1, column: 2)),
@@ -73,7 +78,7 @@ class SameNameMacroLibraryTest {
         let root = Directory.createTemp(getTempDirectory())
         let server = MacroServers(paths, Duration.minute, NoopLogger())
         try {
-            let libraries = conflictingLibraries(root, SdkToolchain(paths), sameName)
+            let libraries = conflictingLibraries(root, SdkToolchain(paths), sameName: sameName)
 
             // act
             let outputs = ArrayList<String>()

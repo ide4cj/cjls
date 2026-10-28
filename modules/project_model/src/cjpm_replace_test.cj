@@ -1,13 +1,13 @@
 package project_model
 
-import std.unittest.*
 import std.fs.File
-import rope.Rope
+import std.unittest.*
+import std.unittest.testmacro.*
 import loupe.db.*
 import loupe.findReferences
 import loupe.hir.*
 import loupe.vfs.*
-import std.unittest.testmacro.*
+import rope.Rope
 
 @Test
 class CjpmReplaceTest {
@@ -91,15 +91,7 @@ public class Selected {}
                 [
                     (
                         "cjpm.toml",
-                        #"
-[package]
-name = "app"
-"# +
-                            section +
-                            #"
-a = {path = "a"}
-leaf = {path = "new"}
-"#
+                        "\n[package]\nname = \"app\"\n${section}\na = {path = \"a\"}\nleaf = {path = \"new\"}\n"
                     ),
                     ("build.cj", "main() {}\n"),
                     (
@@ -143,115 +135,47 @@ name = "leaf"
     }
 
     @TestCase
-    func aSharedPathHasIndependentTransitiveSelectionsInBothGraphs() {
+    func aSharedPathKeepsIndependentImportsAndPhysicalReferences() {
         // arrange
-        let first = "1111111111111111111111111111111111111111"
-        let second = "2222222222222222222222222222222222222222"
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        #"
-[package]
-name = "app"
-[dependencies]
-a = {path = "a"}
-shared = {path = "shared"}
-leaf = {git = "https://example.invalid/leaf"}
-[script-dependencies]
-shared = {path = "shared"}
-leaf = {git = "https://example.invalid/leaf"}
-"#
-                    ),
-                    (
-                        "a/cjpm.toml",
-                        #"
-[package]
-name = "a"
-[script-dependencies]
-shared = {path = "../shared"}
-"#
-                    ),
-                    ("a/build.cj", "main() {}\n"),
-                    ("src/main.cj", "package app\n"),
-                    ("build.cj", "main() {}\n"),
-                    (
-                        "shared/cjpm.toml",
-                        #"
-[package]
-name = "shared"
-[dependencies]
-leaf = {git = "https://example.invalid/leaf"}
-"#
-                    ),
-                    (
-                        "shared/src/lib.cj",
-                        "package shared\nimport leaf.*\npublic func selected(): Selected { Selected() }\n"
-                    ),
-                    (
-                        "cangjie-repo.toml",
-                        #"
-[repository.cache]
-path = "cache"
-"#
-                    ),
-                    (
-                        "cjpm.lock",
-                        "version = 1\n[requires]\nleaf = {source = \"git+https://example.invalid/leaf#${first}\"}\n[scripts]\nleaf = {source = \"git+https://example.invalid/leaf#${second}\"}\n"
-                    ),
-                    ("cache/git/leaf/${first}/cjpm.toml", "[package]\nname = \"leaf\"\n"),
-                    (
-                        "cache/git/leaf/${first}/src/lib.cj",
-                        "package leaf\npublic class Selected {}\npublic class Ordinary {}\n"
-                    ),
-                    ("cache/git/leaf/${second}/cjpm.toml", "[package]\nname = \"leaf\"\n"),
-                    (
-                        "cache/git/leaf/${second}/src/lib.cj",
-                        "package leaf\npublic class Selected {}\npublic class Script {}\n"
-                    )
-                ]
-            )
-        try {
-            let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
-            let db = AnalysisDatabase()
-            let vfs = Vfs()
-            db.setProject(load.model, vfs.paths)
-            for ((path, text) in readFiles(load.model.files()).files) {
-                vfs.setFileContents(path, text)
-            }
-            db.applyChanges(vfs, vfs.takeChanges())
+        withSharedPathProject {
+            context =>
+            let db = context.db
+            let shared = context.shared
             // act
-            let shared =
-                db.project().getOrThrow().modules(db).filter { it => it.name(db) == "shared" }
             let firstPackage = shared[0].packages(db)[0]
             let secondPackage = shared[1].packages(db)[0]
             let index = packageIndex(db)
             let ordinary = index.find("leaf", from: PackageRef.Source(firstPackage)).getOrThrow()
             let script = index.find("leaf", from: PackageRef.Source(secondPackage)).getOrThrow()
-            let scriptLeafPackage =
-                match (script) {
-                    case PackageRef.Source(pkg) => pkg;
-                    case _ => throw IllegalStateException("expected source package")
-                }
+            let scriptLeafPackage = sourcePackage(script)
             let scriptLeafFile = db.sourceFile(scriptLeafPackage.files(db)[0]).getOrThrow()
-            let scriptLeafFiles = filesOf(db, script)
             let references =
                 findReferences(db, scriptLeafFile.fileId(db), "package leaf\npublic class ".size)
             let ordinaryMap = defMap(db, ordinary)
             let scriptMap = defMap(db, script)
-            let firstFiles = filesOf(db, PackageRef.Source(firstPackage))
-            let secondFiles = filesOf(db, PackageRef.Source(secondPackage))
-            let firstFile =
-                match (firstFiles[0]) {
-                    case ItemFile.Source(file) => file;
-                    case _ => throw IllegalStateException("expected source")
-                }
-            let secondFile =
-                match (secondFiles[0]) {
-                    case ItemFile.Source(file) => file;
-                    case _ => throw IllegalStateException("expected source")
-                }
+            let firstFile = sourceItemFile(filesOf(db, PackageRef.Source(firstPackage))[0])
+            // assert
+            @Expect(ordinary != script)
+            @Expect(filesOf(db, script)[0], ItemFile.Source(scriptLeafFile))
+            @Expect(references.filter { it => it.fileId == firstFile.fileId(db) }.size, 2)
+            @Expect(ordinaryMap.names.contains("Ordinary"))
+            @Expect(!ordinaryMap.names.contains("Script"))
+            @Expect(scriptMap.names.contains("Script"))
+            @Expect(!scriptMap.names.contains("Ordinary"))
+        }
+    }
+
+    @TestCase
+    func aSharedPathKeepsIndependentSignaturesAndBodies() {
+        // arrange
+        withSharedPathProject {
+            context =>
+            let db = context.db
+            let firstPackage = context.shared[0].packages(db)[0]
+            let secondPackage = context.shared[1].packages(db)[0]
+            // act
+            let firstFile = sourceItemFile(filesOf(db, PackageRef.Source(firstPackage))[0])
+            let secondFile = sourceItemFile(filesOf(db, PackageRef.Source(secondPackage))[0])
             let firstDef =
                 defMap(db, PackageRef.Source(firstPackage)).names.get("selected").getOrThrow()[0].id
             let secondDef =
@@ -264,21 +188,8 @@ path = "cache"
             let secondSignature = signatureTypes(db, secondDef)
             let firstBody = inferBody(db, firstDef)
             let secondBody = inferBody(db, secondDef)
-            let merged = ProjectModel.merge([load.model], LINUX)
-            let roundTripped = lowerProjectJson(toProjectJson(load.model, dir), dir, env: sdkEnv)
             // assert
-            @Expect(load.problems, [])
-            @Expect(shared.size, 2)
-            @Expect(ordinary != script)
-            @Expect(scriptLeafFiles[0], ItemFile.Source(scriptLeafFile))
-            @Expect(references.filter { it => it.fileId == firstFile.fileId(db) }.size, 2)
-            @Expect(ordinaryMap.names.contains("Ordinary"))
-            @Expect(!ordinaryMap.names.contains("Script"))
-            @Expect(scriptMap.names.contains("Script"))
-            @Expect(!scriptMap.names.contains("Ordinary"))
-            @Expect(merged.modules.size, load.model.modules.size)
-            @Expect(roundTripped, load.model)
-            @Expect(firstFiles[0] != secondFiles[0])
+            @Expect(firstFile != secondFile)
             @Expect(firstSignature.ty != secondSignature.ty)
             @Expect(firstBody.ty, firstSignature.ty)
             @Expect(secondBody.ty, secondSignature.ty)
@@ -286,12 +197,44 @@ path = "cache"
             @Expect(firstBody.names != secondBody.names)
             @Expect(packageOfFile(db, firstFile), Some(firstPackage))
             @Expect(packageOfFile(db, secondFile), Some(secondPackage))
+        }
+    }
 
-            // act - a physical edit updates both analysis inputs.
+    @TestCase
+    func aSharedPathRetainsScopesThroughModelMergeAndJson() {
+        // arrange
+        withSharedPathProject {
+            context =>
+            // act
+            let merged = ProjectModel.merge([context.model], LINUX)
+            let roundTripped =
+                lowerProjectJson(
+                    toProjectJson(context.model, context.dir),
+                    context.dir,
+                    env: sdkEnv
+                )
+            // assert
+            @Expect(context.shared.size, 2)
+            @Expect(merged.modules.size, context.model.modules.size)
+            @Expect(roundTripped, context.model)
+        }
+    }
+
+    @TestCase
+    func aPhysicalEditUpdatesEveryContextAndSurvivesReload() {
+        // arrange
+        withSharedPathProject {
+            context =>
+            let db = context.db
+            let firstPackage = context.shared[0].packages(db)[0]
+            let secondPackage = context.shared[1].packages(db)[0]
+            let firstFile = sourceItemFile(filesOf(db, PackageRef.Source(firstPackage))[0])
+            let secondFile = sourceItemFile(filesOf(db, PackageRef.Source(secondPackage))[0])
             let changed =
                 Rope(
                     "package shared\nimport leaf.*\npublic func selected(): Selected { Selected() }\npublic func added() {}\n"
                 )
+            // act
             db.setFileText(firstFile.fileId(db), changed)
             let firstEdited = defMap(db, PackageRef.Source(firstPackage))
             let secondEdited = defMap(db, PackageRef.Source(secondPackage))
@@ -301,45 +244,35 @@ path = "cache"
             @Expect(firstEdited.names.contains("added"))
             @Expect(secondEdited.names.contains("added"))
 
-            // act - remove the script selection, then reload it with the edited physical text.
-            let manifestPath = dir.join("cjpm.toml").filePath.getOrThrow()
-            let original = File.readFrom(manifestPath)
-            File
-                .writeTo(
-                    manifestPath,
-                    "[package]\nname = \"app\"\n[dependencies]\nshared = {path = \"shared\"}\n"
-                        .toArray()
-                )
-            db
-                .setProject(
-                    loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow().model,
-                    vfs.paths
-                )
-            let removed =
-                db.project().getOrThrow().modules(db).filter { it => it.name(db) == "shared" }
-            // assert
-            @Expect(removed.size, 1)
-
             // act
-            File.writeTo(manifestPath, original)
-            db
-                .setProject(
-                    loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow().model,
-                    vfs.paths
-                )
+            reloadSharedPathProject(context)
             let restored = db.sourceFile(firstFile.fileId(db), context: secondPackage)
-            shared[1].setCfg(db).to(Some(Cfg([("selection", "script")])))
-            let firstCfg = cfgOfFile(db, firstFile)
-            let secondCfg = cfgOfFile(db, secondFile)
             // assert
             @Expect(restored, Some(secondFile))
             @Expect(secondFile.text(db), changed)
-            @Expect(firstCfg.get("selection"), Option<String>.None)
-            @Expect(secondCfg.get("selection"), Some("script"))
-        } finally {
-            removeTree(dir)
         }
     }
+
+    @TestCase
+    func aScopedConfigurationDoesNotChangeTheOrdinaryContext() {
+        // arrange
+        withSharedPathProject {
+            context =>
+            let db = context.db
+            let firstFile =
+                sourceItemFile(filesOf(db, PackageRef.Source(context.shared[0].packages(db)[0]))[0])
+            let secondFile =
+                sourceItemFile(filesOf(db, PackageRef.Source(context.shared[1].packages(db)[0]))[0])
+            // act
+            context.shared[1].setCfg(db).to(Some(Cfg([("selection", "script")])))
+            let firstCfg = cfgOfFile(db, firstFile)
+            let secondCfg = cfgOfFile(db, secondFile)
+            // assert
+            @Expect(firstCfg.get("selection"), None)
+            @Expect(secondCfg.get("selection"), Some("script"))
+        }
+    }
+
     @TestCase[registryFirst in [true, false]]
     func pathSelectionsOverrideRegistryRequirementsRegardlessOfTraversal(registryFirst: Bool) {
         // arrange
@@ -514,4 +447,183 @@ leaf = {path = "new"}
             removeTree(dir)
         }
     }
+}
+
+/**
+ * Both graph selections over the same physical source, with independent transitive imports.
+ */
+struct SharedPathContext {
+    SharedPathContext(
+        let dir: VfsPath,
+        let db: AnalysisDatabase,
+        let paths: PathInterner,
+        let model: ProjectModel,
+        let shared: Array<Module>
+    ) {}
+}
+
+/**
+ * Loads the two graphs into analysis and releases their temporary files after the scenario.
+ */
+func withSharedPathProject(check: (SharedPathContext) -> Unit): Unit {
+    let dir = sharedPathTree()
+    try {
+        let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
+        let db = AnalysisDatabase()
+        let vfs = Vfs()
+        db.setProject(load.model, vfs.paths)
+        for ((path, text) in readFiles(load.model.files()).files) {
+            vfs.setFileContents(path, text)
+        }
+        db.applyChanges(vfs, vfs.takeChanges())
+        let shared = db.project().getOrThrow().modules(db).filter { it => it.name(db) == "shared" }
+        @Assert(load.problems, [])
+        @Assert(shared.size, 2)
+        check(SharedPathContext(dir, db, vfs.paths, load.model, shared))
+    } finally {
+        removeTree(dir)
+    }
+}
+
+/**
+ * Removes then restores the script graph while preserving the edited physical source.
+ */
+func reloadSharedPathProject(context: SharedPathContext): Unit {
+    // arrange
+    let manifestPath = context.dir.join("cjpm.toml").filePath.getOrThrow()
+    let original = File.readFrom(manifestPath)
+    // act
+    File
+        .writeTo(
+            manifestPath,
+            "[package]\nname = \"app\"\n[dependencies]\nshared = {path = \"shared\"}\n".toArray()
+        )
+    context
+        .db
+        .setProject(
+            loadCjpmProject(context.dir.join("cjpm.toml"), env: sdkEnv).getOrThrow().model,
+            context.paths
+        )
+    let removed =
+        context
+            .db
+            .project()
+            .getOrThrow()
+            .modules(context.db)
+            .filter { it => it.name(context.db) == "shared" }
+    // assert
+    @Expect(removed.size, 1)
+    // act
+    File.writeTo(manifestPath, original)
+    context
+        .db
+        .setProject(
+            loadCjpmProject(context.dir.join("cjpm.toml"), env: sdkEnv).getOrThrow().model,
+            context.paths
+        )
+}
+
+/**
+ * Extracts a source package from this fixture, where a binary indicates incorrect loading.
+ *
+ * @throws IllegalStateException - if loading produced a binary package
+ */
+func sourcePackage(pkg: PackageRef): Package {
+    match (pkg) {
+        case PackageRef.Source(source) => source
+        case _ => throw IllegalStateException("expected source package")
+    }
+}
+
+/**
+ * Extracts a source input from this fixture's package files.
+ *
+ * @throws IllegalStateException - if loading produced a binary file
+ */
+func sourceItemFile(item: ItemFile): SourceFile {
+    match (item) {
+        case ItemFile.Source(file) => file
+        case _ => throw IllegalStateException("expected source")
+    }
+}
+
+/**
+ * Creates a shared local dependency with distinct locked Git dependencies in the two graphs.
+ */
+func sharedPathTree(): VfsPath {
+    const FIRST_COMMIT = "1111111111111111111111111111111111111111"
+    const SECOND_COMMIT = "2222222222222222222222222222222222222222"
+    tree(
+        [
+            (
+                "cjpm.toml",
+                #"
+[package]
+name = "app"
+[dependencies]
+a = {path = "a"}
+shared = {path = "shared"}
+leaf = {git = "https://example.invalid/leaf"}
+[script-dependencies]
+shared = {path = "shared"}
+leaf = {git = "https://example.invalid/leaf"}
+"#
+            ),
+            (
+                "a/cjpm.toml",
+                #"
+[package]
+name = "a"
+[script-dependencies]
+shared = {path = "../shared"}
+"#
+            ),
+            ("a/build.cj", "main() {}\n"),
+            ("src/main.cj", "package app\n"),
+            ("build.cj", "main() {}\n"),
+            (
+                "shared/cjpm.toml",
+                #"
+[package]
+name = "shared"
+[dependencies]
+leaf = {git = "https://example.invalid/leaf"}
+"#
+            ),
+            (
+                "shared/src/lib.cj",
+                "package shared\nimport leaf.*\npublic func selected(): Selected { Selected() }\n"
+            ),
+            (
+                "cangjie-repo.toml",
+                #"
+[repository.cache]
+path = "cache"
+"#
+            ),
+            (
+                "cjpm.lock",
+                "version = 1\n[requires]\nleaf = {source = \"git+https://example.invalid/leaf#${FIRST_COMMIT}\"}\n[scripts]\nleaf = {source = \"git+https://example.invalid/leaf#${SECOND_COMMIT}\"}\n"
+            ),
+        ]
+            .concat(sharedPathGitFiles(FIRST_COMMIT, SECOND_COMMIT))
+    )
+}
+
+/**
+ * Cached versions distinguish the declarations available through the two graphs.
+ */
+func sharedPathGitFiles(first: String, second: String): Array<(String, String)> {
+    [
+        ("cache/git/leaf/${first}/cjpm.toml", "[package]\nname = \"leaf\"\n"),
+        (
+            "cache/git/leaf/${first}/src/lib.cj",
+            "package leaf\npublic class Selected {}\npublic class Ordinary {}\n"
+        ),
+        ("cache/git/leaf/${second}/cjpm.toml", "[package]\nname = \"leaf\"\n"),
+        (
+            "cache/git/leaf/${second}/src/lib.cj",
+            "package leaf\npublic class Selected {}\npublic class Script {}\n"
+        )
+    ]
 }

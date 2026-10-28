@@ -4,8 +4,8 @@ import std.collection.*
 import std.deriving.*
 import std.sort.*
 import calca.*
-import index_map.IndexMap
 import calca.macros.*
+import index_map.IndexMap
 import loupe.vfs.*
 
 /**
@@ -427,7 +427,9 @@ public struct Project {
      * The files of the sources of the binaries, in the order of `binaries`.
      */
     public var binarySources: Array<BinarySourceFile>
-    /** The preferred scoped identity for editor lookups, absent when an ordinary membership exists. */
+    /**
+     * The preferred scoped identity for editor lookups, absent when an ordinary membership exists.
+     */
     public var sourceContexts: IndexMap<FileId, SourceFile> = IndexMap<FileId, SourceFile>()
 }
 

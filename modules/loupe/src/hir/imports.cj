@@ -509,7 +509,9 @@ public func ctorsOf(db: AnalysisDatabase, def: DefId): Array<(String, DefId)> {
     ctors.toArray()
 }
 
-/** A scope prefix is separate from package names, which remain their declared names. */
+/**
+ * A scope prefix is separate from package names, which remain their declared names.
+ */
 func scopedOwner(scope: String, name: String): String {
     if (scope.isEmpty()) { name } else { "${scope}#${name}" }
 }

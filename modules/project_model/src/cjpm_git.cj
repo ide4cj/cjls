@@ -20,10 +20,10 @@ class CjpmGit {
 
     func resolve(name: String, declared: DependencyTable, script!: Bool): ?VfsPath {
         try {
-            let key = CjpmSelection(script, name)
+            let key = CjpmSelection(name, isScript: script)
             if (
                 let Some(previous) <- declarations.get(key) &&
-                    !compatibleGitDeclarations(previous, declared)
+                    !areGitDeclarationsCompatible(previous, declared)
             ) {
                 let remedy =
                     if (script) {
@@ -57,20 +57,20 @@ class CjpmGit {
             let safeName = gitCacheName(name)
             let checkout = cache.join("git").join(safeName).join(selected[1])
             if (isFile(checkout.join("cjpm.toml").filePath.getOrThrow())) {
-                return remember(checkout, name, declared, script)
+                return remember(checkout, name, declared, script: script)
             }
             // cjpm names Git workspaces by the URL's Cangjie hash, rather than by a member.
             let workspace =
                 cache.join("git").join("workspace-${selected[0].hashCode()}").join(selected[1])
             if (isFile(workspace.join("cjpm.toml").filePath.getOrThrow())) {
-                return remember(workspace, name, declared, script)
+                return remember(workspace, name, declared, script: script)
             }
             // An explicit abbreviated commit may be the cache directory used by cjpm on the
             // first fetch; the resulting lock records the full hash.
             if (let Some(commit) <- declared.commitId) {
                 let abbreviated = cache.join("git").join(safeName).join(commit)
                 if (isFile(abbreviated.join("cjpm.toml").filePath.getOrThrow())) {
-                    return remember(abbreviated, name, declared, script)
+                    return remember(abbreviated, name, declared, script: script)
                 }
             }
             throw ProjectException("checkout ${checkout} is missing")
@@ -89,10 +89,10 @@ class CjpmGit {
         dir: VfsPath,
         name: String,
         declared: DependencyTable,
-        script: Bool
+        script!: Bool
     ): VfsPath {
         let found = packageAt(dir, name)
-        declarations[CjpmSelection(script, name)] = declared
+        declarations[CjpmSelection(name, isScript: script)] = declared
         found
     }
 
@@ -116,8 +116,10 @@ class CjpmGit {
     }
 }
 
-/** The locked commit alone cannot distinguish cjpm's incompatible branch/tag declarations. */
-private func compatibleGitDeclarations(first: DependencyTable, second: DependencyTable): Bool {
+/**
+ * The locked commit alone cannot distinguish cjpm's incompatible branch/tag declarations.
+ */
+private func areGitDeclarationsCompatible(first: DependencyTable, second: DependencyTable): Bool {
     let firstUrl = (first.git ?? "").removeSuffix(".git")
     let secondUrl = (second.git ?? "").removeSuffix(".git")
     let commitsAgree =
@@ -126,6 +128,9 @@ private func compatibleGitDeclarations(first: DependencyTable, second: Dependenc
         commitsAgree
 }
 
+/**
+ * Describes every declared selector so a source conflict can be corrected.
+ */
 private func describeGitDeclaration(declared: DependencyTable): String {
     let branch = declared.branch ?? "<none>"
     let tag = declared.tag ?? "<none>"
@@ -133,6 +138,9 @@ private func describeGitDeclaration(declared: DependencyTable): String {
     "${declared.git ?? ""} (branch ${branch}, tag ${tag}, commit ${commit})"
 }
 
+/**
+ * The qualified module name used by dependency keys and package manifests.
+ */
 func packageName(pkg: ManifestPackage): String {
     match (pkg.organization) {
         case Some(org) where !org.trimAscii().isEmpty() => "${org.trimAscii()}::${pkg.name}"

@@ -309,8 +309,7 @@ class CjpmProjectTest {
                     ),
                     (
                         "ws/a/cjpm.toml",
-                        "[package]\nname = \"a\"\n[dependencies]\n\"org::b\" = { path = \"../b\" }\n" +
-                            "dep = { path = \"../../dep\" }\nremote = { git = \"https://example.com/r.git\" }\n"
+                        "[package]\nname = \"a\"\n[dependencies]\n\"org::b\" = { path = \"../b\" }\ndep = { path = \"../../dep\" }\nremote = { git = \"https://example.com/r.git\" }\n"
                     ),
                     ("ws/a/src/main.cj", ""),
                     ("ws/a/build.cj", ""),

@@ -3,10 +3,10 @@ package loupe.db
 import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
-import index_map.IndexMap
 import calca.macros.*
-import rope.Rope
+import index_map.IndexMap
 import loupe.vfs.*
+import rope.Rope
 
 /**
  * One file's text as the analysis sees it, and what the macro server answered for its macro calls
@@ -18,7 +18,9 @@ import loupe.vfs.*
 public struct SourceFile {
     public let fileId: FileId
     public var text: Rope
-    /** Independent analysis of this physical file in another dependency selection. */
+    /**
+     * Independent analysis of this physical file in another dependency selection.
+     */
     public let context: ?Package = None
     public var macroOutputs: MacroOutputs = MacroOutputs()
 }
@@ -513,8 +515,10 @@ func isTestFile(path: VfsPath): Bool {
 class Files {
     private let byId = ConcurrentHashMap<FileId, SourceFile>()
     private let contextual = ConcurrentHashMap<FileId, Array<(Package, SourceFile)>>()
-    // Root writes retain the physical text so creating a context needs no input read inside
-    // setProject's batch. Rope shares its storage with the source input.
+    /**
+     * Root writes retain the physical text so creating a context needs no input read inside
+     * setProject's batch. Rope shares its storage with the source input.
+     */
     private let physicalTexts = HashMap<FileId, Rope>()
 
     func rememberText(fileId: FileId, text: Rope): Unit {

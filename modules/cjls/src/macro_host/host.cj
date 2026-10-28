@@ -420,7 +420,9 @@ func macroFiles(db: AnalysisDatabase, loaded: Array<FileId>): Array<SourceFile> 
     found.toArray()
 }
 
-/** Keep same-named packages from independent dependency selections out of one compiler cache. */
+/**
+ * Keep same-named packages from independent dependency selections out of one compiler cache.
+ */
 func macroBuildName(db: AnalysisDatabase, pkg: Package, version: String): String {
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db) where module.packages(db).contains(pkg)) {

@@ -70,9 +70,10 @@ the replacement in ordinary sources and the original source in `build.cj`.
 Source and script selections have separate module, package and import identities
 (D155), even when they reach the same local path. Their contextual source inputs
 share physical file text and locations; source edits update both. A physical
-editor lookup uses the first active membership's source identity (ordinary modules
-are loaded first), while package-driven analysis retains each graph's transitive
-selection. References inspect each context and deduplicate physical locations.
+editor lookup prefers an ordinary membership regardless of discovery order,
+otherwise the first active scoped membership. Package-driven analysis retains
+each graph's transitive selection. References inspect each context and deduplicate
+physical locations.
 The JSON projection preserves the optional `resolutionScope` on modules.
 Workspace dependency inheritance and mode-specific sections remain #516–#517.
 

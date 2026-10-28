@@ -63,7 +63,9 @@ public struct ModuleJson {
          * Its files the build leaves out, of a source set the target does not take (#318).
          */
         public let inactive!: ?Array<InactiveFileJson> = None,
-        /** Independent source selection; absent for the ordinary project graph. */
+        /**
+         * Independent source selection; absent for the ordinary project graph.
+         */
         public let resolutionScope!: ?String = None
     ) {}
 }
