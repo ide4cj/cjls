@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.SyntaxNodePtr
@@ -23,6 +26,7 @@ import loupe.db.AnalysisDatabase
 /**
  * A type of a signature, by its place among the signature's `types`.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable, ToString]
 public struct TypeRefId {
     public TypeRefId(public let index: Int64) {}
@@ -31,6 +35,7 @@ public struct TypeRefId {
 /**
  * A segment of a path in a type, `C<T>` of `a.C<T>`: its name and its type arguments.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct TypeSegment {
     public TypeSegment(public let name: String, public let args: Array<TypeRefId>) {}
@@ -40,6 +45,7 @@ public struct TypeSegment {
  * A type as a signature writes it, its names not resolved yet: rust-analyzer's `TypeRef`. What it
  * holds are other types of the same signature; a type in parentheses is the type in them.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum TypeRef {
     /**
@@ -70,6 +76,7 @@ public enum TypeRef {
 /**
  * A type and its bounds, `T <: A & B` of a `where`.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct TypeBound {
     public TypeBound(public let ty: TypeRefId, public let bounds: Array<TypeRefId>) {}
@@ -80,6 +87,7 @@ public struct TypeBound {
  * query of each declaration apart from the item tree (D48), so that an edit to a type runs again
  * what read this declaration's, not the package's names.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Signature {
     public Signature(

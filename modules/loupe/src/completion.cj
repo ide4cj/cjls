@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import std.sort.*
@@ -123,6 +126,7 @@ let PRIM_TYPE_NAMES =
 /**
  * What a completion item is, for the client to show it as one.
  */
+@DerivePython[equatable]
 @Derive[Equatable, ToString]
 public enum CompletionKind {
     | LocalItem
@@ -147,6 +151,7 @@ public enum CompletionKind {
  * overloads with their receiver types; a local of a body; a member parameter of a primary
  * constructor; nothing, for a keyword or a package.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum CompletionSource {
     | DeclSource(DefId, ?Ty)
@@ -156,6 +161,7 @@ public enum CompletionSource {
     | NoSource
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct CompletionItem {
     public CompletionItem(
@@ -186,6 +192,7 @@ public struct CompletionItem {
  * The completions at a cursor: what the item inserted replaces, the name typed so far before the
  * cursor, and the items, the most relevant first.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct CompletionResult {
     public CompletionResult(public let range: TextRange, public let items: Array<CompletionItem>) {}

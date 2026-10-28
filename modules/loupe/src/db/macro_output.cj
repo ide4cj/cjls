@@ -1,5 +1,8 @@
 package loupe.db
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.HashMap
 import std.deriving.*
 import ginkgo.TextRange
@@ -7,6 +10,7 @@ import ginkgo.TextRange
 /**
  * Where a piece of a macro call's input or output comes from (#176).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum SpanOrigin <: ToString {
     /**
@@ -30,6 +34,7 @@ public enum SpanOrigin <: ToString {
 /**
  * A range of a `MappedText` and where it comes from.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MappedSpan <: ToString {
     public MappedSpan(public let range: TextRange, public let origin: SpanOrigin) {}
@@ -43,6 +48,7 @@ public struct MappedSpan <: ToString {
  * Text a macro call reads or writes, and where its pieces come from: spans in order, not overlapping; text in none of
  * them (the spaces between printed tokens) comes from nowhere.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MappedText {
     public MappedText(public let text: String, public let spans: Array<MappedSpan>) {}
@@ -83,6 +89,7 @@ public struct MappedText {
 /**
  * A value a macro gives the macro calls around it (`setItem`, which they read with `getChildMessages`).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum MacroItemValue <: ToString {
     | StringItem(String)
@@ -103,6 +110,7 @@ public enum MacroItemValue <: ToString {
 /**
  * One `setItem` of a macro call: its key and value.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MacroItem <: ToString {
     public MacroItem(public let key: String, public let value: MacroItemValue) {}
@@ -115,6 +123,7 @@ public struct MacroItem <: ToString {
 /**
  * How bad what a macro reports is (`diagReport`'s `DiagReportLevel`).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum MacroSeverity {
     | MacroError
@@ -124,6 +133,7 @@ public enum MacroSeverity {
 /**
  * What a macro reported running a call: where in its input (`None` for no token of it), and what.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MacroDiagnostic {
     public MacroDiagnostic(

@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import std.unicode.*
@@ -14,6 +17,7 @@ import loupe.db.{AnalysisDatabase, SourceFile}
  * A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the
  * name of the one it is under, if any.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct FileSymbol {
     public FileSymbol(
@@ -28,6 +32,7 @@ public struct FileSymbol {
 /**
  * A declaration of the workspace a search found, and the file it is in.
  */
+@DerivePython
 public struct FoundSymbol {
     public FoundSymbol(public let fileId: FileId, public let symbol: FileSymbol) {}
 }

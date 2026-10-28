@@ -1,10 +1,14 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import loupe.db.{AnalysisDatabase, Package}
 
 /**
  * Compiler-owned type heads; declaration identities only provide scoped names and navigation.
  */
+@DerivePython
 public enum CompilerType <: Equatable<CompilerType> & Hashable & ToString {
     | PointerType
     | CStringType

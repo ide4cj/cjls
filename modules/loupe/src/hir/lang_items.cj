@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.deriving.*
 import calca.*
 import calca.macros.*
@@ -10,6 +13,7 @@ import loupe.db.AnalysisDatabase
  * sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types
  * (`CPointer`, `CString`): a file names those, through its scope.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum LangItem {
     /**

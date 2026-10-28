@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange, TokenAtOffset}
@@ -30,6 +33,7 @@ import loupe.vfs.FileId
  * (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are
  * of `expandedMacro`'s text, `fileId` the call's file.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct NavigationTarget {
     public NavigationTarget(

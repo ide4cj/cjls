@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -9,6 +12,7 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
 /**
  * What a segment of a path in a type names.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum TypeTarget <: ToString {
     /**
@@ -42,6 +46,7 @@ public enum TypeTarget <: ToString {
 /**
  * What a segment of a path in a type resolves to.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum PathResolution <: ToString {
     | Resolved(TypeTarget)
@@ -73,6 +78,7 @@ public enum PathResolution <: ToString {
  * The type parameters of one declaration: the declaration, which `GenericOf` names, and their
  * names in order, an index among them a `GenericOf`'s.
  */
+@DerivePython
 public struct Generics {
     public Generics(public let owner: DefId, public let names: Array<String>) {}
 }
@@ -82,6 +88,7 @@ public struct Generics {
  * parameters of the declaration, then of the type or `extend` it is a member of, the innermost
  * first, each shadowing anything of its name (N55); then the scope of its file.
  */
+@DerivePython
 public struct TypeScope {
     public TypeScope(
         /**

@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.{ArrayList, HashMap, collectArray, filter, filterMap, first, map}
 import std.deriving.*
 import calca.*
@@ -16,6 +19,7 @@ import loupe.syntax.parse
  * `@`s are written, the names of the calls in the item whose input it is in, outermost first, and whether another call
  * is in its own input. Nothing in it says where it is, so an edit that moves it alone changes no query reading it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct BodyMacroCall {
     public BodyMacroCall(

@@ -1,5 +1,8 @@
 package loupe.db
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import std.sort.*
@@ -16,6 +19,7 @@ const DEFAULT_PACKAGE = "default"
 /**
  * One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct CfgOption {
     public CfgOption(public let key: String, public let value: String) {}
@@ -25,6 +29,7 @@ public struct CfgOption {
  * What `@When` is evaluated against: `os`, `arch`, `backend` and whatever else a build sets, each
  * key once, in the order of the keys.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Cfg {
     public let options: Array<CfgOption>
@@ -479,6 +484,7 @@ public struct InactiveSourceFile {
  * in its module. Its files are an input of their own, not found from their texts: a file deleted is an
  * empty text (A5), which nothing tells from an empty file.
  */
+@DerivePython[opaque]
 @CalcaInput
 public struct Package {
     public let name: String
@@ -512,6 +518,7 @@ public struct Package {
  * `Vfs`, which holds what an editor may open and edit as text (D38). One per binary, package and
  * file, never dropped: a package gone is no longer in `Project.binaryPackages`, and holds no bytes.
  */
+@DerivePython[opaque]
 @CalcaInput
 public struct BinaryPackageFile {
     /**

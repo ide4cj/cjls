@@ -111,7 +111,7 @@ class McpServer {
                 (
                     "instructions",
                     JsonString(
-                        "Use runPython to explore a live Cangjie workspace with native analysis objects. workspace.files(), structure(path), diagnostics(path), hover(path, offset), definition(path, offset), reload(); workspace.problems reports loading problems. Assign JSON-serializable output to result or print it. Ranges are UTF-8 bytes, end exclusive. SDK macros are not expanded. Python executes trusted local code without a sandbox or hard timeout."
+                        "Use runPython to explore a live Cangjie workspace with native analysis objects. workspace.files(), structure(path), diagnostics(path), hover(path, offset), definition(path, offset), reload(); workspace.analysis() captures an AnalysisRevision with declarations(path), item(def), signature(def), signatureTypes(def), body(def), loweredBody(def), scopes(def), infer(def), typeKind(ty), typeText(ty), completions(path, offset), references(path, offset), typeDefinition(path, offset), implementations(path, offset), highlights(path), symbols(query, limit) and path(fileId). Keep identities with their producing revision. workspace.problems reports loading problems. Assign JSON-serializable output to result or print it. Ranges are UTF-8 bytes, end exclusive. SDK macros are not expanded. Python executes trusted local code without a sandbox or hard timeout."
                     )
                 )
             ]
@@ -202,7 +202,7 @@ func tools(): JsonValue {
                 (
                     "description",
                     JsonString(
-                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; workspace.reload() refreshes disk state. Imports and local I/O are available."
+                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; workspace.reload() refreshes disk state. workspace.analysis() exposes HIR and inference: enumerate declarations(path), inspect item(def), body(def), loweredBody(def), scopes(def), signature(def), signatureTypes(def), infer(def); inspect inferred types with typeKind(ty), typeText(ty). It also offers completions, completionDetails, references, typeDefinition, implementations, related, highlights, folding, selection, symbols, macroCall and expansion. Keep each DefId/Ty with its producing AnalysisRevision. Imports and local I/O are available."
                     )
                 ),
                 ("inputSchema", schema),

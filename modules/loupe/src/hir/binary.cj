@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -29,6 +32,7 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
  * CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text.
  * Name resolution takes each alike.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum ItemFile {
     | Source(SourceFile)
@@ -262,6 +266,7 @@ func resolveBinaryType(
 /**
  * An item of a package compiled already: the index of its file, and its id there.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public struct BinaryItem <: ToString {
     public BinaryItem(public let file: Int64, public let id: ItemId) {}

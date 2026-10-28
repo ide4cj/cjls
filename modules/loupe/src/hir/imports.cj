@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -20,6 +23,7 @@ public func nameOf(db: AnalysisDatabase, pkg: PackageRef): String {
 /**
  * A package of the project and who it is of: a module's name, or a binary's.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct IndexedPackage {
     public IndexedPackage(public let pkg: PackageRef, public let owner: String) {}
@@ -125,6 +129,7 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
  * `PackageRelation`: the same, one under it by name (`m.a.b` to `m.a`), one of the same first
  * segment (cjc's module), or none of these.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum PackageRelation {
     | SamePackage
@@ -199,6 +204,7 @@ public func importLevelOf(item: ImportItem): Visibility {
 /**
  * Why a path of an import brings nothing, as cjpm and cjc report it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ImportError <: ToString {
     /**
@@ -254,6 +260,7 @@ public enum ImportResolution {
  * What a path of an import names, before the names it brings are read: a package, every name of
  * one, or one name of one.
  */
+@DerivePython
 public enum ImportTarget {
     /**
      * A package, under the name its path ends in or its alias (N7, N8).

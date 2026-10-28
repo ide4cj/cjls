@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -10,6 +13,7 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
 /**
  * What is wrong with a file's scope, as cjc and cjpm report it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ScopeProblem <: ToString {
     /**
@@ -63,12 +67,14 @@ public enum ScopeProblem <: ToString {
 /**
  * Where a problem is: a path of an import, or a name of a declaration.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ScopeProblemAt {
     | AtImport(ImportSite)
     | AtDecl(DefId, String)
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ScopeDiagnostic {
     public ScopeDiagnostic(public let at: ScopeProblemAt, public let problem: ScopeProblem) {}

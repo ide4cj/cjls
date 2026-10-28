@@ -464,21 +464,33 @@ versions remain unverified by this local probe.
 <a id="k29"></a>
 ### K29
 
-On Linux x86_64 with `1.3.0-alpha.20261014001050`, compiling the root `loupe`
-package with `@DerivePython` on its analysis result types crashes cjc with
-SIGSEGV when all bindings are enabled together. Each file's binding group and
-each pair of groups compile separately at `-O0`. Placing `@DerivePython` below
-`@Derive[Equatable]` makes the combined package compile at `-O0`; wrapping the
-generated equality extensions crashes even without optimization. With that
-annotation order fixed, `-O1` and `-O2` still crash the compiler. Increasing the
-macro runtime heap to 2 GB did not resolve the unoptimized failure.
+On Linux x86_64 with `1.3.0-alpha.20261014001050`, the original Python binding
+generator crashes cjc with SIGSEGV when several binding groups are combined in
+the root `loupe` package. Putting `@DerivePython` below `@Derive[Equatable]`
+previously allowed that package to compile at `-O0`, while `-O1` and `-O2` still
+crashed. Increasing the macro runtime heap to 2 GB did not remove the failure.
 
-The `loupe` manifest selects `-O0` for that package alone. Its HIR, syntax,
-database and other subpackages retain the normal release optimization. Python
-bindings use the dependency's `DerivePython` directly. The independent interop
-example with exported structs, enums and a recursive class compiles, so this
-observation does not establish a general restriction or an SDK-only reproducer
-of the optimizer failure. Other SDK versions and native platforms are unverified.
+Extending bindings to HIR and database values reproduced SIGSEGVs at `-O0` as well
+as `-O2`; restricting compiler parallelism did not fix them. One optimized HIR
+attempt stopped progressing after its initial CPU work, with all remaining
+threads waiting on futexes. It was terminated after more than three minutes
+without progress. A debugger-launched run reproduced a SIGSEGV in a compiler
+worker, but the stripped executable did not identify the internal compiler phase.
+These observations do not establish an SDK-only reproducer or a diagnosed cause.
+
+The current pinned `py_interop` generator configures descriptors' callbacks lazily
+when their Python classes initialize, instead of from global initializers. Its
+`equatable` and `hashable` modes sit above `@Derive[...]`, merging the relevant
+trait methods without wrapping generated native callbacks in deriving macros.
+The same combined workspace now builds at normal release `-O2`, and native MCP
+integration passes, so the old per-package `-O0` override has been removed.
+This avoids the compiler failure for this export set; it is not a compiler fix
+or a performance measurement.
+
+The interop executable regression also passes for a 64-variant enum, native enum
+payloads and pattern matching, opaque identities, signed native hash codes,
+hidden constructors and static native constants. Other SDK versions, native
+platforms and cross compilation remain unverified.
 
 ## Reconciliation and remaining work
 

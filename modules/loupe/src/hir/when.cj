@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.convert.Parsable
 import std.deriving.*
@@ -25,6 +28,7 @@ public const FLAG_SET: String = "true"
  * evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc
  * evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum CfgExpr {
     // `key op "value"`, `op` as written: `==`, `!=`, `<`, `<=`, `>`, `>=`
@@ -220,6 +224,7 @@ private func isVersionLiteral(text: String): Bool {
 /**
  * What a `@When` is wrong with, as cjc says it, where.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct WhenError {
     public WhenError(public let range: TextRange, public let message: String) {}
@@ -504,6 +509,7 @@ public let ALL_ACTIVE = ActiveFilter(None)
 /**
  * Code a false `@When` leaves out of the build, and why: `reasons`, as `CfgExpr.whyFalse`.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct InactiveCode {
     public InactiveCode(public let range: TextRange, public let reasons: Array<String>) {}
@@ -516,6 +522,7 @@ public struct InactiveCode {
  * condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see
  * may set it (#297), and its code is active.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct WhenDiagnostics {
     public WhenDiagnostics(

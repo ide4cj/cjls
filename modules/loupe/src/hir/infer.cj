@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import std.sort.*
@@ -29,6 +32,7 @@ let ARITHMETIC = ["+", "-", "*", "/", "%", "**", "&", "|", "^", "<<", ">>"]
 /**
  * The members the name after the `.` of a value names, found from the value's type (N75).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct FieldTargets <: ByIndex {
     public FieldTargets(public let expr: ExprId, public let targets: Array<MemberTarget>) {}
@@ -41,6 +45,7 @@ public struct FieldTargets <: ByIndex {
 /**
  * The declaration selected for a call, by its callee (8d); initializer targets are used only for navigation.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct CalleeTarget <: ByIndex {
     public CalleeTarget(
@@ -58,6 +63,7 @@ public struct CalleeTarget <: ByIndex {
  * What a name the body uses as a value means, as inference resolved it: what highlighting and go to
  * definition read, not resolving it again.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct NameTarget <: ByIndex {
     public NameTarget(public let expr: ExprId, public let resolution: BodyResolution) {}
@@ -71,6 +77,7 @@ public struct NameTarget <: ByIndex {
  * What the name after the `.` of an expression means, as inference resolved it before the types: a
  * member of a package or of types, or one of a value, which `FieldTargets` tells.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct AccessTarget <: ByIndex {
     public AccessTarget(public let expr: ExprId, public let resolution: FieldResolution) {}
@@ -111,6 +118,7 @@ func findByIndex<T>(sorted: Array<T>, index: Int64): ?T where T <: ByIndex {
  * What inference finds wrong in a body, by the expression it is about, as rust-analyzer's
  * `InferenceDiagnostic`: where it is written is the source map's to say.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum InferenceDiagnostic {
     /**
@@ -141,6 +149,7 @@ public enum InferenceDiagnostic {
 /**
  * What is wrong with the name an argument is passed by (cjc's `CheckArgsWithParamName`, N156).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ArgNameError {
     /**
@@ -167,6 +176,7 @@ public enum ArgNameError {
  * Where each argument of a call goes, by its callee: the place of its parameter among those of
  * what the call takes (#254).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ArgTarget <: ByIndex {
     public ArgTarget(public let expr: ExprId, public let params: Array<Int64>) {}
@@ -182,6 +192,7 @@ public struct ArgTarget <: ByIndex {
  * overload each call of several takes. A type not found is an error, or one the analysis cannot
  * find, and why (D77).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct InferenceResult {
     public InferenceResult(

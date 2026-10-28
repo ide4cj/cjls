@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.TextRange
@@ -18,6 +21,7 @@ import loupe.syntax.parse
  * written (`inBody`) and its ordinal among the calls of that name there (`index`), in the order their `@`s are
  * written. What a call on an item adds is `ItemFile.Expansion` of it.
  */
+@DerivePython[opaque]
 @CalcaInterned
 public struct MacroCallId {
     public let file: SourceFile
@@ -30,6 +34,7 @@ public struct MacroCallId {
  * What written in a macro call an item of its expansion comes from, where go to definition goes for it or a member
  * of it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ExpansionOrigin {
     /**
@@ -57,6 +62,7 @@ public enum ExpansionOrigin {
  * it becomes). One the macro server ran (#176), of the workspace or of std, is its whole output, replacing the item,
  * and says where each of its tokens comes from by `spans` instead of `origins`.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Expansion {
     public Expansion(
@@ -344,6 +350,7 @@ public func macroExpansion(db: AnalysisDatabase, call: MacroCallId): Expansion {
 /**
  * What the output of a macro call is parsed as, by where the call stands (D117): rust-analyzer's `ExpandTo`.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ExpandTo <: ToString {
     /**

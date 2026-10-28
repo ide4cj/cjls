@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.deriving.*
 import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
@@ -10,6 +13,7 @@ import loupe.vfs.FileId
  * The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position
  * is.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MacroCallAt {
     public MacroCallAt(
@@ -34,6 +38,7 @@ public struct MacroCallAt {
 /**
  * Who wrote an expansion.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ExpansionKind <: ToString {
     /**
@@ -57,6 +62,7 @@ public enum ExpansionKind <: ToString {
 /**
  * What a macro call expands to, as the analysis reads it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ExpandedMacro {
     public ExpandedMacro(

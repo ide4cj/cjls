@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.deriving.*
 import calca.*
 import calca.macros.*
@@ -10,6 +13,7 @@ import loupe.db.AnalysisDatabase
  * `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for
  * one declaration and arguments): two equal types are one id, compared and hashed as a number.
  */
+@DerivePython[opaque]
 @CalcaInterned
 public struct Ty {
     public let kind: TyKind
@@ -45,6 +49,7 @@ public struct Ty {
  * What a `Ty` is: cjc's `TypeKind`s a signature can write; an error, or a type the analysis cannot
  * find; and a variable of the type arguments of a call being inferred.
  */
+@DerivePython
 public enum TyKind <: Hashable & Equatable<TyKind> {
     /**
      * A type of the language by its keyword: `Int64`, `Unit`, `Nothing`.
@@ -170,6 +175,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
 /**
  * Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum Todo <: ToString {
     /**
@@ -199,6 +205,7 @@ public enum Todo <: ToString {
 /**
  * Why a type is unknown given the available inputs, inference progress and resources.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum UnknownReason <: ToString {
     /**

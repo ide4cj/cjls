@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -10,6 +13,7 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
 /**
  * A type an `extend` extends: one declared, or a type of the language by its keyword (`Int64`).
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum ExtendedType <: ToString {
     | DeclType(DefId)
@@ -129,6 +133,7 @@ public func enclosingTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
  * What a name of the type a body is in stands for: a declaration among its members, or a member
  * parameter of its primary constructor (N69).
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum MemberTarget <: ToString {
     | MemberDecl(DefId)

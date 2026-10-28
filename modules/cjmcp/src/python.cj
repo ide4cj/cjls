@@ -15,6 +15,8 @@ import loupe.{
 }
 import loupe.diagnostics as fileDiagnostics
 import loupe.vfs.{FileId, VfsPath}
+import loupe.*
+import loupe.hir.*
 import std.fs.Path
 @When[os == "Linux"]
 import py_interop.*
@@ -132,6 +134,11 @@ class Workspace {
             }
     }
 
+    /** Capture a disk revision; it remains usable after workspace.reload(). */
+    public func analysis(): AnalysisRevision {
+        AnalysisRevision(loaded())
+    }
+
     private func loaded(): WorkspaceState {
         if (current.isNone()) {
             reload()
@@ -201,8 +208,10 @@ class PythonSession {
                         ("Severity", Severity.pyClass()),
                         ("HoverResult", HoverResult.pyClass()),
                         ("HoverItem", HoverItem.pyClass()),
-                        ("Location", PythonLocation.pyClass())
+                        ("Location", PythonLocation.pyClass()),
+                        ("AnalysisRevision", AnalysisRevision.pyClass())
                     ]
+                        .concat(analysisTypes())
                 )
             runner = Python.eval("__cjmcp_run")
         }

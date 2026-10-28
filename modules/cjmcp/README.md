@@ -60,7 +60,7 @@ result = [
 
 `node` is a native `loupe.StructureNode` exported through `py_interop`, and
 `node.range` is the original `ginkgo.TextRange`. They are not JSON dictionaries.
-The initial API is deliberately small:
+The workspace handle provides:
 
 | Workspace member | Result |
 |---|---|
@@ -73,13 +73,90 @@ The initial API is deliberately small:
 | `hover(path, offset)` | Native `HoverResult` with `HoverItem` objects, or `None` |
 | `definition(path, offset)` | `Location` values containing a path and native ranges |
 | `reload()` | Replace the database with a fresh disk/project load |
+| `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
 
-`TextRange`, `StructureNode`, `StructureKind`, `Diagnostic`, `Severity`,
-`HoverResult`, `HoverItem` and `Location` are available in the script namespace
-for type checks. Analysis queries return native values; exported constructors
-and methods are also available. `Location` translates loupe's navigation identity
-to a path; the other result classes above are exported original types.
-This is not yet a binding of every public loupe API.
+### HIR and inference
+
+`workspace.analysis()` captures the current loaded disk revision. Keep this object
+with the `DefId`, `Ty`, `FileId` and source identities it produces: identities are
+scoped to their database and must not be passed to another revision. Reloading the
+workspace leaves retained revisions usable, including their database caches and
+source text. Holding a revision also retains that database's memory.
+
+```python
+analysis = workspace.analysis()
+result = []
+for definition in analysis.declarations("src/main.cj"):
+    item = analysis.item(definition)
+    body = analysis.body(definition)
+    inferred = analysis.infer(definition)
+    result.append({
+        "names": item.names,
+        "locals": [
+            {"name": local.name, "type": analysis.typeText(ty)}
+            for local, ty in zip(body.locals, inferred.locals)
+        ],
+    })
+```
+
+Declarations include nested members, in source order. `body(definition)` returns
+native HIR; `loweredBody(definition)` also returns its native source map, and
+`scopes(definition)` returns lexical scopes. `signature` exposes written type
+references, while `signatureTypes` exposes resolved types and signature errors.
+`infer` returns the native `InferenceResult`: expression, pattern and local types,
+field/name resolutions, selected callees, argument-to-parameter mappings and
+inference diagnostics. Its native lookup methods such as `calleeOf(ExprId(i))`
+are available. Array indices correspond to the matching `Body` arrays.
+
+`typeKind(ty)` returns a native `TyKind`, with variant classes such as
+`TyKind.PrimTy` and `TyKind.DeclTy`. Python pattern matching and `isinstance` work
+on returned variants; payloads are `field0`, `field1`, etc. `typeText(ty)` formats
+a type and `typeUnknown(ty)` checks whether it is unknown. Preserve the distinction
+between user errors (`ErrorTy`), unsupported features (`TodoTy`) and missing inputs
+or inference limits (`UnknownTy`). `internType`, `substituteType` and `headTypes`
+allow further type queries within the same revision.
+
+`BodySource` adapts the generic syntax pointer to `range`, `kind` and `expansion`.
+Source maps preserve `WrittenSource` versus `SyntheticSource`; a written source's
+range belongs to its expansion when `expansion` is present. The convenience
+`expressionRanges` and `localRanges` return `None` for synthetic and expanded
+origins, so their non-null ranges always refer to the declaration's source file.
+
+Calca-generated identities (`DefId`, `Ty`, `MacroCallId`, `Package`, `SourceFile`,
+`BinaryPackageFile`) are exported directly in opaque mode, hiding database-taking
+constructors and methods while preserving native comparison and hashing. Use the
+producing revision's `item`, `parent`,
+`definitionFile`, `definitionItem`, `sourceFileId`, `path` and type queries to
+resolve them. `text(path)` reads the retained revision; `fileId(path)` resolves
+its file identity. Original HIR/result values, constructors and methods are
+exported directly with `@DerivePython`; immutable fields remain read-only.
+
+### Other analysis queries
+
+An `AnalysisRevision` also offers:
+
+| Methods | Purpose |
+|---|---|
+| `completions(path, offset)`, `completionDetails(path, offset, item)` | Ranked completion results and documentation |
+| `references(path, offset)`, `related(path, offset)` | Workspace usages and same-file read/write occurrences |
+| `typeDefinition(path, offset)`, `implementations(path, offset)` | Navigate to types and implementations |
+| `highlights(path)`, `folding(path)`, `selection(path, offset)` | Semantic highlights, folds and enclosing selections |
+| `symbols(query, limit)` | Search workspace declarations |
+| `members(def, name)`, `supertypes(def)` | Inspect members and type hierarchy |
+| `field(def, expr)`, `receiver(def, expr)`, `receiverType(def, expr)` | Inspect member access resolution |
+| `macroCall(path, offset)`, `expansion(call)`, `expandedFile(path, header)` | Inspect available macro fallbacks and their source mappings |
+
+Native navigation/reference/symbol results contain `FileId`; call `path(fileId)`
+on the same revision. `NavigationTarget.expansion` identifies expansion-relative
+ranges. SDK macros remain unexpanded by this server.
+
+All exported classes are present in each script namespace, including `Body`,
+`Expr`, `Pat`, `Signature`, `SignatureTypes`, `TyKind`, `InferenceResult`,
+`InferenceDiagnostic`, scope/source-map types, completion/navigation/highlight
+results, `Cfg` and `CfgExpr`, plus the original workspace result types. The
+registration in `src/python_types.cj` is the complete list. Generic syntax trees,
+calca database mutation/storage, and collection-backed package indexes are not
+exported. This is not a binding of every public loupe API.
 
 Paths are absolute or relative to `--dir` (the working directory by default).
 Offsets/ranges count UTF-8 bytes from zero; ends are exclusive. An offset must
@@ -107,10 +184,14 @@ including their constructors, fields, properties and methods. Immutable fields
 remain read-only. The bindings are built on all native platforms; `runPython`
 currently supports native Linux x86_64 and returns an unsupported-platform tool
 error elsewhere. Cross compilation of the Python exports has not been verified.
-Place `@DerivePython` below `@Derive[Equatable]` to avoid a compiler crash
-when exporting generated equality operators. The root `loupe` package uses
-`-O0` because its combined bindings still crash the pinned optimizer; analysis
-subpackages retain `-O2`. See [K28](../../docs/sdk-issues.md#k28) for the measured scope.
+For externally derived value traits, place `@DerivePython[equatable]` or
+`@DerivePython[hashable]` above `@Derive[...]`. The binding generator merges the
+trait methods without wrapping native callbacks in the deriving macro. Calca
+identities use `@DerivePython[opaque]` above their identity-generating macro.
+Descriptors configure callbacks lazily when their Python class is initialized.
+The full workspace builds at normal release `-O2`; no `loupe` optimization override
+is required. See [K28](../../docs/sdk-issues.md#k28) for the earlier compiler failures
+and the validated workaround in binding generation.
 
 Proxy lifetime is still experimental: the pinned `py_interop` registry retains
 exported native values, and reclaiming those entries is not implemented here.
@@ -126,6 +207,14 @@ python3 -m unittest discover -s tests/mcp -v
 
 Protocol unit tests cover lifecycle, negotiation, notifications and argument
 validation. The real-binary Linux test executes Python over original loupe
-objects, checks cross-file definition and UTF-8 offsets, captures native output,
+objects, checks cross-file definition, generic inference, native enum payloads,
+source maps, completion details, references, retained revisions and UTF-8 offsets,
+captures native output,
 recovers from script/serialization errors, then edits/adds/deletes files and
 reloads the same workspace. It also runs in CI; `CJMCP_BIN` overrides the binary.
+
+The full suite still has the existing `ServedDiagnosticsGateTest` failure: loupe
+reports false type mismatches in expanded Python bindings (native `CFunc`
+callbacks and derived operator overloads). Exporting more types increases those
+findings. The Cangjie compiler accepts the bindings; the real MCP test exercises
+them at runtime. This analysis gap is separate from the compiler workaround.

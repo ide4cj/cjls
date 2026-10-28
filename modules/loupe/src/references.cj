@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
@@ -27,6 +30,7 @@ import loupe.vfs.FileId
  * A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as
  * `RelatedHighlight` has it, and whether it is the name a declaration gives.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Reference {
     public Reference(

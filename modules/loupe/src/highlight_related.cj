@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
@@ -30,6 +33,7 @@ import loupe.vfs.FileId
 /**
  * How a name reaches what it means: reads it, or gives it a value.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ReferenceAccess <: ToString {
     | ReadAccess
@@ -47,6 +51,7 @@ public enum ReferenceAccess <: ToString {
  * A name of the file meaning what the one asked about does, and how it reaches it; `None` for a name
  * that neither reads nor writes: a declaration but of a `var`, a name in a type or a pattern.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct RelatedHighlight {
     public RelatedHighlight(public let range: TextRange, public let access: ?ReferenceAccess) {}

@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import loupe.db.{AnalysisDatabase, Package}
@@ -7,6 +10,7 @@ import loupe.db.{AnalysisDatabase, Package}
 /**
  * What the left of a `.` in a body stands for, as far as names tell (N75–N79).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Receiver <: ToString {
     /**
@@ -40,6 +44,7 @@ public enum Receiver <: ToString {
 /**
  * What the name after a `.` in a body means.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum FieldResolution <: ToString {
     /**

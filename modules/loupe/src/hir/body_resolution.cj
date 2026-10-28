@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -9,6 +12,7 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
 /**
  * What a name used in a body stands for.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum ValueTarget <: ToString {
     /**
@@ -41,6 +45,7 @@ public enum ValueTarget <: ToString {
 /**
  * What a name used in a body means.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum BodyResolution <: ToString {
     /**

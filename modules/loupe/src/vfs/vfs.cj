@@ -1,5 +1,8 @@
 package loupe.vfs
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import index_map.IndexMap
@@ -10,6 +13,7 @@ import rope.Rope
  * A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and
  * the one handle the layers above know a file by; `Vfs` says which path it stands for.
  */
+@DerivePython[hashable]
 @Derive[Hashable, Equatable]
 public struct FileId <: ToString {
     public FileId(public let index: Int64) {}

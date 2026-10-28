@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
@@ -16,6 +19,7 @@ import loupe.syntax.parse
  * `BuiltIn` gives a compiler-owned type a scoped name, from std.core's binary or synthetic source
  * declarations; its semantic type does not depend on this identity (D154).
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum ItemKind <: ToString {
     | Import
@@ -68,6 +72,7 @@ public enum ItemKind <: ToString {
  * other items alone; only an overload added before one moves it. It means something only in its
  * file, and goes back to a node through the file's `ItemIdMap`.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public struct ItemId <: ToString {
     public ItemId(public let kind: ItemKind, public let hash: Int64, public let index: Int64) {}

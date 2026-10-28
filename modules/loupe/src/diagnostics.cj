@@ -16,8 +16,8 @@ import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
+@DerivePython[equatable]
 @Derive[Equatable]
-@DerivePython
 public enum Severity {
     | Error
     | Warning
@@ -30,8 +30,8 @@ public enum Severity {
  * included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves
  * out, which an editor shows faded.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
-@DerivePython
 public struct Diagnostic {
     public Diagnostic(
         public let range: TextRange,

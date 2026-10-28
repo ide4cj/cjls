@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
@@ -14,6 +17,7 @@ import loupe.syntax.parse
 /**
  * A modifier, as written before a declaration.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Modifier <: ToString {
     | Static
@@ -85,6 +89,7 @@ let MODIFIERS: Array<(SyntaxKind, Modifier)> =
  * The `package` line: the package's name as written (`a.b`, `org::a.b`), and whether it is a
  * `macro package`.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct PackageItem {
     public PackageItem(
@@ -98,6 +103,7 @@ public struct PackageItem {
  * One name an import brings in, as written: `segments` up to it, `org::a` one segment; every name
  * of the package for a glob (`a.b.*`), else the package's and the imported one's.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ImportPath {
     public ImportPath(
@@ -110,6 +116,7 @@ public struct ImportPath {
 /**
  * An `import`, and every name it brings in: `import a.{b as c, d.*}` brings two.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ImportItem {
     public ImportItem(
@@ -127,6 +134,7 @@ public struct ImportItem {
  * A declaration of the file, as name resolution needs it, and nothing that moves when the file is
  * edited elsewhere: no range, no body, no signature.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Item {
     public Item(
@@ -184,6 +192,7 @@ public struct Item {
  * by their `ItemId`s. An edit inside a body, or one that only moves items, leaves it equal, so what
  * read it is not run again.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ItemTree {
     public ItemTree(
@@ -195,6 +204,7 @@ public struct ItemTree {
     /**
      * The tree of `tree`, its items named by `ids`, made of it.
      */
+    @PyIgnore
     public static func of(tree: CjParse, ids: ItemIdMap): ItemTree {
         let root = SourceFileNode.cast(tree.syntaxNode()) ?? return ItemTree()
         let packageHeader =

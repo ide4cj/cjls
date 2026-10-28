@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -12,6 +15,7 @@ import loupe.vfs.FileId
  * The path of an import a name came by: its file, its import, the path's index in it, and the
  * visibility it re-exports with.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ImportSite {
     public ImportSite(
@@ -25,6 +29,7 @@ public struct ImportSite {
 /**
  * What a name of a scope stands for: a declaration, or a package imported by its name (N7, N43).
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum ScopeTarget <: ToString {
     | OfDecl(DefId)
@@ -41,6 +46,7 @@ public enum ScopeTarget <: ToString {
 /**
  * A name an import brings, and the path it came by; `None` for the prelude.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Imported {
     public Imported(public let target: ScopeTarget, public let site: ?ImportSite) {}
@@ -49,6 +55,7 @@ public struct Imported {
 /**
  * An import of every name of a package, kept as the package: its names are read at a lookup.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Glob {
     public Glob(
@@ -332,6 +339,7 @@ public func importsAt(
  * see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive`
  * leaves `@Derive` the imported macro).
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum Namespace {
     | Types
@@ -342,6 +350,7 @@ public enum Namespace {
 /**
  * What a name means in a file's scope.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Resolution <: ToString {
     /**

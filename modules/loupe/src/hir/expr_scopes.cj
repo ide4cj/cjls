@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -9,6 +12,7 @@ import loupe.db.AnalysisDatabase
 /**
  * A scope of a body, by its place among the body's scopes.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable, ToString]
 public struct ScopeId {
     public ScopeId(public let index: Int64) {}
@@ -18,6 +22,7 @@ public struct ScopeId {
  * A scope: the one around it, and the locals it adds; a local function's own has its type
  * parameters.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ScopeData {
     public ScopeData(
@@ -38,6 +43,7 @@ public struct ScopeData {
  * block and the bindings before it are one scope in cjc, which only says so for a redefinition
  * (N59); here they nest, which answers a lookup the same.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct ExprScopes {
     public ExprScopes(

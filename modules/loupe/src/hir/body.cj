@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
@@ -42,6 +45,7 @@ import loupe.syntax.parse
 /**
  * An expression of a body, by its place among the body's `exprs`.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable, ToString]
 public struct ExprId {
     public ExprId(public let index: Int64) {}
@@ -50,6 +54,7 @@ public struct ExprId {
 /**
  * A pattern of a body, by its place among the body's `pats`.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable, ToString]
 public struct PatId {
     public PatId(public let index: Int64) {}
@@ -58,6 +63,7 @@ public struct PatId {
 /**
  * A name a body declares, by its place among the body's `locals`.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable, ToString]
 public struct LocalId {
     public LocalId(public let index: Int64) {}
@@ -66,6 +72,7 @@ public struct LocalId {
 /**
  * What declares a local.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum LocalKind {
     /**
@@ -92,6 +99,7 @@ public enum LocalKind {
 /**
  * A name a body declares.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Local {
     public Local(
@@ -109,6 +117,7 @@ public struct Local {
  * A parameter: its name, `None` for `_`; its type, written in a lambda or a local function's
  * signature; its default value.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct BodyParam {
     public BodyParam(
@@ -129,6 +138,7 @@ public struct BodyParam {
 /**
  * A function declared in a body: its name, a local of the scope after it (N60).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct LocalFunc {
     public LocalFunc(
@@ -144,6 +154,7 @@ public struct LocalFunc {
     ) {}
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Stmt {
     /**
@@ -161,6 +172,7 @@ public enum Stmt {
  * An argument of a call: the name it is passed by, if any; whether it is a trailing lambda, passed
  * by the name of the last parameter if that is passed by name (cjc's `GetArgName`).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct CallArg {
     public CallArg(
@@ -174,6 +186,7 @@ public struct CallArg {
 /**
  * A `case`: its patterns and guard, or its condition; what it evaluates to.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MatchArm {
     public MatchArm(
@@ -184,6 +197,7 @@ public struct MatchArm {
     ) {}
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Resource {
     public Resource(
@@ -193,6 +207,7 @@ public struct Resource {
     ) {}
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct CatchArm {
     public CatchArm(
@@ -207,6 +222,7 @@ public struct CatchArm {
  * expressions, patterns and types of the same body. A name is not resolved yet; an operator is as
  * written.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Expr {
     /**
@@ -328,6 +344,7 @@ public enum Expr {
  * an argument list, the innermost's, lowered so the names in them resolve: the macro sees them as
  * tokens all the same.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct MacroCall {
     public MacroCall(
@@ -340,6 +357,7 @@ public struct MacroCall {
 /**
  * What a macro on a declaration, std.unittest's, takes in its `[...]` as code (#191).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum AttrArg {
     /**
@@ -365,6 +383,7 @@ public enum AttrArg {
  * A macro on a declaration that takes code in its `[...]`, by the name it is called by: the path it names, and
  * the arguments, those of std.unittest's macros. Whether it is std's is inference's to find.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct DeclAttr {
     public DeclAttr(public let path: Array<String>, public let args: Array<AttrArg>) {}
@@ -382,6 +401,7 @@ let CODE_ATTRS =
 /**
  * A pattern as a body writes it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Pat {
     | MissingPat
@@ -407,6 +427,7 @@ public enum Pat {
  * An edit that does not change its code, a blank line or a comment, an edit elsewhere in the file,
  * leaves it equal.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Body {
     public Body(
@@ -487,6 +508,7 @@ public struct BodySource {
  * A body node's origin: syntax in a file, or a synthetic node introduced by lowering.
  * A missing array index is separate from a present synthetic node.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum BodyOrigin {
     | WrittenSource(BodySource)
@@ -514,6 +536,7 @@ struct ExprSourceAlias {
  * Where each expression, pattern, local and type of a body is written: a local by its name; and the
  * other way round, by hash, for what asks of every name of a file.
  */
+@DerivePython
 public struct BodySourceMap <: Equatable<BodySourceMap> {
     public let exprs: Array<BodyOrigin>
     public let pats: Array<BodyOrigin>
@@ -525,6 +548,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     private let localIndex: BodySourceIndex
     private let typeIndex: BodySourceIndex
 
+    @PyIgnore
     init(
         exprs!: Array<BodyOrigin> = [],
         pats!: Array<BodyOrigin> = [],
@@ -551,6 +575,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
      * node, the `match`es it is desugared into after it (A29). An unqualified pointer belongs to the body's own
      * file; use `exprAtSource` for a node from an expression expansion.
      */
+    @PyIgnore
     public func exprAt(ptr: SyntaxNodePtr<SyntaxKind>): ?ExprId {
         exprAtSource(BodySource(ptr))
     }
@@ -565,6 +590,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         }
     }
 
+    @PyIgnore
     public func patAt(ptr: SyntaxNodePtr<SyntaxKind>): ?PatId {
         patAtSource(BodySource(ptr))
     }
@@ -582,6 +608,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     /**
      * The local whose name `ptr` points to.
      */
+    @PyIgnore
     public func localAt(ptr: SyntaxNodePtr<SyntaxKind>): ?LocalId {
         localAtSource(BodySource(ptr))
     }
@@ -596,6 +623,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         }
     }
 
+    @PyIgnore
     public func typeAt(ptr: SyntaxNodePtr<SyntaxKind>): ?TypeRefId {
         typeAtSource(BodySource(ptr))
     }
@@ -648,6 +676,7 @@ class BodySourceIndex {
     }
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct LoweredBody {
     public LoweredBody(public let body: Body, public let sourceMap: BodySourceMap) {}

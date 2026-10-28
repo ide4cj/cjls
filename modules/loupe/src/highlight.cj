@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import cjo.DeclInfo
@@ -17,6 +20,7 @@ import loupe.syntax.parse
  * What a token is: by the tree, and a name at its use by what it means (D72). In a file of no
  * package, which names do not resolve in, a name inside a type is taken for one.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum HighlightTag <: ToString {
     | Keyword
@@ -64,6 +68,7 @@ public enum HighlightTag <: ToString {
     }
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum HighlightModifier <: ToString {
     // the name being declared
@@ -119,6 +124,7 @@ let HIGHLIGHT_MODIFIERS =
 /**
  * A set of `HighlightModifier`s.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct HighlightModifiers <: ToString {
     private HighlightModifiers(let bits: UInt8) {}
@@ -150,6 +156,7 @@ public struct HighlightModifiers <: ToString {
 /**
  * A token of a file and what it is. `range` is in UTF-8 bytes (A6).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct HighlightedRange <: ToString {
     public HighlightedRange(

@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.convert.Parsable
 import std.deriving.*
@@ -14,6 +17,7 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile}
 /**
  * A type and its bounds, `T <: A & B` of a `where`, as types.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct TyBound {
     public TyBound(public let ty: Ty, public let bounds: Array<Ty>) {}
@@ -22,6 +26,7 @@ public struct TyBound {
 /**
  * Why a type of a signature is an error, as cjc says it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum TyErrorKind {
     /**
@@ -54,6 +59,7 @@ public enum TyErrorKind {
 /**
  * A type of a signature that is an error: the type, by its id in the signature, and why.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct TyError {
     public TyError(public let at: TypeRefId, public let kind: TyErrorKind) {}
@@ -80,6 +86,7 @@ public struct TyError {
  * What each segment of the path of a type names, as lowering it resolved it: what highlighting and go to definition
  * read, not resolving it again.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct TypePathTarget <: ByIndex {
     public TypePathTarget(public let ty: TypeRefId, public let resolution: Array<PathResolution>) {}
@@ -89,6 +96,7 @@ public struct TypePathTarget <: ByIndex {
     }
 }
 
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct SignatureTypes {
     public SignatureTypes(
@@ -154,6 +162,7 @@ public struct SignatureTypes {
      * The signature as a declaration of `kind` reads, for a test or a hover: `<T>(T, Int64) ->
      * Array<T>`, `C<T> <: I<T> where T <: J`, `= (Int64, Int64)`; `_` for a type not written.
      */
+    @PyIgnore
     public func text(db: AnalysisDatabase, kind: ItemKind): String {
         let list =
             {

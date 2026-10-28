@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import std.sort.*
@@ -13,6 +16,7 @@ import loupe.syntax.parse
 /**
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum FoldKind <: ToString {
     // a block comment, or line comments one under the other
@@ -46,6 +50,7 @@ public enum FoldKind <: ToString {
  * A part of a file over more than one line an editor may fold. `range` is in UTF-8 bytes (A6) and
  * covers the delimiters, `{` to `}`: what is left visible is the client's to choose.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Fold <: ToString {
     public Fold(public let range: TextRange, public let kind: FoldKind) {}

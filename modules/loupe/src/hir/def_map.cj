@@ -1,5 +1,8 @@
 package loupe.hir
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import calca.*
@@ -11,6 +14,7 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package}
  * A package of either kind, as name resolution takes it: one of the project's sources, or one
  * compiled already (D38). What resolves in it does not ask which.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable, ToString]
 public enum PackageRef {
     | Source(Package)
@@ -37,6 +41,7 @@ public func filesOf(db: AnalysisDatabase, pkg: PackageRef): Array<ItemFile> {
  * An item across files: its file and its id there, interned, so that what is keyed by a
  * definition (its signature, its body) is keyed by one number.
  */
+@DerivePython[opaque]
 @CalcaInterned
 public struct DefId {
     public let file: ItemFile
@@ -47,6 +52,7 @@ public struct DefId {
  * Who sees a declaration (N1–N4): `private` its file, `internal` its package and those under it
  * by name, `protected` the packages of its first segment, `public` anyone.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Visibility <: ToString {
     | Private
@@ -82,6 +88,7 @@ public func visibilityOf(item: Item): Visibility {
 /**
  * A declaration a name of a package's scope stands for, and who sees it.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Def <: ToString {
     public Def(public let id: DefId, public let visibility: Visibility) {}
@@ -95,6 +102,7 @@ public struct Def <: ToString {
  * A declaration whose name another of its package took first: anything but a function sharing a
  * name with any other declaration (N19, N20, N22).
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public struct Redefinition <: ToString {
     public Redefinition(public let def: DefId, public let name: String) {}
@@ -231,6 +239,7 @@ func frozen<V, R>(
  * in them add. A macro's name is looked up in the first, since no macro is ever generated and what
  * is expanded depends on it: the second is a function of the first, and never a cycle of queries.
  */
+@DerivePython[hashable]
 @Derive[Equatable, Hashable]
 public enum ScopeStage {
     | Written

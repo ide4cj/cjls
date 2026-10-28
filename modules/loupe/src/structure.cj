@@ -12,8 +12,8 @@ import loupe.vfs.FileId
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
 
+@DerivePython[equatable]
 @Derive[Equatable]
-@DerivePython
 public enum StructureKind <: ToString {
     | Class
     | Interface

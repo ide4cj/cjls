@@ -31,8 +31,8 @@ import loupe.vfs.FileId
  * What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands
  * for, each candidate of an ambiguity.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
-@DerivePython
 public struct HoverResult {
     public HoverResult(public let range: TextRange, public let items: Array<HoverItem>) {}
 }
@@ -40,8 +40,8 @@ public struct HoverResult {
 /**
  * One thing a name stands for, as Cangjie writes it; no markup, which is the server's to choose.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
-@DerivePython
 public struct HoverItem {
     public HoverItem(
         /**

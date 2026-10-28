@@ -1,5 +1,8 @@
 package loupe
 
+import py_interop.*
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.SyntaxNodePtr
@@ -22,6 +25,7 @@ import loupe.hir.*
  * What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a
  * name by.
  */
+@DerivePython[equatable]
 @Derive[Equatable]
 public enum Definition <: ToString {
     /**
