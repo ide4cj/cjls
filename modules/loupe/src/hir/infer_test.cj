@@ -2450,6 +2450,7 @@ class InferTest {
 
     @TestCase[byMacro in [false, true]]
     func anUnknownInnerArgumentRetainsItsCauseAndNoChosenCallee(byMacro: Bool) {
+        // arrange
         let imports = if (byMacro) { "import m.ms.*" } else { "" }
         let declaration = if (byMacro) { "@M class C {}" } else { "" }
         let parameter = if (byMacro) { "c: C" } else { "" }
@@ -2484,9 +2485,13 @@ class InferTest {
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let item = itemTree(db, source).items.filter { one => one.names.contains("test") }[0]
-        let result = inferBody(db, DefId(db, ItemFile.Source(source), item.id))
-        let local = result.locals[result.locals.size - 1]
         let expected = if (byMacro) { TodoTy(Todo.MacroMember) } else { ErrorTy }
+
+        // act
+        let result = inferBody(db, DefId(db, ItemFile.Source(source), item.id))
+
+        // assert
+        let local = result.locals[result.locals.size - 1]
         @Expect(local.kind(db), expected)
         @Expect(result.callees.isEmpty())
         @Expect(result.exprs.iterator().all { ty => ty.isSome() })
