@@ -1,8 +1,18 @@
 package ginkgo
 
+import std.collection.*
+import python_export.*
+@When[os == "Linux"]
+import py_interop.*
+@When[os == "Linux"]
+import py_interop.Reference as PythonInteropReference
+@When[os == "Linux"]
+import py_interop.internal_macros.*
+
 /**
  * A half-open range `[start, end)` of UTF-8 byte offsets into the text a tree was built from.
  */
+@PythonExport
 public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * @throws IllegalArgumentException - if `start` is negative or past `end`

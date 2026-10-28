@@ -20,6 +20,7 @@ members = [
     "modules/macro_server",
     "modules/platform",
     "modules/project_model",
+    "modules/python_export",
     "modules/rope",
     "modules/stdxx",
     "modules/syntax_codegen",

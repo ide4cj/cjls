@@ -67,7 +67,7 @@ class McpServerTest {
         @Expect(initialization["id"].asString(), "test")
         @Expect(waiting["error"]["code"].asInteger(), -32600)
         @Expect(notification.isNone())
-        @Expect(listed["result"]["tools"].asArray().size, 6)
+        @Expect(listed["result"]["tools"].asArray().size, 1)
         @Expect(repeated["error"]["code"].asInteger(), -32600)
     }
 
@@ -105,7 +105,7 @@ class McpServerTest {
         let notification =
             server
                 .handle(
-                    ##"{"jsonrpc":"2.0","method":"tools/call","params":{"name":"workspace"}}"##
+                    ##"{"jsonrpc":"2.0","method":"tools/call","params":{"name":"runPython","arguments":{"code":"print(1)"}}}"##
                         .toArray()
                 )
         let unknown = server.handle(##"{"jsonrpc":"2.0","method":"unknown"}"##.toArray())
@@ -122,28 +122,20 @@ class McpServerTest {
         let calls =
             [
                 obj([("name", JsonString("unknown"))]),
+                obj([("name", JsonString("runPython"))]),
                 obj(
                     [
-                        ("name", JsonString("hover")),
-                        ("arguments", obj([("path", JsonString("a.cj"))]))
+                        ("name", JsonString("runPython")),
+                        ("arguments", obj([("code", JsonInteger(1))]))
                     ]
                 ),
                 obj(
                     [
-                        ("name", JsonString("hover")),
-                        (
-                            "arguments",
-                            obj([("path", JsonString("a.cj")), ("offset", JsonInteger(-1))])
-                        )
+                        ("name", JsonString("runPython")),
+                        ("arguments", obj([("code", JsonString("")), ("extra", JsonBool(true))]))
                     ]
                 ),
-                obj(
-                    [
-                        ("name", JsonString("workspace")),
-                        ("arguments", obj([("extra", JsonBool(true))]))
-                    ]
-                ),
-                obj([("name", JsonString("workspace")), ("arguments", JsonNull)])
+                obj([("name", JsonString("runPython")), ("arguments", JsonNull)])
             ]
 
         // act
@@ -156,18 +148,16 @@ class McpServerTest {
     }
 
     @TestCase
-    func loadingFailureIsAToolError() {
+    func pythonExecutionIsAdvertisedAsHavingExternalEffects() {
         // arrange
-        let server = McpServer(VfsPath.file(getTempDirectory()).join("cjmcp-missing/root"))
-        initialize(server)
-        server.handle(##"{"jsonrpc":"2.0","method":"notifications/initialized"}"##.toArray())
+        let server = readyServer()
 
         // act
-        let response =
-            request(server, "tools/call", params: obj([("name", JsonString("workspace"))]))
+        let tool = request(server, "tools/list")["result"]["tools"][0]
 
         // assert
-        @Expect(response["result"]["isError"].asBool())
-        @Expect(response["result"]["structuredContent"]["error"].asString().contains("does not exist"))
+        @Expect(tool["name"].asString(), "runPython")
+        @Expect(!tool["annotations"]["readOnlyHint"].asBool())
+        @Expect(tool["annotations"]["openWorldHint"].asBool())
     }
 }

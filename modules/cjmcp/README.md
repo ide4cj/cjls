@@ -1,21 +1,29 @@
-# Experimental Cangjie MCP server
+# Experimental runPython MCP server
 
-`cjmcp` is a separate executable over `project_model` and `loupe`, in the same
-workspace as `cjls`. It shares the analysis implementation without depending on
-LSP handlers, Python bindings or a copy of the analyzer.
+`cjmcp` exposes **one MCP tool, `runPython`**. It embeds CPython in the Cangjie
+process and gives scripts a live workspace and native `loupe` analysis objects.
+Python can traverse, filter and aggregate those objects in one tool call. The
+existing LSP executable uses the same analysis implementation.
 
 ## Build and connect
 
-Use the pinned SDK and environment from [Development](../../docs/development.md).
-From the repository root:
+The first embedded runtime experiment supports native Linux x86_64. Use the
+pinned SDK and environment from [Development](../../docs/development.md), and
+install Python 3 with its shared `libpython` library. From the repository root:
 
 ```bash
 cjpm build -m modules/cjmcp
 cjHeapSize=2GB target/release/bin/cjmcp --dir /absolute/path/to/project
 ```
 
-The process waits for MCP traffic; ordinary terminal input is not a CLI session.
-An MCP client's server configuration can use:
+`py_interop` is built statically from a pinned revision of the runtime-interaction
+fix branch. CPython itself is loaded dynamically; `PYTHON_DYNLIB` can select its
+shared library explicitly. SDK discovery follows `project_model`; set
+`CANGJIE_HOME` if automatic discovery does not find the SDK to analyze against.
+The 2 GB heap setting is recommended for workspaces (the runtime defaults to
+256 MiB).
+
+An MCP client can use:
 
 ```json
 {
@@ -29,49 +37,83 @@ An MCP client's server configuration can use:
 }
 ```
 
-The executable links the runtime statically. Runtime SDK discovery follows
-`project_model`; set `CANGJIE_HOME` explicitly if automatic discovery does not find
-the SDK to analyze against. The 2 GB heap setting is recommended for workspaces;
-the runtime's default heap is only 256 MiB.
-
-## Experiment contract
-
-This implements the [MCP 2025-11-25 lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)
+The server implements the [MCP 2025-11-25 lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)
 and [tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)
-over newline-delimited JSON-RPC on stdio. Send `initialize`, then
-`notifications/initialized`, before using tools. Other offered versions receive
-`2025-11-25`; clients must accept that version or disconnect. This prototype
-does not implement newer stateless MCP revisions. stdout contains protocol
-messages only; fatal diagnostics go to stderr. Closing stdin ends the process.
-Messages must end in a newline and are limited to 8 MiB.
+over newline-delimited JSON-RPC on stdio. Initialize, send
+`notifications/initialized`, then call `runPython` with `{ "code": "..." }`.
+Other offered versions receive `2025-11-25`; clients must accept it or disconnect.
+Newer stateless MCP revisions are not implemented. Closing stdin ends the
+process. Incoming messages must end in a newline and are limited to 8 MiB.
 
-| Tool | Arguments | Result |
-|---|---|---|
-| `workspace` | none | Load lazily; return files, loading problems and macro status |
-| `reload_workspace` | none | Replace the database with a fresh disk/project load |
-| `diagnostics` | `path` | Syntax and semantic diagnostics |
-| `file_structure` | `path` | Nested declaration outline |
-| `hover` | `path`, `offset` | Declaration/type/documentation, or `hover: null` |
-| `definition` | `path`, `offset` | Declaration paths and ranges |
+## Python API
+
+For example, a single script can find functions across the workspace:
+
+```python
+result = [
+    {"path": path, "name": node.name, "start": node.selectionRange.start}
+    for path in workspace.files()
+    for node in workspace.structure(path)
+    if node.kind.toString() == "Function"
+]
+```
+
+`node` is a native `loupe.StructureNode` exported as a read-only native object through `py_interop`, and
+`node.range` is the original `ginkgo.TextRange`. They are not JSON dictionaries.
+The initial API is deliberately small:
+
+| Workspace member | Result |
+|---|---|
+| `root` | Absolute root path |
+| `problems` | Loading problems; inspect before trusting cross-package answers |
+| `macrosExpanded` | `False` in this experiment |
+| `files()` | Source paths of the loaded project |
+| `structure(path)` | Native `StructureNode` objects with nested `children` |
+| `diagnostics(path)` | Native `Diagnostic` objects |
+| `hover(path, offset)` | Native `HoverResult` with `HoverItem` objects, or `None` |
+| `definition(path, offset)` | `Location` values containing a path and native ranges |
+| `reload()` | Replace the database with a fresh disk/project load |
+
+`TextRange`, `StructureNode`, `StructureKind`, `Diagnostic`, `Severity`,
+`HoverResult`, `HoverItem` and `Location` are available in the script namespace
+for type checks. Analysis values are created by the workspace. `Location`
+translates loupe's navigation identity to a path; the other result classes above are exported original types.
+This is not yet a binding of every public loupe API.
 
 Paths are absolute or relative to `--dir` (the working directory by default).
-Offsets and ranges count UTF-8 bytes from zero; range ends are exclusive. An
-offset must fall on a UTF-8 boundary. Results have both `structuredContent` and
-JSON text content. Invalid requests/arguments produce JSON-RPC errors; loading
-and query failures produce tool results with `isError: true`.
+Offsets/ranges count UTF-8 bytes from zero; ends are exclusive. An offset must
+fall on a UTF-8 boundary. The workspace is loaded lazily and persists across
+calls. Queries reuse its caches; disk edits remain invisible until `reload()`.
+A failed reload preserves the previous database. Analysis objects already held
+by Python remain values from the revision in which they were obtained.
 
-Calls run sequentially against one disk revision. Repeated queries reuse loupe's
-incremental query cache. Disk edits remain invisible until `reload_workspace`;
-a reload rebuilds the database, so additions, deletions and manifest changes are
-included. Inspect `workspace.problems` before relying on cross-package answers.
-A failed reload preserves the previous database.
+Each script gets a fresh global namespace and ordinary Python imports. Assign
+JSON-serializable data to `result`, print output, or both. The MCP response has
+`result`, captured `stdout`/`stderr`, and `error` (a traceback or null), in both
+`structuredContent` and text content. Non-serializable results are script errors.
+Python exceptions, including `SystemExit`, become tool errors; the session can
+continue. File descriptor redirection captures subprocess/native output as well
+as Python streams, keeping it off the MCP wire.
 
-SDK macro expansion, file watching, editor buffers, cancellation, parallel
-requests, HTTP, resources and prompts are outside this first experiment.
-Analysis can use loupe's existing macro fallbacks, but workspace macros are not
-built or executed. `macrosExpanded: false` is returned explicitly; results around
-macro-generated code can be incomplete. This is not an MCP replacement for the
-LSP executable; editor integration continues through `cjls`.
+This is trusted local Python execution with the process's filesystem/network
+access, without a sandbox or hard execution timeout. Calls run sequentially.
+SDK macro execution, file watching, editor buffers, cancellation, HTTP and
+parallel requests are outside this first experiment. loupe's existing macro
+fallbacks still apply, but answers around macro-generated code can be incomplete.
+
+The `python_export` macro adds Python bindings to selected original analysis
+classes on a native Linux build and passes declarations through on other native
+platforms. `runPython` returns an unsupported-platform tool error there. Cross
+compilation of the Python exports has not been verified. The result macro is
+limited to the selected non-generic result types and payload-free enums. It
+exposes fields/properties and enum names, rather than every native method. Its
+consumers import `py_interop.*` and alias `py_interop.Reference` as
+`PythonInteropReference` to avoid loupe's existing `Reference` type.
+
+Proxy lifetime is still experimental: the pinned `py_interop` registry retains
+exported native values, and reclaiming those entries is not implemented here.
+Repeated large traversals can retain analysis results. This needs a lifetime fix
+before treating the prototype as a long-running service.
 
 ## Verify
 
@@ -80,7 +122,8 @@ cjpm test -m modules/cjmcp --no-progress --target-dir target/test
 python3 -m unittest discover -s tests/mcp -v
 ```
 
-The unit tests cover lifecycle, errors, notifications and tool validation. The
-stdio test drives the actual release binary without closing stdin to make it
-answer, checks UTF-8 ranges and cross-query results, then edits/adds/deletes files
-and reloads. `CJMCP_BIN` overrides the test executable.
+Protocol unit tests cover lifecycle, negotiation, notifications and argument
+validation. The real-binary Linux test executes Python over original loupe
+objects, checks cross-file definition and UTF-8 offsets, captures native output,
+recovers from script/serialization errors, then edits/adds/deletes files and
+reloads the same workspace. It also runs in CI; `CJMCP_BIN` overrides the binary.

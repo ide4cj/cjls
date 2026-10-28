@@ -1,21 +1,23 @@
-"""Exercise the real MCP binary interactively, without closing stdin to make it answer."""
+"""Drive embedded Python through the real MCP process, with stdin kept open."""
 
 import json
 import os
 from pathlib import Path
 import queue
 import subprocess
+import sys
 import tempfile
+import textwrap
 import threading
 import unittest
 
-
 ROOT = Path(__file__).resolve().parents[2]
-BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin" / ("cjmcp.exe" if os.name == "nt" else "cjmcp")))
+BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
 
 
+@unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
 class McpStdioTest(unittest.TestCase):
-    def test_analysis_and_disk_reload(self):
+    def test_python_native_objects_errors_output_and_reload(self):
         # arrange
         with tempfile.TemporaryDirectory(prefix="cjmcp-") as directory:
             root = Path(directory)
@@ -51,7 +53,6 @@ class McpStdioTest(unittest.TestCase):
                 message = {"jsonrpc": "2.0", "id": next_id, "method": method}
                 if params is not None:
                     message["params"] = params
-                # Split a frame and use CRLF to test the stream boundary, not just JSON parsing.
                 wire = json.dumps(message, ensure_ascii=False).encode() + b"\r\n"
                 process.stdin.write(wire[:8])
                 process.stdin.flush()
@@ -64,57 +65,111 @@ class McpStdioTest(unittest.TestCase):
                 self.assertNotIn("error", reply)
                 return reply["result"]
 
-            def call(name, **arguments):
-                result = rpc("tools/call", {"name": name, "arguments": arguments})
-                self.assertFalse(result["isError"], result)
+            def run(code, *, error=False):
+                result = rpc("tools/call", {
+                    "name": "runPython", "arguments": {"code": textwrap.dedent(code)},
+                })
+                self.assertEqual(result["isError"], error, result)
                 self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
                 return result["structuredContent"]
 
             try:
-                # act
-                init = rpc("initialize", {"protocolVersion": "2025-11-25", "capabilities": {},
-                                          "clientInfo": {"name": "test", "version": "1"}})
+                # act - one Python call traverses native analysis objects from several queries
+                initialization = rpc("initialize", {
+                    "protocolVersion": "2025-11-25", "capabilities": {},
+                    "clientInfo": {"name": "test", "version": "1"},
+                })
                 process.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
                 process.stdin.flush()
                 tools = rpc("tools/list")["tools"]
-                status = call("workspace")
-                outline = call("file_structure", path="src/main.cj")
-                offset = source.encode().rindex(b"answer")
-                hover = call("hover", path="src/main.cj", offset=offset)
-                definition = call("definition", path="src/main.cj", offset=offset)
-                diagnostics = call("diagnostics", path="src/main.cj")
-                cross_file = call("definition", path="src/main.cj", offset=source.encode().index(b"shared"))
+                native = run(f"""
+                    nodes = workspace.structure('src/main.cj')
+                    assert all(isinstance(node, StructureNode) for node in nodes)
+                    assert all(isinstance(node.range, TextRange) for node in nodes)
+                    assert all(node.range.len == node.range.end - node.range.start for node in nodes)
+                    hover = workspace.hover('src/main.cj', {source.encode().rindex(b'answer')})
+                    assert isinstance(hover, HoverResult)
+                    assert isinstance(hover.items[0], HoverItem)
+                    location = workspace.definition('src/main.cj', {source.encode().index(b'shared')})[0]
+                    result = {{
+                        'files': workspace.files(),
+                        'symbols': [node.name for node in nodes],
+                        'hover': hover.items[0].code,
+                        'target': location.path,
+                        'problems': workspace.problems,
+                        'macrosExpanded': workspace.macrosExpanded,
+                        'diagnostics': [item.message for item in workspace.diagnostics('src/main.cj')],
+                    }}
+                    print('прямые объекты loupe')
+                """)
 
                 # assert
-                self.assertEqual(init["protocolVersion"], "2025-11-25")
-                self.assertEqual(len(tools), 6)
-                self.assertIn(root / "src/main.cj", list(map(Path, status["files"])))
-                self.assertFalse(status["macrosExpanded"])
-                self.assertIn("answer", [symbol["name"] for symbol in outline["symbols"]])
-                self.assertIn("answer", hover["hover"]["items"][0]["code"])
-                target = definition["targets"][0]
-                self.assertEqual(Path(target["path"]), root / "src/main.cj")
-                selection = target["selectionRange"]
-                self.assertEqual(source.encode()[selection["start"]:selection["end"]], b"answer")
-                self.assertEqual(diagnostics["diagnostics"], [])
-                self.assertEqual(Path(cross_file["targets"][0]["path"]), root / "src/helper.cj")
+                self.assertEqual(initialization["protocolVersion"], "2025-11-25")
+                self.assertEqual([tool["name"] for tool in tools], ["runPython"])
+                data = native["result"]
+                self.assertIn(str(root / "src/main.cj"), data["files"])
+                self.assertIn("answer", data["symbols"])
+                self.assertIn("answer", data["hover"])
+                self.assertEqual(data["target"], str(root / "src/helper.cj"))
+                self.assertEqual(data["diagnostics"], [])
+                self.assertFalse(data["macrosExpanded"])
+                self.assertIn("прямые объекты loupe", native["stdout"])
 
-                # act - an invalid byte offset, then a new file, an edit and a deletion on disk
-                invalid = rpc("tools/call", {"name": "hover", "arguments": {
-                    "path": "src/main.cj", "offset": source.encode().index("п".encode()) + 1}})
-                (root / "src/main.cj").write_text("package sample\nmain() { let value: Int64 = true }\n", encoding="utf-8", newline="\n")
-                (root / "src/new.cj").write_text("package sample\npublic func added() {}\n", encoding="utf-8", newline="\n")
-                call("reload_workspace")
-                changed = call("diagnostics", path="src/main.cj")
-                added = call("file_structure", path="src/new.cj")
+                # act - fd output, exceptions and unserializable objects stay off the MCP wire
+                captured = run("""
+                    import ctypes, os, sys
+                    print('python output')
+                    print('python error output', file=sys.stderr)
+                    print('original stream', file=sys.__stdout__)
+                    os.write(1, b'fd output\\n')
+                    ctypes.CDLL(None).printf(b'native output\\n')
+                    result = 42
+                """)
+                failed = run("print('before failure')\nraise ValueError('script failure')", error=True)
+                bad_result = run("result = workspace.structure('src/main.cj')", error=True)
+                invalid_offset = run(
+                    f"workspace.hover('src/main.cj', {source.encode().index('п'.encode()) + 1})", error=True,
+                )
+                recovered = run("result = 6 * 7")
+
+                # assert
+                self.assertIn("python output", captured["stdout"])
+                self.assertIn("fd output", captured["stdout"])
+                self.assertIn("native output", captured["stdout"])
+                self.assertIn("original stream", captured["stdout"])
+                self.assertIn("python error output", captured["stderr"])
+                self.assertIn("script failure", failed["error"])
+                self.assertIn("before failure", failed["stdout"])
+                self.assertIn("serializable", bad_result["error"])
+                self.assertIn("UTF-8", invalid_offset["error"])
+                self.assertEqual(recovered["result"], 42)
+
+                # act - the same live workspace sees disk changes only after an explicit reload
+                (root / "src/main.cj").write_text(
+                    "package sample\nmain() { let value: Int64 = true }\n", encoding="utf-8", newline="\n",
+                )
+                (root / "src/new.cj").write_text(
+                    "package sample\npublic func added() {}\n", encoding="utf-8", newline="\n",
+                )
+                stale = run("result = [node.name for node in workspace.structure('src/main.cj')]")
+                changed = run("""
+                    workspace.reload()
+                    diagnostics = workspace.diagnostics('src/main.cj')
+                    assert all(isinstance(item, Diagnostic) for item in diagnostics)
+                    assert all(isinstance(item.severity, Severity) for item in diagnostics)
+                    assert all(item.severity.toString() == 'Error' for item in diagnostics)
+                    result = dict(
+                        diagnostics=[item.message for item in diagnostics],
+                        added=[node.name for node in workspace.structure('src/new.cj')])
+                """)
                 (root / "src/new.cj").unlink()
-                after_delete = call("reload_workspace")
+                after_delete = run("workspace.reload()\nresult = workspace.files()")
 
                 # assert
-                self.assertTrue(invalid["isError"])
-                self.assertTrue(any("mismatched types" in item["message"] for item in changed["diagnostics"]))
-                self.assertIn("added", [symbol["name"] for symbol in added["symbols"]])
-                self.assertNotIn(root / "src/new.cj", list(map(Path, after_delete["files"])))
+                self.assertIn("answer", stale["result"])
+                self.assertTrue(any("mismatched types" in message for message in changed["result"]["diagnostics"]))
+                self.assertIn("added", changed["result"]["added"])
+                self.assertNotIn(str(root / "src/new.cj"), after_delete["result"])
             finally:
                 process.stdin.close()
                 try:

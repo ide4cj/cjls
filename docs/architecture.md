@@ -33,9 +33,10 @@ flowchart TD
 ```
 
 An experimental second frontend, [`cjmcp`](../modules/cjmcp/README.md), exposes
-MCP tools directly over `project_model` and `loupe`. It is a separate executable;
-its sequential disk-only lifecycle and current limitations are documented with
-the module. It does not depend on `cjls` or change the LSP request loop.
+a `runPython` MCP tool with embedded CPython and native analysis objects over
+`project_model` and `loupe`. It is a separate executable; its sequential workspace
+lifecycle and current Linux-only runtime limitations are documented with the
+module. It does not depend on `cjls` or change the LSP request loop.
 
 Exact dependencies are in each module's `cjpm.toml`. `platform`, on std alone,
 supplies common declarations with OS-specific implementations

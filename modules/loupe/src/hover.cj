@@ -1,5 +1,13 @@
 package loupe
 
+import python_export.*
+@When[os == "Linux"]
+import py_interop.*
+@When[os == "Linux"]
+import py_interop.Reference as PythonInteropReference
+@When[os == "Linux"]
+import py_interop.internal_macros.*
+
 import std.collection.*
 import std.deriving.*
 import ginkgo.{SyntaxNodePtr, TextRange}
@@ -28,6 +36,7 @@ import loupe.vfs.FileId
  * What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands
  * for, each candidate of an ambiguity.
  */
+@PythonExport
 @Derive[Equatable]
 public struct HoverResult {
     public HoverResult(public let range: TextRange, public let items: Array<HoverItem>) {}
@@ -36,6 +45,7 @@ public struct HoverResult {
 /**
  * One thing a name stands for, as Cangjie writes it; no markup, which is the server's to choose.
  */
+@PythonExport
 @Derive[Equatable]
 public struct HoverItem {
     public HoverItem(

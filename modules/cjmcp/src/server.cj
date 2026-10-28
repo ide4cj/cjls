@@ -1,6 +1,5 @@
 package cjmcp
 
-import std.collection.ArrayList
 import fjson.*
 import loupe.vfs.VfsPath
 
@@ -18,7 +17,7 @@ class McpException <: Exception {
 class McpServer {
     private var isInitialized = false
     private var isReady = false
-    private var workspace: ?Workspace = None
+    private var python: ?PythonSession = None
 
     McpServer(private let root: VfsPath) {}
 
@@ -112,7 +111,7 @@ class McpServer {
                 (
                     "instructions",
                     JsonString(
-                        "Cangjie analysis of disk files. Call workspace first; inspect its problems. Ranges and offsets are zero-based UTF-8 bytes, end exclusive. Reload after disk edits. SDK macro expansion is not enabled."
+                        "Use runPython to explore a live Cangjie workspace with native analysis objects. workspace.files(), structure(path), diagnostics(path), hover(path, offset), definition(path, offset), reload(); workspace.problems reports loading problems. Assign JSON-serializable output to result or print it. Ranges are UTF-8 bytes, end exclusive. SDK macros are not expanded. Python executes trusted local code without a sandbox or hard timeout."
                     )
                 )
             ]
@@ -120,65 +119,33 @@ class McpServer {
     }
 
     private func callTool(params: JsonValue): JsonValue {
-        let name =
+        let code =
             try {
-                params["name"].asString()
-            } catch (_: IllegalArgumentException) {
-                throw McpException("Tool name must be a string", -32602)
-            }
-        if (
-            ![
-                "workspace",
-                "reload_workspace",
-                "diagnostics",
-                "file_structure",
-                "hover",
-                "definition"
-            ]
-                .contains(name)
-        ) {
-            throw McpException("Unknown tool: ${name}", -32602)
-        }
-        let args = params.get("arguments") ?? obj([])
-        validateArguments(name, args)
-        try {
-            if (name == "reload_workspace" || workspace.isNone()) {
-                // Publish only a completed load, so a failed reload leaves the previous revision usable.
-                workspace = Workspace(root)
-            }
-            let current = workspace.getOrThrow()
-            let result =
-                if (name == "workspace" || name == "reload_workspace") {
-                    current.status()
-                } else {
-                    current.query(name, args)
+                if (params["name"].asString() != "runPython") {
+                    throw McpException("Unknown tool", -32602)
                 }
-            toolResult(result, error: false)
+                let args = params["arguments"]
+                for ((name, _) in args.asObject() where name != "code") {
+                    throw McpException("Unexpected argument: ${name}", -32602)
+                }
+                args["code"].asString()
+            } catch (e: IllegalArgumentException) {
+                throw McpException(e.message, -32602)
+            }
+        try {
+            if (python.isNone()) {
+                python = PythonSession(root)
+            }
+            let result = python.getOrThrow().run(code)
+            toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
             toolResult(obj([("error", JsonString(e.message))]), error: true)
         }
     }
 }
 
-func validateArguments(name: String, args: JsonValue): Unit {
-    try {
-        let members = args.asObject()
-        let file = name != "workspace" && name != "reload_workspace"
-        let position = name == "hover" || name == "definition"
-        for ((key, _) in members) {
-            if (!(file && key == "path") && !(position && key == "offset")) {
-                throw IllegalArgumentException("unexpected argument: ${key}")
-            }
-        }
-        if (file) {
-            args["path"].asString()
-        }
-        if (position && args["offset"].asInteger() < 0) {
-            throw IllegalArgumentException("offset must be nonnegative")
-        }
-    } catch (e: IllegalArgumentException) {
-        throw McpException(e.message, -32602)
-    }
+func obj(members: Array<(String, JsonValue)>): JsonValue {
+    JsonObject(members)
 }
 
 func toolResult(value: JsonValue, error!: Bool): JsonValue {
@@ -207,95 +174,45 @@ func failure(id: JsonValue, code: Int64, message: String): JsonValue {
 }
 
 func tools(): JsonValue {
-    JsonArray(
-        [
-            tool(
-                "workspace",
-                "Load the Cangjie workspace; list files and loading problems.",
-                file: false,
-                position: false
-            ),
-            tool(
-                "reload_workspace",
-                "Reload project metadata and all source files after disk changes.",
-                file: false,
-                position: false
-            ),
-            tool(
-                "diagnostics",
-                "Get syntax and semantic diagnostics for a loaded file.",
-                file: true,
-                position: false
-            ),
-            tool(
-                "file_structure",
-                "Get the nested declaration outline of a loaded file.",
-                file: true,
-                position: false
-            ),
-            tool(
-                "hover",
-                "Get declaration, inferred type and documentation at a UTF-8 byte offset.",
-                file: true,
-                position: true
-            ),
-            tool(
-                "definition",
-                "Find declaration paths and ranges at a UTF-8 byte offset.",
-                file: true,
-                position: true
-            )
-        ]
-    )
-}
-
-func tool(name: String, description: String, file!: Bool, position!: Bool): JsonValue {
-    let props = ArrayList<(String, JsonValue)>()
-    let required = ArrayList<JsonValue>()
-    if (file) {
-        let path =
-            obj(
-                [
-                    ("type", JsonString("string")),
-                    (
-                        "description",
-                        JsonString("Absolute path or path relative to the workspace root.")
+    let code =
+        obj(
+            [
+                ("type", JsonString("string")),
+                (
+                    "description",
+                    JsonString(
+                        "Python script. workspace is a live native Cangjie object; result must be JSON-serializable. stdout and stderr are captured."
                     )
-                ]
-            )
-        props.add(("path", path))
-        required.add(JsonString("path"))
-    }
-    if (position) {
-        let offset =
-            obj(
-                [
-                    ("type", JsonString("integer")),
-                    ("minimum", JsonInteger(0)),
-                    ("description", JsonString("Zero-based UTF-8 byte offset."))
-                ]
-            )
-        props.add(("offset", offset))
-        required.add(JsonString("offset"))
-    }
+                )
+            ]
+        )
     let schema =
         obj(
             [
                 ("type", JsonString("object")),
-                ("properties", obj(props.toArray())),
-                ("required", JsonArray(required.toArray())),
+                ("properties", obj([("code", code)])),
+                ("required", JsonArray([JsonString("code")])),
                 ("additionalProperties", JsonBool(false))
             ]
         )
-    let annotations = obj([("readOnlyHint", JsonBool(true)), ("openWorldHint", JsonBool(false))])
-    obj(
-        [
-            ("name", JsonString(name)),
-            ("description", JsonString(description)),
-            ("inputSchema", schema),
-            ("annotations", annotations)
-        ]
-    )
+    let tool =
+        obj(
+            [
+                ("name", JsonString("runPython")),
+                (
+                    "description",
+                    JsonString(
+                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; workspace.reload() refreshes disk state. Imports and local I/O are available."
+                    )
+                ),
+                ("inputSchema", schema),
+                (
+                    "annotations",
+                    obj([("readOnlyHint", JsonBool(false)), ("openWorldHint", JsonBool(true))])
+                )
+            ]
+        )
+    JsonArray([tool])
 }
 
 func isString(value: JsonValue): Bool {
