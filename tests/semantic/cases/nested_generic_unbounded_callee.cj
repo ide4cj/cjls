@@ -3,6 +3,10 @@
 // STEP: clean
 // CJC: audit clean
 // SOURCE: src/main.cj %f
+// STEP: wrong_consumer
+// CJC: audit error: mismatched types
+// SOURCE: src/main.cj inputs/nested_generic_unbounded_callee/wrong_consumer/src/main.cj
+// STEP: restored FROM clean
 package audit
 
 func identity<T>(): (T) -> T { {value => value} }
