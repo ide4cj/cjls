@@ -17,10 +17,12 @@ import macro_server.*
 class MacroLibrarySwitchBench {
     var calls: Array<MacroCallData> = []
     var server: ?MacroServers = None
+    var paths: ?MacroServerPaths = None
 
     @BeforeAll
     func prepare(): Unit {
         let paths = testSdkPaths()
+        this.paths = paths
         let numbers = testNumbers()
         let root = Path(getVariable("CJLS_K28_BENCH_DIR").getOrThrow())
         let manifest = root.join("libraries.txt")
@@ -45,26 +47,33 @@ class MacroLibrarySwitchBench {
 
     @Bench
     func sameLibraryCall(): Int64 {
-        expanded(calls[0])
+        expanded(server.getOrThrow(), calls[0])
     }
 
     /**
-     * Twenty requests: block 1 alternates on every call; block 5 switches four
-     * times per round; block 20 stays in one library across rounds.
+     * Twenty requests including startup and shutdown: block 1 loads twenty
+     * times with K28; block 5 loads four times; block 20 loads once.
+     * A fresh server per iteration prevents the SDK's growing library-handle
+     * list from making later cases depend on earlier cases' warmup lengths.
      * Conflicting helper outputs are checked by SameNameMacroLibraryTest, not
      * here: the deliberately unsafe baseline must remain measurable too.
      */
     @Bench[block in [1, 5, 20]]
     func twentyCalls(block: Int64): Int64 {
-        var count = 0
-        for (i in 0..20) {
-            count += expanded(calls[(i / block) % 2])
+        let batchServer = MacroServers(paths.getOrThrow(), Duration.minute, NoopLogger())
+        try {
+            var count = 0
+            for (i in 0..20) {
+                count += expanded(batchServer, calls[(i / block) % 2])
+            }
+            count
+        } finally {
+            batchServer.close()
         }
-        count
     }
 
-    private func expanded(call: MacroCallData): Int64 {
-        match (server.getOrThrow().expand(call)) {
+    private func expanded(expander: MacroServers, call: MacroCallData): Int64 {
+        match (expander.expand(call)) {
             case Answered(result) =>
                 if (result.status == MACRO_FAILED) {
                     throw IllegalStateException("macro expansion failed")
