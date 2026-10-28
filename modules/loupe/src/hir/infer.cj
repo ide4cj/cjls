@@ -2457,6 +2457,9 @@ class Inference {
             case Values(targets) where targets.size == 1 =>
                 match (targets[0]) {
                     case LocalOf(local) => locals[local.index]
+                    // An unqualified constructor can instantiate another enum specialization.
+                    case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind == ItemKind.EnumCtor =>
+                        declValueTy(ctor, explicit, expected)
                     case MemberOf(target) => memberValueTy(target, thisTy())
                     case DeclOf(decl) => declValueTy(decl, explicit, expected)
                     case TypeParamOf(_) => error
@@ -3986,6 +3989,13 @@ class Inference {
                                     found
                                         .add(
                                             all: localCallables(local).map { one => one.at(level) }
+                                        )
+                                case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind ==
+                                        ItemKind.EnumCtor =>
+                                    found
+                                        .add(
+                                            all: declCallables(ctor, explicit, expected)
+                                                .map { one => one.at(MEMBER_LEVEL) }
                                         )
                                 case MemberOf(member) =>
                                     found
