@@ -2936,8 +2936,19 @@ class Inference {
                     mismatches++
                 }
                 // a lambda of a parameter whose type it does not write waits for why the call fails
+                let failedArgs = ArrayList<CallArg>(args)
+                let seenArgs = HashSet<Int64>(args.map { arg => arg.expr.index })
+                for (one in all) {
+                    for (
+                        arg in applicationArgs(applicationsOf(one), args) where seenArgs
+                            .add(arg.expr.index)
+                    ) {
+                        failedArgs.add(arg)
+                    }
+                }
                 let argTys =
-                    args
+                    failedArgs
+                        .toArray()
                         .filter { arg => !isUntypedLambda(arg.expr) }
                         .map { arg => infer(arg.expr, None) }
                 let incomplete =
@@ -2970,7 +2981,8 @@ class Inference {
                 // its parameters are of it: cjc checks no lambda of a call that fails, so their uses
                 // are no errors of their own (#282)
                 let lambdaTys =
-                    args
+                    failedArgs
+                        .toArray()
                         .filter { arg => isUntypedLambda(arg.expr) }
                         .map { arg => infer(arg.expr, failedLambda(arg.expr, why)) }
                 // a type the analysis cannot find in a lambda's body may be why too
@@ -2984,6 +2996,12 @@ class Inference {
                     case PathExpr(_, _) | FieldExpr(_, _, _) | LangExpr(_) =>
                         setExpr(callee, failure)
                     case _ => ()
+                }
+                for (one in all) {
+                    for (application in applicationsOf(one)) {
+                        setExpr(application.callee, failure)
+                        setExpr(application.expr, failure)
+                    }
                 }
                 failure
         }
@@ -3391,11 +3409,100 @@ class Inference {
         for (arg in own) {
             known[arg.expr.index] = infer(arg.expr, None)
         }
-        let chosen = mostSpecificFitting(callee, candidates, args, expected)
+        let chosen = chooseApplied(callee, candidates, args, expected, 0)
         for (arg in own) {
             known.remove(arg.expr.index)
         }
         chosen
+    }
+
+    /**
+     * Preserve each inner application's direct-before-packed search before ranking overloads.
+     * A packed alternative must not turn a fitting direct call into an ambiguity (N155).
+     */
+    private func chooseApplied(
+        callee: ExprId,
+        candidates: Array<(Callable, ArgMatch)>,
+        args: Array<CallArg>,
+        expected: ?Ty,
+        depth: Int64
+    ): Choice {
+        if (
+            candidates.isEmpty() ||
+                candidates.iterator().any { one => applicationAt(one[0], depth).isNone() }
+        ) {
+            return mostSpecificFitting(callee, candidates, args, expected)
+        }
+        let direct =
+            candidates
+                .filter { one => applicationAt(one[0], depth).getOrThrow().matched.packed.isNone() }
+        match (chooseApplied(callee, direct, args, expected, depth + 1)) {
+            case NoFit => ()
+            case chosen => return chosen
+        }
+        let arities =
+            candidates |>
+                filterMap {
+                    one: (Callable, ArgMatch) =>
+                    applicationAt(one[0], depth).getOrThrow().matched.packed
+                } |>
+                collectHashSet |>
+                collectArray
+        let choices = ArrayList<(Callable, ArgMatch)>()
+        for (arity in arities) {
+            let group =
+                candidates
+                    .filter {
+                        one =>
+                        applicationAt(one[0], depth).getOrThrow().matched.packed == Some(arity)
+                    }
+            match (chooseApplied(callee, group, args, expected, depth + 1)) {
+                case Chose(one, matched) => choices.add((one, matched))
+                case Tied => return Tied
+                case NoFit => ()
+            }
+        }
+        match (choices.size) {
+            case 0 => NoFit
+            case 1 => Chose(choices[0][0], choices[0][1])
+            case _ => Tied
+        }
+    }
+
+    private func applicationAt(callable: Callable, depth: Int64): ?AppliedCall {
+        var current = callable.applied
+        for (_ in 0..depth) {
+            current = current.flatMap { one => one.callable.applied }
+        }
+        current
+    }
+
+    private func applicationsOf(callable: Callable): Array<AppliedCall> {
+        if (callable.applied.isNone()) {
+            return []
+        }
+        let found = ArrayList<AppliedCall>()
+        var preceding = callable.applied
+        while (let Some(one) <- preceding) {
+            found.add(one)
+            preceding = one.callable.applied
+        }
+        found.toArray()
+    }
+
+    private func applicationArgs(
+        applications: Array<AppliedCall>,
+        outer: Array<CallArg>
+    ): Array<CallArg> {
+        if (applications.isEmpty()) {
+            return outer
+        }
+        let all = ArrayList<CallArg>()
+        for (i in 0..applications.size) {
+            all.add(all: applications[applications.size - i - 1].args)
+        }
+        all.add(all: outer)
+        all.toArray()
     }
 
     private func mostSpecificFitting(
@@ -3526,7 +3633,7 @@ class Inference {
                     case None => true
                 }
         let unknownArg =
-            args
+            applicationArgs(applicationsOf(callable), args)
                 .iterator()
                 .any {
                     arg =>
@@ -3747,29 +3854,8 @@ class Inference {
         let open = { ty: Ty => substitute(db, ty, owner, vars) }
         let params = callable.params.map(open)
         let ret = open(callable.ret)
-        let applications: Array<AppliedCall> =
-            if (callable.applied.isSome()) {
-                let found = ArrayList<AppliedCall>()
-                var preceding = callable.applied
-                while (let Some(one) <- preceding) {
-                    found.add(one)
-                    preceding = one.callable.applied
-                }
-                found.toArray()
-            } else {
-                []
-            }
-        let args =
-            if (applications.isEmpty()) {
-                outerArgs
-            } else {
-                let all = ArrayList<CallArg>()
-                for (i in 0..applications.size) {
-                    all.add(all: applications[applications.size - i - 1].args)
-                }
-                all.add(all: outerArgs)
-                all.toArray()
-            }
+        let applications = applicationsOf(callable)
+        let args = applicationArgs(applications, outerArgs)
         let targets =
             if (applications.isEmpty()) {
                 argTys(params, matched)
@@ -4147,28 +4233,34 @@ class Inference {
                 let pending = ArrayList<Callable>()
                 for (one in all) {
                     if (let FuncTy(params, ret, isC) <- one.ret.kind(db)) {
-                        let matched =
-                            match (matchArgs(one, args)) {
-                                case Fits(found) => found
-                                case _ where isPossibleVariadic(one, args) =>
-                                    match (matchArgs(one, args, packed: one.positional() - 1)) {
-                                        case Fits(found) => found
-                                        case _ => continue
-                                    }
-                                case _ => continue
-                            }
-                        pending
-                            .add(
-                                Callable(
-                                    params,
-                                    ret,
-                                    open: one.open,
-                                    level: one.level,
-                                    isValue: true,
-                                    isC: isC,
-                                    applied: AppliedCall(callee, inner, one, matched, args)
+                        let matches = ArrayList<ArgMatch>()
+                        if (let Fits(found) <- matchArgs(one, args)) {
+                            matches.add(found)
+                        }
+                        if (
+                            isPossibleVariadic(one, args) &&
+                                let Fits(found) <- matchArgs(
+                                    one,
+                                    args,
+                                    packed: one.positional() - 1
                                 )
-                            )
+                        ) {
+                            matches.add(found)
+                        }
+                        for (matched in matches) {
+                            pending
+                                .add(
+                                    Callable(
+                                        params,
+                                        ret,
+                                        open: one.open,
+                                        level: one.level,
+                                        isValue: true,
+                                        isC: isC,
+                                        applied: AppliedCall(callee, inner, one, matched, args)
+                                    )
+                                )
+                        }
                     }
                 }
                 if (pending.iterator().any { one => one.open.isSome() }) {

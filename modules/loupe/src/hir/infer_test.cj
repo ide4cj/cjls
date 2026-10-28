@@ -2409,6 +2409,90 @@ class InferTest {
     }
 
     @TestCase
+    func anUnknownInnerArgumentDoesNotSelectAReturnedFunctionsOverload() {
+        checkInference(
+            #"
+            package m
+            func pick<T>(seed: ToString): (T) -> Bool { {value => true} }
+            //           ^^^^ ToString
+            //                                           ^^^^^ T
+            func pick<T>(seed: String): (T) -> String { {value => ""} }
+            //           ^^^^ String
+            //                                           ^^^^^ T
+            func test(): Unit {
+                let unknown = pick(missing)(1)
+            //      ^^^^^^^ {unknown}
+                let known = pick("s")(1)
+            //      ^^^^^ String
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func aGenericReturnedCalleeRetriesAnImplicitArrayArgument() {
+        checkInference(
+            #"
+            package m
+            func keep<T>(xs: Array<T>): () -> Array<T> { {=> xs} }
+            //           ^^ Array<T>
+            func test(): Unit {
+                let single = keep(1)()
+            //      ^^^^^^ Array<Int64>
+                let multiple = keep(1, 2)()
+            //      ^^^^^^^^ Array<Int64>
+                let direct = keep([1])()
+            //      ^^^^^^ Array<Int64>
+            }
+            "#
+        )
+    }
+
+    @TestCase[byMacro in [false, true]]
+    func anUnknownInnerArgumentRetainsItsCauseAndNoChosenCallee(byMacro: Bool) {
+        let imports = if (byMacro) { "import m.ms.*" } else { "" }
+        let declaration = if (byMacro) { "@M class C {}" } else { "" }
+        let parameter = if (byMacro) { "c: C" } else { "" }
+        let argument = if (byMacro) { "c.nope" } else { "missing" }
+        let macroFile =
+            if (byMacro) {
+                """
+                //- /ms/ms.cj module=m package=m.ms
+                macro package m.ms
+                import std.ast.*
+                public macro M(input: Tokens): Tokens { input }
+                """
+            } else {
+                ""
+            }
+        let parsed =
+            Fixture
+                .parse(
+                    """
+            //- /main.cj module=m package=m
+            package m
+            ${imports}
+            ${declaration}
+            func pick<T>(seed: ToString): (T) -> Bool { {value => true} }
+            func pick<T>(seed: String): (T) -> String { {value => ""} }
+            func test(${parameter}): Unit {
+                let result = pick(${argument})(1)
+            }
+            ${macroFile}
+            """
+                )
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
+        let item = itemTree(db, source).items.filter { one => one.names.contains("test") }[0]
+        let result = inferBody(db, DefId(db, ItemFile.Source(source), item.id))
+        let local = result.locals[result.locals.size - 1]
+        let expected = if (byMacro) { TodoTy(Todo.MacroMember) } else { ErrorTy }
+        @Expect(local.kind(db), expected)
+        @Expect(result.callees.isEmpty())
+        @Expect(result.exprs.iterator().all { ty => ty.isSome() })
+    }
+
+    @TestCase
     func aLambdaReturningWhatHoldsATypeArgumentNotSolvedIsSynthesized() {
         // N132: its body tells the argument (`R` of `Option<R>`), as cjc's `filterMap {d => d as T}`
         checkInference(
