@@ -8,7 +8,7 @@ import stdx.log.NoopLogger
 import macro_server.*
 
 /**
- * Measures K28's process cost with prebuilt SDK libraries, excluding compilation.
+ * Compares K28's per-switch restart cost with process reuse, excluding compilation.
  * Set CJLS_K28_BENCH_DIR to a persistent directory inside this worktree. Run once
  * before taking the measurement lock to populate the compiler cache.
  */
@@ -51,12 +51,12 @@ class MacroLibrarySwitchBench {
     }
 
     /**
-     * Twenty requests including startup and shutdown: block 1 loads twenty
-     * times with K28; block 5 loads four times; block 20 loads once.
+     * Twenty requests including startup and shutdown: block 1 alternates on
+     * every call; block 5 switches every five calls; block 20 uses one library.
      * A fresh server per iteration prevents the SDK's growing library-handle
      * list from making later cases depend on earlier cases' warmup lengths.
-     * Conflicting helper outputs are checked by SameNameMacroLibraryTest, not
-     * here: the deliberately unsafe baseline must remain measurable too.
+     * This measures successful SDK responses, not isolation of conflicting
+     * helper code: K28 remains a known limitation of process reuse.
      */
     @Bench[block in [1, 5, 20]]
     func twentyCalls(block: Int64): Int64 {

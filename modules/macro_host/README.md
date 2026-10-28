@@ -19,10 +19,10 @@ use the same package name ([#338](https://github.com/ide4cj/cjls/issues/338)).
 The caller chooses the project cache path and version-derived directory; independent
 resolution scopes use distinct directory suffixes so same-named macro packages
 cannot share compiler artifacts. Server rounds enumerate active source contexts
-and keep their expansion outputs separate (D155). When the active workspace library path
-changes, the SDK process restarts to avoid reusing a previously loaded library or
-its transitive native dependencies ([K28](../../docs/sdk-issues.md#k28)); std keeps its separate
-process. Unchanged stamps skip rebuilding. Tests use a fake toolchain as well as SDK cjc.
+and keep their expansion outputs separate (D155). Workspace libraries reuse one SDK
+process across library-path changes (D156); conflicting loaded code remains a known
+SDK risk ([K28](../../docs/sdk-issues.md#k28)). Std keeps its separate process.
+Unchanged stamps skip rebuilding. Tests use a fake toolchain as well as SDK cjc.
 
 Calls record input text in a `WireLayout` so answer positions map back to original
 sources ([D98](../../docs/adr/0098-workspace-expansions-are-an-input-of-their-file.md)).

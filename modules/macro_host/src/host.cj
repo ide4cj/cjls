@@ -289,12 +289,12 @@ public class GuardedServer <: Expander {
  * Two servers, one running std's macros, the other the workspace's (D123): a process that loads std's library of
  * `@Derive` after one of the workspace's libraries ran may abort (SIGABRT in the runtime, 1.3.0-alpha.20261002), and
  * a rebuilt library of the workspace restarts only its own server.
+ * Library switches reuse the workspace process to avoid per-call startup costs; K28 remains a known risk (D156).
  */
 public class MacroServers <: Expander {
     let std: GuardedServer
     let workspace: GuardedServer
     private let workspaceLock = Mutex()
-    private var selectedLibrary: ?String = None
 
     public MacroServers(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
         std = GuardedServer(paths, timeout, logger)
@@ -306,12 +306,6 @@ public class MacroServers <: Expander {
             return std.expand(call)
         }
         synchronized (workspaceLock) {
-            // Even different macro packages can import conflicting versions of a helper. The
-            // SDK reuses that loaded code, so package names cannot prove process compatibility (K28).
-            if (call.libPath != selectedLibrary) {
-                workspace.restart()
-                selectedLibrary = call.libPath
-            }
             workspace.expand(call)
         }
     }
@@ -322,7 +316,6 @@ public class MacroServers <: Expander {
     public func restartWorkspace(): Unit {
         synchronized (workspaceLock) {
             workspace.restart()
-            selectedLibrary = None
         }
     }
 
@@ -330,7 +323,6 @@ public class MacroServers <: Expander {
         std.close()
         synchronized (workspaceLock) {
             workspace.close()
-            selectedLibrary = None
         }
     }
 }
