@@ -8,7 +8,8 @@ import sys
 import tempfile
 import unittest
 
-from oracle import HERE, check_baseline, command, compiler_diagnostics, read_json, validate
+from oracle import HERE, check_baseline, command, compiler_diagnostics, desired, read_json, validate
+from scenarios import load_scenarios
 
 
 def failure(operation):
@@ -21,9 +22,10 @@ def failure(operation):
 
 class OracleTest(unittest.TestCase):
     def setUp(self):
-        self.fixtures = read_json(HERE / "fixtures.json")
+        self.fixtures = load_scenarios(HERE / "cases")
         self.baseline = read_json(HERE / "baseline.json")
         self.exact = next(case for case in self.fixtures if case["id"] == "return_wrong_type")
+        self.step = self.exact["steps"][0]
 
     def test_fixture_contract(self):
         # arrange
@@ -37,10 +39,10 @@ class OracleTest(unittest.TestCase):
 
     def test_unchanged_exact_diagnostic(self):
         # arrange
-        actual = self.exact["expected"]
+        actual = desired(self.step)
 
         # act
-        delta = check_baseline(self.exact, actual, self.baseline)
+        delta = check_baseline(self.exact, self.step, actual, self.baseline)
 
         # assert
         self.assertEqual(delta, {"missing": [], "extra": []})
@@ -50,7 +52,7 @@ class OracleTest(unittest.TestCase):
         actual = []
 
         # act
-        error = failure(lambda: check_baseline(self.exact, actual, self.baseline))
+        error = failure(lambda: check_baseline(self.exact, self.step, actual, self.baseline))
 
         # assert
         self.assertIsInstance(error, AssertionError)
@@ -58,10 +60,10 @@ class OracleTest(unittest.TestCase):
 
     def test_planted_duplicate_diagnostic_fails(self):
         # arrange
-        actual = self.exact["expected"] * 2
+        actual = desired(self.step) * 2
 
         # act
-        error = failure(lambda: check_baseline(self.exact, actual, self.baseline))
+        error = failure(lambda: check_baseline(self.exact, self.step, actual, self.baseline))
 
         # assert
         self.assertIsInstance(error, AssertionError)
@@ -69,14 +71,15 @@ class OracleTest(unittest.TestCase):
 
     def test_wrong_category_severity_and_range_each_fail(self):
         # arrange
-        mutations = {"message": "expected a declaration", "severity": 2, "range": [1, 1, 1, 2]}
+        mutations = {"message": "expected a declaration", "severity": 2, "range": [1, 1, 1, 2],
+                     "file": "src/other.cj"}
         for key, value in mutations.items():
             with self.subTest(field=key):
-                actual = copy.deepcopy(self.exact["expected"])
+                actual = copy.deepcopy(desired(self.step))
                 actual[0][key] = value
 
                 # act
-                error = failure(lambda: check_baseline(self.exact, actual, self.baseline))
+                error = failure(lambda: check_baseline(self.exact, self.step, actual, self.baseline))
 
                 # assert
                 self.assertIsInstance(error, AssertionError)
@@ -84,10 +87,10 @@ class OracleTest(unittest.TestCase):
     def test_unexpectedly_fixed_baseline_fails(self):
         # arrange
         case = next(case for case in self.fixtures if case["id"] == "field_missing_class")
-        actual = case["expected"]
+        actual = desired(case["steps"][0])
 
         # act
-        error = failure(lambda: check_baseline(case, actual, self.baseline))
+        error = failure(lambda: check_baseline(case, case["steps"][0], actual, self.baseline))
 
         # assert
         self.assertIsInstance(error, AssertionError)
@@ -98,7 +101,7 @@ class OracleTest(unittest.TestCase):
         case = next(case for case in self.fixtures if case["id"] == "control_mismatch")
 
         # act
-        error = failure(lambda: check_baseline(case, case["expected"], self.baseline))
+        error = failure(lambda: check_baseline(case, case["steps"][0], desired(case["steps"][0]), self.baseline))
 
         # assert
         self.assertIsInstance(error, AssertionError)

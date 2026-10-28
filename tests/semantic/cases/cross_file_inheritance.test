@@ -1,0 +1,20 @@
+// ISSUE: 538
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: super class 'B' is not inheritable
+// SEPARATE-FILE: src/main.cj
+package audit
+class C <: <@s0>B<@/s0> {}
+// EXPECT: d0 s0 error: super class 'B' is not inheritable
+// SEPARATE-FILE: src/declarations.cj
+package audit
+class B {}
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C <: B {}
+// SEPARATE-FILE: src/declarations.cj
+package audit
+open class B {}
+// STEP: restored FROM broken

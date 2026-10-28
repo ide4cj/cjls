@@ -1,0 +1,9 @@
+// ISSUE: 531
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { mut prop x: Int64 { get() { 1 } set(v) {} } }
+// SEPARATE-FILE: src/declarations.cj
+package audit

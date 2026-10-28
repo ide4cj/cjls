@@ -1,0 +1,16 @@
+// ISSUE: 538
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: return type of 'f' is not identical or not a subtype of the overridden/redefined/implement function
+// SEPARATE-FILE: src/main.cj
+package audit
+open class B { public open func f(): Int64 { 1 } }; class C <: B { public override func <@s0>f<@/s0>(): String { "x" } }
+// EXPECT: d0 s0 error: return type of 'f' is not identical or not a subtype of the overridden/redefined/implement function
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+open class B { public open func f(): Int64 { 1 } }; class C <: B { public override func f(): Int64 { 2 } }
+// STEP: restored FROM broken

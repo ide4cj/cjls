@@ -1,0 +1,17 @@
+// ISSUE: 531
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: expected 'get' or 'set' in prop body, found 'foo'
+// CJC: audit error: unclosed delimiter: '{'
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { prop x: Int64 { <@s0>foo<@/s0>() { 1 } } }
+// EXPECT: d0 s0 error: expected 'get' or 'set' in prop body, found 'foo'
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { prop x: Int64 { get() { 1 } } }
+// STEP: restored FROM broken

@@ -1,0 +1,35 @@
+// Both files of api are compiled together before its consumer app.
+// ISSUE: 528
+// PACKAGE: api api
+// PACKAGE: app app depends=api
+// STEP: initial
+// CJC: api clean
+// CJC: app clean
+// SEPARATE-FILE: api/src/value.cj
+package api
+public func value(): Int64 { helper() }
+// SEPARATE-FILE: api/src/helper.cj
+package api
+func helper(): Int64 { 1 }
+// SEPARATE-FILE: app/src/main.cj
+package app
+import api.*
+func f(): Int64 { return value() }
+// STEP: changed
+// CJC: api clean
+// CJC: app clean
+// SEPARATE-FILE: api/src/helper.cj
+package api
+func helper(): Int64 { 2 }
+// STEP: incompatible
+// CJC: api clean
+// CJC: app error: mismatched types
+// SEPARATE-FILE: api/src/value.cj
+package api
+public func value(): String { "wrong" }
+// SEPARATE-FILE: app/src/main.cj
+package app
+import api.*
+func f(): Int64 { return <@result>value()<@/result> }
+// EXPECT: return result error: mismatched types: expected 'Int64', found 'String'
+// STEP: restored FROM initial

@@ -1,0 +1,16 @@
+// ISSUE: 540
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: type argument's number does not match type parameter's number
+// SEPARATE-FILE: src/main.cj
+package audit
+class Box<T> {}; func f(x: <@s0>Box<Int64, String><@/s0>): Unit {}
+// EXPECT: d0 s0 error: type argument's number does not match type parameter's number
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class Box<T> {}; func f(x: Box<Int64>): Unit {}
+// STEP: restored FROM broken

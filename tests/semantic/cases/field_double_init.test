@@ -1,0 +1,16 @@
+// ISSUE: 529
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: cannot assign to immutable value
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { let x: Int64; init() { x = 1; <@s0>x = 2<@/s0> } }
+// EXPECT: d0 s0 error: cannot assign to immutable value
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { var x: Int64; init() { x = 1; x = 2 } }
+// STEP: restored FROM broken

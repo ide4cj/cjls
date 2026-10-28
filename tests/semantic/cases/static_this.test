@@ -1,0 +1,16 @@
+// ISSUE: 541
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: non-static variable 'this' cannot be referenced from a static context
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { public static func f(): C { <@s0>t<@/s0>his } }
+// EXPECT: d0 s0 error: non-static variable 'this' cannot be referenced from a static context
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { public func f(): C { this } }
+// STEP: restored FROM broken

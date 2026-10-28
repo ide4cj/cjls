@@ -1,0 +1,9 @@
+// ISSUE: 535
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { let x = 0; let g = { => x }; println(g()) }
+// SEPARATE-FILE: src/declarations.cj
+package audit

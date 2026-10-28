@@ -1,0 +1,9 @@
+// ISSUE: 541
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { public func f(): C { this } }
+// SEPARATE-FILE: src/declarations.cj
+package audit

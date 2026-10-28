@@ -1,0 +1,16 @@
+// ISSUE: 541
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: can not access field 'x'
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { private let x = 1 }; func f(c: C): Int64 { <@s0>c<@/s0>.x }
+// EXPECT: d0 s0 error: can not access field 'x'
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { public let x = 1 }; func f(c: C): Int64 { c.x }
+// STEP: restored FROM broken

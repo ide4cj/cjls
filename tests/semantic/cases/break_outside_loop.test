@@ -1,0 +1,16 @@
+// ISSUE: 536
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: 'break' or 'continue' must be used inside a loop
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { <@s0>b<@/s0>reak }
+// EXPECT: d0 s0 error: 'break' or 'continue' must be used inside a loop
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { while (true) { break } }
+// STEP: restored FROM broken

@@ -1,0 +1,9 @@
+// ISSUE: 541
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Int64 { "abc".size }
+// SEPARATE-FILE: src/declarations.cj
+package audit

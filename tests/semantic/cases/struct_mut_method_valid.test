@@ -1,0 +1,9 @@
+// ISSUE: 533
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+struct S { var x = 0; mut func f(): Unit { x = 1 } }
+// SEPARATE-FILE: src/declarations.cj
+package audit

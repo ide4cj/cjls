@@ -1,0 +1,9 @@
+// ISSUE: 543
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { throw Exception("x") }
+// SEPARATE-FILE: src/declarations.cj
+package audit

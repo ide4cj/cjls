@@ -1,0 +1,16 @@
+// ISSUE: 531
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: getter cannot have parameter
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { prop x: Int64 { <@s0>g<@/s0>et(v) { 1 } } }
+// EXPECT: d0 s0 error: getter cannot have parameter
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { prop x: Int64 { get() { 1 } } }
+// STEP: restored FROM broken

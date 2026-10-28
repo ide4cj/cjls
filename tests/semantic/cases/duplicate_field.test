@@ -1,0 +1,16 @@
+// ISSUE: 539
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: redefinition of declaration 'x'
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { let x = 1; let <@s0>x<@/s0> = 2 }
+// EXPECT: d0 s0 error: redefinition of declaration 'x'
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { let x = 1; let y = 2 }
+// STEP: restored FROM broken

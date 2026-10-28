@@ -266,8 +266,10 @@ are in D32 and [the org guide](https://github.com/ide4cj/.github/blob/main/CONTR
 
 ### Negative semantic compiler oracle
 
-The [negative semantic matrix](../tests/semantic/README.md) checks rejected source
-programs and corrected controls against the pinned compiler and the built server:
+The [negative semantic matrix](../tests/semantic/README.md) checks readable `.test`
+workspace scenarios against the pinned compiler and the built server. Scenarios
+declare whole packages, exact diagnostics and editing steps; source ranges are
+marked in the code rather than maintained as numeric offsets:
 
 ```bash
 cjpm build

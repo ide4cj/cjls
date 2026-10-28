@@ -1,0 +1,17 @@
+// ISSUE: 541
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: undeclared identifier 'missing'
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { <@s0>m<@/s0>issing() }
+// EXPECT: d0 s0 error: undeclared identifier 'missing'
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func missing(): Unit {}
+func f(): Unit { missing() }
+// STEP: restored FROM broken

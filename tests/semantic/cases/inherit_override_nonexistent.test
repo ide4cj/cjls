@@ -1,0 +1,16 @@
+// ISSUE: 538
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: 'override' function 'f' does not have an overridden function in its supertype
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { <@s0>p<@/s0>ublic override func f(): Int64 { 1 } }
+// EXPECT: d0 s0 error: 'override' function 'f' does not have an overridden function in its supertype
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { public func f(): Int64 { 1 } }
+// STEP: restored FROM broken

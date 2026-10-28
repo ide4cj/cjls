@@ -1,0 +1,16 @@
+// ISSUE: 530
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: recursive constructor calling detected
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { <@s0>init<@/s0>() { this(1) }; init(x: Int64) { this() } }
+// EXPECT: d0 s0 error: recursive constructor calling detected
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { init() { this(1) }; init(x: Int64) {} }
+// STEP: restored FROM broken

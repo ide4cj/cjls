@@ -1,0 +1,16 @@
+// ISSUE: 532
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: invalid left-hand expression of assignment '='
+// SEPARATE-FILE: src/main.cj
+package audit
+func g(): Int64 { 1 }; func f(): Unit { g() <@s0>=<@/s0> 2 }
+// EXPECT: d0 s0 error: invalid left-hand expression of assignment '='
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func g(): Int64 { 1 }; func f(): Unit { var x = g(); x = 2 }
+// STEP: restored FROM broken

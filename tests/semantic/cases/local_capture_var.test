@@ -1,0 +1,16 @@
+// ISSUE: 535
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: lambda capturing mutable variables needs to be called directly
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { var x = 0; let g = <@s0>{ => x }<@/s0>; println(g()) }
+// EXPECT: d0 s0 error: lambda capturing mutable variables needs to be called directly
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(): Unit { let x = 0; let g = { => x }; println(g()) }
+// STEP: restored FROM broken

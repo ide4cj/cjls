@@ -8,16 +8,18 @@ from contextlib import asynccontextmanager
 import hashlib
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import platform
 import re
 import signal
 import subprocess
 import sys
 
+from scenarios import load_scenarios
+
+
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[1]
-EMPTY = "package audit\n"
 
 
 def read_json(path):
@@ -53,14 +55,25 @@ def discrepancy(expected, actual):
                       for _ in range((found - wanted)[key])]}
 
 
-def check_baseline(case, actual, baseline):
-    delta = discrepancy(case["expected"], actual)
-    known = baseline.get(case["id"], {"issue": case["issue"], "missing": [], "extra": []})
-    if known["issue"] != case["issue"]:
-        raise ValueError(f"{case['id']}: baseline issue attribution changed")
-    expected_delta = {key: sorted(known[key], key=canonical) for key in ("missing", "extra")}
+def desired(step):
+    return [{key: value for key, value in item.items() if key != "id"} for item in step["expected"]]
+
+
+def baseline_delta(case, step, baseline):
+    known = baseline.get(case["id"])
+    if known is None or step["name"] not in known["steps"]:
+        return {"missing": [], "extra": []}
+    expectations = {item["id"]: {key: value for key, value in item.items() if key != "id"}
+                    for item in step["expected"]}
+    return {"missing": sorted((expectations[name] for name in known["missing"]), key=canonical),
+            "extra": sorted(known["extra"], key=canonical)}
+
+
+def check_baseline(case, step, actual, baseline):
+    delta = discrepancy(desired(step), actual)
+    expected_delta = baseline_delta(case, step, baseline)
     if delta != expected_delta:
-        raise AssertionError(f"{case['id']}: new or unexpectedly fixed discrepancy; "
+        raise AssertionError(f"{case['id']}/{step['name']}: new or unexpectedly fixed discrepancy; "
                              f"expected {expected_delta!r}, observed {delta!r}")
     return delta
 
@@ -72,29 +85,30 @@ def compiler_diagnostics(output):
 
 
 def validate(fixtures, baseline):
-    ids = [case["id"] for case in fixtures]
-    if len(set(ids)) != len(ids) or set(baseline) - set(ids):
-        raise ValueError("duplicate fixture IDs or orphan baseline entries")
-    for case in fixtures:
-        if not isinstance(case["issue"], int) or case["issue"] <= 0:
-            raise ValueError(f"{case['id']}: missing issue attribution")
-        if "platforms" in case and not case.get("skip_reason"):
-            raise ValueError(f"{case['id']}: platform applicability needs a skip reason")
-        for diagnostic in case["expected"]:
-            start_line, start_col, end_line, end_col = diagnostic["range"]
-            lines = case["source"].splitlines()
-            if not (0 <= start_line <= end_line < len(lines)
-                    and 0 <= start_col <= len(lines[start_line])
-                    and 0 <= end_col <= len(lines[end_line])
-                    and (start_line, start_col) <= (end_line, end_col)):
-                raise ValueError(f"{case['id']}: invalid expected source range")
-            if not diagnostic["message"] or diagnostic["severity"] not in (1, 2):
-                raise ValueError(f"{case['id']}: missing category/severity")
-        if any(d["severity"] == "error" for d in case["compiler"]) and "fixed" not in case:
-            raise ValueError(f"{case['id']}: rejected fixture needs a corrected control")
+    cases = {case["id"]: case for case in fixtures}
+    if not fixtures or len(cases) != len(fixtures) or set(baseline) - cases.keys():
+        raise ValueError("no scenarios, duplicate fixture IDs or orphan baseline entries")
     for name, entry in baseline.items():
+        case = cases[name]
+        if entry["issue"] != case["issue"]:
+            raise ValueError(f"{name}: baseline issue attribution changed")
         if not entry["missing"] and not entry["extra"]:
             raise ValueError(f"{name}: remove fixed baseline entries")
+        steps = {step["name"]: step for step in case["steps"]}
+        if not entry["steps"] or set(entry["steps"]) - steps.keys():
+            raise ValueError(f"{name}: orphan baseline steps")
+        for step_name in entry["steps"]:
+            step = steps[step_name]
+            if set(entry["missing"]) - {item["id"] for item in step["expected"]}:
+                raise ValueError(f"{name}/{step_name}: orphan baseline diagnostic IDs")
+            for diagnostic in entry["extra"]:
+                lines = step["files"][diagnostic["file"]].split("\n")
+                a, b, c, d = diagnostic["range"]
+                if not (0 <= a <= c < len(lines) and 0 <= b <= len(lines[a].encode("utf-16-le")) // 2
+                        and 0 <= d <= len(lines[c].encode("utf-16-le")) // 2 and (a, b) <= (c, d)):
+                    raise ValueError(f"{name}: invalid baseline range")
+                if not diagnostic["message"] or diagnostic["severity"] not in (1, 2):
+                    raise ValueError(f"{name}: invalid baseline diagnostic")
 
 
 async def kill_tree(process):
@@ -201,7 +215,7 @@ class Lsp:
 
 
 @asynccontextmanager
-async def server(binary, sdk, workspace, output, env, timeout):
+async def server(binary, sdk, workspace, output, env, timeout, initial):
     with (output / "server.stderr.log").open("wb") as stderr, \
             (output / "server.wire.jsonl").open("w", encoding="utf-8") as wire:
         process = await asyncio.create_subprocess_exec(
@@ -221,10 +235,10 @@ async def server(binary, sdk, workspace, output, env, timeout):
                 raise AssertionError("oracle ranges use UTF-16")
             await rpc.send(method="initialized", params={})
             await rpc.wait_loaded()
-            for name in ("main.cj", "declarations.cj"):
-                path = workspace / "src" / name
+            for name, source in initial.items():
+                path = workspace / name
                 await rpc.send(method="textDocument/didOpen", params={"textDocument": {
-                    "uri": path.as_uri(), "languageId": "cangjie", "version": 1, "text": EMPTY}})
+                    "uri": path.as_uri(), "languageId": "cangjie", "version": 1, "text": source}})
             yield rpc
             await rpc.call("shutdown", None)
             await rpc.send(method="exit", params=None)
@@ -235,28 +249,126 @@ async def server(binary, sdk, workspace, output, env, timeout):
             await kill_tree(process)
 
 
-async def compile_case(case, phase, sdk, output, env, timeout):
-    folder = output / "cases" / case["id"] / phase
-    folder.mkdir(parents=True)
-    source = case["fixed"] if phase == "fixed" else case["source"]
-    declarations = case.get("fixed_declarations", case.get("declarations", EMPTY)) \
-        if phase == "fixed" else case.get("declarations", EMPTY)
-    (folder / "main.cj").write_text(source, encoding="utf-8")
-    (folder / "declarations.cj").write_text(declarations, encoding="utf-8")
+def prepare_workspace(case, workspace):
+    """Materialize explicit package projects for cjls's normal project loader."""
+    initial = {}
+    packages = {package["name"]: package for package in case["packages"]}
+    for package in case["packages"]:
+        root = workspace / package["root"]
+        (root / "src").mkdir(parents=True)
+        manifest = ('[package]\ncjc-version = "1.3.0"\n'
+                    f'name = "{package["name"]}"\nversion = "1.0.0"\n'
+                    'output-type = "static"\nsrc-dir = "src"\n')
+        if package["dependencies"]:
+            manifest += "\n[dependencies]\n"
+            for dependency in package["dependencies"]:
+                relative = Path(os.path.relpath(workspace / packages[dependency]["root"], root)).as_posix()
+                manifest += f'{dependency} = {{ path = {json.dumps(relative)} }}\n'
+        (root / "cjpm.toml").write_text(manifest, encoding="utf-8")
+        for name in case["steps"][0]["files"]:
+            if PurePosixPath(name).parent == PurePosixPath(package["root"]) / "src":
+                initial[name] = f"package {package['name']}\n"
+                (workspace / name).write_text(initial[name], encoding="utf-8")
+    if len(packages) > 1:
+        members = [package["root"] for package in packages.values()]
+        (workspace / "cjpm.toml").write_text(
+            f"[workspace]\nmembers = {json.dumps(members)}\n", encoding="utf-8")
+    return initial
+
+
+async def compile_step(case, step, sdk, output, env, timeout):
+    folder = output / "steps" / step["name"]
+    for name, source in step["files"].items():
+        path = folder / "workspace" / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
     executable = sdk / "bin" / ("cjc.exe" if os.name == "nt" else "cjc")
-    argv = [str(executable), "--diagnostic-format", "noColor", "-Woff", "unused",
-            "--output-type", "staticlib", "main.cj", "declarations.cj", "-o", "libaudit.a"]
-    write_json(folder / "command.json", {"argv": argv, "cwd": str(folder), "timeout": timeout})
-    status, stdout, stderr = await command(argv, folder, env, timeout, logs=folder)
-    diagnostics = compiler_diagnostics(stderr + stdout)
-    result = {"status": status, "diagnostics": diagnostics, "command": argv,
-              "artifacts": str(folder.relative_to(output))}
-    expected = [] if phase == "fixed" else case["compiler"]
-    rejected = any(item["severity"] == "error" for item in expected)
-    # A crash or warning-only exit must never count as the expected semantic rejection.
-    if status != (1 if rejected else 0) or diagnostics != expected:
-        result["failure"] = f"compiler expected {expected!r}, exit {int(rejected)}"
-    return result
+    results, dependencies = [], {}
+    for package in case["packages"]:
+        logs = folder / "compiler" / package["name"]
+        logs.mkdir(parents=True)
+        source_dir = folder / "workspace" / package["root"] / "src"
+        argv = [str(executable), "--diagnostic-format", "noColor", "-Woff", "unused",
+                "--output-type", "staticlib", "-p", str(source_dir),
+                "-o", str(logs / f"lib{package['name']}.a")]
+        # Include the transitive closure, without leaking unrelated packages into lookup.
+        imports = set(package["dependencies"])
+        for dependency in package["dependencies"]:
+            imports.update(dependencies[dependency])
+        dependencies[package["name"]] = imports
+        for dependency in sorted(imports):
+            library = folder / "compiler" / dependency
+            argv.extend(["--import-path", str(library), "-L", str(library), f"-l{dependency}"])
+        write_json(logs / "command.json", {"argv": argv, "cwd": str(folder), "timeout": timeout})
+        status, stdout, stderr = await command(argv, folder, env, timeout, logs=logs)
+        diagnostics = compiler_diagnostics(stderr + stdout)
+        result = {"package": package["name"], "status": status, "diagnostics": diagnostics,
+                  "command": argv, "artifacts": str(logs.relative_to(output))}
+        expected = step["compiler"][package["name"]]
+        rejected = any(item["severity"] == "error" for item in expected)
+        if status != (1 if rejected else 0) or diagnostics != expected:
+            result["failure"] = f"compiler expected {expected!r}, exit {int(rejected)}"
+        results.append(result)
+    return results
+
+
+async def apply_step(rpc, workspace, previous, step, version):
+    """Apply only actual changes, including document and filesystem lifecycle events."""
+    for name in sorted(previous.keys() - step["files"].keys()):
+        path = workspace / name
+        await rpc.send(method="textDocument/didClose", params={"textDocument": {"uri": path.as_uri()}})
+        path.unlink()
+        await rpc.send(method="workspace/didChangeWatchedFiles",
+                       params={"changes": [{"uri": path.as_uri(), "type": 3}]})
+    for name, source in step["files"].items():
+        path = workspace / name
+        if name not in previous:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(source, encoding="utf-8")
+            await rpc.send(method="workspace/didChangeWatchedFiles",
+                           params={"changes": [{"uri": path.as_uri(), "type": 1}]})
+            await rpc.send(method="textDocument/didOpen", params={"textDocument": {
+                "uri": path.as_uri(), "languageId": "cangjie", "version": version, "text": source}})
+        elif source != previous[name]:
+            await rpc.change(path, source, version)
+
+
+async def run_case(case, baseline, binary, sdk, output, env, timeout, report):
+    output.mkdir(parents=True)
+    workspace = output / "workspace"
+    previous = prepare_workspace(case, workspace)
+    item = {"id": case["id"], "issue": case["issue"], "phases": []}
+    report["cases"].append(item)
+    compiled = {}
+    async with server(binary, sdk, workspace, output, env, timeout, previous) as rpc:
+        for version, step in enumerate(case["steps"], 2):
+            observed = {"phase": step["name"], "changed_files": [], "deleted_files": []}
+            item["phases"].append(observed)
+            key = canonical({"files": step["files"], "compiler": step["compiler"]})
+            if key in compiled:
+                observed["compiler_reused_from"] = compiled[key][0]
+                observed["compiler"] = compiled[key][1]
+            else:
+                observed["compiler"] = await compile_step(case, step, sdk, output, env, timeout)
+                compiled[key] = (step["name"], observed["compiler"])
+            for result in observed["compiler"]:
+                if "failure" in result:
+                    report["failures"].append(f"{case['id']}/{step['name']}/{result['package']}: {result['failure']}")
+            observed["changed_files"] = [name for name, text in step["files"].items()
+                                         if previous.get(name) != text]
+            observed["deleted_files"] = sorted(previous.keys() - step["files"].keys())
+            await apply_step(rpc, workspace, previous, step, version)
+            previous = step["files"]
+            actual = []
+            observed["diagnostics"] = {}
+            for name in sorted(step["files"]):
+                diagnostics = await rpc.diagnostics(workspace / name)
+                observed["diagnostics"][name] = diagnostics
+                actual.extend({"file": name, **compact(d)} for d in diagnostics)
+            try:
+                observed["discrepancy"] = check_baseline(case, step, actual, baseline)
+            except AssertionError as error:
+                report["failures"].append(str(error))
 
 
 def git(*args):
@@ -264,16 +376,16 @@ def git(*args):
 
 
 async def run(args):
-    fixtures, baseline = read_json(HERE / "fixtures.json"), read_json(HERE / "baseline.json")
-    validate(fixtures, baseline)
-    if args.case:
-        fixtures = [case for case in fixtures if case["id"] in args.case]
-        if set(args.case) - {case["id"] for case in fixtures}:
-            raise ValueError("unknown --case ID")
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    report = {"schema": 1, "status": "failed", "cases": [], "failures": [], "skips": []}
+    report = {"schema": 2, "status": "failed", "cases": [], "failures": [], "skips": []}
     try:
+        fixtures, baseline = load_scenarios(HERE / "cases"), read_json(HERE / "baseline.json")
+        validate(fixtures, baseline)
+        if args.case:
+            fixtures = [case for case in fixtures if case["id"] in args.case]
+            if set(args.case) - {case["id"] for case in fixtures}:
+                raise ValueError("unknown --case ID")
         selected_sdk = args.sdk or os.environ.get("CANGJIE_HOME")
         if not selected_sdk:
             raise ValueError("select the pinned SDK with --sdk or CANGJIE_HOME")
@@ -291,58 +403,26 @@ async def run(args):
             "sdk": str(sdk), "sdk_pin": pin, "compiler_version": version + stderr,
             "platform": platform.platform(), "machine": platform.machine(),
             "python": sys.version, "command": sys.argv, "timeout_seconds": args.timeout,
-            "fixtures_sha256": hashlib.sha256((HERE / "fixtures.json").read_bytes()).hexdigest(),
+            "scenarios_sha256": hashlib.sha256("".join(
+                path.relative_to(HERE).as_posix() + "\0" + path.read_text(encoding="utf-8")
+                for path in sorted((HERE / "cases").rglob("*.test"))).encode()).hexdigest(),
             "baseline_sha256": hashlib.sha256((HERE / "baseline.json").read_bytes()).hexdigest(),
         }
         if status or f"Compiler: {pin} (" not in version:
             raise ValueError(f"compiler does not match repository SDK pin {pin}: {version}{stderr}")
-        workspace = output / "workspace"
-        (workspace / "src").mkdir(parents=True)
-        (workspace / "cjpm.toml").write_text(
-            '[package]\ncjc-version = "1.3.0"\nname = "audit"\nversion = "1.0.0"\n'
-            'output-type = "static"\nsrc-dir = "src"\n', encoding="utf-8")
-        for name in ("main.cj", "declarations.cj"):
-            (workspace / "src" / name).write_text(EMPTY, encoding="utf-8")
-        async with server(binary, sdk, workspace, output, env, args.timeout) as rpc:
-            version = 1
-            for case in fixtures:
-                applicable = case.get("platforms")
-                if applicable and sys.platform not in applicable:
-                    report["skips"].append({"id": case["id"], "reason": case["skip_reason"],
-                                            "platform": sys.platform, "sdk": pin})
-                    continue
-                item = {"id": case["id"], "issue": case["issue"], "phases": []}
-                report["cases"].append(item)
-                for phase in (["broken", "fixed", "restored"] if "fixed" in case else ["control"]):
-                    version += 1
-                    observed = {"phase": phase}
-                    item["phases"].append(observed)
-                    if phase != "restored":
-                        observed["compiler"] = await compile_case(case, phase, sdk, output, env, args.timeout)
-                        if "failure" in observed["compiler"]:
-                            report["failures"].append(f"{case['id']}/{phase}: {observed['compiler']['failure']}")
-                    source = case["fixed"] if phase == "fixed" else case["source"]
-                    declarations = case.get("fixed_declarations", case.get("declarations", EMPTY)) \
-                        if phase == "fixed" else case.get("declarations", EMPTY)
-                    # Change the declaration first; the pull is ordered after both input updates.
-                    await rpc.change(workspace / "src/declarations.cj", declarations, version)
-                    if phase in ("broken", "control") or case.get("fixed") != case["source"]:
-                        await rpc.change(workspace / "src/main.cj", source, version)
-                    observed["diagnostics"] = await rpc.diagnostics(workspace / "src/main.cj")
-                    observed["declaration_diagnostics"] = await rpc.diagnostics(workspace / "src/declarations.cj")
-                    try:
-                        actual = list(map(compact, observed["diagnostics"]))
-                        if phase == "fixed":
-                            if actual or observed["declaration_diagnostics"]:
-                                raise AssertionError(f"{case['id']}: corrected control has diagnostics")
-                        else:
-                            observed["discrepancy"] = check_baseline(case, actual, baseline)
-                            if observed["declaration_diagnostics"]:
-                                raise AssertionError(f"{case['id']}: unexpected declaration diagnostics")
-                    except AssertionError as error:
-                        report["failures"].append(str(error))
-                print(f"{case['id']}: checked", flush=True)
-                write_json(output / "report.json", report)
+        for case in fixtures:
+            applicable = case.get("platforms")
+            if applicable and sys.platform not in applicable:
+                report["skips"].append({"id": case["id"], "reason": case["skip_reason"],
+                                        "platform": sys.platform, "sdk": pin})
+                continue
+            try:
+                await run_case(case, baseline, binary, sdk, output / "cases" / case["id"],
+                               env, args.timeout, report)
+            except Exception as error:
+                report["failures"].append(f"{case['id']}: {type(error).__name__}: {error}")
+            print(f"{case['id']}: checked", flush=True)
+            write_json(output / "report.json", report)
         report["status"] = "passed" if not report["failures"] else "failed"
     except Exception as error:
         report["failures"].append(f"{type(error).__name__}: {error}")

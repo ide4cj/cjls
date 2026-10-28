@@ -1,0 +1,16 @@
+// ISSUE: 544
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: mismatched types
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(b: Bool): Int64 { <@s0>if (b) { return 1 }<@/s0> }
+// EXPECT: d0 s0 error: mismatched types: expected 'Int64', found 'Unit'
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(b: Bool): Int64 { if (b) { return 1 } else { return 2 } }
+// STEP: restored FROM broken

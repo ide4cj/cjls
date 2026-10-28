@@ -1,0 +1,9 @@
+// ISSUE: 534
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+let b = 1; let a = b
+// SEPARATE-FILE: src/declarations.cj
+package audit

@@ -1,0 +1,16 @@
+// ISSUE: 537
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: non-exhaustive patterns
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(b: Bool): Int64 { match (<@s0>b<@/s0>) { case true => 1 } }
+// EXPECT: d0 s0 error: non-exhaustive patterns
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(b: Bool): Int64 { match (b) { case true => 1; case false => 2 } }
+// STEP: restored FROM broken

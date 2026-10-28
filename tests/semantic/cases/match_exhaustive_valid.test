@@ -1,0 +1,9 @@
+// ISSUE: 537
+// PACKAGE: audit .
+// STEP: control
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+func f(b: Bool): Int64 { match (b) { case true => 1; case false => 2 } }
+// SEPARATE-FILE: src/declarations.cj
+package audit

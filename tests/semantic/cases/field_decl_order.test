@@ -1,0 +1,16 @@
+// ISSUE: 529
+// PACKAGE: audit .
+// STEP: broken
+// CJC: audit error: variable 'b' is used before initialization
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { let a = <@s0>b<@/s0>; let b = 1 }
+// EXPECT: d0 s0 error: variable 'b' is used before initialization
+// SEPARATE-FILE: src/declarations.cj
+package audit
+// STEP: fixed
+// CJC: audit clean
+// SEPARATE-FILE: src/main.cj
+package audit
+class C { let b = 1; let a = b }
+// STEP: restored FROM broken
