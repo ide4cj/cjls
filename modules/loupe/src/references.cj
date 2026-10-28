@@ -196,6 +196,7 @@ func declScope(
     let (ref, declaring) =
         match (id.file(db)) {
             case ItemFile.Binary(pkg, _) => (PackageRef.Binary(pkg), pkg.name(db))
+            case ItemFile.CompilerBuiltIns(pkg) => (PackageRef.Source(pkg), pkg.name(db))
             case _ =>
                 // a file of no package: its own names only
                 let pkg = file.flatMap { one => packageOfFile(db, one) } ?? return scope.add(file)

@@ -13,8 +13,8 @@ import loupe.syntax.parse
 
 /**
  * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;
- * `BuiltIn` is a type of the compiler's own (`Array`, `CPointer`), which only `std.core`'s `.cjo`
- * declares.
+ * `BuiltIn` gives a compiler-owned type a scoped name, from std.core's binary or synthetic source
+ * declarations; its semantic type does not depend on this identity (D154).
  */
 @Derive[Equatable, Hashable]
 public enum ItemKind <: ToString {

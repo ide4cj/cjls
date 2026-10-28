@@ -21,11 +21,12 @@ import cjo.{
 }
 import cjo.Decl as CjoDecl
 import cjo.Package as CjoPackage
-import loupe.db.{AnalysisDatabase, BinaryPackageFile, SourceFile}
+import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 
 /**
  * Where an item is declared: a source file, a file of a package compiled already, by its index
  * among the package's files, or the expansion of a macro call on an item of a source file (#175).
+ * CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text.
  * Name resolution takes each alike.
  */
 @Derive[Equatable, Hashable]
@@ -33,6 +34,7 @@ public enum ItemFile {
     | Source(SourceFile)
     | Binary(BinaryPackageFile, Int64)
     | Expansion(MacroCallId)
+    | CompilerBuiltIns(Package)
 }
 
 /**
@@ -42,6 +44,7 @@ public enum ItemFile {
 public func itemTreeOf(db: AnalysisDatabase, file: ItemFile): ItemTree {
     match (file) {
         case Source(source) => activeItemTree(db, source)
+        case CompilerBuiltIns(_) => compilerItems()
         case Expansion(call) => expansionItemTree(db, call)
         case Binary(pkg, index) =>
             let trees = binaryItemTrees(db, pkg)
@@ -229,14 +232,11 @@ func resolveBinaryType(
     match (ref) {
         case PrimTypeRef(name) => ExtendedType.PrimType(name)
         case BuiltInRef(name) =>
-            let core =
-                packageIndex(db).find("std.core", from: PackageRef.Binary(pkg)) ?? return None
-            let builtIns = packageExports(db, core).names.get(name) ?? []
-            builtIns
+            COMPILER_TYPES
                 .iterator()
-                .filter { one => one.id.item(db).kind == ItemKind.BuiltIn }
+                .filter { one => one.toString() == name }
                 .next()
-                .map { one => ExtendedType.DeclType(one.id) }
+                .map { kind => ExtendedType.BuiltInHead(kind) }
         case OwnDeclRef(index) =>
             binaryExports(db, pkg)
                 .itemAt(index)

@@ -26,6 +26,9 @@ public struct Ty {
             case DeclTy(def, args) =>
                 let name = itemOf(db, def).flatMap { item => item.names.get(0) } ?? "{unknown}"
                 if (args.isEmpty()) { name } else { "${name}<${list(args)}>" }
+            case BuiltInTy(kind, args) =>
+                let name = kind.toString()
+                if (args.isEmpty()) { name } else { "${name}<${list(args)}>" }
             case TupleTy(elements) => "(${list(elements)})"
             case FuncTy(params, ret, isC) where isC => "CFunc<(${list(params)}) -> ${ret.text(db)}>"
             case FuncTy(params, ret, _) => "(${list(params)}) -> ${ret.text(db)}"
@@ -48,11 +51,11 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
      */
     | PrimTy(String)
     /**
-     * A declaration and its type arguments: a class, interface, struct or enum, or a type of the
-     * compiler's own (`CPointer`, `CString`, `RawArray`), each of as many arguments as it has type
-     * parameters.
+     * A declaration and its type arguments: a class, interface, struct or enum.
      */
     | DeclTy(DefId, Array<Ty>)
+    /** Compiler-owned pointers, C strings and raw arrays, independent of scoped declarations. */
+    | BuiltInTy(CompilerType, Array<Ty>)
     | TupleTy(Array<Ty>)
     /**
      * Its parameters, its return type, and whether it is a `CFunc`.
@@ -103,6 +106,10 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
                 hasher.write(1)
                 hasher.write(def.hashCode())
                 hasher.write(hashOf(args))
+            case BuiltInTy(kind, args) =>
+                hasher.write(11)
+                hasher.write(kind.hashCode())
+                hasher.write(hashOf(args))
             case TupleTy(elements) =>
                 hasher.write(2)
                 hasher.write(hashOf(elements))
@@ -138,6 +145,7 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
         match ((this, other)) {
             case (PrimTy(a), PrimTy(b)) => a == b
             case (DeclTy(a, aArgs), DeclTy(b, bArgs)) => a == b && aArgs == bArgs
+            case (BuiltInTy(a, aa), BuiltInTy(b, ba)) => a == b && aa == ba
             case (TupleTy(a), TupleTy(b)) => a == b
             case (FuncTy(aParams, aRet, aC), FuncTy(bParams, bRet, bC)) =>
                 aParams == bParams && aRet == bRet && aC == bC
@@ -252,6 +260,7 @@ public func substitute(db: AnalysisDatabase, ty: Ty, owner: DefId, args: Array<T
     match (ty.kind(db)) {
         case ParamTy(of, index) where of == owner => args.get(index) ?? ty
         case DeclTy(def, tyArgs) => Ty(db, DeclTy(def, all(tyArgs)))
+        case BuiltInTy(kind, tyArgs) => Ty(db, BuiltInTy(kind, all(tyArgs)))
         case TupleTy(elements) => Ty(db, TupleTy(all(elements)))
         case FuncTy(params, ret, isC) =>
             Ty(db, FuncTy(all(params), substitute(db, ret, owner, args), isC))

@@ -42,7 +42,7 @@ func annotationOn(db: AnalysisDatabase, def: DefId, name: String, text: String):
                 }
             }
             throw FixtureException("no ${name} in the declaration of ${def}")
-        case ItemFile.Binary(_, _) =>
+        case ItemFile.Binary(_, _) | ItemFile.CompilerBuiltIns(_) =>
             throw FixtureException("${def} is of a .cjo, which a fixture has none of")
         case ItemFile.Expansion(_) =>
             throw FixtureException(

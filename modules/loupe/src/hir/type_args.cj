@@ -84,6 +84,10 @@ class TypeArgSolver {
                     constrain(bParams[i], aParams[i])
                 }
                 constrain(aRet, bRet)
+            case (BuiltInTy(a, aa), BuiltInTy(b, ba)) where a == b && aa.size == ba.size =>
+                for (i in 0..aa.size) {
+                    equal(aa[i], ba[i])
+                }
             // no `VArray` of a type parameter: cjc rejects one
             case (_, DeclTy(id, args)) =>
                 match (asInstanceOf(db, sub, id, from).map { one => one.kind(db) }) {
@@ -244,6 +248,7 @@ func anyIn(db: AnalysisDatabase, ty: Ty, test: (Ty) -> Bool): Bool {
     let all = { tys: Array<Ty> => tys.iterator().any { one => anyIn(db, one, test) } }
     match (ty.kind(db)) {
         case DeclTy(_, args) => all(args)
+        case BuiltInTy(_, args) => all(args)
         case TupleTy(elements) => all(elements)
         case FuncTy(params, ret, _) => all(params) || anyIn(db, ret, test)
         case VArrayTy(element, _) => anyIn(db, element, test)
@@ -286,6 +291,7 @@ func firstUnknownIn(db: AnalysisDatabase, ty: Ty): ?Ty {
     match (ty.kind(db)) {
         case ParamTy(_, _) => incompleteBoundsOf(db, ty)
         case DeclTy(_, args) => all(args)
+        case BuiltInTy(_, args) => all(args)
         case TupleTy(elements) => all(elements)
         case FuncTy(params, ret, _) => all(params.concat([ret]))
         case VArrayTy(element, _) => firstUnknownIn(db, element)
@@ -333,6 +339,7 @@ func replaceVars(
         case InferTy(n) where n >= base && n < base + solved.size =>
             solved[n - base] ?? unsolved ?? Ty(db, ErrorTy)
         case DeclTy(def, args) => Ty(db, DeclTy(def, all(args)))
+        case BuiltInTy(kind, args) => Ty(db, BuiltInTy(kind, all(args)))
         case TupleTy(elements) => Ty(db, TupleTy(all(elements)))
         case FuncTy(params, ret, isC) =>
             Ty(db, FuncTy(all(params), replaceVars(db, ret, base, solved, unsolved: unsolved), isC))

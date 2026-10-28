@@ -14,11 +14,13 @@ import loupe.db.{AnalysisDatabase, Package, SourceFile}
 public enum ExtendedType <: ToString {
     | DeclType(DefId)
     | PrimType(String)
+    | BuiltInHead(CompilerType)
 
     public func toString(): String {
         match (this) {
             case DeclType(id) => id.toString()
             case PrimType(name) => name
+            case BuiltInHead(kind) => kind.toString()
         }
     }
 }
@@ -45,6 +47,8 @@ public func extendedTypeOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
             }
         }
     match (named) {
+        case Some(DeclType(id)) where id.item(db).kind == ItemKind.BuiltIn =>
+            compilerTypeOf(db, id).map { kind => ExtendedType.BuiltInHead(kind) }
         case Some(DeclType(id)) where id.item(db).kind == ItemKind.TypeAlias =>
             aliasedTypeOf(db, id)
         case _ => named
@@ -59,6 +63,7 @@ func aliasedTypeOf(db: AnalysisDatabase, id: DefId): ?ExtendedType {
     match (signatureTypes(db, id).ty.map { ty => ty.kind(db) }) {
         case Some(DeclTy(head, _)) => ExtendedType.DeclType(head)
         case Some(PrimTy(name)) => ExtendedType.PrimType(name)
+        case Some(BuiltInTy(kind, _)) => ExtendedType.BuiltInHead(kind)
         case _ => None
     }
 }
@@ -186,6 +191,7 @@ func sourceFileOf(db: AnalysisDatabase, def: DefId): ?SourceFile {
 func packageRefOf(db: AnalysisDatabase, def: DefId): ?PackageRef {
     match (def.file(db)) {
         case Binary(pkg, _) => PackageRef.Binary(pkg)
+        case CompilerBuiltIns(pkg) => PackageRef.Source(pkg)
         case file =>
             scopeFileOf(db, file)
                 .flatMap { one => packageOfFile(db, one) }
@@ -326,6 +332,10 @@ func extendsOn(
     from: ?SourceFile
 ): Array<DefId> {
     let all = extendsOf(db, ty, from)
+    if (let BuiltInHead(_) <- ty) {
+        let recv = on.get() ?? return all
+        return all.filter { ext => extendArgs(db, ext, recv).isSome() }
+    }
     let id =
         match (ty) {
             case DeclType(id) where !all.isEmpty() && !genericsOf(db, id).isEmpty() => id
@@ -429,7 +439,7 @@ func extendsOf(db: AnalysisDatabase, ty: ExtendedType, from: ?SourceFile): Array
     let typePackage =
         match (ty) {
             case DeclType(id) => packageRefOf(db, id)
-            case PrimType(_) =>
+            case PrimType(_) | BuiltInHead(_) =>
                 match (viewer) {
                     case Some((pkg, _)) =>
                         packageIndex(db).find("std.core", from: resolutionPackage(db, pkg))
@@ -493,7 +503,7 @@ public func foreignExtends(
                 entry =>
                 match (entry[0]) {
                     case DeclType(id) => packageRefOf(db, id) != pkg
-                    case PrimType(_) => !isCore
+                    case PrimType(_) | BuiltInHead(_) => !isCore
                 }
             }
     IndexMap<ExtendedType, Array<DefId>>(found)
@@ -567,7 +577,7 @@ func isExtendSeen(
     let ofTypesPackage =
         match (ty) {
             case DeclType(id) => packageRefOf(db, id) == extPkg
-            case PrimType(_) => nameOf(db, extPkg) == "std.core"
+            case PrimType(_) | BuiltInHead(_) => nameOf(db, extPkg) == "std.core"
         }
     if (ofTypesPackage) {
         return true
@@ -577,7 +587,7 @@ func isExtendSeen(
     let typeSeen =
         match (ty) {
             case DeclType(id) => isImported(db, pkg, imports, id)
-            case PrimType(_) => true
+            case PrimType(_) | BuiltInHead(_) => true
         }
     typeSeen &&
         supertypes(db, ext)
@@ -586,7 +596,7 @@ func isExtendSeen(
                 one =>
                 match (one) {
                     case DeclType(id) => isImported(db, pkg, imports, id)
-                    case PrimType(_) => false
+                    case PrimType(_) | BuiltInHead(_) => false
                 }
             }
 }
@@ -632,7 +642,7 @@ func isImported(db: AnalysisDatabase, pkg: Package, imports: ImportLevel, id: De
 func ownMembersNamed(db: AnalysisDatabase, ty: ExtendedType, name: String): Array<MemberTarget> {
     match (ty) {
         case DeclType(id) => membersOfItem(db, id, name)
-        case PrimType(_) => []
+        case PrimType(_) | BuiltInHead(_) => []
     }
 }
 
@@ -671,7 +681,7 @@ func membersOfItem(db: AnalysisDatabase, id: DefId, name: String): Array<MemberT
 func supertypesOf(db: AnalysisDatabase, ty: ExtendedType): Array<ExtendedType> {
     match (ty) {
         case DeclType(id) => supertypes(db, id)
-        case PrimType(_) => []
+        case PrimType(_) | BuiltInHead(_) => []
     }
 }
 
@@ -682,6 +692,7 @@ func supertypesOf(db: AnalysisDatabase, ty: ExtendedType): Array<ExtendedType> {
 @CalcaTracked
 public func supertypes(db: AnalysisDatabase, def: DefId): Array<ExtendedType> {
     match (def.file(db)) {
+        case CompilerBuiltIns(_) => []
         case Source(_) | Expansion(_) =>
             let sig = signature(db, def)
             sig.supers |>

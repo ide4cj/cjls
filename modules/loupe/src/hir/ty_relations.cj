@@ -128,6 +128,7 @@ func directSupertypes(db: AnalysisDatabase, ty: Ty, from: ?SourceFile): Array<Ty
                     signatureTypes(db, id).supers.map { one => substitute(db, one, id, args) }
                 )
             case PrimTy(name) => (ExtendedType.PrimType(name), Array<Ty>())
+            case BuiltInTy(kind, _) => (ExtendedType.BuiltInHead(kind), Array<Ty>())
             case _ => return []
         }
     let found = ArrayList<Ty>(named)
@@ -184,6 +185,7 @@ func matchTy(db: AnalysisDatabase, pattern: Ty, actual: Ty, owner: DefId, binds:
         case (TupleTy(a), TupleTy(b)) => all(a, b)
         case (FuncTy(aParams, aRet, aC), FuncTy(bParams, bRet, bC)) =>
             aC == bC && all(aParams.concat([aRet]), bParams.concat([bRet]))
+        case (BuiltInTy(a, aa), BuiltInTy(b, ba)) => a == b && all(aa, ba)
         case (VArrayTy(a, aSize), VArrayTy(b, bSize)) =>
             aSize == bSize && matchTy(db, a, b, owner, binds)
         case _ => pattern == actual
@@ -243,6 +245,7 @@ func isSubtype(db: AnalysisDatabase, sub: Ty, sup: Ty, from: ?SourceFile): Bool 
             (UnknownTy(_), _) |
             (_, UnknownTy(_)) => true
         case (PrimTy("Nothing"), _) => true
+        case (BuiltInTy(_, _), BuiltInTy(_, _)) => isAlike(db, sub, sup)
         case (TupleTy(subs), TupleTy(sups)) =>
             subs.size == sups.size &&
                 (0..subs.size).iterator().all { i => isSubtype(db, subs[i], sups[i], from) }
@@ -358,6 +361,7 @@ func isAlike(db: AnalysisDatabase, a: Ty, b: Ty): Bool {
         case (DeclTy(x, xs), DeclTy(y, ys)) => x == y && all(xs, ys)
         case (TupleTy(xs), TupleTy(ys)) => all(xs, ys)
         case (FuncTy(xs, x, xc), FuncTy(ys, y, yc)) => xc == yc && all(xs, ys) && isAlike(db, x, y)
+        case (BuiltInTy(a, aa), BuiltInTy(b, ba)) => a == b && all(aa, ba)
         case (VArrayTy(x, xn), VArrayTy(y, yn)) => xn == yn && isAlike(db, x, y)
         case _ => false
     }

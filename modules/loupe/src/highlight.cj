@@ -463,6 +463,9 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
     var modifiers = HighlightModifiers.NONE
     let source =
         match (file) {
+            case CompilerBuiltIns(_) =>
+                modifiers = modifiers.plus(HighlightModifier.DefaultLibrary)
+                Option<Decl>.None
             case Source(_) => nodeOf(db, id).flatMap { found => Decl.cast(found[1]) }
             case Binary(pkg, _) =>
                 if (pkg.binary(db) == "std") {
@@ -530,6 +533,7 @@ func isMutable(db: AnalysisDatabase, id: DefId, source: ?Decl): Bool {
                 case Some(decl) => hasToken(decl.syntax, SyntaxKind.VarKw)
                 case None => false
             }
+        case CompilerBuiltIns(_) => false
         case Binary(pkg, index) =>
             match (
                 binaryDecl(db, pkg, BinaryItem(index, id.item(db))).flatMap { decl => decl.info }

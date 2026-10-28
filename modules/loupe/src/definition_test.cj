@@ -714,7 +714,7 @@ class DefinitionTest {
                 case Resolved(TypeOf(id)) =>
                     match (id.file(db)) {
                         case Binary(_, _) => true
-                        case Source(_) | Expansion(_) => false
+                        case Source(_) | Expansion(_) | CompilerBuiltIns(_) => false
                     }
                 case _ => false
             }

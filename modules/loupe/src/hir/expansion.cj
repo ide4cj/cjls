@@ -437,7 +437,7 @@ public func syntaxOf(db: AnalysisDatabase, file: ItemFile): ?(CjSyntaxNode, Item
     match (file) {
         case Source(source) => (parse(db, source).syntaxNode(), itemIdMap(db, source))
         case Expansion(call) => (expansionParse(db, call).syntaxNode(), expansionIdMap(db, call))
-        case Binary(_, _) => None
+        case Binary(_, _) | CompilerBuiltIns(_) => None
     }
 }
 
@@ -449,7 +449,7 @@ public func scopeFileOf(db: AnalysisDatabase, file: ItemFile): ?SourceFile {
     match (file) {
         case Source(source) => source
         case Expansion(call) => call.file(db)
-        case Binary(_, _) => None
+        case Binary(_, _) | CompilerBuiltIns(_) => None
     }
 }
 

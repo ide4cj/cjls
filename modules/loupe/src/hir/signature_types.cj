@@ -202,6 +202,7 @@ public struct SignatureTypes {
 public func signatureTypes(db: AnalysisDatabase, def: DefId): SignatureTypes {
     match (def.file(db)) {
         case Source(_) | Expansion(_) => SourceTyLowering(db, def).lower()
+        case CompilerBuiltIns(pkg) => compilerSignature(db, def, pkg)
         case Binary(pkg, index) =>
             lowerBinarySignature(db, def, pkg, BinaryItem(index, def.item(db)))
     }
@@ -291,6 +292,8 @@ func aliasesNamedBy(db: AnalysisDatabase, def: DefId): Array<DefId> {
 public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
     match (def.file(db)) {
         case Source(_) | Expansion(_) => signature(db, def).generics
+        case CompilerBuiltIns(_) =>
+            compilerTypeOf(db, def).map { one => compilerGenerics(one) } ?? []
         case Binary(pkg, index) => binaryGenericsOf(db, pkg, BinaryItem(index, def.item(db)))
     }
 }
@@ -671,11 +674,8 @@ class SourceTyLowering {
             case TypeAlias =>
                 let aliased = signatureTypes(db, target).ty ?? Ty(db, ErrorTy)
                 substitute(db, aliased, target, fitted)
-            case BuiltIn where isCFunc =>
-                match (fitted.get(0).map { one => one.kind(db) }) {
-                    case Some(FuncTy(params, ret, _)) => Ty(db, FuncTy(params, ret, true))
-                    case _ => Ty(db, ErrorTy)
-                }
+            case BuiltIn =>
+                compilerTy(db, compilerTypeOf(db, target) ?? return Ty(db, ErrorTy), fitted)
             case _ => Ty(db, DeclTy(target, fitted))
         }
     }
@@ -926,6 +926,7 @@ class BinaryTyLowering {
     private func declTyOf(ref: ?BinaryTypeRef, args: Array<Ty>): TyKind {
         match (ref.flatMap { one => resolveBinaryType(db, pkg, one) }) {
             case Some(DeclType(id)) => DeclTy(id, args)
+            case Some(BuiltInHead(kind)) => BuiltInTy(kind, args)
             case _ => UnknownTy(UnknownReason.BinaryType)
         }
     }
@@ -955,14 +956,9 @@ class BinaryTyLowering {
             return Ty(db, UnknownTy(UnknownReason.BinaryType))
         }
         let element = args.get(0) ?? return Ty(db, UnknownTy(UnknownReason.BinaryType))
-        let rawArray =
-            match (resolveBinaryType(db, pkg, BinaryTypeRef.BuiltInRef("RawArray"))) {
-                case Some(DeclType(id)) => id
-                case _ => return Ty(db, UnknownTy(UnknownReason.BinaryType))
-            }
         var ty = element
         for (_ in 0..max(dims, 1)) {
-            ty = Ty(db, DeclTy(rawArray, [ty]))
+            ty = Ty(db, BuiltInTy(RawArrayType, [ty]))
         }
         ty
     }

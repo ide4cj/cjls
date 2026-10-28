@@ -448,6 +448,7 @@ func expansionTarget(
  */
 func declTarget(db: AnalysisDatabase, id: DefId, intoExpansions!: Bool = false): ?NavigationTarget {
     match (id.file(db)) {
+        case CompilerBuiltIns(_) => return None
         case Binary(pkg, file) => return binaryTarget(db, pkg, file, id.item(db))
         // what a macro call adds: where the call writes it (#175)
         case Expansion(call) =>

@@ -2215,6 +2215,7 @@ class Inference {
                 match (head.kind(db)) {
                     case DeclTy(id, _) => ExtendedType.DeclType(id)
                     case PrimTy(name) => ExtendedType.PrimType(name)
+                    case BuiltInTy(kind, _) => ExtendedType.BuiltInHead(kind)
                     case _ => continue
                 }
             let found = ArrayList<Callable>()
@@ -4151,6 +4152,7 @@ class Inference {
                 match (head.kind(db)) {
                     case DeclTy(id, _) => ExtendedType.DeclType(id)
                     case PrimTy(prim) => ExtendedType.PrimType(prim)
+                    case BuiltInTy(kind, _) => ExtendedType.BuiltInHead(kind)
                     case _ => continue
                 }
             let targets = memberLookup(db, [start], name, from: from, on: head)
@@ -4206,7 +4208,13 @@ class Inference {
      */
     private func typeOfDecl(id: DefId, explicit: Array<Ty>, expected: ?Ty): Ty {
         match (id.item(db).kind) {
-            case Class | Interface | Struct | Enum | BuiltIn =>
+            case BuiltIn =>
+                compilerTy(
+                    db,
+                    compilerTypeOf(db, id) ?? return error,
+                    typeArgsOf(id, explicit, expected)
+                )
+            case Class | Interface | Struct | Enum =>
                 Ty(db, DeclTy(id, typeArgsOf(id, explicit, expected)))
             case TypeAlias =>
                 let aliased = signatureTypes(db, id).ty ?? return error
