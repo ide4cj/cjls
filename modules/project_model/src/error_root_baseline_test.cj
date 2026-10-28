@@ -1,12 +1,14 @@
 package project_model
 
-import std.collection.*
+import std.collection.HashMap
 import std.convert.Parsable
 import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
 
-/** Keeps root attribution attached to its file/kind when a count changes. */
+/**
+ * Keeps root attribution attached to its file/kind when a count changes.
+ */
 class ErrorRootBaseline {
     let counts = HashMap<String, Int64>()
     private let reasons = HashMap<String, String>()
@@ -16,7 +18,11 @@ class ErrorRootBaseline {
         header = lines.filter { line => line.startsWith("#") }
         for (line in lines where !line.startsWith("#") && !line.isEmpty()) {
             let parts = line.split("  # ", 2)
-            let at = parts[0].lastIndexOf(": ").getOrThrow()
+            let at =
+                parts[0].lastIndexOf(": ") ??
+                    throw IllegalArgumentException(
+                        "Missing count separator in error-root baseline: ${line}"
+                    )
             let key = parts[0][..at]
             counts[key] = Int64.parse(parts[0][at + 2..])
             if (let Some(reason) <- parts.get(1)) {
@@ -25,7 +31,9 @@ class ErrorRootBaseline {
         }
     }
 
-    /** A new local group remains visibly unattributed until its cause is investigated. */
+    /**
+     * A new local group remains visibly unattributed until its cause is investigated.
+     */
     func updated(found: HashMap<String, Int64>): Array<String> {
         let written =
             found

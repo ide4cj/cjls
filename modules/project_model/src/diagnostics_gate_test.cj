@@ -1,8 +1,8 @@
 package project_model
 
-import std.collection.*
+import std.collection.{ArrayList, HashMap}
 import std.env.getVariable
-import std.fs.*
+import std.fs.{Directory, File, Path}
 import std.sort.sort
 import std.unittest.*
 import std.unittest.testmacro.*
@@ -222,21 +222,16 @@ class ErrorRootsGateTest {
             roots.add(root)
             byLine[line] = roots
         }
-        let found = HashMap<String, Int64>()
-        for ((line, roots) in byLine) {
-            found[line] = roots.size
+        let found = HashMap(byLine.toArray().map { entry => (entry[0], entry[1].size) })
+
+        if (getVariable(UPDATE_EXPECT).isSome()) {
+            let written = baseline.updated(found)
+            let text = String.join(written, delimiter: "\n")
+            File.writeTo(knownErrorRoots(), "${text}\n".toArray())
+            return
         }
 
         // assert
-        if (getVariable(UPDATE_EXPECT).isSome()) {
-            let written = baseline.updated(found)
-            File
-                .writeTo(
-                    knownErrorRoots(),
-                    (String.join(written, delimiter: "\n") + "\n").toArray()
-                )
-            return
-        }
         let known = baseline.counts
         let changed = ArrayList<String>()
         for (line in baseline.unattributedLocals()) {
