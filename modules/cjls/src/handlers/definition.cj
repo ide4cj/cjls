@@ -1,10 +1,11 @@
 package cjls.handlers
 
-import stdxx.Nullable
-import loupe.{definitionAt, NavigationTarget}
 import cjls.lsp_types.*
-import cjls.server.*
 import cjls.macros.LspHandler
+import cjls.server.*
+import loupe.definitionAt
+import rope.Encoding
+import stdxx.Nullable
 
 /**
  * Where the name at the position is declared, each candidate of an ambiguity or an overload: as
@@ -37,10 +38,21 @@ func handleDefinition(
                     )
                 }
         }
+    navigationResult(places, snap.encoding, links: snap.locationLinks)
+}
+
+/**
+ * Navigation results in the encoding and result shape negotiated for the requested method.
+ */
+func navigationResult(
+    places: Array<Place>,
+    encoding: Encoding,
+    links!: Bool
+): Nullable<DefinitionOrDefinitionLinks> {
     if (places.isEmpty()) {
         return Nullable.Null
     }
-    if (snap.locationLinks) {
+    if (links) {
         return Nullable
             .Value(
                 DefinitionOrDefinitionLinks
@@ -48,7 +60,7 @@ func handleDefinition(
                         places
                             .map {
                                 place =>
-                                locationLink(place.text, place.uri, place.target, snap.encoding)
+                                locationLink(place.text, place.uri, place.target, encoding)
                             }
                     )
             )
@@ -62,7 +74,7 @@ func handleDefinition(
                             places
                                 .map {
                                     place =>
-                                    location(place.text, place.uri, place.target, snap.encoding)
+                                    location(place.text, place.uri, place.target, encoding)
                                 }
                         )
                 )

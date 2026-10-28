@@ -98,6 +98,11 @@ public class ServerState <: FromContext<ServerState> {
     public var locationLinks = false
 
     /**
+     * Whether the client accepts links for type definition, negotiated independently of definition.
+     */
+    public var typeDefinitionLinks = false
+
+    /**
      * Whether the client takes a hover's content as Markdown, as agreed on at `initialize`; one that
      * does not gets plain text.
      */
@@ -541,6 +546,7 @@ public class ServerState <: FromContext<ServerState> {
             multilineTokens,
             augmentsSyntaxTokens,
             locationLinks,
+            typeDefinitionLinks,
             lineFoldingOnly,
             foldingRangeLimit,
             hoverMarkdown,
@@ -595,6 +601,7 @@ public class ServerSnapshot <: FromReadOnlyContext<ServerSnapshot> {
         public let multilineTokens: Bool,
         public let augmentsSyntaxTokens: Bool,
         public let locationLinks: Bool,
+        public let typeDefinitionLinks: Bool,
         public let lineFoldingOnly: Bool,
         public let foldingRangeLimit: ?Int64,
         public let hoverMarkdown: Bool,
