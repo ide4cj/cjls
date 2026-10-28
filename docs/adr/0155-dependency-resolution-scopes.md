@@ -1,6 +1,6 @@
 # ADR-0155: Independent dependency selections retain module and source context
 
-Status: proposed
+Status: accepted, 2026-10-28
 
 ## Context
 
