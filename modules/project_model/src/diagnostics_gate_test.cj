@@ -1,7 +1,6 @@
 package project_model
 
 import std.collection.*
-import std.convert.Parsable
 import std.env.getVariable
 import std.fs.*
 import std.sort.sort
@@ -208,7 +207,13 @@ class ErrorRootsGateTest {
      */
     @TestCase
     func thisRepositoryHasOnlyTheErrorRootsOfKnownGaps() {
+        // arrange
         let ws = workspace()
+        let lines =
+            String.fromUtf8(File.readFrom(knownErrorRoots())).replace("\r\n", "\n").split("\n")
+        let baseline = ErrorRootBaseline(lines)
+
+        // act
         let byLine = HashMap<String, ArrayList<ErrorRoot>>()
         for (root in censusOf(ws).errorRoots) {
             let line =
@@ -221,25 +226,22 @@ class ErrorRootsGateTest {
         for ((line, roots) in byLine) {
             found[line] = roots.size
         }
-        let lines =
-            String.fromUtf8(File.readFrom(knownErrorRoots())).replace("\r\n", "\n").split("\n")
+
+        // assert
         if (getVariable(UPDATE_EXPECT).isSome()) {
-            let written = found.keys().toArray().map { line => "${line}: ${found[line]}" }
-            sort(written)
-            let header = lines.filter { line => line.startsWith("#") }
+            let written = baseline.updated(found)
             File
                 .writeTo(
                     knownErrorRoots(),
-                    (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
+                    (String.join(written, delimiter: "\n") + "\n").toArray()
                 )
             return
         }
-        let known = HashMap<String, Int64>()
-        for (line in lines where !line.startsWith("#") && !line.isEmpty()) {
-            let at = line.lastIndexOf(": ").getOrThrow()
-            known[line[..at]] = Int64.parse(line[at + 2..])
-        }
+        let known = baseline.counts
         let changed = ArrayList<String>()
+        for (line in baseline.unattributedLocals()) {
+            changed.add("${line}: attribute each local root to its gap's issue (#425)")
+        }
         for (
             (line, count) in found where count >
                 (known.get(line) ?? 0)
@@ -267,7 +269,7 @@ class ErrorRootsGateTest {
 }
 
 /**
- * The file of this repository's roots of an error type, a line `path: kind: count` each.
+ * The file of this repository's roots of an error type, `path: kind: count  # why` each.
  */
 func knownErrorRoots(): Path {
     workspaceRoot()
