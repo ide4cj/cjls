@@ -1795,29 +1795,34 @@ class Inference {
                 // else alone, of its default type, the right not told anything (N125)
                 infer(lhs, None)
             } else {
-                let synthesized = infer(lhs, if (isComparison) { None } else { primOnly(kept) })
-                if (isPrim(synthesized) || isTuple(synthesized)) {
-                    // but a comparison: `==` of a type takes one of that type
-                    let found =
-                        builtin {
-                            =>
-                            let wanted =
-                                if (isComparison) {
-                                    rightExpected(op, synthesized)
-                                } else {
-                                    primOnly(rightExpected(op, synthesized))
-                                }
-                            let right = infer(rhs, wanted)
-                            if (let Some(one) <- wanted && !fits(right, one)) {
-                                return None
-                            }
-                            builtinTy(op, synthesized, right)
+                // The expected result constrains only the built-in candidate's operands. An
+                // extension may return a different primitive from its receiver (UInt64 % UInt32
+                // can return UInt32); failed contextual inference must roll back with the trial.
+                let found =
+                    builtin {
+                        =>
+                        let synthesized =
+                            infer(lhs, if (isComparison) { None } else { primOnly(kept) })
+                        if (!isPrim(synthesized) && !isTuple(synthesized)) {
+                            return None
                         }
-                    if (let Some(ty) <- found) {
-                        return ty
+                        // A comparison's right side takes the left's type too.
+                        let wanted =
+                            if (isComparison) {
+                                rightExpected(op, synthesized)
+                            } else {
+                                primOnly(rightExpected(op, synthesized))
+                            }
+                        let right = infer(rhs, wanted)
+                        if (let Some(one) <- wanted && !fits(right, one)) {
+                            return None
+                        }
+                        builtinTy(op, synthesized, right)
                     }
+                if (let Some(ty) <- found) {
+                    return ty
                 }
-                synthesized
+                infer(lhs, None)
             }
         operatorTy(id, left, op, [CallArg(None, rhs)], expected)
     }

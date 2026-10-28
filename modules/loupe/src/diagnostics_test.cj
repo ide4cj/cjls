@@ -648,9 +648,10 @@ class ReplacedItemDiagnosticsTest {
 }
 
 /**
- * What the gate of std's sources found where cjc finds nothing (#287), each case of std's code
- * compiled with cjc 1.3.0-alpha.20261002 first; a name not known (`nope`) stands for a gap of the
- * analysis there (the variadic `max` was one before #254), which nothing around it is reported for.
+ * What the gate of std's sources found where cjc finds nothing (#287), reduced to cases compiled
+ * with cjc first (the original probes used 1.3.0-alpha.20261002). A name not known (`nope`) stands
+ * for a gap of the analysis there (the variadic `max` was one before #254), which nothing around
+ * it is reported for.
  */
 @Test
 class StdFalseMismatchesTest {
@@ -692,6 +693,26 @@ class StdFalseMismatchesTest {
             func g(a: Float64, b: Float64): Unit {
                 let s = a + b * nope
             }
+            "#,
+            binaries: ["std.core"]
+        )
+    }
+
+    @TestCase
+    func primitiveOperatorFallbackDoesNotCheckTheReceiverAgainstItsResult() {
+        checkDiagnostics(
+            #"
+            package m
+            extend UInt64 {
+                operator func %(rhs: UInt32): UInt32 { UInt32(this % UInt64(rhs)) }
+            }
+            extend UInt32 {
+                operator func *(rhs: UInt64): UInt64 { UInt64(this) * rhs }
+            }
+            func narrow(a: UInt64, b: UInt32): UInt32 { a % b }
+            func widen(a: UInt32, b: UInt64): UInt64 { a * b }
+            func tuple(a: UInt64, b: UInt32): (UInt32, UInt32) { (a % b, (a + a) % b) }
+            func nested(a: UInt32, b: UInt64): UInt64 { a * b + b }
             "#,
             binaries: ["std.core"]
         )
