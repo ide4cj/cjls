@@ -33,15 +33,24 @@ import loupe.vfs.FileId
  * (`definitionInExpansion`), is in the text of that expansion: `expansion` is its call, the ranges are
  * of `expandedMacro`'s text, `fileId` the call's file.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct NavigationTarget {
+@DerivePython
+public struct NavigationTarget <: Equatable<NavigationTarget> {
     public NavigationTarget(
         public let fileId: FileId,
         public let fullRange: TextRange,
         public let focusRange: TextRange,
         public let expansion!: ?MacroCallId = None
     ) {}
+
+    public operator func ==(other: NavigationTarget): Bool {
+        this.fileId == other.fileId && this.fullRange == other.fullRange &&
+            this.focusRange == other.focusRange &&
+            this.expansion == other.expansion
+    }
+
+    public operator func !=(other: NavigationTarget): Bool {
+        !(this == other)
+    }
 }
 
 /**

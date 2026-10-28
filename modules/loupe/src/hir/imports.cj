@@ -23,10 +23,17 @@ public func nameOf(db: AnalysisDatabase, pkg: PackageRef): String {
 /**
  * A package of the project and who it is of: a module's name, or a binary's.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct IndexedPackage {
+@DerivePython
+public struct IndexedPackage <: Equatable<IndexedPackage> {
     public IndexedPackage(public let pkg: PackageRef, public let owner: String) {}
+
+    public operator func ==(other: IndexedPackage): Bool {
+        this.pkg == other.pkg && this.owner == other.owner
+    }
+
+    public operator func !=(other: IndexedPackage): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -129,13 +136,26 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
  * `PackageRelation`: the same, one under it by name (`m.a.b` to `m.a`), one of the same first
  * segment (cjc's module), or none of these.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum PackageRelation {
+@DerivePython
+public enum PackageRelation <: Equatable<PackageRelation> {
     | SamePackage
     | Child
     | SameModule
     | Unrelated
+
+    public operator func ==(other: PackageRelation): Bool {
+        match ((this, other)) {
+            case (PackageRelation.SamePackage, PackageRelation.SamePackage) => true
+            case (PackageRelation.Child, PackageRelation.Child) => true
+            case (PackageRelation.SameModule, PackageRelation.SameModule) => true
+            case (PackageRelation.Unrelated, PackageRelation.Unrelated) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: PackageRelation): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -204,9 +224,8 @@ public func importLevelOf(item: ImportItem): Visibility {
 /**
  * Why a path of an import brings nothing, as cjpm and cjc report it.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum ImportError <: ToString {
+@DerivePython
+public enum ImportError <: ToString & Equatable<ImportError> {
     /**
      * No package of the name the importer may import (cjpm's "can not find the following dependencies").
      */
@@ -237,6 +256,25 @@ public enum ImportError <: ToString {
             case Cycle(name) => "cyclic dependency through '${name}'"
             case SelfImport(name) => "package '${name}' should not import itself"
         }
+    }
+
+    public operator func ==(other: ImportError): Bool {
+        match ((this, other)) {
+            case (ImportError.NoPackage(left0), ImportError.NoPackage(right0)) => left0 == right0
+            case (
+                    ImportError.NotAccessible(left0, left1),
+                    ImportError.NotAccessible(right0, right1)
+                ) => left0 == right0 && left1 == right1
+            case (ImportError.PackageReExported(left0), ImportError.PackageReExported(right0)) =>
+                left0 == right0
+            case (ImportError.Cycle(left0), ImportError.Cycle(right0)) => left0 == right0
+            case (ImportError.SelfImport(left0), ImportError.SelfImport(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ImportError): Bool {
+        !(this == other)
     }
 }
 

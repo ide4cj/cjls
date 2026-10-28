@@ -3,7 +3,6 @@ package loupe
 import py_interop.*
 import py_interop.internal_macros.*
 
-import std.deriving.*
 import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
@@ -13,9 +12,8 @@ import loupe.vfs.FileId
  * The macro call at a position (`macroCallAt`): the call whose expansion shows it, and where the call at the position
  * is.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct MacroCallAt {
+@DerivePython
+public struct MacroCallAt <: Equatable<MacroCallAt> {
     public MacroCallAt(
         /**
          * The call whose expansion the analysis reads that shows what the call at the position adds (`readCallOf`):
@@ -33,14 +31,21 @@ public struct MacroCallAt {
          */
         public let focus!: ?TextRange = None
     ) {}
+
+    public operator func ==(other: MacroCallAt): Bool {
+        this.call == other.call && this.range == other.range && this.focus == other.focus
+    }
+
+    public operator func !=(other: MacroCallAt): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Who wrote an expansion.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum ExpansionKind <: ToString {
+@DerivePython
+public enum ExpansionKind <: ToString & Equatable<ExpansionKind> {
     /**
      * The macro server, running a macro of the workspace or of std: its whole output, bodies included (#176).
      */
@@ -57,14 +62,25 @@ public enum ExpansionKind <: ToString {
             case OwnExpansion => "OwnExpansion"
         }
     }
+
+    public operator func ==(other: ExpansionKind): Bool {
+        match ((this, other)) {
+            case (ExpansionKind.ServerExpansion, ExpansionKind.ServerExpansion) => true
+            case (ExpansionKind.OwnExpansion, ExpansionKind.OwnExpansion) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ExpansionKind): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a macro call expands to, as the analysis reads it.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct ExpandedMacro {
+@DerivePython
+public struct ExpandedMacro <: Equatable<ExpandedMacro> {
     public ExpandedMacro(
         /**
          * The macro's name as the call writes it, `@` and its path, its attribute left out: `@Derive`, `@m.M`.
@@ -86,6 +102,16 @@ public struct ExpandedMacro {
          */
         public let declaration!: ?String = None
     ) {}
+
+    public operator func ==(other: ExpandedMacro): Bool {
+        this.name == other.name && this.range == other.range && this.text == other.text &&
+            this.kind == other.kind &&
+            this.declaration == other.declaration
+    }
+
+    public operator func !=(other: ExpandedMacro): Bool {
+        !(this == other)
+    }
 }
 
 /**

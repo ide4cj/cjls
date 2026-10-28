@@ -19,19 +19,25 @@ const DEFAULT_PACKAGE = "default"
 /**
  * One option `@When` is evaluated against: `os == "Linux"` reads the option `os`.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct CfgOption {
+@DerivePython
+public struct CfgOption <: Equatable<CfgOption> {
     public CfgOption(public let key: String, public let value: String) {}
+
+    public operator func ==(other: CfgOption): Bool {
+        this.key == other.key && this.value == other.value
+    }
+
+    public operator func !=(other: CfgOption): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What `@When` is evaluated against: `os`, `arch`, `backend` and whatever else a build sets, each
  * key once, in the order of the keys.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Cfg {
+@DerivePython
+public struct Cfg <: Equatable<Cfg> {
     public let options: Array<CfgOption>
 
     /**
@@ -66,6 +72,14 @@ public struct Cfg {
                 .map { option => (option.key, option.value) }
                 .concat(overrides.options.map { option => (option.key, option.value) })
         )
+    }
+
+    public operator func ==(other: Cfg): Bool {
+        this.options == other.options
+    }
+
+    public operator func !=(other: Cfg): Bool {
+        !(this == other)
     }
 }
 

@@ -4,7 +4,6 @@ import py_interop.*
 import py_interop.internal_macros.*
 
 import std.collection.*
-import std.deriving.*
 import std.sort.*
 import cjsyntax.{CjSyntaxNode, message}
 import cjsyntax.ast.ArgList as AstArgList
@@ -16,13 +15,25 @@ import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Severity {
+@DerivePython
+public enum Severity <: Equatable<Severity> {
     | Error
     | Warning
     // not a fault: what a reader may want to know, as code a `@When` leaves out
     | Hint
+
+    public operator func ==(other: Severity): Bool {
+        match ((this, other)) {
+            case (Severity.Error, Severity.Error) => true
+            case (Severity.Warning, Severity.Warning) => true
+            case (Severity.Hint, Severity.Hint) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Severity): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -30,15 +41,24 @@ public enum Severity {
  * included, as "expected `}`" at the end of a file (A12). `unnecessary` for code a build leaves
  * out, which an editor shows faded.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Diagnostic {
+@DerivePython
+public struct Diagnostic <: Equatable<Diagnostic> {
     public Diagnostic(
         public let range: TextRange,
         public let severity: Severity,
         public let message: String,
         public let unnecessary!: Bool = false
     ) {}
+
+    public operator func ==(other: Diagnostic): Bool {
+        this.range == other.range && this.severity == other.severity &&
+            this.message == other.message &&
+            this.unnecessary == other.unnecessary
+    }
+
+    public operator func !=(other: Diagnostic): Bool {
+        !(this == other)
+    }
 }
 
 /**

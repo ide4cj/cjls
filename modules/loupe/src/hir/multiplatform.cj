@@ -4,7 +4,6 @@ import py_interop.*
 import py_interop.internal_macros.*
 
 import std.collection.*
-import std.deriving.*
 import cjsyntax.CjSyntaxNode
 import cjsyntax.ast.{FuncDecl, InitDecl, PropDecl, VarDecl}
 import calca.*
@@ -130,10 +129,17 @@ func memberItemOf(db: AnalysisDatabase, parent: DefId, def: DefId): ?Item {
  * A `common` declaration no `specific` one completes, though it needs one, as cjc says it: `'common'
  * function 'f' can not find 'specific' match`.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct NoSpecific {
+@DerivePython
+public struct NoSpecific <: Equatable<NoSpecific> {
     public NoSpecific(public let def: DefId, public let message: String) {}
+
+    public operator func ==(other: NoSpecific): Bool {
+        this.def == other.def && this.message == other.message
+    }
+
+    public operator func !=(other: NoSpecific): Bool {
+        !(this == other)
+    }
 }
 
 /**

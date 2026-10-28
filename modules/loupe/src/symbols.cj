@@ -4,7 +4,6 @@ import py_interop.*
 import py_interop.internal_macros.*
 
 import std.collection.*
-import std.deriving.*
 import std.unicode.*
 import calca.*
 import calca.macros.*
@@ -17,9 +16,8 @@ import loupe.db.{AnalysisDatabase, SourceFile}
  * A declaration of a file, as a search of the workspace sees it: an entry of its outline, and the
  * name of the one it is under, if any.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct FileSymbol {
+@DerivePython
+public struct FileSymbol <: Equatable<FileSymbol> {
     public FileSymbol(
         public let name: String,
         public let kind: StructureKind,
@@ -27,6 +25,16 @@ public struct FileSymbol {
         public let selectionRange: TextRange,
         public let containerName: ?String
     ) {}
+
+    public operator func ==(other: FileSymbol): Bool {
+        this.name == other.name && this.kind == other.kind && this.range == other.range &&
+            this.selectionRange == other.selectionRange &&
+            this.containerName == other.containerName
+    }
+
+    public operator func !=(other: FileSymbol): Bool {
+        !(this == other)
+    }
 }
 
 /**

@@ -3,7 +3,6 @@ package loupe.hir
 import py_interop.*
 import py_interop.internal_macros.*
 
-import std.deriving.*
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
@@ -13,9 +12,8 @@ import loupe.db.AnalysisDatabase
  * sugar for or is of. cjc's `GetCoreDecl`, R1's lang items (8f). Not the compiler's own types
  * (`CPointer`, `CString`): a file names those, through its scope.
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable]
-public enum LangItem {
+@DerivePython
+public enum LangItem <: Equatable<LangItem> & Hashable {
     /**
      * `Option`: `?T`, `??`, `as`, a value boxed.
      */
@@ -113,6 +111,49 @@ public enum LangItem {
             case OptionSome | OptionNone => OptionEnum
             case _ => None
         }
+    }
+
+    public operator func ==(other: LangItem): Bool {
+        match ((this, other)) {
+            case (LangItem.OptionEnum, LangItem.OptionEnum) => true
+            case (LangItem.OptionSome, LangItem.OptionSome) => true
+            case (LangItem.OptionNone, LangItem.OptionNone) => true
+            case (LangItem.CompositionFunc, LangItem.CompositionFunc) => true
+            case (LangItem.ObjectClass, LangItem.ObjectClass) => true
+            case (LangItem.StringStruct, LangItem.StringStruct) => true
+            case (LangItem.FutureClass, LangItem.FutureClass) => true
+            case (LangItem.IterableInterface, LangItem.IterableInterface) => true
+            case (LangItem.RangeStruct, LangItem.RangeStruct) => true
+            case (LangItem.ArrayStruct, LangItem.ArrayStruct) => true
+            case (LangItem.ExceptionClass, LangItem.ExceptionClass) => true
+            case (LangItem.TokensClass, LangItem.TokensClass) => true
+            case (LangItem.AnyInterface, LangItem.AnyInterface) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: LangItem): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case LangItem.OptionEnum => hasher.write(0)
+            case LangItem.OptionSome => hasher.write(1)
+            case LangItem.OptionNone => hasher.write(2)
+            case LangItem.CompositionFunc => hasher.write(3)
+            case LangItem.ObjectClass => hasher.write(4)
+            case LangItem.StringStruct => hasher.write(5)
+            case LangItem.FutureClass => hasher.write(6)
+            case LangItem.IterableInterface => hasher.write(7)
+            case LangItem.RangeStruct => hasher.write(8)
+            case LangItem.ArrayStruct => hasher.write(9)
+            case LangItem.ExceptionClass => hasher.write(10)
+            case LangItem.TokensClass => hasher.write(11)
+            case LangItem.AnyInterface => hasher.write(12)
+        }
+        hasher.finish()
     }
 }
 

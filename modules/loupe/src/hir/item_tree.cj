@@ -4,7 +4,6 @@ import py_interop.*
 import py_interop.internal_macros.*
 
 import std.collection.*
-import std.deriving.*
 import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, Decl, ImportTree, Modifiers, NameRef, Pattern, VarDecl}
@@ -17,9 +16,8 @@ import loupe.syntax.parse
 /**
  * A modifier, as written before a declaration.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Modifier <: ToString {
+@DerivePython
+public enum Modifier <: ToString & Equatable<Modifier> {
     | Static
     | Public
     | Private
@@ -59,6 +57,33 @@ public enum Modifier <: ToString {
             case Specific => "specific"
         }
     }
+
+    public operator func ==(other: Modifier): Bool {
+        match ((this, other)) {
+            case (Modifier.Static, Modifier.Static) => true
+            case (Modifier.Public, Modifier.Public) => true
+            case (Modifier.Private, Modifier.Private) => true
+            case (Modifier.Internal, Modifier.Internal) => true
+            case (Modifier.Protected, Modifier.Protected) => true
+            case (Modifier.Override, Modifier.Override) => true
+            case (Modifier.Redef, Modifier.Redef) => true
+            case (Modifier.Abstract, Modifier.Abstract) => true
+            case (Modifier.Sealed, Modifier.Sealed) => true
+            case (Modifier.Open, Modifier.Open) => true
+            case (Modifier.Foreign, Modifier.Foreign) => true
+            case (Modifier.Mut, Modifier.Mut) => true
+            case (Modifier.Unsafe, Modifier.Unsafe) => true
+            case (Modifier.Operator, Modifier.Operator) => true
+            case (Modifier.Const, Modifier.Const) => true
+            case (Modifier.Common, Modifier.Common) => true
+            case (Modifier.Specific, Modifier.Specific) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Modifier): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -89,36 +114,50 @@ let MODIFIERS: Array<(SyntaxKind, Modifier)> =
  * The `package` line: the package's name as written (`a.b`, `org::a.b`), and whether it is a
  * `macro package`.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct PackageItem {
+@DerivePython
+public struct PackageItem <: Equatable<PackageItem> {
     public PackageItem(
         public let name: String,
         public let isMacro: Bool,
         public let modifiers: Array<Modifier>
     ) {}
+
+    public operator func ==(other: PackageItem): Bool {
+        this.name == other.name && this.isMacro == other.isMacro &&
+            this.modifiers == other.modifiers
+    }
+
+    public operator func !=(other: PackageItem): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One name an import brings in, as written: `segments` up to it, `org::a` one segment; every name
  * of the package for a glob (`a.b.*`), else the package's and the imported one's.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct ImportPath {
+@DerivePython
+public struct ImportPath <: Equatable<ImportPath> {
     public ImportPath(
         public let segments: Array<String>,
         public let alias!: ?String = None,
         public let isGlob!: Bool = false
     ) {}
+
+    public operator func ==(other: ImportPath): Bool {
+        this.segments == other.segments && this.alias == other.alias && this.isGlob == other.isGlob
+    }
+
+    public operator func !=(other: ImportPath): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * An `import`, and every name it brings in: `import a.{b as c, d.*}` brings two.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct ImportItem {
+@DerivePython
+public struct ImportItem <: Equatable<ImportItem> {
     public ImportItem(
         public let id: ItemId,
         public let modifiers: Array<Modifier>,
@@ -128,15 +167,23 @@ public struct ImportItem {
          */
         public let condition!: ?CfgExpr = None
     ) {}
+
+    public operator func ==(other: ImportItem): Bool {
+        this.id == other.id && this.modifiers == other.modifiers && this.paths == other.paths &&
+            this.condition == other.condition
+    }
+
+    public operator func !=(other: ImportItem): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A declaration of the file, as name resolution needs it, and nothing that moves when the file is
  * edited elsewhere: no range, no body, no signature.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Item {
+@DerivePython
+public struct Item <: Equatable<Item> {
     public Item(
         public let id: ItemId,
         /**
@@ -185,6 +232,18 @@ public struct Item {
     public func has(modifier: Modifier): Bool {
         modifiers.contains(modifier)
     }
+
+    public operator func ==(other: Item): Bool {
+        this.id == other.id && this.names == other.names && this.modifiers == other.modifiers &&
+            this.macros == other.macros &&
+            this.members == other.members &&
+            this.condition == other.condition &&
+            this.paramMacros == other.paramMacros
+    }
+
+    public operator func !=(other: Item): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -192,9 +251,8 @@ public struct Item {
  * by their `ItemId`s. An edit inside a body, or one that only moves items, leaves it equal, so what
  * read it is not run again.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct ItemTree {
+@DerivePython
+public struct ItemTree <: Equatable<ItemTree> {
     public ItemTree(
         public let packageHeader!: ?PackageItem = None,
         public let imports!: Array<ImportItem> = [],
@@ -239,6 +297,15 @@ public struct ItemTree {
             imports: imports,
             items: lowerItems(root.decls(), ids)
         )
+    }
+
+    public operator func ==(other: ItemTree): Bool {
+        this.packageHeader == other.packageHeader && this.imports == other.imports &&
+            this.items == other.items
+    }
+
+    public operator func !=(other: ItemTree): Bool {
+        !(this == other)
     }
 }
 

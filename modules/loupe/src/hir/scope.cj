@@ -15,23 +15,30 @@ import loupe.vfs.FileId
  * The path of an import a name came by: its file, its import, the path's index in it, and the
  * visibility it re-exports with.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct ImportSite {
+@DerivePython
+public struct ImportSite <: Equatable<ImportSite> {
     public ImportSite(
         public let file: ItemFile,
         public let item: ItemId,
         public let path: Int64,
         public let level: Visibility
     ) {}
+
+    public operator func ==(other: ImportSite): Bool {
+        this.file == other.file && this.item == other.item && this.path == other.path &&
+            this.level == other.level
+    }
+
+    public operator func !=(other: ImportSite): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a name of a scope stands for: a declaration, or a package imported by its name (N7, N43).
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable]
-public enum ScopeTarget <: ToString {
+@DerivePython
+public enum ScopeTarget <: ToString & Equatable<ScopeTarget> & Hashable {
     | OfDecl(DefId)
     | OfPackage(PackageRef)
 
@@ -41,23 +48,54 @@ public enum ScopeTarget <: ToString {
             case OfPackage(pkg) => pkg.toString()
         }
     }
+
+    public operator func ==(other: ScopeTarget): Bool {
+        match ((this, other)) {
+            case (ScopeTarget.OfDecl(left0), ScopeTarget.OfDecl(right0)) => left0 == right0
+            case (ScopeTarget.OfPackage(left0), ScopeTarget.OfPackage(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ScopeTarget): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case ScopeTarget.OfDecl(value0) =>
+                hasher.write(0)
+                hasher.write(value0.hashCode())
+            case ScopeTarget.OfPackage(value0) =>
+                hasher.write(1)
+                hasher.write(value0.hashCode())
+        }
+        hasher.finish()
+    }
 }
 
 /**
  * A name an import brings, and the path it came by; `None` for the prelude.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Imported {
+@DerivePython
+public struct Imported <: Equatable<Imported> {
     public Imported(public let target: ScopeTarget, public let site: ?ImportSite) {}
+
+    public operator func ==(other: Imported): Bool {
+        this.target == other.target && this.site == other.site
+    }
+
+    public operator func !=(other: Imported): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * An import of every name of a package, kept as the package: its names are read at a lookup.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Glob {
+@DerivePython
+public struct Glob <: Equatable<Glob> {
     public Glob(
         public let pkg: PackageRef,
         /**
@@ -67,6 +105,15 @@ public struct Glob {
         public let level: Visibility,
         public let site: ?ImportSite
     ) {}
+
+    public operator func ==(other: Glob): Bool {
+        this.pkg == other.pkg && this.relation == other.relation && this.level == other.level &&
+            this.site == other.site
+    }
+
+    public operator func !=(other: Glob): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -339,20 +386,41 @@ public func importsAt(
  * see functions or variables; neither sees a macro, nor a macro anything else (a function `Derive`
  * leaves `@Derive` the imported macro).
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable]
-public enum Namespace {
+@DerivePython
+public enum Namespace <: Equatable<Namespace> & Hashable {
     | Types
     | Values
     | Macros
+
+    public operator func ==(other: Namespace): Bool {
+        match ((this, other)) {
+            case (Namespace.Types, Namespace.Types) => true
+            case (Namespace.Values, Namespace.Values) => true
+            case (Namespace.Macros, Namespace.Macros) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Namespace): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case Namespace.Types => hasher.write(0)
+            case Namespace.Values => hasher.write(1)
+            case Namespace.Macros => hasher.write(2)
+        }
+        hasher.finish()
+    }
 }
 
 /**
  * What a name means in a file's scope.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Resolution <: ToString {
+@DerivePython
+public enum Resolution <: ToString & Equatable<Resolution> {
     /**
      * One declaration, or functions overloading one another (N5, N14, N42).
      */
@@ -380,6 +448,23 @@ public enum Resolution <: ToString {
             case Ctors(own, imported) => "ctors ${own} ${imported}"
             case NotFound => "not found"
         }
+    }
+
+    public operator func ==(other: Resolution): Bool {
+        match ((this, other)) {
+            case (Resolution.Found(left0), Resolution.Found(right0)) => left0 == right0
+            case (Resolution.FoundPackage(left0), Resolution.FoundPackage(right0)) =>
+                left0 == right0
+            case (Resolution.Ambiguous(left0), Resolution.Ambiguous(right0)) => left0 == right0
+            case (Resolution.Ctors(left0, left1), Resolution.Ctors(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Resolution.NotFound, Resolution.NotFound) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Resolution): Bool {
+        !(this == other)
     }
 }
 

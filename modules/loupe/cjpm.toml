@@ -13,7 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
-py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "380a03374b4d7f3f03e723c4c325370f641496da", output-type = "static" }
+py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "d85c3e416b16780f0d8fda1e482c5488aa878edb", output-type = "static" }
 calca = { path = "../calca" }
 cjformat = { path = "../cjformat" }
 cjo = { path = "../cjo" }

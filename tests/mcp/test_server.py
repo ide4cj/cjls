@@ -143,6 +143,18 @@ class McpStdioTest(unittest.TestCase):
                     assert inferred[LocalId(local)] == inferred.locals[local]
                     assert len(set([inferred.locals[local], analysis.internType(TyKind.PrimTy('Int64'))])) == 1
                     assert ExprId(1) == ExprId(1) and hash(ExprId(1)) == hash(ExprId(1))
+                    assert ExprId(1) != ExprId(2)
+                    assert len({{ExprId(1), ExprId(1), ExprId(2)}}) == 2
+                    assert str(ExprId(1)) == 'ExprId(index: 1)'
+                    assert ItemKind.Func() != ItemKind.Main()
+                    assert len({{ItemKind.Func(), ItemKind.Func(), ItemKind.Main()}}) == 2
+                    assert Local('a', LocalKind.VarLocal(), lone=False) == Local('a', LocalKind.VarLocal(), lone=False)
+                    assert Local('a', LocalKind.VarLocal(), lone=False) != Local('b', LocalKind.VarLocal(), lone=False)
+                    assert Expr.LitExpr('42') == Expr.LitExpr('42')
+                    assert Expr.LitExpr('42') != Expr.LitExpr('43')
+                    assert Expr.LitExpr('42') != Expr.MissingExpr()
+                    assert Expr.StrExpr([ExprId(1)]) == Expr.StrExpr([ExprId(1)])
+                    assert Expr.StrExpr([ExprId(1)]) != Expr.StrExpr([ExprId(2)])
                     assert analysis.typeKind(inferred.locals[local]) == TyKind.PrimTy('Int64')
                     assert isinstance(analysis.typeKind(inferred.locals[local]), TyKind.PrimTy)
                     assert analysis.typeKind(inferred.locals[local]).field0 == 'Int64'

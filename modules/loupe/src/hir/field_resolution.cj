@@ -4,15 +4,13 @@ import py_interop.*
 import py_interop.internal_macros.*
 
 import std.collection.*
-import std.deriving.*
 import loupe.db.{AnalysisDatabase, Package}
 
 /**
  * What the left of a `.` in a body stands for, as far as names tell (N75–N79).
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Receiver <: ToString {
+@DerivePython
+public enum Receiver <: ToString & Equatable<Receiver> {
     /**
      * A package the file imports by its name or an alias (N76).
      */
@@ -39,14 +37,28 @@ public enum Receiver <: ToString {
             case NoReceiver => "nothing"
         }
     }
+
+    public operator func ==(other: Receiver): Bool {
+        match ((this, other)) {
+            case (Receiver.PackageReceiver(left0), Receiver.PackageReceiver(right0)) =>
+                left0 == right0
+            case (Receiver.TypesReceiver(left0), Receiver.TypesReceiver(right0)) => left0 == right0
+            case (Receiver.ValueReceiver, Receiver.ValueReceiver) => true
+            case (Receiver.NoReceiver, Receiver.NoReceiver) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Receiver): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What the name after a `.` in a body means.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum FieldResolution <: ToString {
+@DerivePython
+public enum FieldResolution <: ToString & Equatable<FieldResolution> {
     /**
      * Declarations of a package, a type or a value, never a constructor (N76).
      */
@@ -68,6 +80,22 @@ public enum FieldResolution <: ToString {
             case OfValue => "of a value"
             case NoField => "nothing"
         }
+    }
+
+    public operator func ==(other: FieldResolution): Bool {
+        match ((this, other)) {
+            case (FieldResolution.PackageMembers(left0), FieldResolution.PackageMembers(right0)) =>
+                left0 == right0
+            case (FieldResolution.TypeMembers(left0), FieldResolution.TypeMembers(right0)) =>
+                left0 == right0
+            case (FieldResolution.OfValue, FieldResolution.OfValue) => true
+            case (FieldResolution.NoField, FieldResolution.NoField) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: FieldResolution): Bool {
+        !(this == other)
     }
 }
 

@@ -479,9 +479,10 @@ worker, but the stripped executable did not identify the internal compiler phase
 These observations do not establish an SDK-only reproducer or a diagnosed cause.
 
 The current pinned `py_interop` generator configures descriptors' callbacks lazily
-when their Python classes initialize, instead of from global initializers. Its
-`equatable` and `hashable` modes sit above `@Derive[...]`, merging the relevant
-trait methods without wrapping generated native callbacks in deriving macros.
+when their Python classes initialize, instead of from global initializers. Exported
+value types implement their traits directly in the type declaration, avoiding
+composition with standard deriving and making the methods visible to the binding
+generator.
 The same combined workspace now builds at normal release `-O2`, and native MCP
 integration passes, so the old per-package `-O0` override has been removed.
 This avoids the compiler failure for this export set; it is not a compiler fix

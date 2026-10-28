@@ -184,10 +184,10 @@ including their constructors, fields, properties and methods. Immutable fields
 remain read-only. The bindings are built on all native platforms; `runPython`
 currently supports native Linux x86_64 and returns an unsupported-platform tool
 error elsewhere. Cross compilation of the Python exports has not been verified.
-For externally derived value traits, place `@DerivePython[equatable]` or
-`@DerivePython[hashable]` above `@Derive[...]`. The binding generator merges the
-trait methods without wrapping native callbacks in the deriving macro. Calca
-identities use `@DerivePython[opaque]` above their identity-generating macro.
+Exported value types implement equality, hashing and string conversion directly
+in their declarations so `@DerivePython` can bind those native methods without
+standard deriving or special trait modes.
+Calca identities use `@DerivePython[opaque]` above their identity-generating macro.
 Descriptors configure callbacks lazily when their Python class is initialized.
 The full workspace builds at normal release `-O2`; no `loupe` optimization override
 is required. See [K28](../../docs/sdk-issues.md#k28) for the earlier compiler failures

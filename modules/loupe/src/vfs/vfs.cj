@@ -13,13 +13,26 @@ import rope.Rope
  * A file, by the index its path was given when first seen. Cheap to keep, compare and hash, and
  * the one handle the layers above know a file by; `Vfs` says which path it stands for.
  */
-@DerivePython[hashable]
-@Derive[Hashable, Equatable]
-public struct FileId <: ToString {
+@DerivePython
+public struct FileId <: ToString & Hashable & Equatable<FileId> {
     public FileId(public let index: Int64) {}
 
     public func toString(): String {
         "FileId(${index})"
+    }
+
+    public operator func ==(other: FileId): Bool {
+        this.index == other.index
+    }
+
+    public operator func !=(other: FileId): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(this.index)
+        hasher.finish()
     }
 }
 

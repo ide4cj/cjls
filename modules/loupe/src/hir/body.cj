@@ -45,36 +45,86 @@ import loupe.syntax.parse
 /**
  * An expression of a body, by its place among the body's `exprs`.
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable, ToString]
-public struct ExprId {
+@DerivePython
+public struct ExprId <: Equatable<ExprId> & Hashable & ToString {
     public ExprId(public let index: Int64) {}
+
+    public operator func ==(other: ExprId): Bool {
+        this.index == other.index
+    }
+
+    public operator func !=(other: ExprId): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(this.index)
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        "ExprId(index: ${this.index})"
+    }
 }
 
 /**
  * A pattern of a body, by its place among the body's `pats`.
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable, ToString]
-public struct PatId {
+@DerivePython
+public struct PatId <: Equatable<PatId> & Hashable & ToString {
     public PatId(public let index: Int64) {}
+
+    public operator func ==(other: PatId): Bool {
+        this.index == other.index
+    }
+
+    public operator func !=(other: PatId): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(this.index)
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        "PatId(index: ${this.index})"
+    }
 }
 
 /**
  * A name a body declares, by its place among the body's `locals`.
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable, ToString]
-public struct LocalId {
+@DerivePython
+public struct LocalId <: Equatable<LocalId> & Hashable & ToString {
     public LocalId(public let index: Int64) {}
+
+    public operator func ==(other: LocalId): Bool {
+        this.index == other.index
+    }
+
+    public operator func !=(other: LocalId): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(this.index)
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        "LocalId(index: ${this.index})"
+    }
 }
 
 /**
  * What declares a local.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum LocalKind {
+@DerivePython
+public enum LocalKind <: Equatable<LocalKind> {
     /**
      * A parameter of the declaration, of a local function or of a property's setter.
      */
@@ -94,14 +144,30 @@ public enum LocalKind {
     | PatLocal
     | CatchLocal
     | ResourceLocal
+
+    public operator func ==(other: LocalKind): Bool {
+        match ((this, other)) {
+            case (LocalKind.ParamLocal, LocalKind.ParamLocal) => true
+            case (LocalKind.LambdaParamLocal, LocalKind.LambdaParamLocal) => true
+            case (LocalKind.VarLocal, LocalKind.VarLocal) => true
+            case (LocalKind.FuncLocal, LocalKind.FuncLocal) => true
+            case (LocalKind.PatLocal, LocalKind.PatLocal) => true
+            case (LocalKind.CatchLocal, LocalKind.CatchLocal) => true
+            case (LocalKind.ResourceLocal, LocalKind.ResourceLocal) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: LocalKind): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A name a body declares.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Local {
+@DerivePython
+public struct Local <: Equatable<Local> {
     public Local(
         public let name: String,
         public let kind: LocalKind,
@@ -111,15 +177,22 @@ public struct Local {
          */
         public let lone!: Bool = false
     ) {}
+
+    public operator func ==(other: Local): Bool {
+        this.name == other.name && this.kind == other.kind && this.lone == other.lone
+    }
+
+    public operator func !=(other: Local): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A parameter: its name, `None` for `_`; its type, written in a lambda or a local function's
  * signature; its default value.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct BodyParam {
+@DerivePython
+public struct BodyParam <: Equatable<BodyParam> {
     public BodyParam(
         public let local: ?LocalId,
         public let ty!: ?TypeRefId = None,
@@ -133,14 +206,24 @@ public struct BodyParam {
          */
         public let passedBy!: ?String = None
     ) {}
+
+    public operator func ==(other: BodyParam): Bool {
+        this.local == other.local && this.ty == other.ty &&
+            this.defaultValue == other.defaultValue &&
+            this.isMember == other.isMember &&
+            this.passedBy == other.passedBy
+    }
+
+    public operator func !=(other: BodyParam): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A function declared in a body: its name, a local of the scope after it (N60).
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct LocalFunc {
+@DerivePython
+public struct LocalFunc <: Equatable<LocalFunc> {
     public LocalFunc(
         public let local: LocalId,
         public let generics: Array<String>,
@@ -152,11 +235,22 @@ public struct LocalFunc {
          */
         public let bounds!: Array<TypeBound> = []
     ) {}
+
+    public operator func ==(other: LocalFunc): Bool {
+        this.local == other.local && this.generics == other.generics &&
+            this.params == other.params &&
+            this.ret == other.ret &&
+            this.body == other.body &&
+            this.bounds == other.bounds
+    }
+
+    public operator func !=(other: LocalFunc): Bool {
+        !(this == other)
+    }
 }
 
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Stmt {
+@DerivePython
+public enum Stmt <: Equatable<Stmt> {
     /**
      * `let`, `var` or `const`: the names its pattern binds, seen after it (N60, N61).
      */
@@ -166,55 +260,99 @@ public enum Stmt {
      * A function, by its place among the body's `funcs`.
      */
     | FuncStmt(Int64)
+
+    public operator func ==(other: Stmt): Bool {
+        match ((this, other)) {
+            case (Stmt.LetStmt(left0, left1, left2), Stmt.LetStmt(right0, right1, right2)) =>
+                left0 == right0 && left1 == right1 && left2 == right2
+            case (Stmt.ExprStmt(left0), Stmt.ExprStmt(right0)) => left0 == right0
+            case (Stmt.FuncStmt(left0), Stmt.FuncStmt(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Stmt): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * An argument of a call: the name it is passed by, if any; whether it is a trailing lambda, passed
  * by the name of the last parameter if that is passed by name (cjc's `GetArgName`).
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct CallArg {
+@DerivePython
+public struct CallArg <: Equatable<CallArg> {
     public CallArg(
         public let name: ?String,
         public let expr: ExprId,
         public let isInout!: Bool = false,
         public let isTrailing!: Bool = false
     ) {}
+
+    public operator func ==(other: CallArg): Bool {
+        this.name == other.name && this.expr == other.expr && this.isInout == other.isInout &&
+            this.isTrailing == other.isTrailing
+    }
+
+    public operator func !=(other: CallArg): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A `case`: its patterns and guard, or its condition; what it evaluates to.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct MatchArm {
+@DerivePython
+public struct MatchArm <: Equatable<MatchArm> {
     public MatchArm(
         public let pats: Array<PatId>,
         public let guard: ?ExprId,
         public let condition: ?ExprId,
         public let body: ExprId
     ) {}
+
+    public operator func ==(other: MatchArm): Bool {
+        this.pats == other.pats && this.guard == other.guard && this.condition == other.condition &&
+            this.body == other.body
+    }
+
+    public operator func !=(other: MatchArm): Bool {
+        !(this == other)
+    }
 }
 
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Resource {
+@DerivePython
+public struct Resource <: Equatable<Resource> {
     public Resource(
         public let local: ?LocalId,
         public let ty: ?TypeRefId,
         public let value: ExprId
     ) {}
+
+    public operator func ==(other: Resource): Bool {
+        this.local == other.local && this.ty == other.ty && this.value == other.value
+    }
+
+    public operator func !=(other: Resource): Bool {
+        !(this == other)
+    }
 }
 
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct CatchArm {
+@DerivePython
+public struct CatchArm <: Equatable<CatchArm> {
     public CatchArm(
         public let local: ?LocalId,
         public let types: Array<TypeRefId>,
         public let body: ExprId
     ) {}
+
+    public operator func ==(other: CatchArm): Bool {
+        this.local == other.local && this.types == other.types && this.body == other.body
+    }
+
+    public operator func !=(other: CatchArm): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -222,9 +360,8 @@ public struct CatchArm {
  * expressions, patterns and types of the same body. A name is not resolved yet; an operator is as
  * written.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Expr {
+@DerivePython
+public enum Expr <: Equatable<Expr> {
     /**
      * An expression the parser did not find.
      */
@@ -335,6 +472,92 @@ public enum Expr {
      * A macro call: what it expands to is not known here.
      */
     | MacroExpr(MacroCall)
+
+    public operator func ==(other: Expr): Bool {
+        match ((this, other)) {
+            case (Expr.MissingExpr, Expr.MissingExpr) => true
+            case (Expr.LitExpr(left0), Expr.LitExpr(right0)) => left0 == right0
+            case (Expr.StrExpr(left0), Expr.StrExpr(right0)) => left0 == right0
+            case (Expr.PathExpr(left0, left1), Expr.PathExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.FieldExpr(left0, left1, left2), Expr.FieldExpr(right0, right1, right2)) =>
+                left0 == right0 && left1 == right1 && left2 == right2
+            case (Expr.CallExpr(left0, left1), Expr.CallExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.IndexExpr(left0, left1), Expr.IndexExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.UnaryExpr(left0, left1), Expr.UnaryExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.BinaryExpr(left0, left1, left2), Expr.BinaryExpr(right0, right1, right2)) =>
+                left0 == right0 && left1 == right1 && left2 == right2
+            case (Expr.IsExpr(left0, left1), Expr.IsExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.AsExpr(left0, left1), Expr.AsExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (
+                    Expr.RangeExpr(left0, left1, left2, left3),
+                    Expr.RangeExpr(right0, right1, right2, right3)
+                ) => left0 == right0 && left1 == right1 && left2 == right2 && left3 == right3
+            case (
+                    Expr.PostfixExpr(left0, left1, left2),
+                    Expr.PostfixExpr(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (
+                    Expr.AssignedExpr(left0, left1, left2),
+                    Expr.AssignedExpr(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (Expr.TupleExpr(left0), Expr.TupleExpr(right0)) => left0 == right0
+            case (Expr.ArrayExpr(left0), Expr.ArrayExpr(right0)) => left0 == right0
+            case (Expr.UnitExpr, Expr.UnitExpr) => true
+            case (Expr.IfExpr(left0, left1, left2), Expr.IfExpr(right0, right1, right2)) =>
+                left0 == right0 && left1 == right1 && left2 == right2
+            case (Expr.LetExpr(left0, left1), Expr.LetExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.MatchExpr(left0, left1), Expr.MatchExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.QuestMatchExpr(left0, left1), Expr.QuestMatchExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (
+                    Expr.TryExpr(left0, left1, left2, left3),
+                    Expr.TryExpr(right0, right1, right2, right3)
+                ) => left0 == right0 && left1 == right1 && left2 == right2 && left3 == right3
+            case (
+                    Expr.ForExpr(left0, left1, left2, left3),
+                    Expr.ForExpr(right0, right1, right2, right3)
+                ) => left0 == right0 && left1 == right1 && left2 == right2 && left3 == right3
+            case (Expr.WhileExpr(left0, left1), Expr.WhileExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.DoWhileExpr(left0, left1), Expr.DoWhileExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.ThrowExpr(left0), Expr.ThrowExpr(right0)) => left0 == right0
+            case (Expr.ReturnExpr(left0), Expr.ReturnExpr(right0)) => left0 == right0
+            case (Expr.BreakExpr, Expr.BreakExpr) => true
+            case (Expr.ContinueExpr, Expr.ContinueExpr) => true
+            case (Expr.SpawnExpr(left0, left1), Expr.SpawnExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.SynchronizedExpr(left0, left1), Expr.SynchronizedExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.UnsafeExpr(left0), Expr.UnsafeExpr(right0)) => left0 == right0
+            case (Expr.LambdaExpr(left0, left1), Expr.LambdaExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.ThisExpr, Expr.ThisExpr) => true
+            case (Expr.SuperExpr, Expr.SuperExpr) => true
+            case (Expr.WildcardExpr, Expr.WildcardExpr) => true
+            case (Expr.ConvExpr(left0, left1), Expr.ConvExpr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Expr.PrimExpr(left0), Expr.PrimExpr(right0)) => left0 == right0
+            case (Expr.TypeExpr(left0), Expr.TypeExpr(right0)) => left0 == right0
+            case (Expr.LangExpr(left0), Expr.LangExpr(right0)) => left0 == right0
+            case (Expr.BlockExpr(left0), Expr.BlockExpr(right0)) => left0 == right0
+            case (Expr.QuoteExpr(left0), Expr.QuoteExpr(right0)) => left0 == right0
+            case (Expr.MacroExpr(left0), Expr.MacroExpr(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Expr): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -344,22 +567,28 @@ public enum Expr {
  * an argument list, the innermost's, lowered so the names in them resolve: the macro sees them as
  * tokens all the same.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct MacroCall {
+@DerivePython
+public struct MacroCall <: Equatable<MacroCall> {
     public MacroCall(
         public let path: Array<String>,
         public let attr: ?Array<TypeRefId>,
         public let args: Array<CallArg>
     ) {}
+
+    public operator func ==(other: MacroCall): Bool {
+        this.path == other.path && this.attr == other.attr && this.args == other.args
+    }
+
+    public operator func !=(other: MacroCall): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a macro on a declaration, std.unittest's, takes in its `[...]` as code (#191).
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum AttrArg {
+@DerivePython
+public enum AttrArg <: Equatable<AttrArg> {
     /**
      * `x in src` of `@Test`, `@TestCase`, `@Bench`, `@Strategy`: `x`, a name in the scope of the declaration's
      * parameters, none for `config.x`; `src`, an expression in the scope around them.
@@ -377,16 +606,40 @@ public enum AttrArg {
      * `T in <A, B>` of `@Types`: the type parameter, and the types it is run with.
      */
     | TypesArg(TypeRefId, Array<TypeRefId>)
+
+    public operator func ==(other: AttrArg): Bool {
+        match ((this, other)) {
+            case (AttrArg.DataArg(left0, left1), AttrArg.DataArg(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (AttrArg.OptionArg(left0, left1), AttrArg.OptionArg(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (AttrArg.ValueArg(left0), AttrArg.ValueArg(right0)) => left0 == right0
+            case (AttrArg.TypesArg(left0, left1), AttrArg.TypesArg(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: AttrArg): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A macro on a declaration that takes code in its `[...]`, by the name it is called by: the path it names, and
  * the arguments, those of std.unittest's macros. Whether it is std's is inference's to find.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct DeclAttr {
+@DerivePython
+public struct DeclAttr <: Equatable<DeclAttr> {
     public DeclAttr(public let path: Array<String>, public let args: Array<AttrArg>) {}
+
+    public operator func ==(other: DeclAttr): Bool {
+        this.path == other.path && this.args == other.args
+    }
+
+    public operator func !=(other: DeclAttr): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -401,9 +654,8 @@ let CODE_ATTRS =
 /**
  * A pattern as a body writes it.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Pat {
+@DerivePython
+public enum Pat <: Equatable<Pat> {
     | MissingPat
     | WildcardPat
     | LitPat(String)
@@ -420,6 +672,25 @@ public enum Pat {
      * `E.A(p)`, `A(p)`: the path to the constructor, and the patterns of its arguments.
      */
     | EnumPat(Array<String>, Array<PatId>)
+
+    public operator func ==(other: Pat): Bool {
+        match ((this, other)) {
+            case (Pat.MissingPat, Pat.MissingPat) => true
+            case (Pat.WildcardPat, Pat.WildcardPat) => true
+            case (Pat.LitPat(left0), Pat.LitPat(right0)) => left0 == right0
+            case (Pat.BindPat(left0), Pat.BindPat(right0)) => left0 == right0
+            case (Pat.TypePat(left0, left1), Pat.TypePat(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (Pat.TuplePat(left0), Pat.TuplePat(right0)) => left0 == right0
+            case (Pat.EnumPat(left0, left1), Pat.EnumPat(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Pat): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -427,9 +698,8 @@ public enum Pat {
  * An edit that does not change its code, a blank line or a comment, an edit elsewhere in the file,
  * leaves it equal.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Body {
+@DerivePython
+public struct Body <: Equatable<Body> {
     public Body(
         public let exprs!: Array<Expr> = [],
         public let pats!: Array<Pat> = [],
@@ -475,6 +745,20 @@ public struct Body {
     public func typesAsSignature(): Signature {
         Signature(types: types)
     }
+
+    public operator func ==(other: Body): Bool {
+        this.exprs == other.exprs && this.pats == other.pats && this.locals == other.locals &&
+            this.funcs == other.funcs &&
+            this.types == other.types &&
+            this.params == other.params &&
+            this.value == other.value &&
+            this.accessors == other.accessors &&
+            this.attrs == other.attrs
+    }
+
+    public operator func !=(other: Body): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -508,9 +792,8 @@ public struct BodySource {
  * A body node's origin: syntax in a file, or a synthetic node introduced by lowering.
  * A missing array index is separate from a present synthetic node.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum BodyOrigin {
+@DerivePython
+public enum BodyOrigin <: Equatable<BodyOrigin> {
     | WrittenSource(BodySource)
     | SyntheticSource
 
@@ -524,6 +807,19 @@ public enum BodyOrigin {
                 case SyntheticSource => None
             }
         }
+    }
+
+    public operator func ==(other: BodyOrigin): Bool {
+        match ((this, other)) {
+            case (BodyOrigin.WrittenSource(left0), BodyOrigin.WrittenSource(right0)) =>
+                left0 == right0
+            case (BodyOrigin.SyntheticSource, BodyOrigin.SyntheticSource) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: BodyOrigin): Bool {
+        !(this == other)
     }
 }
 
@@ -676,10 +972,17 @@ class BodySourceIndex {
     }
 }
 
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct LoweredBody {
+@DerivePython
+public struct LoweredBody <: Equatable<LoweredBody> {
     public LoweredBody(public let body: Body, public let sourceMap: BodySourceMap) {}
+
+    public operator func ==(other: LoweredBody): Bool {
+        this.body == other.body && this.sourceMap == other.sourceMap
+    }
+
+    public operator func !=(other: LoweredBody): Bool {
+        !(this == other)
+    }
 }
 
 /**

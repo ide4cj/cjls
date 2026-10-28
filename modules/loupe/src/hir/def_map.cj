@@ -14,11 +14,42 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package}
  * A package of either kind, as name resolution takes it: one of the project's sources, or one
  * compiled already (D38). What resolves in it does not ask which.
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable, ToString]
-public enum PackageRef {
+@DerivePython
+public enum PackageRef <: Equatable<PackageRef> & Hashable & ToString {
     | Source(Package)
     | Binary(BinaryPackageFile)
+
+    public operator func ==(other: PackageRef): Bool {
+        match ((this, other)) {
+            case (PackageRef.Source(left0), PackageRef.Source(right0)) => left0 == right0
+            case (PackageRef.Binary(left0), PackageRef.Binary(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: PackageRef): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case PackageRef.Source(value0) =>
+                hasher.write(0)
+                hasher.write(value0.hashCode())
+            case PackageRef.Binary(value0) =>
+                hasher.write(1)
+                hasher.write(value0.hashCode())
+        }
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        match (this) {
+            case PackageRef.Source(value0) => "PackageRef.Source(${value0})"
+            case PackageRef.Binary(value0) => "PackageRef.Binary(${value0})"
+        }
+    }
 }
 
 /**
@@ -52,9 +83,8 @@ public struct DefId {
  * Who sees a declaration (N1–N4): `private` its file, `internal` its package and those under it
  * by name, `protected` the packages of its first segment, `public` anyone.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public enum Visibility <: ToString {
+@DerivePython
+public enum Visibility <: ToString & Equatable<Visibility> {
     | Private
     | Internal
     | Protected
@@ -67,6 +97,20 @@ public enum Visibility <: ToString {
             case Protected => "protected"
             case Public => "public"
         }
+    }
+
+    public operator func ==(other: Visibility): Bool {
+        match ((this, other)) {
+            case (Visibility.Private, Visibility.Private) => true
+            case (Visibility.Internal, Visibility.Internal) => true
+            case (Visibility.Protected, Visibility.Protected) => true
+            case (Visibility.Public, Visibility.Public) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Visibility): Bool {
+        !(this == other)
     }
 }
 
@@ -88,13 +132,20 @@ public func visibilityOf(item: Item): Visibility {
 /**
  * A declaration a name of a package's scope stands for, and who sees it.
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Def <: ToString {
+@DerivePython
+public struct Def <: ToString & Equatable<Def> {
     public Def(public let id: DefId, public let visibility: Visibility) {}
 
     public func toString(): String {
         "${visibility} ${id}"
+    }
+
+    public operator func ==(other: Def): Bool {
+        this.id == other.id && this.visibility == other.visibility
+    }
+
+    public operator func !=(other: Def): Bool {
+        !(this == other)
     }
 }
 
@@ -102,13 +153,20 @@ public struct Def <: ToString {
  * A declaration whose name another of its package took first: anything but a function sharing a
  * name with any other declaration (N19, N20, N22).
  */
-@DerivePython[equatable]
-@Derive[Equatable]
-public struct Redefinition <: ToString {
+@DerivePython
+public struct Redefinition <: ToString & Equatable<Redefinition> {
     public Redefinition(public let def: DefId, public let name: String) {}
 
     public func toString(): String {
         "redefinition of ${name} by ${def}"
+    }
+
+    public operator func ==(other: Redefinition): Bool {
+        this.def == other.def && this.name == other.name
+    }
+
+    public operator func !=(other: Redefinition): Bool {
+        !(this == other)
     }
 }
 
@@ -239,11 +297,31 @@ func frozen<V, R>(
  * in them add. A macro's name is looked up in the first, since no macro is ever generated and what
  * is expanded depends on it: the second is a function of the first, and never a cycle of queries.
  */
-@DerivePython[hashable]
-@Derive[Equatable, Hashable]
-public enum ScopeStage {
+@DerivePython
+public enum ScopeStage <: Equatable<ScopeStage> & Hashable {
     | Written
     | Expanded
+
+    public operator func ==(other: ScopeStage): Bool {
+        match ((this, other)) {
+            case (ScopeStage.Written, ScopeStage.Written) => true
+            case (ScopeStage.Expanded, ScopeStage.Expanded) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ScopeStage): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case ScopeStage.Written => hasher.write(0)
+            case ScopeStage.Expanded => hasher.write(1)
+        }
+        hasher.finish()
+    }
 }
 
 /**
