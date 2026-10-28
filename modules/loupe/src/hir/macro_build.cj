@@ -127,7 +127,7 @@ class MacroBuildPlanner {
         let found = ArrayList<PackageRef>()
         let from = PackageRef.Source(pkg)
         for (id in pkg.files(db)) {
-            let file = db.sourceFile(id) ?? continue
+            let file = db.sourceFile(id, context: pkg) ?? continue
             for (item in itemTree(db, file).imports) {
                 for (path in item.paths) {
                     let target =

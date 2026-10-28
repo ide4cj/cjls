@@ -82,11 +82,22 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
     let contexts = IndexMap<PackageRef, PackageRef>()
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db)) {
-            let owner = module.name(db)
-            // modules of one name (two checkouts, a file alone, #293) share a scope: each keeps its deps
+            let resolutionScope = module.resolutionScope(db)
+            let owner = scopedOwner(resolutionScope, module.name(db))
+            // Explicit resolution scopes isolate source and build-script selections. Legacy
+            // models retain their shared same-name scope within the default selection.
             let scope = ArrayList<String>(scopes.get(owner) ?? [owner, "std"])
-            for (dep in module.deps(db) where !scope.contains(dep)) {
-                scope.add(dep)
+            for (dep in module.deps(db)) {
+                let selected = scopedOwner(resolutionScope, dep)
+                if (!scope.contains(selected)) {
+                    scope.add(selected)
+                }
+                if (
+                    project.binaries(db).iterator().any { binary => binary.name == dep } &&
+                        !scope.contains(dep)
+                ) {
+                    scope.add(dep)
+                }
             }
             scopes[owner] = scope.toArray()
             for (pkg in module.packages(db)) {
@@ -496,4 +507,11 @@ public func ctorsOf(db: AnalysisDatabase, def: DefId): Array<(String, DefId)> {
         }
     }
     ctors.toArray()
+}
+
+/**
+ * A scope prefix is separate from package names, which remain their declared names.
+ */
+func scopedOwner(scope: String, name: String): String {
+    if (scope.isEmpty()) { name } else { "${scope}#${name}" }
 }

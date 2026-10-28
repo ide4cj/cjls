@@ -289,10 +289,12 @@ public class GuardedServer <: Expander {
  * Two servers, one running std's macros, the other the workspace's (D123): a process that loads std's library of
  * `@Derive` after one of the workspace's libraries ran may abort (SIGABRT in the runtime, 1.3.0-alpha.20261002), and
  * a rebuilt library of the workspace restarts only its own server.
+ * Library switches reuse the workspace process to avoid per-call startup costs; K28 remains a known risk (D156).
  */
 public class MacroServers <: Expander {
     let std: GuardedServer
     let workspace: GuardedServer
+    private let workspaceLock = Mutex()
 
     public MacroServers(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
         std = GuardedServer(paths, timeout, logger)
@@ -300,19 +302,28 @@ public class MacroServers <: Expander {
     }
 
     public func expand(call: MacroCallData): CallOutcome {
-        if (isStdCall(call)) { std.expand(call) } else { workspace.expand(call) }
+        if (isStdCall(call)) {
+            return std.expand(call)
+        }
+        synchronized (workspaceLock) {
+            workspace.expand(call)
+        }
     }
 
     /**
      * Ends the server of the workspace's macros, which keeps its libraries loaded.
      */
     public func restartWorkspace(): Unit {
-        workspace.restart()
+        synchronized (workspaceLock) {
+            workspace.restart()
+        }
     }
 
     public func close(): Unit {
         std.close()
-        workspace.close()
+        synchronized (workspaceLock) {
+            workspace.close()
+        }
     }
 }
 

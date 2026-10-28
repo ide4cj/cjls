@@ -12,6 +12,7 @@ import loupe.vfs.VfsPath
  */
 class CjpmGit {
     private let resolution: CjpmResolution
+    private let declarations = HashMap<CjpmSelection, DependencyTable>()
 
     CjpmGit(private let loading: Loading, private let root: VfsPath) {
         resolution = CjpmResolution(loading, root)
@@ -19,6 +20,21 @@ class CjpmGit {
 
     func resolve(name: String, declared: DependencyTable, script!: Bool): ?VfsPath {
         try {
+            let key = CjpmSelection(name, isScript: script)
+            if (
+                let Some(previous) <- declarations.get(key) &&
+                    !areGitDeclarationsCompatible(previous, declared)
+            ) {
+                let remedy =
+                    if (script) {
+                        "align script dependency declarations"
+                    } else {
+                        "align declarations or use entry [replace]"
+                    }
+                throw ProjectException(
+                    "conflicting Git declarations: ${describeGitDeclaration(previous)} versus ${describeGitDeclaration(declared)}; ${remedy}"
+                )
+            }
             let (entry, version, cache) = resolution.entry(name, script: script)
             let selected = gitSelection(entry, version)
             let url = declared.git.getOrThrow()
@@ -41,20 +57,20 @@ class CjpmGit {
             let safeName = gitCacheName(name)
             let checkout = cache.join("git").join(safeName).join(selected[1])
             if (isFile(checkout.join("cjpm.toml").filePath.getOrThrow())) {
-                return packageAt(checkout, name)
+                return remember(checkout, name, declared, script: script)
             }
             // cjpm names Git workspaces by the URL's Cangjie hash, rather than by a member.
             let workspace =
                 cache.join("git").join("workspace-${selected[0].hashCode()}").join(selected[1])
             if (isFile(workspace.join("cjpm.toml").filePath.getOrThrow())) {
-                return packageAt(workspace, name)
+                return remember(workspace, name, declared, script: script)
             }
             // An explicit abbreviated commit may be the cache directory used by cjpm on the
             // first fetch; the resulting lock records the full hash.
             if (let Some(commit) <- declared.commitId) {
                 let abbreviated = cache.join("git").join(safeName).join(commit)
                 if (isFile(abbreviated.join("cjpm.toml").filePath.getOrThrow())) {
-                    return packageAt(abbreviated, name)
+                    return remember(abbreviated, name, declared, script: script)
                 }
             }
             throw ProjectException("checkout ${checkout} is missing")
@@ -67,6 +83,17 @@ class CjpmGit {
                 )
             None
         }
+    }
+
+    private func remember(
+        dir: VfsPath,
+        name: String,
+        declared: DependencyTable,
+        script!: Bool
+    ): VfsPath {
+        let found = packageAt(dir, name)
+        declarations[CjpmSelection(name, isScript: script)] = declared
+        found
     }
 
     private func packageAt(dir: VfsPath, name: String): VfsPath {
@@ -89,6 +116,31 @@ class CjpmGit {
     }
 }
 
+/**
+ * The locked commit alone cannot distinguish cjpm's incompatible branch/tag declarations.
+ */
+private func areGitDeclarationsCompatible(first: DependencyTable, second: DependencyTable): Bool {
+    let firstUrl = (first.git ?? "").removeSuffix(".git")
+    let secondUrl = (second.git ?? "").removeSuffix(".git")
+    let commitsAgree =
+        first.commitId.isNone() || second.commitId.isNone() || first.commitId == second.commitId
+    firstUrl == secondUrl && first.branch == second.branch && first.tag == second.tag &&
+        commitsAgree
+}
+
+/**
+ * Describes every declared selector so a source conflict can be corrected.
+ */
+private func describeGitDeclaration(declared: DependencyTable): String {
+    let branch = declared.branch ?? "<none>"
+    let tag = declared.tag ?? "<none>"
+    let commit = declared.commitId ?? "<locked>"
+    "${declared.git ?? ""} (branch ${branch}, tag ${tag}, commit ${commit})"
+}
+
+/**
+ * The qualified module name used by dependency keys and package manifests.
+ */
 func packageName(pkg: ManifestPackage): String {
     match (pkg.organization) {
         case Some(org) where !org.trimAscii().isEmpty() => "${org.trimAscii()}::${pkg.name}"

@@ -51,12 +51,31 @@ The source accepts an empty v1 checksum when the registry index omits it; the
 manual describes stricter generation. Discovery accepts the source's format
 without claiming archive verification.
 
-Workspace dependency inheritance, replacements and mode-specific sections are
-tracked by #515–#517.
-The model still shares import scopes for modules of the same name: distinct
-versions in the source and build-script graphs need scope isolation (#515).
-A cached directory reached by both graphs is currently traversed only on its
-first visit, so its transitive dependencies also retain that first scope.
+The entry manifest's `[replace]` applies to reached ordinary/test dependencies,
+including direct dependencies; replacement paths are relative to the entry manifest.
+A dependency's own replacement table does not override it. Replacements do not
+apply to the independently resolved build-script graph. Registry replacements
+require one exact version, including unused replacement entries. Local and Git sources
+supersede registry requirements for the same name, regardless of traversal order.
+Different paths, incompatible Git declarations and path/Git mixtures are conflicts:
+discovery reports the conflicting sources and keeps one deterministic selection
+for recoverable analysis. Use entry `[replace]` for ordinary dependencies, or align
+script dependency declarations, then run `cjpm update`. Git declarations must agree
+on branch/tag presence, even for lower-priority selector fields; an unspecified
+commit may share one explicit pinned commit. Checkout selection still uses
+`commitId` before `branch` before `tag`.
+The pinned `cjpm 1.3.0-alpha.06` confirms these rules, including a mixed build using
+the replacement in ordinary sources and the original source in `build.cj`.
+
+Source and script selections have separate module, package and import identities
+(D155), even when they reach the same local path. Their contextual source inputs
+share physical file text and locations; source edits update both. A physical
+editor lookup prefers an ordinary membership regardless of discovery order,
+otherwise the first active scoped membership. Package-driven analysis retains
+each graph's transitive selection. References inspect each context and deduplicate
+physical locations.
+The JSON projection preserves the optional `resolutionScope` on modules.
+Workspace dependency inheritance and mode-specific sections remain #516–#517.
 
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does

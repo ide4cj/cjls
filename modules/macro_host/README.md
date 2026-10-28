@@ -16,8 +16,13 @@ holds the output directory's OS lock; cache cleanup must take the same lock
 Plans group macro packages by their project's output directory, including linked
 source packages. Results are keyed by `Package`, since different projects may
 use the same package name ([#338](https://github.com/ide4cj/cjls/issues/338)).
-The caller chooses the project cache path and version-derived directory;
-unchanged stamps skip rebuilding. Tests use a fake toolchain as well as SDK cjc.
+The caller chooses the project cache path and version-derived directory; independent
+resolution scopes use distinct directory suffixes so same-named macro packages
+cannot share compiler artifacts. Server rounds enumerate active source contexts
+and keep their expansion outputs separate (D155). Workspace libraries reuse one SDK
+process across library-path changes (D156); conflicting loaded code remains a known
+SDK risk ([K28](../../docs/sdk-issues.md#k28)). Std keeps its separate process.
+Unchanged stamps skip rebuilding. Tests use a fake toolchain as well as SDK cjc.
 
 Calls record input text in a `WireLayout` so answer positions map back to original
 sources ([D98](../../docs/adr/0098-workspace-expansions-are-an-input-of-their-file.md)).

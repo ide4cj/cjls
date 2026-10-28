@@ -8,8 +8,8 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** K19 records subsequent observations and K26
-a scoped workaround from PR #477. A historical observation
+recorded separately in PR #457.** K19, K27 and K28 record subsequent observations;
+K26 records a scoped workaround from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
 or all platforms. Dates abbreviated as `20260918` refer to nightly build dates;
@@ -61,6 +61,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K25](#k25) | `genericConstraint.toTokens()` throws | Iterate constraints |
 | [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
 | [K27](#k27) | `cangjieLex` skips consecutive arrow recombination | Re-lex affected adjacent pairs in the test oracle |
+| [K28](#k28) | Macro server reuses conflicting loaded package code | Known risk; no automatic restart on library switches |
 
 ## Evidence and use
 
@@ -424,6 +425,42 @@ up to ten characters; the randomized property remains enabled. Production code d
 wrapper's skipped iteration. This workaround does not establish a general SDK
 fix or validate the compiler's entire macro pipeline.
 
+<a id="k28"></a>
+### K28
+
+On Linux x86_64 with pinned `1.3.0-alpha.20261014001050`, one `LSPMacroServer`
+process reuses the first library of a macro package when a later request supplies
+a different `libPath` for the same `packageName`. This was reproduced on
+2026-10-28 while implementing [#515](https://github.com/ide4cj/cjls/issues/515).
+Two separately compiled `toy.ms` libraries export `Which`, one generating
+`class First {}`, the other `class Second {}`. Requests selecting the first then
+the second library both succeed but both generate `First`. Separate compiler
+cache directories alone therefore do not isolate dependency selections.
+
+The reuse also affects different macro package names with conflicting linked
+helpers. Two macro packages `toy.First` and `toy.Second`, each linked against its
+own static `leaf` library whose `which()` returns respectively 1 or 2, both use
+the first helper's result in one server process. Direct macro package names and
+paths cannot establish that their transitive libraries are compatible.
+
+The per-library-switch restart workaround was removed for its process-startup
+cost ([D156](adr/0156-reuse-workspace-macro-process.md),
+[PR #563](https://github.com/ide4cj/cjls/pull/563)).
+[`MacroLibrarySwitchBench`](../modules/macro_host/src/library_switch_bench_test.cj)
+retains the comparison workloads; that PR records approximate measurements under
+ambient load, not a quiet-machine performance claim. Workspace libraries now share
+one process even when their paths differ. This accepts the risk of an expansion
+using previously loaded code; it does not establish an SDK fix. The std server
+remains independent (K23), and explicit restarts after library rebuilds remain.
+
+[`SameNameMacroLibraryTest.explicitRestartLoadsEachSelectedLibrary`](../modules/macro_host/src/same_name_test.cj)
+builds both libraries and their helpers with the SDK and alternates between them
+for identical and distinct macro package names. Explicitly restarting before each
+call yields `First, Second, First, Second`; omitting `restartWorkspace()` reproduces
+`First, First, First, First` on the pin. The process-reuse test checks SDK process
+IDs rather than requiring the SDK defect to persist. macOS, Windows and other SDK
+versions remain unverified by this local probe.
+
 ## Reconciliation and remaining work
 
 This registry starts #332's document, not its probe implementation. None of
@@ -466,7 +503,7 @@ The following dispositions prevent old local guidance becoming competing rules:
   machine automation policies are outside this SDK migration.
 
 This audit preserves the K4 retirement already accepted in PR #457 and removes no
-other workaround. Except for K4's scoped verification and K19/K26's subsequent observations,
+other workaround. Except for K4's scoped verification and K19/K26/K27/K28's subsequent observations,
 exact-pin status remains unverified. Missing host/build metadata, upstream reports and independent probes
 remain explicit limitations. The next SDK bump needs evidence before retiring an
 entry; a passing ordinary build alone does not establish that a scheduling, GC or

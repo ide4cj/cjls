@@ -380,9 +380,9 @@ class WhenLowering {
 @CalcaTracked
 public func cfgOfFile(db: AnalysisDatabase, file: SourceFile): Cfg {
     let project = db.project() ?? return Cfg([])
-    let fileId = file.fileId(db)
+    let context = packageOfFile(db, file)
     for (module in project.modules(db)) {
-        for (pkg in module.packages(db) where pkg.files(db).contains(fileId)) {
+        for (pkg in module.packages(db) where context == Some(pkg)) {
             let ofModule =
                 match (module.cfg(db)) {
                     case Some(own) => own

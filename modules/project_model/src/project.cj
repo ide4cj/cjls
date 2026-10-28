@@ -304,6 +304,7 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
                     packages,
                     deps: module.deps ?? [],
                     member: module.member ?? true,
+                    resolutionScope: module.resolutionScope ?? "",
                     cfg: module.cfg.map { own => cfg.overriddenBy(cfgOf(own)) },
                     inactive: (module.inactive ?? [])
                         .map { file => InactiveFile(loading.resolve(base, file.file), file.reason) }
@@ -365,6 +366,11 @@ public func toProjectJson(model: ProjectModel, base: VfsPath): ProjectJson {
                         },
                     deps: module.deps,
                     member: module.member,
+                    resolutionScope: if (module.resolutionScope.isEmpty()) {
+                        None
+                    } else {
+                        Some(module.resolutionScope)
+                    },
                     cfg: module.cfg.map { cfg => jsonOf(cfg) },
                     inactive: if (module.inactive.isEmpty()) {
                         None

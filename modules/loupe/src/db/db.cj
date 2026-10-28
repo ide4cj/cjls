@@ -4,18 +4,24 @@ import std.collection.{ArrayList, collectArray, filter, HashMap, HashSet}
 import std.collection.concurrent.ConcurrentHashMap
 import calca.*
 import calca.macros.*
-import rope.Rope
+import index_map.IndexMap
 import loupe.vfs.*
+import rope.Rope
 
 /**
  * One file's text as the analysis sees it, and what the macro server answered for its macro calls
- * (#176). The database keeps one per `FileId`, made the first time the file is set, and never drops
- * it: a file deleted is an empty text (A5).
+ * (#176). The physical editor input is one per `FileId`; independent package contexts have
+ * separate source inputs sharing its text. Inputs are never dropped: a deleted file is empty
+ * text (A5), and macro outputs belong to the context that produced them.
  */
 @CalcaInput
 public struct SourceFile {
     public let fileId: FileId
     public var text: Rope
+    /**
+     * Independent analysis of this physical file in another dependency selection.
+     */
+    public let context: ?Package = None
     public var macroOutputs: MacroOutputs = MacroOutputs()
 }
 
@@ -53,14 +59,27 @@ public class AnalysisDatabase <: Database {
     }
 
     /**
-     * The file's input, `None` for a file never set.
+     * The ordinary membership's source input when present, otherwise the first active scoped
+     * membership; or the explicit package's input for `context`.
+     * `None` for a physical file never set; an unscoped context uses the physical input.
      */
-    public func sourceFile(fileId: FileId): ?SourceFile {
-        files.get(fileId)
+    public func sourceFile(fileId: FileId, context!: ?Package = None): ?SourceFile {
+        let primary = files.get(fileId) ?? return None
+        if (let Some(pkg) <- context) {
+            for ((owner, file) in files.contexts(fileId) where owner == pkg) {
+                return file
+            }
+            return primary
+        }
+        if (let Some(project) <- this.project()) {
+            return project.sourceContexts(this).get(fileId) ?? primary
+        }
+        primary
     }
 
     /**
-     * Sets the file's text, in a revision of its own, making its input the first time.
+     * Sets the physical file's text in every context, making its input the first time.
+     * Returns the source identity used by the default editor lookup.
      *
      * @throws IllegalStateException - if this is a snapshot, or a query is running on it
      */
@@ -69,15 +88,21 @@ public class AnalysisDatabase <: Database {
         text: Rope,
         durability!: Durability = Durability.Low
     ): SourceFile {
-        match (files.get(fileId)) {
-            case Some(file) =>
-                file.setText(this).withDurability(durability).to(text)
-                file
-            case None =>
-                let file = SourceFile(this, fileId, text, durability: durability)
-                files.add(fileId, file)
-                file
+        let primary =
+            match (files.get(fileId)) {
+                case Some(file) =>
+                    file.setText(this).withDurability(durability).to(text)
+                    file
+                case None =>
+                    let file = SourceFile(this, fileId, text, durability: durability)
+                    files.add(fileId, file)
+                    file
+            }
+        files.rememberText(fileId, text)
+        for ((_, file) in files.contexts(fileId)) {
+            file.setText(this).withDurability(durability).to(text)
         }
+        projects.sourceContexts.get(fileId) ?? primary
     }
 
     /**
@@ -125,8 +150,13 @@ public class AnalysisDatabase <: Database {
         binaries!: Array<CjoFileRead> = []
     ): Unit {
         let durabilities = HashMap<FileId, Durability>()
+        let sourceContexts = IndexMap<FileId, SourceFile>()
+        let seen = HashSet<FileId>()
         batch {
-            let modules = model.modules.map { module => setModule(module, paths, durabilities) }
+            let modules =
+                model
+                    .modules
+                    .map { module => setModule(module, paths, durabilities, sourceContexts, seen) }
             let packages = setBinaryPackages(binaries)
             let sources = binarySources(model, paths, durabilities, binaries)
             match (projects.project) {
@@ -166,6 +196,11 @@ public class AnalysisDatabase <: Database {
                     }
                     projects.project =
                         (project, model.cfg, modules, model.binaries, packages, sources)
+            }
+            if (projects.sourceContexts != sourceContexts) {
+                let project = projects.project.getOrThrow()[0]
+                project.setSourceContexts(this).withDurability(Durability.High).to(sourceContexts)
+                projects.sourceContexts = sourceContexts
             }
         }
         projects.durabilities = durabilities
@@ -278,7 +313,9 @@ public class AnalysisDatabase <: Database {
     private func setModule(
         model: ModuleModel,
         paths: PathInterner,
-        durabilities: HashMap<FileId, Durability>
+        durabilities: HashMap<FileId, Durability>,
+        sourceContexts: IndexMap<FileId, SourceFile>,
+        seen: HashSet<FileId>
     ): Module {
         let durability = model.durability
         let packages =
@@ -288,9 +325,28 @@ public class AnalysisDatabase <: Database {
                     pkg =>
                     let files = pkg.files.map { path => paths.intern(path) }
                     for (file in files) {
-                        durabilities.add(file, durability)
+                        let previous = durabilities.get(file)
+                        if (
+                            previous.isNone() || durability == Durability.Low ||
+                                previous == Some(Durability.High)
+                        ) {
+                            durabilities.add(file, durability)
+                        }
                     }
-                    setPackage(model.key, pkg, files, durability)
+                    let context = setPackage(model.key, pkg, files, durability)
+                    for (fileId in files) {
+                        let first = seen.add(fileId)
+                        if (!model.resolutionScope.isEmpty()) {
+                            let source = ensureSourceContext(fileId, context, durability)
+                            if (first) {
+                                sourceContexts[fileId] = source
+                            }
+                        } else {
+                            // A script may have reached this path before its ordinary module.
+                            sourceContexts.remove(fileId)
+                        }
+                    }
+                    context
                 }
         let inactive =
             model
@@ -330,6 +386,7 @@ public class AnalysisDatabase <: Database {
                         this,
                         model.root,
                         model.name,
+                        model.resolutionScope,
                         packages,
                         model.deps,
                         model.member,
@@ -340,6 +397,21 @@ public class AnalysisDatabase <: Database {
                 projects.modules.add(model.key, (module, model))
                 module
         }
+    }
+
+    private func ensureSourceContext(
+        fileId: FileId,
+        pkg: Package,
+        durability: Durability
+    ): SourceFile {
+        let contexts = files.contexts(fileId)
+        for ((owner, source) in contexts where owner == pkg) {
+            return source
+        }
+        let text = files.rememberedText(fileId) ?? Rope()
+        let source = SourceFile(this, fileId, text, context: pkg, durability: durability)
+        files.addContext(fileId, contexts.concat([(pkg, source)]))
+        source
     }
 
     private func setPackage(
@@ -442,6 +514,28 @@ func isTestFile(path: VfsPath): Bool {
  */
 class Files {
     private let byId = ConcurrentHashMap<FileId, SourceFile>()
+    private let contextual = ConcurrentHashMap<FileId, Array<(Package, SourceFile)>>()
+    /**
+     * Root writes retain the physical text so creating a context needs no input read inside
+     * setProject's batch. Rope shares its storage with the source input.
+     */
+    private let physicalTexts = HashMap<FileId, Rope>()
+
+    func rememberText(fileId: FileId, text: Rope): Unit {
+        physicalTexts[fileId] = text
+    }
+
+    func rememberedText(fileId: FileId): ?Rope {
+        physicalTexts.get(fileId)
+    }
+
+    func contexts(fileId: FileId): Array<(Package, SourceFile)> {
+        contextual.get(fileId) ?? []
+    }
+
+    func addContext(fileId: FileId, contexts: Array<(Package, SourceFile)>): Unit {
+        contextual.add(fileId, contexts)
+    }
 
     func get(fileId: FileId): ?SourceFile {
         byId.get(fileId)

@@ -1,6 +1,7 @@
 package project_model
 
 import std.collection.*
+import std.deriving.Derive
 import std.fs.*
 import std.sort.*
 import ftoml.*
@@ -50,7 +51,13 @@ public func loadCjpmProject(
         }
     }
     binaries.add(all: lowering.binaries)
-    let model = ProjectModel(cfg, lowering.modules.toArray(), binaries: binaries.toArray())
+    let modules = lowering.modules.toArray()
+    // Dependency build scripts can be visited before later ordinary dependencies.
+    let ordered =
+        modules
+            .filter { module => module.resolutionScope.isEmpty() }
+            .concat(modules.filter { module => !module.resolutionScope.isEmpty() })
+    let model = ProjectModel(cfg, ordered, binaries: binaries.toArray())
     ProjectLoad(model, CjpmManifest(file), loading.problems.toArray())
 }
 
@@ -86,7 +93,13 @@ class CjpmLowering {
      * The name of the module of each directory reached, `None` while it is being lowered, or if it
      * could not be.
      */
-    private let reached = HashMap<VfsPath, ?String>()
+    private let reached = HashMap<CjpmDirectory, ?String>()
+    private let selected = HashMap<CjpmSelection, VfsPath>()
+    private let registrySelected = HashSet<CjpmSelection>()
+    private let discovered = HashSet<CjpmDirectory>()
+    private let pending = ArrayList<(String, Dependency, VfsPath, Bool)>()
+    private let scripts = HashSet<VfsPath>()
+    private let invalidReplacements = HashSet<String>()
     private let git: CjpmGit
     private let registry: CjpmRegistry
 
@@ -105,9 +118,179 @@ class CjpmLowering {
             members.add(loading.resolve(root, member))
         }
         this.members = members.toArray()
+        validateReplacements()
         if (manifest.workspace.isSome()) {
             workspaceBinaries = binaryDeps(manifest, root)
         }
+        for (member in this.members) {
+            discover(member, script: false)
+        }
+        if (manifest.pkg.isNone()) {
+            discoverScripts(root, manifest)
+        }
+        // Local and Git modules take precedence over registry requirements, even if a
+        // registry declaration sorts first. Only reached requirements are resolved.
+        var index = 0
+        while (index < pending.size) {
+            let (name, dep, base, script) = pending[index]
+            index++
+            if (
+                !selected.contains(CjpmSelection(name, isScript: script)) ||
+                    registrySelected.contains(CjpmSelection(name, isScript: script))
+            ) {
+                selectDependency(name, dep, base, script: script, registry: true)
+            }
+        }
+    }
+
+    /**
+     * cjpm validates replacement versions even when no dependency reaches them.
+     */
+    private func validateReplacements(): Unit {
+        for ((name, dep) in manifest.replace ?? HashMap<String, Dependency>()) {
+            let version: ?String =
+                match (dep) {
+                    case Version(text) => Some(text)
+                    case Table(table) where table.path.isNone() && table.git.isNone() =>
+                        table.version
+                    case _ => None
+                }
+            if (let Some(text) <- version) {
+                if (!isExactRegistryVersion(text)) {
+                    invalidReplacements.add(name)
+                    loading
+                        .problems
+                        .add(
+                            "Entry [replace] `${name}` must select a single registry version, not `${text}`; update cjpm.toml and run `cjpm update`."
+                        )
+                }
+            }
+        }
+    }
+
+    private func discover(dir: VfsPath, script!: Bool): Unit {
+        if (!discovered.add(CjpmDirectory(dir, isScript: script))) {
+            return
+        }
+        try {
+            let manifest =
+                if (dir == root) { this.manifest } else { readManifest(dir.join("cjpm.toml")) }
+            if (let Some(pkg) <- manifest.pkg) {
+                let name = packageName(pkg)
+                let key = CjpmSelection(name, isScript: script)
+                if (let Some(previous) <- selected.get(key)) {
+                    if (previous != dir) {
+                        loading
+                            .problems
+                            .add(
+                                "Conflicting workspace module `${name}`: ${previous} and ${dir}; keeping ${previous}."
+                            )
+                        return
+                    }
+                } else {
+                    selected[key] = dir
+                }
+            }
+            for ((name, dep) in dependencies(manifest)) {
+                selectDependency(name, dep, dir, script: script)
+            }
+            discoverScripts(dir, manifest)
+        } catch (e: ProjectException) {
+            loading.problems.add(e.message)
+        }
+    }
+
+    private func discoverScripts(dir: VfsPath, manifest: Manifest): Unit {
+        if (!(dir.join(BUILD_SCRIPT).filePath.map { path => isFile(path) } ?? false)) {
+            return
+        }
+        let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
+        sort(sorted, by: { a, b => a[0].compare(b[0]) })
+        for ((name, dep) in sorted) {
+            selectDependency(name, dep, dir, script: true)
+        }
+    }
+
+    private func selectDependency(
+        name: String,
+        declared: Dependency,
+        base: VfsPath,
+        script!: Bool,
+        registry!: Bool = false
+    ): Unit {
+        if (!script && invalidReplacements.contains(name)) {
+            return
+        }
+        let replacement: ?Dependency =
+            if (script) { None } else { manifest.replace.flatMap { all => all.get(name) } }
+        let dep = replacement ?? declared
+        let dir = if (replacement.isSome()) { root } else { base }
+        let local =
+            match (dep) {
+                case Table(table) => table.path.isSome() || table.git.isSome()
+                case _ => false
+            }
+        if (!local && !registry) {
+            pending.add((name, declared, base, script))
+            return
+        }
+        let path =
+            match (dep) {
+                case Table(table) where table.path.isSome() =>
+                    Some(loading.resolve(dir, table.path.getOrThrow()))
+                case Table(table) where table.git.isSome() =>
+                    git.resolve(name, table, script: script)
+                case _ => this.registry.resolve(name, dep, script: script)
+            } ??
+                return
+        let key = CjpmSelection(name, isScript: script)
+        if (!canSelectDependency(key, path, local: local)) {
+            return
+        }
+        try {
+            let pkg =
+                readManifest(path.join("cjpm.toml")).pkg ??
+                    throw ProjectException("${path} has no [package]")
+            if (packageName(pkg) != name) {
+                throw ProjectException(
+                    "${path} declares `${packageName(pkg)}`, expected dependency `${name}`"
+                )
+            }
+        } catch (e: ProjectException) {
+            loading.problems.add(e.message)
+            return
+        }
+        selected[key] = path
+        if (local) { registrySelected.remove(key) } else { registrySelected.add(key) }
+        discover(path, script: script)
+    }
+
+    /**
+     * Keeps an existing local selection; registry requirements may yield to a local source.
+     */
+    private func canSelectDependency(key: CjpmSelection, path: VfsPath, local!: Bool): Bool {
+        let previous = selected.get(key) ?? return true
+        if (previous == path) {
+            return false
+        }
+        if (registrySelected.contains(key)) {
+            return true
+        }
+        if (local) {
+            let scope = if (key.isScript) { "build-script" } else { "ordinary/test" }
+            let remedy =
+                if (key.isScript) {
+                    "Align script dependency declarations"
+                } else {
+                    "Use entry [replace] to select one source"
+                }
+            loading
+                .problems
+                .add(
+                    "Conflicting ${scope} dependency `${key.name}`: ${previous} and ${path}; keeping ${previous}. ${remedy}, then run `cjpm update`."
+                )
+        }
+        false
     }
 
     /**
@@ -115,10 +298,11 @@ class CjpmLowering {
      * no package.
      */
     func module(dir: VfsPath, forScript!: Bool = false): ?String {
-        if (let Some(name) <- reached.get(dir)) {
+        let key = CjpmDirectory(dir, isScript: forScript)
+        if (let Some(name) <- reached.get(key)) {
             return name
         }
-        reached.add(dir, None)
+        reached.add(key, None)
         let manifest =
             if (dir == root) {
                 this.manifest
@@ -142,34 +326,24 @@ class CjpmLowering {
                 case Some(org) where !org.trimAscii().isEmpty() => "${org.trimAscii()}::${pkg.name}"
                 case _ => pkg.name
             }
-        reached.add(dir, name)
+        if (
+            let Some(chosen) <- selected.get(CjpmSelection(name, isScript: forScript)) &&
+                chosen != dir
+        ) {
+            let result = module(chosen, forScript: forScript)
+            reached.add(key, result)
+            return result
+        }
+        reached.add(key, name)
         let deps = ArrayList<String>()
-        for ((key, dep) in dependencies(manifest)) {
-            match (dep) {
-                case Table(table) where table.path.isSome() =>
-                    deps
-                        .add(
-                            module(
-                                loading.resolve(dir, table.path.getOrThrow()),
-                                forScript: forScript
-                            ) ??
-                                key
-                        )
-                case Table(table) where table.git.isSome() =>
-                    if (let Some(path) <- git.resolve(key, table, script: forScript)) {
-                        if (let Some(name) <- module(path, forScript: forScript)) {
-                            deps.add(name)
-                        }
-                    }
-                case _ =>
-                    if (let Some(path) <- registry.resolve(key, dep, script: forScript)) {
-                        if (let Some(name) <- module(path, forScript: forScript)) {
-                            deps.add(name)
-                        }
-                    }
+        for ((key, _) in dependencies(manifest)) {
+            if (let Some(path) <- selected.get(CjpmSelection(key, isScript: forScript))) {
+                if (let Some(name) <- module(path, forScript: forScript)) {
+                    deps.add(name)
+                }
             }
         }
-        let member = members.contains(dir)
+        let member = !forScript && members.contains(dir)
         if (member) {
             deps.add(all: workspaceBinaries)
         }
@@ -205,7 +379,8 @@ class CjpmLowering {
                     packages.toArray(),
                     deps: unique.toArray(),
                     member: member,
-                    inactive: inactive.filter { file => file.path != script }
+                    inactive: inactive.filter { file => file.path != script },
+                    resolutionScope: if (forScript) { scriptScope } else { "" }
                 )
             )
         buildScript(dir, manifest, member)
@@ -273,35 +448,17 @@ class CjpmLowering {
      */
     func buildScript(dir: VfsPath, manifest: Manifest, member: Bool): Unit {
         let script = dir.join(BUILD_SCRIPT)
-        if (!(script.filePath.map { path => isFile(path) } ?? false)) {
+        if (!(script.filePath.map { path => isFile(path) } ?? false) || !scripts.add(dir)) {
             return
         }
         let deps = ArrayList<String>()
         let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
         sort(sorted, by: { a, b => a[0].compare(b[0]) })
-        for ((key, dep) in sorted) {
-            match (dep) {
-                case Table(table) where table.path.isSome() =>
-                    deps
-                        .add(
-                            module(
-                                loading.resolve(dir, table.path.getOrThrow()),
-                                forScript: true
-                            ) ??
-                                key
-                        )
-                case Table(table) where table.git.isSome() =>
-                    if (let Some(path) <- git.resolve(key, table, script: true)) {
-                        if (let Some(name) <- module(path, forScript: true)) {
-                            deps.add(name)
-                        }
-                    }
-                case _ =>
-                    if (let Some(path) <- registry.resolve(key, dep, script: true)) {
-                        if (let Some(name) <- module(path, forScript: true)) {
-                            deps.add(name)
-                        }
-                    }
+        for ((key, _) in sorted) {
+            if (let Some(path) <- selected.get(CjpmSelection(key, isScript: true))) {
+                if (let Some(name) <- module(path, forScript: true)) {
+                    deps.add(name)
+                }
             }
         }
         modules
@@ -311,7 +468,8 @@ class CjpmLowering {
                     dir,
                     [PackageModel(DEFAULT_PACKAGE, dir, [script])],
                     deps: deps.toArray(),
-                    member: member
+                    member: member,
+                    resolutionScope: scriptScope
                 )
             )
     }
@@ -376,6 +534,12 @@ class CjpmLowering {
         }
     }
 
+    private prop scriptScope: String {
+        get() {
+            "${root}#scripts"
+        }
+    }
+
     private func targetOf(manifest: Manifest): ?Target {
         let triple = cjpmTriple(loading.cfg) ?? return None
         manifest.target.flatMap { targets => targets.get(triple) }
@@ -403,6 +567,7 @@ struct Manifest {
         let pkg!: ?ManifestPackage = None,
         let workspace!: ?Workspace = None,
         let dependencies!: ?HashMap<String, Dependency> = None,
+        let replace!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "test-dependencies"]
         let testDependencies!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "script-dependencies"]
@@ -480,4 +645,34 @@ struct BinDependencies {
         @Serde[rename: "package-option"]
         let packageOption!: ?HashMap<String, String> = None
     ) {}
+}
+
+/**
+ * A physical manifest visited within one independent dependency graph.
+ */
+@Derive[Hashable, Equatable]
+struct CjpmDirectory {
+    CjpmDirectory(let dir: VfsPath, let isScript!: Bool) {}
+}
+
+/**
+ * A module name selected within the ordinary or build-script dependency graph.
+ */
+@Derive[Hashable, Equatable]
+struct CjpmSelection {
+    CjpmSelection(let name: String, let isScript!: Bool) {}
+}
+
+/**
+ * Whether a replacement selects one valid registry version, rather than a requirement range.
+ */
+private func isExactRegistryVersion(text: String): Bool {
+    try {
+        registryVersion(text)
+        true
+    } catch (_: ProjectException) {
+        false
+    } catch (_: IllegalArgumentException) {
+        false
+    }
 }

@@ -50,7 +50,10 @@ func packageHeaderKind(db: AnalysisDatabase, pkg: Package): ?Bool {
             }
         }
         let header =
-            db.sourceFile(files[i]).flatMap { file => itemTree(db, file).packageHeader } ?? continue
+            db
+                .sourceFile(files[i], context: pkg)
+                .flatMap { file => itemTree(db, file).packageHeader } ??
+                continue
         if (header.name.isEmpty()) {
             continue
         }

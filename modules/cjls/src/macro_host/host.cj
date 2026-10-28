@@ -172,7 +172,7 @@ public class MacroHost <: MacroWork {
                     (state.snapshot(), HashSet<VfsPath>(state.openDocuments.keys()))
                 }
         let db = snapshot.analysis
-        let files = snapshot.files |> filterMap { id: FileId => db.sourceFile(id) } |> collectArray
+        let files = macroFiles(db, snapshot.files)
         // nothing to ask, nothing to look for: std's macros need no build, but the SDK. A loop, and what is sent in a
         // frame of its own: at -O2 a lambda here, or the references of a send, crashed the GC that scanned this
         // thread while it parsed (SIGSEGV in `VisitStackRoots`, 1.3.0-alpha.20261014)
@@ -341,13 +341,14 @@ public class MacroHost <: MacroWork {
                     )
                     return None
             }
-        let key = cacheDir.path.toString()
+        let buildName = macroBuildName(db, pkg, name)
+        let key = "${cacheDir.path}#${buildName}"
         if (let Some(out) <- outs.get(key)) {
             return out
         }
         let out =
             try {
-                cacheDir.macroBuild(name)
+                cacheDir.macroBuild(buildName)
             } catch (e: FSException) {
                 report("${cacheDir.path} cannot be written: ${e.message}")
                 None<Path>
@@ -389,4 +390,45 @@ public class MacroHost <: MacroWork {
             logger.warn(message)
         }
     }
+}
+
+/**
+ * Every active analysis context of the loaded files needs its own expansion: the same source
+ * can resolve a macro against different dependencies in the ordinary and build-script graphs.
+ */
+func macroFiles(db: AnalysisDatabase, loaded: Array<FileId>): Array<SourceFile> {
+    let found = ArrayList<SourceFile>()
+    let seen = HashSet<SourceFile>()
+    func add(file: ?SourceFile): Unit {
+        if (let Some(one) <- file && seen.add(one)) {
+            found.add(one)
+        }
+    }
+    for (id in loaded) {
+        add(db.sourceFile(id))
+    }
+    let allowed = HashSet<FileId>(loaded)
+    if (let Some(project) <- db.project()) {
+        for (module in project.modules(db)) {
+            for (pkg in module.packages(db)) {
+                for (id in pkg.files(db) where allowed.contains(id)) {
+                    add(db.sourceFile(id, context: pkg))
+                }
+            }
+        }
+    }
+    found.toArray()
+}
+
+/**
+ * Keep same-named packages from independent dependency selections out of one compiler cache.
+ */
+func macroBuildName(db: AnalysisDatabase, pkg: Package, version: String): String {
+    if (let Some(project) <- db.project()) {
+        for (module in project.modules(db) where module.packages(db).contains(pkg)) {
+            let scope = module.resolutionScope(db)
+            return if (scope.isEmpty()) { version } else { "${version}-scope-${scope.hashCode()}" }
+        }
+    }
+    version
 }
