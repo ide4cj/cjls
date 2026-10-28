@@ -236,7 +236,8 @@ public struct Item <: Equatable<Item> {
             macros == other.macros &&
             members == other.members &&
             condition == other.condition &&
-            paramMacros == other.paramMacros
+            paramMacros == other.paramMacros &&
+            isC == other.isC
     }
 
     public operator func !=(other: Item): Bool {

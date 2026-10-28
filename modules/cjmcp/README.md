@@ -213,8 +213,6 @@ captures native output,
 recovers from script/serialization errors, then edits/adds/deletes files and
 reloads the same workspace. It also runs in CI; `CJMCP_BIN` overrides the binary.
 
-The full suite still has the existing `ServedDiagnosticsGateTest` failure: loupe
-reports false type mismatches in expanded Python bindings (native `CFunc`
-callbacks and derived operator overloads). Exporting more types increases those
-findings. The Cangjie compiler accepts the bindings; the real MCP test exercises
-them at runtime. This analysis gap is separate from the compiler workaround.
+The full Cangjie suite includes `ServedDiagnosticsGateTest`, which checks the
+expanded Python bindings for false diagnostics. Run it without excluding gates
+when changing the exports or the pinned interop generator.
