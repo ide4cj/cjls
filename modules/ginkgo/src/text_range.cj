@@ -1,8 +1,12 @@
 package ginkgo
 
+import py_interop.*
+import py_interop.internal_macros.DerivePython
+
 /**
  * A half-open range `[start, end)` of UTF-8 byte offsets into the text a tree was built from.
  */
+@DerivePython
 public struct TextRange <: Equatable<TextRange> & Hashable & ToString {
     /**
      * @throws IllegalArgumentException - if `start` is negative or past `end`

@@ -1,25 +1,44 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A scope of a body, by its place among the body's scopes.
  */
-@Derive[Equatable, Hashable, ToString]
-public struct ScopeId {
+@DerivePython
+public struct ScopeId <: Equatable<ScopeId> & Hashable & ToString {
     public ScopeId(public let index: Int64) {}
+
+    public operator func ==(other: ScopeId): Bool {
+        index == other.index
+    }
+
+    public operator func !=(other: ScopeId): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(index)
+        hasher.finish()
+    }
+
+    public func toString(): String {
+        "ScopeId(index: ${index})"
+    }
 }
 
 /**
  * A scope: the one around it, and the locals it adds; a local function's own has its type
  * parameters.
  */
-@Derive[Equatable]
-public struct ScopeData {
+@DerivePython
+public struct ScopeData <: Equatable<ScopeData> {
     public ScopeData(
         public let parent: ?ScopeId,
         public let entries: Array<LocalId>,
@@ -29,6 +48,15 @@ public struct ScopeData {
         public let genericsOf!: ?Int64 = None,
         public let generics!: Array<String> = []
     ) {}
+
+    public operator func ==(other: ScopeData): Bool {
+        parent == other.parent && entries == other.entries && genericsOf == other.genericsOf &&
+            generics == other.generics
+    }
+
+    public operator func !=(other: ScopeData): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -38,8 +66,8 @@ public struct ScopeData {
  * block and the bindings before it are one scope in cjc, which only says so for a redefinition
  * (N59); here they nest, which answers a lookup the same.
  */
-@Derive[Equatable]
-public struct ExprScopes {
+@DerivePython
+public struct ExprScopes <: Equatable<ExprScopes> {
     public ExprScopes(
         public let scopes!: Array<ScopeData> = [],
         public let exprScopes!: Array<?ScopeId> = [],
@@ -72,6 +100,14 @@ public struct ExprScopes {
             current = this[one].parent
         }
         found.toArray()
+    }
+
+    public operator func ==(other: ExprScopes): Bool {
+        scopes == other.scopes && exprScopes == other.exprScopes && typeScopes == other.typeScopes
+    }
+
+    public operator func !=(other: ExprScopes): Bool {
+        !(this == other)
     }
 }
 

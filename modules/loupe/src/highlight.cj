@@ -1,7 +1,6 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
 import cjo.DeclInfo
 import ginkgo.{Direction, SyntaxElement, SyntaxNodePtr, TokenSet}
 // the API's ranges, for whoever asks for a part of a file
@@ -12,13 +11,15 @@ import loupe.vfs.FileId
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What a token is: by the tree, and a name at its use by what it means (D72). In a file of no
  * package, which names do not resolve in, a name inside a type is taken for one.
  */
-@Derive[Equatable]
-public enum HighlightTag <: ToString {
+@DerivePython
+public enum HighlightTag <: ToString & Equatable<HighlightTag> {
     | Keyword
     | Comment
     | StringLiteral
@@ -62,10 +63,35 @@ public enum HighlightTag <: ToString {
             case UnresolvedReference => "UnresolvedReference"
         }
     }
+
+    public operator func ==(other: HighlightTag): Bool {
+        match ((this, other)) {
+            case (HighlightTag.Keyword, HighlightTag.Keyword) => true
+            case (HighlightTag.Comment, HighlightTag.Comment) => true
+            case (HighlightTag.StringLiteral, HighlightTag.StringLiteral) => true
+            case (HighlightTag.NumberLiteral, HighlightTag.NumberLiteral) => true
+            case (HighlightTag.Operator, HighlightTag.Operator) => true
+            case (HighlightTag.InterpolationDelimiter, HighlightTag.InterpolationDelimiter) => true
+            case (HighlightTag.BuiltinAnnotation, HighlightTag.BuiltinAnnotation) => true
+            case (HighlightTag.MacroCall, HighlightTag.MacroCall) => true
+            case (HighlightTag.BuiltinType, HighlightTag.BuiltinType) => true
+            case (HighlightTag.TypeName, HighlightTag.TypeName) => true
+            case (HighlightTag.TypeParameter, HighlightTag.TypeParameter) => true
+            case (HighlightTag.Parameter, HighlightTag.Parameter) => true
+            case (HighlightTag.Symbol(left0), HighlightTag.Symbol(right0)) => left0 == right0
+            case (HighlightTag.Namespace, HighlightTag.Namespace) => true
+            case (HighlightTag.UnresolvedReference, HighlightTag.UnresolvedReference) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: HighlightTag): Bool {
+        !(this == other)
+    }
 }
 
-@Derive[Equatable]
-public enum HighlightModifier <: ToString {
+@DerivePython
+public enum HighlightModifier <: ToString & Equatable<HighlightModifier> {
     // the name being declared
     | Declaration
     // a comment documenting the declaration it is attached to
@@ -103,6 +129,23 @@ public enum HighlightModifier <: ToString {
             case Mutable => "Mutable"
         }
     }
+
+    public operator func ==(other: HighlightModifier): Bool {
+        match ((this, other)) {
+            case (HighlightModifier.Declaration, HighlightModifier.Declaration) => true
+            case (HighlightModifier.Documentation, HighlightModifier.Documentation) => true
+            case (HighlightModifier.Readonly, HighlightModifier.Readonly) => true
+            case (HighlightModifier.Static, HighlightModifier.Static) => true
+            case (HighlightModifier.Deprecated, HighlightModifier.Deprecated) => true
+            case (HighlightModifier.DefaultLibrary, HighlightModifier.DefaultLibrary) => true
+            case (HighlightModifier.Mutable, HighlightModifier.Mutable) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: HighlightModifier): Bool {
+        !(this == other)
+    }
 }
 
 let HIGHLIGHT_MODIFIERS =
@@ -119,8 +162,8 @@ let HIGHLIGHT_MODIFIERS =
 /**
  * A set of `HighlightModifier`s.
  */
-@Derive[Equatable]
-public struct HighlightModifiers <: ToString {
+@DerivePython
+public struct HighlightModifiers <: ToString & Equatable<HighlightModifiers> {
     private HighlightModifiers(let bits: UInt8) {}
 
     public static let NONE = HighlightModifiers(0)
@@ -145,13 +188,21 @@ public struct HighlightModifiers <: ToString {
                 delimiter: ", "
             )
     }
+
+    public operator func ==(other: HighlightModifiers): Bool {
+        bits == other.bits
+    }
+
+    public operator func !=(other: HighlightModifiers): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A token of a file and what it is. `range` is in UTF-8 bytes (A6).
  */
-@Derive[Equatable]
-public struct HighlightedRange <: ToString {
+@DerivePython
+public struct HighlightedRange <: ToString & Equatable<HighlightedRange> {
     public HighlightedRange(
         public let range: TextRange,
         public let tag: HighlightTag,
@@ -164,6 +215,14 @@ public struct HighlightedRange <: ToString {
     public func toString(): String {
         let modifiers = if (this.modifiers.isEmpty()) { "" } else { "[${this.modifiers}]" }
         "${tag}${modifiers}@${range.start}..${range.end}"
+    }
+
+    public operator func ==(other: HighlightedRange): Bool {
+        range == other.range && tag == other.tag && modifiers == other.modifiers
+    }
+
+    public operator func !=(other: HighlightedRange): Bool {
+        !(this == other)
     }
 }
 

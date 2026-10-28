@@ -2,18 +2,21 @@ package loupe
 
 import std.collection.*
 import std.sort.sort
-import ginkgo.TextRange
 import cjformat.formatText
+import ginkgo.TextRange
 import loupe.db.AnalysisDatabase
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * The text of an expansion as a reader is shown it: formatted by cjformat, which changes whitespace only (D150), its
  * trailing whitespace left out; as the macro wrote it if it does not format. Its bytes that are not whitespace are
  * those of the text the macro wrote (`expandedMacro`), in order: that is how an offset goes from one to the other.
  */
+@DerivePython
 public class ShownExpansion {
     private ShownExpansion(
         public let text: String,
@@ -98,6 +101,7 @@ func across(offset: Int64, from: Array<Int64>, to: Array<Int64>): Int64 {
 /**
  * Where a piece of an expanded file (`expandFile`) comes from.
  */
+@DerivePython
 public enum ExpandedOrigin {
     /**
      * The analysis wrote it: the header, a line naming a call.
@@ -113,6 +117,7 @@ public enum ExpandedOrigin {
     | Shown(MacroCallId, ShownExpansion)
 }
 
+@DerivePython
 public struct ExpandedSegment {
     public ExpandedSegment(public let range: TextRange, public let origin: ExpandedOrigin) {}
 }
@@ -121,6 +126,7 @@ public struct ExpandedSegment {
  * What an offset of an expanded file is at: an offset of its source file, or one of the text of an expansion
  * (`expandedMacro`).
  */
+@DerivePython
 public enum ExpandedPlace {
     | InSource(Int64)
     | InExpansion(MacroCallId, Int64)
@@ -130,6 +136,7 @@ public enum ExpandedPlace {
  * A source file with its macro calls expanded, as cjc's `--debug-macro` writes a `.cj.macrocall`; and where each of
  * its pieces comes from.
  */
+@DerivePython
 public class ExpandedFile {
     ExpandedFile(public let text: String, public let segments: Array<ExpandedSegment>) {}
 

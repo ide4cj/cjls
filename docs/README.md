@@ -75,6 +75,7 @@ stay in `design/`.
 | Work | Notes |
 |---|---|
 | Incremental analysis and projects | [calca](../modules/calca/README.md), [loupe rules and fixtures](design/02-analysis.md), [project_model](../modules/project_model/README.md) |
+| Experimental MCP frontend | [cjmcp](../modules/cjmcp/README.md) |
 | Syntax and generation | [ginkgo](../modules/ginkgo/README.md), [cjsyntax](../modules/cjsyntax/README.md), [syntax_codegen](../modules/syntax_codegen/README.md) |
 | Protocol and serialization | [jsonrpc](../modules/jsonrpc/README.md), [stdxx](../modules/stdxx/README.md), [lsp_codegen](../modules/lsp_codegen/README.md), [cjls](../modules/cjls/README.md) |
 | Binary formats, macros and platforms | [fbs](../modules/fbs/README.md), [fbs_codegen](../modules/fbs_codegen/README.md), [cjo](../modules/cjo/README.md), [macro_server](../modules/macro_server/README.md), [macro_host](../modules/macro_host/README.md), [platform](../modules/platform/README.md) |

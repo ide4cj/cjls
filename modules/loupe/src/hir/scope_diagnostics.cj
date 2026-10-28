@@ -1,17 +1,18 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What is wrong with a file's scope, as cjc and cjpm report it.
  */
-@Derive[Equatable]
-public enum ScopeProblem <: ToString {
+@DerivePython
+public enum ScopeProblem <: ToString & Equatable<ScopeProblem> {
     /**
      * A path of an import that brings nothing, or that closes a cycle of packages (N36, N47).
      */
@@ -58,20 +59,59 @@ public enum ScopeProblem <: ToString {
                 "top-level declaration '${name}' is conflicted with possible sub-package '${pkg}'"
         }
     }
+
+    public operator func ==(other: ScopeProblem): Bool {
+        match ((this, other)) {
+            case (ScopeProblem.ImportFailed(left0), ScopeProblem.ImportFailed(right0)) =>
+                left0 == right0
+            case (ScopeProblem.Shadowed(left0), ScopeProblem.Shadowed(right0)) => left0 == right0
+            case (ScopeProblem.Conflicted(left0), ScopeProblem.Conflicted(right0)) =>
+                left0 == right0
+            case (ScopeProblem.SubPackage(left0, left1), ScopeProblem.SubPackage(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ScopeProblem): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * Where a problem is: a path of an import, or a name of a declaration.
  */
-@Derive[Equatable]
-public enum ScopeProblemAt {
+@DerivePython
+public enum ScopeProblemAt <: Equatable<ScopeProblemAt> {
     | AtImport(ImportSite)
     | AtDecl(DefId, String)
+
+    public operator func ==(other: ScopeProblemAt): Bool {
+        match ((this, other)) {
+            case (ScopeProblemAt.AtImport(left0), ScopeProblemAt.AtImport(right0)) =>
+                left0 == right0
+            case (ScopeProblemAt.AtDecl(left0, left1), ScopeProblemAt.AtDecl(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ScopeProblemAt): Bool {
+        !(this == other)
+    }
 }
 
-@Derive[Equatable]
-public struct ScopeDiagnostic {
+@DerivePython
+public struct ScopeDiagnostic <: Equatable<ScopeDiagnostic> {
     public ScopeDiagnostic(public let at: ScopeProblemAt, public let problem: ScopeProblem) {}
+
+    public operator func ==(other: ScopeDiagnostic): Bool {
+        at == other.at && problem == other.problem
+    }
+
+    public operator func !=(other: ScopeDiagnostic): Bool {
+        !(this == other)
+    }
 }
 
 /**

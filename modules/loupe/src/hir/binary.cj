@@ -4,6 +4,8 @@ import std.collection.*
 import std.deriving.*
 import calca.*
 import calca.macros.*
+import cjo.Decl as CjoDecl
+import cjo.Package as CjoPackage
 import cjo.{
     AccessLevel,
     AccessModifier,
@@ -19,9 +21,9 @@ import cjo.{
     SemaTyInfo,
     TypeKind
 }
-import cjo.Decl as CjoDecl
-import cjo.Package as CjoPackage
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * Where an item is declared: a source file, a file of a package compiled already, by its index
@@ -29,12 +31,48 @@ import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
  * CompilerBuiltIns supplies std.core's compiler-owned declarations without inventing source text.
  * Name resolution takes each alike.
  */
-@Derive[Equatable, Hashable]
-public enum ItemFile {
+@DerivePython
+public enum ItemFile <: Equatable<ItemFile> & Hashable {
     | Source(SourceFile)
     | Binary(BinaryPackageFile, Int64)
     | Expansion(MacroCallId)
     | CompilerBuiltIns(Package)
+
+    public operator func ==(other: ItemFile): Bool {
+        match ((this, other)) {
+            case (ItemFile.Source(left0), ItemFile.Source(right0)) => left0 == right0
+            case (ItemFile.Binary(left0, left1), ItemFile.Binary(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (ItemFile.Expansion(left0), ItemFile.Expansion(right0)) => left0 == right0
+            case (ItemFile.CompilerBuiltIns(left0), ItemFile.CompilerBuiltIns(right0)) =>
+                left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ItemFile): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case ItemFile.Source(value0) =>
+                hasher.write(0)
+                hasher.write(value0.hashCode())
+            case ItemFile.Binary(value0, value1) =>
+                hasher.write(1)
+                hasher.write(value0.hashCode())
+                hasher.write(value1)
+            case ItemFile.Expansion(value0) =>
+                hasher.write(2)
+                hasher.write(value0.hashCode())
+            case ItemFile.CompilerBuiltIns(value0) =>
+                hasher.write(3)
+                hasher.write(value0.hashCode())
+        }
+        hasher.finish()
+    }
 }
 
 /**
@@ -262,12 +300,27 @@ func resolveBinaryType(
 /**
  * An item of a package compiled already: the index of its file, and its id there.
  */
-@Derive[Equatable, Hashable]
-public struct BinaryItem <: ToString {
+@DerivePython
+public struct BinaryItem <: ToString & Equatable<BinaryItem> & Hashable {
     public BinaryItem(public let file: Int64, public let id: ItemId) {}
 
     public func toString(): String {
         "${file}:${id}"
+    }
+
+    public operator func ==(other: BinaryItem): Bool {
+        file == other.file && id == other.id
+    }
+
+    public operator func !=(other: BinaryItem): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(file)
+        hasher.write(id.hashCode())
+        hasher.finish()
     }
 }
 
