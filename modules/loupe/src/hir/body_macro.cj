@@ -1,13 +1,13 @@
 package loupe.hir
 
-import std.collection.*
+import std.collection.{ArrayList, HashMap, collectArray, filter, filterMap, first, map}
 import std.deriving.*
-import ginkgo.{SyntaxNodePtr, TextRange}
-import cjsyntax.{CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{Decl, MacroArgs, MacroAttr, MacroExpandDecl, MacroExpandExpr, NameRef}
 import calca.*
 import calca.macros.*
-import loupe.db.*
+import cjsyntax.{CjSyntaxNode, SyntaxKind}
+import cjsyntax.ast.{Decl, MacroArgs, MacroAttr, MacroExpandDecl, MacroExpandExpr, NameRef}
+import ginkgo.{SyntaxNodePtr, TextRange}
+import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
 
 /**
@@ -41,9 +41,15 @@ public func bodyMacroCalls(db: AnalysisDatabase, file: SourceFile): Array<BodyMa
     for (top in activeItemTree(db, file).items) {
         for (item in [top].concat(top.members)) {
             let node = ids.node(item.id, root) ?? continue
-            for (one in BodyCallWalker(ids, filter, item.id).walk(node)) {
-                found.add(BodyMacroCall(item.id, one.name, one.index, one.around, one.holdsCalls))
-            }
+            found
+                .add(
+                    all: BodyCallWalker(ids, filter, item.id)
+                        .walk(node)
+                        .map {
+                            one =>
+                            BodyMacroCall(item.id, one.name, one.index, one.around, one.holdsCalls)
+                        }
+                )
         }
     }
     found.toArray()

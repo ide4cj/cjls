@@ -1,54 +1,62 @@
 package cjsyntax
 
-import std.collection.*
+import std.collection.{collectArray, map}
 import std.unittest.*
 import std.unittest.testmacro.*
-import ginkgo.*
+import ginkgo.{SyntaxElement, SyntaxNode}
 
 @Test
 class MacroTokenCallParseTest {
-    @TestCase
-    func tokenInputsKeepNestedCallsAsNodes() {
-        for (input in ["a.@N(b)", "@N(x) <- 1", "o.{ .i.@N(b); .n } <- (9, 8)"]) {
-            // arrange
-            let text = "main() { @M(${input}) }"
-            // act
-            let parsed = parse(text)
-            // assert
-            @Expect(parsed.errors.size, 0)
-            @Expect(parsed.syntaxNode().text(), text)
-            let calls =
-                collectArray(
-                    parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
-                )
-            @Expect(calls.size, 2)
-            @Expect(calls[1].text().startsWith("@N("))
-        }
-    }
-
-    @TestCase
-    func escapedCallsAndStringContentsStayTokens() {
+    @TestCase[input in ["a.@N(b)", "@N(x) <- 1", "o.{ .i.@N(b); .n } <- (9, 8)"]]
+    func tokenInputsKeepNestedCallsAsNodes(input: String): Unit {
         // arrange
-        let text = #"main() { @M(a.\@N(b) "@N(x)" /* @N(y) */) }"#
+        let text = "main() { @M(${input}) }"
+
         // act
         let parsed = parse(text)
+        let calls =
+            collectArray(
+                parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
+            )
+
         // assert
-        @Expect(parsed.errors.size, 0)
+        @Expect(parsed.errors.isEmpty())
         @Expect(parsed.syntaxNode().text(), text)
-        @Expect(collectArray(parsed.syntaxNode().descendants().filter {n => n.kind == MacroExpandExpr}).size, 1)
+        @Expect(calls.size, 2)
+        @Expect(calls[1].text().startsWith("@N("))
     }
 
     @TestCase
-    func incompleteNestedHeadsPreserveTheNextDeclaration() {
-        for (input in ["a.@N", "a.@!", "a.@N[x]"]) {
-            // arrange
-            let text = "main() { @M(${input}) }\nfunc after() {}"
-            // act
-            let parsed = parse(text)
-            // assert
-            @Expect(parsed.syntaxNode().text(), text)
-            @Expect(collectArray(parsed.syntaxNode().children().filter {n => n.kind == FuncDecl}).size, 1)
-        }
+    func escapedCallsAndStringContentsStayTokens(): Unit {
+        // arrange
+        const TEXT = #"main() { @M(a.\@N(b) "@N(x)" /* @N(y) */) }"#
+
+        // act
+        let parsed = parse(TEXT)
+        let calls =
+            collectArray(
+                parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
+            )
+
+        // assert
+        @Expect(parsed.errors.isEmpty())
+        @Expect(parsed.syntaxNode().text(), TEXT)
+        @Expect(calls.size, 1)
+    }
+
+    @TestCase[input in ["a.@N", "a.@!", "a.@N[x]"]]
+    func incompleteNestedHeadsPreserveTheNextDeclaration(input: String): Unit {
+        // arrange
+        let text = "main() { @M(${input}) }\nfunc after() {}"
+
+        // act
+        let parsed = parse(text)
+        let declarations =
+            collectArray(parsed.syntaxNode().children().filter { n => n.kind == FuncDecl })
+
+        // assert
+        @Expect(parsed.syntaxNode().text(), text)
+        @Expect(declarations.size, 1)
     }
 }
 

@@ -183,7 +183,7 @@ document the additional client-facing contracts.
 | Analysis features and their tests | [loupe source](../modules/loupe/src/), [structure example](../modules/loupe/src/structure.cj) |
 | Stable items, scopes, inference | [item tree](../modules/loupe/src/hir/item_tree.cj), [definition map](../modules/loupe/src/hir/def_map.cj), [inference](../modules/loupe/src/hir/infer.cj) |
 | Syntax ownership and recovery | [green tree](../modules/ginkgo/src/green.cj), [Cangjie parsing](../modules/cjsyntax/src/parse.cj), [parse query](../modules/loupe/src/syntax/syntax.cj) |
-| Macro input and output boundaries | [analysis requests](../modules/loupe/src/hir/server_macro.cj), [output values](../modules/loupe/src/db/macro_output.cj), [host](../modules/macro_host/src/), [SDK protocol](../modules/macro_server/src/) |
+| Macro input and output boundaries | [analysis requests](../modules/loupe/src/hir/server_macro.cj), [input composition](../modules/loupe/src/hir/macro_input.cj), [output values](../modules/loupe/src/db/macro_output.cj), [host](../modules/macro_host/src/), [SDK protocol](../modules/macro_server/src/) |
 | Analysis fixtures and SDK prerequisites | [analysis testing](design/02-analysis.md#analysis-tests), [fixture helpers](../modules/loupe/src/fixture/) |
 
 Find current symbols and behavior in the source and neighboring tests.
