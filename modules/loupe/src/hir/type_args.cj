@@ -20,7 +20,8 @@ class VarBounds {
  * The type arguments not written of one call, as cjc's `LocalTypeArgumentSynthesis` solves them
  * (D57): `count` variables, `InferTy(base)` on, each bounded by what the call's arguments and the
  * type expected of it say, then chosen: the join of what is passed, else the one bound under every
- * other. No variable outlives the call: what it passes is inferred before, its own variables solved.
+ * other. A generic callee and applications of its returned function share one solve (A26);
+ * arguments are inferred before their types constrain these variables.
  */
 class TypeArgSolver {
     private let bounds: Array<VarBounds>

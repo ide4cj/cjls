@@ -437,7 +437,8 @@ struct Callable {
         let isC!: Bool = false,
         let defaults!: Array<Bool> = [],
         let isCVariadic!: Bool = false,
-        let isValue!: Bool = false
+        let isValue!: Bool = false,
+        let applied!: ?AppliedCall = None
     ) {}
 
     func at(level: Int64): Callable {
@@ -451,7 +452,8 @@ struct Callable {
             isC: isC,
             defaults: defaults,
             isCVariadic: isCVariadic,
-            isValue: isValue
+            isValue: isValue,
+            applied: applied
         )
     }
 
@@ -513,6 +515,20 @@ struct Callable {
             case None => ty
         }
     }
+}
+
+/**
+ * An application whose generic arguments remain open while its returned function is called.
+ * Keeping the written calls separate preserves argument names, defaults and navigation.
+ */
+class AppliedCall {
+    AppliedCall(
+        let expr: ExprId,
+        let callee: ExprId,
+        let callable: Callable,
+        let matched: ArgMatch,
+        let args: Array<CallArg>
+    ) {}
 }
 
 /**
@@ -2872,10 +2888,10 @@ class Inference {
                 overriding(callablesOf(callee, expected, arity: args.size, callArgs: args)),
                 args
             )
-        // what a call returns called: of a generic call, its type arguments solved alone (N131)
+        // Calls through a returned value retain conservative diagnostics for unsupported call shapes.
         let isOfCall =
             match (hir[callee]) {
-                case CallExpr(_, _) => true
+                case CallExpr(_, _) => !all.iterator().any { one => one.applied.isSome() }
                 case _ => false
             }
         let isDelegation =
@@ -3588,7 +3604,12 @@ class Inference {
         if (let Some(variadic) <- matched.packed && !isPacked) {
             tys.add(callable.params[variadic], at: variadic)
         }
-        tys.toArray()
+        let own = tys.toArray()
+        // Earlier applications still distinguish overloads with the same returned function type.
+        match (callable.applied) {
+            case Some(one) => compared(one.callable, one.matched).concat(own)
+            case None => own
+        }
     }
 
     /**
@@ -3626,6 +3647,13 @@ class Inference {
         setArgs(callee, matched)
         if (let Some(owner) <- callable.open) {
             return genericCallTy(callee, callable, matched, owner, args, expected)
+        }
+        if (let Some(one) <- callable.applied) {
+            let ret = callWith(one.callee, one.callable, one.matched, one.args, None)
+            setExpr(one.expr, ret)
+            if (let Some(decl) <- one.callable.decl) {
+                setCallee(one.callee, decl)
+            }
         }
         setExpr(callee, callable.ty(db))
         let targets = argTys(callable.params, matched)
@@ -3709,7 +3737,7 @@ class Inference {
         callable: Callable,
         matched: ArgMatch,
         owner: DefId,
-        args: Array<CallArg>,
+        outerArgs: Array<CallArg>,
         expected: ?Ty
     ): Ty {
         let base = nextVar
@@ -3719,7 +3747,46 @@ class Inference {
         let open = { ty: Ty => substitute(db, ty, owner, vars) }
         let params = callable.params.map(open)
         let ret = open(callable.ret)
-        let targets = argTys(params, matched)
+        let applications: Array<AppliedCall> =
+            if (callable.applied.isSome()) {
+                let found = ArrayList<AppliedCall>()
+                var preceding = callable.applied
+                while (let Some(one) <- preceding) {
+                    found.add(one)
+                    preceding = one.callable.applied
+                }
+                found.toArray()
+            } else {
+                []
+            }
+        let args =
+            if (applications.isEmpty()) {
+                outerArgs
+            } else {
+                let all = ArrayList<CallArg>()
+                for (i in 0..applications.size) {
+                    all.add(all: applications[applications.size - i - 1].args)
+                }
+                all.add(all: outerArgs)
+                all.toArray()
+            }
+        let targets =
+            if (applications.isEmpty()) {
+                argTys(params, matched)
+            } else {
+                let all = ArrayList<?Ty>()
+                // Inner and outer arguments constrain the same declaration's variables (N131).
+                for (i in 0..applications.size) {
+                    let one = applications[applications.size - i - 1]
+                    all.add(all: argTys(one.callable.params.map(open), one.matched))
+                    setArgs(one.callee, one.matched)
+                    if (let Some(decl) <- one.callable.decl) {
+                        setCallee(one.callee, decl)
+                    }
+                }
+                all.add(all: argTys(params, matched))
+                all.toArray()
+            }
         let synthesized = Array<?Ty>(args.size, repeat: None)
         let ideal = Array<?Bool>(args.size, repeat: None)
         let waiting = ArrayList<Int64>()
@@ -3825,7 +3892,11 @@ class Inference {
             }
         }
         nextVar = base
-        setExpr(callee, Ty(db, FuncTy(params.map(final), final(ret), false)))
+        for (one in applications) {
+            setExpr(one.callee, final(open(one.callable.ty(db))))
+            setExpr(one.expr, final(open(one.callable.ret)))
+        }
+        setExpr(callee, Ty(db, FuncTy(params.map(final), final(ret), callable.isC)))
         if (isAmbiguous) {
             return error
         }
@@ -3952,7 +4023,7 @@ class Inference {
     private func overriding(callables: Array<Callable>): Array<Callable> {
         let kept = ArrayList<Callable>()
         for (
-            one in callables where isEnumCtor(one) ||
+            one in callables where one.applied.isSome() || isEnumCtor(one) ||
                 kept
                     .iterator()
                     .all {
@@ -4066,6 +4137,44 @@ class Inference {
                         }
                         found.toArray()
                     case _ => []
+                }
+            case CallExpr(inner, args) =>
+                let all =
+                    byLambdas(
+                        overriding(callablesOf(inner, None, arity: args.size, callArgs: args)),
+                        args
+                    )
+                let pending = ArrayList<Callable>()
+                for (one in all) {
+                    if (let FuncTy(params, ret, isC) <- one.ret.kind(db)) {
+                        let matched =
+                            match (matchArgs(one, args)) {
+                                case Fits(found) => found
+                                case _ where isPossibleVariadic(one, args) =>
+                                    match (matchArgs(one, args, packed: one.positional() - 1)) {
+                                        case Fits(found) => found
+                                        case _ => continue
+                                    }
+                                case _ => continue
+                            }
+                        pending
+                            .add(
+                                Callable(
+                                    params,
+                                    ret,
+                                    open: one.open,
+                                    level: one.level,
+                                    isValue: true,
+                                    isC: isC,
+                                    applied: AppliedCall(callee, inner, one, matched, args)
+                                )
+                            )
+                    }
+                }
+                if (pending.iterator().any { one => one.open.isSome() }) {
+                    pending.toArray()
+                } else {
+                    valueCallables(infer(callee, None))
                 }
             case FieldExpr(receiver, name, args) =>
                 fieldCallables(callee, receiver, name, args, expected, callArgs: callArgs)

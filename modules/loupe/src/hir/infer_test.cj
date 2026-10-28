@@ -62,6 +62,9 @@ func annotateTypes(
             }
             let lowered = bodyWithSourceMap(db, def)
             let result = inferBody(db, def)
+            @Expect(result.exprs.iterator().all { ty => ty.map { one => !hasInferVars(db, one) } ?? true })
+            @Expect(result.locals.iterator().all { ty => !hasInferVars(db, ty) })
+            @Expect(result.pats.iterator().all { ty => !hasInferVars(db, ty) })
             let pkg = packageOfFile(db, source).getOrThrow()
             for (i in 0..lowered.body.locals.size) {
                 let local = lowered.body.locals[i]
@@ -2314,15 +2317,92 @@ class InferTest {
             //                     ^ Int8
                 let composed = 1 |> (f ~> s)
             //      ^^^^^^^^ Bool
-                // not yet: an `Int64` to cjc, the type arguments of `first("x")` solved with what it
-                // is called with, as of `first("x")([1, 2])` (N131); here solved alone, of its bound
                 let generic = [1, 2] |> first("x")
-            //      ^^^^^^^ ToString
+            //      ^^^^^^^ Int64
+                let called = first("x")([1, 2])
+            //      ^^^^^^ Int64
+                let alone = first("x")
+            //      ^^^^^ (Iterable<ToString>) -> ToString
             }
             func first<T>(d: String): (Iterable<T>) -> T where T <: ToString {
             //            ^ String
                 {it => it.iterator().next().getOrThrow()}
             //   ^^ Iterable<T>
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func genericCalleesShareArgumentsAcrossApplications() {
+        checkInference(
+            #"
+            package m
+            func identity<T>(): (T) -> T { {x => x} }
+            //                              ^ T
+            func curried<T>(): (T) -> (T) -> T { {x => {y => y}} }
+            //                                    ^ T
+            //                                          ^ T
+            func mapTo<T>(f: (Int64) -> T): (Array<Int64>) -> Array<T> { {xs => []} }
+            //            ^ (Int64) -> T
+            //                                                            ^^ Array<Int64>
+            func test(): Unit {
+                let direct = identity()(1)
+            //      ^^^^^^ Int64
+                let nested = identity()(identity()(1))
+            //      ^^^^^^ Int64
+                let chain = curried()(1)(2)
+            //      ^^^^^ Int64
+                let callback = [1, 2] |> mapTo {x => "${x}"}
+            //      ^^^^^^^^ Array<String>
+            //                                  ^ Int64
+                let first = identity()("s")
+            //      ^^^^^ String
+                let second = identity()(true)
+            //      ^^^^^^ Bool
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func aDiscardedGenericCalleeDoesNotKeepItsCallbackTypes() {
+        checkInference(
+            #"
+            package m
+            func select<T>(seed: String): ((Bool) -> String) -> T where T <: ToString {
+            //             ^^^^ String
+                {f => throw Exception()}
+            //   ^ (Bool) -> String
+            }
+            func select<T>(seed: T): ((T) -> String) -> T where T <: ToString {
+            //             ^^^^ T
+                {f => seed}
+            //   ^ (T) -> String
+            }
+            func test(): Unit {
+                let chosen = select(1)({x => x.toString()})
+            //      ^^^^^^ Int64
+            //                          ^ Int64
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func aReturnedFunctionsOverloadsKeepTheInnerApplicationsSpecificity() {
+        checkInference(
+            #"
+            package m
+            func pick<T>(seed: ToString): (T) -> T { {x => x} }
+            //           ^^^^ ToString
+            //                                        ^ T
+            func pick<T>(seed: String): (T) -> T { {x => x} }
+            //           ^^^^ String
+            //                                      ^ T
+            func test(): Unit {
+                let chosen = pick("s")(1)
+            //      ^^^^^^ Int64
             }
             "#
         )

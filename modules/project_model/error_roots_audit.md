@@ -3,10 +3,11 @@
 Audit for [#425](https://github.com/ide4cj/cjls/issues/425), on baseline
 `25ced854e0ca7012eb28a31ea6b8b8fe7db1c131`, Linux x86_64, pinned
 `cjc 1.3.0-alpha.20261014001050`. `ErrorRootsGateTest` passed unchanged
-before inspection. The current inventory is **69 local roots in 15 files**,
+before inspection. The inventory at that revision was **69 local roots in 15 files**,
 not the historical 82 in 18 files quoted when the issue was opened.
 Every root below was inspected at its source and traced to its input.
-The numeric baseline is unchanged by this audit; attribution does not fix a gap.
+The numeric baseline was unchanged by the attribution audit itself; later fixes
+are recorded below.
 
 The census counts HIR expressions with no directly unknown expression children.
 A local use has no such children even when its declaration inherited an unknown
@@ -41,9 +42,25 @@ revision above, not permanent identifiers. Multiplicity is shown with `×`.
 The attribution is 62 roots to [#246](https://github.com/ide4cj/cjls/issues/246),
 one standalone callback to [#248](https://github.com/ide4cj/cjls/issues/248),
 two to [#551](https://github.com/ide4cj/cjls/issues/551), and four to
-[#552](https://github.com/ide4cj/cjls/issues/552). No current root originates in
+[#552](https://github.com/ide4cj/cjls/issues/552). No inspected root originates in
 local generic functions (#241). Retain idiomatic production code: annotations
 used in probes below are controls, not workarounds to insert into the repository.
+
+## After joint generic-callee inference (#246)
+
+With #246, the same Linux SDK census removes all **62 local roots** attributed
+to generic pipeline callees. The current local baseline is **7 roots in 4 files**:
+one standalone pipeline callback in `item_id.cj` (#248), the two `Option.flatMap`
+roots in `binary.cj` and `macro_host/src/host.cj` (#551), and four callback roots
+in `ty_relations.cj` (#552). The inspected inventory above remains historical.
+The surviving `item_id.cj` row now names only #248.
+
+The fix also removes six downstream nonlocal roots: `definition.cj`'s `??`,
+the two indices in `body_test.cj`, and `expansion.cj`'s two indices and `??`.
+The gate reported only these decreases; no new root or diagnostic was accepted.
+The bounded, unbounded and collection-pipeline compiler-oracle scenarios exercise
+both successful inference and rejection of incompatible consumers. Fixture checks
+also reject any inference variable left in expression, local or pattern results.
 
 ## Compiler and inference controls
 

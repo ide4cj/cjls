@@ -604,7 +604,6 @@ func macroCallChainsOf(node: CjSyntaxNode): Array<MacroCallChain> {
  * How many macro calls the item of `node` has, on it and on its parameters (D119).
  */
 func macroCallCountOf(node: CjSyntaxNode): Int64 {
-    // `b` is a root of an error type until #246: `fold(0)` is solved without the pipeline's left (D121)
     macroCallChainsOf(node) |> map { chain: MacroCallChain => chain.calls.size } |>
         fold(0) { a, b => a + b }
 }
