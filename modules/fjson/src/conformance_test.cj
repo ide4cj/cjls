@@ -26,49 +26,91 @@ enum Tree {
     | TNull
 }
 
-/** The value at the reader, containers past `MAX_DEPTH` refused as `skipValue` refuses them. */
-func readTree(r: FjReader, depth: Int64): Tree {
-    match (r.peekKind()) {
-        case FjKind.FjObject | FjKind.FjArray where depth >= MAX_DEPTH =>
-            throw FjException("nested too deep")
-        case FjKind.FjObject =>
-            let members = ArrayList<(String, Tree)>()
-            r.beginObject()
-            while (r.nextKey()) {
-                let key = r.key()
-                members.add((key, readTree(r, depth + 1)))
+/**
+ * A pending container and the object key whose value is being read.
+ */
+enum TreeReadFrame {
+    | ObjectMembers(ArrayList<(String, Tree)>, String)
+    | ArrayItems(ArrayList<Tree>)
+}
+
+/**
+ * Keep the oracle's depth limit independent of the native stack: coverage instrumentation and
+ * the property-test runner add enough frames for recursive reading to overflow below 512.
+ */
+func readTree(r: FjReader): Tree {
+    let frames = ArrayList<TreeReadFrame>()
+    while (true) {
+        var value =
+            match (r.peekKind()) {
+                case FjKind.FjObject | FjKind.FjArray where frames.size >= MAX_DEPTH =>
+                    throw FjException("nested too deep")
+                case FjKind.FjObject =>
+                    r.beginObject()
+                    if (r.nextKey()) {
+                        frames.add(ObjectMembers(ArrayList<(String, Tree)>(), r.key()))
+                        continue
+                    }
+                    TObject([])
+                case FjKind.FjArray =>
+                    r.beginArray()
+                    if (r.nextItem()) {
+                        frames.add(ArrayItems(ArrayList<Tree>()))
+                        continue
+                    }
+                    TArray([])
+                case FjKind.FjString => TString(r.readString())
+                case FjKind.FjBool => TBool(r.readBool())
+                case FjKind.FjNull =>
+                    r.readNull()
+                    TNull
+                case FjKind.FjNumber => readNumberTree(r)
             }
-            TObject(members.toArray())
-        case FjKind.FjArray =>
-            let items = ArrayList<Tree>()
-            r.beginArray()
-            while (r.nextItem()) {
-                items.add(readTree(r, depth + 1))
+        while (true) {
+            if (frames.isEmpty()) {
+                return value
             }
-            TArray(items.toArray())
-        case FjKind.FjString => TString(r.readString())
-        case FjKind.FjBool => TBool(r.readBool())
-        case FjKind.FjNull =>
-            r.readNull()
-            TNull
-        case FjKind.FjNumber =>
-            // as `JsonValue` reads one: an integer while it fits an Int64
-            let number = r.rawValue()
-            if (number.iterator().any { b => b == 0x2E || b == 0x65 || b == 0x45 }) {
-                TFloat(FjReader(number).readFloat64())
-            } else {
-                try {
-                    TInt(FjReader(number).readInt64())
-                } catch (_: FjException) {
-                    TFloat(FjReader(number).readFloat64())
-                }
+            let frame = frames[frames.size - 1]
+            frames.remove(at: frames.size - 1)
+            match (frame) {
+                case ObjectMembers(members, key) =>
+                    members.add((key, value))
+                    if (r.nextKey()) {
+                        frames.add(ObjectMembers(members, r.key()))
+                        break
+                    }
+                    value = TObject(members.toArray())
+                case ArrayItems(items) =>
+                    items.add(value)
+                    if (r.nextItem()) {
+                        frames.add(ArrayItems(items))
+                        break
+                    }
+                    value = TArray(items.toArray())
             }
+        }
+    }
+    throw IllegalStateException("tree reader did not finish")
+}
+
+/**
+ * Read integers without losing precision, falling back to Float64 outside Int64's range.
+ */
+func readNumberTree(r: FjReader): Tree {
+    let number = r.rawValue()
+    if (number.iterator().any { b => b == 0x2E || b == 0x65 || b == 0x45 }) {
+        return TFloat(FjReader(number).readFloat64())
+    }
+    try {
+        TInt(FjReader(number).readInt64())
+    } catch (_: FjException) {
+        TFloat(FjReader(number).readFloat64())
     }
 }
 
 func treeOf(bytes: Array<Byte>): Tree {
     let r = FjReader(bytes)
-    let tree = readTree(r, 0)
+    let tree = readTree(r)
     r.end()
     tree
 }
@@ -162,18 +204,19 @@ func refusal(read: () -> Unit): ?String {
  * `FjException`, or else what went wrong; and whether they read it.
  */
 func readBothWays(name: String, bytes: Array<Byte>, problems: ArrayList<String>): Bool {
+    // The SDK truncates assertion strings: keep the reason before a potentially long input dump.
     try {
         let skipped = refusal { skipAll(bytes) }
         let built = refusal { treeOf(bytes) }
         if (skipped.isSome() != built.isSome()) {
-            problems.add("${name}: skipped ${skipped ?? "fine"}, but read ${built ?? "fine"}")
+            problems.add("skipped ${skipped ?? "fine"}, but read ${built ?? "fine"}: ${name}")
         }
         built.isNone()
     } catch (e: Exception) {
-        problems.add("${name}: ${e}")
+        problems.add("${e}: ${name}")
         false
     } catch (e: Error) {
-        problems.add("${name}: ${e}")
+        problems.add("${e}: ${name}")
         false
     }
 }
