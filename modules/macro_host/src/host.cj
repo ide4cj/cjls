@@ -293,6 +293,8 @@ public class GuardedServer <: Expander {
 public class MacroServers <: Expander {
     let std: GuardedServer
     let workspace: GuardedServer
+    private let workspaceLock = Mutex()
+    private var selectedLibrary: ?String = None
 
     public MacroServers(paths: MacroServerPaths, timeout: Duration, logger: Logger) {
         std = GuardedServer(paths, timeout, logger)
@@ -300,19 +302,36 @@ public class MacroServers <: Expander {
     }
 
     public func expand(call: MacroCallData): CallOutcome {
-        if (isStdCall(call)) { std.expand(call) } else { workspace.expand(call) }
+        if (isStdCall(call)) {
+            return std.expand(call)
+        }
+        synchronized (workspaceLock) {
+            // Even different macro packages can import conflicting versions of a helper. The
+            // SDK reuses that loaded code, so package names cannot prove process compatibility (K28).
+            if (call.libPath != selectedLibrary) {
+                workspace.restart()
+                selectedLibrary = call.libPath
+            }
+            workspace.expand(call)
+        }
     }
 
     /**
      * Ends the server of the workspace's macros, which keeps its libraries loaded.
      */
     public func restartWorkspace(): Unit {
-        workspace.restart()
+        synchronized (workspaceLock) {
+            workspace.restart()
+            selectedLibrary = None
+        }
     }
 
     public func close(): Unit {
         std.close()
-        workspace.close()
+        synchronized (workspaceLock) {
+            workspace.close()
+            selectedLibrary = None
+        }
     }
 }
 

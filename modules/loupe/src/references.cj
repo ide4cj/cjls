@@ -55,23 +55,38 @@ public func findReferences(db: AnalysisDatabase, fileId: FileId, offset: Int64):
     }
     let names = searchedNames(db, identText(token), meant)
     let hashes = names.map { name => wordHash(name) }
-    searchScope(db, meant, file) |>
-        filter {
-            one: SourceFile =>
-            let words = fileWords(db, one)
-            hashes.iterator().any { hash => words.has(hash) }
-        } |>
-        flatMap {
-            one: SourceFile =>
-            let id = one.fileId(db)
-            let root = parse(db, one).syntaxNode()
-            namesMeaning(db, one, root, names.concat(aliasesIn(db, one, root, names, meant)), meant)
-                .map {
-                    found: CjSyntaxToken =>
-                    Reference(id, found.textRange, accessOf(found), declares(found))
-                }
-        } |>
-        collectArray
+    let found =
+        searchScope(db, meant, file) |>
+            filter {
+                one: SourceFile =>
+                let words = fileWords(db, one)
+                hashes.iterator().any { hash => words.has(hash) }
+            } |>
+            flatMap {
+                one: SourceFile =>
+                let id = one.fileId(db)
+                let root = parse(db, one).syntaxNode()
+                namesMeaning(
+                    db,
+                    one,
+                    root,
+                    names.concat(aliasesIn(db, one, root, names, meant)),
+                    meant
+                )
+                    .map {
+                        found: CjSyntaxToken =>
+                        Reference(id, found.textRange, accessOf(found), declares(found))
+                    }
+            } |>
+            collectArray
+    let seen = HashMap<FileId, HashSet<TextRange>>()
+    found
+        .filter {
+            reference =>
+            let ranges = seen.get(reference.fileId) ?? HashSet<TextRange>()
+            seen[reference.fileId] = ranges
+            ranges.add(reference.range)
+        }
 }
 
 /**
@@ -145,10 +160,11 @@ func searchScope(
     from: SourceFile
 ): Array<SourceFile> {
     let packages = ArrayList<(Package, String)>()
+    let index = packageIndex(db)
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db)) {
             for (pkg in module.packages(db)) {
-                packages.add((pkg, module.name(db)))
+                packages.add((pkg, index.owners.get(PackageRef.Source(pkg)) ?? module.name(db)))
             }
         }
     }
@@ -224,19 +240,19 @@ func itemIn(db: AnalysisDatabase, id: DefId): ?Item {
  */
 class FileScope {
     let files = ArrayList<SourceFile>()
-    private let seen = HashSet<FileId>()
+    private let seen = HashSet<SourceFile>()
 
     FileScope(private let db: AnalysisDatabase) {}
 
     func add(file: ?SourceFile): Unit {
-        if (let Some(one) <- file && seen.add(one.fileId(db))) {
+        if (let Some(one) <- file && seen.add(one)) {
             files.add(one)
         }
     }
 
     func addPackage(pkg: Package): Unit {
         for (fileId in pkg.files(db)) {
-            add(db.sourceFile(fileId))
+            add(db.sourceFile(fileId, context: pkg))
         }
     }
 }

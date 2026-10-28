@@ -157,6 +157,13 @@ pairs, only inside the detached context; binary names and overload sets win.
 Members absent from a binary type may come from its paired source type only for
 another source in the same attached package.
 
+Independent dependency selections carry distinct module/package identities and
+source import scopes, including when they share a physical path (D155). Scoped
+packages use contextual source inputs: the same physical file has separate
+analysis identities, and `AnalysisDatabase.setFileText` updates every context. Package-driven
+queries retain that context; the physical editor lookup prefers ordinary membership,
+otherwise the first active scoped membership. Queries never create contextual inputs.
+
 Visibility (`protected`, `internal`) is computed from package names, not from `Module`: a module
 is a unit of the build, cjc's is the first segment of a name (D33).
 

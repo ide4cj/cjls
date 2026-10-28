@@ -25,7 +25,7 @@ public func filesOf(db: AnalysisDatabase, pkg: PackageRef): Array<ItemFile> {
         case Source(source) where source.binary(db).isSome() =>
             filesOf(db, resolutionPackage(db, source))
         case Source(source) =>
-            source.files(db) |> filterMap { fileId => db.sourceFile(fileId) } |>
+            source.files(db) |> filterMap { fileId => db.sourceFile(fileId, context: source) } |>
                 map { file => ItemFile.Source(file) } |>
                 collectArray
         case Binary(binary) =>

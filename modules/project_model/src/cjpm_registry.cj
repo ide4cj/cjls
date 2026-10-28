@@ -185,7 +185,7 @@ func registryVersionMatches(requirement: String, selected: String): Bool {
  * @throws ProjectException - if the version is not a numeric triplet
  * @throws IllegalArgumentException - if a component exceeds Int64
  */
-private func registryVersion(text: String): (Int64, Int64, Int64) {
+func registryVersion(text: String): (Int64, Int64, Int64) {
     if (!Regex("^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$").matches(text)) {
         throw ProjectException("invalid registry version `${text}`")
     }

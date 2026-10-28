@@ -132,14 +132,23 @@ public func parentOf(db: AnalysisDatabase, def: DefId): ?DefId {
  */
 @CalcaTracked
 public func packageOfFile(db: AnalysisDatabase, file: SourceFile): ?Package {
+    if (let Some(pkg) <- file.context(db)) {
+        return pkg
+    }
     let project = db.project() ?? return None
     let fileId = file.fileId(db)
+    var fallback: ?Package = None
     for (module in project.modules(db)) {
         for (pkg in module.packages(db) where pkg.files(db).contains(fileId)) {
-            return pkg
+            if (module.resolutionScope(db).isEmpty()) {
+                return pkg
+            }
+            if (fallback.isNone()) {
+                fallback = pkg
+            }
         }
     }
-    binaryContextOfFile(db, file)
+    fallback ?? binaryContextOfFile(db, file)
 }
 
 /**

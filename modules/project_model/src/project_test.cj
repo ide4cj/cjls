@@ -309,7 +309,7 @@ class CjpmProjectTest {
                     ),
                     (
                         "ws/a/cjpm.toml",
-                        "[package]\nname = \"a\"\n[dependencies]\nb = { path = \"../b\" }\n" +
+                        "[package]\nname = \"a\"\n[dependencies]\n\"org::b\" = { path = \"../b\" }\n" +
                             "dep = { path = \"../../dep\" }\nremote = { git = \"https://example.com/r.git\" }\n"
                     ),
                     ("ws/a/src/main.cj", ""),
@@ -333,17 +333,17 @@ class CjpmProjectTest {
         // assert
         let model = load.model
         @Expect(packagesOf(model, dir), [
+            "dep: dep=dep/src/d.cj",
             "org::b: org::b=ws/b/lib/b.cj",
             "org::b: org::b.x.y=ws/b/lib/x/y/c.cj",
-            "dep: dep=dep/src/d.cj",
             "a: a=ws/a/src/main.cj",
             "default: default=ws/a/build.cj",
             "default: default=ws/build.cj"
         ])
-        @Expect(model.modules.map {module => module.member}, [true, false, true, true, true])
+        @Expect(model.modules.map {module => module.member}, [false, true, true, true, true])
         @Expect(model.modules[4].root, dir.join("ws"))
-        @Expect(model.modules[2].deps, ["org::b", "dep", "stdx"])
-        @Expect(model.modules[1].deps, Array<String>())
+        @Expect(model.modules[2].deps, ["dep", "org::b", "stdx"])
+        @Expect(model.modules[0].deps, Array<String>())
         @Expect(model.binaries.map {binary => binary.name}, ["std", "stdx"])
         @Expect(load.problems.size, 1)
         @Expect(load.problems[0].contains("`remote`"))

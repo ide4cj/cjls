@@ -454,7 +454,7 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
     let tests = pkg.testFiles(db)
     let files =
         pkg.files(db) |> filter { fileId: FileId => ofTests || !tests.contains(fileId) } |>
-            filterMap { fileId => db.sourceFile(fileId) }
+            filterMap { fileId => db.sourceFile(fileId, context: pkg) }
     let levels =
         (files |> map { file => fileImports(db, pkg, file) } |> collectArray)
             .concat([packageImports(db, resolutionPackage(db, pkg))])

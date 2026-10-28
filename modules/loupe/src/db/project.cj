@@ -4,6 +4,7 @@ import std.collection.*
 import std.deriving.*
 import std.sort.*
 import calca.*
+import index_map.IndexMap
 import calca.macros.*
 import loupe.vfs.*
 
@@ -130,7 +131,12 @@ public struct ModuleModel {
          * Its files the build leaves out, of no package: analyzed as inactive when opened, never
          * read for the project.
          */
-        public let inactive!: Array<InactiveFile> = []
+        public let inactive!: Array<InactiveFile> = [],
+        /**
+         * Independent source dependency selection; empty for the ordinary project graph.
+         * Modules in another scope cannot supply imports even when their names match.
+         */
+        public let resolutionScope!: String = ""
     ) {}
 
     /**
@@ -347,7 +353,7 @@ extend ModuleModel {
      */
     prop key: ModuleKey {
         get() {
-            ModuleKey(root, name)
+            ModuleKey(root, name, resolutionScope: resolutionScope)
         }
     }
 
@@ -398,7 +404,8 @@ extend ModuleModel {
             deps: deps,
             member: member,
             cfg: cfg,
-            inactive: inactive
+            inactive: inactive,
+            resolutionScope: resolutionScope
         )
     }
 }
@@ -420,6 +427,8 @@ public struct Project {
      * The files of the sources of the binaries, in the order of `binaries`.
      */
     public var binarySources: Array<BinarySourceFile>
+    /** The preferred scoped identity for editor lookups, absent when an ordinary membership exists. */
+    public var sourceContexts: IndexMap<FileId, SourceFile> = IndexMap<FileId, SourceFile>()
 }
 
 /**
@@ -437,13 +446,14 @@ public struct BinarySourceFile {
 }
 
 /**
- * A module of the project, one per root and name, never dropped: a module gone is no longer in
- * `Project`. Modules may share a root, or a name, not both.
+ * A module of the project, one per root, name and resolution scope, never dropped: a module
+ * gone is no longer in `Project`. Independent scopes may share a physical root and name.
  */
 @CalcaInput
 public struct Module {
     public let root: VfsPath
     public let name: String
+    public let resolutionScope: String
     public var packages: Array<Package>
     public var deps: Array<String>
     public var member: Bool
@@ -537,6 +547,7 @@ class Projects {
      */
     let binaries = HashMap<CjoFile, (BinaryPackageFile, ?FileStamp, Array<Byte>)>()
     var durabilities = HashMap<FileId, Durability>()
+    var sourceContexts = IndexMap<FileId, SourceFile>()
 }
 
 /**
@@ -548,11 +559,11 @@ func binaryDurability(name: String): Durability {
 }
 
 /**
- * A module by its root and its name.
+ * A module by its root, declared name and dependency selection.
  */
 @Derive[Hashable, Equatable]
 struct ModuleKey {
-    ModuleKey(let root: VfsPath, let name: String) {}
+    ModuleKey(let root: VfsPath, let name: String, let resolutionScope!: String = "") {}
 }
 
 /**
