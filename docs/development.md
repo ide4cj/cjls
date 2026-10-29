@@ -121,6 +121,14 @@ inspection:
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
 
+The separate [tracked audit program](../modules/tracked_audit/README.md) analyzes
+call reachability from `@CalcaTracked` functions without starting the server:
+
+```bash
+cjpm build -m modules/tracked_audit
+cjHeapSize=2GB target/release/bin/tracked_audit --dir . --output target/tracked-reachability.json
+```
+
 The Cangjie runtime is linked statically: the server and generators run without
 an SDK environment. Generators link the same `cjformat` library as the server. Linux
 executables still use system glibc and libstdc++. Release builds use Ubuntu 22.04

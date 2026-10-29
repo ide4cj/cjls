@@ -67,6 +67,9 @@ One fact, one place: a rule is stated once, in `design/`; an ADR says why, AGENT
 
 ## Module notes
 
+The standalone [tracked reachability audit](../modules/tracked_audit/README.md)
+documents its call-chain semantics, report format and unresolved analysis boundaries.
+
 Module READMEs explain local constraints and verification choices; local
 `AGENTS.md` files add special working instructions only where needed. Public API
 contracts and implementation details stay beside the source, and shared rules

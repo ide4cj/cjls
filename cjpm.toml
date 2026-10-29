@@ -22,6 +22,7 @@ members = [
     "modules/rope",
     "modules/stdxx",
     "modules/syntax_codegen",
+    "modules/tracked_audit",
 ]
 build-members = []
 test-members = []
