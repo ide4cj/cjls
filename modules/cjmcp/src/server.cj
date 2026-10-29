@@ -2,6 +2,7 @@ package cjmcp
 
 import fjson.{JsonValue, fromJsonBytes}
 import loupe.vfs.VfsPath
+import stdx.log.{Logger, NoopLogger}
 
 class McpException <: Exception {
     McpException(message: String, let code: Int64) {
@@ -21,7 +22,11 @@ class McpServer {
     private var isReady = false
     private var python: ?PythonSession = None
 
-    McpServer(private let root: VfsPath) {}
+    McpServer(private let root: VfsPath, private let logger!: Logger = NoopLogger()) {}
+
+    func close(): Unit {
+        python?.close()
+    }
 
     func handle(line: Array<Byte>): ?JsonValue {
         let request =
@@ -113,7 +118,7 @@ class McpServer {
                 (
                     "instructions",
                     JsonString(
-                        "Use runPython to explore a live Cangjie workspace with native analysis objects. workspace.files(), structure(path), diagnostics(path), hover(path, offset), definition(path, offset), reload(); workspace.analysis() captures an AnalysisRevision with declarations(path), item(def), signature(def), signatureTypes(def), body(def), loweredBody(def), scopes(def), infer(def), typeKind(ty), typeText(ty), completions(path, offset), references(path, offset), typeDefinition(path, offset), implementations(path, offset), highlights(path), symbols(query, limit) and path(fileId). Keep identities with their producing revision. workspace.problems reports loading problems. Assign JSON-serializable output to result or print it. Ranges are UTF-8 bytes, end exclusive. Loading and reload synchronously build and expand SDK and workspace macros before returning a revision; inspect workspace.problems and hasExpandedMacros for failures. Python executes trusted local code without a sandbox or hard timeout."
+                        "Use runPython to explore a live Cangjie workspace with native analysis objects. workspace.files(), structure(path), diagnostics(path), hover(path, offset), definition(path, offset), reload(); workspace.analysis() captures an AnalysisRevision with declarations(path), item(def), signature(def), signatureTypes(def), body(def), loweredBody(def), scopes(def), infer(def), typeKind(ty), typeText(ty), completions(path, offset), references(path, offset), typeDefinition(path, offset), implementations(path, offset), highlights(path), symbols(query, limit) and path(fileId). Keep identities with their producing revision. workspace.problems reports loading problems. Assign JSON-serializable output to result or print it. Ranges are UTF-8 bytes, end exclusive. Before each script disk changes are synchronized incrementally and macros finish expanding. Updates are deferred throughout the script. Responses include revision; workspace.revision identifies that same revision. reload() requests refresh after the script. Retained AnalysisRevision handles throw ContentModified after an update; inspect workspace.problems and hasExpandedMacros for failures. Python executes trusted local code without a sandbox or hard timeout."
                     )
                 )
             ]
@@ -136,7 +141,7 @@ class McpServer {
             }
         try {
             if (python.isNone()) {
-                python = PythonSession(root)
+                python = PythonSession(root, logger: logger)
             }
             let result =
                 python
@@ -144,7 +149,7 @@ class McpServer {
                     .run(code)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
-            toolResult(obj([("error", JsonString(e.message))]), error: true)
+            toolResult(obj([("error", JsonString(e.message)), ("revision", JsonNull)]), error: true)
         }
     }
 }
@@ -219,7 +224,7 @@ func tools(): JsonValue {
                 (
                     "description",
                     JsonString(
-                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; workspace.reload() refreshes disk state. workspace.analysis() exposes HIR and inference: enumerate declarations(path), inspect item(def), body(def), loweredBody(def), scopes(def), signature(def), signatureTypes(def), infer(def); inspect inferred types with typeKind(ty), typeText(ty). It also offers completions, completionDetails, references, typeDefinition, implementations, related, highlights, folding, selection, symbols, macroCall and expansion. Keep each DefId/Ty with its producing AnalysisRevision. Imports and local I/O are available."
+                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; Disk state refreshes automatically before each script; workspace.reload() schedules refresh after the script. workspace.revision and response revision identify its fixed analysis state. workspace.analysis() exposes HIR and inference: enumerate declarations(path), inspect item(def), body(def), loweredBody(def), scopes(def), signature(def), signatureTypes(def), infer(def); inspect inferred types with typeKind(ty), typeText(ty). It also offers completions, completionDetails, references, typeDefinition, implementations, related, highlights, folding, selection, symbols, macroCall and expansion. Keep each DefId/Ty with its producing AnalysisRevision. Imports and local I/O are available."
                     )
                 ),
                 ("inputSchema", schema),

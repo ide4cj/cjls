@@ -16,6 +16,7 @@ import loupe.vfs.Vfs
 import macro_host.{
     BuiltLibrary,
     MacroLibrary,
+    MacroSdk,
     MacroSdkLookup,
     MacroServers,
     buildPlan,
@@ -25,60 +26,98 @@ import macro_host.{
 }
 
 /**
- * Finish expansion before publishing a disk revision. Each load owns fresh build artifacts and SDK processes,
- * so reloading cannot reuse loaded macro code or mutate a retained AnalysisRevision.
+ * Session-owned compiler artifacts and SDK processes; unchanged calls remain database inputs.
  */
-func expandWorkspaceMacros(
-    db: AnalysisDatabase,
-    vfs: Vfs,
-    home: ?Path,
-    issues: ArrayList<String>
-): Bool {
-    let plan = macroBuildPlan(db)
-    let files = workspaceMacroFiles(db)
-    var pending = false
-    for (file in files where !pending) {
-        pending = !pendingMacroRequests(db, file).isEmpty()
-    }
-    if (plan.isEmpty() && !pending) {
-        return true
-    }
-    let sdkHome =
-        match (home) {
-            case Some(path) => path
-            case None =>
-                issues.add("no SDK: macros are not expanded")
-                return false
+class WorkspaceMacros {
+    private var temporary: ?Path = None
+    private var sdk: ?MacroSdk = None
+    private var sdkHome: ?Path = None
+    private var servers: ?MacroServers = None
+    private var libraries = HashMap<Package, MacroLibrary>()
+    private let outs = HashMap<Package, Path>()
+
+    func close(): Unit {
+        servers?.close()
+        servers = None
+        sdk = None
+        libraries.clear()
+        outs.clear()
+        if (let Some(path) <- temporary) {
+            remove(path, recursive: true)
+            temporary = None
         }
-    let sdk =
-        match (macroSdkIn(sdkHome)) {
-            case Usable(found) => found
-            case Unusable(reason) =>
-                issues.add(reason)
-                return false
+    }
+
+    func expand(db: AnalysisDatabase, vfs: Vfs, home: ?Path, issues: ArrayList<String>): Bool {
+        let plan = macroBuildPlan(db)
+        let files = workspaceMacroFiles(db)
+        var pending = false
+        for (file in files where !pending) {
+            pending = !pendingMacroRequests(db, file).isEmpty()
         }
-    let before = issues.size
-    let temporary = Directory.createTemp(getTempDirectory())
-    let servers = MacroServers(sdk.paths, Duration.minute, NoopLogger())
-    try {
-        let outs = HashMap<Package, Path>()
-        for (index in 0..plan.size where plan[index].isMacro) {
-            // Separate outputs also isolate same-named packages from independent dependency selections.
-            outs[plan[index].pkg] = temporary.join("${index}")
+        if (plan.isEmpty() && !pending) {
+            return recordMacroProblems(db, vfs, files, issues)
+        }
+        let sdkHome =
+            match (home) {
+                case Some(path) => path
+                case None =>
+                    issues.add("no SDK: macros are not expanded")
+                    return false
+            }
+        if (this.sdkHome != Some(sdkHome)) {
+            close()
+            this.sdkHome = sdkHome
+        }
+        if (sdk.isNone()) {
+            match (macroSdkIn(sdkHome)) {
+                case Usable(found) => sdk = found
+                case Unusable(reason) =>
+                    issues.add(reason)
+                    return false
+            }
+        }
+        let before = issues.size
+        let sdk = this.sdk.getOrThrow()
+        if (temporary.isNone()) {
+            temporary = Directory.createTemp(getTempDirectory())
+        }
+        if (servers.isNone()) {
+            servers = MacroServers(sdk.paths, Duration.minute, NoopLogger())
+        }
+        let servers = this.servers.getOrThrow()
+        for (unit in plan where unit.isMacro && !outs.contains(unit.pkg)) {
+            outs[unit.pkg] = temporary.getOrThrow().join("${outs.size}")
         }
         let built = buildPlan(db, plan, { pkg => outs.get(pkg) }, sdk.version, sdk.toolchain)
-        let libraries = HashMap<Package, MacroLibrary>()
+        let next = HashMap<Package, MacroLibrary>()
+        var rebuilt = false
         for ((pkg, result) in built.libraries) {
             match (result) {
-                case Built(path, stamp) => libraries[pkg] = MacroLibrary(path.toString(), stamp)
+                case Built(path, stamp) =>
+                    next[pkg] = MacroLibrary(path.toString(), stamp)
+                    if (libraries.get(pkg)?.stamp != Some(stamp)) {
+                        rebuilt = true
+                    }
                 case NotBuilt(reason) =>
                     issues.add("${pkg.name(db)}: macro library not built: ${reason}")
             }
         }
+        if (rebuilt || libraries.size != next.size) {
+            servers.restartWorkspace()
+        }
+        libraries = next
+        let stamps = ArrayList<(Package, Int64)>()
+        for (unit in plan where unit.isMacro) {
+            let stamp = libraries.get(unit.pkg)?.stamp ?? 0
+            if (unit.pkg.macroLibrary(db) != stamp) {
+                stamps.add((unit.pkg, stamp))
+            }
+        }
         db
             .batch {
-                for ((pkg, library) in libraries) {
-                    pkg.setMacroLibrary(db).to(library.stamp)
+                for ((pkg, stamp) in stamps) {
+                    pkg.setMacroLibrary(db).to(stamp)
                 }
             }
         while (true) {
@@ -89,26 +128,41 @@ func expandWorkspaceMacros(
             }
             setMacroOutputsByKey(db, expandAll(db, requests, sdk.numbers, servers))
         }
-        for (file in files) {
-            for (call in serverCalls(db, file)) {
-                let name = "${vfs.paths.path(file.fileId(db))}: @${call.definition.name}"
-                match (macroOutputOf(db, call.call)) {
-                    case None => issues.add("${name}: macro call was not sent")
-                    case Some(output) =>
-                        for (
-                            diagnostic in output.diagnostics where diagnostic.severity ==
-                                MacroSeverity.MacroError
-                        ) {
-                            issues.add("${name}: ${diagnostic.message}")
-                        }
-                }
+        let complete = recordMacroProblems(db, vfs, files, issues)
+        complete && issues.size == before
+    }
+}
+
+/**
+ * A cached failed expansion remains a preparation problem even when there is nothing left to send.
+ */
+func recordMacroProblems(
+    db: AnalysisDatabase,
+    vfs: Vfs,
+    files: Array<SourceFile>,
+    issues: ArrayList<String>
+): Bool {
+    let before = issues.size
+    for (file in files) {
+        let pending = pendingMacroRequests(db, file).map { request => request.call }
+        for (call in serverCalls(db, file)) {
+            let name = "${vfs.paths.path(file.fileId(db))}: @${call.definition.name}"
+            match (macroOutputOf(db, call.call)) {
+                case None => issues.add("${name}: macro call was not sent")
+                case Some(output) =>
+                    if (pending.contains(call.call)) {
+                        issues.add("${name}: macro call was not sent")
+                    }
+                    for (
+                        diagnostic in output.diagnostics where diagnostic.severity ==
+                            MacroSeverity.MacroError
+                    ) {
+                        issues.add("${name}: ${diagnostic.message}")
+                    }
             }
         }
-        issues.size == before
-    } finally {
-        servers.close()
-        remove(temporary, recursive: true)
     }
+    issues.size == before
 }
 
 /**

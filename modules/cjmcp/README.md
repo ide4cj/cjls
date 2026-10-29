@@ -110,16 +110,20 @@ The workspace handle provides:
 | `diagnostics(path)` | Native `Diagnostic` objects |
 | `hover(path, offset)` | Native `HoverResult` with `HoverItem` objects, or `None` |
 | `definition(path, offset)` | `Location` values containing a path and native ranges |
-| `reload()` | Replace the database with a fresh disk/project load |
+| `revision` | Session-local revision used by this script and returned in the tool response |
+| `reload()` | Request preparation after this script; the running script keeps its revision |
 | `analysis()` | Retain an `AnalysisRevision` for HIR, inference and navigation |
 
 ### HIR and inference
 
 `workspace.analysis()` captures the current loaded disk revision. Keep this object
 with the `DefId`, `Ty`, `FileId` and source identities it produces: identities are
-scoped to their database and must not be passed to another revision. Reloading the
-workspace leaves retained revisions usable, including their database caches and
-source text. Holding a revision also retains that database's memory.
+scoped to their database and must not be passed to another revision. Each script
+uses one fixed workspace revision. After an update, methods on an
+older retained `AnalysisRevision` raise `RuntimeError` containing `ContentModified`;
+acquire `workspace.analysis()` again and recompute identities. Already returned
+native values remain values from their producing revision. The analysis handle's
+`revision` is the revision in which it was captured.
 
 ```python
 analysis = workspace.analysis()
@@ -198,34 +202,54 @@ exported. This is not a binding of every public loupe API.
 
 Paths are absolute or relative to `--dir` (the working directory by default).
 Offsets/ranges count UTF-8 bytes from zero; ends are exclusive. An offset must
-fall on a UTF-8 boundary. The workspace is loaded lazily and persists across
-calls. Loading and `reload()` synchronously build workspace macro packages and
-expand workspace and std calls round by round before publishing the revision.
-Each load uses a fresh temporary build directory per macro package and fresh SDK
-processes, closed and removed after expansion; there is no persistent build cache.
-Retained revisions keep their previous expansion outputs. Macro calls have a
-one-minute deadline; compiler builds and the whole load have no hard timeout.
-Workspaces without macro packages or pending calls need no SDK macro process.
-Missing required SDKs, build failures and failed or unsent resolved calls are reported in
-`problems` and make `hasExpandedMacros` false; the partial analysis remains usable.
-Unresolved macro names remain ordinary analysis diagnostics. Queries reuse the
-revision's caches; disk edits remain invisible until `reload()`.
-A failed reload preserves the previous database. Analysis objects already held
-by Python remain values from the revision in which they were obtained.
+fall on a UTF-8 boundary. The database, query caches, macro build artifacts and SDK
+macro processes persist until the MCP process exits. Closing the client's stdin
+stops the background worker and closes SDK processes before removing the session's
+temporary build directory. There is no daemon or cache shared across MCP sessions.
+
+The first script prepares the workspace. Between calls a worker polls disk every
+500 ms, rediscovers project membership and compares source contents. Before every
+script the server also synchronizes disk inputs and finishes required macro
+builds/expansions, repeating the disk check if preparation observed changes.
+Unchanged files, queries and expansions are reused. Binary packages use their
+size/mtime stamps, as in cjls. Polling is a prototype mechanism: rediscovery and
+source reads still cost work even when no analysis inputs change.
+
+One gate covers background updates, final synchronization, Python execution and
+result serialization. Files edited during a script are incorporated after it
+finishes. Even `reload()` only requests a later preparation; it never changes the
+running script's database. The response's `revision`, `workspace.revision` and a
+new `workspace.analysis().revision` agree. Revisions increase for observed input
+changes or explicit reloads; a synchronization with no changes keeps its number.
+A revision identifies the loaded analysis, not an atomic filesystem snapshot or
+proof that disk is still unchanged when a result arrives. Ordinary Python file
+I/O reads live disk, independently of the analysis revision.
+
+Macro calls have a one-minute deadline; compiler builds and the whole preparation
+have no hard timeout. Missing required SDKs, build failures and failed or unsent
+resolved calls are reported in `problems` and make `hasExpandedMacros` false; the
+partial analysis remains usable. Preparation subprocess output goes to server
+stderr; `problems` is the tool-visible preparation report. Unresolved names remain
+analysis diagnostics.
+Failures before Python starts are tool errors with a null revision. Script errors
+include the revision used and are never retried automatically: Python may have
+already performed external effects. Preparation failures are retried before a
+later script; no script is run on a workspace whose preparation threw.
 
 Each script gets a fresh global namespace and ordinary Python imports. Assign
 JSON-serializable data to `result`, print output, or both. The MCP response has
-`result`, captured `stdout`/`stderr`, and `error` (a traceback or null), in both
-`structuredContent` and text content. Non-serializable results are script errors.
+`result`, captured `stdout`/`stderr`, `revision`, and `error` (a traceback or null),
+in both `structuredContent` and text content. Non-serializable results are script errors.
 Python exceptions, including `SystemExit`, become tool errors; the session can
 continue. File descriptor redirection captures subprocess/native output as well
 as Python streams, keeping it off the MCP wire.
 
 This is trusted local Python execution with the process's filesystem/network
 access, without a sandbox or hard execution timeout. Calls run sequentially.
-File watching, editor buffers, cancellation, HTTP and parallel requests are
-outside this experiment. Loading is sequential; external disk edits during a
-load are not an atomic filesystem snapshot. The existing macro host limitations,
+Workspace and analysis queries belong to the executing script; join any Python
+threads that use them before returning from the tool.
+Native filesystem watchers, editor buffers, cancellation, HTTP and parallel tool
+requests are outside this experiment. The existing macro host limitations,
 including K28's conflicting loaded libraries within a load, still apply.
 
 `@DerivePython` from `py_interop` exports the selected original analysis types,
@@ -262,8 +286,9 @@ escaping the callback can corrupt CPython's stack and crash a later operation.
 
 Proxy lifetime is still experimental: the pinned `py_interop` registry retains
 exported native values, and reclaiming those entries is not implemented here.
-Repeated large traversals can retain analysis results. This needs a lifetime fix
-before treating the prototype as a long-running service.
+Repeated large traversals can retain analysis results. This still limits session
+length and traversal volume; keeping the process alive for a chat does not resolve
+native proxy retention.
 
 ## Verify
 
@@ -278,8 +303,11 @@ objects, checks cross-file definition, generic inference, native enum payloads,
 source maps, completion details, references, retained revisions and UTF-8 offsets,
 captures native output,
 recovers from script/serialization errors, then edits/adds/deletes files and
-reloads the same workspace. It also checks nested workspace and std macro
-execution, changed macro libraries, retained expansions and build failures.
+synchronizes the same workspace. It also checks edits during a script, stable
+revision numbers, nested workspace and std macro execution, changed macro
+libraries, stale analysis handles and build failures. Unit tests verify that
+unchanged synchronization preserves cached queries and that preparation cannot
+overlap a script.
 It runs in CI; `CJMCP_BIN` overrides the binary.
 
 The full Cangjie suite includes `ServedDiagnosticsGateTest`, which checks the
