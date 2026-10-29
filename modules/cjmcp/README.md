@@ -7,6 +7,33 @@ existing LSP executable uses the same analysis implementation.
 
 ## Build and connect
 
+### Download the Linux artifact
+
+The [MCP Linux artifact workflow](https://github.com/ide4cj/cjls/actions/workflows/cjmcp.yml)
+builds Linux x86_64 archives on pushes to `experiment/cjmcp` and pull requests
+targeting it. Download the `cjmcp-linux-x86_64-<commit>` artifact from a successful run and unzip it, then:
+
+```bash
+sha256sum --check SHA256SUMS
+tar -xzf cjmcp-linux-x86_64-*.tar.gz
+./cjmcp-linux-x86_64-*/cjmcp --help
+```
+
+The archive includes `BUILD-INFO` with the source commit, SDK pin and target,
+plus the SDK checksum pins and licenses. Actions retains the download for 30 days;
+it is an experimental artifact, separate from cjls releases. CI runs the protocol
+unit tests and the real-process MCP tests against the unpacked executable before
+uploading it.
+
+Builds use Ubuntu 22.04; the executable still requires compatible system glibc
+and libstdc++, Python 3 with a shared `libpython` and its standard library, and a
+Cangjie SDK for SDK-backed analysis. CI tests with Python 3.12. Python and the SDK
+are not bundled. Set `PYTHON_DYNLIB` to the shared library's absolute path if
+automatic discovery fails, and `CANGJIE_HOME` to the analysis SDK directory.
+Use the unpacked executable's absolute path in the client configuration below.
+
+### Build from source
+
 The first embedded runtime experiment supports native Linux x86_64. Use the
 pinned SDK and environment from [Development](../../docs/development.md), and
 install Python 3 with its shared `libpython` library. From the repository root:

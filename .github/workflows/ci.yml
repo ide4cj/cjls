@@ -4,6 +4,7 @@ on:
   push:
     branches: [master]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
   workflow_call:
 
 concurrency:
@@ -16,7 +17,7 @@ permissions:
 jobs:
   commits:
     name: Conventional commits
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' && (github.event.action != 'labeled' || github.event.label.name == 'full-ci')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -35,6 +36,7 @@ jobs:
         run: cog verify "$TITLE"
 
   docs:
+    if: github.event.action != 'labeled' || github.event.label.name == 'full-ci'
     name: Docs ids
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -58,6 +60,10 @@ jobs:
   # the binary, for e2e and perf, beside the tests rather than before them: neither waits for the
   # other, and each keeps its own target directory and cache (D27, D96)
   build:
+    # The experiment has its own Linux MCP delivery check; the full-ci label opts into full CI.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'full-ci') &&
+      (github.base_ref != 'experiment/cjmcp' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
     name: Build (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -101,6 +107,10 @@ jobs:
   # the name the ruleset requires; `cjpm test` compiles the libraries again, for tests, in a target
   # directory of its own: in the build's, each would undo the other's incremental cache
   test:
+    # The experiment has its own Linux MCP delivery check; the full-ci label opts into full CI.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'full-ci') &&
+      (github.base_ref != 'experiment/cjmcp' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
     name: Build and test (${{ matrix.os }})
     strategy:
       fail-fast: false
@@ -134,6 +144,10 @@ jobs:
   # target dir of their own; the heap is for cjc's instrumentation, which leaks on every match of
   # an enum (D24)
   fuzz:
+    # The experiment has its own Linux MCP delivery check; the full-ci label opts into full CI.
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'full-ci') &&
+      (github.base_ref != 'experiment/cjmcp' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
     name: Fuzz (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 45

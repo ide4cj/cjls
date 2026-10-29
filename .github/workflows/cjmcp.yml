@@ -1,0 +1,52 @@
+name: MCP Linux artifact
+
+on:
+  push:
+    branches: [experiment/cjmcp]
+  pull_request:
+    branches: [experiment/cjmcp]
+  workflow_dispatch:
+
+concurrency:
+  group: cjmcp-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    name: Build and verify MCP (Linux x86_64)
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      - uses: ./.github/actions/build-cache
+        with:
+          target-dir: target/release
+          runner-image: ubuntu-22.04
+      - name: Build MCP
+        run: cjpm build -m modules/cjmcp
+      - name: MCP protocol unit tests
+        run: cjpm test -m modules/cjmcp --no-progress --timeout-each=2m --target-dir target/test
+      - name: Package
+        run: bash .github/scripts/package-cjmcp.sh target/release/bin/cjmcp dist
+      - name: Verify delivered binary
+        run: |
+          cd dist
+          sha256sum --check SHA256SUMS
+          mkdir unpacked
+          tar -xzf cjmcp-*.tar.gz -C unpacked
+          binary=$(realpath unpacked/cjmcp-*/cjmcp)
+          "$binary" --help
+          cd ..
+          CJMCP_BIN="$binary" python3 -m unittest discover -s tests/mcp -v
+      - uses: actions/upload-artifact@v7
+        with:
+          name: cjmcp-linux-x86_64-${{ github.sha }}
+          path: |
+            dist/*.tar.gz
+            dist/SHA256SUMS
+          if-no-files-found: error
+          retention-days: 30
