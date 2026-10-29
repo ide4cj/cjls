@@ -1,0 +1,21 @@
+name: Set up MCP Python
+description: Selects the CPython runtime verified with the experimental native MCP bindings.
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: "3.14"
+    # Hosted Python lives outside the system prefix; embedding needs its matching stdlib.
+    - shell: bash
+      run: |
+        python3 - <<'PY' >> "$GITHUB_ENV"
+        from pathlib import Path
+        import sys
+        import sysconfig
+        library = Path(sysconfig.get_config_var("LIBDIR")) / sysconfig.get_config_var("LDLIBRARY")
+        assert library.is_file(), library
+        print(f"PYTHON_DYNLIB={library}")
+        print(f"PYTHONHOME={sys.base_prefix}")
+        PY

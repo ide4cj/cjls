@@ -83,6 +83,8 @@ jobs:
           runner-image: ${{ matrix.os }}
       - run: cjpm build
         shell: bash
+      - uses: ./.github/actions/setup-cjmcp-python
+        if: runner.os == 'Linux'
       - name: MCP stdio experiment
         run: python -m unittest discover -s tests/mcp -v
         shell: bash
