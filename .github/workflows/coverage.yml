@@ -6,6 +6,7 @@ on:
   push:
     branches: [master]
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
 
 concurrency:
   group: coverage-${{ github.ref }}
@@ -23,6 +24,9 @@ jobs:
   # the lines the tests reach, in a target dir of its own: instrumentation slows the tests, and the
   # build's cache and this one would undo each other. No threshold: shared runners are noisy (D23)
   coverage:
+    if: >-
+      (github.event.action != 'labeled' || github.event.label.name == 'full-ci') &&
+      (github.base_ref != 'experiment/cjmcp' || contains(github.event.pull_request.labels.*.name, 'full-ci'))
     name: Coverage (ubuntu-latest)
     runs-on: ubuntu-latest
     timeout-minutes: 45

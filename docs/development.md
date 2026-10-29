@@ -389,7 +389,7 @@ CI runs builds/tests on its supported platforms, format/docs/commit checks,
 fuzzing, e2e and performance; [coverage](../.github/workflows/coverage.yml) is a
 separate workflow (D49). PRs targeting `experiment/cjmcp` run docs/commit checks
 and the dedicated [Linux MCP artifact workflow](../.github/workflows/cjmcp.yml).
-The general CI build/test/fuzz jobs and their dependent checks are skipped for
+The general CI build/test/fuzz jobs, their dependent checks and coverage are skipped for
 those PRs; add the `full-ci` label to opt into the full matrix. Pushes to the
 experiment branch also deliver the MCP artifact. See the
 [MCP download instructions](../modules/cjmcp/README.md#download-the-linux-artifact)
