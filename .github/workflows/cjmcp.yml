@@ -22,6 +22,18 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/setup-cangjie
+      # setup-python installs outside the system prefix; embedded CPython needs its matching stdlib.
+      - name: Select embedded Python runtime
+        run: |
+          python3 - <<'PY' >> "$GITHUB_ENV"
+          from pathlib import Path
+          import sys
+          import sysconfig
+          library = Path(sysconfig.get_config_var("LIBDIR")) / sysconfig.get_config_var("LDLIBRARY")
+          assert library.is_file(), library
+          print(f"PYTHON_DYNLIB={library}")
+          print(f"PYTHONHOME={sys.base_prefix}")
+          PY
       - uses: ./.github/actions/build-cache
         with:
           target-dir: target/release

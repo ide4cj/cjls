@@ -30,6 +30,9 @@ and libstdc++, Python 3 with a shared `libpython` and its standard library, and 
 Cangjie SDK for SDK-backed analysis. CI tests with Python 3.12. Python and the SDK
 are not bundled. Set `PYTHON_DYNLIB` to the shared library's absolute path if
 automatic discovery fails, and `CANGJIE_HOME` to the analysis SDK directory.
+For a Python installation outside the system prefix, also set `PYTHONHOME` to
+that installation's prefix (`python3 -c 'import sys; print(sys.base_prefix)'`),
+so the embedded interpreter can find its matching standard library.
 Use the unpacked executable's absolute path in the client configuration below.
 
 ### Build from source

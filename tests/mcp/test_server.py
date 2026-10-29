@@ -291,7 +291,8 @@ class McpStdioTest(unittest.TestCase):
                 process.stdout.close()
                 process.stderr.close()
                 reader.join(timeout=5)
-            self.assertEqual(process.returncode, 0, stderr)
+                # Report native/Python startup failures even when an earlier RPC saw EOF.
+                self.assertEqual(process.returncode, 0, stderr)
 
 
 if __name__ == "__main__":
