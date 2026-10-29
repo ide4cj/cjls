@@ -10,7 +10,7 @@ main(args: Array<String>): Int64 {
     if (args == ["--help"]) {
         getStdOut()
             .write(
-                "Usage: cjmcp [--dir <workspace>]\nMCP 2025-11-25 over newline-delimited stdio; runPython over native loupe objects (Linux); no SDK macro expansion.\n"
+                "Usage: cjmcp [--dir <workspace>]\nMCP 2025-11-25 over newline-delimited stdio; runPython over native loupe objects (Linux); synchronous SDK macro expansion on load/reload.\n"
             )
         return 0
     }

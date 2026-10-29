@@ -65,8 +65,8 @@ The workspace handle provides:
 | Workspace member | Result |
 |---|---|
 | `root` | Absolute root path |
-| `problems` | Loading problems; inspect before trusting cross-package answers |
-| `hasExpandedMacros` | `False` in this experiment |
+| `problems` | Loading, macro build and expansion problems; inspect before trusting answers |
+| `hasExpandedMacros` | Whether macro preparation finished without build errors, failed or unsent resolved calls |
 | `files()` | Source paths of the loaded project |
 | `structure(path)` | Native `StructureNode` objects with nested `children` |
 | `diagnostics(path)` | Native `Diagnostic` objects |
@@ -144,11 +144,11 @@ An `AnalysisRevision` also offers:
 | `symbols(query, limit)` | Search workspace declarations |
 | `members(def, name)`, `supertypes(def)` | Inspect members and type hierarchy |
 | `field(def, expr)`, `receiver(def, expr)`, `receiverType(def, expr)` | Inspect member access resolution |
-| `macroCall(path, offset)`, `expansion(call)`, `expandedFile(path, header)` | Inspect available macro fallbacks and their source mappings |
+| `macroCall(path, offset)`, `expansion(call)`, `expandedFile(path, header)` | Inspect macro expansions and their source mappings |
 
 Native navigation/reference/symbol results contain `FileId`; call `path(fileId)`
 on the same revision. `NavigationTarget.expansion` identifies expansion-relative
-ranges. SDK macros remain unexpanded by this server.
+ranges. SDK macro outputs are loaded before the revision is returned.
 
 All exported classes are present in each script namespace, including `Body`,
 `Expr`, `Pat`, `Signature`, `SignatureTypes`, `TyKind`, `InferenceResult`,
@@ -161,7 +161,17 @@ exported. This is not a binding of every public loupe API.
 Paths are absolute or relative to `--dir` (the working directory by default).
 Offsets/ranges count UTF-8 bytes from zero; ends are exclusive. An offset must
 fall on a UTF-8 boundary. The workspace is loaded lazily and persists across
-calls. Queries reuse its caches; disk edits remain invisible until `reload()`.
+calls. Loading and `reload()` synchronously build workspace macro packages and
+expand workspace and std calls round by round before publishing the revision.
+Each load uses a fresh temporary build directory per macro package and fresh SDK
+processes, closed and removed after expansion; there is no persistent build cache.
+Retained revisions keep their previous expansion outputs. Macro calls have a
+one-minute deadline; compiler builds and the whole load have no hard timeout.
+Workspaces without macro packages or pending calls need no SDK macro process.
+Missing required SDKs, build failures and failed or unsent resolved calls are reported in
+`problems` and make `hasExpandedMacros` false; the partial analysis remains usable.
+Unresolved macro names remain ordinary analysis diagnostics. Queries reuse the
+revision's caches; disk edits remain invisible until `reload()`.
 A failed reload preserves the previous database. Analysis objects already held
 by Python remain values from the revision in which they were obtained.
 
@@ -175,9 +185,10 @@ as Python streams, keeping it off the MCP wire.
 
 This is trusted local Python execution with the process's filesystem/network
 access, without a sandbox or hard execution timeout. Calls run sequentially.
-SDK macro execution, file watching, editor buffers, cancellation, HTTP and
-parallel requests are outside this first experiment. loupe's existing macro
-fallbacks still apply, but answers around macro-generated code can be incomplete.
+File watching, editor buffers, cancellation, HTTP and parallel requests are
+outside this experiment. Loading is sequential; external disk edits during a
+load are not an atomic filesystem snapshot. The existing macro host limitations,
+including K28's conflicting loaded libraries within a load, still apply.
 
 `@DerivePython` from `py_interop` exports the selected original analysis types,
 including their constructors, fields, properties and methods. Immutable fields
@@ -211,7 +222,9 @@ objects, checks cross-file definition, generic inference, native enum payloads,
 source maps, completion details, references, retained revisions and UTF-8 offsets,
 captures native output,
 recovers from script/serialization errors, then edits/adds/deletes files and
-reloads the same workspace. It also runs in CI; `CJMCP_BIN` overrides the binary.
+reloads the same workspace. It also checks nested workspace and std macro
+execution, changed macro libraries, retained expansions and build failures.
+It runs in CI; `CJMCP_BIN` overrides the binary.
 
 The full Cangjie suite includes `ServedDiagnosticsGateTest`, which checks the
 expanded Python bindings for false diagnostics. Run it without excluding gates
