@@ -80,6 +80,11 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 
 ## Python API
 
+The handwritten [agent reference and recipes](api/README.md) and
+[Python signatures](api/loupe.pyi) describe the injected script API. They ship
+with the Linux archive as `api/`; read them as documentation, not as an importable
+Python package. Result-type coverage is explicitly partial.
+
 For example, a single script can find functions across the workspace:
 
 ```python
