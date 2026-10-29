@@ -82,13 +82,28 @@ import py_interop.*
 import py_interop.internal_macros.DerivePython
 
 /**
- * A retained database revision: query its identities through the revision that produced them.
+ * A revision-bound analysis handle; querying it after a workspace update reports ContentModified.
  */
 @When[os == "Linux"]
 @DerivePython
 class AnalysisRevision {
     @PyIgnore
-    AnalysisRevision(private let state: WorkspaceState) {}
+    AnalysisRevision(private let owner: WorkspaceState) {
+        revision = owner.revision
+    }
+
+    public let revision: Int64
+
+    private prop state: WorkspaceState {
+        get() {
+            if (owner.revision != revision) {
+                throw IllegalStateException(
+                    "ContentModified: analysis revision ${revision} is stale; acquire workspace.analysis() again"
+                )
+            }
+            owner
+        }
+    }
 
     public func declarations(path: String): Array<DefId> {
         let file =

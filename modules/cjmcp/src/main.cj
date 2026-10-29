@@ -3,6 +3,8 @@ package cjmcp
 import std.collection.ArrayList
 import std.env.{getStdErr, getStdOut, getWorkingDirectory}
 import std.fs.Path
+import stdx.log.LogLevel
+import stdx.logger.SimpleLogger
 import loupe.vfs.VfsPath
 import platform.{StdinStream, useBinaryStdio}
 
@@ -10,7 +12,7 @@ main(args: Array<String>): Int64 {
     if (args == ["--help"]) {
         getStdOut()
             .write(
-                "Usage: cjmcp [--dir <workspace>]\nMCP 2025-11-25 over newline-delimited stdio; runPython over native loupe objects (Linux); synchronous SDK macro expansion on load/reload.\n"
+                "Usage: cjmcp [--dir <workspace>]\nMCP 2025-11-25 over newline-delimited stdio; runPython over native loupe objects (Linux); incremental disk synchronization and SDK macro expansion before each script.\n"
             )
         return 0
     }
@@ -26,8 +28,14 @@ main(args: Array<String>): Int64 {
             } else {
                 getWorkingDirectory().join(written).toString()
             }
-        let server = McpServer(VfsPath.file(absolute))
-        serveStdio(server)
+        let logger = SimpleLogger(getStdErr())
+        logger.level = LogLevel.WARN
+        let server = McpServer(VfsPath.file(absolute), logger: logger)
+        try {
+            serveStdio(server)
+        } finally {
+            server.close()
+        }
         0
     } catch (e: Exception) {
         getStdErr().write("cjmcp: ${e.message}\n")
@@ -49,6 +57,8 @@ func serveStdio(server: McpServer): Unit {
     let buffer = Array<Byte>(8192, repeat: 0)
     let line = ArrayList<Byte>()
     while (true) {
+        // A runnable worker must reach the scheduler before this thread blocks in foreign I/O (K2).
+        sleep(Duration.Zero)
         let count = input.read(buffer)
         if (count == 0) {
             break
