@@ -12,6 +12,7 @@ mkdir "$work/$name"
 cp "$binary" "$work/$name/cjmcp"
 chmod +x "$work/$name/cjmcp"
 cp modules/cjmcp/README.md LICENSE-MIT LICENSE-APACHE .cangjie-version .cangjie-sha256 "$work/$name/"
+cp -R modules/cjmcp/api "$work/$name/api"
 {
   echo "commit=$sha"
   echo "target=x86_64-unknown-linux-gnu"
