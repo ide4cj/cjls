@@ -387,7 +387,14 @@ ADR index. Open questions live in issues labeled `question`.
 
 CI runs builds/tests on its supported platforms, format/docs/commit checks,
 fuzzing, e2e and performance; [coverage](../.github/workflows/coverage.yml) is a
-separate workflow (D49). macOS build, test and e2e jobs still run but temporarily
+separate workflow (D49). PRs targeting `experiment/cjmcp` run docs/commit checks
+and the dedicated [Linux MCP artifact workflow](../.github/workflows/cjmcp.yml).
+The general CI build/test/fuzz jobs, their dependent checks and coverage are skipped for
+those PRs; add the `full-ci` label to opt into the full matrix. Pushes to the
+experiment branch also deliver the MCP artifact. See the
+[MCP download instructions](../modules/cjmcp/README.md#download-the-linux-artifact)
+for dependencies and verification. Master and release CI keep the full matrix.
+macOS build, test and e2e jobs still run but temporarily
 do not fail the workflow while the SDK GC-root crash in [#466](https://github.com/ide4cj/cjls/issues/466)
 is unresolved; their test and e2e checks are also optional in the master ruleset.
 Restore both requirements after the SDK fix is revalidated. Release packaging
