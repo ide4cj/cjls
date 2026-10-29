@@ -8,6 +8,55 @@ import rope.Rope
 @Test
 class CompilerTypesTest {
     @TestCase
+    func nullPointerConstructorsHaveTheirSemanticType(): Unit {
+        checkInference(
+            #"
+            import std.core as native
+            type Pointer<T> = CPointer<T>
+            func test(): Unit {
+                let pointer = CPointer<Unit>()
+            //      ^^^^^^^ CPointer<Unit>
+                let byte = native.CPointer<Int8>()
+            //      ^^^^ CPointer<Int8>
+                let alias = Pointer<Int32>()
+            //      ^^^^^ CPointer<Int32>
+                let inferred: CPointer<Int8> = CPointer()
+            //      ^^^^^^^^ CPointer<Int8>
+                let chained = CPointer<Unit>().isNull()
+            //      ^^^^^^^ Bool
+            }
+            func make<T>(): CPointer<T> where T <: CType {
+                let generic = CPointer<T>()
+            //      ^^^^^^^ CPointer<T>
+                generic
+            }
+            "#,
+            binaries: ["std.core"]
+        )
+    }
+
+    @TestCase
+    func sourceCoreProvidesTheNullConstructor(): Unit {
+        checkInference(
+            #"
+            //- /std/core/core.cj module=std package=std.core
+            package std.core
+            public interface CType {}
+            //- /app/main.cj module=app deps=std package=app
+            package app
+            type Pointer = CPointer<Unit>
+            func test(): Unit {
+                let pointer = CPointer<Unit>()
+            //      ^^^^^^^ CPointer<Unit>
+                let alias = Pointer()
+            //      ^^^^^ CPointer<Unit>
+            }
+            "#,
+            binaries: []
+        )
+    }
+
+    @TestCase
     func sourceCoreResolvesPointersAndTheirGenericMembers(): Unit {
         checkInference(
             #"

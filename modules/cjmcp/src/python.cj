@@ -1,6 +1,7 @@
 package cjmcp
 
 import std.fs.Path
+import std.runtime.blackBox
 import fjson.{JsonValue, fromJsonBytes}
 import ginkgo.TextRange
 import loupe.diagnostics as fileDiagnostics
@@ -96,7 +97,7 @@ class Workspace {
     }
     public prop hasExpandedMacros: Bool {
         get() {
-            false
+            loaded().hasExpandedMacros
         }
     }
 
@@ -225,22 +226,48 @@ class PythonSession {
                 )
             runner = Python.eval("__cjmcp_run")
         }
-        let output =
-            runner
-                .getOrThrow { IllegalStateException("Python runner was not initialized") }(
-                    [
-                        PyString(code),
-                        workspaceProxy
-                            .getOrThrow {
-                                IllegalStateException("Python workspace proxy was not initialized")
-                            },
-                        types
-                            .getOrThrow {
-                                IllegalStateException("Python types were not initialized")
-                            }
-                    ]
-                )
-        fromJsonBytes<JsonValue>(output.toString().toArray())
+        let callable =
+            runner.getOrThrow { IllegalStateException("Python runner was not initialized") }
+        let arguments =
+            PyTuple(
+                [
+                    PyString(code),
+                    workspaceProxy
+                        .getOrThrow {
+                            IllegalStateException("Python workspace proxy was not initialized")
+                        },
+                    types.getOrThrow { IllegalStateException("Python types were not initialized") }
+                ]
+            )
+        let gil =
+            unsafe {
+                PyGILState_Ensure()
+            }
+        try {
+            // Keep the argument tuple alive while CPython borrows it: a macro build can trigger Cangjie GC
+            // inside a callback. The interop call operator hides its temporary tuple from this lifetime boundary.
+            let returned =
+                unsafe {
+                    PyObject_Call(
+                        callable.getRef().getPtr(),
+                        arguments.getRef().getPtr(),
+                        CPointer<Unit>()
+                    )
+                }
+            if (returned.isNull()) {
+                throw IllegalStateException(PYLOG.getPythonErr())
+            }
+            let output = PyObj(PyInteropReference(returned))
+            let text = output.toString()
+            blackBox(output)
+            fromJsonBytes<JsonValue>(text.toArray())
+        } finally {
+            blackBox(arguments)
+            blackBox(callable)
+            unsafe {
+                PyGILState_Release(gil)
+            }
+        }
     }
 }
 

@@ -18,6 +18,12 @@ BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
 class McpStdioTest(unittest.TestCase):
     def test_python_native_objects_errors_output_and_reload(self):
+        self._check_workspace(macros_only=False)
+
+    def test_macros_finish_before_revision_and_reload(self):
+        self._check_workspace(macros_only=True)
+
+    def _check_workspace(self, *, macros_only):
         # arrange
         with tempfile.TemporaryDirectory(prefix="cjmcp-") as directory:
             root = Path(directory)
@@ -62,7 +68,9 @@ class McpStdioTest(unittest.TestCase):
                 process.stdin.write(wire[8:])
                 process.stdin.flush()
                 raw = replies.get(timeout=60)
-                self.assertIsNotNone(raw, "server closed stdout")
+                if raw is None:
+                    process.wait(timeout=10)
+                    self.fail(f"server closed stdout ({process.returncode}): {process.stderr.read().decode(errors='replace')}")
                 reply = json.loads(raw)
                 self.assertEqual(reply["id"], next_id)
                 self.assertNotIn("error", reply)
@@ -85,6 +93,9 @@ class McpStdioTest(unittest.TestCase):
                 process.stdin.write(b'{"jsonrpc":"2.0","method":"notifications/initialized"}\n')
                 process.stdin.flush()
                 tools = rpc("tools/list")["tools"]
+                if macros_only:
+                    self._check_macros(root, run)
+                    return
                 native = run(f"""
                     nodes = workspace.structure('src/main.cj')
                     assert all(isinstance(node, StructureNode) for node in nodes)
@@ -120,7 +131,7 @@ class McpStdioTest(unittest.TestCase):
                 self.assertIn("answer", data["hover"])
                 self.assertEqual(data["target"], str(root / "src/helper.cj"))
                 self.assertEqual(data["diagnostics"], [])
-                self.assertFalse(data["hasExpandedMacros"])
+                self.assertTrue(data["hasExpandedMacros"])
                 self.assertIn("прямые объекты loupe", native["stdout"])
 
                 # act - inspect generic inference and its HIR, then navigate the selected callee
@@ -244,7 +255,7 @@ class McpStdioTest(unittest.TestCase):
                 self.assertIn("script failure", failed["error"])
                 self.assertIn("before failure", failed["stdout"])
                 self.assertIn("serializable", bad_result["error"])
-                self.assertIn("UTF-8", invalid_offset["error"])
+                self.assertIn("UTF-8", invalid_offset["error"], invalid_offset)
                 self.assertEqual(recovered["result"], 42)
 
                 # act - the same live workspace sees disk changes only after an explicit reload
@@ -280,6 +291,7 @@ class McpStdioTest(unittest.TestCase):
                 self.assertTrue(any("mismatched types" in message for message in changed["result"]["diagnostics"]))
                 self.assertIn("added", changed["result"]["added"])
                 self.assertNotIn(str(root / "src/new.cj"), after_delete["result"])
+
             finally:
                 process.stdin.close()
                 try:
@@ -293,6 +305,83 @@ class McpStdioTest(unittest.TestCase):
                 reader.join(timeout=5)
                 # Report native/Python startup failures even when an earlier RPC saw EOF.
                 self.assertEqual(process.returncode, 0, stderr)
+
+    def _check_macros(self, root, run):
+        # Expansion finishes before analysis() returns, including after a macro library changes.
+        macro_dir = root / "src/ms"
+        macro_dir.mkdir()
+        macro_source = """macro package sample.ms
+import std.ast.*
+public macro Emit(input: Tokens): Tokens {
+    quote(public func generated(): Int64 { 41 })
+}
+public macro Pass(input: Tokens): Tokens { input }
+"""
+        (macro_dir / "macros.cj").write_text(macro_source, encoding="utf-8", newline="\n")
+        macro_use = """package sample
+import sample.ms.*
+import std.deriving.*
+@Pass @Emit public func placeholder(): Int64 { 0 }
+@Derive[Equatable] public struct Value { let n: Int64 = 1 }
+main() { generated() }
+"""
+        (root / "src/main.cj").write_text(macro_use, encoding="utf-8", newline="\n")
+        expanded = run(f"""
+            from pathlib import Path
+            workspace.reload()
+            assert workspace.hasExpandedMacros, workspace.problems
+            assert workspace.problems == [], workspace.problems
+            old = workspace.analysis()
+            call = old.macroCall('src/main.cj', {macro_use.index('@Pass')})
+            assert call is not None
+            expansion = old.expansion(call.call)
+            assert expansion.kind == ExpansionKind.ServerExpansion()
+            assert 'generated' in expansion.text and '41' in expansion.text, expansion.text
+            derive = old.macroCall('src/main.cj', {macro_use.index('@Derive')})
+            assert old.expansion(derive.call).kind == ExpansionKind.ServerExpansion()
+            assert workspace.diagnostics('src/main.cj') == [], [d.message for d in workspace.diagnostics('src/main.cj')]
+            macro_path = Path(workspace.root) / 'src/ms/macros.cj'
+            macro_path.write_text(macro_path.read_text().replace('41', '42'))
+            workspace.reload()
+            assert workspace.hasExpandedMacros, workspace.problems
+            current = workspace.analysis()
+            current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
+            assert '42' in current.expansion(current_call.call).text
+            assert '41' in old.expansion(call.call).text
+            result = workspace.problems
+        """)
+        self.assertEqual(expanded["result"], [])
+
+        # A macro exception is retained as an expansion problem, and a later reload can recover.
+        (macro_dir / "macros.cj").write_text(
+            macro_source.replace('quote(public func generated(): Int64 { 41 })',
+                                 'throw Exception("expansion probe failed")'),
+            encoding="utf-8", newline="\n",
+        )
+        failed_expansion = run("""
+            workspace.reload()
+            assert not workspace.hasExpandedMacros
+            result = workspace.problems
+        """)
+        self.assertTrue(any('@Emit failed' in problem for problem in failed_expansion["result"]),
+                        failed_expansion)
+        self.assertIn('expansion probe failed', failed_expansion['stderr'])
+
+        # Build failure is visible without making a partially expanded revision look complete.
+        (macro_dir / "macros.cj").write_text(
+            macro_source.replace('quote(public func generated(): Int64 { 41 })', 'missingName'),
+            encoding="utf-8", newline="\n",
+        )
+        failed_build = run("""
+            workspace.reload()
+            assert not workspace.hasExpandedMacros
+            result = workspace.problems
+        """)
+        self.assertTrue(any('macro library not built' in problem for problem in failed_build["result"]))
+        self.assertTrue(any('macro call was not sent' in problem for problem in failed_build["result"]))
+        (macro_dir / "macros.cj").write_text(macro_source, encoding="utf-8", newline="\n")
+        recovered_macros = run("workspace.reload()\nresult = workspace.hasExpandedMacros")
+        self.assertTrue(recovered_macros["result"])
 
 
 if __name__ == "__main__":

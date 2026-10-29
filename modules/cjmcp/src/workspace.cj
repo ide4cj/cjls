@@ -22,6 +22,7 @@ class WorkspaceState {
     let vfs = Vfs()
     let files: Array<VfsPath>
     let problems: Array<String>
+    let hasExpandedMacros: Bool
 
     WorkspaceState(let root: VfsPath) {
         if (
@@ -46,6 +47,8 @@ class WorkspaceState {
             }
         }
         db.applyChanges(vfs, vfs.takeChanges())
+        hasExpandedMacros =
+            expandWorkspaceMacros(db, vfs, found.map { home => Path(home.path) }, issues)
         problems = issues.toArray()
     }
 }
