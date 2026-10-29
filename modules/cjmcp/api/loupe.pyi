@@ -20,6 +20,10 @@ class Workspace:
     @property
     def root(self) -> str: ...
     @property
+    def revision(self) -> int:
+        """Session-local revision fixed for this script and returned in the tool response."""
+        ...
+    @property
     def problems(self) -> list[str]:
         """Loading, macro build and expansion problems; check before interpreting results."""
         ...
@@ -27,7 +31,7 @@ class Workspace:
     def hasExpandedMacros(self) -> bool: ...
     def files(self) -> list[str]: ...
     def reload(self) -> None:
-        """Synchronously reload disk/project/macros; failed loads preserve the old revision."""
+        """Request preparation after this script; current analysis remains fixed."""
         ...
     def analysis(self) -> AnalysisRevision:
         """Capture the loaded revision, including its text, identities and caches."""
@@ -42,13 +46,18 @@ workspace: Workspace
 
 
 class AnalysisRevision:
-    """Obtain from workspace.analysis(); remains usable after workspace.reload().
+    """Obtain from workspace.analysis(); fixed throughout the current script.
 
-Keep DefId, Ty, FileId and other identities with their producing revision.
-Offsets are zero-based UTF-8 bytes on character boundaries; range ends are
-exclusive. Unloaded paths and invalid positions raise RuntimeError via the
-native callback. Queries read retained text, not current disk contents.
+After a workspace update, queries raise RuntimeError containing ContentModified.
+Reacquire the analysis handle and recompute its DefId, Ty, FileId and other
+identities; never mix revisions. Offsets are zero-based UTF-8 bytes on character
+boundaries; range ends are exclusive. Unloaded paths and invalid positions raise
+RuntimeError via the native callback. Queries read revision text, not live disk.
 """
+    @property
+    def revision(self) -> int:
+        """Workspace revision in which this handle was captured."""
+        ...
     def declarations(self, path: str) -> list[DefId]:
         """Declarations including nested members, in source order."""
         ...
