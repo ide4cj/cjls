@@ -179,6 +179,13 @@ remain distinct from JSON `null` (`@Serde[skipNone]`). The router and generated
 specifications are the maintained protocol inventory; [LSP extensions](lsp-extensions.md)
 document the additional client-facing contracts.
 
+The experimental MCP frontend keeps a session-owned incremental database and macro
+host too. It synchronizes disk inputs before each Python script and defers updates
+throughout execution and result serialization. The script and response identify
+the same workspace revision; retained analysis handles reject later revisions.
+See [MCP lifecycle and freshness](../modules/cjmcp/README.md#python-api) and
+[D157](adr/0157-cjmcp-incremental-session.md).
+
 ## Source entry points
 
 | Change or question | Start here |

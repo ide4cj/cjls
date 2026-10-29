@@ -118,7 +118,10 @@ result = i + 1
                 })
                 self.assertEqual(result["isError"], error, result)
                 self.assertEqual(json.loads(result["content"][0]["text"]), result["structuredContent"])
-                return result["structuredContent"]
+                data = result["structuredContent"]
+                self.assertIsInstance(data["revision"], int, data)
+                self.assertGreater(data["revision"], 0)
+                return data
 
             try:
                 # act - one Python call traverses native analysis objects from several queries
@@ -169,6 +172,10 @@ result = i + 1
                 self.assertEqual(data["diagnostics"], [])
                 self.assertTrue(data["hasExpandedMacros"])
                 self.assertIn("прямые объекты loupe", native["stdout"])
+
+                unchanged = run("result = workspace.revision")
+                self.assertEqual(unchanged["revision"], native["revision"])
+                self.assertEqual(unchanged["result"], native["revision"])
 
                 # Native exceptions must return through Python's error protocol before another query.
                 recovered = run("""
@@ -273,7 +280,7 @@ result = i + 1
                     symbols = analysis.symbols('answer', 10)
                     assert symbols and all(isinstance(item, FoundSymbol) for item in symbols)
                     assert analysis.selection('src/main.cj', {source.encode().rindex(b'answer')})
-                    # Retained revision remains self-consistent when reload creates a new database.
+                    # A reload requested inside Python is deferred; this script keeps its revision.
                     workspace.reload()
                     assert analysis.typeText(analysis.infer(answer).locals[local]) == 'Int64'
                     result = names
@@ -309,7 +316,66 @@ result = i + 1
                 self.assertIn("serializable", bad_result["error"])
                 self.assertEqual(recovered["result"], 42)
 
-                # act - the same live workspace sees disk changes only after an explicit reload
+                # Coordinate an edit from outside Python while a script is running.
+                # The script must retain its text, IDs and revision until its response is serialized.
+                ready = root / "script-ready"
+                released = root / "edit-finished"
+                editing_errors = []
+
+                def edit_during_script():
+                    try:
+                        import time
+                        deadline = time.monotonic() + 30
+                        while not ready.exists():
+                            if time.monotonic() > deadline:
+                                raise TimeoutError("script did not reach the barrier")
+                            time.sleep(0.01)
+                        (root / "src/helper.cj").write_text(
+                            "package sample\npublic func editedDuringScript(): Int64 { 43 }\n",
+                            encoding="utf-8", newline="\n",
+                        )
+                    except BaseException as error:
+                        editing_errors.append(error)
+                    finally:
+                        released.touch()
+
+                editor = threading.Thread(target=edit_during_script)
+                editor.start()
+                try:
+                    frozen = run("""
+                        import time
+                        from pathlib import Path
+                        a = workspace.analysis()
+                        before = a.text('src/helper.cj')
+                        revision = workspace.revision
+                        Path(workspace.root, 'script-ready').touch()
+                        deadline = time.monotonic() + 30
+                        while not Path(workspace.root, 'edit-finished').exists():
+                            assert time.monotonic() < deadline, 'editor did not release script'
+                            time.sleep(0.01)
+                        assert a.text('src/helper.cj') == before
+                        assert workspace.analysis().text('src/helper.cj') == before
+                        assert workspace.revision == a.revision == revision
+                        result = revision
+                    """)
+                finally:
+                    editor.join(timeout=35)
+                self.assertEqual(editing_errors, [])
+                self.assertEqual(frozen['result'], frozen['revision'])
+                applied = run("result = workspace.analysis().text('src/helper.cj')")
+                self.assertIn('editedDuringScript', applied['result'])
+                self.assertGreater(applied['revision'], frozen['revision'])
+
+                # Source freshness compares contents even when an editor preserves size and mtime.
+                helper = root / 'src/helper.cj'
+                stamp = helper.stat()
+                helper.write_text(helper.read_text().replace('43', '44'), encoding='utf-8')
+                os.utime(helper, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
+                same_stamp = run("result = workspace.analysis().text('src/helper.cj')")
+                self.assertIn('44', same_stamp['result'])
+                self.assertGreater(same_stamp['revision'], applied['revision'])
+
+                # act - edits/additions/deletions are synchronized automatically before each script
                 (root / "src/main.cj").write_text(
                     "package sample\nmain() { let value: Int64 = true }\n", encoding="utf-8", newline="\n",
                 )
@@ -318,7 +384,6 @@ result = i + 1
                 )
                 stale = run("result = [node.name for node in workspace.structure('src/main.cj')]")
                 changed = run("""
-                    workspace.reload()
                     diagnostics = workspace.diagnostics('src/main.cj')
                     assert all(isinstance(item, Diagnostic) for item in diagnostics)
                     assert all(isinstance(item.severity, Severity) for item in diagnostics)
@@ -335,13 +400,30 @@ result = i + 1
                         added=[node.name for node in workspace.structure('src/new.cj')])
                 """)
                 (root / "src/new.cj").unlink()
-                after_delete = run("workspace.reload()\nresult = workspace.files()")
+                after_delete = run("result = workspace.files()")
 
                 # assert
-                self.assertIn("answer", stale["result"])
+                self.assertNotIn("answer", stale["result"])
+                self.assertGreater(stale["revision"], recovered["revision"])
                 self.assertTrue(any("mismatched types" in message for message in changed["result"]["diagnostics"]))
                 self.assertIn("added", changed["result"]["added"])
                 self.assertNotIn(str(root / "src/new.cj"), after_delete["result"])
+
+                # Preparation failure must not execute Python against the last successful revision.
+                moved = root.with_name(root.name + '-unavailable')
+                root.rename(moved)
+                try:
+                    failure = rpc('tools/call', {
+                        'name': 'runPython', 'arguments': {'code': "raise AssertionError('must not execute')"},
+                    })
+                    self.assertTrue(failure['isError'], failure)
+                    self.assertIsNone(failure['structuredContent']['revision'])
+                    self.assertIn('workspace directory does not exist', failure['structuredContent']['error'])
+                finally:
+                    moved.rename(root)
+                resumed = run('result = workspace.revision')
+                self.assertEqual(resumed['result'], resumed['revision'])
+                self.assertGreater(resumed['revision'], after_delete['revision'])
 
             finally:
                 process.stdin.close()
@@ -359,6 +441,7 @@ result = i + 1
 
     def _check_macros(self, root, run):
         # Expansion finishes before analysis() returns, including after a macro library changes.
+        counter = root / "expansion-count"
         macro_dir = root / "src/ms"
         macro_dir.mkdir()
         macro_source = """macro package sample.ms
@@ -368,6 +451,12 @@ public macro Emit(input: Tokens): Tokens {
 }
 public macro Pass(input: Tokens): Tokens { input }
 """
+        macro_source = macro_source.replace(
+            "import std.ast.*", "import std.ast.*\nimport std.fs.File",
+        ).replace(
+            "    quote(",
+            f'    File.appendTo({json.dumps(str(counter))}, "x".toArray())\n    quote(',
+        )
         (macro_dir / "macros.cj").write_text(macro_source, encoding="utf-8", newline="\n")
         macro_use = """package sample
 import sample.ms.*
@@ -392,16 +481,69 @@ main() { generated() }
             assert old.expansion(derive.call).kind == ExpansionKind.ServerExpansion()
             assert workspace.diagnostics('src/main.cj') == [], [d.message for d in workspace.diagnostics('src/main.cj')]
             macro_path = Path(workspace.root) / 'src/ms/macros.cj'
-            macro_path.write_text(macro_path.read_text().replace('41', '42'))
+            import os
+            stamp = macro_path.stat()
+            macro_path.write_text(macro_path.read_text().replace('{{ 41 }}', '{{ 42 }}'))
+            os.utime(macro_path, ns=(stamp.st_atime_ns, stamp.st_mtime_ns))
             workspace.reload()
             assert workspace.hasExpandedMacros, workspace.problems
+            # Even reload cannot change the revision halfway through this script.
             current = workspace.analysis()
             current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
-            assert '42' in current.expansion(current_call.call).text
-            assert '41' in old.expansion(call.call).text
+            assert '41' in current.expansion(current_call.call).text
+            assert old.revision == current.revision == workspace.revision
+            import builtins
+            builtins._cjmcp_old_analysis = old
             result = workspace.problems
         """)
         self.assertEqual(expanded["result"], [])
+        changed = run(f"""
+            import builtins
+            assert workspace.hasExpandedMacros, workspace.problems
+            current = workspace.analysis()
+            current_call = current.macroCall('src/main.cj', {macro_use.index('@Pass')})
+            assert '42' in current.expansion(current_call.call).text, current.expansion(current_call.call).text
+            try:
+                builtins._cjmcp_old_analysis.declarations('src/main.cj')
+            except RuntimeError as error:
+                assert 'ContentModified' in str(error), str(error)
+            else:
+                raise AssertionError('old analysis read the new revision')
+            del builtins._cjmcp_old_analysis
+            result = workspace.revision
+        """)
+        self.assertGreater(changed['revision'], expanded['revision'])
+        self.assertEqual(changed['result'], changed['revision'])
+        unchanged = run('result = workspace.hasExpandedMacros')
+        self.assertTrue(unchanged['result'])
+        self.assertEqual(unchanged['revision'], changed['revision'])
+
+        count = counter.read_text()
+        # A regular function edit must reuse existing expansions, not just compiler artifacts.
+        with (root / "src/helper.cj").open("a", encoding="utf-8") as helper:
+            helper.write("\npublic func unrelated(): Int64 { 7 }\n")
+        regular_edit = run('result = workspace.hasExpandedMacros')
+        self.assertTrue(regular_edit['result'])
+        self.assertGreater(regular_edit['revision'], unchanged['revision'])
+        self.assertEqual(counter.read_text(), count)
+
+        # Observe expansion's side effect before issuing another tool call: the worker
+        # must make progress while the stdio reader is idle, without a foreground reload.
+        (macro_dir / "macros.cj").write_text(
+            macro_source.replace('{ 41 }', '{ 43 }'), encoding="utf-8", newline="\n",
+        )
+        import time
+        deadline = time.monotonic() + 30
+        while counter.read_text() == count:
+            self.assertLess(time.monotonic(), deadline, "background macro expansion never ran")
+            time.sleep(0.01)
+        background = run(f"""
+            a = workspace.analysis()
+            call = a.macroCall('src/main.cj', {macro_use.index('@Pass')})
+            result = a.expansion(call.call).text
+        """)
+        self.assertIn('43', background['result'])
+        self.assertGreater(background['revision'], regular_edit['revision'])
 
         # A macro exception is retained as an expansion problem, and a later reload can recover.
         (macro_dir / "macros.cj").write_text(
@@ -410,13 +552,12 @@ main() { generated() }
             encoding="utf-8", newline="\n",
         )
         failed_expansion = run("""
-            workspace.reload()
             assert not workspace.hasExpandedMacros
             result = workspace.problems
         """)
         self.assertTrue(any('@Emit failed' in problem for problem in failed_expansion["result"]),
                         failed_expansion)
-        self.assertIn('expansion probe failed', failed_expansion['stderr'])
+        # SDK stderr may belong to the background worker; problems remain the stable tool contract.
 
         # Build failure is visible without making a partially expanded revision look complete.
         (macro_dir / "macros.cj").write_text(
@@ -424,14 +565,13 @@ main() { generated() }
             encoding="utf-8", newline="\n",
         )
         failed_build = run("""
-            workspace.reload()
             assert not workspace.hasExpandedMacros
             result = workspace.problems
         """)
         self.assertTrue(any('macro library not built' in problem for problem in failed_build["result"]))
         self.assertTrue(any('macro call was not sent' in problem for problem in failed_build["result"]))
         (macro_dir / "macros.cj").write_text(macro_source, encoding="utf-8", newline="\n")
-        recovered_macros = run("workspace.reload()\nresult = workspace.hasExpandedMacros")
+        recovered_macros = run("result = workspace.hasExpandedMacros")
         self.assertTrue(recovered_macros["result"])
 
 

@@ -2,6 +2,7 @@ package cjmcp
 
 import std.fs.Path
 import std.runtime.blackBox
+import stdx.log.{Logger, NoopLogger}
 import fjson.{JsonValue, fromJsonBytes}
 import ginkgo.TextRange
 import loupe.diagnostics as fileDiagnostics
@@ -76,7 +77,7 @@ def __cjmcp_run(code, workspace, classes):
 "#
 
 /**
- * A stable workspace handle; reload replaces its disk revision while preserving existing proxies.
+ * A script-scoped view of the session workspace; reload queues preparation after the script.
  */
 @When[os == "Linux"]
 @DerivePython
@@ -84,6 +85,17 @@ class Workspace {
     private var current: ?WorkspaceState = None
 
     Workspace(private let directory: String) {}
+
+    @PyIgnore
+    func bind(state: WorkspaceState): Unit {
+        current = state
+    }
+
+    public prop revision: Int64 {
+        get() {
+            loaded().revision
+        }
+    }
 
     public prop root: String {
         get() {
@@ -106,7 +118,8 @@ class Workspace {
     }
 
     public func reload(): Unit {
-        current = WorkspaceState(VfsPath.file(directory))
+        // Never mutate the database while Python holds native analysis objects.
+        loaded().reloadRequested = true
     }
 
     public func structure(path: String): Array<StructureNode> {
@@ -138,17 +151,14 @@ class Workspace {
     }
 
     /**
-     * Capture a disk revision; it remains usable after workspace.reload().
+     * Capture this script's revision. Reacquire after a later workspace update.
      */
     public func analysis(): AnalysisRevision {
         AnalysisRevision(loaded())
     }
 
     private func loaded(): WorkspaceState {
-        if (current.isNone()) {
-            reload()
-        }
-        current.getOrThrow { IllegalStateException("workspace was not loaded after reload") }
+        current.getOrThrow { IllegalStateException("workspace is only available during runPython") }
     }
 
     private func resolve(written: String): (WorkspaceState, FileId) {
@@ -196,15 +206,32 @@ struct PythonLocation {
 @When[os == "Linux"]
 class PythonSession {
     private let workspace: Workspace
+    private let session: WorkspaceSession
     private var runner: ?PyObj = None
     private var workspaceProxy: ?PyObj = None
     private var types: ?PyObj = None
 
-    PythonSession(root: VfsPath) {
+    PythonSession(root: VfsPath, logger!: Logger = NoopLogger()) {
         workspace = Workspace(root.toString())
+        session = WorkspaceSession(root, logger: logger)
+        session.start()
+    }
+
+    func close(): Unit {
+        session.close()
     }
 
     func run(code: String): JsonValue {
+        session
+            .withWorkspace {
+                state =>
+                workspace.bind(state)
+                let output = execute(code)
+                obj(output.asObject().concat([("revision", JsonInteger(state.revision))]))
+            }
+    }
+
+    private func execute(code: String): JsonValue {
         if (runner.isNone()) {
             Python.load(loglevel: LogLevel.ERROR)
             Python.exec(PYTHON_RUNNER)
@@ -273,7 +300,8 @@ class PythonSession {
 
 @When[os != "Linux"]
 class PythonSession {
-    PythonSession(root: VfsPath) {}
+    PythonSession(root: VfsPath, logger!: Logger = NoopLogger()) {}
+    func close(): Unit {}
     func run(code: String): JsonValue {
         throw IllegalStateException(
             "Embedded Python is currently supported by this experiment on native Linux only"
