@@ -237,6 +237,24 @@ The full workspace builds at normal release `-O2`; no `loupe` optimization overr
 is required. See [K29](../../docs/sdk-issues.md#k29) for the earlier compiler failures
 and the validated workaround in binding generation.
 
+The interop pin keeps the mutable proxy registry in reference types. On Linux
+x86_64 with the pinned SDK and CPython 3.14, reentrant proxy allocation with nested
+generic struct registry receivers produced invalid GC roots and SIGSEGV. Keep
+that registry representation until an SDK-only reproduction establishes a safe
+alternative. Raising `cjStackSize` did not resolve the observed failure.
+
+Native conversion must also retain borrowed Python references: an owning wrapper
+increments the reference before its finalizer can decrement it. This applies to
+callback arguments, enum variant names and exported Python class handles. The
+real-process allocation regression exercises constructors and payload getters
+without loading a workspace.
+
+Generated callbacks catch Cangjie `Exception` and `Error` before returning across
+the C ABI. They report Python `RuntimeError` with the native message and the
+appropriate callback failure sentinel. A query for an unloaded file must be
+catchable by the script, and subsequent queries must remain usable; an exception
+escaping the callback can corrupt CPython's stack and crash a later operation.
+
 Proxy lifetime is still experimental: the pinned `py_interop` registry retains
 exported native values, and reclaiming those entries is not implemented here.
 Repeated large traversals can retain analysis results. This needs a lifetime fix

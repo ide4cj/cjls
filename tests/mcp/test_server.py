@@ -17,6 +17,42 @@ BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
 
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
 class McpStdioTest(unittest.TestCase):
+    def test_repeated_native_proxy_allocation(self):
+        # Reentering through enum constructors and payload getters exposed invalid GC roots.
+        # This needs the real process: an interpreter crash cannot become a tool error.
+        code = """
+for i in range(100000):
+    value = Expr.CallExpr(ExprId(i), [])
+    assert value.kind == 'CallExpr'
+    assert value.field0.index == i
+    assert value.field1 == []
+result = i + 1
+"""
+        messages = [
+            {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2025-11-25", "capabilities": {},
+                "clientInfo": {"name": "proxy-allocation-test", "version": "1"},
+            }},
+            {"jsonrpc": "2.0", "method": "notifications/initialized"},
+            {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {
+                "name": "runPython", "arguments": {"code": code},
+            }},
+        ]
+        with tempfile.TemporaryDirectory(prefix="cjmcp-proxies-") as directory:
+            process = subprocess.run(
+                [BINARY, "--dir", directory],
+                input="".join(json.dumps(message) + "\n" for message in messages),
+                capture_output=True, text=True, timeout=60,
+                env={**os.environ, "cjHeapSize": "2GB"},
+            )
+        self.assertEqual(process.returncode, 0, process.stderr)
+        replies = [json.loads(line) for line in process.stdout.splitlines()]
+        reply = next(reply for reply in replies if reply.get("id") == 2)
+        self.assertNotIn("error", reply)
+        response = reply["result"]
+        self.assertFalse(response["isError"], response)
+        self.assertEqual(response["structuredContent"]["result"], 100000)
+
     def test_python_native_objects_errors_output_and_reload(self):
         self._check_workspace(macros_only=False)
 
@@ -134,6 +170,21 @@ class McpStdioTest(unittest.TestCase):
                 self.assertTrue(data["hasExpandedMacros"])
                 self.assertIn("прямые объекты loupe", native["stdout"])
 
+                # Native exceptions must return through Python's error protocol before another query.
+                recovered = run("""
+                    analysis = workspace.analysis()
+                    for _ in range(3):
+                        try:
+                            analysis.declarations('src/missing.cj')
+                        except RuntimeError as error:
+                            assert 'file is not loaded' in str(error), str(error)
+                        else:
+                            raise AssertionError('missing file was accepted')
+                    assert analysis.declarations('src/main.cj')
+                    result = True
+                """)
+                self.assertTrue(recovered["result"])
+
                 # act - inspect generic inference and its HIR, then navigate the selected callee
                 inference = run(f"""
                     analysis = workspace.analysis()
@@ -241,10 +292,10 @@ class McpStdioTest(unittest.TestCase):
                 """)
                 failed = run("print('before failure')\nraise ValueError('script failure')", error=True)
                 bad_result = run("result = workspace.structure('src/main.cj')", error=True)
-                # Interop can lose native exception text; offset rejection must still return a tool error.
-                run(
+                bad_offset = run(
                     f"workspace.hover('src/main.cj', {source.encode().index('п'.encode()) + 1})", error=True,
                 )
+                self.assertIn('offset must be a UTF-8 byte boundary', bad_offset["error"])
                 recovered = run("result = 6 * 7")
 
                 # assert

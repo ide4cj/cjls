@@ -13,7 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
-py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "d85c3e416b16780f0d8fda1e482c5488aa878edb", output-type = "static" }
+py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "e77cc51663c1df43efae6107c585aa4a18b0ded2", output-type = "static" }
 
 # `-O2` on a release build alone: `-g` (the coverage's) builds unoptimized, D51
 [target.aarch64-apple-darwin.release]
