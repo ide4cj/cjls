@@ -9,7 +9,7 @@ import platform.sharedLibrarySuffix
 
 /**
  * A package cjls builds for the macro server (`loupe`'s `MacroBuildUnit`, as paths): its name, its module, the
- * directory of its sources, whether it is a macro package, the source packages it links (each `(module, name)`,
+ * directory of its sources, whether it is a macro package, its source dependencies (each `(module, name)`,
  * built before it) and the `.cjo` of the binaries it imports.
  */
 public struct BuildUnit {
@@ -74,11 +74,13 @@ public class MacroBuilder {
     }
 
     private func buildAll(units: Array<BuildUnit>): HashMap<String, BuiltLibrary> {
+        let macros =
+            HashSet<String>(units.filter { unit => unit.isMacro }.map { unit => unit.name })
         let stamps = HashMap<String, Int64>()
         let failed = HashMap<String, String>()
         let built = HashMap<String, BuiltLibrary>()
         for (unit in units) {
-            let result = buildOne(unit, stamps, failed)
+            let result = buildOne(unit, stamps, failed, macros)
             match (result) {
                 case Built(_, stamp) => stamps[unit.name] = stamp
                 case NotBuilt(reason) => failed[unit.name] = reason
@@ -93,7 +95,8 @@ public class MacroBuilder {
     private func buildOne(
         unit: BuildUnit,
         stamps: HashMap<String, Int64>,
-        failed: HashMap<String, String>
+        failed: HashMap<String, String>,
+        macros: HashSet<String>
     ): BuiltLibrary {
         for ((_, dep) in unit.deps) {
             if (failed.contains(dep)) {
@@ -115,7 +118,7 @@ public class MacroBuilder {
         } catch (e: FSException) {
             return NotBuilt("${dir} cannot be made: ${e.message}")
         }
-        let (code, said) = toolchain.compile(argumentsOf(unit))
+        let (code, said) = toolchain.compile(argumentsOf(unit, macros))
         if (code != 0 || !exists(output)) {
             return NotBuilt(if (said.isEmpty()) { "cjc exited with ${code}" } else { said })
         }
@@ -131,7 +134,7 @@ public class MacroBuilder {
      * cjc's arguments for `unit`, as cjpm's own: the package alone, what it imports found in `out` and next to the
      * `.cjo` of its binaries.
      */
-    func argumentsOf(unit: BuildUnit): Array<String> {
+    private func argumentsOf(unit: BuildUnit, macros: HashSet<String>): Array<String> {
         let arguments =
             ArrayList<String>(
                 [
@@ -150,7 +153,8 @@ public class MacroBuilder {
             }
         }
         if (unit.isMacro) {
-            for ((module, dep) in unit.deps) {
+            // cjc loads macro libraries while compiling; only runtime packages are linked into the result.
+            for ((module, dep) in unit.deps where !macros.contains(dep)) {
                 arguments.add(all: ["-L", out.join(module).toString(), "-l${dep}"])
             }
             for (cjo in unit.binaries) {
@@ -167,7 +171,7 @@ public class MacroBuilder {
 
     /**
      * What tells one build of `unit` from another: cjc's version, its sources (their names, sizes and times), and
-     * the stamps of what it links.
+     * the stamps of its source dependencies, including macros used during compilation.
      */
     private func stampOf(unit: BuildUnit, stamps: HashMap<String, Int64>): Int64 {
         let text = StringBuilder(version)

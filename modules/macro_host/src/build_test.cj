@@ -192,6 +192,86 @@ class MacroBuilderTest {
     }
 }
 
+@Test
+class MacroBuilderSdkTest {
+    @TestCase
+    func aMacroPackageCanImportRuntimeCodeGeneratedByAnotherMacro() {
+        // arrange
+        let (src, out) = sources(["generator", "util", "ms", "app"])
+        File
+            .writeTo(
+                src.join("generator").join("generator.cj"),
+                ##"
+macro package m.generator
+import std.ast.*
+public macro Identity(input: Tokens): Tokens { input }
+"##
+                    .toArray()
+            )
+        File
+            .writeTo(
+                src.join("util").join("util.cj"),
+                ##"
+package m.util
+import m.generator.*
+@Identity
+public func answer(): Int64 { 42 }
+"##
+                    .toArray()
+            )
+        File
+            .writeTo(
+                src.join("ms").join("ms.cj"),
+                ##"
+macro package m.ms
+import std.ast.*
+import m.util.*
+public macro Value(input: Tokens): Tokens {
+    let value = Token(INTEGER_LITERAL, answer().toString())
+    quote(public func generated(): Int64 { $value })
+}
+"##
+                    .toArray()
+            )
+        File
+            .writeTo(
+                src.join("app").join("app.cj"),
+                ##"
+package m.app
+import m.ms.*
+@Value
+public func generated(): Int64 { 0 }
+public let value = generated()
+"##
+                    .toArray()
+            )
+        let toolchain = SdkToolchain(testSdkPaths())
+
+        // act
+        let built =
+            MacroBuilder(out, toolchain.version().getOrThrow(), toolchain)
+                .build(
+                    [
+                        unit(src, "generator", isMacro: true),
+                        unit(src, "util", deps: ["generator"]),
+                        unit(src, "ms", isMacro: true, deps: ["generator", "util"]),
+                        unit(src, "app", deps: ["generator", "util", "ms"])
+                    ]
+                )
+                .getOrThrow()
+
+        // assert
+        for (name in ["m.generator", "m.ms"]) {
+            match (built.get(name)) {
+                case Some(Built(library, _)) => @Expect(exists(library))
+                case Some(NotBuilt(reason)) => @Fail(reason)
+                case _ => @Fail("${name} was not built")
+            }
+        }
+        @Expect(exists(out.join("m").join("libm.app.a")))
+    }
+}
+
 func stampOf(built: HashMap<String, BuiltLibrary>, name: String): Int64 {
     match (built.get(name)) {
         case Some(Built(_, stamp)) => stamp
