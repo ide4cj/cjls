@@ -248,8 +248,6 @@ class PythonSession {
             // inside a callback. The interop call operator hides its temporary tuple from this lifetime boundary.
             let returned =
                 unsafe {
-                    // ErrorRootsGateTest currently treats this CPointer constructor as an unresolved name;
-                    // cjc accepts the call. Keep the native null kwargs pointer explicit until analysis supports it.
                     PyObject_Call(
                         callable.getRef().getPtr(),
                         arguments.getRef().getPtr(),
