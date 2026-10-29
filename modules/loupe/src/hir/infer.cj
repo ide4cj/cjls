@@ -2730,11 +2730,13 @@ class Inference {
         if (explicit.size == count) {
             return explicit
         }
-        if (
-            let Some(one) <- wanted && let DeclTy(other, args) <- one.kind(db) && other == id &&
-                args.size == count
-        ) {
-            return args
+        if (let Some(one) <- wanted) {
+            match (one.kind(db)) {
+                case DeclTy(other, args) where other == id && args.size == count => return args
+                case BuiltInTy(kind, args) where compilerTypeOf(db, id) == Some(kind) &&
+                        args.size == count => return args
+                case _ => ()
+            }
         }
         None
     }
@@ -2835,7 +2837,7 @@ class Inference {
                     case Some(one) => [one]
                     case None => []
                 }
-            case TypeAlias => typeCallables(typeOfDecl(id, explicit, expected), callArgs)
+            case TypeAlias | BuiltIn => typeCallables(typeOfDecl(id, explicit, expected), callArgs)
             case Var | Prop => valueCallables(valueOf(id))
             case _ => []
         }
@@ -2847,6 +2849,9 @@ class Inference {
     private func typeCallables(ty: Ty, args: Array<CallArg>): Array<Callable> {
         match (ty.kind(db)) {
             case DeclTy(target, explicit) => initCallables(target, explicit)
+            case BuiltInTy(PointerType, _) where args.isEmpty() =>
+                // cjc supplies the null constructor; std.core declares only pointer extensions.
+                [Callable([], ty)]
             case VArrayTy(element, _) =>
                 // cjc's ChkVArrayArg chooses the constructor form by the argument's name, before types.
                 if (args.get(0).flatMap { arg => arg.name }.isSome()) {
