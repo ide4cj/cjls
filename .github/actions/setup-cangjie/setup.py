@@ -4,9 +4,10 @@
     python3 setup.py pin <tag>
 
 The SDK is unpacked to <dest>/cangjie, the stdx for the host into
-<dest>/cangjie/third_party/stdx/<os>_<arch>_cjnative, where the root cjpm.toml looks for it.
-Both are skipped when already there (a cache hit). The environment `envsetup` would set is
-written to $GITHUB_ENV/$GITHUB_PATH on GitHub Actions, and printed as `export` lines otherwise.
+<dest>/cangjie/third_party/stdx/<os>_<arch>_cjnative. CANGJIE_STDX_PATH selects its static/stdx
+directory for the module manifests.
+Both are skipped when already there (a cache hit). The SDK environment and CANGJIE_STDX_PATH
+are written to $GITHUB_ENV/$GITHUB_PATH on GitHub Actions, and printed as `export` lines otherwise.
 
 An archive comes from the GitHub mirror, else from gitcode, and is unpacked only if its sha256
 is the one in .cangjie-sha256. `pin` writes that file for <tag> from gitcode's archives, the
@@ -127,7 +128,7 @@ def pin(tag):
 
 
 def environment(home):
-    """What envsetup changes: (variables, PATH entries to prepend in order)."""
+    """SDK environment and static stdx: (variables, PATH entries to prepend in order)."""
     before = dict(os.environ)
     if platform.system() == "Windows":
         # envsetup.ps1, spelled out: it only sets CANGJIE_HOME and prepends to Path
@@ -148,6 +149,8 @@ def environment(home):
             check=True, capture_output=True, text=True,
         ).stdout
         after = json.loads(out.strip().splitlines()[-1])
+    stdx_dir = PLATFORMS[(platform.system(), platform.machine())][2]
+    after["CANGJIE_STDX_PATH"] = os.path.join(home, "third_party", "stdx", stdx_dir, "static", "stdx")
     old_path = before.get("PATH", "").split(os.pathsep)
     path = [p for p in after.get("PATH", "").split(os.pathsep) if p and p not in old_path]
     changed = {

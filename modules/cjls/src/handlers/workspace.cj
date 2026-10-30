@@ -37,6 +37,7 @@ import project_model.{
     ProjectSource,
     withCangjieHome,
     withCangjieSrc,
+    withCangjieStdxPath,
     withPackageCfgs
 }
 import rope.Rope
@@ -215,6 +216,7 @@ struct LoadRequest {
         let linkedProjects: Array<VfsPath>,
         let cangjieHome: ?String,
         let cangjieSrc: ?String,
+        let cangjieStdxPath: ?String,
         /**
          * Whether the client is shown its progress.
          */
@@ -316,6 +318,7 @@ func loadRequest(state: ServerState): ?LoadRequest {
         settings.linkedProjects,
         settings.cangjieHome,
         settings.cangjieSrc,
+        settings.cangjieStdxPath,
         state.workDoneProgress,
         state.loadBudget,
         open,
@@ -389,7 +392,7 @@ func loadProject(
     if (let Some(src) <- src) {
         logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
     }
-    let env = withCangjieSrc(withHome, src)
+    let env = withCangjieStdxPath(withCangjieSrc(withHome, src), request.cangjieStdxPath)
     let found =
         findProjects(
             request.roots,

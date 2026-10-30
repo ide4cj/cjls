@@ -296,6 +296,45 @@ class ProjectJsonTest {
 @Test
 class CjpmProjectTest {
     @TestCase
+    func stdxPathsExpandForDeclaredDependenciesOnlyAndMissingVariablesAreReported() {
+        let manifest =
+            """
+[package]
+name = "app"
+[target.x86_64-unknown-linux-gnu.bin-dependencies]
+path-option = ["\${CANGJIE_STDX_PATH}"]
+"""
+        let dir =
+            tree(
+                [
+                    ("declared/cjpm.toml", manifest),
+                    ("plain/cjpm.toml", "[package]\nname = \"plain\"\n"),
+                    ("libs/stdx/README", "")
+                ]
+            )
+        let stdx = dir.join("libs/stdx")
+        let inherited = withCangjieStdxPath(sdkEnv, stdx.toString())
+        let selected = withCangjieStdxPath(inherited, dir.join("selected/stdx").toString())
+        let declared =
+            loadCjpmProject(dir.join("declared/cjpm.toml"), env: inherited, cfg: LINUX).getOrThrow()
+        let overridden =
+            loadCjpmProject(dir.join("declared/cjpm.toml"), env: selected, cfg: LINUX).getOrThrow()
+        let plain =
+            loadCjpmProject(dir.join("plain/cjpm.toml"), env: inherited, cfg: LINUX).getOrThrow()
+        let missing =
+            loadCjpmProject(dir.join("declared/cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
+        removeTree(dir)
+
+        @Expect(declared.model.binaries[1].paths, [stdx])
+        @Expect(declared.model.modules[0].deps, ["stdx"])
+        @Expect(declared.problems.isEmpty())
+        @Expect(overridden.model.binaries[1].paths, [dir.join("selected/stdx")])
+        @Expect(plain.model.binaries.map {binary => binary.name}, ["std"])
+        @Expect(plain.model.modules[0].deps.isEmpty())
+        @Expect(missing.problems.iterator().any {problem => problem.contains("`CANGJIE_STDX_PATH` is not set")})
+    }
+
+    @TestCase
     func aWorkspaceIsItsMembersAndThePathDependenciesTheyReach() {
         // arrange
         let dir =
