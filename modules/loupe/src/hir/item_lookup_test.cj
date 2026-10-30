@@ -9,6 +9,7 @@ import rope.Rope
 class ItemLookupTest {
     @TestCase
     func nestedDeclarationsResolveByTheirOwnIdentity() {
+        // arrange
         let parsed =
             Fixture
                 .parse(
@@ -28,19 +29,36 @@ class ItemLookupTest {
         let db = parsed.database()
         let file = ItemFile.Source(db.sourceFile(parsed.files[0].fileId).getOrThrow())
         let items = itemTreeOf(db, file).items
-        @Expect(items.size, 3)
-        for (item in items) {
-            @Expect(itemOf(db, DefId(db, file, item.id)), Some(item))
-            @Expect(item.members.size, 2)
-            for (member in item.members) {
-                @Expect(itemOf(db, DefId(db, file, member.id)), Some(member))
-            }
-        }
+        let expected = items.flatMap { item => [item].concat(item.members) }
 
-        // A removed member must invalidate its cached lookup even if its owner survives.
-        let removed = DefId(db, file, items[0].members[0].id)
+        // act
+        let found = expected.map { item => itemOf(db, DefId(db, file, item.id)) }
+
+        // assert
+        @Expect(items.size, 3)
+        @Expect(items.map { item => item.members.size }, [2, 2, 2])
+        @Expect(found, expected.map { item => Some(item) })
+    }
+
+    @TestCase
+    func removingAMemberInvalidatesItsCachedLookupWhileTheOwnerSurvives() {
+        // arrange
+        let parsed = Fixture.parse("class First { var value: Int64 = 1 }")
+        let db = parsed.database()
+        let file = ItemFile.Source(db.sourceFile(parsed.files[0].fileId).getOrThrow())
+        let item = itemTreeOf(db, file).items[0]
+        let owner = DefId(db, file, item.id)
+        let removed = DefId(db, file, item.members[0].id)
+        let before = itemOf(db, removed)
+
+        // act
         db.setFileText(parsed.files[0].fileId, Rope("class First {}"))
-        @Expect(itemOf(db, removed), None)
-        @Expect(itemOf(db, DefId(db, file, items[0].id)).isSome())
+        let after = itemOf(db, removed)
+        let retained = itemOf(db, owner)
+
+        // assert
+        @Expect(before, Some(item.members[0]))
+        @Expect(after, None)
+        @Expect(retained.isSome())
     }
 }
