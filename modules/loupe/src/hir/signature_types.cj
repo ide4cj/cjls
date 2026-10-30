@@ -258,7 +258,7 @@ func aliasPath(
 }
 
 func aliasName(db: AnalysisDatabase, def: DefId): String {
-    declItemOf(db, def).flatMap { item => item.names.get(0) } ?? ""
+    itemOf(db, def).flatMap { item => item.names.get(0) } ?? ""
 }
 
 /**
@@ -330,21 +330,6 @@ func binaryGenericsOf(
     } catch (_: IndexOutOfBoundsException) {
         []
     }
-}
-
-/**
- * The item of `def`, a member of a type or an `extend` as well as a declaration of a file. A query,
- * as `itemOf`: an enum's constructors are searched among hundreds.
- */
-@CalcaTracked
-public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
-    if (let Some(item) <- itemOf(db, def)) {
-        return item
-    }
-    let parent = parentOf(db, def) ?? return None
-    let id = def.item(db)
-    let owner = itemOf(db, parent) ?? return None
-    owner.members.iterator().filter { member => member.id == id }.next()
 }
 
 /**
@@ -998,7 +983,7 @@ class BinaryTyLowering {
  * Whether the item of `def` is named `name`.
  */
 func isNamed(db: AnalysisDatabase, def: DefId, name: String): Bool {
-    declItemOf(db, def).map { item => item.names.contains(name) } ?? false
+    itemOf(db, def).map { item => item.names.contains(name) } ?? false
 }
 
 /**

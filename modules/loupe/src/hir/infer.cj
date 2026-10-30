@@ -2477,7 +2477,7 @@ class Inference {
      * The constructors of the enum `id`.
      */
     private func ctorsOf(id: DefId): Array<DefId> {
-        let item = declItemOf(db, id) ?? return []
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         item
             .members
@@ -2767,7 +2767,7 @@ class Inference {
         args: Array<Ty>,
         open!: ?GenericOwner = None
     ): Array<Callable> {
-        let item = declItemOf(db, id) ?? return []
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         let self = Ty(db, DeclTy(id, args))
         let inits =
