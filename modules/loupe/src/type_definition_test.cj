@@ -31,6 +31,22 @@ func checkTypeDefinition(fixture: String, std!: Array<String> = []): Unit {
 
 @Test
 class TypeDefinitionTest {
+    @TestCase
+    func aLocalGenericValueGoesToItsOwnParameter() {
+        checkTypeDefinition(
+            #"
+            package m
+            func f() {
+                func id<T>(x: T): T {
+            //          ^ type
+                    let value = x
+                    $0value
+                }
+            }
+            "#
+        )
+    }
+
     @TestCase[code in [
         "func f() { let $0user = User(42) }",
         "func f() { let user = User(42); $0user }",
@@ -144,7 +160,7 @@ class TypeDefinitionTest {
     }
 
     @TestCase
-    func aWrittenLocalGenericParameterHasADeclarationWithoutAnInferredType() {
+    func aWrittenLocalGenericParameterGoesToItsDeclaration() {
         checkTypeDefinition(
             #"
             //- /main.cj module=m package=m
