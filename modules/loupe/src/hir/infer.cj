@@ -2477,7 +2477,7 @@ class Inference {
      * The constructors of the enum `id`.
      */
     private func ctorsOf(id: DefId): Array<DefId> {
-        let item = declItemOf(db, id) ?? return []
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         item
             .members
@@ -2746,7 +2746,7 @@ class Inference {
      * the call's to infer; of one that declares none, the one of no parameters.
      */
     private func initCallables(id: DefId, args: Array<Ty>, open!: ?DefId = None): Array<Callable> {
-        let item = declItemOf(db, id) ?? return []
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         let self = Ty(db, DeclTy(id, args))
         let inits =
