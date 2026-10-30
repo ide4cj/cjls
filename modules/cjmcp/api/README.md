@@ -7,8 +7,9 @@ for the existing bindings, not an importable Python package. Do not run
 already in the script namespace.
 
 The first version covers every public method of `Workspace` and
-`AnalysisRevision`, common navigation/editor results, and selected HIR/inference
-fields. Types inheriting the reference-only `_Partial` helper have additional
+`AnalysisRevision`, common navigation/editor results, all variants and payload fields of the exported HIR enums, and selected
+HIR/inference record fields. `TextRange.len` is a read-only property counting
+UTF-8 bytes (`range.len`, without parentheses). Types inheriting the reference-only `_Partial` helper have additional
 members not yet described here; they are not empty native types. Private helper
 names in the stub are not injected globals. The stub is a reading aid, not a
 complete type-checking contract for arbitrary scripts. The complete registration
@@ -16,6 +17,12 @@ list is [python_types.cj](../src/python_types.cj); workspace bindings are in
 [python.cj](../src/python.cj), revision queries in [analysis.cj](../src/analysis.cj).
 Those source links require a repository checkout; the Linux artifact also ships
 this reference and the recipes.
+
+Validate enum coverage against the registered native HIR declarations with:
+
+```bash
+python3 -m unittest discover -s tests/mcp -p test_api_reference.py -v
+```
 
 ## Execution and freshness
 
