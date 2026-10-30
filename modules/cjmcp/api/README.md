@@ -53,6 +53,62 @@ python3 -m unittest discover -s tests/mcp -p test_api_reference.py -v
   hard timeout. Calls execute sequentially and scripts are never replayed
   automatically. Join any Python threads using analysis before the script returns.
 
+## Signature ranges and formatting edits
+
+Use a signature's own `TypeRefId` to locate a written type. Ranges belong to
+`analysis.definitionFile(definition)`: for `ItemFile.Expansion`, read the matching
+expansion text rather than the call site's file. Missing type references have
+`None` ranges; binary declarations have an empty source map.
+
+```python
+analysis = workspace.analysis()
+definition = analysis.declarations("src/main.cj")[0]
+lowered = analysis.signatureWithSourceMap(definition)
+result = [
+    {"type": lowered.signature.text(TypeRefId(i)), "start": span.start, "end": span.end}
+    for i, span in enumerate(lowered.sourceMap.ranges)
+    if span is not None
+]
+```
+
+Formatting returns edits without writing files or reading formatter config.
+`None` means syntax errors; `[]` means the text is already canonical. Pass
+`FormatOptions` explicitly for a policy other than the library defaults. Apply
+non-overlapping edits from the end when constructing a preview from UTF-8 bytes:
+
+```python
+analysis = workspace.analysis()
+path = "src/main.cj"
+options = FormatOptions(lineWidth=100, indentWidth=2, simpleIf=SimpleIf.Compact())
+edits = analysis.formatting(path, options=options)
+data = analysis.text(path).encode("utf-8")
+if edits is not None:
+    for edit in reversed(edits):
+        data = data[:edit.range.start] + edit.text.encode("utf-8") + data[edit.range.end:]
+result = {"preview": None if edits is None else data.decode("utf-8")}
+```
+
+`rangeFormatting(path, TextRange(start, end), options=options)` formats the
+complete enclosing syntax node. Both endpoints must be valid UTF-8 boundaries
+inside the revision text. `newFilePackageLine(path)` suggests a header for a new
+file without creating it; it also recognizes macro packages.
+`formatting(path)` and `rangeFormatting(path, range)` use the library defaults.
+When constructing `FormatOptions`, supply all three keywords: the pinned interop
+generator requires exact arguments even for native parameters with defaults.
+
+`allMembers(definition)` accepts a type, an `extend` or a member whose enclosing
+type should be inspected. It returns native `MemberTarget` variants, preserving
+overloads, inherited members, extension visibility and lookup shadowing.
+`fileSymbols(path)` gives the full outline in declaration order. Builtin docs
+come from `builtinTypeDoc`, `builtinAnnotationDoc` and `builtinMacroDoc`; use
+names without `@`, and handle `None` for unknown names.
+
+Expansion queries use byte offsets into `analysis.expansion(call).text`:
+`hoverInExpansion`, `definitionInExpansion` and `typeDefinitionInExpansion`.
+They reject missing expansion text or invalid byte positions. A hover range
+belongs to the requested expansion; each navigation target has its own
+`expansion` identity (or `None` for source), which selects the text for its ranges.
+
 ## Check the loaded workspace
 
 ```python

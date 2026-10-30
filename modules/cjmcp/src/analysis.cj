@@ -3,17 +3,30 @@ package cjmcp
 import std.collection.ArrayList
 import std.fs.Path
 import ginkgo.TextRange
+import cjformat.{FormatOptions, TextEdit}
 import loupe.Reference as AnalysisReference
 import loupe.completionDetails as nativeCompletionDetails
+import loupe.builtinTypeDoc as nativeBuiltinTypeDoc
+import loupe.builtinAnnotationDoc as nativeBuiltinAnnotationDoc
+import loupe.builtinMacroDoc as nativeBuiltinMacroDoc
+import loupe.fileSymbols as nativeFileSymbols
+import loupe.formatting as nativeFormatting
+import loupe.rangeFormatting as nativeRangeFormatting
+import loupe.hoverInExpansion as nativeHoverInExpansion
+import loupe.definitionInExpansion as nativeDefinitionInExpansion
+import loupe.typeDefinitionInExpansion as nativeTypeDefinitionInExpansion
 import loupe.{
+    BuiltinDoc,
     CompletionItem,
     CompletionResult,
     ExpandedFile,
     ExpandedMacro,
     Fold,
+    FileSymbol,
     FoundSymbol,
     HighlightedRange,
     HoverItem,
+    HoverResult,
     MacroCallAt,
     NavigationTarget,
     RelatedHighlight,
@@ -33,6 +46,8 @@ import loupe.{
 import loupe.db.SourceFile
 import loupe.hir.body as nativeBody
 import loupe.hir.signature as nativeSignature
+import loupe.hir.signatureWithSourceMap as nativeSignatureWithSourceMap
+import loupe.hir.allMembers as nativeAllMembers
 import loupe.hir.signatureTypes as nativeSignatureTypes
 import loupe.hir.supertypes as nativeSupertypes
 import loupe.hir.whenDiagnostics as nativeWhenDiagnostics
@@ -49,6 +64,7 @@ import loupe.hir.{
     ItemFile,
     ItemId,
     LoweredBody,
+    LoweredSignature,
     MacroCallId,
     MemberTarget,
     Receiver,
@@ -143,6 +159,9 @@ class AnalysisRevision {
     public func signature(def: DefId): Signature {
         nativeSignature(state.db, def)
     }
+    public func signatureWithSourceMap(def: DefId): LoweredSignature {
+        nativeSignatureWithSourceMap(state.db, def)
+    }
     public func signatureTypes(def: DefId): SignatureTypes {
         nativeSignatureTypes(state.db, def)
     }
@@ -184,6 +203,9 @@ class AnalysisRevision {
     }
     public func members(def: DefId, name: String): Array<MemberTarget> {
         membersNamed(state.db, def, name)
+    }
+    public func allMembers(def: DefId): Array<MemberTarget> {
+        nativeAllMembers(state.db, def)
     }
     public func supertypes(def: DefId): Array<ExtendedType> {
         nativeSupertypes(state.db, def)
@@ -286,11 +308,77 @@ class AnalysisRevision {
     public func symbols(query: String, limit: Int64): Array<FoundSymbol> {
         workspaceSymbols(state.db, state.files.map { p => resolve(p.toString()) }, query, limit)
     }
+    public func fileSymbols(path: String): Array<FileSymbol> {
+        nativeFileSymbols(
+            state.db,
+            state
+                .db
+                .sourceFile(resolve(path))
+                .getOrThrow { IllegalArgumentException("file has no source analysis: ${path}") }
+        )
+    }
+    public func builtinTypeDoc(name: String): ?BuiltinDoc {
+        let _ = state
+        nativeBuiltinTypeDoc(name)
+    }
+    public func builtinAnnotationDoc(name: String): ?BuiltinDoc {
+        let _ = state
+        nativeBuiltinAnnotationDoc(name)
+    }
+    public func builtinMacroDoc(name: String): ?BuiltinDoc {
+        let _ = state
+        nativeBuiltinMacroDoc(name)
+    }
+    public func newFilePackageLine(path: String): ?String {
+        state.packageLine(absolutePath(path))
+    }
+    // Explicit overloads keep the defaults available through py_interop's exact argument matching.
+    public func formatting(path: String): ?Array<TextEdit> {
+        nativeFormatting(state.db, resolve(path))
+    }
+    public func formatting(path: String, options!: FormatOptions): ?Array<TextEdit> {
+        nativeFormatting(state.db, resolve(path), options: options)
+    }
+    public func rangeFormatting(path: String, range: TextRange): ?Array<TextEdit> {
+        rangeFormatting(path, range, options: FormatOptions())
+    }
+    public func rangeFormatting(
+        path: String,
+        range: TextRange,
+        options!: FormatOptions
+    ): ?Array<TextEdit> {
+        let file = position(path, range.start)
+        position(path, range.end)
+        nativeRangeFormatting(state.db, file, range, options: options)
+    }
     public func macroCall(path: String, offset: Int64): ?MacroCallAt {
         macroCallAt(state.db, position(path, offset), offset)
     }
     public func expansion(call: MacroCallId): ?ExpandedMacro {
         expandedMacro(state.db, call)
+    }
+    public func hoverInExpansion(call: MacroCallId, offset: Int64): ?HoverResult {
+        expansionPosition(call, offset)
+        nativeHoverInExpansion(state.db, call, offset)
+    }
+    public func definitionInExpansion(call: MacroCallId, offset: Int64): Array<NavigationTarget> {
+        expansionPosition(call, offset)
+        nativeDefinitionInExpansion(state.db, call, offset)
+    }
+    public func typeDefinitionInExpansion(
+        call: MacroCallId,
+        offset: Int64
+    ): Array<NavigationTarget> {
+        expansionPosition(call, offset)
+        nativeTypeDefinitionInExpansion(state.db, call, offset)
+    }
+
+    private func expansionPosition(call: MacroCallId, offset: Int64): Unit {
+        let text =
+            expandedMacro(state.db, call)
+                .getOrThrow { IllegalArgumentException("macro expansion is unavailable") }
+                .text
+        checkOffset(text.toArray(), offset)
     }
 
     private func collect(file: ItemFile, items: Array<Item>, result: ArrayList<DefId>): Unit {
@@ -300,10 +388,12 @@ class AnalysisRevision {
         }
     }
     private func resolve(path: String): FileId {
-        let absolute =
-            if (Path(path).isAbsolute()) { VfsPath.file(path) } else { state.root.join(path) }
+        let absolute = absolutePath(path)
         state.vfs.fileId(absolute) ??
             throw IllegalArgumentException("file is not loaded: ${absolute}")
+    }
+    private func absolutePath(path: String): VfsPath {
+        if (Path(path).isAbsolute()) { VfsPath.file(path) } else { state.root.join(path) }
     }
     private func position(path: String, offset: Int64): FileId {
         let file = resolve(path)
@@ -314,12 +404,15 @@ class AnalysisRevision {
                 .getOrThrow { IllegalStateException("loaded file has no contents") }
                 .toString()
                 .toArray()
+        checkOffset(text, offset)
+        file
+    }
+    private func checkOffset(text: Array<Byte>, offset: Int64): Unit {
         if (
             offset < 0 || offset > text.size ||
                 (offset < text.size && (text[offset] & 0xC0) == 0x80)
         ) {
-            throw IllegalArgumentException("offset must be a UTF-8 byte boundary within the file")
+            throw IllegalArgumentException("offset must be a UTF-8 byte boundary within the text")
         }
-        file
     }
 }

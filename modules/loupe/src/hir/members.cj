@@ -218,6 +218,21 @@ public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<
 }
 
 /**
+ * Every member of a type or extend, or visible around a member as membersNamed sees it.
+ * Includes inherited and visible extension members, preserving overloads and lookup shadowing.
+ */
+public func allMembers(db: AnalysisDatabase, def: DefId): Array<MemberTarget> {
+    let (start, on) =
+        match (def.item(db).kind) {
+            case Class | Interface | Struct | Enum =>
+                (ExtendedType.DeclType(canonicalDef(db, def)), Some(selfTyOf(db, def)))
+            case Extend => (extendedTypeOf(db, def) ?? return [], signatureTypes(db, def).ty)
+            case _ => (enclosingTypeOf(db, def) ?? return [], selfTyAround(db, def))
+        }
+    allMembers(db, [completedType(db, start)], from: sourceFileOf(db, def), on: on)
+}
+
+/**
  * The type the body of `def`, a member, is in, as its members see it: its type's own, its type
  * parameters its arguments (`C<T>`), or the type its `extend` extends (`Box<String>`); `None`
  * outside a type.
