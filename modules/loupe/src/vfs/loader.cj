@@ -145,7 +145,7 @@ private class Walk {
     }
 
     func readSourceFile(path: VfsPath): Unit {
-        let text = readFile(path) ?? return ()
+        let text = readFile(path) ?? return;
         if (text.size > budget) {
             truncated = true
             return

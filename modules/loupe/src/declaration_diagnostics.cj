@@ -208,12 +208,12 @@ func checkDeclarationAnnotation(
     inheritedForeign: Bool,
     found: ArrayList<Diagnostic>
 ): Unit {
-    let name = annotation.nameRef()?.text() ?? return ()
-    let kind = declarationKind(node) ?? return ()
+    let name = annotation.nameRef()?.text() ?? return
+    let kind = declarationKind(node) ?? return
     let function = kind == "function"
     let isForeign = inheritedForeign || declarationHas(node, SyntaxKind.ForeignKw)
     let nested = local || owner.isSome()
-    let point = annotation.atToken()?.textRange ?? return ()
+    let point = annotation.atToken()?.textRange ?? return
     let whole = annotation.syntax.textRange
     if (
         node.kind == SyntaxKind.MainDecl && ["Frozen", "FastNative", "CallingConv"].contains(name)
@@ -285,7 +285,7 @@ func checkDeclarationAnnotation(
                         .expr()
                         .flatMap { expr => RefExpr.cast(expr.syntax) }
                 ) {
-                    let convention = refExpr.nameRef()?.text() ?? return ()
+                    let convention = refExpr.nameRef()?.text() ?? return;
                     if (convention == "CDECL") {
                         None
                     } else {
@@ -343,7 +343,7 @@ func checkDeclarationModifiers(
                 )
             )
     }
-    let parent = owner ?? return ()
+    let parent = owner ?? return;
     if (parent.kind != SyntaxKind.ClassDecl) {
         return
     }
@@ -362,7 +362,7 @@ func checkDeclarationModifiers(
                     declarationHas(parent, SyntaxKind.SealedKw)
             )
     ) {
-        let name = AnyHasName.cast(parent)?.name()?.text() ?? return ()
+        let name = AnyHasName.cast(parent)?.name()?.text() ?? return
         let modifier =
             if (declarationHas(parent, SyntaxKind.OpenKw) ||
                 declarationHas(parent, SyntaxKind.SealedKw)) {
@@ -427,7 +427,7 @@ func checkDeclarationModifiers(
         abstractMember && (!abstractClass || declarationHas(node, SyntaxKind.StaticKw)) &&
             !declarationHas(parent, SyntaxKind.ForeignKw)
     ) {
-        let name = AnyHasName.cast(node)?.name()?.text() ?? return ()
+        let name = AnyHasName.cast(node)?.name()?.text() ?? return;
         found
             .add(
                 Diagnostic(
@@ -619,13 +619,13 @@ func checkExtendMutModifiers(
     node: CjSyntaxNode,
     found: ArrayList<Diagnostic>
 ): Unit {
-    let (_, ids) = syntaxOf(db, file) ?? return ()
-    let id = ids.idAround(node) ?? return ()
-    let ty = signatureTypes(db, DefId(db, file, id)).ty ?? return ()
+    let (_, ids) = syntaxOf(db, file) ?? return
+    let id = ids.idAround(node) ?? return
+    let ty = signatureTypes(db, DefId(db, file, id)).ty ?? return
     let name: String =
         match (ty.kind(db)) {
             case DeclTy(def, _) where def.item(db).kind != ItemKind.Struct =>
-                (itemOf(db, def) ?? return ()).names.get(0) ?? return ()
+                (itemOf(db, def) ?? return).names.get(0) ?? return;
             case PrimTy(name) => name
             case _ => return
         }

@@ -337,7 +337,5 @@ func isStdCall(call: MacroCallData): Bool {
 func killQuietly(server: MacroServerProcess): Unit {
     try {
         server.kill()
-    } catch (_: Exception) {
-        ()
-    }
+    } catch (_: Exception) {}
 }

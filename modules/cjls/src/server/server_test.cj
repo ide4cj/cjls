@@ -74,7 +74,7 @@ func lifecycleRouter(): Router {
             _: Context<InitializeParams> =>
             InitializeResult(capabilities: ServerCapabilities())
         }
-        .route(ShutdownRequestSpec()) { _: Context<Unit> => () }
+        .route(ShutdownRequestSpec()) { _: Context<Unit> =>  }
 }
 
 func serverOf(router: Router, client!: Client = Client()): Server {
@@ -573,12 +573,12 @@ class RouterTest {
     @TestCase
     func twoHandlersForOneMethodAreRefused() {
         // act & assert
-        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_: Context<Unit> => ()})
+        @AssertThrows[IllegalArgumentException](lifecycleRouter().route(ShutdownRequestSpec()) {_: Context<Unit> =>})
     }
 
     @TestCase
     func aLifecycleMethodHandledOffTheReadLoopIsRefused() {
         // act & assert - whatever arrives after `shutdown` has to see the state it leaves
-        @AssertThrows[IllegalArgumentException](Router().route(ShutdownRequestSpec()) {_: ReadOnlyContext<Unit> => ()})
+        @AssertThrows[IllegalArgumentException](Router().route(ShutdownRequestSpec()) {_: ReadOnlyContext<Unit> =>})
     }
 }

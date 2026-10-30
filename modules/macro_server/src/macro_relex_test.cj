@@ -20,9 +20,7 @@ func relexSources(): Array<String> {
         try {
             cangjieLex(value)
             sources.add(value)
-        } catch (_: Exception) {
-            ()
-        }
+        } catch (_: Exception) {}
     }
     sources
         .add(

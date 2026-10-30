@@ -264,9 +264,7 @@ private func baseOfCacheDir(dir: VfsPath): ?VfsPath {
         if (exists(dirPath.join("LAYOUT")) && exists(dirPath.join(BASE_FILE))) {
             return VfsPath.file(String.fromUtf8(File.readFrom(dirPath.join(BASE_FILE))))
         }
-    } catch (_: FSException) {
-        ()
-    }
+    } catch (_: FSException) {}
     None
 }
 

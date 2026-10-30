@@ -27,9 +27,7 @@ public struct AnalysisStatsRequestSpec <: LspInboundRequest<Unit, AnalysisStats>
         }
     }
 
-    public func decodeParams(_: ?RawJson): Unit {
-        ()
-    }
+    public func decodeParams(_: ?RawJson): Unit {}
 
     public func decodeParams(r: FjReader): Unit {
         r.skipValue()
