@@ -238,9 +238,7 @@ public class FtWriter {
 
     public func endTableArray(): Unit {
         match (top().kind) {
-            case TableArrayFrame =>
-                pop()
-                ()
+            case TableArrayFrame => pop()
             case _ => endArray()
         }
     }

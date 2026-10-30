@@ -124,9 +124,7 @@ public class MacroBuilder {
         }
         try {
             File.writeTo(stampFile, "${stamp}".toArray())
-        } catch (_: Exception) {
-            ()
-        }
+        } catch (_: Exception) {}
         Built(output, stamp)
     }
 
@@ -215,9 +213,7 @@ func sourcesOf(dir: Path): Array<String> {
             }
             found.add("${entry.name}:${hasher.finish()}")
         }
-    } catch (_: Exception) {
-        ()
-    }
+    } catch (_: Exception) {}
     let sorted = found.toArray()
     sort(sorted)
     sorted

@@ -125,7 +125,6 @@ struct Decimal {
                 }
             } else if (b == 0x5F) {
                 // `_`, placed by the caller's grammar
-                ()
             } else if (b == 0x2E && !afterPoint) {
                 afterPoint = true
             } else {

@@ -12,7 +12,7 @@ import loupe.hir.*
  */
 func resolveEveryBodyName(
     ws: BenchWorkspace,
-    onFailed!: (SourceFile, DefId, String, BodyResolution) -> Unit = { _, _, _, _ => () }
+    onFailed!: (SourceFile, DefId, String, BodyResolution) -> Unit = { _, _, _, _ =>  }
 ): Int64 {
     var resolved = 0
     for ((_, file, _) in ws.files) {

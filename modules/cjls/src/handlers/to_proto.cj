@@ -3,9 +3,11 @@ package cjls.handlers
 import std.collection.ArrayList
 import rope.{Encoding, LineColumn, PositionCursor, Rope}
 import loupe.{
+    CallHierarchyEntry,
     FileSymbol,
     Fold,
     FoldKind,
+    HierarchyCalls,
     HighlightedRange,
     HighlightModifier,
     HighlightModifiers,
@@ -20,6 +22,7 @@ import loupe.{HoverItem, HoverResult, Reference, RelatedHighlight, ReferenceAcce
 import loupe.Diagnostic as LoupeDiagnostic
 import loupe.TextEdit as LoupeTextEdit
 import cjls.lsp_types.*
+import cjls.server.ServerSnapshot
 import cjls.lsp_types.Range as LspRange
 
 /**
@@ -550,4 +553,42 @@ class SemanticTokensData {
     func toArray(): Array<UInt32> {
         data.toArray()
     }
+}
+
+/**
+ * A hierarchy declaration in the snapshot's document and negotiated encoding.
+ */
+func callHierarchyItem(snap: ServerSnapshot, entry: CallHierarchyEntry): CallHierarchyItem {
+    let target = entry.target
+    let file =
+        snap.analysis.sourceFile(target.fileId) ??
+            throw IllegalStateException("call hierarchy target has no source in its snapshot")
+    let text = file.text(snap.analysis)
+    CallHierarchyItem(
+        name: entry.name,
+        kind: symbolKind(entry.kind),
+        uri: snap.path(target.fileId).toUri(),
+        range: lspRange(text, target.fullRange.start, target.fullRange.end, snap.encoding),
+        selectionRange: lspRange(
+            text,
+            target.focusRange.start,
+            target.focusRange.end,
+            snap.encoding
+        )
+    )
+}
+
+/**
+ * Call sites use the caller's text even when the callee lives in another document.
+ */
+func callRanges(
+    snap: ServerSnapshot,
+    calls: HierarchyCalls,
+    caller: CallHierarchyEntry
+): Array<LspRange> {
+    let file =
+        snap.analysis.sourceFile(caller.target.fileId) ??
+            throw IllegalStateException("call hierarchy caller has no source in its snapshot")
+    let text = file.text(snap.analysis)
+    calls.ranges.map { range => lspRange(text, range.start, range.end, snap.encoding) }
 }
