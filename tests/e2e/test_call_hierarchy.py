@@ -1,7 +1,10 @@
 """Call hierarchy items round trip through all three requests over stdio."""
 
+from pathlib import Path
+
 import pytest
 from lsprotocol import types
+from pygls.uris import to_fs_path
 from pytest_lsp import LanguageClient
 
 from conftest import CLIENTS, capabilities, loaded
@@ -45,9 +48,9 @@ async def test_call_hierarchy_round_trip(server: LanguageClient, tmp_path, edito
     assert result.capabilities.call_hierarchy_provider
     assert len(roots) == len(incoming) == len(outgoing) == 1
     assert incoming[0].from_.name == "caller"
-    assert incoming[0].from_.uri == caller.as_uri()
+    assert Path(to_fs_path(incoming[0].from_.uri)) == caller
     assert outgoing[0].to.name == "target"
-    assert outgoing[0].to.uri == target.as_uri()
+    assert Path(to_fs_path(outgoing[0].to.uri)) == target
     assert len(incoming[0].from_ranges) == 2
     assert outgoing[0].from_ranges == incoming[0].from_ranges
 
