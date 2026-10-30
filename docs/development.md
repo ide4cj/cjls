@@ -134,6 +134,26 @@ bash .github/scripts/check-linux-compat.sh target/release/bin/cjls
 
 Project formatting policy is documented in [Formatter configuration](formatting.md).
 
+### Nix package
+
+On `x86_64-linux`, build the flake's default package:
+
+```bash
+nix build
+./result/bin/cjls --config-schema
+```
+
+[`flake.nix`](../flake.nix) locks nixpkgs from `nixos-26.05` and the `cangjie-nix`
+input. The package uses `cangjie-nix.packages.x86_64-linux.nightly`, including its
+bundled stdx, rather than the SDK installer pin in `.cangjie-version`. Consumers
+can add this flake's default package to their NixOS or Home Manager configuration;
+no sibling checkout or SDK environment is required.
+
+[`package.nix`](../package.nix) preserves the manifest's optimization and static
+Cangjie linking and consumes the nightly SDK directly. SDK ELF fixups are handled
+by `cangjie-nix`'s `autoPatchelfHook`. The installed server's dynamic
+glibc/libstdc++ dependencies come from Nix, rather than the Ubuntu release baseline.
+
 ## Choose checks for a change
 
 | Change | Start with | Broader verification |

@@ -1,0 +1,48 @@
+{
+  "nodes": {
+    "cangjie-nix": {
+      "inputs": {
+        "nixpkgs": [
+          "nixpkgs"
+        ]
+      },
+      "locked": {
+        "lastModified": 1793277288,
+        "narHash": "sha256-a+QQ9EAw9QpCwZr/ueM3WdZKaq3EONYOYBymSShevlc=",
+        "owner": "ide4cj",
+        "repo": "cangjie-nix",
+        "rev": "cb268fde313726cbd712125fa6931e0d2095c66f",
+        "type": "github"
+      },
+      "original": {
+        "owner": "ide4cj",
+        "repo": "cangjie-nix",
+        "type": "github"
+      }
+    },
+    "nixpkgs": {
+      "locked": {
+        "lastModified": 1792898606,
+        "narHash": "sha256-Mg3rRjsbMqhSMxop5PYMXos8SwAjejrxSgVThTvP9eg=",
+        "owner": "NixOS",
+        "repo": "nixpkgs",
+        "rev": "1f607aa79b6356ed45d3cd3c8079c196e79efa2c",
+        "type": "github"
+      },
+      "original": {
+        "owner": "NixOS",
+        "ref": "nixos-26.05",
+        "repo": "nixpkgs",
+        "type": "github"
+      }
+    },
+    "root": {
+      "inputs": {
+        "cangjie-nix": "cangjie-nix",
+        "nixpkgs": "nixpkgs"
+      }
+    }
+  },
+  "root": "root",
+  "version": 7
+}
