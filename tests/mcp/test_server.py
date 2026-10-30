@@ -76,6 +76,13 @@ result = i + 1
             )
             source = "package sample\n// привет\npublic func answer(): Int64 { let local = identity(shared()); local }\nmain() { answer() }\n"
             (root / "src/main.cj").write_text(source, encoding="utf-8", newline="\n")
+            (root / "src/nested.cj").write_text(
+                "package sample\n"
+                "class First { var value: Int64 = 1; func read(): Int64 { value } }\n"
+                "class Second { var value: Int64 = 2; func read(): Int64 { value } }\n"
+                "enum Choice { Left | Right(Int64) }\n",
+                encoding="utf-8", newline="\n",
+            )
             process = subprocess.Popen(
                 [BINARY, "--dir", str(root)], stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
@@ -191,6 +198,22 @@ result = i + 1
                     result = True
                 """)
                 self.assertTrue(recovered["result"])
+
+                nested = run("""
+                    a = workspace.analysis()
+                    declarations = a.declarations('src/nested.cj')
+                    items = [a.item(d) for d in declarations]
+                    assert all(isinstance(item, Item) for item in items), items
+                    by_id = dict(zip(declarations, items))
+                    members = [d for d in declarations if a.parent(d) is not None]
+                    assert len(members) == 6, members
+                    for d in members:
+                        item = by_id[d]
+                        assert item.id == a.definitionItem(d)
+                        assert item in by_id[a.parent(d)].members
+                    result = sorted(name for d in members for name in by_id[d].names)
+                """)
+                self.assertEqual(nested["result"], ["Left", "Right", "read", "read", "value", "value"])
 
                 # act - inspect generic inference and its HIR, then navigate the selected callee
                 inference = run(f"""
