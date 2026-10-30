@@ -145,7 +145,7 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
     let addInItem =
         {
             item: ItemId, top: ItemId =>
-            let calls = inItems.get(item) ?? return ()
+            let calls = inItems.get(item) ?? (return)
             for (one in calls) {
                 let owner = pkg ?? break
                 let path = one.name.split(".")
