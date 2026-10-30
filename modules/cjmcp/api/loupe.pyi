@@ -1583,6 +1583,14 @@ class InferenceDiagnostic(_Partial):
     ArgCount: ClassVar[type[_InferenceDiagnosticArgCount]]
     ArgName: ClassVar[type[_InferenceDiagnosticArgName]]
     InvalidBinaryOperator: ClassVar[type[_InferenceDiagnosticInvalidBinaryOperator]]
+    CustomAnnotationPlace: ClassVar[type[_InferenceDiagnosticCustomAnnotationPlace]]
+
+
+class _InferenceDiagnosticCustomAnnotationPlace(InferenceDiagnostic):
+    __match_args__: ClassVar[tuple[str, ...]] = ('field0',)
+    def __init__(self, field0: ExprId) -> None: ...
+    @property
+    def field0(self) -> ExprId: ...
 
 
 class _InferenceDiagnosticTypeMismatch(InferenceDiagnostic):
