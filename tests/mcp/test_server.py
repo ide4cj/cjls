@@ -321,6 +321,9 @@ result = i + 1
                 """)
                 self.assertIn("identity", inference["result"])
 
+                self._check_query_exports(root, run)
+                self._check_call_hierarchy(root, run)
+
                 # act - fd output, exceptions and unserializable objects stay off the MCP wire
                 captured = run("""
                     import ctypes, os, sys
@@ -473,18 +476,187 @@ result = i + 1
                 # Report native/Python startup failures even when an earlier RPC saw EOF.
                 self.assertEqual(process.returncode, 0, stderr)
 
+    def _check_query_exports(self, root, run):
+        # Exercise the Python converters as well as the queries, including byte ranges after Unicode.
+        (root / "src/types.cj").write_text(textwrap.dedent("""\
+            package sample
+            // типы
+            open class Base { public func inherited(): Int64 { 1 } }
+            class Box<T> <: Base {
+                public func pick(value: T): T { value }
+                public func pick(value: T, other: T): T { other }
+            }
+            extend<T> Box<T> { public func extra(): Int64 { 2 } }
+        """), encoding="utf-8", newline="\n")
+        (root / "src/format.cj").write_text(
+            'package sample\n// привет\nfunc layout() {\nlet n = if (true) { 1 } else { 2 }\n}\n',
+            encoding="utf-8", newline="\n",
+        )
+        (root / "src/broken.cj").write_text("package sample\nfunc broken(value:) {}\n", encoding="utf-8")
+        (root / "src/canonical.cj").write_text("package sample\n", encoding="utf-8")
+        response = run("""
+            a = workspace.analysis()
+            defs = a.declarations('src/types.cj')
+            roots = [item for d in defs if (item := a.item(d)) is not None]
+            box = next(d for d in defs if (item := a.item(d)) is not None and 'Box' in item.names)
+            # Read nested item names through their owning Item, independent of item(def) traversal.
+            by_id = {item.id: item for root in roots for item in [root, *root.members]}
+            members = a.allMembers(box)
+            assert members and all(isinstance(m, MemberTarget) for m in members)
+            names = [name for member in members for name in by_id[a.definitionItem(member.field0)].names]
+            assert names.count('pick') == 2, names
+            assert 'inherited' in names and 'extra' in names, names
+            assert a.allMembers(next(d for d in a.declarations('src/main.cj')
+                                     if 'answer' in a.item(d).names)) == []
+            pick = next(d for d in defs if 'pick' in by_id[a.definitionItem(d)].names)
+            assert len(a.members(pick, 'pick')) == 2
+            assert a.allMembers(pick) == members
+            lowered = a.signatureWithSourceMap(pick)
+            assert isinstance(lowered, LoweredSignature)
+            assert isinstance(lowered.sourceMap, SignatureSourceMap)
+            sig = lowered.signature
+            ranges = lowered.sourceMap.ranges
+            assert len(ranges) == len(sig.types)
+            data = a.text('src/types.cj').encode('utf-8')
+            for index, span in enumerate(ranges):
+                assert isinstance(span, TextRange)
+                assert data[span.start:span.end].decode('utf-8') == sig.text(TypeRefId(index))
+                assert lowered.sourceMap.typeAtRange(span) == TypeRefId(index)
+            assert lowered.sourceMap.typeAtRange(TextRange(0, 0)) is None
+            main = next(d for d in a.declarations('src/main.cj') if a.item(d).kind == ItemKind.Main())
+            assert a.signatureWithSourceMap(main).sourceMap.ranges == []
+            missing = a.declarations('src/broken.cj')[0]
+            assert None in a.signatureWithSourceMap(missing).sourceMap.ranges
+            symbols = a.fileSymbols('src/types.cj')
+            assert all(isinstance(s, FileSymbol) for s in symbols)
+            assert [s.name for s in symbols].count('pick') == 2
+            assert all(s.containerName == 'Box' for s in symbols if s.name == 'pick')
+            for query, name in [(a.builtinTypeDoc, 'Int64'),
+                                (a.builtinAnnotationDoc, 'When'),
+                                (a.builtinMacroDoc, 'sourceLine')]:
+                doc = query(name)
+                assert isinstance(doc, BuiltinDoc) and doc.name == name and doc.code and doc.summary
+                assert query('missingBuiltin') is None
+            assert a.newFilePackageLine('src/new.cj') == 'package sample'
+            assert a.newFilePackageLine('src/child/new.cj') == 'package sample.child'
+            assert a.newFilePackageLine('outside/new.cj') is None
+            original = a.text('src/format.cj')
+            edits = a.formatting('src/format.cj')
+            assert edits and all(isinstance(edit, TextEdit) for edit in edits)
+            assert edits[0] == TextEdit(edits[0].range, edits[0].text)
+            options = FormatOptions(lineWidth=100, indentWidth=2, simpleIf=SimpleIf.Compact())
+            assert options.lineWidth == 100 and options.indentWidth == 2
+            assert isinstance(options.simpleIf, SimpleIf.Compact)
+            def apply(edits):
+                data = original.encode('utf-8')
+                for edit in reversed(edits):
+                    data = data[:edit.range.start] + edit.text.encode('utf-8') + data[edit.range.end:]
+                return data.decode('utf-8')
+            formatted = apply(a.formatting('src/format.cj', options=options))
+            assert '\\n  let n = if (true) { 1 } else { 2 }\\n' in formatted, formatted
+            start = original.encode('utf-8').index(b'let n')
+            ranged = a.rangeFormatting('src/format.cj', TextRange(start, start + 3), options=options)
+            assert ranged and '\\n  let n' in apply(ranged)
+            assert a.text('src/format.cj') == original
+            assert a.formatting('src/broken.cj') is None
+            assert a.formatting('src/canonical.cj') == []
+            assert a.rangeFormatting('src/broken.cj', TextRange(0, 0)) is None
+            for action in [lambda: FormatOptions(lineWidth=100, indentWidth=0, simpleIf=SimpleIf.Multiline()),
+                           lambda: a.rangeFormatting('src/format.cj', TextRange(0, 10000)),
+                           lambda: a.rangeFormatting('src/format.cj', TextRange(0, original.encode().index('п'.encode()) + 1))]:
+                try:
+                    action()
+                except RuntimeError:
+                    pass
+                else:
+                    raise AssertionError('invalid formatting input was accepted')
+            result = True
+        """)
+        self.assertTrue(response["result"])
+
+    def _check_call_hierarchy(self, root, run):
+        (root / "src/caller.cj").write_text(
+            "package sample\n// вызовы\nfunc caller() { leaf(); leaf() }\n",
+            encoding="utf-8", newline="\n",
+        )
+        (root / "src/leaf.cj").write_text(
+            "package sample\npublic func leaf() {}\n", encoding="utf-8", newline="\n",
+        )
+        response = run("""
+            a = workspace.analysis()
+            caller_text = a.text('src/caller.cj').encode('utf-8')
+            leaf_text = a.text('src/leaf.cj').encode('utf-8')
+            caller = a.prepareCallHierarchy('src/caller.cj', caller_text.index(b'caller'))[0]
+            leaf = a.prepareCallHierarchy('src/leaf.cj', leaf_text.index(b'leaf'))[0]
+            assert isinstance(caller, CallHierarchyEntry) and caller.name == 'caller'
+            assert caller.kind == StructureKind.Function()
+            assert isinstance(caller.target, NavigationTarget)
+            assert caller == CallHierarchyEntry(caller.name, caller.kind, caller.target)
+            assert caller != leaf
+            assert a.prepareCallHierarchy('src/caller.cj', caller_text.index(b'leaf')) == [leaf]
+            outgoing = a.outgoingCalls(caller)
+            incoming = a.incomingCalls(leaf)
+            assert len(outgoing) == len(incoming) == 1
+            assert isinstance(outgoing[0], HierarchyCalls)
+            assert outgoing[0].item == leaf and incoming[0].item == caller
+            assert outgoing[0].ranges == incoming[0].ranges
+            assert len(outgoing[0].ranges) == 2
+            assert all(caller_text[r.start:r.end] == b'leaf' for r in outgoing[0].ranges)
+            assert a.path(caller.target.fileId).endswith('/src/caller.cj')
+            assert a.path(outgoing[0].item.target.fileId).endswith('/src/leaf.cj')
+            assert a.incomingCalls(caller) == [] and a.outgoingCalls(leaf) == []
+            assert a.prepareCallHierarchy('src/caller.cj', 0) == []
+            group = HierarchyCalls(leaf, outgoing[0].ranges)
+            assert group.item == leaf and group.ranges == outgoing[0].ranges
+            diagnostic = InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
+            assert diagnostic.field0 == ExprId(3)
+            assert diagnostic == InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
+            assert diagnostic != InferenceDiagnostic.CustomAnnotationPlace(ExprId(4))
+            for offset in [-1, len(caller_text) + 1, caller_text.index('в'.encode()) + 1]:
+                try:
+                    a.prepareCallHierarchy('src/caller.cj', offset)
+                except RuntimeError as error:
+                    assert 'UTF-8 byte boundary' in str(error), str(error)
+                else:
+                    raise AssertionError('invalid call hierarchy offset was accepted')
+            import builtins
+            builtins._cjmcp_hierarchy = (a, caller)
+            result = True
+        """)
+        self.assertTrue(response['result'])
+        with (root / "src/leaf.cj").open('a', encoding='utf-8') as source:
+            source.write('\n// new revision\n')
+        stale = run("""
+            import builtins
+            old, entry = builtins._cjmcp_hierarchy
+            for query in [old.incomingCalls, old.outgoingCalls]:
+                try:
+                    query(entry)
+                except RuntimeError as error:
+                    assert 'ContentModified' in str(error), str(error)
+                else:
+                    raise AssertionError('stale hierarchy query was accepted')
+            del builtins._cjmcp_hierarchy
+            result = True
+        """)
+        self.assertTrue(stale['result'])
+
     def _check_macros(self, root, run):
         # Expansion finishes before analysis() returns, including after a macro library changes.
         counter = root / "expansion-count"
         macro_dir = root / "src/ms"
         macro_dir.mkdir()
+        macro_output = '''quote(public func generated(): Int64 { 41 }
+          public class Generated {}
+          public func greeting(): String { "привет" }
+          public func typed(value: Generated): Generated { value })'''
         macro_source = """macro package sample.ms
 import std.ast.*
 public macro Emit(input: Tokens): Tokens {
-    quote(public func generated(): Int64 { 41 })
+    EMITTED_TOKENS
 }
 public macro Pass(input: Tokens): Tokens { input }
-"""
+""".replace("EMITTED_TOKENS", macro_output)
         macro_source = macro_source.replace(
             "import std.ast.*", "import std.ast.*\nimport std.fs.File",
         ).replace(
@@ -511,6 +683,34 @@ main() { generated() }
             expansion = old.expansion(call.call)
             assert expansion.kind == ExpansionKind.ServerExpansion()
             assert 'generated' in expansion.text and '41' in expansion.text, expansion.text
+            text = expansion.text.encode('utf-8')
+            offset = text.rindex(b'value')
+            hover = old.hoverInExpansion(call.call, offset)
+            assert isinstance(hover, HoverResult) and hover.items
+            assert text[hover.range.start:hover.range.end] == b'value'
+            targets = old.definitionInExpansion(call.call, offset)
+            assert targets and all(isinstance(t, NavigationTarget) for t in targets)
+            for target in targets:
+                target_text = (old.text(old.path(target.fileId)) if target.expansion is None
+                               else old.expansion(target.expansion).text).encode('utf-8')
+                # SDK output may attribute a generated token to the nested @Emit call.
+                assert target_text[target.focusRange.start:target.focusRange.end] in [b'value', b'@Emit']
+            types = old.typeDefinitionInExpansion(call.call, offset)
+            assert types and all(isinstance(t, NavigationTarget) for t in types)
+            for target in types:
+                target_text = (old.text(old.path(target.fileId)) if target.expansion is None
+                               else old.expansion(target.expansion).text).encode('utf-8')
+                assert target_text[target.focusRange.start:target.focusRange.end] in [b'Generated', b'@Emit']
+            bad_offsets = [-1, len(text) + 1, text.index('п'.encode()) + 1]
+            for query in [old.hoverInExpansion, old.definitionInExpansion, old.typeDefinitionInExpansion]:
+                for bad in bad_offsets:
+                    try:
+                        query(call.call, bad)
+                    except RuntimeError as error:
+                        assert 'UTF-8 byte boundary' in str(error), str(error)
+                    else:
+                        raise AssertionError('invalid expansion offset was accepted')
+            assert old.newFilePackageLine('src/ms/new.cj') == 'macro package sample.ms'
             derive = old.macroCall('src/main.cj', {macro_use.index('@Derive')})
             assert old.expansion(derive.call).kind == ExpansionKind.ServerExpansion()
             assert workspace.diagnostics('src/main.cj') == [], [d.message for d in workspace.diagnostics('src/main.cj')]
@@ -581,7 +781,7 @@ main() { generated() }
 
         # A macro exception is retained as an expansion problem, and a later reload can recover.
         (macro_dir / "macros.cj").write_text(
-            macro_source.replace('quote(public func generated(): Int64 { 41 })',
+            macro_source.replace(macro_output,
                                  'throw Exception("expansion probe failed")'),
             encoding="utf-8", newline="\n",
         )
@@ -595,7 +795,7 @@ main() { generated() }
 
         # Build failure is visible without making a partially expanded revision look complete.
         (macro_dir / "macros.cj").write_text(
-            macro_source.replace('quote(public func generated(): Int64 { 41 })', 'missingName'),
+            macro_source.replace(macro_output, 'missingName'),
             encoding="utf-8", newline="\n",
         )
         failed_build = run("""

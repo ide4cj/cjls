@@ -29,22 +29,33 @@ import loupe.hir.{
 }
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A callable declaration with source locations, independent of protocol positions.
  */
-@Derive[Equatable]
-public struct CallHierarchyEntry {
+@DerivePython
+public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
     public CallHierarchyEntry(
         public let name: String,
         public let kind: StructureKind,
         public let target: NavigationTarget
     ) {}
+
+    public operator func ==(other: CallHierarchyEntry): Bool {
+        name == other.name && kind == other.kind && target == other.target
+    }
+
+    public operator func !=(other: CallHierarchyEntry): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
  */
+@DerivePython
 public struct HierarchyCalls {
     public HierarchyCalls(
         public let item: CallHierarchyEntry,
