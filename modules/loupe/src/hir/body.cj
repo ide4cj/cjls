@@ -6,6 +6,7 @@ import ginkgo.{Kind, SyntaxElement, SyntaxNodePtr}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     Arg,
+    AnyHasName,
     ArgList,
     Block,
     CatchClause,
@@ -23,6 +24,7 @@ import cjsyntax.ast.{
     Name,
     NameRef,
     ParamList,
+    VarDecl,
     PathSegment,
     Pattern,
     QuoteInterpolation,
@@ -402,6 +404,25 @@ public enum Pat {
     | EnumPat(Array<String>, Array<PatId>)
 }
 
+/** The declaration's identity for evaluating annotation arguments before its bindings enter scope. */
+@Derive[Equatable, Hashable]
+public enum AnnotationOwner {
+    | AnnotatedPattern(PatId)
+    | AnnotatedFunction(Int64)
+}
+
+/** A possible custom annotation on a local declaration; resolution distinguishes it from a macro. */
+@Derive[Equatable]
+public struct LocalAnnotation {
+    public LocalAnnotation(
+        public let path: Array<String>,
+        public let args: Array<CallArg>,
+        public let target: ExprId,
+        public let owner: AnnotationOwner,
+        public let wrappers: Array<Array<String>>
+    ) {}
+}
+
 /**
  * What a declaration's body is lowered to, nothing of where it is written: rust-analyzer's `Body`.
  * An edit that does not change its code, a blank line or a comment, an edit elsewhere in the file,
@@ -433,7 +454,9 @@ public struct Body {
         /**
          * What the macros on it take as code in their `[...]`, outermost first.
          */
-        public let attrs!: Array<DeclAttr> = []
+        public let attrs!: Array<DeclAttr> = [],
+        /** Possible custom annotations; constructor typing decides whether placement can be checked. */
+        public let annotations!: Array<LocalAnnotation> = []
     ) {}
 
     public operator func [](id: ExprId): Expr {
@@ -510,6 +533,12 @@ struct ExprSourceAlias {
     ExprSourceAlias(let source: BodySource, let expr: ExprId) {}
 }
 
+/** The declaration targeted by a possible custom annotation, apart from its synthetic callee. */
+@Derive[Equatable]
+public struct AnnotationSource {
+    public AnnotationSource(public let anchor: ExprId, public let source: BodySource) {}
+}
+
 /**
  * Where each expression, pattern, local and type of a body is written: a local by its name; and the
  * other way round, by hash, for what asks of every name of a file.
@@ -519,6 +548,8 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     public let pats: Array<BodyOrigin>
     public let locals: Array<BodyOrigin>
     public let types: Array<BodyOrigin>
+    /** Placement targets kept separate from their synthetic constructor callee expressions. */
+    public let annotations: Array<AnnotationSource>
     private let aliases: Array<ExprSourceAlias>
     private let exprIndex: BodySourceIndex
     private let patIndex: BodySourceIndex
@@ -530,12 +561,14 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
         pats!: Array<BodyOrigin> = [],
         locals!: Array<BodyOrigin> = [],
         types!: Array<BodyOrigin> = [],
+        annotations!: Array<AnnotationSource> = [],
         aliases!: Array<ExprSourceAlias> = []
     ) {
         this.exprs = exprs
         this.pats = pats
         this.locals = locals
         this.types = types
+        this.annotations = annotations
         this.aliases = aliases
         exprIndex = BodySourceIndex(exprs)
         for (alias in aliases) {
@@ -616,6 +649,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     public operator func ==(other: BodySourceMap): Bool {
         exprs == other.exprs && pats == other.pats && locals == other.locals &&
             types == other.types &&
+            annotations == other.annotations &&
             aliases == other.aliases
     }
 
@@ -784,6 +818,8 @@ class BodyLowering {
     let locals = ArrayList<Local>()
     let localOrigins = ArrayList<BodyOrigin>()
     let funcs = ArrayList<LocalFunc>()
+    let annotations = ArrayList<LocalAnnotation>()
+    let annotationSources = ArrayList<AnnotationSource>()
     private let aliases = ArrayList<ExprSourceAlias>()
     // the `?`s of the optional chains being lowered, innermost last: what each is applied to, and the
     // local its value is bound to
@@ -815,7 +851,8 @@ class BodyLowering {
                 params: params,
                 value: value,
                 accessors: accessors,
-                attrs: attrs
+                attrs: attrs,
+                annotations: annotations.toArray()
             ),
             BodySourceMap(
                 exprs: exprOrigins.toArray(),
@@ -829,6 +866,7 @@ class BodyLowering {
                         case None => SyntheticSource
                     }
                 },
+                annotations: annotationSources.toArray(),
                 aliases: aliases.toArray()
             )
         )
@@ -1003,9 +1041,81 @@ class BodyLowering {
                         LocalFunc(name, generics, params, ret, blockOf(it.block()), bounds: bounds)
                     )
                 Stmt.FuncStmt(funcs.size - 1)
-            case Decl.AsMacroExpandDecl(it) => it.decl().flatMap { inner => stmtOf(inner) }
+            case Decl.AsMacroExpandDecl(it) =>
+                let inner = it.decl() ?? return None
+                let statement = stmtOf(inner)
+                match (statement) {
+                    case Some(Stmt.LetStmt(pattern, _, _)) =>
+                        recordLocalAnnotation(it, inner.syntax, AnnotatedPattern(pattern))
+                    case Some(Stmt.FuncStmt(index)) =>
+                        recordLocalAnnotation(it, inner.syntax, AnnotatedFunction(index))
+                    case _ => ()
+                }
+                statement
             case _ => None
         }
+    }
+
+    private func recordLocalAnnotation(
+        call: MacroExpandDecl,
+        declaration: CjSyntaxNode,
+        owner: AnnotationOwner
+    ): Unit {
+        var target = declaration
+        while (
+            let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }
+        ) {
+            target = inner.syntax
+        }
+        let named =
+            AnyHasName.cast(target).flatMap { one => one.name() }.map { name => name.syntax }
+        let sourceNode =
+            if (named.isSome()) {
+                named
+            } else {
+                VarDecl
+                    .cast(target)
+                    .flatMap { variable => variable.pattern() }
+                    .map { pattern: Pattern => pattern.syntax }
+            }
+        let node = sourceNode ?? return ()
+        let path = call.nameRefs() |> map { name: NameRef => name.text() } |> collectArray
+        let arguments = ArrayList<CallArg>()
+        if (let Some(attr) <- call.macroAttr()) {
+            for (element in attr.syntax.childrenWithTokens()) {
+                match (element) {
+                    case SyntaxElement.Node(child) where child.kind != SyntaxKind.Arg => return
+                    case SyntaxElement.Token(token) where !token.kind.isTrivia() &&
+                            ![SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.Comma]
+                                .contains(token.kind) => return
+                    case _ => ()
+                }
+            }
+            for (child in attr.syntax.children()) {
+                let arg = Arg.cast(child) ?? return ()
+                arguments
+                    .add(
+                        CallArg(
+                            arg.nameRef()?.text(),
+                            exprOf(arg.expr()),
+                            isInout: arg.inoutToken().isSome()
+                        )
+                    )
+            }
+        }
+        let anchor = missing()
+        annotationSources.add(AnnotationSource(anchor, source(node)))
+        let wrappers = ArrayList<Array<String>>()
+        var wrapped = call.syntax
+        while (let Some(parent) <- wrapped.parent && parent.kind == SyntaxKind.MacroExpandDecl) {
+            wrapped = parent
+        }
+        while (let Some(one) <- MacroExpandDecl.cast(wrapped)) {
+            wrappers.add(one.nameRefs() |> map { name: NameRef => name.text() } |> collectArray)
+            wrapped = one.decl().map { decl => decl.syntax } ?? break
+        }
+        annotations
+            .add(LocalAnnotation(path, arguments.toArray(), anchor, owner, wrappers.toArray()))
     }
 
     /**

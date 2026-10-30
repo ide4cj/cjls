@@ -345,6 +345,7 @@ class ScopesBuilder {
         for (stmt in stmts) {
             match (stmt) {
                 case LetStmt(pat, ty, value) =>
+                    annotationsAt(AnnotatedPattern(pat), current)
                     walkOpt(value, current)
                     typeIn(ty, current)
                     patTypes([pat], current)
@@ -352,6 +353,7 @@ class ScopesBuilder {
                 case ExprStmt(expr) => walk(expr, current)
                 case FuncStmt(index) =>
                     let localFunc = body.funcs[index]
+                    annotationsAt(AnnotatedFunction(index), current)
                     // its name is seen in it: it may call itself, not one after it (N60)
                     current = add(current, [localFunc.local])
                     let own = add(current, [], genericsOf: index, generics: localFunc.generics)
@@ -365,6 +367,13 @@ class ScopesBuilder {
                     }
                     walkOpt(localFunc.body, inner)
             }
+        }
+    }
+
+    private func annotationsAt(owner: AnnotationOwner, scope: ScopeId): Unit {
+        for (annotation in body.annotations where annotation.owner == owner) {
+            walk(annotation.target, scope)
+            walkAll(annotation.args.map { arg => arg.expr }, scope)
         }
     }
 

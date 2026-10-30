@@ -10,6 +10,239 @@ import rope.Rope
 @Test
 class DeclarationDiagnosticsTest {
     @TestCase
+    func customAnnotationsCheckConstructorsBeforeLocalPlacement() {
+        checkDiagnostics(
+            #"
+            @Annotation
+            public class A { const init() {} }
+            @Annotation
+            public class B { const init(x: Int64) {} }
+            @A class C {}
+            func f() {
+                @A func g() {}
+            //          ^ error: cannot use custom annotation
+                @A let x = 1
+            //         ^ error: cannot use custom annotation
+                @B[1] let y = 1
+            //            ^ error: cannot use custom annotation
+                @B["wrong"] let badType = 1
+                @B let badCount = 1
+                @B[unknown] let badName = 1
+                @Unknown let opaque = 1
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func customAnnotationArgumentsUseTheDeclarationsLexicalScope() {
+        checkDiagnostics(
+            #"
+            @Annotation
+            public class A { const init(x: Int64) {} }
+            func f() {
+                let value = 1
+                @A[value] let x = 1
+            //                ^ error: cannot use custom annotation
+                if (true) {
+                    let value = "wrong"
+                    @A[value] let suppressed = 1
+                }
+                let A = 1
+                @A[1] let (a, b) = (1, 2)
+            //            ^^^^^^ error: cannot use custom annotation
+                @Unknown @A[1] let nested = 1
+            //                     ^^^^^^ error: cannot use custom annotation
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func customAnnotationWithInaccessibleConstructorDoesNotCheckPlacement() {
+        checkDiagnostics(
+            #"
+            @Annotation
+            public class A { private const init() {} }
+            func f() { @A let x = 1 }
+            "#
+        )
+    }
+
+    @TestCase
+    func aliasesAndGenericConstructorsRetainSuccessfulTypingRequirement() {
+        checkDiagnostics(
+            #"
+            @Annotation public class A<T> { const init() {} }
+            @Annotation public class B<T> { const init(x: T) {} }
+            type Alias = B<Int64>
+            func f() {
+                @A let unresolved = 1
+                @B[1] let inferred = 1
+            //            ^^^^^^^^ error: cannot use custom annotation
+                @Alias[1] let aliased = 1
+            //                ^^^^^^^ error: cannot use custom annotation
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func customAnnotationsInMemberBodiesKeepTheirLocalTarget() {
+        checkDiagnostics(
+            #"
+            @Annotation public class A { const init() {} }
+            class C {
+                func f() {
+                    @A let x = 1
+            //             ^ error: cannot use custom annotation
+                    @A func g() {}
+            //              ^ error: cannot use custom annotation
+                }
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func supportedCustomAnnotationTargetsRemainClean() {
+        checkDiagnostics(
+            #"
+            @Annotation public class A { const init() {} }
+            @A class C {
+                @A init() {}
+                @A public func f(@A x: Int64): Int64 { x }
+                @A public let field = 1
+                @A public prop p: Int64 { get() { 1 } }
+            }
+            @A struct S {}
+            @A interface I {}
+            @A enum E { @A X }
+            @A extend C {}
+            @A let global = 1
+            @A func f(@A x: Int64) { func g(@A y: Int64) {} }
+            "#
+        )
+    }
+
+    @TestCase
+    func customAnnotationConstructorChangesInvalidateUneditedUses() {
+        // arrange
+        let fixture =
+            Fixture
+                .parse(
+                    #"
+            //- /annotation.cj module=a package=a
+            @Annotation public class A { const init(x: Int64) {} }
+            //- /use.cj module=a package=a
+            func f() { @A[1] let x = 1 }
+            "#
+                )
+        let db = fixture.database()
+        let use = fixture.file("/use.cj").fileId
+        let definition = fixture.file("/annotation.cj").fileId
+        let original = diagnostics(db, use)
+
+        // act
+        db.setFileText(definition, Rope("@Annotation public class A { const init(x: String) {} }"))
+        let incompatible = diagnostics(db, use)
+        db.setFileText(definition, Rope("@Annotation public class A { const init(x: Int64) {} }"))
+        let restored = diagnostics(db, use)
+
+        // assert
+        @Expect(original.size, 1)
+        @Expect(incompatible.isEmpty())
+        @Expect(restored.size, 1)
+    }
+
+    @TestCase
+    func movingCustomAnnotationSourcePreservesBodyAndUpdatesDiagnosticRange() {
+        // arrange
+        let text = "@Annotation public class A { const init() {} }\nfunc f() { @A let x = 1 }"
+        let fixture = Fixture.parse(text)
+        let db = fixture.database()
+        let file = fixture.files[0].fileId
+        let source = db.sourceFile(file).getOrThrow()
+        let def =
+            bodiesOf(db, ItemFile.Source(source))
+                .filter { one => one.item(db).kind == ItemKind.Func }[0]
+        let before = bodyWithSourceMap(db, def)
+        let original = diagnostics(db, file)
+
+        // act
+        db.setFileText(file, Rope("\n\n" + text))
+        let after = bodyWithSourceMap(db, def)
+        let moved = diagnostics(db, file)
+
+        // assert
+        @Expect(before.body, after.body)
+        @Expect(before.sourceMap != after.sourceMap)
+        @Assert(original.size == 1 && moved.size == 1)
+        @Expect(moved[0].range, TextRange(original[0].range.start + 2, original[0].range.end + 2))
+    }
+
+    @TestCase
+    func multipleCustomAnnotationsReportOnePlacementErrorPerDeclaration() {
+        checkDiagnostics(
+            #"
+            @Annotation public class A { const init() {} }
+            @Annotation public class B { const init(x: Int64) {} }
+            func f() {
+                @A @A let x = 1
+            //            ^ error: cannot use custom annotation
+                @A @B[1] let y = 1
+            //               ^ error: cannot use custom annotation
+                @B["wrong"] @A let z = 1
+            //                     ^ error: cannot use custom annotation
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func wildcardAnnotationsHaveAPlacementTargetWithoutBindings() {
+        checkDiagnostics(
+            #"
+            @Annotation public class A { const init(x: Int64) {} }
+            func f() {
+                @A[1] let _ = 1
+            //            ^ error: cannot use custom annotation
+                @A[1] let (_, _) = (1, 2)
+            //            ^^^^^^ error: cannot use custom annotation
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func mainRejectsTheFirstAnnotationBeforeResolvingItsName() {
+        checkDiagnostics(
+            #"
+              @Unknown[1] main() { 0 }
+            //^^^^^^^^^^^ error: unexpected annotation '@Unknown' on main
+            "#
+        )
+        checkDiagnostics(
+            #"
+              @First @Other main() { 0 }
+            //^^^^^^ error: unexpected annotation '@First' on main
+            "#
+        )
+        checkDiagnostics(
+            #"
+              @Frozen @First main() { 0 }
+            //^^^^^^^ error: unexpected annotation '@Frozen' on main
+            "#
+        )
+        checkDiagnostics(
+            #"
+              @C main() { 0 }
+            //^^ error: unexpected annotation '@C' on main
+            "#
+        )
+    }
+
+    @TestCase
     func annotationTargetsKeepCompilerPointRanges() {
         checkDiagnostics(
             #"
@@ -252,6 +485,58 @@ class DeclarationDiagnosticsTest {
         @Expect(result.size, 1)
         @Expect(result[0].message, "local function cannot be modified with '@Frozen'")
     }
+    @TestCase
+    func customAnnotationFromBodyMacroMapsToItsCallAndIgnoresStaleOutput() {
+        let text =
+            "import m.ms.*\n@Annotation public class Mark { const init() {} }\nfunc f() { @A() }\n"
+        let (db, file) = expansionDatabase(text)
+        answer(db, file, "A", "@Mark let value = 1", [])
+        let result = diagnostics(db, file.fileId(db))
+        @Assert(result.size == 1)
+        @Expect(result[0].message, "cannot use custom annotation")
+        let start = text.indexOf("@A()").getOrThrow()
+        @Expect(result[0].range, TextRange(start, start + 2))
+        db.setFileText(file.fileId(db), Rope(text.replace("@A()", "@A(1)")))
+        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+    }
+
+    @TestCase
+    func opaqueBodyMacroInputDoesNotValidateCustomAnnotations() {
+        let (db, file) =
+            expansionDatabase(
+                "import m.ms.*\n@Annotation public class Mark { const init() {} }\nfunc f() { @M[x] @Mark let value = 1 }\n"
+            )
+        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+        answer(db, file, "M", "let value = 1", [])
+        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+    }
+
+    @TestCase
+    func opaqueEnclosingMacroDoesNotValidateCustomAnnotationInput() {
+        let (db, file) =
+            expansionDatabase(
+                "import m.ms.*\n@Annotation public class Mark { const init() {} }\n@M[x] func f() { @Mark let value = 1 }\n"
+            )
+        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+        answer(db, file, "M", "func f() {}", [])
+        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+    }
+
+    @TestCase
+    func inactiveCustomAnnotationDoesNotCheckPlacement() {
+        checkDiagnostics(
+            #"
+            //- /main.cj cfg=test:false
+            @Annotation
+            public class A { const init() {} }
+            func f() {
+                @When[test] @A let x = 1
+            //  ^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: test is not set
+            }
+            "#
+        )
+    }
+
     @TestCase
     func commonAbstractMembersNeedAnExplicitRoleAndCannotImplementAbstractBodies() {
         checkDiagnostics(

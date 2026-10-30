@@ -136,6 +136,7 @@ public enum InferenceDiagnostic {
      * the right: the expression, the left's type and the right's (cjc's "invalid binary operator").
      */
     | InvalidBinaryOperator(ExprId, Ty, Ty)
+    | CustomAnnotationPlace(ExprId)
 }
 
 /**
@@ -597,6 +598,8 @@ class Inference {
     private let undo = ArrayList<Undo>()
     // what is wrong: a candidate tried undoes what it found (A27)
     private let reported = ArrayList<InferenceDiagnostic>()
+    // Multiple custom annotations share one placement error on their declaration.
+    private let annotatedDeclarations = HashSet<AnnotationOwner>()
     // while above zero, what fails is counted but not reported: a check the analysis cannot make yet
     private var quiet = 0
     // the arguments of the calls whose candidates are tried that are of one type whatever is
@@ -646,6 +649,9 @@ class Inference {
         for (attr in hir.attrs) {
             declAttr(attr)
         }
+        for (annotation in hir.annotations) {
+            localAnnotation(annotation)
+        }
         let found = fields.values().toArray()
         sort(found, by: { a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index) })
         let chosen = callees.values().toArray()
@@ -684,6 +690,78 @@ class Inference {
             ty: ty,
             diagnostics: reported.toArray()
         )
+    }
+
+    /** cjc checks placement only after its desugared constructor call has a correct type. */
+    private func localAnnotation(annotation: LocalAnnotation): Unit {
+        if (annotationInputIsOpaque(db, def)) {
+            return
+        }
+        let file = from ?? return ()
+        let owner = pkg ?? return ()
+        for (path in annotation.wrappers) {
+            if (
+                resolveMacroPath(db, owner, file, path).get(path.size - 1) !=
+                    Some(Resolution.NotFound)
+            ) {
+                return
+            }
+        }
+        let resolved =
+            match (
+                resolveTypePath(db, TypeScope([], owner, file), annotation.path)
+                    .get(annotation.path.size - 1)
+            ) {
+                case Some(Resolved(TypeOf(id))) => id
+                case _ => return
+            }
+        let (target, explicit) =
+            if (resolved.item(db).kind == ItemKind.Class && isAnnotationClass(db, resolved)) {
+                (resolved, Array<Ty>())
+            } else {
+                match (signatureTypes(db, resolved).ty.map { ty => ty.kind(db) }) {
+                    case Some(DeclTy(id, args)) where isAnnotationClass(db, id) => (id, args)
+                    case _ => return
+                }
+            }
+        let (typeArgs, open) = openTypeArgsOf(target, explicit, None)
+        let candidates =
+            initCallables(target, typeArgs, open: open)
+                .filter {
+                    callable =>
+                    callable
+                        .decl
+                        .map {
+                            initializer =>
+                            annotationConstructorVisible(db, def, initializer)
+                        } ??
+                        true
+                }
+        let before = mismatches
+        quiet++
+        try {
+            if (
+                let Chose(callable, matched) <- choose(
+                    annotation.target,
+                    candidates,
+                    annotation.args,
+                    None
+                )
+            ) {
+                let ty = callWith(annotation.target, callable, matched, annotation.args, None)
+                if (
+                    mismatches == before && !hasUnknowns(db, ty) &&
+                        callable.params.all { param => !hasUnknowns(db, param) } &&
+                        annotation.args.all { arg => !hasUnknowns(db, tyOf(arg.expr)) } &&
+                        annotatedDeclarations.add(annotation.owner)
+                ) {
+                    reported.add(CustomAnnotationPlace(annotation.target))
+                }
+            }
+        } finally {
+            quiet--
+            mismatches = before
+        }
     }
 
     /**

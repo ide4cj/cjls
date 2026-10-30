@@ -11,6 +11,7 @@ import cjsyntax.ast.{
     Annotation,
     EnumCtor,
     FuncDecl,
+    MacroExpandDecl,
     PropDecl,
     RefExpr
 }
@@ -133,10 +134,11 @@ func declarationDiagnosticsInTree(
 ): Array<Diagnostic> {
     let found = ArrayList<Diagnostic>()
     func visit(node: CjSyntaxNode, owner: ?CjSyntaxNode, local: Bool, isForeign: Bool): Unit {
-        if (
-            !active.isActive(node) || replaced.contains(node.textRange) ||
-                node.kind == SyntaxKind.MacroExpandDecl
-        ) {
+        if (!active.isActive(node) || replaced.contains(node.textRange)) {
+            return
+        }
+        if (let Some(call) <- MacroExpandDecl.cast(node)) {
+            checkMainAnnotationWrapper(call, found)
             return
         }
         let inheritedForeign = isForeign || node.kind == SyntaxKind.ForeignBlock
@@ -144,6 +146,11 @@ func declarationDiagnosticsInTree(
         if (let Some(decl) <- declaration) {
             for (annotation in decl.annotations()) {
                 checkDeclarationAnnotation(node, annotation, owner, local, inheritedForeign, found)
+                if (
+                    node.kind == SyntaxKind.MainDecl && annotation.nameRef()?.text() != Some("When")
+                ) {
+                    break
+                }
             }
             checkDeclarationModifiers(node, owner, inheritedForeign, found)
             if (node.kind == SyntaxKind.ExtendDecl) {
@@ -158,6 +165,47 @@ func declarationDiagnosticsInTree(
     }
     visit(root, None, local, false)
     found.toArray()
+}
+
+/** The parser rejects the first non-conditional annotation on main before resolving its name. */
+func checkMainAnnotationWrapper(call: MacroExpandDecl, found: ArrayList<Diagnostic>): Unit {
+    var target = call.decl().map { decl => decl.syntax } ?? return ()
+    while (let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }) {
+        target = inner.syntax
+    }
+    if (target.kind != SyntaxKind.MainDecl) {
+        return
+    }
+    for (annotation in call.annotations() where annotation.nameRef()?.text() != Some("When")) {
+        let name = annotation.nameRef()?.text() ?? return ()
+        found
+            .add(
+                Diagnostic(
+                    annotation.syntax.textRange,
+                    Severity.Error,
+                    "unexpected annotation '@${name}' on main"
+                )
+            )
+        return
+    }
+    let path = call.nameRefs() |> map { name => name.text() } |> collectArray
+    let name = String.join(path, delimiter: ".")
+    let start = call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? return ()
+    var end = start
+    for (name in call.nameRefs()) {
+        end = name.syntax.textRange.end
+    }
+    if (let Some(attr) <- call.macroAttr()) {
+        end = attr.syntax.textRange.end
+    }
+    found
+        .add(
+            Diagnostic(
+                TextRange(start, end),
+                Severity.Error,
+                "unexpected annotation '@${name}' on main"
+            )
+        )
 }
 
 func declarationHas(node: CjSyntaxNode, modifier: SyntaxKind): Bool {
@@ -215,9 +263,7 @@ func checkDeclarationAnnotation(
     let nested = local || owner.isSome()
     let point = annotation.atToken()?.textRange ?? return
     let whole = annotation.syntax.textRange
-    if (
-        node.kind == SyntaxKind.MainDecl && ["Frozen", "FastNative", "CallingConv"].contains(name)
-    ) {
+    if (node.kind == SyntaxKind.MainDecl && name != "When") {
         found.add(Diagnostic(whole, Severity.Error, "unexpected annotation '@${name}' on main"))
         return
     }
