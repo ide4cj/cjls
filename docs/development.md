@@ -70,6 +70,21 @@ cjc --version
 cjpm --version
 ```
 
+Release SDKs in [`.cangjie-window`](../.cangjie-window) use the same installer:
+replace `$sdk_tag` with `1.0.5` (LTS) or `1.2.0` (STS), and use a separate destination
+for each version. The JSON file names each channel's `version` and maps archive
+filenames to official URLs: SDKs from cangjie-lang.cn, stdx from cangjie_stdx's
+`v<version>.1` release. All three CI platforms are pinned in
+[`.cangjie-sha256`](../.cangjie-sha256); an unpinned archive is never downloaded.
+
+To update a release, change its version and URLs in `.cangjie-window`, then run
+`python3 .github/actions/setup-cangjie/setup.py pin <version>`. This hashes the
+origin archives and retains the other SDK pins. The official SDK download page
+currently also publishes SHA256 values; compare them with the downloaded hashes.
+For a nightly bump, update `.cangjie-version` and run `pin <tag>`; this replaces
+the old nightly hashes while keeping the release window. Moving the supported
+window also needs the token tables and CI checks described by D94.
+
 The installer prints environment exports; sourcing the installed SDK's
 `envsetup.sh` loads them into this shell. The extra PATH entry uses CI's compiler
 shim to close inherited descriptors before launching cjc (#342). It is for POSIX
