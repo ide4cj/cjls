@@ -4,6 +4,8 @@ import cjformat.{FormatOptions, SimpleIf, TextEdit}
 import loupe.Reference as AnalysisReference
 import loupe.{
     BuiltinDoc,
+    CallHierarchyEntry,
+    HierarchyCalls,
     CompletionItem,
     CompletionKind,
     CompletionOverload,
@@ -260,6 +262,8 @@ private func bodyTypes(): Array<(String, PyObj)> {
 private func resultTypes(): Array<(String, PyObj)> {
     [
         ("BuiltinDoc", BuiltinDoc.pyClass()),
+        ("CallHierarchyEntry", CallHierarchyEntry.pyClass()),
+        ("HierarchyCalls", HierarchyCalls.pyClass()),
         ("CompletionItem", CompletionItem.pyClass()),
         ("CompletionKind", CompletionKind.pyClass()),
         ("CompletionOverload", CompletionOverload.pyClass()),

@@ -318,6 +318,7 @@ result = i + 1
                 self.assertIn("identity", inference["result"])
 
                 self._check_query_exports(root, run)
+                self._check_call_hierarchy(root, run)
 
                 # act - fd output, exceptions and unserializable objects stay off the MCP wire
                 captured = run("""
@@ -568,6 +569,73 @@ result = i + 1
             result = True
         """)
         self.assertTrue(response["result"])
+
+    def _check_call_hierarchy(self, root, run):
+        (root / "src/caller.cj").write_text(
+            "package sample\n// вызовы\nfunc caller() { leaf(); leaf() }\n",
+            encoding="utf-8", newline="\n",
+        )
+        (root / "src/leaf.cj").write_text(
+            "package sample\npublic func leaf() {}\n", encoding="utf-8", newline="\n",
+        )
+        response = run("""
+            a = workspace.analysis()
+            caller_text = a.text('src/caller.cj').encode('utf-8')
+            leaf_text = a.text('src/leaf.cj').encode('utf-8')
+            caller = a.prepareCallHierarchy('src/caller.cj', caller_text.index(b'caller'))[0]
+            leaf = a.prepareCallHierarchy('src/leaf.cj', leaf_text.index(b'leaf'))[0]
+            assert isinstance(caller, CallHierarchyEntry) and caller.name == 'caller'
+            assert caller.kind == StructureKind.Function()
+            assert isinstance(caller.target, NavigationTarget)
+            assert caller == CallHierarchyEntry(caller.name, caller.kind, caller.target)
+            assert caller != leaf
+            assert a.prepareCallHierarchy('src/caller.cj', caller_text.index(b'leaf')) == [leaf]
+            outgoing = a.outgoingCalls(caller)
+            incoming = a.incomingCalls(leaf)
+            assert len(outgoing) == len(incoming) == 1
+            assert isinstance(outgoing[0], HierarchyCalls)
+            assert outgoing[0].item == leaf and incoming[0].item == caller
+            assert outgoing[0].ranges == incoming[0].ranges
+            assert len(outgoing[0].ranges) == 2
+            assert all(caller_text[r.start:r.end] == b'leaf' for r in outgoing[0].ranges)
+            assert a.path(caller.target.fileId).endswith('/src/caller.cj')
+            assert a.path(outgoing[0].item.target.fileId).endswith('/src/leaf.cj')
+            assert a.incomingCalls(caller) == [] and a.outgoingCalls(leaf) == []
+            assert a.prepareCallHierarchy('src/caller.cj', 0) == []
+            group = HierarchyCalls(leaf, outgoing[0].ranges)
+            assert group.item == leaf and group.ranges == outgoing[0].ranges
+            diagnostic = InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
+            assert diagnostic.field0 == ExprId(3)
+            assert diagnostic == InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
+            assert diagnostic != InferenceDiagnostic.CustomAnnotationPlace(ExprId(4))
+            for offset in [-1, len(caller_text) + 1, caller_text.index('в'.encode()) + 1]:
+                try:
+                    a.prepareCallHierarchy('src/caller.cj', offset)
+                except RuntimeError as error:
+                    assert 'UTF-8 byte boundary' in str(error), str(error)
+                else:
+                    raise AssertionError('invalid call hierarchy offset was accepted')
+            import builtins
+            builtins._cjmcp_hierarchy = (a, caller)
+            result = True
+        """)
+        self.assertTrue(response['result'])
+        with (root / "src/leaf.cj").open('a', encoding='utf-8') as source:
+            source.write('\n// new revision\n')
+        stale = run("""
+            import builtins
+            old, entry = builtins._cjmcp_hierarchy
+            for query in [old.incomingCalls, old.outgoingCalls]:
+                try:
+                    query(entry)
+                except RuntimeError as error:
+                    assert 'ContentModified' in str(error), str(error)
+                else:
+                    raise AssertionError('stale hierarchy query was accepted')
+            del builtins._cjmcp_hierarchy
+            result = True
+        """)
+        self.assertTrue(stale['result'])
 
     def _check_macros(self, root, run):
         # Expansion finishes before analysis() returns, including after a macro library changes.

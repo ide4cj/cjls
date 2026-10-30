@@ -196,7 +196,10 @@ public enum InferenceDiagnostic <: Equatable<InferenceDiagnostic> {
                     InferenceDiagnostic.InvalidBinaryOperator(left0, left1, left2),
                     InferenceDiagnostic.InvalidBinaryOperator(right0, right1, right2)
                 ) => left0 == right0 && left1 == right1 && left2 == right2
-            case (InferenceDiagnostic.CustomAnnotationPlace(left), InferenceDiagnostic.CustomAnnotationPlace(right)) => left == right
+            case (
+                    InferenceDiagnostic.CustomAnnotationPlace(left),
+                    InferenceDiagnostic.CustomAnnotationPlace(right)
+                ) => left == right
             case _ => false
         }
     }

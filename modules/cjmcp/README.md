@@ -188,6 +188,7 @@ An `AnalysisRevision` also offers:
 | `completions(path, offset)`, `completionDetails(path, offset, item)` | Ranked completion results and documentation |
 | `references(path, offset)`, `related(path, offset)` | Workspace usages and same-file read/write occurrences |
 | `typeDefinition(path, offset)`, `implementations(path, offset)` | Navigate to types and implementations |
+| `prepareCallHierarchy(path, offset)`, `incomingCalls(entry)`, `outgoingCalls(entry)` | Callable roots and grouped explicit call sites |
 | `highlights(path)`, `folding(path)`, `selection(path, offset)` | Semantic highlights, folds and enclosing selections |
 | `symbols(query, limit)` | Search workspace declarations |
 | `fileSymbols(path)` | File declarations in outline order, including container names |

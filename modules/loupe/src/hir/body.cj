@@ -708,8 +708,9 @@ enum AnnotationOwner {
  * A possible custom annotation on a local declaration; resolution distinguishes it from a macro.
  * Its type is public because it appears in Body's public constructor; its data stays HIR-local.
  */
-@Derive[Equatable]
-public struct LocalAnnotation {
+@DerivePython
+public struct LocalAnnotation <: Equatable<LocalAnnotation> {
+    @PyIgnore
     LocalAnnotation(
         let path: Array<String>,
         let args: Array<CallArg>,
@@ -723,6 +724,16 @@ public struct LocalAnnotation {
          */
         let wrappers: Array<Array<String>>
     ) {}
+
+    public operator func ==(other: LocalAnnotation): Bool {
+        path == other.path && args == other.args && target == other.target &&
+            owner == other.owner &&
+            wrappers == other.wrappers
+    }
+
+    public operator func !=(other: LocalAnnotation): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -885,6 +896,7 @@ public struct BodySourceMap <: Equatable<BodySourceMap> {
     /**
      * Placement targets kept separate from their synthetic constructor callee expressions.
      */
+    @PyIgnore
     protected let annotations: Array<AnnotationSource>
     private let aliases: Array<ExprSourceAlias>
     private let exprIndex: BodySourceIndex

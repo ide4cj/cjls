@@ -6,6 +6,9 @@ import ginkgo.TextRange
 import cjformat.{FormatOptions, TextEdit}
 import loupe.Reference as AnalysisReference
 import loupe.completionDetails as nativeCompletionDetails
+import loupe.prepareCallHierarchy as nativePrepareCallHierarchy
+import loupe.incomingCalls as nativeIncomingCalls
+import loupe.outgoingCalls as nativeOutgoingCalls
 import loupe.builtinTypeDoc as nativeBuiltinTypeDoc
 import loupe.builtinAnnotationDoc as nativeBuiltinAnnotationDoc
 import loupe.builtinMacroDoc as nativeBuiltinMacroDoc
@@ -17,6 +20,8 @@ import loupe.definitionInExpansion as nativeDefinitionInExpansion
 import loupe.typeDefinitionInExpansion as nativeTypeDefinitionInExpansion
 import loupe.{
     BuiltinDoc,
+    CallHierarchyEntry,
+    HierarchyCalls,
     CompletionItem,
     CompletionResult,
     ExpandedFile,
@@ -349,6 +354,15 @@ class AnalysisRevision {
         let file = position(path, range.start)
         position(path, range.end)
         nativeRangeFormatting(state.db, file, range, options: options)
+    }
+    public func prepareCallHierarchy(path: String, offset: Int64): Array<CallHierarchyEntry> {
+        nativePrepareCallHierarchy(state.db, position(path, offset), offset)
+    }
+    public func incomingCalls(entry: CallHierarchyEntry): Array<HierarchyCalls> {
+        nativeIncomingCalls(state.db, entry)
+    }
+    public func outgoingCalls(entry: CallHierarchyEntry): Array<HierarchyCalls> {
+        nativeOutgoingCalls(state.db, entry)
     }
     public func macroCall(path: String, offset: Int64): ?MacroCallAt {
         macroCallAt(state.db, position(path, offset), offset)
