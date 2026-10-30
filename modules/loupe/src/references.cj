@@ -206,7 +206,7 @@ func declScope(
     packages: ArrayList<(Package, String)>,
     scope: FileScope
 ): Unit {
-    let item = itemIn(db, id) ?? return ()
+    let item = itemIn(db, id) ?? return
     let visibility = visibilityOf(item)
     let file = scopeFileOf(db, id.file(db))
     if (visibility == Visibility.Private) {
@@ -229,7 +229,7 @@ func declScope(
                 (PackageRef.Source(pkg), pkg.name(db))
         }
     let index = packageIndex(db)
-    let owner = index.owners.get(ref) ?? return ()
+    let owner = index.owners.get(ref) ?? return;
     for (
         (pkg, module) in packages where (index.scopes.get(module)?.contains(owner) ?? false) &&
             visibility.isSeen(by: relationOf(pkg.name(db), declaring))

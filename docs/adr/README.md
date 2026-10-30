@@ -75,7 +75,7 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0054](0054-a-type-is-an-interned-ty-a-signature-lowered-to-it.md) | A type is an interned `Ty`; a declaration's signature is lowered to it in one query, of a source or a `.cjo` alike | accepted |
 | [0055](0055-a-body-is-inferred-locally-in-one-query.md) | A body's types are inferred locally, as cjc checks them, in one query of the body; a type not written is the body's | accepted |
 | [0056](0056-the-adr-index-is-written-after-the-merge.md) | The ADR index is written after the merge by a bot; a number is taken when the ADR is started, and checked to be the only one | accepted |
-| [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted |
+| [0057](0057-type-arguments-are-inferred-per-call.md) | Type arguments not written are inferred per call, as cjc's local synthesis | accepted; an open callee may name a local function binder by D157 |
 | [0058](0058-folders-come-or-gone-are-watched.md) | Everything come or gone under a root is watched, as VS Code reports a folder as one event; the server tells a directory of the workspace from the rest | accepted |
 | [0059](0059-macro-arguments-are-parsed-before-expansion.md) | An expression macro's arguments are parsed as an argument list when they parse as one, before any expansion | accepted; `MacroAttr` is no longer tokens alone by D115; a macro call's arguments lowered alone are read while no expansion of it is current by D117 |
 | [0060](0060-the-formatter-keeps-line-breaks.md) | The formatter is our own, on the syntax tree, and changes only the whitespace around the author's line breaks | accepted; the line breaks are the author's by D76 |
@@ -174,3 +174,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0154](0154-compiler-owned-types.md) | Compiler-owned types have semantic heads and scoped declarations | accepted |
 | [0155](0155-dependency-resolution-scopes.md) | Independent dependency selections retain module and source context | accepted; workspace library switches reuse the SDK process; K28 remains open by D156 |
 | [0156](0156-reuse-workspace-macro-process.md) | Workspace macro libraries reuse one SDK process despite K28 | accepted |
+| [0157](0157-local-generic-owners.md) | Type parameter binders include local functions without making them declarations | accepted |

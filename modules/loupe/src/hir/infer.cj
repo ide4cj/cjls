@@ -169,6 +169,10 @@ public enum InferenceDiagnostic <: Equatable<InferenceDiagnostic> {
      * the right: the expression, the left's type and the right's (cjc's "invalid binary operator").
      */
     | InvalidBinaryOperator(ExprId, Ty, Ty)
+    /**
+     * A local declaration's rejected custom annotation, keyed by its synthetic source-map anchor.
+     */
+    | CustomAnnotationPlace(ExprId)
 
     public operator func ==(other: InferenceDiagnostic): Bool {
         match ((this, other)) {
@@ -192,6 +196,7 @@ public enum InferenceDiagnostic <: Equatable<InferenceDiagnostic> {
                     InferenceDiagnostic.InvalidBinaryOperator(left0, left1, left2),
                     InferenceDiagnostic.InvalidBinaryOperator(right0, right1, right2)
                 ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (InferenceDiagnostic.CustomAnnotationPlace(left), InferenceDiagnostic.CustomAnnotationPlace(right)) => left == right
             case _ => false
         }
     }
@@ -533,7 +538,7 @@ struct Callable {
     Callable(
         let params: Array<Ty>,
         let ret: Ty,
-        let open!: ?DefId = None,
+        let open!: ?GenericOwner = None,
         let decl!: ?DefId = None,
         let level!: Int64 = 0,
         let names!: Array<?String> = [],
@@ -700,6 +705,8 @@ class Inference {
     private let undo = ArrayList<Undo>()
     // what is wrong: a candidate tried undoes what it found (A27)
     private let reported = ArrayList<InferenceDiagnostic>()
+    // Multiple custom annotations share one placement error on their declaration.
+    private let annotatedDeclarations = HashSet<AnnotationOwner>()
     // while above zero, what fails is counted but not reported: a check the analysis cannot make yet
     private var quiet = 0
     // the arguments of the calls whose candidates are tried that are of one type whatever is
@@ -749,6 +756,9 @@ class Inference {
         for (attr in hir.attrs) {
             declAttr(attr)
         }
+        for (annotation in hir.annotations) {
+            localAnnotation(annotation)
+        }
         let found = fields.values().toArray()
         sort(found, by: { a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index) })
         let chosen = callees.values().toArray()
@@ -787,6 +797,96 @@ class Inference {
             ty: ty,
             diagnostics: reported.toArray()
         )
+    }
+
+    /**
+     * cjc checks placement only after its desugared constructor call has a correct type.
+     */
+    private func localAnnotation(annotation: LocalAnnotation): Unit {
+        if (isAnnotationInputOpaque(db, def)) {
+            return
+        }
+        let file = from ?? return
+        let owner = pkg ?? return;
+        for (path in annotation.wrappers) {
+            if (
+                resolveMacroPath(db, owner, file, path).get(path.size - 1) !=
+                    Some(Resolution.NotFound)
+            ) {
+                return
+            }
+        }
+        let candidates = annotationConstructors(annotation, owner, file) ?? return;
+        checkAnnotationConstructor(annotation, candidates)
+    }
+
+    private func annotationConstructors(
+        annotation: LocalAnnotation,
+        owner: Package,
+        file: SourceFile
+    ): ?Array<Callable> {
+        let resolved =
+            match (
+                resolveTypePath(db, TypeScope([], owner, file), annotation.path)
+                    .get(annotation.path.size - 1)
+            ) {
+                case Some(Resolved(TypeOf(id))) => id
+                case _ => return None
+            }
+        let (target, explicit) =
+            if (resolved.item(db).kind == ItemKind.Class && isAnnotationClass(db, resolved)) {
+                (resolved, Array<Ty>())
+            } else {
+                match (signatureTypes(db, resolved).ty?.kind(db)) {
+                    case Some(DeclTy(id, args)) where isAnnotationClass(db, id) => (id, args)
+                    case _ => return None
+                }
+            }
+        let (typeArgs, open) = openTypeArgsOf(target, explicit, None)
+        Some(
+            initCallables(target, typeArgs, open: open)
+                .filter {
+                    callable =>
+                    callable
+                        .decl
+                        .map {
+                            initializer =>
+                            isAnnotationConstructorVisible(db, def, initializer)
+                        } ??
+                        true
+                }
+        )
+    }
+
+    private func checkAnnotationConstructor(
+        annotation: LocalAnnotation,
+        candidates: Array<Callable>
+    ): Unit {
+        let before = mismatches
+        quiet++
+        try {
+            if (
+                let Chose(callable, matched) <- choose(
+                    annotation.target,
+                    candidates,
+                    annotation.args,
+                    None
+                )
+            ) {
+                let ty = callWith(annotation.target, callable, matched, annotation.args, None)
+                if (
+                    mismatches == before && !hasUnknowns(db, ty) &&
+                        callable.params.all { param => !hasUnknowns(db, param) } &&
+                        annotation.args.all { arg => !hasUnknowns(db, tyOf(arg.expr)) } &&
+                        annotatedDeclarations.add(annotation.owner)
+                ) {
+                    reported.add(CustomAnnotationPlace(annotation.target))
+                }
+            }
+        } finally {
+            quiet--
+            mismatches = before
+        }
     }
 
     /**
@@ -2580,7 +2680,7 @@ class Inference {
      * The constructors of the enum `id`.
      */
     private func ctorsOf(id: DefId): Array<DefId> {
-        let item = declItemOf(db, id) ?? return []
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         item
             .members
@@ -2596,7 +2696,13 @@ class Inference {
         match (resolveName(id, name)) {
             case Values(targets) where targets.size == 1 =>
                 match (targets[0]) {
-                    case LocalOf(local) => locals[local.index]
+                    case LocalOf(local) =>
+                        if (hir.funcs.iterator().any { fn => fn.local == local }) {
+                            let callables = localCallables(local, explicit: explicit)
+                            if (callables.size == 1) { callables[0].ty(db) } else { error }
+                        } else {
+                            locals[local.index]
+                        }
                     // An unqualified constructor can instantiate another enum specialization.
                     case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind == ItemKind.EnumCtor =>
                         declValueTy(ctor, explicit, expected)
@@ -2763,7 +2869,8 @@ class Inference {
                     case None => own(ty)
                 }
             }
-        let open: ?DefId = if (generics > 0 && !isWritten) { id } else { None }
+        let open: ?GenericOwner =
+            if (generics > 0 && !isWritten) { GenericOwner.Declaration(id) } else { None }
         let sig = signatureTypes(db, id)
         // a `foreign` function, or one `@C`, is a `CFunc` as a value (N141)
         let isC =
@@ -2821,11 +2928,21 @@ class Inference {
      * The type arguments of the type `id` called: as `typeArgsOf`, else its type parameters, open
      * for the call to infer (8c), and `id`.
      */
-    private func openTypeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): (Array<Ty>, ?DefId) {
+    private func openTypeArgsOf(
+        id: DefId,
+        explicit: Array<Ty>,
+        wanted: ?Ty
+    ): (Array<Ty>, ?GenericOwner) {
         if (let Some(args) <- knownTypeArgsOf(id, explicit, wanted)) {
             return (args, None)
         }
-        (Array(genericsOf(db, id).size) { i => Ty(db, ParamTy(id, i)) }, id)
+        (
+            Array(genericsOf(db, id).size) {
+                i =>
+                Ty(db, ParamTy(GenericOwner.Declaration(id), i))
+            },
+            GenericOwner.Declaration(id)
+        )
     }
 
     private func knownTypeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): ?Array<Ty> {
@@ -2848,8 +2965,12 @@ class Inference {
      * The constructors of the type `id` applied to `args`, the type parameters of `open` among them
      * the call's to infer; of one that declares none, the one of no parameters.
      */
-    private func initCallables(id: DefId, args: Array<Ty>, open!: ?DefId = None): Array<Callable> {
-        let item = declItemOf(db, id) ?? return []
+    private func initCallables(
+        id: DefId,
+        args: Array<Ty>,
+        open!: ?GenericOwner = None
+    ): Array<Callable> {
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         let self = Ty(db, DeclTy(id, args))
         let inits =
@@ -2882,18 +3003,32 @@ class Inference {
      * What the local `local` called means: a local function, its parameters passed by the names and
      * of the default values its declaration gives; else a value of a function type.
      */
-    private func localCallables(local: LocalId): Array<Callable> {
-        let callables = valueCallables(locals[local.index])
-        for (fn in hir.funcs where fn.local == local) {
-            let names = fn.params.map { param => param.passedBy }
-            let defaults = fn.params.map { param => param.defaultValue.isSome() }
-            return callables
-                .map {
-                    one =>
-                    Callable(one.params, one.ret, open: one.open, names: names, defaults: defaults)
-                }
+    private func localCallables(local: LocalId, explicit!: Array<Ty> = []): Array<Callable> {
+        for (index in 0..hir.funcs.size where hir.funcs[index].local == local) {
+            let fn = hir.funcs[index]
+            if (!explicit.isEmpty() && explicit.size != fn.generics.size) {
+                return []
+            }
+            let owner = GenericOwner.LocalFunction(def, index)
+            let written = !fn.generics.isEmpty() && explicit.size == fn.generics.size
+            let own = { ty: Ty => if (written) { substitute(db, ty, owner, explicit) } else { ty } }
+            let open: ?GenericOwner =
+                if (!fn.generics.isEmpty() && !written) { owner } else { None }
+            match (locals[local.index].kind(db)) {
+                case FuncTy(params, ret, _) =>
+                    return [
+                        Callable(
+                            params.map(own),
+                            own(ret),
+                            open: open,
+                            names: fn.params.map { param => param.passedBy },
+                            defaults: fn.params.map { param => param.defaultValue.isSome() }
+                        )
+                    ]
+                case _ => return []
+            }
         }
-        callables
+        valueCallables(locals[local.index])
     }
 
     /**
@@ -3942,7 +4077,7 @@ class Inference {
         callee: ExprId,
         callable: Callable,
         matched: ArgMatch,
-        owner: DefId,
+        owner: GenericOwner,
         args: Array<CallArg>,
         expected: ?Ty
     ): Ty {
@@ -3961,7 +4096,7 @@ class Inference {
         callee: ExprId,
         callable: Callable,
         matched: ArgMatch,
-        owner: DefId,
+        owner: GenericOwner,
         outerArgs: Array<CallArg>,
         expected: ?Ty
     ): Ty {
@@ -4284,7 +4419,8 @@ class Inference {
                                     let level = localLevel(callee, local)
                                     found
                                         .add(
-                                            all: localCallables(local).map { one => one.at(level) }
+                                            all: localCallables(local, explicit: explicit)
+                                                .map { one => one.at(level) }
                                         )
                                 case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind ==
                                         ItemKind.EnumCtor =>
@@ -4535,7 +4671,9 @@ class Inference {
                     case Values(targets) where targets.size == 1 =>
                         match (targets[0]) {
                             case TypeParamOf(GenericOf(owner, index)) =>
-                                Ty(db, ParamTy(owner, index))
+                                Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
+                            case TypeParamOf(LocalGenericOf(owner, local, index)) =>
+                                Ty(db, ParamTy(GenericOwner.LocalFunction(owner, local), index))
                             case _ => error
                         }
                     case InFile(Found(ids)) where ids.size == 1 =>

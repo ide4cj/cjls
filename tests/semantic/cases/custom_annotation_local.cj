@@ -4,8 +4,6 @@
 // CJC: audit error: cannot use custom annotation
 // CJC: audit error: cannot use custom annotation
 // SOURCE: src/main.cj %f
-// KNOWN-MISSING: local_function issue=423
-// KNOWN-MISSING: local_variable issue=423
 // STEP: fixed
 // CJC: audit clean
 // SOURCE: src/main.cj inputs/declaration_validation/custom_fixed.cj

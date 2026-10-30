@@ -259,6 +259,19 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
         }
     for (diagnostic in inferred.diagnostics) {
         match (diagnostic) {
+            case CustomAnnotationPlace(id) =>
+                for (target in lowered.sourceMap.annotations where target.anchor == id) {
+                    let source = target.source
+                    let node = source.node(db, def.file(db)) ?? continue
+                    let range =
+                        if (let Some(call) <- source.expansion) {
+                            sourceRangeOf(db, call, node.textRange) ??
+                                (macroCallHeadOf(db, call) ?? continue)[1]
+                        } else {
+                            node.textRange
+                        }
+                    found.add(Diagnostic(range, Severity.Error, "cannot use custom annotation"))
+                }
             case TypeMismatch(id, expected, actual) =>
                 let node = nodeOf(id) ?? continue
                 let message =

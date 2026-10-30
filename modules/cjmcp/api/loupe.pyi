@@ -2383,6 +2383,29 @@ class _TyErrorKindTypeCycle(TyErrorKind):
     def field0(self) -> list[str]: ...
 
 
+class GenericOwner(_Partial):
+    @property
+    def kind(self) -> str: ...
+    Declaration: ClassVar[type[_GenericOwnerDeclaration]]
+    LocalFunction: ClassVar[type[_GenericOwnerLocalFunction]]
+
+
+class _GenericOwnerDeclaration(GenericOwner):
+    __match_args__: ClassVar[tuple[str, ...]] = ('field0',)
+    def __init__(self, field0: DefId) -> None: ...
+    @property
+    def field0(self) -> DefId: ...
+
+
+class _GenericOwnerLocalFunction(GenericOwner):
+    __match_args__: ClassVar[tuple[str, ...]] = ('field0', 'field1')
+    def __init__(self, field0: DefId, field1: int) -> None: ...
+    @property
+    def field0(self) -> DefId: ...
+    @property
+    def field1(self) -> int: ...
+
+
 class TyKind(_Partial):
     """ErrorTy: user error; TodoTy: unsupported; UnknownTy: missing inputs/limits."""
     @property
@@ -2455,9 +2478,9 @@ class _TyKindVArrayTy(TyKind):
 
 class _TyKindParamTy(TyKind):
     __match_args__: ClassVar[tuple[str, ...]] = ('field0', 'field1')
-    def __init__(self, field0: DefId, field1: int) -> None: ...
+    def __init__(self, field0: GenericOwner, field1: int) -> None: ...
     @property
-    def field0(self) -> DefId: ...
+    def field0(self) -> GenericOwner: ...
     @property
     def field1(self) -> int: ...
 
@@ -2498,7 +2521,6 @@ class Todo(_Partial):
     def kind(self) -> str: ...
     MacroCall: ClassVar[type[_TodoMacroCall]]
     MacroMember: ClassVar[type[_TodoMacroMember]]
-    LocalGeneric: ClassVar[type[_TodoLocalGeneric]]
 
 
 class _TodoMacroCall(Todo):
@@ -2507,11 +2529,6 @@ class _TodoMacroCall(Todo):
 
 
 class _TodoMacroMember(Todo):
-    __match_args__: ClassVar[tuple[str, ...]] = ()
-    def __init__(self) -> None: ...
-
-
-class _TodoLocalGeneric(Todo):
     __match_args__: ClassVar[tuple[str, ...]] = ()
     def __init__(self) -> None: ...
 

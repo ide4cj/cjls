@@ -518,7 +518,7 @@ func isCompiledMacro(db: AnalysisDatabase, pkg: Package, file: SourceFile, name:
  */
 func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
     let file = id.file(db)
-    let item = declItemOf(db, id) ?? return None
+    let item = itemOf(db, id) ?? return None
     var modifiers = HighlightModifiers.NONE
     let source: ?Decl =
         match (file) {

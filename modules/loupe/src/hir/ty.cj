@@ -45,8 +45,43 @@ public struct Ty {
 }
 
 /**
- * What a `Ty` is: cjc's `TypeKind`s a signature can write; an error, or a type the analysis cannot
- * find; and a variable of the type arguments of a call being inferred.
+ * A generic binder: a declaration, or a local function within its owner's body (D50).
+ * Local function indices are body-local, so the enclosing declaration is part of identity.
+ */
+@DerivePython
+public enum GenericOwner <: Equatable<GenericOwner> & Hashable {
+    | Declaration(DefId)
+    | LocalFunction(DefId, Int64)
+
+    public operator func ==(other: GenericOwner): Bool {
+        match ((this, other)) {
+            case (Declaration(a), Declaration(b)) => a == b
+            case (LocalFunction(a, ai), LocalFunction(b, bi)) => a == b && ai == bi
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: GenericOwner): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case Declaration(def) =>
+                hasher.write(0)
+                hasher.write(def.hashCode())
+            case LocalFunction(def, index) =>
+                hasher.write(1)
+                hasher.write(def.hashCode())
+                hasher.write(index)
+        }
+        hasher.finish()
+    }
+}
+
+/**
+ * What a `Ty` is: resolved signature types, unknown types and call-local inference variables.
  */
 @DerivePython
 public enum TyKind <: Hashable & Equatable<TyKind> {
@@ -69,10 +104,10 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
     | FuncTy(Array<Ty>, Ty, Bool)
     | VArrayTy(Ty, Int64)
     /**
-     * A type parameter: the declaration it is of, and its place among them, as `GenericOf` names
-     * it. A member's are its own, or its type's or `extend`'s.
+     * A type parameter: its binder and its place among that binder's parameters.
+     * Local functions retain their enclosing body identity rather than becoming declarations.
      */
-    | ParamTy(DefId, Int64)
+    | ParamTy(GenericOwner, Int64)
     /**
      * `This`, the return type of an instance function of a class (N88): the type of whatever it is
      * called on.
@@ -186,16 +221,11 @@ public enum Todo <: ToString & Equatable<Todo> & Hashable {
      * expansion would add is not read (D47, #176).
      */
     | MacroMember
-    /**
-     * A type parameter of a local function: not lowered to a `Ty` yet (D55).
-     */
-    | LocalGeneric
 
     public func toString(): String {
         match (this) {
             case MacroCall => "macro call"
             case MacroMember => "macro member"
-            case LocalGeneric => "local generic"
         }
     }
 
@@ -203,7 +233,6 @@ public enum Todo <: ToString & Equatable<Todo> & Hashable {
         match ((this, other)) {
             case (Todo.MacroCall, Todo.MacroCall) => true
             case (Todo.MacroMember, Todo.MacroMember) => true
-            case (Todo.LocalGeneric, Todo.LocalGeneric) => true
             case _ => false
         }
     }
@@ -217,7 +246,6 @@ public enum Todo <: ToString & Equatable<Todo> & Hashable {
         match (this) {
             case Todo.MacroCall => hasher.write(0)
             case Todo.MacroMember => hasher.write(1)
-            case Todo.LocalGeneric => hasher.write(2)
         }
         hasher.finish()
     }
@@ -307,6 +335,10 @@ func hashOf(tys: Array<Ty>): Int64 {
  * expanded; one of no argument stays as it is.
  */
 public func substitute(db: AnalysisDatabase, ty: Ty, owner: DefId, args: Array<Ty>): Ty {
+    substitute(db, ty, GenericOwner.Declaration(owner), args)
+}
+
+public func substitute(db: AnalysisDatabase, ty: Ty, owner: GenericOwner, args: Array<Ty>): Ty {
     if (args.isEmpty()) {
         return ty
     }

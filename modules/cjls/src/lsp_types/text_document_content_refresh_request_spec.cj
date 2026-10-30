@@ -39,7 +39,5 @@ public struct TextDocumentContentRefreshRequestSpec <:
         RawJson.of(params)
     }
 
-    public func decodeResult(result: RawJson): Unit {
-        ()
-    }
+    public func decodeResult(result: RawJson): Unit {}
 }

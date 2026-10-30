@@ -32,7 +32,6 @@ class PosixChild <: PipedChild {
 
     public func wait(): Unit {
         process.wait()
-        ()
     }
 
     public func kill(): Unit {

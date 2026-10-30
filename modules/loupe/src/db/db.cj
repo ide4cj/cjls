@@ -372,6 +372,9 @@ public class AnalysisDatabase <: Database {
                 if (old.deps != model.deps || old.durability != durability) {
                     module.setDeps(this).withDurability(durability).to(model.deps)
                 }
+                if (old.testDeps != model.testDeps || old.durability != durability) {
+                    module.setTestDeps(this).withDurability(durability).to(model.testDeps)
+                }
                 if (old.member != model.member) {
                     module.setMember(this).withDurability(durability).to(model.member)
                 }
@@ -392,6 +395,7 @@ public class AnalysisDatabase <: Database {
                         model.resolutionScope,
                         packages,
                         model.deps,
+                        model.testDeps,
                         model.member,
                         model.cfg,
                         inactive,

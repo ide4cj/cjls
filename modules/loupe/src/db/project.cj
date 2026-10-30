@@ -138,6 +138,10 @@ public struct ModuleModel {
          */
         public let deps!: Array<String> = [],
         /**
+         * Additional modules only files named `*_test.cj` may import; never inherited by importers.
+         */
+        public let testDeps!: Array<String> = [],
+        /**
          * Whether it is the user's: one that is not (a dependency) is analyzed, and reports nothing.
          */
         public let member!: Bool = true,
@@ -420,6 +424,7 @@ extend ModuleModel {
             root,
             merged.toArray(),
             deps: deps,
+            testDeps: testDeps,
             member: member,
             cfg: cfg,
             inactive: inactive,
@@ -476,6 +481,7 @@ public struct Module {
     public let resolutionScope: String
     public var packages: Array<Package>
     public var deps: Array<String>
+    public var testDeps: Array<String>
     public var member: Bool
     public var cfg: ?Cfg
     /**

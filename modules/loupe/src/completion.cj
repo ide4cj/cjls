@@ -544,8 +544,7 @@ func packageMembers(
 func isStaticMember(db: AnalysisDatabase, target: MemberTarget): Bool {
     match (target) {
         case MemberDecl(id) =>
-            id.item(db).kind == ItemKind.EnumCtor ||
-                (declItemOf(db, id)?.has(Modifier.Static) ?? false)
+            id.item(db).kind == ItemKind.EnumCtor || (itemOf(db, id)?.has(Modifier.Static) ?? false)
         case MemberParam(_, _) => false
     }
 }
@@ -565,7 +564,7 @@ func memberItem(
 ): ?CompletionItem {
     match (target) {
         case MemberDecl(id) =>
-            let item = declItemOf(db, id) ?? return None
+            let item = itemOf(db, id) ?? return None
             if (item.has(Modifier.Operator) || !isAccessibleMember(db, def, id, item)) {
                 return None
             }
@@ -711,7 +710,7 @@ func scopeCompletions(
         found.add(CompletionItem(generic, TypeParamItem, 85, NoSource))
     }
     if (let Some(around) <- enclosingTypeOf(db, def)) {
-        let inStatic = declItemOf(db, def)?.has(Modifier.Static) ?? false
+        let inStatic = itemOf(db, def)?.has(Modifier.Static) ?? false
         let selfTy = selfTyAround(db, def)
         for (target in allMembers(db, [around], from: scopeFileOf(db, own), on: selfTy)) {
             if (inStatic && !isStaticMember(db, target)) {
@@ -941,7 +940,8 @@ func importCompletions(
     let pkg = packageOfFile(db, file) ?? return None
     let from = PackageRef.Source(pkg)
     let index = packageIndex(db)
-    let scope = index.scopes.get(index.owners.get(from) ?? return None) ?? return None
+    let ofTests = isTestOf(db, pkg, file)
+    let scope = index.scopeOf(from, ofTests: ofTests)
     let own = pkg.name(db)
     let found = ArrayList<CompletionItem>()
     for (
@@ -953,7 +953,10 @@ func importCompletions(
         }
     }
     if (prefix.endsWith(".")) {
-        if (let Some(ref) <- index.find(prefix[..prefix.size - 1], from: from) && ref != from) {
+        if (
+            let Some(ref) <- index.find(prefix[..prefix.size - 1], from: from, ofTests: ofTests) &&
+                ref != from
+        ) {
             found.add(all: packageMembers(db, file, ref))
         }
     }
@@ -1111,7 +1114,7 @@ func overrideCompletions(
     let around = typeDefOf(db, defAround(db, file, realRoot, offset) ?? return None) ?? return None
     let isStatic = hasModifier(decl, "static")
     let declared = HashSet<String>()
-    for (member in declItemOf(db, around)?.members ?? [] where member.kind == kind) {
+    for (member in itemOf(db, around)?.members ?? [] where member.kind == kind) {
         declared.add(all: member.names)
     }
     let from = scopeFileOf(db, ItemFile.Source(file))
@@ -1122,7 +1125,7 @@ func overrideCompletions(
                 case MemberDecl(id) => id
                 case MemberParam(_, _) => continue
             }
-        let item = declItemOf(db, id) ?? continue
+        let item = itemOf(db, id) ?? continue
         let label = item.names.get(0) ?? continue
         if (
             item.kind != kind || item.has(Modifier.Static) != isStatic ||
@@ -1163,7 +1166,7 @@ func isOverridable(db: AnalysisDatabase, id: DefId, item: Item): Bool {
     if (item.has(Modifier.Static) || item.has(Modifier.Open) || item.has(Modifier.Abstract)) {
         return true
     }
-    let owner = declItemOf(db, parentOf(db, id) ?? return false) ?? return false
+    let owner = itemOf(db, parentOf(db, id) ?? return false) ?? return false
     owner.kind == ItemKind.Interface || owner.has(Modifier.Abstract)
 }
 

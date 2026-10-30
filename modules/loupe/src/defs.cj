@@ -201,10 +201,12 @@ func importDefinitions(
     token: CjSyntaxToken
 ): NameClassification {
     let (path, isLeaf) = importPathTo(token.parent) ?? return NotApplicable
-    let from = PackageRef.Source(packageOfFile(db, file) ?? return NameDefinitions([]))
+    let pkg = packageOfFile(db, file) ?? return NameDefinitions([])
+    let from = PackageRef.Source(pkg)
+    let ofTests = isTestOf(db, pkg, file)
     if (isLeaf) {
         return NameDefinitions(
-            match (resolveImport(db, from, path, Visibility.Private)) {
+            match (resolveImport(db, from, path, Visibility.Private, ofTests: ofTests)) {
                 case ToPackage(_, target) => [Definition.PackageDef(target)]
                 case ToNames(_, names) =>
                     names.values() |> flatMap { ids: Array<DefId> => ids } |>
@@ -215,7 +217,10 @@ func importDefinitions(
         )
     }
     NameDefinitions(
-        match (packageIndex(db).find(String.join(path.segments, delimiter: "."), from: from)) {
+        match (
+            packageIndex(db)
+                .find(String.join(path.segments, delimiter: "."), from: from, ofTests: ofTests)
+        ) {
             case Some(target) => [Definition.PackageDef(target)]
             case None => []
         }

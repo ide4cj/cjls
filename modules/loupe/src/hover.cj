@@ -461,7 +461,7 @@ class Hovers {
             case TypeOf(id) => declItem(id, None)
             case GenericOf(owner, index) =>
                 let name = genericsOf(db, owner).get(index) ?? return None
-                let param = Ty(db, ParamTy(owner, index))
+                let param = Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
                 boundedItem(
                     name,
                     signatureTypes(db, owner).bounds |>
@@ -618,7 +618,7 @@ class Hovers {
      * signature, its path, its doc comment.
      */
     func declItem(id: DefId, recv: ?Ty): ?HoverItem {
-        let item = declItemOf(db, id) ?? return None
+        let item = itemOf(db, id) ?? return None
         let sig = signatureTypes(db, id)
         let ty = { one: Ty => seen(one, id, recv).text(db) }
         let names = item.names
@@ -842,12 +842,12 @@ class Hovers {
                         case Some(extended) =>
                             match (extended.kind(db)) {
                                 case DeclTy(of, _) =>
-                                    declItemOf(db, of).flatMap { one => one.names.get(0) }
+                                    itemOf(db, of).flatMap { one => one.names.get(0) }
                                 case _ => extended.text(db)
                             }
                         case None => None
                     }
-                case Some(parent) => declItemOf(db, parent).flatMap { one => one.names.get(0) }
+                case Some(parent) => itemOf(db, parent).flatMap { one => one.names.get(0) }
                 case None => None
             }
         match ((pkg, owner)) {

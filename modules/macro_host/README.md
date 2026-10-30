@@ -25,6 +25,9 @@ SDK risk ([K28](../../docs/sdk-issues.md#k28)). Std keeps its separate process.
 Build stamps hash source names and contents: the SDK truncates FileInfo mtimes to
 whole seconds, which cannot distinguish rapid edits of the same size. Unchanged
 stamps skip rebuilding. Tests use a fake toolchain as well as SDK cjc.
+Source macro dependencies are built and included in stamps, but are not passed
+to the linker as runtime libraries: cjc loads them during compilation. Runtime
+source dependencies remain statically linked into macro libraries.
 
 Calls record input text in a `WireLayout` so answer positions map back to original
 sources ([D98](../../docs/adr/0098-workspace-expansions-are-an-input-of-their-file.md)).

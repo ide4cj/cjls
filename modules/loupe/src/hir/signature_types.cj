@@ -317,7 +317,7 @@ func aliasPath(
 }
 
 func aliasName(db: AnalysisDatabase, def: DefId): String {
-    declItemOf(db, def).flatMap { item => item.names.get(0) } ?? ""
+    itemOf(db, def).flatMap { item => item.names.get(0) } ?? ""
 }
 
 /**
@@ -358,6 +358,17 @@ public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
 }
 
 /**
+ * The parameter names of a declaration or a local function binder.
+ */
+public func genericsOf(db: AnalysisDatabase, owner: GenericOwner): Array<String> {
+    match (owner) {
+        case Declaration(def) => genericsOf(db, def)
+        case LocalFunction(def, index) =>
+            body(db, def).funcs.get(index).map { fn => fn.generics } ?? []
+    }
+}
+
+/**
  * The type parameters of the declaration `item` of the `.cjo` of `pkg` by name; none for a
  * declaration it does not have, or bytes that break where they are read.
  */
@@ -381,21 +392,6 @@ func binaryGenericsOf(
 }
 
 /**
- * The item of `def`, a member of a type or an `extend` as well as a declaration of a file. A query,
- * as `itemOf`: an enum's constructors are searched among hundreds.
- */
-@CalcaTracked
-public func declItemOf(db: AnalysisDatabase, def: DefId): ?Item {
-    if (let Some(item) <- itemOf(db, def)) {
-        return item
-    }
-    let parent = parentOf(db, def) ?? return None
-    let id = def.item(db)
-    let owner = itemOf(db, parent) ?? return None
-    owner.members.iterator().filter { member => member.id == id }.next()
-}
-
-/**
  * The self type of `def`, a type: itself, its type parameters its arguments (`C<T>`); for a `common`
  * type a `specific` one completes, that one, of the `common` one's parameters (#318).
  */
@@ -403,7 +399,7 @@ func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
     let owner = canonicalDef(db, def)
     let count = genericsOf(db, owner).size
     let head = specificOf(db, owner) ?? owner
-    Ty(db, DeclTy(head, Array(count) { i => Ty(db, ParamTy(owner, i)) }))
+    Ty(db, DeclTy(head, Array(count) { i => Ty(db, ParamTy(GenericOwner.Declaration(owner), i)) }))
 }
 
 /**
@@ -632,12 +628,15 @@ class SourceTyLowering {
                 if (!args.isEmpty()) {
                     errors.add(TyError(id, TyErrorKind.WrongTypeArgCount))
                 }
-                Ty(db, ParamTy(owner, index))
+                Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
             case Some(UnresolvedPath) =>
                 unresolved(id, typeScope, segments, resolved)
                 Ty(db, ErrorTy)
-            // a local function's type parameter: no `Ty` yet (8c)
-            case Some(Resolved(LocalGenericOf(_, _, _))) => Ty(db, TodoTy(Todo.LocalGeneric))
+            case Some(Resolved(LocalGenericOf(owner, local, index))) =>
+                if (!args.isEmpty()) {
+                    errors.add(TyError(id, TyErrorKind.WrongTypeArgCount))
+                }
+                Ty(db, ParamTy(GenericOwner.LocalFunction(owner, local), index))
             // a type ambiguous, packages conflicting: errors of names
             case _ => Ty(db, ErrorTy)
         }
@@ -1032,7 +1031,7 @@ class BinaryTyLowering {
         }
         for ((owner, params) in owners) {
             for (i in 0..params.size where params[i] == at.index) {
-                return ParamTy(owner, i)
+                return ParamTy(GenericOwner.Declaration(owner), i)
             }
         }
         UnknownTy(UnknownReason.BinaryType)
@@ -1043,7 +1042,7 @@ class BinaryTyLowering {
  * Whether the item of `def` is named `name`.
  */
 func isNamed(db: AnalysisDatabase, def: DefId, name: String): Bool {
-    declItemOf(db, def).map { item => item.names.contains(name) } ?? false
+    itemOf(db, def).map { item => item.names.contains(name) } ?? false
 }
 
 /**

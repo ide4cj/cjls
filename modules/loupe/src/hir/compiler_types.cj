@@ -115,7 +115,7 @@ func compilerTy(db: AnalysisDatabase, kind: CompilerType, args: Array<Ty>): Ty {
 func compilerSignature(db: AnalysisDatabase, def: DefId, pkg: Package): SignatureTypes {
     let kind = compilerTypeOf(db, def) ?? return SignatureTypes()
     let names = compilerGenerics(kind)
-    let args = Array(names.size) { i => Ty(db, ParamTy(def, i)) }
+    let args = Array(names.size) { i => Ty(db, ParamTy(GenericOwner.Declaration(def), i)) }
     let bounds =
         if (kind == PointerType) {
             let ctypes = defMap(db, PackageRef.Source(pkg)).names.get("CType") ?? []
