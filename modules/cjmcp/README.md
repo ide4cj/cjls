@@ -149,7 +149,8 @@ references, while `signatureTypes` exposes resolved types and signature errors.
 is indexed by `TypeRefId.index`, with `None` for missing type references.
 Ranges belong to the declaration's `definitionFile` (source or expansion text);
 binary or unavailable declarations have an empty map. `typeAtRange` performs
-an exact-range reverse lookup. Generic syntax pointers remain inside loupe.
+an exact-range reverse lookup. These two Python classes are concrete adapters;
+generic syntax pointers remain inside loupe, as with `BodySource`.
 `infer` returns the native `InferenceResult`: expression, pattern and local types,
 field/name resolutions, selected callees, argument-to-parameter mappings and
 inference diagnostics. Its native lookup methods such as `calleeOf(ExprId(i))`

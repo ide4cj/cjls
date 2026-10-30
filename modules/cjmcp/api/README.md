@@ -55,6 +55,8 @@ python3 -m unittest discover -s tests/mcp -p test_api_reference.py -v
 
 ## Signature ranges and formatting edits
 
+`LoweredSignature` pairs the native `Signature` with a concrete
+`SignatureSourceMap` adapter, following the same pointer boundary as `BodySource`.
 Use a signature's own `TypeRefId` to locate a written type. Ranges belong to
 `analysis.definitionFile(definition)`: for `ItemFile.Expansion`, read the matching
 expansion text rather than the call site's file. Missing type references have

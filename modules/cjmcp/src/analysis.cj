@@ -64,7 +64,6 @@ import loupe.hir.{
     ItemFile,
     ItemId,
     LoweredBody,
-    LoweredSignature,
     MacroCallId,
     MemberTarget,
     Receiver,
@@ -159,8 +158,8 @@ class AnalysisRevision {
     public func signature(def: DefId): Signature {
         nativeSignature(state.db, def)
     }
-    public func signatureWithSourceMap(def: DefId): LoweredSignature {
-        nativeSignatureWithSourceMap(state.db, def)
+    public func signatureWithSourceMap(def: DefId): PythonLoweredSignature {
+        PythonLoweredSignature(nativeSignatureWithSourceMap(state.db, def))
     }
     public func signatureTypes(def: DefId): SignatureTypes {
         nativeSignatureTypes(state.db, def)

@@ -383,7 +383,7 @@ class LoweredSignature:
 
 
 class SignatureSourceMap:
-    """Ranges belong to the declaration's ItemFile (source or expansion); generic pointers are not exported."""
+    """Concrete adapter; ranges belong to the declaration's ItemFile (source or expansion)."""
     @property
     def ranges(self) -> list[TextRange | None]:
         """Indexed by TypeRefId.index; None for missing types, [] for binary/unavailable declarations."""

@@ -17,7 +17,7 @@ import cjsyntax.ast.{
     TypeBoundList,
     TypeParam
 }
-import ginkgo.{SyntaxNodePtr, TextRange}
+import ginkgo.SyntaxNodePtr
 import loupe.db.AnalysisDatabase
 import py_interop.*
 import py_interop.internal_macros.DerivePython
@@ -234,73 +234,30 @@ public struct Signature <: Equatable<Signature> {
  * Where each type of a signature is written: the node of each, by its id, `None` for a missing
  * one. It changes with every edit that moves the declaration, which the signature does not.
  */
-@DerivePython
-public struct SignatureSourceMap <: Equatable<SignatureSourceMap> {
-    @PyIgnore
-    public let ptrs: Array<?SyntaxNodePtr<SyntaxKind>>
-
-    @PyIgnore
-    public init(ptrs: Array<?SyntaxNodePtr<SyntaxKind>>) {
-        this.ptrs = ptrs
-    }
-
-    /**
-     * UTF-8 ranges by TypeRefId.index, in the declaration's source or expansion text.
-     * Missing type references have no range; generic syntax pointers stay inside loupe.
-     */
-    public prop ranges: Array<?TextRange> {
-        get() {
-            ptrs.map { ptr => ptr.map { one => one.range } }
-        }
-    }
-
-    /**
-     * The first type reference written at exactly this range, or None.
-     */
-    public func typeAtRange(range: TextRange): ?TypeRefId {
-        for (i in 0..ptrs.size where ptrs[i].map { ptr => ptr.range } == Some(range)) {
-            return TypeRefId(i)
-        }
-        None
-    }
+@Derive[Equatable]
+public struct SignatureSourceMap {
+    public SignatureSourceMap(public let ptrs: Array<?SyntaxNodePtr<SyntaxKind>>) {}
 
     /**
      * The type whose node `ptr` points to.
      */
-    @PyIgnore
     public func typeAt(ptr: SyntaxNodePtr<SyntaxKind>): ?TypeRefId {
         for (i in 0..ptrs.size where ptrs[i] == ptr) {
             return TypeRefId(i)
         }
         None
     }
-
-    public operator func ==(other: SignatureSourceMap): Bool {
-        ptrs == other.ptrs
-    }
-
-    public operator func !=(other: SignatureSourceMap): Bool {
-        !(this == other)
-    }
 }
 
 /**
  * A declaration's signature, and where its types are written.
  */
-@DerivePython
-public struct LoweredSignature <: Equatable<LoweredSignature> {
+@Derive[Equatable]
+public struct LoweredSignature {
     public LoweredSignature(
         public let signature: Signature,
         public let sourceMap: SignatureSourceMap
     ) {}
-
-    public operator func ==(other: LoweredSignature): Bool {
-        signature == other.signature && sourceMap == other.sourceMap
-    }
-
-    public operator func !=(other: LoweredSignature): Bool {
-        !(this == other)
-    }
 }
 
 /**
