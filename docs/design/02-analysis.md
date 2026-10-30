@@ -233,7 +233,10 @@ error by its fallback (A14, D55).
 A type variable (`InferTy`) lives while its generic call is inferred. When that call is
 itself a callee, its returned function's applications share the same variables and solve
 with both the inner and outer arguments (N131, #246). A standalone call still solves alone,
-including fallback to its declared bounds.
+including fallback to its declared bounds. If the arguments' join fails or exceeds an upper
+bound, the solver tries the upper bound below all the others, provided every argument fits it
+and any numeric literals can use that numeric kind or have their default types boxed into it
+(#242). An expected `?I` may select `Option<I>` for this fallback, with arguments boxed as in cjc.
 
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
