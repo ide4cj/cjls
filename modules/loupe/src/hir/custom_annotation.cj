@@ -1,10 +1,12 @@
 package loupe.hir
 
-import cjo.{DeclInfo}
+import cjo.DeclInfo
 import cjsyntax.ast.AnyHasAnnotations
 import loupe.db.AnalysisDatabase
 
-/** A macro-like spelling denotes an annotation only when its resolved class declares that role. */
+/**
+ * A macro-like spelling denotes an annotation only when its resolved class declares that role.
+ */
 func isAnnotationClass(db: AnalysisDatabase, id: DefId): Bool {
     if (id.item(db).kind != ItemKind.Class) {
         return false
@@ -26,8 +28,10 @@ func isAnnotationClass(db: AnalysisDatabase, id: DefId): Bool {
     }
 }
 
-/** Constructor visibility is part of successful typing, even while general access diagnostics are deferred. */
-func annotationConstructorVisible(db: AnalysisDatabase, from: DefId, initializer: DefId): Bool {
+/**
+ * Constructor visibility is part of successful typing, even while general access diagnostics are deferred.
+ */
+func isAnnotationConstructorVisible(db: AnalysisDatabase, from: DefId, initializer: DefId): Bool {
     let item = declItemOf(db, initializer) ?? return false
     let visibility = visibilityOf(item)
     if (visibility == Visibility.Private) {
@@ -38,8 +42,10 @@ func annotationConstructorVisible(db: AnalysisDatabase, from: DefId, initializer
     visibility.isSeen(by: relationOf(nameOf(db, source), nameOf(db, target)))
 }
 
-/** A declaration macro owns its input until analysis reads a successful replacement. */
-func annotationInputIsOpaque(db: AnalysisDatabase, def: DefId): Bool {
+/**
+ * A declaration macro owns its input until analysis reads a successful replacement.
+ */
+func isAnnotationInputOpaque(db: AnalysisDatabase, def: DefId): Bool {
     let file = sourceFileOf(db, def) ?? return true
     let pkg = packageOf(db, def) ?? return true
     var current = Some(def)

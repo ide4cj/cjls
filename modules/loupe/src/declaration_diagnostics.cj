@@ -139,7 +139,7 @@ func declarationDiagnosticsInTree(
         }
         if (
             node.kind == SyntaxKind.MainDecl &&
-                checkNativeMainAnnotations(
+                hasRejectedNativeMainAnnotations(
                     AnyHasAnnotations
                         .cast(node)
                         .map { decl => decl.annotations() |> collectArray } ??
@@ -177,16 +177,19 @@ func declarationDiagnosticsInTree(
     found.toArray()
 }
 
-/** ParseMainDecl runs before inactive declarations are removed; C target checks run later. */
-func checkNativeMainAnnotations(
+/**
+ * Reports parser-owned main annotation errors and returns whether later checks must stop.
+ * ParseMainDecl runs before inactive declarations are removed; C target checks run later.
+ */
+func hasRejectedNativeMainAnnotations(
     annotations: Array<Annotation>,
     found: ArrayList<Diagnostic>
 ): Bool {
     let first = annotations.get(0) ?? return false
     let allowed = ["When", "C", "OverflowThrowing", "OverflowWrapping", "OverflowSaturating"]
-    let rejected =
+    let hasRejected =
         annotations.any { annotation => !allowed.contains(annotation.nameRef()?.text() ?? "") }
-    if (!rejected) {
+    if (!hasRejected) {
         return false
     }
     for (annotation in annotations where annotation.nameRef()?.text() == Some("Deprecated")) {
@@ -214,7 +217,9 @@ func checkNativeMainAnnotations(
     true
 }
 
-/** The parser rejects the first non-conditional annotation on main before resolving its name. */
+/**
+ * The parser rejects the first non-conditional annotation on main before resolving its name.
+ */
 func checkMainAnnotationWrapper(
     db: AnalysisDatabase,
     file: ItemFile,
@@ -230,8 +235,8 @@ func checkMainAnnotationWrapper(
             return
         }
     }
-    var target = call.decl().map { decl => decl.syntax } ?? return ()
-    while (let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }) {
+    var target = call.decl()?.syntax ?? return ()
+    while (let Some(inner) <- MacroExpandDecl.cast(target)?.decl()) {
         target = inner.syntax
     }
     if (target.kind != SyntaxKind.MainDecl) {
@@ -251,13 +256,8 @@ func checkMainAnnotationWrapper(
     }
     let name = String.join(path, delimiter: ".")
     let start = call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? return ()
-    var end = start
-    for (name in call.nameRefs()) {
-        end = name.syntax.textRange.end
-    }
-    if (let Some(attr) <- call.macroAttr()) {
-        end = attr.syntax.textRange.end
-    }
+    let headEnd = call.nameRefs().fold(start) { _, name => name.syntax.textRange.end }
+    let end = call.macroAttr()?.syntax.textRange.end ?? headEnd
     found
         .add(
             Diagnostic(
@@ -714,7 +714,9 @@ func declarationModifierConflicts(
     invalid
 }
 
-/** Check only resolved nominal or primitive heads; unavailable types cannot establish a bad modifier. */
+/**
+ * Check only resolved nominal or primitive heads; unavailable types cannot establish a bad modifier.
+ */
 func checkExtendMutModifiers(
     db: AnalysisDatabase,
     file: ItemFile,

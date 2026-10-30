@@ -2,15 +2,15 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import ginkgo.TextRange
 import loupe.fixture.*
 import loupe.hir.*
-import ginkgo.TextRange
 import rope.Rope
 
 @Test
 class DeclarationDiagnosticsTest {
     @TestCase
-    func customAnnotationsCheckConstructorsBeforeLocalPlacement() {
+    func customAnnotationsCheckConstructorsBeforeLocalPlacement(): Unit {
         checkDiagnostics(
             #"
             @Annotation
@@ -35,7 +35,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func customAnnotationArgumentsUseTheDeclarationsLexicalScope() {
+    func customAnnotationArgumentsUseTheDeclarationsLexicalScope(): Unit {
         checkDiagnostics(
             #"
             @Annotation
@@ -59,7 +59,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func customAnnotationWithInaccessibleConstructorDoesNotCheckPlacement() {
+    func customAnnotationWithInaccessibleConstructorDoesNotCheckPlacement(): Unit {
         checkDiagnostics(
             #"
             @Annotation
@@ -70,7 +70,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func aliasesAndGenericConstructorsRetainSuccessfulTypingRequirement() {
+    func aliasesAndGenericConstructorsRetainSuccessfulTypingRequirement(): Unit {
         checkDiagnostics(
             #"
             @Annotation public class A<T> { const init() {} }
@@ -88,7 +88,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func customAnnotationsInMemberBodiesKeepTheirLocalTarget() {
+    func customAnnotationsInMemberBodiesKeepTheirLocalTarget(): Unit {
         checkDiagnostics(
             #"
             @Annotation public class A { const init() {} }
@@ -105,7 +105,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func supportedCustomAnnotationTargetsRemainClean() {
+    func supportedCustomAnnotationTargetsRemainClean(): Unit {
         checkDiagnostics(
             #"
             @Annotation public class A { const init() {} }
@@ -126,7 +126,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func customAnnotationConstructorChangesInvalidateUneditedUses() {
+    func customAnnotationConstructorChangesInvalidateUneditedUses(): Unit {
         // arrange
         let fixture =
             Fixture
@@ -141,28 +141,39 @@ class DeclarationDiagnosticsTest {
         let db = fixture.database()
         let use = fixture.file("/use.cj").fileId
         let definition = fixture.file("/annotation.cj").fileId
+
+        // act
         let original = diagnostics(db, use)
+
+        // assert
+        @Expect(original.size, 1)
 
         // act
         db.setFileText(definition, Rope("@Annotation public class A { const init(x: String) {} }"))
         let incompatible = diagnostics(db, use)
+
+        // assert
+        @Expect(incompatible.isEmpty())
+
+        // act
         db.setFileText(definition, Rope("@Annotation public class A { const init(x: Int64) {} }"))
         let restored = diagnostics(db, use)
 
         // assert
-        @Expect(original.size, 1)
-        @Expect(incompatible.isEmpty())
         @Expect(restored.size, 1)
     }
 
     @TestCase
-    func movingCustomAnnotationSourcePreservesBodyAndUpdatesDiagnosticRange() {
+    func movingCustomAnnotationSourcePreservesBodyAndUpdatesDiagnosticRange(): Unit {
         // arrange
-        let text = "@Annotation public class A { const init() {} }\nfunc f() { @A let x = 1 }"
-        let fixture = Fixture.parse(text)
+        const TEXT = "@Annotation public class A { const init() {} }\nfunc f() { @A let x = 1 }"
+        let fixture = Fixture.parse(TEXT)
         let db = fixture.database()
         let file = fixture.files[0].fileId
-        let source = db.sourceFile(file).getOrThrow()
+        let source =
+            db
+                .sourceFile(file)
+                .getOrThrow { FixtureException("fixture source file is missing from the database") }
         let def =
             bodiesOf(db, ItemFile.Source(source))
                 .filter { one => one.item(db).kind == ItemKind.Func }[0]
@@ -170,7 +181,7 @@ class DeclarationDiagnosticsTest {
         let original = diagnostics(db, file)
 
         // act
-        db.setFileText(file, Rope("\n\n" + text))
+        db.setFileText(file, Rope("\n\n${TEXT}"))
         let after = bodyWithSourceMap(db, def)
         let moved = diagnostics(db, file)
 
@@ -182,7 +193,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func multipleCustomAnnotationsReportOnePlacementErrorPerDeclaration() {
+    func multipleCustomAnnotationsReportOnePlacementErrorPerDeclaration(): Unit {
         checkDiagnostics(
             #"
             @Annotation public class A { const init() {} }
@@ -200,7 +211,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func wildcardAnnotationsHaveAPlacementTargetWithoutBindings() {
+    func wildcardAnnotationsHaveAPlacementTargetWithoutBindings(): Unit {
         checkDiagnostics(
             #"
             @Annotation public class A { const init(x: Int64) {} }
@@ -215,7 +226,7 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func mainRejectsTheFirstAnnotationBeforeResolvingItsName() {
+    func mainRejectsTheFirstAnnotationBeforeResolvingItsName(): Unit {
         checkDiagnostics(
             #"
               @Unknown[1] main() { 0 }
@@ -243,12 +254,12 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase[name in ["OverflowThrowing", "OverflowWrapping", "OverflowSaturating"]]
-    func overflowAnnotationsRemainValidOnMain(name: String) {
+    func overflowAnnotationsRemainValidOnMain(name: String): Unit {
         checkDiagnostics("@${name} main(): Int64 { 0 }")
     }
 
     @TestCase
-    func nativeMainChecksPreserveParserOrderAndDeprecationMessage() {
+    func nativeMainChecksPreserveParserOrderAndDeprecationMessage(): Unit {
         checkDiagnostics(
             #"
               @OverflowWrapping @Frozen main() { 0 }
@@ -272,27 +283,42 @@ class DeclarationDiagnosticsTest {
     }
 
     @TestCase
-    func mainInputOfAResolvedMacroRemainsOpaque() {
+    func mainInputOfAResolvedMacroRemainsOpaque(): Unit {
         // arrange
-        let text = "import m.ms.*\n@M[x] main() { 0 }\n"
-        let (db, file) = expansionDatabase(text)
+        const TEXT = "import m.ms.*\n@M[x] main() { 0 }\n"
+        let (db, file) = expansionDatabase(TEXT)
+        let start =
+            TEXT
+                .indexOf("@M[x]")
+                .getOrThrow { FixtureException("fixture does not contain the @M[x] call") }
+
+        // act
         let pending = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(pending.isEmpty())
 
         // act
         answer(db, file, "M", "main() { 0 }", [])
         let expanded = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(expanded.isEmpty())
+
+        // act
         answer(db, file, "M", "@Frozen main() { 0 }", [])
         let generated = diagnostics(db, file.fileId(db))
-        db.setFileText(file.fileId(db), Rope(text.replace("@M[x]", "@M[y]")))
+
+        // assert
+        @Assert(generated.size == 1)
+        @Expect(generated[0].message, "unexpected annotation '@Frozen' on main")
+        @Expect(generated[0].range, TextRange(start, start + 5))
+
+        // act
+        db.setFileText(file.fileId(db), Rope(TEXT.replace("@M[x]", "@M[y]")))
         let stale = diagnostics(db, file.fileId(db))
 
         // assert
-        @Expect(pending.isEmpty())
-        @Expect(expanded.isEmpty())
-        @Assert(generated.size == 1)
-        @Expect(generated[0].message, "unexpected annotation '@Frozen' on main")
-        let start = text.indexOf("@M[x]").getOrThrow()
-        @Expect(generated[0].range, TextRange(start, start + 5))
         @Expect(stale.isEmpty())
     }
 
@@ -539,45 +565,81 @@ class DeclarationDiagnosticsTest {
         @Expect(result.size, 1)
         @Expect(result[0].message, "local function cannot be modified with '@Frozen'")
     }
+
     @TestCase
-    func customAnnotationFromBodyMacroMapsToItsCallAndIgnoresStaleOutput() {
-        let text =
+    func customAnnotationFromBodyMacroMapsToItsCallAndIgnoresStaleOutput(): Unit {
+        // arrange
+        const TEXT =
             "import m.ms.*\n@Annotation public class Mark { const init() {} }\nfunc f() { @A() }\n"
-        let (db, file) = expansionDatabase(text)
+        let (db, file) = expansionDatabase(TEXT)
+        let start =
+            TEXT
+                .indexOf("@A()")
+                .getOrThrow { FixtureException("fixture does not contain the @A() call") }
+
+        // act
         answer(db, file, "A", "@Mark let value = 1", [])
         let result = diagnostics(db, file.fileId(db))
+
+        // assert
         @Assert(result.size == 1)
         @Expect(result[0].message, "cannot use custom annotation")
-        let start = text.indexOf("@A()").getOrThrow()
         @Expect(result[0].range, TextRange(start, start + 2))
-        db.setFileText(file.fileId(db), Rope(text.replace("@A()", "@A(1)")))
-        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+
+        // act
+        db.setFileText(file.fileId(db), Rope(TEXT.replace("@A()", "@A(1)")))
+        let stale = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(stale.isEmpty())
     }
 
     @TestCase
-    func opaqueBodyMacroInputDoesNotValidateCustomAnnotations() {
+    func opaqueBodyMacroInputDoesNotValidateCustomAnnotations(): Unit {
+        // arrange
         let (db, file) =
             expansionDatabase(
                 "import m.ms.*\n@Annotation public class Mark { const init() {} }\nfunc f() { @M[x] @Mark let value = 1 }\n"
             )
-        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+
+        // act
+        let pending = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(pending.isEmpty())
+
+        // act
         answer(db, file, "M", "let value = 1", [])
-        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+        let expanded = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(expanded.isEmpty())
     }
 
     @TestCase
-    func opaqueEnclosingMacroDoesNotValidateCustomAnnotationInput() {
+    func opaqueEnclosingMacroDoesNotValidateCustomAnnotationInput(): Unit {
+        // arrange
         let (db, file) =
             expansionDatabase(
                 "import m.ms.*\n@Annotation public class Mark { const init() {} }\n@M[x] func f() { @Mark let value = 1 }\n"
             )
-        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+
+        // act
+        let pending = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(pending.isEmpty())
+
+        // act
         answer(db, file, "M", "func f() {}", [])
-        @Expect(diagnostics(db, file.fileId(db)).isEmpty())
+        let expanded = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(expanded.isEmpty())
     }
 
     @TestCase
-    func inactiveCustomAnnotationDoesNotCheckPlacement() {
+    func inactiveCustomAnnotationDoesNotCheckPlacement(): Unit {
         checkDiagnostics(
             #"
             //- /main.cj cfg=test:false

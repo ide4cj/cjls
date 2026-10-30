@@ -136,6 +136,9 @@ public enum InferenceDiagnostic {
      * the right: the expression, the left's type and the right's (cjc's "invalid binary operator").
      */
     | InvalidBinaryOperator(ExprId, Ty, Ty)
+    /**
+     * A local declaration's rejected custom annotation, keyed by its synthetic source-map anchor.
+     */
     | CustomAnnotationPlace(ExprId)
 }
 
@@ -692,9 +695,11 @@ class Inference {
         )
     }
 
-    /** cjc checks placement only after its desugared constructor call has a correct type. */
+    /**
+     * cjc checks placement only after its desugared constructor call has a correct type.
+     */
     private func localAnnotation(annotation: LocalAnnotation): Unit {
-        if (annotationInputIsOpaque(db, def)) {
+        if (isAnnotationInputOpaque(db, def)) {
             return
         }
         let file = from ?? return ()
@@ -707,25 +712,34 @@ class Inference {
                 return
             }
         }
+        let candidates = annotationConstructors(annotation, owner, file) ?? return ()
+        checkAnnotationConstructor(annotation, candidates)
+    }
+
+    private func annotationConstructors(
+        annotation: LocalAnnotation,
+        owner: Package,
+        file: SourceFile
+    ): ?Array<Callable> {
         let resolved =
             match (
                 resolveTypePath(db, TypeScope([], owner, file), annotation.path)
                     .get(annotation.path.size - 1)
             ) {
                 case Some(Resolved(TypeOf(id))) => id
-                case _ => return
+                case _ => return None
             }
         let (target, explicit) =
             if (resolved.item(db).kind == ItemKind.Class && isAnnotationClass(db, resolved)) {
                 (resolved, Array<Ty>())
             } else {
-                match (signatureTypes(db, resolved).ty.map { ty => ty.kind(db) }) {
+                match (signatureTypes(db, resolved).ty?.kind(db)) {
                     case Some(DeclTy(id, args)) where isAnnotationClass(db, id) => (id, args)
-                    case _ => return
+                    case _ => return None
                 }
             }
         let (typeArgs, open) = openTypeArgsOf(target, explicit, None)
-        let candidates =
+        Some(
             initCallables(target, typeArgs, open: open)
                 .filter {
                     callable =>
@@ -733,10 +747,17 @@ class Inference {
                         .decl
                         .map {
                             initializer =>
-                            annotationConstructorVisible(db, def, initializer)
+                            isAnnotationConstructorVisible(db, def, initializer)
                         } ??
                         true
                 }
+        )
+    }
+
+    private func checkAnnotationConstructor(
+        annotation: LocalAnnotation,
+        candidates: Array<Callable>
+    ): Unit {
         let before = mismatches
         quiet++
         try {
