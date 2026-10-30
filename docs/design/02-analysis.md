@@ -197,6 +197,11 @@ Resolution is layered (D44): `itemTree` (a file) → `defMap` (a package) → si
 A name in a scope is a set of definitions; a member, an overload or an `extend`'s member is
 found by inference, never by a `defMap`.
 
+Import lookup retains the importing file's test context (#518): a module's
+`testDeps` extend only its `*_test.cj` imports, including expansion output at a test
+call site. Production package exports omit test-file re-exports. Each dependency
+resolves against its own edges; a downstream importer never inherits test edges.
+
 ### A23: Declaration identity
 
 A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair
@@ -280,7 +285,7 @@ expressions after it of that node are what it is desugared into, the last its va
 
 A type not known has three causes (D77, D143): `ErrorTy` only where cjc reports an error, as
 far as the analysis follows cjc; `TodoTy(why)` for an unsupported analysis feature (macro
-expansion, local generics); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
+expansion); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
 `BinaryType`), a type not inferred yet (`NotInferred`), or an exhausted analysis resource budget
 (`GenericBoundsLimit`). A malformed binary or an unresolved binary dependency alone does not
 establish an error in the user's source.

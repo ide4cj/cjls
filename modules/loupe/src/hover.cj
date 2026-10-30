@@ -443,7 +443,7 @@ class Hovers {
             case TypeOf(id) => declItem(id, None)
             case GenericOf(owner, index) =>
                 let name = genericsOf(db, owner).get(index) ?? return None
-                let param = Ty(db, ParamTy(owner, index))
+                let param = Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
                 boundedItem(
                     name,
                     signatureTypes(db, owner).bounds |>

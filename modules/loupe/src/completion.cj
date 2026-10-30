@@ -852,7 +852,8 @@ func importCompletions(
     let pkg = packageOfFile(db, file) ?? return None
     let from = PackageRef.Source(pkg)
     let index = packageIndex(db)
-    let scope = index.scopes.get(index.owners.get(from) ?? return None) ?? return None
+    let ofTests = isTestOf(db, pkg, file)
+    let scope = index.scopeOf(from, ofTests: ofTests)
     let own = pkg.name(db)
     let found = ArrayList<CompletionItem>()
     for (
@@ -864,7 +865,10 @@ func importCompletions(
         }
     }
     if (prefix.endsWith(".")) {
-        if (let Some(ref) <- index.find(prefix[..prefix.size - 1], from: from) && ref != from) {
+        if (
+            let Some(ref) <- index.find(prefix[..prefix.size - 1], from: from, ofTests: ofTests) &&
+                ref != from
+        ) {
             found.add(all: packageMembers(db, file, ref))
         }
     }

@@ -41,15 +41,27 @@ public struct PackageIndex {
          * What each module may import from: itself, its deps, and `std`.
          */
         public let scopes: IndexMap<String, Array<String>>,
+        public let testScopes!: IndexMap<String, Array<String>> = IndexMap<String, Array<String>>(),
         public let contexts!: IndexMap<PackageRef, PackageRef> = IndexMap<PackageRef, PackageRef>()
     ) {}
 
     /**
-     * The package `name` names in an import of `from`: one of its module, of a module or binary
-     * among its deps, or of `std`; for a package compiled already, which found it once, one of its
-     * binary first, else any.
+     * The owners visible to this importer, with its additional test edges when requested.
      */
-    public func find(name: String, from!: PackageRef): ?PackageRef {
+    public func scopeOf(from: PackageRef, ofTests!: Bool = false): Array<String> {
+        let owner = owners.get(from) ?? ""
+        if (ofTests) {
+            testScopes.get(owner) ?? scopes.get(owner) ?? []
+        } else {
+            scopes.get(owner) ?? []
+        }
+    }
+
+    /**
+     * The package `name` names in an import of `from`; tests additionally see their module's
+     * test dependencies. A compiled package prefers its own binary, then any candidate.
+     */
+    public func find(name: String, from!: PackageRef, ofTests!: Bool = false): ?PackageRef {
         if (let Some(binary) <- contexts.get(from)) {
             return find(name, from: binary)
         }
@@ -57,7 +69,7 @@ public struct PackageIndex {
         let owner = owners.get(from) ?? ""
         match (from) {
             case Source(_) =>
-                let scope = scopes.get(owner) ?? []
+                let scope = scopeOf(from, ofTests: ofTests)
                 candidates
                     .iterator()
                     .filter { it => scope.contains(it.owner) }
@@ -80,6 +92,7 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
     let owners = IndexMap<PackageRef, String>()
     let scopes = IndexMap<String, Array<String>>()
     let contexts = IndexMap<PackageRef, PackageRef>()
+    let testScopes = IndexMap<String, Array<String>>()
     if (let Some(project) <- db.project()) {
         for (module in project.modules(db)) {
             let resolutionScope = module.resolutionScope(db)
@@ -106,6 +119,24 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
                 owners[ref] = owner
             }
         }
+        for (module in project.modules(db)) {
+            let resolutionScope = module.resolutionScope(db)
+            let owner = scopedOwner(resolutionScope, module.name(db))
+            let scope = ArrayList<String>(testScopes.get(owner) ?? scopes.get(owner) ?? [])
+            for (dep in module.testDeps(db)) {
+                let selected = scopedOwner(resolutionScope, dep)
+                if (!scope.contains(selected)) {
+                    scope.add(selected)
+                }
+                if (
+                    project.binaries(db).iterator().any { binary => binary.name == dep } &&
+                        !scope.contains(dep)
+                ) {
+                    scope.add(dep)
+                }
+            }
+            testScopes[owner] = scope.toArray()
+        }
         for (source in project.binarySources(db)) {
             if (let Some(pkg) <- source.context && let Some(binary) <- pkg.binary(db)) {
                 contexts[PackageRef.Source(pkg)] = PackageRef.Binary(binary)
@@ -117,7 +148,13 @@ public func packageIndex(db: AnalysisDatabase): PackageIndex {
             owners[ref] = binary.binary(db)
         }
     }
-    PackageIndex(frozen(packages) { list => list.toArray() }, owners, scopes, contexts: contexts)
+    PackageIndex(
+        frozen(packages) { list => list.toArray() },
+        owners,
+        scopes,
+        testScopes: testScopes,
+        contexts: contexts
+    )
 }
 
 /**
@@ -286,17 +323,18 @@ public func targetOf(
     db: AnalysisDatabase,
     from: PackageRef,
     path: ImportPath,
-    level: Visibility
+    level: Visibility,
+    ofTests!: Bool = false
 ): ImportTarget {
     let index = packageIndex(db)
     let full = String.join(path.segments, delimiter: ".")
     if (path.isGlob) {
         let target =
-            index.find(full, from: from) ??
+            index.find(full, from: from, ofTests: ofTests) ??
                 return ImportTarget.NoTarget(ImportError.NoPackage(full))
         return selfImport(from, target, full) ?? ImportTarget.GlobOf(target, full)
     }
-    if (let Some(target) <- index.find(full, from: from)) {
+    if (let Some(target) <- index.find(full, from: from, ofTests: ofTests)) {
         if (let Some(error) <- selfImport(from, target, full)) {
             return error
         }
@@ -310,7 +348,7 @@ public func targetOf(
     }
     let pkgName = String.join(path.segments[..path.segments.size - 1], delimiter: ".")
     let target =
-        index.find(pkgName, from: from) ??
+        index.find(pkgName, from: from, ofTests: ofTests) ??
             return ImportTarget.NoTarget(ImportError.NoPackage(pkgName))
     selfImport(from, target, pkgName) ??
         ImportTarget.NameOf(target, pkgName, path.segments[path.segments.size - 1], path.alias)
@@ -325,9 +363,10 @@ public func resolveImport(
     db: AnalysisDatabase,
     from: PackageRef,
     path: ImportPath,
-    level: Visibility
+    level: Visibility,
+    ofTests!: Bool = false
 ): ImportResolution {
-    match (targetOf(db, from, path, level)) {
+    match (targetOf(db, from, path, level, ofTests: ofTests)) {
         case PackageOf(name, target) => ImportResolution.ToPackage(name, target)
         case GlobOf(target, full) => namesOf(db, from, target, full, level, None)
         case NameOf(target, pkgName, name, alias) =>

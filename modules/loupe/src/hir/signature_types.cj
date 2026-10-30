@@ -299,6 +299,17 @@ public func genericsOf(db: AnalysisDatabase, def: DefId): Array<String> {
 }
 
 /**
+ * The parameter names of a declaration or a local function binder.
+ */
+public func genericsOf(db: AnalysisDatabase, owner: GenericOwner): Array<String> {
+    match (owner) {
+        case Declaration(def) => genericsOf(db, def)
+        case LocalFunction(def, index) =>
+            body(db, def).funcs.get(index).map { fn => fn.generics } ?? []
+    }
+}
+
+/**
  * The type parameters of the declaration `item` of the `.cjo` of `pkg` by name; none for a
  * declaration it does not have, or bytes that break where they are read.
  */
@@ -329,7 +340,7 @@ func selfTyOf(db: AnalysisDatabase, def: DefId): Ty {
     let owner = canonicalDef(db, def)
     let count = genericsOf(db, owner).size
     let head = specificOf(db, owner) ?? owner
-    Ty(db, DeclTy(head, Array(count) { i => Ty(db, ParamTy(owner, i)) }))
+    Ty(db, DeclTy(head, Array(count) { i => Ty(db, ParamTy(GenericOwner.Declaration(owner), i)) }))
 }
 
 /**
@@ -558,12 +569,15 @@ class SourceTyLowering {
                 if (!args.isEmpty()) {
                     errors.add(TyError(id, TyErrorKind.WrongTypeArgCount))
                 }
-                Ty(db, ParamTy(owner, index))
+                Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
             case Some(UnresolvedPath) =>
                 unresolved(id, typeScope, segments, resolved)
                 Ty(db, ErrorTy)
-            // a local function's type parameter: no `Ty` yet (8c)
-            case Some(Resolved(LocalGenericOf(_, _, _))) => Ty(db, TodoTy(Todo.LocalGeneric))
+            case Some(Resolved(LocalGenericOf(owner, local, index))) =>
+                if (!args.isEmpty()) {
+                    errors.add(TyError(id, TyErrorKind.WrongTypeArgCount))
+                }
+                Ty(db, ParamTy(GenericOwner.LocalFunction(owner, local), index))
             // a type ambiguous, packages conflicting: errors of names
             case _ => Ty(db, ErrorTy)
         }
@@ -958,7 +972,7 @@ class BinaryTyLowering {
         }
         for ((owner, params) in owners) {
             for (i in 0..params.size where params[i] == at.index) {
-                return ParamTy(owner, i)
+                return ParamTy(GenericOwner.Declaration(owner), i)
             }
         }
         UnknownTy(UnknownReason.BinaryType)

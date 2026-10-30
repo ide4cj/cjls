@@ -40,7 +40,7 @@ class TypeArgSolver {
      * Bounds each variable by the constraints on the parameter `vars` stands for, including those
      * required by its bounding interfaces (cjc's `CopyUpperbound`).
      */
-    func boundedBy(owner: DefId, vars: Array<Ty>): Unit {
+    func boundedBy(owner: GenericOwner, vars: Array<Ty>): Unit {
         for (bound in genericBounds(db, owner)) {
             if (let ParamTy(of, index) <- bound.ty.kind(db) && of == owner && index < count) {
                 for (one in bound.bounds) {

@@ -253,7 +253,7 @@ func superclassOf(db: AnalysisDatabase, def: DefId): ?ExtendedType {
 func boundsOf(db: AnalysisDatabase, target: TypeTarget): Array<ExtendedType> {
     match (target) {
         case GenericOf(owner, index) =>
-            let ty = Ty(db, ParamTy(owner, index))
+            let ty = Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
             let found = ArrayList<ExtendedType>()
             for (bound in genericBounds(db, owner) where bound.ty == ty) {
                 for (one in bound.bounds) {
@@ -264,37 +264,17 @@ func boundsOf(db: AnalysisDatabase, target: TypeTarget): Array<ExtendedType> {
             }
             found.toArray()
         case LocalGenericOf(owner, localFunc, index) =>
-            let lowered = body(db, owner)
-            let fn = lowered.funcs.get(localFunc) ?? return []
-            let name = fn.generics.get(index) ?? return []
+            let binder = GenericOwner.LocalFunction(owner, localFunc)
+            let ty = Ty(db, ParamTy(binder, index))
             let found = ArrayList<ExtendedType>()
-            for (bound in fn.bounds where isNamed(lowered.types[bound.ty.index], name)) {
+            for (bound in genericBounds(db, binder) where bound.ty == ty) {
                 for (one in bound.bounds) {
-                    if (let PathRef(segments) <- lowered.types[one.index]) {
-                        let path =
-                            resolveBodyTypePath(
-                                db,
-                                owner,
-                                one,
-                                segments.map { segment => segment.name }
-                            )
-                        if (let Some(Resolved(TypeOf(id))) <- path.get(path.size - 1)) {
-                            found.add(DeclType(id))
-                        }
+                    if (let DeclTy(id, _) <- one.kind(db) && !found.contains(DeclType(id))) {
+                        found.add(DeclType(id))
                     }
                 }
             }
             found.toArray()
         case _ => []
-    }
-}
-
-/**
- * Whether `ty` is the lone name `name`, a type parameter as a `where` writes it.
- */
-func isNamed(ty: TypeRef, name: String): Bool {
-    match (ty) {
-        case PathRef(segments) => segments.size == 1 && segments[0].name == name
-        case _ => false
     }
 }

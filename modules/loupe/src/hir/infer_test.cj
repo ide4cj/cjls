@@ -123,6 +123,131 @@ func exprTyCount(db: AnalysisDatabase, def: DefId): Int64 {
 @Test
 class InferTest {
     @TestCase
+    func localGenericUpperBoundsAreUsedByTheCallSolver() {
+        checkInference(
+            #"
+            package m
+            interface I {}
+            func f(): Unit {
+                func make<T>(): ?T where T <: I { None }
+            //       ^^^^ () -> Option<T>
+                let fallback = make()
+            //      ^^^^^^^^ Option<I>
+                func same<T>(x: T): T where T <: ToString { x }
+            //       ^^^^ (T) -> T
+            //               ^ T
+                let byte = same(1u8)
+            //      ^^^^ UInt8
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func localGenericRecursionAndInferredReturns() {
+        checkInference(
+            #"
+            package m
+            func f(): Unit {
+                func recurse<T>(x: T): T { recurse(x) }
+            //       ^^^^^^^ (T) -> T
+            //                  ^ T
+                func id<T>(x: T) { x }
+            //       ^^ (T) -> T
+            //             ^ T
+                let byte = id(1u8)
+            //      ^^^^ UInt8
+                let flag = recurse(true)
+            //      ^^^^ Bool
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func localGenericFunction() {
+        checkInference(
+            #"
+            package m
+            func f(): Unit {
+                func id<T>(x: T): T {
+            //       ^^ (T) -> T
+            //             ^ T
+                    let y = x
+            //          ^ T
+                    y
+                }
+                let a = id(1u8)
+            //      ^ UInt8
+                let b = id<String>("s")
+            //      ^ String
+                let c = id(1i16)
+            //      ^ Int16
+                let callable = id<Bool>
+            //      ^^^^^^^^ (Bool) -> Bool
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func localGenericBoundsAndCapturedOuterParameters() {
+        checkInference(
+            #"
+            package m
+            interface Value<T> where T <: ToString { func get(): T }
+            class ByteValue <: Value<UInt8> { public func get(): UInt8 { 1u8 } }
+            func f<A>(outer: A): Unit {
+            //        ^^^^^ A
+                func extract<T, U>(x: T): U where T <: Value<U> {
+            //       ^^^^^^^ (T) -> U
+            //                     ^ T
+                    let got = x.get()
+            //          ^^^ U
+                    let rendered = got.toString()
+            //          ^^^^^^^^ String
+                    got
+                }
+                let byte = extract<ByteValue, UInt8>(ByteValue())
+            //      ^^^^ UInt8
+                func keep<T>(x: T): (A, T) {
+            //       ^^^^ (T) -> (A, T)
+            //               ^ T
+                    (outer, x)
+                }
+                let both = keep(1u8)
+            //      ^^^^ (A, UInt8)
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func nestedLocalGenericFunctionsKeepTheirOwnParameters() {
+        checkInference(
+            #"
+            package m
+            func f(): Unit {
+                func outer<T>(x: T): (T, UInt8) {
+            //       ^^^^^ (T) -> (T, UInt8)
+            //                ^ T
+                    func inner<T>(y: T) {
+            //           ^^^^^ (T) -> (T, T)
+            //                    ^ T
+                        (x, y)
+                    }
+                    let pair = inner(1u8)
+            //          ^^^^ (T, UInt8)
+                    pair
+                }
+                let pair = outer(true)
+            //      ^^^^ (Bool, UInt8)
+            }
+            "#
+        )
+    }
+
+    @TestCase
     func aLiteralIsOfItsSuffixElseOfTheTypeExpectedElseInt64OrFloat64() {
         checkInference(
             #"
@@ -2920,6 +3045,14 @@ class InferTest {
                 let x = T.make()
             //      ^ T
                 x
+            }
+            func f(): Unit {
+                func local<T>(): T where T <: Make<T> {
+            //       ^^^^^ () -> T
+                    let x = T.make()
+            //          ^ T
+                    x
+                }
             }
             "#
         )
