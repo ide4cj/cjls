@@ -17,7 +17,16 @@ import cjsyntax.ast.{
     TrailingLambdaExpr
 }
 import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.hir.ActiveFilter
+import loupe.hir.{
+    ActiveFilter,
+    DefId,
+    ItemFile,
+    commonsOf,
+    inactiveReasonOf,
+    itemOf,
+    parentOf,
+    specificOf
+}
 import loupe.syntax.parse
 import loupe.vfs.FileId
 
@@ -61,6 +70,9 @@ public func prepareCallHierarchy(
     offset: Int64
 ): Array<CallHierarchyEntry> {
     let file = db.sourceFile(fileId) ?? return []
+    if (inactiveReasonOf(db, file).isSome()) {
+        return []
+    }
     let root = parse(db, file).syntaxNode()
     let active = ActiveFilter.of(db, file)
     // Initializer navigation normally goes to its type. Here its own declaration is the root.
@@ -74,10 +86,10 @@ public func prepareCallHierarchy(
             if (node.ancestors().any { parent => !active.isActive(parent) }) {
                 return []
             }
-            return [entry]
+            return completedCallableEntries(db, file, node, entry)
         }
     }
-    definitionAt(db, fileId, offset) |>
+    callableTargets(db, fileId, offset) |>
         filterMap { target: NavigationTarget => hierarchyEntry(db, target) } |>
         collectArray
 }
@@ -151,6 +163,9 @@ private func groupedCalls(edges: Array<CallEdge>, incoming!: Bool): Array<Hierar
  */
 @CalcaTracked
 func callsInFile(db: AnalysisDatabase, file: SourceFile): Array<CallEdge> {
+    if (inactiveReasonOf(db, file).isSome()) {
+        return []
+    }
     let fileId = file.fileId(db)
     let edges = ArrayList<CallEdge>()
     let active = ActiveFilter.of(db, file)
@@ -168,13 +183,81 @@ func callsInFile(db: AnalysisDatabase, file: SourceFile): Array<CallEdge> {
                 filterMap { parent: CjSyntaxNode => callableEntry(fileId, parent) } |>
                 first
         let owner = caller ?? continue
-        for (target in definitionAt(db, fileId, range.start)) {
+        for (target in callableTargets(db, fileId, range.start)) {
             if (let Some(entry) <- hierarchyEntry(db, target)) {
                 edges.add(CallEdge(owner, entry, range))
             }
         }
     }
     edges.toArray()
+}
+
+/**
+ * Navigation also shows common declarations; a call edge names only the implementation.
+ * Remove those extra targets after resolution so overload selection stays with inference.
+ */
+private func callableTargets(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    offset: Int64
+): Array<NavigationTarget> {
+    let targets = definitionAt(db, fileId, offset)
+    let commons = ArrayList<NavigationTarget>()
+    for (target in targets) {
+        let file = db.sourceFile(target.fileId) ?? continue
+        let token =
+            tokenAt(parse(db, file).syntaxNode(), target.focusRange.start, includeInit: true) ??
+                continue
+        let def = itemAround(db, ItemFile.Source(file), token.parent) ?? continue
+        if (declTarget(db, def) != Some(target)) {
+            continue
+        }
+        commons
+            .add(
+                all: commonsOf(db, def).iterator() |>
+                    filterMap { common: DefId => declTarget(db, common) } |>
+                    collectArray
+            )
+    }
+    targets.filter { target => !commons.contains(target) }
+}
+
+/**
+ * Starting at a common declaration must reach the same body as starting at its call site.
+ * A member supplied only by the common type keeps its own body and source location.
+ */
+private func completedCallableEntries(
+    db: AnalysisDatabase,
+    file: SourceFile,
+    node: CjSyntaxNode,
+    entry: CallHierarchyEntry
+): Array<CallHierarchyEntry> {
+    let def = itemAround(db, ItemFile.Source(file), node) ?? return [entry]
+    if (declTarget(db, def) != Some(entry.target)) {
+        return [entry]
+    }
+    if (let Some(specific) <- specificOf(db, def)) {
+        return declTarget(db, specific)
+            .flatMap { target => hierarchyEntry(db, target) }
+            .map { one => [one] } ??
+            [entry]
+    }
+    let parent = parentOf(db, def) ?? return [entry]
+    let specific = specificOf(db, parent) ?? return [entry]
+    let item = itemOf(db, specific) ?? return [entry]
+    let entries = ArrayList<CallHierarchyEntry>()
+    for (member in item.members) {
+        let candidate = DefId(db, specific.file(db), member.id)
+        if (commonsOf(db, candidate).contains(def)) {
+            if (
+                let Some(one) <- declTarget(db, candidate)
+                    .flatMap { target => hierarchyEntry(db, target) }
+            ) {
+                entries.add(one)
+            }
+        }
+    }
+    if (entries.isEmpty()) { [entry] } else { entries.toArray() }
 }
 
 /**
