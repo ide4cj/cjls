@@ -191,11 +191,11 @@ class CjpmLowering {
                     selected[key] = dir
                 }
             }
-            let deps = dependencies(manifest)
-            let tests: Array<(String, Dependency)> =
-                if (script) { [] } else { dependencies(manifest, tests: true) }
-            for ((name, dep) in deps.concat(tests)) {
-                selectDependency(name, dep, dir, script: script)
+            let deps = dependencies(manifest, dir)
+            let tests: Array<(String, Dependency, VfsPath)> =
+                if (script) { [] } else { dependencies(manifest, dir, tests: true) }
+            for ((name, dep, base) in deps.concat(tests)) {
+                selectDependency(name, dep, base, script: script)
             }
             discoverScripts(dir, manifest)
         } catch (e: ProjectException) {
@@ -207,10 +207,8 @@ class CjpmLowering {
         if (!(dir.join(BUILD_SCRIPT).filePath.map { path => isFile(path) } ?? false)) {
             return
         }
-        let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
-        sort(sorted, by: { a, b => a[0].compare(b[0]) })
-        for ((name, dep) in sorted) {
-            selectDependency(name, dep, dir, script: true)
+        for ((name, dep, base) in dependencies(manifest, dir, script: true)) {
+            selectDependency(name, dep, base, script: true)
         }
     }
 
@@ -340,11 +338,11 @@ class CjpmLowering {
         reached.add(key, name)
         let deps = ArrayList<String>()
         let testDeps = ArrayList<String>()
-        let ordinary = dependencies(manifest)
-        let tests: Array<(String, Dependency)> =
-            if (forScript) { [] } else { dependencies(manifest, tests: true) }
+        let ordinary = dependencies(manifest, dir)
+        let tests: Array<(String, Dependency, VfsPath)> =
+            if (forScript) { [] } else { dependencies(manifest, dir, tests: true) }
         let normalNames = ordinary.map { entry => entry[0] }
-        for ((key, _) in ordinary.concat(tests)) {
+        for ((key, _, _) in ordinary.concat(tests)) {
             if (let Some(path) <- selected.get(CjpmSelection(key, isScript: forScript))) {
                 if (let Some(name) <- module(path, forScript: forScript)) {
                     if (normalNames.contains(key)) {
@@ -467,12 +465,12 @@ class CjpmLowering {
             return
         }
         let deps = ArrayList<String>()
-        let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
-        sort(sorted, by: { a, b => a[0].compare(b[0]) })
-        for ((key, _) in sorted) {
+        for ((key, _, _) in dependencies(manifest, dir, script: true)) {
             if (let Some(path) <- selected.get(CjpmSelection(key, isScript: true))) {
                 if (let Some(name) <- module(path, forScript: true)) {
-                    deps.add(name)
+                    if (!deps.contains(name)) {
+                        deps.add(name)
+                    }
                 }
             }
         }
@@ -490,26 +488,39 @@ class CjpmLowering {
     }
 
     /**
-     * Ordinary or test dependencies of `manifest` for the target, ordered by name.
-     * Keeping the categories separate prevents a test edge from widening ordinary imports.
+     * Declarations retain their manifest directory: inherited paths belong to the workspace.
+     * Keep duplicate names until source selection so conflicts are reported rather than hidden
+     * by a target or member table. Source and script graphs share cjpm's source precedence.
      */
     private func dependencies(
         manifest: Manifest,
-        tests!: Bool = false
-    ): Array<(String, Dependency)> {
-        let all = HashMap<String, Dependency>()
-        let target = targetOf(manifest)
-        let tables =
-            if (tests) {
-                [manifest.testDependencies, target.flatMap { it => it.testDependencies }]
-            } else {
-                [manifest.dependencies, target.flatMap { it => it.dependencies }]
+        dir: VfsPath,
+        tests!: Bool = false,
+        script!: Bool = false
+    ): Array<(String, Dependency, VfsPath)> {
+        let all = ArrayList<(String, Dependency, VfsPath)>()
+        let declarations = ArrayList<(Manifest, VfsPath)>([(manifest, dir)])
+        if (this.manifest.workspace.isSome() && dir != root && members.contains(dir)) {
+            declarations.add((this.manifest, root))
+        }
+        for ((declared, base) in declarations) {
+            let target = targetOf(declared)
+            let tables =
+                if (script) {
+                    [declared.scriptDependencies]
+                } else if (tests) {
+                    [declared.testDependencies, target.flatMap { it => it.testDependencies }]
+                } else {
+                    [declared.dependencies, target.flatMap { it => it.dependencies }]
+                }
+            for (table in tables) {
+                let sorted = (table ?? HashMap<String, Dependency>()).toArray()
+                sort(sorted, by: { a, b => a[0].compare(b[0]) })
+                all.add(all: sorted.map { entry => (entry[0], entry[1], base) })
             }
-        for (table in tables) {
-            all.add(all: table ?? HashMap<String, Dependency>())
         }
         let sorted = all.toArray()
-        sort(sorted, by: { a, b => a[0].compare(b[0]) })
+        sort(sorted, by: { a, b => a[0].compare(b[0]) }, stable: true)
         sorted
     }
 
