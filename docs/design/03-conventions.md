@@ -297,7 +297,7 @@ already expresses the operation.
 A `Unit` function exits with `return`, without an explicit `()`. Omit standalone
 `()` statements and leave no-op callback bodies empty. Keep the literal where an
 expression is required, such as an otherwise empty `match` branch. In `?? return`
-before an expression on the next line, use `?? (return)` when needed so the parser
+before an expression on the next line, use `?? return;` when needed so the parser
 does not consume that expression as the returned value.
 
 Use `if (let Some(x) <- o)` (`while let`) for one branch and `match` when both

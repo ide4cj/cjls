@@ -127,7 +127,7 @@ public class Loop <: FromContext<Loop> {
         if (let Some(work) <- state.macroWork && filesChanged) {
             work.wake(false)
         }
-        let push = push ?? (return)
+        let push = push ?? return;
         if (!state.pushesDiagnostics) {
             return
         }

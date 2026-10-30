@@ -285,7 +285,7 @@ func checkDeclarationAnnotation(
                         .expr()
                         .flatMap { expr => RefExpr.cast(expr.syntax) }
                 ) {
-                    let convention = refExpr.nameRef()?.text() ?? (return)
+                    let convention = refExpr.nameRef()?.text() ?? return;
                     if (convention == "CDECL") {
                         None
                     } else {
@@ -343,7 +343,7 @@ func checkDeclarationModifiers(
                 )
             )
     }
-    let parent = owner ?? (return)
+    let parent = owner ?? return;
     if (parent.kind != SyntaxKind.ClassDecl) {
         return
     }
@@ -427,7 +427,7 @@ func checkDeclarationModifiers(
         abstractMember && (!abstractClass || declarationHas(node, SyntaxKind.StaticKw)) &&
             !declarationHas(parent, SyntaxKind.ForeignKw)
     ) {
-        let name = AnyHasName.cast(node)?.name()?.text() ?? (return)
+        let name = AnyHasName.cast(node)?.name()?.text() ?? return;
         found
             .add(
                 Diagnostic(
@@ -625,7 +625,7 @@ func checkExtendMutModifiers(
     let name: String =
         match (ty.kind(db)) {
             case DeclTy(def, _) where def.item(db).kind != ItemKind.Struct =>
-                (itemOf(db, def) ?? return).names.get(0) ?? (return)
+                (itemOf(db, def) ?? return).names.get(0) ?? return;
             case PrimTy(name) => name
             case _ => return
         }

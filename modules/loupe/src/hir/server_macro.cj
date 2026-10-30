@@ -145,26 +145,27 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
     let addInItem =
         {
             item: ItemId, top: ItemId =>
-            let calls = inItems.get(item) ?? (return)
-            for (one in calls) {
-                let owner = pkg ?? break
-                let path = one.name.split(".")
-                let definition =
-                    serverMacroOf(db, resolveMacroPath(db, owner, file, path)[path.size - 1]) ??
+            if (let Some(calls) <- inItems.get(item)) {
+                for (one in calls) {
+                    let owner = pkg ?? break
+                    let path = one.name.split(".")
+                    let definition =
+                        serverMacroOf(db, resolveMacroPath(db, owner, file, path)[path.size - 1]) ??
+                            continue
+                    // std's expression calls keep their fallback until #375 sends them to the server
+                    if (definition.isStd) {
                         continue
-                // std's expression calls keep their fallback until #375 sends them to the server
-                if (definition.isStd) {
-                    continue
-                }
-                found
-                    .add(
-                        ServerCall(
-                            MacroCallId(db, file, item, one.index, Some(one.name)),
-                            definition,
-                            top,
-                            false
+                    }
+                    found
+                        .add(
+                            ServerCall(
+                                MacroCallId(db, file, item, one.index, Some(one.name)),
+                                definition,
+                                top,
+                                false
+                            )
                         )
-                    )
+                }
             }
         }
     for (item in itemTree(db, file).items) {

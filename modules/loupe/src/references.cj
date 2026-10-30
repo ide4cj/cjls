@@ -219,7 +219,7 @@ func declScope(
                 (PackageRef.Source(pkg), pkg.name(db))
         }
     let index = packageIndex(db)
-    let owner = index.owners.get(ref) ?? (return)
+    let owner = index.owners.get(ref) ?? return;
     for (
         (pkg, module) in packages where (index.scopes.get(module)?.contains(owner) ?? false) &&
             visibility.isSeen(by: relationOf(pkg.name(db), declaring))
