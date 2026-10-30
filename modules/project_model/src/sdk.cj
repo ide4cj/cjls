@@ -79,6 +79,17 @@ public func withCangjieHome(env: (String) -> ?String, home: ?CangjieHome): (Stri
 }
 
 /**
+ * Overrides `CANGJIE_STDX_PATH` with the editor's explicit path, otherwise preserves `env`.
+ * This only expands declared binary dependencies; it does not add stdx to a project.
+ */
+public func withCangjieStdxPath(env: (String) -> ?String, option: ?String): (String) -> ?String {
+    {
+        name: String =>
+        if (name == "CANGJIE_STDX_PATH" && option.isSome()) { option } else { env(name) }
+    }
+}
+
+/**
  * The sources of the SDK's version found, and where from: a directory holding `std`'s, laid out as
  * `cangjie_runtime`'s `stdlib/libs` (`std/collection/array_list.cj`).
  */

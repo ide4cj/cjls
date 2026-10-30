@@ -39,6 +39,7 @@ class SettingsTest {
                             ),
                             ("cangjieHome", text(VfsPath.file(sdk).toUri())),
                             ("cangjieSrc", text(src.toString())),
+                            ("cangjieStdxPath", text(VfsPath.file(src).toUri())),
                             ("newFilePackage", JsonValue.JsonBool(false))
                         ]
                     ),
@@ -49,6 +50,7 @@ class SettingsTest {
         @Expect(settings.linkedProjects, [VfsPath.file(a), VfsPath.file(b)])
         @Expect(settings.cangjieHome, VfsPath.file(sdk).filePath.map {it => it.toString()})
         @Expect(settings.cangjieSrc, Some(src.toString()))
+        @Expect(settings.cangjieStdxPath, VfsPath.file(src).filePath.map {it => it.toString()})
         @Expect(!settings.newFilePackage)
         @Expect(problems.size, 0)
     }
@@ -69,7 +71,8 @@ class SettingsTest {
                                     .JsonArray([text("~/project"), text("\${${variable}}/other")])
                             ),
                             ("cangjieHome", text("~")),
-                            ("cangjieSrc", text("$${variable}/src"))
+                            ("cangjieSrc", text("$${variable}/src")),
+                            ("cangjieStdxPath", text("~/stdx"))
                         ]
                     ),
                     problems
@@ -77,6 +80,7 @@ class SettingsTest {
 
         @Expect(settings.linkedProjects, [VfsPath.file(home).join("project"), VfsPath.file(home).join("other")])
         @Expect(settings.cangjieHome, Some(home))
+        @Expect(settings.cangjieStdxPath.map {it => VfsPath.file(it)}, Some(VfsPath.file(home).join("stdx")))
         @Expect(settings.cangjieSrc.map {it => VfsPath.file(it)}, Some(VfsPath.file(home).join("src")))
         @Expect(problems.size, 0)
     }
@@ -202,7 +206,7 @@ class SettingsTest {
             @Expect(problems.size, 1)
             @Expect(problems[0].contains("`${key}`"))
         }
-        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "newFilePackage",
+        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "cangjieStdxPath", "newFilePackage",
             "macroExpansion", "macroCallTimeout"])
     }
 

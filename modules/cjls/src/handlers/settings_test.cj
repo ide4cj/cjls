@@ -90,6 +90,62 @@ func methodsOf(requests: Array<RequestBody>, method: String): Array<RequestBody>
 @Test
 class InitialSettingsTest {
     @TestCase
+    func changingStdxPathReloadsDeclaredBinaryPaths() {
+        let root =
+            workspaceOf(
+                [
+                    (
+                        "cj-project.json",
+                        """
+{"modules": [{"name": "app", "root": "src", "deps": ["stdx"]}],
+ "binaries": [{"name": "stdx", "paths": ["\${CANGJIE_STDX_PATH}"]}]}
+"""
+                    ),
+                    ("src/app.cj", "package app"),
+                    ("first/stdx/README", ""),
+                    ("second/stdx/README", "")
+                ]
+            )
+        let first = root.join("first").join("stdx")
+        let second = root.join("second").join("stdx")
+        let options =
+            JsonValue.JsonObject([("cangjieStdxPath", JsonValue.JsonString(first.toString()))])
+        let loop = initializedWithSettings(root, options)
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        @Expect(loop.state.binaryWatch.getOrThrow().dirs.contains(VfsPath.file(first)))
+
+        handleDidChangeConfiguration(
+            loop,
+            Client(),
+            NoopLogger(),
+            DidChangeConfigurationParams(
+                settings: JsonValue
+                    .JsonObject(
+                        [
+                            (
+                                "cjls",
+                                JsonValue
+                                    .JsonObject(
+                                        [
+                                            (
+                                                "cangjieStdxPath",
+                                                JsonValue.JsonString(second.toString())
+                                            )
+                                        ]
+                                    )
+                            )
+                        ]
+                    )
+            )
+        )
+        loop.join()
+        let dirs = loop.state.binaryWatch.getOrThrow().dirs
+        @Expect(dirs.contains(VfsPath.file(second)))
+        @Expect(!dirs.contains(VfsPath.file(first)))
+        remove(root, recursive: true)
+    }
+
+    @TestCase
     func theSettingsAreWhatInitializationOptionsHold() {
         // arrange
         let root = workspaceOf([])

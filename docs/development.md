@@ -55,7 +55,8 @@ manifest support before the examples can be assumed to work.
 ### Select the pinned SDK
 
 An SDK manager is optional. If using one, select the repository's exact nightly,
-ensure matching stdx is installed, and expose `CANGJIE_HOME` as well as executables.
+ensure matching stdx is installed, and expose `CANGJIE_HOME` and
+`CANGJIE_STDX_PATH` as well as executables.
 Finding `cjpm` on PATH alone does not establish that the manifest can find stdx.
 
 The repository installer offers the same SDK/stdx layout as CI. In Bash:
@@ -65,14 +66,17 @@ sdk_tag=$(cat .cangjie-version)
 sdk_dir="$HOME/.cache/cjls-sdk/$sdk_tag"
 python3 .github/actions/setup-cangjie/setup.py "$sdk_tag" "$sdk_dir"
 source "$sdk_dir/cangjie/envsetup.sh"
+# Linux x64; use darwin_aarch64_cjnative on macOS arm64.
+export CANGJIE_STDX_PATH="$CANGJIE_HOME/third_party/stdx/linux_x86_64_cjnative/static/stdx"
 export PATH="$PWD/.github/actions/setup-cangjie/shim:$PATH"
 cjc --version
 cjpm --version
 ```
 
 The installer prints environment exports; sourcing the installed SDK's
-`envsetup.sh` loads them into this shell. The extra PATH entry uses CI's compiler
-shim to close inherited descriptors before launching cjc (#342). It is for POSIX
+`envsetup.sh` loads the SDK environment into this shell; set `CANGJIE_STDX_PATH`
+separately as above. CI receives both from the installer. The extra PATH entry
+uses CI's compiler shim to close inherited descriptors before launching cjc (#342). It is for POSIX
 hosts. In PowerShell:
 
 ```powershell
@@ -80,14 +84,17 @@ $sdkTag = (Get-Content .cangjie-version).Trim()
 $sdkDir = Join-Path $env:LOCALAPPDATA "cjls-sdk/$sdkTag"
 python .github/actions/setup-cangjie/setup.py $sdkTag $sdkDir
 . (Join-Path $sdkDir 'cangjie/envsetup.ps1')
+$env:CANGJIE_STDX_PATH = Join-Path $env:CANGJIE_HOME 'third_party/stdx/windows_x86_64_cjnative/static/stdx'
 cjc --version
 cjpm --version
 ```
 
 Confirm the compiler version matches the pin. `CANGJIE_HOME` must identify this
-SDK, with stdx under `third_party/stdx/<os>_<arch>_cjnative/static/stdx`, as the
-module manifests specify (for example, [loupe](../modules/loupe/cjpm.toml)). Each
-module that directly imports stdx declares its own binary dependencies, including
+SDK. `CANGJIE_STDX_PATH` must point directly to its matching **static** stdx
+directory containing `.cjo` and library files, as the module manifests specify
+(for example, [loupe](../modules/loupe/cjpm.toml)). The installer retains its
+`third_party/stdx/<os>_<arch>_cjnative/static/stdx` layout, but other installations
+can use any directory through this variable. Each module that directly imports stdx declares its own binary dependencies, including
 modules that use stdx only in tests. This lets external projects depend on these
 modules without inheriting the cjls workspace configuration. Exported variables
 belong to the current shell: a new terminal or agent command process must load
@@ -362,7 +369,7 @@ building a consumer, not only the macro package. See
 
 | Symptom | Check first |
 |---|---|
-| `cjpm` found but stdx or runtime library missing | SDK selection, `CANGJIE_HOME`, stdx layout and SDK environment in this process |
+| `cjpm` found but stdx or runtime library missing | SDK selection, `CANGJIE_HOME`, `CANGJIE_STDX_PATH` and SDK environment in this process |
 | Compiler processes hang | POSIX shim is ahead of the real cjc on PATH ([K17](sdk-issues.md#k17)); distinguish the separate pipe-draining risk [K18](sdk-issues.md#k18) |
 | Tests fail naming a missing corpus | Run `tests/corpora/fetch.py` in this worktree |
 | macro_server tests report no runtime for the host | Verify `CANGJIE_HOME` names an SDK containing `std.ast` for the host architecture and shared-library suffix; bundled foreign runtimes are ignored |
