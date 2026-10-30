@@ -191,7 +191,10 @@ class CjpmLowering {
                     selected[key] = dir
                 }
             }
-            for ((name, dep) in dependencies(manifest)) {
+            let deps = dependencies(manifest)
+            let tests: Array<(String, Dependency)> =
+                if (script) { [] } else { dependencies(manifest, tests: true) }
+            for ((name, dep) in deps.concat(tests)) {
                 selectDependency(name, dep, dir, script: script)
             }
             discoverScripts(dir, manifest)
@@ -336,10 +339,21 @@ class CjpmLowering {
         }
         reached.add(key, name)
         let deps = ArrayList<String>()
-        for ((key, _) in dependencies(manifest)) {
+        let testDeps = ArrayList<String>()
+        let ordinary = dependencies(manifest)
+        let tests: Array<(String, Dependency)> =
+            if (forScript) { [] } else { dependencies(manifest, tests: true) }
+        let normalNames = ordinary.map { entry => entry[0] }
+        for ((key, _) in ordinary.concat(tests)) {
             if (let Some(path) <- selected.get(CjpmSelection(key, isScript: forScript))) {
                 if (let Some(name) <- module(path, forScript: forScript)) {
-                    deps.add(name)
+                    if (normalNames.contains(key)) {
+                        if (!deps.contains(name)) {
+                            deps.add(name)
+                        }
+                    } else if (!testDeps.contains(name)) {
+                        testDeps.add(name)
+                    }
                 }
             }
         }
@@ -378,6 +392,7 @@ class CjpmLowering {
                     sources,
                     packages.toArray(),
                     deps: unique.toArray(),
+                    testDeps: testDeps.toArray(),
                     member: member,
                     inactive: inactive.filter { file => file.path != script },
                     resolutionScope: if (forScript) { scriptScope } else { "" }
@@ -475,20 +490,22 @@ class CjpmLowering {
     }
 
     /**
-     * Every dependency of `manifest` for the target, test ones included, in the order of their
-     * names.
+     * Ordinary or test dependencies of `manifest` for the target, ordered by name.
+     * Keeping the categories separate prevents a test edge from widening ordinary imports.
      */
-    private func dependencies(manifest: Manifest): Array<(String, Dependency)> {
+    private func dependencies(
+        manifest: Manifest,
+        tests!: Bool = false
+    ): Array<(String, Dependency)> {
         let all = HashMap<String, Dependency>()
         let target = targetOf(manifest)
-        for (
-            table in [
-                manifest.dependencies,
-                manifest.testDependencies,
-                target.flatMap { it => it.dependencies },
-                target.flatMap { it => it.testDependencies }
-            ]
-        ) {
+        let tables =
+            if (tests) {
+                [manifest.testDependencies, target.flatMap { it => it.testDependencies }]
+            } else {
+                [manifest.dependencies, target.flatMap { it => it.dependencies }]
+            }
+        for (table in tables) {
             all.add(all: table ?? HashMap<String, Dependency>())
         }
         let sorted = all.toArray()

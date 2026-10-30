@@ -172,7 +172,7 @@ public func importersOf(db: AnalysisDatabase, pkg: PackageRef): Array<PackageRef
     for ((one, oneOwner) in index.owners where one != pkg) {
         let imports =
             match (one) {
-                case Source(_) => index.scopes.get(oneOwner)?.contains(owner) ?? false
+                case Source(_) => index.scopeOf(one, ofTests: true).contains(owner)
                 case Binary(_) => oneOwner == owner && pkg.isBinary()
             }
         if (imports) {

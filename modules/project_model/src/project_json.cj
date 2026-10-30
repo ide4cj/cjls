@@ -52,6 +52,10 @@ public struct ModuleJson {
          */
         public let deps!: ?Array<String> = None,
         /**
+         * Additional dependencies visible only to `*_test.cj` files of this module.
+         */
+        public let testDeps!: ?Array<String> = None,
+        /**
          * `false` for a dependency: analyzed, but reporting nothing.
          */
         public let member!: ?Bool = None,

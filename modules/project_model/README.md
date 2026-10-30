@@ -24,6 +24,17 @@ commit, including members of Git workspaces. It never fetches or runs build
 scripts during discovery. Missing or stale locks/checkouts produce recoverable
 problems directing the user to `cjpm update`.
 
+Ordinary and target-specific
+`test-dependencies` are retained as `testDeps`, visible only in `*_test.cj` files
+of the declaring module. They never widen production imports, downstream imports,
+or build-script scopes; ordinary dependencies of a test dependency still resolve
+inside that dependency. A dependency declared in both categories remains ordinary.
+Discovery includes dependencies' own test graphs, as `cjpm check` and `cjpm test`
+do, so their loading problems can still be reported; import visibility is separate
+from discovering those sources. The JSON projection preserves optional `testDeps`.
+Test-file re-exports stay within the declaring package's test context and do not
+enter its production exports.
+
 The repository cache follows `cangjie-repo.toml` precedence: project, user
 `~/.cjpm`, then SDK `tools/config`. Relative cache paths are relative to the
 configuration file; an empty or absent path defaults to `~/.cjpm` (HOME, else
