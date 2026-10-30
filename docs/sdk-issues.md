@@ -62,6 +62,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
 | [K27](#k27) | `cangjieLex` skips consecutive arrow recombination | Re-lex affected adjacent pairs in the test oracle |
 | [K28](#k28) | Macro server reuses conflicting loaded package code | Known risk; no automatic restart on library switches |
+| [K29](#k29) | LSP generator loses custom exception type through `getOrThrow` | Match the optional manifest and throw directly |
 
 ## Evidence and use
 
@@ -460,6 +461,23 @@ call yields `First, Second, First, Second`; omitting `restartWorkspace()` reprod
 `First, First, First, First` on the pin. The process-reuse test checks SDK process
 IDs rather than requiring the SDK defect to persist. macOS, Windows and other SDK
 versions remain unverified by this local probe.
+
+<a id="k29"></a>
+### K29
+
+On Linux x86_64 with `1.3.0-alpha.20261030001050`, the release-optimized
+[`ConfigLoadTest.aMissingManifestThrowsBecauseTheRootPackageIsUnknown`](../modules/lsp_codegen/src/config_test.cj)
+fails both in the full suite and in isolation: the closure passed to
+`Option.getOrThrow` constructs a `ConfigException`, but the caller catches a
+base `Exception` with the same message. The direct throw for an empty subpackage
+in the same function retains its type. A one-file probe of `getOrThrow` with a
+custom exception and a captured string preserves the subtype at both `-O0` and
+`-O2`; the cause and minimal triggering context are not established.
+
+[`Config.load`](../modules/lsp_codegen/src/config.cj) matches the optional manifest
+and throws directly to preserve its error contract. The existing test checks the
+exception type and message. This is a scoped workaround, not a general restriction
+on `getOrThrow`. macOS, Windows and unoptimized package builds remain unverified.
 
 ## Reconciliation and remaining work
 

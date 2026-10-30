@@ -1617,6 +1617,8 @@ public enum AnnoKind {
     | ForeignName
     | JavaHasDefault
     | Annotation
+    | Java
+    | ObjC
 }
 
 extend AnnoKind <: Hashable & Equatable<AnnoKind> & ToString {
@@ -1633,6 +1635,8 @@ extend AnnoKind <: Hashable & Equatable<AnnoKind> & ToString {
             case 8 => AnnoKind.ForeignName
             case 9 => AnnoKind.JavaHasDefault
             case 10 => AnnoKind.Annotation
+            case 11 => AnnoKind.Java
+            case 12 => AnnoKind.ObjC
             case _ => throw broken("AnnoKind has no value ${value}")
         }
     }
@@ -1654,6 +1658,8 @@ extend AnnoKind <: Hashable & Equatable<AnnoKind> & ToString {
                 case AnnoKind.ForeignName => 8
                 case AnnoKind.JavaHasDefault => 9
                 case AnnoKind.Annotation => 10
+                case AnnoKind.Java => 11
+                case AnnoKind.ObjC => 12
             }
         }
     }
@@ -1683,6 +1689,8 @@ extend AnnoKind <: Hashable & Equatable<AnnoKind> & ToString {
             case AnnoKind.ForeignName => "ForeignName"
             case AnnoKind.JavaHasDefault => "JavaHasDefault"
             case AnnoKind.Annotation => "Annotation"
+            case AnnoKind.Java => "Java"
+            case AnnoKind.ObjC => "ObjC"
         }
     }
 }

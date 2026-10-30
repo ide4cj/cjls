@@ -84,22 +84,27 @@ public enum Attribute {
     | CommonNonExhaustive
     | Specific
     | CommonWithDefault
-    | JavaMirror
-    | JavaImpl
+    | JavaForeign
+    | JavaExport
     | JavaHasDefault
-    | JavaMirrorSyntheticWrapper
-    | ObjCMirror
-    | ObjCImpl
+    | JavaForeignSyntheticWrapper
+    | ObjCForeign
+    | ObjCExport
     | ObjCInit
     | ObjCOptional
-    | DesugaredMirrorField
+    | JavaCjMapping
+    | ObjCCjMapping
+    | CjMirrorJavaInterfaceFwd
+    | DesugaredForeignField
     | HasInitedField
-    | ObjCMirrorInterfaceHandleWrapper
+    | ObjCForeignInterfaceHandleWrapper
+    | CjMirrorJavaInterfaceDefault
+    | CjMirrorObjcInterfaceFwd
     | AlreadyLoaded
-    | JavaImplRegistryCompanion
+    | JavaExportRegistryCompanion
     | DoesNotThrow
-    | ObjCImplRegistryCompanion
-    | ObjCImplMovedMemberProxy
+    | ObjCExportRegistryCompanion
+    | ObjCExportMovedMemberProxy
 
     /** The bit it is stored at. */
     public prop bit: Int64 {
@@ -181,22 +186,27 @@ public enum Attribute {
                 case Attribute.CommonNonExhaustive => 73
                 case Attribute.Specific => 74
                 case Attribute.CommonWithDefault => 75
-                case Attribute.JavaMirror => 76
-                case Attribute.JavaImpl => 77
+                case Attribute.JavaForeign => 76
+                case Attribute.JavaExport => 77
                 case Attribute.JavaHasDefault => 78
-                case Attribute.JavaMirrorSyntheticWrapper => 79
-                case Attribute.ObjCMirror => 80
-                case Attribute.ObjCImpl => 81
+                case Attribute.JavaForeignSyntheticWrapper => 79
+                case Attribute.ObjCForeign => 80
+                case Attribute.ObjCExport => 81
                 case Attribute.ObjCInit => 82
                 case Attribute.ObjCOptional => 83
-                case Attribute.DesugaredMirrorField => 84
-                case Attribute.HasInitedField => 85
-                case Attribute.ObjCMirrorInterfaceHandleWrapper => 86
-                case Attribute.AlreadyLoaded => 87
-                case Attribute.JavaImplRegistryCompanion => 88
-                case Attribute.DoesNotThrow => 89
-                case Attribute.ObjCImplRegistryCompanion => 90
-                case Attribute.ObjCImplMovedMemberProxy => 91
+                case Attribute.JavaCjMapping => 84
+                case Attribute.ObjCCjMapping => 85
+                case Attribute.CjMirrorJavaInterfaceFwd => 86
+                case Attribute.DesugaredForeignField => 87
+                case Attribute.HasInitedField => 88
+                case Attribute.ObjCForeignInterfaceHandleWrapper => 89
+                case Attribute.CjMirrorJavaInterfaceDefault => 90
+                case Attribute.CjMirrorObjcInterfaceFwd => 91
+                case Attribute.AlreadyLoaded => 92
+                case Attribute.JavaExportRegistryCompanion => 93
+                case Attribute.DoesNotThrow => 94
+                case Attribute.ObjCExportRegistryCompanion => 95
+                case Attribute.ObjCExportMovedMemberProxy => 96
             }
         }
     }
