@@ -11,6 +11,7 @@ import cjsyntax.ast.{
     Annotation,
     EnumCtor,
     FuncDecl,
+    MacroExpandDecl,
     PropDecl,
     RefExpr
 }
@@ -133,10 +134,26 @@ func declarationDiagnosticsInTree(
 ): Array<Diagnostic> {
     let found = ArrayList<Diagnostic>()
     func visit(node: CjSyntaxNode, owner: ?CjSyntaxNode, local: Bool, isForeign: Bool): Unit {
+        if (replaced.contains(node.textRange)) {
+            return
+        }
         if (
-            !active.isActive(node) || replaced.contains(node.textRange) ||
-                node.kind == SyntaxKind.MacroExpandDecl
+            node.kind == SyntaxKind.MainDecl &&
+                hasRejectedNativeMainAnnotations(
+                    AnyHasAnnotations
+                        .cast(node)
+                        .map { decl => decl.annotations() |> collectArray } ??
+                        [],
+                    found
+                )
         ) {
+            return
+        }
+        if (!active.isActive(node)) {
+            return
+        }
+        if (let Some(call) <- MacroExpandDecl.cast(node)) {
+            checkMainAnnotationWrapper(db, file, call, found)
             return
         }
         let inheritedForeign = isForeign || node.kind == SyntaxKind.ForeignBlock
@@ -158,6 +175,97 @@ func declarationDiagnosticsInTree(
     }
     visit(root, None, local, false)
     found.toArray()
+}
+
+/**
+ * Reports parser-owned main annotation errors and returns whether later checks must stop.
+ * ParseMainDecl runs before inactive declarations are removed; C target checks run later.
+ */
+func hasRejectedNativeMainAnnotations(
+    annotations: Array<Annotation>,
+    found: ArrayList<Diagnostic>
+): Bool {
+    let first = annotations.get(0) ?? return false
+    let allowed = ["When", "C", "OverflowThrowing", "OverflowWrapping", "OverflowSaturating"]
+    let hasRejected =
+        annotations.any { annotation => !allowed.contains(annotation.nameRef()?.text() ?? "") }
+    if (!hasRejected) {
+        return false
+    }
+    for (annotation in annotations where annotation.nameRef()?.text() == Some("Deprecated")) {
+        found
+            .add(
+                Diagnostic(
+                    annotation.syntax.textRange,
+                    Severity.Error,
+                    "main can not be target of @Deprecated"
+                )
+            )
+    }
+    // cjc points at annos[0], even if a later annotation is the rejected one; one error occupies that span.
+    if (first.nameRef()?.text() != Some("Deprecated")) {
+        let name = first.nameRef()?.text() ?? return true
+        found
+            .add(
+                Diagnostic(
+                    first.syntax.textRange,
+                    Severity.Error,
+                    "unexpected annotation '@${name}' on main"
+                )
+            )
+    }
+    true
+}
+
+/**
+ * The parser rejects the first non-conditional annotation on main before resolving its name.
+ */
+func checkMainAnnotationWrapper(
+    db: AnalysisDatabase,
+    file: ItemFile,
+    call: MacroExpandDecl,
+    found: ArrayList<Diagnostic>
+): Unit {
+    let path = call.nameRefs() |> map { name => name.text() } |> collectArray
+    if (let Some(source) <- scopeFileOf(db, file) && let Some(pkg) <- packageOfFile(db, source)) {
+        // A real macro owns its input until a successful output is read, including a main declaration.
+        if (
+            resolveMacroPath(db, pkg, source, path).get(path.size - 1) != Some(Resolution.NotFound)
+        ) {
+            return
+        }
+    }
+    var target = call.decl()?.syntax ?? return;
+    while (let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }) {
+        target = inner.syntax
+    }
+    if (target.kind != SyntaxKind.MainDecl) {
+        return
+    }
+    for (annotation in call.annotations() where annotation.nameRef()?.text() != Some("When")) {
+        let name = annotation.nameRef()?.text() ?? return;
+        found
+            .add(
+                Diagnostic(
+                    annotation.syntax.textRange,
+                    Severity.Error,
+                    "unexpected annotation '@${name}' on main"
+                )
+            )
+        return
+    }
+    let name = String.join(path, delimiter: ".")
+    let start = call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? return
+    let headEnd = call.nameRefs().fold(start) { _, name => name.syntax.textRange.end }
+    let end = call.macroAttr()?.syntax.textRange.end ?? headEnd
+    found
+        .add(
+            Diagnostic(
+                TextRange(start, end),
+                Severity.Error,
+                "unexpected annotation '@${name}' on main"
+            )
+        )
 }
 
 func declarationHas(node: CjSyntaxNode, modifier: SyntaxKind): Bool {
@@ -215,12 +323,6 @@ func checkDeclarationAnnotation(
     let nested = local || owner.isSome()
     let point = annotation.atToken()?.textRange ?? return
     let whole = annotation.syntax.textRange
-    if (
-        node.kind == SyntaxKind.MainDecl && ["Frozen", "FastNative", "CallingConv"].contains(name)
-    ) {
-        found.add(Diagnostic(whole, Severity.Error, "unexpected annotation '@${name}' on main"))
-        return
-    }
     let args = annotation.annotationArgList().map { list => list.args() |> collectArray } ?? []
     if (["Frozen", "C", "FastNative"].contains(name) && !args.isEmpty()) {
         let start = args[0].syntax.textRange.start
