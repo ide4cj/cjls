@@ -32,7 +32,7 @@ func isAnnotationClass(db: AnalysisDatabase, id: DefId): Bool {
  * Constructor visibility is part of successful typing, even while general access diagnostics are deferred.
  */
 func isAnnotationConstructorVisible(db: AnalysisDatabase, from: DefId, initializer: DefId): Bool {
-    let item = declItemOf(db, initializer) ?? return false
+    let item = itemOf(db, initializer) ?? return false
     let visibility = visibilityOf(item)
     if (visibility == Visibility.Private) {
         return enclosingTypeOf(db, from) == enclosingTypeOf(db, initializer)
@@ -50,7 +50,7 @@ func isAnnotationInputOpaque(db: AnalysisDatabase, def: DefId): Bool {
     let pkg = packageOf(db, def) ?? return true
     var current = Some(def)
     while (let Some(owner) <- current) {
-        let item = declItemOf(db, owner) ?? return true
+        let item = itemOf(db, owner) ?? return true
         for (name in item.macros.concat(item.paramMacros.flatten())) {
             let path = name.split(".")
             if (
