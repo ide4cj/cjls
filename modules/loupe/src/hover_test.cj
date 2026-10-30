@@ -52,6 +52,36 @@ func hoverText(item: HoverItem): String {
 @Test
 class HoverTest {
     @TestCase
+    func aComposedCallOperatorValueKeepsItsObjectHover(): Unit {
+        // arrange
+        let fixture =
+            #"
+            //- /main.cj module=m package=m
+            package m
+            class K {
+                operator func ()(x: Int64): Bool { true }
+                operator func ()(x: String): String { x }
+            }
+            func f(x: Int64): String { "" }
+            func test(): Unit {
+                let k = K()
+                let composed = f ~> $0k
+            }
+            "#
+
+        let parsed = Fixture.parse(fixture)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let cursor = parsed.cursor.getOrThrow()
+
+        // act
+        let result = hoverAt(db, cursor.fileId, cursor.offset)
+
+        // assert
+        @Expect(result.getOrThrow().items.size, 1)
+        @Expect(result.getOrThrow().items[0].code, "let k: K")
+    }
+
+    @TestCase
     func aFunctionCalledShowsItsSignatureItsPackageAndItsDoc() {
         checkHover(
             #"

@@ -3746,7 +3746,10 @@ class Inference {
      * Checks the argument `expr` against `expected`; while a candidate is tried, one known before
      * is compared, not inferred again.
      */
-    private func checkArg(expr: ExprId, expected: ?Ty): Ty {
+    private func checkArg(expr: ExprId, expected: ?Ty, asFunction!: Bool = false): Ty {
+        if (asFunction) {
+            return compositionArgTy(expr, expected)
+        }
         if (trying > 0 && let Some(ty) <- known.get(expr.index)) {
             if (let Some(one) <- expected && !fits(ty, one)) {
                 mismatches++
@@ -3996,6 +3999,11 @@ class Inference {
         outerArgs: Array<CallArg>,
         expected: ?Ty
     ): Ty {
+        let asFunctions =
+            match (hir[callee]) {
+                case BinaryExpr("~>", _, _) => true
+                case _ => false
+            }
         let base = nextVar
         let count = genericsOf(db, owner).size
         nextVar += count
@@ -4034,11 +4042,11 @@ class Inference {
                     } else if (isUntypedLambda(expr)) {
                         waiting.add(i)
                     } else {
-                        let ty = checkArg(expr, None)
+                        let ty = checkArg(expr, None, asFunction: asFunctions)
                         if (hasUnknowns(db, ty)) { waiting.add(i) } else { synthesized[i] = ty }
                     }
-                case Some(target) => checkArg(expr, target)
-                case None => checkArg(expr, None)
+                case Some(target) => checkArg(expr, target, asFunction: asFunctions)
+                case None => checkArg(expr, None, asFunction: asFunctions)
             }
         }
         let solve =
@@ -4068,7 +4076,12 @@ class Inference {
                 if (!isKnownEnough(target)) {
                     continue
                 }
-                let ty = infer(args[i].expr, target)
+                let ty =
+                    if (asFunctions) {
+                        compositionArgTy(args[i].expr, target)
+                    } else {
+                        infer(args[i].expr, target)
+                    }
                 if (isUntypedLambda(args[i].expr) || !hasUnknowns(db, ty)) {
                     synthesized[i] = ty
                     waiting.removeIf { one => one == i }
@@ -4090,7 +4103,7 @@ class Inference {
             let overloaded =
                 waiting
                     .toArray()
-                    .map { i => (i, overloadsOf(args[i].expr)) }
+                    .map { i => (i, overloadsOf(args[i].expr, asFunction: asFunctions)) }
                     .filter { one => !one[1].isEmpty() }
             let solutions = combinationSolutions(overloaded, synthesized, solve)
             if (solutions.size == 1) {
@@ -4121,7 +4134,11 @@ class Inference {
                     case _ => false
                 }
             if (ideal[i].isSome() || waiting.contains(i) || isLambda) {
-                infer(args[i].expr, final(target))
+                if (asFunctions) {
+                    compositionArgTy(args[i].expr, final(target))
+                } else {
+                    infer(args[i].expr, final(target))
+                }
             } else if (let Some(ty) <- synthesized[i] && !fits(ty, final(target))) {
                 mismatch(args[i].expr, final(target), ty)
             }
@@ -4139,10 +4156,39 @@ class Inference {
     }
 
     /**
-     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
-     * `GetArgTyPossibilities` tries for an argument; none otherwise.
+     * A composition operand passed as a function through its call operator. Keep the expression's
+     * own type: the function type constrains `composition`, while hover still describes the value.
      */
-    private func overloadsOf(id: ExprId): Array<Callable> {
+    private func compositionArgTy(id: ExprId, expected: ?Ty): Ty {
+        let ty = checkArg(id, None)
+        if (let FuncTy(_, _, _) <- ty.kind(db)) {
+            return checkArg(id, expected)
+        }
+        let all = valueCallables(ty)
+        if (all.isEmpty()) {
+            return checkArg(id, expected)
+        }
+        if (all.size == 1 && all[0].open.isNone()) {
+            return all[0].ty(db)
+        }
+        match (expected.map { one => one.kind(db) }) {
+            case Some(FuncTy(params, _, _)) => overloadOfParams(id, all, params)
+            case _ => error
+        }
+    }
+
+    /**
+     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
+     * `GetArgTyPossibilities` tries for an argument. A composition also tries the call operators
+     * of a value.
+     */
+    private func overloadsOf(id: ExprId, asFunction!: Bool = false): Array<Callable> {
+        if (asFunction && let Some(ty) <- inferredTyOf(id)) {
+            let operators = valueCallables(ty)
+            if (operators.size > 1) {
+                return operators.filter { one => one.open.isNone() }
+            }
+        }
         match (hir[id]) {
             case PathExpr(_, typeArgs) where typeArgs.isEmpty() => ()
             case _ => return []
