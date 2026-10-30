@@ -237,9 +237,63 @@ class DeclarationDiagnosticsTest {
         checkDiagnostics(
             #"
               @C main() { 0 }
-            //^^ error: unexpected annotation '@C' on main
+            //^ error: main cannot be modified with '@C'
             "#
         )
+    }
+
+    @TestCase[name in ["OverflowThrowing", "OverflowWrapping", "OverflowSaturating"]]
+    func overflowAnnotationsRemainValidOnMain(name: String) {
+        checkDiagnostics("@${name} main(): Int64 { 0 }")
+    }
+
+    @TestCase
+    func nativeMainChecksPreserveParserOrderAndDeprecationMessage() {
+        checkDiagnostics(
+            #"
+              @OverflowWrapping @Frozen main() { 0 }
+            //^^^^^^^^^^^^^^^^^ error: unexpected annotation '@OverflowWrapping' on main
+            "#
+        )
+        checkDiagnostics(
+            #"
+              @Deprecated main() { 0 }
+            //^^^^^^^^^^^ error: main can not be target of @Deprecated
+            "#
+        )
+        checkDiagnostics(
+            #"
+            //- /main.cj cfg=os:Linux
+              @When[os == "Windows"] @Frozen main() { 0 }
+            //^^^^^^^^^^^^^^^^^^^^^^ error: unexpected annotation '@When' on main
+            //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ hint: code is inactive due to @When: os is "Linux"
+            "#
+        )
+    }
+
+    @TestCase
+    func mainInputOfAResolvedMacroRemainsOpaque() {
+        // arrange
+        let text = "import m.ms.*\n@M[x] main() { 0 }\n"
+        let (db, file) = expansionDatabase(text)
+        let pending = diagnostics(db, file.fileId(db))
+
+        // act
+        answer(db, file, "M", "main() { 0 }", [])
+        let expanded = diagnostics(db, file.fileId(db))
+        answer(db, file, "M", "@Frozen main() { 0 }", [])
+        let generated = diagnostics(db, file.fileId(db))
+        db.setFileText(file.fileId(db), Rope(text.replace("@M[x]", "@M[y]")))
+        let stale = diagnostics(db, file.fileId(db))
+
+        // assert
+        @Expect(pending.isEmpty())
+        @Expect(expanded.isEmpty())
+        @Assert(generated.size == 1)
+        @Expect(generated[0].message, "unexpected annotation '@Frozen' on main")
+        let start = text.indexOf("@M[x]").getOrThrow()
+        @Expect(generated[0].range, TextRange(start, start + 5))
+        @Expect(stale.isEmpty())
     }
 
     @TestCase
