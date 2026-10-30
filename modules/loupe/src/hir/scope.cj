@@ -94,7 +94,7 @@ func collectImports(
         let level = importLevelOf(item)
         for (i in 0..item.paths.size) {
             let site = ImportSite(file, item.id, i, level)
-            match (targetOf(db, from, item.paths[i], level)) {
+            match (targetOf(db, from, item.paths[i], level, ofTests: isTestOf(db, from, file))) {
                 case PackageOf(name, pkg) =>
                     entryOf(names, name).add(Imported(ScopeTarget.OfPackage(pkg), site))
                 case GlobOf(pkg, full) =>
@@ -144,14 +144,27 @@ public func packageImports(db: AnalysisDatabase, pkg: PackageRef): ImportedNames
 /**
  * What `pkg` re-exports, the names of the packages they name read at `stage`.
  */
-@CalcaTracked[cycleResult: importsOnCycle]
 public func packageImportsAt(
     db: AnalysisDatabase,
     pkg: PackageRef,
     stage: ScopeStage
 ): ImportedNames {
+    packageImportsAt(db, pkg, stage, false)
+}
+
+/**
+ * Package re-exports, including test-file imports only for a test in this package.
+ * Exporting to another package always uses the production view.
+ */
+@CalcaTracked[cycleResult: importsOnCycle]
+public func packageImportsAt(
+    db: AnalysisDatabase,
+    pkg: PackageRef,
+    stage: ScopeStage,
+    ofTests: Bool
+): ImportedNames {
     let imports = ArrayList<(ItemFile, ImportItem)>()
-    for (file in filesOf(db, pkg)) {
+    for (file in filesOf(db, pkg) where ofTests || !isTestOf(db, pkg, file)) {
         for (item in itemTreeOf(db, file).imports where importLevelOf(item) != Visibility.Private) {
             imports.add((file, item))
         }
@@ -162,7 +175,7 @@ public func packageImportsAt(
 /**
  * Re-exports met again on a cycle of them: none; the exports on the cycle tell it.
  */
-func importsOnCycle(_: AnalysisDatabase, _: PackageRef, _: ScopeStage): ImportedNames {
+func importsOnCycle(_: AnalysisDatabase, _: PackageRef, _: ScopeStage, _: Bool): ImportedNames {
     ImportedNames(IndexMap<String, Array<Imported>>(), IndexMap<String, Array<DefId>>(), [])
 }
 
@@ -220,6 +233,17 @@ public func testImportsOf(db: AnalysisDatabase, pkg: Package, file: SourceFile):
  */
 public func isTestOf(db: AnalysisDatabase, pkg: Package, file: SourceFile): Bool {
     pkg.testFiles(db).contains(file.fileId(db))
+}
+
+/**
+ * Whether a source import belongs to a test file of its package; binaries have no test inputs.
+ */
+public func isTestOf(db: AnalysisDatabase, pkg: PackageRef, file: ItemFile): Bool {
+    match ((pkg, file)) {
+        case (Source(source), _) =>
+            scopeFileOf(db, file).map { file => isTestOf(db, source, file) } ?? false
+        case _ => false
+    }
 }
 
 /**
@@ -322,7 +346,7 @@ public func importsAt(
 ): ImportLevel {
     ImportLevel(
         fileImportsAt(db, pkg, file, stage),
-        packageImportsAt(db, resolutionPackage(db, pkg), stage),
+        packageImportsAt(db, resolutionPackage(db, pkg), stage, isTestOf(db, pkg, file)),
         stage: stage
     )
 }
@@ -457,7 +481,9 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
             filterMap { fileId => db.sourceFile(fileId, context: pkg) }
     let levels =
         (files |> map { file => fileImports(db, pkg, file) } |> collectArray)
-            .concat([packageImports(db, resolutionPackage(db, pkg))])
+            .concat(
+                [packageImportsAt(db, resolutionPackage(db, pkg), ScopeStage.Expanded, ofTests)]
+            )
     for (names in levels) {
         for ((name, ids) in names.ctors) {
             let entry = entryOf(ctors, name)

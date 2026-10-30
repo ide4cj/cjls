@@ -197,6 +197,11 @@ Resolution is layered (D44): `itemTree` (a file) → `defMap` (a package) → si
 A name in a scope is a set of definitions; a member, an overload or an `extend`'s member is
 found by inference, never by a `defMap`.
 
+Import lookup retains the importing file's test context (#518): a module's
+`testDeps` extend only its `*_test.cj` imports, including expansion output at a test
+call site. Production package exports omit test-file re-exports. Each dependency
+resolves against its own edges; a downstream importer never inherits test edges.
+
 ### A23: Declaration identity
 
 A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair
