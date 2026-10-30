@@ -236,7 +236,7 @@ func checkMainAnnotationWrapper(
         }
     }
     var target = call.decl()?.syntax ?? return ()
-    while (let Some(inner) <- MacroExpandDecl.cast(target)?.decl()) {
+    while (let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }) {
         target = inner.syntax
     }
     if (target.kind != SyntaxKind.MainDecl) {

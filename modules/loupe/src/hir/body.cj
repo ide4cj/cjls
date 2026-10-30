@@ -1082,7 +1082,9 @@ class BodyLowering {
         owner: AnnotationOwner
     ): Unit {
         var target = declaration
-        while (let Some(inner) <- MacroExpandDecl.cast(target)?.decl()) {
+        while (
+            let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }
+        ) {
             target = inner.syntax
         }
         let named = AnyHasName.cast(target)?.name()?.syntax
