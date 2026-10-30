@@ -21,6 +21,10 @@ class McpStdioTest(unittest.TestCase):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
         code = """
+diagnostic = InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
+assert diagnostic.field0 == ExprId(3)
+assert diagnostic == InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
+assert diagnostic != InferenceDiagnostic.CustomAnnotationPlace(ExprId(4))
 for i in range(100000):
     value = Expr.CallExpr(ExprId(i), [])
     assert value.kind == 'CallExpr'
