@@ -1,6 +1,6 @@
 # The views and writers of `MacroMsgFormat.fbs`, the messages of the SDK's `LSPMacroServer` (D87), vendored from
 # cangjie_compiler's `schema/MacroMsgFormat.fbs` at the commit the pinned nightly (`.cangjie-version`) was built
-# from, 514a5a209e42. `fbs_codegen` makes `src/format.cj` of it: when the nightly moves, take the schema of its
+# from, 69a4a1ac3baa. `fbs_codegen` makes `src/format.cj` of it: when the nightly moves, take the schema of its
 # commit (its release notes name it), then
 #
 #     cjpm build && target/release/bin/fbs_codegen modules/macro_server/macro_msg_format.toml

@@ -35,7 +35,7 @@ SUITES = {
     # cangjie_runtime the nightly in .cangjie-version was built from, as its release notes name it
     "cangjie_runtime": (
         "https://github.com/cangjie-bot/cangjie_runtime",
-        "c1e289a7d43cb2e5a05add8b58ee7306dcfcdc3b",
+        "32cd4581185ea02115493feefe7228e80983b1e9",
         ["/LICENSE", "/stdlib/libs/std/"],
     ),
     # a workspace of others' written on its macros, which macro_host builds and expands as the server does

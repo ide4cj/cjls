@@ -62,6 +62,7 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
 | [K27](#k27) | `cangjieLex` skips consecutive arrow recombination | Re-lex affected adjacent pairs in the test oracle |
 | [K28](#k28) | Macro server reuses conflicting loaded package code | Known risk; no automatic restart on library switches |
+| [K29](#k29) | `-O2` loses exception subtype with `getOrThrow` and string interpolation | Match the optional manifest and throw directly |
 
 ## Evidence and use
 
@@ -461,13 +462,41 @@ call yields `First, Second, First, Second`; omitting `restartWorkspace()` reprod
 IDs rather than requiring the SDK defect to persist. macOS, Windows and other SDK
 versions remain unverified by this local probe.
 
+<a id="k29"></a>
+### K29
+
+On Linux x86_64 with `1.3.0-alpha.20261030001050`, the release-optimized
+[`ConfigLoadTest.aMissingManifestThrowsBecauseTheRootPackageIsUnknown`](../modules/lsp_codegen/src/config_test.cj)
+fails both in the full suite and in isolation: the closure passed to
+`Option.getOrThrow` constructs a `ConfigException`, but the caller catches a
+base `Exception` with the same message.
+
+The [standalone reproducer](../tests/sdk-probes/k29-option-exception.cj) needs only
+`cjc`: a helper unwraps `Option<String>` with a custom exception and returns
+`"${value}.suffix"`. Calling the helper with `None` should enter `catch (e: E)`,
+print `correct` and exit 0. On the new SDK at `-O2` it enters the base-exception
+catch, prints `wrong: Exception: bad` and exits 1. Both static and default dynamic
+linking reproduce it. This same source passes at `-O0` and `-O1` on the new SDK,
+and at `-O0`, `-O1` and `-O2` on `1.3.0-alpha.20261014001050`.
+
+On the new SDK at `-O2`, replacing the interpolation with `value + ".suffix"`,
+returning `value` directly, or matching the option and throwing directly each
+restores the correct catch. Moving the unwrap and interpolation into `main`
+also passes. These reductions identify triggering context, not the compiler's
+root cause; an ordinary `getOrThrow` call alone is not enough to reproduce it.
+
+[`Config.load`](../modules/lsp_codegen/src/config.cj) matches the optional manifest
+and throws directly to preserve its error contract. The existing test checks the
+exception type and message. Keep this workaround scoped to the affected path.
+macOS and Windows remain unverified.
+
 ## Reconciliation and remaining work
 
-This registry starts #332's document, not its probe implementation. None of
-`tests/sdk-probes/`, `scripts/sdk_probes.py` or the planned probe-policy ADR is
-introduced here. Independent cjpm probes, run/pack commands, hang guards and
-version-bump automation stay in #332. No mandatory probe command exists yet.
-Existing tests/reproductions linked above are evidence, not standalone SDK probes.
+The standalone K29 source under `tests/sdk-probes/` is a manual reproducer and
+is not run by `cjpm test`. The registry does not provide `scripts/sdk_probes.py`
+or the planned probe-policy ADR. Independent cjpm probes, run/pack commands,
+hang guards and version-bump automation stay in #332. No mandatory probe command
+exists yet; the linked tests and manual reproducers remain scoped evidence.
 Adding `K#` references at workaround sites is also part of that integration;
 current descriptive comments remain available until then.
 

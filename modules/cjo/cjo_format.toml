@@ -1,5 +1,5 @@
 # The views of `CjoFormat.fbs`, the schema of a .cjo, vendored from cangjie_compiler's `schema/CjoFormat.fbs` at
-# the commit the pinned nightly (`.cangjie-version`) was built from, 84b0a500f66e. `fbs_codegen` makes `src/format.cj`
+# the commit the pinned nightly (`.cangjie-version`) was built from, 69a4a1ac3baa. `fbs_codegen` makes `src/format.cj`
 # of it: when the nightly moves, take the schema of its commit (its release notes name it), then
 #
 #     cjpm build && target/release/bin/fbs_codegen modules/cjo/cjo_format.toml
