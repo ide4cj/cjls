@@ -198,6 +198,13 @@ result = i + 1
                     defs = analysis.declarations('src/main.cj')
                     answer = next(d for d in defs if 'answer' in analysis.item(d).names)
                     assert isinstance(answer, DefId)
+                    owner = GenericOwner.Declaration(answer)
+                    local_owner = GenericOwner.LocalFunction(answer, 0)
+                    assert owner == GenericOwner.Declaration(answer) and owner != local_owner
+                    assert len({{owner, GenericOwner.Declaration(answer), local_owner}}) == 2
+                    parameter = analysis.internType(TyKind.ParamTy(owner, 0))
+                    assert analysis.typeKind(parameter).field0 == owner
+                    assert analysis.typeKind(parameter).field0.field0 == answer
                     assert isinstance(analysis.definitionItem(answer), ItemId)
                     assert isinstance(analysis.definitionFile(answer), ItemFile)
                     body = analysis.body(answer)

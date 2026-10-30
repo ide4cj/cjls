@@ -48,10 +48,36 @@ public struct Ty {
  * A generic binder: a declaration, or a local function within its owner's body (D50).
  * Local function indices are body-local, so the enclosing declaration is part of identity.
  */
-@Derive[Equatable, Hashable]
-public enum GenericOwner {
+@DerivePython
+public enum GenericOwner <: Equatable<GenericOwner> & Hashable {
     | Declaration(DefId)
     | LocalFunction(DefId, Int64)
+
+    public operator func ==(other: GenericOwner): Bool {
+        match ((this, other)) {
+            case (Declaration(a), Declaration(b)) => a == b
+            case (LocalFunction(a, ai), LocalFunction(b, bi)) => a == b && ai == bi
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: GenericOwner): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case Declaration(def) =>
+                hasher.write(0)
+                hasher.write(def.hashCode())
+            case LocalFunction(def, index) =>
+                hasher.write(1)
+                hasher.write(def.hashCode())
+                hasher.write(index)
+        }
+        hasher.finish()
+    }
 }
 
 /**
@@ -207,7 +233,6 @@ public enum Todo <: ToString & Equatable<Todo> & Hashable {
         match ((this, other)) {
             case (Todo.MacroCall, Todo.MacroCall) => true
             case (Todo.MacroMember, Todo.MacroMember) => true
-            case (Todo.LocalGeneric, Todo.LocalGeneric) => true
             case _ => false
         }
     }
@@ -221,7 +246,6 @@ public enum Todo <: ToString & Equatable<Todo> & Hashable {
         match (this) {
             case Todo.MacroCall => hasher.write(0)
             case Todo.MacroMember => hasher.write(1)
-            case Todo.LocalGeneric => hasher.write(2)
         }
         hasher.finish()
     }
