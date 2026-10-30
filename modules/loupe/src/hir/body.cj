@@ -466,6 +466,10 @@ public struct Body {
          */
         public let accessors!: Array<ExprId> = [],
         /**
+         * Getter identity stays explicit even when its parameter list is malformed.
+         */
+        public let getters!: Array<ExprId> = [],
+        /**
          * What the macros on it take as code in their `[...]`, outermost first.
          */
         public let attrs!: Array<DeclAttr> = [],
@@ -786,6 +790,7 @@ private func lowerBodyWith(
     var params = Array<BodyParam>()
     var value: ?ExprId = None
     var accessors = Array<ExprId>()
+    let getters = ArrayList<ExprId>()
     match (decl) {
         case Decl.AsFuncDecl(it) =>
             (params, value) = (lowering.params(it.paramLists()), lowering.blockOf(it.block()))
@@ -808,21 +813,33 @@ private func lowerBodyWith(
                         map {
                             accessor =>
                             let accessorParams = lowering.params(accessor.paramLists())
-                            lowering
-                                .add(
-                                    Expr
-                                        .LambdaExpr(
-                                            accessorParams,
-                                            lowering.block(accessor.block())
-                                        ),
-                                    accessor.syntax
-                                )
+                            let id =
+                                lowering
+                                    .add(
+                                        Expr
+                                            .LambdaExpr(
+                                                accessorParams,
+                                                lowering.block(accessor.block())
+                                            ),
+                                        accessor.syntax
+                                    )
+                            if (accessor.identToken()?.text() == Some("get")) {
+                                getters.add(id)
+                            }
+                            id
                         } |>
                         collectArray
             }
         case _ => ()
     }
-    lowering.finish(params, value, accessors, attrs: lowering.declAttrs(decl))
+    lowering
+        .finish(
+            params,
+            value,
+            accessors,
+            getters: getters.toArray(),
+            attrs: lowering.declAttrs(decl)
+        )
 }
 
 /**
@@ -859,6 +876,7 @@ class BodyLowering {
         params: Array<BodyParam>,
         value: ?ExprId,
         accessors: Array<ExprId>,
+        getters!: Array<ExprId> = [],
         attrs!: Array<DeclAttr> = []
     ): LoweredBody {
         LoweredBody(
@@ -871,6 +889,7 @@ class BodyLowering {
                 params: params,
                 value: value,
                 accessors: accessors,
+                getters: getters,
                 attrs: attrs,
                 annotations: annotations.toArray()
             ),

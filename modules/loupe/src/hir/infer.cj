@@ -641,12 +641,16 @@ class Inference {
             }
         let propTy = sig.ty ?? error
         for (accessor in hir.accessors) {
-            // a getter returns the property's type, a setter takes it (N105)
-            let expected =
+            let params =
                 match (hir[accessor]) {
-                    case LambdaExpr(params, _) where params.isEmpty() => FuncTy([], propTy, false)
-                    case _ => FuncTy([propTy], prim("Unit"), false)
+                    case LambdaExpr(params, _) => params
+                    case _ => continue
                 }
+            let getter = hir.getters.contains(accessor)
+            // Declaration validation owns arity errors. Keep the body context even for malformed accessors.
+            let paramTys =
+                Array(params.size) { i => if (!getter && i == 0) { propTy } else { error } }
+            let expected = FuncTy(paramTys, if (getter) { propTy } else { prim("Unit") }, false)
             infer(accessor, Ty(db, expected))
         }
         for (attr in hir.attrs) {
