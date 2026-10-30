@@ -50,7 +50,7 @@ class SettingsTest {
         @Expect(settings.linkedProjects, [VfsPath.file(a), VfsPath.file(b)])
         @Expect(settings.cangjieHome, VfsPath.file(sdk).filePath.map {it => it.toString()})
         @Expect(settings.cangjieSrc, Some(src.toString()))
-        @Expect(settings.cangjieStdxPath, Some(src.toString()))
+        @Expect(settings.cangjieStdxPath, VfsPath.file(src).filePath.map {it => it.toString()})
         @Expect(!settings.newFilePackage)
         @Expect(problems.size, 0)
     }
