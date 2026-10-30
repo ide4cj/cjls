@@ -243,6 +243,10 @@ bound, the solver tries the upper bound below all the others, provided every arg
 and any numeric literals can use that numeric kind or have their default types boxed into it
 (#242). An expected `?I` may select `Option<I>` for this fallback, with arguments boxed as in cjc.
 
+A composition passes a callable object's call-operator signatures to the same solver as function
+operands. Overloads on either side constrain the shared intermediate type; the operand itself
+keeps its object type for hover and navigation (#247).
+
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
 `InferenceResult` or another query's result (D57).
