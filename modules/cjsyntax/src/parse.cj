@@ -1,5 +1,7 @@
 package cjsyntax
 
+import std.collection.ArrayList
+import std.sort.*
 import ginkgo.*
 import ginkgo.parsing.*
 
@@ -54,7 +56,43 @@ func parseWithGrammar(
 ): Parse<SyntaxKind> {
     let lexed = tokenize(text)
     let p = Parser<SyntaxKind>(inputOf(lexed), Eof, ErrorNode)
-    parseWith(lexed, p, CangjieTrivia(), root, grammar)
+    withPropertyAccessorErrors(parseWith(lexed, p, CangjieTrivia(), root, grammar))
+}
+
+/**
+ * Adds accessor-name validation to a freshly parsed file or block.
+ */
+func withPropertyAccessorErrors(parsed: CjParse): CjParse {
+    let errors = ArrayList<SyntaxError<SyntaxKind>>(parsed.errors)
+    // Retain malformed accessors for recovery and body analysis, but reject their names.
+    for (node in parsed.syntaxNode().descendants() where node.kind == PropAccessor) {
+        for (token in node.childrenWithTokens()) {
+            if (let SyntaxElement.Token(name) <- token) {
+                if (name.kind == Ident && name.text() != "get" && name.text() != "set") {
+                    errors
+                        .add(
+                            SyntaxError<SyntaxKind>(
+                                ParseError
+                                    .Message(
+                                        "expected 'get' or 'set' in prop body, found '${name.text()}'"
+                                    ),
+                                name.textRange
+                            )
+                        )
+                }
+            }
+        }
+    }
+    let sorted = errors.toArray()
+    sort(
+        sorted,
+        stable: true,
+        by: {
+            a: SyntaxError<SyntaxKind>, b: SyntaxError<SyntaxKind> =>
+            a.range.start.compare(b.range.start)
+        }
+    )
+    Parse<SyntaxKind>(parsed.green, sorted)
 }
 
 /**
