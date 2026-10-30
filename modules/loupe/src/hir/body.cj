@@ -1090,9 +1090,9 @@ class BodyLowering {
         let named = AnyHasName.cast(target)?.name()?.syntax
         let sourceNode =
             if (named.isSome()) { named } else { VarDecl.cast(target)?.pattern()?.syntax }
-        let node = sourceNode ?? return ()
+        let node = sourceNode ?? return
         let path = call.nameRefs() |> map { name: NameRef => name.text() } |> collectArray
-        let arguments = annotationArguments(call) ?? return ()
+        let arguments = annotationArguments(call) ?? return
         let anchor = missing()
         annotationSources.add(AnnotationSource(anchor, source(node)))
         let wrappers = ArrayList<Array<String>>()

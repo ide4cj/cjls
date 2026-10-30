@@ -702,8 +702,8 @@ class Inference {
         if (isAnnotationInputOpaque(db, def)) {
             return
         }
-        let file = from ?? return ()
-        let owner = pkg ?? return ()
+        let file = from ?? return
+        let owner = pkg ?? return;
         for (path in annotation.wrappers) {
             if (
                 resolveMacroPath(db, owner, file, path).get(path.size - 1) !=
@@ -712,7 +712,7 @@ class Inference {
                 return
             }
         }
-        let candidates = annotationConstructors(annotation, owner, file) ?? return ()
+        let candidates = annotationConstructors(annotation, owner, file) ?? return;
         checkAnnotationConstructor(annotation, candidates)
     }
 

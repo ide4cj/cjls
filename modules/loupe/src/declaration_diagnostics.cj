@@ -235,7 +235,7 @@ func checkMainAnnotationWrapper(
             return
         }
     }
-    var target = call.decl()?.syntax ?? return ()
+    var target = call.decl()?.syntax ?? return;
     while (let Some(inner) <- MacroExpandDecl.cast(target).flatMap { nested => nested.decl() }) {
         target = inner.syntax
     }
@@ -243,7 +243,7 @@ func checkMainAnnotationWrapper(
         return
     }
     for (annotation in call.annotations() where annotation.nameRef()?.text() != Some("When")) {
-        let name = annotation.nameRef()?.text() ?? return ()
+        let name = annotation.nameRef()?.text() ?? return;
         found
             .add(
                 Diagnostic(
@@ -255,7 +255,7 @@ func checkMainAnnotationWrapper(
         return
     }
     let name = String.join(path, delimiter: ".")
-    let start = call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? return ()
+    let start = call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? return
     let headEnd = call.nameRefs().fold(start) { _, name => name.syntax.textRange.end }
     let end = call.macroAttr()?.syntax.textRange.end ?? headEnd
     found
@@ -714,9 +714,7 @@ func declarationModifierConflicts(
     invalid
 }
 
-/**
- * Check only resolved nominal or primitive heads; unavailable types cannot establish a bad modifier.
- */
+/** Check only resolved nominal or primitive heads; unavailable types cannot establish a bad modifier. */
 func checkExtendMutModifiers(
     db: AnalysisDatabase,
     file: ItemFile,
