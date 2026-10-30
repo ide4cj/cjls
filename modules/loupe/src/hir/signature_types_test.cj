@@ -652,8 +652,8 @@ class SignatureTypesTest {
         let ofF = signatureTypes(db, f).params[0].kind(db)
         let ofG = signatureTypes(db, g).params[0].kind(db)
         // assert
-        @Expect(ofF == ParamTy(f, 0), true)
-        @Expect(ofG == ParamTy(c, 0), true)
+        @Expect(ofF == ParamTy(GenericOwner.Declaration(f), 0), true)
+        @Expect(ofG == ParamTy(GenericOwner.Declaration(c), 0), true)
     }
 
     @TestCase
@@ -750,7 +750,7 @@ class BinarySignatureTypesTest {
         let ofGetOrThrow = signatureTypes(db, getOrThrow)
         // assert
         @Expect(ofOption.text(db, ItemKind.Enum), "Option<T>")
-        @Expect(ofGetOrThrow.ty.map {ty => ty.kind(db) == ParamTy(option, 0)}, Some(true))
+        @Expect(ofGetOrThrow.ty.map {ty => ty.kind(db) == ParamTy(GenericOwner.Declaration(option), 0)}, Some(true))
     }
 
     @TestCase
