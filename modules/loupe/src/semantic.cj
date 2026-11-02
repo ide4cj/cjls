@@ -334,9 +334,14 @@ public class SemanticObject {
     }
 
     /**
-     * Inferred/resolved type, retaining structured unknown/error reasons; none when inapplicable.
+     * Inferred/resolved type bound to this object's snapshot, retaining structured unknown/error
+     * reasons; none when inapplicable. Child types and definitions use the same context.
      */
-    public func semanticType(): ?Ty {
+    public func semanticType(): ?SemanticType {
+        resolvedType().map { ty => SemanticType(analysis, ty) }
+    }
+
+    private func resolvedType(): ?Ty {
         let db = analysis.db
         db.unwindIfCancelled()
         match (identity) {
@@ -356,7 +361,7 @@ public class SemanticObject {
      * Type display from this object's revision; none when it has no type.
      */
     public func typeDisplay(): ?String {
-        semanticType().map { ty => ty.text(analysis.db) }
+        semanticType().map { ty => ty.display() }
     }
 }
 
