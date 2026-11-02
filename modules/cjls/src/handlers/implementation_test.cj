@@ -46,16 +46,15 @@ class ImplementationHandlerTest {
     @TestCase
     func theImplementationsInEveryFileAreTheirNamesAsLocations() {
         // arrange - the emoji before `D` is two UTF-16 units and four bytes
-        let (state, dir) =
-            loaded(
-                [
-                    ("a.cj", "package m\ninterface I { func g(): String }\n"),
-                    (
-                        "b.cj",
-                        "package m\nclass C <: I { public func g(): String { \"\" } }\n/* 😀 */ class D <: I { public func g(): String { \"\" } }\n"
-                    )
-                ]
-            )
+        let (state, dir) = loaded(
+            [
+                ("a.cj", "package m\ninterface I { func g(): String }\n"),
+                (
+                    "b.cj",
+                    "package m\nclass C <: I { public func g(): String { \"\" } }\n/* 😀 */ class D <: I { public func g(): String { \"\" } }\n"
+                )
+            ]
+        )
 
         // act
         let answer = implementationsOf(state, dir.join("a.cj"), 1, 19)

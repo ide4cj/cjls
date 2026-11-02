@@ -244,14 +244,10 @@ private func lowerItems(decls: Iterator<Decl>, ids: ItemIdMap): Array<Item> {
     itemsIn(decls)
         .map {
             item =>
-            let modifiers =
-                modifiersOf(
-                    item
-                        .macroCalls
-                        .map { call => call.modifiers() }
-                        .concat([item.decl.modifiers()]),
-                    inForeignBlock: item.inForeignBlock
-                )
+            let modifiers = modifiersOf(
+                item.macroCalls.map { call => call.modifiers() }.concat([item.decl.modifiers()]),
+                inForeignBlock: item.inForeignBlock
+            )
             let macros = item.macroCalls.map { call => macroName(call) }
             let macrosOfItem =
                 match (item.decl) {
@@ -382,14 +378,13 @@ private func lowerImportTree(
                 lowerImportTree(inner, segments, paths)
             }
         case None =>
-            paths
-                .add(
-                    ImportPath(
-                        segments,
-                        alias: tree.importAlias()?.name()?.text(),
-                        isGlob: tree.starToken().isSome()
-                    )
+            paths.add(
+                ImportPath(
+                    segments,
+                    alias: tree.importAlias()?.name()?.text(),
+                    isGlob: tree.starToken().isSome()
                 )
+            )
     }
 }
 
@@ -409,12 +404,11 @@ public func importPathTo(name: CjSyntaxNode): ?(ImportPath, Bool) {
             return None
         }
     let outers = ArrayList<ImportTree>()
-    outers
-        .add(
-            all: tree.syntax.ancestors() |> skip(1) |>
-                filterMap { node: CjSyntaxNode => ImportTree.cast(node) } |>
-                collectArray
-        )
+    outers.add(
+        all: tree.syntax.ancestors() |> skip(1) |>
+            filterMap { node: CjSyntaxNode => ImportTree.cast(node) } |>
+            collectArray
+    )
     outers.reverse()
     let segments = ArrayList<String>()
     for (outer in outers) {

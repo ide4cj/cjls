@@ -15,11 +15,10 @@ import stdxx.Nullable
  * The handler edits for the open document, or no answer when formatting is refused.
  */
 func formattingEdits(state: ServerState, uri: String): ?Array<TextEdit> {
-    let params =
-        DocumentFormattingParams(
-            textDocument: TextDocumentIdentifier(uri: uri),
-            options: FormattingOptions(tabSize: 2, insertSpaces: true)
-        )
+    let params = DocumentFormattingParams(
+        textDocument: TextDocumentIdentifier(uri: uri),
+        options: FormattingOptions(tabSize: 2, insertSpaces: true)
+    )
     match (handleFormatting(state.snapshot(), params)) {
         case Nullable.Value(edits) => edits
         case Nullable.Null => None
@@ -30,12 +29,11 @@ func formattingEdits(state: ServerState, uri: String): ?Array<TextEdit> {
  * The handler edits for a complete node enclosing the requested range.
  */
 func rangeFormattingEdits(state: ServerState, uri: String, range: LspRange): ?Array<TextEdit> {
-    let params =
-        DocumentRangeFormattingParams(
-            textDocument: TextDocumentIdentifier(uri: uri),
-            range: range,
-            options: FormattingOptions(tabSize: 2, insertSpaces: true)
-        )
+    let params = DocumentRangeFormattingParams(
+        textDocument: TextDocumentIdentifier(uri: uri),
+        range: range,
+        options: FormattingOptions(tabSize: 2, insertSpaces: true)
+    )
     match (handleRangeFormatting(state.snapshot(), params)) {
         case Nullable.Value(edits) => edits
         case Nullable.Null => None
@@ -52,8 +50,10 @@ class FormattingTest {
         let config = dir.join("cjformat.toml")
         let state = opened("func f() {\nx\n}\n", uri: uri)
         File.writeTo(config, "indent_width = 2\n".toArray())
-        let range =
-            LspRange(start: Position(line: 1, character: 0), end: Position(line: 1, character: 1))
+        let range = LspRange(
+            start: Position(line: 1, character: 0),
+            end: Position(line: 1, character: 1)
+        )
 
         // act
         let whole = formattingEdits(state, uri).getOrThrow()
@@ -106,8 +106,10 @@ class FormattingTest {
     func aRangeExpandsToItsStatementAndUsesTheAgreedColumns(): Unit {
         // arrange - the selected emoji occupies two UTF-16 columns; the following statement is untouched.
         let state = opened("func f() {\nlet s = \"😀\"  +  \"x\"\ny\n}\n")
-        let range =
-            LspRange(start: Position(line: 1, character: 9), end: Position(line: 1, character: 11))
+        let range = LspRange(
+            start: Position(line: 1, character: 9),
+            end: Position(line: 1, character: 11)
+        )
 
         // act
         let edits =
@@ -126,8 +128,10 @@ class FormattingTest {
     @TestCase
     func aRangeOfADocumentWithSyntaxErrorsOrNotKnownIsNotFormatted(): Unit {
         // arrange
-        let range =
-            LspRange(start: Position(line: 0, character: 0), end: Position(line: 0, character: 1))
+        let range = LspRange(
+            start: Position(line: 0, character: 0),
+            end: Position(line: 0, character: 1)
+        )
 
         let invalid = opened("func f( {\n")
         let unknown = ServerState()

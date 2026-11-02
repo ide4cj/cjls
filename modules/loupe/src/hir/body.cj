@@ -376,10 +376,9 @@ public struct DeclAttr {
  * The macros on a declaration whose `[...]` is code by their name, as std.unittest's (#191): what
  * `@Tag` and `@Skip` list is none, nor is a user's macro's.
  */
-let CODE_ATTRS =
-    HashSet<String>(
-        ["Test", "TestCase", "Bench", "Strategy", "Configure", "Timeout", "Measure", "Types"]
-    )
+let CODE_ATTRS = HashSet<String>(
+    ["Test", "TestCase", "Bench", "Strategy", "Configure", "Timeout", "Measure", "Types"]
+)
 
 /**
  * A pattern as a body writes it.
@@ -813,16 +812,10 @@ private func lowerBodyWith(
                         map {
                             accessor =>
                             let accessorParams = lowering.params(accessor.paramLists())
-                            let id =
-                                lowering
-                                    .add(
-                                        Expr
-                                            .LambdaExpr(
-                                                accessorParams,
-                                                lowering.block(accessor.block())
-                                            ),
-                                        accessor.syntax
-                                    )
+                            let id = lowering.add(
+                                Expr.LambdaExpr(accessorParams, lowering.block(accessor.block())),
+                                accessor.syntax
+                            )
                             if (accessor.identToken()?.text() == Some("get")) {
                                 getters.add(id)
                             }
@@ -832,14 +825,13 @@ private func lowerBodyWith(
             }
         case _ => ()
     }
-    lowering
-        .finish(
-            params,
-            value,
-            accessors,
-            getters: getters.toArray(),
-            attrs: lowering.declAttrs(decl)
-        )
+    lowering.finish(
+        params,
+        value,
+        accessors,
+        getters: getters.toArray(),
+        attrs: lowering.declAttrs(decl)
+    )
 }
 
 /**
@@ -1075,10 +1067,9 @@ class BodyLowering {
                                 collectArray
                         case None => Array<TypeBound>()
                     }
-                funcs
-                    .add(
-                        LocalFunc(name, generics, params, ret, blockOf(it.block()), bounds: bounds)
-                    )
+                funcs.add(
+                    LocalFunc(name, generics, params, ret, blockOf(it.block()), bounds: bounds)
+                )
                 Stmt.FuncStmt(funcs.size - 1)
             case Decl.AsMacroExpandDecl(it) =>
                 let inner = it.decl() ?? return None
@@ -1133,21 +1124,21 @@ class BodyLowering {
                 match (element) {
                     case SyntaxElement.Node(child) where child.kind != SyntaxKind.Arg => return None
                     case SyntaxElement.Token(token) where !token.kind.isTrivia() &&
-                            ![SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.Comma]
-                                .contains(token.kind) => return None
+                            ![SyntaxKind.LBracket, SyntaxKind.RBracket, SyntaxKind.Comma].contains(
+                                token.kind
+                            ) => return None
                     case _ => ()
                 }
             }
             for (child in attr.syntax.children()) {
                 let arg = Arg.cast(child) ?? return None
-                arguments
-                    .add(
-                        CallArg(
-                            arg.nameRef()?.text(),
-                            exprOf(arg.expr()),
-                            isInout: arg.inoutToken().isSome()
-                        )
+                arguments.add(
+                    CallArg(
+                        arg.nameRef()?.text(),
+                        exprOf(arg.expr()),
+                        isInout: arg.inoutToken().isSome()
                     )
+                )
             }
         }
         Some(arguments.toArray())
@@ -1178,11 +1169,10 @@ class BodyLowering {
                 value
             } else {
                 synthesized(
-                    Expr
-                        .CallExpr(
-                            synthesized(Expr.LangExpr(LangItem.OptionSome)),
-                            [CallArg(None, value)]
-                        )
+                    Expr.CallExpr(
+                        synthesized(Expr.LangExpr(LangItem.OptionSome)),
+                        [CallArg(None, value)]
+                    )
                 )
             }
         while (quests.size > mark) {
@@ -1200,14 +1190,13 @@ class BodyLowering {
             // after the chain's own: an expression is found by its node as written (`exprAt`)
             inner =
                 add(
-                    Expr
-                        .QuestMatchExpr(
-                            selector,
-                            [
-                                MatchArm([some], None, None, inner),
-                                MatchArm([none], None, None, otherwise)
-                            ]
-                        ),
+                    Expr.QuestMatchExpr(
+                        selector,
+                        [
+                            MatchArm([some], None, None, inner),
+                            MatchArm([none], None, None, otherwise)
+                        ]
+                    ),
                     node.syntax
                 )
         }
@@ -1240,24 +1229,22 @@ class BodyLowering {
                 case AstExpr.AsStringLit(it) where isOneChar(it.syntax.text()) =>
                     Expr.LitExpr(it.syntax.text())
                 case AstExpr.AsStringLit(it) =>
-                    Expr
-                        .StrExpr(
-                            it.interpolations() |>
-                                map {
-                                    one: Interpolation =>
-                                    add(Expr.BlockExpr(stmts(one.stmts())), one.syntax)
-                                } |>
-                                collectArray
-                        )
+                    Expr.StrExpr(
+                        it.interpolations() |>
+                            map {
+                                one: Interpolation =>
+                                add(Expr.BlockExpr(stmts(one.stmts())), one.syntax)
+                            } |>
+                            collectArray
+                    )
                 case AstExpr.AsRefExpr(it) =>
                     Expr.PathExpr(it.nameRef()?.text() ?? "", typeArgs(it.typeArgList()?.types()))
                 case AstExpr.AsMemberAccessExpr(it) =>
-                    Expr
-                        .FieldExpr(
-                            linkOf(it.receiver()),
-                            it.nameRef()?.text() ?? "",
-                            typeArgs(it.typeArgList()?.types())
-                        )
+                    Expr.FieldExpr(
+                        linkOf(it.receiver()),
+                        it.nameRef()?.text() ?? "",
+                        typeArgs(it.typeArgList()?.types())
+                    )
                 case AstExpr.AsCallExpr(it) =>
                     Expr.CallExpr(linkOf(it.callee()), args(it.argList()))
                 case AstExpr.AsTrailingLambdaExpr(it) =>
@@ -1267,21 +1254,19 @@ class BodyLowering {
                         // `f(a) {…}` is `f(a, {…})`, one call of the whole node: `f(a)` no expression of its own
                         case Expr.CallExpr(inner, args) =>
                             this.exprs[callee.index] =
-                                Expr
-                                    .CallExpr(
-                                        inner,
-                                        args.concat([CallArg(None, lambda, isTrailing: true)])
-                                    )
+                                Expr.CallExpr(
+                                    inner,
+                                    args.concat([CallArg(None, lambda, isTrailing: true)])
+                                )
                             exprOrigins[callee.index] = WrittenSource(source(it.syntax))
                             return callee
                         case _ => Expr.CallExpr(callee, [CallArg(None, lambda, isTrailing: true)])
                     }
                 case AstExpr.AsIndexExpr(it) =>
-                    Expr
-                        .IndexExpr(
-                            linkOf(it.base()),
-                            it.indices() |> map { one => expr(one) } |> collectArray
-                        )
+                    Expr.IndexExpr(
+                        linkOf(it.base()),
+                        it.indices() |> map { one => expr(one) } |> collectArray
+                    )
                 // `a?`: `$v`, bound to the value of `a` by the `match` the chain is desugared to
                 case AstExpr.AsOptionalExpr(it) =>
                     let selector = linkOf(it.expr())
@@ -1300,12 +1285,11 @@ class BodyLowering {
                         // `a[i] op= v` assigns `a[i] op v` (#245)
                         match (this.exprs[lhs.index]) {
                             case Expr.IndexExpr(_, _) where op != "=" =>
-                                Expr
-                                    .BinaryExpr(
-                                        op,
-                                        lhs,
-                                        synthesized(Expr.AssignedExpr(op[0..op.size - 1], lhs, rhs))
-                                    )
+                                Expr.BinaryExpr(
+                                    op,
+                                    lhs,
+                                    synthesized(Expr.AssignedExpr(op[0..op.size - 1], lhs, rhs))
+                                )
                             case _ => Expr.BinaryExpr(op, lhs, rhs)
                         }
                     } else {
@@ -1314,13 +1298,12 @@ class BodyLowering {
                 case AstExpr.AsIsExpr(it) => Expr.IsExpr(exprOf(it.expr()), types.lower(it.ty()))
                 case AstExpr.AsAsExpr(it) => Expr.AsExpr(exprOf(it.expr()), types.lower(it.ty()))
                 case AstExpr.AsRangeExpr(it) =>
-                    Expr
-                        .RangeExpr(
-                            it.start().map { one => expr(one) },
-                            it.end().map { one => expr(one) },
-                            it.step().map { one => expr(one) },
-                            it.op()?.kind == SyntaxKind.DotDotEq
-                        )
+                    Expr.RangeExpr(
+                        it.start().map { one => expr(one) },
+                        it.end().map { one => expr(one) },
+                        it.step().map { one => expr(one) },
+                        it.op()?.kind == SyntaxKind.DotDotEq
+                    )
                 case AstExpr.AsPostfixExpr(it) =>
                     let op = it.op()?.text() ?? ""
                     let inner = linkOf(it.expr())
@@ -1331,12 +1314,11 @@ class BodyLowering {
                                 let one = synthesized(Expr.LitExpr("1"))
                                 Some(
                                     synthesized(
-                                        Expr
-                                            .AssignedExpr(
-                                                if (op == "--") { "-" } else { "+" },
-                                                inner,
-                                                one
-                                            )
+                                        Expr.AssignedExpr(
+                                            if (op == "--") { "-" } else { "+" },
+                                            inner,
+                                            one
+                                        )
                                     )
                                 )
                             case _ => None<ExprId>
@@ -1361,13 +1343,11 @@ class BodyLowering {
                 case AstExpr.AsLetExpr(it) =>
                     // what it matches first: it does not see the names it binds
                     let value = exprOf(it.expr())
-                    Expr
-                        .LetExpr(
-                            it.patterns() |>
-                                map { one => pat(one, LocalKind.PatLocal, lone: true) } |>
-                                collectArray,
-                            value
-                        )
+                    Expr.LetExpr(
+                        it.patterns() |> map { one => pat(one, LocalKind.PatLocal, lone: true) } |>
+                            collectArray,
+                        value
+                    )
                 case AstExpr.AsMatchExpr(it) =>
                     let scrutinee = it.expr().map { one => expr(one) }
                     let arms =
@@ -1391,13 +1371,12 @@ class BodyLowering {
                     let catches =
                         it.catchClauses() |> map { one: CatchClause => catchArm(one) } |>
                             collectArray
-                    Expr
-                        .TryExpr(
-                            resources,
-                            tried,
-                            catches,
-                            it.finallyClause().map { one => block(one.block()) }
-                        )
+                    Expr.TryExpr(
+                        resources,
+                        tried,
+                        catches,
+                        it.finallyClause().map { one => block(one.block()) }
+                    )
                 case AstExpr.AsForInExpr(it) =>
                     let iterated = exprOf(it.expr())
                     let pattern =
@@ -1405,13 +1384,12 @@ class BodyLowering {
                             case Some(one) => pat(one, LocalKind.PatLocal, lone: true)
                             case None => addPat(Pat.MissingPat, None)
                         }
-                    Expr
-                        .ForExpr(
-                            pattern,
-                            iterated,
-                            it.guard().flatMap { one => one.expr() }.map { one => expr(one) },
-                            block(it.block())
-                        )
+                    Expr.ForExpr(
+                        pattern,
+                        iterated,
+                        it.guard().flatMap { one => one.expr() }.map { one => expr(one) },
+                        block(it.block())
+                    )
                 case AstExpr.AsWhileExpr(it) => Expr.WhileExpr(exprOf(it.expr()), block(it.block()))
                 case AstExpr.AsDoWhileExpr(it) =>
                     let body = block(it.block())
@@ -1442,26 +1420,24 @@ class BodyLowering {
                     // The call owns the written node; its type keeps the original type source map.
                     Expr.CallExpr(synthesized(Expr.TypeExpr(ty)), args(it.argList()))
                 case AstExpr.AsQuoteExpr(it) =>
-                    Expr
-                        .QuoteExpr(
-                            it.quoteInterpolations() |>
-                                map { one: QuoteInterpolation => exprOf(one.expr()) } |>
-                                collectArray
-                        )
+                    Expr.QuoteExpr(
+                        it.quoteInterpolations() |>
+                            map { one: QuoteInterpolation => exprOf(one.expr()) } |>
+                            collectArray
+                    )
                 // no arguments: a macro call on a declaration (`var f = @M func g() {}`) is given the declaration, not
                 // values
                 case AstExpr.AsMacroExpandDecl(it) =>
                     Expr.MacroExpr(MacroCall(macroName(it).split("."), None, []))
                 case AstExpr.AsMacroExpandExpr(it) =>
                     let path = it.nameRefs() |> map { name: NameRef => name.text() } |> collectArray
-                    Expr
-                        .MacroExpr(
-                            MacroCall(
-                                path,
-                                it.macroAttr().map { attr => attrTypes(attr) },
-                                macroArgs(it)
-                            )
+                    Expr.MacroExpr(
+                        MacroCall(
+                            path,
+                            it.macroAttr().map { attr => attrTypes(attr) },
+                            macroArgs(it)
                         )
+                    )
             }
         add(lowered, node.syntax)
     }
@@ -1675,20 +1651,16 @@ class BodyLowering {
                 case Pattern.AsTypePat(it) =>
                     Pat.TypePat(local(it.name(), kind), types.lower(it.ty()))
                 case Pattern.AsTuplePat(it) =>
-                    Pat
-                        .TuplePat(
-                            it.patterns() |> map { one => pat(one, kind, lone: lone) } |>
-                                collectArray
-                        )
+                    Pat.TuplePat(
+                        it.patterns() |> map { one => pat(one, kind, lone: lone) } |> collectArray
+                    )
                 case Pattern.AsEnumPat(it) =>
-                    Pat
-                        .EnumPat(
-                            it.pathSegments() |>
-                                map { segment: PathSegment => segment.nameRef()?.text() ?? "" } |>
-                                collectArray,
-                            it.patterns() |> map { one => pat(one, kind, lone: lone) } |>
-                                collectArray
-                        )
+                    Pat.EnumPat(
+                        it.pathSegments() |>
+                            map { segment: PathSegment => segment.nameRef()?.text() ?? "" } |>
+                            collectArray,
+                        it.patterns() |> map { one => pat(one, kind, lone: lone) } |> collectArray
+                    )
             }
         addPat(lowered, node.syntax)
     }

@@ -11,17 +11,10 @@ import loupe.syntax.parse
  */
 func checkDefinitionWithUnittest(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
-    let db =
-        parsed
-            .database(
-                binaries: [
-                    "std.core",
-                    "std.unittest",
-                    "std.unittest.common",
-                    "std.unittest.testmacro"
-                ]
-                    .map { name => stdCjoRead(name, stdCjo(name)) }
-            )
+    let db = parsed.database(
+        binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
+            .map { name => stdCjoRead(name, stdCjo(name)) }
+    )
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let targets = definitionAt(db, cursor.fileId, cursor.offset)
     let annotations =

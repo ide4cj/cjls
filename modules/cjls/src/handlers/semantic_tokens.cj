@@ -18,15 +18,14 @@ func handleSemanticTokensFull(
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
     let tokens = highlight(snap.analysis, file.fileId(snap.analysis))
-    Nullable
-        .Value(
-            semanticTokens(
-                text,
-                overSyntax(tokens, snap.augmentsSyntaxTokens),
-                snap.encoding,
-                snap.multilineTokens
-            )
+    Nullable.Value(
+        semanticTokens(
+            text,
+            overSyntax(tokens, snap.augmentsSyntaxTokens),
+            snap.encoding,
+            snap.multilineTokens
         )
+    )
 }
 
 /**
@@ -39,16 +38,17 @@ func handleSemanticTokensRange(
 ): Nullable<SemanticTokens> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
-    let range =
-        TextRange(offsetOf(snap, file, params.range.start), offsetOf(snap, file, params.range.end))
+    let range = TextRange(
+        offsetOf(snap, file, params.range.start),
+        offsetOf(snap, file, params.range.end)
+    )
     let tokens = highlight(snap.analysis, file.fileId(snap.analysis), range: range)
-    Nullable
-        .Value(
-            semanticTokens(
-                text,
-                overSyntax(tokens, snap.augmentsSyntaxTokens),
-                snap.encoding,
-                snap.multilineTokens
-            )
+    Nullable.Value(
+        semanticTokens(
+            text,
+            overSyntax(tokens, snap.augmentsSyntaxTokens),
+            snap.encoding,
+            snap.multilineTokens
         )
+    )
 }

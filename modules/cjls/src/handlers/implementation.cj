@@ -31,27 +31,24 @@ func handleImplementation(
     if (found.isEmpty()) {
         return Nullable.Null
     }
-    Nullable
-        .Value(
-            DefinitionOrDefinitionLinks
-                .AsDefinition(
-                    Definition
-                        .AsLocations(
-                            found
-                                .map {
-                                    target =>
-                                    location(
-                                        snap
-                                            .analysis
-                                            .sourceFile(target.fileId)
-                                            .getOrThrow()
-                                            .text(snap.analysis),
-                                        snap.path(target.fileId).toUri(),
-                                        target,
-                                        snap.encoding
-                                    )
-                                }
+    Nullable.Value(
+        DefinitionOrDefinitionLinks.AsDefinition(
+            Definition.AsLocations(
+                found
+                    .map {
+                        target =>
+                        location(
+                            snap
+                                .analysis
+                                .sourceFile(target.fileId)
+                                .getOrThrow()
+                                .text(snap.analysis),
+                            snap.path(target.fileId).toUri(),
+                            target,
+                            snap.encoding
                         )
-                )
+                    }
+            )
         )
+    )
 }

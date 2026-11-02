@@ -2151,8 +2151,15 @@ class Inference {
         second!: Bool = false
     ): (Ty, ?Callable) {
         let args = indices.map { one => CallArg(None, one) }.concat([CallArg(None, value)])
-        let (ty, chosen) =
-            operatorCall(call, baseTy, "[]", args, None, setter: true, second: second)
+        let (ty, chosen) = operatorCall(
+            call,
+            baseTy,
+            "[]",
+            args,
+            None,
+            setter: true,
+            second: second
+        )
         if (
             chosen.isNone() && !hasUnknowns(db, baseTy) && !hasInferVars(db, baseTy) &&
                 !isMacroTyped(baseTy) &&
@@ -3038,11 +3045,10 @@ class Inference {
         expected: ?Ty,
         call!: ?ExprId = None
     ): Ty {
-        let all =
-            byLambdas(
-                overriding(callablesOf(callee, expected, arity: args.size, callArgs: args)),
-                args
-            )
+        let all = byLambdas(
+            overriding(callablesOf(callee, expected, arity: args.size, callArgs: args)),
+            args
+        )
         // Calls through a returned value retain conservative diagnostics for unsupported call shapes.
         let isOfCall =
             match (hir[callee]) {
@@ -3083,8 +3089,9 @@ class Inference {
                 let seenArgs = HashSet<Int64>(args.map { arg => arg.expr.index })
                 for (one in all) {
                     for (
-                        arg in applicationArgs(applicationsOf(one), args) where seenArgs
-                            .add(arg.expr.index)
+                        arg in applicationArgs(applicationsOf(one), args) where seenArgs.add(
+                            arg.expr.index
+                        )
                     ) {
                         failedArgs.add(arg)
                     }
@@ -3478,11 +3485,10 @@ class Inference {
             return
         }
         let size = callable.params.size
-        let defaulted =
-            (0..size)
-                .iterator()
-                .filter { j => callable.nameAt(j).isSome() && callable.hasDefault(j) }
-                .count()
+        let defaulted = (0..size)
+            .iterator()
+            .filter { j => callable.nameAt(j).isSome() && callable.hasDefault(j) }
+            .count()
         let isVariadic = isPossibleVariadic(callable, args)
         let failure =
             if (isVariadic || args.size >= size - defaulted && args.size <= size) {
@@ -4353,40 +4359,31 @@ class Inference {
                             match (target) {
                                 case LocalOf(local) =>
                                     let level = localLevel(callee, local)
-                                    found
-                                        .add(
-                                            all: localCallables(local, explicit: explicit)
-                                                .map { one => one.at(level) }
-                                        )
+                                    found.add(
+                                        all: localCallables(local, explicit: explicit)
+                                            .map { one => one.at(level) }
+                                    )
                                 case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind ==
                                         ItemKind.EnumCtor =>
-                                    found
-                                        .add(
-                                            all: declCallables(ctor, explicit, expected)
-                                                .map { one => one.at(MEMBER_LEVEL) }
-                                        )
+                                    found.add(
+                                        all: declCallables(ctor, explicit, expected)
+                                            .map { one => one.at(MEMBER_LEVEL) }
+                                    )
                                 case MemberOf(member) =>
-                                    found
-                                        .add(
-                                            all: memberCallables(
-                                                member,
-                                                thisTy(),
-                                                explicit,
-                                                expected
-                                            )
-                                                .map { one => one.at(MEMBER_LEVEL) }
-                                        )
+                                    found.add(
+                                        all: memberCallables(member, thisTy(), explicit, expected)
+                                            .map { one => one.at(MEMBER_LEVEL) }
+                                    )
                                 case DeclOf(id) =>
-                                    found
-                                        .add(
-                                            all: declCallables(
-                                                id,
-                                                explicit,
-                                                expected,
-                                                callArgs: callArgs
-                                            )
-                                                .map { one => one.at(fileLevel(id)) }
+                                    found.add(
+                                        all: declCallables(
+                                            id,
+                                            explicit,
+                                            expected,
+                                            callArgs: callArgs
                                         )
+                                            .map { one => one.at(fileLevel(id)) }
+                                    )
                                 case TypeParamOf(_) => ()
                             }
                         }
@@ -4394,11 +4391,10 @@ class Inference {
                     case InFile(Found(ids)) =>
                         let found = ArrayList<Callable>()
                         for (id in ids) {
-                            found
-                                .add(
-                                    all: declCallables(id, explicit, expected, callArgs: callArgs)
-                                        .map { one => one.at(fileLevel(id)) }
-                                )
+                            found.add(
+                                all: declCallables(id, explicit, expected, callArgs: callArgs)
+                                    .map { one => one.at(fileLevel(id)) }
+                            )
                         }
                         found.toArray()
                     case InFile(Ctors(own, imported)) =>
@@ -4415,11 +4411,10 @@ class Inference {
                     case _ => []
                 }
             case CallExpr(inner, args) =>
-                let all =
-                    byLambdas(
-                        overriding(callablesOf(inner, None, arity: args.size, callArgs: args)),
-                        args
-                    )
+                let all = byLambdas(
+                    overriding(callablesOf(inner, None, arity: args.size, callArgs: args)),
+                    args
+                )
                 let pending = ArrayList<Callable>()
                 for (one in all) {
                     if (let FuncTy(params, ret, isC) <- one.ret.kind(db)) {
@@ -4438,18 +4433,17 @@ class Inference {
                             matches.add(found)
                         }
                         for (matched in matches) {
-                            pending
-                                .add(
-                                    Callable(
-                                        params,
-                                        ret,
-                                        open: one.open,
-                                        level: one.level,
-                                        isValue: true,
-                                        isC: isC,
-                                        applied: AppliedCall(callee, inner, one, matched, args)
-                                    )
+                            pending.add(
+                                Callable(
+                                    params,
+                                    ret,
+                                    open: one.open,
+                                    level: one.level,
+                                    isValue: true,
+                                    isC: isC,
+                                    applied: AppliedCall(callee, inner, one, matched, args)
                                 )
+                            )
                         }
                     }
                 }

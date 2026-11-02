@@ -10,21 +10,17 @@ class BinaryCallHierarchyTest {
     @TestCase
     func localFunctionsInAttachedBodiesKeepTheirOwnIdentity() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             main() { $0println("x") }
             "#
-                )
-        let db =
-            fixture
-                .database(
-                    binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
-                    models: [stdWithSources(["std.core"])]
-                )
+        )
+        let db = fixture.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])]
+        )
         let cursor = fixture.cursor.getOrThrow()
         let target = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0].target
         let text = db.sourceFile(target.fileId).getOrThrow().text(db).toString()
@@ -32,11 +28,10 @@ class BinaryCallHierarchyTest {
             target.focusRange.start + text[target.focusRange.start..].indexOf("{").getOrThrow()
         let before = text[..start]
         let after = text[target.fullRange.end..]
-        db
-            .setFileText(
-                target.fileId,
-                Rope("${before}{ func inner(): Unit { inner() }; inner() }${after}")
-            )
+        db.setFileText(
+            target.fileId,
+            Rope("${before}{ func inner(): Unit { inner() }; inner() }${after}")
+        )
 
         // act
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -60,21 +55,17 @@ class BinaryCallHierarchyTest {
     @TestCase
     func attachedStdFunctionsKeepTheirHierarchyAcrossCallsAndDeclarations() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             main() { $0println("x"); println("y") }
             "#
-                )
-        let db =
-            fixture
-                .database(
-                    binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
-                    models: [stdWithSources(["std.core"])]
-                )
+        )
+        let db = fixture.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])]
+        )
         let cursor = fixture.cursor.getOrThrow()
         let target = definitionAt(db, cursor.fileId, cursor.offset)[0]
 
@@ -107,10 +98,8 @@ class BinaryCallHierarchyTest {
     @TestCase
     func binaryFunctionsWithoutSourcesGroupByDeclarationAcrossFilesAndOverloads() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             main() { $0println("x"); println("y"); println(1) }
@@ -118,7 +107,7 @@ class BinaryCallHierarchyTest {
             package m
             func other(): Unit { println("z") }
             "#
-                )
+        )
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let cursor = fixture.cursor.getOrThrow()
 
@@ -150,10 +139,8 @@ class BinaryCallHierarchyTest {
     @TestCase
     func binaryInitializersAndMethodsWithoutSourcesKeepSeparateEdges() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.collection.ArrayList
@@ -163,13 +150,10 @@ class BinaryCallHierarchyTest {
                 list.add(2)
             }
             "#
-                )
-        let db =
-            fixture
-                .database(
-                    binaries: ["std.core", "std.collection"]
-                        .map { name => stdCjoRead(name, stdCjo(name)) }
-                )
+        )
+        let db = fixture.database(
+            binaries: ["std.core", "std.collection"].map { name => stdCjoRead(name, stdCjo(name)) }
+        )
         let cursor = fixture.cursor.getOrThrow()
 
         // act

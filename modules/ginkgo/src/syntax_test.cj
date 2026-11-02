@@ -77,25 +77,23 @@ class SyntaxTest {
     func descendantsAreInPreorder() {
         // act
         let nodes = collectArray(root.descendants().map { n => n.kind.toString() })
-        let tokens =
-            collectArray(
-                root
-                    .descendantsWithTokens()
-                    .filter { el => el.asToken().isSome() }
-                    .map { el => el.toString() }
-            )
-        let events =
-            collectArray(
-                inner()
-                    .preorder()
-                    .map {
-                        e =>
-                        match (e) {
-                            case Enter(n) => "+${n.kind}"
-                            case Leave(n) => "-${n.kind}"
-                        }
+        let tokens = collectArray(
+            root
+                .descendantsWithTokens()
+                .filter { el => el.asToken().isSome() }
+                .map { el => el.toString() }
+        )
+        let events = collectArray(
+            inner()
+                .preorder()
+                .map {
+                    e =>
+                    match (e) {
+                        case Enter(n) => "+${n.kind}"
+                        case Leave(n) => "-${n.kind}"
                     }
-            )
+                }
+        )
 
         // assert
         @Expect(String.join(nodes, delimiter: ","), "Root,Inner,Leaf,Leaf")

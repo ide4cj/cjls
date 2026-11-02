@@ -94,8 +94,11 @@ public class SdkToolchain <: Toolchain {
 
     private func run(arguments: Array<String>): (Int64, String, String) {
         try {
-            let (code, out, err) =
-                executeWithOutput(paths.cjc.toString(), arguments, environment: environment)
+            let (code, out, err) = executeWithOutput(
+                paths.cjc.toString(),
+                arguments,
+                environment: environment
+            )
             (code, String.fromUtf8(out), String.fromUtf8(err))
         } catch (e: ProcessException) {
             (-1, "", e.message)

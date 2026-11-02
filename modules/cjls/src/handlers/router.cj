@@ -70,10 +70,9 @@ public func router(): Router {
 func capabilities(encoding: Encoding): ServerCapabilities {
     ServerCapabilities(
         positionEncoding: positionEncodingKind(encoding),
-        textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind
-            .AsTextDocumentSyncOptions(
-                TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)
-            ),
+        textDocumentSync: TextDocumentSyncOptionsOrTextDocumentSyncKind.AsTextDocumentSyncOptions(
+            TextDocumentSyncOptions(openClose: true, change: TextDocumentSyncKind.Incremental)
+        ),
         documentSymbolProvider: BooleanOrDocumentSymbolOptions.AsBoolean(true),
         definitionProvider: BooleanOrDefinitionOptions.AsBoolean(true),
         typeDefinitionProvider: BooleanOrTypeDefinitionOptionsOrTypeDefinitionRegistrationOptions
@@ -96,10 +95,9 @@ func capabilities(encoding: Encoding): ServerCapabilities {
         documentFormattingProvider: BooleanOrDocumentFormattingOptions.AsBoolean(true),
         documentRangeFormattingProvider: BooleanOrDocumentRangeFormattingOptions.AsBoolean(true),
         // a file's diagnostics depend on other files, and nothing is reported for files not open (D14, D100, D135)
-        diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions
-            .AsDiagnosticOptions(
-                DiagnosticOptions(interFileDependencies: true, workspaceDiagnostics: false)
-            ),
+        diagnosticProvider: DiagnosticOptionsOrDiagnosticRegistrationOptions.AsDiagnosticOptions(
+            DiagnosticOptions(interFileDependencies: true, workspaceDiagnostics: false)
+        ),
         // no `full/delta` until the server keeps what it sent (D19)
         semanticTokensProvider: SemanticTokensOptionsOrSemanticTokensRegistrationOptions
             .AsSemanticTokensOptions(
@@ -123,14 +121,13 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             )
         ),
         // the methods under `cjls/` it answers (D15, `docs/lsp-extensions.md`)
-        experimental: JsonValue
-            .JsonObject(
-                [
-                    ("memoryUsage", JsonValue.JsonBool(true)),
-                    ("analysisStats", JsonValue.JsonBool(true)),
-                    ("expandMacro", JsonValue.JsonBool(true)),
-                    ("binarySourceRoots", JsonValue.JsonBool(true))
-                ]
-            )
+        experimental: JsonValue.JsonObject(
+            [
+                ("memoryUsage", JsonValue.JsonBool(true)),
+                ("analysisStats", JsonValue.JsonBool(true)),
+                ("expandMacro", JsonValue.JsonBool(true)),
+                ("binarySourceRoots", JsonValue.JsonBool(true))
+            ]
+        )
     )
 }

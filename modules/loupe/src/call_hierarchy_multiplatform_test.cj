@@ -9,10 +9,8 @@ class MultiplatformCallHierarchyTest {
     @TestCase
     func commonSpecificAndCallPositionsHaveOneFunctionWithTheSpecificBody() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -28,7 +26,7 @@ class MultiplatformCallHierarchyTest {
             import plat.target
             func caller(): Unit { target(); target() }
             "#
-                )
+        )
         let db = fixture.database()
         let common = fixture.files[0]
         let specific = fixture.files[1]
@@ -36,8 +34,11 @@ class MultiplatformCallHierarchyTest {
 
         // act
         let fromCommon = prepareCallHierarchy(db, common.fileId, offsetIn(common.text, "target"))
-        let fromSpecific =
-            prepareCallHierarchy(db, specific.fileId, offsetIn(specific.text, "target"))
+        let fromSpecific = prepareCallHierarchy(
+            db,
+            specific.fileId,
+            offsetIn(specific.text, "target")
+        )
         let fromCall = prepareCallHierarchy(db, app.fileId, offsetIn(app.text, "target();"))
         let caller = prepareCallHierarchy(db, app.fileId, offsetIn(app.text, "caller"))[0]
         let calls = outgoingCalls(db, caller)
@@ -57,10 +58,8 @@ class MultiplatformCallHierarchyTest {
     @TestCase
     func commonMethodsAndInitializersUseTheirSpecificDeclarations() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -82,7 +81,7 @@ class MultiplatformCallHierarchyTest {
             import plat.Host
             func caller(): Unit { Host().run() }
             "#
-                )
+        )
         let db = fixture.database()
         let common = fixture.files[0]
         let specific = fixture.files[1]
@@ -96,8 +95,11 @@ class MultiplatformCallHierarchyTest {
         @Expect(calls.map { it => it.item.name }, ["run", "init"])
         for (name in ["run", "init"]) {
             let fromCommon = prepareCallHierarchy(db, common.fileId, offsetIn(common.text, name))
-            let fromSpecific =
-                prepareCallHierarchy(db, specific.fileId, offsetIn(specific.text, name))
+            let fromSpecific = prepareCallHierarchy(
+                db,
+                specific.fileId,
+                offsetIn(specific.text, name)
+            )
             @Expect(fromCommon, fromSpecific)
             @Expect(fromSpecific.size, 1)
             @Expect(fromSpecific[0].target.fileId, specific.fileId)
@@ -109,10 +111,8 @@ class MultiplatformCallHierarchyTest {
     @TestCase
     func bodiesOnlyDeclaredInCommonRemainCallersAndCallees() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             @NonProduct
             features {}
@@ -136,7 +136,7 @@ class MultiplatformCallHierarchyTest {
             import plat.Host
             func caller(): Unit { Host().describe() }
             "#
-                )
+        )
         let db = fixture.database()
         let common = fixture.files[0]
         let app = fixture.files[2]
@@ -160,10 +160,8 @@ class MultiplatformCallHierarchyTest {
     @TestCase
     func callsKeepTheSelectedSpecificOverload() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             package plat
             public common func target(x: Int64): Unit
@@ -177,13 +175,16 @@ class MultiplatformCallHierarchyTest {
             import plat.target
             func caller(): Unit { target(true) }
             "#
-                )
+        )
         let db = fixture.database()
         let specific = fixture.files[1]
         let app = fixture.files[2]
         let caller = prepareCallHierarchy(db, app.fileId, offsetIn(app.text, "caller"))[0]
-        let selected =
-            prepareCallHierarchy(db, specific.fileId, offsetIn(specific.text, "target(x: Bool)"))
+        let selected = prepareCallHierarchy(
+            db,
+            specific.fileId,
+            offsetIn(specific.text, "target(x: Bool)")
+        )
 
         // act
         let fromCall = prepareCallHierarchy(db, app.fileId, offsetIn(app.text, "target(true)"))
@@ -204,10 +205,8 @@ class MultiplatformCallHierarchyTest {
     @TestCase
     func anExcludedSourceSetHasNoHierarchyOrCallEdges() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /plat/common/plat.cj module=plat package=plat
             package plat
             public common func target(): Unit
@@ -220,15 +219,18 @@ class MultiplatformCallHierarchyTest {
             public specific func target(): Unit { ignored() }
             func ignored(): Unit { target() }
             "#
-                )
+        )
         let db = fixture.database()
         let specific = fixture.files[1]
         let inactive = fixture.files[2]
         let target = prepareCallHierarchy(db, specific.fileId, offsetIn(specific.text, "target"))[0]
 
         // act
-        let fromInactive =
-            prepareCallHierarchy(db, inactive.fileId, offsetIn(inactive.text, "target"))
+        let fromInactive = prepareCallHierarchy(
+            db,
+            inactive.fileId,
+            offsetIn(inactive.text, "target")
+        )
         let incoming = incomingCalls(db, target)
 
         // assert

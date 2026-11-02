@@ -310,19 +310,17 @@ public specific func startPiped(
     let (childRead, ownWrite) = createPipe()
     let (ownRead, childWrite) = createPipe()
     try {
-        let pipes =
-            ChildPipes(
-                read: "${childRead.toUIntNative()}",
-                write: "${childWrite.toUIntNative()}",
-                parent: None
-            )
-        let information =
-            createChildProcess(
-                windowsCommandLine([program.toString()].concat(args(pipes))),
-                windowsEnvironment(getVariables(), libraryPathOf(libDirs)),
-                childRead,
-                childWrite
-            )
+        let pipes = ChildPipes(
+            read: "${childRead.toUIntNative()}",
+            write: "${childWrite.toUIntNative()}",
+            parent: None
+        )
+        let information = createChildProcess(
+            windowsCommandLine([program.toString()].concat(args(pipes))),
+            windowsEnvironment(getVariables(), libraryPathOf(libDirs)),
+            childRead,
+            childWrite
+        )
         let job = jobFor(information.process)
         let resumed =
             unsafe {

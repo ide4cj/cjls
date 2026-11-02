@@ -18,8 +18,9 @@ func answered(answers: Array<Array<Byte>>): (MacroConnection, ByteBuffer) {
 
 func resultMessage(status: UInt8): Array<Byte> {
     MacroMsgData(
-        content: MsgContentData
-            .AsMacroResult(MacroResultData(status: status, tks: [TokenData(value: "x")]))
+        content: MsgContentData.AsMacroResult(
+            MacroResultData(status: status, tks: [TokenData(value: "x")])
+        )
     )
         .toBytes()
 }

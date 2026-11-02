@@ -691,15 +691,13 @@ class DefinitionTest {
     @TestCase
     func aTypeOfACompiledPackageHasNoSourceToGoTo() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: $0String): Unit {}
             "#
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let cursor = parsed.cursor.getOrThrow()
         let file = ItemFile.Source(db.sourceFile(cursor.fileId).getOrThrow())

@@ -14,10 +14,9 @@ class MacroTokenCallParseTest {
 
         // act
         let parsed = parse(text)
-        let calls =
-            collectArray(
-                parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
-            )
+        let calls = collectArray(
+            parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
+        )
 
         // assert
         @Expect(parsed.errors.isEmpty())
@@ -33,10 +32,9 @@ class MacroTokenCallParseTest {
 
         // act
         let parsed = parse(TEXT)
-        let calls =
-            collectArray(
-                parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
-            )
+        let calls = collectArray(
+            parsed.syntaxNode().descendants().filter { n => n.kind == MacroExpandExpr }
+        )
 
         // assert
         @Expect(parsed.errors.isEmpty())
@@ -51,8 +49,9 @@ class MacroTokenCallParseTest {
 
         // act
         let parsed = parse(text)
-        let declarations =
-            collectArray(parsed.syntaxNode().children().filter { n => n.kind == FuncDecl })
+        let declarations = collectArray(
+            parsed.syntaxNode().children().filter { n => n.kind == FuncDecl }
+        )
 
         // assert
         @Expect(parsed.syntaxNode().text(), text)

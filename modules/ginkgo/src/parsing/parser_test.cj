@@ -69,13 +69,12 @@ class ParserTest {
 
         // assert
         @Expect(joint.errors.size, 0)
-        let shr =
-            joint
-                .syntaxNode()
-                .descendantsWithTokens()
-                .filter { el => el.kind == Shr }
-                .next()
-                .getOrThrow()
+        let shr = joint
+            .syntaxNode()
+            .descendantsWithTokens()
+            .filter { el => el.kind == Shr }
+            .next()
+            .getOrThrow()
         @Expect(shr.toString(), ">>")
         @Expect(apart.errors.size > 0)
         @Expect(apart.syntaxNode().text(), "1> >2")

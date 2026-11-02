@@ -57,16 +57,9 @@ func declaredPackageOf(file: Path): ?String {
  * What std's sources are analyzed under by the gate on every host, as `std_diagnostics_known.txt` is
  * written: Linux on x86_64. `@When` picks which of std's twins are read.
  */
-let STD_GATE_CFG =
-    Cfg(
-        [
-            ("os", "Linux"),
-            ("arch", "x86_64"),
-            ("env", "gnu"),
-            ("backend", "cjnative"),
-            ("test", "true")
-        ]
-    )
+let STD_GATE_CFG = Cfg(
+    [("os", "Linux"), ("arch", "x86_64"), ("env", "gnu"), ("backend", "cjnative"), ("test", "true")]
+)
 
 /**
  * Loads the pinned std sources, including std.core, under the gate's fixed target configuration.
@@ -155,11 +148,10 @@ class DiagnosticsGateTest {
         }
         if (getVariable(UPDATE_EXPECT).isSome()) {
             let written = found.map { one => "${one}  # ${why.get(one) ?? "?"}" }
-            File
-                .writeTo(
-                    knownOfStd(),
-                    (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
-                )
+            File.writeTo(
+                knownOfStd(),
+                (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
+            )
             return
         }
         let known = why.keys().toArray()
@@ -187,8 +179,10 @@ class ErrorRootsGateTest {
     func thisRepositoryHasOnlyTheErrorRootsOfKnownGaps() {
         // arrange
         let ws = workspace()
-        let lines =
-            String.fromUtf8(File.readFrom(knownErrorRoots())).replace("\r\n", "\n").split("\n")
+        let lines = String
+            .fromUtf8(File.readFrom(knownErrorRoots()))
+            .replace("\r\n", "\n")
+            .split("\n")
         let baseline = ErrorRootBaseline(lines)
 
         // act
@@ -220,19 +214,17 @@ class ErrorRootsGateTest {
                 (known.get(line) ?? 0)
         ) {
             let roots = byLine[line].toArray().map { root => whereIs(ws, root) }
-            changed
-                .add(
-                    "${line}: ${known.get(line) ?? 0} known, ${count} found: ${String.join(roots, delimiter: "; ")}"
-                )
+            changed.add(
+                "${line}: ${known.get(line) ?? 0} known, ${count} found: ${String.join(roots, delimiter: "; ")}"
+            )
         }
         for (
             (line, count) in known where count >
                 (found.get(line) ?? 0)
         ) {
-            changed
-                .add(
-                    "${line}: ${count} known, ${found.get(line) ?? 0} found: a gap closed, `UPDATE_EXPECT=1` takes it off"
-                )
+            changed.add(
+                "${line}: ${count} known, ${found.get(line) ?? 0} found: a gap closed, `UPDATE_EXPECT=1` takes it off"
+            )
         }
         let sorted = changed.toArray()
         sort(sorted)

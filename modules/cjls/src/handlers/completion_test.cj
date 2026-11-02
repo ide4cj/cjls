@@ -16,14 +16,13 @@ func completionOf(
     line: UInt32,
     character: UInt32
 ): Array<CompletionItem> {
-    let answer =
-        handleCompletion(
-            state.snapshot(),
-            CompletionParams(
-                textDocument: TextDocumentIdentifier(uri: uriOf(path)),
-                position: Position(line: line, character: character)
-            )
+    let answer = handleCompletion(
+        state.snapshot(),
+        CompletionParams(
+            textDocument: TextDocumentIdentifier(uri: uriOf(path)),
+            position: Position(line: line, character: character)
         )
+    )
     match (answer) {
         case Nullable.Value(CompletionItemsOrCompletionList.AsCompletionList(list)) =>
             @Assert(!list.isIncomplete)
@@ -167,27 +166,25 @@ func use(p: Printer) { p.pr }
     func labelDetailsAreNegotiatedAndKeptInTheSnapshot(support: ?Bool) {
         // arrange
         let state = ServerState()
-        let capabilities =
-            ClientCapabilities(
-                textDocument: TextDocumentClientCapabilities(
-                    completion: CompletionClientCapabilities(
-                        completionItem: ClientCompletionItemOptions(labelDetailsSupport: support)
-                    )
+        let capabilities = ClientCapabilities(
+            textDocument: TextDocumentClientCapabilities(
+                completion: CompletionClientCapabilities(
+                    completionItem: ClientCompletionItemOptions(labelDetailsSupport: support)
                 )
             )
+        )
 
         // act
-        let result =
-            handleInitialize(
-                state,
-                Client(),
-                NoopLogger(),
-                InitializeParams(
-                    processId: Nullable.Null,
-                    rootUri: Nullable.Null,
-                    capabilities: capabilities
-                )
+        let result = handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
             )
+        )
 
         // assert
         @Expect(state.snapshot().completionLabelDetails, support ?? false)
@@ -212,11 +209,10 @@ func use(p: Printer) { p.pr }
         @Assert(item.labelDetails.isSome())
 
         // act
-        state
-            .setFileContents(
-                VfsPath.file(path),
-                Rope(source.replace("public func print(value: Bool): Unit {}", ""))
-            )
+        state.setFileContents(
+            VfsPath.file(path),
+            Rope(source.replace("public func print(value: Bool): Unit {}", ""))
+        )
         let resolved = handleCompletionResolve(state.snapshot(), item)
 
         // assert

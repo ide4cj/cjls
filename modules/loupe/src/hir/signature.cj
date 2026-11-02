@@ -136,19 +136,18 @@ public struct Signature {
             { ids: Array<TypeRefId> => String.join(ids.map { one => text(one) }, delimiter: ", ") }
         match (this[id]) {
             case PathRef(segments) =>
-                String
-                    .join(
-                        segments
-                            .map {
-                                segment =>
-                                if (segment.args.isEmpty()) {
-                                    segment.name
-                                } else {
-                                    "${segment.name}<${list(segment.args)}>"
-                                }
-                            },
-                        delimiter: "."
-                    )
+                String.join(
+                    segments
+                        .map {
+                            segment =>
+                            if (segment.args.isEmpty()) {
+                                segment.name
+                            } else {
+                                "${segment.name}<${list(segment.args)}>"
+                            }
+                        },
+                    delimiter: "."
+                )
             case PrimRef(name) => name
             case TupleRef(elements) => "(${list(elements)})"
             case FuncRef(params, ret) => "(${list(params)}) -> ${text(ret)}"
@@ -357,32 +356,30 @@ class SignatureLowering {
         let lowered =
             match (ty) {
                 case Type.AsPathType(it) =>
-                    TypeRef
-                        .PathRef(
-                            it.pathSegments() |>
-                                map {
-                                    segment: PathSegment =>
-                                    let args =
-                                        match (segment.typeArgList()) {
-                                            case Some(list) =>
-                                                list.types() |> map { arg: Type => lower(arg) } |>
-                                                    collectArray
-                                            case None => Array<TypeRefId>()
-                                        }
-                                    TypeSegment(segment.nameRef()?.text() ?? "", args)
-                                } |>
-                                collectArray
-                        )
+                    TypeRef.PathRef(
+                        it.pathSegments() |>
+                            map {
+                                segment: PathSegment =>
+                                let args =
+                                    match (segment.typeArgList()) {
+                                        case Some(list) =>
+                                            list.types() |> map { arg: Type => lower(arg) } |>
+                                                collectArray
+                                        case None => Array<TypeRefId>()
+                                    }
+                                TypeSegment(segment.nameRef()?.text() ?? "", args)
+                            } |>
+                            collectArray
+                    )
                 case Type.AsPrimType(it) => TypeRef.PrimRef(it.keyword()?.text() ?? "")
                 case Type.AsTupleType(it) => TypeRef.TupleRef(elements(it.syntax, None))
                 case Type.AsParenType(it) =>
                     return lower(it.ty() ?? it.namedType().flatMap { named => named.ty() })
                 case Type.AsFuncType(it) =>
-                    TypeRef
-                        .FuncRef(
-                            elements(it.syntax, it.arrowToken()?.textRange.start),
-                            lower(it.ret())
-                        )
+                    TypeRef.FuncRef(
+                        elements(it.syntax, it.arrowToken()?.textRange.start),
+                        lower(it.ret())
+                    )
                 case Type.AsOptionType(it) => TypeRef.OptionRef(lower(it.ty()))
                 case Type.AsThisType(_) => TypeRef.ThisRef
                 case Type.AsVArrayType(it) =>

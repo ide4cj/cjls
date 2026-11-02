@@ -89,10 +89,15 @@ class SemanticTokensEncodingTest {
     func aClientAugmentingItsGrammarGetsOnlyWhatTheGrammarCannotName() {
         // arrange
         let documentation = HighlightModifiers.NONE.plus(HighlightModifier.Documentation)
-        let variable =
-            HighlightedRange(TextRange(4, 5), HighlightTag.Symbol(StructureKind.Variable))
-        let docComment =
-            HighlightedRange(TextRange(10, 16), HighlightTag.Comment, modifiers: documentation)
+        let variable = HighlightedRange(
+            TextRange(4, 5),
+            HighlightTag.Symbol(StructureKind.Variable)
+        )
+        let docComment = HighlightedRange(
+            TextRange(10, 16),
+            HighlightTag.Comment,
+            modifiers: documentation
+        )
         let tokens =
             [
                 HighlightedRange(TextRange(0, 3), HighlightTag.Keyword),
@@ -139,13 +144,12 @@ class SemanticTokensEncodingTest {
         let text = "/* a\n\nbc */ x"
 
         // act
-        let result =
-            semanticTokens(
-                Rope(text),
-                [HighlightedRange(TextRange(0, 11), HighlightTag.Comment)],
-                Encoding.Utf16,
-                false
-            )
+        let result = semanticTokens(
+            Rope(text),
+            [HighlightedRange(TextRange(0, 11), HighlightTag.Comment)],
+            Encoding.Utf16,
+            false
+        )
 
         // assert
         @Expect(result.data, [0, 0, 4, COMMENT, 0, 2, 0, 5, COMMENT, 0])
@@ -157,16 +161,15 @@ class SemanticTokensEncodingTest {
         let text = "/* a\r\nb */ x /* c\r\nd */"
 
         // act
-        let result =
-            semanticTokens(
-                Rope(text),
-                [
-                    HighlightedRange(TextRange(0, 10), HighlightTag.Comment),
-                    HighlightedRange(TextRange(13, 23), HighlightTag.Comment)
-                ],
-                Encoding.Utf16,
-                false
-            )
+        let result = semanticTokens(
+            Rope(text),
+            [
+                HighlightedRange(TextRange(0, 10), HighlightTag.Comment),
+                HighlightedRange(TextRange(13, 23), HighlightTag.Comment)
+            ],
+            Encoding.Utf16,
+            false
+        )
 
         // assert
         @Expect(result.data, [0, 0, 4, COMMENT, 0, 1, 0, 4, COMMENT, 0, 0, 7, 4, COMMENT, 0, 1, 0, 4, COMMENT, 0])
@@ -178,13 +181,12 @@ class SemanticTokensEncodingTest {
         let text = "/* a\n\nbc */ x"
 
         // act
-        let result =
-            semanticTokens(
-                Rope(text),
-                [HighlightedRange(TextRange(0, 11), HighlightTag.Comment)],
-                Encoding.Utf16,
-                true
-            )
+        let result = semanticTokens(
+            Rope(text),
+            [HighlightedRange(TextRange(0, 11), HighlightTag.Comment)],
+            Encoding.Utf16,
+            true
+        )
 
         // assert - the line breaks count
         @Expect(result.data, [0, 0, 11, COMMENT, 0])
@@ -209,18 +211,16 @@ class SemanticTokensTest {
     func aRangeGetsTheTokensItHoldsCountedFromTheDocumentStart() {
         // arrange
         let state = opened("let a = 1\nlet b = 2")
-        let range =
-            LspRange(start: Position(line: 1, character: 0), end: Position(line: 1, character: 9))
+        let range = LspRange(
+            start: Position(line: 1, character: 0),
+            end: Position(line: 1, character: 9)
+        )
 
         // act
-        let result =
-            handleSemanticTokensRange(
-                state.snapshot(),
-                SemanticTokensRangeParams(
-                    textDocument: TextDocumentIdentifier(uri: URI),
-                    range: range
-                )
-            )
+        let result = handleSemanticTokensRange(
+            state.snapshot(),
+            SemanticTokensRangeParams(textDocument: TextDocumentIdentifier(uri: URI), range: range)
+        )
 
         // assert
         match (result) {
@@ -240,17 +240,16 @@ class SemanticTokensTest {
     @TestCase
     func fullAndRangeAreAdvertisedWithTheLegend() {
         // act
-        let result =
-            handleInitialize(
-                ServerState(),
-                Client(),
-                NoopLogger(),
-                InitializeParams(
-                    processId: Nullable.Null,
-                    rootUri: Nullable.Null,
-                    capabilities: ClientCapabilities()
-                )
+        let result = handleInitialize(
+            ServerState(),
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: ClientCapabilities()
             )
+        )
 
         // assert
         match (result.capabilities.semanticTokensProvider) {
@@ -355,21 +354,19 @@ class SemanticTokensTest {
         // arrange
         let state = opened(##"let s = "${1}""##)
         state.augmentsSyntaxTokens = true
-        let range =
-            LspRange(start: Position(line: 0, character: 9), end: Position(line: 0, character: 13))
+        let range = LspRange(
+            start: Position(line: 0, character: 9),
+            end: Position(line: 0, character: 13)
+        )
 
         // act
         let data =
             semanticTokensData(state, URI)
                 .getOrThrow { IllegalStateException("no tokens for an open document") }
-        let ranged =
-            handleSemanticTokensRange(
-                state.snapshot(),
-                SemanticTokensRangeParams(
-                    textDocument: TextDocumentIdentifier(uri: URI),
-                    range: range
-                )
-            )
+        let ranged = handleSemanticTokensRange(
+            state.snapshot(),
+            SemanticTokensRangeParams(textDocument: TextDocumentIdentifier(uri: URI), range: range)
+        )
 
         // assert
         @Expect(data, [0, 4, 1, VARIABLE, DECLARATION | READONLY,

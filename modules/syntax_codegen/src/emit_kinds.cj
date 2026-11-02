@@ -152,12 +152,11 @@ func emitKinds(model: Model, header: String, packageName: String): String {
     w.blank()
     w.line("extend SyntaxKind <: Kind<SyntaxKind> {}")
     w.blank()
-    w
-        .doc(
-            [
-                "The punctuation the lexer cuts out of the text, the longest first: it takes the first that matches."
-            ]
-        )
+    w.doc(
+        [
+            "The punctuation the lexer cuts out of the text, the longest first: it takes the first that matches."
+        ]
+    )
     w.line("let LEXED_PUNCTUATION: Array<(Array<Byte>, SyntaxKind)> = [")
     w
         .indented {
@@ -189,14 +188,13 @@ func predicate(w: CodeWriter, name: String, doc: Array<String>, members: Array<K
                 .block("match (this)") {
                     =>
                     if (!members.isEmpty()) {
-                        w
-                            .wrapped(
-                                "case ",
-                                members.map { k => k.name },
-                                " |",
-                                " => true",
-                                leading: true
-                            )
+                        w.wrapped(
+                            "case ",
+                            members.map { k => k.name },
+                            " |",
+                            " => true",
+                            leading: true
+                        )
                     }
                     w.line("case _ => false")
                 }

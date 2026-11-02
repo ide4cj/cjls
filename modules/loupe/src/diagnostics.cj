@@ -51,46 +51,42 @@ public struct Diagnostic {
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
     let file = db.sourceFile(fileId) ?? return []
     let result = ArrayList<Diagnostic>()
-    result
-        .add(
-            all: parse(db, file)
-                .errors
-                .map { error => Diagnostic(error.range, Severity.Error, message(error.error)) }
-        )
+    result.add(
+        all: parse(db, file)
+            .errors
+            .map { error => Diagnostic(error.range, Severity.Error, message(error.error)) }
+    )
     // a file the build leaves out is all inactive, and nothing in it is checked
     if (let Some(reason) <- inactiveReasonOf(db, file)) {
-        result
-            .add(
-                Diagnostic(
-                    codeRange(parse(db, file).syntaxNode()),
-                    Severity.Hint,
-                    "code is inactive: ${reason}",
-                    unnecessary: true
-                )
+        result.add(
+            Diagnostic(
+                codeRange(parse(db, file).syntaxNode()),
+                Severity.Hint,
+                "code is inactive: ${reason}",
+                unnecessary: true
             )
+        )
         return result.toArray()
     }
     let conditional = whenDiagnostics(db, file)
-    result
-        .add(
-            all: conditional
-                .errors
-                .map { error => Diagnostic(error.range, Severity.Error, error.message) }
-        )
-    result
-        .add(
-            all: conditional
-                .inactive
-                .map {
-                    code =>
-                    Diagnostic(
-                        code.range,
-                        Severity.Hint,
-                        "code is inactive due to @When: ${String.join(code.reasons, delimiter: " and ")}",
-                        unnecessary: true
-                    )
-                }
-        )
+    result.add(
+        all: conditional
+            .errors
+            .map { error => Diagnostic(error.range, Severity.Error, error.message) }
+    )
+    result.add(
+        all: conditional
+            .inactive
+            .map {
+                code =>
+                Diagnostic(
+                    code.range,
+                    Severity.Hint,
+                    "code is inactive due to @When: ${String.join(code.reasons, delimiter: " and ")}",
+                    unnecessary: true
+                )
+            }
+    )
     let root = parse(db, file).syntaxNode()
     if (let Some(message) <- packageHeaderError(db, file)) {
         if (let Some(header) <- (AstSourceFile.cast(root)?.packageHeader() ?? None)) {
@@ -102,19 +98,18 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
     }
     result.add(all: declarationDiagnostics(db, file))
     result.add(all: scopeDiagnosticsOf(db, file, root))
-    result
-        .add(
-            all: macroDiagnostics(db, file)
-                .map {
-                    one =>
-                    let severity =
-                        match (one.severity) {
-                            case MacroError => Severity.Error
-                            case MacroWarning => Severity.Warning
-                        }
-                    Diagnostic(one.range, severity, one.message)
-                }
-        )
+    result.add(
+        all: macroDiagnostics(db, file)
+            .map {
+                one =>
+                let severity =
+                    match (one.severity) {
+                        case MacroError => Severity.Error
+                        case MacroWarning => Severity.Warning
+                    }
+                Diagnostic(one.range, severity, one.message)
+            }
+    )
     let read = readServerCallsOf(db, file)
     for (
         def in bodiesOf(db, ItemFile.Source(file), leavingOut: read.map { call => call.item(db) })
@@ -175,14 +170,13 @@ func expansionDiagnostics(
         let root = expansionParse(db, call).syntaxNode()
         for (def in bodiesOf(db, ItemFile.Expansion(call))) {
             for (one in inferenceDiagnostics(db, def, root)) {
-                found
-                    .add(
-                        Diagnostic(
-                            sourceRangeOf(db, call, one.range) ?? head,
-                            one.severity,
-                            one.message
-                        )
+                found.add(
+                    Diagnostic(
+                        sourceRangeOf(db, call, one.range) ?? head,
+                        one.severity,
+                        one.message
                     )
+                )
             }
         }
     }
@@ -293,8 +287,10 @@ func inferenceDiagnostics(db: AnalysisDatabase, def: DefId, root: CjSyntaxNode):
                         case NameTwice(name) =>
                             "named argument prefix '${name}:' cannot appeared more than once in call"
                         case NeedsName(names) =>
-                            let prefixes =
-                                String.join(names.map { name => "'${name}:'" }, delimiter: " or ")
+                            let prefixes = String.join(
+                                names.map { name => "'${name}:'" },
+                                delimiter: " or "
+                            )
                             "missing argument prefix ${prefixes} for named parameter"
                         case NameOfValue =>
                             "named argument cannot be used in variable function call"

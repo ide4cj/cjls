@@ -21,14 +21,13 @@ class CjpmGitCompatibilityTest {
         // arrange
         let (first, second, selector, compatible) = sample
         let entry = "dep = {source = \"git+${GIT_URL}${selector}#${GIT_COMMIT}\"}\n"
-        let dir =
-            tree(
-                [
-                    ("cjpm.lock", "version = 1\n[requires]\n${entry}[scripts]\n${entry}"),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
-                    ("cache/git/dep/${GIT_COMMIT}/cjpm.toml", "[package]\nname = \"dep\"\n")
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.lock", "version = 1\n[requires]\n${entry}[scripts]\n${entry}"),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
+                ("cache/git/dep/${GIT_COMMIT}/cjpm.toml", "[package]\nname = \"dep\"\n")
+            ]
+        )
         let loading = Loading(sdkEnv, hostCfg())
         let git = CjpmGit(loading, dir)
         try {

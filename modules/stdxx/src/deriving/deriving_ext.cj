@@ -77,8 +77,10 @@ public macro DeriveExt(attrs: Tokens, input: Tokens): Tokens {
         return input
     }
 
-    let names =
-        String.join(requested.toArray().map { derivation => derivation.name }, delimiter: ", ")
+    let names = String.join(
+        requested.toArray().map { derivation => derivation.name },
+        delimiter: ", "
+    )
     let markers = Markers(knownMarkers())
     let read = ArrayList<String>()
     for (derivation in requested) {

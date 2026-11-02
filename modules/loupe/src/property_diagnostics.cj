@@ -30,27 +30,21 @@ func checkPropertyAccessors(
             continue
         }
         if ((getter && getters > 0) || (!getter && setters > 0)) {
-            found
-                .add(
-                    Diagnostic(
-                        name.textRange,
-                        Severity.Error,
-                        "duplicated '${name.text()}' in prop"
-                    )
-                )
+            found.add(
+                Diagnostic(name.textRange, Severity.Error, "duplicated '${name.text()}' in prop")
+            )
         }
         if (getter) { getters++ } else { setters++ }
         for (params in accessor.paramLists()) {
             let count = (params.params() |> collectArray).size
             if (getter && count != 0) {
-                found
-                    .add(
-                        Diagnostic(
-                            TextRange(name.textRange.start, name.textRange.start + 1),
-                            Severity.Error,
-                            "getter cannot have parameter"
-                        )
+                found.add(
+                    Diagnostic(
+                        TextRange(name.textRange.start, name.textRange.start + 1),
+                        Severity.Error,
+                        "getter cannot have parameter"
                     )
+                )
             } else if (!getter && count != 1) {
                 let message =
                     if (count == 0) {
@@ -77,14 +71,9 @@ func checkPropertyAccessors(
             found.add(Diagnostic(node.textRange, Severity.Error, "property must have accessors"))
         }
         if (!declarationHas(node, SyntaxKind.MutKw) && setters > 0) {
-            found
-                .add(
-                    Diagnostic(
-                        node.textRange,
-                        Severity.Error,
-                        "immutable property cannot have setter"
-                    )
-                )
+            found.add(
+                Diagnostic(node.textRange, Severity.Error, "immutable property cannot have setter")
+            )
         }
     }
 }

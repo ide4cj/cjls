@@ -74,8 +74,9 @@ public class MacroBuilder {
     }
 
     private func buildAll(units: Array<BuildUnit>): HashMap<String, BuiltLibrary> {
-        let macros =
-            HashSet<String>(units.filter { unit => unit.isMacro }.map { unit => unit.name })
+        let macros = HashSet<String>(
+            units.filter { unit => unit.isMacro }.map { unit => unit.name }
+        )
         let stamps = HashMap<String, Int64>()
         let failed = HashMap<String, String>()
         let built = HashMap<String, BuiltLibrary>()
@@ -133,16 +134,15 @@ public class MacroBuilder {
      * `.cjo` of its binaries.
      */
     private func argumentsOf(unit: BuildUnit, macros: HashSet<String>): Array<String> {
-        let arguments =
-            ArrayList<String>(
-                [
-                    "-p",
-                    unit.dir.toString(),
-                    "--import-path=${out}",
-                    "--no-sub-pkg",
-                    "--output-dir=${out.join(unit.module)}"
-                ]
-            )
+        let arguments = ArrayList<String>(
+            [
+                "-p",
+                unit.dir.toString(),
+                "--import-path=${out}",
+                "--no-sub-pkg",
+                "--output-dir=${out.join(unit.module)}"
+            ]
+        )
         let binaryDirs = ArrayList<Path>()
         for (cjo in unit.binaries) {
             if (let Some(parent) <- parentOf(cjo) && !binaryDirs.contains(parent)) {

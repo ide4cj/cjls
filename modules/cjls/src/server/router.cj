@@ -78,19 +78,14 @@ public class Router {
         add(
             requests,
             spec.method,
-            RequestRoute
-                .Exclusive(
-                    {
-                        parts, params, decoded =>
-                        spec
-                            .encodeResult(
-                                handler(
-                                    parts
-                                        .context(decodedAs<P>(decoded) ?? spec.decodeParams(params))
-                                )
-                            )
-                    }
-                ),
+            RequestRoute.Exclusive(
+                {
+                    parts, params, decoded =>
+                    spec.encodeResult(
+                        handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+                    )
+                }
+            ),
             inPlace(spec)
         )
     }
@@ -102,13 +97,12 @@ public class Router {
         add(
             notifications,
             spec.method,
-            NotificationRoute
-                .Exclusive(
-                    {
-                        parts, params, decoded =>
-                        handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
-                    }
-                ),
+            NotificationRoute.Exclusive(
+                {
+                    parts, params, decoded =>
+                    handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+                }
+            ),
             inPlace(spec)
         )
     }
@@ -125,19 +119,14 @@ public class Router {
         add(
             requests,
             spec.method,
-            RequestRoute
-                .ReadOnly(
-                    {
-                        parts, params, decoded =>
-                        spec
-                            .encodeResult(
-                                handler(
-                                    parts
-                                        .context(decodedAs<P>(decoded) ?? spec.decodeParams(params))
-                                )
-                            )
-                    }
-                ),
+            RequestRoute.ReadOnly(
+                {
+                    parts, params, decoded =>
+                    spec.encodeResult(
+                        handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+                    )
+                }
+            ),
             inPlace(spec)
         )
     }
@@ -154,13 +143,12 @@ public class Router {
         add(
             notifications,
             spec.method,
-            NotificationRoute
-                .ReadOnly(
-                    {
-                        parts, params, decoded =>
-                        handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
-                    }
-                ),
+            NotificationRoute.ReadOnly(
+                {
+                    parts, params, decoded =>
+                    handler(parts.context(decodedAs<P>(decoded) ?? spec.decodeParams(params)))
+                }
+            ),
             inPlace(spec)
         )
     }
@@ -223,8 +211,11 @@ enum NotificationRoute {
 
 private func refuseLifecycle(method: String): Unit {
     if (
-        [InitializeRequestSpec.METHOD, ShutdownRequestSpec.METHOD, ExitNotificationSpec.METHOD]
-            .contains(method)
+        [
+            InitializeRequestSpec.METHOD,
+            ShutdownRequestSpec.METHOD,
+            ExitNotificationSpec.METHOD
+        ].contains(method)
     ) {
         throw IllegalArgumentException("\"${method}\" cannot be handled with a `ReadOnlyContext`")
     }

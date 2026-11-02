@@ -179,15 +179,10 @@ public struct SignatureTypes {
             head
         } else {
             head + " where " +
-                String
-                    .join(
-                        bounds
-                            .map {
-                                bound =>
-                                "${bound.ty.text(db)} <: ${list(bound.bounds, " & ")}"
-                            },
-                        delimiter: ", "
-                    )
+                String.join(
+                    bounds.map { bound => "${bound.ty.text(db)} <: ${list(bound.bounds, " & ")}" },
+                    delimiter: ", "
+                )
         }
     }
 }
@@ -605,17 +600,16 @@ class SourceTyLowering {
                                 isExportNamed(typeScope, pkg, name)
                             case _ => false
                         }
-                    errors
-                        .add(
-                            TyError(
-                                id,
-                                if (named) {
-                                    TyErrorKind.NotAType(name)
-                                } else {
-                                    TyErrorKind.UndeclaredType(name)
-                                }
-                            )
+                    errors.add(
+                        TyError(
+                            id,
+                            if (named) {
+                                TyErrorKind.NotAType(name)
+                            } else {
+                                TyErrorKind.UndeclaredType(name)
+                            }
                         )
+                    )
                 case Resolved(_) => ()
                 case _ => return
             }
@@ -654,17 +648,16 @@ class SourceTyLowering {
             if (args.size == count) {
                 args
             } else {
-                errors
-                    .add(
-                        TyError(
-                            id,
-                            if (args.isEmpty() && !isCFunc) {
-                                TyErrorKind.NeedsTypeArgs
-                            } else {
-                                TyErrorKind.WrongTypeArgCount
-                            }
-                        )
+                errors.add(
+                    TyError(
+                        id,
+                        if (args.isEmpty() && !isCFunc) {
+                            TyErrorKind.NeedsTypeArgs
+                        } else {
+                            TyErrorKind.WrongTypeArgCount
+                        }
                     )
+                )
                 Array(count) { i => args.get(i) ?? Ty(db, ErrorTy) }
             }
         match (target.item(db).kind) {
@@ -849,14 +842,12 @@ class BinaryTyLowering {
         for (list in lists) {
             for (param in list.params) {
                 let one = cjo.allDecls[Int64(param) - 1]
-                names
-                    .add(
-                        match (one.info) {
-                            case Some(DeclInfo.AsParamInfo(it)) where it.isNamedParam =>
-                                one.identifier
-                            case _ => None
-                        }
-                    )
+                names.add(
+                    match (one.info) {
+                        case Some(DeclInfo.AsParamInfo(it)) where it.isNamedParam => one.identifier
+                        case _ => None
+                    }
+                )
             }
         }
         if (names.iterator().any { one => one.isSome() }) { names.toArray() } else { [] }

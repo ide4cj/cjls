@@ -81,26 +81,24 @@ public func resolveField(db: AnalysisDatabase, def: DefId, expr: ExprId): FieldR
         case PackageReceiver(pkg) =>
             let from = packageOf(db, def) ?? return FieldResolution.NoField
             let relation = relationOf(from.name(db), nameOf(db, pkg))
-            let ids =
-                visibleOf(
-                    packageExports(db, pkg).names.get(name) ?? [],
-                    relation,
-                    Visibility.Private
-                )
+            let ids = visibleOf(
+                packageExports(db, pkg).names.get(name) ?? [],
+                relation,
+                Visibility.Private
+            )
             if (ids.isEmpty()) {
                 FieldResolution.NoField
             } else {
                 FieldResolution.PackageMembers(ids)
             }
         case TypesReceiver(types) =>
-            let targets =
-                lookUpMembers(
-                    db,
-                    types,
-                    name,
-                    sourceFileOf(db, def),
-                    LookupTy({ => receiverTyOf(db, def, receiver) })
-                )
+            let targets = lookUpMembers(
+                db,
+                types,
+                name,
+                sourceFileOf(db, def),
+                LookupTy({ => receiverTyOf(db, def, receiver) })
+            )
             if (targets.isEmpty()) {
                 FieldResolution.NoField
             } else {

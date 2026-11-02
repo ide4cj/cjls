@@ -183,13 +183,12 @@ public func scopeDiagnostics(
         for (name in item.names) {
             let sub = "${pkgName}.${name}"
             if (let Some(Source(_)) <- index.find(sub, from: from)) {
-                found
-                    .add(
-                        ScopeDiagnostic(
-                            ScopeProblemAt.AtDecl(DefId(db, own, item.id), name),
-                            ScopeProblem.SubPackage(name, sub)
-                        )
+                found.add(
+                    ScopeDiagnostic(
+                        ScopeProblemAt.AtDecl(DefId(db, own, item.id), name),
+                        ScopeProblem.SubPackage(name, sub)
                     )
+                )
             }
         }
     }

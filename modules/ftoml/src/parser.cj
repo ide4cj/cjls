@@ -256,13 +256,12 @@ class FtParser {
             match (target.get(part.name)) {
                 case None =>
                     let created = nested(target, Dotted, part.start)
-                    target
-                        .add(
-                            part.name,
-                            FtValue(AsTable(created), start: part.start, end: part.end),
-                            keyStart: part.start,
-                            keyEnd: part.end
-                        )
+                    target.add(
+                        part.name,
+                        FtValue(AsTable(created), start: part.start, end: part.end),
+                        keyStart: part.start,
+                        keyEnd: part.end
+                    )
                     target = created
                 case Some(existing) =>
                     match (existing.data) {
@@ -315,13 +314,12 @@ class FtParser {
             match (parent.get(part.name)) {
                 case None =>
                     let created = nested(parent, Implicit, part.start)
-                    parent
-                        .add(
-                            part.name,
-                            FtValue(AsTable(created), start: part.start, end: part.end),
-                            keyStart: part.start,
-                            keyEnd: part.end
-                        )
+                    parent.add(
+                        part.name,
+                        FtValue(AsTable(created), start: part.start, end: part.end),
+                        keyStart: part.start,
+                        keyEnd: part.end
+                    )
                     parent = created
                 case Some(existing) =>
                     match (existing.data) {
@@ -351,13 +349,12 @@ class FtParser {
                     match (parent.get(last.name)) {
                         case None =>
                             let created = FtArray(true)
-                            parent
-                                .add(
-                                    last.name,
-                                    FtValue(AsArray(created), start: start, end: end),
-                                    keyStart: last.start,
-                                    keyEnd: last.end
-                                )
+                            parent.add(
+                                last.name,
+                                FtValue(AsArray(created), start: start, end: end),
+                                keyStart: last.start,
+                                keyEnd: last.end
+                            )
                             created
                         case Some(existing) =>
                             match (existing.data) {
@@ -379,13 +376,12 @@ class FtParser {
                 match (parent.get(last.name)) {
                     case None =>
                         let created = nested(parent, Header, last.start)
-                        parent
-                            .add(
-                                last.name,
-                                FtValue(AsTable(created), start: start, end: end),
-                                keyStart: last.start,
-                                keyEnd: last.end
-                            )
+                        parent.add(
+                            last.name,
+                            FtValue(AsTable(created), start: start, end: end),
+                            keyStart: last.start,
+                            keyEnd: last.end
+                        )
                         created
                     case Some(existing) =>
                         match (existing.data) {

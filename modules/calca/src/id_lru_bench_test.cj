@@ -261,15 +261,14 @@ class HashLinkedListLru<T> where T <: Hashable & Equatable<T> {
 /**
  * The keys fetched in one revision: 4096 fetches over 256 keys, half of them among the first 64.
  */
-let BENCH_IDS: Array<Id> =
-    {
-        =>
-        let random = Random(42)
-        Array<Id>(4096) {
-            _ =>
-            Id(if (random.nextBool()) { random.nextInt64(64) } else { random.nextInt64(256) })
-        }
-    }()
+let BENCH_IDS: Array<Id> = {
+    =>
+    let random = Random(42)
+    Array<Id>(4096) {
+        _ =>
+        Id(if (random.nextBool()) { random.nextInt64(64) } else { random.nextInt64(256) })
+    }
+}()
 
 const BENCH_CAPACITY = 128
 

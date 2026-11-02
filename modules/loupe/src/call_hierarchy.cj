@@ -219,12 +219,11 @@ private func callableEntries(
     for (one in defs) {
         let targets = targetsOfDefinition(db, one)
         if (!targets.isEmpty()) {
-            entries
-                .add(
-                    all: targets |>
-                        filterMap { target: NavigationTarget => hierarchyEntry(db, target) } |>
-                        collectArray
-                )
+            entries.add(
+                all: targets |>
+                    filterMap { target: NavigationTarget => hierarchyEntry(db, target) } |>
+                    collectArray
+            )
             continue
         }
         let def =

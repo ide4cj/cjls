@@ -30,10 +30,9 @@ class FileWordsTest {
     @TestCase
     func aNameIsAWordWhereverTheLexerCutsOne() {
         // arrange
-        let text =
-            Rope(
-                "let a = `b` + \$c + \"\${d}e\" + f.size\n// g\nlet 数组→ = public\nlet sizeOf = 1\n"
-            )
+        let text = Rope(
+            "let a = `b` + \$c + \"\${d}e\" + f.size\n// g\nlet 数组→ = public\nlet sizeOf = 1\n"
+        )
 
         // act
         let words = wordsOf(text)

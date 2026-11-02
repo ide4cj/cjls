@@ -56,11 +56,11 @@ class LspTypesTest {
     @TestCase
     func anAbsentOptionalIsLeftOutRatherThanWrittenAsNull() {
         // arrange
-        let hover =
-            Hover(
-                contents: MarkupContentOrMarkedStringOrMarkedStrings
-                    .AsMarkupContent(MarkupContent(kind: MarkupKind.Markdown, value: "**x**"))
+        let hover = Hover(
+            contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+                MarkupContent(kind: MarkupKind.Markdown, value: "**x**")
             )
+        )
 
         // act
         let tree = treeOf(hover)
@@ -147,14 +147,12 @@ class LspTypesTest {
 
         // act
         let decoded = spec.decodeParams(params)
-        let encoded =
-            spec
-                .encodeResult(
-                    InitializeResult(
-                        capabilities: ServerCapabilities(),
-                        serverInfo: ServerInfo(name: "cjls")
-                    )
-                )
+        let encoded = spec.encodeResult(
+            InitializeResult(
+                capabilities: ServerCapabilities(),
+                serverInfo: ServerInfo(name: "cjls")
+            )
+        )
 
         // assert
         @Expect("initialize", spec.method)
@@ -192,8 +190,9 @@ class LspTypesTest {
         let spec = ConfigurationRequestSpec()
 
         // act
-        let params =
-            spec.encodeParams(ConfigurationParams(items: [ConfigurationItem(section: "cangjie")]))
+        let params = spec.encodeParams(
+            ConfigurationParams(items: [ConfigurationItem(section: "cangjie")])
+        )
         let result = spec.decodeResult(RawJson(##"[{"a": 1}, null]"##.toArray()))
 
         // assert
@@ -219,11 +218,10 @@ class LspTypesTest {
     @TestCase
     func aRegistrationNamesTheMethodItsMessageIsRegisteredUnder() {
         // arrange - a delta is registered with the full document's tokens
-        let options =
-            SemanticTokensRegistrationOptions(
-                documentSelector: Nullable<DocumentSelector>.Null,
-                legend: SemanticTokensLegend(tokenTypes: ["keyword"], tokenModifiers: [])
-            )
+        let options = SemanticTokensRegistrationOptions(
+            documentSelector: Nullable<DocumentSelector>.Null,
+            legend: SemanticTokensLegend(tokenTypes: ["keyword"], tokenModifiers: [])
+        )
 
         // act
         let registration = SemanticTokensDeltaRequestSpec().registration("7", options)
@@ -239,9 +237,8 @@ class LspTypesTest {
     @TestCase
     func aRegistrationOfAMessageRegisteredAloneNamesItsOwnMethod() {
         // act
-        let registration =
-            DidChangeWatchedFilesNotificationSpec()
-                .registration("1", DidChangeWatchedFilesRegistrationOptions(watchers: []))
+        let registration = DidChangeWatchedFilesNotificationSpec()
+            .registration("1", DidChangeWatchedFilesRegistrationOptions(watchers: []))
 
         // assert
         @Expect("workspace/didChangeWatchedFiles", registration.method)

@@ -63,44 +63,42 @@ func resolveMessages(resolver: TypeResolver, mm: MetaModel): Array<MessageIr> {
             owner,
             [("PartialResult", request.partialResult), ("ErrorData", request.errorData)]
         )
-        messages
-            .add(
-                MessageIr(
-                    resolveDoc(request),
-                    ident: owner + SPEC_SUFFIX,
-                    method: request.method,
-                    direction: request.messageDirection,
-                    params: paramsOf(resolver, owner, request.params),
-                    result: resultOf(resolver, owner, request.result),
-                    isRequest: true,
-                    registrationOptions: optionalOf(
-                        resolver,
-                        owner + "RegistrationOptions",
-                        request.registrationOptions
-                    ),
-                    registrationMethod: request.registrationMethod
-                )
+        messages.add(
+            MessageIr(
+                resolveDoc(request),
+                ident: owner + SPEC_SUFFIX,
+                method: request.method,
+                direction: request.messageDirection,
+                params: paramsOf(resolver, owner, request.params),
+                result: resultOf(resolver, owner, request.result),
+                isRequest: true,
+                registrationOptions: optionalOf(
+                    resolver,
+                    owner + "RegistrationOptions",
+                    request.registrationOptions
+                ),
+                registrationMethod: request.registrationMethod
             )
+        )
     }
     for (notification in mm.notifications) {
         let owner = messageIdentOf(notification.typeName, notification.method)
-        messages
-            .add(
-                MessageIr(
-                    resolveDoc(notification),
-                    ident: owner + SPEC_SUFFIX,
-                    method: notification.method,
-                    direction: notification.messageDirection,
-                    params: paramsOf(resolver, owner, notification.params),
-                    isRequest: false,
-                    registrationOptions: optionalOf(
-                        resolver,
-                        owner + "RegistrationOptions",
-                        notification.registrationOptions
-                    ),
-                    registrationMethod: notification.registrationMethod
-                )
+        messages.add(
+            MessageIr(
+                resolveDoc(notification),
+                ident: owner + SPEC_SUFFIX,
+                method: notification.method,
+                direction: notification.messageDirection,
+                params: paramsOf(resolver, owner, notification.params),
+                isRequest: false,
+                registrationOptions: optionalOf(
+                    resolver,
+                    owner + "RegistrationOptions",
+                    notification.registrationOptions
+                ),
+                registrationMethod: notification.registrationMethod
             )
+        )
     }
 
     messages.toArray()

@@ -68,23 +68,21 @@ private func structFromToml(model: StructModel): Tokens {
                 )
             )
     }
-    let unknownCheck =
-        rejectUnknownTomlFields(
-            model.fields,
-            model.tag.map { pair => pair[0] },
-            denyUnknownFields: model.denyUnknownFields
-        )
-    let ctorArgs =
-        commaSeparated(
-            model
-                .fields
-                .map {
-                    field =>
-                    let value = fieldFromToml(field, typeName)
-                    let ident = field.ident
-                    if (field.isNamed) { quote($ident: $value) } else { value }
-                }
-        )
+    let unknownCheck = rejectUnknownTomlFields(
+        model.fields,
+        model.tag.map { pair => pair[0] },
+        denyUnknownFields: model.denyUnknownFields
+    )
+    let ctorArgs = commaSeparated(
+        model
+            .fields
+            .map {
+                field =>
+                let value = fieldFromToml(field, typeName)
+                let ident = field.ident
+                if (field.isNamed) { quote($ident: $value) } else { value }
+            }
+    )
 
     quote(
         let table = v.asTable()
@@ -158,8 +156,10 @@ private func scalarEnumFromToml(model: EnumModel, isInteger: Bool, other: ?Deriv
             case Some(o) where isInteger =>
                 let ident = o.ident
                 let payloadType = o.payloadTypes[0]
-                let outOfRange =
-                    Token(TokenKind.STRING_LITERAL, "`${typeName.value}` value out of range: ")
+                let outOfRange = Token(
+                    TokenKind.STRING_LITERAL,
+                    "`${typeName.value}` value out of range: "
+                )
                 quote(
                     case value => $ident(
                         try {
@@ -208,15 +208,14 @@ private func untaggedEnumFromToml(model: EnumModel): Tokens {
         }
 
         let count = Token(TokenKind.INTEGER_LITERAL, "${variant.payloadTypes.size}")
-        let args =
-            commaSeparated(
-                Array(variant.payloadTypes.size) {
-                    i =>
-                    let payloadType = variant.payloadTypes[i]
-                    let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
-                    quote($payloadType.fromToml(items[$index]))
-                }
-            )
+        let args = commaSeparated(
+            Array(variant.payloadTypes.size) {
+                i =>
+                let payloadType = variant.payloadTypes[i]
+                let index = Token(TokenKind.INTEGER_LITERAL, "${i}")
+                quote($payloadType.fromToml(items[$index]))
+            }
+        )
         attempts += quote(
             try {
                 let items = v.asArray()
@@ -226,8 +225,10 @@ private func untaggedEnumFromToml(model: EnumModel): Tokens {
             } catch (_: Exception) {}
         )
     }
-    let unmatched =
-        Token(TokenKind.STRING_LITERAL, "no `${typeName.value}` variant matched the value")
+    let unmatched = Token(
+        TokenKind.STRING_LITERAL,
+        "no `${typeName.value}` variant matched the value"
+    )
 
     quote(
         $attempts
@@ -243,12 +244,11 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
         let ident = variant.ident
         let literal = variant.value.literal
         if (variant.payloadFields.isEmpty()) {
-            let unknownCheck =
-                rejectUnknownTomlFields(
-                    variant.payloadFields,
-                    Some(tag),
-                    denyUnknownFields: model.denyUnknownFields
-                )
+            let unknownCheck = rejectUnknownTomlFields(
+                variant.payloadFields,
+                Some(tag),
+                denyUnknownFields: model.denyUnknownFields
+            )
             cases += quote(
                 case $literal =>
                     $unknownCheck
@@ -257,14 +257,14 @@ private func taggedEnumFromToml(model: EnumModel, tag: String): Tokens {
             continue
         }
 
-        let unknownCheck =
-            rejectUnknownTomlFields(
-                variant.payloadFields,
-                Some(tag),
-                denyUnknownFields: model.denyUnknownFields
-            )
-        let args =
-            commaSeparated(variant.payloadFields.map { field => fieldFromToml(field, typeName) })
+        let unknownCheck = rejectUnknownTomlFields(
+            variant.payloadFields,
+            Some(tag),
+            denyUnknownFields: model.denyUnknownFields
+        )
+        let args = commaSeparated(
+            variant.payloadFields.map { field => fieldFromToml(field, typeName) }
+        )
         cases += quote(
             case $literal =>
                 $unknownCheck

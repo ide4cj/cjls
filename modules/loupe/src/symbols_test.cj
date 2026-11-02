@@ -34,8 +34,10 @@ class WorkspaceSymbolsTest {
     @TestCase
     func aNameMatchesTheQuerysCharactersInOrderWhateverTheirCase() {
         // act
-        let found =
-            search(["class FooBar {}\nfunc fob() {}\nfunc bof() {}\nfunc other() {}\n"], "FB")
+        let found = search(
+            ["class FooBar {}\nfunc fob() {}\nfunc bof() {}\nfunc other() {}\n"],
+            "FB"
+        )
 
         // assert
         @Expect(found, ["FooBar in - @ 0", "fob in - @ 0"])

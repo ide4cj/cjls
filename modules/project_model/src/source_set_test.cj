@@ -8,27 +8,19 @@ import loupe.{definitionAt, diagnostics}
 import loupe.db.*
 import loupe.vfs.{readFiles, Vfs, VfsPath}
 
-let MACOS =
-    Cfg(
-        [
-            ("os", "macOS"),
-            ("arch", "aarch64"),
-            ("env", ""),
-            ("backend", "cjnative"),
-            ("test", "true")
-        ]
-    )
+let MACOS = Cfg(
+    [("os", "macOS"), ("arch", "aarch64"), ("env", ""), ("backend", "cjnative"), ("test", "true")]
+)
 
-let WINDOWS =
-    Cfg(
-        [
-            ("os", "Windows"),
-            ("arch", "x86_64"),
-            ("env", "gnu"),
-            ("backend", "cjnative"),
-            ("test", "true")
-        ]
-    )
+let WINDOWS = Cfg(
+    [
+        ("os", "Windows"),
+        ("arch", "x86_64"),
+        ("env", "gnu"),
+        ("backend", "cjnative"),
+        ("test", "true")
+    ]
+)
 
 /**
  * A workspace of a multiplatform module `plat`, its sets `common` → `posix` → `linux` or
@@ -218,12 +210,11 @@ class CjpmSourceSetTest {
     @TestCase
     func aFeatureDeclaredByNamesMapsNothingAsInCjpm() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        #"
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    #"
                 [package]
                 name = "m"
                 [profile]
@@ -247,12 +238,12 @@ class CjpmSourceSetTest {
                 src-dir = "./src/posix"
                 features = ["user.m.posix"]
                 "#
-                    ),
-                    ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
-                    ("src/x/b.cj", "features { user.m.x }\npackage m\n"),
-                    ("src/posix/c.cj", "features { user.m.posix }\npackage m\n")
-                ]
-            )
+                ),
+                ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+                ("src/x/b.cj", "features { user.m.x }\npackage m\n"),
+                ("src/posix/c.cj", "features { user.m.posix }\npackage m\n")
+            ]
+        )
 
         // act
         let model =
@@ -268,12 +259,11 @@ class CjpmSourceSetTest {
     @TestCase
     func anAlwaysEnabledFeatureAndThoseItMapsTakeTheirSet() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        #"
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    #"
                 [package]
                 name = "m"
                 always-enabled-features = ["user.m.nightly"]
@@ -293,11 +283,11 @@ class CjpmSourceSetTest {
                 src-dir = "./src/nightly"
                 features = ["user.m.nightly", "user.m.x11"]
                 "#
-                    ),
-                    ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
-                    ("src/nightly/b.cj", "features { user.m.nightly, user.m.x11 }\npackage m\n")
-                ]
-            )
+                ),
+                ("src/common/a.cj", "@NonProduct\nfeatures {}\npackage m\n"),
+                ("src/nightly/b.cj", "features { user.m.nightly, user.m.x11 }\npackage m\n")
+            ]
+        )
 
         // act
         let model =
@@ -353,13 +343,12 @@ class CjpmSourceSetTest {
 
         // act
         let text = prettyProjectJson(toProjectJson(model, dir))
-        let again =
-            lowerProjectJson(
-                fromJsonBytes<ProjectJson>(text.toArray()),
-                dir,
-                env: noEnv,
-                cfg: LINUX
-            )
+        let again = lowerProjectJson(
+            fromJsonBytes<ProjectJson>(text.toArray()),
+            dir,
+            env: noEnv,
+            cfg: LINUX
+        )
         removeTree(dir)
 
         // assert

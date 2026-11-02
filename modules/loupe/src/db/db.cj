@@ -252,15 +252,14 @@ public class AnalysisDatabase <: Database {
                 for (path in pkg.files) {
                     let fileId = paths.intern(path)
                     durabilities.add(fileId, durability)
-                    files
-                        .add(
-                            BinarySourceFile(
-                                binary.name,
-                                "${pkg.name}/${path.name}",
-                                fileId,
-                                context: context
-                            )
+                    files.add(
+                        BinarySourceFile(
+                            binary.name,
+                            "${pkg.name}/${path.name}",
+                            fileId,
+                            context: context
                         )
+                    )
                 }
             }
         }
@@ -281,15 +280,14 @@ public class AnalysisDatabase <: Database {
                     packages.add(pkg)
                 case (Some((pkg, Some(_), _)), None) => packages.add(pkg)
                 case (None, Some(bytes)) =>
-                    let pkg =
-                        BinaryPackageFile(
-                            this,
-                            read.file.binary,
-                            read.file.name,
-                            read.file.path,
-                            bytes,
-                            durability: durability
-                        )
+                    let pkg = BinaryPackageFile(
+                        this,
+                        read.file.binary,
+                        read.file.name,
+                        read.file.path,
+                        bytes,
+                        durability: durability
+                    )
                     projects.binaries.add(read.file, (pkg, read.stamp, bytes))
                     packages.add(pkg)
                 // left unread, but nothing was read before
@@ -384,20 +382,19 @@ public class AnalysisDatabase <: Database {
                 projects.modules.add(model.key, (module, model))
                 module
             case None =>
-                let module =
-                    Module(
-                        this,
-                        model.root,
-                        model.name,
-                        model.resolutionScope,
-                        packages,
-                        model.deps,
-                        model.testDeps,
-                        model.member,
-                        model.cfg,
-                        inactive,
-                        durability: durability
-                    )
+                let module = Module(
+                    this,
+                    model.root,
+                    model.name,
+                    model.resolutionScope,
+                    packages,
+                    model.deps,
+                    model.testDeps,
+                    model.member,
+                    model.cfg,
+                    inactive,
+                    durability: durability
+                )
                 projects.modules.add(model.key, (module, model))
                 module
         }
@@ -460,20 +457,19 @@ public class AnalysisDatabase <: Database {
                 packages.add(key, (pkg, model, durability))
                 pkg
             case None =>
-                let pkg =
-                    Package(
-                        this,
-                        model.name,
-                        model.dir,
-                        files,
-                        model.files,
-                        model.noPrelude,
-                        model.isMacro,
-                        model.cfg,
-                        testFiles: testFilesOf(model, files),
-                        binary: binary,
-                        durability: durability
-                    )
+                let pkg = Package(
+                    this,
+                    model.name,
+                    model.dir,
+                    files,
+                    model.files,
+                    model.noPrelude,
+                    model.isMacro,
+                    model.cfg,
+                    testFiles: testFilesOf(model, files),
+                    binary: binary,
+                    durability: durability
+                )
                 packages.add(key, (pkg, model, durability))
                 if (let Some(one) <- binary) {
                     projects.contextBinaries[pkg] = one

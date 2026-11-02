@@ -43,8 +43,10 @@ func handleRangeFormatting(
 ): Nullable<Array<TextEdit>> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
-    let range =
-        TextRange(offsetOf(snap, file, params.range.start), offsetOf(snap, file, params.range.end))
+    let range = TextRange(
+        offsetOf(snap, file, params.range.start),
+        offsetOf(snap, file, params.range.end)
+    )
     let edits =
         rangeFormatting(
             snap.analysis,

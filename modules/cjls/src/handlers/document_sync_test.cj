@@ -39,16 +39,15 @@ func partial(
     from!: (UInt32, UInt32),
     to!: (UInt32, UInt32)
 ): TextDocumentContentChangeEvent {
-    TextDocumentContentChangeEvent
-        .AsTextDocumentContentChangePartial(
-            TextDocumentContentChangePartial(
-                range: LspRange(
-                    start: Position(line: from[0], character: from[1]),
-                    end: Position(line: to[0], character: to[1])
-                ),
-                text: text
-            )
+    TextDocumentContentChangeEvent.AsTextDocumentContentChangePartial(
+        TextDocumentContentChangePartial(
+            range: LspRange(
+                start: Position(line: from[0], character: from[1]),
+                end: Position(line: to[0], character: to[1])
+            ),
+            text: text
         )
+    )
 }
 
 func change(state: ServerState, changes: Array<TextDocumentContentChangeEvent>): Unit {
@@ -121,10 +120,9 @@ class DocumentSyncTest {
         change(
             state,
             [
-                TextDocumentContentChangeEvent
-                    .AsTextDocumentContentChangeWholeDocument(
-                        TextDocumentContentChangeWholeDocument(text: "new")
-                    ),
+                TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
+                    TextDocumentContentChangeWholeDocument(text: "new")
+                ),
                 partial("er", from: (0, 3), to: (0, 3))
             ]
         )
