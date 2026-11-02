@@ -172,7 +172,7 @@ jobs:
       - id: version
         shell: bash
         run: echo "tag=$(tr -d '[:space:]' < .cangjie-version)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@v4
+      - uses: actions/cache@v6
         with:
           path: ${{ runner.tool_cache }}/cangjie/${{ steps.version.outputs.tag }}
           key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.tag }}-${{ hashFiles('.cangjie-sha256') }}
