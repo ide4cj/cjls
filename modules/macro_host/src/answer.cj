@@ -9,7 +9,7 @@ import macro_server.*
  * What a call got from the server: its answer, or why it got none (the server exited, the deadline passed).
  */
 public enum CallOutcome {
-    | Answered(MacroResult)
+    | Answered(MacroResult, String)
     | Unanswered(String)
 }
 
@@ -32,9 +32,9 @@ public func outputOf(
     numbers: TokenNumbers
 ): MacroOutput {
     let name = request.definition.name
-    let result =
+    let (result, output) =
         match (outcome) {
-            case Answered(result) => result
+            case Answered(result, output) => (result, output)
             case Unanswered(reason) =>
                 return MacroOutput(
                     request.fingerprint,
@@ -55,7 +55,17 @@ public func outputOf(
         diagnostics.add(diagnosticOf(diagnostic, layout, name))
     }
     if (result.status == MACRO_FAILED) {
-        if (diagnostics.isEmpty()) {
+        if (!output.isEmpty()) {
+            diagnostics.add(
+                MacroDiagnostic(
+                    MacroSeverity.MacroError,
+                    SpanOrigin.FromCall,
+                    "@${name} failed: ${output}",
+                    ""
+                )
+            )
+        }
+        if (!diagnostics.any { diagnostic => diagnostic.severity == MacroSeverity.MacroError }) {
             diagnostics.add(
                 MacroDiagnostic(
                     MacroSeverity.MacroError,

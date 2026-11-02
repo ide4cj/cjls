@@ -2,14 +2,40 @@ features {user.platform.posix, os.linux}
 package platform
 
 import std.collection.ArrayList
-import std.env.getVariable
-import std.fs.Path
+import std.env.{getTempDirectory, getVariable}
+import std.fs.{Directory, File, OpenMode, Path, remove}
 import std.io.InputStream
 import std.unittest.*
 import std.unittest.testmacro.*
 
 @Test
 class StartPipedOnLinuxTest {
+    @TestCase
+    func ordinaryOutputCanBeCapturedWithoutChangingProtocolPipes() {
+        // arrange
+        let root = Directory.createTemp(getTempDirectory())
+        let path = root.join("macro output")
+        let output = File(path, OpenMode.Write)
+        try {
+            // act
+            let child = startPiped(
+                Path("/bin/sh"),
+                [],
+                { _ => ["-c", "printf error >&2; printf normal; printf protocol >&4"] },
+                output: output
+            )
+            let protocol = String.fromUtf8(readAll(child.fromChild))
+            child.wait()
+
+            // assert
+            @Expect(protocol, "protocol")
+            @Expect(String.fromUtf8(File.readFrom(path)), "errornormal")
+        } finally {
+            output.close()
+            remove(root, recursive: true)
+        }
+    }
+
     @TestCase
     func theLibraryDirectoriesComeFirstInTheirOrderBeforeThoseInherited() {
         // arrange: a child that writes the library path it got on its pipe to this process

@@ -1,6 +1,8 @@
 package macro_server
 
+import std.env.getTempDirectory
 import std.fs.*
+import std.io.SeekPosition
 import platform.{ChildPipes, PipedChild, startPiped}
 
 /**
@@ -20,7 +22,12 @@ public struct MacroServerPaths {
      * Those of the SDK at `home` for the host `target` (`linux_x86_64_cjnative`).
      */
     public static func inSdk(home: Path, target: String): MacroServerPaths {
-        let exe = if (target.startsWith("windows")) { ".exe" } else { "" }
+        let exe =
+            if (target.startsWith("windows")) {
+                ".exe"
+            } else {
+                ""
+            }
         MacroServerPaths(
             server: home.join("tools").join("bin").join("LSPMacroServer${exe}"),
             cjc: home.join("bin").join("cjc${exe}"),
@@ -49,7 +56,57 @@ public struct MacroServerPaths {
  * An `LSPMacroServer` running: its process and the connection to it.
  */
 public class MacroServerProcess {
-    MacroServerProcess(let child: PipedChild, public let connection: MacroConnection) {}
+    MacroServerProcess(
+        let child: PipedChild,
+        public let connection: MacroConnection,
+        private let directory: Path,
+        private let output: File
+    ) {}
+
+    /**
+     * Start a call with an empty output file. Calls are serial, so the child is idle here.
+     */
+    public func clearOutput(): Unit {
+        output.setLength(0)
+        output.seek(SeekPosition.Begin(0))
+    }
+
+    /**
+     * The last 64 KiB written by this call; never block on a pipe or retain unbounded output.
+     */
+    public func callOutput(): String {
+        let reader = File(directory.join("output"), OpenMode.Read)
+        try {
+            let size = reader.length
+            let start = max(0, size - 65536)
+            reader.seek(SeekPosition.Begin(start))
+            let buffer = Array<Byte>(min(size, 65536), repeat: 0)
+            if (buffer.isEmpty()) {
+                return ""
+            }
+            let count = reader.read(buffer)
+            var from = 0
+            // A bounded tail may start within a UTF-8 character.
+            while (from < count && (buffer[from] & 0xC0) == 0x80) {
+                from++
+            }
+            let text = String.fromUtf8(buffer[from..count])
+            if (start > 0) {
+                "[macro output truncated]\n${text}"
+            } else {
+                text
+            }
+        } catch (_: Exception) {
+            "[macro output could not be decoded]"
+        } finally {
+            reader.close()
+        }
+    }
+
+    private func cleanup(): Unit {
+        output.close()
+        remove(directory, recursive: true)
+    }
 
     /**
      * Asks the server to exit, and waits until it has; ends it if it cannot be asked.
@@ -60,7 +117,11 @@ public class MacroServerProcess {
         } catch (_: Exception) {
             child.kill()
         }
-        child.wait()
+        try {
+            child.wait()
+        } finally {
+            cleanup()
+        }
     }
 
     /**
@@ -68,7 +129,11 @@ public class MacroServerProcess {
      */
     public func kill(): Unit {
         child.kill()
-        child.wait()
+        try {
+            child.wait()
+        } finally {
+            cleanup()
+        }
     }
 }
 
@@ -105,10 +170,24 @@ func macroServerLibraryDirs(paths: MacroServerPaths): Array<Path> {
  * @throws ProcessStartException - if it cannot be started on Windows
  */
 public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
-    let child = startPiped(
-        paths.server,
-        macroServerLibraryDirs(paths),
-        { pipes => macroServerArgs(paths, pipes) }
-    )
-    MacroServerProcess(child, MacroConnection(child.fromChild, child.toChild))
+    let directory = Directory.createTemp(getTempDirectory())
+    let output = File(directory.join("output"), OpenMode.Write)
+    try {
+        let child = startPiped(
+            paths.server,
+            macroServerLibraryDirs(paths),
+            { pipes => macroServerArgs(paths, pipes) },
+            output: output
+        )
+        MacroServerProcess(
+            child,
+            MacroConnection(child.fromChild, child.toChild),
+            directory,
+            output
+        )
+    } catch (e: Exception) {
+        output.close()
+        remove(directory, recursive: true)
+        throw e
+    }
 }

@@ -22,8 +22,18 @@ func conflictingLibraries(
         let leaf = root.join(name).join("leaf")
         Directory.create(source, recursive: true)
         Directory.create(leaf, recursive: true)
-        let value = if (name == "First") { "1" } else { "2" }
-        let pkg = if (sameName) { "toy.ms" } else { "toy.${name}" }
+        let value =
+            if (name == "First") {
+                "1"
+            } else {
+                "2"
+            }
+        let pkg =
+            if (sameName) {
+                "toy.ms"
+            } else {
+                "toy.${name}"
+            }
         File.writeTo(
             leaf.join("leaf.cj"),
             "package leaf\npublic func which(): Int64 { ${value} }\n".toArray()
@@ -88,7 +98,7 @@ class SameNameMacroLibraryTest {
                 let (library, pkg) = libraries[index]
                 server.restartWorkspace()
                 match (server.expand(conflictingLibraryCall(library, pkg, numbers))) {
-                    case Answered(result) =>
+                    case Answered(result, _) =>
                         if (result.status == MACRO_FAILED) {
                             throw IllegalStateException("macro expansion failed")
                         }
@@ -120,7 +130,7 @@ class SameNameMacroLibraryTest {
             for (index in [0, 1, 0, 1]) {
                 let (library, pkg) = libraries[index]
                 match (server.expand(conflictingLibraryCall(library, pkg, numbers, name: "Host"))) {
-                    case Answered(result) =>
+                    case Answered(result, _) =>
                         if (result.status == MACRO_FAILED) {
                             throw IllegalStateException("macro expansion failed")
                         }
