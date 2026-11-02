@@ -103,7 +103,7 @@ async def test_binary_call_hierarchy_round_trip(server: LanguageClient, tmp_path
     assert roots and len(roots) == 1
     incoming = await server.call_hierarchy_incoming_calls_async(
         types.CallHierarchyIncomingCallsParams(item=roots[0]))
-    main_calls = [call for call in incoming if call.from_.uri == caller.as_uri()]
+    main_calls = [call for call in incoming if Path(to_fs_path(call.from_.uri)) == caller]
     assert len(main_calls) == 1
     outgoing = await server.call_hierarchy_outgoing_calls_async(
         types.CallHierarchyOutgoingCallsParams(item=main_calls[0].from_))
@@ -116,14 +116,14 @@ async def test_binary_call_hierarchy_round_trip(server: LanguageClient, tmp_path
     assert [r.start.character for r in main_calls[0].from_ranges] == [18, 34]
     assert [call.to.name for call in outgoing] == ["println", "println"]
     assert [len(call.from_ranges) for call in outgoing] == [2, 1]
-    assert [call.from_ranges for call in repeated if call.from_.uri == caller.as_uri()] == [
+    assert [call.from_ranges for call in repeated if Path(to_fs_path(call.from_.uri)) == caller] == [
         main_calls[0].from_ranges]
     if attach_sources:
         assert Path(to_fs_path(roots[0].uri)) == CANGJIE_SRC.resolve() / "std/core/print.cj"
         source = Path(to_fs_path(roots[0].uri)).read_text(encoding="utf-8")
         assert "println" in source.splitlines()[roots[0].selection_range.start.line]
     else:
-        assert roots[0].uri == caller.as_uri()
+        assert Path(to_fs_path(roots[0].uri)) == caller
         assert roots[0].selection_range.start == types.Position(line=1, character=18)
         leaf = await server.call_hierarchy_outgoing_calls_async(
             types.CallHierarchyOutgoingCallsParams(item=roots[0]))
@@ -140,7 +140,7 @@ async def test_binary_call_hierarchy_round_trip(server: LanguageClient, tmp_path
         for candidate in candidates:
             calls = await server.call_hierarchy_incoming_calls_async(
                 types.CallHierarchyIncomingCallsParams(item=candidate))
-            counts.extend(len(call.from_ranges) for call in calls if call.from_.uri == caller.as_uri())
+            counts.extend(len(call.from_ranges) for call in calls if Path(to_fs_path(call.from_.uri)) == caller)
 
         # assert
         assert sorted(counts) == [1, 2]
