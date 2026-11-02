@@ -354,7 +354,7 @@ public specific func startPiped(
 func inheritableStderr(output: ?File): CPointer<Unit> {
     unsafe {
         let stderr =
-            output.map { file => CPointer<Unit>(UIntNative(file.fileDescriptor.fileHandle)) } ??
+            output.map { file: File => CPointer<Unit>(UIntNative(file.fileDescriptor.fileHandle)) } ??
                 GetStdHandle(STD_ERROR_HANDLE)
         // `INVALID_HANDLE_VALUE` is -1
         if (stderr.isNull() || stderr.toUIntNative() == UIntNative.Max) {
