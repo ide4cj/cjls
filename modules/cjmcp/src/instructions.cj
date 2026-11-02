@@ -3,7 +3,11 @@ package cjmcp
 // Keep the common path usable without loading a skill or exploring the bindings first.
 let agentInstructions =
     #"
-Use runPython when a Cangjie task needs declarations, usages, types or diagnostics.
+Use runPython for all Cangjie source analysis, reading and editing.
+Do not use shell commands (rg, sed, cat, shell-launched Python or subprocesses)
+for these operations, including subprocesses inside runPython.
+Trust cjmcp analysis; report unavailable or partial results without a shell fallback.
+Shell remains available for builds, tests, Git and non-Cangjie files.
 workspace and native types are injected; do not import loupe.
 Batch queries; project native attributes to bounded JSON primitives in result,
 including paths, relevant source/ranges and truncation counts.
@@ -19,7 +23,10 @@ Capture a = workspace.analysis() in each call. Core queries:
 Include workspace.root, workspace.problems and workspace.hasExpandedMacros in the
 first task query; report mismatched roots or incomplete analysis.
 Ranges are UTF-8 bytes, end exclusive: slice a.text(path).encode('utf-8').
-Save edits with ordinary tools; inputs synchronize before the next call.
+Save edits with pathlib inside runPython. Read loaded source via a.text(path);
+for unloaded/new files use Python I/O. Before writing, check disk bytes still match
+the revision text. Apply UTF-8 byte edits from the end and write_bytes; inputs
+synchronize before the next call, while this call retains its original revision.
 Reacquire analysis/IDs per call; globals are fresh. Validate changes with compiler/tests.
 Load a cangjie-mcp recipe only for an unfamiliar operation.
 "#
