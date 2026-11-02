@@ -15,7 +15,7 @@ class CommandContext {
     CommandContext(let logger: Logger) {}
 }
 
-let APP = commandApp()
+let CJLS_APP = commandApp()
 
 func commandApp(
     out!: OutputStream = getStdOut(),
