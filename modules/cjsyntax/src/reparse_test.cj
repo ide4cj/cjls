@@ -140,6 +140,7 @@ class ReparseTest {
      * the full parse. Six places per file, to stay quick.
      */
     @TestCase
+    @Tag[gate]
     func aMarkerAnywhereInThisRepositoryReparsesAsAFullParseDoes() {
         // arrange
         let files = ArrayList<Path>()

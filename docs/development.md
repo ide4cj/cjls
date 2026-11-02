@@ -248,9 +248,10 @@ python3 .github/scripts/coverage.py coverage/coverage.json
 ```
 
 `-g` disables release optimization; never benchmark that build. Coverage excludes
-the `gate`-tagged corpus checks; ordinary full tests retain them. The formatter's repository/corpus preservation checks
-are gates too: instrumented whole-repository formatting can exceed the per-case
-coverage timeout; focused formatter tests still run under coverage.
+the `gate`-tagged corpus checks; ordinary full tests retain them. The formatter's
+repository/corpus preservation checks and the parser's repository-wide reparse
+check are gates too: instrumented whole-repository checks can exceed the per-case
+coverage timeout; focused formatter and reparse tests still run under coverage.
 The [coverage reporter](../.github/scripts/coverage.py) defines exclusions for
 generated, macro and test-support code. Its percentage is the project's measure.
 Read uncovered changed lines in `coverage/index.html`. Do not infer correctness
