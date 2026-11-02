@@ -76,8 +76,8 @@ MCP tests (including the native positive control), five Call Hierarchy LSP e2e
 cases, formatting and documentation checks passed. The full Cangjie run executed
 2547 cases: 2546 passed and one errored with native GC SIGSEGV in
 `CjpmRegistryTest.missingMalformedAndStaleSelectionsAreRecoverable`; no cases
-were skipped. The full suite was therefore not clean. This is in unchanged
-`project_model` code; that alone does not establish the crash's cause.
+were skipped. That full run was therefore not clean. An isolated repeat of the
+failed case passed. This is in unchanged `project_model` code; that alone does not establish the crash's cause.
 
 The [analysis contract and PR boundaries](../../modules/cjmcp/api/call-audit.md)
 describe what remains: interprocedural functional values/callback execution, then
