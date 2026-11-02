@@ -239,6 +239,12 @@ write (`declaredTyOf`), never its own: a function calling itself of no return ty
 there, not a cycle; only declarations of unwritten types reading each other are one, each an
 error by its fallback (A14, D55).
 
+Inference retains every successfully resolved declaration-backed call, including
+unambiguous functions and binary declarations without source attachments.
+`InferenceResult.calleeOf` and `calleesOf` take the callee expression's identity,
+not the enclosing call expression. Explicit type initializers remain available
+separately through `initializerOf`, preserving hover and reference identity.
+
 ### A26: Call local type variables
 
 A type variable (`InferTy`) lives while its generic call is inferred. When that call is

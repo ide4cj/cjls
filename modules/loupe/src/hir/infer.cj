@@ -183,7 +183,7 @@ public struct ArgTarget <: ByIndex {
 /**
  * What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its
  * expressions, patterns and locals, by id; the members found after the `.` of a value; the
- * overload each call of several takes. A type not found is an error, or one the analysis cannot
+ * declaration each resolved call takes. A type not found is an error, or one the analysis cannot
  * find, and why (D77).
  */
 @Derive[Equatable]
@@ -259,8 +259,9 @@ public struct InferenceResult {
     }
 
     /**
-     * The declaration chosen for the call whose callee is `expr`: an overload, an enum constructor,
-     * or the initializer `this(...)` or `super(...)` calls; the operator function `expr` calls (8e).
+     * The declaration selected for a call whose callee is `expr`, including unambiguous functions
+     * and enum constructors; also the operator function `expr` invokes (8e). Type calls expose
+     * their explicit initializer via `initializerOf`; `this(...)` and `super(...)` expose it here.
      */
     public func calleeOf(expr: ExprId): ?DefId {
         findByIndex(callees, expr.index)
@@ -279,6 +280,7 @@ public struct InferenceResult {
     /**
      * What `calleeOf` names, and the `[]` taking a value the assignment `a[i] op= v` or `a[i]++`
      * calls, after its operator (#245), as Kotlin's K2 resolves `+=`.
+     * For a `CallExpr`, pass its callee's ID, not the call expression's ID.
      */
     public func calleesOf(expr: ExprId): Array<DefId> {
         let setter =
@@ -3043,22 +3045,10 @@ class Inference {
                 case CallExpr(_, _) => !all.iterator().any { one => one.applied.isSome() }
                 case _ => false
             }
-        let isDelegation =
-            match (hir[callee]) {
-                case ThisExpr | SuperExpr => true
-                case _ => false
-            }
         match (choose(callee, all, args, expected)) {
             case Chose(callable, matched) =>
                 if (let Some(decl) <- callable.decl) {
-                    let kind = decl.item(db).kind
-                    if (
-                        all.size > 1 || isEnumCtor(callable) || isDelegation ||
-                            kind == ItemKind.Init ||
-                            kind == ItemKind.PrimaryInit
-                    ) {
-                        setCallee(callee, decl)
-                    }
+                    setCallee(callee, decl)
                 }
                 if (isOfCall) {
                     quiet++
