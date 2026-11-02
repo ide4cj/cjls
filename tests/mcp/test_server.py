@@ -21,6 +21,16 @@ class McpStdioTest(unittest.TestCase):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
         code = """
+assert {'start', 'end', 'len'} <= set(dir(TextRange))
+assert Expr.CallExpr.__match_args__ == ('field0', 'field1')
+span = TextRange(1, 4)
+assert span.len == 3
+try:
+    span.len = 10
+except AttributeError:
+    pass
+else:
+    raise AssertionError('native immutable fields must remain read-only')
 diagnostic = InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
 assert diagnostic.field0 == ExprId(3)
 assert diagnostic == InferenceDiagnostic.CustomAnnotationPlace(ExprId(3))
@@ -147,6 +157,9 @@ result = i + 1
                     self._check_macros(root, run)
                     return
                 native = run(f"""
+                    assert {{'files', 'structure', 'analysis'}} <= set(dir(type(workspace)))
+                    analysis = workspace.analysis()
+                    assert {{'symbols', 'references', 'infer', 'text'}} <= set(dir(type(analysis)))
                     nodes = workspace.structure('src/main.cj')
                     assert all(isinstance(node, StructureNode) for node in nodes)
                     assert all(isinstance(node.range, TextRange) for node in nodes)

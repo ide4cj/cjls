@@ -115,12 +115,7 @@ class McpServer {
                     "serverInfo",
                     obj([("name", JsonString("cjmcp")), ("version", JsonString("0.1.0"))])
                 ),
-                (
-                    "instructions",
-                    JsonString(
-                        "Use runPython to explore a live Cangjie workspace with native analysis objects. workspace.files(), structure(path), diagnostics(path), hover(path, offset), definition(path, offset), reload(); workspace.analysis() captures an AnalysisRevision with declarations(path), item(def), signature(def), signatureTypes(def), body(def), loweredBody(def), scopes(def), infer(def), typeKind(ty), typeText(ty), completions(path, offset), references(path, offset), typeDefinition(path, offset), implementations(path, offset), highlights(path), symbols(query, limit) and path(fileId). Keep identities with their producing revision. workspace.problems reports loading problems. Assign JSON-serializable output to result or print it. Ranges are UTF-8 bytes, end exclusive. Before each script disk changes are synchronized incrementally and macros finish expanding. Updates are deferred throughout the script. Responses include revision; workspace.revision identifies that same revision. reload() requests refresh after the script. Retained AnalysisRevision handles throw ContentModified after an update; inspect workspace.problems and hasExpandedMacros for failures. Python executes trusted local code without a sandbox or hard timeout."
-                    )
-                )
+                ("instructions", JsonString(agentInstructions))
             ]
         )
     }
@@ -224,7 +219,7 @@ func tools(): JsonValue {
                 (
                     "description",
                     JsonString(
-                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; Disk state refreshes automatically before each script; workspace.reload() schedules refresh after the script. workspace.revision and response revision identify its fixed analysis state. workspace.analysis() exposes HIR and inference: enumerate declarations(path), inspect item(def), body(def), loweredBody(def), scopes(def), signature(def), signatureTypes(def), infer(def); inspect inferred types with typeKind(ty), typeText(ty). It also offers completions, completionDetails, references, typeDefinition, implementations, related, highlights, folding, selection, symbols, macroCall and expansion. Keep each DefId/Ty with its producing AnalysisRevision. Imports and local I/O are available."
+                        "Analyze Cangjie code with Python and native loupe objects. Use for declarations, references, inferred types, selected callees, macros and diagnostics before and after edits. workspace is injected; a = workspace.analysis() captures the synchronized revision. Batch queries, bound traversal/output, and assign JSON-serializable data to result or print it. Discover native members with dir(type(value)); do not import loupe. See the server instructions for query selection, UTF-8 offsets and freshness. Python imports and local I/O run with process permissions; calls are sequential and have no hard timeout."
                     )
                 ),
                 ("inputSchema", schema),

@@ -80,10 +80,12 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 
 ## Python API
 
-The handwritten [agent reference and recipes](api/README.md) and
-[Python signatures](api/loupe.pyi) describe the injected script API. They ship
-with the Linux archive as `api/`; read them as documentation, not as an importable
-Python package. Result-type coverage is explicitly partial.
+Start with [agent setup](agent-setup.md) to configure tool discovery, project
+instructions and the optional [cangjie-mcp skill](skills/cangjie-mcp/SKILL.md).
+The server sends a semantic-query playbook in the MCP initialization response.
+[Python recipes](skills/cangjie-mcp/references/python-api.md) show common tasks and runtime API discovery;
+they ship with the Linux archive alongside the skill. Native objects and types
+are injected into scripts; there is no importable `loupe` Python package.
 
 For example, a single script can find functions across the workspace:
 

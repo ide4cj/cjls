@@ -1,28 +1,37 @@
-# Python API reference for agents
+# Python API recipes for agents
 
-Start with [loupe.pyi](loupe.pyi) for signatures and result fields, then use the
-recipes below inside the MCP tool `runPython`. This is a handwritten reference
-for the existing bindings, not an importable Python package. Do not run
-`import loupe` or import the stub. `workspace` and the registered native types are
-already in the script namespace.
+Run these scripts inside the MCP tool `runPython`. `workspace` and native types
+are injected; do not `import loupe`. The executable's initialization instructions
+provide the query playbook. For task routing, use the optional
+[cangjie-mcp skill](../SKILL.md).
 
-The first version covers every public method of `Workspace` and
-`AnalysisRevision`, common navigation/editor results, all variants and payload fields of the exported HIR enums, and selected
-HIR/inference record fields. `TextRange.len` is a read-only property counting
-UTF-8 bytes (`range.len`, without parentheses). Types inheriting the reference-only `_Partial` helper have additional
-members not yet described here; they are not empty native types. Private helper
-names in the stub are not injected globals. The stub is a reading aid, not a
-complete type-checking contract for arbitrary scripts. The complete registration
-list is [python_types.cj](../src/python_types.cj); workspace bindings are in
-[python.cj](../src/python.cj), revision queries in [analysis.cj](../src/analysis.cj).
-Those source links require a repository checkout; the Linux artifact also ships
-this reference and the recipes.
+Discover unfamiliar native members in the running server, then inspect a small
+sample of query results:
 
-Validate enum coverage against the registered native HIR declarations with:
-
-```bash
-python3 -m unittest discover -s tests/mcp -p test_api_reference.py -v
+```python
+analysis = workspace.analysis()
+result = {
+    "workspace_members": [n for n in dir(type(workspace)) if not n.startswith("_")],
+    "analysis_members": [n for n in dir(type(analysis)) if not n.startswith("_")],
+    "range_members": [n for n in dir(TextRange) if not n.startswith("_")],
+    "call_payloads": list(Expr.CallExpr.__match_args__),
+}
 ```
+
+`dir` shows names, not a complete signature contract. `help(Type)` can expose
+native descriptors, but generated bindings may omit method signatures/docstrings;
+do not assume `inspect.signature` works. Use the recipes for known call shapes.
+Arrays become lists, options become `None`, and immutable fields remain read-only.
+`TextRange.len` is a byte-length property (`span.len`, without parentheses).
+Enum variants support `isinstance` and Python pattern matching; payloads are
+`field0`, `field1`, etc., named in `__match_args__`.
+
+For details beyond these recipes, a checkout contains the complete type
+registration in [python_types.cj](../../../src/python_types.cj), workspace bindings in
+[python.cj](../../../src/python.cj), revision methods in [analysis.cj](../../../src/analysis.cj),
+and native declarations in `modules/loupe/src`. These source links need a checkout;
+the Linux archive ships the recipes and skill. Runtime discovery reflects the
+installed executable, which may differ from a separate source checkout.
 
 ## Execution and freshness
 
@@ -81,10 +90,18 @@ result = []
 for found in analysis.symbols("AnalysisDatabase", 5):
     path = analysis.path(found.fileId)
     refs = analysis.references(path, found.symbol.selectionRange.start)
+    span = found.symbol.range
+    source = analysis.text(path).encode("utf-8")
+    excerpt = source[span.start:span.end].decode("utf-8")
     result.append({
         "name": found.symbol.name,
         "path": path,
+        "start": span.start,
+        "end": span.end,
+        "source": excerpt[:2000],
+        "source_truncated": len(excerpt) > 2000,
         "reference_count": len(refs),
+        "references_truncated": len(refs) > 20,
         "references": [
             {
                 "path": analysis.path(ref.fileId),
@@ -174,9 +191,9 @@ for definition in analysis.declarations("src/main.cj")[:10]:
         })
 ```
 
-## Maintaining this manual reference
+## Maintaining the recipes
 
-When changing a workspace/revision method or a described result, update the
-matching stub and affected recipes alongside the binding. Preserve native names
-and read-only fields. Extend the partial types as concrete tasks need them;
-the stub does not introduce a second runtime API.
+Update affected recipes and server instructions alongside binding changes. Keep
+examples focused on actual tasks and native names; avoid a parallel handwritten
+type catalog. Validate discovery and recipes against the real executable with
+`python3 -m unittest discover -s tests/mcp -v`.
