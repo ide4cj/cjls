@@ -10,18 +10,17 @@ import std.unittest.testmacro.*
  * cjc's number of each token kind by its name, as std.ast numbers them (`getTokenKind`). std.ast
  * tells a single-quoted string from a double-quoted one, which cjc's numbering and the wire do not.
  */
-let KIND_NUMBERS: HashMap<String, UInt8> =
-    {
-        =>
-        let numbers = HashMap<String, UInt8>()
-        for (n in 0..256) {
-            try {
-                numbers.addIfAbsent(getTokenKind(UInt16(n)).toString(), UInt8(n))
-            } catch (_: Exception) {}
-        }
-        numbers.add("SINGLE_QUOTED_STRING_LITERAL", numbers["STRING_LITERAL"])
-        numbers
-    }()
+let KIND_NUMBERS: HashMap<String, UInt8> = {
+    =>
+    let numbers = HashMap<String, UInt8>()
+    for (n in 0..256) {
+        try {
+            numbers.addIfAbsent(getTokenKind(UInt16(n)).toString(), UInt8(n))
+        } catch (_: Exception) {}
+    }
+    numbers.add("SINGLE_QUOTED_STRING_LITERAL", numbers["STRING_LITERAL"])
+    numbers
+}()
 
 /**
  * The numbers of the SDK the tests run on.
@@ -65,16 +64,15 @@ func describedCjcs(text: String): ?Array<String> {
         }
     let cjcs = ArrayList<String>()
     for (t in tokens where t.kind.toString() != "COMMENT") {
-        cjcs
-            .add(
-                described(
-                    KIND_NUMBERS[t.kind.toString()],
-                    t.pos.line,
-                    t.pos.column,
-                    UInt32(t.delimiterNum),
-                    t.value
-                )
+        cjcs.add(
+            described(
+                KIND_NUMBERS[t.kind.toString()],
+                t.pos.line,
+                t.pos.column,
+                UInt32(t.delimiterNum),
+                t.value
             )
+        )
     }
     cjcs.toArray()
 }
@@ -122,10 +120,9 @@ class TokenNumbersTest {
     @TestCase
     func cjlssOwnTableNumbersTheKindsAsTheSdksTokensIncDoes(): Unit {
         // act: the pinned nightly's, whatever its version (D104)
-        let numbers =
-            TokenNumbers
-                .builtin("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)")
-                .getOrThrow()
+        let numbers = TokenNumbers
+            .builtin("Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)")
+            .getOrThrow()
 
         // assert
         @Expect(numbers.names, sdkNumbers().names)
@@ -134,10 +131,9 @@ class TokenNumbersTest {
     @TestCase
     func a1Point0SdkHasTheFirstKindsAndItsIllegalAndReadsTheKeywordsItLacksAsIdentifiers(): Unit {
         // act: as cangjie_compiler's v1.0.5 numbers them
-        let numbers =
-            TokenNumbers
-                .builtin("Cangjie Compiler: 1.0.5 (cjnative)\nTarget: x86_64-unknown-linux-gnu")
-                .getOrThrow()
+        let numbers = TokenNumbers
+            .builtin("Cangjie Compiler: 1.0.5 (cjnative)\nTarget: x86_64-unknown-linux-gnu")
+            .getOrThrow()
 
         // assert
         @Expect(numbers.names.size, 157)

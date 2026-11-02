@@ -115,11 +115,10 @@ public class Connection <: Resource {
         let cancellation = CancellationToken()
         if (inflight.addIfAbsent(req.id, cancellation).isSome()) {
             // the id is taken, so a response carrying it would be ambiguous
-            let refusal =
-                ResponseError(
-                    ErrorCode.INVALID_REQUEST,
-                    "request id ${req.id} is already in flight"
-                )
+            let refusal = ResponseError(
+                ErrorCode.INVALID_REQUEST,
+                "request id ${req.id} is already in flight"
+            )
             send(ResponseBody(Value(req.id), ResultOrError.Error(refusal)).enveloped())
             return
         }
@@ -128,15 +127,14 @@ public class Connection <: Resource {
             cancellation.cancel()
         }
 
-        let request =
-            InboundRequest(
-                req.id,
-                req.method,
-                req.params,
-                cancellation,
-                { resultOrError => answer(req, resultOrError) },
-                decodedParams: decodedParams
-            )
+        let request = InboundRequest(
+            req.id,
+            req.method,
+            req.params,
+            cancellation,
+            { resultOrError => answer(req, resultOrError) },
+            decodedParams: decodedParams
+        )
         try {
             handler.onRequest(request)
         } catch (e: Exception) {
@@ -175,11 +173,10 @@ public class Connection <: Resource {
             // nobody waits on a notification's outcome, so there is no one else to tell
             logger.error("serve notification \"${note.method}\" failed", [("cause", e)])
         } catch (e: Error) {
-            logger
-                .error(
-                    "serve notification \"${note.method}\" failed",
-                    [("cause", ErrorLogValue(e))]
-                )
+            logger.error(
+                "serve notification \"${note.method}\" failed",
+                [("cause", ErrorLogValue(e))]
+            )
         }
     }
 
@@ -189,11 +186,10 @@ public class Connection <: Resource {
                 case Value(id) => id
                 case Null =>
                     // the peer could not tell which of our frames it was rejecting
-                    logger
-                        .error(
-                            "peer rejected an unidentifiable message",
-                            [("cause", describe(resp.resultOrError))]
-                        )
+                    logger.error(
+                        "peer rejected an unidentifiable message",
+                        [("cause", describe(resp.resultOrError))]
+                    )
                     return
             }
 
@@ -233,16 +229,14 @@ public class Connection <: Resource {
 
         for (id in ids) {
             if (let Some(slot) <- pending.remove(id)) {
-                slot
-                    .add(
-                        ResultOrError
-                            .Error(
-                                ResponseError(
-                                    ErrorCode.INTERNAL_ERROR,
-                                    "the connection ended before the peer answered"
-                                )
-                            )
+                slot.add(
+                    ResultOrError.Error(
+                        ResponseError(
+                            ErrorCode.INTERNAL_ERROR,
+                            "the connection ended before the peer answered"
+                        )
                     )
+                )
             }
         }
     }

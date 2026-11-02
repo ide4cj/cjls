@@ -399,15 +399,14 @@ class ProjectLoadTest {
     @TestCase
     func aCjpmProjectLoadsTheFilesOfItsPackagesAndItsBuildScriptAndIsWhatTheAnalysisSees() {
         // arrange
-        let dir =
-            workspaceOf(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\n"),
-                    ("src/main.cj", "main() {}"),
-                    ("src/util/u.cj", "package app.util"),
-                    ("build.cj", "b")
-                ]
-            )
+        let dir = workspaceOf(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\n"),
+                ("src/main.cj", "main() {}"),
+                ("src/util/u.cj", "package app.util"),
+                ("build.cj", "b")
+            ]
+        )
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
 
@@ -427,10 +426,9 @@ class ProjectLoadTest {
     @TestCase
     func aDirectoryOfFilesCreatedIsAPackageOfItsOwn() {
         // arrange
-        let dir =
-            workspaceOf(
-                [("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")]
-            )
+        let dir = workspaceOf(
+            [("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")]
+        )
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
         initialized(loop, Client(), NoopLogger(), InitializedParams())
@@ -453,8 +451,11 @@ class ProjectLoadTest {
     @TestCase
     func aRootIsWatchedForWhatComesOrGoesAndForItsFilesAndManifestsChanged() {
         // act
-        let registration =
-            watcherRegistration("1", VfsPath.file(getTempDirectory().join("ws")), true)
+        let registration = watcherRegistration(
+            "1",
+            VfsPath.file(getTempDirectory().join("ws")),
+            true
+        )
 
         // assert
         let watched =
@@ -474,10 +475,9 @@ class ProjectLoadTest {
     @TestCase
     func aProjectWithTheStdOfTheSdkReadHasNothingToTellOfIt() {
         // arrange - std from the SDK the tests run with
-        let dir =
-            workspaceOf(
-                [("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")]
-            )
+        let dir = workspaceOf(
+            [("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/main.cj", "main() {}")]
+        )
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
 
@@ -606,14 +606,13 @@ class DidChangeWatchedFilesTest {
     @TestCase
     func aDirectoryRenamedIsGoneAndReadUnderItsNewName() {
         // arrange
-        let dir =
-            workspaceOf(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\n"),
-                    ("src/main.cj", "main() {}"),
-                    ("src/old/b.cj", "package app.old")
-                ]
-            )
+        let dir = workspaceOf(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\n"),
+                ("src/main.cj", "main() {}"),
+                ("src/old/b.cj", "package app.old")
+            ]
+        )
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
         initialized(loop, Client(), NoopLogger(), InitializedParams())
@@ -772,18 +771,17 @@ class LeftOutDocumentTest {
         let loop = initializedWith([dir], watches: false)
         let state = loop.state
         let program = dir.join("y").join("main.cj")
-        let request =
-            LoadRequest(
-                state.beginLoad(),
-                state.roots.toArray(),
-                [],
-                None,
-                None,
-                None,
-                false,
-                20,
-                []
-            )
+        let request = LoadRequest(
+            state.beginLoad(),
+            state.roots.toArray(),
+            [],
+            None,
+            None,
+            None,
+            false,
+            20,
+            []
+        )
         openIn(state, program, PROGRAM)
 
         // act
@@ -1012,13 +1010,12 @@ class FileAloneTest {
     @TestCase
     func aDocumentOpenedOutsideEveryRootIsCompiledAloneAndGoesToDefinitionIntoStd() {
         // arrange - std's sources, and a root whose package declares `own` too
-        let dir =
-            workspaceOf(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\n"),
-                    ("src/app.cj", "package app\n\npublic func own() {}\n")
-                ]
-            )
+        let dir = workspaceOf(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\n"),
+                ("src/app.cj", "package app\n\npublic func own() {}\n")
+            ]
+        )
         let outside = Directory.createTemp(getTempDirectory())
         let program = outside.join("x.cj")
         let loop = initializedWith([dir], watches: false)
@@ -1140,8 +1137,12 @@ class DidChangeWorkspaceFoldersTest {
         let transport = RequestsTransport()
         let client = clientOn(transport)
         initialized(loop, client, NoopLogger(), InitializedParams())
-        let registered =
-            transport.nextRequest().getOrThrow().params.getOrThrow().read<RegistrationParams>()
+        let registered = transport
+            .nextRequest()
+            .getOrThrow()
+            .params
+            .getOrThrow()
+            .read<RegistrationParams>()
         // the binaries' registration, of the SDK the tests run with
         while (transport.nextRequest().isSome()) {}
         openIn(state, dir.join("a.cj"), "edited")

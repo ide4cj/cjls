@@ -146,16 +146,15 @@ public class MacroHost <: MacroWork {
             failed += notExpanded
         }
         if (sent > 0) {
-            logger
-                .info(
-                    "expanded macro calls",
-                    [
-                        ("calls", sent),
-                        ("std", ofStd),
-                        ("failed", failed),
-                        ("ms", (MonoTime.now() - started).toMilliseconds())
-                    ]
-                )
+            logger.info(
+                "expanded macro calls",
+                [
+                    ("calls", sent),
+                    ("std", ofStd),
+                    ("failed", failed),
+                    ("ms", (MonoTime.now() - started).toMilliseconds())
+                ]
+            )
         }
     }
 
@@ -197,34 +196,34 @@ public class MacroHost <: MacroWork {
         let db = snapshot.analysis
         let sdk = sdkFor(settings) ?? return None
         let expander = serversOf(sdk, Duration.second * settings.macroCallTimeout)
-        let requests =
-            sendableRequests(
-                db,
-                files,
-                libraries,
-                stdLibrary: { pkg => sdk.stdLibrary(pkg) },
-                isOpen: { file => open.contains(snapshot.path(file.fileId(db))) }
-            )
+        let requests = sendableRequests(
+            db,
+            files,
+            libraries,
+            stdLibrary: { pkg => sdk.stdLibrary(pkg) },
+            isOpen: { file => open.contains(snapshot.path(file.fileId(db))) }
+        )
         if (requests.isEmpty()) {
             return None
         }
         logger.debug("expanding macro calls", [("calls", requests.size)])
         // an edit midway ends the round: what came before it is set, and the next round asks what it changed
         let answers = expandAll(db, requests, sdk.numbers, expander, stopped: { => isStopped() })
-        let ofStd =
-            requests[..answers.size].iterator().filter { one => one[1].definition.isStd }.count()
+        let ofStd = requests[..answers.size]
+            .iterator()
+            .filter { one => one[1].definition.isStd }
+            .count()
         var failed = 0
         for ((file, key, output) in answers where output.expansion.isNone()) {
             failed++
-            logger
-                .debug(
-                    "a macro call was not expanded",
-                    [
-                        ("file", snapshot.path(file.fileId(db)).toString()),
-                        ("call", key.toString()),
-                        ("why", output.diagnostics.get(0)?.message ?? "")
-                    ]
-                )
+            logger.debug(
+                "a macro call was not expanded",
+                [
+                    ("file", snapshot.path(file.fileId(db)).toString()),
+                    ("call", key.toString()),
+                    ("why", output.diagnostics.get(0)?.message ?? "")
+                ]
+            )
         }
         if (!answers.isEmpty()) {
             loop.write { state: ServerState => state.setMacroOutputs(answers) }
@@ -266,14 +265,13 @@ public class MacroHost <: MacroWork {
         let sdk = sdkFor(settings) ?? return
         let name = dirNameOf(sdk.version)
         let outs = HashMap<String, ?Path>()
-        let built =
-            buildPlan(
-                db,
-                plan,
-                { pkg => macroBuildOf(snapshot, pkg, roots, cacheDirs, name, outs) },
-                sdk.version,
-                sdk.toolchain
-            )
+        let built = buildPlan(
+            db,
+            plan,
+            { pkg => macroBuildOf(snapshot, pkg, roots, cacheDirs, name, outs) },
+            sdk.version,
+            sdk.toolchain
+        )
         for (dir in built.held) {
             logger.info("another server builds the macros", [("directory", dir.toString())])
         }
@@ -285,22 +283,20 @@ public class MacroHost <: MacroWork {
                 case Built(path, stamp) =>
                     if (libraries.get(pkg)?.stamp != Some(stamp)) {
                         changed = true
-                        logger
-                            .info(
-                                "built a macro package",
-                                [("package", pkgName), ("library", path.toString())]
-                            )
+                        logger.info(
+                            "built a macro package",
+                            [("package", pkgName), ("library", path.toString())]
+                        )
                     }
                     libraries[pkg] = MacroLibrary(path.toString(), stamp)
                     reported.remove(key)
                 case NotBuilt(reason) =>
                     if (reported.add(key)) {
                         // the last library stands: cjc wrote nothing
-                        logger
-                            .warn(
-                                "a macro package did not build",
-                                [("package", pkgName), ("reason", reason)]
-                            )
+                        logger.warn(
+                            "a macro package did not build",
+                            [("package", pkgName), ("reason", reason)]
+                        )
                     }
             }
         }

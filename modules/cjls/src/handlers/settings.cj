@@ -68,11 +68,10 @@ func pullSettings(loop: Loop, client: Client, logger: Logger): Unit {
     let pull = state.beginSettingsPull()
     let answer =
         try {
-            client
-                .request(
-                    ConfigurationRequestSpec(),
-                    ConfigurationParams(items: [ConfigurationItem(section: SETTINGS_SECTION)])
-                )
+            client.request(
+                ConfigurationRequestSpec(),
+                ConfigurationParams(items: [ConfigurationItem(section: SETTINGS_SECTION)])
+            )
         } catch (e: Exception) {
             logger.warn("the settings were not asked for", [("error", e.message)])
             return
@@ -84,11 +83,10 @@ func pullSettings(loop: Loop, client: Client, logger: Logger): Unit {
                     answer.await()
                 } catch (e: Exception) {
                     if (client.isClosed()) {
-                        logger
-                            .debug(
-                                "the settings were not answered",
-                                [("reason", "the connection is closed")]
-                            )
+                        logger.debug(
+                            "the settings were not answered",
+                            [("reason", "the connection is closed")]
+                        )
                     } else {
                         logger.warn("the settings were not answered", [("error", e.message)])
                     }
@@ -140,20 +138,18 @@ func watchSettings(state: ServerState, client: Client, logger: Logger): Unit {
     if (!state.registersSettings) {
         return
     }
-    let registration =
-        DidChangeConfigurationNotificationSpec()
-            .registration(
-                state.registrationId(),
-                DidChangeConfigurationRegistrationOptions(
-                    section: StringOrStrings.AsString(SETTINGS_SECTION)
-                )
+    let registration = DidChangeConfigurationNotificationSpec()
+        .registration(
+            state.registrationId(),
+            DidChangeConfigurationRegistrationOptions(
+                section: StringOrStrings.AsString(SETTINGS_SECTION)
             )
-    client
-        .request(
-            RegistrationRequestSpec(),
-            RegistrationParams(registrations: [registration]),
-            logger
         )
+    client.request(
+        RegistrationRequestSpec(),
+        RegistrationParams(registrations: [registration]),
+        logger
+    )
 }
 
 /**

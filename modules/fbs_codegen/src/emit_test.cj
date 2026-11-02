@@ -67,10 +67,9 @@ class EmitTest {
     @TestCase
     func everyUnionHasUnknownAndReadsItsMembersByTag() {
         // act
-        let sut =
-            viewsOf(
-                namesOf("table T {}\nstruct S { x: int; }\nunion U { T, S, StringValue: string }")
-            )
+        let sut = viewsOf(
+            namesOf("table T {}\nstruct S { x: int; }\nunion U { T, S, StringValue: string }")
+        )
 
         // assert
         @Expect(sut.contains("| Unknown(UInt8)"))
@@ -94,12 +93,11 @@ class EmitTest {
     @TestCase
     func aTableReadsEachFieldByItsId() {
         // act
-        let sut =
-            viewsOf(
-                namesOf(
-                    "table T {}\nunion U { T }\nenum E : int { A = 2, B }\nstruct S { x: int; }\ntable X {\n  a: int = 5;\n  u: U;\n  e: E = B;\n  s: S;\n  t: T;\n  v: [S];\n  w: [string];\n  us: [U];\n}"
-                )
+        let sut = viewsOf(
+            namesOf(
+                "table T {}\nunion U { T }\nenum E : int { A = 2, B }\nstruct S { x: int; }\ntable X {\n  a: int = 5;\n  u: U;\n  e: E = B;\n  s: S;\n  t: T;\n  v: [S];\n  w: [string];\n  us: [U];\n}"
             )
+        )
 
         // assert
         @Expect(sut.contains("fb.scalar(0, 5, readInt32)"))
@@ -117,10 +115,9 @@ class EmitTest {
     @TestCase
     func aRequiredFieldIsNotOptionalAndADeprecatedOneIsLeftOut() {
         // act
-        let sut =
-            viewsOf(
-                namesOf("table X { name: string (required); old: int (deprecated); note: string; }")
-            )
+        let sut = viewsOf(
+            namesOf("table X { name: string (required); old: int (deprecated); note: string; }")
+        )
 
         // assert
         @Expect(sut.contains("public prop name: String {"))
@@ -143,8 +140,9 @@ class EmitTest {
     @TestCase
     func theRootTableHasItsFileIdentifierAndARoot() {
         // act
-        let sut =
-            viewsOf(namesOf("file_identifier \"ABCD\";\ntable R {}\ntable X {}\nroot_type R;"))
+        let sut = viewsOf(
+            namesOf("file_identifier \"ABCD\";\ntable R {}\ntable X {}\nroot_type R;")
+        )
 
         // assert
         @Expect(sut.contains("static const FILE_IDENTIFIER = \"ABCD\""))

@@ -16,12 +16,11 @@ func handlePrepareCallHierarchy(
     params: CallHierarchyPrepareParams
 ): Nullable<Array<CallHierarchyItem>> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
-    let entries =
-        prepareCallHierarchy(
-            snap.analysis,
-            file.fileId(snap.analysis),
-            offsetOf(snap, file, params.position)
-        )
+    let entries = prepareCallHierarchy(
+        snap.analysis,
+        file.fileId(snap.analysis),
+        offsetOf(snap, file, params.position)
+    )
     if (entries.isEmpty()) {
         return Nullable.Null
     }
@@ -52,17 +51,16 @@ func handleIncomingCalls(
     params: CallHierarchyIncomingCallsParams
 ): Nullable<Array<CallHierarchyIncomingCall>> {
     let root = hierarchyRoot(snap, params.item) ?? return Nullable.Null
-    Nullable
-        .Value(
-            incomingCalls(snap.analysis, root)
-                .map {
-                    calls =>
-                    CallHierarchyIncomingCall(
-                        from: callHierarchyItem(snap, calls.item),
-                        fromRanges: callRanges(snap, calls, calls.item)
-                    )
-                }
-        )
+    Nullable.Value(
+        incomingCalls(snap.analysis, root)
+            .map {
+                calls =>
+                CallHierarchyIncomingCall(
+                    from: callHierarchyItem(snap, calls.item),
+                    fromRanges: callRanges(snap, calls, calls.item)
+                )
+            }
+    )
 }
 
 /**
@@ -74,15 +72,14 @@ func handleOutgoingCalls(
     params: CallHierarchyOutgoingCallsParams
 ): Nullable<Array<CallHierarchyOutgoingCall>> {
     let root = hierarchyRoot(snap, params.item) ?? return Nullable.Null
-    Nullable
-        .Value(
-            outgoingCalls(snap.analysis, root)
-                .map {
-                    calls =>
-                    CallHierarchyOutgoingCall(
-                        to: callHierarchyItem(snap, calls.item),
-                        fromRanges: callRanges(snap, calls, root)
-                    )
-                }
-        )
+    Nullable.Value(
+        outgoingCalls(snap.analysis, root)
+            .map {
+                calls =>
+                CallHierarchyOutgoingCall(
+                    to: callHierarchyItem(snap, calls.item),
+                    fromRanges: callRanges(snap, calls, root)
+                )
+            }
+    )
 }

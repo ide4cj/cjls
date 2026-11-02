@@ -269,45 +269,42 @@ class InternerBench {
 
 let BENCH_INT_SET = IndexSet<Int64>(Array(BENCH_PATH_COUNT) { i => i })
 
-let BENCH_INT_MAP =
-    HashMap<Int64, Int64>((0..BENCH_PATH_COUNT).iterator().map { i => (i, i) } |> collectArray)
+let BENCH_INT_MAP = HashMap<Int64, Int64>(
+    (0..BENCH_PATH_COUNT).iterator().map { i => (i, i) } |> collectArray
+)
 
-let BENCH_INT_CONCURRENT_SET =
-    {
-        =>
-        let set = ConcurrentIndexSet<Int64>()
-        for (i in 0..BENCH_PATH_COUNT) {
-            set.add(i)
-        }
-        set
-    }()
+let BENCH_INT_CONCURRENT_SET = {
+    =>
+    let set = ConcurrentIndexSet<Int64>()
+    for (i in 0..BENCH_PATH_COUNT) {
+        set.add(i)
+    }
+    set
+}()
 
-let BENCH_INT_CONCURRENT_MAP =
-    {
-        =>
-        let map = ConcurrentHashMap<Int64, Int64>()
-        for (i in 0..BENCH_PATH_COUNT) {
-            map.add(i, i)
-        }
-        map
-    }()
+let BENCH_INT_CONCURRENT_MAP = {
+    =>
+    let map = ConcurrentHashMap<Int64, Int64>()
+    for (i in 0..BENCH_PATH_COUNT) {
+        map.add(i, i)
+    }
+    map
+}()
 
 let BENCH_PATH_SET = IndexSet<VfsPath>(BENCH_INTERNED)
 
-let BENCH_PATH_MAP =
-    HashMap<VfsPath, Int64>(
-        BENCH_INTERNED.iterator().enumerate().map { entry => (entry[1], entry[0]) } |> collectArray
-    )
+let BENCH_PATH_MAP = HashMap<VfsPath, Int64>(
+    BENCH_INTERNED.iterator().enumerate().map { entry => (entry[1], entry[0]) } |> collectArray
+)
 
-let BENCH_PATH_CONCURRENT_SET =
-    {
-        =>
-        let set = ConcurrentIndexSet<VfsPath>()
-        for (path in BENCH_INTERNED) {
-            set.add(path)
-        }
-        set
-    }()
+let BENCH_PATH_CONCURRENT_SET = {
+    =>
+    let set = ConcurrentIndexSet<VfsPath>()
+    for (path in BENCH_INTERNED) {
+        set.add(path)
+    }
+    set
+}()
 
 /**
  * One call into `index_map` from another package, no interface in between, against the std map it

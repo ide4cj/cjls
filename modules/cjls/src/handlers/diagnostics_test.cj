@@ -17,11 +17,10 @@ func fullReport(
     snap: ServerSnapshot,
     previousResultId: ?String
 ): RelatedFullDocumentDiagnosticReport {
-    let params =
-        DocumentDiagnosticParams(
-            textDocument: TextDocumentIdentifier(uri: URI),
-            previousResultId: previousResultId
-        )
+    let params = DocumentDiagnosticParams(
+        textDocument: TextDocumentIdentifier(uri: URI),
+        previousResultId: previousResultId
+    )
     match (handleDocumentDiagnostic(snap, params)) {
         case DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(report) => report
         case _ => throw AssertException("not a full report")
@@ -32,11 +31,10 @@ func fullReport(
  * The `resultId` of the `unchanged` report a pull with `previousResultId` answers, `None` for a full one.
  */
 func unchangedId(snap: ServerSnapshot, previousResultId: String): ?String {
-    let params =
-        DocumentDiagnosticParams(
-            textDocument: TextDocumentIdentifier(uri: URI),
-            previousResultId: previousResultId
-        )
+    let params = DocumentDiagnosticParams(
+        textDocument: TextDocumentIdentifier(uri: URI),
+        previousResultId: previousResultId
+    )
     match (handleDocumentDiagnostic(snap, params)) {
         case DocumentDiagnosticReport.AsRelatedUnchangedDocumentDiagnosticReport(report) =>
             report.resultId

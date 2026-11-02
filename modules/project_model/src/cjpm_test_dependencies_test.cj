@@ -75,19 +75,18 @@ class CjpmTestDependenciesTest {
                 "test-dependencies"
             }
         let source = dependencyImportSource("app", "helper")
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[${section}]\nhelper = {path = \"helper\"}\n"
-                    ),
-                    ("src/main.cj", source),
-                    ("src/main_test.cj", source),
-                    ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
-                    ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[${section}]\nhelper = {path = \"helper\"}\n"
+                ),
+                ("src/main.cj", source),
+                ("src/main_test.cj", source),
+                ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
+                ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -119,34 +118,30 @@ class CjpmTestDependenciesTest {
     @TestCase
     func eachDependencyKeepsItsOwnOrdinaryAndTestEdges() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"helper\"}\n"
-                    ),
-                    ("src/main_test.cj", dependencyImportSource("app", "helper")),
-                    ("src/leaf_test.cj", dependencyImportSource("app", "leaf")),
-                    ("src/private_test.cj", dependencyImportSource("app", "privatehelper")),
-                    ("build.cj", dependencyImportSource("default", "helper")),
-                    (
-                        "helper/cjpm.toml",
-                        "[package]\nname = \"helper\"\n[dependencies]\nleaf = {path = \"../leaf\"}\n[test-dependencies]\nprivatehelper = {path = \"../privatehelper\"}\n"
-                    ),
-                    ("helper/src/lib.cj", "package helper\npublic class RootHelper {}\n"),
-                    ("helper/src/leaf.cj", dependencyImportSource("helper", "leaf")),
-                    ("helper/src/private.cj", dependencyImportSource("helper", "privatehelper")),
-                    (
-                        "helper/src/private_test.cj",
-                        dependencyImportSource("helper", "privatehelper")
-                    ),
-                    ("leaf/cjpm.toml", "[package]\nname = \"leaf\"\n"),
-                    ("leaf/src/lib.cj", "package leaf\npublic class Helper {}\n"),
-                    ("privatehelper/cjpm.toml", "[package]\nname = \"privatehelper\"\n"),
-                    ("privatehelper/src/lib.cj", "package privatehelper\npublic class Helper {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"helper\"}\n"
+                ),
+                ("src/main_test.cj", dependencyImportSource("app", "helper")),
+                ("src/leaf_test.cj", dependencyImportSource("app", "leaf")),
+                ("src/private_test.cj", dependencyImportSource("app", "privatehelper")),
+                ("build.cj", dependencyImportSource("default", "helper")),
+                (
+                    "helper/cjpm.toml",
+                    "[package]\nname = \"helper\"\n[dependencies]\nleaf = {path = \"../leaf\"}\n[test-dependencies]\nprivatehelper = {path = \"../privatehelper\"}\n"
+                ),
+                ("helper/src/lib.cj", "package helper\npublic class RootHelper {}\n"),
+                ("helper/src/leaf.cj", dependencyImportSource("helper", "leaf")),
+                ("helper/src/private.cj", dependencyImportSource("helper", "privatehelper")),
+                ("helper/src/private_test.cj", dependencyImportSource("helper", "privatehelper")),
+                ("leaf/cjpm.toml", "[package]\nname = \"leaf\"\n"),
+                ("leaf/src/lib.cj", "package leaf\npublic class Helper {}\n"),
+                ("privatehelper/cjpm.toml", "[package]\nname = \"privatehelper\"\n"),
+                ("privatehelper/src/lib.cj", "package privatehelper\npublic class Helper {}\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -201,19 +196,18 @@ class CjpmTestDependenciesTest {
     func ordinaryEdgeRemainsOrdinaryWhenAlsoDeclaredForTests() {
         // arrange
         let source = dependencyImportSource("app", "helper")
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[dependencies]\nhelper = {path = \"helper\"}\n[target.x86_64-unknown-linux-gnu.test-dependencies]\nhelper = {path = \"helper\"}\n"
-                    ),
-                    ("src/main.cj", source),
-                    ("src/main_test.cj", source),
-                    ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
-                    ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[dependencies]\nhelper = {path = \"helper\"}\n[target.x86_64-unknown-linux-gnu.test-dependencies]\nhelper = {path = \"helper\"}\n"
+                ),
+                ("src/main.cj", source),
+                ("src/main_test.cj", source),
+                ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
+                ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -253,26 +247,25 @@ class CjpmTestDependenciesTest {
         // arrange
         let source = "package app\nfunc use(): Helper { Helper() }\n"
         let consumer = dependencyImportSource("consumer", "app")
-        let dir =
-            tree(
-                [
-                    ("cjpm.toml", "[workspace]\nmembers = [\"app\", \"consumer\"]\n"),
-                    (
-                        "app/cjpm.toml",
-                        "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"../helper\"}\n"
-                    ),
-                    ("app/src/main.cj", source),
-                    ("app/src/main_test.cj", source),
-                    ("app/src/export_test.cj", "package app\npublic import helper.*\n"),
-                    (
-                        "consumer/cjpm.toml",
-                        "[package]\nname = \"consumer\"\n[dependencies]\napp = {path = \"../app\"}\n"
-                    ),
-                    ("consumer/src/main_test.cj", consumer),
-                    ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
-                    ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.toml", "[workspace]\nmembers = [\"app\", \"consumer\"]\n"),
+                (
+                    "app/cjpm.toml",
+                    "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"../helper\"}\n"
+                ),
+                ("app/src/main.cj", source),
+                ("app/src/main_test.cj", source),
+                ("app/src/export_test.cj", "package app\npublic import helper.*\n"),
+                (
+                    "consumer/cjpm.toml",
+                    "[package]\nname = \"consumer\"\n[dependencies]\napp = {path = \"../app\"}\n"
+                ),
+                ("consumer/src/main_test.cj", consumer),
+                ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
+                ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -284,8 +277,11 @@ class CjpmTestDependenciesTest {
             let productionTargets = definitionAt(db, production, offset)
             let testTargets =
                 definitionAt(db, test, offset).map { target => vfs.paths.path(target.fileId) }
-            let downstreamTargets =
-                definitionAt(db, downstream, consumer.size - "Helper { Helper() }\n".size)
+            let downstreamTargets = definitionAt(
+                db,
+                downstream,
+                consumer.size - "Helper { Helper() }\n".size
+            )
 
             // assert
             @Expect(load.problems, [])
@@ -301,19 +297,18 @@ class CjpmTestDependenciesTest {
     func changingOnlyEdgeScopeInvalidatesExistingAnalysis() {
         // arrange
         let source = dependencyImportSource("app", "helper")
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[dependencies]\nhelper = {path = \"helper\"}\n"
-                    ),
-                    ("src/main.cj", source),
-                    ("src/main_test.cj", source),
-                    ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
-                    ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[dependencies]\nhelper = {path = \"helper\"}\n"
+                ),
+                ("src/main.cj", source),
+                ("src/main_test.cj", source),
+                ("helper/cjpm.toml", "[package]\nname = \"helper\"\n"),
+                ("helper/src/lib.cj", "package helper\npublic class Helper {}\n")
+            ]
+        )
         try {
             let first = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
             let (db, vfs) = testDependencyDatabase(first.model)
@@ -328,14 +323,13 @@ class CjpmTestDependenciesTest {
             )
 
             // act
-            File
-                .writeTo(
-                    dir.join("cjpm.toml").filePath.getOrThrow(),
-                    "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"helper\"}\n"
-                        .toArray()
-                )
-            let second =
-                loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
+            File.writeTo(
+                dir.join("cjpm.toml").filePath.getOrThrow(),
+                "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"helper\"}\n"
+                    .toArray()
+            )
+            let second = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX)
+                .getOrThrow()
             db.setProject(second.model, vfs.paths)
 
             // assert
@@ -358,37 +352,36 @@ class CjpmTestDependenciesTest {
     func testOnlyMacrosArePlannedWithoutTheirTestRuntimeImports() {
         // arrange
         let source = "package app\nimport helper.*\n@A class C {}\n"
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"helper\"}\n"
-                    ),
-                    ("src/main.cj", source),
-                    ("src/main_test.cj", source),
-                    (
-                        "helper/cjpm.toml",
-                        "[package]\nname = \"helper\"\n[test-dependencies]\nprivatehelper = {path = \"../privatehelper\"}\n"
-                    ),
-                    (
-                        "helper/src/lib.cj",
-                        "macro package helper\npublic macro A(input: Tokens): Tokens { input }\n"
-                    ),
-                    ("helper/src/lib_test.cj", "package helper\nimport privatehelper.*\n"),
-                    ("privatehelper/cjpm.toml", "[package]\nname = \"privatehelper\"\n"),
-                    ("privatehelper/src/lib.cj", "package privatehelper\npublic class Helper {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[test-dependencies]\nhelper = {path = \"helper\"}\n"
+                ),
+                ("src/main.cj", source),
+                ("src/main_test.cj", source),
+                (
+                    "helper/cjpm.toml",
+                    "[package]\nname = \"helper\"\n[test-dependencies]\nprivatehelper = {path = \"../privatehelper\"}\n"
+                ),
+                (
+                    "helper/src/lib.cj",
+                    "macro package helper\npublic macro A(input: Tokens): Tokens { input }\n"
+                ),
+                ("helper/src/lib_test.cj", "package helper\nimport privatehelper.*\n"),
+                ("privatehelper/cjpm.toml", "[package]\nname = \"privatehelper\"\n"),
+                ("privatehelper/src/lib.cj", "package privatehelper\npublic class Helper {}\n")
+            ]
+        )
         try {
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
             let (db, vfs) = testDependencyDatabase(load.model)
-            let production =
-                db.sourceFile(vfs.paths.lookup(dir.join("src/main.cj")).getOrThrow()).getOrThrow()
-            let test =
-                db
-                    .sourceFile(vfs.paths.lookup(dir.join("src/main_test.cj")).getOrThrow())
-                    .getOrThrow()
+            let production = db
+                .sourceFile(vfs.paths.lookup(dir.join("src/main.cj")).getOrThrow())
+                .getOrThrow()
+            let test = db
+                .sourceFile(vfs.paths.lookup(dir.join("src/main_test.cj")).getOrThrow())
+                .getOrThrow()
             let pkg = PackageRef.Source(packageOfFile(db, test).getOrThrow())
 
             // act
@@ -416,27 +409,27 @@ class CjpmTestDependenciesTest {
     func downstreamTestsCannotMakeProductionImportsCyclic() {
         // arrange
         let source = dependencyImportSource("app", "helper")
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[dependencies]\nhelper = {path = \"helper\"}\n"
-                    ),
-                    ("src/main.cj", source),
-                    (
-                        "helper/cjpm.toml",
-                        "[package]\nname = \"helper\"\n[test-dependencies]\napp = {path = \"..\"}\n"
-                    ),
-                    ("helper/src/lib.cj", "package helper\npublic class Helper {}\n"),
-                    ("helper/src/lib_test.cj", "package helper\nimport app.*\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[dependencies]\nhelper = {path = \"helper\"}\n"
+                ),
+                ("src/main.cj", source),
+                (
+                    "helper/cjpm.toml",
+                    "[package]\nname = \"helper\"\n[test-dependencies]\napp = {path = \"..\"}\n"
+                ),
+                ("helper/src/lib.cj", "package helper\npublic class Helper {}\n"),
+                ("helper/src/lib_test.cj", "package helper\nimport app.*\n")
+            ]
+        )
         try {
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
             let (db, vfs) = testDependencyDatabase(load.model)
-            let file =
-                db.sourceFile(vfs.paths.lookup(dir.join("src/main.cj")).getOrThrow()).getOrThrow()
+            let file = db
+                .sourceFile(vfs.paths.lookup(dir.join("src/main.cj")).getOrThrow())
+                .getOrThrow()
 
             // act
             let problems = scopeDiagnostics(db, packageOfFile(db, file).getOrThrow(), file)

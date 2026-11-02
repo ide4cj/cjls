@@ -307,8 +307,10 @@ class InternedGcTest {
 
         // act
         let snapshots = files.map { _ => db.snapshot() }
-        let futures =
-            Array<Future<Word>>(files.size, { i => spawn { wordOf(snapshots[i], files[i]) } })
+        let futures = Array<Future<Word>>(
+            files.size,
+            { i => spawn { wordOf(snapshots[i], files[i]) } }
+        )
         let words = futures.map { future => future.get() }
 
         // assert
@@ -369,11 +371,10 @@ class InternedGcTest {
         let result = doubledLengthOfWord(db, typed)
 
         // assert
-        let memos =
-            memosOf<CalcaFields_repeatedLength_STestDb_SWord_SInt64, Int64>(
-                db,
-                CalcaTracked_repeatedLength_STestDb_SWord_SInt64.FUNCTION.index
-            )
+        let memos = memosOf<CalcaFields_repeatedLength_STestDb_SWord_SInt64, Int64>(
+            db,
+            CalcaTracked_repeatedLength_STestDb_SWord_SInt64.FUNCTION.index
+        )
         @Expect(result, 6)
         @Expect(memos.entries.size, 1)
         @Expect(memos.entries.slotCount, 2)
@@ -395,11 +396,10 @@ class InternedGcTest {
         let result = paddedLengthOfWord(db, typed)
 
         // assert
-        let memos =
-            memosOf<CalcaFields_Word_DpaddedLength_STestDb_SInt64, Int64>(
-                db,
-                CalcaTracked_Word_DpaddedLength_STestDb_SInt64.FUNCTION.index
-            )
+        let memos = memosOf<CalcaFields_Word_DpaddedLength_STestDb_SInt64, Int64>(
+            db,
+            CalcaTracked_Word_DpaddedLength_STestDb_SInt64.FUNCTION.index
+        )
         @Expect(result, 6)
         @Expect(memos.entries.size, 1)
         @Expect(memos.entries.slotCount, 2)
@@ -421,11 +421,10 @@ class InternedGcTest {
         let result = lengthOfPair(db, typed)
 
         // assert
-        let memos =
-            memosOf<CalcaFields_pairLength_STestDb_SWord_SWord, Int64>(
-                db,
-                CalcaTracked_pairLength_STestDb_SWord_SWord.FUNCTION.index
-            )
+        let memos = memosOf<CalcaFields_pairLength_STestDb_SWord_SWord, Int64>(
+            db,
+            CalcaTracked_pairLength_STestDb_SWord_SWord.FUNCTION.index
+        )
         @Expect(result, 2)
         @Expect(memos.entries.size, 1)
         @Expect(memos.entries.slotCount, 2)

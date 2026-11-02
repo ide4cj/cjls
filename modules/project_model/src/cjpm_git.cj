@@ -60,8 +60,10 @@ class CjpmGit {
                 return remember(checkout, name, declared, script: script)
             }
             // cjpm names Git workspaces by the URL's Cangjie hash, rather than by a member.
-            let workspace =
-                cache.join("git").join("workspace-${selected[0].hashCode()}").join(selected[1])
+            let workspace = cache
+                .join("git")
+                .join("workspace-${selected[0].hashCode()}")
+                .join(selected[1])
             if (isFile(workspace.join("cjpm.toml").filePath.getOrThrow())) {
                 return remember(workspace, name, declared, script: script)
             }
@@ -267,8 +269,9 @@ func repositoryCache(loading: Loading, root: VfsPath): ?VfsPath {
             if (!isFile(file.filePath.getOrThrow())) {
                 continue
             }
-            let config =
-                fromTomlBytes<CjpmRepositoryConfig>(File.readFrom(file.filePath.getOrThrow()))
+            let config = fromTomlBytes<CjpmRepositoryConfig>(
+                File.readFrom(file.filePath.getOrThrow())
+            )
             let path = config.repository.flatMap { it => it.cache }.flatMap { it => it.path } ?? ""
             if (!path.isEmpty()) {
                 return loading.resolve(file.parent.getOrThrow(), path)

@@ -53,30 +53,17 @@ func navigationResult(
         return Nullable.Null
     }
     if (links) {
-        return Nullable
-            .Value(
-                DefinitionOrDefinitionLinks
-                    .AsDefinitionLinks(
-                        places
-                            .map {
-                                place =>
-                                locationLink(place.text, place.uri, place.target, encoding)
-                            }
-                    )
+        return Nullable.Value(
+            DefinitionOrDefinitionLinks.AsDefinitionLinks(
+                places.map { place => locationLink(place.text, place.uri, place.target, encoding) }
             )
-    }
-    Nullable
-        .Value(
-            DefinitionOrDefinitionLinks
-                .AsDefinition(
-                    Definition
-                        .AsLocations(
-                            places
-                                .map {
-                                    place =>
-                                    location(place.text, place.uri, place.target, encoding)
-                                }
-                        )
-                )
         )
+    }
+    Nullable.Value(
+        DefinitionOrDefinitionLinks.AsDefinition(
+            Definition.AsLocations(
+                places.map { place => location(place.text, place.uri, place.target, encoding) }
+            )
+        )
+    )
 }

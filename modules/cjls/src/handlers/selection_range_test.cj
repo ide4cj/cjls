@@ -35,10 +35,9 @@ func chainOf(selection: SelectionRange): Array<String> {
     var current = Some(selection)
     while (let Some(it) <- current) {
         let range = it.range
-        chain
-            .add(
-                "${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}"
-            )
+        chain.add(
+            "${range.start.line}:${range.start.character}-${range.end.line}:${range.end.character}"
+        )
         current = it.parent
     }
     chain.toArray()
@@ -57,8 +56,8 @@ class SelectionRangeTest {
         state.encoding = encoding
 
         // act
-        let ranges =
-            selectionRanges(state, URI, [Position(line: 0, character: column + 1)]).getOrThrow()
+        let ranges = selectionRanges(state, URI, [Position(line: 0, character: column + 1)])
+            .getOrThrow()
 
         // assert - `ab`, the sum, the declaration, the file
         @Expect(ranges.size, 1)
@@ -72,13 +71,12 @@ class SelectionRangeTest {
         let state = opened("let a = 1\nlet b = 2\n")
 
         // act
-        let ranges =
-            selectionRanges(
-                state,
-                URI,
-                [Position(line: 1, character: 4), Position(line: 0, character: 4)]
-            )
-                .getOrThrow()
+        let ranges = selectionRanges(
+            state,
+            URI,
+            [Position(line: 1, character: 4), Position(line: 0, character: 4)]
+        )
+            .getOrThrow()
 
         // assert
         @Expect(ranges.map {range => chainOf(range)[0]}, ["1:4-1:5", "0:4-0:5"])

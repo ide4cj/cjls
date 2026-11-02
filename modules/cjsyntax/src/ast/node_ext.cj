@@ -8,10 +8,9 @@ import cjsyntax.SyntaxKind
 // position: each is found by the tokens around it as only this code knows them.
 
 let R_PAREN = TokenSet<SyntaxKind>([SyntaxKind.RParen])
-let VISIBILITY =
-    TokenSet<SyntaxKind>(
-        [SyntaxKind.PublicKw, SyntaxKind.ProtectedKw, SyntaxKind.InternalKw, SyntaxKind.PrivateKw]
-    )
+let VISIBILITY = TokenSet<SyntaxKind>(
+    [SyntaxKind.PublicKw, SyntaxKind.ProtectedKw, SyntaxKind.InternalKw, SyntaxKind.PrivateKw]
+)
 
 extend Name {
     /**

@@ -68,17 +68,16 @@ public func buildPlan(
         let units = ArrayList<BuildUnit>()
         for (unit in group) {
             let dir = unit.pkg.dir(db).filePath ?? continue
-            units
-                .add(
-                    BuildUnit(
-                        unit.pkg.name(db),
-                        unit.module,
-                        dir,
-                        unit.isMacro,
-                        unit.deps.map { dep => (modules.get(dep) ?? unit.module, dep.name(db)) },
-                        unit.binaries |> filterMap { cjo: VfsPath => cjo.filePath } |> collectArray
-                    )
+            units.add(
+                BuildUnit(
+                    unit.pkg.name(db),
+                    unit.module,
+                    dir,
+                    unit.isMacro,
+                    unit.deps.map { dep => (modules.get(dep) ?? unit.module, dep.name(db)) },
+                    unit.binaries |> filterMap { cjo: VfsPath => cjo.filePath } |> collectArray
                 )
+            )
         }
         let built =
             try {

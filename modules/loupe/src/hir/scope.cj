@@ -479,11 +479,9 @@ public func packageCtorImports(db: AnalysisDatabase, pkg: Package, ofTests: Bool
     let files =
         pkg.files(db) |> filter { fileId: FileId => ofTests || !tests.contains(fileId) } |>
             filterMap { fileId => db.sourceFile(fileId, context: pkg) }
-    let levels =
-        (files |> map { file => fileImports(db, pkg, file) } |> collectArray)
-            .concat(
-                [packageImportsAt(db, resolutionPackage(db, pkg), ScopeStage.Expanded, ofTests)]
-            )
+    let levels = (files |> map { file => fileImports(db, pkg, file) } |> collectArray).concat(
+        [packageImportsAt(db, resolutionPackage(db, pkg), ScopeStage.Expanded, ofTests)]
+    )
     for (names in levels) {
         for ((name, ids) in names.ctors) {
             let entry = entryOf(ctors, name)
@@ -562,19 +560,18 @@ public func lookUpIn(
     }
     if (imported.size > 1) {
         if (imported.iterator().all { target => isFunc(target, db) }) {
-            return Resolution
-                .Found(
-                    imported
-                        .toArray()
-                        .map {
-                            target =>
-                            match (target) {
-                                case OfDecl(id) => id
-                                case OfPackage(_) =>
-                                    throw IllegalStateException("a package among functions")
-                            }
+            return Resolution.Found(
+                imported
+                    .toArray()
+                    .map {
+                        target =>
+                        match (target) {
+                            case OfDecl(id) => id
+                            case OfPackage(_) =>
+                                throw IllegalStateException("a package among functions")
                         }
-                )
+                    }
+            )
         }
         return Resolution.Ambiguous(imported.toArray())
     }

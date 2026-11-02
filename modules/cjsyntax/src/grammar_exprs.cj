@@ -742,10 +742,9 @@ func returnExpr(p: P): CompletedMarker<SyntaxKind> {
     p.bump(ReturnKw)
     let noValue =
         (atDeclStart(p) && !p.current().isContextualKeyword()) ||
-            p
-                .atAny(
-                    [Semicolon, Comma, RParen, RBracket, RBrace, CaseKw, FatArrow, InterpolationEnd]
-                ) ||
+            p.atAny(
+                [Semicolon, Comma, RParen, RBracket, RBrace, CaseKw, FatArrow, InterpolationEnd]
+            ) ||
             p.atEof()
     if (!noValue) {
         exprOrError(p, Restrictions.NONE)

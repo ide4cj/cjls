@@ -119,10 +119,9 @@ class AstPtrTest {
     func anAstPtrResolvesToItsView() {
         // arrange
         let root = sampleTree()
-        let view =
-            Nested
-                .cast(root.descendants().filter { n => n.kind == Inner }.next().getOrThrow())
-                .getOrThrow()
+        let view = Nested
+            .cast(root.descendants().filter { n => n.kind == Inner }.next().getOrThrow())
+            .getOrThrow()
 
         // act
         let found = AstPtr<TestKind, Nested>(view).toNode(root)
@@ -146,8 +145,9 @@ class AstPtrTest {
         // arrange
         let inners = stackedTree(Inner, Inner)
         let leaves = stackedTree(Leaf, Leaf)
-        let ptr =
-            AstPtr<TestKind, Nested>(Nested.cast(inners.firstChild().getOrThrow()).getOrThrow())
+        let ptr = AstPtr<TestKind, Nested>(
+            Nested.cast(inners.firstChild().getOrThrow()).getOrThrow()
+        )
 
         // act, assert
         @AssertThrows[IllegalArgumentException](ptr.toNode(leaves))

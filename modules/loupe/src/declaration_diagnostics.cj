@@ -36,16 +36,15 @@ func declarationDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Diagn
                 ids.node(call.item(db), root).map { node => node.textRange }
             } |>
             collectArray
-    let found =
-        ArrayList<Diagnostic>(
-            declarationDiagnosticsInTree(
-                db,
-                ItemFile.Source(file),
-                root,
-                ActiveFilter.of(db, file),
-                replaced
-            )
+    let found = ArrayList<Diagnostic>(
+        declarationDiagnosticsInTree(
+            db,
+            ItemFile.Source(file),
+            root,
+            ActiveFilter.of(db, file),
+            replaced
         )
+    )
     for (call in read) {
         if (
             !macroRequests(db, file)
@@ -64,14 +63,9 @@ func declarationDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Diagn
                 []
             )
         ) {
-            found
-                .add(
-                    Diagnostic(
-                        sourceRangeOf(db, call, one.range) ?? head,
-                        one.severity,
-                        one.message
-                    )
-                )
+            found.add(
+                Diagnostic(sourceRangeOf(db, call, one.range) ?? head, one.severity, one.message)
+            )
         }
     }
     for (
@@ -111,14 +105,9 @@ func declarationDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Diagn
                 local: true
             )
         ) {
-            found
-                .add(
-                    Diagnostic(
-                        sourceRangeOf(db, call, one.range) ?? head,
-                        one.severity,
-                        one.message
-                    )
-                )
+            found.add(
+                Diagnostic(sourceRangeOf(db, call, one.range) ?? head, one.severity, one.message)
+            )
         }
     }
     found.toArray()
@@ -194,26 +183,24 @@ func hasRejectedNativeMainAnnotations(
         return false
     }
     for (annotation in annotations where annotation.nameRef()?.text() == Some("Deprecated")) {
-        found
-            .add(
-                Diagnostic(
-                    annotation.syntax.textRange,
-                    Severity.Error,
-                    "main can not be target of @Deprecated"
-                )
+        found.add(
+            Diagnostic(
+                annotation.syntax.textRange,
+                Severity.Error,
+                "main can not be target of @Deprecated"
             )
+        )
     }
     // cjc points at annos[0], even if a later annotation is the rejected one; one error occupies that span.
     if (first.nameRef()?.text() != Some("Deprecated")) {
         let name = first.nameRef()?.text() ?? return true
-        found
-            .add(
-                Diagnostic(
-                    first.syntax.textRange,
-                    Severity.Error,
-                    "unexpected annotation '@${name}' on main"
-                )
+        found.add(
+            Diagnostic(
+                first.syntax.textRange,
+                Severity.Error,
+                "unexpected annotation '@${name}' on main"
             )
+        )
     }
     true
 }
@@ -245,28 +232,26 @@ func checkMainAnnotationWrapper(
     }
     for (annotation in call.annotations() where annotation.nameRef()?.text() != Some("When")) {
         let name = annotation.nameRef()?.text() ?? return;
-        found
-            .add(
-                Diagnostic(
-                    annotation.syntax.textRange,
-                    Severity.Error,
-                    "unexpected annotation '@${name}' on main"
-                )
+        found.add(
+            Diagnostic(
+                annotation.syntax.textRange,
+                Severity.Error,
+                "unexpected annotation '@${name}' on main"
             )
+        )
         return
     }
     let name = String.join(path, delimiter: ".")
     let start = call.atToken()?.textRange.start ?? call.atBangToken()?.textRange.start ?? return
     let headEnd = call.nameRefs().fold(start) { _, name => name.syntax.textRange.end }
     let end = call.macroAttr()?.syntax.textRange.end ?? headEnd
-    found
-        .add(
-            Diagnostic(
-                TextRange(start, end),
-                Severity.Error,
-                "unexpected annotation '@${name}' on main"
-            )
+    found.add(
+        Diagnostic(
+            TextRange(start, end),
+            Severity.Error,
+            "unexpected annotation '@${name}' on main"
         )
+    )
 }
 
 func declarationHas(node: CjSyntaxNode, modifier: SyntaxKind): Bool {
@@ -327,22 +312,16 @@ func checkDeclarationAnnotation(
     let args = annotation.annotationArgList().map { list => list.args() |> collectArray } ?? []
     if (["Frozen", "C", "FastNative"].contains(name) && !args.isEmpty()) {
         let start = args[0].syntax.textRange.start
-        found
-            .add(
-                Diagnostic(
-                    TextRange(start, start + 1),
-                    Severity.Error,
-                    "'@${name}' should have no arg"
-                )
-            )
+        found.add(
+            Diagnostic(TextRange(start, start + 1), Severity.Error, "'@${name}' should have no arg")
+        )
     }
     if (name == "C") {
         let generic = FuncDecl.cast(node).flatMap { decl => decl.typeParamList() }
         if (let Some(token) <- generic.flatMap { list => list.ltToken() }) {
-            found
-                .add(
-                    Diagnostic(token.textRange, Severity.Error, "CFunc cannot have type parameters")
-                )
+            found.add(
+                Diagnostic(token.textRange, Severity.Error, "CFunc cannot have type parameters")
+            )
         }
     }
     var range = point
@@ -422,14 +401,13 @@ func checkDeclarationModifiers(
         node.kind == SyntaxKind.ClassDecl && declarationHas(node, SyntaxKind.SealedKw) &&
             !declarationHas(node, SyntaxKind.AbstractKw)
     ) {
-        found
-            .add(
-                Diagnostic(
-                    declNameRange(node),
-                    Severity.Error,
-                    "non-abstract class cannot be modified by 'sealed'"
-                )
+        found.add(
+            Diagnostic(
+                declNameRange(node),
+                Severity.Error,
+                "non-abstract class cannot be modified by 'sealed'"
             )
+        )
     }
     let function = FuncDecl.cast(node)
     if (
@@ -437,14 +415,13 @@ func checkDeclarationModifiers(
             declarationHas(node, SyntaxKind.OperatorKw)
     ) {
         // Diagnose(Node, ...) uses the declaration's begin, including its first modifier.
-        found
-            .add(
-                Diagnostic(
-                    declarationBegin(node),
-                    Severity.Error,
-                    "generic is not allowed in operator overload function"
-                )
+        found.add(
+            Diagnostic(
+                declarationBegin(node),
+                Severity.Error,
+                "generic is not allowed in operator overload function"
             )
+        )
     }
     let parent = owner ?? return;
     if (parent.kind != SyntaxKind.ClassDecl) {
@@ -473,14 +450,13 @@ func checkDeclarationModifiers(
             } else {
                 "abstract"
             }
-        found
-            .add(
-                Diagnostic(
-                    declarationBegin(node),
-                    Severity.Error,
-                    "finalizer is forbidden in class '${name}' that is ${modifier}"
-                )
+        found.add(
+            Diagnostic(
+                declarationBegin(node),
+                Severity.Error,
+                "finalizer is forbidden in class '${name}' that is ${modifier}"
             )
+        )
     }
     if (node.kind != SyntaxKind.FuncDecl && node.kind != SyntaxKind.PropDecl) {
         return
@@ -517,50 +493,46 @@ func checkDeclarationModifiers(
     ) {
         let modifier =
             if (declarationHas(parent, SyntaxKind.CommonKw)) { "common" } else { "specific" }
-        found
-            .add(
-                Diagnostic(
-                    declNameRange(node),
-                    Severity.Error,
-                    "'${modifier}' abstract class ${kind} must have explicit '${modifier}' or 'abstract' modifier"
-                )
+        found.add(
+            Diagnostic(
+                declNameRange(node),
+                Severity.Error,
+                "'${modifier}' abstract class ${kind} must have explicit '${modifier}' or 'abstract' modifier"
             )
+        )
     }
     if (
         abstractMember && (!abstractClass || declarationHas(node, SyntaxKind.StaticKw)) &&
             !declarationHas(parent, SyntaxKind.ForeignKw)
     ) {
         let name = AnyHasName.cast(node)?.name()?.text() ?? return;
-        found
-            .add(
-                Diagnostic(
-                    declarationBegin(node),
-                    Severity.Error,
-                    "${kind} '${name}' can not be abstract"
-                )
+        found.add(
+            Diagnostic(
+                declarationBegin(node),
+                Severity.Error,
+                "${kind} '${name}' can not be abstract"
             )
+        )
     }
     let visibility =
         declarationHas(node, SyntaxKind.PublicKw) || declarationHas(node, SyntaxKind.ProtectedKw)
     if (!visibility && abstractMember && abstractClass) {
-        found
-            .add(
-                Diagnostic(
-                    declNameRange(node),
-                    Severity.Error,
-                    "the visibility of an 'abstract' ${kind} must be 'public' or 'protected'"
-                )
+        found.add(
+            Diagnostic(
+                declNameRange(node),
+                Severity.Error,
+                "the visibility of an 'abstract' ${kind} must be 'public' or 'protected'"
             )
+        )
     }
     if (!visibility && !abstractMember && inheritable && declarationHas(node, SyntaxKind.OpenKw)) {
-        found
-            .add(
-                Diagnostic(
-                    declNameRange(node),
-                    Severity.Error,
-                    "the visibility of an 'open' ${kind} must be 'public' or 'protected'"
-                )
+        found.add(
+            Diagnostic(
+                declNameRange(node),
+                Severity.Error,
+                "the visibility of an 'open' ${kind} must be 'public' or 'protected'"
             )
+        )
     }
 }
 
@@ -700,14 +672,13 @@ func declarationModifierConflicts(
                         .iterator()
                         .any { pair => pair == (current, earlier) || pair == (earlier, current) }
             ) {
-                found
-                    .add(
-                        Diagnostic(
-                            tokens[i].textRange,
-                            Severity.Error,
-                            "'${current}' and '${earlier}' modifiers conflict on ${kind} declaration"
-                        )
+                found.add(
+                    Diagnostic(
+                        tokens[i].textRange,
+                        Severity.Error,
+                        "'${current}' and '${earlier}' modifiers conflict on ${kind} declaration"
                     )
+                )
                 invalid = true
             }
         }
@@ -746,14 +717,13 @@ func checkExtendMutModifiers(
                 AnyHasModifiers.cast(member).flatMap { decl => decl.modifiers() } ?? continue
             for (element in modifiers.syntax.childrenWithTokens()) {
                 if (let SyntaxElement.Token(token) <- element && token.kind == SyntaxKind.MutKw) {
-                    found
-                        .add(
-                            Diagnostic(
-                                token.textRange,
-                                Severity.Error,
-                                "'mut' modifier is illegal in extend body of '${name}'"
-                            )
+                    found.add(
+                        Diagnostic(
+                            token.textRange,
+                            Severity.Error,
+                            "'mut' modifier is illegal in extend body of '${name}'"
                         )
+                    )
                 }
             }
         }

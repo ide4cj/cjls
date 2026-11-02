@@ -115,11 +115,10 @@ class SemanticTokensBenchState {
         let fixture = Fixture.parse(text.toString())
         nodesFile = fixture.file("/cjsyntax/cjsyntax.ast/nodes.cj").fileId
         db =
-            fixture
-                .database(
-                    binaries: ["std.core", "std.collection"]
-                        .map { name => stdCjoRead(name, stdCjo(name)) }
-                )
+            fixture.database(
+                binaries: ["std.core", "std.collection"]
+                    .map { name => stdCjoRead(name, stdCjo(name)) }
+            )
         let source = db.sourceFile(nodesFile).getOrThrow().text(db).toString()
         let at = source.lastIndexOf("\n    }\n").getOrThrow()
         texts = [source, source[..at] + " " + source[at..]]
@@ -187,11 +186,10 @@ class SemanticTokensBench {
             hasher.write(value)
         }
         let resultId = "${hasher.finish()}"
-        let delta =
-            SemanticTokensDelta(
-                resultId: resultId,
-                edits: tokensDelta(state.before.data, state.after.data)
-            )
+        let delta = SemanticTokensDelta(
+            resultId: resultId,
+            edits: tokensDelta(state.before.data, state.after.data)
+        )
         tokensResponse(
             SemanticTokensDeltaRequestSpec()
                 .encodeResult(

@@ -112,15 +112,13 @@ class CompletionOverloadTest {
 
     @TestCase
     func stdPrintOverloadsShareOneItem() {
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             func use() { pr$0 }
             "#
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let cursor = parsed.cursor.getOrThrow()
         let items = completionsAt(db, cursor.fileId, cursor.offset).getOrThrow().items

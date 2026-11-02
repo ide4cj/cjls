@@ -43,8 +43,12 @@ class ReparseTest {
         // arrange
         let text = "func a() {\n    let y = 1\n    if (y > 0) {\n        y.\n    }\n    y\n}\n"
         let before = parse(text)
-        let body =
-            before.syntaxNode().descendants().filter { n => n.kind == Block }.next().getOrThrow()
+        let body = before
+            .syntaxNode()
+            .descendants()
+            .filter { n => n.kind == Block }
+            .next()
+            .getOrThrow()
         let statements = collectArray(body.children())
         let edit = TextRange.empty(after(text, "y."))
 
@@ -53,8 +57,12 @@ class ReparseTest {
 
         // assert
         @Expect(reparsed == parse(edited(text, edit, MARKER)))
-        let bodyAfter =
-            reparsed.syntaxNode().descendants().filter { n => n.kind == Block }.next().getOrThrow()
+        let bodyAfter = reparsed
+            .syntaxNode()
+            .descendants()
+            .filter { n => n.kind == Block }
+            .next()
+            .getOrThrow()
         let statementsAfter = collectArray(bodyAfter.children())
         @Expect(statementsAfter.size, statements.size)
         @Expect(refEq(statementsAfter[0].green, statements[0].green))

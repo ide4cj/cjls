@@ -105,8 +105,9 @@ func handleDidChangeWatchedFiles(
             case _ => ()
         }
     }
-    state
-        .setFilesContents(files.filter { file => !state.openDocuments.contains(file[0]) }.toArray())
+    state.setFilesContents(
+        files.filter { file => !state.openDocuments.contains(file[0]) }.toArray()
+    )
     // a file of a macro package saved, an open one too: what the build reads is the disk (D104)
     if (!params.changes.isEmpty()) {
         state.macroWork?.wake(true)
@@ -143,10 +144,9 @@ func handleDidChangeWorkspaceFolders(
     watch(state, client, logger, added)
 
     for (root in removed) {
-        state
-            .dropWithProject(
-                state.filesUnder(root).filter { path => !state.openDocuments.contains(path) }
-            )
+        state.dropWithProject(
+            state.filesUnder(root).filter { path => !state.openDocuments.contains(path) }
+        )
     }
     startLoad(loop, client, logger)
 }
@@ -284,11 +284,10 @@ func startMacros(loop: Loop, logger: Logger): Unit {
  */
 func showWarning(client: Client, logger: Logger, message: String): Unit {
     try {
-        client
-            .notify(
-                ShowMessageNotificationSpec(),
-                ShowMessageParams(`type`: MessageType.Warning, message: message)
-            )
+        client.notify(
+            ShowMessageNotificationSpec(),
+            ShowMessageParams(`type`: MessageType.Warning, message: message)
+        )
     } catch (e: Exception) {
         logger.debug("the warning was not shown", [("error", e.toString())])
     }
@@ -352,14 +351,12 @@ func packageLineOf(text: Rope): ?String {
  * @return what the user is to be told of the SDK, `None` if nothing, or if the load was ended by a newer one
  */
 func load(loop: Loop, client: Client, logger: Logger, request: LoadRequest): ?String {
-    let progress =
-        WorkDoneProgress
-            .begin(
-                client,
-                logger,
-                if (request.progress) { "cjls/load/${request.load}" } else { None },
-                "Loading the workspace"
-            )
+    let progress = WorkDoneProgress.begin(
+        client,
+        logger,
+        if (request.progress) { "cjls/load/${request.load}" } else { None },
+        "Loading the workspace"
+    )
     try {
         loadProject(loop, client, logger, request, progress)
     } finally {
@@ -393,18 +390,18 @@ func loadProject(
         logger.info("found the sources of std", [("path", src.path), ("source", src.source)])
     }
     let env = withCangjieStdxPath(withCangjieSrc(withHome, src), request.cangjieStdxPath)
-    let found =
-        findProjects(
-            request.roots,
-            request.linkedProjects,
-            env: env,
-            budget: budget,
-            open: request.open,
-            found: request.found
-        )
+    let found = findProjects(
+        request.roots,
+        request.linkedProjects,
+        env: env,
+        budget: budget,
+        open: request.open,
+        found: request.found
+    )
     // a document open in none of their packages finds its own project, as R1 does on open (#265)
-    let known =
-        HashSet<VfsPath>(ProjectModel.merge(found.map { load => load.model }, hostCfg()).files())
+    let known = HashSet<VfsPath>(
+        ProjectModel.merge(found.map { load => load.model }, hostCfg()).files()
+    )
     let more = ArrayList<VfsPath>()
     for (path in request.open where !known.contains(path)) {
         let loaded = request.found.concat(more.toArray())
@@ -414,31 +411,27 @@ func loadProject(
     }
     let projects = found.concat(findProjects([], [], env: env, found: more.toArray()))
     // a document open in no package of theirs either is compiled alone, as cjc compiles it (#293)
-    let loads =
-        projects
-            .concat(
-                loneFileProjects(
-                    ProjectModel.merge(projects.map { load => load.model }, hostCfg()),
-                    request.packageLines,
-                    env: env
-                )
-            )
+    let loads = projects.concat(
+        loneFileProjects(
+            ProjectModel.merge(projects.map { load => load.model }, hostCfg()),
+            request.packageLines,
+            env: env
+        )
+    )
     for (load in loads) {
-        logger
-            .info(
-                "found a project",
-                [("source", load.source.toString()), ("modules", load.model.modules.size)]
-            )
+        logger.info(
+            "found a project",
+            [("source", load.source.toString()), ("modules", load.model.modules.size)]
+        )
         for (problem in load.problems) {
             logger.warn(problem)
         }
     }
     let cfgProblems = ArrayList<String>()
-    let model =
-        withPackageCfgs(
-            ProjectModel.merge(loads.map { load => load.model }, hostCfg()),
-            cfgProblems
-        )
+    let model = withPackageCfgs(
+        ProjectModel.merge(loads.map { load => load.model }, hostCfg()),
+        cfgProblems
+    )
     for (problem in cfgProblems) {
         logger.warn(problem)
     }
@@ -456,12 +449,11 @@ func loadProject(
                 }
                 stamps
             }
-    let binaries =
-        readCjoFiles(
-            cjoFiles,
-            unchanged: { file, stamp => stamps.get(file) == stamp },
-            budget: budget
-        )
+    let binaries = readCjoFiles(
+        cjoFiles,
+        unchanged: { file, stamp => stamps.get(file) == stamp },
+        budget: budget
+    )
     for (problem in binaries.problems) {
         logger.warn(problem)
     }
@@ -471,8 +463,9 @@ func loadProject(
                 state: ServerState =>
                 if (state.isLoading(request.load)) {
                     state.setProject(model, binaries: binaries.files)
-                    let roots =
-                        HashSet<VfsPath>(model.binaries.filterMap { binary => binary.sources?.dir })
+                    let roots = HashSet<VfsPath>(
+                        model.binaries.filterMap { binary => binary.sources?.dir }
+                    )
                     notifyBinarySourceRoots(client, logger, roots.toArray())
                     state.partialRoots = partialRootsOf(loads)
                     state.foundProjects = request.found.concat(more.toArray())
@@ -535,35 +528,32 @@ func loadProject(
     for (edit in packageLines) {
         applyEdit(loop, client, logger, edit)
     }
-    logger
-        .info(
-            "loaded the workspace",
-            [
-                ("roots", request.roots.size),
-                ("files", loaded),
-                ("cjo", binaries.files.size),
-                ("took", MonoTime.now() - start)
-            ]
-        )
+    logger.info(
+        "loaded the workspace",
+        [
+            ("roots", request.roots.size),
+            ("files", loaded),
+            ("cjo", binaries.files.size),
+            ("took", MonoTime.now() - start)
+        ]
+    )
     if (binaries.truncated) {
-        logger
-            .warn(
-                "the binaries hold more than the server loads: the names of those left out do not resolve",
-                [("budget", budget)]
-            )
+        logger.warn(
+            "the binaries hold more than the server loads: the names of those left out do not resolve",
+            [("budget", budget)]
+        )
     }
     if (truncated) {
-        logger
-            .warn(
-                "the workspace holds more text than the server loads: the rest is not seen until opened",
-                [
-                    ("budget", budget),
-                    (
-                        "roots",
-                        String.join(request.roots.map { root => root.toString() }, delimiter: ", ")
-                    )
-                ]
-            )
+        logger.warn(
+            "the workspace holds more text than the server loads: the rest is not seen until opened",
+            [
+                ("budget", budget),
+                (
+                    "roots",
+                    String.join(request.roots.map { root => root.toString() }, delimiter: ", ")
+                )
+            ]
+        )
     }
     warning
 }
@@ -682,12 +672,11 @@ func watch(state: ServerState, client: Client, logger: Logger, roots: Array<VfsP
                 state.watchers.add(root, id)
                 watcherRegistration(id, root, state.relativePatterns)
             }
-    client
-        .request(
-            RegistrationRequestSpec(),
-            RegistrationParams(registrations: registrations),
-            logger
-        )
+    client.request(
+        RegistrationRequestSpec(),
+        RegistrationParams(registrations: registrations),
+        logger
+    )
 }
 
 /**
@@ -711,24 +700,22 @@ func watchBinaries(state: ServerState, client: Client, logger: Logger, model: Pr
     let watch = BinaryWatch(id, dirs, files)
     state.binaryWatch = watch
     if (let Some(id) <- id) {
-        client
-            .request(
-                RegistrationRequestSpec(),
-                RegistrationParams(
-                    registrations: [binaryRegistration(id, watch, state.relativePatterns)]
-                ),
-                logger
-            )
+        client.request(
+            RegistrationRequestSpec(),
+            RegistrationParams(
+                registrations: [binaryRegistration(id, watch, state.relativePatterns)]
+            ),
+            logger
+        )
     }
     if (let Some(id) <- before.flatMap { before => before.id }) {
-        client
-            .request(
-                UnregistrationRequestSpec(),
-                UnregistrationParams(
-                    unregisterations: [DidChangeWatchedFilesNotificationSpec().unregistration(id)]
-                ),
-                logger
-            )
+        client.request(
+            UnregistrationRequestSpec(),
+            UnregistrationParams(
+                unregisterations: [DidChangeWatchedFilesNotificationSpec().unregistration(id)]
+            ),
+            logger
+        )
     }
 }
 
@@ -761,36 +748,29 @@ func binaryRegistration(id: String, watch: BinaryWatch, relative: Bool): Registr
     for (dir in watch.dirs) {
         match (dir.parent) {
             case Some(parent) =>
-                watchers
-                    .add(
-                        FileSystemWatcher(
-                            globPattern: globPattern(parent, dir.name, relative),
-                            kind: comeOrGone
-                        )
+                watchers.add(
+                    FileSystemWatcher(
+                        globPattern: globPattern(parent, dir.name, relative),
+                        kind: comeOrGone
                     )
-                watchers
-                    .add(
-                        FileSystemWatcher(
-                            globPattern: globPattern(parent, "${dir.name}/*.cjo", relative),
-                            kind: any
-                        )
+                )
+                watchers.add(
+                    FileSystemWatcher(
+                        globPattern: globPattern(parent, "${dir.name}/*.cjo", relative),
+                        kind: any
                     )
+                )
             case None =>
-                watchers
-                    .add(
-                        FileSystemWatcher(
-                            globPattern: globPattern(dir, "*.cjo", relative),
-                            kind: any
-                        )
-                    )
+                watchers.add(
+                    FileSystemWatcher(globPattern: globPattern(dir, "*.cjo", relative), kind: any)
+                )
         }
     }
     for (file in watch.files) {
         let parent = file.parent ?? continue
-        watchers
-            .add(
-                FileSystemWatcher(globPattern: globPattern(parent, file.name, relative), kind: any)
-            )
+        watchers.add(
+            FileSystemWatcher(globPattern: globPattern(parent, file.name, relative), kind: any)
+        )
     }
     DidChangeWatchedFilesNotificationSpec()
         .registration(id, DidChangeWatchedFilesRegistrationOptions(watchers: watchers.toArray()))
@@ -802,10 +782,9 @@ func binaryRegistration(id: String, watch: BinaryWatch, relative: Bool): Registr
  */
 func globPattern(base: VfsPath, glob: String, relative: Bool): GlobPattern {
     if (relative) {
-        return GlobPattern
-            .AsRelativePattern(
-                RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(base.toUri()), pattern: glob)
-            )
+        return GlobPattern.AsRelativePattern(
+            RelativePattern(baseUri: WorkspaceFolderOrURI.AsURI(base.toUri()), pattern: glob)
+        )
     }
     GlobPattern.AsPattern(base.toString().replace("\\", "/").removeSuffix("/") + "/" + glob)
 }
@@ -821,12 +800,11 @@ func unwatch(state: ServerState, client: Client, logger: Logger, roots: Array<Vf
         }
     }
     if (!unregistrations.isEmpty()) {
-        client
-            .request(
-                UnregistrationRequestSpec(),
-                UnregistrationParams(unregisterations: unregistrations.toArray()),
-                logger
-            )
+        client.request(
+            UnregistrationRequestSpec(),
+            UnregistrationParams(unregisterations: unregistrations.toArray()),
+            logger
+        )
     }
 }
 
@@ -872,11 +850,10 @@ func rootsOf(folders: Array<WorkspaceFolder>): Array<VfsPath> {
  */
 private func notifyBinarySourceRoots(client: Client, logger: Logger, roots: Array<VfsPath>): Unit {
     try {
-        client
-            .notify(
-                BinarySourceRootsNotificationSpec(),
-                BinarySourceRootsParams(roots: roots.map { root => root.toUri() })
-            )
+        client.notify(
+            BinarySourceRootsNotificationSpec(),
+            BinarySourceRootsParams(roots: roots.map { root => root.toUri() })
+        )
     } catch (e: Exception) {
         // The census still counts overloaded stdx.log members as error roots (#48, D121).
         logger.debug("the binary source roots were not sent", [("error", e.toString())])

@@ -20,15 +20,13 @@ func handleDocumentDiagnostic(
     let items = documentDiagnostics(snap, VfsPath.fromUri(params.textDocument.uri))
     let resultId = resultIdOf(snap, items)
     if (params.previousResultId == Some(resultId)) {
-        return DocumentDiagnosticReport
-            .AsRelatedUnchangedDocumentDiagnosticReport(
-                RelatedUnchangedDocumentDiagnosticReport(resultId: resultId)
-            )
-    }
-    DocumentDiagnosticReport
-        .AsRelatedFullDocumentDiagnosticReport(
-            RelatedFullDocumentDiagnosticReport(resultId: resultId, items: items)
+        return DocumentDiagnosticReport.AsRelatedUnchangedDocumentDiagnosticReport(
+            RelatedUnchangedDocumentDiagnosticReport(resultId: resultId)
         )
+    }
+    DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
+        RelatedFullDocumentDiagnosticReport(resultId: resultId, items: items)
+    )
 }
 
 /**

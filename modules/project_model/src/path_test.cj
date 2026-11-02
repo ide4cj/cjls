@@ -47,11 +47,10 @@ class PathExpansionTest {
     func projectPathsUseTheSameExpansionAndKeepRelativePaths() {
         let base = VfsPath.file(getTempDirectory()).join("project")
         let home = VfsPath.file(getTempDirectory()).join("home")
-        let loading =
-            Loading(
-                { name: String => if (name == "HOME") { Some(home.toString()) } else { None } },
-                hostCfg()
-            )
+        let loading = Loading(
+            { name: String => if (name == "HOME") { Some(home.toString()) } else { None } },
+            hostCfg()
+        )
         @Expect(loading.resolve(base, "~/src"), home.join("src"))
         @Expect(loading.resolve(base, "$HOME/src"), home.join("src"))
         @Expect(loading.resolve(base, "\${HOME}/src"), home.join("src"))

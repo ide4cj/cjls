@@ -62,16 +62,14 @@ func formattingProblems(
         if (let Some(dir) <- getVariable("CJFORMAT_FAILURES")) {
             let path = Path(dir).join(name.replace("/", "_").replace("\\", "_"))
             File.writeTo(path, formatted.toArray())
-            File
-                .writeTo(
-                    Path("${path}.second"),
-                    (formatText(formatted, options: options) ?? "<syntax errors>").toArray()
-                )
-            File
-                .writeTo(
-                    Path("${path}.problems"),
-                    String.join(problems.toArray(), delimiter: "\n").toArray()
-                )
+            File.writeTo(
+                Path("${path}.second"),
+                (formatText(formatted, options: options) ?? "<syntax errors>").toArray()
+            )
+            File.writeTo(
+                Path("${path}.problems"),
+                String.join(problems.toArray(), delimiter: "\n").toArray()
+            )
         }
     }
     problems.toArray()
@@ -126,14 +124,13 @@ class CorpusTest {
                 } catch (_: IllegalArgumentException) {
                     continue
                 }
-            problems
-                .add(
-                    all: formattingProblems(
-                        file.toString(),
-                        text,
-                        options: FormatOptions(simpleIf: SimpleIf.Compact)
-                    )
+            problems.add(
+                all: formattingProblems(
+                    file.toString(),
+                    text,
+                    options: FormatOptions(simpleIf: SimpleIf.Compact)
                 )
+            )
         }
 
         // assert

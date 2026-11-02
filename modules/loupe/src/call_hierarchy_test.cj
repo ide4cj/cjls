@@ -10,10 +10,8 @@ class CallHierarchyTest {
     @TestCase
     func groupsCrossFileCallsAndExcludesFunctionValues() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /a.cj module=m package=m
             package m
             func $0target(): Unit {}
@@ -22,7 +20,7 @@ class CallHierarchyTest {
             func caller(): Unit { target(); target() }
             func value(): Unit { let f = target }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -44,17 +42,15 @@ class CallHierarchyTest {
     @TestCase
     func resolvesOverloadsMethodsAndRecursion() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func f(x: Int64): Unit {}
             func f(x: Bool): Unit {}
             class C { public func g(): Unit {} }
             func $0caller(c: C): Unit { f(1); c.g(); caller(c) }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -74,10 +70,8 @@ class CallHierarchyTest {
     @TestCase
     func localFunctionsHaveTheirOwnCallsAndLambdasBelongToTheEnclosingFunction() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func target(): Unit {}
             func $0outer(): Unit {
@@ -86,7 +80,7 @@ class CallHierarchyTest {
                 let closure = { => target() }
             }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -105,10 +99,8 @@ class CallHierarchyTest {
     @TestCase
     func constructorCallsUseTheSelectedInitializer() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func target(): Unit {}
             class C {
@@ -117,7 +109,7 @@ class CallHierarchyTest {
             }
             func caller(): Unit { $0C(1) }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
 
@@ -136,10 +128,8 @@ class CallHierarchyTest {
     @TestCase
     func importedAliasesAndParenthesizedCallsResolveToTheDeclaration() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /a.cj module=m package=m.a
             package m.a
             public func target(): Unit {}
@@ -148,7 +138,7 @@ class CallHierarchyTest {
             import m.a.target as alias
             func $0caller(): Unit { alias(); (alias)() }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -166,15 +156,13 @@ class CallHierarchyTest {
     @TestCase
     func mainIsACallerAndEnumConstructorsAreCallable() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             enum E { V(Int64) }
             $0main(): Int64 { let value = E.V(1); 0 }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -191,19 +179,19 @@ class CallHierarchyTest {
     @TestCase
     func callEdgesAreInvalidatedAfterAnEdit() {
         // arrange
-        let fixture =
-            Fixture.parse("package m\nfunc target(): Unit {}\nfunc $0caller(): Unit { target() }")
+        let fixture = Fixture.parse(
+            "package m\nfunc target(): Unit {}\nfunc $0caller(): Unit { target() }"
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
 
         // act
         let before = outgoingCalls(db, entry)
-        db
-            .setFileText(
-                cursor.fileId,
-                Rope("package m\nfunc target(): Unit {}\nfunc caller(): Unit {}")
-            )
+        db.setFileText(
+            cursor.fileId,
+            Rope("package m\nfunc target(): Unit {}\nfunc caller(): Unit {}")
+        )
         let updated = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
         let after = outgoingCalls(db, updated)
         let incoming = incomingCalls(db, before[0].item)
@@ -217,10 +205,8 @@ class CallHierarchyTest {
     @TestCase
     func inactiveCallsAreExcluded() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj cfg=os:Linux
             func target(): Unit {}
             func $0caller(): Unit {
@@ -229,7 +215,7 @@ class CallHierarchyTest {
                 target()
             }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]
@@ -259,15 +245,13 @@ class CallHierarchyTest {
     @TestCase
     func trailingLambdaDoesNotDuplicateTheCall() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func apply(f: () -> Unit): Unit { f() }
             func $0caller(): Unit { apply() { => } }
             "#
-                )
+        )
         let db = fixture.database()
         let cursor = fixture.cursor.getOrThrow()
         let entry = prepareCallHierarchy(db, cursor.fileId, cursor.offset)[0]

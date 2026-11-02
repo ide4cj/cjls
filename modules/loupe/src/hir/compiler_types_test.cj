@@ -99,9 +99,8 @@ class CompilerTypesTest {
     @TestCase
     func signaturesUseSemanticHeadsAndKeepTypeErrors(): Unit {
         // arrange
-        let (db, file, good) =
-            declOf(
-                #"
+        let (db, file, good) = declOf(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public interface CType {}
@@ -110,19 +109,16 @@ class CompilerTypesTest {
             func typo(p: CPinter<Int8>): Unit {}
             func missing(p: CPointer, cb: CFunc): Unit {}
             "#,
-                "good"
-            )
+            "good"
+        )
         let byte = Ty(db, PrimTy("Int8"))
         let pointer = Ty(db, BuiltInTy(PointerType, [byte]))
 
         // act
         let goodSignature = signatureTypes(db, good)
-        let pkg =
-            PackageRef
-                .Source(
-                    packageOfFile(db, file)
-                        .getOrThrow { FixtureException("good must belong to std.core") }
-                )
+        let pkg = PackageRef.Source(
+            packageOfFile(db, file).getOrThrow { FixtureException("good must belong to std.core") }
+        )
         let typo = signatureTypes(db, exportOf(db, pkg, "typo"))
         let missing = signatureTypes(db, exportOf(db, pkg, "missing"))
 
@@ -173,17 +169,16 @@ class CompilerTypesTest {
     @TestCase
     func invalidBuiltinSupertypeCyclesStopAfterEachHead(): Unit {
         // arrange
-        let (db, file, _) =
-            declOf(
-                #"
+        let (db, file, _) = declOf(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public interface CType {}
             extend<T> CPointer<T> <: CPointer<CPointer<T>> {}
             func anchor(): Unit {}
             "#,
-                "anchor"
-            )
+            "anchor"
+        )
         let pointer = Ty(db, BuiltInTy(PointerType, [Ty(db, PrimTy("Int8"))]))
 
         // act: invalid editor input must not expand a fresh pointer at every step.
@@ -197,17 +192,15 @@ class CompilerTypesTest {
     @TestCase
     func builtinVisibilityAndTyposUseOrdinaryScopeRules(): Unit {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /std/core/core.cj module=std package=std.core
             package std.core
             public interface CType {}
             //- /app/main.cj module=app deps=std package=app
             package app
             "#
-                )
+        )
         let db = fixture.database()
         let core =
             db

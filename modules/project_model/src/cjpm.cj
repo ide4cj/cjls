@@ -53,10 +53,9 @@ public func loadCjpmProject(
     binaries.add(all: lowering.binaries)
     let modules = lowering.modules.toArray()
     // Dependency build scripts can be visited before later ordinary dependencies.
-    let ordered =
-        modules
-            .filter { module => module.resolutionScope.isEmpty() }
-            .concat(modules.filter { module => !module.resolutionScope.isEmpty() })
+    let ordered = modules
+        .filter { module => module.resolutionScope.isEmpty() }
+        .concat(modules.filter { module => !module.resolutionScope.isEmpty() })
     let model = ProjectModel(cfg, ordered, binaries: binaries.toArray())
     ProjectLoad(model, CjpmManifest(file), loading.problems.toArray())
 }
@@ -371,31 +370,29 @@ class CjpmLowering {
         for (pkg in found) {
             let files = pkg.files.filter { file => file != script }
             if (!files.isEmpty()) {
-                packages
-                    .add(
-                        PackageModel(
-                            pkg.name,
-                            pkg.dir,
-                            files,
-                            noPrelude: pkg.noPrelude,
-                            isMacro: pkg.isMacro
-                        )
+                packages.add(
+                    PackageModel(
+                        pkg.name,
+                        pkg.dir,
+                        files,
+                        noPrelude: pkg.noPrelude,
+                        isMacro: pkg.isMacro
                     )
+                )
             }
         }
-        modules
-            .add(
-                ModuleModel(
-                    name,
-                    sources,
-                    packages.toArray(),
-                    deps: unique.toArray(),
-                    testDeps: testDeps.toArray(),
-                    member: member,
-                    inactive: inactive.filter { file => file.path != script },
-                    resolutionScope: if (forScript) { scriptScope } else { "" }
-                )
+        modules.add(
+            ModuleModel(
+                name,
+                sources,
+                packages.toArray(),
+                deps: unique.toArray(),
+                testDeps: testDeps.toArray(),
+                member: member,
+                inactive: inactive.filter { file => file.path != script },
+                resolutionScope: if (forScript) { scriptScope } else { "" }
             )
+        )
         buildScript(dir, manifest, member)
         name
     }
@@ -423,13 +420,12 @@ class CjpmLowering {
             let sources = loading.resolve(dir, srcDir)
             return (sources, packagesUnder(name, sources), [])
         }
-        let picked =
-            sourceSetChain(
-                sets,
-                manifest.featureTables ?? [],
-                loading.cfg,
-                always: pkg.alwaysEnabledFeatures ?? []
-            )
+        let picked = sourceSetChain(
+            sets,
+            manifest.featureTables ?? [],
+            loading.cfg,
+            always: pkg.alwaysEnabledFeatures ?? []
+        )
         loading.problems.add(all: picked.problems)
         let merged = ArrayList<(String, VfsPath, ArrayList<VfsPath>)>()
         for (set in picked.chain) {
@@ -474,17 +470,16 @@ class CjpmLowering {
                 }
             }
         }
-        modules
-            .add(
-                ModuleModel(
-                    DEFAULT_PACKAGE,
-                    dir,
-                    [PackageModel(DEFAULT_PACKAGE, dir, [script])],
-                    deps: deps.toArray(),
-                    member: member,
-                    resolutionScope: scriptScope
-                )
+        modules.add(
+            ModuleModel(
+                DEFAULT_PACKAGE,
+                dir,
+                [PackageModel(DEFAULT_PACKAGE, dir, [script])],
+                deps: deps.toArray(),
+                member: member,
+                resolutionScope: scriptScope
             )
+        )
     }
 
     /**

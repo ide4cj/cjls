@@ -58,10 +58,9 @@ class TypeMapTest {
     @TestCase
     func anExternNameListsTheValuesItsTargetDeclares() {
         // arrange
-        let sut =
-            typeMapOf(
-                "[types.ErrorCodes]\nextern = \"ErrorCode\"\ndeclared = [\"ParseError\", \"InternalError\"]\n"
-            )
+        let sut = typeMapOf(
+            "[types.ErrorCodes]\nextern = \"ErrorCode\"\ndeclared = [\"ParseError\", \"InternalError\"]\n"
+        )
 
         // act
         let binding = sut.bind("ErrorCodes")

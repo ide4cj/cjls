@@ -16,15 +16,14 @@ let BENCH_INTERNED =
         VfsPath.file(getTempDirectory().join("src/file_${i}.cj").toString())
     }
 
-let BENCH_INTERNER =
-    {
-        =>
-        let interner = PathInterner()
-        for (path in BENCH_INTERNED) {
-            interner.intern(path)
-        }
-        interner
-    }()
+let BENCH_INTERNER = {
+    =>
+    let interner = PathInterner()
+    for (path in BENCH_INTERNED) {
+        interner.intern(path)
+    }
+    interner
+}()
 
 let BENCH_UNSEEN = VfsPath.file(getTempDirectory().join("src/unseen.cj").toString())
 

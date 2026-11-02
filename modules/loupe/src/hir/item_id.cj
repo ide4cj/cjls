@@ -109,8 +109,12 @@ public class ItemIdMap <: Equatable<ItemIdMap> {
         let builder = ItemIdBuilder()
         if (let Some(root) <- SourceFileNode.cast(tree.syntaxNode())) {
             for (decl in root.importDecls()) {
-                builder
-                    .add(None, ItemKind.Import, compactText(decl.importTree()?.syntax), decl.syntax)
+                builder.add(
+                    None,
+                    ItemKind.Import,
+                    compactText(decl.importTree()?.syntax),
+                    decl.syntax
+                )
             }
             builder.addItems(None, root.decls())
         }

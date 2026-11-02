@@ -212,12 +212,11 @@ private func callableTargets(
         if (declTarget(db, def) != Some(target)) {
             continue
         }
-        commons
-            .add(
-                all: commonsOf(db, def).iterator() |>
-                    filterMap { common: DefId => declTarget(db, common) } |>
-                    collectArray
-            )
+        commons.add(
+            all: commonsOf(db, def).iterator() |>
+                filterMap { common: DefId => declTarget(db, common) } |>
+                collectArray
+        )
     }
     targets.filter { target => !commons.contains(target) }
 }

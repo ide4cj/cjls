@@ -251,8 +251,9 @@ func resolveBinaryType(
                         .itemOf(exportId)
                         .map {
                             one =>
-                            ExtendedType
-                                .DeclType(DefId(db, ItemFile.Binary(other, one.file), one.id))
+                            ExtendedType.DeclType(
+                                DefId(db, ItemFile.Binary(other, one.file), one.id)
+                            )
                         }
                 case _ => None
             }
@@ -390,12 +391,11 @@ class BinaryLowerer {
     }
 
     func lower(): BinaryLowering {
-        let header =
-            PackageItem(
-                pkg.fullPkgName ?? "",
-                pkg.kind == PackageKind.Macro,
-                [accessOf(pkg.access)]
-            )
+        let header = PackageItem(
+            pkg.fullPkgName ?? "",
+            pkg.kind == PackageKind.Macro,
+            [accessOf(pkg.access)]
+        )
         // imports first, as a source file's are
         let imports = Array(fileCount) { file => importsOf(file) }
         for (i in 0..decls.size) {
@@ -543,18 +543,20 @@ class BinaryLowerer {
                 continue
             }
             let isGlob = identifier == "*"
-            let segments =
-                importSegments(spec.prefixPaths.toArray(), identifier, spec.hasDoubleColon)
+            let segments = importSegments(
+                spec.prefixPaths.toArray(),
+                identifier,
+                spec.hasDoubleColon
+            )
             let alias =
                 spec.asIdentifier.flatMap { it => if (it.isEmpty()) { None<String> } else { it } }
             let text =
                 String.join(segments, delimiter: ".") + (if (isGlob) { ".*" } else { "" }) +
                     (alias.map { it => " as ${it}" } ?? "")
             let id = counters[file].next(None, ItemKind.Import, text)
-            imports
-                .add(
-                    ImportItem(id, [modifier], [ImportPath(segments, alias: alias, isGlob: isGlob)])
-                )
+            imports.add(
+                ImportItem(id, [modifier], [ImportPath(segments, alias: alias, isGlob: isGlob)])
+            )
         }
         imports.toArray()
     }

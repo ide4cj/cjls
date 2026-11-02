@@ -465,13 +465,12 @@ private func enumModelOf(
                 }
                 Array<DerivedField>()
             }
-        let variant =
-            DerivedVariant(
-                ident: ident,
-                value: wireValue,
-                payloadTypes: payloadTypes,
-                payloadFields: payloadFields
-            )
+        let variant = DerivedVariant(
+            ident: ident,
+            value: wireValue,
+            payloadTypes: payloadTypes,
+            payloadFields: payloadFields
+        )
         if (!options.other) {
             variants.add(variant)
             continue

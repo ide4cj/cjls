@@ -86,8 +86,9 @@ private func bindingOf(lspName: String, v: FtValue): TypeBinding {
     }
 
     if (fields.size > 1) {
-        throw v
-            .error("`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`")
+        throw v.error(
+            "`types.${lspName}` sets more than one of `rename`, `alias`, `extern`, `skip`"
+        )
     }
 
     let (key, data) = fields[0]

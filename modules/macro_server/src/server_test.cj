@@ -17,10 +17,9 @@ func tokensOf(code: String, column: Int64): Array<TokenData> {
  * The SDK the tests run on, and the directory of its runtime for this host: the one that has std.ast.
  */
 func sdkPaths(): MacroServerPaths {
-    let home =
-        Path(
-            getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
-        )
+    let home = Path(
+        getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+    )
     sdkPaths(
         home,
         Directory
@@ -58,8 +57,10 @@ class SdkPathsTest {
                         ["x86_64", "aarch64"]
                             .map {
                                 arch =>
-                                let dir =
-                                    home.join("runtime").join("lib").join("${os}_${arch}_cjnative")
+                                let dir = home
+                                    .join("runtime")
+                                    .join("lib")
+                                    .join("${os}_${arch}_cjnative")
                                 Directory.create(dir, recursive: true)
                                 let suffix =
                                     match (os) {
@@ -88,8 +89,7 @@ func derivingLibrary(paths: MacroServerPaths): String {
     (
         paths.stdMacroLibrary("std.deriving") ??
             throw IllegalStateException("no libcangjie-std-deriving in ${paths.runtimeLib}")
-    )
-        .toString()
+    ).toString()
 }
 
 /**
@@ -145,8 +145,9 @@ class MacroServerTest {
         let server = startMacroServer(paths)
 
         // act
-        let result =
-            server.connection.expand(deriveCall(paths, "ToString", "class A { let x: Int64 = 1 }"))
+        let result = server
+            .connection
+            .expand(deriveCall(paths, "ToString", "class A { let x: Int64 = 1 }"))
         server.close()
 
         // assert
@@ -165,8 +166,9 @@ class MacroServerTest {
 
         // act
         let failed = server.connection.expand(deriveCall(paths, "NoSuchInterface", "class A {}"))
-        let next =
-            server.connection.expand(deriveCall(paths, "Hashable", "struct P { let x: Int64 = 1 }"))
+        let next = server
+            .connection
+            .expand(deriveCall(paths, "Hashable", "struct P { let x: Int64 = 1 }"))
         server.close()
 
         // assert

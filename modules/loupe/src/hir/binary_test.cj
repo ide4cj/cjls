@@ -98,8 +98,10 @@ class BinaryItemTreeTest {
         let pkg = binaryPackage(db, "std.core", bytes)
 
         // act
-        let string =
-            named(binaryItemTrees(db, pkg)[fileIndex(bytes, "std.core/string.cj")].items, "String")
+        let string = named(
+            binaryItemTrees(db, pkg)[fileIndex(bytes, "std.core/string.cj")].items,
+            "String"
+        )
 
         // assert
         let inits = string.members.filter { member => member.kind == ItemKind.Init }
@@ -250,17 +252,14 @@ class BinaryExportIdTest {
     @TestCase
     func anExportIdIsUniqueInItsPackage() {
         // arrange
-        let home =
-            Path(
-                getVariable("CANGJIE_HOME") ??
-                    throw IllegalStateException("CANGJIE_HOME names no SDK")
-            )
-        let std =
-            Directory
-                .readFrom(home.join("modules"))
-                .filter { target => target.isDirectory() }[0]
-                .path
-                .join("std")
+        let home = Path(
+            getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+        )
+        let std = Directory
+            .readFrom(home.join("modules"))
+            .filter { target => target.isDirectory() }[0]
+            .path
+            .join("std")
         let files = Directory.readFrom(std).filter { entry => entry.name.endsWith(".cjo") }
 
         // act

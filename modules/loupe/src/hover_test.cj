@@ -20,11 +20,10 @@ func checkHover(fixture: String, std!: Array<String> = [], sources!: Bool = fals
         if (std.isEmpty()) {
             parsed.database()
         } else if (sources) {
-            parsed
-                .database(
-                    binaries: std.map { name => stdCjoRead(name, stdCjo(name)) },
-                    models: [stdWithSources(std)]
-                )
+            parsed.database(
+                binaries: std.map { name => stdCjoRead(name, stdCjo(name)) },
+                models: [stdWithSources(std)]
+            )
         } else {
             parsed.database(binaries: std.map { name => stdCjoRead(name, stdCjo(name)) })
         }
@@ -433,10 +432,8 @@ class HoverTest {
     @TestCase
     func aTypeShowsTheInterfacesItsDeriveAdds() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -447,7 +444,7 @@ class HoverTest {
             }
             func g(s: $0S): Unit {}
             "#
-                )
+        )
         let db = deriveDatabase(parsed)
         let cursor = parsed.cursor.getOrThrow()
 
@@ -461,9 +458,8 @@ class HoverTest {
     @TestCase
     func aDeclarationAWorkspaceMacroCopiedShowsWhatItAddedAndTheDocBeforeTheCallAtItsUsesAndAtItself() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             /** a class */
@@ -471,7 +467,7 @@ class HoverTest {
             class C {}
             func f(c: C): Unit {}
             "#
-            )
+        )
         let copied =
             match (requestFor(db, file, "M").input.spans[0].origin) {
                 case FromSource(range) => range
@@ -505,16 +501,15 @@ class HoverTest {
     @TestCase
     func aDeclarationAWorkspaceMacroReplacedShowsTheInterfacesTheExtendsBesideItAdd() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             @M[x]
             class C {}
             func f(c: C): Unit {}
             "#
-            )
+        )
         let copied =
             match (requestFor(db, file, "M").input.spans[0].origin) {
                 case FromSource(range) => range
@@ -1067,9 +1062,9 @@ class BuiltinHoverTest {
     @TestCase[name in PARSER_ANNOTATIONS]
     func everyAnnotationOfTheCompilersIsTold(name: String) {
         // arrange
-        let fixture =
-            Fixture
-                .parse("//- /main.cj module=m package=m\npackage m\n@${name} func f(): Unit {}\n")
+        let fixture = Fixture.parse(
+            "//- /main.cj module=m package=m\npackage m\n@${name} func f(): Unit {}\n"
+        )
         let db = fixture.database()
         let fileId = fixture.file("/main.cj").fileId
 
@@ -1098,8 +1093,9 @@ class BuiltinHoverTest {
         "UIntNative", "Float16", "Float32", "Float64", "Bool", "Rune", "Unit", "Nothing", "VArray"]]
     func everyTypeThatIsAKeywordToldIsOne(name: String) {
         // arrange
-        let fixture =
-            Fixture.parse("//- /main.cj module=m package=m\npackage m\ntype A = ${name}\n")
+        let fixture = Fixture.parse(
+            "//- /main.cj module=m package=m\npackage m\ntype A = ${name}\n"
+        )
         let db = fixture.database()
         let fileId = fixture.file("/main.cj").fileId
 

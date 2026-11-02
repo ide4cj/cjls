@@ -32,8 +32,12 @@ func handleCompletion(
             offsetOf(snap, file, params.position)
         ) ??
             return Nullable.Null
-    let range =
-        lspRange(file.text(snap.analysis), result.range.start, result.range.end, snap.encoding)
+    let range = lspRange(
+        file.text(snap.analysis),
+        result.range.start,
+        result.range.end,
+        snap.encoding
+    )
     let width = "${result.items.size}".size
     let items =
         Array<CompletionItem>(result.items.size) {
@@ -51,16 +55,17 @@ func handleCompletion(
                 detail: count,
                 kind: completionItemKind(item.kind),
                 sortText: "${index}".padStart(width, padding: "0"),
-                textEdit: TextEditOrInsertReplaceEdit
-                    .AsTextEdit(TextEdit(range: range, newText: item.label)),
+                textEdit: TextEditOrInsertReplaceEdit.AsTextEdit(
+                    TextEdit(range: range, newText: item.label)
+                ),
                 data: completionData(uri, params.position, index, item.overloadCount)
             )
         }
-    Nullable
-        .Value(
-            CompletionItemsOrCompletionList
-                .AsCompletionList(CompletionList(isIncomplete: false, items: items))
+    Nullable.Value(
+        CompletionItemsOrCompletionList.AsCompletionList(
+            CompletionList(isIncomplete: false, items: items)
         )
+    )
 }
 
 /**
@@ -92,25 +97,25 @@ func handleCompletionResolve(snap: ServerSnapshot, item: CompletionItem): Comple
     let documentation =
         if (candidate.overloadCount > 1) {
             Some(
-                StringOrMarkupContent
-                    .AsMarkupContent(hoverContent(details, snap.completionMarkdown))
+                StringOrMarkupContent.AsMarkupContent(
+                    hoverContent(details, snap.completionMarkdown)
+                )
             )
         } else {
             detail
                 .doc
                 .map {
                     doc =>
-                    StringOrMarkupContent
-                        .AsMarkupContent(
-                            MarkupContent(
-                                kind: if (snap.completionMarkdown) {
-                                    MarkupKind.Markdown
-                                } else {
-                                    MarkupKind.PlainText
-                                },
-                                value: doc
-                            )
+                    StringOrMarkupContent.AsMarkupContent(
+                        MarkupContent(
+                            kind: if (snap.completionMarkdown) {
+                                MarkupKind.Markdown
+                            } else {
+                                MarkupKind.PlainText
+                            },
+                            value: doc
                         )
+                    )
                 }
         }
     CompletionItem(
@@ -183,16 +188,15 @@ func completionData(
     index: Int64,
     overloadCount: Int64
 ): LSPAny {
-    JsonValue
-        .JsonObject(
-            [
-                ("uri", JsonValue.JsonString(uri)),
-                ("line", JsonValue.JsonInteger(Int64(position.line))),
-                ("character", JsonValue.JsonInteger(Int64(position.character))),
-                ("index", JsonValue.JsonInteger(index)),
-                ("overloads", JsonValue.JsonInteger(overloadCount))
-            ]
-        )
+    JsonValue.JsonObject(
+        [
+            ("uri", JsonValue.JsonString(uri)),
+            ("line", JsonValue.JsonInteger(Int64(position.line))),
+            ("character", JsonValue.JsonInteger(Int64(position.character))),
+            ("index", JsonValue.JsonInteger(index)),
+            ("overloads", JsonValue.JsonInteger(overloadCount))
+        ]
+    )
 }
 
 func completionDataOf(data: ?LSPAny): ?(DocumentUri, Position, Int64, Int64) {
