@@ -139,35 +139,28 @@ func answerOfAQueryParkedUntil(
             }
             snapshot.sourceFile(PARKED_PATH).getOrThrow().text(snapshot.analysis)
         }
-    let server =
-        initialized(
-            lifecycleRouter()
-                .withState(state)
-                .route(HoverRequestSpec()) {
-                    ctx: ReadOnlyContext<HoverParams> =>
-                    let text = parked(ctx.snapshot)
-                    Nullable
-                        .Value(
-                            Hover(
-                                contents: MarkupContentOrMarkedStringOrMarkedStrings
-                                    .AsMarkupContent(
-                                        MarkupContent(
-                                            kind: MarkupKind.PlainText,
-                                            value: text.toString()
-                                        )
-                                    )
-                            )
+    let server = initialized(
+        lifecycleRouter()
+            .withState(state)
+            .route(HoverRequestSpec()) {
+                ctx: ReadOnlyContext<HoverParams> =>
+                let text = parked(ctx.snapshot)
+                Nullable.Value(
+                    Hover(
+                        contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+                            MarkupContent(kind: MarkupKind.PlainText, value: text.toString())
                         )
-                }
-                .route(DocumentDiagnosticRequestSpec()) {
-                    ctx: ReadOnlyContext<DocumentDiagnosticParams> =>
-                    parked(ctx.snapshot)
-                    DocumentDiagnosticReport
-                        .AsRelatedFullDocumentDiagnosticReport(
-                            RelatedFullDocumentDiagnosticReport(items: [])
-                        )
-                }
-        )
+                    )
+                )
+            }
+            .route(DocumentDiagnosticRequestSpec()) {
+                ctx: ReadOnlyContext<DocumentDiagnosticParams> =>
+                parked(ctx.snapshot)
+                DocumentDiagnosticReport.AsRelatedFullDocumentDiagnosticReport(
+                    RelatedFullDocumentDiagnosticReport(items: [])
+                )
+            }
+    )
     let asked = Asked(method, params: hoverParams())
     server.onRequest(asked.request)
 
@@ -189,13 +182,13 @@ func describeHover(
 ): Nullable<Hover> {
     describedClients.add(client)
     let described = "${params.position.line}:${cancellation.isCancelled}"
-    Nullable
-        .Value(
-            Hover(
-                contents: MarkupContentOrMarkedStringOrMarkedStrings
-                    .AsMarkupContent(MarkupContent(kind: MarkupKind.PlainText, value: described))
+    Nullable.Value(
+        Hover(
+            contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+                MarkupContent(kind: MarkupKind.PlainText, value: described)
             )
         )
+    )
 }
 
 @Test
@@ -217,14 +210,13 @@ class ServerLifecycleTest {
     func aNotificationBeforeInitializeIsDropped() {
         // arrange - a `route` handler runs within `onNotification`: once that returns, it has run or never will
         let ran = AtomicBool(false)
-        let server =
-            serverOf(
-                lifecycleRouter()
-                    .route(InitializedNotificationSpec()) {
-                        _: Context<InitializedParams> =>
-                        ran.store(true)
-                    }
-            )
+        let server = serverOf(
+            lifecycleRouter()
+                .route(InitializedNotificationSpec()) {
+                    _: Context<InitializedParams> =>
+                    ran.store(true)
+                }
+        )
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))
@@ -334,15 +326,14 @@ class ServerDispatchTest {
         // arrange - the handler parks until released; `onRequest` returning while it is parked
         // shows it did not run on the calling thread
         let release = LinkedBlockingQueue<Bool>()
-        let server =
-            initialized(
-                lifecycleRouter()
-                    .route(HoverRequestSpec()) {
-                        _: ReadOnlyContext<HoverParams> =>
-                        release.remove()
-                        Nullable<Hover>.Null
-                    }
-            )
+        let server = initialized(
+            lifecycleRouter()
+                .route(HoverRequestSpec()) {
+                    _: ReadOnlyContext<HoverParams> =>
+                    release.remove()
+                    Nullable<Hover>.Null
+                }
+        )
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
         // act
@@ -423,8 +414,10 @@ class ServerDispatchTest {
     func aHandlerGetsItsParamsAndWhatItAsksFor() {
         // arrange
         let client = Client()
-        let server =
-            initialized(lifecycleRouter().route(HoverRequestSpec(), describeHover), client: client)
+        let server = initialized(
+            lifecycleRouter().route(HoverRequestSpec(), describeHover),
+            client: client
+        )
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
         asked.request.cancellation.cancel()
 
@@ -441,11 +434,10 @@ class ServerDispatchTest {
     func paramsTheReadLoopDecodedInPlaceAreTheOnesAHandlerGets() {
         // arrange - the bytes say line 3, what was decoded in place line 7
         let server = initialized(lifecycleRouter().route(HoverRequestSpec(), describeHover))
-        let decoded: Any =
-            HoverParams(
-                textDocument: TextDocumentIdentifier(uri: "file:///a.cj"),
-                position: Position(line: 7, character: 1)
-            )
+        let decoded: Any = HoverParams(
+            textDocument: TextDocumentIdentifier(uri: "file:///a.cj"),
+            position: Position(line: 7, character: 1)
+        )
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams(), decodedParams: decoded)
 
         // act
@@ -474,14 +466,13 @@ class ServerDispatchTest {
     @TestCase
     func aHandlerThatThrowsAnswersWithItsError() {
         // arrange
-        let server =
-            initialized(
-                lifecycleRouter()
-                    .route(HoverRequestSpec()) {
-                        _: Context<HoverParams> =>
-                        throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")
-                    }
-            )
+        let server = initialized(
+            lifecycleRouter()
+                .route(HoverRequestSpec()) {
+                    _: Context<HoverParams> =>
+                    throw RpcException(ErrorCode.UNKNOWN_ERROR_CODE, "no")
+                }
+        )
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
         // act
@@ -494,14 +485,10 @@ class ServerDispatchTest {
     @TestCase
     func aReadOnlyHandlerThatOverflowsItsStackAnswersInternalError() {
         // arrange
-        let server =
-            initialized(
-                lifecycleRouter()
-                    .route(HoverRequestSpec()) {
-                        _: ReadOnlyContext<HoverParams> =>
-                        overflowTheStack()
-                    }
-            )
+        let server = initialized(
+            lifecycleRouter()
+                .route(HoverRequestSpec()) { _: ReadOnlyContext<HoverParams> => overflowTheStack() }
+        )
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
         // act
@@ -514,11 +501,10 @@ class ServerDispatchTest {
     @TestCase
     func aContextHandlerThatOverflowsItsStackAnswersInternalErrorOnTheReadLoop() {
         // arrange - a `Context` handler runs within `onRequest`, so nothing may escape it
-        let server =
-            initialized(
-                lifecycleRouter()
-                    .route(HoverRequestSpec()) { _: Context<HoverParams> => overflowTheStack() }
-            )
+        let server = initialized(
+            lifecycleRouter()
+                .route(HoverRequestSpec()) { _: Context<HoverParams> => overflowTheStack() }
+        )
         let asked = Asked(HoverRequestSpec.METHOD, params: hoverParams())
 
         // act
@@ -532,14 +518,13 @@ class ServerDispatchTest {
     @TestCase
     func aNotificationHandlerThatOverflowsItsStackDoesNotStopTheServer() {
         // arrange
-        let server =
-            initialized(
-                lifecycleRouter()
-                    .route(InitializedNotificationSpec()) {
-                        _: Context<InitializedParams> =>
-                        overflowTheStack()
-                    }
-            )
+        let server = initialized(
+            lifecycleRouter()
+                .route(InitializedNotificationSpec()) {
+                    _: Context<InitializedParams> =>
+                    overflowTheStack()
+                }
+        )
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))
@@ -551,14 +536,13 @@ class ServerDispatchTest {
     @TestCase
     func aNotificationHandlerThatThrowsDoesNotStopTheServer() {
         // arrange
-        let server =
-            initialized(
-                lifecycleRouter()
-                    .route(InitializedNotificationSpec()) {
-                        _: Context<InitializedParams> =>
-                        throw Exception("no")
-                    }
-            )
+        let server = initialized(
+            lifecycleRouter()
+                .route(InitializedNotificationSpec()) {
+                    _: Context<InitializedParams> =>
+                    throw Exception("no")
+                }
+        )
 
         // act
         server.onNotification(InitializedNotificationSpec.METHOD, paramsOf("{}"))

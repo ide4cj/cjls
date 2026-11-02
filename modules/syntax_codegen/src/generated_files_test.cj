@@ -20,11 +20,10 @@ class GeneratedFilesTest {
         // arrange
         let dir = Directory.createTemp(getTempDirectory())
         let path = dir.join("output.cj")
-        File
-            .writeTo(
-                dir.join("cjformat.toml"),
-                "indent_width = 2\nsimple_if = 'compact'\n".toArray()
-            )
+        File.writeTo(
+            dir.join("cjformat.toml"),
+            "indent_width = 2\nsimple_if = 'compact'\n".toArray()
+        )
 
         // act
         try {
@@ -77,10 +76,9 @@ class GeneratedFilesTest {
                 let fresh = dir.join(file.path.fileName)
                 writeFormatted(fresh, file.contents, options: optionsFor(file.path))
                 if (File.readFrom(fresh) != File.readFrom(file.path)) {
-                    stale
-                        .add(
-                            "${file.path} is out of date: `cjpm build`, then `target/release/bin/syntax_codegen ${KINDS_FILE}`"
-                        )
+                    stale.add(
+                        "${file.path} is out of date: `cjpm build`, then `target/release/bin/syntax_codegen ${KINDS_FILE}`"
+                    )
                 }
             }
         } finally {

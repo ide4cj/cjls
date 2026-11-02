@@ -45,14 +45,13 @@ class BinarySourceRootsTest {
     ]
 }
 "##
-        let dir =
-            workspaceOf(
-                [
-                    ("cj-project.json", manifest),
-                    ("lib sources/lib.cj", "package lib"),
-                    ("dep/lib.cj", "package dep")
-                ]
-            )
+        let dir = workspaceOf(
+            [
+                ("cj-project.json", manifest),
+                ("lib sources/lib.cj", "package lib"),
+                ("dep/lib.cj", "package dep")
+            ]
+        )
         try {
             let loop = initializedWith([dir], watches: false)
             let transport = AnsweringTransport(answers: false)

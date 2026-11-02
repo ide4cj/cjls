@@ -14,12 +14,11 @@ class CjpmReplaceTest {
     @TestCase
     func entryReplacementSelectsTheIndirectPath() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        #"
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    #"
 [package]
 name = "app"
 [dependencies]
@@ -27,10 +26,10 @@ a = {path = "a"}
 [replace]
 leaf = {path = "new"}
 "#
-                    ),
-                    (
-                        "a/cjpm.toml",
-                        #"
+                ),
+                (
+                    "a/cjpm.toml",
+                    #"
 [package]
 name = "a"
 [dependencies]
@@ -38,37 +37,37 @@ leaf = {path = "../old"}
 [replace]
 leaf = {path = "../ignored"}
 "#
-                    ),
-                    (
-                        "ignored/cjpm.toml",
-                        #"
+                ),
+                (
+                    "ignored/cjpm.toml",
+                    #"
 [package]
 name = "leaf"
 "#
-                    ),
-                    (
-                        "old/cjpm.toml",
-                        #"
+                ),
+                (
+                    "old/cjpm.toml",
+                    #"
 [package]
 name = "leaf"
 "#
-                    ),
-                    (
-                        "new/cjpm.toml",
-                        #"
+                ),
+                (
+                    "new/cjpm.toml",
+                    #"
 [package]
 name = "leaf"
 "#
-                    ),
-                    (
-                        "new/src/lib.cj",
-                        #"
+                ),
+                (
+                    "new/src/lib.cj",
+                    #"
 package leaf
 public class Selected {}
 "#
-                    )
-                ]
-            )
+                )
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -86,39 +85,38 @@ public class Selected {}
         let section = if (script) { "[script-dependencies]\n" } else { "[dependencies]\n" }
         let scope = if (script) { "build-script" } else { "ordinary/test" }
         let remedy = if (script) { "Align script dependency declarations" } else { "[replace]" }
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "\n[package]\nname = \"app\"\n${section}\na = {path = \"a\"}\nleaf = {path = \"new\"}\n"
-                    ),
-                    ("build.cj", "main() {}\n"),
-                    (
-                        "a/cjpm.toml",
-                        #"
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "\n[package]\nname = \"app\"\n${section}\na = {path = \"a\"}\nleaf = {path = \"new\"}\n"
+                ),
+                ("build.cj", "main() {}\n"),
+                (
+                    "a/cjpm.toml",
+                    #"
 [package]
 name = "a"
 [dependencies]
 leaf = {path = "../old"}
 "#
-                    ),
-                    (
-                        "old/cjpm.toml",
-                        #"
+                ),
+                (
+                    "old/cjpm.toml",
+                    #"
 [package]
 name = "leaf"
 "#
-                    ),
-                    (
-                        "new/cjpm.toml",
-                        #"
+                ),
+                (
+                    "new/cjpm.toml",
+                    #"
 [package]
 name = "leaf"
 "#
-                    )
-                ]
-            )
+                )
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -149,8 +147,11 @@ name = "leaf"
             let script = index.find("leaf", from: PackageRef.Source(secondPackage)).getOrThrow()
             let scriptLeafPackage = sourcePackage(script)
             let scriptLeafFile = db.sourceFile(scriptLeafPackage.files(db)[0]).getOrThrow()
-            let references =
-                findReferences(db, scriptLeafFile.fileId(db), "package leaf\npublic class ".size)
+            let references = findReferences(
+                db,
+                scriptLeafFile.fileId(db),
+                "package leaf\npublic class ".size
+            )
             let ordinaryMap = defMap(db, ordinary)
             let scriptMap = defMap(db, script)
             let firstFile = sourceItemFile(filesOf(db, PackageRef.Source(firstPackage))[0])
@@ -207,12 +208,11 @@ name = "leaf"
             context =>
             // act
             let merged = ProjectModel.merge([context.model], LINUX)
-            let roundTripped =
-                lowerProjectJson(
-                    toProjectJson(context.model, context.dir),
-                    context.dir,
-                    env: sdkEnv
-                )
+            let roundTripped = lowerProjectJson(
+                toProjectJson(context.model, context.dir),
+                context.dir,
+                env: sdkEnv
+            )
             // assert
             @Expect(context.shared.size, 2)
             @Expect(merged.modules.size, context.model.modules.size)
@@ -230,10 +230,9 @@ name = "leaf"
             let secondPackage = context.shared[1].packages(db)[0]
             let firstFile = sourceItemFile(filesOf(db, PackageRef.Source(firstPackage))[0])
             let secondFile = sourceItemFile(filesOf(db, PackageRef.Source(secondPackage))[0])
-            let changed =
-                Rope(
-                    "package shared\nimport leaf.*\npublic func selected(): Selected { Selected() }\npublic func added() {}\n"
-                )
+            let changed = Rope(
+                "package shared\nimport leaf.*\npublic func selected(): Selected { Selected() }\npublic func added() {}\n"
+            )
             // act
             db.setFileText(firstFile.fileId(db), changed)
             let firstEdited = defMap(db, PackageRef.Source(firstPackage))
@@ -259,10 +258,12 @@ name = "leaf"
         withSharedPathProject {
             context =>
             let db = context.db
-            let firstFile =
-                sourceItemFile(filesOf(db, PackageRef.Source(context.shared[0].packages(db)[0]))[0])
-            let secondFile =
-                sourceItemFile(filesOf(db, PackageRef.Source(context.shared[1].packages(db)[0]))[0])
+            let firstFile = sourceItemFile(
+                filesOf(db, PackageRef.Source(context.shared[0].packages(db)[0]))[0]
+            )
+            let secondFile = sourceItemFile(
+                filesOf(db, PackageRef.Source(context.shared[1].packages(db)[0]))[0]
+            )
             // act
             context.shared[1].setCfg(db).to(Some(Cfg([("selection", "script")])))
             let firstCfg = cfgOfFile(db, firstFile)
@@ -281,17 +282,16 @@ name = "leaf"
         let registry = "leaf = \"999.0.0\"\n"
         let direct = if (registryFirst) { registry } else { path }
         let indirect = if (registryFirst) { indirectPath } else { registry }
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[dependencies]\na = {path = \"a\"}\n${direct}"
-                    ),
-                    ("a/cjpm.toml", "[package]\nname = \"a\"\n[dependencies]\n${indirect}"),
-                    ("old/cjpm.toml", "[package]\nname = \"leaf\"\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[dependencies]\na = {path = \"a\"}\n${direct}"
+                ),
+                ("a/cjpm.toml", "[package]\nname = \"a\"\n[dependencies]\n${indirect}"),
+                ("old/cjpm.toml", "[package]\nname = \"leaf\"\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -306,36 +306,35 @@ name = "leaf"
     @TestCase
     func everyRegistryRequirementChecksTheLockedSelection() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        #"
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    #"
 [package]
 name = "app"
 [dependencies]
 a = {path = "a"}
 leaf = "2.0.0"
 "#
-                    ),
-                    (
-                        "a/cjpm.toml",
-                        #"
+                ),
+                (
+                    "a/cjpm.toml",
+                    #"
 [package]
 name = "a"
 [dependencies]
 leaf = "1.0.0"
 "#
-                    ),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
-                    ("cjpm.lock", "version = 0\n[requires]\nleaf = {version = \"1.0.0\"}\n"),
-                    (
-                        "cache/repository/source/default/leaf-1.0.0/cjpm.toml",
-                        "[package]\nname = \"leaf\"\nversion = \"1.0.0\"\n"
-                    )
-                ]
-            )
+                ),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
+                ("cjpm.lock", "version = 0\n[requires]\nleaf = {version = \"1.0.0\"}\n"),
+                (
+                    "cache/repository/source/default/leaf-1.0.0/cjpm.toml",
+                    "[package]\nname = \"leaf\"\nversion = \"1.0.0\"\n"
+                )
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -351,12 +350,11 @@ leaf = "1.0.0"
     @TestCase
     func entryReplacementsLeaveTheScriptSelectionIndependent() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        #"
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    #"
 [package]
 name = "app"
 [dependencies]
@@ -366,12 +364,12 @@ leaf = {path = "old"}
 [replace]
 leaf = {path = "new"}
 "#
-                    ),
-                    ("build.cj", "main() {}\n"),
-                    ("old/cjpm.toml", "[package]\nname = \"leaf\"\n"),
-                    ("new/cjpm.toml", "[package]\nname = \"leaf\"\n")
-                ]
-            )
+                ),
+                ("build.cj", "main() {}\n"),
+                ("old/cjpm.toml", "[package]\nname = \"leaf\"\n"),
+                ("new/cjpm.toml", "[package]\nname = \"leaf\"\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -392,25 +390,24 @@ leaf = {path = "new"}
         let second = "https://example.invalid/second.git"
         let replacement = if (replaced) { "[replace]\nleaf = {git = \"${second}\"}\n" } else { "" }
         let selected = if (replaced) { second } else { first }
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[dependencies]\na = {path = \"a\"}\nleaf = {git = \"${second}\"}\n${replacement}"
-                    ),
-                    (
-                        "a/cjpm.toml",
-                        "[package]\nname = \"a\"\n[dependencies]\nleaf = {git = \"${first}\"}\n"
-                    ),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
-                    (
-                        "cjpm.lock",
-                        "version = 1\n[requires]\nleaf = {source = \"git+${selected}#${GIT_COMMIT}\"}\n"
-                    ),
-                    ("cache/git/leaf/${GIT_COMMIT}/cjpm.toml", "[package]\nname = \"leaf\"\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[dependencies]\na = {path = \"a\"}\nleaf = {git = \"${second}\"}\n${replacement}"
+                ),
+                (
+                    "a/cjpm.toml",
+                    "[package]\nname = \"a\"\n[dependencies]\nleaf = {git = \"${first}\"}\n"
+                ),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
+                (
+                    "cjpm.lock",
+                    "version = 1\n[requires]\nleaf = {source = \"git+${selected}#${GIT_COMMIT}\"}\n"
+                ),
+                ("cache/git/leaf/${GIT_COMMIT}/cjpm.toml", "[package]\nname = \"leaf\"\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -426,16 +423,15 @@ leaf = {path = "new"}
     func registryReplacementsRequireSingleVersionsEvenWhenUnused(reached: Bool) {
         // arrange
         let dependency = if (reached) { "[dependencies]\nleaf = {path = \"old\"}\n" } else { "" }
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n${dependency}[replace]\nleaf = \"[1.0.0, 2.0.0)\"\n"
-                    ),
-                    ("old/cjpm.toml", "[package]\nname = \"leaf\"\n")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n${dependency}[replace]\nleaf = \"[1.0.0, 2.0.0)\"\n"
+                ),
+                ("old/cjpm.toml", "[package]\nname = \"leaf\"\n")
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -493,11 +489,10 @@ func reloadSharedPathProject(context: SharedPathContext): Unit {
     let manifestPath = context.dir.join("cjpm.toml").filePath.getOrThrow()
     let original = File.readFrom(manifestPath)
     // act
-    File
-        .writeTo(
-            manifestPath,
-            "[package]\nname = \"app\"\n[dependencies]\nshared = {path = \"shared\"}\n".toArray()
-        )
+    File.writeTo(
+        manifestPath,
+        "[package]\nname = \"app\"\n[dependencies]\nshared = {path = \"shared\"}\n".toArray()
+    )
     context
         .db
         .setProject(
@@ -605,8 +600,7 @@ path = "cache"
                 "cjpm.lock",
                 "version = 1\n[requires]\nleaf = {source = \"git+https://example.invalid/leaf#${FIRST_COMMIT}\"}\n[scripts]\nleaf = {source = \"git+https://example.invalid/leaf#${SECOND_COMMIT}\"}\n"
             ),
-        ]
-            .concat(sharedPathGitFiles(FIRST_COMMIT, SECOND_COMMIT))
+        ].concat(sharedPathGitFiles(FIRST_COMMIT, SECOND_COMMIT))
     )
 }
 

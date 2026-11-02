@@ -230,12 +230,11 @@ class FetchSrcTest {
     func anArchiveWithoutStdIsAFailureLeavingNothing() {
         // arrange
         let home = sdkHome()
-        let host =
-            FakeSrcHost(
-                VERSION_OUTPUT,
-                HashMap([(GITHUB_NOTES, NOTES)]),
-                [("cangjie_runtime-5d555bcc34d6/README.md", "")]
-            )
+        let host = FakeSrcHost(
+            VERSION_OUTPUT,
+            HashMap([(GITHUB_NOTES, NOTES)]),
+            [("cangjie_runtime-5d555bcc34d6/README.md", "")]
+        )
 
         // act
         let exitCode = fetchSrc(home, home.join("src"), host, ByteBuffer(), ByteBuffer())

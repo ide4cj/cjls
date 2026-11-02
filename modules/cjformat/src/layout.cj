@@ -203,20 +203,19 @@ class LayoutBuilder {
                 // layouts would multiply work at each level of nested if expressions.
                 let expression = element(partsOf(block)[1])
                 flat.add(mark(block, concat([textDoc("{ "), expression, textDoc(" }")])))
-                broken
-                    .add(
-                        mark(
-                            block,
-                            concat(
-                                [
-                                    textDoc("{"),
-                                    indent(concat([hardline(), expression])),
-                                    hardline(),
-                                    textDoc("}")
-                                ]
-                            )
+                broken.add(
+                    mark(
+                        block,
+                        concat(
+                            [
+                                textDoc("{"),
+                                indent(concat([hardline(), expression])),
+                                hardline(),
+                                textDoc("}")
+                            ]
                         )
                     )
+                )
             } else {
                 let doc = element(part)
                 flat.add(doc)
@@ -228,14 +227,16 @@ class LayoutBuilder {
 
     private func assignment(parts: Array<CjSyntaxElement>, context: SyntaxKind): Doc {
         let equals = indexOfKind(parts, Eq) ?? return group(sequence(parts, context))
-        group(
-            concat(
-                [
-                    sequence(parts[..equals + 1], context),
-                    indent(concat([softline(), sequence(parts[equals + 1..], context)]))
-                ]
-            )
-        )
+        let left = sequence(parts[..equals + 1], context)
+        let right = sequence(parts[equals + 1..], context)
+        let broken = concat([left, indent(concat([softline(), right]))])
+        let hasCall = parts[equals + 1].kind == CallExpr
+        let hasOnlyTerminator = parts.size == equals + 3 && parts[equals + 2].kind == Semicolon
+        if (hasCall && (parts.size == equals + 2 || hasOnlyTerminator)) {
+            // A multiline call can still start beside `=`; its arguments own their indentation.
+            return choice(concat([left, textDoc(" "), right]), group(broken))
+        }
+        group(broken)
     }
 
     private func declaration(parts: Array<CjSyntaxElement>, context: SyntaxKind): Doc {
@@ -353,7 +354,21 @@ class LayoutBuilder {
             links.add(base)
             base = receiver
         }
-        let head = ArrayList<Doc>([node(base)])
+        let receiver = node(base)
+        if (links.size == 2 && links[0].kind == CallExpr && links[1].kind == MemberAccessExpr) {
+            // Share the argument document between layouts: rebuilding it here would multiply
+            // the work at each nested member call.
+            let memberParts = partsOf(links[1])
+            let callParts = partsOf(links[0])
+            let member = sequence(memberParts[1..], MemberAccessExpr)
+            let arguments = sequence(callParts[1..], CallExpr)
+            let preferred = concat([receiver, member, arguments])
+            let fallback = group(
+                concat([receiver, indent(concat([softbreak(), member, arguments]))])
+            )
+            return choice(preferred, fallback)
+        }
+        let head = ArrayList<Doc>([receiver])
         let suffix = ArrayList<Doc>()
         var hasMember = false
         for (i in 0..links.size) {
@@ -384,15 +399,14 @@ class LayoutBuilder {
         if (parts.size == 2) {
             return concat([element(parts[0]), element(parts[1])])
         }
-        let doc =
-            concat(
-                [
-                    element(parts[0]),
-                    indent(concat([softbreak(), sequence(parts[1..parts.size - 1], context)])),
-                    softbreak(),
-                    element(parts[parts.size - 1])
-                ]
-            )
+        let doc = concat(
+            [
+                element(parts[0]),
+                indent(concat([softbreak(), sequence(parts[1..parts.size - 1], context)])),
+                softbreak(),
+                element(parts[parts.size - 1])
+            ]
+        )
         if (grouped) { group(doc) } else { doc }
     }
 
@@ -407,26 +421,24 @@ class LayoutBuilder {
         while (i < parts.size) {
             let current = parts[i]
             if (i > 0) {
-                docs
-                    .add(
-                        separator(
-                            parts[i - 1],
-                            current,
-                            context,
-                            statements: statements,
-                            continuation: continuation
-                        )
+                docs.add(
+                    separator(
+                        parts[i - 1],
+                        current,
+                        context,
+                        statements: statements,
+                        continuation: continuation
                     )
+                )
             }
             if (current.kind == LineComment && i > 0 && !hasNewline(parts[i - 1], current)) {
-                docs
-                    .add(
-                        lineSuffix(
-                            textDoc(
-                                " ${source[current.textRange.start..current.textRange.end].trimAsciiEnd()}"
-                            )
+                docs.add(
+                    lineSuffix(
+                        textDoc(
+                            " ${source[current.textRange.start..current.textRange.end].trimAsciiEnd()}"
                         )
                     )
+                )
                 docs.add(hardline())
                 i++
                 continue
@@ -571,13 +583,12 @@ class LayoutBuilder {
                 isLineStart = true
             } else if (isLineStart) {
                 let start = t.textRange.start - n.textRange.start
-                ranges
-                    .add(
-                        TextRange(
-                            start,
-                            start + if (t.kind == Whitespace) { t.textRange.len } else { 0 }
-                        )
+                ranges.add(
+                    TextRange(
+                        start,
+                        start + if (t.kind == Whitespace) { t.textRange.len } else { 0 }
                     )
+                )
                 isLineStart = false
             }
         }
@@ -585,12 +596,10 @@ class LayoutBuilder {
     }
 
     private func comment(t: CjSyntaxToken): Doc {
-        let value =
-            String
-                .join(
-                    t.text().split("\n").map { line => line.trimAsciiEnd() },
-                    delimiter: lineBreakIn(source)
-                )
+        let value = String.join(
+            t.text().split("\n").map { line => line.trimAsciiEnd() },
+            delimiter: lineBreakIn(source)
+        )
         let ranges = ArrayList<TextRange>()
         var offset = 0
         for (line in value.split("\n")) {

@@ -23,6 +23,7 @@ enum Layout {
     | Concat(Array<Doc>)
     | Indented(Doc)
     | Group(Doc)
+    | Choice(Doc, Doc)
     | Line(String)
     | HardLine
     | EmptyLine
@@ -79,6 +80,20 @@ func indent(doc: Doc): Doc {
  */
 func group(doc: Doc): Doc {
     Doc(Group(doc), doc.width, doc.prefixWidth, hasBreak: doc.hasBreak)
+}
+
+/**
+ * Prefers an inline prefix while letting nested groups break independently. Unlike `group`,
+ * fitting the first line does not force the preferred document's argument lists to flatten.
+ * Both alternatives must preserve the same tokens.
+ */
+func choice(preferred: Doc, fallback: Doc): Doc {
+    Doc(
+        Choice(preferred, fallback),
+        preferred.width,
+        preferred.prefixWidth,
+        hasBreak: preferred.hasBreak || fallback.hasBreak
+    )
 }
 
 /**
@@ -215,16 +230,11 @@ class Printer {
                 writeReindented(value, oldIndent, ranges, level)
             case Concat(docs) => pushConcat(docs, frame)
             case Indented(doc) =>
-                stack
-                    .add(
-                        PrintFrame(
-                            doc,
-                            level + indentWidth,
-                            isFlat: isFlat,
-                            reserved: frame.reserved
-                        )
-                    )
+                stack.add(
+                    PrintFrame(doc, level + indentWidth, isFlat: isFlat, reserved: frame.reserved)
+                )
             case Group(doc) => pushGroup(doc, frame)
+            case Choice(preferred, fallback) => pushChoice(preferred, fallback, frame)
             case Line(value) => if (isFlat) { write(value, level) } else { endLine(count: 1) }
             case HardLine => endLine(count: 1)
             case EmptyLine => endLine(count: 2)
@@ -240,8 +250,9 @@ class Printer {
         position.indentation = frame.indentation
         position.column = if (isStart) { 0 } else { column + pendingSpaces }
         position.lineIndent = lineIndent
-        stack
-            .add(PrintFrame(doc, frame.indentation, isFlat: frame.isFlat, reserved: frame.reserved))
+        stack.add(
+            PrintFrame(doc, frame.indentation, isFlat: frame.isFlat, reserved: frame.reserved)
+        )
     }
 
     private func writeReindented(
@@ -274,6 +285,21 @@ class Printer {
         let used = if (isStart) { frame.indentation } else { column + pendingSpaces }
         let isFlat = frame.isFlat || doc.width <= width - used - frame.reserved
         stack.add(PrintFrame(doc, frame.indentation, isFlat: isFlat, reserved: frame.reserved))
+    }
+
+    private func pushChoice(preferred: Doc, fallback: Doc, frame: PrintFrame): Unit {
+        let used = if (isStart) { frame.indentation } else { column + pendingSpaces }
+        // Following punctuation only shares the first line if the preferred layout has no break.
+        let reserved = if (preferred.hasBreak) { 0 } else { frame.reserved }
+        let selected =
+            if (frame.isFlat || preferred.prefixWidth <= width - used - reserved) {
+                preferred
+            } else {
+                fallback
+            }
+        stack.add(
+            PrintFrame(selected, frame.indentation, isFlat: frame.isFlat, reserved: frame.reserved)
+        )
     }
 
     private func flushSuffixes(): Unit {

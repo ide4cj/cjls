@@ -16,8 +16,9 @@ func rangeOf(db: AnalysisDatabase, site: ImportSite): TextRange {
     match (site.file) {
         case ItemFile.Source(file) =>
             let root = parse(db, file).syntaxNode()
-            let decl =
-                ImportDecl.cast(itemIdMap(db, file).node(site.item, root).getOrThrow()).getOrThrow()
+            let decl = ImportDecl
+                .cast(itemIdMap(db, file).node(site.item, root).getOrThrow())
+                .getOrThrow()
             let leaves = ArrayList<ImportTree>()
             leavesOf(decl.importTree().getOrThrow(), leaves)
             tightRange(leaves[site.path].syntax)
@@ -38,19 +39,14 @@ func checkScopeDiagnostics(fixture: String): Unit {
     for (file in parsed.files) {
         let source = db.sourceFile(file.fileId).getOrThrow()
         for (diagnostic in scopeDiagnostics(db, sourcePackageOf(db, file), source)) {
-            actual
-                .add(
-                    match (diagnostic.at) {
-                        case AtImport(site) =>
-                            Annotation(
-                                file.fileId,
-                                rangeOf(db, site),
-                                diagnostic.problem.toString()
-                            )
-                        case AtDecl(def, name) =>
-                            annotationOn(db, def, name, diagnostic.problem.toString())
-                    }
-                )
+            actual.add(
+                match (diagnostic.at) {
+                    case AtImport(site) =>
+                        Annotation(file.fileId, rangeOf(db, site), diagnostic.problem.toString())
+                    case AtDecl(def, name) =>
+                        annotationOn(db, def, name, diagnostic.problem.toString())
+                }
+            )
         }
     }
     expectAnnotations(fixture, actual.toArray())

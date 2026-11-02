@@ -38,8 +38,10 @@ public func looseProject(
     open!: Array<VfsPath> = []
 ): ProjectLoad {
     let loading = Loading(env, cfg)
-    let walk =
-        LooseWalk(budget, HashSet<VfsPath>(open.filter { path => isWorkspaceFile(path, [root]) }))
+    let walk = LooseWalk(
+        budget,
+        HashSet<VfsPath>(open.filter { path => isWorkspaceFile(path, [root]) })
+    )
     walk.walkOpen()
     walk.walk(root)
     let programs = programsOf(walk)
@@ -64,11 +66,10 @@ public func looseProject(
     if (let Some(std) <- loading.stdBinary()) {
         binaries.add(std)
     }
-    let models =
-        modules
-            .toArray()
-            .map { module => ModuleModel(module[0], root, module[1].toArray()) }
-            .concat(programs)
+    let models = modules
+        .toArray()
+        .map { module => ModuleModel(module[0], root, module[1].toArray()) }
+        .concat(programs)
     // the programs after the `default` of the root, the modules in the order of their names
     sort(models, stable: true, by: { a: ModuleModel, b: ModuleModel => a.name.compare(b.name) })
     let model = ProjectModel(cfg, models, binaries: binaries.toArray())

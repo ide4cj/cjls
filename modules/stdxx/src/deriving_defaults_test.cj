@@ -91,10 +91,9 @@ class DeriveDefaultsTest {
     @TestCase
     func presentFieldsOverrideDefaultsAndExplicitNullStaysNone(): Unit {
         // act
-        let json =
-            fromJsonBytes<StrictDefaults>(
-                #"{"line_width":80,"label":"given","optional":null}"#.toArray()
-            )
+        let json = fromJsonBytes<StrictDefaults>(
+            #"{"line_width":80,"label":"given","optional":null}"#.toArray()
+        )
         let toml = fromTomlString<StrictDefaults>("line_width = 80\nlabel = 'given'\noptional = 9")
 
         // assert
@@ -110,8 +109,9 @@ class DeriveDefaultsTest {
     func explicitNullRetainsBothNullableShapes(): Unit {
         // act
         let absent = fromJsonBytes<NullableDefaults>("{}".toArray())
-        let present =
-            fromJsonBytes<NullableDefaults>(#"{"required":null,"optional":null}"#.toArray())
+        let present = fromJsonBytes<NullableDefaults>(
+            #"{"required":null,"optional":null}"#.toArray()
+        )
 
         // assert
         @Expect(match (absent.required) { case Nullable.Value(value) => value == 9; case _ => false })

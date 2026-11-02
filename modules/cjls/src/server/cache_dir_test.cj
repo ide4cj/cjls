@@ -133,14 +133,13 @@ class CacheDirTest {
         let base = Directory.createTemp(getTempDirectory())
         writeText(base.join(".cache"), "")
         let user = Directory.createTemp(getTempDirectory())
-        let env =
-            cacheEnv(
-                [
-                    ("XDG_CACHE_HOME", user.toString()),
-                    ("HOME", user.toString()),
-                    ("LOCALAPPDATA", user.toString())
-                ]
-            )
+        let env = cacheEnv(
+            [
+                ("XDG_CACHE_HOME", user.toString()),
+                ("HOME", user.toString()),
+                ("LOCALAPPDATA", user.toString())
+            ]
+        )
         let project = VfsPath.file(base)
 
         // act

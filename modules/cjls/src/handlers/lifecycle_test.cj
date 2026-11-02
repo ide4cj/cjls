@@ -25,8 +25,11 @@ private func session(messages: Array<String>): (Int64, Array<ResponseBody>) {
     }
     let output = ByteBuffer()
 
-    let exitCode =
-        serve(FramedJsonRpcTransport(input, output, NoopLogger()), router(), NoopLogger())
+    let exitCode = serve(
+        FramedJsonRpcTransport(input, output, NoopLogger()),
+        router(),
+        NoopLogger()
+    )
 
     let responses = FramedJsonRpcTransport(output, ByteBuffer(), NoopLogger())
     let bodies = ArrayList<ResponseBody>()
@@ -43,15 +46,14 @@ class LifecycleTest {
     @TestCase
     func aWholeSessionShutsDownCleanly() {
         // act
-        let (exitCode, responses) =
-            session(
-                [
-                    ##"{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": null, "capabilities": {}}}"##,
-                    ##"{"jsonrpc": "2.0", "method": "initialized", "params": {}}"##,
-                    ##"{"jsonrpc": "2.0", "id": 2, "method": "shutdown"}"##,
-                    ##"{"jsonrpc": "2.0", "method": "exit"}"##
-                ]
-            )
+        let (exitCode, responses) = session(
+            [
+                ##"{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": null, "capabilities": {}}}"##,
+                ##"{"jsonrpc": "2.0", "method": "initialized", "params": {}}"##,
+                ##"{"jsonrpc": "2.0", "id": 2, "method": "shutdown"}"##,
+                ##"{"jsonrpc": "2.0", "method": "exit"}"##
+            ]
+        )
 
         // assert
         @Expect(0, exitCode)
@@ -66,12 +68,11 @@ class LifecycleTest {
     @TestCase
     func aHangUpWithoutExitIsNoCleanExit() {
         // act
-        let (exitCode, _) =
-            session(
-                [
-                    ##"{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": null, "capabilities": {}}}"##
-                ]
-            )
+        let (exitCode, _) = session(
+            [
+                ##"{"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {"processId": null, "rootUri": null, "capabilities": {}}}"##
+            ]
+        )
 
         // assert
         @Expect(1, exitCode)
@@ -99,17 +100,16 @@ class InitializeTest {
         let state = ServerState()
 
         // act
-        let result =
-            handleInitialize(
-                state,
-                Client(),
-                NoopLogger(),
-                InitializeParams(
-                    processId: Nullable.Null,
-                    rootUri: Nullable.Null,
-                    capabilities: capabilities
-                )
+        let result = handleInitialize(
+            state,
+            Client(),
+            NoopLogger(),
+            InitializeParams(
+                processId: Nullable.Null,
+                rootUri: Nullable.Null,
+                capabilities: capabilities
             )
+        )
 
         // assert
         @Expect(state.encoding, expected)

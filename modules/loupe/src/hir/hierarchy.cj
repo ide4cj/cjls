@@ -16,8 +16,9 @@ public func packageSubtypes(db: AnalysisDatabase, pkg: PackageRef): IndexMap<Def
     let found = IndexMap<DefId, ArrayList<DefId>>()
     let files = filesOf(db, pkg)
     for (
-        file in files
-            .concat(files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray)
+        file in files.concat(
+            files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray
+        )
     ) {
         for (item in itemTreeOf(db, file).items where isSubtypeItem(item.kind)) {
             let def = DefId(db, file, item.id)

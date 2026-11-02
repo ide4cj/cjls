@@ -41,15 +41,14 @@ class ResolveEnumTest {
     @TestCase
     func aClosedEnumerationIsAnEnumOfItsValuesWithACatchAll() {
         // arrange
-        let sut =
-            enumerationOf(
-                "MarkupKind",
-                EnumerationBaseType.String,
-                [
-                    ("PlainText", IntegerOrString.String("plaintext")),
-                    ("Markdown", IntegerOrString.String("Markdown"))
-                ]
-            )
+        let sut = enumerationOf(
+            "MarkupKind",
+            EnumerationBaseType.String,
+            [
+                ("PlainText", IntegerOrString.String("plaintext")),
+                ("Markdown", IntegerOrString.String("Markdown"))
+            ]
+        )
 
         // act
         let ir = resolved(sut).getOrThrow()
@@ -71,12 +70,11 @@ class ResolveEnumTest {
     @TestCase
     func aValueIsGivenWhenCasingMovesTheIdentifierAwayFromIt() {
         // arrange
-        let sut =
-            enumerationOf(
-                "Kind",
-                EnumerationBaseType.String,
-                [("markdown", IntegerOrString.String("markdown"))]
-            )
+        let sut = enumerationOf(
+            "Kind",
+            EnumerationBaseType.String,
+            [("markdown", IntegerOrString.String("markdown"))]
+        )
 
         // act
         let ir = resolved(sut).getOrThrow()
@@ -89,12 +87,11 @@ class ResolveEnumTest {
     @TestCase
     func anIntegerVariantAlwaysGivesItsValue() {
         // arrange
-        let sut =
-            enumerationOf(
-                "MessageType",
-                EnumerationBaseType.Integer,
-                [("Error", IntegerOrString.Integer(1))]
-            )
+        let sut = enumerationOf(
+            "MessageType",
+            EnumerationBaseType.Integer,
+            [("Error", IntegerOrString.Integer(1))]
+        )
 
         // act
         let ir = resolved(sut).getOrThrow()
@@ -106,13 +103,12 @@ class ResolveEnumTest {
     @TestCase
     func anOpenEnumerationIsATransparentStructOfConstants() {
         // arrange
-        let sut =
-            enumerationOf(
-                "ErrorCodes",
-                EnumerationBaseType.Integer,
-                [("ParseError", IntegerOrString.Integer(-32700))],
-                isOpen: true
-            )
+        let sut = enumerationOf(
+            "ErrorCodes",
+            EnumerationBaseType.Integer,
+            [("ParseError", IntegerOrString.Integer(-32700))],
+            isOpen: true
+        )
 
         // act
         let ir = resolved(sut).getOrThrow()
@@ -127,19 +123,17 @@ class ResolveEnumTest {
     @TestCase
     func aValueTheTargetDeclaresItselfIsLeftToIt() {
         // arrange
-        let sut =
-            enumerationOf(
-                "ErrorCodes",
-                EnumerationBaseType.Integer,
-                [
-                    ("ParseError", IntegerOrString.Integer(-32700)),
-                    ("ServerNotInitialized", IntegerOrString.Integer(-32002))
-                ]
-            )
-        let typeMap =
-            TypeMap(
-                entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseError"]))])
-            )
+        let sut = enumerationOf(
+            "ErrorCodes",
+            EnumerationBaseType.Integer,
+            [
+                ("ParseError", IntegerOrString.Integer(-32700)),
+                ("ServerNotInitialized", IntegerOrString.Integer(-32002))
+            ]
+        )
+        let typeMap = TypeMap(
+            entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseError"]))])
+        )
 
         // act
         let ir = resolved(sut, typeMap: typeMap).getOrThrow()
@@ -151,16 +145,14 @@ class ResolveEnumTest {
     @TestCase
     func declaringAValueTheEnumerationDoesNotHaveIsRefused() {
         // arrange
-        let sut =
-            enumerationOf(
-                "ErrorCodes",
-                EnumerationBaseType.Integer,
-                [("ParseError", IntegerOrString.Integer(-32700))]
-            )
-        let typeMap =
-            TypeMap(
-                entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseErorr"]))])
-            )
+        let sut = enumerationOf(
+            "ErrorCodes",
+            EnumerationBaseType.Integer,
+            [("ParseError", IntegerOrString.Integer(-32700))]
+        )
+        let typeMap = TypeMap(
+            entries: HashMap([("ErrorCodes", TypeBinding.Extern("ErrorCode", ["ParseErorr"]))])
+        )
 
         // act & assert
         @AssertThrows[IllegalStateException](resolved(sut, typeMap: typeMap))
@@ -172,14 +164,14 @@ class ResolveEnumTest {
     @TestCase
     func anExternEnumerationAdoptsItsConstantsOntoTheTarget() {
         // arrange
-        let sut =
-            enumerationOf(
-                "LSPErrorCodes",
-                EnumerationBaseType.Integer,
-                [("RequestFailed", IntegerOrString.Integer(-32803))]
-            )
-        let typeMap =
-            TypeMap(entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode", []))]))
+        let sut = enumerationOf(
+            "LSPErrorCodes",
+            EnumerationBaseType.Integer,
+            [("RequestFailed", IntegerOrString.Integer(-32803))]
+        )
+        let typeMap = TypeMap(
+            entries: HashMap([("LSPErrorCodes", TypeBinding.Extern("ErrorCode", []))])
+        )
 
         // act
         let ir = resolved(sut, typeMap: typeMap).getOrThrow()
@@ -202,12 +194,11 @@ class ResolveEnumTest {
     @TestCase[binding in [TypeBinding.Skipped, TypeBinding.Aliased("JsonValue")]]
     func aSkippedOrAliasedEnumerationYieldsNothingToEmit(binding: TypeBinding) {
         // arrange
-        let sut =
-            enumerationOf(
-                "ErrorCodes",
-                EnumerationBaseType.Integer,
-                [("ParseError", IntegerOrString.Integer(-32700))]
-            )
+        let sut = enumerationOf(
+            "ErrorCodes",
+            EnumerationBaseType.Integer,
+            [("ParseError", IntegerOrString.Integer(-32700))]
+        )
 
         // act
         let ir = resolved(sut, typeMap: TypeMap(entries: HashMap([("ErrorCodes", binding)])))
@@ -219,12 +210,11 @@ class ResolveEnumTest {
     @TestCase
     func aVariantThatTakesTheCatchAllsNameFailsGeneration() {
         // arrange
-        let sut =
-            enumerationOf(
-                "Kind",
-                EnumerationBaseType.String,
-                [("Unknown", IntegerOrString.String("unknown"))]
-            )
+        let sut = enumerationOf(
+            "Kind",
+            EnumerationBaseType.String,
+            [("Unknown", IntegerOrString.String("unknown"))]
+        )
 
         // act
         let e = @AssertThrows[IllegalStateException](resolved(sut))
@@ -243,32 +233,31 @@ class EmitEnumTest {
     @TestCase
     func aClosedEnumOpensWithItsDerivesAndMarksOnlyTheVariantsThatNeedIt() {
         // arrange
-        let sut =
-            EnumIr(
-                EnumBase.StringBase,
-                DocIr(),
-                ident: "MarkupKind",
-                variants: [
-                    EnumVariantIr(
-                        DocIr(),
-                        ident: "PlainText",
-                        value: IntegerOrString.String("plaintext"),
-                        serde: SerdeMemberOptions(value: IntegerOrString.String("plaintext"))
-                    ),
-                    EnumVariantIr(
-                        DocIr(),
-                        ident: "Markdown",
-                        value: IntegerOrString.String("Markdown"),
-                        serde: SerdeMemberOptions()
-                    )
-                ],
-                derives: [DeriveIr.Json(SerdeTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable],
-                catchAll: EnumCatchAllIr(
-                    DocIr(documentation: "Anything else."),
-                    ident: "Unknown",
-                    serde: SerdeMemberOptions(other: true)
+        let sut = EnumIr(
+            EnumBase.StringBase,
+            DocIr(),
+            ident: "MarkupKind",
+            variants: [
+                EnumVariantIr(
+                    DocIr(),
+                    ident: "PlainText",
+                    value: IntegerOrString.String("plaintext"),
+                    serde: SerdeMemberOptions(value: IntegerOrString.String("plaintext"))
+                ),
+                EnumVariantIr(
+                    DocIr(),
+                    ident: "Markdown",
+                    value: IntegerOrString.String("Markdown"),
+                    serde: SerdeMemberOptions()
                 )
+            ],
+            derives: [DeriveIr.Json(SerdeTypeOptions()), DeriveIr.Equatable, DeriveIr.Hashable],
+            catchAll: EnumCatchAllIr(
+                DocIr(documentation: "Anything else."),
+                ident: "Unknown",
+                serde: SerdeMemberOptions(other: true)
             )
+        )
         let expected =
             """
 @DeriveExt[ToJson, FromJson]
@@ -296,21 +285,16 @@ public enum MarkupKind{
     @TestCase
     func anOpenEnumIsATransparentStruct() {
         // arrange
-        let sut =
-            EnumIr(
-                EnumBase.Int32Base,
-                DocIr(),
-                isOpen: true,
-                ident: "ErrorCodes",
-                variants: [
-                    EnumVariantIr(
-                        DocIr(),
-                        ident: "PARSE_ERROR",
-                        value: IntegerOrString.Integer(-32700)
-                    )
-                ],
-                derives: [DeriveIr.Json(SerdeTypeOptions(transparent: true)), DeriveIr.Equatable]
-            )
+        let sut = EnumIr(
+            EnumBase.Int32Base,
+            DocIr(),
+            isOpen: true,
+            ident: "ErrorCodes",
+            variants: [
+                EnumVariantIr(DocIr(), ident: "PARSE_ERROR", value: IntegerOrString.Integer(-32700))
+            ],
+            derives: [DeriveIr.Json(SerdeTypeOptions(transparent: true)), DeriveIr.Equatable]
+        )
         let expected =
             """
 @DeriveExt[ToJson, FromJson]
@@ -337,20 +321,19 @@ public struct ErrorCodes{
     @TestCase
     func adoptedConstantsAreStaticPropsOnAnInterfaceTheTargetIsExtendedWith() {
         // arrange
-        let sut =
-            EnumIr(
-                EnumBase.Int32Base,
-                DocIr(),
-                shape: Adopted("ErrorCode"),
-                ident: "LSPErrorCodes",
-                variants: [
-                    EnumVariantIr(
-                        DocIr(),
-                        ident: "REQUEST_FAILED",
-                        value: IntegerOrString.Integer(-32803)
-                    )
-                ]
-            )
+        let sut = EnumIr(
+            EnumBase.Int32Base,
+            DocIr(),
+            shape: Adopted("ErrorCode"),
+            ident: "LSPErrorCodes",
+            variants: [
+                EnumVariantIr(
+                    DocIr(),
+                    ident: "REQUEST_FAILED",
+                    value: IntegerOrString.Integer(-32803)
+                )
+            ]
+        )
         let expected =
             """
 sealed interface LSPErrorCodes{

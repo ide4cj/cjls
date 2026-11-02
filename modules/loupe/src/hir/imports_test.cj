@@ -62,8 +62,12 @@ func checkImport(fixture: String): Unit {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database()
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
-    let file =
-        parsed.files.iterator().filter { file => file.fileId == cursor.fileId }.next().getOrThrow()
+    let file = parsed
+        .files
+        .iterator()
+        .filter { file => file.fileId == cursor.fileId }
+        .next()
+        .getOrThrow()
     let source = db.sourceFile(file.fileId).getOrThrow()
     let root = parse(db, source).syntaxNode()
     let ids = itemIdMap(db, source)
@@ -557,16 +561,14 @@ class ImportsTest {
     @TestCase
     func aDeclarationAddedToAPackageLeavesTheExportsOfOneReExportingAnotherNameAlone() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /a/a.cj module=m package=m.a
             public class X {}
             //- /b/b.cj module=m package=m.b
             public import m.a.X
             "#
-                )
+        )
         let db = parsed.database()
         let b = packageOf(db, parsed.files[1])
         let names = exportedNames(db, b)

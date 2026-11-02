@@ -594,13 +594,12 @@ func isAccessibleMember(db: AnalysisDatabase, def: DefId, id: DefId, item: Item)
                         isSubtypeOf(db, around.getOrThrow(), ownerType.getOrThrow())
                 )
         case level =>
-            level
-                .isSeen(
-                    by: relationOf(
-                        packageNameOf(db, def) ?? return false,
-                        packageNameOf(db, id) ?? return false
-                    )
+            level.isSeen(
+                by: relationOf(
+                    packageNameOf(db, def) ?? return false,
+                    packageNameOf(db, id) ?? return false
                 )
+            )
     }
 }
 

@@ -79,8 +79,12 @@ public func expandAll(
             .map {
                 one =>
                 let (file, request, library) = one
-                let (call, layout) =
-                    callDataOf(request, request.definition.pkgName(db), library.path, numbers)
+                let (call, layout) = callDataOf(
+                    request,
+                    request.definition.pkgName(db),
+                    library.path,
+                    numbers
+                )
                 (file, request, macroCallKeyOf(db, request.call), call, layout)
             }
     let answers = ArrayList<(SourceFile, MacroCallKey, MacroOutput)>()
@@ -246,11 +250,10 @@ public class GuardedServer <: Expander {
             process = None
             killQuietly(server)
             if (inTime) {
-                logger
-                    .warn(
-                        "the macro server exited",
-                        [("macro", call.methodName ?? ""), ("cause", e)]
-                    )
+                logger.warn(
+                    "the macro server exited",
+                    [("macro", call.methodName ?? ""), ("cause", e)]
+                )
                 Unanswered("the macro server exited")
             } else {
                 Unanswered(pastDeadline())

@@ -31,21 +31,24 @@ class CallHierarchyHandlerTest {
     @TestCase
     func roundTripsItemsAndUsesTheCallersUtf16Ranges() {
         // arrange
-        let (state, dir) =
-            loaded(
-                [
-                    ("a.cj", "package m\nfunc target(): Unit {}\n"),
-                    ("b.cj", "package m\n/* 😀 */ func caller(): Unit { target(); target() }\n")
-                ]
-            )
+        let (state, dir) = loaded(
+            [
+                ("a.cj", "package m\nfunc target(): Unit {}\n"),
+                ("b.cj", "package m\n/* 😀 */ func caller(): Unit { target(); target() }\n")
+            ]
+        )
         let target = prepareHierarchy(state, dir.join("a.cj"), 5)[0]
         let caller = prepareHierarchy(state, dir.join("b.cj"), 14)[0]
 
         // act
-        let incoming =
-            handleIncomingCalls(state.snapshot(), CallHierarchyIncomingCallsParams(item: target))
-        let outgoing =
-            handleOutgoingCalls(state.snapshot(), CallHierarchyOutgoingCallsParams(item: caller))
+        let incoming = handleIncomingCalls(
+            state.snapshot(),
+            CallHierarchyIncomingCallsParams(item: target)
+        )
+        let outgoing = handleOutgoingCalls(
+            state.snapshot(),
+            CallHierarchyOutgoingCallsParams(item: caller)
+        )
 
         // assert
         @Expect(target.kind, SymbolKind.Function)
@@ -77,26 +80,28 @@ class CallHierarchyHandlerTest {
         let leaf = prepareHierarchy(state, dir.join("a.cj"), 5)[0]
 
         // act
-        let outgoing =
-            handleOutgoingCalls(state.snapshot(), CallHierarchyOutgoingCallsParams(item: leaf))
-        let unknown =
-            handlePrepareCallHierarchy(
-                state.snapshot(),
-                CallHierarchyPrepareParams(
-                    textDocument: TextDocumentIdentifier(uri: uriOf(dir.join("missing.cj"))),
-                    position: Position(line: 0, character: 0)
-                )
+        let outgoing = handleOutgoingCalls(
+            state.snapshot(),
+            CallHierarchyOutgoingCallsParams(item: leaf)
+        )
+        let unknown = handlePrepareCallHierarchy(
+            state.snapshot(),
+            CallHierarchyPrepareParams(
+                textDocument: TextDocumentIdentifier(uri: uriOf(dir.join("missing.cj"))),
+                position: Position(line: 0, character: 0)
             )
-        let renamed =
-            CallHierarchyItem(
-                name: "missing",
-                kind: leaf.kind,
-                uri: leaf.uri,
-                range: leaf.range,
-                selectionRange: leaf.selectionRange
-            )
-        let stale =
-            handleIncomingCalls(state.snapshot(), CallHierarchyIncomingCallsParams(item: renamed))
+        )
+        let renamed = CallHierarchyItem(
+            name: "missing",
+            kind: leaf.kind,
+            uri: leaf.uri,
+            range: leaf.range,
+            selectionRange: leaf.selectionRange
+        )
+        let stale = handleIncomingCalls(
+            state.snapshot(),
+            CallHierarchyIncomingCallsParams(item: renamed)
+        )
 
         // assert
         match (outgoing) {

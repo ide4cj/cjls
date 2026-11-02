@@ -222,17 +222,16 @@ public class Fixture {
                 while (last < count && !isHeader(lines[last])) {
                     last++
                 }
-                files
-                    .add(
-                        parseFile(
-                            lines[first],
-                            lines[first + 1..last],
-                            last < count || broken,
-                            paths,
-                            annotations,
-                            markers
-                        )
+                files.add(
+                    parseFile(
+                        lines[first],
+                        lines[first + 1..last],
+                        last < count || broken,
+                        paths,
+                        annotations,
+                        markers
                     )
+                )
                 first = last
             }
         }
@@ -294,11 +293,10 @@ public class Fixture {
                     db.setFileText(file.fileId, Rope(file.text))
                 }
                 for (path in model.binarySourceFiles()) {
-                    db
-                        .setFileText(
-                            paths.intern(path),
-                            readFile(path) ?? throw FixtureException("${path} cannot be read")
-                        )
+                    db.setFileText(
+                        paths.intern(path),
+                        readFile(path) ?? throw FixtureException("${path} cannot be read")
+                    )
                 }
             }
         db

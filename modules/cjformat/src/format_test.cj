@@ -28,12 +28,10 @@ func code(text: String): String {
             .iterator() |>
             min
     let shared = indent ?? 0
-    let joined =
-        String
-            .join(
-                body.map { line => if (line.trimAscii().isEmpty()) { "" } else { line[shared..] } },
-                delimiter: "\n"
-            )
+    let joined = String.join(
+        body.map { line => if (line.trimAscii().isEmpty()) { "" } else { line[shared..] } },
+        delimiter: "\n"
+    )
     "${joined}\n"
 }
 
@@ -226,6 +224,99 @@ class FormatTest {
         // assert
         @Expect(formatted, Some(expected))
         @Expect(problems, [])
+    }
+
+    @TestCase
+    func nestedCallsBreakArgumentsBeforeAssignmentsAndMemberAccess(): Unit {
+        // arrange
+        let expected = code(
+            #"
+            func f() {
+                if (ok) {
+                    if (ok) {
+                        if (ok) {
+                            if (ok) {
+                                if (ok) {
+                                    if (ok) {
+                                        let id = lowering.add(
+                                            Expr.LambdaExpr(accessorParams, lowering.block(accessor.block())),
+                                            accessor.syntax
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            "#
+        )
+        let source = expected.replace("\n", " ")
+
+        // act
+        let formatted = formatText(source)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        check(source, expected)
+    }
+
+    @TestCase
+    func aCallHeadFitsExactlyOrMovesAfterTheEquals(): Unit {
+        // arrange
+        let source = "let x = receiver.method(firstArgument, secondArgument)"
+        let inline = "let x = receiver.method(\n    firstArgument,\n    secondArgument\n)\n"
+        let broken =
+            "let x =\n    receiver.method(\n        firstArgument,\n        secondArgument\n    )\n"
+        let exact = FormatOptions(lineWidth: 24)
+        let narrow = FormatOptions(lineWidth: 23)
+
+        // act
+        let formatted = formatText(source, options: exact)
+        let moved = formatText(source, options: narrow)
+
+        // assert
+        @Expect(formatted, Some(inline))
+        @Expect(moved, Some(broken))
+        @Expect(formattingProblems("exact", source, options: exact), [])
+        @Expect(formattingProblems("narrow", source, options: narrow), [])
+    }
+
+    @TestCase
+    func aMemberCallSplitsBeforeTheDotWhenItsCalleeDoesNotFit(): Unit {
+        // arrange
+        let source = "func f() { receiver.method(firstArgument, secondArgument) }"
+        let options = FormatOptions(lineWidth: 19)
+        let expected =
+            "func f() {\n    receiver\n        .method(\n            firstArgument,\n            secondArgument\n        )\n}\n"
+
+        // act
+        let formatted = formatText(source, options: options)
+
+        // assert
+        @Expect(formatted, Some(expected))
+        @Expect(formattingProblems("callee", source, options: options), [])
+    }
+
+    @TestCase
+    func aCallInitializerKeepsItsSemicolonAndFollowingStatement(): Unit {
+        // arrange
+        let source = "func f() { let x = receiver.method(first, // keep\nsecond); next() }"
+        let expected =
+            "func f() {\n    let x = receiver.method(\n        first, // keep\n        second\n    );\n    next()\n}\n"
+
+        // act / assert
+        check(source, expected)
+    }
+
+    @TestCase
+    func aMemberCallWithCommentsKeepsItsCalleeTogether(): Unit {
+        // arrange
+        let source = "let x = receiver.method(first, // keep\nsecond)"
+        let expected = "let x = receiver.method(\n    first, // keep\n    second\n)\n"
+
+        // act / assert
+        check(source, expected)
     }
 
     @TestCase

@@ -14,13 +14,12 @@ import loupe.hir.*
  * The database of `parsed` with std.core's and std.deriving's `.cjo`s.
  */
 func deriveDatabase(parsed: Fixture): AnalysisDatabase {
-    parsed
-        .database(
-            binaries: [
-                stdCjoRead("std.core", stdCjo("std.core")),
-                stdCjoRead("std.deriving", stdCjo("std.deriving"))
-            ]
-        )
+    parsed.database(
+        binaries: [
+            stdCjoRead("std.core", stdCjo("std.core")),
+            stdCjoRead("std.deriving", stdCjo("std.deriving"))
+        ]
+    )
 }
 
 /**
@@ -72,13 +71,10 @@ const EXPANSION_MACROS =
  */
 func expansionDatabase(text: String): (AnalysisDatabase, SourceFile) {
     let indented = trimIndent(text).split("\n").map { line => "    " + line }
-    let parsed =
-        Fixture
-            .parse(
-                "\n    //- /main.cj module=m package=m\n" + String.join(indented, delimiter: "\n") +
-                    "\n" +
-                    EXPANSION_MACROS
-            )
+    let parsed = Fixture.parse(
+        "\n    //- /main.cj module=m package=m\n" + String.join(indented, delimiter: "\n") + "\n" +
+            EXPANSION_MACROS
+    )
     let db = parsed.database()
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow())
 }
@@ -115,27 +111,25 @@ func answer(
  * `@M[x] class C {}` answered by an output copying `class C {}` and writing a class `Gen` and a function `make`.
  */
 func answeredM(): (AnalysisDatabase, SourceFile, MacroCallId, String) {
-    let (db, file) =
-        expansionDatabase(
-            #"
+    let (db, file) = expansionDatabase(
+        #"
         package m
         import m.ms.*
         @M[x]
         class C {}
         "#
-        )
+    )
     let text = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T): C { C() }"
-    let call =
-        answer(
-            db,
-            file,
-            "M",
-            text,
-            [
-                MappedSpan(TextRange(0, 10), SpanOrigin.FromSource(TextRange(6, 16))),
-                MappedSpan(TextRange(11, text.size), SpanOrigin.FromCall)
-            ]
-        )
+    let call = answer(
+        db,
+        file,
+        "M",
+        text,
+        [
+            MappedSpan(TextRange(0, 10), SpanOrigin.FromSource(TextRange(6, 16))),
+            MappedSpan(TextRange(11, text.size), SpanOrigin.FromCall)
+        ]
+    )
     (db, file, call, text)
 }
 
@@ -273,31 +267,28 @@ class MacroCallAtTest {
     @TestCase
     func anInnerCallOfTheWorkspaceIsTheCallReadOnItsItemPositionedAtItsOutput() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             @A @B class X {}
             "#
-            )
+        )
         // relative to `@A`: `@B` is 3..5
-        let inner =
-            answer(
-                db,
-                file,
-                "B",
-                "class X {}\nclass Y {}",
-                [MappedSpan(TextRange(0, 21), SpanOrigin.FromCall)]
-            )
-        let read =
-            answer(
-                db,
-                file,
-                "A",
-                "class X {}\nclass Y {}",
-                [MappedSpan(TextRange(0, 21), SpanOrigin.FromSource(TextRange(3, 5)))]
-            )
+        let inner = answer(
+            db,
+            file,
+            "B",
+            "class X {}\nclass Y {}",
+            [MappedSpan(TextRange(0, 21), SpanOrigin.FromCall)]
+        )
+        let read = answer(
+            db,
+            file,
+            "A",
+            "class X {}\nclass Y {}",
+            [MappedSpan(TextRange(0, 21), SpanOrigin.FromSource(TextRange(3, 5)))]
+        )
         let source = file.text(db).toString()
         let b = offsetIn(source, "@B", plus: 1)
 
@@ -317,9 +308,8 @@ class MacroCallAtTest {
     @TestCase
     func aCallOnAParameterIsTheCallReadOnItsTypeAndTheDeclarationUnderItIsTheParameter() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             @A
@@ -327,18 +317,22 @@ class MacroCallAtTest {
                 S(@M[x] let a: Int64) {}
             }
             "#
-            )
-        let inner =
-            answer(
-                db,
-                file,
-                "M",
-                "let a: Int64 = 0",
-                [MappedSpan(TextRange(0, 16), SpanOrigin.FromCall)]
-            )
+        )
+        let inner = answer(
+            db,
+            file,
+            "M",
+            "let a: Int64 = 0",
+            [MappedSpan(TextRange(0, 16), SpanOrigin.FromCall)]
+        )
         let text = "struct S {\n    S(let a: Int64 = 0) {}\n}"
-        let read =
-            answer(db, file, "A", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+        let read = answer(
+            db,
+            file,
+            "A",
+            text,
+            [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)]
+        )
         let source = file.text(db).toString()
         let m = offsetIn(source, "@M")
 
@@ -355,15 +349,14 @@ class MacroCallAtTest {
     @TestCase
     func aCallOfTheWorkspaceNotAnsweredIsReadButHasNoExpansion() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             @M[x]
             class C {}
             "#
-            )
+        )
         let source = file.text(db).toString()
 
         // act
@@ -420,30 +413,32 @@ class MacroCallAtTest {
     @TestCase
     func aWorkspaceCallInABodyExpandsToTheServersOutputFromItsHead() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             @A
             func f(): Int64 { @B(1 + 2) }
             "#
-            )
-        let call =
-            answer(
-                db,
-                file,
-                "B",
-                "(1 + 2) * 10",
-                [MappedSpan(TextRange(0, 12), SpanOrigin.FromCall)]
-            )
+        )
+        let call = answer(
+            db,
+            file,
+            "B",
+            "(1 + 2) * 10",
+            [MappedSpan(TextRange(0, 12), SpanOrigin.FromCall)]
+        )
         let source = file.text(db).toString()
 
         // act
         let onHead = macroCallAt(db, file.fileId(db), offsetIn(source, "B("))
         let inArguments = macroCallAt(db, file.fileId(db), offsetIn(source, "2)"))
-        let leavingBodiesOut =
-            macroCallAt(db, file.fileId(db), offsetIn(source, "B("), inBody: false)
+        let leavingBodiesOut = macroCallAt(
+            db,
+            file.fileId(db),
+            offsetIn(source, "B("),
+            inBody: false
+        )
 
         // assert
         @Expect(onHead.map {at => at.call}, Some(call))
@@ -459,14 +454,13 @@ class MacroCallAtTest {
     @TestCase
     func aWorkspaceCallInABodyNotAnsweredHasNoExpansion() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Int64 { @B(1) }
             "#
-            )
+        )
         let source = file.text(db).toString()
 
         // act
@@ -481,16 +475,15 @@ class MacroCallAtTest {
     @TestCase
     func aCallOfStdInABodyIsNoCallOfItsOwnButTheItemsAroundIt() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             import std.unittest.testmacro.*
             @A
             func f(): Unit { @Expect(1, 1) }
             "#
-            )
+        )
         let source = file.text(db).toString()
         let under = macroCallUnder(db, file, offsetIn(source, "@Expect")).getOrThrow()[0]
 
@@ -604,17 +597,15 @@ class InExpansionTest {
     @TestCase
     func inAStdDeriveATypeOfTheSourceGoesThereAndAMemberItDeclaresIsHovered() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Hashable]
             struct S {}
             "#
-                )
+        )
         let db = deriveDatabase(parsed)
         let file = parsed.file("/main.cj")
         let call = macroCallAt(db, file.fileId, offsetIn(file.text, "Derive")).getOrThrow().call
@@ -640,9 +631,8 @@ class ExpressionExpansionTest {
     @TestCase[argument in ["1", "true"]]
     func aConstructorInAnExpressionExpansionGoesToTheSelectedInitializer(argument: String) {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             class Box {
@@ -651,10 +641,15 @@ class ExpressionExpansionTest {
             }
             func f(): Box { @B(0) }
             "#
-            )
+        )
         let text = "Box(${argument})"
-        let call =
-            answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+        let call = answer(
+            db,
+            file,
+            "B",
+            text,
+            [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)]
+        )
 
         // act
         let targets = definitionInExpansion(db, call, 0)
@@ -671,9 +666,8 @@ class ExpressionExpansionTest {
     @TestCase
     func whereTheCallStandsSaysWhatItsOutputIsParsedAs() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             let g = @B(0)
@@ -693,7 +687,7 @@ class ExpressionExpansionTest {
             @A
             func h(a: Int64): Unit {}
             "#
-            )
+        )
 
         // act
         let inItems =
@@ -711,9 +705,8 @@ class ExpressionExpansionTest {
     @TestCase
     func aNameTheMacroCopiedIsHoveredAndGoesAsInTheSource() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Int64 {
@@ -722,25 +715,21 @@ class ExpressionExpansionTest {
                 y
             }
             "#
-            )
+        )
         let source = file.text(db).toString()
         let copied = offsetIn(source, "x + 1") - offsetIn(source, "func f")
         let text = "(x + 1) * 2"
-        let call =
-            answer(
-                db,
-                file,
-                "B",
-                text,
-                [
-                    MappedSpan(TextRange(0, 1), SpanOrigin.FromCall),
-                    MappedSpan(
-                        TextRange(1, 6),
-                        SpanOrigin.FromSource(TextRange(copied, copied + 5))
-                    ),
-                    MappedSpan(TextRange(6, text.size), SpanOrigin.FromCall)
-                ]
-            )
+        let call = answer(
+            db,
+            file,
+            "B",
+            text,
+            [
+                MappedSpan(TextRange(0, 1), SpanOrigin.FromCall),
+                MappedSpan(TextRange(1, 6), SpanOrigin.FromSource(TextRange(copied, copied + 5))),
+                MappedSpan(TextRange(6, text.size), SpanOrigin.FromCall)
+            ]
+        )
 
         // act
         let hover = hoverInExpansion(db, call, offsetIn(text, "x"))
@@ -757,9 +746,8 @@ class ExpressionExpansionTest {
     @TestCase
     func aNameTheMacroWroteIsReadWhereTheCallStands() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func twice(a: Int64): Int64 { a * 2 }
@@ -770,11 +758,16 @@ class ExpressionExpansionTest {
                 y
             }
             "#
-            )
+        )
         let source = file.text(db).toString()
         let text = "twice(x) + after"
-        let call =
-            answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+        let call = answer(
+            db,
+            file,
+            "B",
+            text,
+            [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)]
+        )
 
         // act
         let onTwice = hoverInExpansion(db, call, offsetIn(text, "twice"))
@@ -797,9 +790,8 @@ class ExpressionExpansionTest {
     @TestCase
     func aNameTheStatementsDeclareIsReadInTheExpansion() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Int64 {
@@ -807,10 +799,15 @@ class ExpressionExpansionTest {
                 @B(0)
             }
             "#
-            )
+        )
         let text = "let x = 2\nx"
-        let call =
-            answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+        let call = answer(
+            db,
+            file,
+            "B",
+            text,
+            [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)]
+        )
 
         // act
         let hover = hoverInExpansion(db, call, offsetIn(text, "x", n: 1))
@@ -828,25 +825,23 @@ class ExpressionExpansionTest {
     @TestCase
     func aCopiedMemberIsReadFromItsQualifiedExpression() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             class Box { let n: Int64 = 1 }
             func f(b: Box): Int64 { @B(b.n) }
             "#
-            )
+        )
         let source = file.text(db).toString()
         let copied = offsetIn(source, "b.n") - offsetIn(source, "func f")
-        let call =
-            answer(
-                db,
-                file,
-                "B",
-                "b.n",
-                [MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(copied, copied + 3)))]
-            )
+        let call = answer(
+            db,
+            file,
+            "B",
+            "b.n",
+            [MappedSpan(TextRange(0, 3), SpanOrigin.FromSource(TextRange(copied, copied + 3)))]
+        )
 
         // act
         let hover = hoverInExpansion(db, call, 2)
@@ -863,9 +858,8 @@ class ExpressionExpansionTest {
     @TestCase
     func anOutputThatIsNoExpressionIsAParseErrorOfItsFile() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func local(): Int64 { 0 }
@@ -874,10 +868,15 @@ class ExpressionExpansionTest {
                 y
             }
             "#
-            )
+        )
         let text = "func local() {}\nlocal()"
-        let call =
-            answer(db, file, "B", text, [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)])
+        let call = answer(
+            db,
+            file,
+            "B",
+            text,
+            [MappedSpan(TextRange(0, text.size), SpanOrigin.FromCall)]
+        )
 
         // act
         let errors =

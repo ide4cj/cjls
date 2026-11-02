@@ -15,6 +15,12 @@ simple_if = "multiline"
 level. Both must be positive integers. Indivisible strings, names, comments and
 protected macro text may exceed the requested width.
 
+Call arguments wrap independently of a short callee. A single member call keeps
+`receiver.method(` together when that prefix fits; call initializers likewise
+stay beside `=` when their first line fits. Otherwise the assignment or member
+access uses a continuation line. Long method chains still break before dots.
+These layout rules apply with every configuration; no extra setting is needed.
+
 `simple_if = "compact"` permits this layout when the entire expression fits:
 
 ```cangjie

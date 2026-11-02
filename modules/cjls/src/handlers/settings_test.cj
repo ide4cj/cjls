@@ -47,10 +47,9 @@ func initializedWithSettings(
 }
 
 func linking(project: Path): JsonValue {
-    JsonValue
-        .JsonObject(
-            [("linkedProjects", JsonValue.JsonArray([JsonValue.JsonString(project.toString())]))]
-        )
+    JsonValue.JsonObject(
+        [("linkedProjects", JsonValue.JsonArray([JsonValue.JsonString(project.toString())]))]
+    )
 }
 
 /**
@@ -90,6 +89,64 @@ func methodsOf(requests: Array<RequestBody>, method: String): Array<RequestBody>
 @Test
 class InitialSettingsTest {
     @TestCase
+    func changingStdxPathReloadsDeclaredBinaryPaths() {
+        // arrange
+        let root = workspaceOf(
+            [
+                (
+                    "cj-project.json",
+                    """
+{"modules": [{"name": "app", "root": "src", "deps": ["stdx"]}],
+ "binaries": [{"name": "stdx", "paths": ["\${CANGJIE_STDX_PATH}"]}]}
+"""
+                ),
+                ("src/app.cj", "package app"),
+                ("first/stdx/README", ""),
+                ("second/stdx/README", "")
+            ]
+        )
+        let first = root.join("first").join("stdx")
+        let second = root.join("second").join("stdx")
+        let options = JsonValue.JsonObject(
+            [("cangjieStdxPath", JsonValue.JsonString(first.toString()))]
+        )
+        let loop = initializedWithSettings(root, options)
+
+        // act
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        let firstDirs = loop.state.binaryWatch.getOrThrow().dirs
+
+        // assert
+        @Expect(firstDirs.contains(VfsPath.file(first)))
+
+        // act
+        handleDidChangeConfiguration(
+            loop,
+            Client(),
+            NoopLogger(),
+            DidChangeConfigurationParams(
+                settings: JsonValue.JsonObject(
+                    [
+                        (
+                            "cjls",
+                            JsonValue.JsonObject(
+                                [("cangjieStdxPath", JsonValue.JsonString(second.toString()))]
+                            )
+                        )
+                    ]
+                )
+            )
+        )
+        loop.join()
+        let dirs = loop.state.binaryWatch.getOrThrow().dirs
+
+        // assert
+        @Expect(dirs.contains(VfsPath.file(second)))
+        @Expect(!dirs.contains(VfsPath.file(first)))
+        remove(root, recursive: true)
+    }
+
+    @TestCase
     func theSettingsAreWhatInitializationOptionsHold() {
         // arrange
         let root = workspaceOf([])
@@ -127,8 +184,12 @@ class InitialSettingsTest {
         let root = workspaceOf([])
 
         // act
-        let loop =
-            initializedWithSettings(root, Option<JsonValue>.None, pulls: true, registers: true)
+        let loop = initializedWithSettings(
+            root,
+            Option<JsonValue>.None,
+            pulls: true,
+            registers: true
+        )
 
         // assert
         @Expect(loop.state.pullsSettings)
@@ -190,12 +251,11 @@ class PulledSettingsTest {
         let linked = workspaceOf([])
         let sdk = workspaceOf([])
         let loop = initializedWithSettings(root, linking(linked), pulls: true)
-        let client =
-            answeredClientOn(
-                configurationTransport(
-                    JsonValue.JsonObject([("cangjieHome", JsonValue.JsonString(sdk.toString()))])
-                )
+        let client = answeredClientOn(
+            configurationTransport(
+                JsonValue.JsonObject([("cangjieHome", JsonValue.JsonString(sdk.toString()))])
             )
+        )
 
         // act
         initialized(loop, client, NoopLogger(), InitializedParams())
@@ -351,16 +411,14 @@ class PushedSettingsTest {
             Client(),
             NoopLogger(),
             DidChangeConfigurationParams(
-                settings: JsonValue
-                    .JsonObject(
-                        [
-                            (
-                                "cjls",
-                                JsonValue
-                                    .JsonObject([("newFilePackage", JsonValue.JsonBool(false))])
-                            )
-                        ]
-                    )
+                settings: JsonValue.JsonObject(
+                    [
+                        (
+                            "cjls",
+                            JsonValue.JsonObject([("newFilePackage", JsonValue.JsonBool(false))])
+                        )
+                    ]
+                )
             )
         )
         loop.join()
@@ -421,10 +479,9 @@ class SettingsRegistrationTest {
                     registration.method == DidChangeConfigurationNotificationSpec.METHOD
                 }
         @Expect(registrations.size, 1)
-        let options =
-            RawJson
-                .of(registrations[0].registerOptions.getOrThrow())
-                .read<DidChangeConfigurationRegistrationOptions>()
+        let options = RawJson
+            .of(registrations[0].registerOptions.getOrThrow())
+            .read<DidChangeConfigurationRegistrationOptions>()
         @Expect(match (options.section) {
             case Some(StringOrStrings.AsString("cjls")) => true
             case _ => false

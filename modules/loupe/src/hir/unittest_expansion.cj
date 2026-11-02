@@ -63,10 +63,9 @@ func testFuncExpansion(decl: Decl): ?Expansion {
     }
     let name = "TestCase_${identText(nameTokenOf(decl) ?? return None)}"
     let text = StringBuilder()
-    text
-        .append(
-            "class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite ${stubBody("    ", "@Test")}\n}\n"
-        )
+    text.append(
+        "class ${name} <: TestClass {\n    public func asTestSuite(): TestSuite ${stubBody("    ", "@Test")}\n}\n"
+    )
     appendRegistration(text, "TestPackageExtension_${name}", "register${name}", "@Test")
     Expansion(text.toString(), Array(3, repeat: ExpansionOrigin.OfMacro))
 }
@@ -160,10 +159,9 @@ func appendRegistration(
     macroName: String
 ): Unit {
     text.append("interface ${extension} {\n    func ${register}(): Unit\n}\n")
-    text
-        .append(
-            "extend TestPackage <: ${extension} {\n    public func ${register}(): Unit ${stubBody("    ", macroName)}\n}\n"
-        )
+    text.append(
+        "extend TestPackage <: ${extension} {\n    public func ${register}(): Unit ${stubBody("    ", macroName)}\n}\n"
+    )
 }
 
 /**

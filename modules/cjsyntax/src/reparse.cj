@@ -3,17 +3,17 @@ package cjsyntax
 import ginkgo.*
 import ginkgo.parsing.*
 
-let REPARSER =
-    Reparser<SyntaxKind>(
-        tokenize,
-        inputOf,
-        CangjieTrivia(),
-        Eof,
-        ErrorNode,
-        LBrace,
-        RBrace,
-        blockGrammar
-    )
+let REPARSER = Reparser<SyntaxKind>(
+    tokenize,
+    inputOf,
+    CangjieTrivia(),
+    Eof,
+    ErrorNode,
+    LBrace,
+    RBrace,
+    blockGrammar,
+    validate: withPropertyAccessorErrors
+)
 
 /**
  * The parse of `before`'s text with `delete` replaced by `insert`: what `parse` gives for the new text, made by

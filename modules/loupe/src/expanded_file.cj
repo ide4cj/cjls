@@ -285,10 +285,9 @@ public func expandFile(db: AnalysisDatabase, fileId: FileId, header: String): ?E
         let added = calls.toArray().filter { one => one[1].kind == ExpansionKind.OwnExpansion }
         sort(added, key: { one: (MacroCallId, ExpandedMacro) => one[1].range.start })
         for ((call, expanded) in added) {
-            builder
-                .write(
-                    "\n\n// ${callText(source, expanded)} expanded by cjls: its own, signatures only, no bodies\n"
-                )
+            builder.write(
+                "\n\n// ${callText(source, expanded)} expanded by cjls: its own, signatures only, no bodies\n"
+            )
             builder.show(call, ShownExpansion.of(expanded.text))
         }
     }

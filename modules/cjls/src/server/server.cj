@@ -68,16 +68,14 @@ class Server <: Handler {
         match (router.requests.get(request.method)) {
             case None =>
                 logger.debug("no handler")
-                request
-                    .respond(
-                        ResultOrError
-                            .Error(
-                                ResponseError(
-                                    ErrorCode.METHOD_NOT_FOUND,
-                                    "no handler for \"${request.method}\""
-                                )
-                            )
+                request.respond(
+                    ResultOrError.Error(
+                        ResponseError(
+                            ErrorCode.METHOD_NOT_FOUND,
+                            "no handler for \"${request.method}\""
+                        )
                     )
+                )
             case Some(Exclusive(handler)) =>
                 let parts = Parts(loop, client, request.cancellation, logger)
                 if (

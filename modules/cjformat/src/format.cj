@@ -26,9 +26,12 @@ public func format(parse: CjParse, options!: FormatOptions = FormatOptions()): ?
     }
     let root = parse.syntaxNode()
     let source = root.text()
-    let result =
-        Printer(lineBreakIn(source), width: options.lineWidth, indentWidth: options.indentWidth)
-            .print(LayoutBuilder(source, options: options).node(root))
+    let result = Printer(
+        lineBreakIn(source),
+        width: options.lineWidth,
+        indentWidth: options.indentWidth
+    )
+        .print(LayoutBuilder(source, options: options).node(root))
     Some(replacement(source, root.textRange, result))
 }
 

@@ -124,8 +124,9 @@ public func packageExtends(
     let found = IndexMap<ExtendedType, ArrayList<DefId>>()
     let files = filesOf(db, pkg)
     for (
-        file in files
-            .concat(files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray)
+        file in files.concat(
+            files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray
+        )
     ) {
         for (item in itemTreeOf(db, file).items where item.kind == ItemKind.Extend) {
             let def = DefId(db, file, item.id)

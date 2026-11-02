@@ -32,17 +32,16 @@ const SHOWN_MACRO_OUTPUT = "class C {}\nclass Gen {}\nfunc make<T>(g: Gen, t: T)
  * removes it.
  */
 func macroWorkspace(shows!: Bool = true): (ServerState, Path) {
-    let dir =
-        workspaceOf(
-            [
-                ("cjpm.toml", "[package]\nname = \"app\"\n"),
-                ("src/main.cj", MACRO_MAIN),
-                (
-                    "src/ms/ms.cj",
-                    "macro package app.ms\nimport std.ast.*\npublic macro M(attrs: Tokens, input: Tokens): Tokens { input }\n"
-                )
-            ]
-        )
+    let dir = workspaceOf(
+        [
+            ("cjpm.toml", "[package]\nname = \"app\"\n"),
+            ("src/main.cj", MACRO_MAIN),
+            (
+                "src/ms/ms.cj",
+                "macro package app.ms\nimport std.ast.*\npublic macro M(attrs: Tokens, input: Tokens): Tokens { input }\n"
+            )
+        ]
+    )
     let loop = initializedWith([dir], watches: false)
     let state = loop.state
     state.showsDocuments = shows
@@ -149,13 +148,12 @@ func shownDocuments(transport: AnsweringTransport): Array<ShowDocumentParams> {
     let shown = ArrayList<ShowDocumentParams>()
     while (let Some(body) <- transport.written.tryRemove()) {
         if (let Request(request) <- body && request.method == ShowDocumentRequestSpec.METHOD) {
-            shown
-                .add(
-                    request
-                        .params
-                        .getOrThrow { => IllegalStateException("showDocument must carry params") }
-                        .read<ShowDocumentParams>()
-                )
+            shown.add(
+                request
+                    .params
+                    .getOrThrow { => IllegalStateException("showDocument must carry params") }
+                    .read<ShowDocumentParams>()
+            )
         }
     }
     shown.toArray()
@@ -229,19 +227,16 @@ class ExpandMacroTest {
                                     IllegalStateException("expandMacro must offer a command")
                                 }
                         @Expect(command.command, EXPAND_MACRO_COMMAND)
-                        let argument =
-                            RawJson
-                                .of(
-                                    command
-                                        .arguments
-                                        .getOrThrow {
-                                            =>
-                                            IllegalStateException(
-                                                "expandMacro must carry a position"
-                                            )
-                                        }[0]
-                                )
-                                .read<TextDocumentPositionParams>()
+                        let argument = RawJson
+                            .of(
+                                command
+                                    .arguments
+                                    .getOrThrow {
+                                        =>
+                                        IllegalStateException("expandMacro must carry a position")
+                                    }[0]
+                            )
+                            .read<TextDocumentPositionParams>()
                         @Expect(argument.textDocument.uri, uriOf(mainOf(dir)))
                         @Expect(at(argument.position), "2:1")
                     case _ => @Fail("not a code action")
@@ -273,25 +268,26 @@ class ExpandMacroTest {
     func theCommandWritesTheExpandedFileReadOnlyAndAsksToShowItsExpansion(): Unit {
         // arrange
         let (state, dir) = macroWorkspace()
-        let transport =
-            AnsweringTransport(result: { _ => RawJson.of(ShowDocumentResult(success: true)) })
+        let transport = AnsweringTransport(
+            result: { _ => RawJson.of(ShowDocumentResult(success: true)) }
+        )
         let client = answeredClientOn(transport)
 
         // act
-        let answer =
-            handleExecuteCommand(
-                state.snapshot(),
-                client,
-                NoopLogger(),
-                expandCommand(mainOf(dir), 2, 1)
-            )
+        let answer = handleExecuteCommand(
+            state.snapshot(),
+            client,
+            NoopLogger(),
+            expandCommand(mainOf(dir), 2, 1)
+        )
 
         // assert
         let path = expandedOf(dir)
         let text = String.fromUtf8(File.readFrom(path))
         let readOnly = !FileInfo(path).canWrite()
-        let ignore =
-            String.fromUtf8(File.readFrom(dir.join(".cache").join("cjls").join(".gitignore")))
+        let ignore = String.fromUtf8(
+            File.readFrom(dir.join(".cache").join("cjls").join(".gitignore"))
+        )
         let shown = shownDocuments(transport)
         client.close()
         removeWorkspace(dir)
@@ -412,14 +408,13 @@ class ExpandedFileNavigationTest {
         expandAndOpen(state, dir)
 
         // act
-        let answer =
-            handleDocumentHighlight(
-                state.snapshot(),
-                DocumentHighlightParams(
-                    textDocument: TextDocumentIdentifier(uri: uriOf(expandedOf(dir))),
-                    position: Position(line: 9, character: 9)
-                )
+        let answer = handleDocumentHighlight(
+            state.snapshot(),
+            DocumentHighlightParams(
+                textDocument: TextDocumentIdentifier(uri: uriOf(expandedOf(dir))),
+                position: Position(line: 9, character: 9)
             )
+        )
 
         // assert
         removeWorkspace(dir)
@@ -462,8 +457,12 @@ class ExpandedFileNavigationTest {
         // act - `C` of the parameter of `use`, which nothing extends, and a name of an expansion
         let copied = implementationsOf(state, expandedOf(dir), 9, 12)
         let written = implementationsOf(state, expandedOf(dir), 6, 16)
-        let elsewhere =
-            implementationsOf(state, expandedOf(dir).parent.join("other.cj.macrocall"), 0, 0)
+        let elsewhere = implementationsOf(
+            state,
+            expandedOf(dir).parent.join("other.cj.macrocall"),
+            0,
+            0
+        )
 
         // assert
         removeWorkspace(dir)
@@ -525,8 +524,9 @@ class ExpandedFileNavigationTest {
 
         // assert
         let knowsExpanded = loop.state.knows(VfsPath.file(expandedOf(dir)))
-        let knowsHidden =
-            loop.state.knows(VfsPath.file(dir.join(".cache").join("cjls").join("a.cj")))
+        let knowsHidden = loop
+            .state
+            .knows(VfsPath.file(dir.join(".cache").join("cjls").join("a.cj")))
         let knowsMain = loop.state.knows(VfsPath.file(mainOf(dir)))
         removeWorkspace(dir)
         @Expect(!knowsExpanded)

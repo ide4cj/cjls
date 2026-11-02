@@ -96,29 +96,27 @@ public func callDataOf(
                 )
             case None => []
         }
-    let input =
-        withoutLeadingNewlines(
-            macroTokens(
-                request.input.text,
-                numbers,
-                PositionData(fileId: 1, line: layout.inputLine, column: 1)
-            ),
-            numbers
-        )
-    let call =
-        MacroCallData(
-            id: IdInfoData(name: name, pos: PositionData(fileId: 1, line: 1, column: 2)),
-            hasAttrs: request.attrs.isSome(),
-            args: input,
-            attrs: attrs,
-            parentNames: request.parents,
-            childMsges: request.children.map { child => childOf(child, numbers) },
-            methodName: methodNameOf(name, pkg, request.attrs.isSome()),
-            packageName: pkg,
-            libPath: library,
-            begin: PositionData(fileId: 1, line: 1, column: 1),
-            end: endOf(input, layout)
-        )
+    let input = withoutLeadingNewlines(
+        macroTokens(
+            request.input.text,
+            numbers,
+            PositionData(fileId: 1, line: layout.inputLine, column: 1)
+        ),
+        numbers
+    )
+    let call = MacroCallData(
+        id: IdInfoData(name: name, pos: PositionData(fileId: 1, line: 1, column: 2)),
+        hasAttrs: request.attrs.isSome(),
+        args: input,
+        attrs: attrs,
+        parentNames: request.parents,
+        childMsges: request.children.map { child => childOf(child, numbers) },
+        methodName: methodNameOf(name, pkg, request.attrs.isSome()),
+        packageName: pkg,
+        libPath: library,
+        begin: PositionData(fileId: 1, line: 1, column: 1),
+        end: endOf(input, layout)
+    )
     (call, layout)
 }
 
@@ -156,16 +154,15 @@ func itemOf(item: MacroItem, numbers: TokenNumbers): ItemInfoData {
             case IntItem(n) => OptionValueData.AsIValue(IntValueData(val: n))
             case BoolItem(flag) => OptionValueData.AsBValue(BoolValueData(val: flag))
             case TokensItem(text) =>
-                OptionValueData
-                    .AsTValue(
-                        TokensValueData(
-                            val: macroTokens(
-                                text.text,
-                                numbers,
-                                PositionData(fileId: 1, line: 1, column: 1)
-                            )
+                OptionValueData.AsTValue(
+                    TokensValueData(
+                        val: macroTokens(
+                            text.text,
+                            numbers,
+                            PositionData(fileId: 1, line: 1, column: 1)
                         )
                     )
+                )
         }
     ItemInfoData(key: item.key, value: value)
 }

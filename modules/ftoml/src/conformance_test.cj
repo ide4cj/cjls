@@ -137,8 +137,9 @@ func listed(tests: Path, version: String): Array<String> {
 /** What is wrong with the `valid/` file `name`, `None` when it reads as its JSON says. */
 func validFailure(tests: Path, name: String): ?String {
     let bytes = File.readFrom(tests.join(name))
-    let expected =
-        Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
+    let expected = Json.read(
+        FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json")))
+    )
     try {
         differenceOf(parseToml(bytes).root, expected, name)
     } catch (e: Exception) {
@@ -152,8 +153,9 @@ func validFailure(tests: Path, name: String): ?String {
  */
 func writtenFailure(tests: Path, name: String): ?String {
     let bytes = File.readFrom(tests.join(name))
-    let expected =
-        Json.read(FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json"))))
+    let expected = Json.read(
+        FjReader(File.readFrom(tests.join(name.removeSuffix(".toml") + ".json")))
+    )
     try {
         let written = toTomlBytes(parseToml(bytes).root)
         try {
