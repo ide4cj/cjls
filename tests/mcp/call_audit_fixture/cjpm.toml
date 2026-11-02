@@ -1,0 +1,6 @@
+[package]
+name = "audit_sample"
+version = "0.1.0"
+output-type = "static"
+[dependencies]
+calca = { path = "macros" }

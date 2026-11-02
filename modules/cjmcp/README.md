@@ -357,3 +357,6 @@ script-controlled call graph inspection. Edges retain native declaration identit
 and source locations; gaps make unsupported execution effects explicit. See the
 [shared coverage contract](../../docs/direct-calls.md) before interpreting an
 empty result.
+
+The [tracked-call audit](../../docs/audits/call-audit.md) is a separate, partial
+workspace audit with its own CLI runner and recorded evidence.
