@@ -15,6 +15,7 @@ package-configuration = {}
 [dependencies]
 cjformat = { path = "../cjformat" }
 ftoml = { path = "../ftoml" }
+jian = { git = "https://github.com/FilaCo/jian.git" }
 stdxx = { path = "../stdxx" }
 
 # Formatting bootstraps from checked-in cjsyntax; build before changing generated syntax (D150).

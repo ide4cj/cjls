@@ -2,27 +2,10 @@ package cjls
 
 import std.env.getWorkingDirectory
 import std.fs.{Directory, File, Path, remove}
-import std.io.{ByteBuffer, OutputStream, readToEnd}
+import std.io.{ByteBuffer, readToEnd}
 import stdx.log.NoopLogger
 import fjson.{fromJsonBytes, JsonValue}
-import jian.JianContextApp
 import cjls.server.settingsSchema
-
-/**
- * Isolates command tests from the application's package-level registrations and output streams.
- */
-func testCommandApp(out!: OutputStream, err!: OutputStream): JianContextApp<CommandContext> {
-    JianContextApp<CommandContext>(
-        name: "cjls",
-        help: "Cangjie language server.",
-        stdout: out,
-        stderr: err
-    )
-        .callback(configureCommand)
-        .add(printProject)
-        .add(formatCommand)
-        .add(downloadSources)
-}
 
 @Test
 class CommandTest {
@@ -41,11 +24,10 @@ class CommandTest {
         // arrange
         let (args, usage, option) = scenario
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = testCommandApp(out: out, err: err)
         let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
         // act
-        let exitCode = app.run(args, context: context)
+        let exitCode = CJLS_APP.run(args, context: context, stdout: out, stderr: err)
         let help = written(out)
 
         // assert
@@ -67,7 +49,6 @@ class CommandTest {
     func invalidInputsAreUsageErrorsWithoutRunningAnAction() {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = testCommandApp(out: out, err: err)
         let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
         let invalid: Array<Array<String>> =
             [
@@ -90,7 +71,7 @@ class CommandTest {
 
         for (args in invalid) {
             // act
-            let exitCode = app.run(args, context: context)
+            let exitCode = CJLS_APP.run(args, context: context, stdout: out, stderr: err)
 
             // assert
             @Expect(exitCode, 2)
@@ -103,11 +84,10 @@ class CommandTest {
     func configSchemaPrintsTheSchemaOfTheSettingsAsJson() {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = testCommandApp(out: out, err: err)
         let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
         // act
-        let exitCode = app.run(["--config-schema"], context: context)
+        let exitCode = CJLS_APP.run(["--config-schema"], context: context, stdout: out, stderr: err)
 
         // assert
         @Expect(exitCode, 0)
@@ -131,11 +111,15 @@ class CommandTest {
             let relative = dir.fileName
             let options = args.map { arg => arg.replace("sub", relative) }
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let app = testCommandApp(out: out, err: err)
             let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
             // act
-            let exitCode = app.run(["project"].concat(options), context: context)
+            let exitCode = CJLS_APP.run(
+                ["project"].concat(options),
+                context: context,
+                stdout: out,
+                stderr: err
+            )
 
             // assert
             @Expect(exitCode, 0)
@@ -160,25 +144,39 @@ class CommandTest {
                 File.writeTo(file, source.toArray())
             }
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let app = testCommandApp(out: out, err: err)
             let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
             // act
-            let checked = app.run(["fmt", paths[0], check, paths[1]], context: context)
+            let checked = CJLS_APP.run(
+                ["fmt", paths[0], check, paths[1]],
+                context: context,
+                stdout: out,
+                stderr: err
+            )
 
             // assert
             @Expect(checked, 1)
             @Expect(files.map { file => String.fromUtf8(File.readFrom(file)) }, [source, source])
 
             // act
-            let formatted = app.run(["fmt"].concat(paths), context: context)
+            let formatted = CJLS_APP.run(
+                ["fmt"].concat(paths),
+                context: context,
+                stdout: out,
+                stderr: err
+            )
 
             // assert
             @Expect(formatted, 0)
             @Expect(files.map { file => String.fromUtf8(File.readFrom(file)) }, [expected, expected])
 
             // act
-            let rechecked = app.run(["fmt", check].concat(paths), context: context)
+            let rechecked = CJLS_APP.run(
+                ["fmt", check].concat(paths),
+                context: context,
+                stdout: out,
+                stderr: err
+            )
 
             // assert
             @Expect(rechecked, 0)

@@ -131,10 +131,11 @@ func checkItemRedeclarations(
         for (name in names) {
             let text = name.text()
             var message: ?String = None
-            if (!inPattern.add(text) && item.kind != ItemKind.PrimaryInit) {
-                message = "redefinition of declaration '${text}'"
-            }
-            for ((otherFile, other) in previous) {
+            let repeatsBinding = !inPattern.add(text) && item.kind != ItemKind.PrimaryInit
+            // The last conflicting declaration determines the message. Search backwards so a
+            // repeated overload stops at that declaration instead of rechecking every older one.
+            for (i in previous.size - 1..=0: -1) {
+                let (otherFile, other) = previous[i]
                 let otherNames =
                     if (other.kind == ItemKind.PrimaryInit) {
                         let (otherRoot, otherIds) = syntaxOf(db, otherFile) ?? continue
@@ -184,6 +185,12 @@ func checkItemRedeclarations(
                 } else {
                     message = "redefinition of declaration '${text}'"
                 }
+                if (message.isSome()) {
+                    break
+                }
+            }
+            if (message.isNone() && repeatsBinding) {
+                message = "redefinition of declaration '${text}'"
             }
             if (let Some(message) <- message) {
                 found.add(Diagnostic(name.syntax.textRange, Severity.Error, message))
