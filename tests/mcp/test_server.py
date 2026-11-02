@@ -228,6 +228,8 @@ result = i + 1
                 self.assertEqual(unchanged["revision"], native["revision"])
                 self.assertEqual(unchanged["result"], native["revision"])
 
+                self._check_source_editing(run)
+
                 # Native exceptions must return through Python's error protocol before another query.
                 recovered = run("""
                     analysis = workspace.analysis()
@@ -709,6 +711,48 @@ result = i + 1
         """)
         self.assertTrue(stale['result'])
 
+    def _check_source_editing(self, run):
+        # arrange - create and then edit UTF-8 source entirely inside runPython.
+        created = run("""
+            from pathlib import Path
+            a = workspace.analysis()
+            path = Path(workspace.root, 'src/tool_edit.cj')
+            assert not path.exists()
+            path.write_bytes('package sample\\n// привет\\npublic func toolEdit(): Int64 { 1 }\\n'.encode('utf-8'))
+            result = a.revision
+        """)
+
+        # act - select the return literal within the declaration's byte range.
+        edited = run("""
+            from pathlib import Path
+            a = workspace.analysis()
+            path = 'src/tool_edit.cj'
+            node = next(n for n in workspace.structure(path) if n.name == 'toolEdit')
+            before = a.text(path).encode('utf-8')
+            start = before.index(b'1', node.selectionRange.end, node.range.end)
+            after = before[:start] + b'2' + before[start + 1:]
+            target = Path(workspace.root, path)
+            assert target.read_bytes() == before
+            target.write_bytes(after)
+            assert a.text(path).encode('utf-8') == before
+            result = a.revision
+        """)
+
+        # assert - a later call observes the edit with a fresh analysis revision.
+        checked = run("""
+            from pathlib import Path
+            a = workspace.analysis()
+            assert '// привет' in a.text('src/tool_edit.cj')
+            assert '{ 2 }' in a.text('src/tool_edit.cj')
+            assert workspace.diagnostics('src/tool_edit.cj') == []
+            Path(workspace.root, 'src/tool_edit.cj').unlink()
+            result = a.revision
+        """)
+        self.assertGreater(edited['revision'], created['revision'])
+        self.assertGreater(checked['revision'], edited['revision'])
+        deleted = run("result = all(not p.endswith('/tool_edit.cj') for p in workspace.files())")
+        self.assertTrue(deleted['result'])
+
     def _check_macros(self, root, run):
         # Expansion finishes before analysis() returns, including after a macro library changes.
         counter = root / "expansion-count"
@@ -859,6 +903,10 @@ main() { generated() }
         """)
         self.assertTrue(any('@Emit failed' in problem for problem in failed_expansion["result"]),
                         failed_expansion)
+        self.assertTrue(any('expansion probe failed' in problem for problem in failed_expansion["result"]),
+                        failed_expansion)
+        self.assertTrue(any(f'{root / "src/main.cj"}:4:7:' in problem
+                            for problem in failed_expansion["result"]), failed_expansion)
         # SDK stderr may belong to the background worker; problems remain the stable tool contract.
 
         # Build failure is visible without making a partially expanded revision look complete.

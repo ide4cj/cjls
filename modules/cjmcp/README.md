@@ -266,6 +266,10 @@ resolved calls are reported in `problems` and make `hasExpandedMacros` false; th
 partial analysis remains usable. Preparation subprocess output goes to server
 stderr; `problems` is the tool-visible preparation report. Unresolved names remain
 analysis diagnostics.
+Macro diagnostic problems include `path:line:column: message`, with one-based
+lines and UTF-8 byte columns. They use the same source ranges and hint text as
+LSP diagnostics. A thrown macro exception is attached to the call when the SDK
+provides no more precise source location; its original failure text is retained.
 Failures before Python starts are tool errors with a null revision. Script errors
 include the revision used and are never retried automatically: Python may have
 already performed external effects. Preparation failures are retried before a

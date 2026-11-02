@@ -7,6 +7,7 @@ import stdx.log.NoopLogger
 import loupe.db.{AnalysisDatabase, MacroSeverity, Package, SourceFile}
 import loupe.hir.{
     macroBuildPlan,
+    macroDiagnostics,
     macroOutputOf,
     pendingMacroRequests,
     serverCalls,
@@ -153,17 +154,23 @@ func recordMacroProblems(
             let name = "${vfs.paths.path(file.fileId(db))}: @${call.definition.name}"
             match (macroOutputOf(db, call.call)) {
                 case None => issues.add("${name}: macro call was not sent")
-                case Some(output) =>
+                case Some(_) =>
                     if (pending.contains(call.call)) {
                         issues.add("${name}: macro call was not sent")
                     }
-                    for (
-                        diagnostic in output.diagnostics where diagnostic.severity ==
-                            MacroSeverity.MacroError
-                    ) {
-                        issues.add("${name}: ${diagnostic.message}")
-                    }
             }
+        }
+        // Reuse loupe's source mapping and hint rendering, as ordinary LSP diagnostics do.
+        let text = file.text(db)
+        for (
+            diagnostic in macroDiagnostics(db, file) where diagnostic.severity ==
+                MacroSeverity.MacroError
+        ) {
+            let line = text.lineOf(diagnostic.range.start)
+            let column = diagnostic.range.start - text.lineStart(line)
+            issues.add(
+                "${vfs.paths.path(file.fileId(db))}:${line + 1}:${column + 1}: ${diagnostic.message}"
+            )
         }
     }
     issues.size == before
