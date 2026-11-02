@@ -213,6 +213,12 @@ identifier position (D147). Package and member lookup use binary declarations,
 including compiler-provided types. A file with no matching declarations has no
 source context; navigation targets retain D65's position/name check.
 
+Call hierarchy keeps canonical binary identity independently of navigation (D158).
+Checked source attachments supply declaration locations and bodies. Without them,
+the referring name supplies a location for the node; known incoming edges remain
+available, while unavailable bodies supply no outgoing edges. Compiler and syntax
+full declaration ranges need not match when the checked identifier does.
+
 ### A24: Signature type dependencies
 
 Lowering a signature to types (`signatureTypes`) reads another declaration's lowered types only

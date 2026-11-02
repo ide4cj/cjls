@@ -574,7 +574,8 @@ func callHierarchyItem(snap: ServerSnapshot, entry: CallHierarchyEntry): CallHie
             target.focusRange.start,
             target.focusRange.end,
             snap.encoding
-        )
+        ),
+        data: callHierarchyData(snap, entry)
     )
 }
 
