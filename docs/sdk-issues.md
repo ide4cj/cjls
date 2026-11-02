@@ -8,7 +8,7 @@ Historical ADRs retain their original observations and decisions.
 The pin at this audit is `1.3.0-alpha.20261014001050`; the authoritative value is
 [`.cangjie-version`](../.cangjie-version). **None of these defects was reproduced
 or declared fixed during this documentation audit; K4 includes verification
-recorded separately in PR #457.** K19, K27, K28 and K29 record subsequent observations;
+recorded separately in PR #457.** K19, K27, K28, K29 and K30 record subsequent observations;
 K26 records a scoped workaround from PR #477. A historical observation
 is not evidence that a defect still reproduces on the pin, nor that it is fixed.
 An unspecified version/platform below is explicitly unverified, not all versions
@@ -520,7 +520,6 @@ payloads and pattern matching, opaque identities, signed native hash codes,
 hidden constructors and static native constants. Other SDK versions, native
 platforms and cross compilation remain unverified.
 
-
 ## Reconciliation and remaining work
 
 The standalone K29 source under `tests/sdk-probes/` is a manual reproducer and
@@ -563,7 +562,7 @@ The following dispositions prevent old local guidance becoming competing rules:
   machine automation policies are outside this SDK migration.
 
 This audit preserves the K4 retirement already accepted in PR #457 and removes no
-other workaround. Except for K4's scoped verification and K19/K26/K27/K28/K29's subsequent observations,
+other workaround. Except for K4's scoped verification and K19/K26/K27/K28/K29/K30's subsequent observations,
 exact-pin status remains unverified. Missing host/build metadata, upstream reports and independent probes
 remain explicit limitations. The next SDK bump needs evidence before retiring an
 entry; a passing ordinary build alone does not establish that a scheduling, GC or
