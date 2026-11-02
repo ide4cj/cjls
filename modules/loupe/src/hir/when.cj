@@ -2,16 +2,17 @@ package loupe.hir
 
 import std.collection.*
 import std.convert.Parsable
-import std.deriving.*
-import ginkgo.TextRange
-import cjsyntax.CjSyntaxNode
-import cjsyntax.ast.{AnyHasAnnotations, BinExpr, RefExpr, StringLit}
-import cjsyntax.ast.Annotation as AnnotationNode
-import cjsyntax.ast.Expr as AstExpr
 import calca.*
 import calca.macros.*
+import cjsyntax.CjSyntaxNode
+import cjsyntax.ast.Annotation as AnnotationNode
+import cjsyntax.ast.Expr as AstExpr
+import cjsyntax.ast.{AnyHasAnnotations, BinExpr, RefExpr, StringLit}
+import ginkgo.TextRange
 import loupe.db.{AnalysisDatabase, Cfg, SourceFile}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 const CJC_VERSION = "cjc_version"
 
@@ -25,8 +26,8 @@ public const FLAG_SET: String = "true"
  * evaluates it as (`src/ConditionalCompilation`). One cjc rejects is `CfgInvalid`, false as cjc
  * evaluates it, unlike R1's `CfgExpr::Invalid`, which is active (#149, D93).
  */
-@Derive[Equatable]
-public enum CfgExpr {
+@DerivePython
+public enum CfgExpr <: Equatable<CfgExpr> {
     // `key op "value"`, `op` as written: `==`, `!=`, `<`, `<=`, `>`, `>=`
     | CfgCompare(String, String, String)
     // `debug` or `test`, `true` under a `!`
@@ -107,6 +108,27 @@ public enum CfgExpr {
         if (!reasons.contains(reason)) {
             reasons.add(reason)
         }
+    }
+
+    public operator func ==(other: CfgExpr): Bool {
+        match ((this, other)) {
+            case (
+                    CfgExpr.CfgCompare(left0, left1, left2),
+                    CfgExpr.CfgCompare(right0, right1, right2)
+                ) => left0 == right0 && left1 == right1 && left2 == right2
+            case (CfgExpr.CfgFlag(left0, left1), CfgExpr.CfgFlag(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (CfgExpr.CfgAnd(left0, left1), CfgExpr.CfgAnd(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (CfgExpr.CfgOr(left0, left1), CfgExpr.CfgOr(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (CfgExpr.CfgInvalid, CfgExpr.CfgInvalid) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: CfgExpr): Bool {
+        !(this == other)
     }
 }
 
@@ -220,9 +242,17 @@ private func isVersionLiteral(text: String): Bool {
 /**
  * What a `@When` is wrong with, as cjc says it, where.
  */
-@Derive[Equatable]
-public struct WhenError {
+@DerivePython
+public struct WhenError <: Equatable<WhenError> {
     public WhenError(public let range: TextRange, public let message: String) {}
+
+    public operator func ==(other: WhenError): Bool {
+        range == other.range && message == other.message
+    }
+
+    public operator func !=(other: WhenError): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -504,9 +534,17 @@ public let ALL_ACTIVE = ActiveFilter(None)
 /**
  * Code a false `@When` leaves out of the build, and why: `reasons`, as `CfgExpr.whyFalse`.
  */
-@Derive[Equatable]
-public struct InactiveCode {
+@DerivePython
+public struct InactiveCode <: Equatable<InactiveCode> {
     public InactiveCode(public let range: TextRange, public let reasons: Array<String>) {}
+
+    public operator func ==(other: InactiveCode): Bool {
+        range == other.range && reasons == other.reasons
+    }
+
+    public operator func !=(other: InactiveCode): Bool {
+        !(this == other)
+    }
 }
 
 /**
@@ -516,12 +554,20 @@ public struct InactiveCode {
  * condition says why. A condition neither cjc knows nor the cfg sets is not one: a `--cfg` the analysis does not see
  * may set it (#297), and its code is active.
  */
-@Derive[Equatable]
-public struct WhenDiagnostics {
+@DerivePython
+public struct WhenDiagnostics <: Equatable<WhenDiagnostics> {
     public WhenDiagnostics(
         public let inactive: Array<InactiveCode>,
         public let errors: Array<WhenError>
     ) {}
+
+    public operator func ==(other: WhenDiagnostics): Bool {
+        inactive == other.inactive && errors == other.errors
+    }
+
+    public operator func !=(other: WhenDiagnostics): Bool {
+        !(this == other)
+    }
 }
 
 /**

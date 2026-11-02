@@ -3,7 +3,7 @@
 | Where | What | Rule |
 |---|---|---|
 | [architecture.md](architecture.md) | architecture, request/edit flow and code entry points | overview and navigation; detailed constraints stay in the design rules |
-| [procedures.md](procedures.md) | verification skills, benchmark isolation, worktree lifecycle and agent LSP integration | explicit prerequisites and limits; check commands stay in Development |
+| [procedures.md](procedures.md) | verification skills, benchmark isolation, worktree lifecycle and agent semantic analysis | explicit prerequisites and limits; check commands stay in Development |
 | [design/](design/) | living rules | stable IDs, short rule indexes and readable explanations; changed in the same PR as the code they describe |
 | [adr/](adr/) | decisions taken | one decision per file, ≤ 1 page; never rewritten, superseded by a new one |
 | [issues](https://github.com/ide4cj/cjls/issues?q=is%3Aissue+label%3Aquestion) labeled `question` | open questions | a closed question becomes an ADR or a rule, which names the issue |
@@ -75,6 +75,7 @@ stay in `design/`.
 | Work | Notes |
 |---|---|
 | Incremental analysis and projects | [calca](../modules/calca/README.md), [loupe rules and fixtures](design/02-analysis.md), [project_model](../modules/project_model/README.md) |
+| Experimental MCP frontend | [cjmcp](../modules/cjmcp/README.md) |
 | Source changes and checked text edits | [source_change](../modules/source_change/README.md) |
 | Syntax and generation | [ginkgo](../modules/ginkgo/README.md), [cjsyntax](../modules/cjsyntax/README.md), [syntax_codegen](../modules/syntax_codegen/README.md) |
 | Protocol and serialization | [jsonrpc](../modules/jsonrpc/README.md), [stdxx](../modules/stdxx/README.md), [lsp_codegen](../modules/lsp_codegen/README.md), [cjls](../modules/cjls/README.md) |

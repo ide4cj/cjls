@@ -1,23 +1,24 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
-import ginkgo.{SyntaxElement, SyntaxNodePtr}
-import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
-import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, identText}
-import cjsyntax.ast.SourceFile as SourceFileNode
 import calca.*
 import calca.macros.*
+import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
+import cjsyntax.ast.SourceFile as SourceFileNode
+import cjsyntax.ast.{AnyHasName, Decl, MacroExpandDecl, identText}
+import ginkgo.{SyntaxElement, SyntaxNodePtr}
 import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.syntax.parse
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What an item is: a declaration the item tree holds, an import, or a macro call on no declaration;
  * `BuiltIn` gives a compiler-owned type a scoped name, from std.core's binary or synthetic source
  * declarations; its semantic type does not depend on this identity (D154).
  */
-@Derive[Equatable, Hashable]
-public enum ItemKind <: ToString {
+@DerivePython
+public enum ItemKind <: ToString & Equatable<ItemKind> & Hashable {
     | Import
     | Func
     | Main
@@ -59,6 +60,59 @@ public enum ItemKind <: ToString {
             case BuiltIn => "BuiltIn"
         }
     }
+
+    public operator func ==(other: ItemKind): Bool {
+        match ((this, other)) {
+            case (ItemKind.Import, ItemKind.Import) => true
+            case (ItemKind.Func, ItemKind.Func) => true
+            case (ItemKind.Main, ItemKind.Main) => true
+            case (ItemKind.Macro, ItemKind.Macro) => true
+            case (ItemKind.Class, ItemKind.Class) => true
+            case (ItemKind.Interface, ItemKind.Interface) => true
+            case (ItemKind.Struct, ItemKind.Struct) => true
+            case (ItemKind.Enum, ItemKind.Enum) => true
+            case (ItemKind.Extend, ItemKind.Extend) => true
+            case (ItemKind.TypeAlias, ItemKind.TypeAlias) => true
+            case (ItemKind.Var, ItemKind.Var) => true
+            case (ItemKind.Prop, ItemKind.Prop) => true
+            case (ItemKind.Init, ItemKind.Init) => true
+            case (ItemKind.Finalizer, ItemKind.Finalizer) => true
+            case (ItemKind.PrimaryInit, ItemKind.PrimaryInit) => true
+            case (ItemKind.EnumCtor, ItemKind.EnumCtor) => true
+            case (ItemKind.MacroCall, ItemKind.MacroCall) => true
+            case (ItemKind.BuiltIn, ItemKind.BuiltIn) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ItemKind): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case ItemKind.Import => hasher.write(0)
+            case ItemKind.Func => hasher.write(1)
+            case ItemKind.Main => hasher.write(2)
+            case ItemKind.Macro => hasher.write(3)
+            case ItemKind.Class => hasher.write(4)
+            case ItemKind.Interface => hasher.write(5)
+            case ItemKind.Struct => hasher.write(6)
+            case ItemKind.Enum => hasher.write(7)
+            case ItemKind.Extend => hasher.write(8)
+            case ItemKind.TypeAlias => hasher.write(9)
+            case ItemKind.Var => hasher.write(10)
+            case ItemKind.Prop => hasher.write(11)
+            case ItemKind.Init => hasher.write(12)
+            case ItemKind.Finalizer => hasher.write(13)
+            case ItemKind.PrimaryInit => hasher.write(14)
+            case ItemKind.EnumCtor => hasher.write(15)
+            case ItemKind.MacroCall => hasher.write(16)
+            case ItemKind.BuiltIn => hasher.write(17)
+        }
+        hasher.finish()
+    }
 }
 
 /**
@@ -68,12 +122,28 @@ public enum ItemKind <: ToString {
  * other items alone; only an overload added before one moves it. It means something only in its
  * file, and goes back to a node through the file's `ItemIdMap`.
  */
-@Derive[Equatable, Hashable]
-public struct ItemId <: ToString {
+@DerivePython
+public struct ItemId <: ToString & Equatable<ItemId> & Hashable {
     public ItemId(public let kind: ItemKind, public let hash: Int64, public let index: Int64) {}
 
     public func toString(): String {
         "${kind}#${hash}/${index}"
+    }
+
+    public operator func ==(other: ItemId): Bool {
+        kind == other.kind && hash == other.hash && index == other.index
+    }
+
+    public operator func !=(other: ItemId): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        hasher.write(kind.hashCode())
+        hasher.write(hash)
+        hasher.write(index)
+        hasher.finish()
     }
 }
 

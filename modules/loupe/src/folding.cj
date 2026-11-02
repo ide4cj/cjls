@@ -1,20 +1,21 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
 import std.sort.*
-import ginkgo.SyntaxElement
-import rope.Rope
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
-import loupe.vfs.FileId
+import ginkgo.SyntaxElement
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
+import rope.Rope
 
 /**
  * What a fold is: LSP names the first two, the others are for whoever tells folds apart.
  */
-@Derive[Equatable]
-public enum FoldKind <: ToString {
+@DerivePython
+public enum FoldKind <: ToString & Equatable<FoldKind> {
     // a block comment, or line comments one under the other
     | Comment
     // `import`s one under the other
@@ -40,14 +41,31 @@ public enum FoldKind <: ToString {
             case StringLiteral => "StringLiteral"
         }
     }
+
+    public operator func ==(other: FoldKind): Bool {
+        match ((this, other)) {
+            case (FoldKind.Comment, FoldKind.Comment) => true
+            case (FoldKind.Imports, FoldKind.Imports) => true
+            case (FoldKind.Block, FoldKind.Block) => true
+            case (FoldKind.MatchArm, FoldKind.MatchArm) => true
+            case (FoldKind.ArgList, FoldKind.ArgList) => true
+            case (FoldKind.ArrayLiteral, FoldKind.ArrayLiteral) => true
+            case (FoldKind.StringLiteral, FoldKind.StringLiteral) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: FoldKind): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * A part of a file over more than one line an editor may fold. `range` is in UTF-8 bytes (A6) and
  * covers the delimiters, `{` to `}`: what is left visible is the client's to choose.
  */
-@Derive[Equatable]
-public struct Fold <: ToString {
+@DerivePython
+public struct Fold <: ToString & Equatable<Fold> {
     public Fold(public let range: TextRange, public let kind: FoldKind) {}
 
     /**
@@ -55,6 +73,14 @@ public struct Fold <: ToString {
      */
     public func toString(): String {
         "${kind}@${range.start}..${range.end}"
+    }
+
+    public operator func ==(other: Fold): Bool {
+        range == other.range && kind == other.kind
+    }
+
+    public operator func !=(other: Fold): Bool {
+        !(this == other)
     }
 }
 

@@ -1,16 +1,17 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
-import ginkgo.{SyntaxElement, TextRange}
 import cjsyntax.{CjParse, CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{AnyHasName, Decl, ExtendDecl, Name, Pattern, SourceFile, VarDecl, identText}
-import loupe.vfs.FileId
+import ginkgo.{SyntaxElement, TextRange}
 import loupe.db.AnalysisDatabase
 import loupe.syntax.parse
+import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
-@Derive[Equatable]
-public enum StructureKind <: ToString {
+@DerivePython
+public enum StructureKind <: ToString & Equatable<StructureKind> {
     | Class
     | Interface
     | Struct
@@ -50,12 +51,40 @@ public enum StructureKind <: ToString {
             case TypeAlias => "TypeAlias"
         }
     }
+
+    public operator func ==(other: StructureKind): Bool {
+        match ((this, other)) {
+            case (StructureKind.Class, StructureKind.Class) => true
+            case (StructureKind.Interface, StructureKind.Interface) => true
+            case (StructureKind.Struct, StructureKind.Struct) => true
+            case (StructureKind.Enum, StructureKind.Enum) => true
+            case (StructureKind.EnumConstructor, StructureKind.EnumConstructor) => true
+            case (StructureKind.Extension, StructureKind.Extension) => true
+            case (StructureKind.Function, StructureKind.Function) => true
+            case (StructureKind.Method, StructureKind.Method) => true
+            case (StructureKind.Macro, StructureKind.Macro) => true
+            case (StructureKind.Main, StructureKind.Main) => true
+            case (StructureKind.Constructor, StructureKind.Constructor) => true
+            case (StructureKind.Finalizer, StructureKind.Finalizer) => true
+            case (StructureKind.Property, StructureKind.Property) => true
+            case (StructureKind.Variable, StructureKind.Variable) => true
+            case (StructureKind.Field, StructureKind.Field) => true
+            case (StructureKind.Constant, StructureKind.Constant) => true
+            case (StructureKind.TypeAlias, StructureKind.TypeAlias) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: StructureKind): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One declaration of a file's outline. `range` is the whole of it, doc comment included;
  * `selectionRange`, inside it, is its name.
  */
+@DerivePython
 public class StructureNode {
     public StructureNode(
         public let name: String,
