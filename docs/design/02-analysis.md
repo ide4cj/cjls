@@ -49,6 +49,7 @@ Constraint kinds and how to revise them are defined in the
 | A36 | [Package navigation](#a36-package-navigation) | Design choice |
 | A37 | [Constructor navigation](#a37-constructor-navigation) | Design choice |
 | A38 | [Interpolation highlighting](#a38-interpolation-highlighting) | Design choice |
+| A39 | [Partial call evidence](#a39-partial-call-evidence) | Boundary / Design choice |
 
 ### A1: Concrete database handle
 
@@ -259,6 +260,14 @@ A composition passes a callable object's call-operator signatures to the same so
 operands. Overloads on either side constrain the shared intermediate type; the operand itself
 keeps its object type for hover and navigation (#247).
 
+A synthesized lambda also owns temporary variables for parameters whose types are unwritten
+(#248). Its body's constraints solve them before the lambda is called, including through `|>`;
+the call's arguments never supply missing parameter types. Inference trials journal these
+constraints with their other writes, then the body is inferred again with solved parameter types.
+A parameter left unsolved makes the lambda an error; its variables never escape into results.
+Member-driven parameter inference (`TryInferFromSyntaxInfo`) and power-operator constraints
+remain gaps tracked in #248.
+
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
 `InferenceResult` or another query's result (D57).
@@ -455,6 +464,16 @@ even when tokens augment an editor grammar (D148, amending D105). The expression
 inside keeps its normal code tags and string text keeps its string tags;
 highlighted ranges never overlap. Escaped and raw interpolation text is string
 content.
+
+### A39: Partial call evidence
+
+Call evidence keeps declaration identity independently of navigation and reports
+coverage gaps separately from edges (D160). Nested function/lambda bodies do not
+execute when declared; macro token arguments are not unconditional calls.
+CalcaTracked audits inspect the original body, excluding generated cache wrappers.
+An incomplete traversal cannot establish absence of a path; even without gaps,
+a negative answer is scoped to the model, not a general purity proof.
+Transitive searches remain client work, outside interactive inference.
 
 ## Analysis tests
 

@@ -53,7 +53,7 @@ class FakeExpander <: Expander {
 
     public func expand(call: MacroCallData): CallOutcome {
         calls.add(call)
-        outcome ?? Answered(resultOf(MacroResultData(status: 1, tks: call.args)), "")
+        outcome ?? Answered(resultOf(MacroResultData(status: 1, tks: call.args)))
     }
 }
 
@@ -357,8 +357,7 @@ class MacroRoundTest {
                             DiagnosticData(diagSeverity: level, errorMessage: text, mainHint: text)
                         ]
                     )
-                ),
-                ""
+                )
             ),
             testNumbers()
         )
@@ -367,25 +366,28 @@ class MacroRoundTest {
         @Expect(output.diagnostics, [MacroDiagnostic(severity, None, message, "")])
     }
 
-    @TestCase
-    func aCallThatFailsKeepsNoExpansionAndSaysSoOnTheCall() {
+    @TestCase[row in [
+        (None<String>, "@M failed"),
+        (Some(""), "@M failed"),
+        (Some("macro failure detail"), "@M failed: macro failure detail")
+    ]]
+    func aCallThatFailsKeepsNoExpansionAndSaysSoOnTheCall(row: (?String, String)) {
         // arrange
+        let (captured, message) = row
         let (db, file, _) = macroFixture(MAIN)
         let request = macroRequests(db, file)[0]
         let (_, layout) = callDataOf(request, "m.ms", "/lib", testNumbers())
 
+        let result = resultOf(MacroResultData(status: MACRO_FAILED))
+        let outcome = captured.map { text => Answered(result, text) } ?? Answered(result)
+
         // act
-        let failed = outputOf(
-            request,
-            layout,
-            Answered(resultOf(MacroResultData(status: MACRO_FAILED)), ""),
-            testNumbers()
-        )
+        let failed = outputOf(request, layout, outcome, testNumbers())
         let lost = outputOf(request, layout, Unanswered("it ran longer than 10 s"), testNumbers())
 
         // assert
         @Expect(failed.expansion.isNone())
-        @Expect(failed.diagnostics, [MacroDiagnostic(MacroSeverity.MacroError, SpanOrigin.FromCall, "@M failed", "")])
+        @Expect(failed.diagnostics, [MacroDiagnostic(MacroSeverity.MacroError, SpanOrigin.FromCall, message, "")])
         @Expect(lost.diagnostics[0].message, "@M was not expanded: it ran longer than 10 s")
         @Expect(lost.fingerprint, request.fingerprint)
     }
@@ -590,12 +592,14 @@ class GuardedServerTest {
         server.close()
 
         // assert
-        match (outcome) {
-            case Answered(result, _) =>
-                @Expect(result.status != MACRO_FAILED)
-                @Expect(printMacroTokens(result.tks, numbers).text, "class A { }")
-            case Unanswered(reason) => @Fail(reason)
-        }
+        let result =
+            match (outcome) {
+                case Answered(result) => result
+                case Answered(result, _) => result
+                case Unanswered(reason) => throw IllegalStateException(reason)
+            }
+        @Expect(result.status != MACRO_FAILED)
+        @Expect(printMacroTokens(result.tks, numbers).text, "class A { }")
     }
 
     @TestCase
@@ -620,6 +624,7 @@ class GuardedServerTest {
         @Expect(output.diagnostics[0].origin, Some(SpanOrigin.FromCall))
         @Expect(output.diagnostics[0].message.contains("ms.cj:"))
         match (next) {
+            case Answered(result) => @Expect(result.status != MACRO_FAILED)
             case Answered(result, captured) =>
                 @Expect(result.status != MACRO_FAILED)
                 @Expect(!captured.contains("macro failure detail"))
@@ -715,9 +720,10 @@ class GuardedServerTest {
         // assert
         match (spun) {
             case Unanswered(reason) => @Expect(reason, "it ran longer than 1 s")
-            case Answered(_, _) => @Fail("Spin was answered")
+            case Answered(_) | Answered(_, _) => @Fail("Spin was answered")
         }
         match (next) {
+            case Answered(result) => @Expect(result.status != MACRO_FAILED)
             case Answered(result, _) => @Expect(result.status != MACRO_FAILED)
             case Unanswered(reason) => @Fail(reason)
         }
@@ -751,7 +757,7 @@ class EditingExpander <: Expander {
         if (calls.size == 1) {
             edit()
         }
-        Answered(resultOf(MacroResultData(status: 1, tks: call.args)), "")
+        Answered(resultOf(MacroResultData(status: 1, tks: call.args)))
     }
 }
 

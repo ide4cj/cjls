@@ -177,3 +177,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0157](0157-local-generic-owners.md) | Type parameter binders include local functions without making them declarations | accepted |
 | [0158](0158-binary-call-hierarchy.md) | Call hierarchy keeps binary identity without requiring source navigation | proposed |
 | [0159](0159-jian-cli.md) | Declare the server CLI with jian | proposed |
+| [0160](0160-source-call-audit.md) | Audit written call bodies with explicit coverage gaps | accepted |

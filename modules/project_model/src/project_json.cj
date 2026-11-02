@@ -118,6 +118,11 @@ public struct BinaryJson {
         public let paths!: ?Array<String> = None,
         public let packages!: ?HashMap<String, String> = None,
         /**
+         * False keeps `paths` watched without discovering packages beyond the explicit list.
+         * Absent or true discovers their `.cjo` files.
+         */
+        public let discoverPackages!: ?Bool = None,
+        /**
          * The directory of the sources it was compiled from, of its root package: go to definition
          * goes there, names resolve in the `.cjo` still (D65).
          */

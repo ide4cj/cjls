@@ -242,7 +242,8 @@ public class GuardedServer <: Expander {
         try {
             let result = server.connection.expand(call)
             if (deadlines.disarm(id)) {
-                return Answered(result, server.callOutput())
+                let output = server.callOutput()
+                return if (output.isEmpty()) { Answered(result) } else { Answered(result, output) }
             }
             process = None
             Unanswered(pastDeadline())

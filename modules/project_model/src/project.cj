@@ -119,11 +119,12 @@ public func findProject(
     root: VfsPath,
     env!: (String) -> ?String,
     cfg!: Cfg = hostCfg(),
+    buildMode!: BuildMode = Release,
     budget!: Int64 = Int64.Max,
     open!: Array<VfsPath> = []
 ): ProjectLoad {
     let problems = ArrayList<String>()
-    if (let Some(found) <- manifestProject(root, env, cfg, problems)) {
+    if (let Some(found) <- manifestProject(root, env, cfg, buildMode, problems)) {
         return found
     }
     let loose = looseProject(root, env: env, cfg: cfg, budget: budget, open: open)
@@ -140,12 +141,13 @@ func manifestProject(
     dir: VfsPath,
     env: (String) -> ?String,
     cfg: Cfg,
+    buildMode: BuildMode,
     problems: ArrayList<String>
 ): ?ProjectLoad {
     for (
         load in [
             { => loadProjectJson(dir.join(PROJECT_JSON), env: env, cfg: cfg) },
-            { => loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cfg) }
+            { => loadCjpmProject(dir.join("cjpm.toml"), env: env, cfg: cfg, buildMode: buildMode) }
         ]
     ) {
         try {
@@ -330,6 +332,7 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
                 binary.name,
                 (binary.paths ?? []).map { path => loading.resolve(base, path) },
                 packages: packages,
+                discoverPackages: binary.discoverPackages ?? true,
                 sources: binary
                     .sources
                     .map { dir => sourcesOf(binary.name, loading.resolve(base, dir)) }
@@ -405,6 +408,7 @@ public func toProjectJson(model: ProjectModel, base: VfsPath): ProjectJson {
                     name: binary.name,
                     paths: binary.paths.map { path => relative(path, base) },
                     packages: packages,
+                    discoverPackages: if (binary.discoverPackages) { None } else { Some(false) },
                     sources: binary.sources.map { sources => relative(sources.dir, base) }
                 )
             }
@@ -559,6 +563,7 @@ public func findProjects(
     linked: Array<VfsPath>,
     env!: (String) -> ?String,
     cfg!: Cfg = hostCfg(),
+    buildMode!: BuildMode = Release,
     budget!: Int64 = Int64.Max,
     open!: Array<VfsPath> = [],
     found!: Array<VfsPath> = []
@@ -568,17 +573,28 @@ public func findProjects(
         let under = linked.filter { path => path.isUnder(root) }
         if (under.isEmpty() ||
             (root.join(PROJECT_JSON).filePath.map { path => isFile(path) } ?? false)) {
-            loads.add(findProject(root, env: env, cfg: cfg, budget: budget, open: open))
+            loads.add(
+                findProject(
+                    root,
+                    env: env,
+                    cfg: cfg,
+                    buildMode: buildMode,
+                    budget: budget,
+                    open: open
+                )
+            )
         } else {
-            loads.add(all: under.map { path => linkedProject(path, env, cfg, budget, open) })
+            loads.add(
+                all: under.map { path => linkedProject(path, env, cfg, buildMode, budget, open) }
+            )
         }
     }
     for (path in linked where !roots.iterator().any { root => path.isUnder(root) }) {
-        loads.add(linkedProject(path, env, cfg, budget, open))
+        loads.add(linkedProject(path, env, cfg, buildMode, budget, open))
     }
     for (dir in found) {
         let problems = ArrayList<String>()
-        match (manifestProject(dir, env, cfg, problems)) {
+        match (manifestProject(dir, env, cfg, buildMode, problems)) {
             case Some(load) => loads.add(load)
             case None where !problems.isEmpty() =>
                 loads.add(
@@ -602,12 +618,20 @@ func linkedProject(
     path: VfsPath,
     env: (String) -> ?String,
     cfg: Cfg,
+    buildMode: BuildMode,
     budget: Int64,
     open: Array<VfsPath>
 ): ProjectLoad {
     let isProjectFile = path.filePath.map { file => isFile(file) } ?? false
     if (!isProjectFile) {
-        return findProject(path, env: env, cfg: cfg, budget: budget, open: open)
+        return findProject(
+            path,
+            env: env,
+            cfg: cfg,
+            buildMode: buildMode,
+            budget: budget,
+            open: open
+        )
     }
     try {
         if (let Some(load) <- loadProjectJson(path, env: env, cfg: cfg)) {
