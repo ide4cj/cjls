@@ -241,11 +241,20 @@ class FindCangjieHomeOnPosixTest {
 class CangjieStdxPathTest {
     @TestCase
     func theOptionOverridesOnlyStdxAndOtherwisePreservesTheEnvironment() {
+        // arrange
         let original = envOf([("CANGJIE_STDX_PATH", "/env/stdx"), ("CANGJIE_HOME", "/sdk")])
+
+        // act
         let selected = withCangjieStdxPath(original, "/option/stdx")
-        @Expect(selected("CANGJIE_STDX_PATH"), Some("/option/stdx"))
-        @Expect(selected("CANGJIE_HOME"), Some("/sdk"))
-        @Expect(withCangjieStdxPath(original, None)("CANGJIE_STDX_PATH"), Some("/env/stdx"))
-        @Expect(withCangjieStdxPath(noEnv, None)("CANGJIE_STDX_PATH"), None<String>)
+        let stdx = selected("CANGJIE_STDX_PATH")
+        let sdk = selected("CANGJIE_HOME")
+        let inherited = withCangjieStdxPath(original, None)("CANGJIE_STDX_PATH")
+        let absent = withCangjieStdxPath(noEnv, None)("CANGJIE_STDX_PATH")
+
+        // assert
+        @Expect(stdx, Some("/option/stdx"))
+        @Expect(sdk, Some("/sdk"))
+        @Expect(inherited, Some("/env/stdx"))
+        @Expect(absent, None<String>)
     }
 }

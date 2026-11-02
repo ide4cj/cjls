@@ -91,6 +91,7 @@ func methodsOf(requests: Array<RequestBody>, method: String): Array<RequestBody>
 class InitialSettingsTest {
     @TestCase
     func changingStdxPathReloadsDeclaredBinaryPaths() {
+        // arrange
         let root =
             workspaceOf(
                 [
@@ -111,9 +112,15 @@ class InitialSettingsTest {
         let options =
             JsonValue.JsonObject([("cangjieStdxPath", JsonValue.JsonString(first.toString()))])
         let loop = initializedWithSettings(root, options)
-        initialized(loop, Client(), NoopLogger(), InitializedParams())
-        @Expect(loop.state.binaryWatch.getOrThrow().dirs.contains(VfsPath.file(first)))
 
+        // act
+        initialized(loop, Client(), NoopLogger(), InitializedParams())
+        let firstDirs = loop.state.binaryWatch.getOrThrow().dirs
+
+        // assert
+        @Expect(firstDirs.contains(VfsPath.file(first)))
+
+        // act
         handleDidChangeConfiguration(
             loop,
             Client(),
@@ -140,6 +147,8 @@ class InitialSettingsTest {
         )
         loop.join()
         let dirs = loop.state.binaryWatch.getOrThrow().dirs
+
+        // assert
         @Expect(dirs.contains(VfsPath.file(second)))
         @Expect(!dirs.contains(VfsPath.file(first)))
         remove(root, recursive: true)

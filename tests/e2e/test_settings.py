@@ -67,6 +67,7 @@ async def test_a_setting_changed_in_the_client_is_taken(server: LanguageClient, 
 
 @pytest.mark.parametrize("declared", [True, False])
 async def test_stdx_setting_resolves_only_declared_dependencies(server: LanguageClient, tmp_path, declared):
+    # arrange
     sdk = os.environ.get("CJLS_E2E_SDK") or os.environ.get("CANGJIE_HOME")
     stdx = os.environ.get("CANGJIE_STDX_PATH")
     if not stdx:
@@ -97,21 +98,29 @@ async def test_stdx_setting_resolves_only_declared_dependencies(server: Language
     options = {"cangjieStdxPath": str(empty), "macroExpansion": False}
     if sdk:
         options["cangjieHome"] = sdk
+    position = types.HoverParams(text_document=types.TextDocumentIdentifier(uri=file.as_uri()),
+                                 position=types.Position(line=2, character=15))
+
+    # act
     await server.initialize_session(types.InitializeParams(
         capabilities=caps,
         workspace_folders=[types.WorkspaceFolder(uri=tmp_path.as_uri(), name="ws")],
         initialization_options=options,
     ))
     await loaded(server)
-    position = types.HoverParams(text_document=types.TextDocumentIdentifier(uri=file.as_uri()),
-                                 position=types.Position(line=2, character=15))
-    assert await server.text_document_hover_async(position) is None
+    initial_hover = await server.text_document_hover_async(position)
 
+    # assert
+    assert initial_hover is None
+
+    # act
     server.workspace_did_change_configuration(types.DidChangeConfigurationParams(
         settings={"cjls": {**options, "cangjieStdxPath": stdx}},
     ))
     await loaded(server, loads=2)
     hover = await server.text_document_hover_async(position)
+
+    # assert
     if declared:
         assert hover is not None
         assert "NoopLogger" in hover.contents.value

@@ -57,9 +57,12 @@ class SettingsTest {
 
     @TestCase
     func pathsExpandHomeAndEnvironmentInEverySetting() {
+        // arrange
         let home = getVariable("HOME") ?? getVariable("USERPROFILE").getOrThrow()
         let variable = if (getVariable("HOME").isSome()) { "HOME" } else { "USERPROFILE" }
         let problems = ArrayList<String>()
+
+        // act
         let settings =
             Settings
                 .read(
@@ -78,6 +81,7 @@ class SettingsTest {
                     problems
                 )
 
+        // assert
         @Expect(settings.linkedProjects, [VfsPath.file(home).join("project"), VfsPath.file(home).join("other")])
         @Expect(settings.cangjieHome, Some(home))
         @Expect(settings.cangjieStdxPath.map {it => VfsPath.file(it)}, Some(VfsPath.file(home).join("stdx")))
@@ -197,17 +201,25 @@ class SettingsTest {
     @TestCase
     func everyPropertyOfTheSchemaIsASettingRead() {
         // arrange
+        let invalid = settingsJson([("not", text("this"))])
+
+        // act
         let properties = settingsSchema()["properties"].asObject()
 
-        // act, assert: a value no setting takes is told of, under its key
+        // assert
+        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "cangjieStdxPath", "newFilePackage",
+            "macroExpansion", "macroCallTimeout"])
         for ((key, _) in properties) {
+            // arrange
             let problems = ArrayList<String>()
-            Settings.read(settingsJson([(key, settingsJson([("not", text("this"))]))]), problems)
+
+            // act
+            Settings.read(settingsJson([(key, invalid)]), problems)
+
+            // assert: a value no setting takes is reported under its key
             @Expect(problems.size, 1)
             @Expect(problems[0].contains("`${key}`"))
         }
-        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "cangjieStdxPath", "newFilePackage",
-            "macroExpansion", "macroCallTimeout"])
     }
 
     @TestCase

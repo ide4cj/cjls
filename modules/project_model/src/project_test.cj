@@ -297,6 +297,7 @@ class ProjectJsonTest {
 class CjpmProjectTest {
     @TestCase
     func stdxPathsExpandForDeclaredDependenciesOnlyAndMissingVariablesAreReported() {
+        // arrange
         let manifest =
             """
 [package]
@@ -315,6 +316,8 @@ path-option = ["\${CANGJIE_STDX_PATH}"]
         let stdx = dir.join("libs/stdx")
         let inherited = withCangjieStdxPath(sdkEnv, stdx.toString())
         let selected = withCangjieStdxPath(inherited, dir.join("selected/stdx").toString())
+
+        // act
         let declared =
             loadCjpmProject(dir.join("declared/cjpm.toml"), env: inherited, cfg: LINUX).getOrThrow()
         let overridden =
@@ -325,6 +328,7 @@ path-option = ["\${CANGJIE_STDX_PATH}"]
             loadCjpmProject(dir.join("declared/cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
         removeTree(dir)
 
+        // assert
         @Expect(declared.model.binaries[1].paths, [stdx])
         @Expect(declared.model.modules[0].deps, ["stdx"])
         @Expect(declared.problems.isEmpty())

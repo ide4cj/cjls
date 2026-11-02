@@ -14,6 +14,7 @@ spec.loader.exec_module(setup)
 
 class EnvironmentTest(unittest.TestCase):
     def test_every_supported_host_exports_its_installed_static_stdx(self):
+        # arrange
         for (system, machine), (_, _, directory) in setup.PLATFORMS.items():
             with self.subTest(system=system), \
                     patch.object(setup.platform, "system", return_value=system), \
@@ -21,6 +22,10 @@ class EnvironmentTest(unittest.TestCase):
                     patch.dict(os.environ, {"PATH": "/before", "CANGJIE_STDX_PATH": "/other"}, clear=True), \
                     patch.object(setup.subprocess, "run") as run:
                 run.return_value.stdout = json.dumps({"PATH": "/sdk/bin" + os.pathsep + "/before"})
+
+                # act
                 variables, _ = setup.environment("/sdk")
+
+                # assert
                 self.assertEqual(variables["CANGJIE_STDX_PATH"],
                                  os.path.join("/sdk", "third_party", "stdx", directory, "static", "stdx"))
