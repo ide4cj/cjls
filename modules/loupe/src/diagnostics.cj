@@ -44,8 +44,8 @@ public struct Diagnostic {
  * the build leaves out (#318), what the parser found and that it is inactive. Empty for a file the
  * database does not know.
  *
- * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `declarationDiagnostics`, `scopeDiagnostics`,
- * `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects
+ * Not a query: every source of diagnostics is one (`parse`, `whenDiagnostics`, `declarationDiagnostics`,
+ * `redeclarationDiagnostics`, `scopeDiagnostics`, `packageHeaderError`, `macroDiagnostics`, `inferBody`), remembered there, and this only collects
  * their results (A11).
  */
 public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic> {
@@ -97,6 +97,7 @@ public func diagnostics(db: AnalysisDatabase, fileId: FileId): Array<Diagnostic>
         }
     }
     result.add(all: declarationDiagnostics(db, file))
+    result.add(all: redeclarationDiagnostics(db, file))
     result.add(all: scopeDiagnosticsOf(db, file, root))
     result.add(
         all: macroDiagnostics(db, file)
