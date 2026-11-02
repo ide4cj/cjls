@@ -158,8 +158,8 @@ func checkItemRedeclarations(
                 ) {
                     continue
                 }
-                // Macro overloads have separate arity/redefinition rules in cjc.
-                if (item.kind == ItemKind.Macro && other.kind == ItemKind.Macro) {
+                // Macro/function overloads share names but need the compiler's extra redefinition rules.
+                if (item.kind == ItemKind.Macro || other.kind == ItemKind.Macro) {
                     continue
                 }
                 if (item.kind == ItemKind.Func && other.kind == ItemKind.Func) {

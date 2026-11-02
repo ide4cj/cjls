@@ -159,6 +159,7 @@ class RedeclarationDiagnosticsTest {
             import std.ast.*
             public macro M(input: Tokens): Tokens { input }
             public macro M(attrs: Tokens, input: Tokens): Tokens { input }
+            func M(value: Int64): Int64 { value }
             "#,
             binaries: ["std.ast"]
         )
