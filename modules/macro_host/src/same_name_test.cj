@@ -87,14 +87,16 @@ class SameNameMacroLibraryTest {
             for (index in [0, 1, 0, 1]) {
                 let (library, pkg) = libraries[index]
                 server.restartWorkspace()
-                match (server.expand(conflictingLibraryCall(library, pkg, numbers))) {
-                    case Answered(result, _) =>
-                        if (result.status == MACRO_FAILED) {
-                            throw IllegalStateException("macro expansion failed")
-                        }
-                        outputs.add(printMacroTokens(result.tks, numbers).text)
-                    case Unanswered(reason) => throw IllegalStateException(reason)
+                let result =
+                    match (server.expand(conflictingLibraryCall(library, pkg, numbers))) {
+                        case Answered(result) => result
+                        case Answered(result, _) => result
+                        case Unanswered(reason) => throw IllegalStateException(reason)
+                    }
+                if (result.status == MACRO_FAILED) {
+                    throw IllegalStateException("macro expansion failed")
                 }
+                outputs.add(printMacroTokens(result.tks, numbers).text)
             }
 
             // assert
@@ -119,14 +121,18 @@ class SameNameMacroLibraryTest {
             let hosts = ArrayList<String>()
             for (index in [0, 1, 0, 1]) {
                 let (library, pkg) = libraries[index]
-                match (server.expand(conflictingLibraryCall(library, pkg, numbers, name: "Host"))) {
-                    case Answered(result, _) =>
-                        if (result.status == MACRO_FAILED) {
-                            throw IllegalStateException("macro expansion failed")
-                        }
-                        hosts.add(printMacroTokens(result.tks, numbers).text)
-                    case Unanswered(reason) => throw IllegalStateException(reason)
+                let result =
+                    match (
+                        server.expand(conflictingLibraryCall(library, pkg, numbers, name: "Host"))
+                    ) {
+                        case Answered(result) => result
+                        case Answered(result, _) => result
+                        case Unanswered(reason) => throw IllegalStateException(reason)
+                    }
+                if (result.status == MACRO_FAILED) {
+                    throw IllegalStateException("macro expansion failed")
                 }
+                hosts.add(printMacroTokens(result.tks, numbers).text)
             }
 
             // assert - each macro returns its actual SDK process ID as a class name.
