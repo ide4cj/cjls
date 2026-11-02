@@ -311,8 +311,10 @@ class TypeResolver {
             match (alias) {
                 case Some(a) => a.name
                 case None =>
-                    String
-                        .join(members.map { it: Type => memberName(it, context) }, delimiter: "Or")
+                    String.join(
+                        members.map { it: Type => memberName(it, context) },
+                        delimiter: "Or"
+                    )
             }
         let ident = referenceTo(lspName)
         unionIdents.add(key, ident)

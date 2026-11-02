@@ -17,34 +17,42 @@ import cjsyntax.ast.{
     TrailingLambdaExpr
 }
 import loupe.db.{AnalysisDatabase, SourceFile}
-import loupe.hir.{
-    ActiveFilter,
-    DefId,
-    ItemFile,
-    commonsOf,
-    inactiveReasonOf,
-    itemOf,
-    parentOf,
-    specificOf
-}
+import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
- * A callable declaration with source locations, independent of protocol positions.
+ * A callable with source locations, independent of protocol positions. Without attached sources,
+ * a binary callable uses the referring name's location; `definition` still identifies its overload.
  */
-@Derive[Equatable]
-public struct CallHierarchyEntry {
+@DerivePython
+public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
     public CallHierarchyEntry(
         public let name: String,
         public let kind: StructureKind,
-        public let target: NavigationTarget
+        public let target: NavigationTarget,
+        /**
+         * Canonical binary identity, including when `target` is an attached source declaration.
+         */
+        public let definition!: ?DefId = None
     ) {}
+
+    public operator func ==(other: CallHierarchyEntry): Bool {
+        name == other.name && kind == other.kind && target == other.target &&
+            definition == other.definition
+    }
+
+    public operator func !=(other: CallHierarchyEntry): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
  */
+@DerivePython
 public struct HierarchyCalls {
     public HierarchyCalls(
         public let item: CallHierarchyEntry,
@@ -79,7 +87,7 @@ public func prepareCallHierarchy(
     for (node in root.descendants()) {
         db.unwindIfCancelled()
         if (
-            let Some(entry) <- callableEntry(fileId, node) &&
+            let Some(entry) <- callableEntry(db, fileId, node) &&
                 entry.target.focusRange.start <= offset &&
                 offset <= entry.target.focusRange.end
         ) {
@@ -89,9 +97,7 @@ public func prepareCallHierarchy(
             return completedCallableEntries(db, file, node, entry)
         }
     }
-    callableTargets(db, fileId, offset) |>
-        filterMap { target: NavigationTarget => hierarchyEntry(db, target) } |>
-        collectArray
+    callableEntries(db, fileId, offset)
 }
 
 /**
@@ -120,7 +126,7 @@ public func incomingCalls(db: AnalysisDatabase, entry: CallHierarchyEntry): Arra
                 entry.kind == StructureKind.Constructor || fileWords(db, file).has(hash)
             }
     let edges = files.flatMap { file => callsInFile(db, file) }
-    groupedCalls(edges.filter { edge => edge.callee == entry }, incoming: true)
+    groupedCalls(edges.filter { edge => sameCallable(edge.callee, entry) }, incoming: true)
 }
 
 /**
@@ -128,7 +134,20 @@ public func incomingCalls(db: AnalysisDatabase, entry: CallHierarchyEntry): Arra
  */
 public func outgoingCalls(db: AnalysisDatabase, entry: CallHierarchyEntry): Array<HierarchyCalls> {
     let file = db.sourceFile(entry.target.fileId) ?? return []
-    groupedCalls(callsInFile(db, file).filter { edge => edge.caller == entry }, incoming: false)
+    groupedCalls(
+        callsInFile(db, file).filter { edge => sameCallable(edge.caller, entry) },
+        incoming: false
+    )
+}
+
+/**
+ * Binary identity is independent of the referring site and of compiler/source declaration ranges.
+ */
+private func sameCallable(left: CallHierarchyEntry, right: CallHierarchyEntry): Bool {
+    if (let Some(def) <- left.definition) {
+        return right.definition == Some(def)
+    }
+    left == right
 }
 
 /**
@@ -142,7 +161,7 @@ private func groupedCalls(edges: Array<CallEdge>, incoming!: Bool): Array<Hierar
         let index =
             (
                 items.iterator() |> enumerate |>
-                    filter { pair: (Int64, CallHierarchyEntry) => pair[1] == item } |>
+                    filter { pair: (Int64, CallHierarchyEntry) => sameCallable(pair[1], item) } |>
                     map { pair: (Int64, CallHierarchyEntry) => pair[0] } |>
                     first
             ) ??
@@ -180,46 +199,87 @@ func callsInFile(db: AnalysisDatabase, file: SourceFile): Array<CallEdge> {
         }
         let caller =
             node.ancestors() |>
-                filterMap { parent: CjSyntaxNode => callableEntry(fileId, parent) } |>
+                filterMap { parent: CjSyntaxNode => callableEntry(db, fileId, parent) } |>
                 first
         let owner = caller ?? continue
-        for (target in callableTargets(db, fileId, range.start)) {
-            if (let Some(entry) <- hierarchyEntry(db, target)) {
-                edges.add(CallEdge(owner, entry, range))
-            }
+        for (entry in callableEntries(db, fileId, range.start)) {
+            edges.add(CallEdge(owner, entry, range))
         }
     }
     edges.toArray()
 }
 
 /**
- * Navigation also shows common declarations; a call edge names only the implementation.
- * Remove those extra targets after resolution so overload selection stays with inference.
+ * Resolve declarations before asking for locations: navigation omits binaries without sources.
+ * Unlike navigation, a call edge names only the implementation, without its common declarations.
  */
-private func callableTargets(
+private func callableEntries(
     db: AnalysisDatabase,
     fileId: FileId,
     offset: Int64
-): Array<NavigationTarget> {
-    let targets = definitionAt(db, fileId, offset)
-    let commons = ArrayList<NavigationTarget>()
-    for (target in targets) {
-        let file = db.sourceFile(target.fileId) ?? continue
-        let token =
-            tokenAt(parse(db, file).syntaxNode(), target.focusRange.start, includeInit: true) ??
-                continue
-        let def = itemAround(db, ItemFile.Source(file), token.parent) ?? continue
-        if (declTarget(db, def) != Some(target)) {
-            continue
+): Array<CallHierarchyEntry> {
+    let file = db.sourceFile(fileId) ?? return []
+    let token = tokenAt(parse(db, file).syntaxNode(), offset, includeInit: true) ?? return []
+    let owner = itemAround(db, ItemFile.Source(file), token.parent)
+    let defs =
+        if (let Some(ctor) <- constructorDefinition(db, owner, token)) {
+            [Definition.DeclDef(ctor)]
+        } else {
+            classifyName(db, file, owner, token) ?? []
         }
-        commons
-            .add(
-                all: commonsOf(db, def).iterator() |>
-                    filterMap { common: DefId => declTarget(db, common) } |>
+    let entries = ArrayList<CallHierarchyEntry>()
+    for (one in defs) {
+        let targets = targetsOfDefinition(db, one)
+        if (!targets.isEmpty()) {
+            entries.add(
+                all: targets |>
+                    filterMap { target: NavigationTarget => hierarchyEntry(db, target) } |>
                     collectArray
             )
+            continue
+        }
+        let def =
+            match (one) {
+                case DeclDef(decl) => decl
+                case _ => continue
+            }
+        let range = token.parent.textRange
+        if (
+            let Some(entry) <- binaryCallableEntry(db, def, NavigationTarget(fileId, range, range))
+        ) {
+            entries.add(entry)
+        }
     }
-    targets.filter { target => !commons.contains(target) }
+    entries.toArray()
+}
+
+/**
+ * A binary without attached source can still be revealed at its reference and searched by identity.
+ */
+private func binaryCallableEntry(
+    db: AnalysisDatabase,
+    def: DefId,
+    reference: NavigationTarget
+): ?CallHierarchyEntry {
+    if (let Binary(_, _) <- def.file(db)) {
+        let item = itemOf(db, def) ?? return None
+        let (kind, name) =
+            match (item.kind) {
+                case Func =>
+                    let kind =
+                        if (parentOf(db, def).isSome()) {
+                            StructureKind.Method
+                        } else {
+                            StructureKind.Function
+                        }
+                    (kind, item.names.get(0) ?? return None)
+                case Init | PrimaryInit => (StructureKind.Constructor, "init")
+                case EnumCtor => (StructureKind.EnumConstructor, item.names.get(0) ?? return None)
+                case _ => return None
+            }
+        return CallHierarchyEntry(name, kind, reference, definition: def)
+    }
+    None
 }
 
 /**
@@ -292,9 +352,13 @@ private func hierarchyEntry(db: AnalysisDatabase, target: NavigationTarget): ?Ca
     let token =
         tokenAt(parse(db, file).syntaxNode(), target.focusRange.start, includeInit: true) ??
             return None
+    // Compiler ranges can omit annotations that the callable syntax node includes.
     for (node in token.parent.ancestors()) {
-        if (node.textRange == target.fullRange) {
-            return callableEntry(target.fileId, node)
+        if (
+            let Some(entry) <- callableEntry(db, target.fileId, node) &&
+                entry.target.focusRange == target.focusRange
+        ) {
+            return Some(entry)
         }
     }
     None
@@ -303,7 +367,11 @@ private func hierarchyEntry(db: AnalysisDatabase, target: NavigationTarget): ?Ca
 /**
  * The source declaration, with a keyword focus for callables without an identifier.
  */
-private func callableEntry(fileId: FileId, node: CjSyntaxNode): ?CallHierarchyEntry {
+private func callableEntry(
+    db: AnalysisDatabase,
+    fileId: FileId,
+    node: CjSyntaxNode
+): ?CallHierarchyEntry {
     let decl = Decl.cast(node) ?? return None
     let inType =
         node
@@ -331,5 +399,18 @@ private func callableEntry(fileId: FileId, node: CjSyntaxNode): ?CallHierarchyEn
         MainDecl.cast(node).flatMap { it => it.mainToken() }?.textRange ??
             FinalizerDecl.cast(node).flatMap { it => it.initToken() }?.textRange ??
                 declarationFocus(node)
-    CallHierarchyEntry(name, kind, NavigationTarget(fileId, node.textRange, focus))
+    let target = NavigationTarget(fileId, node.textRange, focus)
+    let definition =
+        (db.sourceFile(fileId).flatMap { file => itemAround(db, ItemFile.Source(file), node) })
+            // A local function belongs to its own syntax, not its enclosing binary declaration.
+            .filter { def => declTarget(db, def) == Some(target) }
+            .map { def => canonicalDef(db, def) }
+            .filter {
+                def =>
+                match (def.file(db)) {
+                    case Binary(_, _) => true
+                    case _ => false
+                }
+            }
+    CallHierarchyEntry(name, kind, target, definition: definition)
 }

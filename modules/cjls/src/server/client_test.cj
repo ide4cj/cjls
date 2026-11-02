@@ -140,12 +140,11 @@ class ClientTest {
     @TestCase
     func aRequestTheClientRefusesIsAWarning() {
         // arrange
-        let (client, serving) =
-            servedClientOn(
-                AnsweringTransport(
-                    ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
-                )
+        let (client, serving) = servedClientOn(
+            AnsweringTransport(
+                ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
             )
+        )
         let logger = RecordingLogger()
 
         // act
@@ -162,24 +161,22 @@ class ClientTest {
     @TestCase
     func anAnswerReadsAsTheResultTheSpecNames() {
         // arrange
-        let (client, serving) =
-            servedClientOn(
-                AnsweringTransport(ResultOrError.Result(RawJson(##"["cangjie", null]"##.toArray())))
-            )
+        let (client, serving) = servedClientOn(
+            AnsweringTransport(ResultOrError.Result(RawJson(##"["cangjie", null]"##.toArray())))
+        )
 
         // act
-        let settings =
-            client
-                .request(
-                    ConfigurationRequestSpec(),
-                    ConfigurationParams(
-                        items: [
-                            ConfigurationItem(section: "cangjie"),
-                            ConfigurationItem(section: "other")
-                        ]
-                    )
+        let settings = client
+            .request(
+                ConfigurationRequestSpec(),
+                ConfigurationParams(
+                    items: [
+                        ConfigurationItem(section: "cangjie"),
+                        ConfigurationItem(section: "other")
+                    ]
                 )
-                .await()
+            )
+            .await()
 
         // assert
         client.close()
@@ -192,12 +189,11 @@ class ClientTest {
     @TestCase
     func anAnswerTheClientRefusesIsThrownByAwait() {
         // arrange
-        let (client, serving) =
-            servedClientOn(
-                AnsweringTransport(
-                    ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
-                )
+        let (client, serving) = servedClientOn(
+            AnsweringTransport(
+                ResultOrError.Error(ResponseError(ErrorCode.METHOD_NOT_FOUND, "no such method"))
             )
+        )
         let answer = client.request(SemanticTokensRefreshRequestSpec(), ())
 
         // act
@@ -248,11 +244,10 @@ class ClientTest {
         let client = clientOn(transport)
 
         // act
-        client
-            .notify(
-                PublishDiagnosticsNotificationSpec(),
-                PublishDiagnosticsParams(uri: "file:///a.cj", diagnostics: [])
-            )
+        client.notify(
+            PublishDiagnosticsNotificationSpec(),
+            PublishDiagnosticsParams(uri: "file:///a.cj", diagnostics: [])
+        )
 
         // assert
         let sent = transport.nextNotification()

@@ -13,10 +13,8 @@ class MacroBuildPlanTest {
     @TestCase
     func aMacroPackageIsBuiltAfterThePackagesItImportsDirectlyOrNot() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /base/base.cj module=m package=m.base
             package m.base
             public func one(): Int64 { 1 }
@@ -34,7 +32,7 @@ class MacroBuildPlanTest {
             import m.ms.*
             @A class C {}
             "#
-                )
+        )
         let db = fixture.database()
 
         // act
@@ -50,15 +48,13 @@ class MacroBuildPlanTest {
     @TestCase
     func aWorkspaceWithoutMacroPackagesBuildsNothing() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             func f() {}
             "#
-                )
+        )
 
         // act
         let plan = macroBuildPlan(fixture.database())

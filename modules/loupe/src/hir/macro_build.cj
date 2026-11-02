@@ -107,16 +107,9 @@ class MacroBuildPlanner {
         visiting.remove(pkg)
         let done = (deps.toArray(), binaries.toArray())
         linked[pkg] = done
-        units
-            .add(
-                MacroBuildUnit(
-                    pkg,
-                    modules.get(pkg) ?? "",
-                    isMacroPackage(db, pkg),
-                    done[0],
-                    done[1]
-                )
-            )
+        units.add(
+            MacroBuildUnit(pkg, modules.get(pkg) ?? "", isMacroPackage(db, pkg), done[0], done[1])
+        )
         done
     }
 

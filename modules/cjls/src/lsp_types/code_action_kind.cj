@@ -95,8 +95,9 @@ public struct CodeActionKind {
     /**
      * Base kind for an organize imports source action: `source.organizeImports`
      */
-    public static const SOURCE_ORGANIZE_IMPORTS: CodeActionKind =
-        CodeActionKind("source.organizeImports")
+    public static const SOURCE_ORGANIZE_IMPORTS: CodeActionKind = CodeActionKind(
+        "source.organizeImports"
+    )
 
     /**
      * Base kind for auto-fix source actions: `source.fixAll`.

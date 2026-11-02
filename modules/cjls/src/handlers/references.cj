@@ -29,22 +29,18 @@ func handleReferences(snap: ServerSnapshot, params: ReferenceParams): Nullable<A
     if (found.isEmpty()) {
         return Nullable.Null
     }
-    Nullable
-        .Value(
-            found |>
-                filter {
-                    one: Reference =>
-                    params.context.includeDeclaration || !one.isDeclaration
-                } |>
-                map {
-                    one: Reference =>
-                    location(
-                        snap.analysis.sourceFile(one.fileId).getOrThrow().text(snap.analysis),
-                        snap.path(one.fileId).toUri(),
-                        one,
-                        snap.encoding
-                    )
-                } |>
-                collectArray
-        )
+    Nullable.Value(
+        found |>
+            filter { one: Reference => params.context.includeDeclaration || !one.isDeclaration } |>
+            map {
+                one: Reference =>
+                location(
+                    snap.analysis.sourceFile(one.fileId).getOrThrow().text(snap.analysis),
+                    snap.path(one.fileId).toUri(),
+                    one,
+                    snap.encoding
+                )
+            } |>
+            collectArray
+    )
 }

@@ -146,18 +146,14 @@ class BodyCodecTest {
             }
 
         // act
-        let (early, decodedEarly) =
-            Body
-                .read(
-                    FjReader(##"{"params": {"a": 1}, "method": "m", "jsonrpc": "2.0"}"##.toArray()),
-                    readers
-                )
-        let (_, decodedUnrouted) =
-            Body
-                .read(
-                    FjReader(##"{"jsonrpc": "2.0", "method": "n", "params": {"a": 1}}"##.toArray()),
-                    { _ => None }
-                )
+        let (early, decodedEarly) = Body.read(
+            FjReader(##"{"params": {"a": 1}, "method": "m", "jsonrpc": "2.0"}"##.toArray()),
+            readers
+        )
+        let (_, decodedUnrouted) = Body.read(
+            FjReader(##"{"jsonrpc": "2.0", "method": "n", "params": {"a": 1}}"##.toArray()),
+            { _ => None }
+        )
 
         // assert
         @Expect(decodedEarly.isNone())
@@ -184,14 +180,10 @@ class BodyCodecTest {
             }
 
         // act
-        let (body, decoded) =
-            Body
-                .read(
-                    FjReader(
-                        ##"{"jsonrpc":"2.0","method":"m","params":{"a":1,"b":2},"id":4}"##.toArray()
-                    ),
-                    readers
-                )
+        let (body, decoded) = Body.read(
+            FjReader(##"{"jsonrpc":"2.0","method":"m","params":{"a":1,"b":2},"id":4}"##.toArray()),
+            readers
+        )
 
         // assert
         @Expect(decoded.isNone())

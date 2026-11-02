@@ -35,18 +35,18 @@ compile-option = "-O2"
 [target.x86_64-w64-mingw32.release]
 compile-option = "-O2"
 
-# stdx is the static one, unpacked per platform as the nightly zips lay it out - see D11
+# CANGJIE_STDX_PATH must name the matching static stdx directory.
 [target.aarch64-apple-darwin.bin-dependencies]
 path-option = [
-    "${CANGJIE_HOME}/third_party/stdx/darwin_aarch64_cjnative/static/stdx",
+    "${CANGJIE_STDX_PATH}",
 ]
 
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
 path-option = [
-    "${CANGJIE_HOME}/third_party/stdx/linux_x86_64_cjnative/static/stdx",
+    "${CANGJIE_STDX_PATH}",
 ]
 
 [target.x86_64-w64-mingw32.bin-dependencies]
 path-option = [
-    "${CANGJIE_HOME}/third_party/stdx/windows_x86_64_cjnative/static/stdx",
+    "${CANGJIE_STDX_PATH}",
 ]

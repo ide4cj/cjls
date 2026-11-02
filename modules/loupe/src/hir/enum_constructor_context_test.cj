@@ -10,9 +10,8 @@ class EnumConstructorContextTest {
     func unqualifiedConstructorsInferTheirOwnEnumArgumentsInsideTheEnum(): Unit {
         // arrange
         // cjc accepts this specialization-changing method, as std.core's Option.map does.
-        let (db, _, owner) =
-            declOf(
-                #"
+        let (db, _, owner) = declOf(
+            #"
             package probe
             public enum Box<T> {
                 Item(T) | Empty
@@ -29,8 +28,8 @@ class EnumConstructorContextTest {
                 }
             }
             "#,
-                "Box"
-            )
+            "Box"
+        )
         let item = itemOf(db, owner).getOrThrow { FixtureException("fixture must declare Box") }
         for (member in item.members where member.kind == ItemKind.Func) {
             let method = DefId(db, owner.file(db), member.id)
@@ -46,9 +45,8 @@ class EnumConstructorContextTest {
     @TestCase
     func anExtendsReceiverDoesNotFixAnUnqualifiedConstructorsArguments(): Unit {
         // arrange
-        let (db, file, _) =
-            declOf(
-                #"
+        let (db, file, _) = declOf(
+            #"
             package probe
             public enum Box<T> { Item(T) | Empty }
             extend<T> Box<Box<T>> {
@@ -60,8 +58,8 @@ class EnumConstructorContextTest {
                 }
             }
             "#,
-                "Box"
-            )
+            "Box"
+        )
         let extended = itemTree(db, file).items.filter { item => item.kind == ItemKind.Extend }[0]
         let method = DefId(db, ItemFile.Source(file), extended.members[0].id)
 
@@ -75,15 +73,14 @@ class EnumConstructorContextTest {
     @TestCase
     func anExplicitEnumQualifierStillFixesTheConstructorArguments(): Unit {
         // arrange
-        let (db, _, method) =
-            declOf(
-                #"
+        let (db, _, method) = declOf(
+            #"
             package probe
             public enum Box<T> { Item(T) | Empty }
             func wrong(): Box<Int64> { Box<Bool>.Item(true) }
             "#,
-                "wrong"
-            )
+            "wrong"
+        )
 
         // act
         let diagnostics = inferBody(db, method).diagnostics

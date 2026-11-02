@@ -10,8 +10,11 @@ import loupe.syntax.parse
  * Checks the types of calls to `pick` in `f`, rather than the annotated locals receiving them.
  */
 private func checkPickCalls(fixture: String): Unit {
-    let (db, source, f) =
-        declOf(fixture, "f", binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+    let (db, source, f) = declOf(
+        fixture,
+        "f",
+        binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+    )
     let lowered = bodyWithSourceMap(db, f)
     let root = parse(db, source).syntaxNode()
     let result = inferBody(db, f)

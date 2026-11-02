@@ -27,6 +27,23 @@ func linesOf(text: String, first: Int64, last: Int64): TextRange {
 @Test
 class FormatRangeTest {
     @TestCase
+    func aMultilineCallInitializerUsesTheWholeFileLayout(): Unit {
+        // arrange
+        let source = "func f() {\n    let x = receiver.method(first, // keep\nsecond)\n}\n"
+        let expected =
+            "func f() {\n    let x = receiver.method(\n        first, // keep\n        second\n    )\n}\n"
+        let range = linesOf(source, 1, 2)
+
+        // act
+        let ranged = formattedIn(source, range)
+        let whole = formatText(source)
+
+        // assert
+        @Expect(ranged, Some(expected))
+        @Expect(whole, Some(expected))
+    }
+
+    @TestCase
     func onlyTheSelectedStatementChanges(): Unit {
         // arrange
         let text = "func f() {\nlet a = 1\nlet b = 2\nlet c = 3\n}\n"

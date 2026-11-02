@@ -33,14 +33,13 @@ public func loneFileProjects(
         let dir = path.parent ?? continue
         let name = header ?? DEFAULT_PACKAGE
         let module = ModuleModel(moduleOf(name), path, [PackageModel(name, dir, [path])])
-        loads
-            .add(
-                ProjectLoad(
-                    ProjectModel(cfg, [module], binaries: binaries),
-                    LoneFile(path),
-                    loading.problems.toArray()
-                )
+        loads.add(
+            ProjectLoad(
+                ProjectModel(cfg, [module], binaries: binaries),
+                LoneFile(path),
+                loading.problems.toArray()
             )
+        )
     }
     loads.toArray()
 }

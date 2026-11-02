@@ -229,23 +229,19 @@ class TypeDefinitionTest {
     @TestCase
     func aBinaryTypeUsesCheckedSourceMapping() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.collection.ArrayList
             func f(xs: ArrayList<Int64>) { $0xs }
             "#
-                )
+        )
         let packages = ["std.core", "std.collection"]
-        let db =
-            parsed
-                .database(
-                    binaries: packages.map { name => stdCjoRead(name, stdCjo(name)) },
-                    models: [stdWithSources(packages)]
-                )
+        let db = parsed.database(
+            binaries: packages.map { name => stdCjoRead(name, stdCjo(name)) },
+            models: [stdWithSources(packages)]
+        )
         let cursor = parsed.cursor ?? throw FixtureException("no cursor")
 
         // act
@@ -283,18 +279,22 @@ class TypeDefinitionTest {
     @TestCase
     func aValueInAnExpressionExpansionUsesItsOwnerInference() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             class User {}
             func f(user: User): User { @B(user) }
             "#
-            )
+        )
         const TEXT = "user"
-        let call =
-            answer(db, file, "B", TEXT, [MappedSpan(TextRange(0, TEXT.size), SpanOrigin.FromCall)])
+        let call = answer(
+            db,
+            file,
+            "B",
+            TEXT,
+            [MappedSpan(TextRange(0, TEXT.size), SpanOrigin.FromCall)]
+        )
 
         // act
         let targets = typeDefinitionInExpansion(db, call, 0)

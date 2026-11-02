@@ -248,10 +248,9 @@ private func taggedEnumToToml(model: EnumModel, tag: String): Tokens {
     for (variant in model.variants) {
         let ident = variant.ident
         let bindings = variant.payloadBindings()
-        let fields =
-            fieldsToToml(
-                Array(variant.payloadFields.size) { i => (variant.payloadFields[i], bindings[i]) }
-            )
+        let fields = fieldsToToml(
+            Array(variant.payloadFields.size) { i => (variant.payloadFields[i], bindings[i]) }
+        )
         let pattern =
             if (bindings.size == 0) {
                 quote($ident)

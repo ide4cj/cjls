@@ -33,10 +33,9 @@ class WindowsCommandTest {
     @TestCase
     func theCommandLineIsEachArgumentQuoted(): Unit {
         // act
-        let line =
-            windowsCommandLine(
-                ["C:\\Cangjie SDK\\LSPMacroServer.exe", "520", "524", "0", "C:\\sdk\\cjc.exe"]
-            )
+        let line = windowsCommandLine(
+            ["C:\\Cangjie SDK\\LSPMacroServer.exe", "520", "524", "0", "C:\\sdk\\cjc.exe"]
+        )
 
         // assert
         @Expect(line, "\"C:\\Cangjie SDK\\LSPMacroServer.exe\" 520 524 0 C:\\sdk\\cjc.exe")
@@ -45,8 +44,9 @@ class WindowsCommandTest {
     @TestCase
     func theLibraryDirectoryGoesFirstOnPathWhateverItsCase(): Unit {
         // act
-        let block =
-            text(windowsEnvironment([("b", "2"), ("Path", "C:\\bin"), ("A", "1")], "C:\\rt"))
+        let block = text(
+            windowsEnvironment([("b", "2"), ("Path", "C:\\bin"), ("A", "1")], "C:\\rt")
+        )
 
         // assert
         @Expect(block, "A=1\u{0}b=2\u{0}PATH=C:\\rt;C:\\bin\u{0}\u{0}")

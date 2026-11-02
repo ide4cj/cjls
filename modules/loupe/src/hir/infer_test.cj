@@ -22,6 +22,13 @@ func checkInference(
     fixture: String,
     binaries!: Array<String> = ["std.core", "std.collection"]
 ): Unit {
+    expectAnnotations(fixture, inferredAnnotations(fixture, binaries))
+}
+
+/**
+ * The inferred types at declaration ranges in `fixture`, for comparison with its annotations.
+ */
+private func inferredAnnotations(fixture: String, binaries: Array<String>): Array<Annotation> {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let actual = ArrayList<Annotation>()
@@ -32,7 +39,7 @@ func checkInference(
             annotateTypes(db, source, root, item, actual)
         }
     }
-    expectAnnotations(fixture, actual.toArray())
+    actual.toArray()
 }
 
 /**
@@ -57,8 +64,9 @@ func annotateTypes(
                 isUnwritten && let Some(node) <- itemIdMap(db, source).node(item.id, root) &&
                     let Some(name) <- AnyHasName.cast(node).flatMap { it => it.name() }
             ) {
-                actual
-                    .add(Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db)))
+                actual.add(
+                    Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db))
+                )
             }
             let lowered = bodyWithSourceMap(db, def)
             let result = inferBody(db, def)
@@ -2591,10 +2599,8 @@ class InferTest {
             } else {
                 ""
             }
-        let parsed =
-            Fixture
-                .parse(
-                    """
+        let parsed = Fixture.parse(
+            """
             //- /main.cj module=m package=m
             package m
             ${imports}
@@ -2606,7 +2612,7 @@ class InferTest {
             }
             ${macroFile}
             """
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let item = itemTree(db, source).items.filter { one => one.names.contains("test") }[0]
@@ -2694,10 +2700,11 @@ class InferTest {
     }
 
     @TestCase
-    func aValueOfATypeOfACallOperatorIsCalledThroughIt() {
+    func aValueOfATypeOfACallOperatorIsCalledThroughIt(): Unit {
+        // arrange
         // N130: `k(x)` of a value of no function type is `k.()(x)`, in a pipeline and a composition
         // too
-        checkInference(
+        let fixture =
             #"
             package m
             class K {
@@ -2719,13 +2726,101 @@ class InferTest {
                 // cjc: type of left operand does not support coalescing operation
                 let unknown = (1 ?? 2)(3)
             //      ^^^^^^^ {unknown}
-                // not yet: a `(Int64) -> String` to cjc, of `k.()` the one taking a `String`; an
-                // operand of a composition is not called through its `operator ()` here
                 let d = f ~> k
-            //      ^ (Int64) -> {unknown}
+            //      ^ (Int64) -> String
             }
             "#
-        )
+
+        // act
+        let actual = inferredAnnotations(fixture, ["std.core", "std.collection"])
+
+        // assert
+        expectAnnotations(fixture, actual)
+    }
+
+    @TestCase
+    func compositionsSelectCallOperatorsOnEitherOperand(): Unit {
+        // arrange
+        let fixture =
+            #"
+            package m
+            class K {
+                operator func ()(x: Int64): Bool { true }
+            //                   ^ Int64
+                operator func ()(x: String): String { x }
+            //                   ^ String
+            }
+            class L<T> {
+                L(let value: T) {}
+            //        ^^^^^ T
+                operator func ()(x: Int64): T { value }
+            //                   ^ Int64
+            }
+            class Holder {
+                Holder(public let k: K) {}
+            //                    ^ K
+            }
+            func s(x: String): Bool { true }
+            //     ^ String
+            func test(k: K, l: L<String>, h: Holder): Unit {
+            //        ^ K
+            //              ^ L<String>
+            //                            ^ Holder
+                let left = l ~> s
+            //      ^^^^ (Int64) -> Bool
+                let both = l ~> k
+            //      ^^^^ (Int64) -> String
+                let overloadedLeft = k ~> s
+            //      ^^^^^^^^^^^^^^ (String) -> Bool
+                let overloadedBoth = k ~> k
+            //      ^^^^^^^^^^^^^^ (String) -> String
+                let field = l ~> h.k
+            //      ^^^^^ (Int64) -> String
+                let constructed = L<String>("") ~> K()
+            //      ^^^^^^^^^^^ (Int64) -> String
+                let grouped = (l) ~> (k)
+            //      ^^^^^^^ (Int64) -> String
+                let chained = l ~> k ~> s
+            //      ^^^^^^^ (Int64) -> Bool
+                let applied = (l ~> k)(1)
+            //      ^^^^^^^ String
+                let original = k
+            //      ^^^^^^^^ K
+            }
+            "#
+
+        // act
+        let actual = inferredAnnotations(fixture, ["std.core", "std.collection"])
+
+        // assert
+        expectAnnotations(fixture, actual)
+    }
+
+    @TestCase
+    func compositionsRejectAmbiguousCallOperators(): Unit {
+        // arrange
+        let fixture =
+            #"
+            package m
+            class K {
+                operator func ()(x: Int64): Int64 { x }
+            //                   ^ Int64
+                operator func ()(x: String): String { x }
+            //                   ^ String
+            }
+            func test(k: K): Unit {
+            //        ^ K
+                // cjc: invalid binary operator '~>' on two possible intermediate types
+                let ambiguous = k ~> k
+            //      ^^^^^^^^^ {unknown}
+            }
+            "#
+
+        // act
+        let actual = inferredAnnotations(fixture, ["std.core", "std.collection"])
+
+        // assert
+        expectAnnotations(fixture, actual)
     }
 
     @TestCase
@@ -3061,24 +3156,21 @@ class InferTest {
     @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             func f(): Unit { let a = 1 }
             func g(): Unit {}
             "#
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-        let item =
-            itemTree(db, source)
-                .items
-                .iterator()
-                .filter { one => one.names.contains("f") }
-                .next()
-                .getOrThrow()
+        let item = itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.names.contains("f") }
+            .next()
+            .getOrThrow()
         let def = DefId(db, ItemFile.Source(source), item.id)
         exprTyCount(db, def)
         let before = inferenceReaderRuns.load()
@@ -3097,10 +3189,8 @@ class InferTest {
     @TestCase
     func aDeclarationAppendedRunsNoBodyQueryOfAnotherAgain() {
         // arrange: `f` binds a name, which may be a constructor of the package, and calls `g`
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             enum E { | A | B }
             func f(e: E): Int64 {
@@ -3112,16 +3202,15 @@ class InferTest {
             }
             func g(): Int64 { 1 }
             "#
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-        let item =
-            itemTree(db, source)
-                .items
-                .iterator()
-                .filter { one => one.names.contains("f") }
-                .next()
-                .getOrThrow()
+        let item = itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.names.contains("f") }
+            .next()
+            .getOrThrow()
         let def = DefId(db, ItemFile.Source(source), item.id)
         exprTyCount(db, def)
         let queries =

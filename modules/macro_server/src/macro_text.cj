@@ -32,16 +32,15 @@ public class PrintedTokens {
 public func printMacroTokens(tokens: FbVector<Token>, numbers: TokenNumbers): PrintedTokens {
     let data = ArrayList<TokenData>(tokens.size)
     for (t in tokens) {
-        data
-            .add(
-                TokenData(
-                    kind: t.kind,
-                    value: t.value,
-                    begin: t.begin.map(positionData),
-                    end: t.end.map(positionData),
-                    delimiterNum: t.delimiterNum
-                )
+        data.add(
+            TokenData(
+                kind: t.kind,
+                value: t.value,
+                begin: t.begin.map(positionData),
+                end: t.end.map(positionData),
+                delimiterNum: t.delimiterNum
             )
+        )
     }
     printMacroTokens(data.toArray(), numbers)
 }
@@ -77,44 +76,43 @@ func positionData(p: Position): PositionData {
 let NO_SPACE_AFTER: HashSet<String> = HashSet<String>(["LPAREN", "LSQUARE", "NL"])
 
 /** Kinds no space needs to precede. */
-let NO_SPACE_BEFORE: HashSet<String> =
-    HashSet<String>(["RPAREN", "RSQUARE", "COMMA", "SEMI", "LPAREN", "LSQUARE", "NL"])
+let NO_SPACE_BEFORE: HashSet<String> = HashSet<String>(
+    ["RPAREN", "RSQUARE", "COMMA", "SEMI", "LPAREN", "LSQUARE", "NL"]
+)
 
 /** Kinds a `.` right after which stays a `.` of its own: neither a number nor a `.` nor a `?`. */
-let NAME_LIKE: HashSet<String> =
-    HashSet<String>(
-        ["IDENTIFIER", "DOLLAR_IDENTIFIER", "RPAREN", "RSQUARE", "THIS", "SUPER", "THISTYPE"]
-    )
+let NAME_LIKE: HashSet<String> = HashSet<String>(
+    ["IDENTIFIER", "DOLLAR_IDENTIFIER", "RPAREN", "RSQUARE", "THIS", "SUPER", "THISTYPE"]
+)
 
 /** Kinds a `:` right after which stays a `:` of its own: neither `<` nor `:`. */
 let BEFORE_COLON: HashSet<String> = HashSet<String>(["IDENTIFIER", "WILDCARD", "RPAREN", "RSQUARE"])
 
 /** Kinds that name a type, which a generic's `<` and `>` hold without a space. */
-let TYPE_NAMES: HashSet<String> =
-    HashSet<String>(
-        [
-            "IDENTIFIER",
-            "INT8",
-            "INT16",
-            "INT32",
-            "INT64",
-            "INTNATIVE",
-            "UINT8",
-            "UINT16",
-            "UINT32",
-            "UINT64",
-            "UINTNATIVE",
-            "FLOAT16",
-            "FLOAT32",
-            "FLOAT64",
-            "RUNE",
-            "BOOLEAN",
-            "NOTHING",
-            "UNIT",
-            "THISTYPE",
-            "VARRAY"
-        ]
-    )
+let TYPE_NAMES: HashSet<String> = HashSet<String>(
+    [
+        "IDENTIFIER",
+        "INT8",
+        "INT16",
+        "INT32",
+        "INT64",
+        "INTNATIVE",
+        "UINT8",
+        "UINT16",
+        "UINT32",
+        "UINT64",
+        "UINTNATIVE",
+        "FLOAT16",
+        "FLOAT32",
+        "FLOAT64",
+        "RUNE",
+        "BOOLEAN",
+        "NOTHING",
+        "UNIT",
+        "THISTYPE",
+        "VARRAY"
+    ]
+)
 
 class MacroTextPrinter {
     let out = StringBuilder()
@@ -147,12 +145,11 @@ class MacroTextPrinter {
         if (nameOf(token.kind) != "IDENTIFIER") {
             return [token]
         }
-        let lexed =
-            macroTokens(
-                token.value ?? "",
-                numbers,
-                token.begin ?? PositionData(fileId: 0, line: 1, column: 1)
-            )
+        let lexed = macroTokens(
+            token.value ?? "",
+            numbers,
+            token.begin ?? PositionData(fileId: 0, line: 1, column: 1)
+        )
         if (lexed.isEmpty()) {
             return [token]
         }

@@ -87,18 +87,17 @@ func workspaceSymbol(
         name: symbol.name,
         kind: symbolKind(symbol.kind),
         containerName: symbol.containerName,
-        location: LocationOrLocationUriOnly
-            .AsLocation(
-                Location(
-                    uri: uri,
-                    range: lspRange(
-                        text,
-                        symbol.selectionRange.start,
-                        symbol.selectionRange.end,
-                        encoding
-                    )
+        location: LocationOrLocationUriOnly.AsLocation(
+            Location(
+                uri: uri,
+                range: lspRange(
+                    text,
+                    symbol.selectionRange.start,
+                    symbol.selectionRange.end,
+                    encoding
                 )
             )
+        )
     )
 }
 
@@ -254,16 +253,15 @@ func foldingRanges(
         let end = text.positionOf(fold.range.end, encoding)
         let kind = foldingRangeKind(fold.kind)
         if (!lineFoldingOnly) {
-            result
-                .add(
-                    FoldingRange(
-                        startLine: UInt32(start.line),
-                        startCharacter: UInt32(start.column),
-                        endLine: UInt32(end.line),
-                        endCharacter: UInt32(end.column),
-                        kind: kind
-                    )
+            result.add(
+                FoldingRange(
+                    startLine: UInt32(start.line),
+                    startCharacter: UInt32(start.column),
+                    endLine: UInt32(end.line),
+                    endCharacter: UInt32(end.column),
+                    kind: kind
                 )
+            )
             continue
         }
         let endLine =
@@ -273,14 +271,9 @@ func foldingRanges(
                 end.line
             }
         if (endLine > start.line) {
-            result
-                .add(
-                    FoldingRange(
-                        startLine: UInt32(start.line),
-                        endLine: UInt32(endLine),
-                        kind: kind
-                    )
-                )
+            result.add(
+                FoldingRange(startLine: UInt32(start.line), endLine: UInt32(endLine), kind: kind)
+            )
         }
     }
     result.toArray()
@@ -509,13 +502,12 @@ func semanticTokens(
         if (start.line == end.line) {
             data.add(start, end.column - start.column, tokenKind, modifiers)
         } else if (multiline) {
-            data
-                .add(
-                    start,
-                    positions.unitsBefore(token.range.end) - startUnits,
-                    tokenKind,
-                    modifiers
-                )
+            data.add(
+                start,
+                positions.unitsBefore(token.range.end) - startUnits,
+                tokenKind,
+                modifiers
+            )
         } else {
             for (line in start.line..=end.line) {
                 let from = if (line == start.line) { start.column } else { 0 }
@@ -574,7 +566,8 @@ func callHierarchyItem(snap: ServerSnapshot, entry: CallHierarchyEntry): CallHie
             target.focusRange.start,
             target.focusRange.end,
             snap.encoding
-        )
+        ),
+        data: callHierarchyData(snap, entry)
     )
 }
 

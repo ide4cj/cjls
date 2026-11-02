@@ -6,6 +6,7 @@ import std.fs.{canonicalize, exists, FileInfo, Path}
 import std.sync.{Condition, Mutex}
 import stdx.log.{Logger, NoopLogger}
 import loupe.db.{AnalysisDatabase, ProjectModel}
+import loupe.newFilePackageLine
 import loupe.vfs.{ChangedFile, CjoFile, FileStamp, Vfs, VfsPath, readCjoFiles, readFile}
 import project_model.{
     findCangjieHome,
@@ -51,11 +52,10 @@ class WorkspaceState {
         let load = findProject(root, env: env)
         let issues = ArrayList<String>(load.problems)
         let next = withPackageCfgs(load.model, issues)
-        let binaries =
-            readCjoFiles(
-                next.cjoFiles(),
-                unchanged: { file, stamp => db.binaryStamp(file) == Some(stamp) }
-            )
+        let binaries = readCjoFiles(
+            next.cjoFiles(),
+            unchanged: { file, stamp => db.binaryStamp(file) == Some(stamp) }
+        )
         issues.add(all: binaries.problems)
         let paths = next.files().concat(next.binarySourceFiles())
         let texts = paths.map { path => (path, readFile(path)) }
@@ -104,6 +104,14 @@ class WorkspaceState {
     func close(): Unit {
         macros.close()
     }
+
+    func packageLine(path: VfsPath): ?String {
+        newFilePackageLine(
+            model ?? return None,
+            path,
+            { file => vfs.fileId(file).flatMap { id => vfs.fileContents(id) } }
+        )
+    }
 }
 
 /**
@@ -149,17 +157,15 @@ class WorkspaceSession {
                     try {
                         prepare()
                     } catch (e: Exception) {
-                        logger
-                            .warn(
-                                "MCP workspace preparation failed",
-                                [("cause", e.message)]
-                            ) // #509
+                        logger.warn(
+                            "MCP workspace preparation failed",
+                            [("cause", e.message)]
+                        ) // #509
                     } catch (e: Error) {
-                        logger
-                            .warn(
-                                "MCP workspace preparation failed",
-                                [("cause", e.toString())]
-                            ) // #509
+                        logger.warn(
+                            "MCP workspace preparation failed",
+                            [("cause", e.toString())]
+                        ) // #509
                     }
                 }
             }

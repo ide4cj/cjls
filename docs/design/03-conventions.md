@@ -450,7 +450,9 @@ still uses the AAA comments.
 indentation by default, identically in the CLI, LSP and all generators (D150, D152).
 The nearest `cjformat.toml` sets `line_width`, `indent_width` and `simple_if`;
 see [formatter configuration](../formatting.md). Short lists and single-expression lambdas flatten; long lists
-break between elements, chains before dots, operators after their token.
+break between elements, chains before dots, operators after their token. Single
+member calls wrap arguments before splitting their callee; call initializers
+start beside `=` when their first line fits.
 Nonempty declaration and control-flow bodies have one statement per line, except
 comment-free single-expression `if/else` branches in `simple_if = "compact"` mode
 when the complete expression fits.

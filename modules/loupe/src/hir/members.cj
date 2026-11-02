@@ -124,8 +124,9 @@ public func packageExtends(
     let found = IndexMap<ExtendedType, ArrayList<DefId>>()
     let files = filesOf(db, pkg)
     for (
-        file in files
-            .concat(files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray)
+        file in files.concat(
+            files |> flatMap { one: ItemFile => expansionsOf(db, one) } |> collectArray
+        )
     ) {
         for (item in itemTreeOf(db, file).items where item.kind == ItemKind.Extend) {
             let def = DefId(db, file, item.id)
@@ -215,6 +216,21 @@ public func membersNamed(db: AnalysisDatabase, def: DefId, name: String): Array<
     // in a `common` type, the type a build has: its `specific` one (#318)
     let start = completedType(db, enclosingTypeOf(db, def) ?? return [])
     lookUpMembers(db, [start], name, sourceFileOf(db, def), LookupTy({ => selfTyAround(db, def) }))
+}
+
+/**
+ * Every member of a type or extend, or visible around a member as membersNamed sees it.
+ * Includes inherited and visible extension members, preserving overloads and lookup shadowing.
+ */
+public func allMembers(db: AnalysisDatabase, def: DefId): Array<MemberTarget> {
+    let (start, on) =
+        match (def.item(db).kind) {
+            case Class | Interface | Struct | Enum =>
+                (ExtendedType.DeclType(canonicalDef(db, def)), Some(selfTyOf(db, def)))
+            case Extend => (extendedTypeOf(db, def) ?? return [], signatureTypes(db, def).ty)
+            case _ => (enclosingTypeOf(db, def) ?? return [], selfTyAround(db, def))
+        }
+    allMembers(db, [completedType(db, start)], from: sourceFileOf(db, def), on: on)
 }
 
 /**

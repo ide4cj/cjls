@@ -16,14 +16,13 @@ func handleFoldingRange(
 ): Nullable<Array<FoldingRange>> {
     let file = fileOf(snap, params.textDocument.uri) ?? return Nullable.Null
     let text = file.text(snap.analysis)
-    Nullable
-        .Value(
-            foldingRanges(
-                text,
-                loupeFoldingRanges(snap.analysis, file.fileId(snap.analysis)),
-                snap.encoding,
-                snap.lineFoldingOnly,
-                snap.foldingRangeLimit
-            )
+    Nullable.Value(
+        foldingRanges(
+            text,
+            loupeFoldingRanges(snap.analysis, file.fileId(snap.analysis)),
+            snap.encoding,
+            snap.lineFoldingOnly,
+            snap.foldingRangeLimit
         )
+    )
 }

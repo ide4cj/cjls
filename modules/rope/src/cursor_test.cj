@@ -31,12 +31,10 @@ class PositionCursorTest {
     func offsetsLeavesApartAgreeWithPositionOf() {
         // arrange
         let random = Random(14)
-        let line =
-            String
-                .join(
-                    Array(3 * MAX_CHUNK) { _ => PIECES[random.nextInt64(PIECES.size)] }
-                        .filter { p => !p.contains("\n") }
-                )
+        let line = String.join(
+            Array(3 * MAX_CHUNK) { _ => PIECES[random.nextInt64(PIECES.size)] }
+                .filter { p => !p.contains("\n") }
+        )
         let text = "${line}\n${line}\r\n${line}"
         let rope = Rope(text)
         let offsets = boundaries(text)

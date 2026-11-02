@@ -36,8 +36,9 @@ protected func binarySourceLocation(
 ): ?BinarySourceLocation {
     let index = binaryExports(db, pkg).declIndex(BinaryItem(file, id)) ?? return None
     let name =
-        (findBinaryItem(itemTreeOf(db, ItemFile.Binary(pkg, file)).items, id)?.names ?? [])
-            .get(0) ??
+        (findBinaryItem(itemTreeOf(db, ItemFile.Binary(pkg, file)).items, id)?.names ?? []).get(
+            0
+        ) ??
             return None
     // the positions of cjc: lines and columns from 1, columns in bytes, the end past the declaration
     let bytes = pkg.bytes(db)

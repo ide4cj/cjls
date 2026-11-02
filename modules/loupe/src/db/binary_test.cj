@@ -134,15 +134,14 @@ class BinaryPackageTest {
         File.writeTo(dir.join("stdx.b.cjo"), [])
         File.writeTo(dir.join("stdx.a.cjo"), [])
         let named = BinaryPackage("dep.x", at("dep/dep.x.cjo"))
-        let model =
-            ProjectModel(
-                Cfg([]),
-                [],
-                binaries: [
-                    BinaryModel("stdx", [VfsPath.file(dir)], packages: [named]),
-                    BinaryModel("dep", [], packages: [named])
-                ]
-            )
+        let model = ProjectModel(
+            Cfg([]),
+            [],
+            binaries: [
+                BinaryModel("stdx", [VfsPath.file(dir)], packages: [named]),
+                BinaryModel("dep", [], packages: [named])
+            ]
+        )
 
         // act
         let files = model.cjoFiles()

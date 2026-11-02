@@ -50,14 +50,13 @@ class KillOnCloseJobTest {
     @TestCase
     func closingTheLastHandleTerminatesTheProcessesInTheJob() {
         // arrange: `cmd` reads commands from a stdin that never ends, since its pipe stays open
-        let child =
-            launch(
-                "cmd.exe",
-                [],
-                stdIn: ProcessRedirect.Pipe,
-                stdOut: ProcessRedirect.Discard,
-                stdErr: ProcessRedirect.Discard
-            )
+        let child = launch(
+            "cmd.exe",
+            [],
+            stdIn: ProcessRedirect.Pipe,
+            stdOut: ProcessRedirect.Discard,
+            stdErr: ProcessRedirect.Discard
+        )
         let job = KillOnCloseJob()
         let process =
             unsafe {

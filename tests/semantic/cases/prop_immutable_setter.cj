@@ -3,7 +3,6 @@
 // STEP: broken
 // CJC: audit error: immutable property cannot have setter
 // SOURCE: src/main.cj %f
-// KNOWN-MISSING: d0 issue=531
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

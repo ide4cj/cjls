@@ -33,13 +33,9 @@ class TypeDefinitionTest {
     func linksUseTheSnapshotEncodingForBothRequestAndTarget(row: (Encoding, UInt32)) {
         // arrange
         let (encoding, width) = row
-        let (state, dir) =
-            loaded(
-                [
-                    ("types.cj", "/*😀*/ class User {}"),
-                    ("main.cj", "func f(user: User) { /*😀*/ user }")
-                ]
-            )
+        let (state, dir) = loaded(
+            [("types.cj", "/*😀*/ class User {}"), ("main.cj", "func f(user: User) { /*😀*/ user }")]
+        )
         state.encoding = encoding
         state.typeDefinitionLinks = true
         state.locationLinks = false
@@ -95,14 +91,13 @@ class TypeDefinitionTest {
         let state = ServerState()
 
         // act
-        let result =
-            handleTypeDefinition(
-                state.snapshot(),
-                TypeDefinitionParams(
-                    textDocument: TextDocumentIdentifier(uri: URI),
-                    position: Position(line: 0, character: 0)
-                )
+        let result = handleTypeDefinition(
+            state.snapshot(),
+            TypeDefinitionParams(
+                textDocument: TextDocumentIdentifier(uri: URI),
+                position: Position(line: 0, character: 0)
             )
+        )
 
         // assert
         @Expect(result.isNull())

@@ -138,10 +138,9 @@ class McpServer {
             if (python.isNone()) {
                 python = PythonSession(root, logger: logger)
             }
-            let result =
-                python
-                    .getOrThrow { IllegalStateException("Python session was not initialized") }
-                    .run(code)
+            let result = python
+                .getOrThrow { IllegalStateException("Python session was not initialized") }
+                .run(code)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
             toolResult(obj([("error", JsonString(e.message)), ("revision", JsonNull)]), error: true)
@@ -191,44 +190,41 @@ func failure(id: JsonValue, code: Int64, message: String): JsonValue {
  * Describe the runPython tool and its argument schema.
  */
 func tools(): JsonValue {
-    let code =
-        obj(
-            [
-                ("type", JsonString("string")),
-                (
-                    "description",
-                    JsonString(
-                        "Python script. workspace is a live native Cangjie object; result must be JSON-serializable. stdout and stderr are captured."
-                    )
+    let code = obj(
+        [
+            ("type", JsonString("string")),
+            (
+                "description",
+                JsonString(
+                    "Python script. workspace is a live native Cangjie object; result must be JSON-serializable. stdout and stderr are captured."
                 )
-            ]
-        )
-    let schema =
-        obj(
-            [
-                ("type", JsonString("object")),
-                ("properties", obj([("code", code)])),
-                ("required", JsonArray([JsonString("code")])),
-                ("additionalProperties", JsonBool(false))
-            ]
-        )
-    let tool =
-        obj(
-            [
-                ("name", JsonString("runPython")),
-                (
-                    "description",
-                    JsonString(
-                        "Run Python over native Cangjie analysis. Use workspace and workspace.analysis(); assign bounded JSON to result or print output. Follow server instructions for core queries; load a task recipe only for unfamiliar APIs. Imports and local I/O have process permissions; no hard timeout."
-                    )
-                ),
-                ("inputSchema", schema),
-                (
-                    "annotations",
-                    obj([("readOnlyHint", JsonBool(false)), ("openWorldHint", JsonBool(true))])
+            )
+        ]
+    )
+    let schema = obj(
+        [
+            ("type", JsonString("object")),
+            ("properties", obj([("code", code)])),
+            ("required", JsonArray([JsonString("code")])),
+            ("additionalProperties", JsonBool(false))
+        ]
+    )
+    let tool = obj(
+        [
+            ("name", JsonString("runPython")),
+            (
+                "description",
+                JsonString(
+                    "Run Python over native Cangjie analysis. Use workspace and workspace.analysis(); assign bounded JSON to result or print output. Follow server instructions for core queries; load a task recipe only for unfamiliar APIs. Imports and local I/O have process permissions; no hard timeout."
                 )
-            ]
-        )
+            ),
+            ("inputSchema", schema),
+            (
+                "annotations",
+                obj([("readOnlyHint", JsonBool(false)), ("openWorldHint", JsonBool(true))])
+            )
+        ]
+    )
     JsonArray([tool])
 }
 

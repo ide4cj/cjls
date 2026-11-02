@@ -531,21 +531,16 @@ class ConnectionServeRecoveryTest {
     @TestCase
     func aFrameOverTheLimitIsAnsweredAndTheNextOneRead() {
         // arrange
-        let input =
-            framed(
-                [
-                    ##"{"jsonrpc":"2.0","id":1,"method":"big"}"##,
-                    ##"{"jsonrpc":"2.0","method":"next"}"##
-                ]
-            )
+        let input = framed(
+            [##"{"jsonrpc":"2.0","id":1,"method":"big"}"##, ##"{"jsonrpc":"2.0","method":"next"}"##]
+        )
         let output = ByteBuffer()
         let handler = FakeHandler()
-        let connection =
-            Connection(
-                FramedJsonRpcTransport(input, output, getGlobalLogger(), bodyBytesMax: 34),
-                handler,
-                getGlobalLogger()
-            )
+        let connection = Connection(
+            FramedJsonRpcTransport(input, output, getGlobalLogger(), bodyBytesMax: 34),
+            handler,
+            getGlobalLogger()
+        )
 
         // act
         connection.serve()
@@ -574,11 +569,10 @@ class ConnectionServeRecoveryTest {
         let (_, transport) = serving(handler)
 
         // act
-        transport
-            .feed(
-                ResponseBody(id, ResultOrError.Error(ResponseError(ErrorCode.PARSE_ERROR, "x")))
-                    .enveloped()
-            )
+        transport.feed(
+            ResponseBody(id, ResultOrError.Error(ResponseError(ErrorCode.PARSE_ERROR, "x")))
+                .enveloped()
+        )
         transport.feed(NotificationBody("next").enveloped())
 
         // assert - the loop is still alive
@@ -674,14 +668,13 @@ class ConnectionOutboundTest {
         // act
         let pending = connection.request<RawJson, Int64>("ask", emptyParams())
         transport.nextWritten()
-        transport
-            .feed(
-                ResponseBody(
-                    Value(pending.id),
-                    ResultOrError.Error(ResponseError(ErrorCode.INVALID_PARAMS, "bad params"))
-                )
-                    .enveloped()
+        transport.feed(
+            ResponseBody(
+                Value(pending.id),
+                ResultOrError.Error(ResponseError(ErrorCode.INVALID_PARAMS, "bad params"))
             )
+                .enveloped()
+        )
 
         // assert
         let e = @AssertThrows[RpcException](pending.await())

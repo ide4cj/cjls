@@ -36,13 +36,12 @@ func emitAst(model: Model, header: String, packageName: String): String {
     w.line("import cjsyntax.SyntaxKind")
     for ((name, kinds) in sets) {
         w.blank()
-        w
-            .wrapped(
-                "let ${name} = TokenSet<SyntaxKind>([",
-                kinds.map { k => "SyntaxKind.${k}" },
-                ",",
-                "])"
-            )
+        w.wrapped(
+            "let ${name} = TokenSet<SyntaxKind>([",
+            kinds.map { k => "SyntaxKind.${k}" },
+            ",",
+            "])"
+        )
     }
     "${w}${views}"
 }
@@ -76,11 +75,10 @@ func emitNode(
         }
         let names = n.handWritten.map { f => "`${f}`" }
         let listed = String.join(names, delimiter: ", ")
-        doc
-            .add(
-                "Written by hand, as the grammar tells them neither by the tokens around them nor by position: " +
-                    "${listed}."
-            )
+        doc.add(
+            "Written by hand, as the grammar tells them neither by the tokens around them nor by position: " +
+                "${listed}."
+        )
     }
     w.doc(doc.toArray())
     w.line("@Derive[Equatable, Hashable]")
@@ -260,10 +258,9 @@ func emitEnum(w: CodeWriter, model: Model, e: EnumIr, implemented: Array<Interfa
                             .block("match (node.kind)") {
                                 =>
                                 for (v in e.variants) {
-                                    w
-                                        .line(
-                                            "case SyntaxKind.${v.typeName} => ${v.name}(${v.typeName}(node))"
-                                        )
+                                    w.line(
+                                        "case SyntaxKind.${v.typeName} => ${v.name}(${v.typeName}(node))"
+                                    )
                                 }
                                 w.line("case _ => None")
                             }
@@ -439,14 +436,13 @@ func emitAnyAccessor(
                     .block("match (node.kind)") {
                         =>
                         for ((call, kinds) in calls[..calls.size - 1]) {
-                            w
-                                .wrapped(
-                                    "case ",
-                                    kinds.toArray().map { k => "SyntaxKind.${k}" },
-                                    " |",
-                                    " => ${call}",
-                                    leading: true
-                                )
+                            w.wrapped(
+                                "case ",
+                                kinds.toArray().map { k => "SyntaxKind.${k}" },
+                                " |",
+                                " => ${call}",
+                                leading: true
+                            )
                         }
                         w.line("case _ => ${calls[calls.size - 1][0]}")
                     }

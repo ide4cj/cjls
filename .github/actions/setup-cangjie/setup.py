@@ -1,16 +1,17 @@
-"""Installs a Cangjie nightly SDK and its stdx, and exports the SDK's environment.
+"""Installs a pinned Cangjie release or nightly SDK and its stdx, and exports the SDK's environment.
 
     python3 setup.py <tag> <dest>
     python3 setup.py pin <tag>
 
 The SDK is unpacked to <dest>/cangjie, the stdx for the host into
-<dest>/cangjie/third_party/stdx/<os>_<arch>_cjnative, where the root cjpm.toml looks for it.
-Both are skipped when already there (a cache hit). The environment `envsetup` would set is
-written to $GITHUB_ENV/$GITHUB_PATH on GitHub Actions, and printed as `export` lines otherwise.
+<dest>/cangjie/third_party/stdx/<os>_<arch>_cjnative. CANGJIE_STDX_PATH selects its static/stdx
+directory for the module manifests.
+Both are skipped when already there (a cache hit). The SDK environment and CANGJIE_STDX_PATH
+are written to $GITHUB_ENV/$GITHUB_PATH on GitHub Actions, and printed as `export` lines otherwise.
 
-An archive comes from the GitHub mirror, else from gitcode, and is unpacked only if its sha256
-is the one in .cangjie-sha256. `pin` writes that file for <tag> from gitcode's archives, the
-mirror's origin: a toolchain bump is .cangjie-version and the pin in one commit.
+Nightlies come from the GitHub mirror, else gitcode; release URLs are in .cangjie-window.
+An archive is downloaded only when named in .cangjie-sha256 and unpacked only when its
+sha256 matches. `pin` hashes the origin archives, preserving the other window entries.
 """
 
 import hashlib
@@ -31,7 +32,9 @@ MIRRORS = [
 ]
 ORIGIN = MIRRORS[-1]
 
-SUMS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..", ".cangjie-sha256")
+ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "..")
+SUMS = os.path.join(ROOT, ".cangjie-sha256")
+WINDOW = os.path.join(ROOT, ".cangjie-window")
 
 # host -> (asset platform, SDK archive extension, stdx directory)
 PLATFORMS = {
@@ -46,6 +49,19 @@ SHELL_NOISE = {"_", "SHLVL", "PWD", "OLDPWD"}
 
 def archives(asset, ext, tag):
     return [f"cangjie-sdk-{asset}-{tag}.{ext}", f"cangjie-stdx-{asset}-{tag}.1.zip"]
+
+
+def releases():
+    with open(WINDOW) as f:
+        return {release["version"]: release["archives"] for release in json.load(f).values()}
+
+
+def urls(tag, name, *, origin=False):
+    release = releases().get(tag)
+    if release is not None:
+        return [release[name]]
+    mirrors = [ORIGIN] if origin else MIRRORS
+    return [f"{mirror}/{tag}/{name}" for mirror in mirrors]
 
 
 def download(url, out):
@@ -70,10 +86,10 @@ def fetch(tag, name, path):
     expected = pinned().get(name)
     if expected is None:
         sys.exit(f"{name} is not in .cangjie-sha256: run `python3 {sys.argv[0]} pin {tag}`")
-    for mirror in MIRRORS:
+    for url in urls(tag, name):
         try:
             with open(path, "wb") as out:
-                actual = download(f"{mirror}/{tag}/{name}", out)
+                actual = download(url, out)
         # a chunked body cut short is an HTTPException, not an OSError
         except (OSError, http.client.HTTPException) as e:
             print(f"  failed: {e}", file=sys.stderr)
@@ -82,7 +98,7 @@ def fetch(tag, name, path):
             return
         print(f"  sha256 {actual}, pinned {expected}", file=sys.stderr)
     os.remove(path)
-    sys.exit(f"no mirror served {name} as pinned")
+    sys.exit(f"no source served {name} as pinned")
 
 
 def unpack(archive, dest):
@@ -118,16 +134,22 @@ def install(tag, dest):
 
 
 def pin(tag):
-    """Writes .cangjie-sha256: every platform's archives for tag, hashed as gitcode serves them."""
+    """Pins tag from its origins, retaining the other SDKs of the window."""
     names = [name for asset, ext, _ in PLATFORMS.values() for name in archives(asset, ext, tag)]
     with open(os.devnull, "wb") as null:
-        lines = [f"{download(f'{ORIGIN}/{tag}/{name}', null)}  {name}\n" for name in names]
+        updated = {name: download(urls(tag, name, origin=True)[0], null) for name in names}
+    # A nightly bump retires the old nightly; release pins survive that operation.
+    release_names = {name for release in releases().values() for name in release}
+    previous = pinned()
+    keep = release_names if tag not in releases() else previous.keys()
+    sums = {name: sha for name, sha in previous.items() if name in keep}
+    sums.update(updated)
     with open(SUMS, "w") as f:
-        f.writelines(lines)
+        f.writelines(f"{sha}  {name}\n" for name, sha in sums.items())
 
 
 def environment(home):
-    """What envsetup changes: (variables, PATH entries to prepend in order)."""
+    """SDK environment and static stdx: (variables, PATH entries to prepend in order)."""
     before = dict(os.environ)
     if platform.system() == "Windows":
         # envsetup.ps1, spelled out: it only sets CANGJIE_HOME and prepends to Path
@@ -148,6 +170,8 @@ def environment(home):
             check=True, capture_output=True, text=True,
         ).stdout
         after = json.loads(out.strip().splitlines()[-1])
+    stdx_dir = PLATFORMS[(platform.system(), platform.machine())][2]
+    after["CANGJIE_STDX_PATH"] = os.path.join(home, "third_party", "stdx", stdx_dir, "static", "stdx")
     old_path = before.get("PATH", "").split(os.pathsep)
     path = [p for p in after.get("PATH", "").split(os.pathsep) if p and p not in old_path]
     changed = {

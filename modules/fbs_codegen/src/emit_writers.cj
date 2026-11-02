@@ -40,10 +40,9 @@ func emitStructWriter(w: CodeWriter, names: Names, d: Decl): Unit {
             w.blank()
             let params = ArrayList<String>()
             for (f in d.fields) {
-                params
-                    .add(
-                        "public let ${names.fieldName(f.name)}!: ${inlineDataType(names, f.fbType)}"
-                    )
+                params.add(
+                    "public let ${names.fieldName(f.name)}!: ${inlineDataType(names, f.fbType)}"
+                )
             }
             w.line("public ${name}(${String.join(params.toArray(), delimiter: ", ")}) {}")
             w.blank()
@@ -60,10 +59,9 @@ func emitStructWriter(w: CodeWriter, names: Names, d: Decl): Unit {
                                 let nd = names.decl(n)
                                 match (nd.kind) {
                                     case EnumDecl =>
-                                        w
-                                            .line(
-                                                "write${nd.underlying.getOrThrow().cangjie}(buf, ${at}, ${field}.value)"
-                                            )
+                                        w.line(
+                                            "write${nd.underlying.getOrThrow().cangjie}(buf, ${at}, ${field}.value)"
+                                        )
                                     case _ => w.line("${field}.writeTo(buf, ${at})")
                                 }
                             case _ =>
@@ -127,10 +125,9 @@ func emitUnionWriter(w: CodeWriter, names: Names, d: Decl): Unit {
                     w
                         .block("match (this)") {
                             for (m in d.unionMembers) {
-                                w
-                                    .line(
-                                        "case ${unionConstructor(m)}(v) => ${unionMemberPack(names, m)}"
-                                    )
+                                w.line(
+                                    "case ${unionConstructor(m)}(v) => ${unionMemberPack(names, m)}"
+                                )
                             }
                         }
                 }

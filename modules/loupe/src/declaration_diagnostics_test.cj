@@ -128,16 +128,14 @@ class DeclarationDiagnosticsTest {
     @TestCase
     func customAnnotationConstructorChangesInvalidateUneditedUses(): Unit {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /annotation.cj module=a package=a
             @Annotation public class A { const init(x: Int64) {} }
             //- /use.cj module=a package=a
             func f() { @A[1] let x = 1 }
             "#
-                )
+        )
         let db = fixture.database()
         let use = fixture.file("/use.cj").fileId
         let definition = fixture.file("/annotation.cj").fileId
@@ -597,10 +595,9 @@ class DeclarationDiagnosticsTest {
     @TestCase
     func opaqueBodyMacroInputDoesNotValidateCustomAnnotations(): Unit {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                "import m.ms.*\n@Annotation public class Mark { const init() {} }\nfunc f() { @M[x] @Mark let value = 1 }\n"
-            )
+        let (db, file) = expansionDatabase(
+            "import m.ms.*\n@Annotation public class Mark { const init() {} }\nfunc f() { @M[x] @Mark let value = 1 }\n"
+        )
 
         // act
         let pending = diagnostics(db, file.fileId(db))
@@ -619,10 +616,9 @@ class DeclarationDiagnosticsTest {
     @TestCase
     func opaqueEnclosingMacroDoesNotValidateCustomAnnotationInput(): Unit {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                "import m.ms.*\n@Annotation public class Mark { const init() {} }\n@M[x] func f() { @Mark let value = 1 }\n"
-            )
+        let (db, file) = expansionDatabase(
+            "import m.ms.*\n@Annotation public class Mark { const init() {} }\n@M[x] func f() { @Mark let value = 1 }\n"
+        )
 
         // act
         let pending = diagnostics(db, file.fileId(db))
