@@ -95,8 +95,8 @@ complete enclosing syntax node. Both endpoints must be valid UTF-8 boundaries
 inside the revision text. `newFilePackageLine(path)` suggests a header for a new
 file without creating it; it also recognizes macro packages.
 `formatting(path)` and `rangeFormatting(path, range)` use the library defaults.
-When constructing `FormatOptions`, supply all three keywords: the pinned interop
-generator requires exact arguments even for native parameters with defaults.
+`FormatOptions()` uses those same defaults; `FormatOptions(indentWidth=2)` changes
+only indentation. Unknown keywords and incompatible argument types raise `TypeError`.
 
 `allMembers(definition)` accepts a type, an `extend` or a member whose enclosing
 type should be inspected. It returns native `MemberTarget` variants, preserving
@@ -160,15 +160,16 @@ for found in analysis.symbols("AnalysisDatabase", 5):
 
 `prepareCallHierarchy(path, offset)` returns callable declarations, or `[]` for
 an ordinary value or unresolved name. Keep each `CallHierarchyEntry` with its
-producing analysis revision. A binary callable's `definition` identifies its
-overload, including when no attached source is available and `target` points at
-the referring name. Preserve this field when reconstructing an entry; it is part
-of entry equality. Python constructors require an explicit `definition=None`
-for entries without binary identity. `incomingCalls(entry)` groups callers;
+producing analysis revision. `incomingCalls(entry)` groups callers;
 `outgoingCalls(entry)` groups callees. Each `HierarchyCalls.ranges` lists the
 explicit call sites in the caller's file: the returned item's target for incoming
 calls, the input entry's target for outgoing calls. Anonymous lambdas belong to
 their enclosing callable; function values are not followed through assignments.
+
+Binary callables carry their canonical identity in `entry.definition`, including
+when attached sources provide `entry.target`. Without attached sources, the target
+points to the referring name. Preserve `definition` when reconstructing an entry;
+incoming calls use it to distinguish binary overloads. Source-only entries use `None`.
 
 ```python
 analysis = workspace.analysis()

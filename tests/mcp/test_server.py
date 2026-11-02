@@ -544,6 +544,21 @@ result = i + 1
             edits = a.formatting('src/format.cj')
             assert edits and all(isinstance(edit, TextEdit) for edit in edits)
             assert edits[0] == TextEdit(edits[0].range, edits[0].text)
+            defaults = FormatOptions()
+            assert (defaults.lineWidth, defaults.indentWidth) == (100, 4)
+            assert isinstance(defaults.simpleIf, SimpleIf.Multiline)
+            assert FormatOptions(indentWidth=2).indentWidth == 2
+            assert BodyParam(None).ty is None
+            assert Body().exprs == []
+            for invalid in [lambda: FormatOptions(unknown=1),
+                            lambda: FormatOptions(indentWidth='two'),
+                            lambda: FormatOptions(100), lambda: Body(unknown=1)]:
+                try:
+                    invalid()
+                except TypeError:
+                    pass
+                else:
+                    raise AssertionError('invalid native arguments were accepted')
             options = FormatOptions(lineWidth=100, indentWidth=2, simpleIf=SimpleIf.Compact())
             assert options.lineWidth == 100 and options.indentWidth == 2
             assert isinstance(options.simpleIf, SimpleIf.Compact)
@@ -591,14 +606,13 @@ result = i + 1
             assert isinstance(caller, CallHierarchyEntry) and caller.name == 'caller'
             assert caller.kind == StructureKind.Function()
             assert isinstance(caller.target, NavigationTarget)
+            assert caller.definition is None and leaf.definition is None
+            assert caller == CallHierarchyEntry(caller.name, caller.kind, caller.target)
             assert caller == CallHierarchyEntry(caller.name, caller.kind, caller.target, definition=None)
-            assert caller.definition is None
-            identified = CallHierarchyEntry(
-                caller.name, caller.kind, caller.target,
-                definition=a.declarations('src/leaf.cj')[0],
-            )
-            assert identified.definition == a.declarations('src/leaf.cj')[0]
-            assert identified != caller
+            identity = a.declarations('src/caller.cj')[0]
+            identified = CallHierarchyEntry(caller.name, caller.kind, caller.target, definition=identity)
+            assert identified.definition == identity and identified != caller
+            assert identified == CallHierarchyEntry(caller.name, caller.kind, caller.target, definition=identity)
             assert caller != leaf
             assert a.prepareCallHierarchy('src/caller.cj', caller_text.index(b'leaf')) == [leaf]
             outgoing = a.outgoingCalls(caller)

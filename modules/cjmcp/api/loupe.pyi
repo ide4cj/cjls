@@ -423,8 +423,8 @@ class _SimpleIfMultiline(SimpleIf):
 
 
 class FormatOptions:
-    def __init__(self, *, lineWidth: int, indentWidth: int, simpleIf: SimpleIf) -> None:
-        """All three keywords are required by py_interop. Widths must be positive; width counts Unicode scalars."""
+    def __init__(self, *, lineWidth: int = 100, indentWidth: int = 4, simpleIf: SimpleIf = ...) -> None:
+        """Defaults to multiline simple ifs. Widths must be positive; width counts Unicode scalars."""
         ...
     @property
     def lineWidth(self) -> int: ...
@@ -2821,7 +2821,7 @@ class TypePathTarget(_Partial): ...
 
 
 class CallHierarchyEntry:
-    def __init__(self, name: str, kind: StructureKind, target: NavigationTarget, *, definition: DefId | None) -> None: ...
+    def __init__(self, name: str, kind: StructureKind, target: NavigationTarget, *, definition: DefId | None = None) -> None: ...
     @property
     def name(self) -> str: ...
     @property
@@ -2829,7 +2829,9 @@ class CallHierarchyEntry:
     @property
     def target(self) -> NavigationTarget: ...
     @property
-    def definition(self) -> DefId | None: ...
+    def definition(self) -> DefId | None:
+        """Canonical binary identity, including entries with attached source targets."""
+        ...
 
 
 class HierarchyCalls:
