@@ -53,7 +53,9 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-Use cjmcp runPython for all Cangjie source analysis, reading and editing.
+cjmcp is optional. Without a connection, use ordinary source tools, compiler
+and tests. When connected, use runPython for all Cangjie source analysis,
+reading and editing; the following source-work rules apply while connected.
 Do not use shell commands (rg, sed, cat, shell-launched Python or subprocesses)
 for these operations. Trust cjmcp analysis; report unavailable or partial
 analysis without a shell fallback. Save edits with Python I/O inside runPython.
