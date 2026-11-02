@@ -17,7 +17,8 @@ Writes cancel and drain active operations, rather than waiting for snapshot
 objects to be destroyed. Cangjie's GC cannot provide deterministic release of
 those objects: an idle snapshot must not delay a write. After a write, an old
 snapshot throws `CancelledException`; it needs no explicit close. A caller can
-also supply cancellation to a snapshot. Long computations between calca calls
+also supply cancellation to a snapshot; nested snapshots inherit it as well as their
+own cancellation signal. Long computations between calca calls
 must check `unwindIfCancelled`, or a pending write waits for them.
 
 Every outer operation enters the runtime's read gate and releases it in `finally`;
