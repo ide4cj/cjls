@@ -66,9 +66,11 @@ reason. Its hash identifies the full local report. The summary is not a replacem
 for call-site evidence when findings exist: findings retain all shortest-chain
 edges, sites and conservative labels in either form.
 
-One run crashed with a native SIGSEGV during project discovery, before the audit,
-with a GC/runtime stack through `CjpmLowering.dependencies`. A retry with the same
-binary completed. This is a reproducibility limitation; the crash's cause is not
+An earlier binary, before the interop runtime refresh to `c0c91cf8`, crashed with
+a native SIGSEGV during project discovery, before the audit,
+with a GC/runtime stack through `CjpmLowering.dependencies`. A retry with that same
+binary completed. The final report was regenerated with the refreshed runtime
+and produced the same 157 unknown outcomes and 1693 graph declarations. This is a reproducibility limitation; the crash's cause is not
 established by this audit and the failed run supplies no reachability evidence.
 
 Validation on this implementation: build, six focused loupe regressions, ten
@@ -76,7 +78,8 @@ MCP tests (including the native positive control), five Call Hierarchy LSP e2e
 cases, formatting and documentation checks passed. The full Cangjie run executed
 2547 cases: 2546 passed and one errored with native GC SIGSEGV in
 `CjpmRegistryTest.missingMalformedAndStaleSelectionsAreRecoverable`; no cases
-were skipped. That full run was therefore not clean. An isolated repeat of the
+were skipped. A later ordinary pre-push run passed all 2547 cases. The earlier
+full run was therefore not clean. An isolated repeat of the
 failed case passed. This is in unchanged `project_model` code; that alone does not establish the crash's cause.
 
 The [analysis contract and PR boundaries](../../modules/cjmcp/api/call-audit.md)

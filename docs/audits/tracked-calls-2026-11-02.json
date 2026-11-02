@@ -8,11 +8,11 @@
   "provenance": {
     "workspace_commit": "d86fff40c4d6de739c7196f90df6237b6ebecb6d",
     "workspace_tracked_changes": "",
-    "binary_sha256": "f7ec499d5475fc502dda77ac039fd134fbfeed99335895a3bc37728154e29f76",
+    "binary_sha256": "9c6ab51fab92611312d62e4aeec7234a48b46027a54c518ac6edfb9d873a6757",
     "analysis_sdk": ".codex/sdk/1.3.0-alpha.20261102001050/cangjie",
     "python_library": "/usr/lib/libpython3.14.so"
   },
-  "full_report_sha256": "8def770730fb9ea7fdafaddb01a0416b627ed921676ca2827d551631b212e797",
+  "full_report_sha256": "2e1ad8bb7189d1bfd2dcf43bc5b8f92ef6aa5ffff4da9e0b4bb28a645031123e",
   "gap_examples": {
     "virtual-dispatch": {
       "declaration": {
