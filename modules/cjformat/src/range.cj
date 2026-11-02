@@ -1,5 +1,7 @@
 package cjformat
 
+import source_change.{TextEdit}
+
 import cjsyntax.{CjParse, CjSyntaxNode, SyntaxKind}
 import ginkgo.TextRange
 

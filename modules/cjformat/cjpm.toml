@@ -13,6 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
+source_change = { path = "../source_change" }
 stdxx = { path = "../stdxx" }
 ftoml = { path = "../ftoml" }
 cjsyntax = { path = "../cjsyntax" }

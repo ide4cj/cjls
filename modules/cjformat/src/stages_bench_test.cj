@@ -1,5 +1,7 @@
 package cjformat
 
+import source_change.{applyEdits, TextEdit}
+
 import std.env.getVariable
 import std.unittest.*
 import std.unittest.testmacro.*

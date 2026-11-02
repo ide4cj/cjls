@@ -1,5 +1,7 @@
 package cjformat
 
+import source_change.{applyEdits, TextEdit}
+
 import std.collection.{ArrayList, count}
 import ginkgo.TextRange
 

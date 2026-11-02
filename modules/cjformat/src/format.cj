@@ -1,19 +1,12 @@
 package cjformat
 
-import std.deriving.Derive
+public import source_change.TextEdit
+import source_change.applyEdits
 import cjsyntax.{CjParse, SyntaxKind, parse}
 import ginkgo.TextRange
 
 const INDENT = 4
 const LINE_WIDTH = 100
-
-/**
- * A replacement in UTF-8 byte offsets.
- */
-@Derive[Equatable, ToString]
-public struct TextEdit {
-    public TextEdit(public let range: TextRange, public let text: String) {}
-}
 
 /**
  * Formats a file using `options`. Returns no edits for canonical
@@ -40,21 +33,6 @@ public func format(parse: CjParse, options!: FormatOptions = FormatOptions()): ?
  */
 public func formatText(text: String, options!: FormatOptions = FormatOptions()): ?String {
     applyEdits(text, format(parse(text), options: options) ?? return None)
-}
-
-/**
- * Applies ordered, non-overlapping edits to `text`. Offsets must be valid UTF-8 boundaries.
- */
-func applyEdits(text: String, edits: Array<TextEdit>): String {
-    let out = StringBuilder()
-    var at = 0
-    for (edit in edits) {
-        out.append(text[at..edit.range.start])
-        out.append(edit.text)
-        at = edit.range.end
-    }
-    out.append(text[at..])
-    out.toString()
 }
 
 /**

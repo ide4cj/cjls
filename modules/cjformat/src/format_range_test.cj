@@ -1,5 +1,7 @@
 package cjformat
 
+import source_change.{applyEdits}
+
 import std.unittest.*
 import std.unittest.testmacro.*
 import cjsyntax.parse
