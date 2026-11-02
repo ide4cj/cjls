@@ -45,7 +45,8 @@ class StartPipedOnLinuxTest {
         let child = startPiped(
             Path("/bin/sh"),
             [Path("/sdk/runtime"), Path("/sdk/tools/lib")],
-            { _ => ["-c", "printf %s \"$LD_LIBRARY_PATH\" >&4"] }
+            { _ => ["-c", "printf %s \"$LD_LIBRARY_PATH\" >&4"] },
+            output: None
         )
         let got = String.fromUtf8(readAll(child.fromChild))
         child.wait()
