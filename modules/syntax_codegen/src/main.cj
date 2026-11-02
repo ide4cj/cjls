@@ -17,29 +17,19 @@ struct CommandOutput {
     CommandOutput(let out: OutputStream, let err: OutputStream) {}
 }
 
-/**
- * Builds an isolated single-action CLI with generated help and usage errors.
- */
-func commandApp(
-    out!: OutputStream = getStdOut(),
-    err!: OutputStream = getStdErr()
-): JianContextApp<CommandContext> {
-    JianContextApp<CommandContext>(name: "syntax_codegen", stdout: out, stderr: err)
-        // The unexpanded census cannot see @JianCommand's factory overload (#176).
-        .command(generateSyntax)
-}
+let SYNTAX_CODEGEN_APP = JianContextApp<CommandContext>(name: "syntax_codegen")
 
 /**
  * Runs the generator CLI; usage errors return 2, generation failures return 1.
  */
 main(args: Array<String>): Int64 {
-    commandApp().run(args, context: CommandContext(CommandOutput(getStdOut(), getStdErr())))
+    SYNTAX_CODEGEN_APP.run(args, context: CommandContext(CommandOutput(getStdOut(), getStdErr())))
 }
 
 /**
  * Generates and formats both outputs, reporting writes and handwritten accessor notes.
  */
-@JianCommand[help: "Generate syntax kinds and typed tree views from a kinds file and its grammar."]
+@JianCommand[SYNTAX_CODEGEN_APP, root: true, help: "Generate syntax kinds and typed tree views from a kinds file and its grammar."]
 func generateSyntax(
     kindsFile!: Path = JianArgument(
         help: "Kinds file; paths in it are relative to this file.",

@@ -12,10 +12,14 @@ class SyntaxCommandTest {
     func helpDescribesTheKindsFileWithoutGenerating(args: Array<String>) {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = commandApp(out: out, err: err)
 
         // act
-        let code = app.run(args, context: CommandContext(CommandOutput(out, err)))
+        let code = SYNTAX_CODEGEN_APP.run(
+            args,
+            context: CommandContext(CommandOutput(out, err)),
+            stdout: out,
+            stderr: err
+        )
 
         // assert
         @Expect(code, 0)
@@ -30,10 +34,14 @@ class SyntaxCommandTest {
     func invalidInputsAreUsageErrors(args: Array<String>) {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = commandApp(out: out, err: err)
 
         // act
-        let code = app.run(args, context: CommandContext(CommandOutput(out, err)))
+        let code = SYNTAX_CODEGEN_APP.run(
+            args,
+            context: CommandContext(CommandOutput(out, err)),
+            stdout: out,
+            stderr: err
+        )
 
         // assert
         @Expect(code, 2)
@@ -47,12 +55,13 @@ class SyntaxCommandTest {
         let dir = Directory.createTemp(getWorkingDirectory())
         try {
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let app = commandApp(out: out, err: err)
 
             // act
-            let code = app.run(
+            let code = SYNTAX_CODEGEN_APP.run(
                 [dir.join("missing.toml").toString()],
-                context: CommandContext(CommandOutput(out, err))
+                context: CommandContext(CommandOutput(out, err)),
+                stdout: out,
+                stderr: err
             )
 
             // assert
@@ -97,12 +106,16 @@ class SyntaxCommandTest {
                 """.toArray()
             )
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let app = commandApp(out: out, err: err)
             let relative = "${dir.fileName}/kinds.toml"
             let args = if (terminator) { ["--", relative] } else { [relative] }
 
             // act
-            let code = app.run(args, context: CommandContext(CommandOutput(out, err)))
+            let code = SYNTAX_CODEGEN_APP.run(
+                args,
+                context: CommandContext(CommandOutput(out, err)),
+                stdout: out,
+                stderr: err
+            )
 
             // assert
             @Expect(String.fromUtf8(err.bytes()), "")

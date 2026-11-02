@@ -7,7 +7,6 @@
 # `UPDATE_EXPECT=1 cjpm test --target-dir target/test '--filter=ErrorRootsGateTest.*'` writes it.
 # Local-root attribution and all inspected positions: error_roots_audit.md (#425).
 modules/cjls/src/command.cj: member found: 1
-modules/cjls/src/command_test.cj: member found: 1  # test-app registration needs @JianCallback's generated overload (#176)
 modules/cjls/src/fetch_src.cj: other: 1
 modules/cjls/src/handlers/document_sync.cj: member found: 2
 modules/cjls/src/handlers/expand_macro.cj: member found: 3
@@ -24,14 +23,9 @@ modules/cjls/src/server/context.cj: member found: 3
 modules/cjls/src/server/loop.cj: member found: 1
 modules/cjls/src/server/push.cj: member found: 6
 modules/cjls/src/server/server_test.cj: member found: 3
-modules/fbs_codegen/src/main.cj: local: 1  # app inherits the unavailable @JianCommand factory overload (#176)
-modules/fbs_codegen/src/main.cj: member found: 1  # registration needs @JianCommand's generated factory overload (#176)
 modules/loupe/src/hir/binary.cj: local: 1  # Option.flatMap loses its callback result argument (#551)
 modules/loupe/src/hir/item_id.cj: local: 1  # standalone pipeline lambda (#248)
 modules/loupe/src/hir/ty_relations.cj: local: 4  # macro-member TodoTy becomes ErrorTy in iterator callbacks (#552)
-modules/lsp_codegen/src/main.cj: local: 1  # app inherits the unavailable @JianCommand factory overload (#176)
-modules/lsp_codegen/src/main.cj: member found: 1  # registration needs @JianCommand's generated factory overload (#176)
 modules/macro_host/src/host.cj: local: 1  # Option.flatMap callback result propagates to library pattern (#551)
 modules/macro_host/src/host.cj: member found: 2
 modules/platform/src/posix/relaunch.cj: name found: 1
-modules/syntax_codegen/src/main.cj: member found: 1  # registration needs @JianCommand's generated factory overload (#176)

@@ -20,7 +20,7 @@ calca = { path = "../calca" }
 cjformat = { path = "../cjformat" }
 fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
-jian = { git = "https://github.com/FilaCo/jian.git" }
+jian = { git = "https://github.com/FilaCo/jian.git", commitId = "ff60fdba97bd9f3e145b6e66545f39a699c01429" }
 loupe = { path = "../loupe" }
 macro_host = { path = "../macro_host" }
 macro_server = { path = "../macro_server" }

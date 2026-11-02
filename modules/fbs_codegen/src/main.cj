@@ -20,6 +20,8 @@ struct CommandOutput {
     CommandOutput(let out: OutputStream, let err: OutputStream) {}
 }
 
+let FBS_CODEGEN_APP = JianContextApp<CommandContext>(name: "fbs_codegen")
+
 /**
  * Generates views from the config named on the command line.
  */
@@ -35,12 +37,13 @@ func runFbsCodegen(
     out!: OutputStream = getStdOut(),
     err!: OutputStream = getStdErr()
 ): Int64 {
-    let app = JianContextApp<CommandContext>(name: "fbs_codegen", stdout: out, stderr: err)
-        // The unexpanded census cannot see @JianCommand's factory overload (#176).
-        .command(generateCommand)
     try {
-        // `app` inherits the unavailable macro-generated factory type in the census (#176).
-        app.run(args, context: CommandContext(CommandOutput(out, err)))
+        FBS_CODEGEN_APP.run(
+            args,
+            context: CommandContext(CommandOutput(out, err)),
+            stdout: out,
+            stderr: err
+        )
     } catch (e: Exception) {
         err.write("error: ${e.message}\n".toArray())
         err.flush()
@@ -51,7 +54,7 @@ func runFbsCodegen(
 /**
  * Generates and formats the configured output, reporting its path to stdout.
  */
-@JianCommand[help: "Generate Cangjie views of the FlatBuffers schema named by a config."]
+@JianCommand[FBS_CODEGEN_APP, root: true, help: "Generate Cangjie views of the FlatBuffers schema named by a config."]
 func generateCommand(
     config!: Path = JianArgument(
         help: "Generation config in TOML format.",

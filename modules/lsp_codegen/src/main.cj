@@ -21,6 +21,8 @@ struct CommandOutput {
     CommandOutput(let out: OutputStream) {}
 }
 
+let LSP_CODEGEN_APP = JianContextApp<CommandContext>(name: "lsp_codegen")
+
 main(args: Array<String>): Int64 {
     runCommand(args)
 }
@@ -33,17 +35,13 @@ func runCommand(
     out!: OutputStream = getStdOut(),
     err!: OutputStream = getStdErr()
 ): Int64 {
-    let app = JianContextApp<CommandContext>(
-        name: "lsp_codegen",
-        help: "Generate Cangjie protocol types from an LSP meta model.",
-        stdout: out,
-        stderr: err
-    )
-        // The unexpanded census cannot see @JianCommand's factory overload (#176).
-        .command(generateProtocol)
     try {
-        // `app` inherits the unavailable macro-generated factory type in the census (#176).
-        app.run(args, context: CommandContext(CommandOutput(out)))
+        LSP_CODEGEN_APP.run(
+            args,
+            context: CommandContext(CommandOutput(out)),
+            stdout: out,
+            stderr: err
+        )
     } catch (e: Exception) {
         err.write("error: ${e.message}\n".toArray())
         err.flush()
@@ -54,7 +52,7 @@ func runCommand(
 /**
  * Generates the configured protocol files; read, configuration and emission failures propagate.
  */
-@JianCommand[help: "Generate the protocol files selected by the configuration."]
+@JianCommand[LSP_CODEGEN_APP, root: true, help: "Generate the protocol files selected by the configuration."]
 func generateProtocol(
     metaModel!: Path = JianArgument(help: "LSP metaModel.json file.", preprocess: nonblankPath),
     config!: Path = JianOption(

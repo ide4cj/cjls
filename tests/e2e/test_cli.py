@@ -3,6 +3,8 @@
 import json
 import subprocess
 
+import pytest
+
 from conftest import CJLS
 
 
@@ -74,3 +76,17 @@ def test_fmt_checks_relative_paths_then_formats_them(tmp_path):
 
     # assert
     assert rechecked.returncode == 0, rechecked.stderr.decode()
+
+
+@pytest.mark.parametrize("args", [["help"], ["help", "fmt"], ["help", "project"], ["help", "fetch-src"]])
+def test_help_subcommands_are_rejected_without_starting_the_server(args):
+    # arrange
+    command = [CJLS, *args]
+
+    # act
+    run = subprocess.run(command, capture_output=True, text=True, timeout=60)
+
+    # assert
+    assert run.returncode == 2, run.stderr
+    assert run.stdout == ""
+    assert "unknown command 'help'" in run.stderr
