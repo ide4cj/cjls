@@ -19,6 +19,8 @@ import loupe.hoverInExpansion as nativeHoverInExpansion
 import loupe.definitionInExpansion as nativeDefinitionInExpansion
 import loupe.typeDefinitionInExpansion as nativeTypeDefinitionInExpansion
 import loupe.{
+    CallDeclaration,
+    DirectCalls,
     BuiltinDoc,
     CallHierarchyEntry,
     HierarchyCalls,
@@ -49,6 +51,9 @@ import loupe.{
     workspaceSymbols
 }
 import loupe.db.SourceFile
+import loupe.trackedCallRoots as nativeTrackedCallRoots
+import loupe.directCalls as nativeDirectCalls
+import loupe.callDeclaration as nativeCallDeclaration
 import loupe.hir.body as nativeBody
 import loupe.hir.signature as nativeSignature
 import loupe.hir.signatureWithSourceMap as nativeSignatureWithSourceMap
@@ -180,6 +185,15 @@ class AnalysisRevision {
     }
     public func expandedFile(path: String, header: String): ?ExpandedFile {
         expandFile(state.db, resolve(path), header)
+    }
+    public func trackedCallRoots(path: String): Array<DefId> {
+        nativeTrackedCallRoots(state.db, resolve(path))
+    }
+    public func directCalls(def: DefId): DirectCalls {
+        nativeDirectCalls(state.db, def)
+    }
+    public func callDeclaration(def: DefId): CallDeclaration {
+        nativeCallDeclaration(state.db, def)
     }
     public func infer(def: DefId): InferenceResult {
         inferBody(state.db, def)
