@@ -69,7 +69,7 @@ Build cjmcp as in its README, then run with the SDK and CPython 3.14 configured:
 ```bash
 cjHeapSize=4GB python3 scripts/call_audit.py \
   --binary target/release/bin/cjmcp --workspace /absolute/path/to/cjls \
-  --output audit.json
+  --output audit.json --summary audit-summary.json
 ```
 
 This drives the real `runPython` tool over stdio. `api/call_audit.py` can also be
@@ -88,7 +88,11 @@ remain, `no-path` means no modeled path and no reported gaps for that traversal.
 does not make other targets unreachable. `node-limit` explicitly marks truncated
 traversals. Loading problems and macro preparation status are retained in the
 report; inspect them before trusting coverage. Identities are native during search;
-serialized metadata is descriptive and must not be fed into another revision.
+serialized declaration IDs distinguish graph nodes/overloads within that report only.
+They must not be fed into another revision. The full report retains every gap
+site and can be large; `--summary` saves all per-root outcomes and gap counts plus
+one example per reason. The checked-in [cjls audit](../../../docs/audits/tracked-calls-2026-11-02.md)
+records the workspace run and coverage limitations.
 
 ## Planned PR boundaries
 

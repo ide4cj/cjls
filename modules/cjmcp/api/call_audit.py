@@ -55,7 +55,7 @@ def audit(workspace, *, limit=10000):
         if definition not in metadata:
             item = analysis.callDeclaration(definition)
             metadata[definition] = {
-                "package": item.packageName, "name": item.name,
+                "id": len(metadata), "package": item.packageName, "name": item.name,
                 "owner": item.ownerName, "location": location(item.location)}
         return metadata[definition]
 

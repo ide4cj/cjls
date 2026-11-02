@@ -1,0 +1,5082 @@
+{
+  "revision": 1,
+  "root": "/home/filaco/Projects/ide4cj/cjls",
+  "problems": [],
+  "has_expanded_macros": true,
+  "model": "written-direct-calls-stage-1",
+  "declarations_analyzed": 1693,
+  "provenance": {
+    "workspace_commit": "d86fff40c4d6de739c7196f90df6237b6ebecb6d",
+    "workspace_tracked_changes": "",
+    "binary_sha256": "f7ec499d5475fc502dda77ac039fd134fbfeed99335895a3bc37728154e29f76",
+    "analysis_sdk": ".codex/sdk/1.3.0-alpha.20261102001050/cangjie",
+    "python_library": "/usr/lib/libpython3.14.so"
+  },
+  "full_report_sha256": "8def770730fb9ea7fdafaddb01a0416b627ed921676ca2827d551631b212e797",
+  "gap_examples": {
+    "virtual-dispatch": {
+      "declaration": {
+        "id": 0,
+        "package": "calca",
+        "name": "slice",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "reason": "virtual-dispatch",
+      "site": {
+        "path": "modules/calca/src/arguments_test.cj",
+        "start": 187,
+        "end": 193,
+        "line": 9,
+        "expansion": false
+      }
+    },
+    "callback-flow": {
+      "declaration": {
+        "id": 0,
+        "package": "calca",
+        "name": "slice",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "reason": "callback-flow",
+      "site": {
+        "path": "modules/calca/src/arguments_test.cj",
+        "start": 187,
+        "end": 229,
+        "line": 9,
+        "expansion": false
+      }
+    },
+    "implicit-conversion": {
+      "declaration": {
+        "id": 0,
+        "package": "calca",
+        "name": "slice",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "reason": "implicit-conversion",
+      "site": {
+        "path": "modules/calca/src/arguments_test.cj",
+        "start": 201,
+        "end": 208,
+        "line": 9,
+        "expansion": false
+      }
+    },
+    "implicit-operator": {
+      "declaration": {
+        "id": 0,
+        "package": "calca",
+        "name": "slice",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "reason": "implicit-operator",
+      "site": {
+        "path": "modules/calca/src/arguments_test.cj",
+        "start": 234,
+        "end": 259,
+        "line": 10,
+        "expansion": false
+      }
+    },
+    "implicit-initialization": {
+      "declaration": {
+        "id": 0,
+        "package": "calca",
+        "name": "slice",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "reason": "implicit-initialization",
+      "site": {
+        "path": "modules/calca/src/arguments_test.cj",
+        "start": 248,
+        "end": 258,
+        "line": 10,
+        "expansion": false
+      }
+    },
+    "unavailable-body": {
+      "declaration": {
+        "id": 1,
+        "package": "calca",
+        "name": "log",
+        "owner": "TestDb",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 209,
+          "end": 212,
+          "line": 11,
+          "expansion": false
+        }
+      },
+      "reason": "unavailable-body",
+      "site": {
+        "path": "modules/calca/src/calca_test.cj",
+        "start": 204,
+        "end": 233,
+        "line": 11,
+        "expansion": false
+      }
+    },
+    "property-or-initialization": {
+      "declaration": {
+        "id": 6,
+        "package": "calca",
+        "name": "totalLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/batch_test.cj",
+          "start": 111,
+          "end": 122,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "reason": "property-or-initialization",
+      "site": {
+        "path": "modules/calca/src/batch_test.cj",
+        "start": 204,
+        "end": 219,
+        "line": 10,
+        "expansion": false
+      }
+    },
+    "functional-value": {
+      "declaration": {
+        "id": 8,
+        "package": "calca",
+        "name": "batch",
+        "owner": "Storage",
+        "location": {
+          "path": "modules/calca/src/storage.cj",
+          "start": 6589,
+          "end": 6594,
+          "line": 197,
+          "expansion": false
+        }
+      },
+      "reason": "functional-value",
+      "site": {
+        "path": "modules/calca/src/storage.cj",
+        "start": 6672,
+        "end": 6680,
+        "line": 199,
+        "expansion": false
+      }
+    },
+    "unresolved-call": {
+      "declaration": {
+        "id": 8,
+        "package": "calca",
+        "name": "batch",
+        "owner": "Storage",
+        "location": {
+          "path": "modules/calca/src/storage.cj",
+          "start": 6589,
+          "end": 6594,
+          "line": 197,
+          "expansion": false
+        }
+      },
+      "reason": "unresolved-call",
+      "site": {
+        "path": "modules/calca/src/storage.cj",
+        "start": 6672,
+        "end": 6680,
+        "line": 199,
+        "expansion": false
+      }
+    },
+    "resource-protocol": {
+      "declaration": {
+        "id": 11,
+        "package": "calca",
+        "name": "write",
+        "owner": "Runtime",
+        "location": {
+          "path": "modules/calca/src/runtime.cj",
+          "start": 9542,
+          "end": 9547,
+          "line": 299,
+          "expansion": false
+        }
+      },
+      "reason": "resource-protocol",
+      "site": {
+        "path": "modules/calca/src/runtime.cj",
+        "start": 9657,
+        "end": 10420,
+        "line": 302,
+        "expansion": false
+      }
+    },
+    "iteration-protocol": {
+      "declaration": {
+        "id": 11,
+        "package": "calca",
+        "name": "write",
+        "owner": "Runtime",
+        "location": {
+          "path": "modules/calca/src/runtime.cj",
+          "start": 9542,
+          "end": 9547,
+          "line": 299,
+          "expansion": false
+        }
+      },
+      "reason": "iteration-protocol",
+      "site": {
+        "path": "modules/calca/src/runtime.cj",
+        "start": 9851,
+        "end": 9957,
+        "line": 308,
+        "expansion": false
+      }
+    },
+    "default-arguments": {
+      "declaration": {
+        "id": 153,
+        "package": "loupe.db",
+        "name": "sourceFile",
+        "owner": "AnalysisDatabase",
+        "location": {
+          "path": "modules/loupe/src/db/db.cj",
+          "start": 2253,
+          "end": 2263,
+          "line": 66,
+          "expansion": false
+        }
+      },
+      "reason": "default-arguments",
+      "site": {
+        "path": "modules/loupe/src/db/db.cj",
+        "start": 2263,
+        "end": 2306,
+        "line": 66,
+        "expansion": false
+      }
+    },
+    "functional-value-or-constructor": {
+      "declaration": {
+        "id": 169,
+        "package": "cjsyntax",
+        "name": "parseWithGrammar",
+        "owner": "",
+        "location": {
+          "path": "modules/cjsyntax/src/parse.cj",
+          "start": 1924,
+          "end": 1940,
+          "line": 52,
+          "expansion": false
+        }
+      },
+      "reason": "functional-value-or-constructor",
+      "site": {
+        "path": "modules/cjsyntax/src/parse.cj",
+        "start": 2189,
+        "end": 2204,
+        "line": 59,
+        "expansion": false
+      }
+    }
+  },
+  "reports": [
+    {
+      "root": {
+        "id": 0,
+        "package": "calca",
+        "name": "slice",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 4,
+        "package": "calca",
+        "name": "joined",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/arguments_test.cj",
+          "start": 282,
+          "end": 288,
+          "line": 14,
+          "expansion": false
+        }
+      },
+      "visited": 6,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 2,
+        "unavailable-body": 4,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 6,
+        "package": "calca",
+        "name": "totalLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/batch_test.cj",
+          "start": 111,
+          "end": 122,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-operator": 1,
+        "property-or-initialization": 2,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 7,
+        "package": "calca",
+        "name": "batchesAnInput",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/batch_test.cj",
+          "start": 260,
+          "end": 274,
+          "line": 14,
+          "expansion": false
+        }
+      },
+      "visited": 14,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 10,
+        "functional-value": 2,
+        "implicit-conversion": 2,
+        "implicit-initialization": 2,
+        "implicit-operator": 6,
+        "iteration-protocol": 1,
+        "property-or-initialization": 14,
+        "resource-protocol": 2,
+        "unavailable-body": 9,
+        "unresolved-call": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 21,
+        "package": "calca",
+        "name": "nameLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 2348,
+          "end": 2358,
+          "line": 119,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 23,
+        "package": "calca",
+        "name": "firstWord",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 2471,
+          "end": 2480,
+          "line": 125,
+          "expansion": false
+        }
+      },
+      "visited": 6,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 1,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "unavailable-body": 5,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 26,
+        "package": "calca",
+        "name": "firstWordLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 2616,
+          "end": 2631,
+          "line": 131,
+          "expansion": false
+        }
+      },
+      "visited": 9,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 9,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 6,
+        "virtual-dispatch": 3
+      }
+    },
+    {
+      "root": {
+        "id": 27,
+        "package": "calca",
+        "name": "parkedLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 2772,
+          "end": 2784,
+          "line": 137,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 30,
+        "package": "calca",
+        "name": "length",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 3607,
+          "end": 3613,
+          "line": 173,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 31,
+        "package": "calca",
+        "name": "isLong",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 3728,
+          "end": 3734,
+          "line": 179,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 2,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 32,
+        "package": "calca",
+        "name": "pathLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 3850,
+          "end": 3860,
+          "line": 185,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 33,
+        "package": "calca",
+        "name": "answer",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 3979,
+          "end": 3985,
+          "line": 191,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "unavailable-body": 1,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 34,
+        "package": "calca",
+        "name": "lengthNoEq",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 4063,
+          "end": 4073,
+          "line": 197,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 35,
+        "package": "calca",
+        "name": "afterNoEq",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 4192,
+          "end": 4201,
+          "line": 203,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 36,
+        "package": "calca",
+        "name": "first",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 4321,
+          "end": 4326,
+          "line": 209,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-operator": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 37,
+        "package": "calca",
+        "name": "second",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 4407,
+          "end": 4413,
+          "line": 214,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-operator": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 39,
+        "package": "calca",
+        "name": "createsAnInput",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 4525,
+          "end": 4539,
+          "line": 219,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-initialization": 1,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 41,
+        "package": "calca",
+        "name": "setsAnInput",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/calca_test.cj",
+          "start": 4657,
+          "end": 4668,
+          "line": 225,
+          "expansion": false
+        }
+      },
+      "visited": 16,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 13,
+        "functional-value": 2,
+        "implicit-conversion": 2,
+        "implicit-initialization": 2,
+        "implicit-operator": 6,
+        "iteration-protocol": 1,
+        "property-or-initialization": 13,
+        "resource-protocol": 2,
+        "unavailable-body": 10,
+        "unresolved-call": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 45,
+        "package": "calca",
+        "name": "parkedSize",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/claim_test.cj",
+          "start": 216,
+          "end": 226,
+          "line": 12,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 4,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 46,
+        "package": "calca",
+        "name": "needsTheOther",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/claim_test.cj",
+          "start": 397,
+          "end": 410,
+          "line": 21,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 2,
+        "unavailable-body": 1,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 47,
+        "package": "calca",
+        "name": "needsTheFirst",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/claim_test.cj",
+          "start": 518,
+          "end": 531,
+          "line": 27,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 2,
+        "unavailable-body": 1,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 48,
+        "package": "calca",
+        "name": "parkedHead",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/claim_test.cj",
+          "start": 672,
+          "end": 682,
+          "line": 33,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 2,
+        "unavailable-body": 1,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 49,
+        "package": "calca",
+        "name": "parkedTail",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/claim_test.cj",
+          "start": 889,
+          "end": 899,
+          "line": 43,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 2,
+        "unavailable-body": 1,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 50,
+        "package": "calca",
+        "name": "head",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/cycle_test.cj",
+          "start": 138,
+          "end": 142,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-operator": 2,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 51,
+        "package": "calca",
+        "name": "tail",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/cycle_test.cj",
+          "start": 361,
+          "end": 365,
+          "line": 18,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-operator": 2,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 52,
+        "package": "calca",
+        "name": "recovered",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/cycle_test.cj",
+          "start": 552,
+          "end": 561,
+          "line": 28,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2
+      }
+    },
+    {
+      "root": {
+        "id": 53,
+        "package": "calca",
+        "name": "unrecovered",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/cycle_test.cj",
+          "start": 704,
+          "end": 715,
+          "line": 37,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2
+      }
+    },
+    {
+      "root": {
+        "id": 54,
+        "package": "calca",
+        "name": "pair",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/cycle_test.cj",
+          "start": 866,
+          "end": 870,
+          "line": 45,
+          "expansion": false
+        }
+      },
+      "visited": 1,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "implicit-operator": 1
+      }
+    },
+    {
+      "root": {
+        "id": 55,
+        "package": "calca",
+        "name": "edgeLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/edge_test.cj",
+          "start": 111,
+          "end": 121,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 56,
+        "package": "calca",
+        "name": "edgeFirstReader",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/edge_test.cj",
+          "start": 231,
+          "end": 246,
+          "line": 14,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 57,
+        "package": "calca",
+        "name": "edgeSecondReader",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/edge_test.cj",
+          "start": 363,
+          "end": 379,
+          "line": 20,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 58,
+        "package": "calca",
+        "name": "edgeFirstInterner",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/edge_test.cj",
+          "start": 501,
+          "end": 518,
+          "line": 26,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 2,
+        "unavailable-body": 4,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 59,
+        "package": "calca",
+        "name": "edgeSecondInterner",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/edge_test.cj",
+          "start": 670,
+          "end": 688,
+          "line": 32,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 2,
+        "unavailable-body": 4,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 60,
+        "package": "calca",
+        "name": "benchWords",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/fetch_bench_test.cj",
+          "start": 173,
+          "end": 183,
+          "line": 12,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 61,
+        "package": "calca",
+        "name": "benchLruLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/id_lru_bench_test.cj",
+          "start": 9259,
+          "end": 9273,
+          "line": 339,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 62,
+        "package": "calca",
+        "name": "benchLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/id_lru_bench_test.cj",
+          "start": 9358,
+          "end": 9369,
+          "line": 344,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 63,
+        "package": "calca",
+        "name": "wordOf",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 461,
+          "end": 467,
+          "line": 32,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-conversion": 1,
+        "implicit-initialization": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 65,
+        "package": "calca",
+        "name": "wordsOf",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 586,
+          "end": 593,
+          "line": 38,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "unavailable-body": 3
+      }
+    },
+    {
+      "root": {
+        "id": 67,
+        "package": "calca",
+        "name": "wordLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 721,
+          "end": 731,
+          "line": 43,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 69,
+        "package": "calca",
+        "name": "lengthOfWord",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 844,
+          "end": 856,
+          "line": 49,
+          "expansion": false
+        }
+      },
+      "visited": 6,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 6,
+        "implicit-conversion": 2,
+        "implicit-initialization": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 4,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 70,
+        "package": "calca",
+        "name": "termOf",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 998,
+          "end": 1004,
+          "line": 55,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-initialization": 1,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 72,
+        "package": "calca",
+        "name": "keywordOf",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1093,
+          "end": 1102,
+          "line": 60,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-initialization": 1,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 74,
+        "package": "calca",
+        "name": "repeatedLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1197,
+          "end": 1211,
+          "line": 65,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 75,
+        "package": "calca",
+        "name": "doubledLengthOfWord",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1312,
+          "end": 1331,
+          "line": 70,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 3
+      }
+    },
+    {
+      "root": {
+        "id": 76,
+        "package": "calca",
+        "name": "paddedLengthOfWord",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1590,
+          "end": 1608,
+          "line": 83,
+          "expansion": false
+        }
+      },
+      "visited": 6,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-initialization": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 4
+      }
+    },
+    {
+      "root": {
+        "id": 79,
+        "package": "calca",
+        "name": "pairLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1718,
+          "end": 1728,
+          "line": 88,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 1,
+        "property-or-initialization": 2,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 80,
+        "package": "calca",
+        "name": "lengthOfPair",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1915,
+          "end": 1927,
+          "line": 96,
+          "expansion": false
+        }
+      },
+      "visited": 7,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 7,
+        "implicit-initialization": 2,
+        "implicit-operator": 3,
+        "property-or-initialization": 2,
+        "unavailable-body": 5
+      }
+    },
+    {
+      "root": {
+        "id": 77,
+        "package": "calca",
+        "name": "paddedLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/interned_gc_test.cj",
+          "start": 1480,
+          "end": 1492,
+          "line": 77,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 81,
+        "package": "calca",
+        "name": "lruLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 119,
+          "end": 128,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 82,
+        "package": "calca",
+        "name": "doubledLruLength",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 246,
+          "end": 262,
+          "line": 14,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 2,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 83,
+        "package": "calca",
+        "name": "lru2Length",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 400,
+          "end": 410,
+          "line": 20,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 84,
+        "package": "calca",
+        "name": "lruLineCount",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 537,
+          "end": 549,
+          "line": 26,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 85,
+        "package": "calca",
+        "name": "afterLruLineCount",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 682,
+          "end": 699,
+          "line": 32,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-conversion": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 86,
+        "package": "calca",
+        "name": "lineCount",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 829,
+          "end": 838,
+          "line": 38,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 87,
+        "package": "calca",
+        "name": "afterLineCount",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 968,
+          "end": 982,
+          "line": 44,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-conversion": 2,
+        "property-or-initialization": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 88,
+        "package": "calca",
+        "name": "lruLengthNoEq",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/lru_test.cj",
+          "start": 1120,
+          "end": 1133,
+          "line": 50,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 89,
+        "package": "calca",
+        "name": "shortPrefix",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/method_test.cj",
+          "start": 4716,
+          "end": 4727,
+          "line": 184,
+          "expansion": false
+        }
+      },
+      "visited": 7,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 8,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 4,
+        "virtual-dispatch": 3
+      }
+    },
+    {
+      "root": {
+        "id": 92,
+        "package": "calca",
+        "name": "size",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/method_test.cj",
+          "start": 153,
+          "end": 157,
+          "line": 10,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 90,
+        "package": "calca",
+        "name": "prefix",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/method_test.cj",
+          "start": 273,
+          "end": 279,
+          "line": 16,
+          "expansion": false
+        }
+      },
+      "visited": 6,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 6,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 4,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 93,
+        "package": "calca",
+        "name": "totalSize",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/method_test.cj",
+          "start": 613,
+          "end": 622,
+          "line": 30,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-conversion": 3,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 94,
+        "package": "calca",
+        "name": "greeting",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/method_test.cj",
+          "start": 787,
+          "end": 795,
+          "line": 36,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "unavailable-body": 1,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 96,
+        "package": "calca",
+        "name": "depth",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/method_test.cj",
+          "start": 1016,
+          "end": 1021,
+          "line": 49,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 97,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 111,
+          "end": 116,
+          "line": 8,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "unavailable-body": 1,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 98,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 194,
+          "end": 199,
+          "line": 14,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 99,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 309,
+          "end": 314,
+          "line": 20,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-conversion": 1,
+        "unavailable-body": 2,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 100,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 455,
+          "end": 460,
+          "line": 26,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 101,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 606,
+          "end": 611,
+          "line": 32,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 3,
+        "implicit-initialization": 1,
+        "implicit-operator": 1,
+        "unavailable-body": 3,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 102,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 751,
+          "end": 756,
+          "line": 38,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "implicit-conversion": 1,
+        "unavailable-body": 1,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 103,
+        "package": "calca",
+        "name": "label",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 859,
+          "end": 864,
+          "line": 44,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "implicit-operator": 1,
+        "unavailable-body": 1,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 104,
+        "package": "calca",
+        "name": "SourceFile_size",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/overload_test.cj",
+          "start": 1086,
+          "end": 1101,
+          "line": 53,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "implicit-operator": 1,
+        "unavailable-body": 1,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 105,
+        "package": "calca",
+        "name": "tabSizeOrDefault",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/singleton_test.cj",
+          "start": 178,
+          "end": 194,
+          "line": 13,
+          "expansion": false
+        }
+      },
+      "visited": 4,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "unavailable-body": 3,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 108,
+        "package": "calca",
+        "name": "tolerantSize",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/swallow_test.cj",
+          "start": 224,
+          "end": 236,
+          "line": 12,
+          "expansion": false
+        }
+      },
+      "visited": 6,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 5,
+        "implicit-conversion": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 1,
+        "resource-protocol": 1,
+        "unavailable-body": 4,
+        "virtual-dispatch": 3
+      }
+    },
+    {
+      "root": {
+        "id": 109,
+        "package": "calca",
+        "name": "tolerantHead",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/swallow_test.cj",
+          "start": 447,
+          "end": 459,
+          "line": 22,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-operator": 3,
+        "resource-protocol": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 110,
+        "package": "calca",
+        "name": "tolerantTail",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/swallow_test.cj",
+          "start": 785,
+          "end": 797,
+          "line": 39,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "implicit-operator": 3,
+        "resource-protocol": 1,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 111,
+        "package": "calca",
+        "name": "tolerantParkedHead",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/swallow_test.cj",
+          "start": 990,
+          "end": 1008,
+          "line": 48,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 4,
+        "resource-protocol": 2,
+        "unavailable-body": 1,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 112,
+        "package": "calca",
+        "name": "tolerantParkedTail",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/swallow_test.cj",
+          "start": 1301,
+          "end": 1319,
+          "line": 62,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-operator": 4,
+        "resource-protocol": 2,
+        "unavailable-body": 1,
+        "virtual-dispatch": 2
+      }
+    },
+    {
+      "root": {
+        "id": 113,
+        "package": "calca",
+        "name": "benchSignature",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/verify_bench_test.cj",
+          "start": 480,
+          "end": 494,
+          "line": 25,
+          "expansion": false
+        }
+      },
+      "visited": 2,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1,
+        "implicit-operator": 1,
+        "property-or-initialization": 3,
+        "unavailable-body": 1
+      }
+    },
+    {
+      "root": {
+        "id": 114,
+        "package": "calca",
+        "name": "benchBody",
+        "owner": "",
+        "location": {
+          "path": "modules/calca/src/verify_bench_test.cj",
+          "start": 706,
+          "end": 715,
+          "line": 33,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-conversion": 1,
+        "implicit-initialization": 3,
+        "implicit-operator": 8,
+        "iteration-protocol": 2,
+        "property-or-initialization": 8,
+        "unavailable-body": 3
+      }
+    },
+    {
+      "root": {
+        "id": 115,
+        "package": "loupe",
+        "name": "callsInFile",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/call_hierarchy.cj",
+          "start": 5573,
+          "end": 5584,
+          "line": 172,
+          "expansion": false
+        }
+      },
+      "visited": 1503,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4519,
+        "default-arguments": 43,
+        "functional-value": 101,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 70,
+        "implicit-initialization": 1100,
+        "implicit-operator": 2801,
+        "iteration-protocol": 311,
+        "property-or-initialization": 1576,
+        "resource-protocol": 13,
+        "unavailable-body": 705,
+        "unresolved-call": 71,
+        "virtual-dispatch": 33
+      }
+    },
+    {
+      "root": {
+        "id": 1609,
+        "package": "loupe",
+        "name": "declarationDiagnostics",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/declaration_diagnostics.cj",
+          "start": 672,
+          "end": 694,
+          "line": 28,
+          "expansion": false
+        }
+      },
+      "visited": 574,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1071,
+        "default-arguments": 6,
+        "functional-value": 23,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 342,
+        "implicit-operator": 1031,
+        "iteration-protocol": 65,
+        "property-or-initialization": 599,
+        "resource-protocol": 5,
+        "unavailable-body": 256,
+        "unresolved-call": 18,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1613,
+        "package": "loupe",
+        "name": "fileWords",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/file_words.cj",
+          "start": 3080,
+          "end": 3089,
+          "line": 90,
+          "expansion": false
+        }
+      },
+      "visited": 19,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 13,
+        "implicit-initialization": 4,
+        "implicit-operator": 95,
+        "iteration-protocol": 2,
+        "property-or-initialization": 4,
+        "unavailable-body": 11
+      }
+    },
+    {
+      "root": {
+        "id": 1619,
+        "package": "loupe",
+        "name": "fileSymbols",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/symbols.cj",
+          "start": 1376,
+          "end": 1387,
+          "line": 45,
+          "expansion": false
+        }
+      },
+      "visited": 174,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 314,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 2,
+        "implicit-conversion": 10,
+        "implicit-initialization": 79,
+        "implicit-operator": 486,
+        "iteration-protocol": 13,
+        "property-or-initialization": 313,
+        "resource-protocol": 1,
+        "unavailable-body": 58,
+        "unresolved-call": 6,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 1624,
+        "package": "loupe.db",
+        "name": "binarySize",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/db/binary_test.cj",
+          "start": 350,
+          "end": 360,
+          "line": 19,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 2,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 1625,
+        "package": "loupe.db",
+        "name": "lineCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/db/db_test.cj",
+          "start": 356,
+          "end": 365,
+          "line": 18,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 2,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 1626,
+        "package": "loupe.db",
+        "name": "packageFileCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/db/project_test.cj",
+          "start": 300,
+          "end": 316,
+          "line": 17,
+          "expansion": false
+        }
+      },
+      "visited": 3,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "property-or-initialization": 2,
+        "unavailable-body": 2
+      }
+    },
+    {
+      "root": {
+        "id": 361,
+        "package": "loupe.hir",
+        "name": "binaryItemTrees",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/binary.cj",
+          "start": 1906,
+          "end": 1921,
+          "line": 61,
+          "expansion": false
+        }
+      },
+      "visited": 68,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 77,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "implicit-conversion": 4,
+        "implicit-initialization": 52,
+        "implicit-operator": 89,
+        "iteration-protocol": 3,
+        "property-or-initialization": 80,
+        "resource-protocol": 2,
+        "unavailable-body": 37,
+        "unresolved-call": 1,
+        "virtual-dispatch": 5
+      }
+    },
+    {
+      "root": {
+        "id": 764,
+        "package": "loupe.hir",
+        "name": "binaryExports",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/binary.cj",
+          "start": 2152,
+          "end": 2165,
+          "line": 69,
+          "expansion": false
+        }
+      },
+      "visited": 68,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 77,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "implicit-conversion": 4,
+        "implicit-initialization": 52,
+        "implicit-operator": 89,
+        "iteration-protocol": 3,
+        "property-or-initialization": 80,
+        "resource-protocol": 2,
+        "unavailable-body": 37,
+        "unresolved-call": 1,
+        "virtual-dispatch": 5
+      }
+    },
+    {
+      "root": {
+        "id": 577,
+        "package": "loupe.hir",
+        "name": "binaryLowering",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/binary.cj",
+          "start": 2513,
+          "end": 2527,
+          "line": 79,
+          "expansion": false
+        }
+      },
+      "visited": 67,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 76,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "implicit-conversion": 4,
+        "implicit-initialization": 52,
+        "implicit-operator": 89,
+        "iteration-protocol": 3,
+        "property-or-initialization": 80,
+        "resource-protocol": 2,
+        "unavailable-body": 37,
+        "unresolved-call": 1,
+        "virtual-dispatch": 5
+      }
+    },
+    {
+      "root": {
+        "id": 536,
+        "package": "loupe.hir",
+        "name": "binarySourceItems",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/binary_source.cj",
+          "start": 4349,
+          "end": 4366,
+          "line": 137,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 955,
+        "package": "loupe.hir",
+        "name": "binarySourceDefMap",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/binary_source.cj",
+          "start": 7943,
+          "end": 7961,
+          "line": 235,
+          "expansion": false
+        }
+      },
+      "visited": 568,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1044,
+        "default-arguments": 5,
+        "functional-value": 26,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 63,
+        "implicit-initialization": 338,
+        "implicit-operator": 995,
+        "iteration-protocol": 66,
+        "property-or-initialization": 570,
+        "resource-protocol": 5,
+        "unavailable-body": 256,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 193,
+        "package": "loupe.hir",
+        "name": "bodyWithSourceMap",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/body.cj",
+          "start": 20773,
+          "end": 20790,
+          "line": 719,
+          "expansion": false
+        }
+      },
+      "visited": 823,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1413,
+        "default-arguments": 10,
+        "functional-value": 24,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 63,
+        "implicit-initialization": 425,
+        "implicit-operator": 1165,
+        "iteration-protocol": 71,
+        "property-or-initialization": 748,
+        "resource-protocol": 6,
+        "unavailable-body": 473,
+        "unresolved-call": 19,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 420,
+        "package": "loupe.hir",
+        "name": "body",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/body.cj",
+          "start": 23021,
+          "end": 23025,
+          "line": 771,
+          "expansion": false
+        }
+      },
+      "visited": 824,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1414,
+        "default-arguments": 10,
+        "functional-value": 24,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 63,
+        "implicit-initialization": 425,
+        "implicit-operator": 1165,
+        "iteration-protocol": 71,
+        "property-or-initialization": 748,
+        "resource-protocol": 6,
+        "unavailable-body": 473,
+        "unresolved-call": 19,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 578,
+        "package": "loupe.hir",
+        "name": "bodyMacroCalls",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/body_macro.cj",
+          "start": 1540,
+          "end": 1554,
+          "line": 36,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 516,
+        "package": "loupe.hir",
+        "name": "packageCtorsNamed",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/body_resolution.cj",
+          "start": 2576,
+          "end": 2593,
+          "line": 93,
+          "expansion": false
+        }
+      },
+      "visited": 622,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1222,
+        "default-arguments": 7,
+        "functional-value": 32,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 382,
+        "implicit-operator": 1069,
+        "iteration-protocol": 100,
+        "property-or-initialization": 581,
+        "resource-protocol": 5,
+        "unavailable-body": 291,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1627,
+        "package": "loupe.hir",
+        "name": "exprCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/body_test.cj",
+          "start": 1331,
+          "end": 1340,
+          "line": 48,
+          "expansion": false
+        }
+      },
+      "visited": 826,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1416,
+        "default-arguments": 10,
+        "functional-value": 24,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 63,
+        "implicit-initialization": 425,
+        "implicit-operator": 1165,
+        "iteration-protocol": 71,
+        "property-or-initialization": 750,
+        "resource-protocol": 6,
+        "unavailable-body": 474,
+        "unresolved-call": 19,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 689,
+        "package": "loupe.hir",
+        "name": "defMapAt",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/def_map.cj",
+          "start": 8808,
+          "end": 8816,
+          "line": 254,
+          "expansion": false
+        }
+      },
+      "visited": 568,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1044,
+        "default-arguments": 5,
+        "functional-value": 26,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 63,
+        "implicit-initialization": 338,
+        "implicit-operator": 995,
+        "iteration-protocol": 66,
+        "property-or-initialization": 570,
+        "resource-protocol": 5,
+        "unavailable-body": 256,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1628,
+        "package": "loupe.hir",
+        "name": "defMapNames",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/def_map_test.cj",
+          "start": 4913,
+          "end": 4924,
+          "line": 136,
+          "expansion": false
+        }
+      },
+      "visited": 574,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1048,
+        "default-arguments": 5,
+        "functional-value": 26,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 63,
+        "implicit-initialization": 340,
+        "implicit-operator": 995,
+        "iteration-protocol": 66,
+        "property-or-initialization": 571,
+        "resource-protocol": 5,
+        "unavailable-body": 258,
+        "unresolved-call": 17,
+        "virtual-dispatch": 20
+      }
+    },
+    {
+      "root": {
+        "id": 367,
+        "package": "loupe.hir",
+        "name": "expandedCalls",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expansion.cj",
+          "start": 10269,
+          "end": 10282,
+          "line": 266,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 246,
+        "package": "loupe.hir",
+        "name": "macroExpansion",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expansion.cj",
+          "start": 11842,
+          "end": 11856,
+          "line": 307,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 355,
+        "package": "loupe.hir",
+        "name": "expandToOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expansion.cj",
+          "start": 14555,
+          "end": 14565,
+          "line": 377,
+          "expansion": false
+        }
+      },
+      "visited": 269,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 416,
+        "default-arguments": 2,
+        "functional-value": 7,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 10,
+        "implicit-initialization": 109,
+        "implicit-operator": 543,
+        "iteration-protocol": 21,
+        "property-or-initialization": 355,
+        "resource-protocol": 1,
+        "unavailable-body": 109,
+        "unresolved-call": 8,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 237,
+        "package": "loupe.hir",
+        "name": "expansionParse",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expansion.cj",
+          "start": 15714,
+          "end": 15728,
+          "line": 407,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 238,
+        "package": "loupe.hir",
+        "name": "expansionIdMap",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expansion.cj",
+          "start": 16071,
+          "end": 16085,
+          "line": 420,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 360,
+        "package": "loupe.hir",
+        "name": "expansionItemTree",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expansion.cj",
+          "start": 16266,
+          "end": 16283,
+          "line": 428,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 305,
+        "package": "loupe.hir",
+        "name": "exprScopes",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/expr_scopes.cj",
+          "start": 2303,
+          "end": 2313,
+          "line": 82,
+          "expansion": false
+        }
+      },
+      "visited": 847,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1545,
+        "default-arguments": 11,
+        "functional-value": 24,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 63,
+        "implicit-initialization": 451,
+        "implicit-operator": 1200,
+        "iteration-protocol": 95,
+        "property-or-initialization": 771,
+        "resource-protocol": 6,
+        "unavailable-body": 479,
+        "unresolved-call": 19,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1631,
+        "package": "loupe.hir",
+        "name": "packageSubtypes",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/hierarchy.cj",
+          "start": 419,
+          "end": 434,
+          "line": 15,
+          "expansion": false
+        }
+      },
+      "visited": 624,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1102,
+        "default-arguments": 7,
+        "functional-value": 23,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 356,
+        "implicit-operator": 1017,
+        "iteration-protocol": 62,
+        "property-or-initialization": 597,
+        "resource-protocol": 6,
+        "unavailable-body": 303,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1633,
+        "package": "loupe.hir",
+        "name": "overriddenMembers",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/hierarchy.cj",
+          "start": 2045,
+          "end": 2062,
+          "line": 55,
+          "expansion": false
+        }
+      },
+      "visited": 1060,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2269,
+        "default-arguments": 16,
+        "functional-value": 44,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 668,
+        "implicit-operator": 1538,
+        "iteration-protocol": 160,
+        "property-or-initialization": 921,
+        "resource-protocol": 10,
+        "unavailable-body": 579,
+        "unresolved-call": 27,
+        "virtual-dispatch": 23
+      }
+    },
+    {
+      "root": {
+        "id": 1640,
+        "package": "loupe.hir",
+        "name": "overridingMembers",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/hierarchy.cj",
+          "start": 3469,
+          "end": 3486,
+          "line": 87,
+          "expansion": false
+        }
+      },
+      "visited": 1063,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2275,
+        "default-arguments": 16,
+        "functional-value": 40,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 677,
+        "implicit-operator": 1535,
+        "iteration-protocol": 165,
+        "property-or-initialization": 927,
+        "resource-protocol": 11,
+        "unavailable-body": 580,
+        "unresolved-call": 23,
+        "virtual-dispatch": 23
+      }
+    },
+    {
+      "root": {
+        "id": 289,
+        "package": "loupe.hir",
+        "name": "packageIndex",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/imports.cj",
+          "start": 3018,
+          "end": 3030,
+          "line": 90,
+          "expansion": false
+        }
+      },
+      "visited": 50,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 66,
+        "functional-value": 1,
+        "implicit-conversion": 2,
+        "implicit-initialization": 23,
+        "implicit-operator": 30,
+        "iteration-protocol": 7,
+        "property-or-initialization": 3,
+        "unavailable-body": 35,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 696,
+        "package": "loupe.hir",
+        "name": "exportsAt",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/imports.cj",
+          "start": 16265,
+          "end": 16274,
+          "line": 458,
+          "expansion": false
+        }
+      },
+      "visited": 616,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1197,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 375,
+        "implicit-operator": 1061,
+        "iteration-protocol": 94,
+        "property-or-initialization": 581,
+        "resource-protocol": 5,
+        "unavailable-body": 288,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 208,
+        "package": "loupe.hir",
+        "name": "itemOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/imports.cj",
+          "start": 18687,
+          "end": 18693,
+          "line": 528,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1646,
+        "package": "loupe.hir",
+        "name": "exportedNames",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/imports_test.cj",
+          "start": 4026,
+          "end": 4039,
+          "line": 112,
+          "expansion": false
+        }
+      },
+      "visited": 622,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1201,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 377,
+        "implicit-operator": 1061,
+        "iteration-protocol": 94,
+        "property-or-initialization": 582,
+        "resource-protocol": 5,
+        "unavailable-body": 290,
+        "unresolved-call": 17,
+        "virtual-dispatch": 20
+      }
+    },
+    {
+      "root": {
+        "id": 197,
+        "package": "loupe.hir",
+        "name": "inferBody",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/infer.cj",
+          "start": 11421,
+          "end": 11430,
+          "line": 347,
+          "expansion": false
+        }
+      },
+      "visited": 1385,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4100,
+        "default-arguments": 32,
+        "functional-value": 96,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 1007,
+        "implicit-operator": 2566,
+        "iteration-protocol": 298,
+        "property-or-initialization": 1462,
+        "resource-protocol": 13,
+        "unavailable-body": 653,
+        "unresolved-call": 66,
+        "virtual-dispatch": 30
+      }
+    },
+    {
+      "root": {
+        "id": 1426,
+        "package": "loupe.hir",
+        "name": "declaredTyOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/infer.cj",
+          "start": 12114,
+          "end": 12126,
+          "line": 367,
+          "expansion": false
+        }
+      },
+      "visited": 1385,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4100,
+        "default-arguments": 32,
+        "functional-value": 96,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 1007,
+        "implicit-operator": 2566,
+        "iteration-protocol": 298,
+        "property-or-initialization": 1462,
+        "resource-protocol": 13,
+        "unavailable-body": 653,
+        "unresolved-call": 66,
+        "virtual-dispatch": 30
+      }
+    },
+    {
+      "root": {
+        "id": 1647,
+        "package": "loupe.hir",
+        "name": "exprTyCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/infer_test.cj",
+          "start": 4686,
+          "end": 4697,
+          "line": 121,
+          "expansion": false
+        }
+      },
+      "visited": 1387,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4102,
+        "default-arguments": 32,
+        "functional-value": 96,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 1007,
+        "implicit-operator": 2566,
+        "iteration-protocol": 298,
+        "property-or-initialization": 1464,
+        "resource-protocol": 13,
+        "unavailable-body": 654,
+        "unresolved-call": 66,
+        "virtual-dispatch": 30
+      }
+    },
+    {
+      "root": {
+        "id": 236,
+        "package": "loupe.hir",
+        "name": "itemIdMap",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/item_id.cj",
+          "start": 5654,
+          "end": 5663,
+          "line": 185,
+          "expansion": false
+        }
+      },
+      "visited": 222,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 356,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 10,
+        "implicit-initialization": 96,
+        "implicit-operator": 507,
+        "iteration-protocol": 19,
+        "property-or-initialization": 336,
+        "resource-protocol": 1,
+        "unavailable-body": 87,
+        "unresolved-call": 7,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 572,
+        "package": "loupe.hir",
+        "name": "itemTree",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/item_tree.cj",
+          "start": 7390,
+          "end": 7398,
+          "line": 239,
+          "expansion": false
+        }
+      },
+      "visited": 224,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 359,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 10,
+        "implicit-initialization": 96,
+        "implicit-operator": 507,
+        "iteration-protocol": 19,
+        "property-or-initialization": 336,
+        "resource-protocol": 1,
+        "unavailable-body": 88,
+        "unresolved-call": 7,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 1648,
+        "package": "loupe.hir",
+        "name": "itemNames",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/item_tree_test.cj",
+          "start": 433,
+          "end": 442,
+          "line": 20,
+          "expansion": false
+        }
+      },
+      "visited": 227,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 362,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 10,
+        "implicit-initialization": 96,
+        "implicit-operator": 507,
+        "iteration-protocol": 19,
+        "property-or-initialization": 337,
+        "resource-protocol": 1,
+        "unavailable-body": 90,
+        "unresolved-call": 7,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 1148,
+        "package": "loupe.hir",
+        "name": "langItem",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/lang_items.cj",
+          "start": 3147,
+          "end": 3155,
+          "line": 120,
+          "expansion": false
+        }
+      },
+      "visited": 622,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1209,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 375,
+        "implicit-operator": 1065,
+        "iteration-protocol": 94,
+        "property-or-initialization": 581,
+        "resource-protocol": 5,
+        "unavailable-body": 292,
+        "unresolved-call": 17,
+        "virtual-dispatch": 21
+      }
+    },
+    {
+      "root": {
+        "id": 1649,
+        "package": "loupe.hir",
+        "name": "isMacroPackage",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/macro_build.cj",
+          "start": 965,
+          "end": 979,
+          "line": 31,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 3,
+        "unavailable-body": 4
+      }
+    },
+    {
+      "root": {
+        "id": 1651,
+        "package": "loupe.hir",
+        "name": "macroBuildPlan",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/macro_build.cj",
+          "start": 1689,
+          "end": 1703,
+          "line": 54,
+          "expansion": false
+        }
+      },
+      "visited": 300,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 494,
+        "default-arguments": 4,
+        "functional-value": 7,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 12,
+        "implicit-initialization": 132,
+        "implicit-operator": 571,
+        "iteration-protocol": 37,
+        "property-or-initialization": 352,
+        "resource-protocol": 1,
+        "unavailable-body": 139,
+        "unresolved-call": 7,
+        "virtual-dispatch": 8
+      }
+    },
+    {
+      "root": {
+        "id": 1394,
+        "package": "loupe.hir",
+        "name": "packageHasUnreadMacros",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/macro_resolution.cj",
+          "start": 4752,
+          "end": 4774,
+          "line": 132,
+          "expansion": false
+        }
+      },
+      "visited": 546,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 996,
+        "default-arguments": 5,
+        "functional-value": 23,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 317,
+        "implicit-operator": 976,
+        "iteration-protocol": 58,
+        "property-or-initialization": 565,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1224,
+        "package": "loupe.hir",
+        "name": "packageExtends",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/members.cj",
+          "start": 3089,
+          "end": 3103,
+          "line": 89,
+          "expansion": false
+        }
+      },
+      "visited": 800,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1710,
+        "default-arguments": 12,
+        "functional-value": 38,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 66,
+        "implicit-initialization": 522,
+        "implicit-operator": 1263,
+        "iteration-protocol": 125,
+        "property-or-initialization": 740,
+        "resource-protocol": 9,
+        "unavailable-body": 388,
+        "unresolved-call": 21,
+        "virtual-dispatch": 21
+      }
+    },
+    {
+      "root": {
+        "id": 1225,
+        "package": "loupe.hir",
+        "name": "interfaceExtendsOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/members.cj",
+          "start": 16649,
+          "end": 16667,
+          "line": 470,
+          "expansion": false
+        }
+      },
+      "visited": 805,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1737,
+        "default-arguments": 12,
+        "functional-value": 38,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 66,
+        "implicit-initialization": 531,
+        "implicit-operator": 1274,
+        "iteration-protocol": 134,
+        "property-or-initialization": 740,
+        "resource-protocol": 9,
+        "unavailable-body": 388,
+        "unresolved-call": 21,
+        "virtual-dispatch": 21
+      }
+    },
+    {
+      "root": {
+        "id": 1466,
+        "package": "loupe.hir",
+        "name": "foreignExtends",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/members.cj",
+          "start": 17455,
+          "end": 17469,
+          "line": 495,
+          "expansion": false
+        }
+      },
+      "visited": 801,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1714,
+        "default-arguments": 12,
+        "functional-value": 38,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 66,
+        "implicit-initialization": 523,
+        "implicit-operator": 1264,
+        "iteration-protocol": 125,
+        "property-or-initialization": 740,
+        "resource-protocol": 9,
+        "unavailable-body": 388,
+        "unresolved-call": 21,
+        "virtual-dispatch": 21
+      }
+    },
+    {
+      "root": {
+        "id": 1557,
+        "package": "loupe.hir",
+        "name": "interfacePackagesOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/members.cj",
+          "start": 19373,
+          "end": 19392,
+          "line": 549,
+          "expansion": false
+        }
+      },
+      "visited": 618,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1203,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 376,
+        "implicit-operator": 1064,
+        "iteration-protocol": 96,
+        "property-or-initialization": 581,
+        "resource-protocol": 5,
+        "unavailable-body": 288,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1008,
+        "package": "loupe.hir",
+        "name": "supertypes",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/members.cj",
+          "start": 24597,
+          "end": 24607,
+          "line": 694,
+          "expansion": false
+        }
+      },
+      "visited": 615,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1076,
+        "default-arguments": 7,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 348,
+        "implicit-operator": 1009,
+        "iteration-protocol": 59,
+        "property-or-initialization": 594,
+        "resource-protocol": 6,
+        "unavailable-body": 301,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1657,
+        "package": "loupe.hir",
+        "name": "noSpecifics",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/multiplatform.cj",
+          "start": 4952,
+          "end": 4963,
+          "line": 143,
+          "expansion": false
+        }
+      },
+      "visited": 577,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1094,
+        "default-arguments": 5,
+        "functional-value": 26,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 74,
+        "implicit-initialization": 349,
+        "implicit-operator": 1023,
+        "iteration-protocol": 70,
+        "property-or-initialization": 578,
+        "resource-protocol": 5,
+        "unavailable-body": 260,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 116,
+        "package": "loupe.hir",
+        "name": "inactiveReasonOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/multiplatform.cj",
+          "start": 9346,
+          "end": 9362,
+          "line": 256,
+          "expansion": false
+        }
+      },
+      "visited": 7,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 4,
+        "implicit-operator": 2,
+        "iteration-protocol": 2,
+        "unavailable-body": 5
+      }
+    },
+    {
+      "root": {
+        "id": 1662,
+        "package": "loupe.hir",
+        "name": "packageHeaderError",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/package_diagnostics.cj",
+          "start": 381,
+          "end": 399,
+          "line": 12,
+          "expansion": false
+        }
+      },
+      "visited": 548,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 973,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 63,
+        "implicit-initialization": 315,
+        "implicit-operator": 977,
+        "iteration-protocol": 56,
+        "property-or-initialization": 564,
+        "resource-protocol": 5,
+        "unavailable-body": 247,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1663,
+        "package": "loupe.hir",
+        "name": "packageHeaderKind",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/package_diagnostics.cj",
+          "start": 1405,
+          "end": 1422,
+          "line": 40,
+          "expansion": false
+        }
+      },
+      "visited": 20,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 13,
+        "default-arguments": 1,
+        "implicit-initialization": 2,
+        "implicit-operator": 12,
+        "iteration-protocol": 2,
+        "property-or-initialization": 3,
+        "unavailable-body": 13,
+        "virtual-dispatch": 1
+      }
+    },
+    {
+      "root": {
+        "id": 964,
+        "package": "loupe.hir",
+        "name": "packageImportsAt",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope.cj",
+          "start": 5052,
+          "end": 5068,
+          "line": 160,
+          "expansion": false
+        }
+      },
+      "visited": 616,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1197,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 375,
+        "implicit-operator": 1061,
+        "iteration-protocol": 94,
+        "property-or-initialization": 581,
+        "resource-protocol": 5,
+        "unavailable-body": 288,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 963,
+        "package": "loupe.hir",
+        "name": "fileImportsAt",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope.cj",
+          "start": 8730,
+          "end": 8743,
+          "line": 263,
+          "expansion": false
+        }
+      },
+      "visited": 622,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1221,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 378,
+        "implicit-operator": 1067,
+        "iteration-protocol": 94,
+        "property-or-initialization": 582,
+        "resource-protocol": 5,
+        "unavailable-body": 290,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 762,
+        "package": "loupe.hir",
+        "name": "packageCtorImports",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope.cj",
+          "start": 15543,
+          "end": 15561,
+          "line": 475,
+          "expansion": false
+        }
+      },
+      "visited": 619,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1213,
+        "default-arguments": 7,
+        "functional-value": 32,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 380,
+        "implicit-operator": 1067,
+        "iteration-protocol": 98,
+        "property-or-initialization": 581,
+        "resource-protocol": 5,
+        "unavailable-body": 290,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 434,
+        "package": "loupe.hir",
+        "name": "lookUp",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope.cj",
+          "start": 20016,
+          "end": 20022,
+          "line": 598,
+          "expansion": false
+        }
+      },
+      "visited": 640,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1293,
+        "default-arguments": 9,
+        "functional-value": 32,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 398,
+        "implicit-operator": 1097,
+        "iteration-protocol": 103,
+        "property-or-initialization": 584,
+        "resource-protocol": 5,
+        "unavailable-body": 298,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1668,
+        "package": "loupe.hir",
+        "name": "onImportCycle",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope_diagnostics.cj",
+          "start": 2469,
+          "end": 2482,
+          "line": 83,
+          "expansion": false
+        }
+      },
+      "visited": 577,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1062,
+        "default-arguments": 6,
+        "functional-value": 24,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 63,
+        "implicit-initialization": 332,
+        "implicit-operator": 1008,
+        "iteration-protocol": 65,
+        "property-or-initialization": 569,
+        "resource-protocol": 5,
+        "unavailable-body": 264,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1670,
+        "package": "loupe.hir",
+        "name": "scopeDiagnostics",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope_diagnostics.cj",
+          "start": 3457,
+          "end": 3473,
+          "line": 117,
+          "expansion": false
+        }
+      },
+      "visited": 630,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1249,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 67,
+        "implicit-initialization": 385,
+        "implicit-operator": 1071,
+        "iteration-protocol": 101,
+        "property-or-initialization": 582,
+        "resource-protocol": 5,
+        "unavailable-body": 296,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1678,
+        "package": "loupe.hir",
+        "name": "importedNameCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/scope_test.cj",
+          "start": 3912,
+          "end": 3929,
+          "line": 109,
+          "expansion": false
+        }
+      },
+      "visited": 625,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1224,
+        "default-arguments": 7,
+        "functional-value": 31,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 65,
+        "implicit-initialization": 378,
+        "implicit-operator": 1067,
+        "iteration-protocol": 94,
+        "property-or-initialization": 584,
+        "resource-protocol": 5,
+        "unavailable-body": 291,
+        "unresolved-call": 17,
+        "virtual-dispatch": 19
+      }
+    },
+    {
+      "root": {
+        "id": 1680,
+        "package": "loupe.hir",
+        "name": "binaryStamp",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/server_macro.cj",
+          "start": 2107,
+          "end": 2118,
+          "line": 90,
+          "expansion": false
+        }
+      },
+      "visited": 5,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2,
+        "implicit-initialization": 1,
+        "iteration-protocol": 1,
+        "unavailable-body": 4
+      }
+    },
+    {
+      "root": {
+        "id": 364,
+        "package": "loupe.hir",
+        "name": "serverCalls",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/server_macro.cj",
+          "start": 4079,
+          "end": 4090,
+          "line": 136,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 254,
+        "package": "loupe.hir",
+        "name": "macroRequests",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/server_macro.cj",
+          "start": 11500,
+          "end": 11513,
+          "line": 336,
+          "expansion": false
+        }
+      },
+      "visited": 547,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 984,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 321,
+        "implicit-operator": 978,
+        "iteration-protocol": 57,
+        "property-or-initialization": 575,
+        "resource-protocol": 5,
+        "unavailable-body": 246,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1682,
+        "package": "loupe.hir",
+        "name": "macroDiagnostics",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/server_macro.cj",
+          "start": 16542,
+          "end": 16558,
+          "line": 469,
+          "expansion": false
+        }
+      },
+      "visited": 567,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1035,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 66,
+        "implicit-initialization": 339,
+        "implicit-operator": 1017,
+        "iteration-protocol": 65,
+        "property-or-initialization": 598,
+        "resource-protocol": 5,
+        "unavailable-body": 254,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 293,
+        "package": "loupe.hir",
+        "name": "signatureWithSourceMap",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/signature.cj",
+          "start": 6158,
+          "end": 6180,
+          "line": 197,
+          "expansion": false
+        }
+      },
+      "visited": 612,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1062,
+        "default-arguments": 7,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 343,
+        "implicit-operator": 1001,
+        "iteration-protocol": 59,
+        "property-or-initialization": 586,
+        "resource-protocol": 5,
+        "unavailable-body": 301,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 494,
+        "package": "loupe.hir",
+        "name": "signature",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/signature.cj",
+          "start": 6874,
+          "end": 6883,
+          "line": 216,
+          "expansion": false
+        }
+      },
+      "visited": 613,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1063,
+        "default-arguments": 7,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 343,
+        "implicit-operator": 1001,
+        "iteration-protocol": 59,
+        "property-or-initialization": 586,
+        "resource-protocol": 5,
+        "unavailable-body": 301,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1686,
+        "package": "loupe.hir",
+        "name": "paramCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/signature_test.cj",
+          "start": 1999,
+          "end": 2009,
+          "line": 60,
+          "expansion": false
+        }
+      },
+      "visited": 615,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1065,
+        "default-arguments": 7,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 343,
+        "implicit-operator": 1001,
+        "iteration-protocol": 59,
+        "property-or-initialization": 588,
+        "resource-protocol": 5,
+        "unavailable-body": 302,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 421,
+        "package": "loupe.hir",
+        "name": "signatureTypes",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/signature_types.cj",
+          "start": 7450,
+          "end": 7464,
+          "line": 197,
+          "expansion": false
+        }
+      },
+      "visited": 788,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1656,
+        "default-arguments": 12,
+        "functional-value": 38,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 66,
+        "implicit-initialization": 516,
+        "implicit-operator": 1248,
+        "iteration-protocol": 123,
+        "property-or-initialization": 732,
+        "resource-protocol": 8,
+        "unavailable-body": 384,
+        "unresolved-call": 21,
+        "virtual-dispatch": 20
+      }
+    },
+    {
+      "root": {
+        "id": 1226,
+        "package": "loupe.hir",
+        "name": "binaryGenericsOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/signature_types.cj",
+          "start": 11580,
+          "end": 11596,
+          "line": 312,
+          "expansion": false
+        }
+      },
+      "visited": 71,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 84,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "implicit-conversion": 4,
+        "implicit-initialization": 56,
+        "implicit-operator": 92,
+        "iteration-protocol": 3,
+        "property-or-initialization": 84,
+        "resource-protocol": 3,
+        "unavailable-body": 37,
+        "unresolved-call": 1,
+        "virtual-dispatch": 5
+      }
+    },
+    {
+      "root": {
+        "id": 1687,
+        "package": "loupe.hir",
+        "name": "paramTyCount",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/signature_types_test.cj",
+          "start": 3016,
+          "end": 3028,
+          "line": 90,
+          "expansion": false
+        }
+      },
+      "visited": 790,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 1658,
+        "default-arguments": 12,
+        "functional-value": 38,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 66,
+        "implicit-initialization": 516,
+        "implicit-operator": 1248,
+        "iteration-protocol": 123,
+        "property-or-initialization": 734,
+        "resource-protocol": 8,
+        "unavailable-body": 385,
+        "unresolved-call": 21,
+        "virtual-dispatch": 20
+      }
+    },
+    {
+      "root": {
+        "id": 1004,
+        "package": "loupe.hir",
+        "name": "genericBounds",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/ty_relations.cj",
+          "start": 576,
+          "end": 589,
+          "line": 17,
+          "expansion": false
+        }
+      },
+      "visited": 1026,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2090,
+        "default-arguments": 16,
+        "functional-value": 41,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 623,
+        "implicit-operator": 1451,
+        "iteration-protocol": 142,
+        "property-or-initialization": 910,
+        "resource-protocol": 9,
+        "unavailable-body": 571,
+        "unresolved-call": 23,
+        "virtual-dispatch": 20
+      }
+    },
+    {
+      "root": {
+        "id": 1221,
+        "package": "loupe.hir",
+        "name": "localGenericBounds",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/ty_relations.cj",
+          "start": 1003,
+          "end": 1021,
+          "line": 29,
+          "expansion": false
+        }
+      },
+      "visited": 1028,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 2096,
+        "default-arguments": 16,
+        "functional-value": 41,
+        "functional-value-or-constructor": 4,
+        "implicit-conversion": 68,
+        "implicit-initialization": 626,
+        "implicit-operator": 1460,
+        "iteration-protocol": 142,
+        "property-or-initialization": 917,
+        "resource-protocol": 9,
+        "unavailable-body": 572,
+        "unresolved-call": 23,
+        "virtual-dispatch": 20
+      }
+    },
+    {
+      "root": {
+        "id": 190,
+        "package": "loupe.hir",
+        "name": "parentOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/type_path.cj",
+          "start": 3833,
+          "end": 3841,
+          "line": 117,
+          "expansion": false
+        }
+      },
+      "visited": 541,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 967,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 315,
+        "implicit-operator": 966,
+        "iteration-protocol": 56,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 273,
+        "package": "loupe.hir",
+        "name": "packageOfFile",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/type_path.cj",
+          "start": 4240,
+          "end": 4253,
+          "line": 135,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 574,
+        "package": "loupe.hir",
+        "name": "cfgOfFile",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/when.cj",
+          "start": 12806,
+          "end": 12815,
+          "line": 381,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 358,
+        "package": "loupe.hir",
+        "name": "activeItemTree",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/when.cj",
+          "start": 13770,
+          "end": 13784,
+          "line": 406,
+          "expansion": false
+        }
+      },
+      "visited": 540,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 962,
+        "default-arguments": 5,
+        "functional-value": 22,
+        "functional-value-or-constructor": 3,
+        "implicit-conversion": 61,
+        "implicit-initialization": 314,
+        "implicit-operator": 966,
+        "iteration-protocol": 55,
+        "property-or-initialization": 563,
+        "resource-protocol": 5,
+        "unavailable-body": 242,
+        "unresolved-call": 17,
+        "virtual-dispatch": 18
+      }
+    },
+    {
+      "root": {
+        "id": 1688,
+        "package": "loupe.hir",
+        "name": "whenDiagnostics",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/hir/when.cj",
+          "start": 17652,
+          "end": 17667,
+          "line": 531,
+          "expansion": false
+        }
+      },
+      "visited": 172,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 312,
+        "default-arguments": 2,
+        "functional-value": 7,
+        "functional-value-or-constructor": 2,
+        "implicit-conversion": 10,
+        "implicit-initialization": 81,
+        "implicit-operator": 484,
+        "iteration-protocol": 12,
+        "property-or-initialization": 314,
+        "resource-protocol": 1,
+        "unavailable-body": 56,
+        "unresolved-call": 7,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 122,
+        "package": "loupe.syntax",
+        "name": "parse",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/syntax/syntax.cj",
+          "start": 684,
+          "end": 689,
+          "line": 19,
+          "expansion": false
+        }
+      },
+      "visited": 166,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 306,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 2,
+        "implicit-conversion": 10,
+        "implicit-initialization": 76,
+        "implicit-operator": 483,
+        "iteration-protocol": 12,
+        "property-or-initialization": 313,
+        "resource-protocol": 1,
+        "unavailable-body": 53,
+        "unresolved-call": 6,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 1690,
+        "package": "loupe.syntax",
+        "name": "rootOf",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/syntax/syntax_test.cj",
+          "start": 486,
+          "end": 492,
+          "line": 26,
+          "expansion": false
+        }
+      },
+      "visited": 167,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 307,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 2,
+        "implicit-conversion": 10,
+        "implicit-initialization": 76,
+        "implicit-operator": 483,
+        "iteration-protocol": 12,
+        "property-or-initialization": 313,
+        "resource-protocol": 1,
+        "unavailable-body": 53,
+        "unresolved-call": 6,
+        "virtual-dispatch": 7
+      }
+    },
+    {
+      "root": {
+        "id": 1691,
+        "package": "loupe.syntax",
+        "name": "functions",
+        "owner": "",
+        "location": {
+          "path": "modules/loupe/src/syntax/syntax_test.cj",
+          "start": 691,
+          "end": 700,
+          "line": 34,
+          "expansion": false
+        }
+      },
+      "visited": 169,
+      "status": "unknown",
+      "unlisted_targets": "unknown",
+      "coverage_complete": false,
+      "findings": [],
+      "gap_counts": {
+        "callback-flow": 310,
+        "default-arguments": 2,
+        "functional-value": 6,
+        "functional-value-or-constructor": 2,
+        "implicit-conversion": 10,
+        "implicit-initialization": 76,
+        "implicit-operator": 483,
+        "iteration-protocol": 12,
+        "property-or-initialization": 313,
+        "resource-protocol": 1,
+        "unavailable-body": 55,
+        "unresolved-call": 6,
+        "virtual-dispatch": 7
+      }
+    }
+  ]
+}

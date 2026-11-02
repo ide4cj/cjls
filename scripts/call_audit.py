@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Run the tracked-function audit through the real cjmcp runPython binding."""
 import argparse
+from collections import Counter
 import hashlib
 import os
 import json
@@ -13,6 +14,7 @@ def main():
     parser.add_argument("--binary", type=Path, required=True)
     parser.add_argument("--workspace", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--summary", type=Path, help="Also save per-root outcomes and gap counts")
     parser.add_argument("--limit", type=int, default=10000)
     args = parser.parse_args()
     implementation = Path(__file__).resolve().parents[1] / "modules/cjmcp/api/call_audit.py"
@@ -43,6 +45,22 @@ def main():
         "python_library": os.environ.get("PYTHON_DYNLIB"),
     }
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    if args.summary:
+        examples = {}
+        for row in report["reports"]:
+            for gap in row["gaps"]:
+                examples.setdefault(gap["reason"], gap)
+        summary = {key: value for key, value in report.items() if key != "reports"}
+        summary["full_report_sha256"] = hashlib.sha256(args.output.read_bytes()).hexdigest()
+        summary["gap_examples"] = examples
+        summary["reports"] = [
+            {**{key: value for key, value in row.items() if key != "gaps"},
+             "gap_counts": dict(sorted(Counter(gap["reason"] for gap in row["gaps"]).items()))}
+            for row in report["reports"]
+        ]
+        text = json.dumps(summary, ensure_ascii=False, indent=2)
+        text = text.replace(str(args.workspace.resolve()) + "/", "")
+        args.summary.write_text(text + "\n")
     print(json.dumps({"tracked": len(report["reports"]), "analyzed": report["declarations_analyzed"],
                       "with_findings": sum(bool(row["findings"]) for row in report["reports"]),
                       "complete": sum(row["coverage_complete"] for row in report["reports"])}))

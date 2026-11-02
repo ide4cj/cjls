@@ -70,7 +70,9 @@ class NativeCallAuditTest(unittest.TestCase):
         query = report["reports"][0]
         self.assertEqual(query["status"], "reachable")
         self.assertEqual({finding["target"]["name"] for finding in query["findings"]}, {"getProcessId", "getCommand"})
+        self.assertEqual(len({finding["target"]["id"] for finding in query["findings"]}), 2)
         for finding in query["findings"]:
+            self.assertEqual(finding["edges"][-1]["callee"]["id"], finding["target"]["id"])
             self.assertEqual(finding["distance"], 2)
             self.assertEqual(finding["certainty"], "resolved")
             self.assertEqual(finding["edges"][0]["callee"]["name"], "via")
