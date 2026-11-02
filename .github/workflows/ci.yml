@@ -184,7 +184,9 @@ jobs:
       - name: pytest-lsp on this SDK
         env:
           CJLS_BIN: ${{ github.workspace }}/bin/cjls
-        run: env -u CANGJIE_HOME -u CANGJIE_STDX_PATH -u LD_LIBRARY_PATH uv run --project tests/e2e --locked pytest tests/e2e
+        # cjpm needs the pin's runtime in the test driver; conftest removes SDK variables only
+        # from the server child. Let the stdx case discover this release's matching binaries.
+        run: env -u CANGJIE_STDX_PATH uv run --project tests/e2e --locked pytest tests/e2e
 
   # the coverage-guided fuzzers with the comparisons fjson and jsonrpc make fed back to them, in a
   # target dir of their own; the heap is for cjc's instrumentation, which leaks on every match of

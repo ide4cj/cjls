@@ -291,7 +291,9 @@ Fetch its matching source corpus with
 `python3 tests/corpora/fetch.py --sdk-version <version>` and set
 `CJLS_TEST_STD_SOURCES` to the printed std directory for both unit tests and e2e.
 Retain the pin's runtime environment for the unit binaries; the runner changes only
-`CANGJIE_HOME` to select the std being read.
+`CANGJIE_HOME` to select the std being read. The e2e driver retains the pin's
+runtime for tools such as `cjpm`; its server child has SDK/runtime variables
+removed by the shared fixture, as an editor started without them would.
 Keep the SDK and std corpus available: those
 cases can skip when missing; review skips before claiming full coverage.
 Editor-client tests live in their own repositories; paired branch conventions
