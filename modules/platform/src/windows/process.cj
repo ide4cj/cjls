@@ -22,11 +22,11 @@ foreign func CreatePipe(
 
 foreign func SetHandleInformation(handle: CPointer<Unit>, mask: UInt32, flags: UInt32): Int32
 
-foreign func GetStdHandle(which: UInt32): CPointer<Unit>
+foreign func GetStdHandle(which: UInt32): IntNative
 
 foreign func DuplicateHandle(
     sourceProcess: CPointer<Unit>,
-    source: CPointer<Unit>,
+    source: IntNative,
     targetProcess: CPointer<Unit>,
     target: CPointer<CPointer<Unit>>,
     access: UInt32,
@@ -354,10 +354,10 @@ public specific func startPiped(
 func inheritableStderr(output: ?File): CPointer<Unit> {
     unsafe {
         let stderr =
-            output.map { file: File => CPointer<Unit>(UIntNative(file.fileDescriptor.fileHandle)) } ??
+            output.map { file => file.fileDescriptor.fileHandle } ??
                 GetStdHandle(STD_ERROR_HANDLE)
         // `INVALID_HANDLE_VALUE` is -1
-        if (stderr.isNull() || stderr.toUIntNative() == UIntNative.Max) {
+        if (stderr == 0 || stderr == -1) {
             return CPointer<Unit>()
         }
         var duplicate = CPointer<Unit>()
