@@ -145,6 +145,12 @@ Declarations include nested members, in source order. `body(definition)` returns
 native HIR; `loweredBody(definition)` also returns its native source map, and
 `scopes(definition)` returns lexical scopes. `signature` exposes written type
 references, while `signatureTypes` exposes resolved types and signature errors.
+`signatureWithSourceMap` returns a `LoweredSignature`: its `sourceMap.ranges`
+is indexed by `TypeRefId.index`, with `None` for missing type references.
+Ranges belong to the declaration's `definitionFile` (source or expansion text);
+binary or unavailable declarations have an empty map. `typeAtRange` performs
+an exact-range reverse lookup. These two Python classes are concrete adapters;
+generic syntax pointers remain inside loupe, as with `BodySource`.
 `infer` returns the native `InferenceResult`: expression, pattern and local types,
 field/name resolutions, selected callees, argument-to-parameter mappings and
 inference diagnostics. Its native lookup methods such as `calleeOf(ExprId(i))`
@@ -182,15 +188,35 @@ An `AnalysisRevision` also offers:
 | `completions(path, offset)`, `completionDetails(path, offset, item)` | Ranked completion results and documentation |
 | `references(path, offset)`, `related(path, offset)` | Workspace usages and same-file read/write occurrences |
 | `typeDefinition(path, offset)`, `implementations(path, offset)` | Navigate to types and implementations |
+| `prepareCallHierarchy(path, offset)`, `incomingCalls(entry)`, `outgoingCalls(entry)` | Callable roots and grouped explicit call sites |
 | `highlights(path)`, `folding(path)`, `selection(path, offset)` | Semantic highlights, folds and enclosing selections |
 | `symbols(query, limit)` | Search workspace declarations |
+| `fileSymbols(path)` | File declarations in outline order, including container names |
 | `members(def, name)`, `supertypes(def)` | Inspect members and type hierarchy |
+| `allMembers(def)` | All members of a type/extend, or the type around a member; includes inherited members, visible extensions and overloads |
 | `field(def, expr)`, `receiver(def, expr)`, `receiverType(def, expr)` | Inspect member access resolution |
 | `macroCall(path, offset)`, `expansion(call)`, `expandedFile(path, header)` | Inspect macro expansions and their source mappings |
+| `hoverInExpansion(call, offset)`, `definitionInExpansion(call, offset)`, `typeDefinitionInExpansion(call, offset)` | Query names at validated UTF-8 byte offsets in expansion text |
+| `formatting(path, options=...)`, `rangeFormatting(path, range, options=...)` | Return native `TextEdit` values without applying them |
+| `builtinTypeDoc(name)`, `builtinAnnotationDoc(name)`, `builtinMacroDoc(name)` | Native `BuiltinDoc` values, or `None`; annotation/macro names exclude `@` |
+| `newFilePackageLine(path)` | Package header for a new path from the loaded project and revision text, or `None` outside its packages |
 
 Native navigation/reference/symbol results contain `FileId`; call `path(fileId)`
 on the same revision. `NavigationTarget.expansion` identifies expansion-relative
 ranges. SDK macro outputs are loaded before the revision is returned.
+Expansion queries reject unavailable expansion text and invalid byte positions;
+their hover ranges refer to that expansion. Navigation targets may refer to source
+or another expansion; inspect `NavigationTarget.expansion` before slicing text.
+
+Formatting uses explicit `FormatOptions`, defaulting to line width 100, indentation
+4 and `SimpleIf.Multiline()`. It does not discover `cjformat.toml`. Widths must be
+positive; width counts Unicode scalars. Formatting returns `None` for syntax
+errors and an empty list for already canonical input. Range formatting validates
+both UTF-8 boundaries and formats the enclosing syntax node. New-file headers do
+not require that the file exists, and preserve macro-package metadata.
+Python construction of `FormatOptions` requires all three keywords (`lineWidth`,
+`indentWidth`, `simpleIf`); the pinned interop generator matches arguments exactly.
+The query overloads without `options` supply the library defaults.
 
 All exported classes are present in each script namespace, including `Body`,
 `Expr`, `Pat`, `Signature`, `SignatureTypes`, `TyKind`, `InferenceResult`,

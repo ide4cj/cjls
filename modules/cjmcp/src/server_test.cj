@@ -64,8 +64,9 @@ class McpServerTest {
         let before = request(server, "tools/list")
         let initialization = initialize(server)
         let waiting = request(server, "tools/list")
-        let notification =
-            server.handle(##"{"jsonrpc":"2.0","method":"notifications/initialized"}"##.toArray())
+        let notification = server.handle(
+            ##"{"jsonrpc":"2.0","method":"notifications/initialized"}"##.toArray()
+        )
         let listed = request(server, "tools/list")
         let repeated = request(server, "initialize")
 
@@ -119,12 +120,10 @@ class McpServerTest {
         let server = readyServer()
 
         // act
-        let notification =
-            server
-                .handle(
-                    ##"{"jsonrpc":"2.0","method":"tools/call","params":{"name":"runPython","arguments":{"code":"print(1)"}}}"##
-                        .toArray()
-                )
+        let notification = server.handle(
+            ##"{"jsonrpc":"2.0","method":"tools/call","params":{"name":"runPython","arguments":{"code":"print(1)"}}}"##
+                .toArray()
+        )
         let unknown = server.handle(##"{"jsonrpc":"2.0","method":"unknown"}"##.toArray())
 
         // assert

@@ -143,10 +143,9 @@ class McpServer {
             if (python.isNone()) {
                 python = PythonSession(root, logger: logger)
             }
-            let result =
-                python
-                    .getOrThrow { IllegalStateException("Python session was not initialized") }
-                    .run(code)
+            let result = python
+                .getOrThrow { IllegalStateException("Python session was not initialized") }
+                .run(code)
             toolResult(result, error: !result["error"].isNull())
         } catch (e: Exception) {
             toolResult(obj([("error", JsonString(e.message)), ("revision", JsonNull)]), error: true)
@@ -196,44 +195,41 @@ func failure(id: JsonValue, code: Int64, message: String): JsonValue {
  * Describe the runPython tool and its argument schema.
  */
 func tools(): JsonValue {
-    let code =
-        obj(
-            [
-                ("type", JsonString("string")),
-                (
-                    "description",
-                    JsonString(
-                        "Python script. workspace is a live native Cangjie object; result must be JSON-serializable. stdout and stderr are captured."
-                    )
+    let code = obj(
+        [
+            ("type", JsonString("string")),
+            (
+                "description",
+                JsonString(
+                    "Python script. workspace is a live native Cangjie object; result must be JSON-serializable. stdout and stderr are captured."
                 )
-            ]
-        )
-    let schema =
-        obj(
-            [
-                ("type", JsonString("object")),
-                ("properties", obj([("code", code)])),
-                ("required", JsonArray([JsonString("code")])),
-                ("additionalProperties", JsonBool(false))
-            ]
-        )
-    let tool =
-        obj(
-            [
-                ("name", JsonString("runPython")),
-                (
-                    "description",
-                    JsonString(
-                        "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; Disk state refreshes automatically before each script; workspace.reload() schedules refresh after the script. workspace.revision and response revision identify its fixed analysis state. workspace.analysis() exposes HIR and inference: enumerate declarations(path), inspect item(def), body(def), loweredBody(def), scopes(def), signature(def), signatureTypes(def), infer(def); inspect inferred types with typeKind(ty), typeText(ty). It also offers completions, completionDetails, references, typeDefinition, implementations, related, highlights, folding, selection, symbols, macroCall and expansion. Keep each DefId/Ty with its producing AnalysisRevision. Imports and local I/O are available."
-                    )
-                ),
-                ("inputSchema", schema),
-                (
-                    "annotations",
-                    obj([("readOnlyHint", JsonBool(false)), ("openWorldHint", JsonBool(true))])
+            )
+        ]
+    )
+    let schema = obj(
+        [
+            ("type", JsonString("object")),
+            ("properties", obj([("code", code)])),
+            ("required", JsonArray([JsonString("code")])),
+            ("additionalProperties", JsonBool(false))
+        ]
+    )
+    let tool = obj(
+        [
+            ("name", JsonString("runPython")),
+            (
+                "description",
+                JsonString(
+                    "Run Python over native loupe objects in an embedded CPython interpreter. workspace.structure(path) returns StructureNode objects, diagnostics(path) Diagnostic objects, hover(path, offset) HoverResult or None. Iterate, filter and aggregate in Python and assign result. workspace.files() lists paths; Disk state refreshes automatically before each script; workspace.reload() schedules refresh after the script. workspace.revision and response revision identify its fixed analysis state. workspace.analysis() exposes HIR and inference: enumerate declarations(path), inspect item(def), body(def), loweredBody(def), scopes(def), signature(def), signatureTypes(def), infer(def); inspect inferred types with typeKind(ty), typeText(ty). It also offers completions, completionDetails, references, typeDefinition, implementations, related, highlights, folding, selection, symbols, macroCall and expansion. Keep each DefId/Ty with its producing AnalysisRevision. Imports and local I/O are available."
                 )
-            ]
-        )
+            ),
+            ("inputSchema", schema),
+            (
+                "annotations",
+                obj([("readOnlyHint", JsonBool(false)), ("openWorldHint", JsonBool(true))])
+            )
+        ]
+    )
     JsonArray([tool])
 }
 
