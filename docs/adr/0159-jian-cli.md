@@ -18,9 +18,9 @@ callback with invocation metadata for the default LSP action and the standalone
 schema option. Supply the logger through the application's typed context.
 Generate help and usage errors from those same declarations.
 
-Keep command execution in cjls and analysis in its existing libraries. Pin the
-git dependency to a commit in the server manifest and retain its resolved lock
-entry. Continuing with argopt would avoid a dependency, but would keep parsing,
+Keep command execution in cjls and analysis in its existing libraries. Declare the
+git dependency in the server manifest and retain its resolved commit in
+`cjpm.lock`. Continuing with argopt would avoid a dependency, but would keep parsing,
 dispatch and help as separate descriptions of the same interface.
 
 ## Consequences

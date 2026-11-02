@@ -15,6 +15,8 @@ class CommandContext {
     CommandContext(let logger: Logger) {}
 }
 
+let APP = commandApp()
+
 func commandApp(
     out!: OutputStream = getStdOut(),
     err!: OutputStream = getStdErr()

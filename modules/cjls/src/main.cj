@@ -12,7 +12,7 @@ import cjls.handlers.router
 main(args: Array<String>): Int64 {
     let logger = stderrLogger()
     try {
-        commandApp().run(args, context: CommandContext(logger))
+        APP.run(args, context: CommandContext(logger))
     } catch (e: Exception) {
         logger.fatal("stopped", [("cause", e)])
         1

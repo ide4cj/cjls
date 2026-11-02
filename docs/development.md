@@ -143,8 +143,8 @@ inspection:
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
 
-The CLI uses [jian](https://github.com/FilaCo/jian), pinned to a commit in the
-server module's manifest and `cjpm.lock`; the first build needs GitHub access to
+The CLI uses [jian](https://github.com/FilaCo/jian) as a Git dependency;
+`cjpm.lock` records the resolved commit. The first build needs GitHub access to
 fetch it. Commands and options are declared with `@JianCommand` and
 `@JianCallback` in `modules/cjls/src/command.cj`. Run `cjls --help` or
 `cjls help <command>` for generated help. With no arguments, cjls serves LSP over
