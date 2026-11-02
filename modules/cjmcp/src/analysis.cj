@@ -21,9 +21,6 @@ import loupe.typeDefinitionInExpansion as nativeTypeDefinitionInExpansion
 import loupe.{
     CallDeclaration,
     DirectCalls,
-    callDeclaration,
-    directCalls,
-    trackedCallRoots,
     BuiltinDoc,
     CallHierarchyEntry,
     HierarchyCalls,

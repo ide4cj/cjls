@@ -350,5 +350,13 @@ examples focused on tasks and native names rather than a handwritten type catalo
 Validate discovery and examples with the real-process MCP tests above; load only
 the relevant recipe when evaluating an agent task.
 
+### Immediate call evidence
+
+The revision exposes `directCalls`, `callDeclaration` and `trackedCallRoots` for
+script-controlled call graph inspection. Edges retain native declaration identity
+and source locations; gaps make unsupported execution effects explicit. See the
+[shared coverage contract](../../docs/direct-calls.md) before interpreting an
+empty result.
+
 The [tracked-call audit](../../docs/audits/call-audit.md) is a separate, partial
 workspace audit with its own CLI runner and recorded evidence.
