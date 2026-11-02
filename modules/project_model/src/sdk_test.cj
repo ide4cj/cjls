@@ -236,3 +236,25 @@ class FindCangjieHomeOnPosixTest {
         @Expect(home.map {it => it.source}, Some("the default toolchain of cjsdk"))
     }
 }
+
+@Test
+class CangjieStdxPathTest {
+    @TestCase
+    func theOptionOverridesOnlyStdxAndOtherwisePreservesTheEnvironment() {
+        // arrange
+        let original = envOf([("CANGJIE_STDX_PATH", "/env/stdx"), ("CANGJIE_HOME", "/sdk")])
+
+        // act
+        let selected = withCangjieStdxPath(original, "/option/stdx")
+        let stdx = selected("CANGJIE_STDX_PATH")
+        let sdk = selected("CANGJIE_HOME")
+        let inherited = withCangjieStdxPath(original, None)("CANGJIE_STDX_PATH")
+        let absent = withCangjieStdxPath(noEnv, None)("CANGJIE_STDX_PATH")
+
+        // assert
+        @Expect(stdx, Some("/option/stdx"))
+        @Expect(sdk, Some("/sdk"))
+        @Expect(inherited, Some("/env/stdx"))
+        @Expect(absent, None<String>)
+    }
+}

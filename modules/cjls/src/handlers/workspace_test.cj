@@ -773,7 +773,17 @@ class LeftOutDocumentTest {
         let state = loop.state
         let program = dir.join("y").join("main.cj")
         let request =
-            LoadRequest(state.beginLoad(), state.roots.toArray(), [], None, None, false, 20, [])
+            LoadRequest(
+                state.beginLoad(),
+                state.roots.toArray(),
+                [],
+                None,
+                None,
+                None,
+                false,
+                20,
+                []
+            )
         openIn(state, program, PROGRAM)
 
         // act

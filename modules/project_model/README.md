@@ -117,6 +117,12 @@ An editor's explicit option precedes environment, SDK-manager defaults and PATH
 discovery. PATH symlinks must resolve to a real SDK layout: finding a compiler
 launcher alone is insufficient. The selected home/source overlays are passed to
 project loading so `${CANGJIE_HOME}` and std agree with that selection.
+The editor's `cangjieStdxPath` overrides `CANGJIE_STDX_PATH` for project path
+expansion; otherwise the process environment is preserved. stdx is loaded only
+when declared in the manifest (for example, `path-option = ["${CANGJIE_STDX_PATH}"]`
+in the target's `bin-dependencies`). No SDK-relative stdx path is assumed.
+Changing this setting reloads projects. Missing variables are reported by path
+expansion. Macro builds use the resulting binary paths from the analysis model.
 Missing std sources reduce navigation, not binary analysis. Runtime discovery is
 distinct from the build shell's [pinned SDK setup](../../docs/development.md#select-the-pinned-sdk).
 

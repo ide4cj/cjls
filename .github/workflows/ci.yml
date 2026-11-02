@@ -45,6 +45,8 @@ jobs:
       - uses: actions/checkout@v7
       - name: Test scripts/docs.py
         run: python3 -m unittest discover -s scripts -p '*_test.py'
+      - name: Test SDK environment setup
+        run: python3 -m unittest discover -s .github/actions/setup-cangjie -p '*_test.py'
       - name: Test semantic oracle contracts
         run: python3 -m unittest discover -s tests/semantic -p '*_test.py'
       # every ADR number and rule id once, every ADR header readable; on a PR, its ADR numbers
