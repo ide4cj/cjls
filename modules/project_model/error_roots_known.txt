@@ -25,7 +25,6 @@ modules/cjls/src/server/loop.cj: member found: 1
 modules/cjls/src/server/push.cj: member found: 6
 modules/cjls/src/server/server_test.cj: member found: 3
 modules/loupe/src/hir/binary.cj: local: 1  # Option.flatMap loses its callback result argument (#551)
-modules/loupe/src/hir/item_id.cj: local: 1  # standalone pipeline lambda (#248)
 modules/loupe/src/hir/ty_relations.cj: local: 4  # macro-member TodoTy becomes ErrorTy in iterator callbacks (#552)
 modules/macro_host/src/host.cj: local: 1  # Option.flatMap callback result propagates to library pattern (#551)
 modules/macro_host/src/host.cj: member found: 2

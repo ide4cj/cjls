@@ -559,6 +559,7 @@ enum Undo {
     | SetterWas(ExprId, ?CalleeTarget)
     | ArgsWas(ExprId, ?ArgTarget)
     | Returned(Frame)
+    | LambdaBound(LambdaConstraints)
     | Reported
 }
 
@@ -594,6 +595,7 @@ class Inference {
     private let frames = ArrayList<Frame>()
     // the first variable of the next call inferred: those of the calls being inferred are under it
     private var nextVar = 0
+    private let lambdas = ArrayList<LambdaConstraints>()
     // `std.core`'s `Option`, a value is boxed into
     private let option: ?DefId
     // the checks against a type expected that failed: a candidate tried that fails one fits not (8d)
@@ -995,6 +997,7 @@ class Inference {
                 case ArgsWas(expr, Some(was)) => argTargets[expr.index] = was
                 case ArgsWas(expr, None) => argTargets.remove(expr.index)
                 case Returned(frame) => frame.returns.remove(at: frame.returns.size - 1)
+                case LambdaBound(one) => one.bounds.remove(at: one.bounds.size - 1)
                 case Reported => reported.remove(at: reported.size - 1)
             }
         }
@@ -1004,6 +1007,9 @@ class Inference {
      * Whether a value of the type `ty` may be given where `expected` is (N111, N116).
      */
     private func fits(ty: Ty, expected: Ty): Bool {
+        if (!lambdas.isEmpty() && (hasInferVars(db, ty) || hasInferVars(db, expected))) {
+            return true
+        }
         isAssignable(db, ty, expected, from, option)
     }
 
@@ -1110,6 +1116,9 @@ class Inference {
     private func infer(id: ExprId, expected: ?Ty): Ty {
         let ty = inferExpr(id, expected)
         setExpr(id, ty)
+        if (let Some(one) <- expected) {
+            lambdaBound(ty, one)
+        }
         if (
             let Some(one) <- expected && !fits(ty, one) &&
                 !(dropped.contains(id.index) && one.kind(db) == PrimTy("Unit"))
@@ -1695,7 +1704,8 @@ class Inference {
 
     /**
      * A lambda: its parameters of the types they write, else of the function type expected through
-     * `Option` boxing; its return type expected, else the join of its block and `return`s (N103).
+     * `Option` boxing, or inferred from its body when synthesized alone (#248); its return type
+     * expected, else the join of its block and `return`s (N103).
      */
     private func lambdaTy(params: Array<BodyParam>, block: ExprId, expected: ?Ty): Ty {
         let target = expected.map { one => unboxed(one).kind(db) }
@@ -1710,6 +1720,11 @@ class Inference {
                 case Some(FuncTy(_, _, true)) => true
                 case _ => false
             }
+        if (
+            wanted.isNone() && expected.isNone() && params.iterator().any { one => one.ty.isNone() }
+        ) {
+            return synthesizedLambda(params, block)
+        }
         // cjc: a parameter's type must be written, or told by the type expected
         let untold = failed(listOf(expected))
         let paramTys =
@@ -1734,6 +1749,65 @@ class Inference {
                 case _ => function(ret, block)
             }
         Ty(db, FuncTy(paramTys, retTy, isC))
+    }
+
+    /**
+     * Synthesizes with lambda-local variables, solves only the body's constraints, then replays
+     * with concrete parameter types. Neither a direct call nor a pipeline supplies those types.
+     */
+    private func synthesizedLambda(params: Array<BodyParam>, block: ExprId): Ty {
+        let base = nextVar
+        nextVar += params.size
+        let constraints = LambdaConstraints(base, params.size)
+        let open =
+            Array(params.size) {
+                i =>
+                params[i].ty.map { one => typeAt(one) } ?? Ty(db, InferTy(base + i))
+            }
+        let mark = undo.size
+        let before = mismatches
+        trying++
+        lambdas.add(constraints)
+        for (i in 0..params.size) {
+            param(params[i], open[i])
+        }
+        let bodyTy = function(None, block)
+        let failure = unknownOf(db, [bodyTy]).filter { one => isAnalysisUnknown(db, one) } ?? error
+        let solved = constraints.solve(db, from, option)
+        lambdas.remove(at: lambdas.size - 1)
+        trying--
+        rollBack(mark)
+        mismatches = before
+        nextVar = base
+        let closed =
+            Array(params.size) {
+                i =>
+                params[i].ty.map { one => typeAt(one) } ?? solved[i] ?? failure
+            }
+        for (i in 0..params.size) {
+            param(params[i], closed[i])
+        }
+        let ret = function(None, block)
+        if ((0..params.size).iterator().any { i => params[i].ty.isNone() && solved[i].isNone() }) {
+            return failure
+        }
+        Ty(db, FuncTy(closed, ret, false))
+    }
+
+    private func lambdaBound(left: Ty, right: Ty, equal!: Bool = false): Unit {
+        if (lambdas.isEmpty() || (!hasInferVars(db, left) && !hasInferVars(db, right))) {
+            return
+        }
+        for (one in lambdas) {
+            if (trying > 0) {
+                undo.add(LambdaBound(one))
+            }
+            one.bounds.add((left, right, equal))
+        }
+    }
+
+    private func lambdaVariable(ty: Ty): Bool {
+        !lambdas.isEmpty() && lambdas.iterator().any { one => one.contains(db, ty) }
     }
 
     /**
@@ -1901,6 +1975,10 @@ class Inference {
                     builtin {
                         =>
                         let right = infer(rhs, None)
+                        if (lambdaVariable(right)) {
+                            let context: ?Ty = if (isComparison) { None } else { primOnly(kept) }
+                            return lambdaBinaryTy(op, infer(lhs, context), right)
+                        }
                         if (!isPrim(right)) {
                             return None
                         }
@@ -1946,6 +2024,12 @@ class Inference {
         builtin {
             =>
             let left = synthesized ?? infer(lhs, context)
+            if (lambdaVariable(left)) {
+                let right = infer(rhs, context)
+                // An unsolved receiver has no members to try. Keep its operands; the solved
+                // lambda replay performs real operator lookup without retrying this subtree.
+                return Some(lambdaBinaryTy(op, left, right) ?? failed([left, right]))
+            }
             if (!isPrim(left) && !isTuple(left)) {
                 return None
             }
@@ -1957,11 +2041,38 @@ class Inference {
                     primOnly(rightExpected(op, left))
                 }
             let right = infer(rhs, wanted)
+            if (lambdaVariable(right)) {
+                return lambdaBinaryTy(op, left, right)
+            }
             if (let Some(one) <- wanted && !fits(right, one)) {
                 return None
             }
             builtinTy(op, left, right)
         }
+    }
+
+    /**
+     * Bounds a lambda variable used by a built-in operator inside the existing operand trial.
+     * Reusing its operands avoids repeating context-free subtrees when no variable is present.
+     */
+    private func lambdaBinaryTy(op: String, left: Ty, right: Ty): ?Ty {
+        if (op == "<<" || op == ">>" || op == "**") {
+            return None
+        }
+        let other = if (lambdaVariable(left)) { right } else { left }
+        let permitted =
+            match (other.kind(db)) {
+                case InferTy(_) => true
+                case PrimTy(name) =>
+                    INTEGER_TYPES.contains(name) || FLOAT_TYPES.contains(name) ||
+                        (COMPARISONS.contains(op) && name == "Bool")
+                case _ => false
+            }
+        if (!permitted) {
+            return None
+        }
+        lambdaBound(left, right, equal: true)
+        if (COMPARISONS.contains(op)) { prim("Bool") } else { left }
     }
 
     /**
@@ -1971,6 +2082,11 @@ class Inference {
      */
     private func coalescingTy(lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
         let left = infer(lhs, None)
+        if (lambdaVariable(left)) {
+            let right = infer(rhs, expected)
+            lambdaBound(left, optionOf(right), equal: true)
+            return right
+        }
         let inner =
             match (optionArg(left)) {
                 case Some(one) => one
@@ -1997,13 +2113,18 @@ class Inference {
 
     /**
      * `lhs ~> rhs`, as cjc: a call of `std.core`'s `composition(lhs, rhs)`, of `(T1) -> T2` and
-     * `(T2) -> T3` a `(T1) -> T3`; a lambda of a parameter not written an error, its operands
-     * synthesized alone before the call (N129).
+     * `(T2) -> T3` a `(T1) -> T3`; its operands synthesized alone before the call (N129).
+     * A lambda's unwritten parameters must therefore be told by its own body (#248).
      */
     private func compositionTy(id: ExprId, lhs: ExprId, rhs: ExprId, expected: ?Ty): Ty {
+        let synthesized =
+            [lhs, rhs].filter { one => isUntypedLambda(one) }.map { one => infer(one, None) }
+        if (synthesized.iterator().any { one => hasUnknowns(db, one) }) {
+            return failed(synthesized)
+        }
         let composition = langId(LangItem.CompositionFunc)
         match (composition) {
-            case Some(decl) where !isUntypedLambda(lhs) && !isUntypedLambda(rhs) =>
+            case Some(decl) =>
                 callWith(
                     id,
                     funcCallable(decl, [], None),
@@ -3751,6 +3872,9 @@ class Inference {
             return compositionArgTy(expr, expected)
         }
         if (trying > 0 && let Some(ty) <- known.get(expr.index)) {
+            if (let Some(one) <- expected) {
+                lambdaBound(ty, one)
+            }
             if (let Some(one) <- expected && !fits(ty, one)) {
                 mismatches++
             }
@@ -4039,7 +4163,7 @@ class Inference {
                 case Some(target) where hasInferVars(db, target) =>
                     if (let Some(isFloat) <- idealLiteral(expr)) {
                         ideal[i] = isFloat
-                    } else if (isUntypedLambda(expr)) {
+                    } else if (isUntypedLambda(expr) && !asFunctions) {
                         waiting.add(i)
                     } else {
                         let ty = checkArg(expr, None, asFunction: asFunctions)
@@ -4161,6 +4285,12 @@ class Inference {
      */
     private func compositionArgTy(id: ExprId, expected: ?Ty): Ty {
         let ty = checkArg(id, None)
+        if (isUntypedLambda(id)) {
+            if (let Some(one) <- expected && !fits(ty, one)) {
+                mismatch(id, one, ty)
+            }
+            return ty
+        }
         if (let FuncTy(_, _, _) <- ty.kind(db)) {
             return checkArg(id, expected)
         }
