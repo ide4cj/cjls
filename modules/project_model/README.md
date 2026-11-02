@@ -86,7 +86,17 @@ otherwise the first active scoped membership. Package-driven analysis retains
 each graph's transitive selection. References inspect each context and deduplicate
 physical locations.
 The JSON projection preserves the optional `resolutionScope` on modules.
-Workspace dependency inheritance and mode-specific sections remain #516–#517.
+
+Workspace members inherit root ordinary and test dependencies, including the selected
+target's declarations, and root script dependencies in their build scripts. Paths
+remain relative to the manifest declaring them. Inheritance applies to members,
+not external dependencies; test and script visibility remain separate. Conflicting
+sources report recoverable problems rather than letting a member or target table
+silently overwrite a shared declaration. Local/Git declarations keep precedence
+over registry requirements. Discovery compares normalized local paths; pinned
+cjpm can instead reject equivalent relative member and absolute inherited paths
+when merging declarations. Use one absolute path in both manifests to avoid that
+SDK discrepancy. Mode-specific sections remain #517.
 
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does
