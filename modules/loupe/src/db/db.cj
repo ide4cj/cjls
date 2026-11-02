@@ -6,6 +6,8 @@ import calca.*
 import calca.macros.*
 import index_map.IndexMap
 import loupe.vfs.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import rope.Rope
 
 /**
@@ -14,6 +16,7 @@ import rope.Rope
  * separate source inputs sharing its text. Inputs are never dropped: a deleted file is empty
  * text (A5), and macro outputs belong to the context that produced them.
  */
+@DerivePython[opaque]
 @CalcaInput
 public struct SourceFile {
     public let fileId: FileId

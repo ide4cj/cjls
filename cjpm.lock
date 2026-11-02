@@ -4,3 +4,9 @@ version = 1
 version = "0.1.0"
 source = "git+https://github.com/FilaCo/jian.git#8da9b55d9cd537d3bb839f9679f2f84bc805a613"
 dependencies = []
+
+[requires."py_interop"]
+version = "1.0.0"
+source = "git+https://gitcode.com/filaco/cangjie_python_reverse_interop.git#c0c91cf8a89889f65bca96b962e530001e8433b2"
+output-type = "static"
+dependencies = []

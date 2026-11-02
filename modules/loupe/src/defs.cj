@@ -1,8 +1,6 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
-import ginkgo.SyntaxNodePtr
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
     Arg,
@@ -15,15 +13,18 @@ import cjsyntax.ast.{
     PathSegment,
     RefExpr
 }
+import ginkgo.SyntaxNodePtr
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
 import loupe.hir.*
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What a name means, rust-analyzer's `Definition`: what go to definition goes to, and what highlighting tells a
  * name by.
  */
-@Derive[Equatable]
-public enum Definition <: ToString {
+@DerivePython
+public enum Definition <: ToString & Equatable<Definition> {
     /**
      * A declaration, of a source or of a package compiled already.
      */
@@ -54,6 +55,26 @@ public enum Definition <: ToString {
             case TypeParamDef(target) => target.toString()
             case PackageDef(pkg) => "package ${pkg}"
         }
+    }
+
+    public operator func ==(other: Definition): Bool {
+        match ((this, other)) {
+            case (Definition.DeclDef(left0), Definition.DeclDef(right0)) => left0 == right0
+            case (Definition.LocalDef(left0, left1), Definition.LocalDef(right0, right1)) =>
+                left0 == right0 && left1 == right1
+            case (
+                    Definition.MemberParamDef(left0, left1),
+                    Definition.MemberParamDef(right0, right1)
+                ) => left0 == right0 && left1 == right1
+            case (Definition.TypeParamDef(left0), Definition.TypeParamDef(right0)) =>
+                left0 == right0
+            case (Definition.PackageDef(left0), Definition.PackageDef(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Definition): Bool {
+        !(this == other)
     }
 }
 

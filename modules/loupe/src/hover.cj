@@ -2,7 +2,6 @@ package loupe
 
 import std.collection.*
 import std.deriving.*
-import ginkgo.{SyntaxNodePtr, TextRange}
 import cjo.{DeclInfo, openCjo}
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{
@@ -19,25 +18,36 @@ import cjsyntax.ast.{
     RefExpr,
     VarDecl
 }
+import ginkgo.{SyntaxNodePtr, TextRange}
 import loupe.db.{AnalysisDatabase, BinaryPackageFile, Package, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What hovering a name shows, rust-analyzer's `HoverResult`: the name's range, and what it stands
  * for, each candidate of an ambiguity.
  */
-@Derive[Equatable]
-public struct HoverResult {
+@DerivePython
+public struct HoverResult <: Equatable<HoverResult> {
     public HoverResult(public let range: TextRange, public let items: Array<HoverItem>) {}
+
+    public operator func ==(other: HoverResult): Bool {
+        range == other.range && items == other.items
+    }
+
+    public operator func !=(other: HoverResult): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One thing a name stands for, as Cangjie writes it; no markup, which is the server's to choose.
  */
-@Derive[Equatable]
-public struct HoverItem {
+@DerivePython
+public struct HoverItem <: Equatable<HoverItem> {
     public HoverItem(
         /**
          * Its declaration as one line of Cangjie, no body: `public func get(index: Int64): ?Int64`,
@@ -56,6 +66,14 @@ public struct HoverItem {
          */
         public let doc!: ?String = None
     ) {}
+
+    public operator func ==(other: HoverItem): Bool {
+        code == other.code && path == other.path && doc == other.doc
+    }
+
+    public operator func !=(other: HoverItem): Bool {
+        !(this == other)
+    }
 }
 
 /**

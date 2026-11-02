@@ -1,16 +1,17 @@
 package loupe.hir
 
 import std.collection.*
-import std.deriving.*
 import calca.*
 import calca.macros.*
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * What a name used in a body stands for.
  */
-@Derive[Equatable]
-public enum ValueTarget <: ToString {
+@DerivePython
+public enum ValueTarget <: ToString & Equatable<ValueTarget> {
     /**
      * A local of the body.
      */
@@ -36,13 +37,28 @@ public enum ValueTarget <: ToString {
             case TypeParamOf(target) => target.toString()
         }
     }
+
+    public operator func ==(other: ValueTarget): Bool {
+        match ((this, other)) {
+            case (ValueTarget.LocalOf(left0), ValueTarget.LocalOf(right0)) => left0 == right0
+            case (ValueTarget.MemberOf(left0), ValueTarget.MemberOf(right0)) => left0 == right0
+            case (ValueTarget.DeclOf(left0), ValueTarget.DeclOf(right0)) => left0 == right0
+            case (ValueTarget.TypeParamOf(left0), ValueTarget.TypeParamOf(right0)) =>
+                left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: ValueTarget): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * What a name used in a body means.
  */
-@Derive[Equatable]
-public enum BodyResolution <: ToString {
+@DerivePython
+public enum BodyResolution <: ToString & Equatable<BodyResolution> {
     /**
      * A local or a member, or functions overloading one another over the levels: local, then
      * members, then the file's (N63, N70).
@@ -58,6 +74,18 @@ public enum BodyResolution <: ToString {
             case Values(targets) => "values ${targets}"
             case InFile(resolution) => "in file ${resolution}"
         }
+    }
+
+    public operator func ==(other: BodyResolution): Bool {
+        match ((this, other)) {
+            case (BodyResolution.Values(left0), BodyResolution.Values(right0)) => left0 == right0
+            case (BodyResolution.InFile(left0), BodyResolution.InFile(right0)) => left0 == right0
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: BodyResolution): Bool {
+        !(this == other)
     }
 }
 

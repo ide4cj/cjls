@@ -32,6 +32,13 @@ flowchart TD
     analysis --> text[rope and index_map: text and identities]
 ```
 
+An experimental second frontend, [`cjmcp`](../modules/cjmcp/README.md), exposes
+a `runPython` MCP tool with embedded CPython and native analysis objects over
+`project_model` and `loupe`. It is a separate executable; its sequential workspace
+lifecycle and current Linux-only runtime limitations are documented with the
+module. An explicit analysis revision retains the database that owns HIR/type
+identities, so workspace reloads cannot silently reinterpret a retained view. It does not depend on `cjls` or change the LSP request loop.
+
 Exact dependencies are in each module's `cjpm.toml`. `platform`, on std alone,
 supplies common declarations with OS-specific implementations
 ([C17](design/03-conventions.md#c17-platform-source-sets), D101).
@@ -171,6 +178,13 @@ LSP stdout is the wire. Logs use the supplied logger, and absent optional fields
 remain distinct from JSON `null` (`@Serde[skipNone]`). The router and generated
 specifications are the maintained protocol inventory; [LSP extensions](lsp-extensions.md)
 document the additional client-facing contracts.
+
+The experimental MCP frontend keeps a session-owned incremental database and macro
+host too. It synchronizes disk inputs before each Python script and defers updates
+throughout execution and result serialization. The script and response identify
+the same workspace revision; retained analysis handles reject later revisions.
+See [MCP lifecycle and freshness](../modules/cjmcp/README.md#python-api) and
+[D161](adr/0161-cjmcp-incremental-session.md).
 
 ## Source entry points
 
