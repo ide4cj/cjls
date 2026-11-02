@@ -51,3 +51,41 @@ jobs:
             dist/SHA256SUMS
           if-no-files-found: error
           retention-days: 30
+
+  python-compatibility:
+    name: Verify MCP (CPython ${{ matrix.python }})
+    needs: linux
+    runs-on: ubuntu-22.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.9", "3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      # The test driver uses modern pathlib; PYTHON_DYNLIB selects the embedded runtime separately.
+      - uses: actions/setup-python@v5
+        id: test-driver
+        with:
+          python-version: "3.14"
+      - uses: ./.github/actions/setup-cjmcp-python
+        with:
+          python-version: ${{ matrix.python }}
+      - uses: actions/download-artifact@v7
+        with:
+          name: cjmcp-linux-x86_64-${{ github.sha }}
+          path: dist
+      - name: Verify delivered binary with selected CPython
+        env:
+          TEST_PYTHON: ${{ steps.test-driver.outputs.python-path }}
+        run: |
+          cd dist
+          sha256sum --check SHA256SUMS
+          mkdir unpacked
+          tar -xzf cjmcp-*.tar.gz -C unpacked
+          binary=$(realpath unpacked/cjmcp-*/cjmcp)
+          cd ..
+          # PYTHONHOME belongs to the embedded runtime, not the test driver.
+          CJMCP_BIN="$binary" CJMCP_PYTHONHOME="$PYTHONHOME" \
+            env -u PYTHONHOME "$TEST_PYTHON" -m unittest discover -s tests/mcp -v

@@ -26,23 +26,29 @@ unit tests and the real-process MCP tests against the unpacked executable before
 uploading it.
 
 Builds use Ubuntu 22.04; the executable still requires compatible system glibc
-and libstdc++, CPython 3.14 with a shared `libpython` and its standard library, and a
-Cangjie SDK for SDK-backed analysis. CI tests with CPython 3.14. Python and the SDK
-are not bundled. Set `PYTHON_DYNLIB` to the shared library's absolute path if
-automatic discovery fails, and `CANGJIE_HOME` to the analysis SDK directory.
+and libstdc++, CPython 3.9–3.14 with a shared `libpython` and its matching standard
+library, and a Cangjie SDK for SDK-backed analysis. CI tests the same delivered
+binary with every minor version in that range. These checks use regular
+GIL-enabled CPython builds; debug and free-threaded builds have not been verified.
+Python and the SDK are not bundled. Set `PYTHON_DYNLIB` to the shared library's
+absolute path if automatic discovery fails, and `CANGJIE_HOME` to the analysis SDK directory.
 For a Python installation outside the system prefix, also set `PYTHONHOME` to
 that installation's prefix (`python3 -c 'import sys; print(sys.base_prefix)'`),
 so the embedded interpreter can find its matching standard library.
 Use the unpacked executable's absolute path in the client configuration below.
-CPython 3.12 reproduces a native crash in the current interop bindings; other
-minor versions have not been verified. Select a 3.14 library explicitly when
-multiple Python versions are installed.
+Select the library explicitly when multiple Python versions are installed.
+No version-specific interop change is required for 3.9–3.13 in the checks below.
+Intermittent native crashes during macro reload were observed on 3.10, 3.12 and
+3.14 (see also [#596](https://github.com/ide4cj/cjls/pull/596)). Passing compatibility checks do not
+establish a fix for that session instability. Python script syntax still follows
+the selected interpreter: structural pattern matching (`match`/`case`) requires
+Python 3.10 or newer.
 
 ### Build from source
 
 The first embedded runtime experiment supports native Linux x86_64. Use the
 pinned SDK and environment from [Development](../../docs/development.md), and
-install CPython 3.14 with its shared `libpython` library. From the repository root:
+install CPython 3.9–3.14 with its shared `libpython` library. From the repository root:
 
 ```bash
 cjpm build -m modules/cjmcp
@@ -325,6 +331,22 @@ native proxy retention.
 cjpm test -m modules/cjmcp --no-progress --target-dir target/test
 python3 -m unittest discover -s tests/mcp -v
 ```
+
+The test driver needs Python 3.10 or newer. To test a different embedded
+interpreter, keep `PYTHONHOME` unset for the driver and supply its prefix through
+`CJMCP_PYTHONHOME`; only the server subprocess receives that value as `PYTHONHOME`.
+For example:
+
+```bash
+CJMCP_PYTHONHOME=/opt/python3.9 \
+PYTHON_DYNLIB=/opt/python3.9/lib/libpython3.9.so.1.0 \
+CJMCP_PYTHON_VERSION=3.9 python3 -m unittest discover -s tests/mcp -v
+```
+
+`CJMCP_PYTHON_VERSION` makes the native allocation regression assert the embedded
+minor version, so a passing matrix cannot silently use another installed runtime.
+The CI compatibility jobs download the archive from the 3.14 build job and run
+these tests with CPython 3.9–3.13; CPython 3.14 is checked before upload.
 
 Protocol unit tests cover lifecycle, negotiation, notifications and argument
 validation. The real-binary Linux test executes Python over original loupe

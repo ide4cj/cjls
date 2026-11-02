@@ -28,8 +28,8 @@ CANGJIE_STDX_PATH = "/absolute/path/to/matching/static/stdx"
 PYTHON_DYNLIB = "/absolute/path/to/libpython3.14.so"
 ```
 
-Use paths for your actual installation; set `PYTHONHOME` too when using a Python
-prefix outside the system installation. `CANGJIE_STDX_PATH` is needed when the
+Use paths for your actual CPython 3.9–3.14 installation; set `PYTHONHOME` too
+when using a Python prefix outside the system installation. `CANGJIE_STDX_PATH` is needed when the
 analyzed project's manifests reference it, as cjls's do; use the matching static
 stdx from the project's SDK setup. The 300-second client timeout is an
 example for initial analysis, not a server execution deadline. Tune it for the
@@ -111,7 +111,7 @@ revision should change for an observed input change and the answer should use
 new text. Check that it queried the edited worktree, not another clone.
 
 If the tool is absent, check configuration, tool enablement and schema discovery.
-If it fails to start, check the binary and CPython 3.14/SDK environment in the
+If it fails to start, check the binary and CPython 3.9–3.14/SDK environment in the
 client-launched process and server stderr. If results are partial, inspect
 `problems` and `hasExpandedMacros`; an empty result does not establish correctness.
 If the agent keeps grepping usages, check that project instructions and the skill
