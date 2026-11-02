@@ -15,6 +15,7 @@ link-option = ""
 package-configuration = { cjmcp = { compile-option = "--static -Woff driver-arg" } }
 
 [dependencies]
+source_change = { path = "../source_change" }
 cjformat = { path = "../cjformat" }
 ginkgo = { path = "../ginkgo" }
 fjson = { path = "../fjson" }
