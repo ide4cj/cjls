@@ -81,9 +81,15 @@ from timestamps.
 ## Agent semantic analysis with cjmcp
 
 cjmcp is optional; contributing to cjls does not require installing it. When
-connected, use its server instructions for semantic queries and the
+connected, use `runPython` for all agent analysis, reading and editing of Cangjie
+sources. Without a cjmcp connection, use ordinary source tools, compiler and tests.
+When connected, follow its server instructions for core operations and the
 [`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md) for unfamiliar
-operations. Without it, continue with source tools, compiler and tests.
+operations. Do not substitute shell source searches, reads or edits, including
+shell-launched Python or subprocesses inside the tool. Trust the loaded cjmcp
+analysis; report unavailable or incomplete analysis without a shell fallback.
+Save edits using Python I/O in `runPython` and query again for the new revision.
+Shell remains available for non-Cangjie files, Git, builds and tests.
 
 Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified binary
 to the edited worktree. Keep it separate from task build outputs; testing changed
@@ -96,8 +102,9 @@ or the [required checks](development.md#choose-checks-for-a-change).
 
 The server remains available to editors over stdio; build/run and e2e commands are
 in [Development](development.md#build-and-run). An agent-facing LSP tool or plugin
-is not required to build, inspect or verify cjls. Use source search for navigation
-and the real-binary e2e suite for protocol behavior in a fresh session.
+is not required to build, inspect or verify cjls. When cjmcp is connected, use it
+for agent source navigation. Use the real-binary e2e suite for protocol behavior
+in a fresh session.
 
 A Codex-specific LSP adapter is explicitly deferred: no repository-owned adapter
 or equivalent agent tool has been implemented or verified. Do not claim source
