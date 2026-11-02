@@ -15,12 +15,25 @@ ROOT = Path(__file__).resolve().parents[2]
 BINARY = os.environ.get("CJMCP_BIN", str(ROOT / "target/release/bin/cjmcp"))
 
 
+def server_environment():
+    env = {**os.environ, "cjHeapSize": "2GB"}
+    # The driver and embedded interpreter can use different Python installations.
+    if "CJMCP_PYTHONHOME" in env:
+        env["PYTHONHOME"] = env["CJMCP_PYTHONHOME"]
+    return env
+
+
 @unittest.skipUnless(sys.platform.startswith("linux"), "embedded CPython experiment supports native Linux")
 class McpStdioTest(unittest.TestCase):
     def test_repeated_native_proxy_allocation(self):
         # Reentering through enum constructors and payload getters exposed invalid GC roots.
         # This needs the real process: an interpreter crash cannot become a tool error.
-        code = """
+        expected_version = os.environ.get("CJMCP_PYTHON_VERSION")
+        version_check = (
+            "import sys\n"
+            f"assert {expected_version!r} is None or '.'.join(map(str, sys.version_info[:2])) == {expected_version!r}, sys.version\n"
+        )
+        code = version_check + """
 assert {'start', 'end', 'len'} <= set(dir(TextRange))
 assert Expr.CallExpr.__match_args__ == ('field0', 'field1')
 span = TextRange(1, 4)
@@ -57,7 +70,7 @@ result = i + 1
                 [BINARY, "--dir", directory],
                 input="".join(json.dumps(message) + "\n" for message in messages),
                 capture_output=True, text=True, timeout=60,
-                env={**os.environ, "cjHeapSize": "2GB"},
+                env=server_environment(),
             )
         self.assertEqual(process.returncode, 0, process.stderr)
         replies = [json.loads(line) for line in process.stdout.splitlines()]
@@ -100,7 +113,7 @@ result = i + 1
             process = subprocess.Popen(
                 [BINARY, "--dir", str(root)], stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-                env={**os.environ, "cjHeapSize": "2GB"},
+                env=server_environment(),
             )
             replies = queue.Queue()
 
@@ -156,6 +169,13 @@ result = i + 1
                 if macros_only:
                     self._check_macros(root, run)
                     return
+                # Keep 3.10 syntax out of the script parsed by an embedded Python 3.9.
+                pattern_match = """match analysis.typeKind(inferred.locals[local]):
+    case TyKind.PrimTy(name):
+        assert name == 'Int64'
+    case _:
+        raise AssertionError('inferred enum lost its variant')
+"""
                 native = run(f"""
                     assert {{'files', 'structure', 'analysis'}} <= set(dir(type(workspace)))
                     analysis = workspace.analysis()
@@ -274,11 +294,9 @@ result = i + 1
                     assert analysis.typeKind(inferred.locals[local]) == TyKind.PrimTy('Int64')
                     assert isinstance(analysis.typeKind(inferred.locals[local]), TyKind.PrimTy)
                     assert analysis.typeKind(inferred.locals[local]).field0 == 'Int64'
-                    match analysis.typeKind(inferred.locals[local]):
-                        case TyKind.PrimTy(name):
-                            assert name == 'Int64'
-                        case _:
-                            raise AssertionError('inferred enum lost its variant')
+                    import sys
+                    if sys.version_info >= (3, 10):
+                        exec({pattern_match!r})
                     assert analysis.typeText(analysis.internType(TyKind.PrimTy('Bool'))) == 'Bool'
                     assert not analysis.isTypeUnknown(inferred.locals[local])
                     assert inferred.diagnostics == []
