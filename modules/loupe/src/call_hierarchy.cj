@@ -40,7 +40,8 @@ public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
     ) {}
 
     public operator func ==(other: CallHierarchyEntry): Bool {
-        name == other.name && kind == other.kind && target == other.target
+        name == other.name && kind == other.kind && target == other.target &&
+            definition == other.definition
     }
 
     public operator func !=(other: CallHierarchyEntry): Bool {

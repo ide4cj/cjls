@@ -160,7 +160,11 @@ for found in analysis.symbols("AnalysisDatabase", 5):
 
 `prepareCallHierarchy(path, offset)` returns callable declarations, or `[]` for
 an ordinary value or unresolved name. Keep each `CallHierarchyEntry` with its
-producing analysis revision. `incomingCalls(entry)` groups callers;
+producing analysis revision. A binary callable's `definition` identifies its
+overload, including when no attached source is available and `target` points at
+the referring name. Preserve this field when reconstructing an entry; it is part
+of entry equality. Python constructors require an explicit `definition=None`
+for entries without binary identity. `incomingCalls(entry)` groups callers;
 `outgoingCalls(entry)` groups callees. Each `HierarchyCalls.ranges` lists the
 explicit call sites in the caller's file: the returned item's target for incoming
 calls, the input entry's target for outgoing calls. Anonymous lambdas belong to

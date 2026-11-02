@@ -14,16 +14,14 @@ import loupe.hir.macroBuildPlan
 func workspaceFixture(): Path {
     let root = Directory.createTemp(getTempDirectory())
     Directory.create(root.join("src"))
-    File
-        .writeTo(
-            root.join("cjpm.toml"),
-            #"[package]
+    File.writeTo(
+        root.join("cjpm.toml"),
+        #"[package]
 name = "sample"
 version = "0.1.0"
 output-type = "executable"
-"#
-                .toArray()
-        )
+"#.toArray()
+    )
     File.writeTo(root.join("src/main.cj"), "package sample\nmain() { 1 }\n".toArray())
     root
 }
