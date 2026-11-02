@@ -80,7 +80,8 @@ filenames to official URLs: SDKs from cangjie-lang.cn, stdx from cangjie_stdx's
 `v<version>.1` release. All three CI platforms are pinned in
 [`.cangjie-sha256`](../.cangjie-sha256); an unpinned archive is never downloaded.
 
-To update a release, change its version and URLs in `.cangjie-window`, then run
+To update a release, change its version, URLs and runtime source commit/path in
+`.cangjie-window`, then run
 `python3 .github/actions/setup-cangjie/setup.py pin <version>`. This hashes the
 origin archives and retains the other SDK pins. The official SDK download page
 currently also publishes SHA256 values; compare them with the downloaded hashes.
@@ -142,6 +143,14 @@ inspection:
 | `target/release/bin/cjls fmt <path>...` | Format selected files in place |
 | `target/release/bin/cjls fetch-src --dir <dir>` | Download the detected SDK's std sources for navigation |
 | `target/release/bin/cjls --config-schema` | Print the settings JSON Schema |
+
+The CLI uses [jian](https://github.com/FilaCo/jian) as a Git dependency;
+`cjpm.lock` records the resolved commit. The first build needs GitHub access to
+fetch it. Commands and options are declared with `@JianCommand` and
+`@JianCallback` in `modules/cjls/src/command.cj`. Run `cjls --help` or
+`cjls help <command>` for generated help. With no arguments, cjls serves LSP over
+stdio; `--config-schema` remains a standalone invocation. Usage errors return 2
+and write to stderr.
 
 The Cangjie runtime is linked statically: the server and generators run without
 an SDK environment. Generators link the same `cjformat` library as the server. Linux
@@ -282,7 +291,18 @@ uv run --project tests/e2e --locked pytest tests/e2e
 
 These drive the real binary over stdio with editor capabilities. `CJLS_BIN`
 overrides the executable; `CJLS_E2E_SDK` overrides the SDK used by SDK-dependent
-cases (otherwise `CANGJIE_HOME`). Keep the SDK and std corpus available: those
+cases (otherwise `CANGJIE_HOME`). CI also runs the pin-built `cjo`, `loupe.vfs`,
+`loupe.hir` and `loupe` test binaries and e2e on Linux against each release in `.cangjie-window`; each job names its
+channel and version. Run a built unit-test set locally with
+`python3 .github/scripts/sdk_window.py test <installed-sdk>/cangjie`.
+Fetch its matching source corpus with
+`python3 tests/corpora/fetch.py --sdk-version <version>` and set
+`CJLS_TEST_STD_SOURCES` to the printed std directory for both unit tests and e2e.
+Retain the pin's runtime environment for the unit binaries; the runner changes only
+`CANGJIE_HOME` to select the std being read. The e2e driver retains the pin's
+runtime for tools such as `cjpm`; its server child has SDK/runtime variables
+removed by the shared fixture, as an editor started without them would.
+Keep the SDK and std corpus available: those
 cases can skip when missing; review skips before claiming full coverage.
 Editor-client tests live in their own repositories; paired branch conventions
 are in D32 and [the org guide](https://github.com/ide4cj/.github/blob/main/CONTRIBUTING.md).

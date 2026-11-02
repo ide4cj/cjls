@@ -3,7 +3,7 @@ features {user.platform.posix}
 package platform
 
 import std.env.getProcessId
-import std.fs.Path
+import std.fs.{File, Path}
 import std.io.{InputStream, OutputStream}
 import std.process.*
 
@@ -42,7 +42,8 @@ class PosixChild <: PipedChild {
 public specific func startPiped(
     program: Path,
     libDirs: Array<Path>,
-    args: (ChildPipes) -> Array<String>
+    args: (ChildPipes) -> Array<String>,
+    output!: ?File
 ): PipedChild {
     let pipes = ChildPipes(read: "3", write: "4", parent: getProcessId())
     let process = launch(
@@ -50,7 +51,7 @@ public specific func startPiped(
         ["-c", POSIX_LAUNCH, "sh", libraryPathOf(libDirs), program.toString()].concat(args(pipes)),
         stdIn: ProcessRedirect.Pipe,
         stdOut: ProcessRedirect.Pipe,
-        stdErr: ProcessRedirect.Inherit
+        stdErr: output.map { file => ProcessRedirect.FromFile(file) } ?? ProcessRedirect.Inherit
     )
     PosixChild(process)
 }

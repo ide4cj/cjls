@@ -8,6 +8,10 @@
       "cangjie-stdx-linux-x64-1.0.5.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.0.5.1/cangjie-stdx-linux-x64-1.0.5.1.zip",
       "cangjie-sdk-windows-x64-1.0.5.zip": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-windows-x64-1.0.5.zip&objectKey=698acebfbd66ae22b62330af",
       "cangjie-stdx-windows-x64-1.0.5.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.0.5.1/cangjie-stdx-windows-x64-1.0.5.1.zip"
+    },
+    "runtime": {
+      "commit": "c6aa169ce8c6aaeb65cb1262bddb3700aebe8cb9",
+      "std": "std/libs/std"
     }
   },
   "sts": {
@@ -19,6 +23,10 @@
       "cangjie-stdx-linux-x64-1.2.0.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.2.0.1/cangjie-stdx-linux-x64-1.2.0.1.zip",
       "cangjie-sdk-windows-x64-1.2.0.zip": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-windows-x64-1.2.0.zip&objectKey=6ab1eafae4bd101f57762f5e",
       "cangjie-stdx-windows-x64-1.2.0.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.2.0.1/cangjie-stdx-windows-x64-1.2.0.1.zip"
+    },
+    "runtime": {
+      "commit": "52f9e08f985ba42e23581e725e1b11f956f941d6",
+      "std": "stdlib/libs/std"
     }
   }
 }

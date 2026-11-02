@@ -1,122 +1,190 @@
 package cjls
 
-import std.argopt.ArgumentParseException
 import std.env.getWorkingDirectory
-import std.fs.Path
-import std.io.{ByteBuffer, readToEnd}
+import std.fs.{Directory, File, Path, remove}
+import std.io.{ByteBuffer, OutputStream, readToEnd}
+import stdx.log.NoopLogger
 import fjson.{fromJsonBytes, JsonValue}
+import jian.JianContextApp
 import cjls.server.settingsSchema
+
+/**
+ * Isolates command tests from the application's package-level registrations and output streams.
+ */
+func testCommandApp(out!: OutputStream, err!: OutputStream): JianContextApp<CommandContext> {
+    JianContextApp<CommandContext>(
+        name: "cjls",
+        help: "Cangjie language server.",
+        stdout: out,
+        stderr: err
+    )
+        .callback(configureCommand)
+        .add(printProject)
+        .add(formatCommand)
+        .add(downloadSources)
+}
 
 @Test
 class CommandTest {
-    @TestCase
-    func noArgumentsServesAsAnEditorStartsTheServer() {
-        // act, assert
-        @Expect(match (parseCommand([])) {
-            case Serve => true
-            case _ => false
-        })
+    @TestCase[scenario in [
+        (["--help"], "Usage: cjls", "--config-schema"),
+        (["-h"], "Usage: cjls", "--config-schema"),
+        (["help"], "Usage: cjls", "--config-schema"),
+        (["project", "--help"], "Usage: cjls project", "--dir"),
+        (["help", "project"], "Usage: cjls project", "--dir"),
+        (["fmt", "-h"], "Usage: cjls fmt", "--check"),
+        (["help", "fmt"], "Usage: cjls fmt", "--check"),
+        (["fetch-src", "--help"], "Usage: cjls fetch-src", "--dir"),
+        (["help", "fetch-src"], "Usage: cjls fetch-src", "--dir")
+    ]]
+    func helpDescribesTheDefaultActionAndTypedOptions(scenario: (Array<String>, String, String)) {
+        // arrange
+        let (args, usage, option) = scenario
+        let (out, err) = (ByteBuffer(), ByteBuffer())
+        let app = testCommandApp(out: out, err: err)
+        let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
+
+        // act
+        let exitCode = app.run(args, context: context)
+        let help = written(out)
+
+        // assert
+        @Expect(exitCode, 0)
+        @Expect(help.contains(usage))
+        @Expect(help.contains(option))
+        if (usage == "Usage: cjls") {
+            @Expect(help.contains("Serve LSP over stdio"))
+            @Expect(help.contains("project"))
+            @Expect(help.contains("fetch-src"))
+        }
+        if (usage == "Usage: cjls fmt") {
+            @Expect(help.contains("PATH"))
+        }
+        @Expect(written(err), "")
     }
 
     @TestCase
-    func projectIsOfTheWorkingDirectoryUnlessDirSaysOtherwise() {
-        // act
-        let none = parseCommand(["project"])
-        let separate = parseCommand(["project", "--dir", "sub"])
-        let joined = parseCommand(["project", "--dir=sub"])
-        let short = parseCommand(["project", "-d", "sub"])
+    func invalidInputsAreUsageErrorsWithoutRunningAnAction() {
+        // arrange
+        let (out, err) = (ByteBuffer(), ByteBuffer())
+        let app = testCommandApp(out: out, err: err)
+        let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
+        let invalid: Array<Array<String>> =
+            [
+                ["frob"],
+                ["--frob"],
+                ["project", "sub"],
+                ["project", "--frob"],
+                ["project", "--dir"],
+                ["project", "--dir="],
+                ["fmt"],
+                ["fmt", "--check"],
+                ["fetch-src", "src"],
+                ["fetch-src", "--dir"],
+                ["fetch-src", "--dir="],
+                ["fmt", "--frob", "a"],
+                ["--config-schema", "x"],
+                ["--config-schema", "project"],
+                ["help", "frob"]
+            ]
 
-        // assert
-        let sub = getWorkingDirectory().join("sub")
-        @Expect(dirOf(none), Some(getWorkingDirectory()))
-        @Expect(dirOf(separate), Some(sub))
-        @Expect(dirOf(joined), Some(sub))
-        @Expect(dirOf(short), Some(sub))
-    }
+        for (args in invalid) {
+            // act
+            let exitCode = app.run(args, context: context)
 
-    @TestCase
-    func dirGivenTwiceIsTheLast() {
-        // act
-        let command = parseCommand(["project", "--dir", "a", "-d", "b"])
-
-        // assert
-        @Expect(dirOf(command), Some(getWorkingDirectory().join("b")))
-    }
-
-    @TestCase
-    func fmtTakesPathsRelativeToTheWorkingDirectoryAndCheck() {
-        // act
-        let (paths, check) = formatOf(parseCommand(["fmt", "a", "--check", "b"])).getOrThrow()
-        let (_, unchecked) = formatOf(parseCommand(["fmt", "a"])).getOrThrow()
-
-        // assert
-        @Expect(paths, [getWorkingDirectory().join("a"), getWorkingDirectory().join("b")])
-        @Expect(check)
-        @Expect(!unchecked)
-    }
-
-    @TestCase
-    func fetchSrcIsIntoTheSdkUnlessDirSaysOtherwise() {
-        // act
-        let none = parseCommand(["fetch-src"])
-        let dir = parseCommand(["fetch-src", "--dir", "src"])
-
-        // assert
-        @Expect(match (none) {
-            case FetchSrc(path) => path.isNone()
-            case _ => false
-        })
-        @Expect(match (dir) {
-            case FetchSrc(path) => path == Some(getWorkingDirectory().join("src"))
-            case _ => false
-        })
+            // assert
+            @Expect(exitCode, 2)
+            @Expect(written(err).contains("Usage: cjls"))
+            @Expect(written(out), "")
+        }
     }
 
     @TestCase
     func configSchemaPrintsTheSchemaOfTheSettingsAsJson() {
         // arrange
-        let out = ByteBuffer()
+        let (out, err) = (ByteBuffer(), ByteBuffer())
+        let app = testCommandApp(out: out, err: err)
+        let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
         // act
-        let command = parseCommand(["--config-schema"])
-        let exitCode = printConfigSchema(out)
+        let exitCode = app.run(["--config-schema"], context: context)
 
         // assert
-        @Expect(match (command) {
-            case PrintConfigSchema => true
-            case _ => false
-        })
         @Expect(exitCode, 0)
         let printed = fromJsonBytes<JsonValue>(readToEnd(out))
         @Expect(printed, settingsSchema())
+        @Expect(written(err), "")
     }
 
-    @TestCase
-    func anUnknownCommandOrOptionIsAUsageError() {
-        // act, assert
-        @AssertThrows[ArgumentParseException](parseCommand(["frob"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["project", "sub"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["project", "--frob"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["project", "--dir="]))
-        @AssertThrows[ArgumentParseException](parseCommand(["fmt"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["fetch-src", "src"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["fetch-src", "--dir="]))
-        @AssertThrows[ArgumentParseException](parseCommand(["fmt", "--frob", "a"]))
-        @AssertThrows[ArgumentParseException](parseCommand(["--config-schema", "x"]))
-    }
-}
+    @TestCase[args in [
+        ["--dir", "sub"],
+        ["--dir=sub"],
+        ["-d", "sub"],
+        ["-dsub"],
+        ["--dir", "ignored", "-d", "sub"]
+    ]]
+    func projectResolvesDirectoryOptionsRelativeToCwd(args: Array<String>) {
+        // arrange: keep cwd unchanged so concurrent tests cannot observe a different directory.
+        let dir = Directory.createTemp(getWorkingDirectory())
+        try {
+            File.writeTo(dir.join("cjpm.toml"), "[package]\nname = \"cli_test\"\n".toArray())
+            let relative = dir.fileName
+            let options = args.map { arg => arg.replace("sub", relative) }
+            let (out, err) = (ByteBuffer(), ByteBuffer())
+            let app = testCommandApp(out: out, err: err)
+            let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
-func formatOf(command: Command): ?(Array<Path>, Bool) {
-    match (command) {
-        case Format(paths, check) => (paths, check)
-        case _ => Option<(Array<Path>, Bool)>.None
-    }
-}
+            // act
+            let exitCode = app.run(["project"].concat(options), context: context)
 
-func dirOf(command: Command): ?Path {
-    match (command) {
-        case PrintProject(dir) => dir
-        case _ => Option<Path>.None
+            // assert
+            @Expect(exitCode, 0)
+            let project = fromJsonBytes<JsonValue>(readToEnd(out))
+            @Expect(project["modules"][0]["name"].asString(), "cli_test")
+            @Expect(written(err), "")
+        } finally {
+            remove(dir, recursive: true)
+        }
+    }
+
+    @TestCase[check in ["--check", "-c"]]
+    func fmtChecksRelativePathsBeforeAndAfterFormatting(check: String) {
+        // arrange
+        let dir = Directory.createTemp(getWorkingDirectory())
+        try {
+            let source = "func f(){let x=1}\n"
+            let expected = "func f() {\n    let x = 1\n}\n"
+            let files = ["a.cj", "b.cj"].map { name => dir.join(name) }
+            let paths = ["a.cj", "b.cj"].map { name => Path(dir.fileName).join(name).toString() }
+            for (file in files) {
+                File.writeTo(file, source.toArray())
+            }
+            let (out, err) = (ByteBuffer(), ByteBuffer())
+            let app = testCommandApp(out: out, err: err)
+            let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
+
+            // act
+            let checked = app.run(["fmt", paths[0], check, paths[1]], context: context)
+
+            // assert
+            @Expect(checked, 1)
+            @Expect(files.map { file => String.fromUtf8(File.readFrom(file)) }, [source, source])
+
+            // act
+            let formatted = app.run(["fmt"].concat(paths), context: context)
+
+            // assert
+            @Expect(formatted, 0)
+            @Expect(files.map { file => String.fromUtf8(File.readFrom(file)) }, [expected, expected])
+
+            // act
+            let rechecked = app.run(["fmt", check].concat(paths), context: context)
+
+            // assert
+            @Expect(rechecked, 0)
+            @Expect(written(err), "")
+        } finally {
+            remove(dir, recursive: true)
+        }
     }
 }

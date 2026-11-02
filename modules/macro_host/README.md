@@ -37,6 +37,16 @@ results attributable to their original inputs. [host.cj](src/host.cj) starts a
 server lazily, restarts after failure, and kills calls exceeding their deadlines.
 Unit-test deadlines are fired explicitly rather than depending on wall-clock races.
 
+The SDK reports thrown macro exceptions only on ordinary stderr, sometimes with
+an empty `ILLEGAL` result token and no protocol diagnostic. Each serial call
+captures ordinary output in a separate file, reset while the child is idle.
+Failed answers retain the last 64 KiB as an error on the macro call, including
+the SDK's exception text and stack locations. Successful calls discard this
+output so it cannot become the next call's diagnostic. The file avoids pipe
+capacity limits and races between a protocol answer and an output-reader thread;
+it is removed after the process exits. This does not turn an SDK stack location
+into a source range: the diagnostic falls back to the call's source range.
+
 Preserve separate std/workspace server processes and the current separation of
 request selection and sending. Their SDK failure evidence and limits are
 canonical in [K23](../../docs/sdk-issues.md#k23) and

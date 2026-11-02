@@ -2,7 +2,7 @@ features {os.windows}
 package platform
 
 import std.env.getVariables
-import std.fs.Path
+import std.fs.{File, Path}
 import std.io.{InputStream, IOException, OutputStream}
 
 // A piped child on Windows (D87, D91): it reads and writes two pipe handles it inherits, named by number on its
@@ -22,11 +22,11 @@ foreign func CreatePipe(
 
 foreign func SetHandleInformation(handle: CPointer<Unit>, mask: UInt32, flags: UInt32): Int32
 
-foreign func GetStdHandle(which: UInt32): CPointer<Unit>
+foreign func GetStdHandle(which: UInt32): IntNative
 
 foreign func DuplicateHandle(
     sourceProcess: CPointer<Unit>,
-    source: CPointer<Unit>,
+    source: IntNative,
     targetProcess: CPointer<Unit>,
     target: CPointer<CPointer<Unit>>,
     access: UInt32,
@@ -304,7 +304,8 @@ func jobFor(process: CPointer<Unit>): ?KillOnCloseJob {
 public specific func startPiped(
     program: Path,
     libDirs: Array<Path>,
-    args: (ChildPipes) -> Array<String>
+    args: (ChildPipes) -> Array<String>,
+    output!: ?File
 ): PipedChild {
     // the child reads `childRead` and writes `childWrite`; this process the other ends
     let (childRead, ownWrite) = createPipe()
@@ -319,7 +320,8 @@ public specific func startPiped(
             windowsCommandLine([program.toString()].concat(args(pipes))),
             windowsEnvironment(getVariables(), libraryPathOf(libDirs)),
             childRead,
-            childWrite
+            childWrite,
+            output
         )
         let job = jobFor(information.process)
         let resumed =
@@ -349,11 +351,12 @@ public specific func startPiped(
 /**
  * This process's stderr, duplicated so that a child may inherit it; null if there is none.
  */
-func inheritableStderr(): CPointer<Unit> {
+func inheritableStderr(output: ?File): CPointer<Unit> {
     unsafe {
-        let stderr = GetStdHandle(STD_ERROR_HANDLE)
+        let stderr =
+            output.map { file => file.fileDescriptor.fileHandle } ?? GetStdHandle(STD_ERROR_HANDLE)
         // `INVALID_HANDLE_VALUE` is -1
-        if (stderr.isNull() || stderr.toUIntNative() == UIntNative.Max) {
+        if (stderr == 0 || stderr == -1) {
             return CPointer<Unit>()
         }
         var duplicate = CPointer<Unit>()
@@ -384,7 +387,8 @@ func createChildProcess(
     commandLine: String,
     environment: Array<UInt16>,
     childRead: CPointer<Unit>,
-    childWrite: CPointer<Unit>
+    childWrite: CPointer<Unit>,
+    output: ?File
 ): ProcessInformation {
     for (h in [childRead, childWrite]) {
         if (
@@ -396,7 +400,7 @@ func createChildProcess(
             throw windowsError("SetHandleInformation")
         }
     }
-    let stderr = inheritableStderr()
+    let stderr = inheritableStderr(output)
     let inherited =
         if (stderr.isNull()) { [childRead, childWrite] } else { [childRead, childWrite, stderr] }
     unsafe {

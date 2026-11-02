@@ -35,6 +35,11 @@ The canonical defect evidence, observed versions and limitations live in
 C17 gives the command to type-check another OS locally. This does not execute
 that OS's tests; use its CI job for runtime verification.
 
+`startPiped` can redirect the child's ordinary stdout/stderr to a supplied open
+file, while its protocol still uses separate pipes. The caller owns the file and
+keeps it open until the child exits. This lets macro callers capture exceptions
+without a pipe reader competing with the protocol or blocking a verbose child.
+
 Windows uses Win32 FFI: piped children start suspended with `CreateProcessW`,
 inherit the intended pipe handles and stderr only, and join a kill-on-close job
 before resuming (D78, D91). `relaunch` starts the server as a child after

@@ -131,6 +131,216 @@ func exprTyCount(db: AnalysisDatabase, def: DefId): Int64 {
 @Test
 class InferTest {
     @TestCase
+    func standaloneLambdaParametersComeFromTheirBody() {
+        checkInference(
+            #"
+            package m
+            func test(): Unit {
+                let l1 = {x => x + 1}
+            //      ^^ (Int64) -> Int64
+            //            ^ Int64
+                let l2 = {x => x + 1}(1)
+            //      ^^ Int64
+            //            ^ Int64
+                let l3 = 1 |> {x => x + 1}
+            //      ^^ Int64
+            //                 ^ Int64
+                // cjc: parameters of this lambda expression must have type annotations
+                let l4 = {x => x}(1)
+            //      ^^ {unknown}
+            //            ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let l5 = {x => 5}(1)
+            //      ^^ {unknown}
+            //            ^ {unknown}
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaConstraintsAreSolvedTogether() {
+        checkInference(
+            #"
+            package m
+            func take(x: Int8): Int8 { x }
+            //        ^ Int8
+            func test(): Unit {
+                let integers = {x => x + 1i8}
+            //      ^^^^^^^^ (Int8) -> Int8
+            //                  ^ Int8
+                let reversed = {x => 1i8 + x}
+            //      ^^^^^^^^ (Int8) -> Int8
+            //                  ^ Int8
+                let floats = {x => x * 1.5}
+            //      ^^^^^^ (Float64) -> Float64
+            //                ^ Float64
+                let boolean = {x => x && true}
+            //      ^^^^^^^ (Bool) -> Bool
+            //                 ^ Bool
+                let comparison = {x => x == 1}
+            //      ^^^^^^^^^^ (Int64) -> Bool
+            //                    ^ Int64
+                let multiple = {x, y => x + y + 1}
+            //      ^^^^^^^^ (Int64, Int64) -> Int64
+            //                  ^ Int64
+            //                     ^ Int64
+                let called = {x => take(x)}
+            //      ^^^^^^ (Int8) -> Int8
+            //                ^ Int8
+                let condition = {x => if (x) { 1 } else { 2 }}
+            //      ^^^^^^^^^ (Bool) -> Int64
+            //                   ^ Bool
+                let declared = {x => let y: Int8 = x; y}
+            //      ^^^^^^^^ (Int8) -> Int8
+            //                  ^ Int8
+            //                           ^ Int8
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaTrialsDoNotKeepRejectedOverloadConstraints() {
+        checkInference(
+            #"
+            package m
+            func choose(x: Int8, y: String): Int8 { x }
+            //          ^ Int8
+            //                   ^ String
+            func choose(x: Int64, y: Bool): Int64 { x }
+            //          ^ Int64
+            //                    ^ Bool
+            func test(): Unit {
+                let selected = {x => choose(x, true)}
+            //      ^^^^^^^^ (Int64) -> Int64
+            //                  ^ Int64
+                let option = {x => x ?? 1}
+            //      ^^^^^^ (Option<Int64>) -> Int64
+            //                ^ Option<Int64>
+                let text = {x => "a" + x}
+            //      ^^^^ (String) -> String
+            //              ^ String
+                let nested = {x => {y => x + y + 1}}
+            //      ^^^^^^ (Int64) -> (Int64) -> Int64
+            //                ^ Int64
+            //                      ^ Int64
+                let composed = {x => x + 1} ~> {x => x * 2}
+            //      ^^^^^^^^ (Int64) -> Int64
+            //                  ^ Int64
+            //                                  ^ Int64
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaVariablesRemainLocalAcrossGenericCalls() {
+        checkInference(
+            #"
+            package m
+            func identity<T>(x: T): T { x }
+            //               ^ T
+            func keep<T>(x: T): () -> T { {=> x} }
+            //           ^ T
+            func test(): Unit {
+                let direct = {x => identity(x) + 1}
+            //      ^^^^^^ (Int64) -> Int64
+            //                ^ Int64
+                let returned = {x => keep(x)() + 1}
+            //      ^^^^^^^^ (Int64) -> Int64
+            //                  ^ Int64
+                // cjc: parameters of this lambda expression must have type annotations
+                let unsolved = {x => identity(x)}(1)
+            //      ^^^^^^^^ {unknown}
+            //                  ^ {unknown}
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaBodyReusesConstantOperatorOperands() {
+        checkInference(
+            #"
+            package m
+            func test(): Unit {
+                let lambda = {x =>
+            //      ^^^^^^ (Int64) -> Int64
+            //                ^ Int64
+                    let constant = 1 + 2 + 3 + 4 + 5 + 6 + 7 + 8 + 9 + 10 +
+            //          ^^^^^^^^ Int64
+                        11 + 12 + 13 + 14 + 15 + 16 + 17 + 18 + 19 + 20 +
+                        21 + 22 + 23 + 24 + 25 + 26 + 27 + 28 + 29 + 30
+                    x + constant
+                }
+                let context = {x => let y: Int8 = x + 1; y}
+            //      ^^^^^^^ (Int8) -> Int8
+            //                 ^ Int8
+            //                          ^ Int8
+                let reversed = {x => let y: Int8 = 1 + x; y}
+            //      ^^^^^^^^ (Int8) -> Int8
+            //                  ^ Int8
+            //                           ^ Int8
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func standaloneInvalidLambdaOperatorsWaitForSolvedReceivers() {
+        let prefix = String.join(Array(24, repeat: "x + ("), delimiter: "")
+        let suffix = String.join(Array(24, repeat: ")"), delimiter: "")
+        let expression = "${prefix}\"a\"${suffix}"
+        checkInference(
+            """
+            package m
+            func test(): Unit {
+                // cjc: parameters of this lambda expression must have type annotations
+                let invalid = {x => ${expression}}
+            //      ^^^^^^^ {unknown}
+            //                 ^ {unknown}
+            }
+            """
+        )
+    }
+
+    @TestCase
+    func standaloneLambdaNeedsEnoughConsistentBodyConstraints() {
+        checkInference(
+            #"
+            package m
+            func test(): Unit {
+                // cjc: parameters of this lambda expression must have type annotations
+                let member = {x => x.size}
+            //      ^^^^^^ {unknown}
+            //                ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let unary = {x => -x}
+            //      ^^^^^ {unknown}
+            //               ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let cast = {x => x as Int64}
+            //      ^^^^ {unknown}
+            //              ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let conflicting = {x => x + 1; x + 1.0}
+            //      ^^^^^^^^^^^ {unknown}
+            //                     ^ {unknown}
+                // cjc: parameters of this lambda expression must have type annotations
+                let partial = {x, y => x + 1}
+            //      ^^^^^^^ {unknown}
+            //                 ^ Int64
+            //                    ^ {unknown}
+                let next = {x => x + 1i8}
+            //      ^^^^ (Int8) -> Int8
+            //              ^ Int8
+            }
+            "#
+        )
+    }
+
+    @TestCase
     func localGenericUpperBoundsAreUsedByTheCallSolver() {
         checkInference(
             #"

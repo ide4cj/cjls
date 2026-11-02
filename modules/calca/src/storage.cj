@@ -80,9 +80,12 @@ public class Storage {
      * Another handle of the same database, for another thread, pinned to the revision this one
      * reads. Its queries throw `CancelledException` too once `cancelledBy` gives `true`: how
      * whoever asked for the answer (an editor's `$/cancelRequest`) stops a computation of it midway.
+     * A nested snapshot also inherits this handle's cancellation, so a wrapper cannot detach
+     * work from the request that owns it.
      */
     public func snapshot(cancelledBy!: () -> Bool = { => false }): Storage {
-        Storage(runtime, pinned ?? runtime.revision, cancelledBy)
+        let inherited = this.cancelledBy
+        Storage(runtime, pinned ?? runtime.revision, { => inherited() || cancelledBy() })
     }
 
     /**

@@ -53,7 +53,7 @@ class FakeExpander <: Expander {
 
     public func expand(call: MacroCallData): CallOutcome {
         calls.add(call)
-        outcome ?? Answered(resultOf(MacroResultData(status: 1, tks: call.args)))
+        outcome ?? Answered(resultOf(MacroResultData(status: 1, tks: call.args)), "")
     }
 }
 
@@ -357,7 +357,8 @@ class MacroRoundTest {
                             DiagnosticData(diagSeverity: level, errorMessage: text, mainHint: text)
                         ]
                     )
-                )
+                ),
+                ""
             ),
             testNumbers()
         )
@@ -377,7 +378,7 @@ class MacroRoundTest {
         let failed = outputOf(
             request,
             layout,
-            Answered(resultOf(MacroResultData(status: MACRO_FAILED))),
+            Answered(resultOf(MacroResultData(status: MACRO_FAILED)), ""),
             testNumbers()
         )
         let lost = outputOf(request, layout, Unanswered("it ran longer than 10 s"), testNumbers())
@@ -502,6 +503,10 @@ public macro Same(input: Tokens): Tokens {
     input
 }
 
+public macro Fail(input: Tokens): Tokens {
+    throw Exception("macro failure detail")
+}
+
 public macro Spin(input: Tokens): Tokens {
     var n = 0
     while (n >= 0) {
@@ -586,9 +591,38 @@ class GuardedServerTest {
 
         // assert
         match (outcome) {
-            case Answered(result) =>
+            case Answered(result, _) =>
                 @Expect(result.status != MACRO_FAILED)
                 @Expect(printMacroTokens(result.tks, numbers).text, "class A { }")
+            case Unanswered(reason) => @Fail(reason)
+        }
+    }
+
+    @TestCase
+    func aThrownMacroExceptionKeepsItsReasonAndTheServerAnswersTheNextCall() {
+        // arrange
+        let (paths, library) = built()
+        let numbers = testNumbers()
+        let server = GuardedServer(paths, Duration.minute, NoopLogger())
+        let (db, file, _) = macroFixture(MAIN)
+        let request = macroRequests(db, file)[0]
+        let (_, layout) = callDataOf(request, "m.ms", library, numbers)
+
+        // act
+        let outcome = server.expand(call("Fail", library, numbers))
+        let output = outputOf(request, layout, outcome, numbers)
+        let next = server.expand(call("Same", library, numbers))
+        server.close()
+
+        // assert
+        @Expect(output.expansion.isNone())
+        @Expect(output.diagnostics.any { diagnostic => diagnostic.message.contains("macro failure detail") })
+        @Expect(output.diagnostics[0].origin, Some(SpanOrigin.FromCall))
+        @Expect(output.diagnostics[0].message.contains("ms.cj:"))
+        match (next) {
+            case Answered(result, captured) =>
+                @Expect(result.status != MACRO_FAILED)
+                @Expect(!captured.contains("macro failure detail"))
             case Unanswered(reason) => @Fail(reason)
         }
     }
@@ -681,10 +715,10 @@ class GuardedServerTest {
         // assert
         match (spun) {
             case Unanswered(reason) => @Expect(reason, "it ran longer than 1 s")
-            case Answered(_) => @Fail("Spin was answered")
+            case Answered(_, _) => @Fail("Spin was answered")
         }
         match (next) {
-            case Answered(result) => @Expect(result.status != MACRO_FAILED)
+            case Answered(result, _) => @Expect(result.status != MACRO_FAILED)
             case Unanswered(reason) => @Fail(reason)
         }
     }
@@ -717,7 +751,7 @@ class EditingExpander <: Expander {
         if (calls.size == 1) {
             edit()
         }
-        Answered(resultOf(MacroResultData(status: 1, tks: call.args)))
+        Answered(resultOf(MacroResultData(status: 1, tks: call.args)), "")
     }
 }
 

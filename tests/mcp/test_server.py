@@ -193,6 +193,13 @@ result = i + 1
                     assert isinstance(hover, HoverResult)
                     assert isinstance(hover.items[0], HoverItem)
                     location = workspace.definition('src/main.cj', {source.encode().index(b'shared')})[0]
+                    related = analysis.related('src/main.cj', {source.encode().rindex(b'answer')})
+                    assert len(related) == 2
+                    assert all(isinstance(item, RelatedHighlight) for item in related)
+                    assert related == analysis.related('src/main.cj', {source.encode().rindex(b'answer')})
+                    assert related[0].access is None
+                    assert related[1].access == ReferenceAccess.ReadAccess()
+                    assert related[1].access != ReferenceAccess.WriteAccess()
                     result = {{
                         'files': workspace.files(),
                         'symbols': [node.name for node in nodes],

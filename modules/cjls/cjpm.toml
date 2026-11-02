@@ -3,7 +3,7 @@ cjc-version = "1.3.0"
 name = "cjls"
 organization = ""
 description = "nothing here"
-version = "0.6.0"
+version = "0.7.0"
 target-dir = ""
 script-dir = ""
 output-type = "executable"
@@ -20,6 +20,7 @@ calca = { path = "../calca" }
 cjformat = { path = "../cjformat" }
 fjson = { path = "../fjson" }
 jsonrpc = { path = "../jsonrpc" }
+jian = { git = "https://github.com/FilaCo/jian.git" }
 loupe = { path = "../loupe" }
 macro_host = { path = "../macro_host" }
 macro_server = { path = "../macro_server" }

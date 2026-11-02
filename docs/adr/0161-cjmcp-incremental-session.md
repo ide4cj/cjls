@@ -1,4 +1,4 @@
-# ADR-0159: MCP scripts run on one synchronized workspace revision
+# ADR-0161: MCP scripts run on one synchronized workspace revision
 
 Status: accepted, 2026-10-29
 

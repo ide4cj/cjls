@@ -3,6 +3,7 @@ package loupe.fixture
 import std.env.{getTempDirectory, getVariable}
 import std.fs.*
 import std.time.DateTime
+import std.process.executeWithOutput
 import loupe.db.{BinaryModel, BinarySources, PackageModel}
 import loupe.vfs.{CjoFile, CjoFileRead, FileStamp, isCangjieFile, VfsPath}
 
@@ -35,7 +36,9 @@ public func stdCjoRead(name: String, bytes: Array<Byte>): CjoFileRead {
  * commit `tests/corpora/fetch.py` names: what a test of the sources of a binary reads.
  */
 public func stdSourcesDir(): VfsPath {
-    let dir = Path(".corpora/cangjie_runtime/stdlib/libs/std")
+    let dir = Path(
+        getVariable("CJLS_TEST_STD_SOURCES") ?? ".corpora/cangjie_runtime/stdlib/libs/std"
+    )
     if (!exists(dir)) {
         throw IllegalStateException(
             "cangjie_runtime is not in .corpora/: run `python3 tests/corpora/fetch.py`"
@@ -66,4 +69,24 @@ public func stdWithSources(names: Array<String>): BinaryModel {
                 PackageModel(name, pkgDir, files)
             }
     BinaryModel("std", [], sources: BinarySources(dir, packages))
+}
+
+/**
+ * The compiler version of the SDK whose std the tests read, rather than the build's pin.
+ */
+public func stdCompilerVersion(): String {
+    let home =
+        getVariable("CANGJIE_HOME") ?? throw IllegalStateException("CANGJIE_HOME names no SDK")
+    let bin = Path(home).join("bin")
+    let compiler = if (exists(bin.join("cjc.exe"))) { "cjc.exe" } else { "cjc" }
+    let (code, output, _) = executeWithOutput(bin.join(compiler).toString(), ["--version"])
+    if (code != 0) {
+        throw IllegalStateException("${bin}: cjc --version failed")
+    }
+    let prefix = "Cangjie Compiler: "
+    let text = String.fromUtf8(output)
+    if (!text.startsWith(prefix)) {
+        throw IllegalStateException("unrecognized cjc version: ${text}")
+    }
+    text[prefix.size..].split(" ")[0]
 }

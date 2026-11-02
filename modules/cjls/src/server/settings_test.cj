@@ -6,6 +6,7 @@ import std.unittest.*
 import std.unittest.testmacro.*
 import fjson.JsonValue
 import loupe.vfs.VfsPath
+import project_model.BuildMode
 
 func settingsJson(members: Array<(String, JsonValue)>): JsonValue {
     JsonValue.JsonObject(members)
@@ -17,6 +18,21 @@ func text(value: String): JsonValue {
 
 @Test
 class SettingsTest {
+    @TestCase[value in ["debug", "release", "invalid"]]
+    func buildModeAcceptsOnlyTheTwoCjpmProfiles(value: String): Unit {
+        // arrange
+        let problems = ArrayList<String>()
+        let expected = if (value == "debug") { BuildMode.Debug } else { BuildMode.Release }
+        let expectedProblems = if (value == "invalid") { 1 } else { 0 }
+
+        // act
+        let settings = Settings.read(settingsJson([("buildMode", text(value))]), problems)
+
+        // assert
+        @Expect(settings.buildMode == expected)
+        @Expect(problems.size, expectedProblems)
+    }
+
     @TestCase
     func eachSettingIsReadAsItsSchemaSays() {
         // arrange
@@ -182,7 +198,7 @@ class SettingsTest {
         let properties = settingsSchema()["properties"].asObject()
 
         // assert
-        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "cangjieStdxPath", "newFilePackage",
+        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "cangjieStdxPath", "buildMode", "newFilePackage",
             "macroExpansion", "macroCallTimeout"])
         for ((key, _) in properties) {
             // arrange

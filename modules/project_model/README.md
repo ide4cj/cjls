@@ -96,7 +96,28 @@ silently overwrite a shared declaration. Local/Git declarations keep precedence
 over registry requirements. Discovery compares normalized local paths; pinned
 cjpm can instead reject equivalent relative member and absolute inherited paths
 when merging declarations. Use one absolute path in both manifests to avoid that
-SDK discrepancy. Mode-specific sections remain #517.
+SDK discrepancy.
+
+The explicit `BuildMode` input selects `target.<triple>.release` by default
+(`cjpm build`), or `.debug` (`cjpm build -g`). It is separate from target `Cfg`
+and package `cfg.toml` conditions (#297/#422). Discovery APIs propagate this
+selection to linked and subsequently discovered projects. The server exposes it
+as `cjls.buildMode` and reloads on changes. Source and test declarations add to
+the common/target declarations and preserve source conflict reporting, including
+workspace inheritance. Script dependencies stay separate; script dependency
+modules use the selected profile for their own ordinary dependencies.
+
+For binaries the selected profile precedes the common target, and explicit
+`package-option` precedes `path-option` at the same priority, per package.
+Mode-specific binary declarations are normalized to selected explicit packages;
+directory paths remain watched. `BinaryModel.discoverPackages = false` prevents
+re-discovering shadowed packages from those paths; optional `discoverPackages`
+in the JSON projection preserves this selection through a round trip. Absent or
+true retains ordinary directory discovery. Independent binary owners remain
+independent, including when they expose the same full package name. These rules follow
+cjpm `config/target.cj` and `implement/dep_model.cj` at
+`ab9ceee08d3e3f98e44d201c9c81b4471fcab7ae`; compiler probes use the repository's
+pinned SDK.
 
 Membership is explicit in the model. Loose-file loading has a byte budget and
 prioritizes open documents; a partial result records that fact so the server does

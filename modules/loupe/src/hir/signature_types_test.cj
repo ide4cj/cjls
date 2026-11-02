@@ -823,8 +823,17 @@ class BinarySignatureTypesTest {
         let texts =
             (packageExtends(db, collection).get(ExtendedType.DeclType(hashMap)) ?? [])
                 .map { def => signatureTypes(db, def).text(db, ItemKind.Extend) }
+        // 1.0's cjo has no isImplicitlyIntroduced bit: inherited K bounds remain visible (D94).
+        let legacy = stdCompilerVersion().startsWith("1.0.")
+        let bounds =
+            if (legacy) {
+                "V <: Equatable<V>, K <: Equatable<K> & Hashable, V <: Equatable<V>"
+            } else {
+                "V <: Equatable<V>"
+            }
         // assert
-        @Expect(texts.contains("<K, V> HashMap<K, V> <: Equatable<HashMap<K, V>> where V <: Equatable<V>"), true)
+        @Expect(texts.filter { text => text.contains("Equatable<HashMap<K, V>>") },
+            ["<K, V> HashMap<K, V> <: Equatable<HashMap<K, V>> where ${bounds}"])
     }
 
     @TestCase

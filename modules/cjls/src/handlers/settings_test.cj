@@ -9,6 +9,7 @@ import stdxx.Nullable
 import fjson.{JsonValue, RawJson}
 import jsonrpc.*
 import loupe.vfs.VfsPath
+import platform.{hostArch, hostOs}
 import cjls.lsp_types.*
 import cjls.server.*
 
@@ -88,6 +89,78 @@ func methodsOf(requests: Array<RequestBody>, method: String): Array<RequestBody>
 
 @Test
 class InitialSettingsTest {
+    @TestCase
+    func changingBuildModeReloadsTheDependencyGraph(): Unit {
+        // arrange
+        let arch = hostArch()
+        let triple =
+            match (hostOs()) {
+                case "Linux" => "${arch}-unknown-linux-gnu"
+                case "macOS" => "${arch}-apple-darwin"
+                case _ => "${arch}-w64-mingw32"
+            }
+        let root = workspaceOf(
+            [
+                (
+                    "cjpm.toml",
+                    """
+[package]
+name = "app"
+[target.${triple}.debug.dependencies]
+helper = {path = "debug"}
+[target.${triple}.release.dependencies]
+helper = {path = "release"}
+"""
+                ),
+                ("src/app.cj", "package app"),
+                ("debug/cjpm.toml", "[package]\nname = \"helper\"\n"),
+                ("debug/src/lib.cj", "package helper"),
+                ("release/cjpm.toml", "[package]\nname = \"helper\"\n"),
+                ("release/src/lib.cj", "package helper")
+            ]
+        )
+        let loop = initializedWithSettings(
+            root,
+            JsonValue.JsonObject([("buildMode", JsonValue.JsonString("debug"))])
+        )
+        try {
+            // act
+            initialized(loop, Client(), NoopLogger(), InitializedParams())
+            let first = loop.state.analysis.project().getOrThrow().modules(loop.state.analysis)
+            let firstHelper = first.filter { m => m.name(loop.state.analysis) == "helper" }[0]
+
+            // assert
+            @Expect(firstHelper.root(loop.state.analysis), VfsPath.file(root).join("debug/src"))
+
+            // act
+            handleDidChangeConfiguration(
+                loop,
+                Client(),
+                NoopLogger(),
+                DidChangeConfigurationParams(
+                    settings: JsonValue.JsonObject(
+                        [
+                            (
+                                "cjls",
+                                JsonValue.JsonObject(
+                                    [("buildMode", JsonValue.JsonString("release"))]
+                                )
+                            )
+                        ]
+                    )
+                )
+            )
+            loop.join()
+            let second = loop.state.analysis.project().getOrThrow().modules(loop.state.analysis)
+            let secondHelper = second.filter { m => m.name(loop.state.analysis) == "helper" }[0]
+
+            // assert
+            @Expect(secondHelper.root(loop.state.analysis), VfsPath.file(root).join("release/src"))
+        } finally {
+            remove(root, recursive: true)
+        }
+    }
+
     @TestCase
     func changingStdxPathReloadsDeclaredBinaryPaths() {
         // arrange
