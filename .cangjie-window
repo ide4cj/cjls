@@ -1,0 +1,24 @@
+{
+  "lts": {
+    "version": "1.0.5",
+    "archives": {
+      "cangjie-sdk-mac-aarch64-1.0.5.tar.gz": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-mac-aarch64-1.0.5.tar.gz&objectKey=698acea5bd66ae22b62330ae",
+      "cangjie-stdx-mac-aarch64-1.0.5.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.0.5.1/cangjie-stdx-mac-aarch64-1.0.5.1.zip",
+      "cangjie-sdk-linux-x64-1.0.5.tar.gz": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-x64-1.0.5.tar.gz&objectKey=698acf46bd66ae22b62330b0",
+      "cangjie-stdx-linux-x64-1.0.5.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.0.5.1/cangjie-stdx-linux-x64-1.0.5.1.zip",
+      "cangjie-sdk-windows-x64-1.0.5.zip": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-windows-x64-1.0.5.zip&objectKey=698acebfbd66ae22b62330af",
+      "cangjie-stdx-windows-x64-1.0.5.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.0.5.1/cangjie-stdx-windows-x64-1.0.5.1.zip"
+    }
+  },
+  "sts": {
+    "version": "1.2.0",
+    "archives": {
+      "cangjie-sdk-mac-aarch64-1.2.0.tar.gz": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-mac-aarch64-1.2.0.tar.gz&objectKey=6ab1e6451320215435b23d52",
+      "cangjie-stdx-mac-aarch64-1.2.0.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.2.0.1/cangjie-stdx-mac-aarch64-1.2.0.1.zip",
+      "cangjie-sdk-linux-x64-1.2.0.tar.gz": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-linux-x64-1.2.0.tar.gz&objectKey=6ab1e26eece1f87ff5befa73",
+      "cangjie-stdx-linux-x64-1.2.0.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.2.0.1/cangjie-stdx-linux-x64-1.2.0.1.zip",
+      "cangjie-sdk-windows-x64-1.2.0.zip": "https://cangjie-lang.cn/v1/files/auth/downLoad?nsId=142267&fileName=cangjie-sdk-windows-x64-1.2.0.zip&objectKey=6ab1eafae4bd101f57762f5e",
+      "cangjie-stdx-windows-x64-1.2.0.1.zip": "https://gitcode.com/Cangjie/cangjie_stdx/releases/download/v1.2.0.1/cangjie-stdx-windows-x64-1.2.0.1.zip"
+    }
+  }
+}
