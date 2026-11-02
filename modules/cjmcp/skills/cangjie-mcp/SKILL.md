@@ -1,48 +1,20 @@
 ---
 name: cangjie-mcp
-description: Explore, change, or review Cangjie code using a connected cjmcp runPython tool for declarations, usages, types, selected callees, macro expansions and diagnostics. Use when semantic context is needed; configuration and prose-only edits can use normal file tools.
+description: Use a connected cjmcp runPython tool to explore, change or review Cangjie code with semantic analysis.
 ---
 
-# Work with Cangjie analysis
+Follow the server instructions; discover `runPython` if its schema is deferred.
+For core queries, start the task directly without loading more documentation.
+If MCP is unavailable, report the failure and use source tools/compiler/tests.
 
-Discover the connected `runPython` tool (including deferred schemas) and use its
-server instructions. Tool names may have a client-specific namespace. If no
-cjmcp connection exists or the call fails, report the concrete limitation and
-continue with source tools and compiler/tests where possible; this skill does
-not install or start a server.
+Read only the recipe needed for an unfamiliar operation:
 
-Before exploring or changing code, check `workspace.root`, `workspace.problems`
-and `workspace.hasExpandedMacros`. The root must match the checkout/worktree
-being edited. Save editor buffers: cjmcp analyzes disk inputs.
+- [Navigation](references/navigation.md): declaration source and usages; API
+  discovery only when a required member is unknown.
+- [Inference](references/inference.md): expression types, unknown-type states
+  and selected callees; load the relevant section.
+- [Runtime details](references/runtime.md): revision errors, macro preparation,
+  threading and execution failures.
 
-Choose the smallest semantic query that answers the task:
-
-- Locate code with `analysis.symbols(query, limit)` or `workspace.structure(path)`.
-  Resolve ambiguous matches before querying usages.
-- Understand a change's impact with references, implementations and relevant
-  source from `analysis.text(path)`. For overloads and call behavior, inspect
-  `analysis.infer(def).callees` and resolved types instead of matching names.
-- Investigate a diagnostic with hover, signatures, inference and macro source
-  mappings as needed. Query only the relevant declarations.
-
-Capture `analysis = workspace.analysis()` within each script. Batch related
-queries and filter in Python; bound traversal and output. Return paths, byte
-ranges, relevant source and a concise interpretation, with counts when output
-is truncated. Convert native attributes to JSON values; do not return proxies.
-Use `dir(type(value))` to discover an unfamiliar result. Read
-[Python recipes](references/python-api.md) for call shapes, source slicing,
-references, inferred expressions and selected callees; load only relevant parts.
-
-Make edits through the client's usual tools. In a new `runPython` call, reacquire
-the analysis handle and IDs, check changed-file diagnostics and affected usages.
-Inputs synchronize before a script, not halfway through it; `reload()` cannot
-refresh a running script. Use revision text for UTF-8 byte ranges. Do not mix IDs
-across revisions or interpret macro-relative ranges as original-file offsets.
-
-Run the repository's relevant compiler/tests to validate the change. Report
-analysis gaps and loading/macro problems that limit the conclusion. Empty
-results are not proof of absence. Use ordinary search for docs, literals,
-configuration or unsupported analysis, and avoid repeating successful semantic
-queries with name searches. cjmcp supplies analysis, not a dedicated rename,
-refactoring or build/test runner. Python can perform external effects; after an
-error, inspect what ran before retrying a script with side effects.
+Batch and filter in Python. Return paths, relevant source/ranges and truncation
+counts. Do not load all recipes or dump the API as a session warm-up.

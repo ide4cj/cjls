@@ -83,7 +83,7 @@ process. Incoming messages must end in a newline and are limited to 8 MiB.
 Start with [agent setup](agent-setup.md) to configure tool discovery, project
 instructions and the optional [cangjie-mcp skill](skills/cangjie-mcp/SKILL.md).
 The server sends a semantic-query playbook in the MCP initialization response.
-[Python recipes](skills/cangjie-mcp/references/python-api.md) show common tasks and runtime API discovery;
+[Python recipes](skills/cangjie-mcp/references/navigation.md) show common tasks and runtime API discovery;
 they ship with the Linux archive alongside the skill. Native objects and types
 are injected into scripts; there is no importable `loupe` Python package.
 

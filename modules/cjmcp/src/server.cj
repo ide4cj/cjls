@@ -219,7 +219,7 @@ func tools(): JsonValue {
                 (
                     "description",
                     JsonString(
-                        "Analyze Cangjie code with Python and native loupe objects. Use for declarations, references, inferred types, selected callees, macros and diagnostics before and after edits. workspace is injected; a = workspace.analysis() captures the synchronized revision. Batch queries, bound traversal/output, and assign JSON-serializable data to result or print it. Discover native members with dir(type(value)); do not import loupe. See the server instructions for query selection, UTF-8 offsets and freshness. Python imports and local I/O run with process permissions; calls are sequential and have no hard timeout."
+                        "Run Python over native Cangjie analysis. Use workspace and workspace.analysis(); assign bounded JSON to result or print output. Follow server instructions for core queries; load a task recipe only for unfamiliar APIs. Imports and local I/O have process permissions; no hard timeout."
                     )
                 ),
                 ("inputSchema", schema),

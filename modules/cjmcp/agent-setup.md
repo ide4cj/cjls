@@ -50,14 +50,10 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-For Cangjie code exploration, changes and reviews, discover and use cjmcp's
-runPython tool before broad file reading or name searches. Check workspace.root
-matches this checkout and inspect loading/macro problems. Use semantic queries
-for declarations, usages, inferred types and selected callees; batch and filter
-in Python. Follow the server instructions and the cangjie-mcp skill if installed.
-Edit with normal editing tools, save changes, then use a fresh analysis call and
-run the relevant compiler/tests. Use source tools for docs/configs/literals or
-analysis gaps, and report concrete MCP failures or incomplete coverage.
+Use cjmcp runPython for Cangjie semantic questions and before code changes.
+Follow its server instructions; load the cangjie-mcp skill only for unfamiliar
+operations. Combine workspace health checks with the first task query.
+Use ordinary tools for editing, docs/configs and compiler/test validation.
 ```
 
 For an agent host you control, retain the MCP initialization instructions in the
@@ -83,11 +79,13 @@ Check an existing destination before copying over a locally customized skill.
 The skill is portable and includes the Python recipes. It teaches the workflow;
 it does not configure the connection. For a client without skill support, keep
 the selection rule and give the agent the recipes path when a task needs details.
-Avoid loading the full reference into every session's system prompt.
+Keep only the short selection rule persistent. The server instructions cover
+common queries; a simple lookup should need neither skill loading nor API
+introspection. Load one relevant recipe for an unfamiliar operation.
 
 ## Verify actual use
 
-Ask the agent: "Use cjmcp to report the loaded root, revision, loading problems,
+For a one-time connection check, ask: "Use cjmcp to report the loaded root, revision, loading problems,
 macro status and at most five source paths." Its tool trace should contain a
 `runPython` call equivalent to:
 
@@ -101,9 +99,12 @@ result = {
 }
 ```
 
+Do not repeat that setup check at the start of every task. Include health fields
+with the first useful query instead.
+
 Then ask it to find a known declaration and its usages, showing resolved paths,
 byte ranges and a bounded source excerpt. Use the
-[recipes](skills/cangjie-mcp/references/python-api.md#find-declarations-and-their-usages).
+[recipes](skills/cangjie-mcp/references/navigation.md#find-declarations-and-their-usages).
 Finally, save a small code edit and ask for diagnostics in a new call. The
 revision should change for an observed input change and the answer should use
 new text. Check that it queried the edited worktree, not another clone.
