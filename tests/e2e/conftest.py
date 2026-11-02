@@ -19,7 +19,18 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 CJLS = os.environ.get("CJLS_BIN") or str(
     REPO / "target" / "release" / "bin" / ("cjls.exe" if sys.platform == "win32" else "cjls")
 )
-CONFIG = ClientServerConfig(server_command=[CJLS])
+
+
+def server_environment(environment):
+    """Keep the editor-started server independent of the driver's SDK tools and runtime."""
+    sdk_variables = {
+        "CANGJIE_HOME", "CANGJIE_STDX_PATH", "CANGJIE_SRC", "LD_LIBRARY_PATH",
+        "DYLD_LIBRARY_PATH", "DYLD_FALLBACK_LIBRARY_PATH", "DYLD_FRAMEWORK_PATH",
+    }
+    return {name: value for name, value in environment.items() if name not in sdk_variables}
+
+
+CONFIG = ClientServerConfig(server_command=[CJLS], server_env=server_environment(os.environ))
 
 # the capabilities of real editors, as pytest-lsp captured them, or clients/ those it has not
 CLIENTS = ["visual-studio-code", "neovim", "zed"]

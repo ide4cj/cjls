@@ -47,6 +47,8 @@ jobs:
         run: python3 -m unittest discover -s scripts -p '*_test.py'
       - name: Test SDK environment setup
         run: python3 -m unittest discover -s .github/actions/setup-cangjie -p '*_test.py'
+      - name: Test SDK window runner
+        run: python3 -m unittest discover -s .github/scripts -p '*_test.py'
       - name: Test semantic oracle contracts
         run: python3 -m unittest discover -s tests/semantic -p '*_test.py'
       # every ADR number and rule id once, every ADR header readable; on a PR, its ADR numbers
@@ -128,6 +130,63 @@ jobs:
         with:
           path: ${{ steps.cache.outputs.path }}
           key: ${{ steps.cache.outputs.key }}
+
+  sdk-window-matrix:
+    name: Supported SDK versions
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      matrix: ${{ steps.window.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: window
+        run: echo "matrix=$(python3 .github/scripts/sdk_window.py matrix)" >> "$GITHUB_OUTPUT"
+
+  sdk-window:
+    name: SDK std and e2e (${{ matrix.channel }} ${{ matrix.version }})
+    needs: [build, sdk-window-matrix]
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.sdk-window-matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup-cangjie
+      - if: github.ref_type != 'tag'
+        uses: ./.github/actions/build-cache
+        with:
+          target-dir: target/test
+          runner-image: ubuntu-latest
+      - run: python3 tests/corpora/fetch.py
+      # Only the pin compiles these binaries. CANGJIE_HOME changes when they run below.
+      - run: cjpm test --no-run --target-dir target/test
+      - uses: actions/cache@v6
+        with:
+          path: ${{ runner.tool_cache }}/cangjie/${{ matrix.version }}
+          key: cangjie-${{ runner.os }}-${{ runner.arch }}-${{ matrix.version }}-${{ hashFiles('.cangjie-sha256') }}
+      - name: Install SDK under test without replacing the build environment
+        env:
+          SDK_VERSION: ${{ matrix.version }}
+        run: |
+          dest="$RUNNER_TOOL_CACHE/cangjie/$SDK_VERSION"
+          env -u GITHUB_ENV -u GITHUB_PATH python3 .github/actions/setup-cangjie/setup.py "$SDK_VERSION" "$dest" > /dev/null
+          echo "CJLS_E2E_SDK=$dest/cangjie" >> "$GITHUB_ENV"
+          echo "CJLS_TEST_STD_SOURCES=$(python3 tests/corpora/fetch.py --sdk-version "$SDK_VERSION")" >> "$GITHUB_ENV"
+      - name: Read this SDK's std
+        run: python3 .github/scripts/sdk_window.py test "$CJLS_E2E_SDK"
+      - uses: actions/download-artifact@v8
+        with:
+          name: cjls-Linux
+          path: bin
+      - run: chmod +x bin/cjls
+      - uses: astral-sh/setup-uv@v7
+      - name: pytest-lsp on this SDK
+        env:
+          CJLS_BIN: ${{ github.workspace }}/bin/cjls
+        # cjpm needs the pin's runtime in the test driver; conftest removes SDK variables only
+        # from the server child. Let the stdx case discover this release's matching binaries.
+        run: env -u CANGJIE_STDX_PATH uv run --project tests/e2e --locked pytest tests/e2e
 
   # the coverage-guided fuzzers with the comparisons fjson and jsonrpc make fed back to them, in a
   # target dir of their own; the heap is for cjc's instrumentation, which leaks on every match of

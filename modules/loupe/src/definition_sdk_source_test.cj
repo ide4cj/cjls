@@ -193,9 +193,16 @@ class DefinitionSdkSourceTest {
         let pkg = packageOfFile(db, file) ?? throw FixtureException("no checked SDK context")
 
         // act
-        let imported = sdkJump(db, file, "sqrt(Float64(span))", "sqrt")
-        let member = sdkJump(db, file, "myData.copyTo(newData, 0, 0, newSize)", "copyTo")
-        let generic = sdkJump(db, file, "ArrayList<T>(newData)", "T")
+        // The release stds use different locals in the same imported sqrt call.
+        let sqrtContext =
+            if (file.text(db).toString().contains("sqrt(Float64(span))")) {
+                "sqrt(Float64(span))"
+            } else {
+                "sqrt(Float64(len))"
+            }
+        let imported = sdkJump(db, file, sqrtContext, "sqrt")
+        let member = sdkJump(db, file, "this.myData.copyTo(newArr, 0, 0, mySize)", "copyTo")
+        let generic = sdkJump(db, file, "ArrayList<T>(this)", "T")
         let canonical = canonicalDef(db, sourceDef)
         let resolved = lookUp(db, pkg, file, "ArrayList", Namespace.Types)
         let sourceTy = signatureTypes(db, sourceDef).ty
