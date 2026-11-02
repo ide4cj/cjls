@@ -11,10 +11,8 @@ import rope.Rope
 class DirectCallsTest {
     @TestCase
     func resolvesCallsButDoesNotExecuteNestedDeclarations() {
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func target(): Unit {}
             func unused(): Unit {}
@@ -24,7 +22,7 @@ class DirectCallsTest {
                 target()
             }
             "#
-                )
+        )
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let def = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
@@ -36,10 +34,8 @@ class DirectCallsTest {
 
     @TestCase
     func aliasOwnershipAndBodyAndTargetEditsInvalidate() {
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /a.cj module=m package=m.a
             package m.a
             public func target(): Unit {}
@@ -49,7 +45,7 @@ class DirectCallsTest {
             import m.a.target as alias
             func caller(): Unit { alias() }
             "#
-                )
+        )
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[1].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
@@ -58,36 +54,29 @@ class DirectCallsTest {
         @Expect(first.edges.size, 1)
         @Expect(callDeclaration(db, first.edges[0].target).packageName, "m.a")
         @Expect(callDeclaration(db, first.edges[0].target).name, "target")
-        db
-            .setFileText(
-                fixture.files[1].fileId,
-                Rope(fixture.files[1].text.replace("alias()", "alias(); alias()"))
-            )
+        db.setFileText(
+            fixture.files[1].fileId,
+            Rope(fixture.files[1].text.replace("alias()", "alias(); alias()"))
+        )
         @Expect(directCalls(db, def).edges.size, 2)
-        db
-            .setFileText(
-                fixture.files[1].fileId,
-                Rope(fixture.files[1].text.replace("m.a.target", "m.a.other"))
-            )
+        db.setFileText(
+            fixture.files[1].fileId,
+            Rope(fixture.files[1].text.replace("m.a.target", "m.a.other"))
+        )
         @Expect(callDeclaration(db, directCalls(db, def).edges[0].target).name, "other")
         let target = directCalls(db, def).edges[0].target
         @Expect(directCalls(db, target).edges.isEmpty())
-        db
-            .setFileText(
-                fixture.files[0].fileId,
-                Rope(
-                    fixture.files[0].text.replace("other(): Unit {}", "other(): Unit { target() }")
-                )
-            )
+        db.setFileText(
+            fixture.files[0].fileId,
+            Rope(fixture.files[0].text.replace("other(): Unit {}", "other(): Unit { target() }"))
+        )
         @Expect(directCalls(db, target).edges.size, 1)
     }
 
     @TestCase
     func reportsUnsupportedExecutionAndDispatch() {
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             interface I { func run(): Unit }
             class C { init() {} }
@@ -103,7 +92,7 @@ class DirectCallsTest {
                 missing()
             }
             "#
-                )
+        )
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
@@ -118,10 +107,8 @@ class DirectCallsTest {
     }
     @TestCase
     func overloadsOperatorsPropertiesAndReturnedFunctionsKeepEvidenceAndGaps() {
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func f(x: Int64): Unit {}
             func f(x: Bool): Unit {}
@@ -141,7 +128,7 @@ class DirectCallsTest {
                 @Unknown(f(2))
             }
             "#
-                )
+        )
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
@@ -174,10 +161,8 @@ class DirectCallsTest {
 
     @TestCase
     func calcaExpansionTargetsUseOriginalBodyWithoutInfrastructureCalls() {
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import calca.macros.CalcaTracked as Track
@@ -191,7 +176,7 @@ class DirectCallsTest {
             public macro CalcaTracked(input: Tokens): Tokens { input }
             public macro CalcaTracked(attrs: Tokens, input: Tokens): Tokens { input }
             "#
-                )
+        )
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let output = "func query(): Unit { infrastructure() }"
@@ -212,12 +197,11 @@ class DirectCallsTest {
             ]
         )
         @Expect(trackedCallRoots(db, file.fileId(db)).size, 1)
-        let sourceQuery =
-            DefId(
-                db,
-                ItemFile.Source(file),
-                itemTree(db, file).items.filter { item => item.names == ["query"] }[0].id
-            )
+        let sourceQuery = DefId(
+            db,
+            ItemFile.Source(file),
+            itemTree(db, file).items.filter { item => item.names == ["query"] }[0].id
+        )
         @Expect(expandedDeclOf(db, sourceQuery).isSome())
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))

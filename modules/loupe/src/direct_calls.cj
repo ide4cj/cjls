@@ -77,18 +77,10 @@ private func auditPackage(db: AnalysisDatabase, definition: DefId): String {
 }
 
 private func isTrackedMacro(db: AnalysisDatabase, resolution: Resolution): Bool {
-    if (let Found(ids) <- resolution) {
-        // Macros may overload their attribute/no-attribute entry points under one identity.
-        return !ids.isEmpty() &&
-            ids
-                .iterator()
-                .all {
-                    id =>
-                    auditPackage(db, id) == "calca.macros" &&
-                        itemOf(db, id).map { item => item.names == ["CalcaTracked"] } == Some(true)
-                }
+    match (macroPathOf(db, resolution)) {
+        case Some((pkg, name)) => pkg == "calca.macros" && name == "CalcaTracked"
+        case None => false
     }
-    false
 }
 
 /** Active written tracked declarations, resolving macro aliases by declaration ownership. */
@@ -269,15 +261,14 @@ private class DirectCallScan {
             gap("virtual-dispatch", node)
         }
         let conservative = ambiguous || virtual
-        edges
-            .add(
-                DirectCall(
-                    target,
-                    site(node),
-                    conservative,
-                    if (conservative) { "candidate" } else { resolution }
-                )
+        edges.add(
+            DirectCall(
+                target,
+                site(node),
+                conservative,
+                if (conservative) { "candidate" } else { resolution }
             )
+        )
     }
 
     func value(node: CjSyntaxNode): Unit {

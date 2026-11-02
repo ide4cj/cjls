@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Run the tracked-function audit through the real cjmcp runPython binding."""
 import argparse
+import hashlib
+import os
 import json
 from pathlib import Path
 import subprocess
@@ -29,6 +31,17 @@ def main():
     if payload["error"]:
         raise RuntimeError(payload["error"])
     report = payload["result"]
+    def git_value(*arguments):
+        check = subprocess.run(["git", "-C", str(args.workspace), *arguments],
+                               capture_output=True, text=True)
+        return check.stdout.strip() if check.returncode == 0 else None
+    report["provenance"] = {
+        "workspace_commit": git_value("rev-parse", "HEAD"),
+        "workspace_tracked_changes": git_value("status", "--porcelain", "--untracked-files=no"),
+        "binary_sha256": hashlib.sha256(args.binary.read_bytes()).hexdigest(),
+        "analysis_sdk": os.environ.get("CANGJIE_HOME"),
+        "python_library": os.environ.get("PYTHON_DYNLIB"),
+    }
     args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
     print(json.dumps({"tracked": len(report["reports"]), "analyzed": report["declarations_analyzed"],
                       "with_findings": sum(bool(row["findings"]) for row in report["reports"]),

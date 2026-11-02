@@ -121,8 +121,12 @@ class WorkspaceMacros {
                 }
             }
         while (true) {
-            let requests =
-                sendableRequests(db, files, libraries, stdLibrary: { pkg => sdk.stdLibrary(pkg) })
+            let requests = sendableRequests(
+                db,
+                files,
+                libraries,
+                stdLibrary: { pkg => sdk.stdLibrary(pkg) }
+            )
             if (requests.isEmpty()) {
                 break
             }
