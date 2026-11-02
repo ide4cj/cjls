@@ -474,35 +474,18 @@ versions remain unverified by this local probe.
 <a id="k29"></a>
 ### K29
 
-On Linux x86_64 with `1.3.0-alpha.20261030001050`, the release-optimized
-[`ConfigLoadTest.aMissingManifestThrowsBecauseTheRootPackageIsUnknown`](../modules/lsp_codegen/src/config_test.cj)
-fails both in the full suite and in isolation: the closure passed to
-`Option.getOrThrow` constructs a `ConfigException`, but the caller catches a
-base `Exception` with the same message.
-
-The [standalone reproducer](../tests/sdk-probes/k29-option-exception.cj) needs only
-`cjc`: a helper unwraps `Option<String>` with a custom exception and returns
-`"${value}.suffix"`. Calling the helper with `None` should enter `catch (e: ProbeException)`,
-print `correct` and exit 0. On the new SDK at `-O2` it enters the base-exception
-catch, prints `wrong: Exception: bad` and exits 1. Both static and default dynamic
-linking reproduce it. This same source passes at `-O0` and `-O1` on the new SDK,
-and at `-O0`, `-O1` and `-O2` on `1.3.0-alpha.20261014001050`.
-
-Rechecked on Linux x86_64 with `1.3.0-alpha.20261102001050`: the standalone
-source still prints `wrong: Exception: bad` and exits 1 at `-O2`, with both static
-and default dynamic linking. It passes at `-O0` and `-O1`; the old
-`1.3.0-alpha.20261014001050` control still passes at all three levels.
-
-On the new SDK at `-O2`, replacing the interpolation with `value + ".suffix"`,
-returning `value` directly, or matching the option and throwing directly each
-restores the correct catch. Moving the unwrap and interpolation into `main`
-also passes. These reductions identify triggering context, not the compiler's
-root cause; an ordinary `getOrThrow` call alone is not enough to reproduce it.
+Verified on Linux x86_64 with `1.3.0-alpha.20261030001050`: at `-O2`,
+`Option.getOrThrow` followed by string interpolation can lose the custom
+exception's subtype. The [standalone reproducer](../tests/sdk-probes/k29-option-exception.cj)
+should catch `ProbeException` and exit 0, but catches base `Exception` and exits 1.
+Both static and dynamic linking reproduce it; `-O0` and `-O1` pass. The compiler's
+root cause is not established.
 
 [`Config.load`](../modules/lsp_codegen/src/config.cj) matches the optional manifest
-and throws directly to preserve its error contract. The existing test checks the
-exception type and message. Keep this workaround scoped to the affected path.
-macOS and Windows remain unverified.
+and throws directly to preserve its error contract.
+[`ConfigLoadTest.aMissingManifestThrowsBecauseTheRootPackageIsUnknown`](../modules/lsp_codegen/src/config_test.cj)
+checks the exception type and message. Keep this workaround scoped to the affected
+path. macOS and Windows remain unverified.
 
 ## Reconciliation and remaining work
 

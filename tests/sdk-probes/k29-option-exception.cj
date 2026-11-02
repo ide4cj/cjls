@@ -1,5 +1,5 @@
 // Run: cjc --static -O2 k29-option-exception.cj -o repro && ./repro
-// Expected: correct (exit 0). Nightlies 20261030 and 20261102: wrong: Exception: bad (exit 1).
+// Expected: correct (exit 0). Verified on nightly 20261030: wrong: Exception: bad (exit 1).
 class ProbeException <: Exception {
     ProbeException() {
         super("bad")
@@ -17,22 +17,13 @@ func load(x: ?String): String {
     "${value}.suffix"
 }
 main() {
-    // arrange
-    let input: ?String = None
-
     try {
-        // act
-        let result = load(input)
-
-        // assert
-        println(result)
+        println(load(None))
         2
     } catch (e: ProbeException) {
-        // assert
         println("correct")
         0
     } catch (e: Exception) {
-        // assert
         println("wrong: ${e}")
         1
     }
