@@ -1,7 +1,6 @@
 package cjls
 
-import std.argopt.ArgumentParseException
-import std.env.{getStdErr, getStdOut}
+import std.env.getStdOut
 import std.runtime.getMaxHeapSize
 import stdx.log.Logger
 import jsonrpc.{ErrorLogValue, FramedJsonRpcTransport}
@@ -12,24 +11,8 @@ import cjls.handlers.router
 
 main(args: Array<String>): Int64 {
     let logger = stderrLogger()
-    let command =
-        try {
-            parseCommand(args)
-        } catch (e: ArgumentParseException) {
-            getStdErr().write("cjls: ${e.message}\n${USAGE}")
-            return 2
-        }
     try {
-        match (command) {
-            case Serve => runServer(logger)
-            case PrintProject(dir) => printProject(dir, logger)
-            case Format(paths, check) => formatPaths(paths, check, getStdOut(), getStdErr())
-            case FetchSrc(dir) => fetchSrcCommand(dir, getStdOut(), getStdErr())
-            case PrintConfigSchema => printConfigSchema(getStdOut())
-            case Help =>
-                getStdOut().write(USAGE)
-                0
-        }
+        commandApp().run(args, context: CommandContext(logger))
     } catch (e: Exception) {
         logger.fatal("stopped", [("cause", e)])
         1

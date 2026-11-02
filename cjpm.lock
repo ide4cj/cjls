@@ -1,3 +1,6 @@
 version = 1
 
-[requires]
+[requires."jian"]
+version = "0.1.0"
+source = "git+https://github.com/FilaCo/jian.git#2db950a23dd43cc357291f78110b1523a136b999"
+dependencies = []

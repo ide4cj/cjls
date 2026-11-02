@@ -1,77 +1,80 @@
 package cjls
 
-import std.argopt.*
-import std.env.{getStdOut, getVariable, getWorkingDirectory}
+import std.env.{getStdErr, getStdOut, getVariable, getWorkingDirectory}
 import std.fs.Path
 import std.io.OutputStream
 import stdx.log.Logger
 import fjson.JsonValue
+import jian.*
 import loupe.vfs.VfsPath
 import project_model.*
 import cjls.server.settingsSchema
 
-const USAGE =
-    """
-Usage: cjls [command]
-
-Commands:
-  (none)                 serve LSP over stdio, as an editor starts it
-  project [--dir <dir>]  print the project found for <dir>, the current directory by default,
-                         as cj-project.json
-  fmt [--check] <path>...
-                         format the Cangjie files at <path>, a directory's as the server reads
-                         them; with --check, change nothing and fail if a file would change
-  fetch-src [--dir <dir>]
-                         download the sources of std of the SDK found, at the commit its nightly's
-                         release notes name, into <dir>, the SDK's src by default
-  --config-schema        print the JSON Schema of the server's settings
-  help                   print this
-"""
-
-/**
- * What the server was started to do.
- */
-enum Command {
-    | Serve
-    /**
-     * Print the project of this directory, as `cj-project.json`.
-     */
-    | PrintProject(Path)
-    /**
-     * Format the files at these paths, or with `check` only say which would change.
-     */
-    | Format(Array<Path>, Bool)
-    /**
-     * Fetch the sources of `std` of the SDK into this directory, the SDK's `src` without one.
-     */
-    | FetchSrc(?Path)
-    /**
-     * Print the JSON Schema of the settings.
-     */
-    | PrintConfigSchema
-    | Help
+@JianContext
+class CommandContext {
+    CommandContext(let logger: Logger) {}
 }
 
-/**
- * The command `args` give, the program's name not among them: no arguments is `Serve`, as an
- * editor starts the server.
- *
- * @throws ArgumentParseException - for a command not known, or not given what it takes
- */
-func parseCommand(args: Array<String>): Command {
-    if (args.isEmpty()) {
-        return Serve
+func commandApp(
+    out!: OutputStream = getStdOut(),
+    err!: OutputStream = getStdErr()
+): JianContextApp<CommandContext> {
+    JianContextApp<CommandContext>(
+        name: "cjls",
+        help: "Cangjie language server.",
+        stdout: out,
+        stderr: err
+    )
+        .callback(configureCommand)
+        .add(printProject)
+        .add(formatCommand)
+        .add(downloadSources)
+}
+
+@JianCallback[help: "Serve LSP over stdio when no command is given."]
+func configureCommand(
+    invocation!: JianInvocation = JianCurrentInvocation(),
+    logger!: Logger = JianFromContext<CommandContext>(),
+    configSchema!: Bool = JianOption(
+        help: "Print the JSON Schema of the server's settings and exit.",
+        default: false
+    )
+): JianCallbackResult {
+    if (configSchema) {
+        // Schema generation is a standalone invocation, as editor clients expect.
+        if (invocation.requestedSubcommand.isSome()) {
+            throw JianUsageException("--config-schema takes no command")
+        }
+        return JianCallbackResult.Exit(printConfigSchema(getStdOut()))
     }
-    match (args[0]) {
-        case "project" => PrintProject(projectDir(args[1..]))
-        case "fmt" => formatCommand(args[1..])
-        case "fetch-src" => FetchSrc(fetchSrcDir(args[1..]))
-        case "--config-schema" where args.size == 1 => PrintConfigSchema
-        case "--config-schema" =>
-            throw ArgumentParseException("`--config-schema` takes no `${args[1]}`")
-        case "help" | "--help" | "-h" => Help
-        case other => throw ArgumentParseException("no command `${other}`")
+    if (invocation.requestedSubcommand.isNone()) {
+        return JianCallbackResult.Exit(runServer(logger))
     }
+    JianCallbackResult.Continue
+}
+
+@JianCommand[name: "fmt", help: "Format Cangjie files or directories using their project settings."]
+func formatCommand(
+    paths: Array<Path>,
+    check!: Bool = JianOption(
+        short: r'c',
+        help: "Report files that would change without writing them.",
+        default: false
+    )
+): Int64 {
+    formatPaths(paths.map { path => absolute(path) }, check, getStdOut(), getStdErr())
+}
+
+@JianCommand[name: "fetch-src", help: "Download std sources for the detected SDK into its src directory."]
+func downloadSources(
+    dir!: ?Path = JianOption(
+        short: r'd',
+        help: "Destination directory instead of the SDK's src.",
+        preprocess: nonemptyDirectory,
+        normalize: absoluteDirectory
+    )
+): Int64 {
+    fetchSrcCommand(dir, getStdOut(), getStdErr())
 }
 
 /**
@@ -80,7 +83,17 @@ func parseCommand(args: Array<String>): Command {
  *
  * @return the exit code
  */
-func printProject(dir: Path, logger: Logger): Int64 {
+@JianCommand[name: "project", help: "Print the detected project as cj-project.json."]
+func printProject(
+    dir!: Path = JianOption(
+        short: r'd',
+        help: "Project directory, the working directory by default.",
+        default: getWorkingDirectory(),
+        preprocess: nonemptyDirectory,
+        normalize: absolute
+    ),
+    logger!: Logger = JianFromContext<CommandContext>()
+): Int64 {
     let root = VfsPath.file(dir)
     let env = { name: String => getVariable(name) }
     let withHome = withCangjieHome(env, findCangjieHome(None, env: env))
@@ -125,58 +138,16 @@ func fetchSrcCommand(dir: ?Path, out: OutputStream, err: OutputStream): Int64 {
     fetchSrc(home, dir ?? home.join("src"), SystemSrcHost(), out, err)
 }
 
-/**
- * The directory `fetch-src`'s options name, `--dir <dir>` (`-d <dir>`) or `--dir=<dir>`, relative to
- * the working one; `None` without them.
- *
- * @throws ArgumentParseException - for an option not known, an argument, or `--dir` without a value
- */
-func fetchSrcDir(options: Array<String>): ?Path {
-    let parsed = parseArguments(options, [Full("dir", r'd', RequiredValue)])
-    if (let Some(argument) <- parsed.nonOptions.first) {
-        throw ArgumentParseException("`fetch-src` takes no `${argument}`")
+func nonemptyDirectory(raw: String): String {
+    // Path("") cannot be joined; report invalid CLI input before project or SDK discovery.
+    if (raw.isEmpty()) {
+        throw JianInputException("expected a directory")
     }
-    let dir = parsed.options.get("dir") ?? return None
-    if (dir.isEmpty()) {
-        throw ArgumentParseException("`--dir` takes a directory")
-    }
-    absolute(Path(dir))
+    raw
 }
 
-/**
- * The directory `project`'s options name, `--dir <dir>` (`-d <dir>`) or `--dir=<dir>`, relative to
- * the working one; the working one without them.
- *
- * the working one; the working one without them. Given twice, the last counts.
- *
- * @throws ArgumentParseException - for an option not known, an argument, or `--dir` without a value
- */
-func projectDir(options: Array<String>): Path {
-    let parsed = parseArguments(options, [Full("dir", r'd', RequiredValue)])
-    if (let Some(argument) <- parsed.nonOptions.first) {
-        throw ArgumentParseException("`project` takes no `${argument}`")
-    }
-    let dir = parsed.options.get("dir") ?? return getWorkingDirectory()
-    // `--dir=` is a value to argopt, and `Path("")` throws on every join
-    if (dir.isEmpty()) {
-        throw ArgumentParseException("`--dir` takes a directory")
-    }
-    absolute(Path(dir))
-}
-
-/**
- * What `fmt`'s arguments say: `--check` (`-c`) and at least one path, relative to the working
- * directory.
- *
- * @throws ArgumentParseException - for an option not known, or no path
- */
-func formatCommand(arguments: Array<String>): Command {
-    let parsed = parseArguments(arguments, [Full("check", r'c', NoValue)])
-    if (parsed.nonOptions.isEmpty()) {
-        throw ArgumentParseException("`fmt` takes the paths to format")
-    }
-    let paths = parsed.nonOptions.map { argument => absolute(Path(argument)) }
-    Format(paths, parsed.options.contains("check"))
+func absoluteDirectory(dir: ?Path): ?Path {
+    dir.map { path => absolute(path) }
 }
 
 func absolute(path: Path): Path {
