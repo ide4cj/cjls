@@ -213,6 +213,12 @@ identifier position (D147). Package and member lookup use binary declarations,
 including compiler-provided types. A file with no matching declarations has no
 source context; navigation targets retain D65's position/name check.
 
+Call hierarchy keeps canonical binary identity independently of navigation (D158).
+Checked source attachments supply declaration locations and bodies. Without them,
+the referring name supplies a location for the node; known incoming edges remain
+available, while unavailable bodies supply no outgoing edges. Compiler and syntax
+full declaration ranges need not match when the checked identifier does.
+
 ### A24: Signature type dependencies
 
 Lowering a signature to types (`signatureTypes`) reads another declaration's lowered types only
@@ -233,6 +239,12 @@ write (`declaredTyOf`), never its own: a function calling itself of no return ty
 there, not a cycle; only declarations of unwritten types reading each other are one, each an
 error by its fallback (A14, D55).
 
+Inference retains every successfully resolved declaration-backed call, including
+unambiguous functions and binary declarations without source attachments.
+`InferenceResult.calleeOf` and `calleesOf` take the callee expression's identity,
+not the enclosing call expression. Explicit type initializers remain available
+separately through `initializerOf`, preserving hover and reference identity.
+
 ### A26: Call local type variables
 
 A type variable (`InferTy`) lives while its generic call is inferred. When that call is
@@ -242,6 +254,10 @@ including fallback to its declared bounds. If the arguments' join fails or excee
 bound, the solver tries the upper bound below all the others, provided every argument fits it
 and any numeric literals can use that numeric kind or have their default types boxed into it
 (#242). An expected `?I` may select `Option<I>` for this fallback, with arguments boxed as in cjc.
+
+A composition passes a callable object's call-operator signatures to the same solver as function
+operands. Overloads on either side constrain the shared intermediate type; the operand itself
+keeps its object type for hover and navigation (#247).
 
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an

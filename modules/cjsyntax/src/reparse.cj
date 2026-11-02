@@ -12,7 +12,8 @@ let REPARSER =
         ErrorNode,
         LBrace,
         RBrace,
-        blockGrammar
+        blockGrammar,
+        validate: withPropertyAccessorErrors
     )
 
 /**

@@ -9,7 +9,9 @@ import ginkgo.*
  * node of a block kind has its text, the edit applied, lexed and parsed with the grammar of that kind, and the
  * new node takes the old one's place, everything else shared. The language brings its lexer, how a `Lexed`
  * becomes the parser's `Input`, its trivia rules, the kinds that open and close a block, and the grammar for a
- * block of a kind, `None` for a kind that is no block.
+ * block of a kind, `None` for a kind that is no block. Optional `validate` adds language-specific
+ * syntax errors to each newly parsed block before its errors are merged into the file. It must preserve
+ * the green tree and return error ranges relative to that block, starting at zero.
  *
  * A block kind must get no attached trivia (`TriviaRules.attachedTrivia`): parsed on its own, a block has none
  * before it to attach.
@@ -23,7 +25,8 @@ public class Reparser<K> where K <: Kind<K> {
         let errorKind: K,
         let open: K,
         let close: K,
-        let blockGrammar: (K) -> ?((Parser<K>) -> Unit)
+        let blockGrammar: (K) -> ?((Parser<K>) -> Unit),
+        let validate!: (Parse<K>) -> Parse<K> = { parsed => parsed }
     ) {}
 
     /**
@@ -76,7 +79,7 @@ public class Reparser<K> where K <: Kind<K> {
                 if (!p.atEof()) {
                     return None
                 }
-                buildTree(lexed, p, rules)
+                validate(buildTree(lexed, p, rules))
             } catch (e: Exception) {
                 return None
             }

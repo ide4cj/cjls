@@ -48,6 +48,15 @@ let CANGJIE_SRC =
         readOptionalPath
     )
 
+let CANGJIE_STDX_PATH =
+    Setting<?String>(
+        "cangjieStdxPath",
+        "The stdx binary directory, an absolute path (`~`, `$VAR` and `\${VAR}` expanded) or a `file:` URI. Overrides `CANGJIE_STDX_PATH` when expanding declared project dependencies; does not add stdx implicitly. Use a stdx version and target matching the project's SDK.",
+        optionalPathSchema(),
+        Option<String>.None,
+        readOptionalPath
+    )
+
 let NEW_FILE_PACKAGE =
     Setting<Bool>(
         "newFilePackage",
@@ -108,6 +117,10 @@ public struct Settings {
          */
         public let cangjieSrc!: ?String = CANGJIE_SRC.default,
         /**
+         * The stdx binary directory used by declared project dependencies.
+         */
+        public let cangjieStdxPath!: ?String = CANGJIE_STDX_PATH.default,
+        /**
          * Whether a new file is given its `package` line (#294).
          */
         public let newFilePackage!: Bool = NEW_FILE_PACKAGE.default,
@@ -131,6 +144,7 @@ public struct Settings {
             linkedProjects: LINKED_PROJECTS.read(json, problems),
             cangjieHome: CANGJIE_HOME.read(json, problems),
             cangjieSrc: CANGJIE_SRC.read(json, problems),
+            cangjieStdxPath: CANGJIE_STDX_PATH.read(json, problems),
             newFilePackage: NEW_FILE_PACKAGE.read(json, problems),
             macroExpansion: MACRO_EXPANSION.read(json, problems),
             macroCallTimeout: MACRO_CALL_TIMEOUT.read(json, problems)
@@ -149,6 +163,7 @@ public func settingsSchema(): JsonValue {
             LINKED_PROJECTS.property(),
             CANGJIE_HOME.property(),
             CANGJIE_SRC.property(),
+            CANGJIE_STDX_PATH.property(),
             NEW_FILE_PACKAGE.property(),
             MACRO_EXPANSION.property(),
             MACRO_CALL_TIMEOUT.property()
