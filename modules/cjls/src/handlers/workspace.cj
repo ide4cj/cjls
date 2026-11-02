@@ -23,6 +23,7 @@ import loupe.vfs.{
     VfsPath
 }
 import project_model.{
+    BuildMode,
     CangjieHome,
     CFG_TOML,
     findCangjieHome,
@@ -230,6 +231,7 @@ struct LoadRequest {
          * no package of the projects found finds its own (#265).
          */
         let open: Array<VfsPath>,
+        let buildMode!: BuildMode = BuildMode.Release,
         /**
          * The directories of the projects found from documents opened before (#265).
          */
@@ -321,6 +323,7 @@ func loadRequest(state: ServerState): ?LoadRequest {
         state.workDoneProgress,
         state.loadBudget,
         open,
+        buildMode: settings.buildMode,
         found: state.foundProjects,
         packageLines: packageLines
     )
@@ -394,6 +397,7 @@ func loadProject(
         request.roots,
         request.linkedProjects,
         env: env,
+        buildMode: request.buildMode,
         budget: budget,
         open: request.open,
         found: request.found
@@ -409,7 +413,9 @@ func loadProject(
             more.add(dir)
         }
     }
-    let projects = found.concat(findProjects([], [], env: env, found: more.toArray()))
+    let projects = found.concat(
+        findProjects([], [], env: env, buildMode: request.buildMode, found: more.toArray())
+    )
     // a document open in no package of theirs either is compiled alone, as cjc compiles it (#293)
     let loads = projects.concat(
         loneFileProjects(
