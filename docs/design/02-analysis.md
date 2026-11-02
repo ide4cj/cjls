@@ -213,6 +213,12 @@ identifier position (D147). Package and member lookup use binary declarations,
 including compiler-provided types. A file with no matching declarations has no
 source context; navigation targets retain D65's position/name check.
 
+Call hierarchy keeps canonical binary identity independently of navigation (D158).
+Checked source attachments supply declaration locations and bodies. Without them,
+the referring name supplies a location for the node; known incoming edges remain
+available, while unavailable bodies supply no outgoing edges. Compiler and syntax
+full declaration ranges need not match when the checked identifier does.
+
 ### A24: Signature type dependencies
 
 Lowering a signature to types (`signatureTypes`) reads another declaration's lowered types only
@@ -232,6 +238,12 @@ Inference (`inferBody`) reads another declaration's body only for a type its sig
 write (`declaredTyOf`), never its own: a function calling itself of no return type is an error
 there, not a cycle; only declarations of unwritten types reading each other are one, each an
 error by its fallback (A14, D55).
+
+Inference retains every successfully resolved declaration-backed call, including
+unambiguous functions and binary declarations without source attachments.
+`InferenceResult.calleeOf` and `calleesOf` take the callee expression's identity,
+not the enclosing call expression. Explicit type initializers remain available
+separately through `initializerOf`, preserving hover and reference identity.
 
 ### A26: Call local type variables
 
