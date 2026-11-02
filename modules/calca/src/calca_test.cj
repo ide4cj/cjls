@@ -611,19 +611,32 @@ class CalcaTest {
 
     @TestCase
     func nestedSnapshotsInheritCancellationAndKeepTheirOwnSignal(): Unit {
+        // arrange
         let db = TestDatabase()
         let file = SourceFile(db, "a.cj", "hello")
         let parentStop = AtomicBool(false)
         let childStop = AtomicBool(false)
         let parent = db.snapshot(cancelledBy: { => parentStop.load() })
+
+        // act
         let inherited = parent.snapshot()
         let child = parent.snapshot(cancelledBy: { => childStop.load() })
+
+        // assert
         @Expect(length(inherited, file), 5)
         @Expect(length(child, file), 5)
+
+        // act
         childStop.store(true)
+
+        // assert
         @AssertThrows[CancelledException](length(child, file))
         @Expect(length(parent, file), 5)
+
+        // act
         parentStop.store(true)
+
+        // assert
         @AssertThrows[CancelledException](length(inherited, file))
         @AssertThrows[CancelledException](length(child, file))
         @Expect(length(db, file), 5)

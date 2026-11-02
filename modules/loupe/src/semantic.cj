@@ -1,20 +1,46 @@
 package loupe
 
-import std.collection.*
-import std.deriving.*
-import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
+import std.collection.{ArrayList, enumerate, filter, first, map}
+import std.deriving.Derive
+import cjsyntax.{CjSyntaxNode, CjSyntaxToken, SyntaxKind}
 import cjsyntax.ast.{AnyHasName, TypeParam, TypeParamList}
 import ginkgo.{SyntaxNodePtr, TextRange}
-import rope.{Encoding, LineColumn, Rope}
 import loupe.db.AnalysisDatabase
-import loupe.hir.*
+import loupe.hir.{
+    BodyOrigin,
+    BodySource,
+    DefId,
+    ExprId,
+    ItemFile,
+    LocalFunc,
+    LocalId,
+    MacroCallId,
+    PatId,
+    Ty,
+    TypeRefId,
+    TypeTarget,
+    bodyWithSourceMap,
+    canonicalDef,
+    declaredTyOf,
+    expandedDeclOf,
+    inferBody,
+    packageOfFile,
+    scopeFileOf,
+    signatureWithSourceMap,
+    sourceDefOf,
+    sourceRangeOf,
+    syntaxOf,
+    writtenTypeOf
+}
 import loupe.vfs.FileId
+import rope.{Encoding, LineColumn, Rope}
 
 /**
  * An identity within one database revision. Body indices carry their declaration owner;
  * signature and body types occupy different arenas. Do not reuse after edits/reloads or
  * in another database. Keep SemanticObject when composing queries: it retains the snapshot.
  * Local definitions are normalized to LocalIdentity, including when reached through resolution.
+ * Explicit initializers retain their own declaration identity independently of navigation.
  */
 @Derive[Equatable]
 public enum SemanticIdentity {
@@ -26,7 +52,9 @@ public enum SemanticIdentity {
     | BodyTypeIdentity(DefId, TypeRefId)
 }
 
-/** Source text may be physical workspace/dependency text, a checked attachment, or macro output. */
+/**
+ * Source text may be physical workspace/dependency text, a checked attachment, or macro output.
+ */
 @Derive[Equatable]
 public enum SemanticSourceKind {
     | PhysicalSource
@@ -34,7 +62,9 @@ public enum SemanticSourceKind {
     | ExpansionSource
 }
 
-/** Exact syntax, synthetic HIR and unavailable source are distinct, including for binaries. */
+/**
+ * Exact syntax, synthetic HIR and unavailable source are distinct, including for binaries.
+ */
 public enum SemanticOrigin {
     | SourceOrigin(SemanticLocation)
     | SyntheticOrigin
@@ -50,11 +80,13 @@ public enum SemanticOrigin {
 public class SemanticAnalysis {
     let db: AnalysisDatabase
 
-    public init(db: AnalysisDatabase) {
+    public SemanticAnalysis(db: AnalysisDatabase) {
         this.db = db.snapshot()
     }
 
-    /** UTF-8 byte offset in the editor's preferred context; none for an unavailable file. */
+    /**
+     * UTF-8 byte offset in the editor's preferred context; none for an unavailable file.
+     */
     public func at(fileId: FileId, offset: Int64): ?SemanticOccurrence {
         db.unwindIfCancelled()
         let file = db.sourceFile(fileId) ?? return None
@@ -85,51 +117,58 @@ public class SemanticAnalysis {
         let owner: ?DefId =
             item ?? expansion.flatMap { call => bodyOfExpressionExpansion(db, call) }
         let origin = if (item.isNone()) { expansion } else { None<MacroCallId> }
-        let definitions = semanticDefinitions(db, file, token, owner, origin)
-        let objects = ArrayList<SemanticObject>()
-        if (let Some(def) <- owner) {
-            let bodyMap = bodyWithSourceMap(db, def).sourceMap
-            let signatureMap = signatureWithSourceMap(db, def).sourceMap
-            let declaration = itemNodeOf(db, def)
-            var hasExpr = false
-            var hasPat = false
-            var hasLocal = false
-            var hasType = false
-            for (node in token.parent.ancestors()) {
-                let ptr = SyntaxNodePtr(node)
-                let source = BodySource(ptr, expansion: origin)
-                if (!hasLocal && let Some(id) <- bodyMap.localAtSource(source)) {
-                    objects.add(object(LocalIdentity(def, id)))
-                    hasLocal = true
-                }
-                if (!hasExpr && let Some(id) <- bodyMap.exprAtSource(source)) {
-                    objects.add(object(ExpressionIdentity(def, id)))
-                    hasExpr = true
-                }
-                if (!hasPat && let Some(id) <- bodyMap.patAtSource(source)) {
-                    objects.add(object(PatternIdentity(def, id)))
-                    hasPat = true
-                }
-                if (!hasType) {
-                    if (origin.isNone() && let Some(id) <- signatureMap.typeAt(ptr)) {
-                        objects.add(object(SignatureTypeIdentity(def, id)))
-                        hasType = true
-                    } else if (let Some(id) <- bodyMap.typeAtSource(source)) {
-                        objects.add(object(BodyTypeIdentity(def, id)))
-                        hasType = true
-                    }
-                }
-                if (declaration.map { it => it == node } ?? false) {
-                    break
-                }
-            }
-        }
+        let definitions = semanticDefinitions(db, file, token, owner, expansion: origin)
         SemanticOccurrence(
             location(file, token.textRange, token.textRange),
             owner.map { id => object(NamedIdentity(Definition.DeclDef(id))) },
             definitions.map { defs => defs.map { def => object(NamedIdentity(def)) } },
-            objects.toArray()
+            objectsAt(owner, token, expansion: origin)
         )
+    }
+
+    private func objectsAt(
+        owner: ?DefId,
+        token: CjSyntaxToken,
+        expansion!: ?MacroCallId
+    ): Array<SemanticObject> {
+        let objects = ArrayList<SemanticObject>()
+        let def = owner ?? return []
+        let bodyMap = bodyWithSourceMap(db, def).sourceMap
+        let signatureMap = signatureWithSourceMap(db, def).sourceMap
+        let declaration = itemNodeOf(db, def)
+        var hasExpr = false
+        var hasPat = false
+        var hasLocal = false
+        var hasType = false
+        for (node in token.parent.ancestors()) {
+            let ptr = SyntaxNodePtr(node)
+            let source = BodySource(ptr, expansion: expansion)
+            if (!hasLocal && let Some(id) <- bodyMap.localAtSource(source)) {
+                objects.add(object(LocalIdentity(def, id)))
+                hasLocal = true
+            }
+            if (!hasExpr && let Some(id) <- bodyMap.exprAtSource(source)) {
+                objects.add(object(ExpressionIdentity(def, id)))
+                hasExpr = true
+            }
+            if (!hasPat && let Some(id) <- bodyMap.patAtSource(source)) {
+                objects.add(object(PatternIdentity(def, id)))
+                hasPat = true
+            }
+            if (!hasType) {
+                if (expansion.isNone() && let Some(id) <- signatureMap.typeAt(ptr)) {
+                    objects.add(object(SignatureTypeIdentity(def, id)))
+                    hasType = true
+                } else if (let Some(id) <- bodyMap.typeAtSource(source)) {
+                    objects.add(object(BodyTypeIdentity(def, id)))
+                    hasType = true
+                }
+            }
+            if (declaration.map { it => it == node } ?? false) {
+                break
+            }
+        }
+        objects.toArray()
     }
 
     func object(identity: SemanticIdentity): SemanticObject {
@@ -169,7 +208,9 @@ public class SemanticOccurrence {
     ) {}
 }
 
-/** A semantic object bound to its originating snapshot, independently of navigation targets. */
+/**
+ * A semantic object bound to its originating snapshot, independently of navigation targets.
+ */
 public class SemanticObject {
     SemanticObject(let analysis: SemanticAnalysis, public let identity: SemanticIdentity) {}
 
@@ -181,65 +222,7 @@ public class SemanticObject {
         let db = analysis.db
         db.unwindIfCancelled()
         match (identity) {
-            case NamedIdentity(definition) =>
-                match (definition) {
-                    case LocalDef(owner, id) =>
-                        return analysis.object(LocalIdentity(owner, id)).origins()
-                    case MemberParamDef(owner, id) =>
-                        return analysis.object(LocalIdentity(owner, id)).origins()
-                    case TypeParamDef(GenericOf(owner, index)) =>
-                        let source = sourceDefOf(db, owner) ?? owner
-                        let node = itemNodeOf(db, source) ?? return [UnavailableOrigin]
-                        let (full, focus) = genericRanges(node, index) ?? return [UnavailableOrigin]
-                        return [SourceOrigin(analysis.location(source.file(db), full, focus))]
-                    case TypeParamDef(LocalGenericOf(owner, localFunc, index)) =>
-                        let lowered = bodyWithSourceMap(db, owner)
-                        let local =
-                            lowered.body.funcs.get(localFunc)?.local ?? return [UnavailableOrigin]
-                        let source =
-                            lowered
-                                .sourceMap
-                                .locals
-                                .get(local.index)
-                                .flatMap { origin => origin.written } ??
-                                return [UnavailableOrigin]
-                        let name = source.node(db, owner.file(db)) ?? return [UnavailableOrigin]
-                        let (full, focus) =
-                            genericRanges(name.parent ?? return [UnavailableOrigin], index) ??
-                                return [UnavailableOrigin]
-                        return [
-                            SourceOrigin(
-                                analysis.location(source.inFile(owner.file(db)), full, focus)
-                            )
-                        ]
-                    case _ => ()
-                }
-                if (let DeclDef(id) <- definition && let Some(node) <- itemNodeOf(db, id)) {
-                    return [
-                        SourceOrigin(
-                            analysis.location(id.file(db), node.textRange, declarationFocus(node))
-                        )
-                    ]
-                }
-                let targets = targetsOfDefinition(db, definition, intoExpansions: true)
-                let locations =
-                    targets |>
-                        filterMap {
-                            target: NavigationTarget =>
-                            let file =
-                                target.expansion.map { call => ItemFile.Expansion(call) } ??
-                                    db
-                                        .sourceFile(target.fileId)
-                                        .map { source => ItemFile.Source(source) } ??
-                                        return None<SemanticOrigin>
-                            Some(
-                                SemanticOrigin.SourceOrigin(
-                                    analysis.location(file, target.fullRange, target.focusRange)
-                                )
-                            )
-                        } |>
-                        collectArray
-                return if (locations.isEmpty()) { [UnavailableOrigin] } else { locations }
+            case NamedIdentity(definition) => namedOrigins(definition)
             case SignatureTypeIdentity(owner, id) =>
                 let ptr =
                     signatureWithSourceMap(db, owner)
@@ -248,9 +231,80 @@ public class SemanticObject {
                         .get(id.index)
                         .flatMap { it => it } ??
                         return [UnavailableOrigin]
-                return [SourceOrigin(analysis.location(owner.file(db), ptr.range, ptr.range))]
+                [SourceOrigin(analysis.location(owner.file(db), ptr.range, ptr.range))]
+            case _ => bodyOrigins()
+        }
+    }
+
+    private func namedOrigins(definition: Definition): Array<SemanticOrigin> {
+        let db = analysis.db
+        match (definition) {
+            case LocalDef(owner, id) => return analysis.object(LocalIdentity(owner, id)).origins()
+            case MemberParamDef(owner, id) =>
+                return analysis.object(LocalIdentity(owner, id)).origins()
+            case TypeParamDef(target) =>
+                match (target) {
+                    case GenericOf(_, _) | LocalGenericOf(_, _, _) => return genericOrigins(target)
+                    case _ => ()
+                }
+            case DeclDef(id) =>
+                if (let Some(node) <- itemNodeOf(db, id)) {
+                    return [
+                        SourceOrigin(
+                            analysis.location(id.file(db), node.textRange, declarationFocus(node))
+                        )
+                    ]
+                }
             case _ => ()
         }
+        let locations =
+            targetsOfDefinition(db, definition, intoExpansions: true)
+                .filterMap {
+                    target =>
+                    let file =
+                        target.expansion.map { call => ItemFile.Expansion(call) } ??
+                            db
+                                .sourceFile(target.fileId)
+                                .map { source => ItemFile.Source(source) } ??
+                                return None<SemanticOrigin>
+                    Some(
+                        SemanticOrigin.SourceOrigin(
+                            analysis.location(file, target.fullRange, target.focusRange)
+                        )
+                    )
+                }
+        if (locations.isEmpty()) { [UnavailableOrigin] } else { locations }
+    }
+
+    private func genericOrigins(target: TypeTarget): Array<SemanticOrigin> {
+        let db = analysis.db
+        match (target) {
+            case GenericOf(owner, index) =>
+                let source = sourceDefOf(db, owner) ?? owner
+                let node = itemNodeOf(db, source) ?? return [UnavailableOrigin]
+                let (full, focus) = genericRanges(node, index) ?? return [UnavailableOrigin]
+                [SourceOrigin(analysis.location(source.file(db), full, focus))]
+            case LocalGenericOf(owner, localFunc, index) =>
+                let lowered = bodyWithSourceMap(db, owner)
+                let local = lowered.body.funcs.get(localFunc)?.local ?? return [UnavailableOrigin]
+                let source =
+                    lowered
+                        .sourceMap
+                        .locals
+                        .get(local.index)
+                        .flatMap { origin => origin.written } ??
+                        return [UnavailableOrigin]
+                let name = source.node(db, owner.file(db)) ?? return [UnavailableOrigin]
+                let (full, focus) =
+                    genericRanges(name.parent ?? return [UnavailableOrigin], index) ??
+                        return [UnavailableOrigin]
+                [SourceOrigin(analysis.location(source.inFile(owner.file(db)), full, focus))]
+            case _ => [UnavailableOrigin]
+        }
+    }
+
+    private func bodyOrigins(): Array<SemanticOrigin> {
+        let db = analysis.db
         let (owner, origin) =
             match (identity) {
                 case ExpressionIdentity(owner, id) =>
@@ -279,7 +333,9 @@ public class SemanticObject {
         }
     }
 
-    /** Inferred/resolved type, retaining structured unknown/error reasons; none when inapplicable. */
+    /**
+     * Inferred/resolved type, retaining structured unknown/error reasons; none when inapplicable.
+     */
     public func semanticType(): ?Ty {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -296,7 +352,9 @@ public class SemanticObject {
         }
     }
 
-    /** Type display from this object's revision; none when it has no type. */
+    /**
+     * Type display from this object's revision; none when it has no type.
+     */
     public func typeDisplay(): ?String {
         semanticType().map { ty => ty.text(analysis.db) }
     }
@@ -314,7 +372,9 @@ public class SemanticLocation {
         public let focusRange: TextRange
     ) {}
 
-    /** Distinguishes attached source from physical source and generated expansion text. */
+    /**
+     * Distinguishes attached source from physical source and generated expansion text.
+     */
     public func kind(): SemanticSourceKind {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -331,29 +391,39 @@ public class SemanticLocation {
         }
     }
 
-    /** Immutable file/expansion text of this revision, also usable for adapter coordinate conversion. */
+    /**
+     * Immutable file/expansion text of this revision, also usable for adapter coordinate conversion.
+     */
     public func text(): ?Rope {
         analysis.text(file)
     }
 
-    /** Exact focus text (or full syntax with full: true), read from the same snapshot. */
+    /**
+     * Exact focus text (or full syntax with full: true), read from the same snapshot.
+     */
     public func excerpt(full!: Bool = false): ?String {
         let text = this.text() ?? return None
         let range = if (full) { fullRange } else { focusRange }
         text.slice(range.start..range.end).toString()
     }
 
-    /** Zero-based line/UTF-8 byte column at the focus start. Adapters convert using text(). */
+    /**
+     * Zero-based line/UTF-8 byte column at the focus start. Adapters convert using text().
+     */
     public func position(): ?LineColumn {
         text().map { source => source.positionOf(focusRange.start, Encoding.Utf8) }
     }
 
-    /** Compact zero-based line:UTF-8-byte-column. */
+    /**
+     * Compact zero-based line:UTF-8-byte-column.
+     */
     public func compact(): ?String {
         position().map { at => at.toString() }
     }
 
-    /** Physical/attached source or an exact copied expansion span; none for generated text. */
+    /**
+     * Physical/attached source or an exact copied expansion span; none for generated text.
+     */
     public func source(): ?SemanticLocation {
         let db = analysis.db
         db.unwindIfCancelled()
@@ -367,6 +437,9 @@ public class SemanticLocation {
     }
 }
 
+/**
+ * Falls back to a non-name token, preferring the right token at a boundary.
+ */
 func anyTokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
     match (root.tokenAtOffset(offset)) {
         case Single(token) => token
@@ -375,19 +448,27 @@ func anyTokenAt(root: CjSyntaxNode, offset: Int64): ?CjSyntaxToken {
     }
 }
 
-/** Shared identity classification; constructor navigation and highlighting policies stay outside it. */
+/**
+ * Shared identity classification; constructor navigation and highlighting policies stay outside it.
+ */
 func semanticDefinitions(
     db: AnalysisDatabase,
     file: ItemFile,
     token: CjSyntaxToken,
     owner: ?DefId,
-    expansion: ?MacroCallId
+    expansion!: ?MacroCallId
 ): ?Array<Definition> {
-    if (let Some(def) <- owner && isDeclaredName(db, def, token)) {
+    if (
+        let Some(def) <- owner &&
+            (
+                isDeclaredName(db, def, token) ||
+                    (token.kind == SyntaxKind.InitKw && token.parent.kind == SyntaxKind.InitDecl)
+            )
+    ) {
         return [Definition.DeclDef(canonicalDef(db, expandedDeclOf(db, def) ?? def))]
     }
     if (let Some(param) <- TypeParam.cast(token.parent.parent ?? token.parent)) {
-        if (let Some(target) <- typeParamTargetIn(db, file, param)) {
+        if (let Some(target) <- typeParamTargetIn(db, file, param, owner, expansion: expansion)) {
             return [Definition.TypeParamDef(target)]
         }
     }
@@ -399,7 +480,13 @@ func semanticDefinitions(
  * The type parameter `param` of `file` declares, as its uses name it: of the item it is of, or of a function a body
  * declares (N68).
  */
-func typeParamTargetIn(db: AnalysisDatabase, file: ItemFile, param: TypeParam): ?TypeTarget {
+func typeParamTargetIn(
+    db: AnalysisDatabase,
+    file: ItemFile,
+    param: TypeParam,
+    owner: ?DefId,
+    expansion!: ?MacroCallId
+): ?TypeTarget {
     let (_, ids) = syntaxOf(db, file) ?? return None
     let list = param.syntax.parent.flatMap { node => TypeParamList.cast(node) } ?? return None
     let decl = list.syntax.parent ?? return None
@@ -415,8 +502,9 @@ func typeParamTargetIn(db: AnalysisDatabase, file: ItemFile, param: TypeParam): 
         return TypeTarget.GenericOf(canonicalDef(db, DefId(db, file, item)), index)
     }
     let name = AnyHasName.cast(decl).flatMap { it => it.name() } ?? return None
-    let owner = itemAround(db, file, decl) ?? return None
-    let lowered = bodyWithSourceMap(db, owner)
+    // A statement expansion has no item of its own; its locals belong to the containing body.
+    let def = owner ?? return None
+    let lowered = bodyWithSourceMap(db, def)
     let ptr = SyntaxNodePtr(name.syntax)
     let localFunc =
         (
@@ -424,11 +512,11 @@ func typeParamTargetIn(db: AnalysisDatabase, file: ItemFile, param: TypeParam): 
                 filter {
                     pair: (Int64, LocalFunc) =>
                     lowered.sourceMap.locals.get(pair[1].local.index) ==
-                        Some(WrittenSource(BodySource(ptr)))
+                        Some(WrittenSource(BodySource(ptr, expansion: expansion)))
                 } |>
                 map { pair: (Int64, LocalFunc) => pair[0] } |>
                 first
         ) ??
             return None
-    TypeTarget.LocalGenericOf(owner, localFunc, index)
+    TypeTarget.LocalGenericOf(def, localFunc, index)
 }

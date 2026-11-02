@@ -107,7 +107,7 @@ func meaningsAt(db: AnalysisDatabase, file: SourceFile, token: CjSyntaxToken): A
             ItemFile.Source(file),
             token,
             itemAround(db, ItemFile.Source(file), token.parent),
-            None
+            expansion: None
         ) ??
             return []
     defs |>
