@@ -101,6 +101,23 @@ class RedeclarationDiagnosticsTest {
     }
 
     @TestCase
+    func theLastConflictingOverloadDeterminesTheMessage(): Unit {
+        checkDiagnostics(
+            #"
+            class C {
+                static func f(x: Int64): Unit {}
+                func f(x: UInt32): Unit {}
+            //       ^ error: overloaded functions 'f' cannot mix static and non-static
+                func f(x: UInt32): Unit {}
+            //       ^ error: function 'f' has overload conflicts
+                func f(x: Int64): Unit {}
+            //       ^ error: overloaded functions 'f' cannot mix static and non-static
+            }
+            "#
+        )
+    }
+
+    @TestCase
     func constructorMembersAndOverloadsShareTheirTypesScope(): Unit {
         checkDiagnostics(
             #"
