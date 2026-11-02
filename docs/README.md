@@ -8,6 +8,7 @@
 | [adr/](adr/) | decisions taken | one decision per file, ≤ 1 page; never rewritten, superseded by a new one |
 | [issues](https://github.com/ide4cj/cjls/issues?q=is%3Aissue+label%3Aquestion) labeled `question` | open questions | a closed question becomes an ADR or a rule, which names the issue |
 | [prior-art.md](prior-art.md) | the servers cjls is measured against, and what comes from which | updated when a reference changes, or a part of cjls starts following one |
+| [direct-calls.md](direct-calls.md) | on-demand call evidence, coverage gaps and declaration identity | shared loupe contract, independent of clients |
 | [lsp-extensions.md](lsp-extensions.md) | the methods under `cjls/`, beyond LSP (D15) | changed in the same PR as the method; what a client needs to call it |
 | [sdk-issues.md](sdk-issues.md) | SDK defects, evidence and current workarounds | version/platform evidence or explicit uncertainty; probes remain tracked in #332 |
 

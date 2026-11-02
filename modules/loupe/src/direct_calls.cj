@@ -1,19 +1,41 @@
 package loupe
 
-import std.collection.*
+import std.collection.ArrayList
 import calca.*
 import calca.macros.*
 import cjsyntax.{CjSyntaxNode, SyntaxKind}
 import cjsyntax.ast.{CallExpr, Param, TrailingLambdaExpr}
 import ginkgo.SyntaxNodePtr
 import loupe.db.AnalysisDatabase
-import loupe.hir.*
-import loupe.vfs.FileId
+import loupe.hir.{
+    ActiveFilter,
+    BodySource,
+    DefId,
+    Item,
+    ItemFile,
+    ItemKind,
+    Modifier,
+    Resolution,
+    activeItemTree,
+    bodyWithSourceMap,
+    canonicalDef,
+    expandedDeclOf,
+    inactiveReasonOf,
+    inferBody,
+    itemOf,
+    macroPathOf,
+    macrosOf,
+    packageOfFile,
+    parentOf
+}
 import loupe.syntax.parse
+import loupe.vfs.FileId
 import py_interop.*
 import py_interop.internal_macros.DerivePython
 
-/** A possible immediate call. Conservative candidates are not evidence of a selected call. */
+/**
+ * A possible immediate call. Conservative candidates are not evidence of a selected call.
+ */
 @DerivePython
 public struct DirectCall <: Equatable<DirectCall> {
     public DirectCall(
@@ -31,7 +53,9 @@ public struct DirectCall <: Equatable<DirectCall> {
     }
 }
 
-/** A missing part of the call model; site is absent when the body itself is unavailable. */
+/**
+ * A missing part of the call model; site is absent when the body itself is unavailable.
+ */
 @DerivePython
 public struct CallGap <: Equatable<CallGap> {
     public CallGap(public let reason: String, public let site: ?NavigationTarget) {}
@@ -43,7 +67,9 @@ public struct CallGap <: Equatable<CallGap> {
     }
 }
 
-/** Empty edges prove nothing unless gaps is also empty, including in every traversed successor. */
+/**
+ * Empty edges prove nothing unless gaps is also empty, including in every traversed successor.
+ */
 @DerivePython
 public struct DirectCalls <: Equatable<DirectCalls> {
     public DirectCalls(public let edges: Array<DirectCall>, public let gaps: Array<CallGap>) {}
@@ -55,7 +81,9 @@ public struct DirectCalls <: Equatable<DirectCalls> {
     }
 }
 
-/** Canonical declaration metadata: package ownership is independent of import aliases. */
+/**
+ * Canonical declaration metadata: package ownership is independent of import aliases.
+ */
 @DerivePython
 public struct CallDeclaration {
     public CallDeclaration(
@@ -83,7 +111,9 @@ private func isTrackedMacro(db: AnalysisDatabase, resolution: Resolution): Bool 
     }
 }
 
-/** Active written tracked declarations, resolving macro aliases by declaration ownership. */
+/**
+ * Active written tracked declarations, resolving macro aliases by declaration ownership.
+ */
 public func trackedCallRoots(db: AnalysisDatabase, fileId: FileId): Array<DefId> {
     let file = db.sourceFile(fileId) ?? return []
     if (inactiveReasonOf(db, file).isSome()) {
@@ -106,7 +136,9 @@ public func trackedCallRoots(db: AnalysisDatabase, fileId: FileId): Array<DefId>
     result.toArray()
 }
 
-/** Normalize a copied CalcaTracked name back to the written callable, never its generated wrapper. */
+/**
+ * Normalize a copied CalcaTracked name back to the written callable, never its generated wrapper.
+ */
 private func auditDefinition(db: AnalysisDatabase, def: DefId): DefId {
     if (let Expansion(call) <- def.file(db)) {
         let file = call.file(db)
@@ -128,6 +160,9 @@ private func auditDefinition(db: AnalysisDatabase, def: DefId): DefId {
     def
 }
 
+/**
+ * Canonical identity, ownership and optional source location of a callable.
+ */
 public func callDeclaration(db: AnalysisDatabase, def: DefId): CallDeclaration {
     let canonical = canonicalDef(db, auditDefinition(db, def))
     let packageName = auditPackage(db, canonical)
@@ -145,7 +180,7 @@ public func callDeclaration(db: AnalysisDatabase, def: DefId): CallDeclaration {
 /**
  * On-demand, intraprocedural call model of the written source body. Never follows Calca's generated
  * wrapper. Nested execution boundaries are skipped, not attributed to their enclosing function.
- * See cjmcp/api/call-audit.md for the staged coverage and stable gap reason strings.
+ * See docs/direct-calls.md for the coverage contract and stable gap reason strings.
  */
 @CalcaTracked
 public func directCalls(db: AnalysisDatabase, def: DefId): DirectCalls {

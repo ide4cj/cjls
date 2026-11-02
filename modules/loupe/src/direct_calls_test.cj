@@ -11,6 +11,7 @@ import rope.Rope
 class DirectCallsTest {
     @TestCase
     func resolvesCallsButDoesNotExecuteNestedDeclarations() {
+        // arrange
         let fixture = Fixture.parse(
             #"
             package m
@@ -26,7 +27,9 @@ class DirectCallsTest {
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let def = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+        // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), def.id))
+        // assert
         @Expect(calls.edges.map { edge => itemOf(db, edge.target).getOrThrow().names[0] }, ["target"])
         @Expect(calls.edges[0].conservative, false)
         @Expect(calls.gaps.isEmpty())
@@ -34,6 +37,7 @@ class DirectCallsTest {
 
     @TestCase
     func aliasOwnershipAndBodyAndTargetEditsInvalidate() {
+        // arrange
         let fixture = Fixture.parse(
             #"
             //- /a.cj module=m package=m.a
@@ -50,7 +54,9 @@ class DirectCallsTest {
         let file = db.sourceFile(fixture.files[1].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
         let def = DefId(db, ItemFile.Source(file), item.id)
+        // act
         let first = directCalls(db, def)
+        // assert
         @Expect(first.edges.size, 1)
         @Expect(callDeclaration(db, first.edges[0].target).packageName, "m.a")
         @Expect(callDeclaration(db, first.edges[0].target).name, "target")
@@ -75,6 +81,7 @@ class DirectCallsTest {
 
     @TestCase
     func reportsUnsupportedExecutionAndDispatch() {
+        // arrange
         let fixture = Fixture.parse(
             #"
             package m
@@ -96,7 +103,9 @@ class DirectCallsTest {
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+        // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+        // assert
         let reasons = calls.gaps.map { gap => gap.reason }
         @Expect(reasons.contains("functional-value"))
         @Expect(reasons.contains("unresolved-call"))
@@ -107,6 +116,7 @@ class DirectCallsTest {
     }
     @TestCase
     func overloadsOperatorsPropertiesAndReturnedFunctionsKeepEvidenceAndGaps() {
+        // arrange
         let fixture = Fixture.parse(
             #"
             package m
@@ -132,11 +142,14 @@ class DirectCallsTest {
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+        // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+        // assert
         let targets = calls.edges.map { edge => itemOf(db, edge.target).getOrThrow() }
         @Expect(targets.filter { target => target.names == ["f"] }.size, 1)
         @Expect(targets.any { target => target.kind == ItemKind.Init })
         @Expect(calls.edges.any { edge => edge.resolution == "inferred-operator" })
+        // assert
         let reasons = calls.gaps.map { gap => gap.reason }
         @Expect(reasons.contains("implicit-operator"))
         @Expect(reasons.contains("property-or-initialization"))
@@ -147,11 +160,14 @@ class DirectCallsTest {
 
     @TestCase
     func binaryTargetsRetainPackageAndUnavailableBodyGap() {
+        // arrange
         let fixture = Fixture.parse("package m\nfunc caller(): Unit { println(readln()) }")
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items[0]
+        // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+        // assert
         @Expect(calls.edges.size, 2)
         for (edge in calls.edges) {
             @Expect(callDeclaration(db, edge.target).packageName, "std.core")
@@ -161,6 +177,7 @@ class DirectCallsTest {
 
     @TestCase
     func calcaExpansionTargetsUseOriginalBodyWithoutInfrastructureCalls() {
+        // arrange
         let fixture = Fixture.parse(
             #"
             //- /main.cj module=m package=m
@@ -204,7 +221,9 @@ class DirectCallsTest {
         )
         @Expect(expandedDeclOf(db, sourceQuery).isSome())
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+        // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+        // assert
         @Assert(calls.edges.size, 1)
         let query = calls.edges[0].target
         @Expect(query.file(db), ItemFile.Source(file))

@@ -34,6 +34,5 @@ positive findings. No deep analysis becomes an inference or LSP prerequisite.
 
 The first stage is useful evidence but cannot certify the full requested audit.
 Functional value flow and runtime/implicit targets can extend the same edge and
-gap contract in later PRs. The cjmcp API documents the exact staged limitations
-and includes a reproducible workspace runner. An empty incomplete traversal
-remains unknown. A negative answer is scoped to the constructed model.
+gap contract in later PRs. The loupe call model documents its coverage contract
+independently of clients. An empty incomplete traversal remains unknown. A negative answer is scoped to the constructed model.
