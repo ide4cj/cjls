@@ -155,6 +155,19 @@ Run each executable with `--help` for its generated usage and options;
 With no arguments, cjls serves LSP over stdio; `--config-schema` remains a
 standalone invocation. Usage errors return 2 and write to stderr.
 
+CLI entrypoints use `main(args) → runCommand(args, …) → *_APP.run(…)` with
+module-local wrappers and prefixed application names. Commands stay registered
+through Jian annotations; command tests call `runCommand` to exercise the same
+application and failure boundary as the executable. `CommandOutput(out, err)` in
+`CommandContext` holds the same streams passed as the application's stdout/stderr.
+Generator actions let exceptions propagate to `runCommand`, which writes
+`error: <message>` to stderr, flushes it and returns 1; usage errors return 2.
+Generators let `Error` propagate. `cjls` retains its logger, catches both
+`Exception` and `Error`, and uses its callback to serve LSP by default, with
+stdout reserved for the protocol. Generator path validation rejects blank inputs:
+`lsp_codegen` trims surrounding ASCII whitespace, while `syntax_codegen` and
+`fbs_codegen` preserve nonblank path spelling.
+
 The Cangjie runtime is linked statically: the server and generators run without
 an SDK environment. Generators link the same `cjformat` library as the server. Linux
 executables still use system glibc and libstdc++. Release builds use Ubuntu 22.04

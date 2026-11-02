@@ -79,7 +79,7 @@ class LspCodegenCommandTest {
         }
     }
 
-    @TestCase[style in ["short", "long", "equals", "attached", "trimmed"]]
+    @TestCase[style in ["short", "long", "equals", "attached", "trimmed", "terminator"]]
     func theCommandReadsTheSelectedModelAndConfigAndWritesGeneratedFiles(style: String) {
         // arrange
         let dir = Directory.createTemp(getWorkingDirectory())
@@ -102,6 +102,7 @@ class LspCodegenCommandTest {
                     case "long" => ["--config", config, model]
                     case "equals" => [model, "--config=${config}"]
                     case "attached" => ["-c${config}", model]
+                    case "terminator" => ["-c", config, "--", model]
                     case _ => ["  ${model}  ", "-c", "  ${config}  "]
                 }
             let (out, err) = (ByteBuffer(), ByteBuffer())

@@ -5,6 +5,9 @@ import std.fs.Path
 import std.io.OutputStream
 import jian.*
 
+/**
+ * Supplies command output without retaining streams in the application.
+ */
 @JianContext
 class CommandContext {
     CommandContext(let output: CommandOutput) {}
@@ -23,7 +26,29 @@ let SYNTAX_CODEGEN_APP = JianContextApp<CommandContext>(name: "syntax_codegen")
  * Runs the generator CLI; usage errors return 2, generation failures return 1.
  */
 main(args: Array<String>): Int64 {
-    SYNTAX_CODEGEN_APP.run(args, context: CommandContext(CommandOutput(getStdOut(), getStdErr())))
+    runCommand(args)
+}
+
+/**
+ * Runs argv without the executable name; returns 2 for usage errors, 1 for generation failures.
+ */
+func runCommand(
+    args: Array<String>,
+    out!: OutputStream = getStdOut(),
+    err!: OutputStream = getStdErr()
+): Int64 {
+    try {
+        SYNTAX_CODEGEN_APP.run(
+            args,
+            context: CommandContext(CommandOutput(out, err)),
+            stdout: out,
+            stderr: err
+        )
+    } catch (e: Exception) {
+        err.write("error: ${e.message}\n".toArray())
+        err.flush()
+        1
+    }
 }
 
 /**
@@ -37,28 +62,22 @@ func generateSyntax(
     ),
     context!: CommandContext = JianFromContext<CommandContext>()
 ): Int64 {
-    try {
-        let generated = generate(kindsFile)
-        for (file in generated.files) {
-            writeFormatted(file.path, file.contents)
-            context.output.out.write("info: wrote ${file.path}\n".toArray())
-        }
-        for (n in generated.model.nodes where !n.handWritten.isEmpty()) {
-            context
-                .output
-                .out
-                .write(
-                    "note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}\n"
-                        .toArray()
-                )
-        }
-        context.output.out.flush()
-        0
-    } catch (e: Exception) {
-        context.output.err.write("error: ${e.message}\n".toArray())
-        context.output.err.flush()
-        1
+    let generated = generate(kindsFile)
+    for (file in generated.files) {
+        writeFormatted(file.path, file.contents)
+        context.output.out.write("info: wrote ${file.path}\n".toArray())
     }
+    for (n in generated.model.nodes where !n.handWritten.isEmpty()) {
+        context
+            .output
+            .out
+            .write(
+                "note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}\n"
+                    .toArray()
+            )
+    }
+    context.output.out.flush()
+    0
 }
 
 /**

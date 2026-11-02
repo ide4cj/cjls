@@ -7,7 +7,7 @@ import fjson.fromJsonBytes
 import jian.*
 
 /**
- * Supplies the command's output stream without making it a CLI input.
+ * Supplies command output without retaining streams in the application.
  */
 @JianContext
 class CommandContext {
@@ -15,10 +15,10 @@ class CommandContext {
 }
 
 /**
- * Wraps the output interface because Jian context dependencies must be concrete types.
+ * Jian resolves dependencies by type, so both output streams share one context value.
  */
 struct CommandOutput {
-    CommandOutput(let out: OutputStream) {}
+    CommandOutput(let out: OutputStream, let err: OutputStream) {}
 }
 
 let LSP_CODEGEN_APP = JianContextApp<CommandContext>(name: "lsp_codegen")
@@ -38,7 +38,7 @@ func runCommand(
     try {
         LSP_CODEGEN_APP.run(
             args,
-            context: CommandContext(CommandOutput(out)),
+            context: CommandContext(CommandOutput(out, err)),
             stdout: out,
             stderr: err
         )
