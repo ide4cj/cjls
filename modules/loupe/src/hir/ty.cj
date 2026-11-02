@@ -4,12 +4,15 @@ import std.deriving.*
 import calca.*
 import calca.macros.*
 import loupe.db.AnalysisDatabase
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A type as inference takes it, rust-analyzer's `Ty`: its names resolved, its aliases expanded,
  * `?T` an `Option<T>`. Interned (D54), as R1's and cjc's are (`TypeManager` hands out one `Ty` for
  * one declaration and arguments): two equal types are one id, compared and hashed as a number.
  */
+@DerivePython[opaque]
 @CalcaInterned
 public struct Ty {
     public let kind: TyKind
@@ -45,15 +48,42 @@ public struct Ty {
  * A generic binder: a declaration, or a local function within its owner's body (D50).
  * Local function indices are body-local, so the enclosing declaration is part of identity.
  */
-@Derive[Equatable, Hashable]
-public enum GenericOwner {
+@DerivePython
+public enum GenericOwner <: Equatable<GenericOwner> & Hashable {
     | Declaration(DefId)
     | LocalFunction(DefId, Int64)
+
+    public operator func ==(other: GenericOwner): Bool {
+        match ((this, other)) {
+            case (Declaration(a), Declaration(b)) => a == b
+            case (LocalFunction(a, ai), LocalFunction(b, bi)) => a == b && ai == bi
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: GenericOwner): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case Declaration(def) =>
+                hasher.write(0)
+                hasher.write(def.hashCode())
+            case LocalFunction(def, index) =>
+                hasher.write(1)
+                hasher.write(def.hashCode())
+                hasher.write(index)
+        }
+        hasher.finish()
+    }
 }
 
 /**
  * What a `Ty` is: resolved signature types, unknown types and call-local inference variables.
  */
+@DerivePython
 public enum TyKind <: Hashable & Equatable<TyKind> {
     /**
      * A type of the language by its keyword: `Int64`, `Unit`, `Nothing`.
@@ -179,8 +209,8 @@ public enum TyKind <: Hashable & Equatable<TyKind> {
 /**
  * Why the analysis cannot find a type (D77): what it does not do yet, each a gap of its own.
  */
-@Derive[Equatable, Hashable]
-public enum Todo <: ToString {
+@DerivePython
+public enum Todo <: ToString & Equatable<Todo> & Hashable {
     /**
      * The value of a call of a macro whose expansion is not read: a user's (#176), std's not known
      * (N136), or one not found.
@@ -198,13 +228,34 @@ public enum Todo <: ToString {
             case MacroMember => "macro member"
         }
     }
+
+    public operator func ==(other: Todo): Bool {
+        match ((this, other)) {
+            case (Todo.MacroCall, Todo.MacroCall) => true
+            case (Todo.MacroMember, Todo.MacroMember) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: Todo): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case Todo.MacroCall => hasher.write(0)
+            case Todo.MacroMember => hasher.write(1)
+        }
+        hasher.finish()
+    }
 }
 
 /**
  * Why a type is unknown given the available inputs, inference progress and resources.
  */
-@Derive[Equatable, Hashable]
-public enum UnknownReason <: ToString {
+@DerivePython
+public enum UnknownReason <: ToString & Equatable<UnknownReason> & Hashable {
     /**
      * A type unavailable from a binary: missing dependencies, invalid records or an unreadable
      * format (D38). This alone does not establish an error in the user's source.
@@ -235,6 +286,31 @@ public enum UnknownReason <: ToString {
             case GenericBoundsLimit => "generic bounds limit"
             case LambdaCandidatesLimit => "lambda candidates limit"
         }
+    }
+
+    public operator func ==(other: UnknownReason): Bool {
+        match ((this, other)) {
+            case (UnknownReason.BinaryType, UnknownReason.BinaryType) => true
+            case (UnknownReason.NotInferred, UnknownReason.NotInferred) => true
+            case (UnknownReason.NoStd, UnknownReason.NoStd) => true
+            case (UnknownReason.GenericBoundsLimit, UnknownReason.GenericBoundsLimit) => true
+            case _ => false
+        }
+    }
+
+    public operator func !=(other: UnknownReason): Bool {
+        !(this == other)
+    }
+
+    public func hashCode(): Int64 {
+        var hasher = DefaultHasher()
+        match (this) {
+            case UnknownReason.BinaryType => hasher.write(0)
+            case UnknownReason.NotInferred => hasher.write(1)
+            case UnknownReason.NoStd => hasher.write(2)
+            case UnknownReason.GenericBoundsLimit => hasher.write(3)
+        }
+        hasher.finish()
     }
 }
 

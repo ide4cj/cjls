@@ -20,13 +20,15 @@ import loupe.db.{AnalysisDatabase, SourceFile}
 import loupe.hir.*
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A callable with source locations, independent of protocol positions. Without attached sources,
  * a binary callable uses the referring name's location; `definition` still identifies its overload.
  */
-@Derive[Equatable]
-public struct CallHierarchyEntry {
+@DerivePython
+public struct CallHierarchyEntry <: Equatable<CallHierarchyEntry> {
     public CallHierarchyEntry(
         public let name: String,
         public let kind: StructureKind,
@@ -36,11 +38,21 @@ public struct CallHierarchyEntry {
          */
         public let definition!: ?DefId = None
     ) {}
+
+    public operator func ==(other: CallHierarchyEntry): Bool {
+        name == other.name && kind == other.kind && target == other.target &&
+            definition == other.definition
+    }
+
+    public operator func !=(other: CallHierarchyEntry): Bool {
+        !(this == other)
+    }
 }
 
 /**
  * One caller or callee, grouping its call sites. Ranges always belong to the caller's file.
  */
+@DerivePython
 public struct HierarchyCalls {
     public HierarchyCalls(
         public let item: CallHierarchyEntry,
