@@ -349,3 +349,11 @@ Update affected recipes and server instructions alongside binding changes. Keep
 examples focused on tasks and native names rather than a handwritten type catalog.
 Validate discovery and examples with the real-process MCP tests above; load only
 the relevant recipe when evaluating an agent task.
+
+### Immediate call evidence
+
+The revision exposes `directCalls`, `callDeclaration` and `trackedCallRoots` for
+script-controlled call graph inspection. Edges retain native declaration identity
+and source locations; gaps make unsupported execution effects explicit. See the
+[shared coverage contract](../../docs/direct-calls.md) before interpreting an
+empty result.

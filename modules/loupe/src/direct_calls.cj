@@ -30,10 +30,13 @@ import loupe.hir.{
 }
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A possible immediate call. Conservative candidates are not evidence of a selected call.
  */
+@DerivePython
 public struct DirectCall <: Equatable<DirectCall> {
     public DirectCall(
         public let target: DefId,
@@ -53,6 +56,7 @@ public struct DirectCall <: Equatable<DirectCall> {
 /**
  * A missing part of the call model; site is absent when the body itself is unavailable.
  */
+@DerivePython
 public struct CallGap <: Equatable<CallGap> {
     public CallGap(public let reason: String, public let site: ?NavigationTarget) {}
     public operator func ==(other: CallGap): Bool {
@@ -66,6 +70,7 @@ public struct CallGap <: Equatable<CallGap> {
 /**
  * Empty edges prove nothing unless gaps is also empty, including in every traversed successor.
  */
+@DerivePython
 public struct DirectCalls <: Equatable<DirectCalls> {
     public DirectCalls(public let edges: Array<DirectCall>, public let gaps: Array<CallGap>) {}
     public operator func ==(other: DirectCalls): Bool {
@@ -79,6 +84,7 @@ public struct DirectCalls <: Equatable<DirectCalls> {
 /**
  * Canonical declaration metadata: package ownership is independent of import aliases.
  */
+@DerivePython
 public struct CallDeclaration {
     public CallDeclaration(
         public let definition: DefId,
