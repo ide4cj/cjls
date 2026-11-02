@@ -136,6 +136,10 @@ public enum InferenceDiagnostic {
      * the right: the expression, the left's type and the right's (cjc's "invalid binary operator").
      */
     | InvalidBinaryOperator(ExprId, Ty, Ty)
+    /**
+     * A local declaration's rejected custom annotation, keyed by its synthetic source-map anchor.
+     */
+    | CustomAnnotationPlace(ExprId)
 }
 
 /**
@@ -179,7 +183,7 @@ public struct ArgTarget <: ByIndex {
 /**
  * What inference finds in a body (D55), rust-analyzer's `InferenceResult`: the type of each of its
  * expressions, patterns and locals, by id; the members found after the `.` of a value; the
- * overload each call of several takes. A type not found is an error, or one the analysis cannot
+ * declaration each resolved call takes. A type not found is an error, or one the analysis cannot
  * find, and why (D77).
  */
 @Derive[Equatable]
@@ -255,8 +259,9 @@ public struct InferenceResult {
     }
 
     /**
-     * The declaration chosen for the call whose callee is `expr`: an overload, an enum constructor,
-     * or the initializer `this(...)` or `super(...)` calls; the operator function `expr` calls (8e).
+     * The declaration selected for a call whose callee is `expr`, including unambiguous functions
+     * and enum constructors; also the operator function `expr` invokes (8e). Type calls expose
+     * their explicit initializer via `initializerOf`; `this(...)` and `super(...)` expose it here.
      */
     public func calleeOf(expr: ExprId): ?DefId {
         findByIndex(callees, expr.index)
@@ -275,6 +280,7 @@ public struct InferenceResult {
     /**
      * What `calleeOf` names, and the `[]` taking a value the assignment `a[i] op= v` or `a[i]++`
      * calls, after its operator (#245), as Kotlin's K2 resolves `+=`.
+     * For a `CallExpr`, pass its callee's ID, not the call expression's ID.
      */
     public func calleesOf(expr: ExprId): Array<DefId> {
         let setter =
@@ -430,7 +436,7 @@ struct Callable {
     Callable(
         let params: Array<Ty>,
         let ret: Ty,
-        let open!: ?DefId = None,
+        let open!: ?GenericOwner = None,
         let decl!: ?DefId = None,
         let level!: Int64 = 0,
         let names!: Array<?String> = [],
@@ -597,6 +603,8 @@ class Inference {
     private let undo = ArrayList<Undo>()
     // what is wrong: a candidate tried undoes what it found (A27)
     private let reported = ArrayList<InferenceDiagnostic>()
+    // Multiple custom annotations share one placement error on their declaration.
+    private let annotatedDeclarations = HashSet<AnnotationOwner>()
     // while above zero, what fails is counted but not reported: a check the analysis cannot make yet
     private var quiet = 0
     // the arguments of the calls whose candidates are tried that are of one type whatever is
@@ -635,16 +643,23 @@ class Inference {
             }
         let propTy = sig.ty ?? error
         for (accessor in hir.accessors) {
-            // a getter returns the property's type, a setter takes it (N105)
-            let expected =
+            let params =
                 match (hir[accessor]) {
-                    case LambdaExpr(params, _) where params.isEmpty() => FuncTy([], propTy, false)
-                    case _ => FuncTy([propTy], prim("Unit"), false)
+                    case LambdaExpr(params, _) => params
+                    case _ => continue
                 }
+            let getter = hir.getters.contains(accessor)
+            // Declaration validation owns arity errors. Keep the body context even for malformed accessors.
+            let paramTys =
+                Array(params.size) { i => if (!getter && i == 0) { propTy } else { error } }
+            let expected = FuncTy(paramTys, if (getter) { propTy } else { prim("Unit") }, false)
             infer(accessor, Ty(db, expected))
         }
         for (attr in hir.attrs) {
             declAttr(attr)
+        }
+        for (annotation in hir.annotations) {
+            localAnnotation(annotation)
         }
         let found = fields.values().toArray()
         sort(found, by: { a: FieldTargets, b: FieldTargets => a.expr.index.compare(b.expr.index) })
@@ -684,6 +699,96 @@ class Inference {
             ty: ty,
             diagnostics: reported.toArray()
         )
+    }
+
+    /**
+     * cjc checks placement only after its desugared constructor call has a correct type.
+     */
+    private func localAnnotation(annotation: LocalAnnotation): Unit {
+        if (isAnnotationInputOpaque(db, def)) {
+            return
+        }
+        let file = from ?? return
+        let owner = pkg ?? return;
+        for (path in annotation.wrappers) {
+            if (
+                resolveMacroPath(db, owner, file, path).get(path.size - 1) !=
+                    Some(Resolution.NotFound)
+            ) {
+                return
+            }
+        }
+        let candidates = annotationConstructors(annotation, owner, file) ?? return;
+        checkAnnotationConstructor(annotation, candidates)
+    }
+
+    private func annotationConstructors(
+        annotation: LocalAnnotation,
+        owner: Package,
+        file: SourceFile
+    ): ?Array<Callable> {
+        let resolved =
+            match (
+                resolveTypePath(db, TypeScope([], owner, file), annotation.path)
+                    .get(annotation.path.size - 1)
+            ) {
+                case Some(Resolved(TypeOf(id))) => id
+                case _ => return None
+            }
+        let (target, explicit) =
+            if (resolved.item(db).kind == ItemKind.Class && isAnnotationClass(db, resolved)) {
+                (resolved, Array<Ty>())
+            } else {
+                match (signatureTypes(db, resolved).ty?.kind(db)) {
+                    case Some(DeclTy(id, args)) where isAnnotationClass(db, id) => (id, args)
+                    case _ => return None
+                }
+            }
+        let (typeArgs, open) = openTypeArgsOf(target, explicit, None)
+        Some(
+            initCallables(target, typeArgs, open: open)
+                .filter {
+                    callable =>
+                    callable
+                        .decl
+                        .map {
+                            initializer =>
+                            isAnnotationConstructorVisible(db, def, initializer)
+                        } ??
+                        true
+                }
+        )
+    }
+
+    private func checkAnnotationConstructor(
+        annotation: LocalAnnotation,
+        candidates: Array<Callable>
+    ): Unit {
+        let before = mismatches
+        quiet++
+        try {
+            if (
+                let Chose(callable, matched) <- choose(
+                    annotation.target,
+                    candidates,
+                    annotation.args,
+                    None
+                )
+            ) {
+                let ty = callWith(annotation.target, callable, matched, annotation.args, None)
+                if (
+                    mismatches == before && !hasUnknowns(db, ty) &&
+                        callable.params.all { param => !hasUnknowns(db, param) } &&
+                        annotation.args.all { arg => !hasUnknowns(db, tyOf(arg.expr)) } &&
+                        annotatedDeclarations.add(annotation.owner)
+                ) {
+                    reported.add(CustomAnnotationPlace(annotation.target))
+                }
+            }
+        } finally {
+            quiet--
+            mismatches = before
+        }
     }
 
     /**
@@ -2477,7 +2582,7 @@ class Inference {
      * The constructors of the enum `id`.
      */
     private func ctorsOf(id: DefId): Array<DefId> {
-        let item = declItemOf(db, id) ?? return []
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         item
             .members
@@ -2493,7 +2598,13 @@ class Inference {
         match (resolveName(id, name)) {
             case Values(targets) where targets.size == 1 =>
                 match (targets[0]) {
-                    case LocalOf(local) => locals[local.index]
+                    case LocalOf(local) =>
+                        if (hir.funcs.iterator().any { fn => fn.local == local }) {
+                            let callables = localCallables(local, explicit: explicit)
+                            if (callables.size == 1) { callables[0].ty(db) } else { error }
+                        } else {
+                            locals[local.index]
+                        }
                     // An unqualified constructor can instantiate another enum specialization.
                     case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind == ItemKind.EnumCtor =>
                         declValueTy(ctor, explicit, expected)
@@ -2660,7 +2771,8 @@ class Inference {
                     case None => own(ty)
                 }
             }
-        let open: ?DefId = if (generics > 0 && !isWritten) { id } else { None }
+        let open: ?GenericOwner =
+            if (generics > 0 && !isWritten) { GenericOwner.Declaration(id) } else { None }
         let sig = signatureTypes(db, id)
         // a `foreign` function, or one `@C`, is a `CFunc` as a value (N141)
         let isC =
@@ -2718,11 +2830,21 @@ class Inference {
      * The type arguments of the type `id` called: as `typeArgsOf`, else its type parameters, open
      * for the call to infer (8c), and `id`.
      */
-    private func openTypeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): (Array<Ty>, ?DefId) {
+    private func openTypeArgsOf(
+        id: DefId,
+        explicit: Array<Ty>,
+        wanted: ?Ty
+    ): (Array<Ty>, ?GenericOwner) {
         if (let Some(args) <- knownTypeArgsOf(id, explicit, wanted)) {
             return (args, None)
         }
-        (Array(genericsOf(db, id).size) { i => Ty(db, ParamTy(id, i)) }, id)
+        (
+            Array(genericsOf(db, id).size) {
+                i =>
+                Ty(db, ParamTy(GenericOwner.Declaration(id), i))
+            },
+            GenericOwner.Declaration(id)
+        )
     }
 
     private func knownTypeArgsOf(id: DefId, explicit: Array<Ty>, wanted: ?Ty): ?Array<Ty> {
@@ -2745,8 +2867,12 @@ class Inference {
      * The constructors of the type `id` applied to `args`, the type parameters of `open` among them
      * the call's to infer; of one that declares none, the one of no parameters.
      */
-    private func initCallables(id: DefId, args: Array<Ty>, open!: ?DefId = None): Array<Callable> {
-        let item = declItemOf(db, id) ?? return []
+    private func initCallables(
+        id: DefId,
+        args: Array<Ty>,
+        open!: ?GenericOwner = None
+    ): Array<Callable> {
+        let item = itemOf(db, id) ?? return []
         let file = id.file(db)
         let self = Ty(db, DeclTy(id, args))
         let inits =
@@ -2779,18 +2905,32 @@ class Inference {
      * What the local `local` called means: a local function, its parameters passed by the names and
      * of the default values its declaration gives; else a value of a function type.
      */
-    private func localCallables(local: LocalId): Array<Callable> {
-        let callables = valueCallables(locals[local.index])
-        for (fn in hir.funcs where fn.local == local) {
-            let names = fn.params.map { param => param.passedBy }
-            let defaults = fn.params.map { param => param.defaultValue.isSome() }
-            return callables
-                .map {
-                    one =>
-                    Callable(one.params, one.ret, open: one.open, names: names, defaults: defaults)
-                }
+    private func localCallables(local: LocalId, explicit!: Array<Ty> = []): Array<Callable> {
+        for (index in 0..hir.funcs.size where hir.funcs[index].local == local) {
+            let fn = hir.funcs[index]
+            if (!explicit.isEmpty() && explicit.size != fn.generics.size) {
+                return []
+            }
+            let owner = GenericOwner.LocalFunction(def, index)
+            let written = !fn.generics.isEmpty() && explicit.size == fn.generics.size
+            let own = { ty: Ty => if (written) { substitute(db, ty, owner, explicit) } else { ty } }
+            let open: ?GenericOwner =
+                if (!fn.generics.isEmpty() && !written) { owner } else { None }
+            match (locals[local.index].kind(db)) {
+                case FuncTy(params, ret, _) =>
+                    return [
+                        Callable(
+                            params.map(own),
+                            own(ret),
+                            open: open,
+                            names: fn.params.map { param => param.passedBy },
+                            defaults: fn.params.map { param => param.defaultValue.isSome() }
+                        )
+                    ]
+                case _ => return []
+            }
         }
-        callables
+        valueCallables(locals[local.index])
     }
 
     /**
@@ -2909,22 +3049,10 @@ class Inference {
                 case CallExpr(_, _) => !all.iterator().any { one => one.applied.isSome() }
                 case _ => false
             }
-        let isDelegation =
-            match (hir[callee]) {
-                case ThisExpr | SuperExpr => true
-                case _ => false
-            }
         match (choose(callee, all, args, expected)) {
             case Chose(callable, matched) =>
                 if (let Some(decl) <- callable.decl) {
-                    let kind = decl.item(db).kind
-                    if (
-                        all.size > 1 || isEnumCtor(callable) || isDelegation ||
-                            kind == ItemKind.Init ||
-                            kind == ItemKind.PrimaryInit
-                    ) {
-                        setCallee(callee, decl)
-                    }
+                    setCallee(callee, decl)
                 }
                 if (isOfCall) {
                     quiet++
@@ -3612,7 +3740,10 @@ class Inference {
      * Checks the argument `expr` against `expected`; while a candidate is tried, one known before
      * is compared, not inferred again.
      */
-    private func checkArg(expr: ExprId, expected: ?Ty): Ty {
+    private func checkArg(expr: ExprId, expected: ?Ty, asFunction!: Bool = false): Ty {
+        if (asFunction) {
+            return compositionArgTy(expr, expected)
+        }
         if (trying > 0 && let Some(ty) <- known.get(expr.index)) {
             if (let Some(one) <- expected && !fits(ty, one)) {
                 mismatches++
@@ -3839,7 +3970,7 @@ class Inference {
         callee: ExprId,
         callable: Callable,
         matched: ArgMatch,
-        owner: DefId,
+        owner: GenericOwner,
         args: Array<CallArg>,
         expected: ?Ty
     ): Ty {
@@ -3858,10 +3989,15 @@ class Inference {
         callee: ExprId,
         callable: Callable,
         matched: ArgMatch,
-        owner: DefId,
+        owner: GenericOwner,
         outerArgs: Array<CallArg>,
         expected: ?Ty
     ): Ty {
+        let asFunctions =
+            match (hir[callee]) {
+                case BinaryExpr("~>", _, _) => true
+                case _ => false
+            }
         let base = nextVar
         let count = genericsOf(db, owner).size
         nextVar += count
@@ -3900,11 +4036,11 @@ class Inference {
                     } else if (isUntypedLambda(expr)) {
                         waiting.add(i)
                     } else {
-                        let ty = checkArg(expr, None)
+                        let ty = checkArg(expr, None, asFunction: asFunctions)
                         if (hasUnknowns(db, ty)) { waiting.add(i) } else { synthesized[i] = ty }
                     }
-                case Some(target) => checkArg(expr, target)
-                case None => checkArg(expr, None)
+                case Some(target) => checkArg(expr, target, asFunction: asFunctions)
+                case None => checkArg(expr, None, asFunction: asFunctions)
             }
         }
         let solve =
@@ -3934,7 +4070,12 @@ class Inference {
                 if (!isKnownEnough(target)) {
                     continue
                 }
-                let ty = infer(args[i].expr, target)
+                let ty =
+                    if (asFunctions) {
+                        compositionArgTy(args[i].expr, target)
+                    } else {
+                        infer(args[i].expr, target)
+                    }
                 if (isUntypedLambda(args[i].expr) || !hasUnknowns(db, ty)) {
                     synthesized[i] = ty
                     waiting.removeIf { one => one == i }
@@ -3956,7 +4097,7 @@ class Inference {
             let overloaded =
                 waiting
                     .toArray()
-                    .map { i => (i, overloadsOf(args[i].expr)) }
+                    .map { i => (i, overloadsOf(args[i].expr, asFunction: asFunctions)) }
                     .filter { one => !one[1].isEmpty() }
             let solutions = combinationSolutions(overloaded, synthesized, solve)
             if (solutions.size == 1) {
@@ -3987,7 +4128,11 @@ class Inference {
                     case _ => false
                 }
             if (ideal[i].isSome() || waiting.contains(i) || isLambda) {
-                infer(args[i].expr, final(target))
+                if (asFunctions) {
+                    compositionArgTy(args[i].expr, final(target))
+                } else {
+                    infer(args[i].expr, final(target))
+                }
             } else if (let Some(ty) <- synthesized[i] && !fits(ty, final(target))) {
                 mismatch(args[i].expr, final(target), ty)
             }
@@ -4005,10 +4150,39 @@ class Inference {
     }
 
     /**
-     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
-     * `GetArgTyPossibilities` tries for an argument; none otherwise.
+     * A composition operand passed as a function through its call operator. Keep the expression's
+     * own type: the function type constrains `composition`, while hover still describes the value.
      */
-    private func overloadsOf(id: ExprId): Array<Callable> {
+    private func compositionArgTy(id: ExprId, expected: ?Ty): Ty {
+        let ty = checkArg(id, None)
+        if (let FuncTy(_, _, _) <- ty.kind(db)) {
+            return checkArg(id, expected)
+        }
+        let all = valueCallables(ty)
+        if (all.isEmpty()) {
+            return checkArg(id, expected)
+        }
+        if (all.size == 1 && all[0].open.isNone()) {
+            return all[0].ty(db)
+        }
+        match (expected.map { one => one.kind(db) }) {
+            case Some(FuncTy(params, _, _)) => overloadOfParams(id, all, params)
+            case _ => error
+        }
+    }
+
+    /**
+     * The functions `id` names, if it is a path to several, those that are not generic: what cjc's
+     * `GetArgTyPossibilities` tries for an argument. A composition also tries the call operators
+     * of a value.
+     */
+    private func overloadsOf(id: ExprId, asFunction!: Bool = false): Array<Callable> {
+        if (asFunction && let Some(ty) <- inferredTyOf(id)) {
+            let operators = valueCallables(ty)
+            if (operators.size > 1) {
+                return operators.filter { one => one.open.isNone() }
+            }
+        }
         match (hir[id]) {
             case PathExpr(_, typeArgs) where typeArgs.isEmpty() => ()
             case _ => return []
@@ -4181,7 +4355,8 @@ class Inference {
                                     let level = localLevel(callee, local)
                                     found
                                         .add(
-                                            all: localCallables(local).map { one => one.at(level) }
+                                            all: localCallables(local, explicit: explicit)
+                                                .map { one => one.at(level) }
                                         )
                                 case MemberOf(MemberDecl(ctor)) where ctor.item(db).kind ==
                                         ItemKind.EnumCtor =>
@@ -4432,7 +4607,9 @@ class Inference {
                     case Values(targets) where targets.size == 1 =>
                         match (targets[0]) {
                             case TypeParamOf(GenericOf(owner, index)) =>
-                                Ty(db, ParamTy(owner, index))
+                                Ty(db, ParamTy(GenericOwner.Declaration(owner), index))
+                            case TypeParamOf(LocalGenericOf(owner, local, index)) =>
+                                Ty(db, ParamTy(GenericOwner.LocalFunction(owner, local), index))
                             case _ => error
                         }
                     case InFile(Found(ids)) where ids.size == 1 =>

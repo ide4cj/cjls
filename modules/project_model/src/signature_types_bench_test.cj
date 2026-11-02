@@ -12,7 +12,7 @@ import loupe.hir.*
  */
 func lowerEverySignature(
     ws: BenchWorkspace,
-    onFailed!: (SourceFile, DefId, SignatureTypes) -> Unit = { _, _, _ => () }
+    onFailed!: (SourceFile, DefId, SignatureTypes) -> Unit = { _, _, _ =>  }
 ): Int64 {
     var count = 0
     for ((_, file, _) in ws.files) {

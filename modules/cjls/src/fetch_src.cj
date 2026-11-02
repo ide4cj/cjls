@@ -169,9 +169,7 @@ func fetchSrcTo(home: Path, dir: Path, host: SrcHost, err: OutputStream): Int64 
     } finally {
         try {
             removeIfExists(part, recursive: true)
-        } catch (_: FSException) {
-            ()
-        }
+        } catch (_: FSException) {}
     }
 }
 

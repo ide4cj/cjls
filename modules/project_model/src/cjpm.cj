@@ -191,8 +191,11 @@ class CjpmLowering {
                     selected[key] = dir
                 }
             }
-            for ((name, dep) in dependencies(manifest)) {
-                selectDependency(name, dep, dir, script: script)
+            let deps = dependencies(manifest, dir)
+            let tests: Array<(String, Dependency, VfsPath)> =
+                if (script) { [] } else { dependencies(manifest, dir, tests: true) }
+            for ((name, dep, base) in deps.concat(tests)) {
+                selectDependency(name, dep, base, script: script)
             }
             discoverScripts(dir, manifest)
         } catch (e: ProjectException) {
@@ -204,10 +207,8 @@ class CjpmLowering {
         if (!(dir.join(BUILD_SCRIPT).filePath.map { path => isFile(path) } ?? false)) {
             return
         }
-        let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
-        sort(sorted, by: { a, b => a[0].compare(b[0]) })
-        for ((name, dep) in sorted) {
-            selectDependency(name, dep, dir, script: true)
+        for ((name, dep, base) in dependencies(manifest, dir, script: true)) {
+            selectDependency(name, dep, base, script: true)
         }
     }
 
@@ -336,10 +337,21 @@ class CjpmLowering {
         }
         reached.add(key, name)
         let deps = ArrayList<String>()
-        for ((key, _) in dependencies(manifest)) {
+        let testDeps = ArrayList<String>()
+        let ordinary = dependencies(manifest, dir)
+        let tests: Array<(String, Dependency, VfsPath)> =
+            if (forScript) { [] } else { dependencies(manifest, dir, tests: true) }
+        let normalNames = ordinary.map { entry => entry[0] }
+        for ((key, _, _) in ordinary.concat(tests)) {
             if (let Some(path) <- selected.get(CjpmSelection(key, isScript: forScript))) {
                 if (let Some(name) <- module(path, forScript: forScript)) {
-                    deps.add(name)
+                    if (normalNames.contains(key)) {
+                        if (!deps.contains(name)) {
+                            deps.add(name)
+                        }
+                    } else if (!testDeps.contains(name)) {
+                        testDeps.add(name)
+                    }
                 }
             }
         }
@@ -378,6 +390,7 @@ class CjpmLowering {
                     sources,
                     packages.toArray(),
                     deps: unique.toArray(),
+                    testDeps: testDeps.toArray(),
                     member: member,
                     inactive: inactive.filter { file => file.path != script },
                     resolutionScope: if (forScript) { scriptScope } else { "" }
@@ -452,12 +465,12 @@ class CjpmLowering {
             return
         }
         let deps = ArrayList<String>()
-        let sorted = (manifest.scriptDependencies ?? HashMap<String, Dependency>()).toArray()
-        sort(sorted, by: { a, b => a[0].compare(b[0]) })
-        for ((key, _) in sorted) {
+        for ((key, _, _) in dependencies(manifest, dir, script: true)) {
             if (let Some(path) <- selected.get(CjpmSelection(key, isScript: true))) {
                 if (let Some(name) <- module(path, forScript: true)) {
-                    deps.add(name)
+                    if (!deps.contains(name)) {
+                        deps.add(name)
+                    }
                 }
             }
         }
@@ -475,24 +488,39 @@ class CjpmLowering {
     }
 
     /**
-     * Every dependency of `manifest` for the target, test ones included, in the order of their
-     * names.
+     * Declarations retain their manifest directory: inherited paths belong to the workspace.
+     * Keep duplicate names until source selection so conflicts are reported rather than hidden
+     * by a target or member table. Source and script graphs share cjpm's source precedence.
      */
-    private func dependencies(manifest: Manifest): Array<(String, Dependency)> {
-        let all = HashMap<String, Dependency>()
-        let target = targetOf(manifest)
-        for (
-            table in [
-                manifest.dependencies,
-                manifest.testDependencies,
-                target.flatMap { it => it.dependencies },
-                target.flatMap { it => it.testDependencies }
-            ]
-        ) {
-            all.add(all: table ?? HashMap<String, Dependency>())
+    private func dependencies(
+        manifest: Manifest,
+        dir: VfsPath,
+        tests!: Bool = false,
+        script!: Bool = false
+    ): Array<(String, Dependency, VfsPath)> {
+        let all = ArrayList<(String, Dependency, VfsPath)>()
+        let declarations = ArrayList<(Manifest, VfsPath)>([(manifest, dir)])
+        if (this.manifest.workspace.isSome() && dir != root && members.contains(dir)) {
+            declarations.add((this.manifest, root))
+        }
+        for ((declared, base) in declarations) {
+            let target = targetOf(declared)
+            let tables =
+                if (script) {
+                    [declared.scriptDependencies]
+                } else if (tests) {
+                    [declared.testDependencies, target.flatMap { it => it.testDependencies }]
+                } else {
+                    [declared.dependencies, target.flatMap { it => it.dependencies }]
+                }
+            for (table in tables) {
+                let sorted = (table ?? HashMap<String, Dependency>()).toArray()
+                sort(sorted, by: { a, b => a[0].compare(b[0]) })
+                all.add(all: sorted.map { entry => (entry[0], entry[1], base) })
+            }
         }
         let sorted = all.toArray()
-        sort(sorted, by: { a, b => a[0].compare(b[0]) })
+        sort(sorted, by: { a, b => a[0].compare(b[0]) }, stable: true)
         sorted
     }
 

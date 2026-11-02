@@ -56,7 +56,7 @@ class IdLruTest {
         // arrange
         let lru = IdLru(0)
         touch(lru, [4])
-        lru.trim { _ => () }
+        lru.trim { _ =>  }
 
         // act
         touch(lru, [2, 4])

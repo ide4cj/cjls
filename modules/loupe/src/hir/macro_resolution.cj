@@ -89,7 +89,7 @@ public func macrosOf(db: AnalysisDatabase, def: DefId): Array<Resolution> {
             case _ => return []
         }
     let pkg = packageOfFile(db, file) ?? return []
-    let item = declItemOf(db, def) ?? return []
+    let item = itemOf(db, def) ?? return []
     item
         .macros
         .concat(item.paramMacros.flatten())
@@ -113,7 +113,7 @@ public func hasUnreadMacros(db: AnalysisDatabase, def: DefId): Bool {
     if (macrosOf(db, def).iterator().any { one => !isReadMacro(db, one, onMember: onMember) }) {
         return true
     }
-    let item = declItemOf(db, def) ?? return false
+    let item = itemOf(db, def) ?? return false
     let file = def.file(db)
     item
         .members

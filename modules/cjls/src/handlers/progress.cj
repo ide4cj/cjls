@@ -58,7 +58,7 @@ class WorkDoneProgress {
     }
 
     private func send<T>(value: T): Unit where T <: ToJson {
-        let token = token ?? return ()
+        let token = token ?? return;
         if (refused.load()) {
             return
         }

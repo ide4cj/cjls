@@ -220,7 +220,7 @@ extend CjEmitter {
             =>
             match (messageIr.params) {
                 case Some(params) => emitln("decodeMessageParams<${params}>(params)")
-                case None => emitln("()")
+                case None => ()
             }
         }
         emitln("}")
@@ -275,7 +275,7 @@ extend CjEmitter {
             =>
             match (messageIr.result) {
                 case Some(resultType) => emitln("result.read<${resultType}>()")
-                case None => emitln("()")
+                case None => ()
             }
         }
         emitln("}")

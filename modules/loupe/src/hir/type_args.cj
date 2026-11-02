@@ -40,7 +40,7 @@ class TypeArgSolver {
      * Bounds each variable by the constraints on the parameter `vars` stands for, including those
      * required by its bounding interfaces (cjc's `CopyUpperbound`).
      */
-    func boundedBy(owner: DefId, vars: Array<Ty>): Unit {
+    func boundedBy(owner: GenericOwner, vars: Array<Ty>): Unit {
         for (bound in genericBounds(db, owner)) {
             if (let ParamTy(of, index) <- bound.ty.kind(db) && of == owner && index < count) {
                 for (one in bound.bounds) {
@@ -145,13 +145,13 @@ class TypeArgSolver {
 
     /**
      * The type of a variable of the bounds `lower`, `upper` and `of` (cjc's `FindSolution`): the
-     * join of what is passed if it is under every upper bound, a literal's of a type of its kind;
-     * else, of literals alone, a numeric upper bound of their kind, or `Int64` and `Float64`; else
-     * the upper bound under every other.
+     * join of what is passed if it is under every upper bound, else the upper bound under every
+     * other if it takes every argument. Numeric literals use a type of their kind, or their
+     * default type if the bound accepts it.
      */
     private func choose(lower: Array<Ty>, upper: Array<Ty>, of: VarBounds): ?Ty {
         if (of.integer && of.float) {
-            return None
+            return chooseUpper(lower, upper, of)
         }
         let ideal: ?Array<String> =
             if (of.integer) {
@@ -165,18 +165,21 @@ class TypeArgSolver {
         if (!real.isEmpty()) {
             let joined = joinTys(db, real, from)
             let fitsIdeal =
-                match ((ideal, joined.kind(db))) {
-                    case (None, _) => true
-                    case (Some(kinds), PrimTy(name)) => kinds.contains(name)
-                    case _ => false
+                {
+                    ty: Ty =>
+                    match ((ideal, ty.kind(db))) {
+                        case (None, _) => true
+                        case (Some(kinds), PrimTy(name)) => kinds.contains(name)
+                        case _ => false
+                    }
                 }
             if (
-                !isUnknown(db, joined) && fitsIdeal &&
+                !isUnknown(db, joined) && fitsIdeal(joined) &&
                     upper.iterator().all { one => fits(joined, one) }
             ) {
                 return joined
             }
-            return None
+            return chooseUpper(real, upper, of)
         }
         if (let Some(kinds) <- ideal) {
             for (one in upper) {
@@ -195,6 +198,32 @@ class TypeArgSolver {
             return lower[0]
         }
         meet(upper)
+    }
+
+    /**
+     * A bound that accepts every argument when their join cannot solve the variable (#242).
+     * Literals can use their numeric kind directly, or their default type boxed into the bound.
+     */
+    private func chooseUpper(lower: Array<Ty>, upper: Array<Ty>, of: VarBounds): ?Ty {
+        let met = meet(upper) ?? return None
+        if (!lower.iterator().all { one => fits(one, met) }) {
+            return None
+        }
+        let accepts =
+            {
+                kinds: Array<String>, defaultName: String =>
+                if (let PrimTy(name) <- met.kind(db) && kinds.contains(name)) {
+                    return true
+                }
+                fits(Ty(db, PrimTy(defaultName)), met)
+            }
+        if (
+            (of.integer && !accepts(INTEGER_TYPES, "Int64")) ||
+                (of.float && !accepts(FLOAT_TYPES, "Float64"))
+        ) {
+            return None
+        }
+        met
     }
 
     /**

@@ -145,6 +145,7 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
     let addInItem =
         {
             item: ItemId, top: ItemId =>
+            // The tracked macro's AST round trip drops a terminating semicolon.
             let calls = inItems.get(item) ?? return ()
             for (one in calls) {
                 let owner = pkg ?? break

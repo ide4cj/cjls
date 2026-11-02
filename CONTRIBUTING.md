@@ -48,7 +48,7 @@ Handlers live in `modules/cjls/src/handlers` (package `cjls.handlers`), one file
 
    A handler only translates ([S3](docs/design/01-request-slice.md)): `from_proto.cj` gives the document (`fileOf(snap, uri)`) and offsets (`offsetOf(snap, file, position)`), a function of `loupe` does the work on `snap.analysis`, and `to_proto.cj` turns its answer into LSP types, through the snapshot's text and `snap.encoding`. `handlers/document_symbol.cj` is the example. Logic that is not translation goes to `loupe`, tested there. Don't catch `CancelledException`: the server runs the handler again on a fresh snapshot, or answers `RequestCancelled` once the client cancelled ([D8](docs/adr/0008-cancellation.md), [D122](docs/adr/0122-a-request-the-files-changed-under-runs-again.md)); a handler may thus run twice for one request.
 
-3. **Register it** with one line in `handlers/router.cj`: `.route(HoverRequestSpec(), handleHover)`. A one-liner can be a lambda instead, its context annotated: `.route(ShutdownRequestSpec()) {_: Context<Unit> => ()}`.
+3. **Register it** with one line in `handlers/router.cj`: `.route(HoverRequestSpec(), handleHover)`. A one-liner can be a lambda instead, its context annotated: `.route(ShutdownRequestSpec()) {_: Context<Unit> =>}`.
 
 4. **Advertise it** in `capabilities()` in `handlers/router.cj`, or clients will never send it. `CapabilitiesTest` (`handlers/router_test.cj`) fails while a routed method is not advertised or an advertised one not routed; a capability it does not know yet goes in its table, with the methods it advertises.
 

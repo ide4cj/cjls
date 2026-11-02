@@ -51,3 +51,8 @@ A reparseable block must receive no attached trivia, and its grammar must work
 without context outside the block. These preconditions preserve the full-parse
 result when replacing only that subtree. The language supplies delimiter kinds
 and eligible block grammars; ginkgo has no Cangjie-specific recovery rules.
+
+A language may supply a syntax-validation callback for the newly parsed block.
+It preserves the green tree and returns block-relative diagnostic ranges; the
+reparser removes the old block's diagnostics and shifts the new ones into the
+file. Full parsing must apply the same validation to preserve equivalent results.

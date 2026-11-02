@@ -42,6 +42,9 @@ public func router(): Router {
         .route(TypeDefinitionRequestSpec(), handleTypeDefinition)
         .route(DocumentHighlightRequestSpec(), handleDocumentHighlight)
         .route(ReferencesRequestSpec(), handleReferences)
+        .route(CallHierarchyPrepareRequestSpec(), handlePrepareCallHierarchy)
+        .route(CallHierarchyIncomingCallsRequestSpec(), handleIncomingCalls)
+        .route(CallHierarchyOutgoingCallsRequestSpec(), handleOutgoingCalls)
         .route(ImplementationRequestSpec(), handleImplementation)
         .route(HoverRequestSpec(), handleHover)
         .route(CompletionRequestSpec(), handleCompletion)
@@ -77,6 +80,8 @@ func capabilities(encoding: Encoding): ServerCapabilities {
             .AsBoolean(true),
         documentHighlightProvider: BooleanOrDocumentHighlightOptions.AsBoolean(true),
         referencesProvider: BooleanOrReferenceOptions.AsBoolean(true),
+        callHierarchyProvider: BooleanOrCallHierarchyOptionsOrCallHierarchyRegistrationOptions
+            .AsBoolean(true),
         implementationProvider: BooleanOrImplementationOptionsOrImplementationRegistrationOptions
             .AsBoolean(true),
         hoverProvider: BooleanOrHoverOptions.AsBoolean(true),

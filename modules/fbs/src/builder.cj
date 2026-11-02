@@ -120,7 +120,6 @@ public class FbBuilder {
         minAlign = max(minAlign, size)
         let pad = (size - (used + additional) % size) % size
         take(pad)
-        ()
     }
 
     public func addBool(value: Bool): Unit {

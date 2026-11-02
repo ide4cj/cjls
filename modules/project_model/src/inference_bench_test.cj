@@ -15,7 +15,7 @@ import loupe.syntax.parse
  */
 func inferEveryBody(
     ws: BenchWorkspace,
-    onUnknown!: (SourceFile, DefId, ExprId) -> Unit = { _, _, _ => () }
+    onUnknown!: (SourceFile, DefId, ExprId) -> Unit = { _, _, _ =>  }
 ): Int64 {
     var count = 0
     for ((_, file, _) in ws.files) {

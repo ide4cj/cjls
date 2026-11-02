@@ -10,8 +10,8 @@ Markdown procedures too; no agent session or private memory is required.
 
 Use [Select the pinned SDK](development.md#select-the-pinned-sdk) in each shell or
 inherit that environment from the launcher. Worktrees share an installed SDK,
-not mutable `target/`, `.corpora/` or coverage outputs. `CANGJIE_HOME` and the
-matching static stdx layout matter as well as the compiler on PATH.
+not mutable `target/`, `.corpora/` or coverage outputs. `CANGJIE_HOME` and `CANGJIE_STDX_PATH` pointing to the
+matching static stdx directory matter as well as the compiler on PATH.
 
 Coverage's `-g` build and release builds exercise different compiler/runtime
 behavior. Follow [toolchain constraints](development.md#toolchain-constraints)

@@ -75,12 +75,13 @@ public struct ScopeDiagnostic {
 }
 
 /**
- * Whether `pkg` is on a cycle of packages importing one another (N36), which cjpm rejects: an
- * import is a package's whole reading of another, so the cycle is one of this query.
+ * Whether `pkg` is on a cycle of production packages importing one another (N36).
+ * Dependencies compile without their tests; a test-only back import must not turn a valid
+ * production import into a cycle. Test build dependency validation belongs to cjpm.
  */
 @CalcaTracked[cycleResult: onImportCycleFallback]
 public func onImportCycle(db: AnalysisDatabase, pkg: PackageRef): Bool {
-    for (file in filesOf(db, pkg)) {
+    for (file in filesOf(db, pkg) where !isTestOf(db, pkg, file)) {
         for (item in itemTreeOf(db, file).imports) {
             for (path in item.paths) {
                 if (let Some(target) <- packageOf(targetOf(db, pkg, path, importLevelOf(item)))) {
@@ -129,7 +130,7 @@ public func scopeDiagnostics(
         let level = importLevelOf(item)
         for (i in 0..item.paths.size) {
             let at = ScopeProblemAt.AtImport(ImportSite(own, item.id, i, level))
-            let target = targetOf(db, from, item.paths[i], level)
+            let target = targetOf(db, from, item.paths[i], level, ofTests: isTestOf(db, pkg, file))
             // what the path brings by its own name, and what is wrong with it
             let result: (?ScopeProblem, ?String) =
                 match (target) {

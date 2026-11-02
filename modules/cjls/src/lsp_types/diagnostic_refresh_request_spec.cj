@@ -37,7 +37,5 @@ public struct DiagnosticRefreshRequestSpec <: LspOutboundRequest<Unit, Unit> {
         RawJson.NULL
     }
 
-    public func decodeResult(result: RawJson): Unit {
-        ()
-    }
+    public func decodeResult(result: RawJson): Unit {}
 }

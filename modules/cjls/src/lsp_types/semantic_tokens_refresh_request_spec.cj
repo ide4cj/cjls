@@ -35,7 +35,5 @@ public struct SemanticTokensRefreshRequestSpec <: LspOutboundRequest<Unit, Unit>
         RawJson.NULL
     }
 
-    public func decodeResult(result: RawJson): Unit {
-        ()
-    }
+    public func decodeResult(result: RawJson): Unit {}
 }

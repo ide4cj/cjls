@@ -17,9 +17,7 @@ let KIND_NUMBERS: HashMap<String, UInt8> =
         for (n in 0..256) {
             try {
                 numbers.addIfAbsent(getTokenKind(UInt16(n)).toString(), UInt8(n))
-            } catch (_: Exception) {
-                ()
-            }
+            } catch (_: Exception) {}
         }
         numbers.add("SINGLE_QUOTED_STRING_LITERAL", numbers["STRING_LITERAL"])
         numbers

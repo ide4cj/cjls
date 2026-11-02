@@ -298,20 +298,26 @@ class UnknownTest {
     }
 
     @TestCase
-    func aLocalFunctionsTypeParameterIsNotKnownYet() {
-        checkUnknowns(
+    func aLocalGenericFunctionsBodyAndCallsHaveKnownTypes() {
+        let fixture =
             #"
             package m
             func f(): Unit {
                 func id<T>(x: T): T {
                     return x
-            //             ^ todo(local generic)
                 }
                 let a = id(1)
-            //          ^^^^^ todo(local generic)
+                let b = id<Bool>(true)
             }
             "#
-        )
+        checkUnknowns(fixture)
+        let parsed = Fixture.parse(fixture)
+        let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
+        let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
+        let def = DefId(db, ItemFile.Source(source), itemTree(db, source).items[0].id)
+        let inferred = inferBody(db, def)
+        @Expect(inferred.exprs.all { ty => ty.map { one => !hasUnknowns(db, one) } ?? false })
+        @Expect(inferred.locals.all { ty => !hasUnknowns(db, ty) })
     }
 
     @TestCase

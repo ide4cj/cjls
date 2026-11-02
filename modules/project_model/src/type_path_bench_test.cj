@@ -27,7 +27,7 @@ func defsOf(ws: BenchWorkspace, file: SourceFile): Array<DefId> {
  */
 func resolveEveryTypePath(
     ws: BenchWorkspace,
-    onFailed!: (SourceFile, String, PathResolution) -> Unit = { _, _, _ => () }
+    onFailed!: (SourceFile, String, PathResolution) -> Unit = { _, _, _ =>  }
 ): Int64 {
     var resolved = 0
     for ((_, file, _) in ws.files) {

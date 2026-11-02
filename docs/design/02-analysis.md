@@ -197,6 +197,11 @@ Resolution is layered (D44): `itemTree` (a file) → `defMap` (a package) → si
 A name in a scope is a set of definitions; a member, an overload or an `extend`'s member is
 found by inference, never by a `defMap`.
 
+Import lookup retains the importing file's test context (#518): a module's
+`testDeps` extend only its `*_test.cj` imports, including expansion output at a test
+call site. Production package exports omit test-file re-exports. Each dependency
+resolves against its own edges; a downstream importer never inherits test edges.
+
 ### A23: Declaration identity
 
 A declaration across files is its `DefId` (its `ItemFile` and `ItemId`, interned), never a pair
@@ -207,6 +212,12 @@ self type and generic owners use the binary declaration paired at its checked
 identifier position (D147). Package and member lookup use binary declarations,
 including compiler-provided types. A file with no matching declarations has no
 source context; navigation targets retain D65's position/name check.
+
+Call hierarchy keeps canonical binary identity independently of navigation (D158).
+Checked source attachments supply declaration locations and bodies. Without them,
+the referring name supplies a location for the node; known incoming edges remain
+available, while unavailable bodies supply no outgoing edges. Compiler and syntax
+full declaration ranges need not match when the checked identifier does.
 
 ### A24: Signature type dependencies
 
@@ -228,12 +239,25 @@ write (`declaredTyOf`), never its own: a function calling itself of no return ty
 there, not a cycle; only declarations of unwritten types reading each other are one, each an
 error by its fallback (A14, D55).
 
+Inference retains every successfully resolved declaration-backed call, including
+unambiguous functions and binary declarations without source attachments.
+`InferenceResult.calleeOf` and `calleesOf` take the callee expression's identity,
+not the enclosing call expression. Explicit type initializers remain available
+separately through `initializerOf`, preserving hover and reference identity.
+
 ### A26: Call local type variables
 
 A type variable (`InferTy`) lives while its generic call is inferred. When that call is
 itself a callee, its returned function's applications share the same variables and solve
 with both the inner and outer arguments (N131, #246). A standalone call still solves alone,
-including fallback to its declared bounds.
+including fallback to its declared bounds. If the arguments' join fails or exceeds an upper
+bound, the solver tries the upper bound below all the others, provided every argument fits it
+and any numeric literals can use that numeric kind or have their default types boxed into it
+(#242). An expected `?I` may select `Option<I>` for this fallback, with arguments boxed as in cjc.
+
+A composition passes a callable object's call-operator signatures to the same solver as function
+operands. Overloads on either side constrain the shared intermediate type; the operand itself
+keeps its object type for hover and navigation (#247).
 
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
@@ -273,11 +297,17 @@ those it is made of, of the same node or of none, and names std.core only by `La
 `BodySourceMap.exprAt` gives a node's expression as written, the link `$v.b` of `a?.b`, and the
 expressions after it of that node are what it is desugared into, the last its value (D70).
 
+A custom annotation's constructor uses a synthetic callee during inference. Its placement
+diagnostic targets the declaration, so that source stays separately in `BodySourceMap`, with
+its expansion provenance. The synthetic callee is never indexed as a written expression:
+otherwise declaration names would acquire artificial expression types and unknown roots.
+Source-map equality includes these targets so source-only edits refresh diagnostic ranges.
+
 ### A30: Errors and analysis gaps
 
 A type not known has three causes (D77, D143): `ErrorTy` only where cjc reports an error, as
 far as the analysis follows cjc; `TodoTy(why)` for an unsupported analysis feature (macro
-expansion, local generics); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
+expansion); `UnknownTy(why)` for missing or unreadable inputs (`NoStd`,
 `BinaryType`), a type not inferred yet (`NotInferred`), or an exhausted analysis resource budget
 (`GenericBoundsLimit`). A malformed binary or an unresolved binary dependency alone does not
 establish an error in the user's source.
@@ -310,10 +340,13 @@ of the first, never a cycle of queries (D82).
 
 ### A32: Conservative diagnostics and gates
 
-Inference reports a diagnostic (`InferenceResult.diagnostics`, by expression) only between types
-known wholly (no `ErrorTy`, `TodoTy`, `UnknownTy` or variable inside, A30), on an expression
-the user wrote (A29), and where it matches the arguments as cjc does; a check it cannot make yet is counted, so
-a candidate still fails, and not reported.
+Inference reports a diagnostic (`InferenceResult.diagnostics`, by HIR identity) only between
+types known wholly (no `ErrorTy`, `TodoTy`, `UnknownTy` or variable inside, A30), at an
+expression or declaration the user wrote (A29), and where it matches the arguments as cjc
+does. A check it cannot make yet is counted, so a candidate still fails, and not reported.
+Custom annotation placement is checked only after its constructor and argument types are
+known; its synthetic callee identifies the check, while the separate declaration source
+supplies the diagnostic range. It does not make a synthetic expression user-written.
 
 A false error on code cjc accepts fails `DiagnosticsGateTest`: none on this repository, on std's
 sources none beyond `std_diagnostics_known.txt`, whose lines each name their gap and only go
@@ -335,6 +368,11 @@ What reads a file's declarations as a build has them reads `itemTreeOf` (`active
 source file), never `itemTree`, which keeps what a false `@When` leaves out; and lowers a body
 or a signature through an `ActiveFilter`. `itemTree` is for what needs every item whatever the
 cfg (D93).
+
+Checks performed while parsing retain that order even when collected by a later diagnostic
+query: native annotation rejection on `main` precedes inactive-code filtering, while semantic
+target checks follow it. A resolved declaration macro still owns its opaque input; checks
+apply to its current successful replacement rather than diagnosing that raw input (A35).
 
 ### A34: Common and specific declarations
 

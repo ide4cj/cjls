@@ -65,7 +65,12 @@ func typeNavigationTarget(
     match (ty.kind(db)) {
         case DeclTy(def, _) => declTarget(db, def, intoExpansions: intoExpansions)
         case ParamTy(owner, index) =>
-            targetOf(db, TypeTarget.GenericOf(owner, index), intoExpansions)
+            match (owner) {
+                case Declaration(def) =>
+                    targetOf(db, TypeTarget.GenericOf(def, index), intoExpansions)
+                case LocalFunction(def, local) =>
+                    targetOf(db, TypeTarget.LocalGenericOf(def, local, index), intoExpansions)
+            }
         case _ => None
     }
 }

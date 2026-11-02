@@ -39,6 +39,7 @@ class SettingsTest {
                             ),
                             ("cangjieHome", text(VfsPath.file(sdk).toUri())),
                             ("cangjieSrc", text(src.toString())),
+                            ("cangjieStdxPath", text(VfsPath.file(src).toUri())),
                             ("newFilePackage", JsonValue.JsonBool(false))
                         ]
                     ),
@@ -49,15 +50,19 @@ class SettingsTest {
         @Expect(settings.linkedProjects, [VfsPath.file(a), VfsPath.file(b)])
         @Expect(settings.cangjieHome, VfsPath.file(sdk).filePath.map {it => it.toString()})
         @Expect(settings.cangjieSrc, Some(src.toString()))
+        @Expect(settings.cangjieStdxPath, VfsPath.file(src).filePath.map {it => it.toString()})
         @Expect(!settings.newFilePackage)
         @Expect(problems.size, 0)
     }
 
     @TestCase
     func pathsExpandHomeAndEnvironmentInEverySetting() {
+        // arrange
         let home = getVariable("HOME") ?? getVariable("USERPROFILE").getOrThrow()
         let variable = if (getVariable("HOME").isSome()) { "HOME" } else { "USERPROFILE" }
         let problems = ArrayList<String>()
+
+        // act
         let settings =
             Settings
                 .read(
@@ -69,14 +74,17 @@ class SettingsTest {
                                     .JsonArray([text("~/project"), text("\${${variable}}/other")])
                             ),
                             ("cangjieHome", text("~")),
-                            ("cangjieSrc", text("$${variable}/src"))
+                            ("cangjieSrc", text("$${variable}/src")),
+                            ("cangjieStdxPath", text("~/stdx"))
                         ]
                     ),
                     problems
                 )
 
+        // assert
         @Expect(settings.linkedProjects, [VfsPath.file(home).join("project"), VfsPath.file(home).join("other")])
         @Expect(settings.cangjieHome, Some(home))
+        @Expect(settings.cangjieStdxPath.map {it => VfsPath.file(it)}, Some(VfsPath.file(home).join("stdx")))
         @Expect(settings.cangjieSrc.map {it => VfsPath.file(it)}, Some(VfsPath.file(home).join("src")))
         @Expect(problems.size, 0)
     }
@@ -193,17 +201,25 @@ class SettingsTest {
     @TestCase
     func everyPropertyOfTheSchemaIsASettingRead() {
         // arrange
+        let invalid = settingsJson([("not", text("this"))])
+
+        // act
         let properties = settingsSchema()["properties"].asObject()
 
-        // act, assert: a value no setting takes is told of, under its key
+        // assert
+        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "cangjieStdxPath", "newFilePackage",
+            "macroExpansion", "macroCallTimeout"])
         for ((key, _) in properties) {
+            // arrange
             let problems = ArrayList<String>()
-            Settings.read(settingsJson([(key, settingsJson([("not", text("this"))]))]), problems)
+
+            // act
+            Settings.read(settingsJson([(key, invalid)]), problems)
+
+            // assert: a value no setting takes is reported under its key
             @Expect(problems.size, 1)
             @Expect(problems[0].contains("`${key}`"))
         }
-        @Expect(properties.map {property => property[0]}, ["linkedProjects", "cangjieHome", "cangjieSrc", "newFilePackage",
-            "macroExpansion", "macroCallTimeout"])
     }
 
     @TestCase

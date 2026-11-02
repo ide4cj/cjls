@@ -36,7 +36,5 @@ public struct RegistrationRequestSpec <: LspOutboundRequest<RegistrationParams, 
         RawJson.of(params)
     }
 
-    public func decodeResult(result: RawJson): Unit {
-        ()
-    }
+    public func decodeResult(result: RawJson): Unit {}
 }

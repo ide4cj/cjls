@@ -149,7 +149,11 @@ class CompilerTypesTest {
             ]
         ) {
             let id = exportOf(db, core, entry[0])
-            let args = Array(genericsOf(db, id).size) { i => Ty(db, ParamTy(id, i)) }
+            let args =
+                Array(genericsOf(db, id).size) {
+                    i =>
+                    Ty(db, ParamTy(GenericOwner.Declaration(id), i))
+                }
 
             // act
             let signature = signatureTypes(db, id)

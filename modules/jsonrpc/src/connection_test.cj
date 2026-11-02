@@ -130,7 +130,7 @@ class FakeTransport <: JsonRpcTransport {
 class FakeHandler <: Handler {
     var onRequestFn: (String, ?RawJson, CancellationToken) -> ResultOrError =
         { _, _, _ => Result(rawJson("null")) }
-    var onNotificationFn: (String, ?RawJson) -> Unit = { _, _ => () }
+    var onNotificationFn: (String, ?RawJson) -> Unit = { _, _ =>  }
     var paramsReaderFn: (String) -> Option<(FjReader) -> Any> = { _ => None }
     var inPlace = false
 

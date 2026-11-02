@@ -142,7 +142,7 @@ class GenericBoundsTest {
         let unknown = Ty(db, UnknownTy(UnknownReason.GenericBoundsLimit))
         @Expect(result.size, 2)
         for (i in 0..2) {
-            let param = Ty(db, ParamTy(def, i))
+            let param = Ty(db, ParamTy(GenericOwner.Declaration(def), i))
             @Expect(result[i], TyBound(param, [unknown]))
             @Expect(firstUnknownIn(db, param), Some(unknown))
             @Expect(isSubtype(db, param, Ty(db, PrimTy("Int64")), None), true)
@@ -214,7 +214,8 @@ func checkBounds(text: String, expected: Array<Array<String>>): Unit {
     let actual =
         Array(genericsOf(db, def).size) {
             i =>
-            headTysOf(db, Ty(db, ParamTy(def, i))).map { ty => ty.text(db) }
+            headTysOf(db, Ty(db, ParamTy(GenericOwner.Declaration(def), i)))
+                .map { ty => ty.text(db) }
         }
     @Expect(actual, expected)
 }

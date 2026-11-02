@@ -15,9 +15,42 @@ const GENERIC_BOUNDS_LIMIT = 256
  */
 @CalcaTracked
 func genericBounds(db: AnalysisDatabase, owner: DefId): Array<TyBound> {
+    expandGenericBounds(db, GenericOwner.Declaration(owner), signatureTypes(db, owner).bounds)
+}
+
+func genericBounds(db: AnalysisDatabase, owner: GenericOwner): Array<TyBound> {
+    match (owner) {
+        case Declaration(def) => genericBounds(db, def)
+        case LocalFunction(def, index) => localGenericBounds(db, def, index)
+    }
+}
+
+@CalcaTracked
+func localGenericBounds(db: AnalysisDatabase, def: DefId, index: Int64): Array<TyBound> {
+    let hir = body(db, def)
+    let fn = hir.funcs.get(index) ?? return []
+    let lowering = SourceTyLowering(db, def, hir)
+    let written =
+        fn
+            .bounds
+            .map {
+                bound =>
+                TyBound(
+                    lowering.lowerType(bound.ty),
+                    bound.bounds.map { ty => lowering.lowerType(ty) }
+                )
+            }
+    expandGenericBounds(db, GenericOwner.LocalFunction(def, index), written)
+}
+
+func expandGenericBounds(
+    db: AnalysisDatabase,
+    owner: GenericOwner,
+    written: Array<TyBound>
+): Array<TyBound> {
     let pending = ArrayList<TyBound>()
     let seen = HashMap<Ty, HashSet<Ty>>()
-    for (bound in signatureTypes(db, owner).bounds) {
+    for (bound in written) {
         for (upper in bound.bounds) {
             if (!addGenericBound(db, pending, seen, bound.ty, upper)) {
                 return incompleteGenericBounds(db, owner, pending)
@@ -83,7 +116,7 @@ func addGenericBound(
 
 func incompleteGenericBounds(
     db: AnalysisDatabase,
-    owner: DefId,
+    owner: GenericOwner,
     pending: ArrayList<TyBound>
 ): Array<TyBound> {
     let subjects =
@@ -174,7 +207,8 @@ func matchTy(db: AnalysisDatabase, pattern: Ty, actual: Ty, owner: DefId, binds:
         }
     match ((pattern.kind(db), actual.kind(db))) {
         case (_, ErrorTy) | (_, TodoTy(_)) | (_, UnknownTy(_)) => true
-        case (ParamTy(of, index), _) where of == owner && index < binds.size =>
+        case (ParamTy(of, index), _) where of == GenericOwner.Declaration(owner) &&
+                index < binds.size =>
             match (binds[index]) {
                 case Some(bound) => bound == actual
                 case None =>
@@ -492,6 +526,10 @@ func ownerArgs(db: AnalysisDatabase, owner: DefId, recv: Ty, from: ?SourceFile):
  * not inferred yet (8c).
  */
 func eraseParams(db: AnalysisDatabase, ty: Ty, owner: DefId): Ty {
+    eraseParams(db, ty, GenericOwner.Declaration(owner))
+}
+
+func eraseParams(db: AnalysisDatabase, ty: Ty, owner: GenericOwner): Ty {
     let count = genericsOf(db, owner).size
     if (count == 0) {
         return ty

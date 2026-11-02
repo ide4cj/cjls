@@ -22,6 +22,13 @@ func checkInference(
     fixture: String,
     binaries!: Array<String> = ["std.core", "std.collection"]
 ): Unit {
+    expectAnnotations(fixture, inferredAnnotations(fixture, binaries))
+}
+
+/**
+ * The inferred types at declaration ranges in `fixture`, for comparison with its annotations.
+ */
+private func inferredAnnotations(fixture: String, binaries: Array<String>): Array<Annotation> {
     let parsed = Fixture.parse(fixture)
     let db = parsed.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let actual = ArrayList<Annotation>()
@@ -32,7 +39,7 @@ func checkInference(
             annotateTypes(db, source, root, item, actual)
         }
     }
-    expectAnnotations(fixture, actual.toArray())
+    actual.toArray()
 }
 
 /**
@@ -122,6 +129,131 @@ func exprTyCount(db: AnalysisDatabase, def: DefId): Int64 {
  */
 @Test
 class InferTest {
+    @TestCase
+    func localGenericUpperBoundsAreUsedByTheCallSolver() {
+        checkInference(
+            #"
+            package m
+            interface I {}
+            func f(): Unit {
+                func make<T>(): ?T where T <: I { None }
+            //       ^^^^ () -> Option<T>
+                let fallback = make()
+            //      ^^^^^^^^ Option<I>
+                func same<T>(x: T): T where T <: ToString { x }
+            //       ^^^^ (T) -> T
+            //               ^ T
+                let byte = same(1u8)
+            //      ^^^^ UInt8
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func localGenericRecursionAndInferredReturns() {
+        checkInference(
+            #"
+            package m
+            func f(): Unit {
+                func recurse<T>(x: T): T { recurse(x) }
+            //       ^^^^^^^ (T) -> T
+            //                  ^ T
+                func id<T>(x: T) { x }
+            //       ^^ (T) -> T
+            //             ^ T
+                let byte = id(1u8)
+            //      ^^^^ UInt8
+                let flag = recurse(true)
+            //      ^^^^ Bool
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func localGenericFunction() {
+        checkInference(
+            #"
+            package m
+            func f(): Unit {
+                func id<T>(x: T): T {
+            //       ^^ (T) -> T
+            //             ^ T
+                    let y = x
+            //          ^ T
+                    y
+                }
+                let a = id(1u8)
+            //      ^ UInt8
+                let b = id<String>("s")
+            //      ^ String
+                let c = id(1i16)
+            //      ^ Int16
+                let callable = id<Bool>
+            //      ^^^^^^^^ (Bool) -> Bool
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func localGenericBoundsAndCapturedOuterParameters() {
+        checkInference(
+            #"
+            package m
+            interface Value<T> where T <: ToString { func get(): T }
+            class ByteValue <: Value<UInt8> { public func get(): UInt8 { 1u8 } }
+            func f<A>(outer: A): Unit {
+            //        ^^^^^ A
+                func extract<T, U>(x: T): U where T <: Value<U> {
+            //       ^^^^^^^ (T) -> U
+            //                     ^ T
+                    let got = x.get()
+            //          ^^^ U
+                    let rendered = got.toString()
+            //          ^^^^^^^^ String
+                    got
+                }
+                let byte = extract<ByteValue, UInt8>(ByteValue())
+            //      ^^^^ UInt8
+                func keep<T>(x: T): (A, T) {
+            //       ^^^^ (T) -> (A, T)
+            //               ^ T
+                    (outer, x)
+                }
+                let both = keep(1u8)
+            //      ^^^^ (A, UInt8)
+            }
+            "#
+        )
+    }
+
+    @TestCase
+    func nestedLocalGenericFunctionsKeepTheirOwnParameters() {
+        checkInference(
+            #"
+            package m
+            func f(): Unit {
+                func outer<T>(x: T): (T, UInt8) {
+            //       ^^^^^ (T) -> (T, UInt8)
+            //                ^ T
+                    func inner<T>(y: T) {
+            //           ^^^^^ (T) -> (T, T)
+            //                    ^ T
+                        (x, y)
+                    }
+                    let pair = inner(1u8)
+            //          ^^^^ (T, UInt8)
+                    pair
+                }
+                let pair = outer(true)
+            //      ^^^^ (Bool, UInt8)
+            }
+            "#
+        )
+    }
+
     @TestCase
     func aLiteralIsOfItsSuffixElseOfTheTypeExpectedElseInt64OrFloat64() {
         checkInference(
@@ -2569,10 +2701,11 @@ class InferTest {
     }
 
     @TestCase
-    func aValueOfATypeOfACallOperatorIsCalledThroughIt() {
+    func aValueOfATypeOfACallOperatorIsCalledThroughIt(): Unit {
+        // arrange
         // N130: `k(x)` of a value of no function type is `k.()(x)`, in a pipeline and a composition
         // too
-        checkInference(
+        let fixture =
             #"
             package m
             class K {
@@ -2594,13 +2727,101 @@ class InferTest {
                 // cjc: type of left operand does not support coalescing operation
                 let unknown = (1 ?? 2)(3)
             //      ^^^^^^^ {unknown}
-                // not yet: a `(Int64) -> String` to cjc, of `k.()` the one taking a `String`; an
-                // operand of a composition is not called through its `operator ()` here
                 let d = f ~> k
-            //      ^ (Int64) -> {unknown}
+            //      ^ (Int64) -> String
             }
             "#
-        )
+
+        // act
+        let actual = inferredAnnotations(fixture, ["std.core", "std.collection"])
+
+        // assert
+        expectAnnotations(fixture, actual)
+    }
+
+    @TestCase
+    func compositionsSelectCallOperatorsOnEitherOperand(): Unit {
+        // arrange
+        let fixture =
+            #"
+            package m
+            class K {
+                operator func ()(x: Int64): Bool { true }
+            //                   ^ Int64
+                operator func ()(x: String): String { x }
+            //                   ^ String
+            }
+            class L<T> {
+                L(let value: T) {}
+            //        ^^^^^ T
+                operator func ()(x: Int64): T { value }
+            //                   ^ Int64
+            }
+            class Holder {
+                Holder(public let k: K) {}
+            //                    ^ K
+            }
+            func s(x: String): Bool { true }
+            //     ^ String
+            func test(k: K, l: L<String>, h: Holder): Unit {
+            //        ^ K
+            //              ^ L<String>
+            //                            ^ Holder
+                let left = l ~> s
+            //      ^^^^ (Int64) -> Bool
+                let both = l ~> k
+            //      ^^^^ (Int64) -> String
+                let overloadedLeft = k ~> s
+            //      ^^^^^^^^^^^^^^ (String) -> Bool
+                let overloadedBoth = k ~> k
+            //      ^^^^^^^^^^^^^^ (String) -> String
+                let field = l ~> h.k
+            //      ^^^^^ (Int64) -> String
+                let constructed = L<String>("") ~> K()
+            //      ^^^^^^^^^^^ (Int64) -> String
+                let grouped = (l) ~> (k)
+            //      ^^^^^^^ (Int64) -> String
+                let chained = l ~> k ~> s
+            //      ^^^^^^^ (Int64) -> Bool
+                let applied = (l ~> k)(1)
+            //      ^^^^^^^ String
+                let original = k
+            //      ^^^^^^^^ K
+            }
+            "#
+
+        // act
+        let actual = inferredAnnotations(fixture, ["std.core", "std.collection"])
+
+        // assert
+        expectAnnotations(fixture, actual)
+    }
+
+    @TestCase
+    func compositionsRejectAmbiguousCallOperators(): Unit {
+        // arrange
+        let fixture =
+            #"
+            package m
+            class K {
+                operator func ()(x: Int64): Int64 { x }
+            //                   ^ Int64
+                operator func ()(x: String): String { x }
+            //                   ^ String
+            }
+            func test(k: K): Unit {
+            //        ^ K
+                // cjc: invalid binary operator '~>' on two possible intermediate types
+                let ambiguous = k ~> k
+            //      ^^^^^^^^^ {unknown}
+            }
+            "#
+
+        // act
+        let actual = inferredAnnotations(fixture, ["std.core", "std.collection"])
+
+        // assert
+        expectAnnotations(fixture, actual)
     }
 
     @TestCase
@@ -2920,6 +3141,14 @@ class InferTest {
                 let x = T.make()
             //      ^ T
                 x
+            }
+            func f(): Unit {
+                func local<T>(): T where T <: Make<T> {
+            //       ^^^^^ () -> T
+                    let x = T.make()
+            //          ^ T
+                    x
+                }
             }
             "#
         )

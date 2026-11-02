@@ -12,7 +12,7 @@ import loupe.hir.*
  */
 func resolveEveryField(
     ws: BenchWorkspace,
-    onFailed!: (SourceFile, DefId, ExprId) -> Unit = { _, _, _ => () }
+    onFailed!: (SourceFile, DefId, ExprId) -> Unit = { _, _, _ =>  }
 ): (Int64, Int64) {
     var resolved = 0
     var ofValues = 0

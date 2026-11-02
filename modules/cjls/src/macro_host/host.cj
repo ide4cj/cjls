@@ -105,7 +105,6 @@ public class MacroHost <: MacroWork {
                 cycle(build)
             } catch (_: CancelledException) {
                 // the files changed under the snapshot: the write that did it woke the host already
-                ()
             } catch (e: Exception) {
                 logger.warn("the macros were not expanded", [("cause", e)])
             }
@@ -264,7 +263,7 @@ public class MacroHost <: MacroWork {
         if (plan.isEmpty()) {
             return
         }
-        let sdk = sdkFor(settings) ?? return ()
+        let sdk = sdkFor(settings) ?? return
         let name = dirNameOf(sdk.version)
         let outs = HashMap<String, ?Path>()
         let built =

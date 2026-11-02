@@ -37,7 +37,5 @@ public struct WorkDoneProgressCreateRequestSpec <:
         RawJson.of(params)
     }
 
-    public func decodeResult(result: RawJson): Unit {
-        ()
-    }
+    public func decodeResult(result: RawJson): Unit {}
 }

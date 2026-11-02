@@ -120,7 +120,7 @@ public enum LangItem {
 public func langItem(db: AnalysisDatabase, from: PackageRef, item: LangItem): ?DefId {
     if (let Some(owner) <- item.owner()) {
         let parent = langItem(db, from, owner) ?? return None
-        let members = declItemOf(db, parent)?.members ?? return None
+        let members = itemOf(db, parent)?.members ?? return None
         let file = parent.file(db)
         return members
             .iterator()
