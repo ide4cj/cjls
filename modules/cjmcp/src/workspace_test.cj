@@ -7,9 +7,18 @@ import std.fs.*
 import std.sync.AtomicBool
 import std.unittest.*
 import std.unittest.testmacro.*
+import ginkgo.TextRange
 import loupe.{expandedMacro, fileStructure, macroCallAt}
+import loupe.db.{MacroDiagnostic, MacroOutput, MacroSeverity}
+import loupe.hir.{
+    macroBuildPlan,
+    macroCallKeyOf,
+    macroOutputOf,
+    macroRequests,
+    serverCalls,
+    setMacroOutputsByKey
+}
 import loupe.vfs.VfsPath
-import loupe.hir.macroBuildPlan
 
 func workspaceFixture(): Path {
     let root = Directory.createTemp(getTempDirectory())
@@ -134,6 +143,69 @@ class WorkspaceSessionTest {
 
 @Test
 class WorkspaceMacroSessionTest {
+    @TestCase
+    func macroProblemsKeepHintsAndMappedSourcePositions() {
+        // arrange
+        let root = workspaceFixture()
+        Directory.create(root.join("src/ms"))
+        File.writeTo(
+            root.join("src/ms/macros.cj"),
+            #"macro package sample.ms
+import std.ast.*
+public macro Pass(input: Tokens): Tokens { input }
+"#.toArray()
+        )
+        let source =
+            #"package sample
+import sample.ms.*
+// привет
+@Pass public func value(): Int64 { 1 }
+main() { value() }
+"#
+        File.writeTo(root.join("src/main.cj"), source.toArray())
+        let session = WorkspaceSession(VfsPath.file(root))
+        try {
+            session
+                .withWorkspace {
+                    state =>
+                    let fileId = state.vfs.fileId(state.root.join("src/main.cj")).getOrThrow()
+                    let file = state.db.sourceFile(fileId).getOrThrow()
+                    let call = serverCalls(state.db, file)[0].call
+                    let previous = macroOutputOf(state.db, call).getOrThrow()
+                    let request = macroRequests(state.db, file)[0]
+                    let start = request.input.text.indexOf("value").getOrThrow()
+                    let origin = request.input.originOf(TextRange(start, start + 5))
+                    let diagnostic = MacroDiagnostic(
+                        MacroSeverity.MacroError,
+                        origin,
+                        "invalid declaration",
+                        "failure hint"
+                    )
+                    setMacroOutputsByKey(
+                        state.db,
+                        [
+                            (
+                                file,
+                                macroCallKeyOf(state.db, call),
+                                MacroOutput(previous.fingerprint, None, [], [diagnostic])
+                            )
+                        ]
+                    )
+                    let problems = ArrayList<String>()
+
+                    // act
+                    let complete = recordMacroProblems(state.db, state.vfs, [file], problems)
+
+                    // assert
+                    @Expect(!complete)
+                    @Expect(problems.toArray(), ["${root.join("src/main.cj")}:4:19: invalid declaration: failure hint"])
+                }
+        } finally {
+            session.close()
+            remove(root, recursive: true)
+        }
+    }
+
     @TestCase
     func rebuiltLibraryReplacesCachedNestedExpansion() {
         let root = workspaceFixture()
