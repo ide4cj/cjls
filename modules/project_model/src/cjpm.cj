@@ -7,7 +7,7 @@ import std.sort.*
 import ftoml.*
 import stdxx.deriving.*
 import loupe.db.*
-import loupe.vfs.VfsPath
+import loupe.vfs.{cjoFilesIn, VfsPath}
 
 /**
  * The script cjpm runs around a build, beside its `cjpm.toml`.
@@ -20,14 +20,16 @@ const BUILD_SCRIPT = "build.cj"
  * per `build.cj`. A multiplatform module's packages are those of the chain of source sets the
  * target of `cfg` takes, the files of the others inactive (#318). A
  * Git or registry dependency is read from cjpm's locked cache; missing or stale locks and
- * downloaded sources are reported in the problems.
+ * downloaded sources are reported in the problems. `buildMode` selects release by default,
+ * or debug as `cjpm build -g`, independently of the target conditions in `cfg`.
  *
  * @throws ProjectException - if the file cannot be read
  */
 public func loadCjpmProject(
     file: VfsPath,
     env!: (String) -> ?String,
-    cfg!: Cfg = hostCfg()
+    cfg!: Cfg = hostCfg(),
+    buildMode!: BuildMode = Release
 ): ?ProjectLoad {
     let path = file.filePath ?? return None
     if (!isFile(path)) {
@@ -36,7 +38,7 @@ public func loadCjpmProject(
     let loading = Loading(env, cfg)
     let manifest = readManifest(file)
     let dir = file.parent.getOrThrow()
-    let lowering = CjpmLowering(loading, dir, manifest)
+    let lowering = CjpmLowering(loading, dir, manifest, buildMode)
     for (member in lowering.members) {
         lowering.module(member)
     }
@@ -105,7 +107,8 @@ class CjpmLowering {
     CjpmLowering(
         private let loading: Loading,
         private let root: VfsPath,
-        private let manifest: Manifest
+        private let manifest: Manifest,
+        private let buildMode: BuildMode
     ) {
         git = CjpmGit(loading, root)
         registry = CjpmRegistry(loading, root)
@@ -500,13 +503,22 @@ class CjpmLowering {
         }
         for ((declared, base) in declarations) {
             let target = targetOf(declared)
+            let mode = target.flatMap { it => modeOf(it) }
             let tables =
                 if (script) {
                     [declared.scriptDependencies]
                 } else if (tests) {
-                    [declared.testDependencies, target.flatMap { it => it.testDependencies }]
+                    [
+                        declared.testDependencies,
+                        target.flatMap { it => it.testDependencies },
+                        mode.flatMap { it => it.testDependencies }
+                    ]
                 } else {
-                    [declared.dependencies, target.flatMap { it => it.dependencies }]
+                    [
+                        declared.dependencies,
+                        target.flatMap { it => it.dependencies },
+                        mode.flatMap { it => it.dependencies }
+                    ]
                 }
             for (table in tables) {
                 let sorted = (table ?? HashMap<String, Dependency>()).toArray()
@@ -525,7 +537,11 @@ class CjpmLowering {
      * module of `package-option`.
      */
     private func binaryDeps(manifest: Manifest, dir: VfsPath): Array<String> {
-        let bin = targetOf(manifest).flatMap { target => target.binDependencies } ?? return []
+        let target = targetOf(manifest) ?? return []
+        if (let Some(mode) <- modeOf(target).flatMap { it => it.binDependencies }) {
+            return modeBinaryDeps(mode, target.binDependencies, dir)
+        }
+        let bin = target.binDependencies ?? return []
         let names = ArrayList<String>()
         for (option in bin.pathOption ?? []) {
             let path = loading.resolve(dir, option)
@@ -549,6 +565,59 @@ class CjpmLowering {
             addBinary(BinaryModel(module, [], packages: packages))
         }
         names.toArray()
+    }
+
+    /**
+     * cjpm selects packages, not entire directories: a mode directory may replace one common
+     * package while retaining another. Materialize the selected packages before lowering so
+     * mode path-option also beats common package-option, without adding profiles to the JSON model.
+     */
+    private func modeBinaryDeps(
+        mode: BinDependencies,
+        common: ?BinDependencies,
+        dir: VfsPath
+    ): Array<String> {
+        let selected = HashMap<String, BinaryPackage>()
+        let paths = ArrayList<VfsPath>()
+        for (bin in [mode, common ?? BinDependencies()]) {
+            for ((name, path) in bin.packageOption ?? HashMap<String, String>()) {
+                if (!selected.contains(name)) {
+                    selected[name] = BinaryPackage(name, loading.resolve(dir, path))
+                }
+            }
+            for (option in bin.pathOption ?? []) {
+                let path = loading.resolve(dir, option)
+                if (!paths.contains(path)) {
+                    paths.add(path)
+                }
+                for (file in cjoFilesIn(path.name, path)) {
+                    if (!selected.contains(file.name)) {
+                        selected[file.name] = BinaryPackage(file.name, file.path)
+                    }
+                }
+            }
+        }
+        let names = selected.keys().toArray().map { name => moduleOf(name) }
+        // Even an empty search directory must remain watched for newly built packages.
+        let moduleNames =
+            if (names.isEmpty()) { paths.toArray().map { path => path.name } } else { names }
+        let modules = HashSet<String>(moduleNames).toArray()
+        sort(modules)
+        for (name in modules) {
+            let packages = selected.values().toArray().filter { pkg => moduleOf(pkg.name) == name }
+            sort(packages, by: { a, b => a.name.compare(b.name) })
+            addBinary(
+                BinaryModel(name, paths.toArray(), packages: packages, discoverPackages: false)
+            )
+        }
+        modules
+    }
+
+    private func modeOf(target: Target): ?TargetMode {
+        match (buildMode) {
+            case Debug => target.debug
+            case Release => target.release
+        }
     }
 
     private func addBinary(binary: BinaryModel): Unit {
@@ -652,6 +721,19 @@ struct DependencyTable {
 @DeriveExt[FromToml]
 struct Target {
     Target(
+        let debug!: ?TargetMode = None,
+        let release!: ?TargetMode = None,
+        let dependencies!: ?HashMap<String, Dependency> = None,
+        @Serde[rename: "test-dependencies"]
+        let testDependencies!: ?HashMap<String, Dependency> = None,
+        @Serde[rename: "bin-dependencies"]
+        let binDependencies!: ?BinDependencies = None
+    ) {}
+}
+
+@DeriveExt[FromToml]
+struct TargetMode {
+    TargetMode(
         let dependencies!: ?HashMap<String, Dependency> = None,
         @Serde[rename: "test-dependencies"]
         let testDependencies!: ?HashMap<String, Dependency> = None,

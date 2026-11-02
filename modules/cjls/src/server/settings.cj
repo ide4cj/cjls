@@ -6,7 +6,7 @@ import std.fs.Path
 import std.env.getVariable
 import fjson.JsonValue
 import loupe.vfs.VfsPath
-import project_model.expandPath
+import project_model.{BuildMode, expandPath}
 
 /**
  * The section of the client's configuration the settings are under (`cjls.linkedProjects`), the one
@@ -50,6 +50,25 @@ let CANGJIE_STDX_PATH = Setting<?String>(
     optionalPathSchema(),
     Option<String>.None,
     readOptionalPath
+)
+
+let BUILD_MODE = Setting<BuildMode>(
+    "buildMode",
+    "The cjpm dependency profile: release (the default, as cjpm build) or debug (as cjpm build -g). Selects target-specific source, test and binary dependencies independently of the target platform. Changing it reloads projects.",
+    JsonValue.JsonObject(
+        [
+            ("type", JsonValue.JsonString("string")),
+            (
+                "enum",
+                JsonValue.JsonArray(
+                    [JsonValue.JsonString("release"), JsonValue.JsonString("debug")]
+                )
+            ),
+            ("default", JsonValue.JsonString("release"))
+        ]
+    ),
+    BuildMode.Release,
+    readBuildMode
 )
 
 let NEW_FILE_PACKAGE = Setting<Bool>(
@@ -110,6 +129,10 @@ public struct Settings {
          */
         public let cangjieStdxPath!: ?String = CANGJIE_STDX_PATH.default,
         /**
+         * The cjpm dependency profile, independent of target conditions.
+         */
+        public let buildMode!: BuildMode = BUILD_MODE.default,
+        /**
          * Whether a new file is given its `package` line (#294).
          */
         public let newFilePackage!: Bool = NEW_FILE_PACKAGE.default,
@@ -134,6 +157,7 @@ public struct Settings {
             cangjieHome: CANGJIE_HOME.read(json, problems),
             cangjieSrc: CANGJIE_SRC.read(json, problems),
             cangjieStdxPath: CANGJIE_STDX_PATH.read(json, problems),
+            buildMode: BUILD_MODE.read(json, problems),
             newFilePackage: NEW_FILE_PACKAGE.read(json, problems),
             macroExpansion: MACRO_EXPANSION.read(json, problems),
             macroCallTimeout: MACRO_CALL_TIMEOUT.read(json, problems)
@@ -153,6 +177,7 @@ public func settingsSchema(): JsonValue {
             CANGJIE_HOME.property(),
             CANGJIE_SRC.property(),
             CANGJIE_STDX_PATH.property(),
+            BUILD_MODE.property(),
             NEW_FILE_PACKAGE.property(),
             MACRO_EXPANSION.property(),
             MACRO_CALL_TIMEOUT.property()
@@ -225,6 +250,7 @@ class Setting<T> {
             case Some(JsonValue.JsonString("array")) => "a list of absolute paths or `file:` URIs"
             case Some(JsonValue.JsonString("boolean")) => "`true` or `false`"
             case Some(JsonValue.JsonString("integer")) => "a whole number above 0"
+            case Some(JsonValue.JsonString("string")) => "`release` or `debug`"
             case _ => "an absolute path or a `file:` URI"
         }
     }
@@ -240,6 +266,17 @@ func optionalPathSchema(): JsonValue {
             ("default", JsonValue.JsonNull)
         ]
     )
+}
+
+/**
+ * Only cjpm's two dependency profiles are accepted.
+ */
+func readBuildMode(_: String, value: JsonValue, _: ArrayList<String>): SettingParse<BuildMode> {
+    match (value) {
+        case JsonValue.JsonString("release") => ParsedSetting(BuildMode.Release)
+        case JsonValue.JsonString("debug") => ParsedSetting(BuildMode.Debug)
+        case _ => InvalidSetting
+    }
 }
 
 /**

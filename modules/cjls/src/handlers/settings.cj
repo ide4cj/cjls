@@ -122,7 +122,8 @@ func changeSettings(loop: Loop, client: Client, logger: Logger, section: JsonVal
                 settings.linkedProjects != before.linkedProjects ||
                     settings.cangjieHome != before.cangjieHome ||
                     settings.cangjieSrc != before.cangjieSrc ||
-                    settings.cangjieStdxPath != before.cangjieStdxPath
+                    settings.cangjieStdxPath != before.cangjieStdxPath ||
+                    !(settings.buildMode == before.buildMode)
             ) {
                 startLoad(loop, client, logger)
             }

@@ -7,7 +7,7 @@ This file is the editor clients' contract (D32): its first line is the hash of `
 
 ## Settings
 
-What `cjls --config-schema` prints, a JSON Schema with each setting's type, default and description; all optional (D79). A client passes them as `initializationOptions` and keeps them under the section `cjls` of its configuration: the server asks for that section (`workspace/configuration`) once initialized and on each `workspace/didChangeConfiguration`, or, from a client that cannot be asked, reads it in that notification's `settings.cjls`. `null` or `{}` leaves the settings as they were; any other object replaces them whole. Today: `linkedProjects` (D33), `cangjieHome` (D40), `cangjieSrc` (D65), `cangjieStdxPath`, `newFilePackage` (D92).
+What `cjls --config-schema` prints, a JSON Schema with each setting's type, default and description; all optional (D79). A client passes them as `initializationOptions` and keeps them under the section `cjls` of its configuration: the server asks for that section (`workspace/configuration`) once initialized and on each `workspace/didChangeConfiguration`, or, from a client that cannot be asked, reads it in that notification's `settings.cjls`. `null` or `{}` leaves the settings as they were; any other object replaces them whole. Today: `linkedProjects` (D33), `cangjieHome` (D40), `cangjieSrc` (D65), `cangjieStdxPath`, `buildMode`, `newFilePackage` (D92).
 
 Path settings (`linkedProjects`, `cangjieHome`, `cangjieSrc`, `cangjieStdxPath`) accept `~` or a leading
 `~/` (`~\` on Windows) for the home directory (`HOME`, falling back to
@@ -23,6 +23,11 @@ expressions are not supported. Variables supplied by an editor (such as VS Code'
 Without this setting, the process variable is used. Projects must still declare
 their stdx binary dependency; setting a path does not add it. Changing the setting
 reloads projects, including binary paths used by workspace macro builds.
+
+`buildMode` selects `release` (the default, matching `cjpm build`) or `debug`
+(matching `cjpm build -g`) for cjpm source, test and binary dependencies.
+Changing it reloads projects. It does not change the target platform or `@When`
+conditions; package configuration selection remains independent.
 
 ## `cjls/memoryUsage`
 

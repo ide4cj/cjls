@@ -195,6 +195,11 @@ public struct BinaryModel {
         public let paths: Array<VfsPath>,
         public let packages!: Array<BinaryPackage> = [],
         /**
+         * Whether `paths` discover packages. False retains watched search paths for an already
+         * selected package list, such as cjpm's profile-specific binary precedence.
+         */
+        public let discoverPackages!: Bool = true,
+        /**
          * Its sources, `None` if they are not there.
          */
         public let sources!: ?BinarySources = None
@@ -337,13 +342,15 @@ public struct ProjectModel {
 
     /**
      * The `.cjo` of every package of the binaries, as the disk lists them: every one in a directory
-     * of a binary, then those it names one by one.
+     * of a binary when `discoverPackages` is enabled, then those it names one by one.
      */
     public func cjoFiles(): Array<CjoFile> {
         let files = ArrayList<CjoFile>()
         for (binary in binaries) {
-            for (dir in binary.paths) {
-                files.add(all: cjoFilesIn(binary.name, dir))
+            if (binary.discoverPackages) {
+                for (dir in binary.paths) {
+                    files.add(all: cjoFilesIn(binary.name, dir))
+                }
             }
             files.add(all: binary.packages.map { pkg => CjoFile(binary.name, pkg.name, pkg.path) })
         }

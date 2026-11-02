@@ -44,6 +44,8 @@ public func withPackageCfgs(model: ProjectModel, problems: ArrayList<String>): P
                             }
                         },
                     deps: module.deps,
+                    testDeps: module.testDeps,
+                    resolutionScope: module.resolutionScope,
                     member: module.member,
                     cfg: module.cfg,
                     inactive: module.inactive
