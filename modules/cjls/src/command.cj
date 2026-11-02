@@ -25,25 +25,9 @@ struct CommandOutput {
     CommandOutput(let out: OutputStream, let err: OutputStream) {}
 }
 
-let CJLS_APP = commandApp()
+let CJLS_APP = JianContextApp<CommandContext>(name: "cjls", help: "Cangjie language server.")
 
-func commandApp(
-    out!: OutputStream = getStdOut(),
-    err!: OutputStream = getStdErr()
-): JianContextApp<CommandContext> {
-    JianContextApp<CommandContext>(
-        name: "cjls",
-        help: "Cangjie language server.",
-        stdout: out,
-        stderr: err
-    )
-        .callback(configureCommand)
-        .add(printProject)
-        .add(formatCommand)
-        .add(downloadSources)
-}
-
-@JianCallback[help: "Serve LSP over stdio when no command is given."]
+@JianCallback[CJLS_APP, help: "Serve LSP over stdio when no command is given."]
 func configureCommand(
     invocation!: JianInvocation = JianCurrentInvocation(),
     context!: CommandContext = JianFromContext<CommandContext>(),
@@ -65,7 +49,7 @@ func configureCommand(
     JianCallbackResult.Continue
 }
 
-@JianCommand[name: "fmt", help: "Format Cangjie files or directories using their project settings."]
+@JianCommand[CJLS_APP, name: "fmt", help: "Format Cangjie files or directories using their project settings."]
 func formatCommand(
     paths: Array<Path>,
     context!: CommandContext = JianFromContext<CommandContext>(),
@@ -78,7 +62,7 @@ func formatCommand(
     formatPaths(paths.map { path => absolute(path) }, check, context.output.out, context.output.err)
 }
 
-@JianCommand[name: "fetch-src", help: "Download std sources for the detected SDK into its src directory."]
+@JianCommand[CJLS_APP, name: "fetch-src", help: "Download std sources for the detected SDK into its src directory."]
 func downloadSources(
     context!: CommandContext = JianFromContext<CommandContext>(),
     dir!: ?Path = JianOption(
@@ -97,7 +81,7 @@ func downloadSources(
  *
  * @return the exit code
  */
-@JianCommand[name: "project", help: "Print the detected project as cj-project.json."]
+@JianCommand[CJLS_APP, name: "project", help: "Print the detected project as cj-project.json."]
 func printProject(
     dir!: Path = JianOption(
         short: r'd',

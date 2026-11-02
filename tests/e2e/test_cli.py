@@ -17,6 +17,7 @@ def test_help_exits_without_starting_the_server():
     assert run.returncode == 0, run.stderr
     assert "Usage: cjls" in run.stdout
     assert "--config-schema" in run.stdout
+    assert all(command in run.stdout for command in ["project", "fmt", "fetch-src"])
     assert run.stderr == ""
 
 

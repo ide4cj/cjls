@@ -2,10 +2,27 @@ package cjls
 
 import std.env.getWorkingDirectory
 import std.fs.{Directory, File, Path, remove}
-import std.io.{ByteBuffer, readToEnd}
+import std.io.{ByteBuffer, OutputStream, readToEnd}
 import stdx.log.NoopLogger
 import fjson.{fromJsonBytes, JsonValue}
+import jian.JianContextApp
 import cjls.server.settingsSchema
+
+/**
+ * Isolates command tests from the application's package-level registrations and output streams.
+ */
+func testCommandApp(out!: OutputStream, err!: OutputStream): JianContextApp<CommandContext> {
+    JianContextApp<CommandContext>(
+        name: "cjls",
+        help: "Cangjie language server.",
+        stdout: out,
+        stderr: err
+    )
+        .callback(configureCommand)
+        .add(printProject)
+        .add(formatCommand)
+        .add(downloadSources)
+}
 
 @Test
 class CommandTest {
@@ -24,7 +41,7 @@ class CommandTest {
         // arrange
         let (args, usage, option) = scenario
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = commandApp(out: out, err: err)
+        let app = testCommandApp(out: out, err: err)
         let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
         // act
@@ -50,7 +67,7 @@ class CommandTest {
     func invalidInputsAreUsageErrorsWithoutRunningAnAction() {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = commandApp(out: out, err: err)
+        let app = testCommandApp(out: out, err: err)
         let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
         let invalid: Array<Array<String>> =
             [
@@ -86,7 +103,7 @@ class CommandTest {
     func configSchemaPrintsTheSchemaOfTheSettingsAsJson() {
         // arrange
         let (out, err) = (ByteBuffer(), ByteBuffer())
-        let app = commandApp(out: out, err: err)
+        let app = testCommandApp(out: out, err: err)
         let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
         // act
@@ -114,7 +131,7 @@ class CommandTest {
             let relative = dir.fileName
             let options = args.map { arg => arg.replace("sub", relative) }
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let app = commandApp(out: out, err: err)
+            let app = testCommandApp(out: out, err: err)
             let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
             // act
@@ -143,7 +160,7 @@ class CommandTest {
                 File.writeTo(file, source.toArray())
             }
             let (out, err) = (ByteBuffer(), ByteBuffer())
-            let app = commandApp(out: out, err: err)
+            let app = testCommandApp(out: out, err: err)
             let context = CommandContext(NoopLogger(), output: CommandOutput(out, err))
 
             // act
