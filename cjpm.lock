@@ -2,5 +2,5 @@ version = 1
 
 [requires."jian"]
 version = "0.1.0"
-source = "git+https://github.com/FilaCo/jian.git#2db950a23dd43cc357291f78110b1523a136b999"
+source = "git+https://github.com/FilaCo/jian.git#8945502ef77a62b638c2ca46c843de750089a5db"
 dependencies = []
