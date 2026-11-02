@@ -327,6 +327,15 @@ result = i + 1
                     callees = [inferred.calleeOf(ExprId(i)) for i in range(len(body.exprs))]
                     names = [name for d in callees if d is not None for name in analysis.item(d).names]
                     assert 'shared' in names and 'identity' in names, names
+                    direct = analysis.directCalls(answer)
+                    assert isinstance(direct, DirectCalls)
+                    assert len(direct.edges) == 2
+                    assert all(isinstance(edge, DirectCall) for edge in direct.edges)
+                    assert all(isinstance(gap, CallGap) for gap in direct.gaps)
+                    declared = [analysis.callDeclaration(edge.target) for edge in direct.edges]
+                    assert all(isinstance(item, CallDeclaration) for item in declared)
+                    assert {{item.name for item in declared}} == {{'identity', 'shared'}}
+                    assert all(item.packageName == 'sample' for item in declared)
                     assert all(isinstance(target, CalleeTarget) for target in inferred.callees)
                     assert all(isinstance(target, NameTarget) for target in inferred.names)
                     assert all(isinstance(target.resolution, BodyResolution) for target in inferred.names)
