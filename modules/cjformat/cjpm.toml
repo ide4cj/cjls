@@ -13,6 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
+py_interop = { git = "https://gitcode.com/filaco/cangjie_python_reverse_interop.git", commitId = "c0c91cf8a89889f65bca96b962e530001e8433b2", output-type = "static" }
 source_change = { path = "../source_change" }
 stdxx = { path = "../stdxx" }
 ftoml = { path = "../ftoml" }

@@ -78,6 +78,20 @@ or write to GitHub merely because an old permission list allowed it. The former
 startup cleanup hook has been removed. No automatic replacement infers inactivity
 from timestamps.
 
+## Agent semantic analysis with cjmcp
+
+cjmcp is optional; contributing to cjls does not require installing it. When
+connected, use its server instructions for semantic queries and the
+[`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md) for unfamiliar
+operations. Without it, continue with source tools, compiler and tests.
+
+Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified binary
+to the edited worktree. Keep it separate from task build outputs; testing changed
+analyzer or binding code requires rebuilding and restarting the tool. Include the
+loaded root, preparation problems and macro status with the first useful query.
+cjmcp and cjls share loupe, so their agreement does not replace compiler probes
+or the [required checks](development.md#choose-checks-for-a-change).
+
 ## Editor and LSP integration
 
 The server remains available to editors over stdio; build/run and e2e commands are

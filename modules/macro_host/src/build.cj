@@ -214,7 +214,7 @@ public class MacroBuilder {
     }
 
     /**
-     * What tells one build of `unit` from another: cjc's version, its sources (their names, sizes and times), and
+     * What tells one build of `unit` from another: cjc's version, its sources (their names and contents), and
      * the stamps of its source dependencies, including macros used during compilation.
      */
     private func stampOf(unit: BuildUnit, stamps: HashMap<String, Int64>): Int64 {
@@ -266,13 +266,20 @@ func outputName(unit: BuildUnit): String {
 }
 
 /**
- * The `.cj` files directly in `dir`, each as its name, size and time, in the order of their names.
+ * The `.cj` files directly in `dir`, each as its name and content hash, in name order.
  */
 func sourcesOf(dir: Path): Array<String> {
     let found = ArrayList<String>()
     try {
-        for (entry in Directory.readFrom(dir) where entry.name.endsWith(".cj")) {
-            found.add("${entry.name}:${entry.size}:${timeOf(entry.path)}")
+        for (
+            entry in Directory.readFrom(dir) where entry.isRegular() && entry.name.endsWith(".cj")
+        ) {
+            // FileInfo reports whole seconds on the SDK; equal-size edits can share that timestamp.
+            var hasher = DefaultHasher()
+            for (byte in File.readFrom(entry.path)) {
+                hasher.write(byte)
+            }
+            found.add("${entry.name}:${hasher.finish()}")
         }
     } catch (_: Exception) {}
     let sorted = found.toArray()
