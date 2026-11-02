@@ -487,8 +487,10 @@ class UnittestInferenceTest {
     func aTestFileSeesStdUnittestAndItsMacrosUnimported() {
         // cjc 1.3.0-alpha.20261014 (D129): `--test` imports `std.unittest.*` and `std.unittest.testmacro.*` in every
         // file, which only a `*_test.cj` is compiled with
+        let memoryType =
+            if (stdCompilerVersion().startsWith("1.0.")) { "{unknown}" } else { "RuntimeInfo" }
         checkInferenceWithUnittest(
-            #"
+            """
             //- /m/src/a_test.cj module=m package=m
             package m
             open class Base <: Exception {}
@@ -510,11 +512,11 @@ class UnittestInferenceTest {
                 let n = k.name
             //      ^ String
                 let m = AllocatedMemory
-            //      ^ RuntimeInfo
+            //      ^ ${memoryType}
             }
             //- /m/src/a.cj module=m package=m
             package m
-            "#
+            """
         )
     }
 

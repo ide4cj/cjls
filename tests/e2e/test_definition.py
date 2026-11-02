@@ -14,7 +14,9 @@ from conftest import CLIENTS, REPO, capabilities, loaded
 # an SDK for std's `.cjo`, passed as an editor passes it: the server's environment has none (CI's
 # CJLS_E2E_SDK, else the one of the shell); std's sources, as tests/corpora/fetch.py fetches them
 SDK = os.environ.get("CJLS_E2E_SDK") or os.environ.get("CANGJIE_HOME")
-CANGJIE_SRC = REPO / ".corpora" / "cangjie_runtime" / "stdlib" / "libs"
+CANGJIE_STD = pathlib.Path(os.environ.get("CJLS_TEST_STD_SOURCES") or
+                           REPO / ".corpora" / "cangjie_runtime" / "stdlib" / "libs" / "std")
+CANGJIE_SRC = CANGJIE_STD.parent
 
 SOURCE = """\
 class K {
@@ -93,7 +95,7 @@ async def test_a_name_goes_to_its_declarations(server: LanguageClient, tmp_path,
     await server.shutdown_session()
 
 
-@pytest.mark.skipif(SDK is None or not (CANGJIE_SRC / "std").is_dir(),
+@pytest.mark.skipif(SDK is None or not CANGJIE_STD.is_dir(),
                     reason="no SDK (CJLS_E2E_SDK), or no std's sources (tests/corpora/fetch.py)")
 @pytest.mark.parametrize("editor", CLIENTS)
 async def test_a_name_of_std_goes_to_its_source(server: LanguageClient, tmp_path, editor):

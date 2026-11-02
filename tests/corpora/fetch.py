@@ -2,6 +2,7 @@
 
     python3 tests/corpora/fetch.py            # every suite
     python3 tests/corpora/fetch.py toml-test  # the ones named
+    python3 tests/corpora/fetch.py --sdk-version 1.0.5  # release std, prints its source directory
 
 A suite is a git repository, fetched at its commit alone and without the blobs of the files it
 does not need (a partial clone, a sparse checkout): the commit is its checksum, and nothing else of
@@ -10,6 +11,7 @@ Its bytes are kept as they are upstream, CRs and invalid UTF-8 included - they a
 tested - so no checkout converts line endings, whatever git's configuration says.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -90,6 +92,19 @@ def fetch(name):
     git(dest, "checkout", "-q", "--detach", commit)
 
 
+def release_sources(version):
+    """Fetch a release's matching std without replacing the nightly corpus."""
+    with open(os.path.join(ROOT, ".cangjie-window")) as source:
+        releases = json.load(source).values()
+    release = next(item for item in releases if item["version"] == version)
+    runtime = release["runtime"]
+    name = f"cangjie_runtime-{version}"
+    SUITES[name] = (SUITES["cangjie_runtime"][0], runtime["commit"],
+                    ["/LICENSE", f"/{runtime['std']}/"])
+    fetch(name)
+    return os.path.join(CORPORA, name, runtime["std"])
+
+
 def main(names):
     unknown = [name for name in names if name not in SUITES]
     if unknown:
@@ -99,4 +114,7 @@ def main(names):
 
 
 if __name__ == "__main__":
-    main(sys.argv[1:])
+    if len(sys.argv) == 3 and sys.argv[1] == "--sdk-version":
+        print(release_sources(sys.argv[2]))
+    else:
+        main(sys.argv[1:])
