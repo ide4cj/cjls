@@ -45,14 +45,12 @@ public specific func startPiped(
     args: (ChildPipes) -> Array<String>
 ): PipedChild {
     let pipes = ChildPipes(read: "3", write: "4", parent: getProcessId())
-    let process =
-        launch(
-            "/bin/sh",
-            ["-c", POSIX_LAUNCH, "sh", libraryPathOf(libDirs), program.toString()]
-                .concat(args(pipes)),
-            stdIn: ProcessRedirect.Pipe,
-            stdOut: ProcessRedirect.Pipe,
-            stdErr: ProcessRedirect.Inherit
-        )
+    let process = launch(
+        "/bin/sh",
+        ["-c", POSIX_LAUNCH, "sh", libraryPathOf(libDirs), program.toString()].concat(args(pipes)),
+        stdIn: ProcessRedirect.Pipe,
+        stdOut: ProcessRedirect.Pipe,
+        stdErr: ProcessRedirect.Inherit
+    )
     PosixChild(process)
 }

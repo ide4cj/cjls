@@ -41,16 +41,9 @@ func noEnv(_: String): ?String {
     None
 }
 
-let LINUX =
-    Cfg(
-        [
-            ("os", "Linux"),
-            ("arch", "x86_64"),
-            ("env", "gnu"),
-            ("backend", "cjnative"),
-            ("test", "true")
-        ]
-    )
+let LINUX = Cfg(
+    [("os", "Linux"), ("arch", "x86_64"), ("env", "gnu"), ("backend", "cjnative"), ("test", "true")]
+)
 
 /**
  * Every package of `model` as `module: package=file,file`, its files relative to `dir`.
@@ -59,10 +52,9 @@ func packagesOf(model: ProjectModel, dir: VfsPath): Array<String> {
     let out = ArrayList<String>()
     for (module in model.modules) {
         for (pkg in module.packages) {
-            out
-                .add(
-                    "${module.name}: ${pkg.name}=${String.join(pkg.files.map {file => relative(file, dir)}, delimiter: ",")}"
-                )
+            out.add(
+                "${module.name}: ${pkg.name}=${String.join(pkg.files.map {file => relative(file, dir)}, delimiter: ",")}"
+            )
         }
     }
     out.toArray()
@@ -123,16 +115,15 @@ class ProjectJsonTest {
     @TestCase
     func aModuleWithoutPackagesHasOnePerDirectoryNamedAsCjpmNamesThem() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("libs/std/std.cj", ""),
-                    ("libs/std/collection/list.cj", ""),
-                    ("libs/std/collection/map.cj", ""),
-                    ("libs/std/empty/README.md", ""),
-                    ("libs/std/target/x.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                ("libs/std/std.cj", ""),
+                ("libs/std/collection/list.cj", ""),
+                ("libs/std/collection/map.cj", ""),
+                ("libs/std/empty/README.md", ""),
+                ("libs/std/target/x.cj", "")
+            ]
+        )
         let json = ProjectJson(modules: [ModuleJson(name: "std", root: "libs/std")])
 
         // act
@@ -151,23 +142,23 @@ class ProjectJsonTest {
     @TestCase
     func packagesListedAreAllThereIsWithTheirFilesAndHowTheyAreBuilt() {
         // arrange
-        let dir =
-            tree([("std/core/a.cj", ""), ("std/core/b.cj", ""), ("std/collection/list.cj", "")])
-        let json =
-            ProjectJson(
-                cfg: HashMap<String, String>([("env", "ohos")]),
-                modules: [
-                    ModuleJson(
-                        name: "std",
-                        root: "std",
-                        packages: [
-                            PackageJson(name: "std.core", files: ["a.cj"], noPrelude: true),
-                            PackageJson(name: "std.extra", dir: "std/collection")
-                        ],
-                        cfg: HashMap<String, String>([("os", "Windows")])
-                    )
-                ]
-            )
+        let dir = tree(
+            [("std/core/a.cj", ""), ("std/core/b.cj", ""), ("std/collection/list.cj", "")]
+        )
+        let json = ProjectJson(
+            cfg: HashMap<String, String>([("env", "ohos")]),
+            modules: [
+                ModuleJson(
+                    name: "std",
+                    root: "std",
+                    packages: [
+                        PackageJson(name: "std.core", files: ["a.cj"], noPrelude: true),
+                        PackageJson(name: "std.extra", dir: "std/collection")
+                    ],
+                    cfg: HashMap<String, String>([("os", "Windows")])
+                )
+            ]
+        )
 
         // act
         let model = lowerProjectJson(json, dir, env: noEnv, cfg: LINUX)
@@ -185,14 +176,13 @@ class ProjectJsonTest {
     @TestCase
     func stdHasTheSourcesCangjieSrcNamesAPackagePerDirectory() {
         // arrange
-        let src =
-            tree(
-                [
-                    ("std/std.cj", ""),
-                    ("std/collection/array_list.cj", ""),
-                    ("std/collection/CMakeLists.txt", "")
-                ]
-            )
+        let src = tree(
+            [
+                ("std/std.cj", ""),
+                ("std/collection/array_list.cj", ""),
+                ("std/collection/CMakeLists.txt", "")
+            ]
+        )
         let env =
             { name: String => if (name == "CANGJIE_SRC") { src.toString() } else { sdkEnv(name) } }
 
@@ -213,8 +203,9 @@ class ProjectJsonTest {
     func aBinaryOfTheProjectFileNamesItsSourcesRelativeToIt() {
         // arrange
         let dir = tree([("libs/stdx/stdx.cj", ""), ("libs/stdx/net/http.cj", "")])
-        let json =
-            ProjectJson(binaries: [BinaryJson(name: "stdx", paths: ["bin"], sources: "libs/stdx")])
+        let json = ProjectJson(
+            binaries: [BinaryJson(name: "stdx", paths: ["bin"], sources: "libs/stdx")]
+        )
 
         // act
         let model = lowerProjectJson(json, dir, Loading(sdkEnv, LINUX))
@@ -231,13 +222,10 @@ class ProjectJsonTest {
     func stdComesFromTheSdkAndVariablesFromTheEnvironment() {
         // arrange
         let dir = tree([("app/main.cj", "")])
-        let json =
-            ProjectJson(
-                modules: [ModuleJson(name: "app", root: "app", deps: ["stdx"], member: false)],
-                binaries: [
-                    BinaryJson(name: "stdx", paths: ["\${CANGJIE_HOME}/stdx", "\${NOWHERE}/x"])
-                ]
-            )
+        let json = ProjectJson(
+            modules: [ModuleJson(name: "app", root: "app", deps: ["stdx"], member: false)],
+            binaries: [BinaryJson(name: "stdx", paths: ["\${CANGJIE_HOME}/stdx", "\${NOWHERE}/x"])]
+        )
 
         // act
         let loading = Loading(sdkEnv, LINUX)
@@ -258,32 +246,30 @@ class ProjectJsonTest {
     func aModelWrittenOutReadsBackTheSame() {
         // arrange
         let dir = tree([("src/a.cj", ""), ("src/sub/b.cj", "")])
-        let model =
-            lowerProjectJson(
-                ProjectJson(
-                    modules: [ModuleJson(name: "app", root: "src", deps: ["stdx"])],
-                    binaries: [
-                        BinaryJson(
-                            name: "stdx",
-                            paths: ["/opt/stdx"],
-                            packages: HashMap<String, String>([("stdx.a", "a.cjo")])
-                        )
-                    ]
-                ),
-                dir,
-                env: sdkEnv,
-                cfg: LINUX
-            )
+        let model = lowerProjectJson(
+            ProjectJson(
+                modules: [ModuleJson(name: "app", root: "src", deps: ["stdx"])],
+                binaries: [
+                    BinaryJson(
+                        name: "stdx",
+                        paths: ["/opt/stdx"],
+                        packages: HashMap<String, String>([("stdx.a", "a.cjo")])
+                    )
+                ]
+            ),
+            dir,
+            env: sdkEnv,
+            cfg: LINUX
+        )
 
         // act
         let text = prettyProjectJson(toProjectJson(model, dir))
-        let again =
-            lowerProjectJson(
-                fromJsonBytes<ProjectJson>(text.toArray()),
-                dir,
-                env: sdkEnv,
-                cfg: hostCfg()
-            )
+        let again = lowerProjectJson(
+            fromJsonBytes<ProjectJson>(text.toArray()),
+            dir,
+            env: sdkEnv,
+            cfg: hostCfg()
+        )
         removeTree(dir)
 
         // assert - the cfg written out wins over the host's
@@ -305,27 +291,26 @@ name = "app"
 [target.x86_64-unknown-linux-gnu.bin-dependencies]
 path-option = ["\${CANGJIE_STDX_PATH}"]
 """
-        let dir =
-            tree(
-                [
-                    ("declared/cjpm.toml", manifest),
-                    ("plain/cjpm.toml", "[package]\nname = \"plain\"\n"),
-                    ("libs/stdx/README", "")
-                ]
-            )
+        let dir = tree(
+            [
+                ("declared/cjpm.toml", manifest),
+                ("plain/cjpm.toml", "[package]\nname = \"plain\"\n"),
+                ("libs/stdx/README", "")
+            ]
+        )
         let stdx = dir.join("libs/stdx")
         let inherited = withCangjieStdxPath(sdkEnv, stdx.toString())
         let selected = withCangjieStdxPath(inherited, dir.join("selected/stdx").toString())
 
         // act
-        let declared =
-            loadCjpmProject(dir.join("declared/cjpm.toml"), env: inherited, cfg: LINUX).getOrThrow()
-        let overridden =
-            loadCjpmProject(dir.join("declared/cjpm.toml"), env: selected, cfg: LINUX).getOrThrow()
-        let plain =
-            loadCjpmProject(dir.join("plain/cjpm.toml"), env: inherited, cfg: LINUX).getOrThrow()
-        let missing =
-            loadCjpmProject(dir.join("declared/cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
+        let declared = loadCjpmProject(dir.join("declared/cjpm.toml"), env: inherited, cfg: LINUX)
+            .getOrThrow()
+        let overridden = loadCjpmProject(dir.join("declared/cjpm.toml"), env: selected, cfg: LINUX)
+            .getOrThrow()
+        let plain = loadCjpmProject(dir.join("plain/cjpm.toml"), env: inherited, cfg: LINUX)
+            .getOrThrow()
+        let missing = loadCjpmProject(dir.join("declared/cjpm.toml"), env: sdkEnv, cfg: LINUX)
+            .getOrThrow()
         removeTree(dir)
 
         // assert
@@ -341,32 +326,31 @@ path-option = ["\${CANGJIE_STDX_PATH}"]
     @TestCase
     func aWorkspaceIsItsMembersAndThePathDependenciesTheyReach() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "ws/cjpm.toml",
-                        "[workspace]\nmembers = [\"a\", \"b\"]\n" +
-                            "[target.x86_64-unknown-linux-gnu.bin-dependencies]\npath-option = [\"\${CANGJIE_HOME}/stdx\"]\n" +
-                            "[target.aarch64-apple-darwin.bin-dependencies]\npath-option = [\"/mac/stdx\"]\n"
-                    ),
-                    (
-                        "ws/a/cjpm.toml",
-                        "[package]\nname = \"a\"\n[dependencies]\n\"org::b\" = { path = \"../b\" }\ndep = { path = \"../../dep\" }\nremote = { git = \"https://example.com/r.git\" }\n"
-                    ),
-                    ("ws/a/src/main.cj", ""),
-                    ("ws/a/build.cj", ""),
-                    (
-                        "ws/b/cjpm.toml",
-                        "[package]\nname = \"b\"\norganization = \"org\"\nsrc-dir = \"lib\"\n"
-                    ),
-                    ("ws/b/lib/b.cj", ""),
-                    ("ws/b/lib/x/y/c.cj", ""),
-                    ("dep/cjpm.toml", "[package]\nname = \"dep\"\n"),
-                    ("dep/src/d.cj", ""),
-                    ("ws/build.cj", "main(): Int64 { 0 }")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "ws/cjpm.toml",
+                    "[workspace]\nmembers = [\"a\", \"b\"]\n" +
+                        "[target.x86_64-unknown-linux-gnu.bin-dependencies]\npath-option = [\"\${CANGJIE_HOME}/stdx\"]\n" +
+                        "[target.aarch64-apple-darwin.bin-dependencies]\npath-option = [\"/mac/stdx\"]\n"
+                ),
+                (
+                    "ws/a/cjpm.toml",
+                    "[package]\nname = \"a\"\n[dependencies]\n\"org::b\" = { path = \"../b\" }\ndep = { path = \"../../dep\" }\nremote = { git = \"https://example.com/r.git\" }\n"
+                ),
+                ("ws/a/src/main.cj", ""),
+                ("ws/a/build.cj", ""),
+                (
+                    "ws/b/cjpm.toml",
+                    "[package]\nname = \"b\"\norganization = \"org\"\nsrc-dir = \"lib\"\n"
+                ),
+                ("ws/b/lib/b.cj", ""),
+                ("ws/b/lib/x/y/c.cj", ""),
+                ("dep/cjpm.toml", "[package]\nname = \"dep\"\n"),
+                ("dep/src/d.cj", ""),
+                ("ws/build.cj", "main(): Int64 { 0 }")
+            ]
+        )
 
         // act
         let load = loadCjpmProject(dir.join("ws/cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -408,14 +392,13 @@ class FindProjectTest {
     @TestCase
     func aProjectFileComesBeforeTheManifest() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (PROJECT_JSON, "{\"modules\": [{\"name\": \"p\", \"root\": \"src\"}]}"),
-                    ("cjpm.toml", "[package]\nname = \"m\"\n"),
-                    ("src/a.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                (PROJECT_JSON, "{\"modules\": [{\"name\": \"p\", \"root\": \"src\"}]}"),
+                ("cjpm.toml", "[package]\nname = \"m\"\n"),
+                ("src/a.cj", "")
+            ]
+        )
 
         // act
         let load = findProject(dir, env: noEnv)
@@ -429,14 +412,13 @@ class FindProjectTest {
     @TestCase
     func aBrokenProjectFileIsToldAndTheManifestTaken() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (PROJECT_JSON, "{\"modules\": 1}"),
-                    ("cjpm.toml", "[package]\nname = \"m\"\n"),
-                    ("src/a.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                (PROJECT_JSON, "{\"modules\": 1}"),
+                ("cjpm.toml", "[package]\nname = \"m\"\n"),
+                ("src/a.cj", "")
+            ]
+        )
 
         // act
         let load = findProject(dir, env: sdkEnv)
@@ -451,16 +433,15 @@ class FindProjectTest {
     @TestCase
     func looseFilesMakeAPackagePerPackageLineAndAModulePerRootPackage() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("a.cj", "package app\n"),
-                    ("x/b.cj", "// b\npackage app.util"),
-                    ("x/c.cj", "package app.util\n"),
-                    ("y/d.cj", "main() {}"),
-                    ("z/e.cj", "macro package other.m")
-                ]
-            )
+        let dir = tree(
+            [
+                ("a.cj", "package app\n"),
+                ("x/b.cj", "// b\npackage app.util"),
+                ("x/c.cj", "package app.util\n"),
+                ("y/d.cj", "main() {}"),
+                ("z/e.cj", "macro package other.m")
+            ]
+        )
 
         // act
         let load = findProject(dir, env: noEnv)
@@ -480,13 +461,12 @@ class FindProjectTest {
     @TestCase
     func looseFilesStopAtTheBudget() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("a.cj", "package a"),
-                    ("b.cj", "package bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
-                ]
-            )
+        let dir = tree(
+            [
+                ("a.cj", "package a"),
+                ("b.cj", "package bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb")
+            ]
+        )
 
         // act
         let load = looseProject(dir, env: sdkEnv, budget: 20)
@@ -501,21 +481,24 @@ class FindProjectTest {
     @TestCase
     func theDirectoryOfAnOpenDocumentComesFirstAndTheDocumentWhateverTheBudget() {
         // arrange - the filler and the document are each past the budget, the helper within it
-        let dir =
-            tree(
-                [
-                    ("x/filler.cj", "// ${"x" * 100}\n"),
-                    ("y/main.cj", "main() {\n    helper()\n}\n"),
-                    ("y/util.cj", "func helper() {}"),
-                    ("z/other.cj", "func other() {}")
-                ]
-            )
+        let dir = tree(
+            [
+                ("x/filler.cj", "// ${"x" * 100}\n"),
+                ("y/main.cj", "main() {\n    helper()\n}\n"),
+                ("y/util.cj", "func helper() {}"),
+                ("z/other.cj", "func other() {}")
+            ]
+        )
         let elsewhere = VfsPath.file(getTempDirectory().join("elsewhere.cj"))
 
         // act
         let alone = findProject(dir, env: noEnv, budget: 20)
-        let opened =
-            findProject(dir, env: noEnv, budget: 20, open: [dir.join("y/main.cj"), elsewhere])
+        let opened = findProject(
+            dir,
+            env: noEnv,
+            budget: 20,
+            open: [dir.join("y/main.cj"), elsewhere]
+        )
         removeTree(dir)
 
         // assert
@@ -544,17 +527,16 @@ class FindProjectTest {
     @TestCase
     func looseFilesWithAMainEachAreAProgramEachWithTheFilesWithoutMainOfTheirDirectory() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("a.cj", "let my_const = 1\nmain() {}\n"),
-                    ("b.cj", "let my_const = 2\nmain() {}\n"),
-                    ("util.cj", "func helper() {}\n"),
-                    ("sub/c.cj", "main() {}\n"),
-                    ("lib/d.cj", "func d() {}\n"),
-                    ("e.cj", "package app\nmain() {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                ("a.cj", "let my_const = 1\nmain() {}\n"),
+                ("b.cj", "let my_const = 2\nmain() {}\n"),
+                ("util.cj", "func helper() {}\n"),
+                ("sub/c.cj", "main() {}\n"),
+                ("lib/d.cj", "func d() {}\n"),
+                ("e.cj", "package app\nmain() {}\n")
+            ]
+        )
 
         // act
         let load = findProject(dir, env: noEnv)
@@ -573,14 +555,13 @@ class FindProjectTest {
     @TestCase
     func looseFilesWithOneMainAmongThemAreOneProgram() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("a.cj", "main() {\n    helper()\n}\n"),
-                    ("b.cj", "func helper() {}\n"),
-                    ("x/c.cj", "let c = \"main()\"\n")
-                ]
-            )
+        let dir = tree(
+            [
+                ("a.cj", "main() {\n    helper()\n}\n"),
+                ("b.cj", "func helper() {}\n"),
+                ("x/c.cj", "let c = \"main()\"\n")
+            ]
+        )
 
         // act
         let load = findProject(dir, env: noEnv)
@@ -608,14 +589,13 @@ class FindProjectTest {
     @TestCase
     func programsOfOneDirectoryRedefineNothingOfEachOther() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("a.cj", "let my_const = 1\nmain() {}\n"),
-                    ("b.cj", "let my_const = 2\nmain() {}\n"),
-                    ("util.cj", "func helper() {}\n")
-                ]
-            )
+        let dir = tree(
+            [
+                ("a.cj", "let my_const = 1\nmain() {}\n"),
+                ("b.cj", "let my_const = 2\nmain() {}\n"),
+                ("util.cj", "func helper() {}\n")
+            ]
+        )
         let load = findProject(dir, env: noEnv)
         let db = AnalysisDatabase()
         let vfs = Vfs()
@@ -640,20 +620,19 @@ class FindProjectTest {
     @TestCase
     func aBuildScriptIsAModuleOfItsOwnWithItsScriptDependencies() {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[script-dependencies]\ntool = { path = \"tool\" }\n" +
-                            "remote = \"1.0.0\"\n"
-                    ),
-                    ("build.cj", "main(): Int64 { 0 }"),
-                    ("src/main.cj", ""),
-                    ("tool/cjpm.toml", "[package]\nname = \"tool\"\n"),
-                    ("tool/src/t.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[script-dependencies]\ntool = { path = \"tool\" }\n" +
+                        "remote = \"1.0.0\"\n"
+                ),
+                ("build.cj", "main(): Int64 { 0 }"),
+                ("src/main.cj", ""),
+                ("tool/cjpm.toml", "[package]\nname = \"tool\"\n"),
+                ("tool/src/t.cj", "")
+            ]
+        )
 
         // act
         let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -673,15 +652,14 @@ class FindProjectTest {
     @TestCase
     func aBuildScriptAmongTheSourcesIsNoneOfThem() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\nsrc-dir = \".\"\n"),
-                    ("build.cj", "main(): Int64 { 0 }"),
-                    ("main.cj", "package app"),
-                    ("util/build.cj", "package app.util")
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\nsrc-dir = \".\"\n"),
+                ("build.cj", "main(): Int64 { 0 }"),
+                ("main.cj", "package app"),
+                ("util/build.cj", "package app.util")
+            ]
+        )
 
         // act
         let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -698,17 +676,16 @@ class ProjectDirOfTest {
     @TestCase
     func aFileIsOfTheNearestManifestAboveIt() {
         // arrange - the root lists neither; a checkout of its own in a hidden directory
-        let dir =
-            tree(
-                [
-                    ("cjpm.toml", "[package]\nname = \"root\"\n"),
-                    ("tools/demo/cjpm.toml", "[package]\nname = \"demo\"\n"),
-                    ("tools/demo/src/a/b.cj", ""),
-                    (".claude/w/${PROJECT_JSON}", "{}"),
-                    (".claude/w/src/c.cj", ""),
-                    ("src/d.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.toml", "[package]\nname = \"root\"\n"),
+                ("tools/demo/cjpm.toml", "[package]\nname = \"demo\"\n"),
+                ("tools/demo/src/a/b.cj", ""),
+                (".claude/w/${PROJECT_JSON}", "{}"),
+                (".claude/w/src/c.cj", ""),
+                ("src/d.cj", "")
+            ]
+        )
 
         // act
         let demo = projectDirOf(dir.join("tools/demo/src/a/b.cj"), dir, env: noEnv)
@@ -725,17 +702,16 @@ class ProjectDirOfTest {
     @TestCase
     func aMemberIsOfTheWorkspaceListingIt() {
         // arrange - the workspace below the root, which lists neither it nor its member
-        let dir =
-            tree(
-                [
-                    ("cjpm.toml", "[package]\nname = \"root\"\n"),
-                    ("sub/cjpm.toml", "[workspace]\nmembers = [\"./m\"]\n"),
-                    ("sub/m/cjpm.toml", "[package]\nname = \"m\"\n"),
-                    ("sub/m/src/a.cj", ""),
-                    ("sub/other/cjpm.toml", "[package]\nname = \"o\"\n"),
-                    ("sub/other/src/b.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.toml", "[package]\nname = \"root\"\n"),
+                ("sub/cjpm.toml", "[workspace]\nmembers = [\"./m\"]\n"),
+                ("sub/m/cjpm.toml", "[package]\nname = \"m\"\n"),
+                ("sub/m/src/a.cj", ""),
+                ("sub/other/cjpm.toml", "[package]\nname = \"o\"\n"),
+                ("sub/other/src/b.cj", "")
+            ]
+        )
 
         // act
         let member = projectDirOf(dir.join("sub/m/src/a.cj"), dir, env: noEnv)
@@ -769,24 +745,22 @@ class FoundProjectsTest {
     @TestCase
     func aDirectoryFoundIsTheProjectOfItsManifestAndOneWithoutNone() {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("demo/cjpm.toml", "[package]\nname = \"demo\"\n"),
-                    ("demo/src/a.cj", ""),
-                    ("gone/src/b.cj", "")
-                ]
-            )
+        let dir = tree(
+            [
+                ("demo/cjpm.toml", "[package]\nname = \"demo\"\n"),
+                ("demo/src/a.cj", ""),
+                ("gone/src/b.cj", "")
+            ]
+        )
 
         // act
-        let loads =
-            findProjects(
-                [],
-                [],
-                env: noEnv,
-                cfg: LINUX,
-                found: [dir.join("demo"), dir.join("gone")]
-            )
+        let loads = findProjects(
+            [],
+            [],
+            env: noEnv,
+            cfg: LINUX,
+            found: [dir.join("demo"), dir.join("gone")]
+        )
         removeTree(dir)
 
         // assert

@@ -129,15 +129,14 @@ class GenericBoundsTest {
 
     @TestCase
     func growingBoundsDiscardPartialResultsAndMarkEveryParameterUnknown() {
-        let (db, def) =
-            boundsFixture(
-                #"
+        let (db, def) = boundsFixture(
+            #"
             package m
             interface Box<X> {}
             interface R<A, B> where A <: R<A, Box<B>> {}
             func f<T, U>(): Unit where T <: R<T, U> {}
             "#
-            )
+        )
         let result = genericBounds(db, def)
         let unknown = Ty(db, UnknownTy(UnknownReason.GenericBoundsLimit))
         @Expect(result.size, 2)
@@ -224,12 +223,11 @@ func boundsFixture(text: String, binaries!: Array<String> = []): (AnalysisDataba
     let fixture = Fixture.parse(text)
     let db = fixture.database(binaries: binaries.map { name => stdCjoRead(name, stdCjo(name)) })
     let source = db.sourceFile(fixture.files[0].fileId).getOrThrow()
-    let item =
-        itemTree(db, source)
-            .items
-            .iterator()
-            .filter { one => one.names.contains("f") }
-            .next()
-            .getOrThrow()
+    let item = itemTree(db, source)
+        .items
+        .iterator()
+        .filter { one => one.names.contains("f") }
+        .next()
+        .getOrThrow()
     (db, DefId(db, ItemFile.Source(source), item.id))
 }

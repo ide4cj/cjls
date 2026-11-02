@@ -63,11 +63,10 @@ class WorkDoneProgress {
             return
         }
         try {
-            client
-                .notify(
-                    ProgressNotificationSpec(),
-                    ProgressParams(token: token, value: RawJson.of(value).read<JsonValue>())
-                )
+            client.notify(
+                ProgressNotificationSpec(),
+                ProgressParams(token: token, value: RawJson.of(value).read<JsonValue>())
+            )
         } catch (e: Exception) {
             logger.debug("the progress was not sent", [("error", e.toString())])
         }
@@ -86,11 +85,10 @@ func create(
 ): ?Future<Unit> {
     let pending =
         try {
-            client
-                .request(
-                    WorkDoneProgressCreateRequestSpec(),
-                    WorkDoneProgressCreateParams(token: token)
-                )
+            client.request(
+                WorkDoneProgressCreateRequestSpec(),
+                WorkDoneProgressCreateParams(token: token)
+            )
         } catch (e: Exception) {
             logger.debug("no progress is shown", [("error", e.toString())])
             return None

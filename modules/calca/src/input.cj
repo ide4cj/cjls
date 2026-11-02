@@ -86,13 +86,12 @@ public class InputIngredient {
                 synchronized (table.lock) {
                     (table.rows > 0, table.createdAt)
                 }
-            storage
-                .reportRead(
-                    DatabaseKey(base, Id(0)),
-                    ASK_THE_INGREDIENT,
-                    Durability.High,
-                    createdAt
-                )
+            storage.reportRead(
+                DatabaseKey(base, Id(0)),
+                ASK_THE_INGREDIENT,
+                Durability.High,
+                createdAt
+            )
             if (created) { Id(0) } else { None }
         } finally {
             storage.endOperation(outermost)
@@ -239,13 +238,12 @@ class InputColumn<T> <: Ingredient {
             synchronized (table.lock) {
                 stamps[id.index]
             }
-        storage
-            .reportRead(
-                DatabaseKey(index, id),
-                ASK_THE_INGREDIENT,
-                stamp.durability,
-                stamp.changedAt
-            )
+        storage.reportRead(
+            DatabaseKey(index, id),
+            ASK_THE_INGREDIENT,
+            stamp.durability,
+            stamp.changedAt
+        )
         stamp.value
     }
 

@@ -74,22 +74,19 @@ private func resolveFields(
             continue
         }
 
-        let fieldType =
-            resolver
-                .resolve(
-                    property.propertyType,
-                    context: declared.declaredBy + property.name.toAsciiPascalCase()
-                )
-        fields
-            .add(
-                FieldIr(
-                    resolveDoc(property),
-                    ident: property.name,
-                    fieldType: fieldType,
-                    isOptional: property.optional ?? false,
-                    qualifiesNone: resolver.hasOwnNone(fieldType)
-                )
+        let fieldType = resolver.resolve(
+            property.propertyType,
+            context: declared.declaredBy + property.name.toAsciiPascalCase()
+        )
+        fields.add(
+            FieldIr(
+                resolveDoc(property),
+                ident: property.name,
+                fieldType: fieldType,
+                isOptional: property.optional ?? false,
+                qualifiesNone: resolver.hasOwnNone(fieldType)
             )
+        )
     }
 
     StructIr(doc, ident: ident, fields: fields.toArray(), tag: tag)

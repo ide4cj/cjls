@@ -26,13 +26,12 @@ class MappedTextBuilder {
             return
         }
         text.append(source[range.start..range.end])
-        spans
-            .add(
-                MappedSpan(
-                    TextRange.at(size, range.len),
-                    SpanOrigin.FromSource(TextRange.at(range.start - anchor, range.len))
-                )
+        spans.add(
+            MappedSpan(
+                TextRange.at(size, range.len),
+                SpanOrigin.FromSource(TextRange.at(range.start - anchor, range.len))
             )
+        )
         size += range.len
     }
 
@@ -223,15 +222,14 @@ class MacroInputComposer {
         parents: Array<String>,
         children: ArrayList<MacroChild>
     ): MacroRequest {
-        let fingerprint =
-            fingerprintOf(
-                call.definition,
-                call.definition.libraryStamp(db),
-                attrs,
-                input,
-                parents,
-                children
-            )
+        let fingerprint = fingerprintOf(
+            call.definition,
+            call.definition.libraryStamp(db),
+            attrs,
+            input,
+            parents,
+            children
+        )
         let current = macroOutputOf(db, call.call)?.fingerprint == fingerprint
         MacroRequest(
             call.call,
@@ -309,19 +307,13 @@ class MacroInputComposer {
                 =>
                 for (i in 0..derived.size) {
                     let (expansion, head) = derived[derived.size - 1 - i]
-                    builder
-                        .paste(
-                            MappedText(
-                                "\n" + expansion.text,
-                                [
-                                    MappedSpan(
-                                        TextRange(0, expansion.text.size + 1),
-                                        SpanOrigin.FromCall
-                                    )
-                                ]
-                            ),
-                            head
-                        )
+                    builder.paste(
+                        MappedText(
+                            "\n" + expansion.text,
+                            [MappedSpan(TextRange(0, expansion.text.size + 1), SpanOrigin.FromCall)]
+                        ),
+                        head
+                    )
                 }
                 true
             }

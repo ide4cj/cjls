@@ -54,11 +54,10 @@ class HighlightBenchState {
         let fixture = Fixture.parse(text.toString())
         nodesFile = fixture.file("/cjsyntax/cjsyntax.ast/nodes.cj").fileId
         db =
-            fixture
-                .database(
-                    binaries: ["std.core", "std.collection"]
-                        .map { name => stdCjoRead(name, stdCjo(name)) }
-                )
+            fixture.database(
+                binaries: ["std.core", "std.collection"]
+                    .map { name => stdCjoRead(name, stdCjo(name)) }
+            )
         let source = db.sourceFile(nodesFile).getOrThrow().text(db).toString()
         let at = source.lastIndexOf("\n    }\n").getOrThrow()
         texts = [source, source[..at] + " " + source[at..]]

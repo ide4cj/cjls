@@ -43,8 +43,9 @@ class EmitDerivesTest {
     @TestCase
     func aMemberMarkerListsItsValueAndOther() {
         // act
-        let actual =
-            serdeMarkerOf(SerdeMemberOptions(value: IntegerOrString.Integer(1), other: true))
+        let actual = serdeMarkerOf(
+            SerdeMemberOptions(value: IntegerOrString.Integer(1), other: true)
+        )
 
         // assert
         @Expect("@Serde[value: 1, other]", actual.toString())

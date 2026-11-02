@@ -29,8 +29,9 @@ class Conformance {
     let model: Model
     let rules = HashMap<String, Rule>()
     /** what a tree with errors may hold anywhere */
-    let misplaceable =
-        HashSet<String>(["ErrorNode", "PackageHeader", "ImportDecl", "FeaturesDirective"])
+    let misplaceable = HashSet<String>(
+        ["ErrorNode", "PackageHeader", "ImportDecl", "FeaturesDirective"]
+    )
 
     init() {
         let generated = generate(Path(KINDS_FILE))
@@ -64,10 +65,9 @@ class Conformance {
                 let shown =
                     children.toArray().map { c => if (c.isNode) { c.kind } else { "'${c.kind}'" } }
                 let mode = if (strict) { "" } else { " (with errors)" }
-                result
-                    .add(
-                        "${kind} at ${node.textRange}${mode}: ${String.join(shown, delimiter: " ")}"
-                    )
+                result.add(
+                    "${kind} at ${node.textRange}${mode}: ${String.join(shown, delimiter: " ")}"
+                )
             }
         }
         result

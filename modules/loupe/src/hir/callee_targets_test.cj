@@ -10,10 +10,8 @@ class CalleeTargetsTest {
     @TestCase
     func nestedUnambiguousCallsKeepTheirDeclarationsAfterOverloadSelection() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             package m
             func getA(): Int8 { 1 }
             func getB(): Int16 { 2 }
@@ -21,7 +19,7 @@ class CalleeTargetsTest {
             func answer(a: Bool, b: Bool): Bool { a }
             main() { println(answer(getA(), getB())) }
             "#
-                )
+        )
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { it => it.kind == ItemKind.Main }[0]

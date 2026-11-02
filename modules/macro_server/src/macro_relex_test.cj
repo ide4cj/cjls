@@ -22,36 +22,35 @@ func relexSources(): Array<String> {
             sources.add(value)
         } catch (_: Exception) {}
     }
-    sources
-        .add(
-            all: [
-                "x",
-                "é",
-                "`Int8`",
-                "`class`",
-                "true",
-                "false",
-                "1",
-                "1.5",
-                "0xff",
-                "2i8",
-                "1e3",
-                "\"s\"",
-                "'s'",
-                "r'c'",
-                "b'x'",
-                "J\"j\"",
-                "#\"raw\"#",
-                "\"\"\"\ntext\"\"\"",
-                "a.b",
-                "a + b",
-                "Array<Int8>",
-                "!in ",
-                "1.5x..",
-                "1.5x..=",
-                "1.5x..2"
-            ]
-        )
+    sources.add(
+        all: [
+            "x",
+            "é",
+            "`Int8`",
+            "`class`",
+            "true",
+            "false",
+            "1",
+            "1.5",
+            "0xff",
+            "2i8",
+            "1e3",
+            "\"s\"",
+            "'s'",
+            "r'c'",
+            "b'x'",
+            "J\"j\"",
+            "#\"raw\"#",
+            "\"\"\"\ntext\"\"\"",
+            "a.b",
+            "a + b",
+            "Array<Int8>",
+            "!in ",
+            "1.5x..",
+            "1.5x..=",
+            "1.5x..2"
+        ]
+    )
     sources.toArray()
 }
 
@@ -211,13 +210,12 @@ class MacroRelexTest {
 
     @TestCase
     func relexedTokensKeepPositionsInsideTheOriginalValue(): Unit {
-        let token =
-            TokenData(
-                kind: RELEX_NUMBERS.numberOf("IDENTIFIER"),
-                value: "a.b",
-                begin: PositionData(fileId: 7, line: 3, column: 5),
-                end: PositionData(fileId: 7, line: 3, column: 8)
-            )
+        let token = TokenData(
+            kind: RELEX_NUMBERS.numberOf("IDENTIFIER"),
+            value: "a.b",
+            begin: PositionData(fileId: 7, line: 3, column: 5),
+            end: PositionData(fileId: 7, line: 3, column: 8)
+        )
         let printed = printMacroTokens([token], RELEX_NUMBERS)
         @Expect(printed.text, "a.b")
         @Expect(printed.tokens.map {t => printed.text[t.range.start..t.range.end]}, ["a", ".", "b"])
@@ -248,11 +246,9 @@ class MacroRelexTest {
     func shortGreaterAndEqualRunsKeepSdkMeaning(): Unit {
         for (width in 1..=10) {
             for (bits in 0..(1 << width)) {
-                let source =
-                    String
-                        .join(
-                            Array(width) { i => if ((bits & (1 << i)) == 0) { ">" } else { "=" } }
-                        )
+                let source = String.join(
+                    Array(width) { i => if ((bits & (1 << i)) == 0) { ">" } else { "=" } }
+                )
                 @Expect(relexDifference([tokenOf(RELEX_NUMBERS, "IDENTIFIER", source)]), None<String>)
             }
         }

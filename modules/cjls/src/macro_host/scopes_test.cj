@@ -66,15 +66,14 @@ class MacroScopeTest {
         let paths = PathInterner()
         let root = VfsPath.virtual("/shared")
         let pkg = PackageModel("shared", root, [])
-        let model =
-            ProjectModel(
-                Cfg([]),
-                [
-                    ModuleModel("shared", root, [pkg]),
-                    ModuleModel("shared", root, [pkg], resolutionScope: "/app#scripts"),
-                    ModuleModel("shared", root, [pkg], resolutionScope: "/other#scripts")
-                ]
-            )
+        let model = ProjectModel(
+            Cfg([]),
+            [
+                ModuleModel("shared", root, [pkg]),
+                ModuleModel("shared", root, [pkg], resolutionScope: "/app#scripts"),
+                ModuleModel("shared", root, [pkg], resolutionScope: "/other#scripts")
+            ]
+        )
         db.setProject(model, paths)
         let modules = db.project().getOrThrow().modules(db)
 

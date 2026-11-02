@@ -27,13 +27,12 @@ func getterStubOf(macroName: String): String {
  * The database of `parsed`, with std.core's and std.deriving's `.cjo`s among its packages.
  */
 func databaseWithDerive(parsed: Fixture): AnalysisDatabase {
-    parsed
-        .database(
-            binaries: [
-                stdCjoRead("std.core", stdCjo("std.core")),
-                stdCjoRead("std.deriving", stdCjo("std.deriving"))
-            ]
-        )
+    parsed.database(
+        binaries: [
+            stdCjoRead("std.core", stdCjo("std.core")),
+            stdCjoRead("std.deriving", stdCjo("std.deriving"))
+        ]
+    )
 }
 
 /**
@@ -75,9 +74,8 @@ class DeriveExpansionTest {
     @TestCase
     func anExtendPerInterfaceOfATypeOfNoTypeParameters() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -86,8 +84,8 @@ class DeriveExpansionTest {
                 let x: Int64 = 0
             }
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts, [
@@ -102,17 +100,16 @@ class DeriveExpansionTest {
     @TestCase
     func eachTypeParameterIsBoundByTheInterface() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Equatable, Arbitrary, Shrink]
             class P<K, V> {}
             "#,
-                "P"
-            )
+            "P"
+        )
 
         // assert
         @Expect(texts, [
@@ -131,9 +128,8 @@ class DeriveExpansionTest {
     @TestCase
     func aWhereReplacesTheBoundOfTheParametersItNamesForItsInterfaceAlone() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -142,8 +138,8 @@ class DeriveExpansionTest {
                 | A(K) | B(V)
             }
             "#,
-                "E"
-            )
+            "E"
+        )
 
         // assert
         @Expect(texts, [
@@ -158,17 +154,16 @@ class DeriveExpansionTest {
     @TestCase
     func aWhereOfSeveralConstraintsBeforeTheNextInterface() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Hashable where K <: Hashable, V <: Hashable & ToString, ToString]
             class C<K, V> {}
             "#,
-                "C"
-            )
+            "C"
+        )
 
         // assert
         @Expect(texts, [
@@ -183,17 +178,16 @@ class DeriveExpansionTest {
     @TestCase
     func comparableAddsEquatableAfterItOfTheDefaultBound() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Comparable where T <: Comparable<T> & ToString]
             struct R<T> {}
             "#,
-                "R"
-            )
+            "R"
+        )
 
         // assert
         @Expect(texts, [
@@ -213,17 +207,16 @@ class DeriveExpansionTest {
     @TestCase
     func comparableAddsNoEquatableTheCallLists() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Equatable, Comparable]
             struct S {}
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts.size, 1)
@@ -234,17 +227,16 @@ class DeriveExpansionTest {
     @TestCase
     func anInterfaceItDoesNotKnowAddsNothing() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
             @Derive[Foo, Hashable]
             struct S {}
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 ${stubOf("@Derive")}\n}\n"])
@@ -253,9 +245,8 @@ class DeriveExpansionTest {
     @TestCase
     func eachCallOfSeveralIsAnExpansionOutermostFirst() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -263,8 +254,8 @@ class DeriveExpansionTest {
             @Derive[ToString]
             struct S {}
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 ${stubOf("@Derive")}\n}\n",
@@ -274,17 +265,16 @@ class DeriveExpansionTest {
     @TestCase
     func deriveOfThePackageImportedByItsName() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving
             @deriving.Derive[Hashable]
             struct S {}
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts, ["extend S <: Hashable {\n    public func hashCode(): Int64 ${stubOf("@Derive")}\n}\n"])
@@ -293,9 +283,8 @@ class DeriveExpansionTest {
     @TestCase
     func aDeriveOfTheUserIsNotStds() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -306,8 +295,8 @@ class DeriveExpansionTest {
             import std.ast.*
             public macro Derive(attr: Tokens, input: Tokens): Tokens { input }
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts, [])
@@ -316,16 +305,15 @@ class DeriveExpansionTest {
     @TestCase
     func deriveNotImportedExpandsNothing() {
         // act
-        let texts =
-            expansionsNamed(
-                #"
+        let texts = expansionsNamed(
+            #"
             //- /main.cj module=m package=m
             package m
             @Derive[Hashable]
             struct S {}
             "#,
-                "S"
-            )
+            "S"
+        )
 
         // assert
         @Expect(texts, [])

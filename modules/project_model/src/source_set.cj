@@ -118,13 +118,12 @@ func sourceSetChain(
         } else {
             let target =
                 if (enabled.isEmpty()) { "none" } else { String.join(enabled, delimiter: ", ") }
-            left
-                .add(
-                    (
-                        set,
-                        "source set `${set.label}` needs ${String.join(missing, delimiter: ", ")}, which the target does not enable (it enables ${target})"
-                    )
+            left.add(
+                (
+                    set,
+                    "source set `${set.label}` needs ${String.join(missing, delimiter: ", ")}, which the target does not enable (it enables ${target})"
                 )
+            )
         }
     }
     let ordered = taken.toArray()
@@ -150,19 +149,16 @@ func sourceSetChain(
         if (extends) {
             chain.add(set)
         } else {
-            let names =
-                String.join(chain.toArray().map { one => "`${one.label}`" }, delimiter: ", ")
-            left
-                .add(
-                    (
-                        set,
-                        "source set `${set.label}` is not on the chain of ${names} the target takes"
-                    )
-                )
-            problems
-                .add(
-                    "source set `${set.label}` is left out: cjpm cannot compile multiple source sets without common parent source set"
-                )
+            let names = String.join(
+                chain.toArray().map { one => "`${one.label}`" },
+                delimiter: ", "
+            )
+            left.add(
+                (set, "source set `${set.label}` is not on the chain of ${names} the target takes")
+            )
+            problems.add(
+                "source set `${set.label}` is left out: cjpm cannot compile multiple source sets without common parent source set"
+            )
         }
     }
     SourceSetChain(chain.toArray(), left.toArray(), problems.toArray())

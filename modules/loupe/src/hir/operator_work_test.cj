@@ -19,10 +19,8 @@ class OperatorInferenceWorkTest {
         let expression = if (contextual) { "(${chain}) % 1" } else { chain }
         let returned = if (contextual) { "UInt64" } else { "V" }
         let expectedCallees = if (contextual) { 32 } else { 31 }
-        let parsed =
-            Fixture
-                .parse(
-                    """
+        let parsed = Fixture.parse(
+            """
                     package m
                     struct V {
                         operator func +(rhs: V): V { this }
@@ -30,7 +28,7 @@ class OperatorInferenceWorkTest {
                     }
                     func chain(v: V): ${returned} { ${expression} }
                     """
-                )
+        )
         let db = parsed.database()
         let source =
             db

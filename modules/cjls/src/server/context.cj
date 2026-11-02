@@ -189,11 +189,10 @@ public class Client <: FromContext<Client> & FromReadOnlyContext<Client> {
 
     private func requestFailed(method: String, e: Exception, logger: Logger): Unit {
         if (isClosed()) {
-            logger
-                .debug(
-                    "request dropped",
-                    [("request", method), ("reason", "the connection is closed")]
-                )
+            logger.debug(
+                "request dropped",
+                [("request", method), ("reason", "the connection is closed")]
+            )
         } else {
             logger.warn("request failed", [("request", method), ("error", e.message)])
         }

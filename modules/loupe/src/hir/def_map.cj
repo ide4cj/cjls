@@ -362,17 +362,16 @@ public func defMapAt(db: AnalysisDatabase, pkg: PackageRef, stage: ScopeStage): 
         if (replaced.isEmpty()) {
             trees.add((file, tree))
         } else {
-            trees
-                .add(
-                    (
-                        file,
-                        ItemTree(
-                            packageHeader: tree.packageHeader,
-                            imports: tree.imports,
-                            items: tree.items.filter { item => !replaced.contains(item.id) }
-                        )
+            trees.add(
+                (
+                    file,
+                    ItemTree(
+                        packageHeader: tree.packageHeader,
+                        imports: tree.imports,
+                        items: tree.items.filter { item => !replaced.contains(item.id) }
                     )
                 )
+            )
         }
         trees.add(all: expansions.map { one => (one, itemTreeOf(db, one)) })
     }

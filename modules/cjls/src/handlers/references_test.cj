@@ -46,13 +46,12 @@ class ReferencesHandlerTest {
     @TestCase
     func theUsesInEveryFileAreTheirRangesWithTheDeclarationWhenAskedFor() {
         // arrange - the emoji is two UTF-16 units and four bytes; the file asked in comes first
-        let (state, dir) =
-            loaded(
-                [
-                    ("a.cj", "package m\npublic func f(): String { \"😀\" }\n"),
-                    ("b.cj", "package m\nfunc g(): String { \"😀\" + f() + f() }\n")
-                ]
-            )
+        let (state, dir) = loaded(
+            [
+                ("a.cj", "package m\npublic func f(): String { \"😀\" }\n"),
+                ("b.cj", "package m\nfunc g(): String { \"😀\" + f() + f() }\n")
+            ]
+        )
 
         // act
         let all = referencesOf(state, dir.join("b.cj"), 1, 26)

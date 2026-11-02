@@ -62,7 +62,8 @@ or a passing ordinary test run alone does not establish an SDK fix.
 | [K26](#k26) | Recursive generic-struct receiver faults under coverage | Recurse with ordinary kind/range arguments |
 | [K27](#k27) | `cangjieLex` skips consecutive arrow recombination | Re-lex affected adjacent pairs in the test oracle |
 | [K28](#k28) | Macro server reuses conflicting loaded package code | Known risk; no automatic restart on library switches |
-| [K29](#k29) | Combined Python bindings crash the compiler | Lazy descriptor setup; explicit native traits |
+| [K29](#k29) | `-O2` loses exception subtype with `getOrThrow` and string interpolation | Match the optional manifest and throw directly |
+| [K30](#k30) | Combined Python bindings crash the compiler | Lazy descriptor setup; explicit native traits |
 
 ## Evidence and use
 
@@ -316,6 +317,15 @@ temporaries from the gate did not prevent the crashes and was also reverted.
 No minimized reproduction, confirmed workaround, or common root cause with the
 Linux observation is established.
 
+The November 2 SDK update also observed a Linux x86_64 GC SIGSEGV on
+`1.3.0-alpha.20261102001050` in
+`CjpmRegistryTest.missingMalformedAndStaleSelectionsAreRecoverable`: 2524 tests
+passed and one errored in the full suite. The stack enters `CheckAndPush` through
+`GCPhasePreForward` and stack-root scanning, with the managed safepoint in
+`CjpmLowering.targetOf`. An unchanged isolated rerun passed; it is not a fix.
+This records another GC crash; the stack alone does not
+establish the same cause as the earlier observations or a confirmed workaround.
+
 <a id="k20"></a>
 ### K20
 
@@ -465,6 +475,22 @@ versions remain unverified by this local probe.
 <a id="k29"></a>
 ### K29
 
+Verified on Linux x86_64 with `1.3.0-alpha.20261030001050`: at `-O2`,
+`Option.getOrThrow` followed by string interpolation can lose the custom
+exception's subtype. The [standalone reproducer](../tests/sdk-probes/k29-option-exception.cj)
+should catch `ProbeException` and exit 0, but catches base `Exception` and exits 1.
+Both static and dynamic linking reproduce it; `-O0` and `-O1` pass. The compiler's
+root cause is not established.
+
+[`Config.load`](../modules/lsp_codegen/src/config.cj) matches the optional manifest
+and throws directly to preserve its error contract.
+[`ConfigLoadTest.aMissingManifestThrowsBecauseTheRootPackageIsUnknown`](../modules/lsp_codegen/src/config_test.cj)
+checks the exception type and message. Keep this workaround scoped to the affected
+path. macOS and Windows remain unverified.
+
+<a id="k30"></a>
+### K30
+
 On Linux x86_64 with `1.3.0-alpha.20261014001050`, the original Python binding
 generator crashes cjc with SIGSEGV when several binding groups are combined in
 the root `loupe` package. Putting `@DerivePython` below `@Derive[Equatable]`
@@ -494,13 +520,14 @@ payloads and pattern matching, opaque identities, signed native hash codes,
 hidden constructors and static native constants. Other SDK versions, native
 platforms and cross compilation remain unverified.
 
+
 ## Reconciliation and remaining work
 
-This registry starts #332's document, not its probe implementation. None of
-`tests/sdk-probes/`, `scripts/sdk_probes.py` or the planned probe-policy ADR is
-introduced here. Independent cjpm probes, run/pack commands, hang guards and
-version-bump automation stay in #332. No mandatory probe command exists yet.
-Existing tests/reproductions linked above are evidence, not standalone SDK probes.
+The standalone K29 source under `tests/sdk-probes/` is a manual reproducer and
+is not run by `cjpm test`. The registry does not provide `scripts/sdk_probes.py`
+or the planned probe-policy ADR. Independent cjpm probes, run/pack commands,
+hang guards and version-bump automation stay in #332. No mandatory probe command
+exists yet; the linked tests and manual reproducers remain scoped evidence.
 Adding `K#` references at workaround sites is also part of that integration;
 current descriptive comments remain available until then.
 

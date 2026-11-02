@@ -11,11 +11,10 @@ import loupe.syntax.parse
  * The database of `parsed`, with the `.cjo`s of std.core and of std.unittest's packages among its packages.
  */
 func databaseWithUnittest(parsed: Fixture): AnalysisDatabase {
-    parsed
-        .database(
-            binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
-                .map { name => stdCjoRead(name, stdCjo(name)) }
-        )
+    parsed.database(
+        binaries: ["std.core", "std.unittest", "std.unittest.common", "std.unittest.testmacro"]
+            .map { name => stdCjoRead(name, stdCjo(name)) }
+    )
 }
 
 /**
@@ -43,9 +42,8 @@ class UnittestExpansionTest {
     @TestCase
     func aTestClassIsATestClassAndRegistered() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -56,8 +54,8 @@ class UnittestExpansionTest {
                 func t(): Unit {}
             }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [
@@ -75,9 +73,8 @@ class UnittestExpansionTest {
     @TestCase
     func aGenericTestClassKeepsItsTypeParametersAndConstraints() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -88,8 +85,8 @@ class UnittestExpansionTest {
                 C() {}
             }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [
@@ -107,9 +104,8 @@ class UnittestExpansionTest {
     @TestCase
     func aTestClassMadeOfArgumentsAloneIsNotRegistered() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -119,8 +115,8 @@ class UnittestExpansionTest {
                 init(x: Int64) {}
             }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, ["extend C <: TestClass {\n    public func asTestSuite(): TestSuite ${stubOf("@Test")}\n}\n"])
@@ -129,9 +125,8 @@ class UnittestExpansionTest {
     @TestCase
     func aTestTemplateIsATestClassNotRegistered() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -139,8 +134,8 @@ class UnittestExpansionTest {
             @TestTemplate
             abstract class T {}
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, ["extend T <: TestClass {\n    public func asTestSuite(): TestSuite ${stubOf("@TestTemplate")}\n}\n"])
@@ -149,9 +144,8 @@ class UnittestExpansionTest {
     @TestCase
     func aTestFunctionGetsATestClassOfItsOwn() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -159,8 +153,8 @@ class UnittestExpansionTest {
             @Test
             func f(): Unit {}
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [
@@ -178,9 +172,8 @@ class UnittestExpansionTest {
     @TestCase
     func aTestBuilderIsRegistered() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -188,8 +181,8 @@ class UnittestExpansionTest {
             @TestBuilder
             func b(): TestSuite { TestSuite.builder("b").build() }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [
@@ -204,9 +197,8 @@ class UnittestExpansionTest {
     @TestCase
     func onlyTheOutermostOfTestAndTestBuilderRewritesTheItem() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -216,8 +208,8 @@ class UnittestExpansionTest {
             @Test
             func b(): TestSuite { TestSuite.builder("b").build() }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts.size, 1)
@@ -227,9 +219,8 @@ class UnittestExpansionTest {
     @TestCase
     func aStrategyIsALetOfItsNameAndModifiers() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -237,8 +228,8 @@ class UnittestExpansionTest {
             @Strategy[x in [1, 2]]
             public func strat(x: Int64): Array<Int64> { [x] }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, ["public let strat: DataStrategyProcessor<Array<Int64>>\n"])
@@ -247,9 +238,8 @@ class UnittestExpansionTest {
     @TestCase
     func aStrategyWithoutAReturnTypeIsALetOfNoType() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -257,8 +247,8 @@ class UnittestExpansionTest {
             @Strategy
             func strat() { 1 }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, ["let strat\n"])
@@ -267,17 +257,16 @@ class UnittestExpansionTest {
     @TestCase
     func anOptionIsTheStructOfItsKey() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @UnittestOption[Int64, Array<String>](public zxc, "an option")
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [
@@ -294,17 +283,16 @@ class UnittestExpansionTest {
     @TestCase
     func anOptionNotPublicIsInternal() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             import std.unittest.testmacro.*
             @UnittestOption[Bool](opt)
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts.size, 1)
@@ -314,26 +302,24 @@ class UnittestExpansionTest {
     @TestCase
     func anOptionWithoutTypesOrANameDeclaresNothing() {
         // act
-        let noTypes =
-            unittestExpansionsAt(
-                #"
+        let noTypes = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @UnittestOption(opt)
             "#,
-                0
-            )
-        let noName =
-            unittestExpansionsAt(
-                #"
+            0
+        )
+        let noName = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.testmacro.*
             @UnittestOption[Bool]("opt")
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(noTypes, [""])
@@ -343,10 +329,8 @@ class UnittestExpansionTest {
     @TestCase
     func packagesImportingEachOtherExpandBothNoCycleOfQueries() {
         // arrange - a cycle of plain imports (cjpm rejects it), each package with an expansion and an import of a name
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /a/a.cj module=m package=m.a
             package m.a
             import std.unittest.*
@@ -364,7 +348,7 @@ class UnittestExpansionTest {
             @Test
             class B {}
             "#
-                )
+        )
         let db = databaseWithUnittest(parsed)
         let a = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let pkg = packageOfFile(db, a).getOrThrow()
@@ -381,10 +365,8 @@ class UnittestExpansionTest {
     @TestCase
     func theFunctionAStrategyReplacesIsNoDeclarationOfThePackage() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
@@ -392,7 +374,7 @@ class UnittestExpansionTest {
             @Strategy[x in [1, 2]]
             func strat(x: Int64): Int64 { x }
             "#
-                )
+        )
         let db = databaseWithUnittest(parsed)
         let file = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let pkg = packageOfFile(db, file).getOrThrow()
@@ -414,9 +396,8 @@ class UnittestExpansionTest {
     @TestCase
     func aTestOfTheUserIsNotStds() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import m.ms.*
@@ -427,8 +408,8 @@ class UnittestExpansionTest {
             import std.ast.*
             public macro Test(input: Tokens): Tokens { input }
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [])
@@ -437,17 +418,16 @@ class UnittestExpansionTest {
     @TestCase
     func testNotImportedExpandsNothing() {
         // act
-        let texts =
-            unittestExpansionsAt(
-                #"
+        let texts = unittestExpansionsAt(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.unittest.*
             @Test
             class C {}
             "#,
-                0
-            )
+            0
+        )
 
         // assert
         @Expect(texts, [])

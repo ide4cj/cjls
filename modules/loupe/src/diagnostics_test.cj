@@ -455,23 +455,20 @@ class InferenceDiagnosticsTest {
     func aFileOfNoPackageCallsAVariadicFunctionOfStdCoreWithItsArraysElements() {
         // arrange - a project with the SDK's std, and a file in none of its packages: one under
         // `target`, or above the root
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /m/m.cj module=m package=m
             package m
             "#
-                )
+        )
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let loose = FileId(fixture.files.size)
-        db
-            .setFileText(
-                loose,
-                Rope(
-                    "func g(): Unit {\n    let d = Float64.max(1.0, 2.0)\n    let e = Float64.max(1.0, 2.0, 3.0, 4.0)\n}\n"
-                )
+        db.setFileText(
+            loose,
+            Rope(
+                "func g(): Unit {\n    let d = Float64.max(1.0, 2.0)\n    let e = Float64.max(1.0, 2.0, 3.0, 4.0)\n}\n"
             )
+        )
 
         // act
         let result = diagnostics(db, loose).map { one => one.message }
@@ -556,9 +553,8 @@ class ReplacedItemDiagnosticsTest {
     @TestCase
     func aTypeTheServersDeriveReplacedIsNotCheckedAgainstItsSourceTwin() {
         // arrange
-        let (db, file) =
-            derivedByServer(
-                #"
+        let (db, file) = derivedByServer(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -575,9 +571,9 @@ class ReplacedItemDiagnosticsTest {
                 }
             }
             "#,
-                "extend E <: Equatable<E> {\n    public operator func ==(that: E): Bool { true }\n" +
-                    "    public operator func !=(that: E): Bool { false }\n}"
-            )
+            "extend E <: Equatable<E> {\n    public operator func ==(that: E): Bool { true }\n" +
+                "    public operator func !=(that: E): Bool { false }\n}"
+        )
 
         // act
         let result = diagnostics(db, file.fileId(db))
@@ -589,9 +585,8 @@ class ReplacedItemDiagnosticsTest {
     @TestCase
     func aMismatchInCopiedTextIsWhereItWasCopiedFromAndInWrittenTextAtTheCallsHead() {
         // arrange
-        let (db, file) =
-            derivedByServer(
-                #"
+        let (db, file) = derivedByServer(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -602,9 +597,9 @@ class ReplacedItemDiagnosticsTest {
                 }
             }
             "#,
-                "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool {\n" +
-                    "        let y: Bool = \"no\"\n        y\n    }\n    public operator func !=(that: S): Bool { false }\n}"
-            )
+            "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool {\n" +
+                "        let y: Bool = \"no\"\n        y\n    }\n    public operator func !=(that: S): Bool { false }\n}"
+        )
         let text = file.text(db).toString()
 
         // act
@@ -622,9 +617,8 @@ class ReplacedItemDiagnosticsTest {
     @TestCase
     func anOutputOlderThanTheTextReportsNothingOfItsBodies() {
         // arrange
-        let (db, file) =
-            derivedByServer(
-                #"
+        let (db, file) = derivedByServer(
+            #"
             //- /main.cj module=m package=m
             package m
             import std.deriving.*
@@ -633,9 +627,9 @@ class ReplacedItemDiagnosticsTest {
                 func f(): Int64 { "s" }
             }
             "#,
-                "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool { true }\n" +
-                    "    public operator func !=(that: S): Bool { false }\n}"
-            )
+            "extend S <: Equatable<S> {\n    public operator func ==(that: S): Bool { true }\n" +
+                "    public operator func !=(that: S): Bool { false }\n}"
+        )
         let text = file.text(db).toString()
 
         // act
@@ -788,14 +782,13 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func generatedVArraySizeErrorsPointAtTheCallHead() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit { let x: VArray<Int64, $2> = @B(0) }
             "#
-            )
+        )
         answer(db, file, "B", "[1]", [MappedSpan(TextRange(0, 3), SpanOrigin.FromCall)])
         let text = file.text(db).toString()
 
@@ -810,14 +803,13 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func copiedVArraySizeErrorsPointAtTheCopiedArgument() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit { let x: VArray<Int64, $2> = @B([1]) }
             "#
-            )
+        )
         let text = file.text(db).toString()
         let start = offsetIn(text, "[1]") - offsetIn(text, "func f")
         answer(
@@ -839,14 +831,13 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func generatedTypeErrorsPointAtTheCallHead() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit { let x: Int64 = @B(1) }
             "#
-            )
+        )
         answer(db, file, "B", "true", [MappedSpan(TextRange(0, 4), SpanOrigin.FromCall)])
         let text = file.text(db).toString()
 
@@ -861,14 +852,13 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func copiedTypeErrorsPointAtTheCopiedArgument() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit { let x: Int64 = @B(true) }
             "#
-            )
+        )
         let text = file.text(db).toString()
         let start = offsetIn(text, "true") - offsetIn(text, "func f")
         answer(
@@ -890,14 +880,13 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func errorsInGeneratedStatementsPointAtTheirOwnCall() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit { @B(1) }
             "#
-            )
+        )
         let output = "let x: Bool = 1"
         answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
         let text = file.text(db).toString()
@@ -912,14 +901,13 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func invalidExpressionOutputReportsItsParseErrorsAtTheCall() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit { let x = @B(1) }
             "#
-            )
+        )
         let output = "func local() {}"
         answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
         let text = file.text(db).toString()
@@ -936,9 +924,8 @@ class ExpressionMacroDiagnosticsTest {
     @TestCase
     func aGeneratedLocalUsedAfterTheCallNavigatesToTheCallInSource() {
         // arrange
-        let (db, file) =
-            expansionDatabase(
-                #"
+        let (db, file) = expansionDatabase(
+            #"
             package m
             import m.ms.*
             func f(): Unit {
@@ -946,7 +933,7 @@ class ExpressionMacroDiagnosticsTest {
                 let result = made
             }
             "#
-            )
+        )
         let output = "let made = 1"
         answer(db, file, "B", output, [MappedSpan(TextRange(0, output.size), SpanOrigin.FromCall)])
         let text = file.text(db).toString()
@@ -1021,16 +1008,14 @@ class PackageHeaderDiagnosticsTest {
     @TestCase
     func aHeaderEditUpdatesTheOtherFilesDiagnostic() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /a.cj module=m package=m
             package m
             //- /b.cj module=m package=m
             package m
             "#
-                )
+        )
         let db = fixture.database()
         let first = fixture.file("/a.cj").fileId
         let second = fixture.file("/b.cj").fileId

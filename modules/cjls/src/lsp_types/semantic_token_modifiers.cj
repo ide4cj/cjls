@@ -35,12 +35,15 @@ public struct SemanticTokenModifiers {
 
     public static const ASYNC: SemanticTokenModifiers = SemanticTokenModifiers("async")
 
-    public static const MODIFICATION: SemanticTokenModifiers =
-        SemanticTokenModifiers("modification")
+    public static const MODIFICATION: SemanticTokenModifiers = SemanticTokenModifiers(
+        "modification"
+    )
 
-    public static const DOCUMENTATION: SemanticTokenModifiers =
-        SemanticTokenModifiers("documentation")
+    public static const DOCUMENTATION: SemanticTokenModifiers = SemanticTokenModifiers(
+        "documentation"
+    )
 
-    public static const DEFAULT_LIBRARY: SemanticTokenModifiers =
-        SemanticTokenModifiers("defaultLibrary")
+    public static const DEFAULT_LIBRARY: SemanticTokenModifiers = SemanticTokenModifiers(
+        "defaultLibrary"
+    )
 }

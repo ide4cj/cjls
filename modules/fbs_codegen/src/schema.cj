@@ -374,17 +374,16 @@ class SchemaParser {
             let (required, deprecated) = metadata()
             let end = peek().line
             expectPunct(";")
-            fields
-                .add(
-                    Field(
-                        token.text,
-                        fbType,
-                        defaultValue,
-                        required,
-                        deprecated,
-                        docOf(token.line, end)
-                    )
+            fields.add(
+                Field(
+                    token.text,
+                    fbType,
+                    defaultValue,
+                    required,
+                    deprecated,
+                    docOf(token.line, end)
                 )
+            )
         }
         expectPunct("}")
         Decl(kind, name, doc, fields: fields.toArray())

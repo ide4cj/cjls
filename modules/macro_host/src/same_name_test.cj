@@ -24,26 +24,24 @@ func conflictingLibraries(
         Directory.create(leaf, recursive: true)
         let value = if (name == "First") { "1" } else { "2" }
         let pkg = if (sameName) { "toy.ms" } else { "toy.${name}" }
-        File
-            .writeTo(
-                leaf.join("leaf.cj"),
-                "package leaf\npublic func which(): Int64 { ${value} }\n".toArray()
-            )
+        File.writeTo(
+            leaf.join("leaf.cj"),
+            "package leaf\npublic func which(): Int64 { ${value} }\n".toArray()
+        )
         let text = conflictingMacroSource(pkg)
         File.writeTo(source.join("ms.cj"), text.toArray())
-        let built =
-            MacroBuilder(
-                root.join(name).join("macro-build"),
-                toolchain.version().getOrThrow(),
-                toolchain
+        let built = MacroBuilder(
+            root.join(name).join("macro-build"),
+            toolchain.version().getOrThrow(),
+            toolchain
+        )
+            .build(
+                [
+                    BuildUnit("leaf", "leaf", leaf, false, [], []),
+                    BuildUnit(pkg, "toy", source, true, [("leaf", "leaf")], [])
+                ]
             )
-                .build(
-                    [
-                        BuildUnit("leaf", "leaf", leaf, false, [], []),
-                        BuildUnit(pkg, "toy", source, true, [("leaf", "leaf")], [])
-                    ]
-                )
-                .getOrThrow()
+            .getOrThrow()
         match (built.get(pkg).getOrThrow()) {
             case Built(path, _) => found.add((path.toString(), pkg))
             case NotBuilt(reason) => throw IllegalStateException(reason)

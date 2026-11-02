@@ -627,9 +627,8 @@ class SignatureTypesTest {
     func aFunctionsTypeParameterIsItsOwnNotItsTypes() {
         // N55
         // arrange
-        let (db, _, c) =
-            declOf(
-                #"
+        let (db, _, c) = declOf(
+            #"
             package m
             class C<T> {
                 func f<T>(x: T): T {
@@ -640,8 +639,8 @@ class SignatureTypesTest {
                 }
             }
             "#,
-                "C"
-            )
+            "C"
+        )
         let member =
             {
                 name: String =>
@@ -659,15 +658,14 @@ class SignatureTypesTest {
     @TestCase
     func equalTypesAreOneId() {
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             class C<T> {}
             func f(a: C<Int64>, b: C<Int64>, c: C<Bool>): Unit {}
             "#,
-                "f"
-            )
+            "f"
+        )
         // act
         let params = signatureTypes(db, f).params
         // assert
@@ -678,16 +676,15 @@ class SignatureTypesTest {
     @TestCase
     func anEditOfABodyLeavesTheSignatureTypesAndWhatReadThemAlone() {
         // arrange
-        let (db, source, f) =
-            declOf(
-                #"
+        let (db, source, f) = declOf(
+            #"
             package m
             func f(a: Int64): Int64 {
                 a
             }
             "#,
-                "f"
-            )
+            "f"
+        )
         paramTyCount(db, f)
         let before = signatureTypesReaderRuns.load()
         // act
@@ -702,16 +699,15 @@ class SignatureTypesTest {
     @TestCase
     func anEditOfATypeRunsAgainWhatReadTheSignatureTypes() {
         // arrange
-        let (db, source, f) =
-            declOf(
-                #"
+        let (db, source, f) = declOf(
+            #"
             package m
             func f(a: Int64): Int64 {
                 a
             }
             "#,
-                "f"
-            )
+            "f"
+        )
         paramTyCount(db, f)
         let before = signatureTypesReaderRuns.load()
         // act
@@ -732,19 +728,18 @@ class BinarySignatureTypesTest {
         // arrange
         let (db, core) = stdPackage("std.core")
         let option = exportOf(db, core, "Option")
-        let getOrThrow =
-            DefId(
-                db,
-                option.file(db),
-                itemOf(db, option)
-                    .getOrThrow()
-                    .members
-                    .iterator()
-                    .filter { member => member.names == ["getOrThrow"] }
-                    .next()
-                    .getOrThrow()
-                    .id
-            )
+        let getOrThrow = DefId(
+            db,
+            option.file(db),
+            itemOf(db, option)
+                .getOrThrow()
+                .members
+                .iterator()
+                .filter { member => member.names == ["getOrThrow"] }
+                .next()
+                .getOrThrow()
+                .id
+        )
         // act
         let ofOption = signatureTypes(db, option)
         let ofGetOrThrow = signatureTypes(db, getOrThrow)
@@ -797,8 +792,11 @@ class BinarySignatureTypesTest {
         // arrange: `String.toArray(): Array<Byte>`, `Byte` an alias in the `.cjo`'s types
         let (db, core) = stdPackage("std.core")
         let string = exportOf(db, core, "String")
-        let toArray =
-            DefId(db, string.file(db), named(itemOf(db, string).getOrThrow().members, "toArray").id)
+        let toArray = DefId(
+            db,
+            string.file(db),
+            named(itemOf(db, string).getOrThrow().members, "toArray").id
+        )
         // act
         let text = signatureTypes(db, toArray).text(db, ItemKind.Func)
         // assert
@@ -834,8 +832,11 @@ class BinarySignatureTypesTest {
         // std.collection refers to std.core's Array, but std.core is unavailable here.
         let (db, collection) = stdPackage("std.collection")
         let list = exportOf(db, collection, "ArrayList")
-        let toArray =
-            DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
+        let toArray = DefId(
+            db,
+            list.file(db),
+            named(itemOf(db, list).getOrThrow().members, "toArray").id
+        )
         let reason =
             signatureTypes(db, toArray)
                 .ty
@@ -854,8 +855,11 @@ class BinarySignatureTypesTest {
         // arrange: `ArrayList.toArray` of std.collection, its `Array` std.core's
         let (db, collection) = stdPackage("std.collection", others: ["std.core"])
         let list = exportOf(db, collection, "ArrayList")
-        let toArray =
-            DefId(db, list.file(db), named(itemOf(db, list).getOrThrow().members, "toArray").id)
+        let toArray = DefId(
+            db,
+            list.file(db),
+            named(itemOf(db, list).getOrThrow().members, "toArray").id
+        )
         // act
         let text = signatureTypes(db, toArray).text(db, ItemKind.Func)
         // assert

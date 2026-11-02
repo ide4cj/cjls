@@ -12,25 +12,23 @@ class FieldResolutionTest {
     func superOfAClassOfNoSuperclassIsObject() {
         // N79: cjc's "'hashCode' is not a member of class 'Object'"
         // arrange
-        let (db, _, c) =
-            declOf(
-                #"
+        let (db, _, c) = declOf(
+            #"
             package m
             class C {
                 func g(): Unit { super.hashCode() }
             }
             "#,
-                "C",
-                binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
-            )
+            "C",
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+        )
         let g = DefId(db, c.file(db), named(itemOf(db, c).getOrThrow().members, "g").id)
         let lowered = body(db, g)
-        let superExpr =
-            (0..lowered.exprs.size)
-                .iterator()
-                .filter { i => lowered.exprs[i] == Expr.SuperExpr }
-                .next()
-                .getOrThrow()
+        let superExpr = (0..lowered.exprs.size)
+            .iterator()
+            .filter { i => lowered.exprs[i] == Expr.SuperExpr }
+            .next()
+            .getOrThrow()
         // act
         let receiver = receiverOf(db, g, ExprId(superExpr))
         // assert
@@ -56,15 +54,14 @@ class FieldResolutionTest {
     func aStaticOfATypeOfTheLanguageIsStdCoresExtends() {
         // N84
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             func f(): Int64 { Int64.Max }
             "#,
-                "f",
-                binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
-            )
+            "f",
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+        )
         // act
         let resolution = resolveField(db, f, fieldNamed(db, f, "Max"))
         // assert
@@ -75,15 +72,14 @@ class FieldResolutionTest {
     func anExtendOfNoInterfaceOfStdCoreIsSeenEverywhere() {
         // N84: `std.core`'s `extend Float64 { fromBits, toBits }`, the type's package's (N81)
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             func f(): Float64 { Float64.fromBits(0) }
             "#,
-                "f",
-                binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
-            )
+            "f",
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))]
+        )
         // act
         let resolution = resolveField(db, f, fieldNamed(db, f, "fromBits"))
         // assert
@@ -94,18 +90,17 @@ class FieldResolutionTest {
     func anExtendOfAnInterfacesCjoIsNotSeenWithoutTheInterface() {
         // N84, N82: cjc's "undeclared identifier 'parse'"
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             func f(): Int64 { Int64.parse("1") }
             "#,
-                "f",
-                binaries: [
-                    stdCjoRead("std.core", stdCjo("std.core")),
-                    stdCjoRead("std.convert", stdCjo("std.convert"))
-                ]
-            )
+            "f",
+            binaries: [
+                stdCjoRead("std.core", stdCjo("std.core")),
+                stdCjoRead("std.convert", stdCjo("std.convert"))
+            ]
+        )
         // act
         let resolution = resolveField(db, f, fieldNamed(db, f, "parse"))
         // assert
@@ -117,19 +112,18 @@ class FieldResolutionTest {
         // N84, N82: the `extend`s' implementing `Parsable`'s and `RadixConvertible`'s, which they
         // hide (N107, #239)
         // arrange
-        let (db, _, f) =
-            declOf(
-                #"
+        let (db, _, f) = declOf(
+            #"
             package m
             import std.convert.*
             func f(): Int64 { Int64.parse("1") }
             "#,
-                "f",
-                binaries: [
-                    stdCjoRead("std.core", stdCjo("std.core")),
-                    stdCjoRead("std.convert", stdCjo("std.convert"))
-                ]
-            )
+            "f",
+            binaries: [
+                stdCjoRead("std.core", stdCjo("std.core")),
+                stdCjoRead("std.convert", stdCjo("std.convert"))
+            ]
+        )
         // act
         let resolution = resolveField(db, f, fieldNamed(db, f, "parse"))
         // assert
@@ -164,18 +158,17 @@ class FieldResolutionTest {
  */
 func fieldNamed(db: AnalysisDatabase, def: DefId, name: String): ExprId {
     let lowered = body(db, def)
-    let index =
-        (0..lowered.exprs.size)
-            .iterator()
-            .filter {
-                i =>
-                match (lowered.exprs[i]) {
-                    case FieldExpr(_, each, _) => each == name
-                    case _ => false
-                }
+    let index = (0..lowered.exprs.size)
+        .iterator()
+        .filter {
+            i =>
+            match (lowered.exprs[i]) {
+                case FieldExpr(_, each, _) => each == name
+                case _ => false
             }
-            .next()
-            .getOrThrow()
+        }
+        .next()
+        .getOrThrow()
     ExprId(index)
 }
 

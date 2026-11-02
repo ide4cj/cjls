@@ -44,13 +44,12 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
         case "positionEncoding" => ()
         case "textDocumentSync" =>
             if (isOn(value.get("openClose"))) {
-                methods
-                    .add(
-                        all: [
-                            DidOpenTextDocumentNotificationSpec.METHOD,
-                            DidCloseTextDocumentNotificationSpec.METHOD
-                        ]
-                    )
+                methods.add(
+                    all: [
+                        DidOpenTextDocumentNotificationSpec.METHOD,
+                        DidCloseTextDocumentNotificationSpec.METHOD
+                    ]
+                )
             }
             // a `TextDocumentSyncKind`, `None` (0) for no changes
             if (let Some(JsonValue.JsonInteger(change)) <- value.get("change") && change != 0) {
@@ -75,14 +74,13 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
         case "documentHighlightProvider" => methods.add(DocumentHighlightRequestSpec.METHOD)
         case "referencesProvider" => methods.add(ReferencesRequestSpec.METHOD)
         case "callHierarchyProvider" =>
-            methods
-                .add(
-                    all: [
-                        CallHierarchyPrepareRequestSpec.METHOD,
-                        CallHierarchyIncomingCallsRequestSpec.METHOD,
-                        CallHierarchyOutgoingCallsRequestSpec.METHOD
-                    ]
-                )
+            methods.add(
+                all: [
+                    CallHierarchyPrepareRequestSpec.METHOD,
+                    CallHierarchyIncomingCallsRequestSpec.METHOD,
+                    CallHierarchyOutgoingCallsRequestSpec.METHOD
+                ]
+            )
         case "implementationProvider" => methods.add(ImplementationRequestSpec.METHOD)
         case "hoverProvider" => methods.add(HoverRequestSpec.METHOD)
         case "completionProvider" =>
@@ -126,14 +124,13 @@ private func methodsOf(key: String, value: JsonValue): Array<String> {
             }
         // Server-to-client notifications advertise support but have no inbound route.
         case "experimental" =>
-            methods
-                .add(
-                    all: value
-                        .asObject()
-                        .filter { entry => isOn(entry[1]) }
-                        .map { entry => "cjls/${entry[0]}" }
-                        .filter { method => method != BinarySourceRootsNotificationSpec.METHOD }
-                )
+            methods.add(
+                all: value
+                    .asObject()
+                    .filter { entry => isOn(entry[1]) }
+                    .map { entry => "cjls/${entry[0]}" }
+                    .filter { method => method != BinarySourceRootsNotificationSpec.METHOD }
+            )
         case _ => throw IllegalArgumentException("no methods known for the capability \"${key}\"")
     }
     methods.toArray()

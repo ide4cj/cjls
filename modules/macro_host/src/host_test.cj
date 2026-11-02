@@ -78,20 +78,18 @@ func resultOf(data: MacroResultData): MacroResult {
  * `/main.cj` of package `m` holding `text`, with the workspace macro package `m.ms`.
  */
 func macroFixture(text: String): (AnalysisDatabase, SourceFile, String) {
-    let parsed =
-        Fixture
-            .parse(
-                #"
+    let parsed = Fixture.parse(
+        #"
         //- /main.cj module=m package=m
         "# +
-                    text +
-                    #"
+            text +
+            #"
         //- /ms/ms.cj module=m package=m.ms
         macro package m.ms
         import std.ast.*
         public macro M(attrs: Tokens, input: Tokens): Tokens { input }
         "#
-            )
+    )
     let db = parsed.database()
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow(), parsed.file("/main.cj").text)
 }
@@ -129,8 +127,12 @@ class MacroRoundTest {
         let expander = FakeExpander()
 
         // act
-        let answers =
-            expandAll(db, sendableRequests(db, [file], libraries), testNumbers(), expander)
+        let answers = expandAll(
+            db,
+            sendableRequests(db, [file], libraries),
+            testNumbers(),
+            expander
+        )
         setMacroOutputsByKey(db, answers)
 
         // assert
@@ -146,14 +148,13 @@ class MacroRoundTest {
     @TestCase
     func aCallInABodyIsSentWithItsArgumentsAndItsAnswerComesFromWhereTheyAre() {
         // arrange
-        let (db, file, source) =
-            macroFixture(
-                #"
+        let (db, file, source) = macroFixture(
+            #"
         package m
         import m.ms.*
         func f(): Int64 { @M[x](1 + 2) }
 "#
-            )
+        )
         let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let expander = FakeExpander()
         let request = macroRequests(db, file)[0]
@@ -181,9 +182,8 @@ class MacroRoundTest {
     @TestCase
     func anAttributeAndArgumentsAreSentWithoutTheLineBreaksTheyStartWithAsCjcGivesThem() {
         // arrange
-        let (db, file, _) =
-            macroFixture(
-                #"
+        let (db, file, _) = macroFixture(
+            #"
         package m
         import m.ms.*
         func f(): Int64 {
@@ -196,7 +196,7 @@ class MacroRoundTest {
             )
         }
 "#
-            )
+        )
         let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let expander = FakeExpander()
 
@@ -211,15 +211,14 @@ class MacroRoundTest {
     @TestCase
     func aCallInABodyKeepsWhereItsArgumentsAreWhenTheyStartOnALineOfTheirOwn() {
         // arrange
-        let (db, file, source) =
-            macroFixture(
-                #"
+        let (db, file, source) = macroFixture(
+            #"
         package m
         import m.ms.*
         func f(): Int64 { @M[x](
             1 + 2) }
 "#
-            )
+        )
         let libraries = libraryOf(db, file, MacroLibrary("/lib", 0))
         let request = macroRequests(db, file)[0]
 
@@ -294,18 +293,17 @@ class MacroRoundTest {
         let expander = FakeExpander()
 
         // act
-        let answers =
-            expandAll(
+        let answers = expandAll(
+            db,
+            sendableRequests(
                 db,
-                sendableRequests(
-                    db,
-                    [file],
-                    HashMap<Package, MacroLibrary>(),
-                    stdLibrary: { pkg => "/sdk/libcangjie-${pkg}.so" }
-                ),
-                testNumbers(),
-                expander
-            )
+                [file],
+                HashMap<Package, MacroLibrary>(),
+                stdLibrary: { pkg => "/sdk/libcangjie-${pkg}.so" }
+            ),
+            testNumbers(),
+            expander
+        )
 
         // assert
         @Expect(expander.calls.size, 1)
@@ -322,13 +320,12 @@ class MacroRoundTest {
         let (db, file) = deriveFixture()
 
         // act
-        let requests =
-            sendableRequests(
-                db,
-                [file],
-                HashMap<Package, MacroLibrary>(),
-                stdLibrary: { _ => None }
-            )
+        let requests = sendableRequests(
+            db,
+            [file],
+            HashMap<Package, MacroLibrary>(),
+            stdLibrary: { _ => None }
+        )
 
         // assert
         @Expect(requests.size, 0)
@@ -349,26 +346,21 @@ class MacroRoundTest {
         let (_, layout) = callDataOf(request, "m.ms", "/lib", testNumbers())
 
         // act
-        let output =
-            outputOf(
-                request,
-                layout,
-                Answered(
-                    resultOf(
-                        MacroResultData(
-                            status: 1,
-                            diags: [
-                                DiagnosticData(
-                                    diagSeverity: level,
-                                    errorMessage: text,
-                                    mainHint: text
-                                )
-                            ]
-                        )
+        let output = outputOf(
+            request,
+            layout,
+            Answered(
+                resultOf(
+                    MacroResultData(
+                        status: 1,
+                        diags: [
+                            DiagnosticData(diagSeverity: level, errorMessage: text, mainHint: text)
+                        ]
                     )
-                ),
-                testNumbers()
-            )
+                )
+            ),
+            testNumbers()
+        )
 
         // assert
         @Expect(output.diagnostics, [MacroDiagnostic(severity, None, message, "")])
@@ -382,13 +374,12 @@ class MacroRoundTest {
         let (_, layout) = callDataOf(request, "m.ms", "/lib", testNumbers())
 
         // act
-        let failed =
-            outputOf(
-                request,
-                layout,
-                Answered(resultOf(MacroResultData(status: MACRO_FAILED))),
-                testNumbers()
-            )
+        let failed = outputOf(
+            request,
+            layout,
+            Answered(resultOf(MacroResultData(status: MACRO_FAILED))),
+            testNumbers()
+        )
         let lost = outputOf(request, layout, Unanswered("it ran longer than 10 s"), testNumbers())
 
         // assert
@@ -435,25 +426,21 @@ class WatchdogTest {
  * `/main.cj` of package `m` deriving `Equatable` for a class with std's `@Derive`, std's `.cjo`s among the packages.
  */
 func deriveFixture(): (AnalysisDatabase, SourceFile) {
-    let parsed =
-        Fixture
-            .parse(
-                #"
+    let parsed = Fixture.parse(
+        #"
         //- /main.cj module=m package=m
         package m
         import std.deriving.*
         @Derive[Equatable]
         class A { let x: Int64 = 1 }
         "#
-            )
-    let db =
-        parsed
-            .database(
-                binaries: [
-                    stdCjoRead("std.core", stdCjo("std.core")),
-                    stdCjoRead("std.deriving", stdCjo("std.deriving"))
-                ]
-            )
+    )
+    let db = parsed.database(
+        binaries: [
+            stdCjoRead("std.core", stdCjo("std.core")),
+            stdCjoRead("std.deriving", stdCjo("std.deriving"))
+        ]
+    )
     (db, db.sourceFile(parsed.file("/main.cj").fileId).getOrThrow())
 }
 
@@ -532,10 +519,9 @@ func buildToyMacros(toolchain: SdkToolchain): BuiltLibrary {
     let dir = root.join("src").join("ms")
     Directory.create(dir, recursive: true)
     File.writeTo(dir.join("ms.cj"), TOY_MACROS.toArray())
-    let built =
-        MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain)
-            .build([BuildUnit("toy.ms", "toy", dir, true, [], [])])
-            .getOrThrow()
+    let built = MacroBuilder(root.join("macro-build"), toolchain.version().getOrThrow(), toolchain)
+        .build([BuildUnit("toy.ms", "toy", dir, true, [], [])])
+        .getOrThrow()
     built.get("toy.ms") ?? NotBuilt("nothing built")
 }
 
@@ -618,13 +604,12 @@ class GuardedServerTest {
         let own = macroExpansion(db, call)
 
         // act
-        let requests =
-            sendableRequests(
-                db,
-                [file],
-                HashMap<Package, MacroLibrary>(),
-                stdLibrary: { pkg => paths.stdMacroLibrary(pkg).map { path => path.toString() } }
-            )
+        let requests = sendableRequests(
+            db,
+            [file],
+            HashMap<Package, MacroLibrary>(),
+            stdLibrary: { pkg => paths.stdMacroLibrary(pkg).map { path => path.toString() } }
+        )
         setMacroOutputsByKey(db, expandAll(db, requests, numbers, server))
         server.close()
         let served = macroExpansion(db, call)
@@ -642,11 +627,9 @@ class GuardedServerTest {
     func aBuiltKeywordIdentifierKeepsItsPrimitiveType() {
         // arrange
         let (paths, library) = built()
-        let fixture =
-            Fixture
-                .parse(
-                    trimIndent(
-                        #"
+        let fixture = Fixture.parse(
+            trimIndent(
+                #"
             //- /main.cj module=toy package=toy
             package toy
             import toy.ms.*
@@ -657,9 +640,9 @@ class GuardedServerTest {
             }
             //- /ms/ms.cj module=toy package=toy.ms
             "#
-                    ) +
-                        TOY_MACROS
-                )
+            ) +
+                TOY_MACROS
+        )
         let db = fixture.database()
         let file = db.sourceFile(fixture.file("/main.cj").fileId).getOrThrow()
         let libraries = libraryOf(db, file, MacroLibrary(library, 0))
@@ -712,10 +695,9 @@ class DirNameTest {
     @TestCase
     func aCompilersVersionNamesItsDirectory() {
         // act
-        let name =
-            dirNameOf(
-                "Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)\nTarget: x86_64-unknown-linux-gnu\n"
-            )
+        let name = dirNameOf(
+            "Cangjie Compiler: 1.3.0-alpha.20261002001050 (cjnative)\nTarget: x86_64-unknown-linux-gnu\n"
+        )
 
         // assert
         @Expect(name, "1.3.0-alpha.20261002001050-cjnative")
@@ -751,24 +733,22 @@ const USES =
  * `/a.cj` and `/b.cj` of package `m`, each holding `USES`, with the workspace macro package `m.ms` built.
  */
 func twoFilesFixture(): (AnalysisDatabase, SourceFile, SourceFile, HashMap<Package, MacroLibrary>) {
-    let parsed =
-        Fixture
-            .parse(
-                #"
+    let parsed = Fixture.parse(
+        #"
         //- /a.cj module=m package=m
         "# +
-                    USES +
-                    #"
+            USES +
+            #"
         //- /b.cj module=m package=m
         "# +
-                    USES +
-                    #"
+            USES +
+            #"
         //- /ms/ms.cj module=m package=m.ms
         macro package m.ms
         import std.ast.*
         public macro M(input: Tokens): Tokens { input }
         "#
-            )
+    )
     let db = parsed.database()
     let a = db.sourceFile(parsed.file("/a.cj").fileId).getOrThrow()
     (
@@ -787,10 +767,9 @@ class MacroRoundEditTest {
         let (db, a, b, libraries) = twoFilesFixture()
         let snapshot = db.snapshot()
         let requests = sendableRequests(snapshot, [a, b], libraries)
-        let expander =
-            EditingExpander(
-                { => db.setFileText(b.fileId(db), Rope(USES.replace("a = 1", "b = 2"))) }
-            )
+        let expander = EditingExpander(
+            { => db.setFileText(b.fileId(db), Rope(USES.replace("a = 1", "b = 2"))) }
+        )
 
         // act
         let answers = expandAll(snapshot, requests, testNumbers(), expander)
@@ -808,10 +787,9 @@ class MacroRoundEditTest {
         let (db, a, b, libraries) = twoFilesFixture()
         let snapshot = db.snapshot()
         let requests = sendableRequests(snapshot, [a, b], libraries)
-        let expander =
-            EditingExpander(
-                { => db.setFileText(a.fileId(db), Rope(USES.replace("a = 1", "b = 2"))) }
-            )
+        let expander = EditingExpander(
+            { => db.setFileText(a.fileId(db), Rope(USES.replace("a = 1", "b = 2"))) }
+        )
 
         // act
         let answers = expandAll(snapshot, requests, testNumbers(), expander)
@@ -828,13 +806,12 @@ class MacroRoundEditTest {
         let (db, a, b, libraries) = twoFilesFixture()
 
         // act
-        let requests =
-            sendableRequests(
-                db,
-                [a, b],
-                libraries,
-                isOpen: { file => file.fileId(db).index == b.fileId(db).index }
-            )
+        let requests = sendableRequests(
+            db,
+            [a, b],
+            libraries,
+            isOpen: { file => file.fileId(db).index == b.fileId(db).index }
+        )
 
         // assert
         @Expect(requests.map {one => one[0].fileId(db).index}, [b.fileId(db).index, a.fileId(db).index])

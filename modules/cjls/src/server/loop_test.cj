@@ -43,8 +43,11 @@ class LoopTest {
         // what setting the state up changed
         state.takeFilesChanged()
         let refreshed = ArrayList<Bool>()
-        let loop =
-            Loop(state, Option<DiagnosticsPush>.None, refreshTokens: { => refreshed.add(true) })
+        let loop = Loop(
+            state,
+            Option<DiagnosticsPush>.None,
+            refreshTokens: { => refreshed.add(true) }
+        )
 
         // act
         loop
@@ -68,12 +71,11 @@ class LoopTest {
         // what setting the state up changed
         state.takeFilesChanged()
         let refreshed = ArrayList<Bool>()
-        let loop =
-            Loop(
-                state,
-                Option<DiagnosticsPush>.None,
-                refreshDiagnostics: { => refreshed.add(true) }
-            )
+        let loop = Loop(
+            state,
+            Option<DiagnosticsPush>.None,
+            refreshDiagnostics: { => refreshed.add(true) }
+        )
 
         // act
         loop

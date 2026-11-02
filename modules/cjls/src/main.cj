@@ -59,12 +59,11 @@ func runServer(logger: Logger): Int64 {
             host.start()
             host
         }
-    let exitCode =
-        serve(
-            FramedJsonRpcTransport(StdinStream(), getStdOut(), logger),
-            router().withState(state),
-            logger
-        )
+    let exitCode = serve(
+        FramedJsonRpcTransport(StdinStream(), getStdOut(), logger),
+        router().withState(state),
+        logger
+    )
     logger.info("stopped", [("exitCode", exitCode)])
     exitCode
 }

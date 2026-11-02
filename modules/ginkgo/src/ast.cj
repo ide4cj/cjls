@@ -30,15 +30,14 @@ public func astChild<K, T>(parent: SyntaxNode<K>): ?T where K <: Kind<K>, T <: A
         if (let GreenElement.Node(n) <- green.child(i)) {
             if (T.canCast(n.kind)) {
                 if (
-                    let Some(it) <- T
-                        .cast(
-                            SyntaxNode(
-                                n,
-                                parent: parent,
-                                indexInParent: i,
-                                offset: parent.offset + green.childOffset(i)
-                            )
+                    let Some(it) <- T.cast(
+                        SyntaxNode(
+                            n,
+                            parent: parent,
+                            indexInParent: i,
+                            offset: parent.offset + green.childOffset(i)
                         )
+                    )
                 ) {
                     return it
                 }
@@ -76,15 +75,14 @@ public func astNthChild<K, T>(
             if (counted.contains(node.kind)) {
                 if (seen == n) {
                     return if (T.canCast(node.kind)) {
-                        T
-                            .cast(
-                                SyntaxNode(
-                                    node,
-                                    parent: parent,
-                                    indexInParent: i,
-                                    offset: parent.offset + green.childOffset(i)
-                                )
+                        T.cast(
+                            SyntaxNode(
+                                node,
+                                parent: parent,
+                                indexInParent: i,
+                                offset: parent.offset + green.childOffset(i)
                             )
+                        )
                     } else {
                         None
                     }
@@ -159,15 +157,14 @@ class AstChildrenBetween<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K
                 case GreenElement.Token(_) => ()
                 case GreenElement.Node(n) where started && T.canCast(n.kind) =>
                     if (
-                        let Some(it) <- T
-                            .cast(
-                                SyntaxNode(
-                                    n,
-                                    parent: parent,
-                                    indexInParent: at,
-                                    offset: parent.offset + green.childOffset(at)
-                                )
+                        let Some(it) <- T.cast(
+                            SyntaxNode(
+                                n,
+                                parent: parent,
+                                indexInParent: at,
+                                offset: parent.offset + green.childOffset(at)
                             )
+                        )
                     ) {
                         return it
                     }
@@ -198,15 +195,14 @@ class AstChildren<K, T> <: Iterator<T> where K <: Kind<K>, T <: AstNode<K, T> {
                     toSkip--
                 } else if (T.canCast(n.kind)) {
                     if (
-                        let Some(it) <- T
-                            .cast(
-                                SyntaxNode(
-                                    n,
-                                    parent: parent,
-                                    indexInParent: at,
-                                    offset: parent.offset + green.childOffset(at)
-                                )
+                        let Some(it) <- T.cast(
+                            SyntaxNode(
+                                n,
+                                parent: parent,
+                                indexInParent: at,
+                                offset: parent.offset + green.childOffset(at)
                             )
+                        )
                     ) {
                         return it
                     }

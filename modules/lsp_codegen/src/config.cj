@@ -34,13 +34,13 @@ struct Config {
         let srcDir =
             nonBlankPath(general.srcDir) ??
                 manifest.flatMap { it: CjpmManifest => nonBlankPath(it.pkg.srcDir) } ?? Path("src")
+        // Throw directly: the SDK loses ConfigException's type through getOrThrow here (K29).
         let rootPackage =
-            manifest
-                .map { it: CjpmManifest => it.pkg.name }
-                .getOrThrow {
-                    =>
-                    ConfigException("cannot tell the root package of `${subPackage}`")
-                }
+            match (manifest) {
+                case Some(m) => m.pkg.name
+                case None =>
+                    throw ConfigException("cannot tell the root package of `${subPackage}`")
+            }
 
         Config(
             imports: general.imports ?? [],

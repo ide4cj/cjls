@@ -81,8 +81,10 @@ private func calcaInput(input: Tokens, singleton: Bool): Tokens {
             }
         )
         if (field.keyword.kind == TokenKind.VAR) {
-            let setter =
-                Token(TokenKind.IDENTIFIER, "set" + capitalized(stripBackquotes(ident.value)))
+            let setter = Token(
+                TokenKind.IDENTIFIER,
+                "set" + capitalized(stripBackquotes(ident.value))
+            )
             accessors += quote(
                 $visibility func $setter(db: Database): Setter<$fieldType> {
                     CALCA_INGREDIENT.set<$fieldType>(db, $index, calcaId)
@@ -95,8 +97,10 @@ private func calcaInput(input: Tokens, singleton: Bool): Tokens {
     if (singleton) {
         ingredient = quote(InputIngredient($(nameLiteral(name)), [$fieldNames], singleton: true))
         let visibility = modifiersOf(decl.modifiers)
-        let message =
-            Token(TokenKind.STRING_LITERAL, "no ${stripBackquotes(name.value)} in this database")
+        let message = Token(
+            TokenKind.STRING_LITERAL,
+            "no ${stripBackquotes(name.value)} in this database"
+        )
         accessors += quote(
             private init(calcaSingleton: Id) {
                 calcaId = calcaSingleton

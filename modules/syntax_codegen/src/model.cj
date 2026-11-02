@@ -143,17 +143,16 @@ func buildModel(file: KindsFile, grammar: Grammar): Model {
     let kinds = ArrayList<KindInfo>()
     func addAll(entries: ?Array<KindEntry>, category: KindCategory) {
         for (e in entries ?? []) {
-            kinds
-                .add(
-                    KindInfo(
-                        name: e.name,
-                        category: category,
-                        doc: docLines(e.doc),
-                        text: e.text,
-                        contextual: e.contextual ?? false,
-                        word: e.word ?? false
-                    )
+            kinds.add(
+                KindInfo(
+                    name: e.name,
+                    category: category,
+                    doc: docLines(e.doc),
+                    text: e.text,
+                    contextual: e.contextual ?? false,
+                    word: e.word ?? false
                 )
+            )
         }
     }
     addAll(file.trivia, Trivia)
@@ -464,8 +463,9 @@ func lowerNode(model: Model, def: RuleDef): NodeIr {
         match ((first.label, first.node)) {
             case (Some(l), None) => fields.add(TokenSetField(l, dedup(first.tokens)))
             case (None, None) =>
-                fields
-                    .add(TokenField(tokenFieldName(first.tokens[0]), first.tokens[0], isMany(own)))
+                fields.add(
+                    TokenField(tokenFieldName(first.tokens[0]), first.tokens[0], isMany(own))
+                )
             case (_, Some(typeName)) =>
                 let many = isMany(own)
                 let name = first.label ?? nodeFieldName(typeName, many)

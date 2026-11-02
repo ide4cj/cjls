@@ -182,11 +182,10 @@ public struct HighlightModifiers <: ToString & Equatable<HighlightModifiers> {
 
     public func toString(): String {
         let bits = this.bits
-        String
-            .join(
-                HIGHLIGHT_MODIFIERS.filter { m => (bits & m.bit()) != 0 }.map { m => m.toString() },
-                delimiter: ", "
-            )
+        String.join(
+            HIGHLIGHT_MODIFIERS.filter { m => (bits & m.bit()) != 0 }.map { m => m.toString() },
+            delimiter: ", "
+        )
     }
 
     public operator func ==(other: HighlightModifiers): Bool {
@@ -258,28 +257,26 @@ const TOKENS_BETWEEN_CHECKS = 1024
  * Where a name used is resolved: in an expression, after a `.`, in a type or a pattern, of a macro
  * call.
  */
-let RESOLVED_IN =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.RefExpr,
-            SyntaxKind.MemberAccessExpr,
-            SyntaxKind.PathSegment,
-            SyntaxKind.MacroExpandDecl,
-            SyntaxKind.MacroExpandExpr
-        ]
-    )
+let RESOLVED_IN = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.RefExpr,
+        SyntaxKind.MemberAccessExpr,
+        SyntaxKind.PathSegment,
+        SyntaxKind.MacroExpandDecl,
+        SyntaxKind.MacroExpandExpr
+    ]
+)
 
-let PATTERNS =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.WildcardPat,
-            SyntaxKind.LiteralPat,
-            SyntaxKind.BindPat,
-            SyntaxKind.TypePat,
-            SyntaxKind.TuplePat,
-            SyntaxKind.EnumPat
-        ]
-    )
+let PATTERNS = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.WildcardPat,
+        SyntaxKind.LiteralPat,
+        SyntaxKind.BindPat,
+        SyntaxKind.TypePat,
+        SyntaxKind.TuplePat,
+        SyntaxKind.EnumPat
+    ]
+)
 
 class Highlighter {
     Highlighter(
@@ -558,14 +555,13 @@ func declarationHighlight(db: AnalysisDatabase, id: DefId): ?Highlight {
                 StructureKind.Constant
             case ItemKind.Var =>
                 modifiers =
-                    modifiers
-                        .plus(
-                            if (isMutable(db, id, source)) {
-                                HighlightModifier.Mutable
-                            } else {
-                                HighlightModifier.Readonly
-                            }
-                        )
+                    modifiers.plus(
+                        if (isMutable(db, id, source)) {
+                            HighlightModifier.Mutable
+                        } else {
+                            HighlightModifier.Readonly
+                        }
+                    )
                 if (member) { StructureKind.Field } else { StructureKind.Variable }
             case ItemKind.Prop =>
                 if (item.has(Modifier.Mut)) {
@@ -619,88 +615,85 @@ func mutability(decl: CjSyntaxNode, modifiers: HighlightModifiers): HighlightMod
 
 let NUMBERS = TokenSet<SyntaxKind>([SyntaxKind.IntLit, SyntaxKind.FloatLit])
 
-let STRINGS =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.RuneLit,
-            SyntaxKind.ByteLit,
-            SyntaxKind.RawStringLit,
-            SyntaxKind.StringStart,
-            SyntaxKind.StringContent,
-            SyntaxKind.StringEnd
-        ]
-    )
+let STRINGS = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.RuneLit,
+        SyntaxKind.ByteLit,
+        SyntaxKind.RawStringLit,
+        SyntaxKind.StringStart,
+        SyntaxKind.StringContent,
+        SyntaxKind.StringEnd
+    ]
+)
 
-let BUILTIN_TYPES =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.Int8Kw,
-            SyntaxKind.Int16Kw,
-            SyntaxKind.Int32Kw,
-            SyntaxKind.Int64Kw,
-            SyntaxKind.IntNativeKw,
-            SyntaxKind.UInt8Kw,
-            SyntaxKind.UInt16Kw,
-            SyntaxKind.UInt32Kw,
-            SyntaxKind.UInt64Kw,
-            SyntaxKind.UIntNativeKw,
-            SyntaxKind.Float16Kw,
-            SyntaxKind.Float32Kw,
-            SyntaxKind.Float64Kw,
-            SyntaxKind.RuneKw,
-            SyntaxKind.BoolKw,
-            SyntaxKind.NothingKw,
-            SyntaxKind.UnitKw,
-            SyntaxKind.VArrayKw
-        ]
-    )
+let BUILTIN_TYPES = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.Int8Kw,
+        SyntaxKind.Int16Kw,
+        SyntaxKind.Int32Kw,
+        SyntaxKind.Int64Kw,
+        SyntaxKind.IntNativeKw,
+        SyntaxKind.UInt8Kw,
+        SyntaxKind.UInt16Kw,
+        SyntaxKind.UInt32Kw,
+        SyntaxKind.UInt64Kw,
+        SyntaxKind.UIntNativeKw,
+        SyntaxKind.Float16Kw,
+        SyntaxKind.Float32Kw,
+        SyntaxKind.Float64Kw,
+        SyntaxKind.RuneKw,
+        SyntaxKind.BoolKw,
+        SyntaxKind.NothingKw,
+        SyntaxKind.UnitKw,
+        SyntaxKind.VArrayKw
+    ]
+)
 
 /**
  * Punctuation that is no operator wherever it is.
  */
-let NOT_OPERATORS =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.Dot,
-            SyntaxKind.Comma,
-            SyntaxKind.LParen,
-            SyntaxKind.RParen,
-            SyntaxKind.LBracket,
-            SyntaxKind.RBracket,
-            SyntaxKind.LBrace,
-            SyntaxKind.RBrace,
-            SyntaxKind.Colon,
-            SyntaxKind.ColonColon,
-            SyntaxKind.Semicolon,
-            SyntaxKind.DotDotDot,
-            SyntaxKind.Hash,
-            SyntaxKind.At,
-            SyntaxKind.AtBang,
-            SyntaxKind.Dollar,
-            SyntaxKind.Backslash
-        ]
-    )
+let NOT_OPERATORS = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.Dot,
+        SyntaxKind.Comma,
+        SyntaxKind.LParen,
+        SyntaxKind.RParen,
+        SyntaxKind.LBracket,
+        SyntaxKind.RBracket,
+        SyntaxKind.LBrace,
+        SyntaxKind.RBrace,
+        SyntaxKind.Colon,
+        SyntaxKind.ColonColon,
+        SyntaxKind.Semicolon,
+        SyntaxKind.DotDotDot,
+        SyntaxKind.Hash,
+        SyntaxKind.At,
+        SyntaxKind.AtBang,
+        SyntaxKind.Dollar,
+        SyntaxKind.Backslash
+    ]
+)
 
 /**
  * Nodes whose punctuation is brackets, separators or a path, not operators: the `<` `>` of type
  * arguments, the `|` between enum constructors, the `*` of an import.
  */
-let NO_OPERATORS_IN =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.TypeArgList,
-            SyntaxKind.TypeParamList,
-            SyntaxKind.VArrayType,
-            SyntaxKind.EnumBody,
-            SyntaxKind.ImportTree
-        ]
-    )
+let NO_OPERATORS_IN = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.TypeArgList,
+        SyntaxKind.TypeParamList,
+        SyntaxKind.VArrayType,
+        SyntaxKind.EnumBody,
+        SyntaxKind.ImportTree
+    ]
+)
 
 /**
  * What only holds declarations: those inside are where it is.
  */
-let DECLARATION_HOLDERS =
-    TokenSet<SyntaxKind>([SyntaxKind.MacroExpandDecl, SyntaxKind.ForeignBlock])
+let DECLARATION_HOLDERS = TokenSet<SyntaxKind>(
+    [SyntaxKind.MacroExpandDecl, SyntaxKind.ForeignBlock]
+)
 
 type Highlight = (HighlightTag, HighlightModifiers)
 

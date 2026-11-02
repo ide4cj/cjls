@@ -27,8 +27,9 @@ class DocumentHighlightTest {
     @TestCase
     func eachNameIsItsRangeInTheColumnsAgreedOnAndItsKind() {
         // arrange - the emoji is two UTF-16 units and four bytes
-        let (state, dir) =
-            loaded([("a.cj", "func f(): String {\n    var s = \"😀\"; s = s\n    s\n}\n")])
+        let (state, dir) = loaded(
+            [("a.cj", "func f(): String {\n    var s = \"😀\"; s = s\n    s\n}\n")]
+        )
 
         // act
         let answer = highlightsOf(state, dir.join("a.cj"), 2, 4)

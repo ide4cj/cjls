@@ -271,7 +271,7 @@ standard deriving or special trait modes.
 Calca identities use `@DerivePython[opaque]` above their identity-generating macro.
 Descriptors configure callbacks lazily when their Python class is initialized.
 The full workspace builds at normal release `-O2`; no `loupe` optimization override
-is required. See [K29](../../docs/sdk-issues.md#k29) for the earlier compiler failures
+is required. See [K30](../../docs/sdk-issues.md#k30) for the earlier compiler failures
 and the validated workaround in binding generation.
 
 The interop pin keeps the mutable proxy registry in reference types. On Linux

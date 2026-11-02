@@ -134,8 +134,11 @@ private func read<T>(text: String): T where T <: FromToml<T> {
     fromTomlString<T>(text)
 }
 
-private let PACKAGE =
-    TomlPackage(name: "demo", cjcVersion: "1.3.0", outputType: TomlOutputType.Executable)
+private let PACKAGE = TomlPackage(
+    name: "demo",
+    cjcVersion: "1.3.0",
+    outputType: TomlOutputType.Executable
+)
 
 @Test
 class DeriveTomlStructTest {
@@ -150,13 +153,12 @@ class DeriveTomlStructTest {
         // arrange
         let dependencies = HashMap<String, TomlDependency>()
         dependencies["fjson"] = TomlDependency.Local(TomlPathDependency(path: "../fjson"))
-        let manifest =
-            TomlManifest(
-                `package`: PACKAGE,
-                dependencies: dependencies,
-                bin: [TomlTarget(name: "a", level: TomlLevel.Quiet)],
-                profile: TomlProfile(lto: false, jobs: 4)
-            )
+        let manifest = TomlManifest(
+            `package`: PACKAGE,
+            dependencies: dependencies,
+            bin: [TomlTarget(name: "a", level: TomlLevel.Quiet)],
+            profile: TomlProfile(lto: false, jobs: 4)
+        )
 
         // act & assert
         @Expect(toml(manifest),
@@ -317,10 +319,9 @@ class DeriveTomlEnumTest {
     @TestCase
     func aTaggedVariantIsATableOfTheTagAndItsPayloads() {
         // arrange
-        let steps =
-            TomlSteps(
-                steps: [TomlStep.Run("cjpm", ["test"]), TomlStep.Echo("hi", None), TomlStep.Skip]
-            )
+        let steps = TomlSteps(
+            steps: [TomlStep.Run("cjpm", ["test"]), TomlStep.Echo("hi", None), TomlStep.Skip]
+        )
 
         // act
         let text = toml(steps)

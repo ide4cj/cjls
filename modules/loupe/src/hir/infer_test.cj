@@ -64,8 +64,9 @@ func annotateTypes(
                 isUnwritten && let Some(node) <- itemIdMap(db, source).node(item.id, root) &&
                     let Some(name) <- AnyHasName.cast(node).flatMap { it => it.name() }
             ) {
-                actual
-                    .add(Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db)))
+                actual.add(
+                    Annotation(fileId, name.syntax.textRange, declaredTyOf(db, def).text(db))
+                )
             }
             let lowered = bodyWithSourceMap(db, def)
             let result = inferBody(db, def)
@@ -2598,10 +2599,8 @@ class InferTest {
             } else {
                 ""
             }
-        let parsed =
-            Fixture
-                .parse(
-                    """
+        let parsed = Fixture.parse(
+            """
             //- /main.cj module=m package=m
             package m
             ${imports}
@@ -2613,7 +2612,7 @@ class InferTest {
             }
             ${macroFile}
             """
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
         let item = itemTree(db, source).items.filter { one => one.names.contains("test") }[0]
@@ -3157,24 +3156,21 @@ class InferTest {
     @TestCase
     func anEditElsewhereRunsNothingThatReadTheInference() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             func f(): Unit { let a = 1 }
             func g(): Unit {}
             "#
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-        let item =
-            itemTree(db, source)
-                .items
-                .iterator()
-                .filter { one => one.names.contains("f") }
-                .next()
-                .getOrThrow()
+        let item = itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.names.contains("f") }
+            .next()
+            .getOrThrow()
         let def = DefId(db, ItemFile.Source(source), item.id)
         exprTyCount(db, def)
         let before = inferenceReaderRuns.load()
@@ -3193,10 +3189,8 @@ class InferTest {
     @TestCase
     func aDeclarationAppendedRunsNoBodyQueryOfAnotherAgain() {
         // arrange: `f` binds a name, which may be a constructor of the package, and calls `g`
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             package m
             enum E { | A | B }
             func f(e: E): Int64 {
@@ -3208,16 +3202,15 @@ class InferTest {
             }
             func g(): Int64 { 1 }
             "#
-                )
+        )
         let db = parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let source = db.sourceFile(parsed.files[0].fileId).getOrThrow()
-        let item =
-            itemTree(db, source)
-                .items
-                .iterator()
-                .filter { one => one.names.contains("f") }
-                .next()
-                .getOrThrow()
+        let item = itemTree(db, source)
+            .items
+            .iterator()
+            .filter { one => one.names.contains("f") }
+            .next()
+            .getOrThrow()
         let def = DefId(db, ItemFile.Source(source), item.id)
         exprTyCount(db, def)
         let queries =
