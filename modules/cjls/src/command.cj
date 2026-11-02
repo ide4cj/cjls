@@ -25,11 +25,7 @@ struct CommandOutput {
     CommandOutput(let out: OutputStream, let err: OutputStream) {}
 }
 
-let CJLS_APP = JianContextApp<CommandContext>(
-    name: "cjls",
-    help: "Cangjie language server.",
-    helpCommand: false
-)
+let CJLS_APP = JianContextApp<CommandContext>(name: "cjls", help: "Cangjie language server.")
 
 @JianCallback[CJLS_APP, help: "Serve LSP over stdio when no command is given."]
 func configureCommand(

@@ -12,9 +12,13 @@ class CommandTest {
     @TestCase[scenario in [
         (["--help"], "Usage: cjls", "--config-schema"),
         (["-h"], "Usage: cjls", "--config-schema"),
+        (["help"], "Usage: cjls", "--config-schema"),
         (["project", "--help"], "Usage: cjls project", "--dir"),
+        (["help", "project"], "Usage: cjls project", "--dir"),
         (["fmt", "-h"], "Usage: cjls fmt", "--check"),
-        (["fetch-src", "--help"], "Usage: cjls fetch-src", "--dir")
+        (["help", "fmt"], "Usage: cjls fmt", "--check"),
+        (["fetch-src", "--help"], "Usage: cjls fetch-src", "--dir"),
+        (["help", "fetch-src"], "Usage: cjls fetch-src", "--dir")
     ]]
     func helpDescribesTheDefaultActionAndTypedOptions(scenario: (Array<String>, String, String)) {
         // arrange
@@ -62,10 +66,6 @@ class CommandTest {
                 ["fmt", "--frob", "a"],
                 ["--config-schema", "x"],
                 ["--config-schema", "project"],
-                ["help"],
-                ["help", "project"],
-                ["help", "fmt"],
-                ["help", "fetch-src"],
                 ["help", "frob"]
             ]
 

@@ -151,9 +151,9 @@ fetch it. Commands and options are declared with `@JianCommand` and
 `@JianCommand[SYNTAX_CODEGEN_APP, root: true]`.
 The server declarations are in `modules/cjls/src/command.cj`.
 Run each executable with `--help` for its generated usage and options;
-`cjls <command> --help` describes a server subcommand. The `help` subcommand is
-disabled. With no arguments, cjls serves LSP over stdio; `--config-schema` remains a standalone invocation. Usage errors return 2
-and write to stderr.
+`cjls <command> --help` and `cjls help <command>` describe a server subcommand.
+With no arguments, cjls serves LSP over stdio; `--config-schema` remains a
+standalone invocation. Usage errors return 2 and write to stderr.
 
 The Cangjie runtime is linked statically: the server and generators run without
 an SDK environment. Generators link the same `cjformat` library as the server. Linux
