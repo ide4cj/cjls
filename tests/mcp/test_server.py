@@ -544,6 +544,21 @@ result = i + 1
             edits = a.formatting('src/format.cj')
             assert edits and all(isinstance(edit, TextEdit) for edit in edits)
             assert edits[0] == TextEdit(edits[0].range, edits[0].text)
+            defaults = FormatOptions()
+            assert (defaults.lineWidth, defaults.indentWidth) == (100, 4)
+            assert isinstance(defaults.simpleIf, SimpleIf.Multiline)
+            assert FormatOptions(indentWidth=2).indentWidth == 2
+            assert BodyParam(None).ty is None
+            assert Body().exprs == []
+            for invalid in [lambda: FormatOptions(unknown=1),
+                            lambda: FormatOptions(indentWidth='two'),
+                            lambda: FormatOptions(100), lambda: Body(unknown=1)]:
+                try:
+                    invalid()
+                except TypeError:
+                    pass
+                else:
+                    raise AssertionError('invalid native arguments were accepted')
             options = FormatOptions(lineWidth=100, indentWidth=2, simpleIf=SimpleIf.Compact())
             assert options.lineWidth == 100 and options.indentWidth == 2
             assert isinstance(options.simpleIf, SimpleIf.Compact)

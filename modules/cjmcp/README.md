@@ -214,8 +214,9 @@ positive; width counts Unicode scalars. Formatting returns `None` for syntax
 errors and an empty list for already canonical input. Range formatting validates
 both UTF-8 boundaries and formats the enclosing syntax node. New-file headers do
 not require that the file exists, and preserve macro-package metadata.
-Python construction of `FormatOptions` requires all three keywords (`lineWidth`,
-`indentWidth`, `simpleIf`); the pinned interop generator matches arguments exactly.
+Python construction of `FormatOptions` accepts omitted keyword arguments using
+the same native defaults, so `FormatOptions(indentWidth=2)` changes only indentation.
+Unknown keywords, positional arguments and incompatible argument types raise `TypeError`.
 The query overloads without `options` supply the library defaults.
 
 All exported classes are present in each script namespace, including `Body`,

@@ -423,8 +423,8 @@ class _SimpleIfMultiline(SimpleIf):
 
 
 class FormatOptions:
-    def __init__(self, *, lineWidth: int, indentWidth: int, simpleIf: SimpleIf) -> None:
-        """All three keywords are required by py_interop. Widths must be positive; width counts Unicode scalars."""
+    def __init__(self, *, lineWidth: int = 100, indentWidth: int = 4, simpleIf: SimpleIf = ...) -> None:
+        """Defaults to multiline simple ifs. Widths must be positive; width counts Unicode scalars."""
         ...
     @property
     def lineWidth(self) -> int: ...

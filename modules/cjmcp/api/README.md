@@ -95,8 +95,8 @@ complete enclosing syntax node. Both endpoints must be valid UTF-8 boundaries
 inside the revision text. `newFilePackageLine(path)` suggests a header for a new
 file without creating it; it also recognizes macro packages.
 `formatting(path)` and `rangeFormatting(path, range)` use the library defaults.
-When constructing `FormatOptions`, supply all three keywords: the pinned interop
-generator requires exact arguments even for native parameters with defaults.
+`FormatOptions()` uses those same defaults; `FormatOptions(indentWidth=2)` changes
+only indentation. Unknown keywords and incompatible argument types raise `TypeError`.
 
 `allMembers(definition)` accepts a type, an `extend` or a member whose enclosing
 type should be inspected. It returns native `MemberTarget` variants, preserving
