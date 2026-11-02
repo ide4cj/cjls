@@ -1,8 +1,10 @@
 package cjls.handlers
 
 import std.collection.{filter, first}
+import fjson.JsonValue
 import stdxx.Nullable
 import loupe.{CallHierarchyEntry, incomingCalls, outgoingCalls, prepareCallHierarchy}
+import loupe.hir.ItemFile
 import cjls.lsp_types.*
 import cjls.macros.LspHandler
 import cjls.server.*
@@ -38,8 +40,33 @@ private func hierarchyRoot(snap: ServerSnapshot, item: CallHierarchyItem): ?Call
         offsetOf(snap, file, item.selectionRange.start)
     )
         .iterator() |>
-        filter { entry: CallHierarchyEntry => entry.name == item.name } |>
+        filter {
+            entry: CallHierarchyEntry =>
+            entry.name == item.name && callHierarchyData(snap, entry) == item.data
+        } |>
         first
+}
+
+/**
+ * An opaque binary locator distinguishes overloads sharing a reference location. Re-resolve the
+ * location first and compare this data; interned handles are never trusted across snapshots.
+ */
+func callHierarchyData(snap: ServerSnapshot, entry: CallHierarchyEntry): ?LSPAny {
+    let def = entry.definition ?? return None
+    match (def.file(snap.analysis)) {
+        case Binary(pkg, file) =>
+            Some(
+                JsonValue.JsonArray(
+                    [
+                        JsonValue.JsonString(pkg.binary(snap.analysis)),
+                        JsonValue.JsonString(pkg.path(snap.analysis).toString()),
+                        JsonValue.JsonInteger(file),
+                        JsonValue.JsonString(def.item(snap.analysis).toString())
+                    ]
+                )
+            )
+        case _ => None
+    }
 }
 
 /**
