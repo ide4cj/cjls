@@ -156,7 +156,7 @@ enum StdMacro {
  * and without an attribute is two of one name, which a lookup finds ambiguous (`Test(input)`, `Test(attr, input)`);
  * `None` if it is not one macro.
  */
-func macroPathOf(db: AnalysisDatabase, resolution: Resolution): ?(String, String) {
+protected func macroPathOf(db: AnalysisDatabase, resolution: Resolution): ?(String, String) {
     let ids = macroDeclsOf(resolution)
     if (ids.isEmpty()) {
         return None
