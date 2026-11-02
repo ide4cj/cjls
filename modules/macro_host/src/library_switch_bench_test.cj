@@ -73,13 +73,15 @@ class MacroLibrarySwitchBench {
     }
 
     private func expanded(expander: MacroServers, call: MacroCallData): Int64 {
-        match (expander.expand(call)) {
-            case Answered(result, _) =>
-                if (result.status == MACRO_FAILED) {
-                    throw IllegalStateException("macro expansion failed")
-                }
-                result.tks.size
-            case Unanswered(reason) => throw IllegalStateException(reason)
+        let result =
+            match (expander.expand(call)) {
+                case Answered(result) => result
+                case Answered(result, _) => result
+                case Unanswered(reason) => throw IllegalStateException(reason)
+            }
+        if (result.status == MACRO_FAILED) {
+            throw IllegalStateException("macro expansion failed")
         }
+        result.tks.size
     }
 }
