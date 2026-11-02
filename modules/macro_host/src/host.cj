@@ -237,11 +237,12 @@ public class GuardedServer <: Expander {
                         return Unanswered("the macro server did not start: ${e.message}")
                     }
             }
+        server.clearOutput()
         let id = deadlines.arm(timeout) { => killQuietly(server) }
         try {
             let result = server.connection.expand(call)
             if (deadlines.disarm(id)) {
-                return Answered(result)
+                return Answered(result, server.callOutput())
             }
             process = None
             Unanswered(pastDeadline())

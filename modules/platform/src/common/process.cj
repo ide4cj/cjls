@@ -2,7 +2,7 @@
 features {}
 package platform
 
-import std.fs.Path
+import std.fs.{File, Path}
 import std.io.{InputStream, OutputStream}
 
 /**
@@ -59,6 +59,8 @@ public class ProcessStartException <: Exception {
  * before any this process inherited, which may name another SDK's. On POSIX through `/bin/sh`,
  * which moves the pipes to fds 3 and 4; on Windows by `CreateProcessW`, inheriting the two pipe
  * handles and stderr alone, suspended until it is in a job that ends it with this process (D91).
+ * When `output` is supplied, ordinary stdout/stderr go to that file instead; the caller owns it
+ * and keeps it open until the child exits. Protocol pipes are unaffected.
  *
  * @throws ProcessException - if it cannot be started on POSIX
  * @throws ProcessStartException - if it cannot be started on Windows
@@ -66,7 +68,8 @@ public class ProcessStartException <: Exception {
 public common func startPiped(
     program: Path,
     libDirs: Array<Path>,
-    args: (ChildPipes) -> Array<String>
+    args: (ChildPipes) -> Array<String>,
+    output!: ?File = None
 ): PipedChild
 
 /**

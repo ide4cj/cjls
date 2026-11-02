@@ -88,7 +88,7 @@ class SameNameMacroLibraryTest {
                 let (library, pkg) = libraries[index]
                 server.restartWorkspace()
                 match (server.expand(conflictingLibraryCall(library, pkg, numbers))) {
-                    case Answered(result) =>
+                    case Answered(result, _) =>
                         if (result.status == MACRO_FAILED) {
                             throw IllegalStateException("macro expansion failed")
                         }
@@ -120,7 +120,7 @@ class SameNameMacroLibraryTest {
             for (index in [0, 1, 0, 1]) {
                 let (library, pkg) = libraries[index]
                 match (server.expand(conflictingLibraryCall(library, pkg, numbers, name: "Host"))) {
-                    case Answered(result) =>
+                    case Answered(result, _) =>
                         if (result.status == MACRO_FAILED) {
                             throw IllegalStateException("macro expansion failed")
                         }
