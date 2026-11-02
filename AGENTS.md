@@ -10,8 +10,13 @@ is a complete feature list.
 - Read the task-relevant documents below and the affected module's notes.
 - Preserve the architectural boundaries and toolchain constraints they describe.
 - Check unfamiliar Cangjie/compiler behavior in source or a small probe.
-- cjmcp is optional. When connected, use `runPython` for Cangjie symbol, usage,
-  type or diagnostic queries; otherwise use source tools, compiler and tests.
+- cjmcp is optional. When connected, use `runPython` for all analysis, reading
+  and editing of Cangjie sources; without a connection, use ordinary source tools,
+  compiler and tests. The following source-work rules apply while connected.
+  Do not use shell commands (`rg`, `sed`, `cat`, shell-launched Python, or
+  subprocess equivalents) for these operations. Treat cjmcp as the authoritative
+  analysis source; report unavailable or partial analysis without a shell fallback.
+  Use Python I/O inside `runPython` to save edits; validate with compiler/tests.
   See [agent semantic analysis](docs/procedures.md#agent-semantic-analysis-with-cjmcp).
 - Prefer string interpolation when it simplifies fixture sources or expected
   text; preserve literal code, markers and offsets as described in
