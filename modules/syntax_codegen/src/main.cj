@@ -1,46 +1,84 @@
 package syntax_codegen
 
-import std.argopt.*
-import std.fs.*
+import std.env.{getStdErr, getStdOut}
+import std.fs.Path
+import std.io.OutputStream
+import jian.*
+
+@JianContext
+class CommandContext {
+    CommandContext(let output: CommandOutput) {}
+}
 
 /**
- * `syntax_codegen <kinds file>`: writes the kinds and the typed views the kinds file and its grammar make.
+ * Jian resolves dependencies by type, so both output streams share one context value.
+ */
+struct CommandOutput {
+    CommandOutput(let out: OutputStream, let err: OutputStream) {}
+}
+
+/**
+ * Builds an isolated single-action CLI with generated help and usage errors.
+ */
+func commandApp(
+    out!: OutputStream = getStdOut(),
+    err!: OutputStream = getStdErr()
+): JianContextApp<CommandContext> {
+    JianContextApp<CommandContext>(name: "syntax_codegen", stdout: out, stderr: err)
+        // The unexpanded census cannot see @JianCommand's factory overload (#176).
+        .command(generateSyntax)
+}
+
+/**
+ * Runs the generator CLI; usage errors return 2, generation failures return 1.
  */
 main(args: Array<String>): Int64 {
-    let kindsFile =
-        try {
-            parseKindsFile(args)
-        } catch (e: ArgumentParseException) {
-            eprintln("error: ${e.message}\nusage: syntax_codegen <kinds file>")
-            return 2
-        }
+    commandApp().run(args, context: CommandContext(CommandOutput(getStdOut(), getStdErr())))
+}
+
+/**
+ * Generates and formats both outputs, reporting writes and handwritten accessor notes.
+ */
+@JianCommand[help: "Generate syntax kinds and typed tree views from a kinds file and its grammar."]
+func generateSyntax(
+    kindsFile!: Path = JianArgument(
+        help: "Kinds file; paths in it are relative to this file.",
+        preprocess: nonemptyKindsFile
+    ),
+    context!: CommandContext = JianFromContext<CommandContext>()
+): Int64 {
     try {
         let generated = generate(kindsFile)
         for (file in generated.files) {
             writeFormatted(file.path, file.contents)
-            println("info: wrote ${file.path}")
+            context.output.out.write("info: wrote ${file.path}\n".toArray())
         }
         for (n in generated.model.nodes where !n.handWritten.isEmpty()) {
-            println(
-                "note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}"
-            )
+            context
+                .output
+                .out
+                .write(
+                    "note: ${n.name} has accessors to write by hand: ${String.join(n.handWritten, delimiter: ", ")}\n"
+                        .toArray()
+                )
         }
+        context.output.out.flush()
         0
     } catch (e: Exception) {
-        eprintln("error: ${e.message}")
+        context.output.err.write("error: ${e.message}\n".toArray())
+        context.output.err.flush()
         1
     }
 }
 
 /**
- * The kinds file `args` name, the program's name not among them: one argument, no options.
+ * Preserves the path spelling while rejecting blank CLI inputs before filesystem access.
  *
- * @throws ArgumentParseException - for an option, or not exactly one argument, or a blank one
+ * @throws JianInputException - if the path is empty or contains only ASCII whitespace
  */
-func parseKindsFile(args: Array<String>): Path {
-    let parsed = parseArguments(args, [])
-    if (parsed.nonOptions.size != 1 || parsed.nonOptions[0].trimAscii().isEmpty()) {
-        throw ArgumentParseException("takes one kinds file")
+func nonemptyKindsFile(raw: String): String {
+    if (raw.trimAscii().isEmpty()) {
+        throw JianInputException("expected a kinds file")
     }
-    Path(parsed.nonOptions[0])
+    raw
 }

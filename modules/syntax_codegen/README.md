@@ -19,6 +19,10 @@ cjpm build
 target/release/bin/syntax_codegen modules/cjsyntax/syntax_kinds.toml
 ```
 
+Run `syntax_codegen --help` (or `-h`) for generated help. The command takes
+exactly one kinds file; use `--` before a filename beginning with `-`.
+Usage errors print to stderr and return 2; generation errors return 1.
+
 Build before breaking or removing generated output. Edit
 [`syntax_kinds.toml`](../cjsyntax/syntax_kinds.toml) and
 [`cangjie.ungram`](../cjsyntax/cangjie.ungram), then regenerate

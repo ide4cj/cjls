@@ -16,6 +16,10 @@ rm modules/cjls/src/lsp_types/*.cj
 target/release/bin/lsp_codegen modules/lsp_codegen/metaModel.json -c modules/cjls/lsp_codegen.toml
 ```
 
+Run `lsp_codegen --help` (or `-h`) for generated help. The model
+path and `-c`/`--config` are required; extra arguments and invalid options are
+usage errors, written to stderr with exit code 2. Generation failures return 1.
+
 Build first: deleting output temporarily prevents the workspace from building,
 so `cjpm run` cannot bootstrap regeneration. The generator does not prune old
 files. Review the output, run generator tests and build/test a consumer as

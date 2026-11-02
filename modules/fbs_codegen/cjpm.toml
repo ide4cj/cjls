@@ -13,6 +13,7 @@ link-option = ""
 package-configuration = {}
 
 [dependencies]
+jian = { git = "https://github.com/FilaCo/jian.git" }
 cjformat = { path = "../cjformat" }
 ftoml = { path = "../ftoml" }
 stdxx = { path = "../stdxx" }

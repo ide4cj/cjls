@@ -1,39 +1,77 @@
 package fbs_codegen
 
-import std.argopt.*
-import std.fs.*
+import std.env.{getStdErr, getStdOut}
+import std.fs.Path
+import std.io.OutputStream
+import jian.*
 
 /**
- * `fbs_codegen <config>`: writes the views of the schema the config names.
+ * Supplies command output without retaining streams in the application.
+ */
+@JianContext
+class CommandContext {
+    CommandContext(let output: CommandOutput) {}
+}
+
+/**
+ * Keeps both streams in one dependency because jian resolves context values by type.
+ */
+struct CommandOutput {
+    CommandOutput(let out: OutputStream, let err: OutputStream) {}
+}
+
+/**
+ * Generates views from the config named on the command line.
  */
 main(args: Array<String>): Int64 {
-    let config =
-        try {
-            parseConfigPath(args)
-        } catch (e: ArgumentParseException) {
-            eprintln("error: ${e.message}\nusage: fbs_codegen <config>")
-            return 2
-        }
+    runFbsCodegen(args)
+}
+
+/**
+ * Runs argv without the executable name; returns 2 for usage errors, 1 for generation failures.
+ */
+func runFbsCodegen(
+    args: Array<String>,
+    out!: OutputStream = getStdOut(),
+    err!: OutputStream = getStdErr()
+): Int64 {
+    let app = JianContextApp<CommandContext>(name: "fbs_codegen", stdout: out, stderr: err)
+        // The unexpanded census cannot see @JianCommand's factory overload (#176).
+        .command(generateCommand)
     try {
-        let file = generate(config)
-        writeFormatted(file.path, file.contents)
-        println("info: wrote ${file.path}")
-        0
+        // `app` inherits the unavailable macro-generated factory type in the census (#176).
+        app.run(args, context: CommandContext(CommandOutput(out, err)))
     } catch (e: Exception) {
-        eprintln("error: ${e.message}")
+        err.write("error: ${e.message}\n".toArray())
+        err.flush()
         1
     }
 }
 
 /**
- * The config `args` name, the program's name not among them: one argument, no options.
- *
- * @throws ArgumentParseException - for an option, or not exactly one argument, or a blank one
+ * Generates and formats the configured output, reporting its path to stdout.
  */
-func parseConfigPath(args: Array<String>): Path {
-    let parsed = parseArguments(args, [])
-    if (parsed.nonOptions.size != 1 || parsed.nonOptions[0].trimAscii().isEmpty()) {
-        throw ArgumentParseException("takes one config")
+@JianCommand[help: "Generate Cangjie views of the FlatBuffers schema named by a config."]
+func generateCommand(
+    config!: Path = JianArgument(
+        help: "Generation config in TOML format.",
+        preprocess: nonemptyConfig
+    ),
+    context!: CommandContext = JianFromContext<CommandContext>()
+): Int64 {
+    let file = generate(config)
+    writeFormatted(file.path, file.contents)
+    context.output.out.write("info: wrote ${file.path}\n".toArray())
+    context.output.out.flush()
+    0
+}
+
+/**
+ * Rejects blank config paths before filesystem access, preserving nonblank input verbatim.
+ */
+func nonemptyConfig(raw: String): String {
+    if (raw.trimAscii().isEmpty()) {
+        throw JianInputException("expected a config path")
     }
-    Path(parsed.nonOptions[0])
+    raw
 }

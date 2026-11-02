@@ -103,6 +103,16 @@ lost in the lambda parameter. #552 tracks that A30 violation. Dropping the four
 entries, or treating them as four independent source errors, would conceal the
 problem. The same reasoning should be checked for `UnknownTy` when fixing it.
 
+## Generator CLI registrations (#176)
+
+The generator CLIs use `JianContextApp.command` with the factory overload emitted
+by `@JianCommand`. The unexpanded census sees only the original command function,
+so overload selection produces one `member found` root in each generator's
+`main.cj`, as with the server's macro-generated callback registration (#176).
+The inferred `app` bindings in `fbs_codegen` and `lsp_codegen` inherit that type;
+their receiver uses add one `local` root each, not independent inference gaps.
+Compiler builds and CLI tests exercise the expanded factory overloads.
+
 ## Keeping the audit useful
 
 `error_roots_known.txt` now stores the issue explanation on each `local` row.
