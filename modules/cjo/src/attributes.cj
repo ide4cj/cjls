@@ -106,7 +106,9 @@ public enum Attribute {
     | ObjCExportRegistryCompanion
     | ObjCExportMovedMemberProxy
 
-    /** The bit it is stored at. */
+    /**
+     * The bit it is stored at.
+     */
     public prop bit: Int64 {
         get() {
             match (this) {

@@ -316,6 +316,15 @@ temporaries from the gate did not prevent the crashes and was also reverted.
 No minimized reproduction, confirmed workaround, or common root cause with the
 Linux observation is established.
 
+The November 2 SDK update also observed a Linux x86_64 GC SIGSEGV on
+`1.3.0-alpha.20261102001050` in
+`CjpmRegistryTest.missingMalformedAndStaleSelectionsAreRecoverable`: 2524 tests
+passed and one errored in the full suite. The stack enters `CheckAndPush` through
+`GCPhasePreForward` and stack-root scanning, with the managed safepoint in
+`CjpmLowering.targetOf`. An unchanged isolated rerun passed; it is not a fix.
+This records another GC crash; the stack alone does not
+establish the same cause as the earlier observations or a confirmed workaround.
+
 <a id="k20"></a>
 ### K20
 
@@ -473,11 +482,16 @@ base `Exception` with the same message.
 
 The [standalone reproducer](../tests/sdk-probes/k29-option-exception.cj) needs only
 `cjc`: a helper unwraps `Option<String>` with a custom exception and returns
-`"${value}.suffix"`. Calling the helper with `None` should enter `catch (e: E)`,
+`"${value}.suffix"`. Calling the helper with `None` should enter `catch (e: ProbeException)`,
 print `correct` and exit 0. On the new SDK at `-O2` it enters the base-exception
 catch, prints `wrong: Exception: bad` and exits 1. Both static and default dynamic
 linking reproduce it. This same source passes at `-O0` and `-O1` on the new SDK,
 and at `-O0`, `-O1` and `-O2` on `1.3.0-alpha.20261014001050`.
+
+Rechecked on Linux x86_64 with `1.3.0-alpha.20261102001050`: the standalone
+source still prints `wrong: Exception: bad` and exits 1 at `-O2`, with both static
+and default dynamic linking. It passes at `-O0` and `-O1`; the old
+`1.3.0-alpha.20261014001050` control still passes at all three levels.
 
 On the new SDK at `-O2`, replacing the interpolation with `value + ".suffix"`,
 returning `value` directly, or matching the option and throwing directly each
