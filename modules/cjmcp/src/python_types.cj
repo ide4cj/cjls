@@ -1,5 +1,6 @@
 package cjmcp
 
+import cjformat.{FormatOptions, SimpleIf, TextEdit}
 import loupe.Reference as AnalysisReference
 import loupe.{
     CallDeclaration,
@@ -7,6 +8,8 @@ import loupe.{
     DirectCall,
     DirectCalls,
     BuiltinDoc,
+    CallHierarchyEntry,
+    HierarchyCalls,
     CompletionItem,
     CompletionKind,
     CompletionOverload,
@@ -236,6 +239,7 @@ private func bodyTypes(): Array<(String, PyObj)> {
         ("LocalId", LocalId.pyClass()),
         ("LocalKind", LocalKind.pyClass()),
         ("LoweredBody", LoweredBody.pyClass()),
+        ("LoweredSignature", PythonLoweredSignature.pyClass()),
         ("MacroCall", MacroCall.pyClass()),
         ("MatchArm", MatchArm.pyClass()),
         ("Pat", Pat.pyClass()),
@@ -244,6 +248,7 @@ private func bodyTypes(): Array<(String, PyObj)> {
         ("ScopeData", ScopeData.pyClass()),
         ("ScopeId", ScopeId.pyClass()),
         ("Signature", Signature.pyClass()),
+        ("SignatureSourceMap", PythonSignatureSourceMap.pyClass()),
         ("SignatureTypes", SignatureTypes.pyClass()),
         ("Stmt", Stmt.pyClass()),
         ("TyBound", TyBound.pyClass()),
@@ -265,6 +270,8 @@ private func resultTypes(): Array<(String, PyObj)> {
         ("DirectCall", DirectCall.pyClass()),
         ("DirectCalls", DirectCalls.pyClass()),
         ("BuiltinDoc", BuiltinDoc.pyClass()),
+        ("CallHierarchyEntry", CallHierarchyEntry.pyClass()),
+        ("HierarchyCalls", HierarchyCalls.pyClass()),
         ("CompletionItem", CompletionItem.pyClass()),
         ("CompletionKind", CompletionKind.pyClass()),
         ("CompletionOverload", CompletionOverload.pyClass()),
@@ -274,6 +281,7 @@ private func resultTypes(): Array<(String, PyObj)> {
         ("ExpandedMacro", ExpandedMacro.pyClass()),
         ("ExpansionKind", ExpansionKind.pyClass()),
         ("FileSymbol", FileSymbol.pyClass()),
+        ("FormatOptions", FormatOptions.pyClass()),
         ("Fold", Fold.pyClass()),
         ("FoldKind", FoldKind.pyClass()),
         ("FoundSymbol", FoundSymbol.pyClass()),
@@ -287,7 +295,9 @@ private func resultTypes(): Array<(String, PyObj)> {
         ("NavigationTarget", NavigationTarget.pyClass()),
         ("Reference", AnalysisReference.pyClass()),
         ("ReferenceAccess", ReferenceAccess.pyClass()),
-        ("RelatedHighlight", RelatedHighlight.pyClass())
+        ("RelatedHighlight", RelatedHighlight.pyClass()),
+        ("SimpleIf", SimpleIf.pyClass()),
+        ("TextEdit", TextEdit.pyClass())
     ]
 }
 

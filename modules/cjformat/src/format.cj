@@ -1,6 +1,7 @@
 package cjformat
 
-import std.deriving.Derive
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 import cjsyntax.{CjParse, SyntaxKind, parse}
 import ginkgo.TextRange
 
@@ -10,9 +11,21 @@ const LINE_WIDTH = 100
 /**
  * A replacement in UTF-8 byte offsets.
  */
-@Derive[Equatable, ToString]
-public struct TextEdit {
+@DerivePython
+public struct TextEdit <: Equatable<TextEdit> & ToString {
     public TextEdit(public let range: TextRange, public let text: String) {}
+
+    public operator func ==(other: TextEdit): Bool {
+        range == other.range && text == other.text
+    }
+
+    public operator func !=(other: TextEdit): Bool {
+        !(this == other)
+    }
+
+    public func toString(): String {
+        "TextEdit(range: ${range}, text: ${text})"
+    }
 }
 
 /**
