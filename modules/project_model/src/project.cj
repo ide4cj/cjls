@@ -325,17 +325,16 @@ func lowerProjectJson(json: ProjectJson, base: VfsPath, loading: Loading): Proje
                 .toArray()
                 .map { pkg => BinaryPackage(pkg[0], loading.resolve(base, pkg[1])) }
         sort(packages, by: { a, b => a.name.compare(b.name) })
-        binaries
-            .add(
-                BinaryModel(
-                    binary.name,
-                    (binary.paths ?? []).map { path => loading.resolve(base, path) },
-                    packages: packages,
-                    sources: binary
-                        .sources
-                        .map { dir => sourcesOf(binary.name, loading.resolve(base, dir)) }
-                )
+        binaries.add(
+            BinaryModel(
+                binary.name,
+                (binary.paths ?? []).map { path => loading.resolve(base, path) },
+                packages: packages,
+                sources: binary
+                    .sources
+                    .map { dir => sourcesOf(binary.name, loading.resolve(base, dir)) }
             )
+        )
     }
     ProjectModel(cfg, modules, binaries: binaries.toArray())
 }
@@ -582,14 +581,13 @@ public func findProjects(
         match (manifestProject(dir, env, cfg, problems)) {
             case Some(load) => loads.add(load)
             case None where !problems.isEmpty() =>
-                loads
-                    .add(
-                        ProjectLoad(
-                            ProjectModel(cfg, []),
-                            CjpmManifest(dir.join("cjpm.toml")),
-                            problems.toArray()
-                        )
+                loads.add(
+                    ProjectLoad(
+                        ProjectModel(cfg, []),
+                        CjpmManifest(dir.join("cjpm.toml")),
+                        problems.toArray()
                     )
+                )
             case None => ()
         }
     }

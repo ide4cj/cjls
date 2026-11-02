@@ -70,12 +70,10 @@ class DefinitionSdkSourceTest {
     func replacingAnAttachmentInvalidatesItsContextAndRestoringItRestoresNavigation() {
         // arrange
         let parsed = Fixture.parse("//- /main.cj module=m package=m\npackage m\nmain() {}")
-        let db =
-            parsed
-                .database(
-                    binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
-                    models: [stdWithSources(["std.core"])]
-                )
+        let db = parsed.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])]
+        )
         let file = sdkSource(db, "std.core/print.cj")
         let original = file.text(db)
         const MISMATCHED = "package std.core\nfunc fake(value: Int64): Int64 { value }\n"
@@ -109,12 +107,10 @@ class DefinitionSdkSourceTest {
     func packageDeclarationsPrivateFunctionsParametersLocalsAndMembersResolveInStdBodies() {
         // arrange
         let parsed = Fixture.parse("//- /main.cj module=m package=m\npackage m\nmain() {}")
-        let db =
-            parsed
-                .database(
-                    binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
-                    models: [stdWithSources(["std.core"])]
-                )
+        let db = parsed.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])]
+        )
         let file = sdkSource(db, "std.core/print.cj")
         let context = packageOfFile(db, file) ?? throw FixtureException("no checked SDK context")
 
@@ -125,8 +121,9 @@ class DefinitionSdkSourceTest {
         let member = sdkJump(db, file, "str.rawData()", "rawData")
         let typeName = sdkJump(db, file, "let build: StringBuilder", "StringBuilder")
         let compilerTypeMember = sdkJump(db, file, "line.isNull()", "isNull")
-        let exported =
-            packageExports(db, resolutionPackage(db, context)).names.get("readFromConsole")
+        let exported = packageExports(db, resolutionPackage(db, context))
+            .names
+            .get("readFromConsole")
 
         // assert
         checkSdkJump(db, helper, "std.core/print.cj", "readFromConsole")
@@ -142,12 +139,10 @@ class DefinitionSdkSourceTest {
     func privateMembersOmittedFromTheBinaryAreOnlyAvailableInsideTheSdkContext() {
         // arrange
         let parsed = Fixture.parse("//- /main.cj module=m package=m\npackage m\nmain() {}")
-        let db =
-            parsed
-                .database(
-                    binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
-                    models: [stdWithSources(["std.core"])]
-                )
+        let db = parsed.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])]
+        )
         let file = sdkSource(db, "std.core/thread.cj")
         let pkg = packageOfFile(db, file) ?? throw FixtureException("no checked SDK context")
         let thread =
@@ -159,20 +154,18 @@ class DefinitionSdkSourceTest {
             db.sourceFile(parsed.files[0].fileId) ?? throw FixtureException("no project source")
 
         // act
-        let helper =
-            sdkJump(
-                db,
-                file,
-                "let rtCJThreadHandle = acquireCJThreadHandle()",
-                "acquireCJThreadHandle"
-            )
-        let projectMembers =
-            memberLookup(
-                db,
-                [ExtendedType.DeclType(thread)],
-                "acquireCJThreadHandle",
-                from: projectFile
-            )
+        let helper = sdkJump(
+            db,
+            file,
+            "let rtCJThreadHandle = acquireCJThreadHandle()",
+            "acquireCJThreadHandle"
+        )
+        let projectMembers = memberLookup(
+            db,
+            [ExtendedType.DeclType(thread)],
+            "acquireCJThreadHandle",
+            from: projectFile
+        )
 
         // assert
         checkSdkJump(db, helper, "std.core/thread.cj", "acquireCJThreadHandle")
@@ -184,12 +177,10 @@ class DefinitionSdkSourceTest {
         // arrange
         let names = ["std.core", "std.collection", "std.math"]
         let parsed = Fixture.parse("//- /main.cj module=m package=m\npackage m\nmain() {}")
-        let db =
-            parsed
-                .database(
-                    binaries: names.map { name => stdCjoRead(name, stdCjo(name)) },
-                    models: [stdWithSources(names)]
-                )
+        let db = parsed.database(
+            binaries: names.map { name => stdCjoRead(name, stdCjo(name)) },
+            models: [stdWithSources(names)]
+        )
         let file = sdkSource(db, "std.collection/array_list.cj")
         let sourceType =
             itemTree(db, file)

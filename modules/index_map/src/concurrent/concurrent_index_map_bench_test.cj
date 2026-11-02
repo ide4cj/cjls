@@ -14,15 +14,14 @@ let INSERT_BENCH_KEYS_SEEN =
         "/home/user/projects/app/src/package_${i % 32}/module_${i}/file_${i}.cj"
     }
 
-let INSERT_BENCH_FILLED =
-    {
-        =>
-        let map = ConcurrentIndexMap<String, Int64>()
-        for (key in INSERT_BENCH_KEYS_SEEN) {
-            map.addIfAbsentWithIndex(key, 0)
-        }
-        map
-    }()
+let INSERT_BENCH_FILLED = {
+    =>
+    let map = ConcurrentIndexMap<String, Int64>()
+    for (key in INSERT_BENCH_KEYS_SEEN) {
+        map.addIfAbsentWithIndex(key, 0)
+    }
+    map
+}()
 
 /**
  * Inserting into a `ConcurrentIndexMap`: a key seen (no lock), keys never seen (the lock), and

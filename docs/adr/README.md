@@ -175,3 +175,4 @@ Amends ADR-NNNN: <what>        (none, or one per ADR it amends)
 | [0155](0155-dependency-resolution-scopes.md) | Independent dependency selections retain module and source context | accepted; workspace library switches reuse the SDK process; K28 remains open by D156 |
 | [0156](0156-reuse-workspace-macro-process.md) | Workspace macro libraries reuse one SDK process despite K28 | accepted |
 | [0157](0157-local-generic-owners.md) | Type parameter binders include local functions without making them declarations | accepted |
+| [0158](0158-binary-call-hierarchy.md) | Call hierarchy keeps binary identity without requiring source navigation | proposed |

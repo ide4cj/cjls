@@ -105,11 +105,10 @@ func macroServerLibraryDirs(paths: MacroServerPaths): Array<Path> {
  * @throws ProcessStartException - if it cannot be started on Windows
  */
 public func startMacroServer(paths: MacroServerPaths): MacroServerProcess {
-    let child =
-        startPiped(
-            paths.server,
-            macroServerLibraryDirs(paths),
-            { pipes => macroServerArgs(paths, pipes) }
-        )
+    let child = startPiped(
+        paths.server,
+        macroServerLibraryDirs(paths),
+        { pipes => macroServerArgs(paths, pipes) }
+    )
     MacroServerProcess(child, MacroConnection(child.fromChild, child.toChild))
 }

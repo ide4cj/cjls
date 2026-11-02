@@ -14,13 +14,15 @@ import stdx.encoding.json.JsonValue as StdxJsonValue
  * `cjHeapSize=4GB cjpm bench '--filter=FjRpcBench*'`
  */
 
-let KEYSTROKE: Array<Byte> =
-    ##"{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","version":42},"contentChanges":[{"range":{"start":{"line":120,"character":17},"end":{"line":120,"character":17}},"rangeLength":0,"text":"a"}]}}"##
-        .toArray()
+let KEYSTROKE: Array<
+    Byte
+> = ##"{"jsonrpc":"2.0","method":"textDocument/didChange","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj","version":42},"contentChanges":[{"range":{"start":{"line":120,"character":17},"end":{"line":120,"character":17}},"rangeLength":0,"text":"a"}]}}"##
+    .toArray()
 
-let SYMBOL_REQUEST: Array<Byte> =
-    ##"{"jsonrpc":"2.0","id":7,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj"}}}"##
-        .toArray()
+let SYMBOL_REQUEST: Array<
+    Byte
+> = ##"{"jsonrpc":"2.0","id":7,"method":"textDocument/documentSymbol","params":{"textDocument":{"uri":"file:///home/user/project/src/main.cj"}}}"##
+    .toArray()
 
 struct RpcPosition {
     RpcPosition(let line: UInt32, let character: UInt32) {}
@@ -297,10 +299,9 @@ class FjRpcBenchFixtureTest {
         // act
         let (_, change) = rpcRead(FjReader(KEYSTROKE), rpcDidChange)
         let (id, uri) = rpcRead(FjReader(SYMBOL_REQUEST), rpcSymbolParams)
-        let written =
-            StdxJsonValue
-                .fromStr(String.fromUtf8(rpcWriteResponse(FjWriter(), 7, RPC_SYMBOLS)))
-                .asObject()
+        let written = StdxJsonValue
+            .fromStr(String.fromUtf8(rpcWriteResponse(FjWriter(), 7, RPC_SYMBOLS)))
+            .asObject()
 
         // assert
         @Expect(change.version, 42)
@@ -310,17 +311,16 @@ class FjRpcBenchFixtureTest {
         @Expect(uri, "file:///home/user/project/src/main.cj")
         let symbols = written.get("result").getOrThrow().asArray()
         @Expect(symbols.size(), 50)
-        let method =
-            symbols
-                .get(3)
-                .getOrThrow()
-                .asObject()
-                .get("children")
-                .getOrThrow()
-                .asArray()
-                .get(2)
-                .getOrThrow()
-                .asObject()
+        let method = symbols
+            .get(3)
+            .getOrThrow()
+            .asObject()
+            .get("children")
+            .getOrThrow()
+            .asArray()
+            .get(2)
+            .getOrThrow()
+            .asObject()
         @Expect(method.get("name").getOrThrow().asString().getValue(), "method2OfClass3")
         let end = method.get("range").getOrThrow().asObject().get("end").getOrThrow().asObject()
         @Expect(end.get("line").getOrThrow().asInt().getValue(), 3 * 100 + 2 * 9 + 1 + 7)

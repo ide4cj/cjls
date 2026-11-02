@@ -56,15 +56,14 @@ public func outputOf(
     }
     if (result.status == MACRO_FAILED) {
         if (diagnostics.isEmpty()) {
-            diagnostics
-                .add(
-                    MacroDiagnostic(
-                        MacroSeverity.MacroError,
-                        SpanOrigin.FromCall,
-                        "@${name} failed",
-                        ""
-                    )
+            diagnostics.add(
+                MacroDiagnostic(
+                    MacroSeverity.MacroError,
+                    SpanOrigin.FromCall,
+                    "@${name} failed",
+                    ""
                 )
+            )
         }
         return MacroOutput(request.fingerprint, None, [], diagnostics.toArray())
     }
@@ -139,8 +138,9 @@ func itemOf(item: ItemInfo, layout: WireLayout, numbers: TokenNumbers): ?MacroIt
             case Some(AsIValue(n)) => MacroItemValue.IntItem(n.val)
             case Some(AsBValue(flag)) => MacroItemValue.BoolItem(flag.val)
             case Some(AsTValue(tokens)) =>
-                MacroItemValue
-                    .TokensItem(mappedTextOf(printMacroTokens(tokens.val, numbers), layout))
+                MacroItemValue.TokensItem(
+                    mappedTextOf(printMacroTokens(tokens.val, numbers), layout)
+                )
             case _ => return None
         }
     MacroItem(key, value)

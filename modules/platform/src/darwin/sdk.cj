@@ -24,8 +24,10 @@ public specific func sdkToolEnvironment(
  */
 func macosSdkRoot(): ?String {
     try {
-        let (code, out, _) =
-            executeWithOutput("/usr/bin/xcrun", ["--sdk", "macosx", "--show-sdk-path"])
+        let (code, out, _) = executeWithOutput(
+            "/usr/bin/xcrun",
+            ["--sdk", "macosx", "--show-sdk-path"]
+        )
         let root = String.fromUtf8(out).trimAscii()
         if (code == 0 && !root.isEmpty()) { root } else { None }
     } catch (_: ProcessException) {

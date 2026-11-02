@@ -134,12 +134,10 @@ func definitionIn(db: AnalysisDatabase, file: ItemFile, offset: Int64): Array<Na
         targets.add(all: targetsOfDefinition(db, one, intoExpansions: intoExpansions))
         // a `specific` declaration, then the `common` ones it completes, as Kotlin's actual and expect (#318)
         if (let DeclDef(id) <- one) {
-            targets
-                .add(
-                    all: commonsOf(db, id) |>
-                        filterMap { common: DefId => declTarget(db, common) } |>
-                        collectArray
-                )
+            targets.add(
+                all: commonsOf(db, id) |> filterMap { common: DefId => declTarget(db, common) } |>
+                    collectArray
+            )
         }
     }
     targets.toArray()

@@ -10,8 +10,10 @@ class SdkToolEnvironmentOnMacOSTest {
     @TestCase
     func putsTheRuntimeFirstOnTheDyldLibraryPath() {
         // act
-        let env =
-            sdkToolEnvironment([("DYLD_LIBRARY_PATH", "/old"), ("SDKROOT", "/sdk")], Path("/rt"))
+        let env = sdkToolEnvironment(
+            [("DYLD_LIBRARY_PATH", "/old"), ("SDKROOT", "/sdk")],
+            Path("/rt")
+        )
 
         // assert
         @Expect(env.get("DYLD_LIBRARY_PATH"), Some("/rt:/old"))

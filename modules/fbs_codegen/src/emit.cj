@@ -6,86 +6,85 @@ import std.convert.*
 /**
  * Cangjie's keywords: a name of the schema that is one is written as a raw identifier (`` `type` ``).
  */
-let KEYWORDS: HashSet<String> =
-    HashSet<String>(
-        [
-            "as",
-            "abstract",
-            "break",
-            "Bool",
-            "case",
-            "catch",
-            "class",
-            "const",
-            "continue",
-            "do",
-            "else",
-            "enum",
-            "extend",
-            "false",
-            "finally",
-            "Float16",
-            "Float32",
-            "Float64",
-            "for",
-            "foreign",
-            "func",
-            "if",
-            "import",
-            "in",
-            "init",
-            "inout",
-            "Int16",
-            "Int32",
-            "Int64",
-            "Int8",
-            "interface",
-            "IntNative",
-            "internal",
-            "is",
-            "let",
-            "macro",
-            "main",
-            "match",
-            "mut",
-            "Nothing",
-            "open",
-            "operator",
-            "override",
-            "package",
-            "private",
-            "prop",
-            "protected",
-            "public",
-            "quote",
-            "redef",
-            "return",
-            "Rune",
-            "sealed",
-            "spawn",
-            "static",
-            "struct",
-            "super",
-            "synchronized",
-            "This",
-            "this",
-            "throw",
-            "true",
-            "try",
-            "type",
-            "UInt16",
-            "UInt32",
-            "UInt64",
-            "UInt8",
-            "UIntNative",
-            "Unit",
-            "unsafe",
-            "var",
-            "VArray",
-            "where",
-            "while"
-        ]
-    )
+let KEYWORDS: HashSet<String> = HashSet<String>(
+    [
+        "as",
+        "abstract",
+        "break",
+        "Bool",
+        "case",
+        "catch",
+        "class",
+        "const",
+        "continue",
+        "do",
+        "else",
+        "enum",
+        "extend",
+        "false",
+        "finally",
+        "Float16",
+        "Float32",
+        "Float64",
+        "for",
+        "foreign",
+        "func",
+        "if",
+        "import",
+        "in",
+        "init",
+        "inout",
+        "Int16",
+        "Int32",
+        "Int64",
+        "Int8",
+        "interface",
+        "IntNative",
+        "internal",
+        "is",
+        "let",
+        "macro",
+        "main",
+        "match",
+        "mut",
+        "Nothing",
+        "open",
+        "operator",
+        "override",
+        "package",
+        "private",
+        "prop",
+        "protected",
+        "public",
+        "quote",
+        "redef",
+        "return",
+        "Rune",
+        "sealed",
+        "spawn",
+        "static",
+        "struct",
+        "super",
+        "synchronized",
+        "This",
+        "this",
+        "throw",
+        "true",
+        "try",
+        "type",
+        "UInt16",
+        "UInt32",
+        "UInt64",
+        "UInt8",
+        "UIntNative",
+        "Unit",
+        "unsafe",
+        "var",
+        "VArray",
+        "where",
+        "while"
+    ]
+)
 
 /**
  * What the runtime the views are generated against (`fbs`) declares: a view cannot be named so.
@@ -334,18 +333,16 @@ func emitEnum(w: CodeWriter, names: Names, d: Decl): Unit {
                     w
                         .block("match (value)") {
                             for (m in d.members) {
-                                w
-                                    .line(
-                                        "case ${m.value} => ${name}.${names.memberName(d.name, m.name)}"
-                                    )
+                                w.line(
+                                    "case ${m.value} => ${name}.${names.memberName(d.name, m.name)}"
+                                )
                             }
                             if (open) {
                                 w.line("case _ => ${name}.Unknown(value)")
                             } else {
-                                w
-                                    .line(
-                                        "case _ => throw broken(\"${d.name} has no value \${value}\")"
-                                    )
+                                w.line(
+                                    "case _ => throw broken(\"${d.name} has no value \${value}\")"
+                                )
                             }
                         }
                 }
@@ -358,10 +355,9 @@ func emitEnum(w: CodeWriter, names: Names, d: Decl): Unit {
                             w
                                 .block("match (this)") {
                                     for (m in d.members) {
-                                        w
-                                            .line(
-                                                "case ${name}.${names.memberName(d.name, m.name)} => ${m.value}"
-                                            )
+                                        w.line(
+                                            "case ${name}.${names.memberName(d.name, m.name)} => ${m.value}"
+                                        )
                                     }
                                     if (open) {
                                         w.line("case ${name}.Unknown(v) => v")
@@ -388,10 +384,9 @@ func emitEnum(w: CodeWriter, names: Names, d: Decl): Unit {
                         .block("match (this)") {
                             for (m in d.members) {
                                 let member = names.memberName(d.name, m.name)
-                                w
-                                    .line(
-                                        "case ${name}.${member} => ${quoted(member.replace("`", ""))}"
-                                    )
+                                w.line(
+                                    "case ${name}.${member} => ${quoted(member.replace("`", ""))}"
+                                )
                             }
                             if (open) {
                                 w.line("case ${name}.Unknown(v) => \"Unknown(\${v})\"")
@@ -433,15 +428,13 @@ func emitUnion(w: CodeWriter, names: Names, d: Decl): Unit {
                     w.line("let values = fb.vector(id + 1, 4) {_, p => p}")
                     w
                         .block("if (tags.size != values.size)") {
-                            w
-                                .line(
-                                    "throw broken(\"${d.name}: \${tags.size} types for \${values.size} values\")"
-                                )
+                            w.line(
+                                "throw broken(\"${d.name}: \${tags.size} types for \${values.size} values\")"
+                            )
                         }
-                    w
-                        .line(
-                            "FbVector<${name}>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}"
-                        )
+                    w.line(
+                        "FbVector<${name}>(fb.buf, values.start, values.size, 4) {b, p => at(b, tags[(p - values.start) / 4], p)}"
+                    )
                 }
             w.blank()
             w.doc(["The member of type `tag` whose offset is stored at `pos`."])
@@ -451,10 +444,9 @@ func emitUnion(w: CodeWriter, names: Names, d: Decl): Unit {
                         .block("match (tag)") {
                             var tag = 1
                             for (m in d.unionMembers) {
-                                w
-                                    .line(
-                                        "case ${tag} => ${name}.${unionConstructor(m)}(${unionMemberRead(names, m)})"
-                                    )
+                                w.line(
+                                    "case ${tag} => ${name}.${unionConstructor(m)}(${unionMemberRead(names, m)})"
+                                )
                                 tag++
                             }
                             w.line("case _ => ${name}.Unknown(tag)")

@@ -16,12 +16,10 @@ import loupe.vfs.VfsPath
  */
 func definitionsInStd(fixture: String, packages: Array<String>): Array<String> {
     let parsed = Fixture.parse(fixture)
-    let db =
-        parsed
-            .database(
-                binaries: packages.map { name => stdCjoRead(name, stdCjo(name)) },
-                models: [stdWithSources(packages)]
-            )
+    let db = parsed.database(
+        binaries: packages.map { name => stdCjoRead(name, stdCjo(name)) },
+        models: [stdWithSources(packages)]
+    )
     let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
     let dir = stdSourcesDir()
     let found =
@@ -30,14 +28,14 @@ func definitionsInStd(fixture: String, packages: Array<String>): Array<String> {
                 target =>
                 let text = db.sourceFile(target.fileId).getOrThrow().text(db)
                 let line = text.lineOf(target.focusRange.start)
-                let path =
-                    String
-                        .join(
-                            parsed.pathOf(target.fileId).segmentsUnder(dir).getOrThrow(),
-                            delimiter: "/"
-                        )
-                let written =
-                    text.slice(text.lineStart(line)..text.lineEnd(line)).toString().trimAscii()
+                let path = String.join(
+                    parsed.pathOf(target.fileId).segmentsUnder(dir).getOrThrow(),
+                    delimiter: "/"
+                )
+                let written = text
+                    .slice(text.lineStart(line)..text.lineEnd(line))
+                    .toString()
+                    .trimAscii()
                 let name = text.slice(target.focusRange.start..target.focusRange.end).toString()
                 @Expect(target.fullRange.start <= target.focusRange.start && target.focusRange.end <= target.fullRange.end)
                 "${path}: ${name} in `${written}`"
@@ -57,29 +55,24 @@ class DefinitionBinaryTest {
     @TestCase
     func navigationContinuesFromTheStdDeclarationReachedFromAProject() {
         // arrange
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             main() { $0println("x") }
             "#
-                )
-        let db =
-            parsed
-                .database(
-                    binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
-                    models: [stdWithSources(["std.core"])]
-                )
+        )
+        let db = parsed.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [stdWithSources(["std.core"])]
+        )
         let cursor = parsed.cursor ?? throw FixtureException("no $0 in the fixture")
         let targets = definitionAt(db, cursor.fileId, cursor.offset)
         @Assert(targets.size, 1)
         let target = targets[0]
-        let text =
-            (db.sourceFile(target.fileId) ?? throw FixtureException("no source for println"))
-                .text(db)
-                .toString()
+        let text = (db.sourceFile(target.fileId) ?? throw FixtureException("no source for println"))
+            .text(db)
+            .toString()
         let parameter =
             text[target.focusRange.start..].indexOf("str: String") ??
                 throw FixtureException("println has no str: String")
@@ -262,32 +255,32 @@ class DefinitionBinaryTest {
         Directory.create(core, recursive: true)
         // std's files, long enough, with nothing where the `.cjo` says its declarations are
         for (
-            info in Directory
-                .readFrom(stdSourcesDir().filePath.getOrThrow().join("core")) where info.isRegular()
+            info in Directory.readFrom(
+                stdSourcesDir().filePath.getOrThrow().join("core")
+            ) where info.isRegular()
         ) {
             File.writeTo(core.join(info.name), ("package std.core\n" + "//\n" * 5000).toArray())
         }
         let files = Directory.readFrom(core).map { info => VfsPath.file(core.join(info.name)) }
-        let other =
-            BinaryModel(
-                "std",
-                [],
-                sources: BinarySources(
-                    VfsPath.file(dir),
-                    [PackageModel("std.core", VfsPath.file(core), files)]
-                )
+        let other = BinaryModel(
+            "std",
+            [],
+            sources: BinarySources(
+                VfsPath.file(dir),
+                [PackageModel("std.core", VfsPath.file(core), files)]
             )
-        let parsed =
-            Fixture
-                .parse(
-                    #"
+        )
+        let parsed = Fixture.parse(
+            #"
             //- /main.cj module=m package=m
             package m
             func f(x: $0String): Unit {}
             "#
-                )
-        let db =
-            parsed.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))], models: [other])
+        )
+        let db = parsed.database(
+            binaries: [stdCjoRead("std.core", stdCjo("std.core"))],
+            models: [other]
+        )
         let cursor = parsed.cursor.getOrThrow()
 
         // act

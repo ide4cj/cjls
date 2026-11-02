@@ -45,21 +45,20 @@ func handleExpandMacro(
             return Nullable.Null
     let expanded = expandedMacro(snap.analysis, at.call) ?? return Nullable.Null
     let shown = ShownExpansion.of(expanded.text).text
-    Nullable
-        .Value(
-            match (expanded.kind) {
-                case ServerExpansion =>
-                    MacroExpansion(name: expanded.name, expansion: shown, kind: "server")
-                case OwnExpansion =>
-                    let declaration =
-                        expanded.declaration.map { one => one.trimAsciiEnd() + "\n\n" } ?? ""
-                    MacroExpansion(
-                        name: expanded.name,
-                        expansion: "// cjls's own expansion of ${expanded.name}: signatures only, no bodies\n${declaration}${shown}",
-                        kind: "cjls"
-                    )
-            }
-        )
+    Nullable.Value(
+        match (expanded.kind) {
+            case ServerExpansion =>
+                MacroExpansion(name: expanded.name, expansion: shown, kind: "server")
+            case OwnExpansion =>
+                let declaration =
+                    expanded.declaration.map { one => one.trimAsciiEnd() + "\n\n" } ?? ""
+                MacroExpansion(
+                    name: expanded.name,
+                    expansion: "// cjls's own expansion of ${expanded.name}: signatures only, no bodies\n${declaration}${shown}",
+                    kind: "cjls"
+                )
+        }
+    )
 }
 
 /**
@@ -85,27 +84,25 @@ func handleCodeAction(
         ) ??
             return Nullable.Null
     let expanded = expandedMacro(snap.analysis, at.call) ?? return Nullable.Null
-    let argument =
-        RawJson
-            .of(
-                TextDocumentPositionParams(
-                    textDocument: params.textDocument,
-                    position: params.range.start
-                )
+    let argument = RawJson
+        .of(
+            TextDocumentPositionParams(
+                textDocument: params.textDocument,
+                position: params.range.start
             )
-            .read<JsonValue>()
+        )
+        .read<JsonValue>()
     let title = "Expand macro ${expanded.name}"
     let command = Command(title: title, command: EXPAND_MACRO_COMMAND, arguments: [argument])
-    Nullable
-        .Value(
-            [
-                if (snap.codeActionLiterals) {
-                    CommandOrCodeAction.AsCodeAction(CodeAction(title: title, command: command))
-                } else {
-                    CommandOrCodeAction.AsCommand(command)
-                }
-            ]
-        )
+    Nullable.Value(
+        [
+            if (snap.codeActionLiterals) {
+                CommandOrCodeAction.AsCodeAction(CodeAction(title: title, command: command))
+            } else {
+                CommandOrCodeAction.AsCommand(command)
+            }
+        ]
+    )
 }
 
 /**
@@ -184,11 +181,10 @@ func showDocument(client: Client, logger: Logger, params: ShowDocumentParams): U
         try {
             client.request(ShowDocumentRequestSpec(), params)
         } catch (e: Exception) {
-            logger
-                .warn(
-                    "the document was not sent to be shown",
-                    [("uri", params.uri), ("error", e.message)]
-                )
+            logger.warn(
+                "the document was not sent to be shown",
+                [("uri", params.uri), ("error", e.message)]
+            )
             return
         }
     spawn {
@@ -197,11 +193,10 @@ func showDocument(client: Client, logger: Logger, params: ShowDocumentParams): U
                 logger.debug("the client did not show the document", [("uri", params.uri)])
             }
         } catch (e: Exception) {
-            logger
-                .debug(
-                    "the client did not show the document",
-                    [("uri", params.uri), ("error", e.message)]
-                )
+            logger.debug(
+                "the client did not show the document",
+                [("uri", params.uri), ("error", e.message)]
+            )
         } catch (e: Error) {
             logger.error("showing a document failed", [("cause", ErrorLogValue(e))])
         }
@@ -358,14 +353,14 @@ func hoverInView(snap: ServerSnapshot, view: ExpandedView, position: Position): 
                 (hover, view.expanded.fromExpansion(call, hover.range))
             case None => return Nullable.Null
         }
-    Nullable
-        .Value(
-            Hover(
-                contents: MarkupContentOrMarkedStringOrMarkedStrings
-                    .AsMarkupContent(hoverContent(hover, snap.hoverMarkdown)),
-                range: range.map { it => lspRange(view.text, it.start, it.end, snap.encoding) }
-            )
+    Nullable.Value(
+        Hover(
+            contents: MarkupContentOrMarkedStringOrMarkedStrings.AsMarkupContent(
+                hoverContent(hover, snap.hoverMarkdown)
+            ),
+            range: range.map { it => lspRange(view.text, it.start, it.end, snap.encoding) }
         )
+    )
 }
 
 /**

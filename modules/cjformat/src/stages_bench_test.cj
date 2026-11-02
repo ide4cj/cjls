@@ -7,8 +7,11 @@ import cjsyntax.{CjParse, CjSyntaxNode, parse}
 import ginkgo.TextRange
 
 // Match formatter_cli.py explicitly so default policy changes cannot skew stage comparisons.
-let FORMAT_STAGE_OPTIONS =
-    FormatOptions(lineWidth: 100, indentWidth: 4, simpleIf: SimpleIf.Multiline)
+let FORMAT_STAGE_OPTIONS = FormatOptions(
+    lineWidth: 100,
+    indentWidth: 4,
+    simpleIf: SimpleIf.Multiline
+)
 
 /**
  * A layout measurement needs the source tree, but must not retain a previously built document.

@@ -44,8 +44,10 @@ class OpticsGateTest {
     @TestCase
     func opticsHasOnlyTheFindingsOfKnownGaps() {
         let found = gateFindings(opticsDir())
-        let lines =
-            String.fromUtf8(File.readFrom(knownOfOptics())).replace("\r\n", "\n").split("\n")
+        let lines = String
+            .fromUtf8(File.readFrom(knownOfOptics()))
+            .replace("\r\n", "\n")
+            .split("\n")
         let header = lines.filter { line => line.startsWith("#") }
         let why = HashMap<String, String>()
         for (line in lines where !line.startsWith("#") && !line.isEmpty()) {
@@ -54,11 +56,10 @@ class OpticsGateTest {
         }
         if (getVariable(UPDATE_EXPECT).isSome()) {
             let written = found.map { one => "${one}  # ${why.get(one) ?? "?"}" }
-            File
-                .writeTo(
-                    knownOfOptics(),
-                    (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
-                )
+            File.writeTo(
+                knownOfOptics(),
+                (String.join(header.concat(written), delimiter: "\n") + "\n").toArray()
+            )
             return
         }
         let known = why.keys().toArray()

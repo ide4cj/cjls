@@ -239,8 +239,10 @@ class Runtime {
 
     private func register(index: Int64, ingredient: Ingredient): Unit {
         let entries = table.load().entries
-        let grown =
-            Array<?Ingredient>(max(entries.size, index + 1), { i => entries.get(i) ?? None })
+        let grown = Array<?Ingredient>(
+            max(entries.size, index + 1),
+            { i => entries.get(i) ?? None }
+        )
         grown[index] = ingredient
         table.store(IngredientTable(grown))
     }

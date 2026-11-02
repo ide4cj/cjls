@@ -4,7 +4,6 @@
 // CJC: audit error: expected 'get' or 'set' in prop body, found 'foo'
 // CJC: audit error: unclosed delimiter: '{'
 // SOURCE: src/main.cj %f
-// KNOWN-MISSING: d0 issue=531
 // SOURCE: src/declarations.cj inputs/audit.cj
 // STEP: fixed
 // CJC: audit clean

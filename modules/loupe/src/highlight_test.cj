@@ -52,10 +52,9 @@ class HighlightTest {
     @TestCase
     func declarationsAreToldWhatTheyDeclareWithTheirModifiers() {
         // act
-        let result =
-            highlighted(
-                "class A<T> {\n    static let x: Int64 = 1\n    A(let y: Int64, z: Bool) {}\n    prop p: T { get() { x } }\n    operator func +(o: A<T>): A<T> { this }\n}\nconst K = 1"
-            )
+        let result = highlighted(
+            "class A<T> {\n    static let x: Int64 = 1\n    A(let y: Int64, z: Bool) {}\n    prop p: T { get() { x } }\n    operator func +(o: A<T>): A<T> { this }\n}\nconst K = 1"
+        )
 
         // assert - `x` in the getter is a use, not told in a file of no package
         @Expect(result, [
@@ -193,10 +192,9 @@ class HighlightTest {
     @TestCase
     func aNameAPatternBindsIsADeclarationUnlessItMayBeAConstructor() {
         // act
-        let result =
-            highlighted(
-                "main() { for ((i, _) in xs) { match (e) { case R => 0 case G(n) => n case q: E => 1 } }; f {a => a} }"
-            )
+        let result = highlighted(
+            "main() { for ((i, _) in xs) { match (e) { case R => 0 case G(n) => n case q: E => 1 } }; f {a => a} }"
+        )
 
         // assert - `R` and `n` may be enum constructors, which only names resolved tell, not in a file of no package
         @Expect(result, [

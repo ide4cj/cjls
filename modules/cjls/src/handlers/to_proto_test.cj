@@ -36,12 +36,11 @@ class DiagnosticConversionTest {
     @TestCase[text in ["the reported error", " ", "\n"]]
     func aNonemptyMessageIsPreservedVerbatim(text: String) {
         // act
-        let result =
-            diagnostic(
-                Rope("hello"),
-                LoupeDiagnostic(TextRange(0, 5), Severity.Error, text),
-                Encoding.Utf16
-            )
+        let result = diagnostic(
+            Rope("hello"),
+            LoupeDiagnostic(TextRange(0, 5), Severity.Error, text),
+            Encoding.Utf16
+        )
 
         // assert
         @Expect(match (result.message) {

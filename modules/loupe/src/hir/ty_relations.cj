@@ -119,8 +119,9 @@ func incompleteGenericBounds(
     owner: GenericOwner,
     pending: ArrayList<TyBound>
 ): Array<TyBound> {
-    let subjects =
-        ArrayList<Ty>(Array(genericsOf(db, owner).size) { i => Ty(db, ParamTy(owner, i)) })
+    let subjects = ArrayList<Ty>(
+        Array(genericsOf(db, owner).size) { i => Ty(db, ParamTy(owner, i)) }
+    )
     for (bound in pending where !subjects.contains(bound.ty)) {
         subjects.add(bound.ty)
     }

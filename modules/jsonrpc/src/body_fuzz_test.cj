@@ -102,8 +102,8 @@ extend MutatedMessage <: Arbitrary<MutatedMessage> {
                         case 1 => bytes.add(random.suggestUInt8(), at: at)
                         case 2 where at < bytes.size => bytes[at] = random.suggestUInt8()
                         case 3 where at < bytes.size =>
-                            let run =
-                                bytes[at..min(bytes.size, at + 1 + random.nextInt64(8))].toArray()
+                            let run = bytes[at..min(bytes.size, at + 1 + random.nextInt64(8))]
+                                .toArray()
                             bytes.add(all: run, at: at)
                         case 4 => bytes.remove(at..bytes.size)
                         case _ => ()

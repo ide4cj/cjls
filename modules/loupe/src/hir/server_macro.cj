@@ -157,15 +157,14 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
                 if (definition.isStd) {
                     continue
                 }
-                found
-                    .add(
-                        ServerCall(
-                            MacroCallId(db, file, item, one.index, Some(one.name)),
-                            definition,
-                            top,
-                            false
-                        )
+                found.add(
+                    ServerCall(
+                        MacroCallId(db, file, item, one.index, Some(one.name)),
+                        definition,
+                        top,
+                        false
                     )
+                )
             }
         }
     for (item in itemTree(db, file).items) {
@@ -176,11 +175,10 @@ public func serverCalls(db: AnalysisDatabase, file: SourceFile): Array<ServerCal
         for (member in item.members) {
             addInItem(member.id, item.id)
             if (hasMacroCalls(member)) {
-                found
-                    .add(
-                        all: serverCallsOn(db, file, member, item.id, false)
-                            .filter { one => read || !one.definition.isStd }
-                    )
+                found.add(
+                    all: serverCallsOn(db, file, member, item.id, false)
+                        .filter { one => read || !one.definition.isStd }
+                )
             }
         }
         addInItem(item.id, item.id)
@@ -228,15 +226,14 @@ func serverCallsOn(
         }
         for (j in calls.size - 1..=0: -1) {
             let (index, definition) = calls[j]
-            found
-                .add(
-                    ServerCall(
-                        MacroCallId(db, file, item.id, index, None),
-                        definition,
-                        top,
-                        isTop && c == 0 && j == 0
-                    )
+            found.add(
+                ServerCall(
+                    MacroCallId(db, file, item.id, index, None),
+                    definition,
+                    top,
+                    isTop && c == 0 && j == 0
                 )
+            )
         }
     }
     found.toArray()
@@ -500,14 +497,13 @@ public func macroDiagnostics(db: AnalysisDatabase, file: SourceFile): Array<Macr
                     .any { diagnostic => diagnostic.severity == MacroSeverity.MacroError }
         ) {
             for (error in expansionParse(db, one.call).errors) {
-                found
-                    .add(
-                        MacroCallDiagnostic(
-                            head,
-                            MacroSeverity.MacroError,
-                            "macro expansion: ${message(error.error)}"
-                        )
+                found.add(
+                    MacroCallDiagnostic(
+                        head,
+                        MacroSeverity.MacroError,
+                        "macro expansion: ${message(error.error)}"
                     )
+                )
             }
         }
         let anchor = anchorOf(ids, root, one.top) ?? continue

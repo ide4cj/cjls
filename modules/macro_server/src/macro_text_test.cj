@@ -149,12 +149,11 @@ class PrintMacroTokensTest {
     @TestCase
     func eachTokensRangeIsItsTextAndItsPositionsAreTheServers(): Unit {
         // arrange
-        let tokens =
-            macroTokens(
-                "f(a, \"s\")\n#\"r\"# . x",
-                numbers,
-                PositionData(fileId: 3, line: 5, column: 7)
-            )
+        let tokens = macroTokens(
+            "f(a, \"s\")\n#\"r\"# . x",
+            numbers,
+            PositionData(fileId: 3, line: 5, column: 7)
+        )
 
         // act
         let printed = printMacroTokens(tokens, numbers)
@@ -245,16 +244,15 @@ class PrintMacroTokensTest {
         // arrange
         let paths = sdkPaths()
         let server = startMacroServer(paths)
-        let result =
-            server
-                .connection
-                .expand(
-                    deriveCall(
-                        paths,
-                        "Equatable",
-                        "class A { let x: Int64 = 1; let s: String = \"a\" }"
-                    )
+        let result = server
+            .connection
+            .expand(
+                deriveCall(
+                    paths,
+                    "Equatable",
+                    "class A { let x: Int64 = 1; let s: String = \"a\" }"
                 )
+            )
         server.close()
 
         // act

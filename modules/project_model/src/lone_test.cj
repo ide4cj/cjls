@@ -13,11 +13,10 @@ class LoneFileProjectsTest {
         // arrange - a file of the project, a file of none with a `package` line and one without, and no Cangjie file
         let dir = VfsPath.file(getTempDirectory()).join("lone")
         let covered = dir.join("src/a.cj")
-        let model =
-            ProjectModel(
-                LINUX,
-                [ModuleModel("a", dir, [PackageModel("a", dir.join("src"), [covered])])]
-            )
+        let model = ProjectModel(
+            LINUX,
+            [ModuleModel("a", dir, [PackageModel("a", dir.join("src"), [covered])])]
+        )
         let script = dir.join("scripts/x.cj")
         let files =
             [
@@ -44,30 +43,28 @@ class LoneFileProjectsTest {
         let dir = VfsPath.file(getTempDirectory()).join("lone")
         let inactive = dir.join("src/ohos/a.cj")
         let source = dir.join("std/core/b.cj")
-        let model =
-            ProjectModel(
-                LINUX,
-                [ModuleModel("a", dir, [], inactive: [InactiveFile(inactive, "left out")])],
-                binaries: [
-                    BinaryModel(
-                        "std",
-                        [],
-                        sources: BinarySources(
-                            dir.join("std"),
-                            [PackageModel("std.core", dir.join("std/core"), [source])]
-                        )
+        let model = ProjectModel(
+            LINUX,
+            [ModuleModel("a", dir, [], inactive: [InactiveFile(inactive, "left out")])],
+            binaries: [
+                BinaryModel(
+                    "std",
+                    [],
+                    sources: BinarySources(
+                        dir.join("std"),
+                        [PackageModel("std.core", dir.join("std/core"), [source])]
                     )
-                ]
-            )
+                )
+            ]
+        )
 
         // act
-        let loads =
-            loneFileProjects(
-                model,
-                [(inactive, None), (source, Some("std.core"))],
-                env: noEnv,
-                cfg: LINUX
-            )
+        let loads = loneFileProjects(
+            model,
+            [(inactive, None), (source, Some("std.core"))],
+            env: noEnv,
+            cfg: LINUX
+        )
 
         // assert
         @Expect(loads.size, 0)

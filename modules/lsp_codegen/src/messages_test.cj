@@ -36,17 +36,16 @@ class ResolveMessagesTest {
     @TestCase
     func aRequestNamesItsParamsAndResultTypes() {
         // act
-        let messages =
-            resolveMessagesOf(
-                requests: [
-                    requestOf(
-                        "textDocument/hover",
-                        "HoverRequest",
-                        Type.Or([Type.Reference("Hover"), Type.Base(BaseTypes.Null)]),
-                        params: OneOrMany.One(Type.Reference("HoverParams"))
-                    )
-                ]
-            )
+        let messages = resolveMessagesOf(
+            requests: [
+                requestOf(
+                    "textDocument/hover",
+                    "HoverRequest",
+                    Type.Or([Type.Reference("Hover"), Type.Base(BaseTypes.Null)]),
+                    params: OneOrMany.One(Type.Reference("HoverParams"))
+                )
+            ]
+        )
 
         // assert
         @Expect("HoverRequestSpec", messages[0].ident)
@@ -58,10 +57,9 @@ class ResolveMessagesTest {
     @TestCase
     func noParamsAndANullResultAreBothUnit() {
         // act - `shutdown`
-        let messages =
-            resolveMessagesOf(
-                requests: [requestOf("shutdown", "ShutdownRequest", Type.Base(BaseTypes.Null))]
-            )
+        let messages = resolveMessagesOf(
+            requests: [requestOf("shutdown", "ShutdownRequest", Type.Base(BaseTypes.Null))]
+        )
 
         // assert
         @Expect("Unit", messages[0].paramsType)
@@ -71,16 +69,15 @@ class ResolveMessagesTest {
     @TestCase
     func aNotificationHasNoResult() {
         // act
-        let messages =
-            resolveMessagesOf(
-                notifications: [
-                    Notification(
-                        method: "exit",
-                        typeName: "ExitNotification",
-                        messageDirection: MessageDirection.ClientToServer
-                    )
-                ]
-            )
+        let messages = resolveMessagesOf(
+            notifications: [
+                Notification(
+                    method: "exit",
+                    typeName: "ExitNotification",
+                    messageDirection: MessageDirection.ClientToServer
+                )
+            ]
+        )
 
         // assert
         @Expect(!messages[0].isRequest)
@@ -90,26 +87,25 @@ class ResolveMessagesTest {
     @TestCase
     func registrationOptionsAndTheMethodRegisteredUnderAreResolved() {
         // act
-        let messages =
-            resolveMessagesOf(
-                requests: [
-                    Request(
-                        method: "textDocument/semanticTokens/full",
-                        typeName: "SemanticTokensRequest",
-                        result: Type.Base(BaseTypes.Null),
-                        registrationMethod: "textDocument/semanticTokens",
-                        registrationOptions: Type.Reference("SemanticTokensRegistrationOptions"),
-                        messageDirection: MessageDirection.ClientToServer
-                    )
-                ],
-                notifications: [
-                    Notification(
-                        method: "exit",
-                        typeName: "ExitNotification",
-                        messageDirection: MessageDirection.ClientToServer
-                    )
-                ]
-            )
+        let messages = resolveMessagesOf(
+            requests: [
+                Request(
+                    method: "textDocument/semanticTokens/full",
+                    typeName: "SemanticTokensRequest",
+                    result: Type.Base(BaseTypes.Null),
+                    registrationMethod: "textDocument/semanticTokens",
+                    registrationOptions: Type.Reference("SemanticTokensRegistrationOptions"),
+                    messageDirection: MessageDirection.ClientToServer
+                )
+            ],
+            notifications: [
+                Notification(
+                    method: "exit",
+                    typeName: "ExitNotification",
+                    messageDirection: MessageDirection.ClientToServer
+                )
+            ]
+        )
 
         // assert
         @Expect("SemanticTokensRegistrationOptions", messages[0].registrationOptions.getOrThrow().toString())
@@ -131,16 +127,15 @@ class EmitMessageTest {
     @TestCase
     func aMessageIsEmittedAsASpecOfItsTypes() {
         // arrange
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "HoverRequestSpec",
-                method: "textDocument/hover",
-                direction: MessageDirection.ClientToServer,
-                params: TypeIr.Named("HoverParams"),
-                result: TypeIr.NullableOf(TypeIr.Named("Hover")),
-                isRequest: true
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "HoverRequestSpec",
+            method: "textDocument/hover",
+            direction: MessageDirection.ClientToServer,
+            params: TypeIr.Named("HoverParams"),
+            result: TypeIr.NullableOf(TypeIr.Named("Hover")),
+            isRequest: true
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -158,14 +153,13 @@ class EmitMessageTest {
     @TestCase
     func aMessageWithoutParamsOrResultIsBoundToUnit() {
         // arrange - `shutdown`
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "ShutdownRequestSpec",
-                method: "shutdown",
-                direction: MessageDirection.ClientToServer,
-                isRequest: true
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "ShutdownRequestSpec",
+            method: "shutdown",
+            direction: MessageDirection.ClientToServer,
+            isRequest: true
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -181,15 +175,14 @@ class EmitMessageTest {
     @TestCase
     func aNotificationTheServerSendsEncodesItsParamsOnly() {
         // arrange
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "ShowMessageNotificationSpec",
-                method: "window/showMessage",
-                direction: MessageDirection.ServerToClient,
-                params: TypeIr.Named("ShowMessageParams"),
-                isRequest: false
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "ShowMessageNotificationSpec",
+            method: "window/showMessage",
+            direction: MessageDirection.ServerToClient,
+            params: TypeIr.Named("ShowMessageParams"),
+            isRequest: false
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -205,16 +198,15 @@ class EmitMessageTest {
     @TestCase
     func aRequestTheServerSendsEncodesItsParamsAndDecodesItsResult() {
         // arrange
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "ConfigurationRequestSpec",
-                method: "workspace/configuration",
-                direction: MessageDirection.ServerToClient,
-                params: TypeIr.Named("ConfigurationParams"),
-                result: TypeIr.ArrayOf(TypeIr.Named("LSPAny")),
-                isRequest: true
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "ConfigurationRequestSpec",
+            method: "workspace/configuration",
+            direction: MessageDirection.ServerToClient,
+            params: TypeIr.Named("ConfigurationParams"),
+            result: TypeIr.ArrayOf(TypeIr.Named("LSPAny")),
+            isRequest: true
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -229,14 +221,13 @@ class EmitMessageTest {
     @TestCase
     func aRequestTheServerSendsWithoutParamsOrResultWritesNullAndReadsUnit() {
         // arrange - `workspace/semanticTokens/refresh`
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "SemanticTokensRefreshRequestSpec",
-                method: "workspace/semanticTokens/refresh",
-                direction: MessageDirection.ServerToClient,
-                isRequest: true
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "SemanticTokensRefreshRequestSpec",
+            method: "workspace/semanticTokens/refresh",
+            direction: MessageDirection.ServerToClient,
+            isRequest: true
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -251,18 +242,17 @@ class EmitMessageTest {
     @TestCase
     func aMessageWithRegistrationOptionsIsRegistrableUnderItsRegistrationMethod() {
         // arrange
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "SemanticTokensDeltaRequestSpec",
-                method: "textDocument/semanticTokens/full/delta",
-                direction: MessageDirection.ClientToServer,
-                params: TypeIr.Named("SemanticTokensDeltaParams"),
-                result: TypeIr.Named("SemanticTokensDelta"),
-                isRequest: true,
-                registrationOptions: TypeIr.Named("SemanticTokensRegistrationOptions"),
-                registrationMethod: "textDocument/semanticTokens"
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "SemanticTokensDeltaRequestSpec",
+            method: "textDocument/semanticTokens/full/delta",
+            direction: MessageDirection.ClientToServer,
+            params: TypeIr.Named("SemanticTokensDeltaParams"),
+            result: TypeIr.Named("SemanticTokensDelta"),
+            isRequest: true,
+            registrationOptions: TypeIr.Named("SemanticTokensRegistrationOptions"),
+            registrationMethod: "textDocument/semanticTokens"
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -276,14 +266,13 @@ class EmitMessageTest {
     @TestCase
     func aMessageWithoutRegistrationOptionsIsNotRegistrable() {
         // arrange
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "ShutdownRequestSpec",
-                method: "shutdown",
-                direction: MessageDirection.ClientToServer,
-                isRequest: true
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "ShutdownRequestSpec",
+            method: "shutdown",
+            direction: MessageDirection.ClientToServer,
+            isRequest: true
+        )
 
         // act
         let emitted = emittedMessage(messageIr)
@@ -296,15 +285,14 @@ class EmitMessageTest {
     @TestCase
     func aMessageSentBothWaysIsBothInboundAndOutbound() {
         // arrange - `$/progress`
-        let messageIr =
-            MessageIr(
-                DocIr(),
-                ident: "ProgressNotificationSpec",
-                method: "$/progress",
-                direction: MessageDirection.Both,
-                params: TypeIr.Named("ProgressParams"),
-                isRequest: false
-            )
+        let messageIr = MessageIr(
+            DocIr(),
+            ident: "ProgressNotificationSpec",
+            method: "$/progress",
+            direction: MessageDirection.Both,
+            params: TypeIr.Named("ProgressParams"),
+            isRequest: false
+        )
 
         // act
         let emitted = emittedMessage(messageIr)

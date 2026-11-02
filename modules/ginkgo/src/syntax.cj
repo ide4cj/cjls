@@ -470,8 +470,9 @@ public class SyntaxToken<K> <: Equatable<SyntaxToken<K>> & Hashable & ToString w
      */
     @Frozen
     public func replaceWith(replacement: GreenToken<K>): GreenNode<K> {
-        parent
-            .replaceWith(parent.green.replaceChild(indexInParent, GreenElement.Token(replacement)))
+        parent.replaceWith(
+            parent.green.replaceChild(indexInParent, GreenElement.Token(replacement))
+        )
     }
 
     @Frozen

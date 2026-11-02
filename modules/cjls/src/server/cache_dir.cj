@@ -171,14 +171,13 @@ public class CacheDir {
         var at = VfsPath.file(path.join(EXPANDED_DIR))
         for (i in 0..segments.size) {
             at =
-                at
-                    .join(
-                        if (i == segments.size - 1) {
-                            segments[i] + EXPANDED_SUFFIX
-                        } else {
-                            segments[i]
-                        }
-                    )
+                at.join(
+                    if (i == segments.size - 1) {
+                        segments[i] + EXPANDED_SUFFIX
+                    } else {
+                        segments[i]
+                    }
+                )
         }
         at
     }

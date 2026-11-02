@@ -111,20 +111,18 @@ class FtParserTest {
     @TestCase
     func stringsReadAsTheirFourFormsSay() {
         // arrange
-        let text =
-            String
-                .join(
-                    [
-                        #"basic = "tab\there \u00E9 \U0001F600 \x41\e""#,
-                        #"literal = 'C:\Users\'"#,
-                        #"multi = """"#,
-                        #"one \"#,
-                        #"   two"""""#,
-                        "raw = '''",
-                        "it's '' here'''"
-                    ],
-                    delimiter: "\n"
-                )
+        let text = String.join(
+            [
+                #"basic = "tab\there \u00E9 \U0001F600 \x41\e""#,
+                #"literal = 'C:\Users\'"#,
+                #"multi = """"#,
+                #"one \"#,
+                #"   two"""""#,
+                "raw = '''",
+                "it's '' here'''"
+            ],
+            delimiter: "\n"
+        )
 
         // act
         let root = parseToml(text).table

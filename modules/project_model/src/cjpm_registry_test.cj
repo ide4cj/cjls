@@ -25,42 +25,41 @@ class CjpmRegistryTest {
     @TestCase[format in [0, 1]]
     func lockedRegistrySourcesAndTransitiveImportsReachAnalysis(format: Int64) {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[dependencies]\n\"org::dep\" = \"[1.0.0, 2.0.0)\"\n"
-                    ),
-                    (
-                        "src/main.cj",
-                        "package app\nimport org::dep.*\nfunc use(): Remote { Remote() }\n"
-                    ),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
-                    (
-                        "cjpm.lock",
-                        "version = ${format}\n[requires]\n\"org::dep\" = ${registryEntry(format, "1.2.0")}\nleaf = ${registryEntry(format, "2.0.0")}\n"
-                    ),
-                    (
-                        "cache/repository/source/org/dep-1.2.0/cjpm.toml",
-                        "[package]\nname = \"dep\"\norganization = \"org\"\nversion = \"1.2.0\"\n[dependencies]\nleaf = {version = \"2.0.0\"}\n"
-                    ),
-                    (
-                        "cache/repository/source/org/dep-1.2.0/src/lib.cj",
-                        "package org::dep\npublic class Remote {}\n"
-                    ),
-                    ("cache/repository/source/org/dep-1.2.0/cjpm.lock", "not a lock"),
-                    (
-                        "cache/repository/source/default/leaf-2.0.0/cjpm.toml",
-                        "[package]\nname = \"leaf\"\nversion = \"2.0.0\"\n"
-                    ),
-                    ("cache/repository/source/default/leaf-2.0.0/src/lib.cj", "package leaf\n"),
-                    (
-                        "cache/repository/source/org/dep-1.9.0/cjpm.toml",
-                        "[package]\nname = \"wrong\"\nversion = \"1.9.0\"\n"
-                    )
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[dependencies]\n\"org::dep\" = \"[1.0.0, 2.0.0)\"\n"
+                ),
+                (
+                    "src/main.cj",
+                    "package app\nimport org::dep.*\nfunc use(): Remote { Remote() }\n"
+                ),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
+                (
+                    "cjpm.lock",
+                    "version = ${format}\n[requires]\n\"org::dep\" = ${registryEntry(format, "1.2.0")}\nleaf = ${registryEntry(format, "2.0.0")}\n"
+                ),
+                (
+                    "cache/repository/source/org/dep-1.2.0/cjpm.toml",
+                    "[package]\nname = \"dep\"\norganization = \"org\"\nversion = \"1.2.0\"\n[dependencies]\nleaf = {version = \"2.0.0\"}\n"
+                ),
+                (
+                    "cache/repository/source/org/dep-1.2.0/src/lib.cj",
+                    "package org::dep\npublic class Remote {}\n"
+                ),
+                ("cache/repository/source/org/dep-1.2.0/cjpm.lock", "not a lock"),
+                (
+                    "cache/repository/source/default/leaf-2.0.0/cjpm.toml",
+                    "[package]\nname = \"leaf\"\nversion = \"2.0.0\"\n"
+                ),
+                ("cache/repository/source/default/leaf-2.0.0/src/lib.cj", "package leaf\n"),
+                (
+                    "cache/repository/source/org/dep-1.9.0/cjpm.toml",
+                    "[package]\nname = \"wrong\"\nversion = \"1.9.0\"\n"
+                )
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()
@@ -72,8 +71,11 @@ class CjpmRegistryTest {
             }
             db.applyChanges(vfs, vfs.takeChanges())
             let mainFile = vfs.paths.lookup(dir.join("src/main.cj")).getOrThrow()
-            let targets =
-                definitionAt(db, mainFile, "package app\nimport org::dep.*\nfunc use(): ".size)
+            let targets = definitionAt(
+                db,
+                mainFile,
+                "package app\nimport org::dep.*\nfunc use(): ".size
+            )
 
             // assert
             @Expect(load.problems, [])
@@ -91,33 +93,32 @@ class CjpmRegistryTest {
     @TestCase[format in [0, 1]]
     func scriptsUseTheirOwnVersionsIncludingTransitiveDependencies(format: Int64) {
         // arrange
-        let dir =
-            tree(
-                [
-                    (
-                        "cjpm.toml",
-                        "[package]\nname = \"app\"\n[target.x86_64-unknown-linux-gnu.test-dependencies]\ndep = {version = \"1.0.0\"}\n[script-dependencies]\ndep = \"2.0.0\"\n"
-                    ),
-                    ("build.cj", "main() {}\n"),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
-                    (
-                        "cjpm.lock",
-                        "version = ${format}\n[requires]\ndep = ${registryEntry(format, "1.0.0")}\n[scripts]\ndep = ${registryEntry(format, "2.0.0")}\nhelper = ${registryEntry(format, "3.0.0")}\n"
-                    ),
-                    (
-                        "cache/repository/source/default/dep-1.0.0/cjpm.toml",
-                        "[package]\nname = \"dep\"\nversion = \"1.0.0\"\n"
-                    ),
-                    (
-                        "cache/repository/source/default/dep-2.0.0/cjpm.toml",
-                        "[package]\nname = \"dep\"\nversion = \"2.0.0\"\n[dependencies]\nhelper = \"3.0.0\"\n"
-                    ),
-                    (
-                        "cache/repository/source/default/helper-3.0.0/cjpm.toml",
-                        "[package]\nname = \"helper\"\nversion = \"3.0.0\"\n"
-                    )
-                ]
-            )
+        let dir = tree(
+            [
+                (
+                    "cjpm.toml",
+                    "[package]\nname = \"app\"\n[target.x86_64-unknown-linux-gnu.test-dependencies]\ndep = {version = \"1.0.0\"}\n[script-dependencies]\ndep = \"2.0.0\"\n"
+                ),
+                ("build.cj", "main() {}\n"),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
+                (
+                    "cjpm.lock",
+                    "version = ${format}\n[requires]\ndep = ${registryEntry(format, "1.0.0")}\n[scripts]\ndep = ${registryEntry(format, "2.0.0")}\nhelper = ${registryEntry(format, "3.0.0")}\n"
+                ),
+                (
+                    "cache/repository/source/default/dep-1.0.0/cjpm.toml",
+                    "[package]\nname = \"dep\"\nversion = \"1.0.0\"\n"
+                ),
+                (
+                    "cache/repository/source/default/dep-2.0.0/cjpm.toml",
+                    "[package]\nname = \"dep\"\nversion = \"2.0.0\"\n[dependencies]\nhelper = \"3.0.0\"\n"
+                ),
+                (
+                    "cache/repository/source/default/helper-3.0.0/cjpm.toml",
+                    "[package]\nname = \"helper\"\nversion = \"3.0.0\"\n"
+                )
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv, cfg: LINUX).getOrThrow()
@@ -151,13 +152,12 @@ class CjpmRegistryTest {
     ]]
     func missingMalformedAndStaleSelectionsAreRecoverable(sample: (String, String)) {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\n[dependencies]\ndep = \"1.0.0\"\n"),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n")
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\n[dependencies]\ndep = \"1.0.0\"\n"),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n")
+            ]
+        )
         if (!sample[0].isEmpty()) {
             File.writeTo(dir.join("cjpm.lock").filePath.getOrThrow(), sample[0].toArray())
         }
@@ -178,18 +178,17 @@ class CjpmRegistryTest {
     @TestCase[sample in [("wrong", "1.0.0"), ("dep", "2.0.0")]]
     func cachedManifestMustMatchTheLockedIdentity(sample: (String, String)) {
         // arrange
-        let dir =
-            tree(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\n[dependencies]\ndep = \"1.0.0\"\n"),
-                    ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
-                    ("cjpm.lock", "version = 0\n[requires]\ndep = ${registryEntry(0, "1.0.0")}\n"),
-                    (
-                        "cache/repository/source/default/dep-1.0.0/cjpm.toml",
-                        "[package]\nname = \"${sample[0]}\"\nversion = \"${sample[1]}\"\n"
-                    )
-                ]
-            )
+        let dir = tree(
+            [
+                ("cjpm.toml", "[package]\nname = \"app\"\n[dependencies]\ndep = \"1.0.0\"\n"),
+                ("cangjie-repo.toml", "[repository.cache]\npath = \"cache\"\n"),
+                ("cjpm.lock", "version = 0\n[requires]\ndep = ${registryEntry(0, "1.0.0")}\n"),
+                (
+                    "cache/repository/source/default/dep-1.0.0/cjpm.toml",
+                    "[package]\nname = \"${sample[0]}\"\nversion = \"${sample[1]}\"\n"
+                )
+            ]
+        )
         try {
             // act
             let load = loadCjpmProject(dir.join("cjpm.toml"), env: sdkEnv).getOrThrow()

@@ -11,39 +11,37 @@ import loupe.syntax.parse
 /**
  * Tokens whose words are selected on their own: comments and the pieces of a string.
  */
-let WORDY =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.LineComment,
-            SyntaxKind.BlockComment,
-            SyntaxKind.StringContent,
-            SyntaxKind.RawStringLit
-        ]
-    )
+let WORDY = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.LineComment,
+        SyntaxKind.BlockComment,
+        SyntaxKind.StringContent,
+        SyntaxKind.RawStringLit
+    ]
+)
 
 /**
  * Nodes whose elements are separated by commas.
  */
-let LISTS =
-    TokenSet<SyntaxKind>(
-        [
-            SyntaxKind.ArgList,
-            SyntaxKind.AnnotationArgList,
-            SyntaxKind.ParamList,
-            SyntaxKind.LambdaParamList,
-            SyntaxKind.TypeParamList,
-            SyntaxKind.TypeArgList,
-            SyntaxKind.TupleType,
-            SyntaxKind.FuncType,
-            SyntaxKind.TuplePat,
-            SyntaxKind.EnumPat,
-            SyntaxKind.EnumCtor,
-            SyntaxKind.TupleExpr,
-            SyntaxKind.ArrayExpr,
-            SyntaxKind.ImportTreeList,
-            SyntaxKind.ResourceList
-        ]
-    )
+let LISTS = TokenSet<SyntaxKind>(
+    [
+        SyntaxKind.ArgList,
+        SyntaxKind.AnnotationArgList,
+        SyntaxKind.ParamList,
+        SyntaxKind.LambdaParamList,
+        SyntaxKind.TypeParamList,
+        SyntaxKind.TypeArgList,
+        SyntaxKind.TupleType,
+        SyntaxKind.FuncType,
+        SyntaxKind.TuplePat,
+        SyntaxKind.EnumPat,
+        SyntaxKind.EnumCtor,
+        SyntaxKind.TupleExpr,
+        SyntaxKind.ArrayExpr,
+        SyntaxKind.ImportTreeList,
+        SyntaxKind.ResourceList
+    ]
+)
 
 /**
  * The ranges a selection at `offset` widens through, innermost first, each strictly containing the

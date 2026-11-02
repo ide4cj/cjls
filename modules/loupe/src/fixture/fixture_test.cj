@@ -27,15 +27,13 @@ class FixtureTest {
     @TestCase
     func theIndentOfATestAndItsFirstAndLastLinesAreLeftOut() {
         // act
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             class A {
                 func f() {}
             }
             "#
-                )
+        )
 
         // assert
         @Expect(fixture.files[0].text, "class A {\n    func f() {}\n}\n")
@@ -53,10 +51,8 @@ class FixtureTest {
     @TestCase
     func headersStartFilesOfModulesAndPackages() {
         // act
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /app/src/main.cj module=app deps=lib
             package app
             //- /app/src/util/u.cj module=app package=app.util
@@ -64,7 +60,7 @@ class FixtureTest {
             //- /lib/src/l.cj module=lib
             package lib
             "#
-                )
+        )
 
         // assert
         @Expect(fixture.files.map {file => file.text}, ["package app\n", "package app.util\n", "package lib\n"])
@@ -83,16 +79,14 @@ class FixtureTest {
     @TestCase
     func theDatabaseHoldsTheProjectAndTheTexts() {
         // arrange
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             //- /a.cj package=p
             let a = 1
             //- /b.cj package=p
             let b = 2
             "#
-                )
+        )
 
         // act
         let db = fixture.database()
@@ -123,17 +117,15 @@ class FixtureTest {
     @TestCase
     func caretsAnnotateTheLineAboveThemThatIsNoAnnotation() {
         // act
-        let fixture =
-            Fixture
-                .parse(
-                    #"
+        let fixture = Fixture.parse(
+            #"
             let first = 1
             let second = 2
               //^^^^^^ name
                      //| empty
                  //^ one
             "#
-                )
+        )
 
         // assert
         let file = fixture.files[0].fileId
@@ -167,9 +159,8 @@ class FixtureTest {
     @TestCase
     func aFixtureRendersAsItIsWritten() {
         // arrange
-        let text =
-            trimIndent(
-                #"
+        let text = trimIndent(
+            #"
             //- /a.cj module=m
               main() { f$0oo() }
             //^^^^ main
@@ -178,7 +169,7 @@ class FixtureTest {
             class A {
             //        | eof
             "#
-            )
+        )
         let fixture = Fixture.parse(text)
 
         // act
@@ -195,16 +186,14 @@ class FixtureTest {
         let file = fixture.files[0].fileId
 
         // act
-        let rendered =
-            fixture
-                .render(
-                    [
-                        Annotation(file, TextRange(20, 21), "d"),
-                        Annotation(file, TextRange(10, 11), "b"),
-                        Annotation(file, TextRange(6, 7), "a"),
-                        Annotation(file, TextRange(11, 11), "")
-                    ]
-                )
+        let rendered = fixture.render(
+            [
+                Annotation(file, TextRange(20, 21), "d"),
+                Annotation(file, TextRange(10, 11), "b"),
+                Annotation(file, TextRange(6, 7), "a"),
+                Annotation(file, TextRange(11, 11), "")
+            ]
+        )
 
         // assert
         @Expect(rendered, "  let a = b\n//    ^ a\n//        ^ b\n//         |\nlet c = d\n//      ^ d\n")
@@ -249,11 +238,10 @@ class FixtureTest {
     func theOneRawStringOfAFixtureIsReplacedInItsTest() {
         // arrange
         let dir = scratch("replaced")
-        File
-            .writeTo(
-                dir.join("a_test.cj"),
-                "let s = #\"\n    a\n    \"#\nlet t = \"\n    a\n    \"\n".toArray()
-            )
+        File.writeTo(
+            dir.join("a_test.cj"),
+            "let s = #\"\n    a\n    \"#\nlet t = \"\n    a\n    \"\n".toArray()
+        )
         File.writeTo(dir.join("a.cj"), "let s = #\"\n    a\n    \"#\n".toArray())
 
         // act

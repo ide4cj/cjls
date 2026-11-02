@@ -103,13 +103,9 @@ class NewFilePackageTest {
     @TestCase[loaded in [true, false]]
     func aNewFileInAMacroPackageGetsAMacroHeader(loaded: Bool) {
         // arrange
-        let root =
-            workspaceOf(
-                [
-                    ("cjpm.toml", "[package]\nname = \"app\"\n"),
-                    ("src/ms/m.cj", "macro package app.ms")
-                ]
-            )
+        let root = workspaceOf(
+            [("cjpm.toml", "[package]\nname = \"app\"\n"), ("src/ms/m.cj", "macro package app.ms")]
+        )
         let loop = editableWith(root, loaded: loaded)
         let transport = RequestsTransport()
         let client = clientOn(transport)
@@ -208,10 +204,9 @@ class NewFilePackageTest {
             DidChangeTextDocumentParams(
                 textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
                 contentChanges: [
-                    TextDocumentContentChangeEvent
-                        .AsTextDocumentContentChangeWholeDocument(
-                            TextDocumentContentChangeWholeDocument(text: "class A {}")
-                        )
+                    TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
+                        TextDocumentContentChangeWholeDocument(text: "class A {}")
+                    )
                 ]
             )
         )
@@ -241,10 +236,9 @@ class NewFilePackageTest {
             DidChangeTextDocumentParams(
                 textDocument: VersionedTextDocumentIdentifier(uri: uriOf(path), version: 4),
                 contentChanges: [
-                    TextDocumentContentChangeEvent
-                        .AsTextDocumentContentChangeWholeDocument(
-                            TextDocumentContentChangeWholeDocument(text: "\n\n")
-                        )
+                    TextDocumentContentChangeEvent.AsTextDocumentContentChangeWholeDocument(
+                        TextDocumentContentChangeWholeDocument(text: "\n\n")
+                    )
                 ]
             )
         )

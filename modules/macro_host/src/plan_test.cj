@@ -162,10 +162,9 @@ class BuildPlanTest {
     @TestCase
     func eachProjectsMacroPackagesAreBuiltIntoItsOwnDirectory() {
         // arrange
-        let projects =
-            Projects()
-                .module("a", "a", [("a.ms", "ms", macroPackage("a.ms"))])
-                .module("b", "b", [("b.ms", "ms", macroPackage("b.ms"))])
+        let projects = Projects()
+            .module("a", "a", [("a.ms", "ms", macroPackage("a.ms"))])
+            .module("b", "b", [("b.ms", "ms", macroPackage("b.ms"))])
 
         // act
         let built = projects.build()
@@ -200,22 +199,21 @@ class BuildPlanTest {
     @TestCase
     func aSourcePackageOfAnotherProjectIsBuiltIntoTheImportersDirectoryToo() {
         // arrange
-        let projects =
-            Projects()
-                .module(
-                    "a",
-                    "a",
-                    [
-                        ("a.util", "util", "package a.util\npublic func f() {}\n"),
-                        ("a.ms", "ms", macroPackage("a.ms", imports: "import a.util.*\n"))
-                    ]
-                )
-                .module(
-                    "b",
-                    "b",
-                    [("b.ms", "ms", macroPackage("b.ms", imports: "import a.util.*\n"))],
-                    deps: ["a"]
-                )
+        let projects = Projects()
+            .module(
+                "a",
+                "a",
+                [
+                    ("a.util", "util", "package a.util\npublic func f() {}\n"),
+                    ("a.ms", "ms", macroPackage("a.ms", imports: "import a.util.*\n"))
+                ]
+            )
+            .module(
+                "b",
+                "b",
+                [("b.ms", "ms", macroPackage("b.ms", imports: "import a.util.*\n"))],
+                deps: ["a"]
+            )
         let toolchain = PlanToolchain(projects.names)
 
         // act
@@ -230,10 +228,9 @@ class BuildPlanTest {
     @TestCase
     func twoProjectsNamingTheirModuleAndMacroPackageAlikeGetALibraryEach() {
         // arrange
-        let projects =
-            Projects()
-                .module("a", "demo", [("demo.ms", "ms", macroPackage("demo.ms"))])
-                .module("b", "demo", [("demo.ms", "ms", macroPackage("demo.ms"))])
+        let projects = Projects()
+            .module("a", "demo", [("demo.ms", "ms", macroPackage("demo.ms"))])
+            .module("b", "demo", [("demo.ms", "ms", macroPackage("demo.ms"))])
 
         // act
         let built = projects.build()
@@ -247,10 +244,9 @@ class BuildPlanTest {
     @TestCase
     func aDirectoryAnotherServerHoldsIsLeftAndTheOtherProjectsBuilt() {
         // arrange
-        let projects =
-            Projects()
-                .module("a", "a", [("a.ms", "ms", macroPackage("a.ms"))])
-                .module("b", "b", [("b.ms", "ms", macroPackage("b.ms"))])
+        let projects = Projects()
+            .module("a", "a", [("a.ms", "ms", macroPackage("a.ms"))])
+            .module("b", "b", [("b.ms", "ms", macroPackage("b.ms"))])
         let held = tryLockCacheDir(projects.outOf("a")).getOrThrow()
 
         // act

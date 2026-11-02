@@ -31,14 +31,13 @@ class SelectionTest {
     @TestCase
     func aNameInACallWidensToTheCallThenOutwards() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             func f() {
                 a.b$0(c)
             }
             "#
-            )
+        )
 
         // assert - between `b` and `(` the name is taken
         @Expect(result, trimIndent(#"
@@ -54,12 +53,11 @@ class SelectionTest {
     @TestCase
     func anArgumentWidensWithItsCommaBeforeTheList() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             let x = f(a, b$0b, c)
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -75,12 +73,11 @@ class SelectionTest {
     @TestCase
     func theLastElementOfAListTakesTheCommaBeforeIt() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             let t = (a, $0b)
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -95,12 +92,11 @@ class SelectionTest {
     @TestCase
     func aTypeArgumentWidensWithItsComma() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             let m: HashMap<St$0ring, Int64> = x
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -116,13 +112,12 @@ class SelectionTest {
     @TestCase
     func aWordInACommentComesBeforeTheComment() {
         // act - the comment is the declaration's, before all of it
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             // one tw$0o three
             let x = 1
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -136,12 +131,11 @@ class SelectionTest {
     @TestCase
     func aPieceOfAnInterpolatedStringThenTheLiteral() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             let s = "one tw$0o ${x} three"
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -156,12 +150,11 @@ class SelectionTest {
     @TestCase
     func codeInsideAnInterpolationWidensToTheInterpolation() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             let s = "a${x$0 + 1}b"
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -177,14 +170,13 @@ class SelectionTest {
     @TestCase
     func aDeclarationComesWithItsDocCommentAndAnnotations() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             /** Doc. */
             @Deprecated
             func f$0() {}
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
@@ -197,12 +189,11 @@ class SelectionTest {
     @TestCase
     func aPositionInsideAnErrorNodeWidensThroughIt() {
         // act
-        let result =
-            selections(
-                #"
+        let result = selections(
+            #"
             let x = )$0
             "#
-            )
+        )
 
         // assert
         @Expect(result, trimIndent(#"
