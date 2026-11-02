@@ -259,6 +259,14 @@ A composition passes a callable object's call-operator signatures to the same so
 operands. Overloads on either side constrain the shared intermediate type; the operand itself
 keeps its object type for hover and navigation (#247).
 
+A synthesized lambda also owns temporary variables for parameters whose types are unwritten
+(#248). Its body's constraints solve them before the lambda is called, including through `|>`;
+the call's arguments never supply missing parameter types. Inference trials journal these
+constraints with their other writes, then the body is inferred again with solved parameter types.
+A parameter left unsolved makes the lambda an error; its variables never escape into results.
+Member-driven parameter inference (`TryInferFromSyntaxInfo`) and power-operator constraints
+remain gaps tracked in #248.
+
 Arguments are checked only against types without variables, an unsolved one an error type.
 Every application and callee is recorded with its solved type; no variable reaches an
 `InferenceResult` or another query's result (D57).
