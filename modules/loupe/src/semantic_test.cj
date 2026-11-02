@@ -142,8 +142,9 @@ class SemanticAnalysisTest {
         let prefix = "func f() { let x = \"😀я\"; "
         @Expect(result.location.excerpt(), Some("x"))
         @Expect(result.location.position(), Some(LineColumn(0, prefix.size)))
-        @Expect(result.location.position(encoding: Encoding.Utf16), Some(LineColumn(0, prefix.toRuneArray().size + 1)))
-        @Expect(result.location.position(encoding: Encoding.Utf32), Some(LineColumn(0, prefix.toRuneArray().size)))
+        let snapshotText = result.location.text().getOrThrow()
+        @Expect(snapshotText.positionOf(result.location.focusRange.start, Encoding.Utf16), LineColumn(0, prefix.toRuneArray().size + 1))
+        @Expect(snapshotText.positionOf(result.location.focusRange.start, Encoding.Utf32), LineColumn(0, prefix.toRuneArray().size))
     }
 
     @TestCase
@@ -155,8 +156,11 @@ class SemanticAnalysisTest {
         let result = analysis.at(at.fileId, at.offset).getOrThrow()
         let target = result.definitions.getOrThrow()[0]
         let copied = result.location.excerpt()
+        let snapshotText = result.location.text().getOrThrow()
         db.setFileText(at.fileId, Rope("func f() {}"))
         @Expect(copied, Some("x"))
+        @Expect(snapshotText.toString(), fixture.files[0].text)
+        @AssertThrows[CancelledException](result.location.text())
         @AssertThrows[CancelledException](result.location.excerpt())
         @AssertThrows[CancelledException](target.origins())
         @AssertThrows[CancelledException](target.typeDisplay())

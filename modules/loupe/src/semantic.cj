@@ -331,21 +331,26 @@ public class SemanticLocation {
         }
     }
 
+    /** Immutable file/expansion text of this revision, also usable for adapter coordinate conversion. */
+    public func text(): ?Rope {
+        analysis.text(file)
+    }
+
     /** Exact focus text (or full syntax with full: true), read from the same snapshot. */
     public func excerpt(full!: Bool = false): ?String {
-        let text = analysis.text(file) ?? return None
+        let text = this.text() ?? return None
         let range = if (full) { fullRange } else { focusRange }
         text.slice(range.start..range.end).toString()
     }
 
-    /** Zero-based line/column at the focus start, in the requested encoding. */
-    public func position(encoding!: Encoding = Encoding.Utf8): ?LineColumn {
-        analysis.text(file).map { text => text.positionOf(focusRange.start, encoding) }
+    /** Zero-based line/UTF-8 byte column at the focus start. Adapters convert using text(). */
+    public func position(): ?LineColumn {
+        text().map { source => source.positionOf(focusRange.start, Encoding.Utf8) }
     }
 
-    /** Compact zero-based line:column in the requested encoding. */
-    public func compact(encoding!: Encoding = Encoding.Utf8): ?String {
-        position(encoding: encoding).map { at => at.toString() }
+    /** Compact zero-based line:UTF-8-byte-column. */
+    public func compact(): ?String {
+        position().map { at => at.toString() }
     }
 
     /** Physical/attached source or an exact copied expansion span; none for generated text. */
