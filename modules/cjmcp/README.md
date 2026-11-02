@@ -181,14 +181,6 @@ resolve them. `text(path)` reads the retained revision; `fileId(path)` resolves
 its file identity. Original HIR/result values, constructors and methods are
 exported directly with `@DerivePython`; immutable fields remain read-only.
 
-### Call-chain audit
-
-`analysis.trackedCallRoots(path)` enumerates original tracked audit roots.
-`analysis.directCalls(definition)` provides immediate call edges and explicit
-coverage gaps; `analysis.callDeclaration(definition)` exposes declaration ownership
-independent of import aliases. See the [audit contract and reproducible runner](api/call-audit.md)
-for shortest paths over original tracked bodies and current limitations.
-
 ### Other analysis queries
 
 An `AnalysisRevision` also offers:
@@ -357,3 +349,6 @@ Update affected recipes and server instructions alongside binding changes. Keep
 examples focused on tasks and native names rather than a handwritten type catalog.
 Validate discovery and examples with the real-process MCP tests above; load only
 the relevant recipe when evaluating an agent task.
+
+The [tracked-call audit](../../docs/audits/call-audit.md) is a separate, partial
+workspace audit with its own CLI runner and recorded evidence.

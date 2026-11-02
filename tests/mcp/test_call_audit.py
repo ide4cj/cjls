@@ -3,7 +3,7 @@ import importlib.util
 from pathlib import Path
 import unittest
 
-spec = importlib.util.spec_from_file_location("call_audit", Path(__file__).resolve().parents[2] / "modules/cjmcp/api/call_audit.py")
+spec = importlib.util.spec_from_file_location("call_audit", Path(__file__).resolve().parents[2] / "scripts/call_audit_lib.py")
 audit = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(audit)
 
@@ -43,7 +43,7 @@ class NativeCallAuditTest(unittest.TestCase):
             self.skipTest("embedded CPython experiment supports native Linux")
         root = Path(__file__).resolve().parents[2]
         binary = os.environ.get("CJMCP_BIN", str(root / "target/release/bin/cjmcp"))
-        code = (root / "modules/cjmcp/api/call_audit.py").read_text() + "\nresult = audit(workspace)\n"
+        code = (root / "scripts/call_audit_lib.py").read_text() + "\nresult = audit(workspace)\n"
         messages = [
             {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
                 "protocolVersion": "2025-11-25", "capabilities": {},

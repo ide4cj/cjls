@@ -82,7 +82,7 @@ were skipped. A later ordinary pre-push run passed all 2547 cases. The earlier
 full run was therefore not clean. An isolated repeat of the
 failed case passed. This is in unchanged `project_model` code; that alone does not establish the crash's cause.
 
-The [analysis contract and PR boundaries](../../modules/cjmcp/api/call-audit.md)
+The [analysis contract and PR boundaries](call-audit.md)
 describe what remains: interprocedural functional values/callback execution, then
 complete virtual/implicit targets and justified dependency models. This report
 must be rerun after those improvements; stage 1 does not complete the original

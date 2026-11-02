@@ -17,7 +17,7 @@ def main():
     parser.add_argument("--summary", type=Path, help="Also save per-root outcomes and gap counts")
     parser.add_argument("--limit", type=int, default=10000)
     args = parser.parse_args()
-    implementation = Path(__file__).resolve().parents[1] / "modules/cjmcp/api/call_audit.py"
+    implementation = Path(__file__).resolve().parents[1] / "scripts/call_audit_lib.py"
     code = implementation.read_text() + f"\nresult = audit(workspace, limit={args.limit!r})\n"
     messages = [
         {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
