@@ -53,8 +53,8 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-Use cjmcp runPython when a Cangjie task needs symbol, usage, type or diagnostic
-information. Follow its server instructions.
+cjmcp is optional. When connected, use runPython for Cangjie symbol, usage,
+type or diagnostic queries and follow its server instructions.
 ```
 
 For an agent host you control, retain the MCP initialization instructions in the

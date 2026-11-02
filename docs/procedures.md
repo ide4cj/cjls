@@ -80,34 +80,17 @@ from timestamps.
 
 ## Agent semantic analysis with cjmcp
 
-Use cjmcp for semantic questions while developing either frontend and the shared
-analysis: resolved declarations and usages, types, selected callees and
-diagnostics. Start with the server instructions; the discoverable
-[`cangjie-mcp` skill](../.agents/skills/cangjie-mcp/SKILL.md) links to recipes for
-unfamiliar queries. It points to the maintained module skill rather than a copy.
-Keep source search for text, documentation and unexported APIs, and use normal
-file tools for edits.
+cjmcp is optional; contributing to cjls does not require installing it. When
+connected, use its server instructions for semantic queries and the
+[`cangjie-mcp` skill](../modules/cjmcp/skills/cangjie-mcp/SKILL.md) for unfamiliar
+operations. Without it, continue with source tools, compiler and tests.
 
 Follow [agent setup](../modules/cjmcp/agent-setup.md) to connect a verified binary
-to the exact checkout being edited. Keep that binary separate from the task's
-build outputs so ongoing development cannot replace the running tool. For Codex,
-put machine-specific paths and explicit `--dir` in the worktree's ignored
-`.codex/config.toml`. Reconfigure and start a new connection when switching
-worktrees; a tool connected to the parent checkout cannot analyze a task's edits.
-
-Include the loaded root, preparation problems and macro status in the first
-useful query. Bound returned evidence to the symbols or files needed for the
-task. Saved edits synchronize before the next call; follow the server's revision
-rules. Changing analyzer or binding source does not change the tool's executable:
-build and verify a candidate separately, then restart with it when testing the
-new behavior. Restart sessions if native proxy retention becomes a problem.
-
-cjmcp and cjls share loupe, so their agreement is not an independent correctness
-check. Compiler probes, regression tests and the checks selected in
-[Development](development.md#choose-checks-for-a-change) remain necessary. If the
-tool is unavailable or preparation is incomplete, report that limitation and
-continue with source/compiler/tests; empty or partial analysis does not establish
-that code is correct.
+to the edited worktree. Keep it separate from task build outputs; testing changed
+analyzer or binding code requires rebuilding and restarting the tool. Include the
+loaded root, preparation problems and macro status with the first useful query.
+cjmcp and cjls share loupe, so their agreement does not replace compiler probes
+or the [required checks](development.md#choose-checks-for-a-change).
 
 ## Editor and LSP integration
 
