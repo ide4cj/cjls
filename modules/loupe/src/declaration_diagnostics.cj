@@ -163,6 +163,7 @@ func declarationDiagnosticsInTree(
                 checkDeclarationAnnotation(node, annotation, owner, local, inheritedForeign, found)
             }
             checkDeclarationModifiers(node, owner, inheritedForeign, found)
+            checkPropertyAccessors(node, active, found)
             if (node.kind == SyntaxKind.ExtendDecl) {
                 checkExtendMutModifiers(db, file, node, found)
             }
