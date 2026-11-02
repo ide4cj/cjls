@@ -10,6 +10,10 @@ is a complete feature list.
 - Read the task-relevant documents below and the affected module's notes.
 - Preserve the architectural boundaries and toolchain constraints they describe.
 - Check unfamiliar Cangjie/compiler behavior in source or a small probe.
+- Use cjmcp `runPython` when a Cangjie task needs symbol, usage, type or
+  diagnostic information. Follow its server instructions; see the
+  [semantic analysis workflow](docs/procedures.md#agent-semantic-analysis-with-cjmcp)
+  for setup, worktree selection and verification limits.
 - Prefer string interpolation when it simplifies fixture sources or expected
   text; preserve literal code, markers and offsets as described in
   [Contributing](CONTRIBUTING.md#test-fixtures). Compute conditional markers and
