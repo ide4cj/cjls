@@ -24,11 +24,14 @@ tool_timeout_sec = 300
 [mcp_servers.cangjie.env]
 cjHeapSize = "2GB"
 CANGJIE_HOME = "/absolute/path/to/cangjie"
+CANGJIE_STDX_PATH = "/absolute/path/to/matching/static/stdx"
 PYTHON_DYNLIB = "/absolute/path/to/libpython3.14.so"
 ```
 
 Use paths for your actual installation; set `PYTHONHOME` too when using a Python
-prefix outside the system installation. The 300-second client timeout is an
+prefix outside the system installation. `CANGJIE_STDX_PATH` is needed when the
+analyzed project's manifests reference it, as cjls's do; use the matching static
+stdx from the project's SDK setup. The 300-second client timeout is an
 example for initial analysis, not a server execution deadline. Tune it for the
 project. Check the entry with `codex mcp list`, then verify tool access in a new
 agent session. The [official Codex MCP documentation](https://developers.openai.com/codex/mcp/)
@@ -50,8 +53,8 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-Use cjmcp runPython when a Cangjie task needs symbol, usage, type or diagnostic
-information. Follow its server instructions.
+cjmcp is optional. When connected, use runPython for Cangjie symbol, usage,
+type or diagnostic queries and follow its server instructions.
 ```
 
 For an agent host you control, retain the MCP initialization instructions in the
