@@ -3,6 +3,10 @@ package cjmcp
 import cjformat.{FormatOptions, SimpleIf, TextEdit}
 import loupe.Reference as AnalysisReference
 import loupe.{
+    CallDeclaration,
+    CallGap,
+    DirectCall,
+    DirectCalls,
     BuiltinDoc,
     CallHierarchyEntry,
     HierarchyCalls,
@@ -261,6 +265,10 @@ private func bodyTypes(): Array<(String, PyObj)> {
 @When[os == "Linux"]
 private func resultTypes(): Array<(String, PyObj)> {
     [
+        ("CallDeclaration", CallDeclaration.pyClass()),
+        ("CallGap", CallGap.pyClass()),
+        ("DirectCall", DirectCall.pyClass()),
+        ("DirectCalls", DirectCalls.pyClass()),
         ("BuiltinDoc", BuiltinDoc.pyClass()),
         ("CallHierarchyEntry", CallHierarchyEntry.pyClass()),
         ("HierarchyCalls", HierarchyCalls.pyClass()),
