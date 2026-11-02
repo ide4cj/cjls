@@ -49,11 +49,11 @@ used in probes below are controls, not workarounds to insert into the repository
 ## After joint generic-callee inference (#246)
 
 With #246, the same Linux SDK census removes all **62 local roots** attributed
-to generic pipeline callees. The current local baseline is **7 roots in 4 files**:
+to generic pipeline callees. At that step, the local baseline was **7 roots in 4 files**:
 one standalone pipeline callback in `item_id.cj` (#248), the two `Option.flatMap`
 roots in `binary.cj` and `macro_host/src/host.cj` (#551), and four callback roots
 in `ty_relations.cj` (#552). The inspected inventory above remains historical.
-The surviving `item_id.cj` row now names only #248.
+The surviving `item_id.cj` row then named only #248.
 
 The fix also removes six downstream nonlocal roots: `definition.cj`'s `??`,
 the two indices in `body_test.cj`, and `expansion.cj`'s two indices and `??`.
@@ -61,6 +61,16 @@ The gate reported only these decreases; no new root or diagnostic was accepted.
 The bounded, unbounded and collection-pipeline compiler-oracle scenarios exercise
 both successful inference and rejection of incompatible consumers. Fixture checks
 also reject any inference variable left in expression, local or pattern results.
+
+## After standalone lambda body inference (#248)
+
+On 2026-11-02, with Linux x86_64 and pinned `cjc 1.3.0-alpha.20261102001050`,
+the gate passes with **6 local roots in 3 files**. Standalone lambda synthesis
+infers the `item_id.cj` callback's `names` from `String.join` in its body,
+removing that remaining local group. The current roots are the two
+`Option.flatMap` roots in `binary.cj` and `macro_host/src/host.cj` (#551), and
+four callback roots in `ty_relations.cj` (#552). The original inventory and the
+#246 checkpoint above remain historical.
 
 ## Compiler and inference controls
 
