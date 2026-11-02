@@ -180,3 +180,11 @@ When changing a workspace/revision method or a described result, update the
 matching stub and affected recipes alongside the binding. Preserve native names
 and read-only fields. Extend the partial types as concrete tasks need them;
 the stub does not introduce a second runtime API.
+
+## Possible call-chain audit
+
+Use `directCalls` and `callDeclaration` for reusable immediate call evidence,
+then `call_audit.py` for on-demand shortest paths. Read the
+[coverage contract and staged implementation](call-audit.md) before interpreting
+empty results; gaps propagate through the traversal and conservative edges remain
+labelled. The recipe audits original tracked bodies without Calca wrappers.

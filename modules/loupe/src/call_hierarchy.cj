@@ -208,15 +208,8 @@ private func callableEntries(
 ): Array<CallHierarchyEntry> {
     let file = db.sourceFile(fileId) ?? return []
     let token = tokenAt(parse(db, file).syntaxNode(), offset, includeInit: true) ?? return []
-    let owner = itemAround(db, ItemFile.Source(file), token.parent)
-    let defs =
-        if (let Some(ctor) <- constructorDefinition(db, owner, token)) {
-            [Definition.DeclDef(ctor)]
-        } else {
-            classifyName(db, file, owner, token) ?? []
-        }
     let entries = ArrayList<CallHierarchyEntry>()
-    for (one in defs) {
+    for (one in callDefinitions(db, file, offset)) {
         let targets = targetsOfDefinition(db, one)
         if (!targets.isEmpty()) {
             entries
@@ -312,7 +305,7 @@ private func completedCallableEntries(
 /**
  * The name actually invoked, excluding the receiver and generic arguments.
  */
-private func calleeName(node: CjSyntaxNode): ?TextRange {
+func calleeName(node: CjSyntaxNode): ?TextRange {
     let reference = RefExpr.cast(node).flatMap { it => it.nameRef() }
     let member = MemberAccessExpr.cast(node).flatMap { it => it.nameRef() }
     if (let Some(name) <- reference) {
@@ -402,4 +395,17 @@ private func callableEntry(
                 }
             }
     CallHierarchyEntry(name, kind, target, definition: definition)
+}
+
+/**
+ * Shared call-site resolution for hierarchy and audit. Preserve declaration identities before
+ * navigation discards targets without source, including the selected initializer overload.
+ */
+func callDefinitions(db: AnalysisDatabase, file: SourceFile, offset: Int64): Array<Definition> {
+    let token = tokenAt(parse(db, file).syntaxNode(), offset, includeInit: true) ?? return []
+    let owner = itemAround(db, ItemFile.Source(file), token.parent)
+    if (let Some(ctor) <- constructorDefinition(db, owner, token)) {
+        return [Definition.DeclDef(ctor)]
+    }
+    classifyName(db, file, owner, token) ?? []
 }

@@ -2,6 +2,10 @@ package cjmcp
 
 import loupe.Reference as AnalysisReference
 import loupe.{
+    CallDeclaration,
+    CallGap,
+    DirectCall,
+    DirectCalls,
     BuiltinDoc,
     CompletionItem,
     CompletionKind,
@@ -256,6 +260,10 @@ private func bodyTypes(): Array<(String, PyObj)> {
 @When[os == "Linux"]
 private func resultTypes(): Array<(String, PyObj)> {
     [
+        ("CallDeclaration", CallDeclaration.pyClass()),
+        ("CallGap", CallGap.pyClass()),
+        ("DirectCall", DirectCall.pyClass()),
+        ("DirectCalls", DirectCalls.pyClass()),
         ("BuiltinDoc", BuiltinDoc.pyClass()),
         ("CompletionItem", CompletionItem.pyClass()),
         ("CompletionKind", CompletionKind.pyClass()),

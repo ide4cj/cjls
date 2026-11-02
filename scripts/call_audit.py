@@ -1,0 +1,39 @@
+#!/usr/bin/env python3
+"""Run the tracked-function audit through the real cjmcp runPython binding."""
+import argparse
+import json
+from pathlib import Path
+import subprocess
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--binary", type=Path, required=True)
+    parser.add_argument("--workspace", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--limit", type=int, default=10000)
+    args = parser.parse_args()
+    implementation = Path(__file__).resolve().parents[1] / "modules/cjmcp/api/call_audit.py"
+    code = implementation.read_text() + f"\nresult = audit(workspace, limit={args.limit!r})\n"
+    messages = [
+        {"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+            "protocolVersion": "2025-11-25", "capabilities": {}, "clientInfo": {"name": "call-audit", "version": "1"}}},
+        {"jsonrpc": "2.0", "method": "notifications/initialized"},
+        {"jsonrpc": "2.0", "id": 2, "method": "tools/call", "params": {"name": "runPython", "arguments": {"code": code}}}]
+    process = subprocess.run([str(args.binary.resolve()), "--dir", str(args.workspace.resolve())],
+                             input="".join(json.dumps(message) + "\n" for message in messages),
+                             stdout=subprocess.PIPE, text=True, check=True)
+    replies = [json.loads(line) for line in process.stdout.splitlines()]
+    response = next(reply for reply in replies if reply.get("id") == 2)
+    payload = response["result"]["structuredContent"]
+    if payload["error"]:
+        raise RuntimeError(payload["error"])
+    report = payload["result"]
+    args.output.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n")
+    print(json.dumps({"tracked": len(report["reports"]), "analyzed": report["declarations_analyzed"],
+                      "with_findings": sum(bool(row["findings"]) for row in report["reports"]),
+                      "complete": sum(row["coverage_complete"] for row in report["reports"])}))
+
+
+if __name__ == "__main__":
+    main()
