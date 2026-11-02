@@ -3,6 +3,7 @@ members = [
     "modules/calca",
     "modules/cjformat",
     "modules/cjls",
+    "modules/cjmcp",
     "modules/cjo",
     "modules/cjsyntax",
     "modules/fbs_codegen",

@@ -1,7 +1,6 @@
 package loupe
 
 import std.collection.*
-import std.deriving.*
 import cjsyntax.{CjSyntaxNode, CjSyntaxToken}
 import cjsyntax.ast.{ImportAlias, Name, identText, isIdent}
 import loupe.db.{AnalysisDatabase, Package, SourceFile}
@@ -22,19 +21,30 @@ import loupe.hir.{
 }
 import loupe.syntax.parse
 import loupe.vfs.FileId
+import py_interop.*
+import py_interop.internal_macros.DerivePython
 
 /**
  * A name of the workspace meaning what the one asked about does: where it is, how it reaches it, as
  * `RelatedHighlight` has it, and whether it is the name a declaration gives.
  */
-@Derive[Equatable]
-public struct Reference {
+@DerivePython
+public struct Reference <: Equatable<Reference> {
     public Reference(
         public let fileId: FileId,
         public let range: TextRange,
         public let access: ?ReferenceAccess,
         public let isDeclaration: Bool
     ) {}
+
+    public operator func ==(other: Reference): Bool {
+        fileId == other.fileId && range == other.range && access == other.access &&
+            isDeclaration == other.isDeclaration
+    }
+
+    public operator func !=(other: Reference): Bool {
+        !(this == other)
+    }
 }
 
 /**
