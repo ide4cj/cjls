@@ -215,7 +215,7 @@ func tools(): JsonValue {
             (
                 "description",
                 JsonString(
-                    "Run Python over native Cangjie analysis. Use workspace and workspace.analysis(); assign bounded JSON to result or print output. Follow server instructions for core queries; load a task recipe only for unfamiliar APIs. Imports and local I/O have process permissions; no hard timeout."
+                    "Query native Cangjie analysis with Python; follow server instructions. Python has process permissions and no hard timeout."
                 )
             ),
             ("inputSchema", schema),

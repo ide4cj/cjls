@@ -50,10 +50,8 @@ rule to the target project's `AGENTS.md`, `CLAUDE.md`, or equivalent persistent
 project instructions so tool selection does not depend on a user reminder:
 
 ```text
-Use cjmcp runPython for Cangjie semantic questions and before code changes.
-Follow its server instructions; load the cangjie-mcp skill only for unfamiliar
-operations. Combine workspace health checks with the first task query.
-Use ordinary tools for editing, docs/configs and compiler/test validation.
+Use cjmcp runPython when a Cangjie task needs symbol, usage, type or diagnostic
+information. Follow its server instructions.
 ```
 
 For an agent host you control, retain the MCP initialization instructions in the

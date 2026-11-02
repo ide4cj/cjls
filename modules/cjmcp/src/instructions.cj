@@ -3,9 +3,10 @@ package cjmcp
 // Keep the common path usable without loading a skill or exploring the bindings first.
 let agentInstructions =
     #"
-Use runPython for Cangjie declarations, usages, types and diagnostics before
-broad source searches. Batch queries and return bounded JSON via result.
+Use runPython when a Cangjie task needs declarations, usages, types or diagnostics.
 workspace and native types are injected; do not import loupe.
+Batch queries; project native attributes to bounded JSON primitives in result,
+including paths, relevant source/ranges and truncation counts.
 
 Capture a = workspace.analysis() in each call. Core queries:
 - a.symbols(name, limit) -> matches with .fileId and .symbol (name, range,
@@ -15,17 +16,10 @@ Capture a = workspace.analysis() in each call. Core queries:
 - workspace.definition(path, byteOffset), hover(path, byteOffset), diagnostics(path).
 - a.declarations(path) -> DefIds; a.item(defId), a.infer(defId), a.typeText(ty).
 
-In the first task query also check workspace.root, workspace.problems and
-workspace.hasExpandedMacros; report mismatched roots or incomplete analysis.
-No separate setup/discovery call is needed. Use task recipes from cangjie-mcp
-only for unfamiliar operations; dir(type(value)) is a fallback, not onboarding.
-Native values use attributes; convert them to JSON primitives before returning.
-
+Include workspace.root, workspace.problems and workspace.hasExpandedMacros in the
+first task query; report mismatched roots or incomplete analysis.
 Ranges are UTF-8 bytes, end exclusive: slice a.text(path).encode('utf-8').
-Save edits with normal tools, then make a new call and reacquire analysis/IDs.
-Inputs synchronize before each script; reload() cannot refresh a running one.
-Keep identities within their revision; expanded ranges may belong to macro output.
-Use compiler/tests for validation and source tools for analysis gaps/docs/configs.
-Python has process permissions and no hard timeout; inspect effects before retrying
-failed scripts. Calls have fresh globals and run sequentially.
+Save edits with ordinary tools; inputs synchronize before the next call.
+Reacquire analysis/IDs per call; globals are fresh. Validate changes with compiler/tests.
+Load a cangjie-mcp recipe only for an unfamiliar operation.
 "#
