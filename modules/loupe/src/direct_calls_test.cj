@@ -2,9 +2,9 @@ package loupe
 
 import std.unittest.*
 import std.unittest.testmacro.*
+import loupe.db.{MappedSpan, SpanOrigin}
 import loupe.fixture.*
 import loupe.hir.*
-import loupe.db.{MappedSpan, SpanOrigin}
 import rope.Rope
 
 @Test
@@ -27,11 +27,13 @@ class DirectCallsTest {
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let def = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+
         // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), def.id))
+
         // assert
         @Expect(calls.edges.map { edge => itemOf(db, edge.target).getOrThrow().names[0] }, ["target"])
-        @Expect(calls.edges[0].conservative, false)
+        @Expect(calls.edges[0].isConservative, false)
         @Expect(calls.gaps.isEmpty())
     }
 
@@ -54,29 +56,49 @@ class DirectCallsTest {
         let file = db.sourceFile(fixture.files[1].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
         let def = DefId(db, ItemFile.Source(file), item.id)
+
         // act
         let first = directCalls(db, def)
+        let firstDeclaration = callDeclaration(db, first.edges[0].target)
+
         // assert
         @Expect(first.edges.size, 1)
-        @Expect(callDeclaration(db, first.edges[0].target).packageName, "m.a")
-        @Expect(callDeclaration(db, first.edges[0].target).name, "target")
+        @Expect(firstDeclaration.packageName, "m.a")
+        @Expect(firstDeclaration.name, "target")
+
+        // act: edit the caller body
         db.setFileText(
             fixture.files[1].fileId,
             Rope(fixture.files[1].text.replace("alias()", "alias(); alias()"))
         )
-        @Expect(directCalls(db, def).edges.size, 2)
+        let editedCaller = directCalls(db, def)
+
+        // assert
+        @Expect(editedCaller.edges.size, 2)
+
+        // act: retarget the import alias
         db.setFileText(
             fixture.files[1].fileId,
             Rope(fixture.files[1].text.replace("m.a.target", "m.a.other"))
         )
-        @Expect(callDeclaration(db, directCalls(db, def).edges[0].target).name, "other")
-        let target = directCalls(db, def).edges[0].target
-        @Expect(directCalls(db, target).edges.isEmpty())
+        let retargeted = directCalls(db, def)
+        let target = retargeted.edges[0].target
+        let declaration = callDeclaration(db, target)
+        let beforeTargetEdit = directCalls(db, target)
+
+        // assert
+        @Expect(declaration.name, "other")
+        @Expect(beforeTargetEdit.edges.isEmpty())
+
+        // act: edit the target body
         db.setFileText(
             fixture.files[0].fileId,
             Rope(fixture.files[0].text.replace("other(): Unit {}", "other(): Unit { target() }"))
         )
-        @Expect(directCalls(db, target).edges.size, 1)
+        let editedTarget = directCalls(db, target)
+
+        // assert
+        @Expect(editedTarget.edges.size, 1)
     }
 
     @TestCase
@@ -103,17 +125,20 @@ class DirectCallsTest {
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+
         // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+
         // assert
         let reasons = calls.gaps.map { gap => gap.reason }
         @Expect(reasons.contains("functional-value"))
         @Expect(reasons.contains("unresolved-call"))
         @Expect(reasons.contains("virtual-dispatch"))
         @Expect(reasons.contains("implicit-initialization"))
-        @Expect(calls.edges.any { edge => edge.conservative })
+        @Expect(calls.edges.any { edge => edge.isConservative })
         @Expect(!calls.edges.any { edge => itemOf(db, edge.target).getOrThrow().names == ["target"] })
     }
+
     @TestCase
     func overloadsOperatorsPropertiesAndReturnedFunctionsKeepEvidenceAndGaps() {
         // arrange
@@ -142,14 +167,15 @@ class DirectCallsTest {
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
+
         // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+
         // assert
         let targets = calls.edges.map { edge => itemOf(db, edge.target).getOrThrow() }
         @Expect(targets.filter { target => target.names == ["f"] }.size, 1)
         @Expect(targets.any { target => target.kind == ItemKind.Init })
         @Expect(calls.edges.any { edge => edge.resolution == "inferred-operator" })
-        // assert
         let reasons = calls.gaps.map { gap => gap.reason }
         @Expect(reasons.contains("implicit-operator"))
         @Expect(reasons.contains("property-or-initialization"))
@@ -165,13 +191,20 @@ class DirectCallsTest {
         let db = fixture.database(binaries: [stdCjoRead("std.core", stdCjo("std.core"))])
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
         let item = itemTree(db, file).items[0]
+
         // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+
         // assert
         @Expect(calls.edges.size, 2)
         for (edge in calls.edges) {
-            @Expect(callDeclaration(db, edge.target).packageName, "std.core")
-            @Expect(directCalls(db, edge.target).gaps[0].reason, "unavailable-body")
+            // act
+            let declaration = callDeclaration(db, edge.target)
+            let targetCalls = directCalls(db, edge.target)
+
+            // assert
+            @Expect(declaration.packageName, "std.core")
+            @Expect(targetCalls.gaps[0].reason, "unavailable-body")
         }
     }
 
@@ -196,38 +229,51 @@ class DirectCallsTest {
         )
         let db = fixture.database()
         let file = db.sourceFile(fixture.files[0].fileId).getOrThrow()
-        let output = "func query(): Unit { infrastructure() }"
+        const OUTPUT = "func query(): Unit { infrastructure() }"
         let start =
             match (requestFor(db, file, "CalcaTracked").input.spans[0].origin) {
                 case FromSource(range) => range.start + 5
                 case _ => throw FixtureException("expected copied macro input")
             }
+
+        // act: supply the macro expansion
         answer(
             db,
             file,
             "CalcaTracked",
-            output,
+            OUTPUT,
             [
                 MappedSpan(TextRange(0, 5), SpanOrigin.FromCall),
                 MappedSpan(TextRange(5, 10), SpanOrigin.FromSource(TextRange(start, start + 5))),
-                MappedSpan(TextRange(10, output.size), SpanOrigin.FromCall)
+                MappedSpan(TextRange(10, OUTPUT.size), SpanOrigin.FromCall)
             ]
         )
-        @Expect(trackedCallRoots(db, file.fileId(db)).size, 1)
+        let roots = trackedCallRoots(db, file.fileId(db))
         let sourceQuery = DefId(
             db,
             ItemFile.Source(file),
             itemTree(db, file).items.filter { item => item.names == ["query"] }[0].id
         )
-        @Expect(expandedDeclOf(db, sourceQuery).isSome())
+        let expanded = expandedDeclOf(db, sourceQuery)
+
+        // assert
+        @Expect(roots.size, 1)
+        @Expect(expanded.isSome())
+
+        // act: resolve the caller against the expanded declaration
         let item = itemTree(db, file).items.filter { item => item.names == ["caller"] }[0]
-        // act
         let calls = directCalls(db, DefId(db, ItemFile.Source(file), item.id))
+
         // assert
         @Assert(calls.edges.size, 1)
         let query = calls.edges[0].target
         @Expect(query.file(db), ItemFile.Source(file))
+
+        // act: inspect the original body through the resolved target
         let nested = directCalls(db, query)
-        @Expect(nested.edges.map { edge => callDeclaration(db, edge.target).name }, ["target"])
+        let names = nested.edges.map { edge => callDeclaration(db, edge.target).name }
+
+        // assert
+        @Expect(names, ["target"])
     }
 }

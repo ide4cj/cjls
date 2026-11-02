@@ -4,35 +4,28 @@ Status: accepted, 2026-11-02
 
 ## Context
 
-An audit of tracked queries needs possible call chains to declarations owned by
-specific packages. Inference retains selected callees but is not a complete call
-graph. Navigation drops unavailable binary locations; ordinary Call Hierarchy
-also attributes anonymous lambdas to their enclosing function. Those choices
-cannot justify negative reachability answers. Calca wrappers add implementation
-calls that do not belong to the original tracked function's user body.
+Tracked queries can return stale cached results if they read files, clocks or
+randomness outside declared inputs. Auditing those paths needs declaration
+ownership and call evidence. Inferred callees alone omit unsupported execution,
+and Call Hierarchy attributes anonymous lambda calls to their enclosing function.
+Neither can establish absence of a path. Calca wrappers also add infrastructure
+calls outside the original tracked body.
 
 ## Decision
 
-Provide an explicitly requested immediate-call query in loupe, keyed by DefId,
-with declaration identity, source site, resolution character and coverage gaps.
-Share call-site declaration resolution with Call Hierarchy before conversion to
-navigation entries. Keep original tracked source bodies as audit roots and map
-copied CalcaTracked declaration names back to that source identity. Do not
-interpret Calca's generated wrapper as additional user-body execution.
+Expose immediate call evidence in loupe, sharing declaration resolution with
+Call Hierarchy while retaining coverage gaps. Audit original CalcaTracked bodies
+and map copied expansion declarations back to their source identity. The current
+constraints are [A39](../design/02-analysis.md#a39-partial-call-evidence).
 
-Prune nested function/lambda bodies unless their execution is modeled. Report
-unsupported value flow, dispatch, initialization, macro behavior and unavailable
-bodies explicitly. Do not invent library callback models. Other macros remain
-coverage gaps. Their token arguments are not unconditional calls.
-
-Run transitive searches in the requesting client, over this common model.
-Breadth-first search finds a minimum number of edges per reachable declaration;
-retain conservative edge labels and propagate successor gaps independently of
-positive findings. No deep analysis becomes an inference or LSP prerequisite.
+Keep transitive traversal in the requesting client: its target selection and
+search policy do not belong in language inference or an LSP prerequisite.
+A dedicated call model can improve independently of interactive analysis.
 
 ## Consequences
 
-The first stage is useful evidence but cannot certify the full requested audit.
-Functional value flow and runtime/implicit targets can extend the same edge and
-gap contract in later PRs. The loupe call model documents its coverage contract
-independently of clients. An empty incomplete traversal remains unknown. A negative answer is scoped to the constructed model.
+Clients can find possible call chains and distinguish missing evidence from
+modeled absence. This partial model cannot complete the tracked-query audit;
+functional value flow, runtime dispatch and implicit effects need further work.
+API details and omission reasons stay beside the source in
+[`direct_calls.cj`](../../modules/loupe/src/direct_calls.cj).
